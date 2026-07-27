@@ -1,0 +1,83 @@
+# ─── Dependencies ───────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Build Outputs ──────────────────────────────────────────────
+dist/
+dist-electron/
+build/
+*.tsbuildinfo
+
+# ─── Environment & Secrets ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.test
+*.pem
+*.key
+*.cert
+
+# ─── IDE / Editor ───────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─── OS Files ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.dll
+*.dylib
+
+# ─── Logs ───────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Testing & Coverage ─────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+
+# ─── TypeScript ─────────────────────────────────────────────────
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ─── Misc ───────────────────────────────────────────────────────
+.cache/
+.tmp/
+.temp/
+*.tgz
+.eslintcache
+.stylelintcache
+.next/
+out/
+.turbo/
+
+# ─── Electron ───────────────────────────────────────────────────
+out/
+release/
+
+# ─── Vite ───────────────────────────────────────────────────────
+*.local
+
+# ─── Tailwind ───────────────────────────────────────────────────
+tailwind.config.js
+postcss.config.js
