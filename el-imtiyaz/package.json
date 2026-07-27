@@ -9,9 +9,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "vite build && tsc -p electron/tsconfig.json && electron .",
+    "dev:electron": "vite build && tsc -p electron/tsconfig.json && mv dist-electron/preload.js dist-electron/preload.cjs && electron .",
     "build": "tsc -b && vite build",
-    "build:electron": "tsc -p electron/tsconfig.json",
+    "build:electron": "tsc -p electron/tsconfig.json && mv dist-electron/preload.js dist-electron/preload.cjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx",
@@ -19,7 +19,7 @@
     "test:watch": "vitest",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron .\"",
     "electron:build": "vite build && tsc -p electron/tsconfig.json && electron-builder",
-    "start": "electron . --no-sandbox"
+    "start": "vite build && tsc -p electron/tsconfig.preload.json && mv dist-electron/preload.js dist-electron/preload.cjs && tsc -p electron/tsconfig.json && electron . --no-sandbox"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

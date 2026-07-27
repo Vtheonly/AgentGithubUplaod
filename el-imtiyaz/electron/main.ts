@@ -22,7 +22,8 @@ function createWindow(): BrowserWindow {
     autoHideMenuBar: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: {
-      preload: join(__dirname, "preload.js"),
+      // Use .cjs for preload — ESM preloads can't be require()'d by Electron
+      preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
