@@ -17,6 +17,7 @@ import { FinancialsPage } from "../features/financials/financials-page";
 import { PersonnelPage } from "../features/personnel/personnel-page";
 import { RoutingPage } from "../features/routing/routing-page";
 import { SettingsPage } from "../features/settings/settings-page";
+import { ProfilePage } from "../features/profile/profile-page";
 
 export function AppShell() {
   return (
@@ -36,6 +37,7 @@ export function AppShell() {
             <Route path="/personnel" element={<PersonnelPage />} />
             <Route path="/routing" element={<RoutingPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

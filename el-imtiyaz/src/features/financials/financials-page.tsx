@@ -30,13 +30,14 @@ import { KpiCard } from "../../shared/components/kpi-card";
 import { StatusChip } from "../../shared/components/status-chip";
 import { ComingSoonCard } from "../../shared/components/coming-soon-card";
 import { Card, CardContent } from "../../shared/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../shared/ui/tabs";
+import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { CounterPaymentModal } from "./counter-payment-modal";
 import { ExpenseSubmitModal } from "./expense-submit-modal";
 import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
+import { ReceiptsTab } from "./receipts-tab";
 
 export function FinancialsPage() {
   const { t } = useTranslation();
@@ -94,34 +95,31 @@ export function FinancialsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="payments" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
-        <TabsList>
-          <TabsTrigger value="payments">Paiements</TabsTrigger>
-          <TabsTrigger value="installments">Tranches</TabsTrigger>
-          <TabsTrigger value="debt">Créances</TabsTrigger>
-          <TabsTrigger value="expenses">Dépenses</TabsTrigger>
-          <TabsTrigger value="receipts">Reçus</TabsTrigger>
-        </TabsList>
+      <PageTabs defaultValue="payments" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+        <PageTabList>
+          <PageTab value="payments" label="Paiements" />
+          <PageTab value="installments" label="Tranches" />
+          <PageTab value="debt" label="Créances" />
+          <PageTab value="expenses" label="Dépenses" />
+          <PageTab value="receipts" label="Reçus" />
+        </PageTabList>
 
-        <TabsContent value="payments" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="payments" className="flex-1 overflow-y-auto mt-4">
           <PaymentsTab />
-        </TabsContent>
-        <TabsContent value="installments" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="installments" className="flex-1 overflow-y-auto mt-4">
           <InstallmentScheduleTab />
-        </TabsContent>
-        <TabsContent value="debt" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="debt" className="flex-1 overflow-y-auto mt-4">
           <DebtTab />
-        </TabsContent>
-        <TabsContent value="expenses" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="expenses" className="flex-1 overflow-y-auto mt-4">
           <ExpensesTab onOpenExpense={openExpense} />
-        </TabsContent>
-        <TabsContent value="receipts" className="flex-1 overflow-y-auto mt-4">
-          <ComingSoonCard
-            title="Reçus"
-            description="Deux formats générés automatiquement: Reçu de paiement récent (REC-2026-XXXXX) et Relevé de compte complet. Pas de bouton manuel."
-          />
-        </TabsContent>
-      </Tabs>
+        </PageTabContent>
+        <PageTabContent value="receipts" className="flex-1 overflow-y-auto mt-4">
+          <ReceiptsTab />
+        </PageTabContent>
+      </PageTabs>
 
       <CounterPaymentModal open={paymentOpen} onOpenChange={setPaymentOpen} />
       <ExpenseSubmitModal

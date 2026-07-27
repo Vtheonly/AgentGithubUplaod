@@ -16,7 +16,7 @@ import { LEVEL_LABELS_FR, STUDENT_STATUS_LABELS_FR } from "../../domain/model/st
 import { useObservable } from "../../shared/hooks/use-observable";
 import { PageHeader } from "../../shared/components/page-header";
 import { Card, CardContent } from "../../shared/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../shared/ui/tabs";
+import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
@@ -25,16 +25,27 @@ import { AsyncContent, EmptyState } from "../../shared/components/state-views";
 import { ComingSoonCard } from "../../shared/components/coming-soon-card";
 import { BatchRegistrationModal } from "./batch-registration-modal";
 import { ParentDetailDrawer } from "./parent-detail-drawer";
+import { StudentDetailDrawer } from "./student-detail-drawer";
+import { ExcelImportModal } from "./excel-import-modal";
+import { FileSpreadsheet, Upload } from "lucide-react";
 
 export function CrmPage() {
   const { t } = useTranslation();
   const [batchOpen, setBatchOpen] = useState(false);
   const [drawerParentId, setDrawerParentId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [studentDrawerId, setStudentDrawerId] = useState<string | null>(null);
+  const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   function openParent(parentId: string) {
     setDrawerParentId(parentId);
     setDrawerOpen(true);
+  }
+
+  function openStudent(studentId: string) {
+    setStudentDrawerId(studentId);
+    setStudentDrawerOpen(true);
   }
 
   return (
@@ -44,6 +55,9 @@ export function CrmPage() {
         description="Gestion des parents et des élèves — inscription groupée 1→N, navigation bidirectionnelle"
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" /> Import Excel
+            </Button>
             <Button variant="outline" size="sm"><Download className="h-4 w-4" /> {t("common.export")}</Button>
             <Button size="sm" onClick={() => setBatchOpen(true)}>
               <Plus className="h-4 w-4" /> Nouvelle inscription
@@ -51,25 +65,57 @@ export function CrmPage() {
           </>
         }
       />
-      <Tabs defaultValue="parents" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
-        <TabsList>
-          <TabsTrigger value="parents">Parents</TabsTrigger>
-          <TabsTrigger value="students">Élèves</TabsTrigger>
-          <TabsTrigger value="batch">Inscription groupée</TabsTrigger>
-        </TabsList>
-        <TabsContent value="parents" className="flex-1 overflow-y-auto mt-4">
+      <PageTabs defaultValue="parents" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+        <PageTabList>
+          <PageTab value="parents" label="Parents" />
+          <PageTab value="students" label="Élèves" />
+          <PageTab value="batch" label="Inscription groupée" />
+        </PageTabList>
+        <PageTabContent value="parents" className="flex-1 overflow-y-auto mt-4">
           <ParentsTab onOpenParent={openParent} />
-        </TabsContent>
-        <TabsContent value="students" className="flex-1 overflow-y-auto mt-4">
-          <StudentsTab />
-        </TabsContent>
-        <TabsContent value="batch" className="flex-1 overflow-y-auto mt-4">
-          <ComingSoonCard
-            title="Inscription groupée (Parent + N élèves)"
-            description="Cliquez sur 'Nouvelle inscription' en haut à droite pour démarrer l'assistant 4 étapes. Transaction atomique BEGIN…COMMIT."
-          />
-        </TabsContent>
-      </Tabs>
+        </PageTabContent>
+        <PageTabContent value="students" className="flex-1 overflow-y-auto mt-4">
+          <StudentsTab onOpenStudent={openStudent} />
+        </PageTabContent>
+        <PageTabContent value="batch" className="flex-1 overflow-y-auto mt-4">
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <FileSpreadsheet className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Inscription groupée (Parent + N élèves)</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cliquez sur 'Nouvelle inscription' pour l'assistant 4 étapes, ou
+                    'Import Excel' pour le pipeline bulk 5 étapes (plan §14).
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Button variant="outline" className="justify-start h-auto py-3" onClick={() => setBatchOpen(true)}>
+                  <div className="flex items-start gap-2">
+                    <Plus className="h-4 w-4 mt-0.5" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Assistant 4 étapes</p>
+                      <p className="text-xs text-muted-foreground">Inscription manuelle d'un parent + enfants</p>
+                    </div>
+                  </div>
+                </Button>
+                <Button variant="outline" className="justify-start h-auto py-3" onClick={() => setImportOpen(true)}>
+                  <div className="flex items-start gap-2">
+                    <Upload className="h-4 w-4 mt-0.5" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Import Excel bulk</p>
+                      <p className="text-xs text-muted-foreground">Pipeline atomique 5 étapes (plan §14)</p>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </PageTabContent>
+      </PageTabs>
 
       <BatchRegistrationModal
         open={batchOpen}
@@ -85,6 +131,22 @@ export function CrmPage() {
           setBatchOpen(true);
           // Note: in a future iteration we could pre-fill the parent step.
           void pid;
+        }}
+      />
+      <StudentDetailDrawer
+        studentId={studentDrawerId}
+        open={studentDrawerOpen}
+        onOpenChange={setStudentDrawerOpen}
+        onOpenParent={(parentId) => {
+          setStudentDrawerOpen(false);
+          openParent(parentId);
+        }}
+      />
+      <ExcelImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => {
+          // Optional: refresh lists — observable handles this automatically
         }}
       />
     </div>
@@ -187,7 +249,7 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   );
 }
 
-function StudentsTab() {
+function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void }) {
   const repos = useRepositories();
   const students = useObservable(() => repos.students.observe(), []);
   return (
@@ -206,7 +268,11 @@ function StudentsTab() {
         ) : (
           <ul className="divide-y divide-border">
             {students.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 p-3 hover:bg-accent/5">
+              <li
+                key={s.id}
+                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/5"
+                onClick={() => onOpenStudent(s.id)}
+              >
                 <Avatar className="h-9 w-9">
                   <AvatarFallback>
                     {s.firstName[0]}{s.lastName[0]}

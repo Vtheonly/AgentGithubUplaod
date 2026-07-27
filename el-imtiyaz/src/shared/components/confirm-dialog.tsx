@@ -3,17 +3,12 @@
  *
  * Per the plan §10: manual one-click triggers require 2-click confirmation
  * (initiate + confirm). This component provides the confirm step.
+ *
+ * Iteration 3: now implemented on top of UnifiedModal so the visual
+ * language is identical to every other modal in the application.
  */
 import type { ReactNode } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import { Button } from "../ui/button";
+import { ConfirmModal } from "./unified-modal";
 
 export function ConfirmDialog({
   open,
@@ -35,27 +30,18 @@ export function ConfirmDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={destructive ? "destructive" : "default"}
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
-            }}
-          >
-            {confirmLabel}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={description}
+      confirmLabel={confirmLabel}
+      cancelLabel={cancelLabel}
+      destructive={destructive}
+      onConfirm={onConfirm}
+    />
   );
 }
+
+// Re-export for new code; ConfirmDialog remains for backward compatibility.
+export { ConfirmModal };

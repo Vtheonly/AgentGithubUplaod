@@ -20,7 +20,7 @@ import { PageHeader } from "../../shared/components/page-header";
 import { StatusChip } from "../../shared/components/status-chip";
 import { ComingSoonCard } from "../../shared/components/coming-soon-card";
 import { Card, CardContent } from "../../shared/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../shared/ui/tabs";
+import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { Progress } from "../../shared/ui/progress";
@@ -57,32 +57,32 @@ export function PersonnelPage() {
           </>
         }
       />
-      <Tabs defaultValue="directory" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
-        <TabsList>
-          <TabsTrigger value="directory">Annuaire</TabsTrigger>
-          <TabsTrigger value="releve">Relevé</TabsTrigger>
-          <TabsTrigger value="audit">Journal d'audit</TabsTrigger>
-          <TabsTrigger value="workflows">Workflows</TabsTrigger>
-        </TabsList>
-        <TabsContent value="directory" className="flex-1 overflow-y-auto mt-4">
+      <PageTabs defaultValue="directory" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+        <PageTabList>
+          <PageTab value="directory" label="Annuaire" />
+          <PageTab value="releve" label="Relevé" />
+          <PageTab value="audit" label="Journal d'audit" />
+          <PageTab value="workflows" label="Workflows" />
+        </PageTabList>
+        <PageTabContent value="directory" className="flex-1 overflow-y-auto mt-4">
           <DirectoryTab onOpenDetail={openDetail} />
-        </TabsContent>
-        <TabsContent value="releve" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="releve" className="flex-1 overflow-y-auto mt-4">
           <ReleveTab />
-        </TabsContent>
-        <TabsContent value="audit" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="audit" className="flex-1 overflow-y-auto mt-4">
           <ComingSoonCard
             title="Journal d'audit"
             description="Le journal d'audit complet est accessible depuis Paramètres → Journal d'audit (réservé SuperAdmin + Agent Financier)."
           />
-        </TabsContent>
-        <TabsContent value="workflows" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="workflows" className="flex-1 overflow-y-auto mt-4">
           <ComingSoonCard
             title="Moniteur de workflows"
             description="Exécutions des Edge Functions / DAG. Vue en lecture seule sur mobile. L'éditeur DAG visuel est réservé au terminal de bureau."
           />
-        </TabsContent>
-      </Tabs>
+        </PageTabContent>
+      </PageTabs>
 
       <PersonnelDetailDrawer
         personnelId={drawerId}

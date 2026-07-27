@@ -483,6 +483,66 @@ class MockSubjectRepository implements SubjectRepository {
     return Err(Errors.unknown("not implemented in mock"));
   }
   async removeSubjectFromClass(_id: string): Promise<Result<void>> { return Ok(undefined); }
+
+  async createSubject(input: Omit<Subject, "id" | "tenantId">): Promise<Result<Subject>> {
+    await delay(120);
+    const subj: Subject = {
+      ...input,
+      id: `subj-${Date.now()}`,
+      tenantId: "tenant-el-imtiyaz-oran-001",
+    };
+    store.subjects = [...store.subjects, subj];
+    store.subjects$.set(store.subjects);
+    appendAudit({
+      action: AuditActions.SubjectCreate,
+      entityType: "subject",
+      entityId: subj.id,
+      actorId: "mock",
+      actorName: "Mock",
+      diff: { before: null, after: subj },
+      note: `Matière créée: ${subj.name} (${subj.code})`,
+    });
+    return Ok(subj);
+  }
+
+  async updateSubject(id: string, updates: Partial<Omit<Subject, "id" | "tenantId">>): Promise<Result<Subject>> {
+    await delay(120);
+    const idx = store.subjects.findIndex((s) => s.id === id);
+    if (idx < 0) return Err(Errors.unknown("Subject not found"));
+    const before = store.subjects[idx];
+    const after: Subject = { ...before, ...updates };
+    store.subjects = store.subjects.map((s) => (s.id === id ? after : s));
+    store.subjects$.set(store.subjects);
+    appendAudit({
+      action: AuditActions.SubjectUpdate,
+      entityType: "subject",
+      entityId: id,
+      actorId: "mock",
+      actorName: "Mock",
+      diff: { before, after },
+      note: updates.coefficient != null
+        ? `Coefficient modifié: ${before.coefficient} → ${updates.coefficient} (GPA sera recalculé)`
+        : "Matière modifiée",
+    });
+    return Ok(after);
+  }
+
+  async archiveSubject(id: string): Promise<Result<void>> {
+    await delay(120);
+    const before = store.subjects.find((s) => s.id === id);
+    store.subjects = store.subjects.filter((s) => s.id !== id);
+    store.subjects$.set(store.subjects);
+    appendAudit({
+      action: AuditActions.SubjectArchive,
+      entityType: "subject",
+      entityId: id,
+      actorId: "mock",
+      actorName: "Mock",
+      diff: { before, after: null },
+      note: `Matière archivée: ${before?.name ?? id}`,
+    });
+    return Ok(undefined);
+  }
 }
 
 class MockGradeRepository implements GradeRepository {

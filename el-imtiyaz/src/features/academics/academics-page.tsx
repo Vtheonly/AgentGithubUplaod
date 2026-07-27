@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Download, Filter, ChevronRight } from "lucide-react";
 import { PageHeader } from "../../shared/components/page-header";
 import { Card, CardContent } from "../../shared/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../shared/ui/tabs";
+import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { Progress } from "../../shared/ui/progress";
@@ -20,6 +20,8 @@ import { useRepositories } from "../../infrastructure/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { LEVEL_LABELS_FR } from "../../domain/model/student";
 import { HomeworkPushModal } from "./homework-push-modal";
+import { HomeworkHistoryTab } from "./homework-history-tab";
+import { SubjectsDirectoryTab } from "./subjects-directory-tab";
 import { useState } from "react";
 
 export function AcademicsPage() {
@@ -41,25 +43,22 @@ export function AcademicsPage() {
           </>
         }
       />
-      <Tabs defaultValue="classes" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
-        <TabsList>
-          <TabsTrigger value="classes">Classes</TabsTrigger>
-          <TabsTrigger value="subjects">Matières</TabsTrigger>
-          <TabsTrigger value="homework">Devoirs</TabsTrigger>
-        </TabsList>
-        <TabsContent value="classes" className="flex-1 overflow-y-auto mt-4">
+      <PageTabs defaultValue="classes" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+        <PageTabList>
+          <PageTab value="classes" label="Classes" />
+          <PageTab value="subjects" label="Matières" />
+          <PageTab value="homework" label="Devoirs" />
+        </PageTabList>
+        <PageTabContent value="classes" className="flex-1 overflow-y-auto mt-4">
           <ClassesTab />
-        </TabsContent>
-        <TabsContent value="subjects" className="flex-1 overflow-y-auto mt-4">
-          <SubjectsTab />
-        </TabsContent>
-        <TabsContent value="homework" className="flex-1 overflow-y-auto mt-4">
-          <ComingSoonCard
-            title="Devoirs diffusés"
-            description="Historique des devoirs par classe. Push automatique vers le portail web parent/élève + notification FCM."
-          />
-        </TabsContent>
-      </Tabs>
+        </PageTabContent>
+        <PageTabContent value="subjects" className="flex-1 overflow-y-auto mt-4">
+          <SubjectsDirectoryTab />
+        </PageTabContent>
+        <PageTabContent value="homework" className="flex-1 overflow-y-auto mt-4">
+          <HomeworkHistoryTab />
+        </PageTabContent>
+      </PageTabs>
 
       <HomeworkPushModal open={homeworkOpen} onOpenChange={setHomeworkOpen} />
     </div>
@@ -122,38 +121,3 @@ function ClassesTab() {
   );
 }
 
-function SubjectsTab() {
-  const repos = useRepositories();
-  const subjects = useObservable(() => repos.subjects.observe(), []);
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <Button variant="outline" size="sm"><Filter className="h-4 w-4" /> Niveau</Button>
-          <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
-        </div>
-        <ul className="divide-y divide-border">
-          {subjects.map((s) => (
-            <li key={s.id} className="flex items-center gap-3 p-3 hover:bg-accent/5">
-              <Avatar className="h-9 w-9 rounded-md">
-                <AvatarFallback className="rounded-md text-xs">
-                  {s.code.slice(0, 3)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">{s.name}</p>
-                  <span className="font-mono text-xs text-muted-foreground">{s.code}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {LEVEL_LABELS_FR[s.level]} · Coef. {s.coefficient}
-                  {s.isExtracurricular && " · Extracurriculaire"}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
-  );
-}

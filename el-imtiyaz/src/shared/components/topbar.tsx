@@ -12,6 +12,7 @@ import {
   Bell,
   Database,
   User as UserIcon,
+  UserCircle,
   LogOut,
   Settings as SettingsIcon,
   Command,
@@ -234,6 +235,9 @@ export function Topbar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/profile")}>
+              <UserCircle className="h-4 w-4" /> Mon profil
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/settings")}>
               <SettingsIcon className="h-4 w-4" /> {t("nav.settings")}
             </DropdownMenuItem>

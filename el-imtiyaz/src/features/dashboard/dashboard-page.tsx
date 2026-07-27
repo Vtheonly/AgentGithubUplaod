@@ -17,6 +17,9 @@ import {
   Calendar,
   Download,
   ChevronRight,
+  Receipt,
+  ScrollText,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -42,11 +45,15 @@ import { KpiCard } from "../../shared/components/kpi-card";
 import { StatusChip } from "../../shared/components/status-chip";
 import { EmptyState } from "../../shared/components/state-views";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../shared/ui/tabs";
+import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { ScrollArea } from "../../shared/ui/scroll-area";
 import { SeeDetailsModal } from "./see-details-modal";
+import { useToast } from "../../state/toast-context";
+import {
+  exportRevenueReport, exportOutstandingDebtReport, exportStudentRoster,
+} from "../../infrastructure/excel/reports";
 
 const AGING_COLORS: Record<string, string> = {
   "0_30": "#3FA66E",
@@ -108,21 +115,20 @@ export function DashboardPage() {
         }
       />
 
-      <Tabs defaultValue="overview" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
-        <TabsList>
-          <TabsTrigger value="overview">{t("dashboard.overview")}</TabsTrigger>
-          <TabsTrigger
+      <PageTabs defaultValue="overview" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+        <PageTabList>
+          <PageTab value="overview" label={t("dashboard.overview")} />
+          <PageTab
             value="alerts"
+            label={t("dashboard.alerts")}
             count={notifications.filter((n) => !n.readAt).length}
             countTone="danger"
-          >
-            {t("dashboard.alerts")}
-          </TabsTrigger>
-          <TabsTrigger value="reports">{t("dashboard.reports")}</TabsTrigger>
-          <TabsTrigger value="analytics">{t("dashboard.analytics")}</TabsTrigger>
-        </TabsList>
+          />
+          <PageTab value="reports" label={t("dashboard.reports")} />
+          <PageTab value="analytics" label={t("dashboard.analytics")} />
+        </PageTabList>
 
-        <TabsContent value="overview" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="overview" className="flex-1 overflow-y-auto mt-4">
           <div className="space-y-4">
             {/* KPI grid */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -262,25 +268,25 @@ export function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </PageTabContent>
 
-        <TabsContent value="alerts" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="alerts" className="flex-1 overflow-y-auto mt-4">
           <AlertsTab />
-        </TabsContent>
+        </PageTabContent>
 
-        <TabsContent value="reports" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="reports" className="flex-1 overflow-y-auto mt-4">
           <ReportsTab />
-        </TabsContent>
+        </PageTabContent>
 
-        <TabsContent value="analytics" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="analytics" className="flex-1 overflow-y-auto mt-4">
           <AnalyticsTab
             revenue={revenue}
             debtAging={debtAging}
             demographics={demographics}
             onSeeDetails={() => setSeeDetailsOpen(true)}
           />
-        </TabsContent>
-      </Tabs>
+        </PageTabContent>
+      </PageTabs>
 
       <SeeDetailsModal open={seeDetailsOpen} onOpenChange={setSeeDetailsOpen} />
     </div>
@@ -349,37 +355,174 @@ function AlertsTab() {
 }
 
 // ============================================================
-// Reports tab — catalog
+// Reports tab — catalog with real exports
 // ============================================================
 function ReportsTab() {
+  const repos = useRepositories();
+  const toast = useToast();
+  const [exporting, setExporting] = useState<string | null>(null);
+
   const reports = [
-    { code: "revenu-mensuel", title: "Revenu mensuel", desc: "Excel multi-feuilles: encaissements par méthode, ventilation par service." },
-    { code: "creances-agees", title: "Créances par tranche d'âge", desc: "CSV / XLSX: famille, élève, montant, tranche 0-30/31-60/61-90+." },
-    { code: "effectifs-niveau", title: "Effectifs par niveau", desc: "XLSX: répartition Primaire / CEM / Lycée, classe par classe." },
-    { code: "releve-enseignant", title: "Relevé enseignant", desc: "PDF: notes saisies, devoirs diffusés, appels effectués, heures." },
-    { code: "journal-audit", title: "Journal d'audit", desc: "CSV / XLSX: filtrable par acteur, action, entité, plage de dates." },
-    { code: "paiements-jour", title: "Paiements du jour", desc: "PDF: encaissements de la journée par agent comptable." },
-    { code: "depenses-categorie", title: "Dépenses par catégorie", desc: "XLSX: agrégat mensuel par catégorie contrôlée." },
-    { code: "annuaire-personnel", title: "Annuaire du personnel", desc: "XLSX: nom, catégorie, contact, statut." },
-    { code: "releve-notes", title: "Relevé de notes", desc: "PDF: par classe et par matière, T1/T2/T3." },
-    { code: "bulletins-trimestriels", title: "Bulletins trimestriels", desc: "PDF: par élève, avec moyennes et narratif (validation enseignant requise)." },
+    {
+      code: "revenu-mensuel",
+      title: "Revenu mensuel",
+      desc: "Excel multi-feuilles: synthèse, par méthode, par catégorie, transactions.",
+      icon: TrendingUp,
+      format: "XLSX" as const,
+    },
+    {
+      code: "creances-agees",
+      title: "Créances par tranche d'âge",
+      desc: "CSV / XLSX: famille, élève, montant, tranche 0-30/31-60/61-90+.",
+      icon: AlertTriangle,
+      format: "XLSX" as const,
+    },
+    {
+      code: "effectifs-niveau",
+      title: "Effectifs par niveau",
+      desc: "XLSX: répartition Primaire / CEM / Lycée, code par code.",
+      icon: Users,
+      format: "XLSX" as const,
+    },
+    {
+      code: "releve-enseignant",
+      title: "Relevé enseignant",
+      desc: "PDF: notes saisies, devoirs diffusés, appels effectués, heures.",
+      icon: GraduationCap,
+      format: "PDF" as const,
+    },
+    {
+      code: "journal-audit",
+      title: "Journal d'audit",
+      desc: "CSV / XLSX: filtrable par acteur, action, entité, plage de dates.",
+      icon: ScrollText,
+      format: "Voir Settings → Audit" as const,
+    },
+    {
+      code: "paiements-jour",
+      title: "Paiements du jour",
+      desc: "PDF: encaissements de la journée par agent comptable.",
+      icon: Wallet,
+      format: "PDF" as const,
+    },
+    {
+      code: "depenses-categorie",
+      title: "Dépenses par catégorie",
+      desc: "XLSX: agrégat mensuel par catégorie contrôlée.",
+      icon: Receipt,
+      format: "XLSX" as const,
+    },
+    {
+      code: "annuaire-personnel",
+      title: "Annuaire du personnel",
+      desc: "XLSX: nom, catégorie, contact, statut.",
+      icon: Users,
+      format: "XLSX" as const,
+    },
+    {
+      code: "releve-notes",
+      title: "Relevé de notes",
+      desc: "PDF: par classe et par matière, T1/T2/T3.",
+      icon: GraduationCap,
+      format: "PDF" as const,
+    },
+    {
+      code: "bulletins-trimestriels",
+      title: "Bulletins trimestriels",
+      desc: "PDF: par élève, avec moyennes et narratif (validation enseignant requise).",
+      icon: GraduationCap,
+      format: "PDF" as const,
+    },
   ];
+
+  async function handleExport(code: string) {
+    setExporting(code);
+    try {
+      if (code === "revenu-mensuel") {
+        const paymentsResult = await repos.payments.observe();
+        const payments = paymentsResult.get();
+        const today = new Date();
+        const from = new Date(today);
+        from.setMonth(from.getMonth() - 12);
+        await exportRevenueReport(payments, {
+          from: from.toISOString().slice(0, 10),
+          to: today.toISOString().slice(0, 10),
+        });
+      } else if (code === "creances-agees") {
+        const summary = repos.debt.observeSummary().get();
+        await exportOutstandingDebtReport(
+          summary
+            .filter((d) => d.outstandingAmount > 0)
+            .map((d) => ({
+              parentCode: d.parentId,
+              parentName: d.parentName,
+              parentPhone: "",
+              bucket: d.bucket as "0_30" | "31_60" | "61_90" | "91_180" | "180_plus",
+              daysOverdue: d.daysOverdue,
+              outstandingAmount: d.outstandingAmount,
+            })),
+          "xlsx",
+        );
+      } else if (code === "effectifs-niveau") {
+        const students = repos.students.observe().get();
+        await exportStudentRoster(students);
+      } else if (code === "annuaire-personnel") {
+        const personnel = repos.personnel.observe().get();
+        await exportOutstandingDebtReport([], "xlsx"); // placeholder
+        // Use roster pattern
+        // eslint-disable-next-line no-console
+        console.log("Personnel export stub:", personnel.length);
+        toast.showInfo("Bientôt", `Export de l'annuaire (${personnel.length} entrées) — à venir.`);
+        return;
+      } else {
+        toast.showInfo("Bientôt disponible", `Le rapport "${code}" sera disponible prochainement.`);
+        return;
+      }
+      toast.showSuccess("Export généré", `Le rapport ${code} a été téléchargé.`);
+    } catch (e) {
+      toast.showError("Échec de l'export", e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(null);
+    }
+  }
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {reports.map((r) => (
-        <Card key={r.code} className="hover:border-primary/50 transition-colors">
-          <CardContent className="flex items-start justify-between p-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">{r.title}</p>
-              <p className="text-xs text-muted-foreground">{r.desc}</p>
-            </div>
-            <Button variant="ghost" size="icon" title="Bientôt disponible" disabled>
-              <Download className="h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+      {reports.map((r) => {
+        const Icon = r.icon;
+        const isReady = ["revenu-mensuel", "creances-agees", "effectifs-niveau"].includes(r.code);
+        return (
+          <Card key={r.code} className="hover:border-primary/50 transition-colors">
+            <CardContent className="flex items-start justify-between p-4">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="space-y-1 flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{r.title}</p>
+                    <Badge variant="outline" className="text-[10px]">{r.format}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{r.desc}</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                title={isReady ? "Télécharger" : "Bientôt disponible"}
+                disabled={!isReady || exporting === r.code}
+                onClick={() => handleExport(r.code)}
+              >
+                {exporting === r.code ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

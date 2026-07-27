@@ -24,22 +24,15 @@ import {
   User,
   Wallet,
   ClipboardCheck,
+  UserPlus,
 } from "lucide-react";
 import { useRepositories } from "../../infrastructure/repository-provider";
 import { useToast } from "../../state/toast-context";
 import { useAuth } from "../../state/auth-context";
 import { useObservable } from "../../shared/hooks/use-observable";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "../../shared/ui/dialog";
+import { UnifiedModal, type UnifiedModalProps } from "../../shared/components/unified-modal";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
-import { Label } from "../../shared/ui/label";
 import { Badge } from "../../shared/ui/badge";
 import { FormField } from "../../shared/components/form-field";
 import { MoneyInput } from "../../shared/components/money-input";
@@ -128,6 +121,7 @@ export function BatchRegistrationModal({
   const [includeTransport, setIncludeTransport] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [alert, setAlert] = useState<NonNullable<UnifiedModalProps["alert"]> | null>(null);
 
   // Reset on close
   useEffect(() => {
@@ -139,6 +133,7 @@ export function BatchRegistrationModal({
         setIncludeRegistration(true);
         setIncludeTransport(true);
         setErrors({});
+        setAlert(null);
       }, 200);
     }
   }, [open]);
@@ -236,7 +231,11 @@ export function BatchRegistrationModal({
         onSubmitted?.(result.value.parent.id);
         onOpenChange(false);
       } else {
-        toast.showError("Échec de l'inscription", result.error.userMessage);
+        setAlert({
+          tone: "error",
+          title: "Échec de l'inscription",
+          description: result.error.userMessage,
+        });
       }
     } finally {
       setSubmitting(false);
@@ -251,76 +250,41 @@ export function BatchRegistrationModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="xl">
-        <DialogHeader>
-          <DialogTitle>Inscription groupée (Parent + Élèves)</DialogTitle>
-          <DialogDescription>
-            Inscription atomique — tout réussit ou tout échoue. Plan §04.03.
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Stepper */}
-        <div className="flex items-center justify-between gap-2 px-2">
-          {([1, 2, 3, 4] as const).map((n) => {
-            const active = step === n;
-            const done = step > n;
-            return (
-              <div key={n} className="flex items-center gap-2 flex-1">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                    active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : done
-                        ? "border-status-success bg-status-success/15 text-status-success"
-                        : "border-border text-muted-foreground"
-                  }`}
-                >
-                  {done ? <Check className="h-4 w-4" /> : stepIcon(n)}
-                </div>
-                <span className={`text-xs ${active ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                  {n === 1 ? "Parent" : n === 2 ? "Élèves" : n === 3 ? "Facturation" : "Validation"}
-                </span>
-                {n < 4 && <div className="flex-1 h-px bg-border mx-2" />}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Step content */}
-        <div className="max-h-[50vh] overflow-y-auto py-2">
-          {step === 1 && <Step1 parent={parent} setParent={setParent} errors={errors} />}
-          {step === 2 && (
-            <Step2
-              students={students}
-              setStudents={setStudents}
-              errors={errors}
-              parentCityTier={parent.cityTier}
-            />
-          )}
-          {step === 3 && (
-            <Step3
-              billing={billing}
-              includeRegistration={includeRegistration}
-              setIncludeRegistration={setIncludeRegistration}
-              includeTransport={includeTransport}
-              setIncludeTransport={setIncludeTransport}
-            />
-          )}
-          {step === 4 && <Step4 parent={parent} students={students} billing={billing} />}
-        </div>
-
-        <DialogFooter>
+    <UnifiedModal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="xl"
+      variant="dialog"
+      icon={UserPlus}
+      iconTone="primary"
+      title="Inscription groupée (Parent + Élèves)"
+      description="Inscription atomique — tout réussit ou tout échoue. Plan §04.03."
+      alert={alert}
+      onDismissAlert={() => setAlert(null)}
+      footer={
+        <>
           {step > 1 && (
-            <Button variant="outline" onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)} disabled={submitting}>
+            <Button
+              variant="outline"
+              onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+              disabled={submitting}
+            >
               <ChevronLeft className="h-4 w-4" /> Précédent
             </Button>
           )}
+          <div className="flex-1" />
           {step < 4 && (
             <Button
               onClick={() => {
-                if (step === 1 && !validateStep1()) return;
-                if (step === 2 && !validateStep2()) return;
+                if (step === 1 && !validateStep1()) {
+                  setAlert({ tone: "warning", title: "Étape incomplète", description: "Vérifiez les champs requis du parent." });
+                  return;
+                }
+                if (step === 2 && !validateStep2()) {
+                  setAlert({ tone: "warning", title: "Étape incomplète", description: "Vérifiez les champs requis des élèves." });
+                  return;
+                }
+                setAlert(null);
                 setStep((s) => (s + 1) as 2 | 3 | 4);
               }}
             >
@@ -340,9 +304,59 @@ export function BatchRegistrationModal({
               )}
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      {/* Stepper */}
+      <div className="flex items-center justify-between gap-2 mb-4">
+        {([1, 2, 3, 4] as const).map((n) => {
+          const active = step === n;
+          const done = step > n;
+          return (
+            <div key={n} className="flex items-center gap-2 flex-1">
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : done
+                      ? "border-status-success bg-status-success/15 text-status-success"
+                      : "border-border text-muted-foreground"
+                }`}
+              >
+                {done ? <Check className="h-4 w-4" /> : stepIcon(n)}
+              </div>
+              <span className={`text-xs ${active ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                {n === 1 ? "Parent" : n === 2 ? "Élèves" : n === 3 ? "Facturation" : "Validation"}
+              </span>
+              {n < 4 && <div className="flex-1 h-px bg-border mx-2" />}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Step content */}
+      <div className="max-h-[50vh] overflow-y-auto">
+        {step === 1 && <Step1 parent={parent} setParent={setParent} errors={errors} />}
+        {step === 2 && (
+          <Step2
+            students={students}
+            setStudents={setStudents}
+            errors={errors}
+            parentCityTier={parent.cityTier}
+          />
+        )}
+        {step === 3 && (
+          <Step3
+            billing={billing}
+            includeRegistration={includeRegistration}
+            setIncludeRegistration={setIncludeRegistration}
+            includeTransport={includeTransport}
+            setIncludeTransport={setIncludeTransport}
+          />
+        )}
+        {step === 4 && <Step4 parent={parent} students={students} billing={billing} />}
+      </div>
+    </UnifiedModal>
   );
 }
 

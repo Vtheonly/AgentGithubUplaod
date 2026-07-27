@@ -25,6 +25,9 @@ export const AuditActions = {
   // Academic
   ClassCreate: "class.create",
   ClassUpdate: "class.update",
+  SubjectCreate: "subject.create",
+  SubjectUpdate: "subject.update",
+  SubjectArchive: "subject.archive",
   SubjectAssign: "subject.assign",
   GradeEnter: "grade.enter",
   AttendanceSubmit: "attendance.submit",

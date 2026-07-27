@@ -28,7 +28,7 @@ import { Role } from "../../core/rbac/roles";
 import { formatDateTime } from "../../core/format/date";
 import { PageHeader } from "../../shared/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../shared/ui/tabs";
+import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
@@ -48,6 +48,13 @@ import { Permission } from "../../core/rbac/permissions";
 import { ScrollArea } from "../../shared/ui/scroll-area";
 import { cn } from "../../shared/ui/cn";
 import { PricingTab } from "./pricing-tab";
+import { RbacMatrixEditor } from "./rbac-matrix-editor";
+import { exportAuditLog } from "../../infrastructure/excel/reports";
+import { useToast } from "../../state/toast-context";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "../../shared/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -61,43 +68,39 @@ export function SettingsPage() {
         title={t("nav.settings")}
         description="Configuration système, tarification, journal d'audit, RBAC, IA, sauvegardes"
       />
-      <Tabs defaultValue="general" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
-        <TabsList>
-          <TabsTrigger value="general"><SettingsIcon className="h-4 w-4" /> {t("settings.general")}</TabsTrigger>
-          <TabsTrigger value="pricing" disabled={!canViewPricing}>
-            <Tag className="h-4 w-4" /> Tarification
-          </TabsTrigger>
-          <TabsTrigger value="audit" disabled={!canViewAudit}>
-            <ScrollText className="h-4 w-4" /> {t("settings.audit")}
-          </TabsTrigger>
-          <TabsTrigger value="rbac"><Shield className="h-4 w-4" /> {t("settings.rbac")}</TabsTrigger>
-          <TabsTrigger value="ai"><Bot className="h-4 w-4" /> {t("settings.ai")}</TabsTrigger>
-          <TabsTrigger value="backup"><Database className="h-4 w-4" /> {t("settings.backup")}</TabsTrigger>
-          <TabsTrigger value="locked"><Lock className="h-4 w-4" /> {t("settings.locked")}</TabsTrigger>
-        </TabsList>
+      <PageTabs defaultValue="general" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+        <PageTabList>
+          <PageTab value="general" label={t("settings.general")} icon={SettingsIcon} />
+          <PageTab value="pricing" label="Tarification" icon={Tag} disabled={!canViewPricing} />
+          <PageTab value="audit" label={t("settings.audit")} icon={ScrollText} disabled={!canViewAudit} />
+          <PageTab value="rbac" label={t("settings.rbac")} icon={Shield} />
+          <PageTab value="ai" label={t("settings.ai")} icon={Bot} />
+          <PageTab value="backup" label={t("settings.backup")} icon={Database} />
+          <PageTab value="locked" label={t("settings.locked")} icon={Lock} />
+        </PageTabList>
 
-        <TabsContent value="general" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="general" className="flex-1 overflow-y-auto mt-4">
           <GeneralTab />
-        </TabsContent>
-        <TabsContent value="pricing" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="pricing" className="flex-1 overflow-y-auto mt-4">
           {canViewPricing ? <PricingTab /> : <AccessDeniedCard />}
-        </TabsContent>
-        <TabsContent value="audit" className="flex-1 overflow-hidden mt-4">
+        </PageTabContent>
+        <PageTabContent value="audit" className="flex-1 overflow-hidden mt-4">
           {canViewAudit ? <AuditLogTab /> : <AccessDeniedCard />}
-        </TabsContent>
-        <TabsContent value="rbac" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="rbac" className="flex-1 overflow-y-auto mt-4">
           <RbacMatrixTab />
-        </TabsContent>
-        <TabsContent value="ai" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="ai" className="flex-1 overflow-y-auto mt-4">
           <AiConfigTab />
-        </TabsContent>
-        <TabsContent value="backup" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="backup" className="flex-1 overflow-y-auto mt-4">
           <BackupTab />
-        </TabsContent>
-        <TabsContent value="locked" className="flex-1 overflow-y-auto mt-4">
+        </PageTabContent>
+        <PageTabContent value="locked" className="flex-1 overflow-y-auto mt-4">
           <LockedFeaturesTab />
-        </TabsContent>
-      </Tabs>
+        </PageTabContent>
+      </PageTabs>
     </div>
   );
 }
@@ -154,6 +157,7 @@ function GeneralTab() {
 // ============================================================
 function AuditLogTab() {
   const repos = useRepositories();
+  const toast = useToast();
   const { t } = useTranslation();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -162,6 +166,7 @@ function AuditLogTab() {
   const [entityInput, setEntityInput] = useState("");
   const [actorInput, setActorInput] = useState("");
   const [selected, setSelected] = useState<AuditEntry | null>(null);
+  const [exporting, setExporting] = useState<"xlsx" | "csv" | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -181,6 +186,29 @@ function AuditLogTab() {
     });
   }
 
+  async function handleExport(format: "xlsx" | "csv") {
+    setExporting(format);
+    try {
+      await exportAuditLog(
+        entries.map((e) => ({
+          at: e.at,
+          action: e.action,
+          entityType: e.entityType,
+          entityId: e.entityId,
+          actorName: e.actorName,
+          ipAddress: e.ipAddress,
+          note: e.note,
+        })),
+        format,
+      );
+      toast.showSuccess("Export généré", `${entries.length} entrées exportées en ${format.toUpperCase()}.`);
+    } catch (e) {
+      toast.showError("Échec de l'export", e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
     <Card className="flex flex-col h-full">
       <CardHeader className="border-b border-border">
@@ -193,9 +221,23 @@ function AuditLogTab() {
               Traçabilité universelle — append-only, aucun contournement possible.
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4" /> Export CSV/XLSX
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={entries.length === 0 || exporting !== null}>
+                <Download className="h-4 w-4" />
+                {exporting ? `Export ${exporting.toUpperCase()}…` : "Export"}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport("xlsx")}>
+                Export XLSX (Excel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("csv")}>
+                Export CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
 
@@ -329,29 +371,10 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
 }
 
 // ============================================================
-// RBAC Matrix
+// RBAC Matrix — now uses the editable RbacMatrixEditor
 // ============================================================
 function RbacMatrixTab() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Matrice RBAC</CardTitle>
-        <CardDescription>
-          Configuration système des rôles et permissions. Édition réservée au SuperAdmin (terminal de bureau uniquement).
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          6 rôles (SuperAdmin, FinancialOfficer, Teacher, SupportStaff, Parent, Student) × 28 permissions.
-          Les 4 premiers utilisent ce terminal; Parent & Student sont redirigés vers le portail web.
-        </p>
-        <div className="text-xs text-muted-foreground">
-          L'édition de la matrice sera disponible dans une prochaine itération. Les permissions par défaut
-          sont définies dans <code className="font-mono">core/rbac/permissions.ts</code>.
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <RbacMatrixEditor />;
 }
 
 // ============================================================

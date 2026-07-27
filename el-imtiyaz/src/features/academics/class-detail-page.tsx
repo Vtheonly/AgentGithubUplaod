@@ -12,12 +12,15 @@ import { useObservable } from "../../shared/hooks/use-observable";
 import { LEVEL_LABELS_FR } from "../../domain/model/student";
 import { PageHeader } from "../../shared/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../shared/ui/tabs";
+import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { StatusChip } from "../../shared/components/status-chip";
 import { Permission } from "../../core/rbac/permissions";
+import { ClassSubjectsTab } from "./class-subjects-tab";
+import { ClassAttendanceTab } from "./class-attendance-tab";
+import { ClassGradesTab } from "./class-grades-tab";
 
 export function ClassDetailPage() {
   const { classId } = useParams<{ classId: string }>();
@@ -67,15 +70,15 @@ export function ClassDetailPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="students" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
-        <TabsList>
-          <TabsTrigger value="students"><Users className="h-4 w-4" /> Élèves</TabsTrigger>
-          <TabsTrigger value="subjects"><BookOpen className="h-4 w-4" /> Matières</TabsTrigger>
-          <TabsTrigger value="attendance"><Calendar className="h-4 w-4" /> Présences</TabsTrigger>
-          <TabsTrigger value="grades"><GraduationCap className="h-4 w-4" /> Notes</TabsTrigger>
-        </TabsList>
+      <PageTabs defaultValue="students" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+        <PageTabList>
+          <PageTab value="students" label="Élèves" icon={Users} />
+          <PageTab value="subjects" label="Matières" icon={BookOpen} />
+          <PageTab value="attendance" label="Présences" icon={Calendar} />
+          <PageTab value="grades" label="Notes" icon={GraduationCap} />
+        </PageTabList>
 
-        <TabsContent value="students" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="students" className="flex-1 overflow-y-auto mt-4">
           <Card>
             <CardContent className="p-0">
               <div className="border-b border-border p-3 flex items-center justify-between">
@@ -111,50 +114,20 @@ export function ClassDetailPage() {
               </ul>
             </CardContent>
           </Card>
-        </TabsContent>
+        </PageTabContent>
 
-        <TabsContent value="subjects" className="flex-1 overflow-y-auto mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Matières de la classe</CardTitle>
-              <CardDescription>Coefficients et enseignants assignés</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground text-center py-6">
-                Les matières seront assignées via l'interface d'administration (prochaine itération).
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <PageTabContent value="subjects" className="flex-1 overflow-y-auto mt-4">
+          <ClassSubjectsTab classId={classId!} />
+        </PageTabContent>
 
-        <TabsContent value="attendance" className="flex-1 overflow-y-auto mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Présences — cette semaine</CardTitle>
-              <CardDescription>Synthèse des appels effectués</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground text-center py-6">
-                Les enregistrements de présence apparaîtront ici une fois l'appel effectué.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <PageTabContent value="attendance" className="flex-1 overflow-y-auto mt-4">
+          <ClassAttendanceTab classId={classId!} />
+        </PageTabContent>
 
-        <TabsContent value="grades" className="flex-1 overflow-y-auto mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Notes — trimestre courant</CardTitle>
-              <CardDescription>Dernières notes saisies par matière</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground text-center py-6">
-                Les notes apparaîtront ici une fois saisies via "Saisie des notes".
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        <PageTabContent value="grades" className="flex-1 overflow-y-auto mt-4">
+          <ClassGradesTab classId={classId!} />
+        </PageTabContent>
+      </PageTabs>
     </div>
   );
 }

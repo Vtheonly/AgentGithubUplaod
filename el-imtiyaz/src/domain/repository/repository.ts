@@ -90,6 +90,14 @@ export interface SubjectRepository {
   observeByClass(classId: string): Observable<ClassSubject[]>;
   assignSubjectToClass(input: Omit<ClassSubject, "id">): Promise<Result<ClassSubject>>;
   removeSubjectFromClass(id: string): Promise<Result<void>>;
+  /**
+   * Iteration 3-E (plan §05): Subject CRUD for admin management.
+   * Coefficient change should trigger GPA recompute for affected students
+   * (handled at the repository implementation level).
+   */
+  createSubject(input: Omit<Subject, "id" | "tenantId">): Promise<Result<Subject>>;
+  updateSubject(id: string, updates: Partial<Omit<Subject, "id" | "tenantId">>): Promise<Result<Subject>>;
+  archiveSubject(id: string): Promise<Result<void>>;
 }
 
 export interface GradeRepository {
