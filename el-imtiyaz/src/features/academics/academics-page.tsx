@@ -8,7 +8,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Plus, Download, Filter, ChevronRight } from "lucide-react";
+import { Plus, Download, Filter, ChevronRight, School, BookOpen, ClipboardList } from "lucide-react";
 import { PageHeader } from "../../shared/components/page-header";
 import { Card, CardContent } from "../../shared/ui/card";
 import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/components/page-tabs";
@@ -45,17 +45,17 @@ export function AcademicsPage() {
       />
       <PageTabs defaultValue="classes" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
         <PageTabList>
-          <PageTab value="classes" label="Classes" />
-          <PageTab value="subjects" label="Matières" />
-          <PageTab value="homework" label="Devoirs" />
+          <PageTab value="classes" label="Classes" icon={School} />
+          <PageTab value="subjects" label="Matières" icon={BookOpen} />
+          <PageTab value="homework" label="Devoirs" icon={ClipboardList} />
         </PageTabList>
-        <PageTabContent value="classes" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="classes">
           <ClassesTab />
         </PageTabContent>
-        <PageTabContent value="subjects" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="subjects">
           <SubjectsDirectoryTab />
         </PageTabContent>
-        <PageTabContent value="homework" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="homework">
           <HomeworkHistoryTab />
         </PageTabContent>
       </PageTabs>

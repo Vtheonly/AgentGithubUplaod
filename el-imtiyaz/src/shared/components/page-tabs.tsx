@@ -79,6 +79,16 @@ export interface PageTabProps extends React.ComponentPropsWithoutRef<typeof Tabs
 export interface PageTabContentProps extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content> {
   /** Override default content padding/spacing. */
   className?: string;
+  /**
+   * Make the content area scroll vertically when it overflows. Default: true.
+   *
+   * Iteration 4: this prop replaces the ~9 redundant
+   * `className="flex-1 overflow-y-auto mt-4"` overrides that existed across
+   * every call site before this iteration. Call sites can now write
+   * `<PageTabContent value="x">` (scrollable by default) or
+   * `<PageTabContent value="x" scrollable={false}>` to opt out.
+   */
+  scrollable?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -250,13 +260,14 @@ PageTab.displayName = "PageTab";
 export const PageTabContent = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Content>,
   PageTabContentProps
->(({ className, ...props }, ref) => {
+>(({ className, scrollable = true, ...props }, ref) => {
   const v = React.useContext(VariantContext);
   return (
     <TabsPrimitive.Content
       ref={ref}
       className={cn(
         v === "rail" ? "flex-1 mt-0 min-h-0" : "flex-1 mt-4 min-h-0",
+        scrollable && "overflow-y-auto",
         "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "data-[state=inactive]:hidden",
         className,

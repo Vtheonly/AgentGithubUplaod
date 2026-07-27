@@ -20,6 +20,9 @@ import {
   Receipt,
   ScrollText,
   Loader2,
+  LayoutDashboard,
+  FileText,
+  BarChart3,
 } from "lucide-react";
 import {
   BarChart,
@@ -117,18 +120,19 @@ export function DashboardPage() {
 
       <PageTabs defaultValue="overview" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
         <PageTabList>
-          <PageTab value="overview" label={t("dashboard.overview")} />
+          <PageTab value="overview" label={t("dashboard.overview")} icon={LayoutDashboard} />
           <PageTab
             value="alerts"
             label={t("dashboard.alerts")}
+            icon={AlertTriangle}
             count={notifications.filter((n) => !n.readAt).length}
             countTone="danger"
           />
-          <PageTab value="reports" label={t("dashboard.reports")} />
-          <PageTab value="analytics" label={t("dashboard.analytics")} />
+          <PageTab value="reports" label={t("dashboard.reports")} icon={FileText} />
+          <PageTab value="analytics" label={t("dashboard.analytics")} icon={BarChart3} />
         </PageTabList>
 
-        <PageTabContent value="overview" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="overview">
           <div className="space-y-4">
             {/* KPI grid */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -270,15 +274,15 @@ export function DashboardPage() {
           </div>
         </PageTabContent>
 
-        <PageTabContent value="alerts" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="alerts">
           <AlertsTab />
         </PageTabContent>
 
-        <PageTabContent value="reports" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="reports">
           <ReportsTab />
         </PageTabContent>
 
-        <PageTabContent value="analytics" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="analytics">
           <AnalyticsTab
             revenue={revenue}
             debtAging={debtAging}

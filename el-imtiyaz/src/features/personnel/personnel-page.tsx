@@ -9,7 +9,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
-import { Plus, Download, Filter } from "lucide-react";
+import { Plus, Download, Filter, BookUser, Clock, ScrollText, Workflow } from "lucide-react";
 import { useRepositories } from "../../infrastructure/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import {
@@ -59,24 +59,24 @@ export function PersonnelPage() {
       />
       <PageTabs defaultValue="directory" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
         <PageTabList>
-          <PageTab value="directory" label="Annuaire" />
-          <PageTab value="releve" label="Relevé" />
-          <PageTab value="audit" label="Journal d'audit" />
-          <PageTab value="workflows" label="Workflows" />
+          <PageTab value="directory" label="Annuaire" icon={BookUser} />
+          <PageTab value="releve" label="Relevé" icon={Clock} />
+          <PageTab value="audit" label="Journal d'audit" icon={ScrollText} />
+          <PageTab value="workflows" label="Workflows" icon={Workflow} />
         </PageTabList>
-        <PageTabContent value="directory" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="directory">
           <DirectoryTab onOpenDetail={openDetail} />
         </PageTabContent>
-        <PageTabContent value="releve" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="releve">
           <ReleveTab />
         </PageTabContent>
-        <PageTabContent value="audit" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="audit">
           <ComingSoonCard
             title="Journal d'audit"
             description="Le journal d'audit complet est accessible depuis Paramètres → Journal d'audit (réservé SuperAdmin + Agent Financier)."
           />
         </PageTabContent>
-        <PageTabContent value="workflows" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="workflows">
           <ComingSoonCard
             title="Moniteur de workflows"
             description="Exécutions des Edge Functions / DAG. Vue en lecture seule sur mobile. L'éditeur DAG visuel est réservé au terminal de bureau."

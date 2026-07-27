@@ -11,7 +11,7 @@
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Download, Filter, Search, Wallet, TrendingUp, AlertTriangle, Receipt, FileText } from "lucide-react";
+import { Plus, Download, Filter, Search, Wallet, TrendingUp, AlertTriangle, Receipt, FileText, CreditCard, CalendarClock, AlertCircle, Send, FileCheck } from "lucide-react";
 import { useRepositories } from "../../infrastructure/repository-provider";
 import { useAuth } from "../../state/auth-context";
 import { useObservable } from "../../shared/hooks/use-observable";
@@ -97,26 +97,26 @@ export function FinancialsPage() {
 
       <PageTabs defaultValue="payments" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
         <PageTabList>
-          <PageTab value="payments" label="Paiements" />
-          <PageTab value="installments" label="Tranches" />
-          <PageTab value="debt" label="Créances" />
-          <PageTab value="expenses" label="Dépenses" />
-          <PageTab value="receipts" label="Reçus" />
+          <PageTab value="payments" label="Paiements" icon={CreditCard} />
+          <PageTab value="installments" label="Tranches" icon={CalendarClock} />
+          <PageTab value="debt" label="Créances" icon={AlertCircle} count={debtSummary.length} countTone={overdueDebt > 0 ? "danger" : "default"} />
+          <PageTab value="expenses" label="Dépenses" icon={Send} count={pendingExpenses} countTone={pendingExpenses > 0 ? "warning" : "default"} />
+          <PageTab value="receipts" label="Reçus" icon={FileCheck} />
         </PageTabList>
 
-        <PageTabContent value="payments" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="payments">
           <PaymentsTab />
         </PageTabContent>
-        <PageTabContent value="installments" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="installments">
           <InstallmentScheduleTab />
         </PageTabContent>
-        <PageTabContent value="debt" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="debt">
           <DebtTab />
         </PageTabContent>
-        <PageTabContent value="expenses" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="expenses">
           <ExpensesTab onOpenExpense={openExpense} />
         </PageTabContent>
-        <PageTabContent value="receipts" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="receipts">
           <ReceiptsTab />
         </PageTabContent>
       </PageTabs>

@@ -26,6 +26,12 @@ export const Err = <E = AppError>(error: E): Result<never, E> => ({ ok: false, e
  * Wrap a Promise-returning function in a Result, capturing thrown errors
  * into a structured AppError. Use this at the boundary of any subsystem
  * that does not natively produce Results (e.g., a third-party SDK).
+ *
+ * Iteration 4 fix: the catch block now calls the `toError` parameter
+ * (rather than `toAppError` directly), so callers that pass a custom
+ * error mapper actually get their mapper applied. Previously the `toError`
+ * parameter was accepted but silently ignored. Caught by the unit test
+ * `tryResult > accepts a custom error mapper`.
  */
 export async function tryResult<T>(
   fn: () => Promise<T>,
@@ -34,7 +40,7 @@ export async function tryResult<T>(
   try {
     return Ok(await fn());
   } catch (err) {
-    return Err(toAppError(err));
+    return Err(toError(err));
   }
 }
 

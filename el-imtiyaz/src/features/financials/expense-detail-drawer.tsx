@@ -12,6 +12,11 @@
  *
  * Anomaly badge renders when anomalyScore > 0.7 (signal, not verdict —
  * human always decides).
+ *
+ * Iteration 4: migrated from raw `Drawer` + 2 raw `Dialog`s to `UnifiedModal`
+ * so the expense drawer and its 3 nested modals (reject / disburse / proof)
+ * share the exact same chrome, padding, header, footer, animations, and
+ * close behavior as every other modal in the application.
  */
 import { useState } from "react";
 import {
@@ -20,36 +25,19 @@ import {
   XCircle,
   DollarSign,
   Upload,
-  Loader2,
+  Receipt,
 } from "lucide-react";
 import { useRepositories } from "../../infrastructure/repository-provider";
 import { useToast } from "../../state/toast-context";
 import { useAuth } from "../../state/auth-context";
 import { useObservable } from "../../shared/hooks/use-observable";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-  DrawerBody,
-  DrawerFooter,
-} from "../../shared/ui/drawer";
+import { UnifiedModal } from "../../shared/components/unified-modal";
 import { Button } from "../../shared/ui/button";
-import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/components/status-chip";
 import { Separator } from "../../shared/ui/separator";
 import { Textarea } from "../../shared/ui/textarea";
 import { FormField } from "../../shared/components/form-field";
 import { ConfirmDialog } from "../../shared/components/confirm-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "../../shared/ui/dialog";
 import { formatDzd } from "../../core/format/currency";
 import { formatRelative, formatDateTime } from "../../core/format/date";
 import {
@@ -164,19 +152,54 @@ export function ExpenseDetailDrawer({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent size="lg">
-        <DrawerHeader>
-          <DrawerTitle className="flex items-center gap-2">
+    <>
+      <UnifiedModal
+        open={open}
+        onOpenChange={onOpenChange}
+        variant="drawer"
+        size="lg"
+        icon={Receipt}
+        iconTone="primary"
+        title={
+          <span className="flex items-center gap-2">
             <span className="truncate">{expense.title}</span>
             <code className="text-xs font-mono text-muted-foreground">{expense.requestCode}</code>
-          </DrawerTitle>
-          <DrawerDescription>
-            {EXPENSE_CATEGORY_LABELS_FR[expense.category]} · {expense.payee}
-          </DrawerDescription>
-        </DrawerHeader>
-
-        <DrawerBody className="space-y-5">
+          </span>
+        }
+        description={`${EXPENSE_CATEGORY_LABELS_FR[expense.category]} · ${expense.payee}`}
+        hideFooter={expense.status === "settled" || expense.status === "rejected" || !((expense.status === "submitted" && canApprove) || (expense.status === "approved" && canDisburse) || (expense.status === "disbursed" && canSettle))}
+        footer={
+          <>
+            {expense.status === "submitted" && canApprove && (
+              <>
+                <Button onClick={approve} disabled={busy}>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Approuver
+                </Button>
+                <Button variant="outline" onClick={() => setRejectDialogOpen(true)}>
+                  <XCircle className="h-4 w-4" /> Rejeter
+                </Button>
+              </>
+            )}
+            {expense.status === "approved" && canDisburse && (
+              <Button onClick={() => setDisburseDialogOpen(true)} disabled={busy}>
+                <DollarSign className="h-4 w-4" /> Décaisser les fonds
+              </Button>
+            )}
+            {expense.status === "disbursed" && canSettle && (
+              <Button onClick={() => setProofDialogOpen(true)} disabled={busy}>
+                <Upload className="h-4 w-4" /> Téléverser justificatif
+              </Button>
+            )}
+            {(expense.status === "settled" || expense.status === "rejected") && (
+              <span className="text-xs text-muted-foreground text-center py-2 ml-auto">
+                {expense.status === "settled" ? "Dépense clôturée et justifiée." : "Dépense rejetée."}
+              </span>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-5">
           {/* Anomaly banner */}
           {hasAnomaly && (
             <div className="rounded-md border border-status-danger/40 bg-status-danger/10 p-3 flex items-start gap-2">
@@ -325,65 +348,37 @@ export function ExpenseDetailDrawer({
               </div>
             </section>
           )}
-        </DrawerBody>
+        </div>
+      </UnifiedModal>
 
-        <DrawerFooter>
-          {/* Status-gated action buttons */}
-          {expense.status === "submitted" && canApprove && (
-            <>
-              <Button onClick={approve} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Approuver
-              </Button>
-              <Button variant="outline" onClick={() => setRejectDialogOpen(true)}>
-                <XCircle className="h-4 w-4" /> Rejeter
-              </Button>
-            </>
-          )}
-          {expense.status === "approved" && canDisburse && (
-            <Button onClick={() => setDisburseDialogOpen(true)} disabled={busy}>
-              <DollarSign className="h-4 w-4" /> Décaisser les fonds
-            </Button>
-          )}
-          {expense.status === "disbursed" && canSettle && (
-            <Button onClick={() => setProofDialogOpen(true)} disabled={busy}>
-              <Upload className="h-4 w-4" /> Téléverser justificatif
-            </Button>
-          )}
-          {(expense.status === "settled" || expense.status === "rejected") && (
-            <span className="text-xs text-muted-foreground text-center py-2">
-              {expense.status === "settled" ? "Dépense clôturée et justifiée." : "Dépense rejetée."}
-            </span>
-          )}
-        </DrawerFooter>
-      </DrawerContent>
+      {/* Reject dialog — UnifiedModal with destructive submit */}
+      <UnifiedModal
+        open={rejectDialogOpen}
+        onOpenChange={setRejectDialogOpen}
+        variant="dialog"
+        size="sm"
+        icon={XCircle}
+        iconTone="danger"
+        title="Rejeter la dépense"
+        description="Le motif est obligatoire et sera tracé dans l'audit."
+        submitLabel="Confirmer le rejet"
+        submitVariant="destructive"
+        submitIcon={XCircle}
+        submitDisabled={!rejectReason.trim()}
+        submitLoading={busy}
+        onSubmit={reject}
+      >
+        <FormField label="Motif du rejet" required>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Justificatif manquant, montant excessif…"
+            rows={3}
+          />
+        </FormField>
+      </UnifiedModal>
 
-      {/* Reject dialog */}
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent size="sm">
-          <DialogHeader>
-            <DialogTitle>Rejeter la dépense</DialogTitle>
-            <DialogDescription>Le motif est obligatoire et sera tracé dans l'audit.</DialogDescription>
-          </DialogHeader>
-          <FormField label="Motif du rejet" required>
-            <Textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Justificatif manquant, montant excessif…"
-              rows={3}
-            />
-          </FormField>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={reject} disabled={busy}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-              Confirmer le rejet
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Disburse confirm */}
+      {/* Disburse confirm — ConfirmDialog (wraps UnifiedModal) */}
       <ConfirmDialog
         open={disburseDialogOpen}
         onOpenChange={setDisburseDialogOpen}
@@ -393,41 +388,40 @@ export function ExpenseDetailDrawer({
         onConfirm={disburse}
       />
 
-      {/* Settle proof dialog */}
-      <Dialog open={proofDialogOpen} onOpenChange={setProofDialogOpen}>
-        <DialogContent size="sm">
-          <DialogHeader>
-            <DialogTitle>Téléverser le justificatif</DialogTitle>
-            <DialogDescription>
-              Le justificatif (reçu/facture) est OBLIGATOIRE avant clôture (plan §08).
-            </DialogDescription>
-          </DialogHeader>
-          <FormField label="Fichier justificatif" required>
-            <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
-              <Upload className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {proofFileName ?? "Téléverser un justificatif (image/PDF)"}
-              </span>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) setProofFileName(f.name);
-                }}
-              />
-            </label>
-          </FormField>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProofDialogOpen(false)}>Annuler</Button>
-            <Button onClick={settleProof} disabled={busy || !proofFileName}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Justifier et clôturer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Drawer>
+      {/* Settle proof dialog — UnifiedModal with file upload */}
+      <UnifiedModal
+        open={proofDialogOpen}
+        onOpenChange={setProofDialogOpen}
+        variant="dialog"
+        size="sm"
+        icon={Upload}
+        iconTone="primary"
+        title="Téléverser le justificatif"
+        description="Le justificatif (reçu/facture) est OBLIGATOIRE avant clôture (plan §08)."
+        submitLabel="Justifier et clôturer"
+        submitIcon={CheckCircle2}
+        submitDisabled={!proofFileName}
+        submitLoading={busy}
+        onSubmit={settleProof}
+      >
+        <FormField label="Fichier justificatif" required>
+          <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
+            <Upload className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {proofFileName ?? "Téléverser un justificatif (image/PDF)"}
+            </span>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setProofFileName(f.name);
+              }}
+            />
+          </label>
+        </FormField>
+      </UnifiedModal>
+    </>
   );
 }

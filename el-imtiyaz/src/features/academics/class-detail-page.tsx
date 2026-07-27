@@ -78,7 +78,7 @@ export function ClassDetailPage() {
           <PageTab value="grades" label="Notes" icon={GraduationCap} />
         </PageTabList>
 
-        <PageTabContent value="students" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="students">
           <Card>
             <CardContent className="p-0">
               <div className="border-b border-border p-3 flex items-center justify-between">
@@ -116,15 +116,15 @@ export function ClassDetailPage() {
           </Card>
         </PageTabContent>
 
-        <PageTabContent value="subjects" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="subjects">
           <ClassSubjectsTab classId={classId!} />
         </PageTabContent>
 
-        <PageTabContent value="attendance" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="attendance">
           <ClassAttendanceTab classId={classId!} />
         </PageTabContent>
 
-        <PageTabContent value="grades" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="grades">
           <ClassGradesTab classId={classId!} />
         </PageTabContent>
       </PageTabs>

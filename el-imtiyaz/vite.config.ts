@@ -56,7 +56,48 @@ export default defineConfig({
     target: "es2022",
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),
+      /**
+       * Iteration 4 (P3-S): split the previously-monolithic 2.6 MB bundle
+       * into vendor chunks so that:
+       *   - The initial dashboard load only needs `vendor-react` + `vendor-radix`
+       *     + `vendor-i18n` + the dashboard feature chunk.
+       *   - Heavy libraries (charts, pdf-lib, exceljs) load lazily when the
+       *     user first navigates to a screen that uses them.
+       *
+       * Manual chunks are grouped by ecosystem so that an upgrade to one
+       * library doesn't bust the cache of unrelated vendor chunks.
+       */
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-radix": [
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-label",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-progress",
+            "@radix-ui/react-scroll-area",
+            "@radix-ui/react-select",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-switch",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-checkbox",
+          ],
+          "vendor-charts": ["recharts"],
+          "vendor-pdf": ["pdf-lib"],
+          "vendor-excel": ["exceljs"],
+          "vendor-i18n": ["i18next", "react-i18next"],
+          "vendor-forms": ["react-hook-form", "zod", "@hookform/resolvers"],
+          "vendor-query": ["@tanstack/react-query", "zustand"],
+          "vendor-cmdk": ["cmdk"],
+        },
+      },
     },
+    chunkSizeWarningLimit: 1024, // 1 MB — individual chunks should stay under this
   },
   server: {
     port: 5173,

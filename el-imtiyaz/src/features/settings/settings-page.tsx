@@ -35,13 +35,7 @@ import { Label } from "../../shared/ui/label";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/components/status-chip";
 import { EmptyState, LoadingState } from "../../shared/components/state-views";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "../../shared/ui/dialog";
+import { UnifiedModal } from "../../shared/components/unified-modal";
 import { PERMANENTLY_DISABLED } from "../../core/rbac/feature-registry";
 import { PERMANENT_STATE_LABELS_FR } from "../../core/rbac/access-state";
 import { Permission } from "../../core/rbac/permissions";
@@ -79,25 +73,25 @@ export function SettingsPage() {
           <PageTab value="locked" label={t("settings.locked")} icon={Lock} />
         </PageTabList>
 
-        <PageTabContent value="general" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="general">
           <GeneralTab />
         </PageTabContent>
-        <PageTabContent value="pricing" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="pricing">
           {canViewPricing ? <PricingTab /> : <AccessDeniedCard />}
         </PageTabContent>
-        <PageTabContent value="audit" className="flex-1 overflow-hidden mt-4">
+        <PageTabContent value="audit" scrollable={false}>
           {canViewAudit ? <AuditLogTab /> : <AccessDeniedCard />}
         </PageTabContent>
-        <PageTabContent value="rbac" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="rbac">
           <RbacMatrixTab />
         </PageTabContent>
-        <PageTabContent value="ai" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="ai">
           <AiConfigTab />
         </PageTabContent>
-        <PageTabContent value="backup" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="backup">
           <BackupTab />
         </PageTabContent>
-        <PageTabContent value="locked" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="locked">
           <LockedFeaturesTab />
         </PageTabContent>
       </PageTabs>
@@ -331,42 +325,52 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
   }
 
   return (
-    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent size="lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <code className="font-mono text-primary">{entry?.action}</code>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-sm font-normal">{entry?.entityType}:{entry?.entityId}</span>
-          </DialogTitle>
-          <DialogDescription>
-            {entry?.actorName} • {entry ? formatDateTime(entry.at) : ""} • IP {entry?.ipAddress ?? "—"}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          {entry?.note && (
-            <div>
-              <p className="text-xs uppercase text-muted-foreground mb-1">Note</p>
-              <p className="text-sm text-foreground bg-muted/30 rounded p-2">{entry.note}</p>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs uppercase text-muted-foreground mb-1">Avant</p>
-              <pre className="bg-status-danger/10 border border-status-danger/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
-                {before == null ? "null" : JSON.stringify(before, null, 2)}
-              </pre>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground mb-1">Après</p>
-              <pre className="bg-status-success/10 border border-status-success/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
-                {after == null ? "null" : JSON.stringify(after, null, 2)}
-              </pre>
-            </div>
+    <UnifiedModal
+      open={!!entry}
+      onOpenChange={(o) => !o && onClose()}
+      variant="dialog"
+      size="lg"
+      icon={ScrollText}
+      iconTone="primary"
+      title={
+        <span className="flex items-center gap-2 text-base">
+          <code className="font-mono text-primary">{entry?.action}</code>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-sm font-normal">{entry?.entityType}:{entry?.entityId}</span>
+        </span>
+      }
+      description={
+        <>
+          {entry?.actorName} • {entry ? formatDateTime(entry.at) : ""} • IP {entry?.ipAddress ?? "—"}
+        </>
+      }
+      hideCancel
+      submitLabel="Fermer"
+      onSubmit={onClose}
+    >
+      <div className="space-y-3">
+        {entry?.note && (
+          <div>
+            <p className="text-xs uppercase text-muted-foreground mb-1">Note</p>
+            <p className="text-sm text-foreground bg-muted/30 rounded p-2">{entry.note}</p>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs uppercase text-muted-foreground mb-1">Avant</p>
+            <pre className="bg-status-danger/10 border border-status-danger/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
+              {before == null ? "null" : JSON.stringify(before, null, 2)}
+            </pre>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-muted-foreground mb-1">Après</p>
+            <pre className="bg-status-success/10 border border-status-success/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
+              {after == null ? "null" : JSON.stringify(after, null, 2)}
+            </pre>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </UnifiedModal>
   );
 }
 

@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Filter, Search, Download, Phone, MessageCircle, Mail, Eye } from "lucide-react";
+import { Plus, Filter, Search, Download, Phone, MessageCircle, Mail, Eye, Users, GraduationCap, UserPlus } from "lucide-react";
 import { useRepositories } from "../../infrastructure/repository-provider";
 import type { Parent } from "../../domain/model/parent";
 import type { Student } from "../../domain/model/student";
@@ -67,17 +67,17 @@ export function CrmPage() {
       />
       <PageTabs defaultValue="parents" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
         <PageTabList>
-          <PageTab value="parents" label="Parents" />
-          <PageTab value="students" label="Élèves" />
-          <PageTab value="batch" label="Inscription groupée" />
+          <PageTab value="parents" label="Parents" icon={Users} />
+          <PageTab value="students" label="Élèves" icon={GraduationCap} />
+          <PageTab value="batch" label="Inscription groupée" icon={UserPlus} />
         </PageTabList>
-        <PageTabContent value="parents" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="parents">
           <ParentsTab onOpenParent={openParent} />
         </PageTabContent>
-        <PageTabContent value="students" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="students">
           <StudentsTab onOpenStudent={openStudent} />
         </PageTabContent>
-        <PageTabContent value="batch" className="flex-1 overflow-y-auto mt-4">
+        <PageTabContent value="batch">
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-start gap-3">

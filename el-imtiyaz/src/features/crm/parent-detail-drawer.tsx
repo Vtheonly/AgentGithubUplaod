@@ -6,8 +6,13 @@
  * balance, tranches, due dates). Per plan §03.02 / §07.06, financial
  * views must NOT open in a separate tab — always render inside the
  * parent drawer.
+ *
+ * Iteration 4: migrated from raw `Drawer` to `UnifiedModal variant="drawer"`
+ * so the parent drawer shares the exact same chrome, padding, header, footer,
+ * animations, and close behavior as every other modal/drawer in the app
+ * (matching `student-detail-drawer.tsx`).
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Phone,
   MessageCircle,
@@ -17,22 +22,13 @@ import {
   UserPlus,
   Wallet,
   AlertTriangle,
-  MapPin,
-  Briefcase,
+  Users,
 } from "lucide-react";
 import { useRepositories } from "../../infrastructure/repository-provider";
 import { useToast } from "../../state/toast-context";
 import { useAuth } from "../../state/auth-context";
 import { useObservable } from "../../shared/hooks/use-observable";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-  DrawerBody,
-  DrawerFooter,
-} from "../../shared/ui/drawer";
+import { UnifiedModal } from "../../shared/components/unified-modal";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
@@ -47,7 +43,6 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
-  AGING_BUCKET_LABELS_FR,
 } from "../../domain/model/payment";
 import { Permission } from "../../core/rbac/permissions";
 
@@ -83,174 +78,30 @@ export function ParentDetailDrawer({
   const overdue = financialProfile?.overdueAmount ?? 0;
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent size="lg">
-        <DrawerHeader>
-          <DrawerTitle className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="truncate">
-                {parent.firstName} {parent.lastName}
-              </p>
-              <DrawerDescription className="font-mono text-xs">{parent.code}</DrawerDescription>
-            </div>
-          </DrawerTitle>
-        </DrawerHeader>
-
-        <DrawerBody className="space-y-5">
-          {/* === Section 1: Identity === */}
-          <section className="space-y-2">
-            <SectionTitle icon={<UserPlus className="h-3.5 w-3.5" />}>Identité</SectionTitle>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <Detail label="Téléphone" value={parent.phone} />
-              <Detail label="WhatsApp" value={parent.whatsapp ?? "—"} />
-              <Detail label="E-mail" value={parent.email ?? "—"} />
-              <Detail label="Profession" value={parent.occupation ?? "—"} />
-              <Detail label="Zone" value={zoneLabel(parent.cityTier)} />
-              <Detail label="Langue" value={parent.preferredLanguage === "fr" ? "Français" : "العربية"} />
-              <Detail label="Adresse" value={parent.address ?? "—"} className="col-span-2" />
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* === Section 2: Children === */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <SectionTitle icon={<UserPlus className="h-3.5 w-3.5" />}>
-                Enfants ({students.length})
-              </SectionTitle>
-              {onAddChild && (
-                <Button size="sm" variant="outline" onClick={() => onAddChild(parent.id)}>
-                  <Plus className="h-4 w-4" /> Ajouter un enfant
-                </Button>
-              )}
-            </div>
-            {students.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Aucun enfant inscrit.</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {students.map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex items-center gap-3 rounded-md border border-border p-2.5 hover:bg-accent/5"
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {s.firstName[0]}
-                        {s.lastName[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {s.firstName} {s.lastName}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground font-mono">{s.code}</p>
-                    </div>
-                    <Badge variant="outline" className="text-[10px]">
-                      {levelLabel(s.level)} · An. {s.gradeYear}
-                    </Badge>
-                    <StatusChip
-                      label={s.status === "active" ? "Actif" : s.status}
-                      tone={s.status === "active" ? "success" : "neutral"}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <Separator />
-
-          {/* === Section 3: Finances === */}
-          <section className="space-y-3">
-            <SectionTitle icon={<Wallet className="h-3.5 w-3.5" />}>Finances</SectionTitle>
-
-            {/* Balance cards */}
-            <div className="grid grid-cols-3 gap-2">
-              <BalanceCard label="Total dû" value={financialProfile?.totalDue ?? 0} tone="default" />
-              <BalanceCard label="Payé" value={financialProfile?.totalPaid ?? 0} tone="success" />
-              <BalanceCard label="Reste" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
-            </div>
-
-            {overdue > 0 && (
-              <div className="flex items-center gap-2 rounded-md border border-status-danger/40 bg-status-danger/10 p-2 text-xs">
-                <AlertTriangle className="h-3.5 w-3.5 text-status-danger" />
-                <span className="text-status-danger font-medium">
-                  Créance en retard: {formatDzd(overdue)}
-                </span>
-              </div>
-            )}
-
-            {/* Installments (tranches) */}
-            <div className="rounded-md border border-border">
-              <div className="border-b border-border px-3 py-1.5 bg-muted/30">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Tranches
-                </p>
-              </div>
-              {financialProfile && financialProfile.installments.length > 0 ? (
-                <ul className="divide-y divide-border text-xs">
-                  {financialProfile.installments.map((i) => (
-                    <li key={i.id} className="flex items-center gap-2 px-3 py-2">
-                      <span className="font-medium">{i.label}</span>
-                      <span className="text-muted-foreground">{PAYMENT_CATEGORY_LABELS_FR[i.category]}</span>
-                      <span className="ml-auto font-mono">{formatDzdPlain(i.amountDue)}</span>
-                      <span className="text-muted-foreground">→ {formatDate(i.dueDate)}</span>
-                      <StatusChip
-                        label={PAYMENT_STATUS_LABELS_FR[i.status]}
-                        tone={
-                          i.status === "paid"
-                            ? "success"
-                            : i.status === "partial"
-                              ? "warning"
-                              : i.status === "overdue"
-                                ? "danger"
-                                : "neutral"
-                        }
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="px-3 py-3 text-xs text-muted-foreground">Aucune tranche.</p>
-              )}
-            </div>
-
-            {/* Recent payments */}
-            <div className="rounded-md border border-border">
-              <div className="border-b border-border px-3 py-1.5 bg-muted/30">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Paiements récents
-                </p>
-              </div>
-              {financialProfile && financialProfile.recentPayments.length > 0 ? (
-                <ul className="divide-y divide-border text-xs">
-                  {financialProfile.recentPayments.slice(0, 5).map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 px-3 py-2">
-                      <code className="font-mono text-[10px] text-muted-foreground">{p.receiptNumber}</code>
-                      <span className="text-muted-foreground">{PAYMENT_METHOD_LABELS_FR[p.method]}</span>
-                      <span className="ml-auto font-mono">{formatDzdPlain(p.amount)}</span>
-                      <span className="text-muted-foreground">{formatRelative(p.collectedAt)}</span>
-                      <StatusChip
-                        label={PAYMENT_STATUS_LABELS_FR[p.status]}
-                        tone={p.status === "paid" ? "success" : p.status === "pending" ? "warning" : "neutral"}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="px-3 py-3 text-xs text-muted-foreground">Aucun paiement.</p>
-              )}
-            </div>
-          </section>
-        </DrawerBody>
-
-        <DrawerFooter>
+    <UnifiedModal
+      open={open}
+      onOpenChange={onOpenChange}
+      variant="drawer"
+      size="lg"
+      icon={Users}
+      iconTone="primary"
+      title={
+        <span className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <span>{parent.firstName} {parent.lastName}</span>
+        </span>
+      }
+      description={
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-xs">{parent.code}</span>
+        </span>
+      }
+      footer={
+        <>
           <AdjustAccountButton parentId={parent.id} outstanding={outstanding} />
-          <div className="flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1.5">
             <Button variant="outline" size="icon" title="Appeler" onClick={() => window.open(`tel:${parent.phone}`)}>
               <Phone className="h-4 w-4" />
             </Button>
@@ -273,9 +124,158 @@ export function ParentDetailDrawer({
               <FileText className="h-4 w-4" />
             </Button>
           </div>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {/* === Section 1: Identity === */}
+        <section className="space-y-2">
+          <SectionTitle icon={<UserPlus className="h-3.5 w-3.5" />}>Identité</SectionTitle>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <Detail label="Téléphone" value={parent.phone} />
+            <Detail label="WhatsApp" value={parent.whatsapp ?? "—"} />
+            <Detail label="E-mail" value={parent.email ?? "—"} />
+            <Detail label="Profession" value={parent.occupation ?? "—"} />
+            <Detail label="Zone" value={zoneLabel(parent.cityTier)} />
+            <Detail label="Langue" value={parent.preferredLanguage === "fr" ? "Français" : "العربية"} />
+            <Detail label="Adresse" value={parent.address ?? "—"} className="col-span-2" />
+          </div>
+        </section>
+
+        <Separator />
+
+        {/* === Section 2: Children === */}
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <SectionTitle icon={<UserPlus className="h-3.5 w-3.5" />}>
+              Enfants ({students.length})
+            </SectionTitle>
+            {onAddChild && (
+              <Button size="sm" variant="outline" onClick={() => onAddChild(parent.id)}>
+                <Plus className="h-4 w-4" /> Ajouter un enfant
+              </Button>
+            )}
+          </div>
+          {students.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Aucun enfant inscrit.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {students.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex items-center gap-3 rounded-md border border-border p-2.5 hover:bg-accent/5"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs">
+                      {s.firstName[0]}
+                      {s.lastName[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {s.firstName} {s.lastName}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground font-mono">{s.code}</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">
+                    {levelLabel(s.level)} · An. {s.gradeYear}
+                  </Badge>
+                  <StatusChip
+                    label={s.status === "active" ? "Actif" : s.status}
+                    tone={s.status === "active" ? "success" : "neutral"}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <Separator />
+
+        {/* === Section 3: Finances === */}
+        <section className="space-y-3">
+          <SectionTitle icon={<Wallet className="h-3.5 w-3.5" />}>Finances</SectionTitle>
+
+          {/* Balance cards */}
+          <div className="grid grid-cols-3 gap-2">
+            <BalanceCard label="Total dû" value={financialProfile?.totalDue ?? 0} tone="default" />
+            <BalanceCard label="Payé" value={financialProfile?.totalPaid ?? 0} tone="success" />
+            <BalanceCard label="Reste" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
+          </div>
+
+          {overdue > 0 && (
+            <div className="flex items-center gap-2 rounded-md border border-status-danger/40 bg-status-danger/10 p-2 text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 text-status-danger" />
+              <span className="text-status-danger font-medium">
+                Créance en retard: {formatDzd(overdue)}
+              </span>
+            </div>
+          )}
+
+          {/* Installments (tranches) */}
+          <div className="rounded-md border border-border">
+            <div className="border-b border-border px-3 py-1.5 bg-muted/30">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Tranches
+              </p>
+            </div>
+            {financialProfile && financialProfile.installments.length > 0 ? (
+              <ul className="divide-y divide-border text-xs">
+                {financialProfile.installments.map((i) => (
+                  <li key={i.id} className="flex items-center gap-2 px-3 py-2">
+                    <span className="font-medium">{i.label}</span>
+                    <span className="text-muted-foreground">{PAYMENT_CATEGORY_LABELS_FR[i.category]}</span>
+                    <span className="ml-auto font-mono">{formatDzdPlain(i.amountDue)}</span>
+                    <span className="text-muted-foreground">→ {formatDate(i.dueDate)}</span>
+                    <StatusChip
+                      label={PAYMENT_STATUS_LABELS_FR[i.status]}
+                      tone={
+                        i.status === "paid"
+                          ? "success"
+                          : i.status === "partial"
+                            ? "warning"
+                            : i.status === "overdue"
+                              ? "danger"
+                              : "neutral"
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-3 py-3 text-xs text-muted-foreground">Aucune tranche.</p>
+            )}
+          </div>
+
+          {/* Recent payments */}
+          <div className="rounded-md border border-border">
+            <div className="border-b border-border px-3 py-1.5 bg-muted/30">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Paiements récents
+              </p>
+            </div>
+            {financialProfile && financialProfile.recentPayments.length > 0 ? (
+              <ul className="divide-y divide-border text-xs">
+                {financialProfile.recentPayments.slice(0, 5).map((p) => (
+                  <li key={p.id} className="flex items-center gap-2 px-3 py-2">
+                    <code className="font-mono text-[10px] text-muted-foreground">{p.receiptNumber}</code>
+                    <span className="text-muted-foreground">{PAYMENT_METHOD_LABELS_FR[p.method]}</span>
+                    <span className="ml-auto font-mono">{formatDzdPlain(p.amount)}</span>
+                    <span className="text-muted-foreground">{formatRelative(p.collectedAt)}</span>
+                    <StatusChip
+                      label={PAYMENT_STATUS_LABELS_FR[p.status]}
+                      tone={p.status === "paid" ? "success" : p.status === "pending" ? "warning" : "neutral"}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-3 py-3 text-xs text-muted-foreground">Aucun paiement.</p>
+            )}
+          </div>
+        </section>
+      </div>
+    </UnifiedModal>
   );
 }
 
@@ -320,53 +320,21 @@ function AdjustAccountButton({ parentId, outstanding }: { parentId: string; outs
       <Button variant="outline" onClick={() => setOpen(true)}>
         <Wallet className="h-4 w-4" /> Ajuster le compte
       </Button>
-      {open && (
-        <AdjustDialog
-          open={open}
-          onOpenChange={setOpen}
-          amount={amount}
-          setAmount={setAmount}
-          reason={reason}
-          setReason={setReason}
-          outstanding={outstanding}
-          onSubmit={submit}
-        />
-      )}
-    </>
-  );
-}
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../shared/ui/dialog";
-
-function AdjustDialog({
-  open,
-  onOpenChange,
-  amount,
-  setAmount,
-  reason,
-  setReason,
-  outstanding,
-  onSubmit,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  amount: number;
-  setAmount: (n: number) => void;
-  reason: string;
-  setReason: (s: string) => void;
-  outstanding: number;
-  onSubmit: () => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
-          <DialogTitle>Ajustement de compte</DialogTitle>
-          <DialogDescription>
-            Remplace le système de bourses supprimé (plan §07.04). Reason code + note admin requis.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3 py-2">
+      <UnifiedModal
+        open={open}
+        onOpenChange={setOpen}
+        variant="dialog"
+        size="sm"
+        icon={Wallet}
+        iconTone="primary"
+        title="Ajustement de compte"
+        description="Remplace le système de bourses supprimé (plan §07.04). Reason code + note admin requis."
+        submitLabel="Appliquer"
+        submitIcon={Wallet}
+        onSubmit={submit}
+        submitDisabled={amount === 0 || !reason.trim()}
+      >
+        <div className="space-y-3">
           <div className="rounded-md border border-border p-2 text-xs">
             <p className="text-muted-foreground">Solde en cours</p>
             <p className="font-mono font-semibold">{formatDzd(outstanding)}</p>
@@ -387,14 +355,8 @@ function AdjustDialog({
             />
           </FormField>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button onClick={onSubmit}>Appliquer</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </UnifiedModal>
+    </>
   );
 }
 

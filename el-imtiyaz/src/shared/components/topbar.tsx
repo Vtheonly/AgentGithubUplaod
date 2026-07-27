@@ -255,7 +255,16 @@ export function Topbar() {
         </DropdownMenu>
       </header>
 
-      {/* Search palette */}
+      {/* Search palette — deliberate UnifiedModal exception.
+          Command palettes (Cmd+K) follow a different UX pattern than
+          form/detail modals: no title, no icon, no description, no
+          footer, custom p-0 layout, search input embedded directly in
+          the header. Forcing this through <UnifiedModal> would require
+          so many className overrides that the result would be less
+          maintainable than the raw Dialog below. The visual chrome
+          (overlay, animation, close button) is intentionally aligned
+          with UnifiedModal so the user-perceived experience is still
+          consistent. */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent size="lg" className="p-0 gap-0">
           <DialogHeader className="p-4 border-b border-border">

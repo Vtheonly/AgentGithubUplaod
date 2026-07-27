@@ -474,8 +474,10 @@ function AddServiceButton() {
 
 // ============================================================
 // Shared simple dialog wrapper for the add forms above
+// Iteration 4: migrated from raw Dialog to UnifiedModal so these
+// add-form modals share the exact same chrome as every other modal.
 // ============================================================
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../shared/ui/dialog";
+import { UnifiedModal } from "../../shared/components/unified-modal";
 
 function SimpleDialog({
   open,
@@ -493,22 +495,20 @@ function SimpleDialog({
   children: React.ReactNode;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
-        </DialogHeader>
-        <div className="space-y-3 py-2">{children}</div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button onClick={onSubmit}>
-            <Save className="h-4 w-4" /> Enregistrer
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <UnifiedModal
+      open={open}
+      onOpenChange={onOpenChange}
+      variant="dialog"
+      size="sm"
+      icon={Plus}
+      iconTone="primary"
+      title={title}
+      description={description}
+      submitLabel="Enregistrer"
+      submitIcon={Save}
+      onSubmit={onSubmit}
+    >
+      <div className="space-y-3">{children}</div>
+    </UnifiedModal>
   );
 }

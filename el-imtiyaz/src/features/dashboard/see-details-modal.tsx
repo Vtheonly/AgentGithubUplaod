@@ -6,7 +6,7 @@
  * The modal is sized to cover ~70% of the viewport.
  *
  * Iteration 3: refactored to use UnifiedModal (variant="dialog", hideFooter)
- * and the new PageTabs primitive (variant="elevated") for a more modern,
+ * and the PageTabs primitive (variant="underline") for a more modern,
  * polished appearance that matches the rest of the application.
  */
 import { useEffect, useState } from "react";
