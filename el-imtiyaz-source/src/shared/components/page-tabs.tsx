@@ -59,6 +59,13 @@ export interface PageTabsProps extends React.ComponentPropsWithoutRef<typeof Tab
 export interface PageTabListProps extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> {
   variant?: PageTabsVariant;
   fullWidth?: boolean;
+  /**
+   * Iteration 6: When true, the tab list scrolls horizontally instead of
+   * overflowing its container. Useful for hubs with many tabs (e.g. Settings
+   * with 7 tabs) or for narrow viewports. Default: false (preserves the
+   * desktop segmented-control look).
+   */
+  scrollable?: boolean;
 }
 
 export interface PageTabProps extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> {
@@ -138,15 +145,23 @@ const VariantContext = React.createContext<PageTabsVariant>("elevated");
 export const PageTabList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   PageTabListProps
->(({ className, variant, fullWidth = false, ...props }, ref) => {
+>(({ className, variant, fullWidth = false, scrollable = false, ...props }, ref) => {
   const ctxVariant = React.useContext(VariantContext);
   const v = variant ?? ctxVariant;
+
+  // Iteration 6: scrollable lists use `flex` (instead of `inline-flex`) +
+  // `overflow-x-auto` + hidden scrollbars so the segmented control can
+  // scroll horizontally on narrow viewports without ugly scrollbars.
+  const scrollClass = scrollable
+    ? "flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    : "";
 
   const baseClass =
     v === "elevated"
       ? cn(
           "inline-flex items-center gap-1 rounded-xl bg-muted/50 p-1 ring-1 ring-inset ring-border/60",
           fullWidth && "flex w-full",
+          scrollClass,
         )
       : v === "rail"
         ? cn(
@@ -156,6 +171,7 @@ export const PageTabList = React.forwardRef<
         : cn(
             "inline-flex h-10 items-end gap-0 border-b border-border text-muted-foreground",
             fullWidth && "flex w-full",
+            scrollClass,
           );
 
   return (
@@ -188,11 +204,12 @@ export const PageTab = React.forwardRef<
       "ring-offset-background transition-all duration-200",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       "disabled:pointer-events-none disabled:opacity-40",
-      // Baseline muted text
-      "text-muted-foreground hover:text-foreground",
+      // Baseline muted text + subtle hover background (iter 6 polish).
+      "text-muted-foreground hover:text-foreground hover:bg-accent/40",
       // Active state: filled pill + primary text + subtle shadow
       "data-[state=active]:bg-popover data-[state=active]:text-foreground",
       "data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border/50",
+      "data-[state=active]:hover:bg-popover",
     );
 
     const underlineClass = cn(
@@ -205,8 +222,8 @@ export const PageTab = React.forwardRef<
       "after:absolute after:inset-x-0 after:bottom-[-1px] after:h-[2px] after:rounded-full",
       "after:bg-transparent after:transition-colors after:duration-150",
       "after:data-[state=active]:bg-primary",
-      // Text color
-      "text-muted-foreground hover:text-foreground",
+      // Text color + subtle hover background (iter 6 polish).
+      "text-muted-foreground hover:text-foreground hover:bg-accent/30",
       "data-[state=active]:text-foreground data-[state=active]:font-semibold",
     );
 

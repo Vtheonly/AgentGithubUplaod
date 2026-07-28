@@ -85,8 +85,11 @@ import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../domain/mo
 import type { Personnel, ReleveEntry } from "../../domain/model/personnel";
 import type { AuditEntry, AuditLogFilter, AuditLogQueryResult } from "../../domain/model/audit";
 import type { AppNotification, DashboardKpi, RevenuePoint, DebtByAgingBucket, DemographicSlice } from "../../domain/model/operations";
-import type { PricingConfig, PricingEntry, DiscountType } from "../../domain/model/pricing";
-import type { AcademicLevel } from "../../domain/model/student";
+import type { PricingConfig, PricingEntry, DiscountType, DiscountCode } from "../../domain/model/pricing";
+import type { AcademicLevel, GradeLevel } from "../../domain/model/student";
+import { gradeLevelFromLevelYear } from "../../domain/model/student";
+import type { TransportDestination } from "../../domain/model/parent";
+import { cityTierToDestination } from "../../domain/model/parent";
 
 import { SubjectBehavior } from "./subject-behavior";
 import {
@@ -104,6 +107,13 @@ import {
   seedNotifications,
   seedAccounts,
 } from "./seed-data";
+import {
+  seedClassSubjects,
+  seedAssessments,
+  seedAttendance,
+  seedHomework,
+  seedReleve,
+} from "./academic-seed";
 import { defaultPricingConfig } from "./pricing-seed";
 import { seedLedger } from "./ledger-seed";
 
@@ -112,16 +122,26 @@ const nowIso = () => new Date().toISOString();
 /**
  * Mutable in-memory store. Mock repositories share this store so cross-entity
  * queries (e.g. ParentFinancialProfile) see consistent state.
+ *
+ * Iteration 6: Added classSubjects, assessments, attendance, homework, releve
+ * collections (previously these read paths returned empty arrays). This makes
+ * the class detail tabs, homework history tab, and personnel relevé tab
+ * show realistic data out of the box.
  */
 class MockStore {
   parents: Parent[] = [...seedParents];
   students: Student[] = [...seedStudents];
   classes: AcademicClass[] = [...seedClasses];
   subjects: Subject[] = [...seedSubjects];
+  classSubjects: ClassSubject[] = [...seedClassSubjects];
+  assessments: Assessment[] = [...seedAssessments];
+  attendance: AttendanceRecord[] = [...seedAttendance];
+  homework: Homework[] = [...seedHomework];
   payments: Payment[] = [...seedPayments];
   installments: Installment[] = [...seedInstallments];
   expenses: Expense[] = [...seedExpenses];
   personnel: Personnel[] = [...seedPersonnel];
+  releve: ReleveEntry[] = [...seedReleve];
   audit: AuditEntry[] = [...seedAudit];
   notifications: AppNotification[] = [...seedNotifications];
   ledger: LedgerEntry[] = [...seedLedger];
@@ -130,10 +150,15 @@ class MockStore {
   students$ = new SubjectBehavior<Student[]>(this.students);
   classes$ = new SubjectBehavior<AcademicClass[]>(this.classes);
   subjects$ = new SubjectBehavior<Subject[]>(this.subjects);
+  classSubjects$ = new SubjectBehavior<ClassSubject[]>(this.classSubjects);
+  assessments$ = new SubjectBehavior<Assessment[]>(this.assessments);
+  attendance$ = new SubjectBehavior<AttendanceRecord[]>(this.attendance);
+  homework$ = new SubjectBehavior<Homework[]>(this.homework);
   payments$ = new SubjectBehavior<Payment[]>(this.payments);
   installments$ = new SubjectBehavior<Installment[]>(this.installments);
   expenses$ = new SubjectBehavior<Expense[]>(this.expenses);
   personnel$ = new SubjectBehavior<Personnel[]>(this.personnel);
+  releve$ = new SubjectBehavior<ReleveEntry[]>(this.releve);
   audit$ = new SubjectBehavior<AuditEntry[]>(this.audit);
   notifications$ = new SubjectBehavior<AppNotification[]>(this.notifications);
   ledger$ = new SubjectBehavior<LedgerEntry[]>(this.ledger);
@@ -147,6 +172,11 @@ class MockStore {
   notifyAudit() { this.audit$.set([...this.audit]); }
   notifyNotifications() { this.notifications$.set([...this.notifications]); }
   notifyLedger() { this.ledger$.set([...this.ledger]); }
+  notifyClassSubjects() { this.classSubjects$.set([...this.classSubjects]); }
+  notifyAssessments() { this.assessments$.set([...this.assessments]); }
+  notifyAttendance() { this.attendance$.set([...this.attendance]); }
+  notifyHomework() { this.homework$.set([...this.homework]); }
+  notifyReleve() { this.releve$.set([...this.releve]); }
 }
 
 const store = new MockStore();
@@ -246,6 +276,9 @@ class MockParentRepository implements ParentRepository {
   async createParent(input: CreateParentInput): Promise<Result<Parent>> {
     await delay(200);
     const year = new Date().getFullYear();
+    // Iteration 6: derive transportDestination from cityTier if not explicitly provided.
+    const transportDestination: TransportDestination | null =
+      input.transportDestination ?? cityTierToDestination(input.cityTier) ?? null;
     const parent: Parent = {
       id: `par-${String(store.parents.length + 1).padStart(3, "0")}`,
       tenantId: TENANT_ID,
@@ -259,6 +292,7 @@ class MockParentRepository implements ParentRepository {
       occupation: input.occupation ?? null,
       address: input.address ?? null,
       cityTier: input.cityTier ?? null,
+      transportDestination,
       preferredLanguage: input.preferredLanguage ?? "fr",
       avatarUrl: null,
       createdAt: nowIso(),
@@ -342,6 +376,8 @@ class MockStudentRepository implements StudentRepository {
     await delay(200);
     const year = new Date().getFullYear();
     const seq = store.students.length + 1;
+    // Iteration 6: derive gradeLevel if not provided explicitly.
+    const gradeLevel: GradeLevel = input.gradeLevel ?? gradeLevelFromLevelYear(input.level, input.gradeYear);
     const student: Student = {
       id: `stu-${String(seq).padStart(3, "0")}`,
       tenantId: TENANT_ID,
@@ -354,6 +390,7 @@ class MockStudentRepository implements StudentRepository {
       enrollmentDate: nowIso(),
       level: input.level,
       gradeYear: input.gradeYear,
+      gradeLevel,
       classId: input.classId ?? null,
       photoUrl: null,
       medicalNotes: input.medicalNotes ?? null,
@@ -379,7 +416,19 @@ class MockStudentRepository implements StudentRepository {
     const idx = store.students.findIndex((s) => s.id === id);
     if (idx < 0) return Err(Errors.notFound("Student", id));
     const before = store.students[idx];
-    const after: Student = { ...before, ...updates, updatedAt: nowIso() };
+    // Iteration 6: re-derive gradeLevel if level/gradeYear were updated.
+    const newLevel = updates.level ?? before.level;
+    const newYear = updates.gradeYear ?? before.gradeYear;
+    const newGradeLevel: GradeLevel =
+      updates.gradeLevel ?? gradeLevelFromLevelYear(newLevel, newYear);
+    const after: Student = {
+      ...before,
+      ...updates,
+      level: newLevel,
+      gradeYear: newYear,
+      gradeLevel: newGradeLevel,
+      updatedAt: nowIso(),
+    };
     store.students[idx] = after;
     store.notifyStudents();
     appendAudit({
@@ -405,49 +454,115 @@ class MockStudentRepository implements StudentRepository {
     });
     return Ok(undefined);
   }
+  /**
+   * Iteration 6: TRUE atomic batch registration with rollback.
+   *
+   * The plan §18.01 mandates "All multi-record writes wrapped in BEGIN...COMMIT".
+   * The previous implementation created the parent first, then iterated student
+   * creation — if any student failed, the parent and earlier students persisted.
+   *
+   * This implementation:
+   *   1. Pre-validates ALL student inputs BEFORE writing anything.
+   *   2. Snapshots the current state of parents and students arrays.
+   *   3. Creates the parent + all students atomically.
+   *   4. On ANY failure, rolls back to the snapshot.
+   *   5. Writes a single audit entry on success.
+   *
+   * If rollback occurs, the audit log records the failure (not a success).
+   */
   async batchRegister(input: BatchRegistrationInput): Promise<Result<BatchRegistrationResult>> {
     await delay(400);
-    const year = new Date().getFullYear();
-    const parentResult = await new MockParentRepository().createParent(input.parent);
-    if (!parentResult.ok) return Err(parentResult.error);
-    const parent = parentResult.value;
-    const students: Student[] = [];
-    for (const sInput of input.students) {
-      const seq = store.students.length + 1;
-      const student: Student = {
-        id: `stu-${String(seq).padStart(3, "0")}`,
-        tenantId: TENANT_ID,
-        code: studentCode(year, seq),
-        parentId: parent.id,
-        firstName: sInput.firstName,
-        lastName: sInput.lastName,
-        gender: sInput.gender,
-        birthDate: sInput.birthDate,
-        enrollmentDate: nowIso(),
-        level: sInput.level,
-        gradeYear: sInput.gradeYear,
-        classId: sInput.classId ?? null,
-        photoUrl: null,
-        medicalNotes: sInput.medicalNotes ?? null,
-        transportTier: sInput.transportTier ?? null,
-        status: "active",
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      store.students.unshift(student);
-      students.push(student);
+
+    // Step 1: Pre-validate inputs (fail fast, before any mutation).
+    if (input.students.length === 0) {
+      return Err(Errors.validation("L'inscription groupée requiert au moins un élève"));
     }
-    store.notifyStudents();
-    appendAudit({
-      action: AuditActions.BatchRegister,
-      entityType: "batch",
-      entityId: parent.id,
-      actorId: "usr-current",
-      actorName: "Session courante",
-      diff: { before: null, after: { parentCode: parent.code, studentCount: students.length } },
-      note: "Inscription groupée atomique",
-    });
-    return Ok({ parent, students });
+    for (let i = 0; i < input.students.length; i++) {
+      const s = input.students[i];
+      if (!s.firstName?.trim() || !s.lastName?.trim()) {
+        return Err(Errors.validation(`Élève ${i + 1}: prénom et nom requis`));
+      }
+      if (!s.birthDate) {
+        return Err(Errors.validation(`Élève ${i + 1}: date de naissance requise`));
+      }
+    }
+
+    // Step 2: Snapshot state for rollback.
+    const parentsSnapshot = [...store.parents];
+    const studentsSnapshot = [...store.students];
+
+    try {
+      const year = new Date().getFullYear();
+      // Step 3a: Create parent.
+      const parentResult = await new MockParentRepository().createParent(input.parent);
+      if (!parentResult.ok) {
+        throw parentResult.error;
+      }
+      const parent = parentResult.value;
+
+      // Step 3b: Create all students.
+      const students: Student[] = [];
+      for (const sInput of input.students) {
+        const seq = store.students.length + 1;
+        const gradeLevel: GradeLevel =
+          sInput.gradeLevel ?? gradeLevelFromLevelYear(sInput.level, sInput.gradeYear);
+        const student: Student = {
+          id: `stu-${String(seq).padStart(3, "0")}`,
+          tenantId: TENANT_ID,
+          code: studentCode(year, seq),
+          parentId: parent.id,
+          firstName: sInput.firstName,
+          lastName: sInput.lastName,
+          gender: sInput.gender,
+          birthDate: sInput.birthDate,
+          enrollmentDate: nowIso(),
+          level: sInput.level,
+          gradeYear: sInput.gradeYear,
+          gradeLevel,
+          classId: sInput.classId ?? null,
+          photoUrl: null,
+          medicalNotes: sInput.medicalNotes ?? null,
+          transportTier: sInput.transportTier ?? null,
+          status: "active",
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        };
+        store.students.unshift(student);
+        students.push(student);
+      }
+      store.notifyStudents();
+
+      // Step 4: Audit the successful atomic transaction.
+      appendAudit({
+        action: AuditActions.BatchRegister,
+        entityType: "batch",
+        entityId: parent.id,
+        actorId: "usr-current",
+        actorName: "Session courante",
+        diff: { before: null, after: { parentCode: parent.code, studentCount: students.length } },
+        note: `Inscription groupée atomique — ${students.length} élève(s) créé(s) avec succès`,
+      });
+      return Ok({ parent, students });
+    } catch (err) {
+      // Step 5: ROLLBACK on failure — restore the snapshot.
+      store.parents = parentsSnapshot;
+      store.students = studentsSnapshot;
+      store.notifyParents();
+      store.notifyStudents();
+      appendAudit({
+        action: AuditActions.BatchRegister,
+        entityType: "batch",
+        entityId: "failed",
+        actorId: "usr-current",
+        actorName: "Session courante",
+        diff: { before: null, after: null },
+        note: `Échec inscription groupée — annulée (rollback). Raison: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      if (err && typeof err === "object" && "code" in err) {
+        return Err(err as import("../../core/result/result").AppError);
+      }
+      return Err(Errors.unknown(err));
+    }
   }
   async promote(studentIds: string[], _academicYear: string): Promise<Result<Student[]>> {
     await delay(300);
@@ -507,11 +622,45 @@ class MockSubjectRepository implements SubjectRepository {
   observeByLevel(level: string): Observable<Subject[]> {
     return new SubjectBehavior(store.subjects.filter((s) => s.level === level));
   }
-  observeByClass(_classId: string): Observable<ClassSubject[]> { return new SubjectBehavior([]); }
-  async assignSubjectToClass(_input: Omit<ClassSubject, "id">): Promise<Result<ClassSubject>> {
-    return Err(Errors.unknown("not implemented in mock"));
+  /**
+   * Iteration 6: Returns the actual class-subject mappings from the seed data
+   * (previously returned an empty array, which made the Class Subjects tab
+   * always render an empty state).
+   */
+  observeByClass(classId: string): Observable<ClassSubject[]> {
+    return new SubjectBehavior(store.classSubjects.filter((cs) => cs.classId === classId));
   }
-  async removeSubjectFromClass(_id: string): Promise<Result<void>> { return Ok(undefined); }
+  async assignSubjectToClass(input: Omit<ClassSubject, "id">): Promise<Result<ClassSubject>> {
+    await delay(180);
+    const cs: ClassSubject = { ...input, id: `csj-${Date.now()}` };
+    store.classSubjects = [...store.classSubjects, cs];
+    store.notifyClassSubjects();
+    appendAudit({
+      action: AuditActions.SubjectUpdate,
+      entityType: "class-subject",
+      entityId: cs.id,
+      actorId: "usr-current",
+      actorName: "Session courante",
+      diff: { before: null, after: cs },
+      note: `Matière ${cs.subjectId} assignée à la classe ${cs.classId}`,
+    });
+    return Ok(cs);
+  }
+  async removeSubjectFromClass(id: string): Promise<Result<void>> {
+    await delay(150);
+    store.classSubjects = store.classSubjects.filter((cs) => cs.id !== id);
+    store.notifyClassSubjects();
+    appendAudit({
+      action: AuditActions.SubjectArchive,
+      entityType: "class-subject",
+      entityId: id,
+      actorId: "usr-current",
+      actorName: "Session courante",
+      diff: { before: null, after: null },
+      note: `Assignation supprimée`,
+    });
+    return Ok(undefined);
+  }
 
   async createSubject(input: Omit<Subject, "id" | "tenantId">): Promise<Result<Subject>> {
     await delay(120);
@@ -575,8 +724,15 @@ class MockSubjectRepository implements SubjectRepository {
 }
 
 class MockGradeRepository implements GradeRepository {
-  observeForStudent(_studentId: string): Observable<Assessment[]> { return new SubjectBehavior([]); }
-  observeForClass(_classId: string): Observable<Assessment[]> { return new SubjectBehavior([]); }
+  /**
+   * Iteration 6: Returns real seeded assessment data (previously returned empty).
+   */
+  observeForStudent(studentId: string): Observable<Assessment[]> {
+    return new SubjectBehavior(store.assessments.filter((a) => a.studentId === studentId));
+  }
+  observeForClass(classId: string): Observable<Assessment[]> {
+    return new SubjectBehavior(store.assessments.filter((a) => a.classId === classId));
+  }
   async enterGrade(input: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">): Promise<Result<Assessment>> {
     await delay(150);
     const asm: Assessment = {
@@ -585,6 +741,9 @@ class MockGradeRepository implements GradeRepository {
       subjectAverage: computeSubjectAverage(input.devoir1, input.devoir2, input.examen),
       enteredAt: nowIso(),
     };
+    // Iteration 6: persist the assessment so subsequent reads return it.
+    store.assessments = [asm, ...store.assessments];
+    store.notifyAssessments();
     appendAudit({
       action: AuditActions.GradeEnter,
       entityType: "assessment",
@@ -597,8 +756,21 @@ class MockGradeRepository implements GradeRepository {
 }
 
 class MockAttendanceRepository implements AttendanceRepository {
-  observeByClass(_classId: string, _date: string): Observable<AttendanceRecord[]> { return new SubjectBehavior([]); }
-  observeByStudent(_studentId: string, _from: string, _to: string): Observable<AttendanceRecord[]> { return new SubjectBehavior([]); }
+  /**
+   * Iteration 6: Returns real seeded attendance records (previously returned empty).
+   */
+  observeByClass(classId: string, date: string): Observable<AttendanceRecord[]> {
+    return new SubjectBehavior(
+      store.attendance.filter((r) => r.classId === classId && r.date === date),
+    );
+  }
+  observeByStudent(studentId: string, from: string, to: string): Observable<AttendanceRecord[]> {
+    return new SubjectBehavior(
+      store.attendance.filter(
+        (r) => r.studentId === studentId && r.date >= from && r.date <= to,
+      ),
+    );
+  }
   async recordRollCall(input: {
     classId: string;
     date: string;
@@ -619,6 +791,9 @@ class MockAttendanceRepository implements AttendanceRepository {
       recordedAt: nowIso(),
       syncedAt: nowIso(),
     }));
+    // Iteration 6: persist the records so subsequent reads return them.
+    store.attendance = [...records, ...store.attendance];
+    store.notifyAttendance();
     const present = records.filter((r) => r.status === "present").length;
     appendAudit({
       action: AuditActions.AttendanceSubmit,
@@ -644,8 +819,15 @@ class MockAttendanceRepository implements AttendanceRepository {
 }
 
 class MockHomeworkRepository implements HomeworkRepository {
-  observeForClass(_classId: string): Observable<Homework[]> { return new SubjectBehavior([]); }
-  observeByTeacher(_teacherId: string): Observable<Homework[]> { return new SubjectBehavior([]); }
+  /**
+   * Iteration 6: Returns real seeded homework records (previously returned empty).
+   */
+  observeForClass(classId: string): Observable<Homework[]> {
+    return new SubjectBehavior(store.homework.filter((h) => h.classId === classId));
+  }
+  observeByTeacher(teacherId: string): Observable<Homework[]> {
+    return new SubjectBehavior(store.homework.filter((h) => h.teacherId === teacherId));
+  }
   async push(input: {
     classId: string;
     subjectId: string;
@@ -657,16 +839,21 @@ class MockHomeworkRepository implements HomeworkRepository {
     attachments: string[];
   }): Promise<Result<Homework>> {
     await delay(200);
+    // Look up the subject name from the seed data.
+    const subject = store.subjects.find((s) => s.id === input.subjectId);
     const hw: Homework = {
       ...input,
       id: `hw-${Date.now()}`,
-      subjectName: "Français",
+      subjectName: subject?.name ?? "Matière",
       attachments: input.attachments,
       academicYear: ACADEMIC_YEAR,
       createdAt: nowIso(),
       pushedAt: nowIso(),
       acknowledgedCount: 0,
     };
+    // Iteration 6: persist the homework so the history tab shows it.
+    store.homework = [hw, ...store.homework];
+    store.notifyHomework();
     appendAudit({
       action: AuditActions.HomeworkPush,
       entityType: "homework",
@@ -763,17 +950,70 @@ class MockPaymentRepository implements PaymentRepository {
     await delay(200);
     const idx = store.payments.findIndex((p) => p.id === id);
     if (idx < 0) return Err(Errors.notFound("Payment", id));
-    const after: Payment = { ...store.payments[idx], status: "refunded", updatedAt: nowIso() };
+    const before = store.payments[idx];
+    const after: Payment = { ...before, status: "refunded", updatedAt: nowIso() };
     store.payments[idx] = after;
     store.notifyPayments();
-    appendAudit({
-      action: AuditActions.PaymentRefund,
-      entityType: "payment",
-      entityId: id,
-      actorId: "usr-current",
-      actorName: "Session courante",
-      diff: { before: { status: "paid" }, after: { status: "refunded" } },
-    });
+
+    // Iteration 6: Append a ledger reversal entry that negates the original
+    // payment's ledger entry. The plan's accounting engine mandates that every
+    // refund be traceable — the ledger must reflect the reversal so the parent's
+    // balance is correctly re-computed by replay.
+    const originalLedgerEntry = store.ledger.find(
+      (e) => e.sourceType === "payment" && e.sourceId === id && e.type === "payment",
+    );
+    if (originalLedgerEntry) {
+      const reversalEntry: LedgerEntry = {
+        id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
+        tenantId: TENANT_ID,
+        accountId: originalLedgerEntry.accountId,
+        parentId: originalLedgerEntry.parentId,
+        studentId: originalLedgerEntry.studentId,
+        category: originalLedgerEntry.category,
+        // Original payment entry stored a NEGATIVE amount (credit).
+        // Reversal negates it → POSITIVE amount (debit; parent owes it back).
+        amount: -originalLedgerEntry.amount,
+        type: "reversal",
+        sourceType: "payment",
+        sourceId: id,
+        method: originalLedgerEntry.method,
+        receiptNumber: originalLedgerEntry.receiptNumber,
+        paymentStatus: "refunded",
+        reversesId: originalLedgerEntry.id,
+        description: `Remboursement ${before.receiptNumber} — inversion de l'écriture de paiement`,
+        actorId: "usr-current",
+        actorName: "Session courante",
+        at: nowIso(),
+        metadata: Object.freeze({
+          refundReason: "Remboursement manuel",
+          originalPaymentId: id,
+        }),
+      };
+      store.ledger = [...store.ledger, reversalEntry];
+      store.notifyLedger();
+      appendAudit({
+        action: AuditActions.PaymentRefund,
+        entityType: "payment",
+        entityId: id,
+        actorId: "usr-current",
+        actorName: "Session courante",
+        diff: {
+          before: { status: before.status, ledgerEntryId: originalLedgerEntry.id },
+          after: { status: "refunded", reversalEntryId: reversalEntry.id },
+        },
+      });
+    } else {
+      // No original ledger entry found — log a warning but still record the refund.
+      appendAudit({
+        action: AuditActions.PaymentRefund,
+        entityType: "payment",
+        entityId: id,
+        actorId: "usr-current",
+        actorName: "Session courante",
+        diff: { before: { status: before.status }, after: { status: "refunded" } },
+        note: "ATTENTION: aucune écriture de ledger correspondante trouvée pour le remboursement",
+      });
+    }
     return Ok(after);
   }
   async adjust(parentId: string, amount: number, reason: string, approvedBy: string): Promise<Result<AccountAdjustment>> {
@@ -954,10 +1194,31 @@ class MockExpenseRepository implements ExpenseRepository {
   }
   async approve(id: string, approver: string, note?: string): Promise<Result<Expense>> {
     await delay(180);
+    // Iteration 6: enforce "no self-approval" rule (plan §08).
+    const expense = store.expenses.find((e) => e.id === id);
+    if (!expense) return Err(Errors.notFound("Expense", id));
+    if (expense.submittedBy === approver) {
+      appendAudit({
+        action: AuditActions.ExpenseApprove,
+        entityType: "expense",
+        entityId: id,
+        actorId: approver,
+        actorName: "Session courante",
+        diff: { before: { status: expense.status }, after: { status: expense.status } },
+        note: "Tentative d'auto-approbation bloquée — le demandeur ne peut pas approuver sa propre dépense",
+      });
+      return Err(Errors.forbidden("Un demandeur ne peut pas approuver sa propre dépense (règle d'auto-approbation)"));
+    }
     return this.transition(id, "approved", { approvedBy: approver, approvedAt: nowIso(), approvalNote: note ?? null }, AuditActions.ExpenseApprove, approver);
   }
   async reject(id: string, approver: string, note: string): Promise<Result<Expense>> {
     await delay(180);
+    // Iteration 6: enforce "no self-approval" rule (plan §08) — applies to reject too.
+    const expense = store.expenses.find((e) => e.id === id);
+    if (!expense) return Err(Errors.notFound("Expense", id));
+    if (expense.submittedBy === approver) {
+      return Err(Errors.forbidden("Un demandeur ne peut pas rejeter sa propre dépense (règle d'auto-approbation)"));
+    }
     return this.transition(id, "rejected", { approvedBy: approver, approvedAt: nowIso(), approvalNote: note }, AuditActions.ExpenseReject, approver);
   }
   async disburse(id: string, disbursedBy: string): Promise<Result<Expense>> {
@@ -972,6 +1233,19 @@ class MockExpenseRepository implements ExpenseRepository {
     const idx = store.expenses.findIndex((e) => e.id === id);
     if (idx < 0) return Promise.resolve(Err(Errors.notFound("Expense", id)));
     const before = store.expenses[idx];
+    // Iteration 6: enforce state machine — submitted → approved/rejected, approved → disbursed, disbursed → settled.
+    const allowedTransitions: Record<ExpenseStatus, ExpenseStatus[]> = {
+      draft: ["submitted"],
+      submitted: ["approved", "rejected"],
+      approved: ["disbursed"],
+      rejected: [],
+      disbursed: ["settled"],
+      settled: [],
+    };
+    const allowed = allowedTransitions[before.status] ?? [];
+    if (!allowed.includes(status)) {
+      return Promise.resolve(Err(Errors.conflict(`Transition non autorisée: ${before.status} → ${status}`)));
+    }
     const after: Expense = { ...before, ...patches, status };
     store.expenses[idx] = after;
     store.notifyExpenses();
@@ -1024,7 +1298,16 @@ class MockPersonnelRepository implements PersonnelRepository {
 }
 
 class MockReleveRepository implements ReleveRepository {
-  observeByPersonnel(_personnelId: string, _from: string, _to: string): Observable<ReleveEntry[]> { return new SubjectBehavior([]); }
+  /**
+   * Iteration 6: Returns real seeded relevé entries (previously returned empty).
+   */
+  observeByPersonnel(personnelId: string, from: string, to: string): Observable<ReleveEntry[]> {
+    return new SubjectBehavior(
+      store.releve.filter(
+        (r) => r.personnelId === personnelId && r.date >= from && r.date <= to,
+      ),
+    );
+  }
   async logEntry(input: {
     personnelId: string;
     personnelName: string;
@@ -1037,6 +1320,9 @@ class MockReleveRepository implements ReleveRepository {
   }): Promise<Result<ReleveEntry>> {
     await delay(180);
     const entry: ReleveEntry = { ...input, id: `rel-${Date.now()}`, recordedAt: nowIso() };
+    // Iteration 6: persist the entry so the relevé tab shows it.
+    store.releve = [entry, ...store.releve];
+    store.notifyReleve();
     appendAudit({
       action: AuditActions.ReleveCreate,
       entityType: "releve",
@@ -1135,6 +1421,9 @@ class MockDashboardRepository implements DashboardRepository {
   /**
    * Iteration 5: KPIs are now computed from the ledger via replay.
    * No hardcoded constants — every number is derived from real data.
+   *
+   * Iteration 6: `attendanceRateToday` is now computed from the attendance
+   * records (previously hardcoded at 0.93 with a TODO).
    */
   async kpis(): Promise<Result<DashboardKpi>> {
     await delay(150);
@@ -1144,6 +1433,24 @@ class MockDashboardRepository implements DashboardRepository {
       const dueDateMap = buildOverdueDueDateMap(entries);
       return sum + computeParentSummary(entries, p.id, "", dueDateMap).totalOutstanding;
     }, 0);
+
+    // Iteration 6: derive attendanceRateToday from the most recent day's
+    // attendance records. If no records exist for today, fall back to the
+    // most recent day with records. If none exist at all, return 0.
+    const today = new Date().toISOString().slice(0, 10);
+    let recentAttendance = store.attendance.filter((r) => r.date === today);
+    if (recentAttendance.length === 0) {
+      // Find the most recent date with attendance records.
+      const sortedDates = [...new Set(store.attendance.map((r) => r.date))].sort().reverse();
+      if (sortedDates.length > 0) {
+        recentAttendance = store.attendance.filter((r) => r.date === sortedDates[0]);
+      }
+    }
+    const attendanceRateToday =
+      recentAttendance.length === 0
+        ? 0
+        : recentAttendance.filter((r) => r.status === "present").length / recentAttendance.length;
+
     return Ok({
       totalStudents: store.students.length,
       totalParents: store.parents.length,
@@ -1151,7 +1458,7 @@ class MockDashboardRepository implements DashboardRepository {
       monthlyRevenue: monthlyRevenue(store.payments),
       outstandingDebt: totalOutstanding,
       pendingExpenses: store.expenses.filter((e) => e.status === "submitted").length,
-      attendanceRateToday: 0.93, // TODO: derive from attendance records
+      attendanceRateToday,
       overdueAlerts: store.notifications.filter((n) => n.type === "payment_overdue" && !n.readAt).length,
     });
   }
@@ -1237,14 +1544,47 @@ class MockPricingRepository implements PricingRepository {
     return next;
   }
 
+  // ---- Legacy methods (Iteration 6: kept for backward-compat; delegate to new methods) ----
   async updateTuition(level: AcademicLevel, amount: number, updatedBy: string): Promise<Result<PricingConfig>> {
     await delay(160);
-    return Ok(this.commit({ ...this.config, tuitionByLevel: { ...this.config.tuitionByLevel, [level]: amount } }, updatedBy));
+    // Legacy: update the first grade level within `level`.
+    // Splits the annual amount into 3 equal tranches (best-effort).
+    const t1 = Math.round(amount / 3);
+    const t2 = Math.round(amount / 3);
+    const t3 = amount - t1 - t2;
+    // Find the first grade level within this academic level.
+    const firstGrade = (Object.keys(this.config.tuitionByGradeLevel) as GradeLevel[]).find(
+      (g) => academicLevelFromGradeLevelPublic(g) === level,
+    );
+    if (!firstGrade) {
+      return Err(Errors.notFound("GradeLevel for level", level));
+    }
+    return Ok(this.commit({
+      ...this.config,
+      tuitionByGradeLevel: {
+        ...this.config.tuitionByGradeLevel,
+        [firstGrade]: { annualAmount: amount, installments: [t1, t2, t3] as const },
+      },
+    }, updatedBy));
   }
 
   async updateTransport(tier: "t1" | "t2" | "t3", amount: number, updatedBy: string): Promise<Result<PricingConfig>> {
     await delay(160);
-    return Ok(this.commit({ ...this.config, transportByTier: { ...this.config.transportByTier, [tier]: amount } }, updatedBy));
+    // Legacy: map tier → destination and split into 3 equal tranches.
+    const destination = cityTierToDestination(tier);
+    if (!destination) {
+      return Err(Errors.validation(`Unknown transport tier: ${tier}`));
+    }
+    const t1 = Math.round(amount / 3);
+    const t2 = Math.round(amount / 3);
+    const t3 = amount - t1 - t2;
+    return Ok(this.commit({
+      ...this.config,
+      transportByDestination: {
+        ...this.config.transportByDestination,
+        [destination]: { annualAmount: amount, installments: [t1, t2, t3] as const },
+      },
+    }, updatedBy));
   }
 
   async updateRegistration(amount: number, updatedBy: string): Promise<Result<PricingConfig>> {
@@ -1262,16 +1602,17 @@ class MockPricingRepository implements PricingRepository {
     return Ok(this.commit({ ...this.config, latePenaltyPerDay: amountPerDay }, updatedBy));
   }
 
-  async addDiscount(input: { label: string; amount: number; discountType: DiscountType }, updatedBy: string): Promise<Result<PricingConfig>> {
+  async addDiscount(input: { label: string; amount: number; discountType: DiscountType; discountCode?: DiscountCode }, updatedBy: string): Promise<Result<PricingConfig>> {
     await delay(180);
     const entry: PricingEntry = {
       id: `disc-${Date.now()}`,
       tenantId: TENANT_ID,
       category: "discount",
-      qualifier: `disc_${Date.now()}`,
+      qualifier: input.discountCode ?? `disc_${Date.now()}`,
       label: input.label,
       amount: input.amount,
       discountType: input.discountType,
+      discountCode: input.discountCode ?? "custom",
       isActive: true,
       updatedAt: nowIso(),
       updatedBy,
@@ -1303,6 +1644,135 @@ class MockPricingRepository implements PricingRepository {
   async removeAdditionalService(id: string, updatedBy: string): Promise<Result<PricingConfig>> {
     await delay(160);
     return Ok(this.commit({ ...this.config, additionalServices: this.config.additionalServices.filter((s) => s.id !== id) }, updatedBy));
+  }
+
+  // ---- Iteration 6: granular pricing methods ----
+  async updateTuitionForGradeLevel(
+    gradeLevel: GradeLevel,
+    annualAmount: number,
+    installments: readonly [number, number, number],
+    updatedBy: string,
+  ): Promise<Result<PricingConfig>> {
+    await delay(180);
+    // Validate that installments sum to the annual amount (within 1 DA tolerance).
+    const sum = installments.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum - annualAmount) > 1) {
+      return Err(Errors.validation(`La somme des tranches (${sum}) doit égaler le montant annuel (${annualAmount})`));
+    }
+    if (installments.some((t) => t < 0)) {
+      return Err(Errors.validation("Les tranches ne peuvent pas être négatives"));
+    }
+    return Ok(this.commit({
+      ...this.config,
+      tuitionByGradeLevel: {
+        ...this.config.tuitionByGradeLevel,
+        [gradeLevel]: {
+          annualAmount,
+          installments: [installments[0], installments[1], installments[2]] as const,
+        },
+      },
+    }, updatedBy));
+  }
+
+  async updateTransportForDestination(
+    destination: TransportDestination,
+    annualAmount: number,
+    installments: readonly [number, number, number],
+    updatedBy: string,
+  ): Promise<Result<PricingConfig>> {
+    await delay(180);
+    const sum = installments.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum - annualAmount) > 1) {
+      return Err(Errors.validation(`La somme des tranches (${sum}) doit égaler le montant annuel (${annualAmount})`));
+    }
+    if (installments.some((t) => t < 0)) {
+      return Err(Errors.validation("Les tranches ne peuvent pas être négatives"));
+    }
+    return Ok(this.commit({
+      ...this.config,
+      transportByDestination: {
+        ...this.config.transportByDestination,
+        [destination]: {
+          annualAmount,
+          installments: [installments[0], installments[1], installments[2]] as const,
+        },
+      },
+    }, updatedBy));
+  }
+
+  async updateSecondApronFee(amount: number, updatedBy: string): Promise<Result<PricingConfig>> {
+    await delay(160);
+    if (amount < 0) {
+      return Err(Errors.validation("Le montant du 2ème tablier ne peut pas être négatif"));
+    }
+    return Ok(this.commit({ ...this.config, secondApronFee: amount }, updatedBy));
+  }
+
+  async addComplementaryService(input: {
+    label: string;
+    qualifier: string;
+    semesterAmount: number;
+    annualAmount: number;
+  }, updatedBy: string): Promise<Result<PricingConfig>> {
+    await delay(180);
+    if (input.semesterAmount < 0 || input.annualAmount < 0) {
+      return Err(Errors.validation("Les montants ne peuvent pas être négatifs"));
+    }
+    if (input.annualAmount < input.semesterAmount) {
+      return Err(Errors.validation("Le montant annuel doit être ≥ au montant semestriel"));
+    }
+    const entry: PricingEntry & { semesterAmount: number; annualAmount: number } = {
+      id: `comp-${Date.now()}`,
+      tenantId: TENANT_ID,
+      category: "complementary",
+      qualifier: input.qualifier,
+      label: input.label,
+      amount: input.annualAmount, // canonical annual amount
+      semesterAmount: input.semesterAmount,
+      annualAmount: input.annualAmount,
+      isActive: true,
+      updatedAt: nowIso(),
+      updatedBy,
+    };
+    return Ok(this.commit({
+      ...this.config,
+      complementaryServices: [...this.config.complementaryServices, entry],
+    }, updatedBy));
+  }
+
+  async removeComplementaryService(id: string, updatedBy: string): Promise<Result<PricingConfig>> {
+    await delay(160);
+    return Ok(this.commit({
+      ...this.config,
+      complementaryServices: this.config.complementaryServices.filter((s) => s.id !== id),
+    }, updatedBy));
+  }
+}
+
+/**
+ * Local helper — imports `academicLevelFromGradeLevel` from the domain layer.
+ * Wrapped in a function to keep imports tidy at the top of the file.
+ */
+function academicLevelFromGradeLevelPublic(g: GradeLevel): AcademicLevel {
+  // Local re-implementation to avoid an extra import alias.
+  switch (g) {
+    case "prescolaire_1":
+    case "prescolaire_2":
+    case "1ap":
+    case "2ap":
+    case "3ap":
+    case "4ap":
+    case "5ap":
+      return "primaire";
+    case "1am":
+    case "2am":
+    case "3am":
+    case "4am":
+      return "cem";
+    case "1ere_annee":
+    case "2eme_annee":
+    case "3eme_annee":
+      return "lycee";
   }
 }
 

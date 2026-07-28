@@ -220,12 +220,33 @@ describe("MockExpenseRepository — workflow transitions + audit", () => {
     if (!submit.ok) return;
     const expenseId = submit.value.id;
 
-    // The mock implementation does NOT enforce no-self-approval at the repository
-    // layer — it's enforced at the UI layer (the Approve button is hidden).
-    // This test documents that contract: the repository accepts the call, but
-    // the UI must hide the button when session.userId === expense.submittedBy.
+    // Iteration 6: the mock implementation NOW ENFORCES no-self-approval
+    // at the repository layer (per plan §08). The approve call must fail
+    // with a forbidden error.
     const approve = await mockExpenseRepository.approve(expenseId, "usr-sup-001", "self");
-    // Repository allows it; UI must prevent it.
+    expect(approve.ok).toBe(false);
+    if (!approve.ok) {
+      expect(approve.error.code).toBe("ERR_FORBIDDEN");
+    }
+  });
+
+  it("Iteration 6: allows approval when approver is different from submitter", async () => {
+    const submit = await mockExpenseRepository.submit(
+      {
+        title: "Test expense for cross-user approval",
+        description: "Test",
+        amount: 5000,
+        category: "supplies",
+        payee: "Test Supplier",
+      },
+      "usr-sup-001",
+    );
+    expect(submit.ok).toBe(true);
+    if (!submit.ok) return;
+    const expenseId = submit.value.id;
+
+    // Approver is different from submitter — should succeed.
+    const approve = await mockExpenseRepository.approve(expenseId, "usr-adm-001", "different user");
     expect(approve.ok).toBe(true);
   });
 });
@@ -233,37 +254,96 @@ describe("MockExpenseRepository — workflow transitions + audit", () => {
 describe("MockPricingRepository — admin-configurable pricing (plan §Administration)", () => {
   it("returns the default pricing config from seed via observe().get()", () => {
     const cfg = mockPricingRepository.observe().get();
-    expect(cfg.tuitionByLevel.primaire).toBeGreaterThan(0);
-    expect(cfg.tuitionByLevel.cem).toBeGreaterThan(0);
-    expect(cfg.tuitionByLevel.lycee).toBeGreaterThan(0);
-    expect(cfg.transportByTier.t1).toBeGreaterThan(0);
-    expect(cfg.transportByTier.t2).toBeGreaterThanOrEqual(cfg.transportByTier.t1);
-    expect(cfg.transportByTier.t3).toBeGreaterThanOrEqual(cfg.transportByTier.t2);
+    // Iteration 6: tuition is now per-grade-level.
+    expect(cfg.tuitionByGradeLevel["1ap"].annualAmount).toBe(245_000);
+    expect(cfg.tuitionByGradeLevel["1am"].annualAmount).toBe(330_000);
+    expect(cfg.tuitionByGradeLevel["1ere_annee"].annualAmount).toBe(375_000);
+    // Transport is now per-destination.
+    expect(cfg.transportByDestination.ville_boumerdes.annualAmount).toBe(40_000);
+    expect(cfg.transportByDestination.autres.annualAmount).toBe(55_000);
     expect(cfg.registrationFee).toBeGreaterThan(0);
+    expect(cfg.secondApronFee).toBe(2_000);
   });
 
-  it("persists tuition updates and writes an audit entry", async () => {
+  it("persists tuition updates via updateTuitionForGradeLevel and writes an audit entry", async () => {
     const auditBefore = await auditCount();
     const original = mockPricingRepository.observe().get();
-    const newAmount = original.tuitionByLevel.lycee + 1000;
+    const newAnnual = original.tuitionByGradeLevel["1ap"].annualAmount + 5000;
+    const newInstallments: [number, number, number] = [
+      Math.round(newAnnual * 0.4),
+      Math.round(newAnnual * 0.3),
+      newAnnual - Math.round(newAnnual * 0.4) - Math.round(newAnnual * 0.3),
+    ];
 
-    const r = await mockPricingRepository.updateTuition("lycee", newAmount, "usr-adm-001");
+    const r = await mockPricingRepository.updateTuitionForGradeLevel("1ap", newAnnual, newInstallments, "usr-adm-001");
     expect(r.ok).toBe(true);
 
     // Verify the update persisted
     const after = mockPricingRepository.observe().get();
-    expect(after.tuitionByLevel.lycee).toBe(newAmount);
+    expect(after.tuitionByGradeLevel["1ap"].annualAmount).toBe(newAnnual);
+    expect(after.tuitionByGradeLevel["1ap"].installments).toEqual(newInstallments);
 
     // Verify an audit entry was written
     const auditAfter = await auditCount();
     expect(auditAfter).toBeGreaterThan(auditBefore);
   });
 
+  it("rejects tuition update when installments don't sum to annual amount", async () => {
+    const r = await mockPricingRepository.updateTuitionForGradeLevel(
+      "1ap",
+      100_000,
+      [10_000, 10_000, 10_000], // sum = 30 000, not 100 000
+      "usr-adm-001",
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.code).toBe("ERR_VALIDATION");
+    }
+  });
+
+  it("persists transport updates via updateTransportForDestination", async () => {
+    const r = await mockPricingRepository.updateTransportForDestination(
+      "ville_boumerdes",
+      50_000,
+      [25_000, 15_000, 10_000],
+      "usr-adm-001",
+    );
+    expect(r.ok).toBe(true);
+    const after = mockPricingRepository.observe().get();
+    expect(after.transportByDestination.ville_boumerdes.annualAmount).toBe(50_000);
+  });
+
+  it("adds and removes a complementary service", async () => {
+    const auditBefore = await auditCount();
+
+    const add = await mockPricingRepository.addComplementaryService(
+      {
+        label: "Test Service",
+        qualifier: "test_service",
+        semesterAmount: 5_000,
+        annualAmount: 10_000,
+      },
+      "usr-adm-001",
+    );
+    expect(add.ok).toBe(true);
+    const cfgAfterAdd = mockPricingRepository.observe().get();
+    expect(cfgAfterAdd.complementaryServices.some((s) => s.qualifier === "test_service")).toBe(true);
+
+    const testService = cfgAfterAdd.complementaryServices.find((s) => s.qualifier === "test_service")!;
+    const remove = await mockPricingRepository.removeComplementaryService(testService.id, "usr-adm-001");
+    expect(remove.ok).toBe(true);
+    const cfgAfterRemove = mockPricingRepository.observe().get();
+    expect(cfgAfterRemove.complementaryServices.some((s) => s.qualifier === "test_service")).toBe(false);
+
+    const auditAfter = await auditCount();
+    expect(auditAfter).toBeGreaterThanOrEqual(auditBefore + 2);
+  });
+
   it("adds and removes a discount, each writing an audit entry", async () => {
     const auditBefore = await auditCount();
 
     const add = await mockPricingRepository.addDiscount(
-      { label: "Test Discount", amount: 15, discountType: "percentage" },
+      { label: "Test Discount", amount: 15, discountType: "percentage", discountCode: "custom" },
       "usr-adm-001",
     );
     expect(add.ok).toBe(true);

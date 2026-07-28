@@ -6,7 +6,52 @@
  */
 export type Gender = "male" | "female" | "unspecified";
 
+/**
+ * Legacy city tier — kept for backward-compatibility with existing data.
+ * New code should prefer `TransportDestination` which carries an explicit
+ * business label and per-destination 3-tranche pricing.
+ */
 export type CityTier = "t1" | "t2" | "t3"; // urban / peri-urban / rural — drives transport fees
+
+/**
+ * Transport destination — the canonical geographic zone a student lives in.
+ * Drives transportation pricing per plan §07.03 (3-tranche schedule).
+ *
+ * Each destination has its own 1st / 2nd / 3rd installment amounts that
+ * the billing system reads from `PricingConfig.transportByDestination`.
+ */
+export type TransportDestination =
+  | "ville_boumerdes"
+  | "tidjelabine_sahel_figuier_corso"
+  | "boudouaou_thenia_zemmouri"
+  | "autres";
+
+export const TRANSPORT_DESTINATIONS: readonly TransportDestination[] = [
+  "ville_boumerdes",
+  "tidjelabine_sahel_figuier_corso",
+  "boudouaou_thenia_zemmouri",
+  "autres",
+];
+
+export const TRANSPORT_DESTINATION_LABELS_FR: Record<TransportDestination, string> = {
+  ville_boumerdes: "Ville Boumerdès",
+  tidjelabine_sahel_figuier_corso: "Tidjelabine – Sahel – Figuier – Corso",
+  boudouaou_thenia_zemmouri: "Boudouaou – Thénia – Zemmouri",
+  autres: "Autres",
+};
+
+/** Map a legacy city tier to the closest transport destination. */
+export function cityTierToDestination(tier: CityTier | null | undefined): TransportDestination | null {
+  if (!tier) return null;
+  switch (tier) {
+    case "t1":
+      return "ville_boumerdes";
+    case "t2":
+      return "tidjelabine_sahel_figuier_corso";
+    case "t3":
+      return "boudouaou_thenia_zemmouri";
+  }
+}
 
 export interface Parent {
   readonly id: string;
@@ -20,7 +65,10 @@ export interface Parent {
   readonly email: string | null;
   readonly occupation: string | null;
   readonly address: string | null;
+  /** Legacy field — kept for backward-compatibility. */
   readonly cityTier: CityTier | null;
+  /** Canonical transport destination (preferred over `cityTier`). */
+  readonly transportDestination: TransportDestination | null;
   readonly preferredLanguage: "fr" | "ar" | "en";
   readonly avatarUrl: string | null;
   readonly createdAt: string;
@@ -36,7 +84,9 @@ export interface CreateParentInput {
   readonly email?: string | null;
   readonly occupation?: string | null;
   readonly address?: string | null;
+  /** Legacy field — `transportDestination` is preferred. */
   readonly cityTier?: CityTier | null;
+  readonly transportDestination?: TransportDestination | null;
   readonly preferredLanguage?: "fr" | "ar" | "en";
 }
 

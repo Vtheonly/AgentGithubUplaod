@@ -38,8 +38,10 @@ import type { Expense, SubmitExpenseInput } from "../model/expense";
 import type { Personnel, ReleveEntry, ReleveActivity } from "../model/personnel";
 import type { AppNotification, DashboardKpi, RevenuePoint, DebtByAgingBucket, DemographicSlice } from "../model/operations";
 import type { AuditEntry, AuditLogFilter, AuditLogQueryResult } from "../model/audit";
-import type { PricingConfig, PricingEntry, PricingCategory } from "../model/pricing";
+import type { PricingConfig, PricingEntry, PricingCategory, DiscountType, DiscountCode } from "../model/pricing";
 import type { LedgerEntry, ParentLedgerSummary } from "../model/ledger";
+import type { GradeLevel } from "../model/student";
+import type { TransportDestination } from "../model/parent";
 
 /** Minimal Observable<T> contract — glues mock/supabase reactive reads to React. */
 export type Subscriber<T> = (value: T) => void;
@@ -224,15 +226,51 @@ export interface DashboardRepository {
 
 export interface PricingRepository {
   observe(): Observable<PricingConfig>;
+
+  // ---- Legacy update methods (kept for backward-compat; delegate to new ones) ----
+  /** @deprecated Use `updateTuitionForGradeLevel` instead. Updates the first grade level within `level`. */
   updateTuition(level: import("../model/student").AcademicLevel, amount: number, updatedBy: string): Promise<Result<PricingConfig>>;
+  /** @deprecated Use `updateTransportForDestination` instead. Maps tier → destination. */
   updateTransport(tier: "t1" | "t2" | "t3", amount: number, updatedBy: string): Promise<Result<PricingConfig>>;
+
   updateRegistration(amount: number, updatedBy: string): Promise<Result<PricingConfig>>;
   updateMonthly(level: import("../model/student").AcademicLevel, amount: number, updatedBy: string): Promise<Result<PricingConfig>>;
   updateLatePenalty(amountPerDay: number, updatedBy: string): Promise<Result<PricingConfig>>;
-  addDiscount(input: { label: string; amount: number; discountType: import("../model/pricing").DiscountType }, updatedBy: string): Promise<Result<PricingConfig>>;
+  addDiscount(input: { label: string; amount: number; discountType: DiscountType; discountCode?: DiscountCode }, updatedBy: string): Promise<Result<PricingConfig>>;
   removeDiscount(id: string, updatedBy: string): Promise<Result<PricingConfig>>;
   addAdditionalService(input: { label: string; amount: number }, updatedBy: string): Promise<Result<PricingConfig>>;
   removeAdditionalService(id: string, updatedBy: string): Promise<Result<PricingConfig>>;
+
+  // ---- Iteration 6: granular pricing methods ----
+  /** Update tuition for a specific grade level (annual + 3 installments). */
+  updateTuitionForGradeLevel(
+    gradeLevel: GradeLevel,
+    annualAmount: number,
+    installments: readonly [number, number, number],
+    updatedBy: string,
+  ): Promise<Result<PricingConfig>>;
+
+  /** Update transport for a specific destination (annual + 3 installments). */
+  updateTransportForDestination(
+    destination: TransportDestination,
+    annualAmount: number,
+    installments: readonly [number, number, number],
+    updatedBy: string,
+  ): Promise<Result<PricingConfig>>;
+
+  /** Update the 2nd apron surcharge. */
+  updateSecondApronFee(amount: number, updatedBy: string): Promise<Result<PricingConfig>>;
+
+  /** Add a complementary service (psychology, speech therapy, etc.) with semester & annual pricing. */
+  addComplementaryService(input: {
+    label: string;
+    qualifier: string;
+    semesterAmount: number;
+    annualAmount: number;
+  }, updatedBy: string): Promise<Result<PricingConfig>>;
+
+  /** Remove a complementary service. */
+  removeComplementaryService(id: string, updatedBy: string): Promise<Result<PricingConfig>>;
 }
 
 /**

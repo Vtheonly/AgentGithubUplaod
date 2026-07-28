@@ -1,5 +1,5 @@
 /**
- * Ledger seed data — iteration 5.
+ * Ledger seed data — iteration 5 (updated iteration 6 for new pricing model).
  *
  * Generates immutable LedgerEntry records for the seeded parents and
  * students. Every charge (tuition tranche, transport) and every payment
@@ -8,6 +8,12 @@
  * This is the SINGLE SOURCE OF TRUTH for the school's financial state.
  * The mock DebtRepository and DashboardRepository now compute balances
  * by REPLAYING these entries — they no longer read from hardcoded arrays.
+ *
+ * Iteration 6: Tuition is now derived from the per-grade-level pricing
+ * (`tuitionByGradeLevel`) using the granular 3-tranche schedule. Transport
+ * is now derived from the per-destination pricing (`transportByDestination`)
+ * using the destination's own 3-tranche schedule. Sibling discounts use the
+ * new `sibling_fixed` code (−5 000 DA per additional child).
  */
 import type { LedgerEntry } from "../../domain/model/ledger";
 import {
@@ -16,7 +22,14 @@ import {
   createAdjustmentEntry,
   deriveAccountId,
 } from "../../domain/model/ledger";
-import { tuitionForLevel, transportForTier, tuitionTranches, applyDiscount, type PricingConfig } from "../../domain/model/pricing";
+import {
+  tuitionForGradeLevel,
+  tuitionTranchesForGrade,
+  transportForDestination,
+  transportTranchesForDestination,
+  applyDiscount,
+  type PricingConfig,
+} from "../../domain/model/pricing";
 import type { Payment } from "../../domain/model/payment";
 import {
   TENANT_ID,
@@ -27,6 +40,7 @@ import {
   seedPayments,
 } from "./seed-data";
 import { defaultPricingConfig } from "./pricing-seed";
+import { cityTierToDestination } from "../../domain/model/parent";
 
 const iso = (d: Date) => d.toISOString();
 const daysAgo = (n: number) => iso(new Date(SEED_NOW.getTime() - n * 86_400_000));
@@ -46,6 +60,18 @@ const trancheDueDates: [string, string, string] = [
   "2026-03-15", // T3
 ];
 
+/**
+ * Transport tranche due dates — distinct from tuition:
+ *   Tranche 1: due at registration
+ *   Tranche 2: Dec 01–15
+ *   Tranche 3: Mar 01–15
+ */
+const transportTrancheDueDates: [string, string, string] = [
+  "2025-09-15",
+  "2025-12-15",
+  "2026-03-15",
+];
+
 let entryCounter = 0;
 function nextEntryId(): string {
   entryCounter++;
@@ -58,25 +84,26 @@ function nextEntryId(): string {
 export function buildSeedLedger(): LedgerEntry[] {
   const entries: LedgerEntry[] = [];
 
-  // 1. For each parent + student: generate tuition tranches + transport.
+  // 1. For each parent + student: generate tuition tranches + transport tranches.
   for (const parent of seedParents) {
     const students = seedStudents.filter((s) => s.parentId === parent.id);
+    // Iteration 6: use the sibling_fixed discount (−5 000 DA per additional child).
+    // Applied to all children except the first.
+    const siblingDiscount = students.length > 1
+      ? config.discounts.find((d) => d.discountCode === "sibling_fixed")
+      : null;
+
     for (const student of students) {
-      // Tuition tranches (3 per student per academic year).
-      const tuition = tuitionForLevel(config, student.level);
-      const tranches = tuitionTranches(tuition);
-      // Apply sibling discount if parent has > 1 child:
-      // - 2nd child: 10% off (sibling_10)
-      // - 3rd+: 15% off (sibling_15)
-      const siblingDiscount = students.length >= 3
-        ? config.discounts.find((d) => d.qualifier === "sibling_15")
-        : students.length === 2
-          ? config.discounts.find((d) => d.qualifier === "sibling_10")
-          : null;
       const childIndex = students.findIndex((s) => s.id === student.id);
+
+      // Tuition tranches (3 per student per academic year) — uses the
+      // granular per-grade-level pricing.
+      const tuition = tuitionForGradeLevel(config, student.gradeLevel).annualAmount;
+      const tranches = tuitionTranchesForGrade(config, student.gradeLevel);
 
       tranches.forEach((tranche, i) => {
         let amount = tranche.amountDue;
+        // Apply sibling_fixed discount to all children except the first.
         if (siblingDiscount && siblingDiscount.discountType && childIndex >= 1) {
           amount = applyDiscount(amount, { amount: siblingDiscount.amount, discountType: siblingDiscount.discountType });
         }
@@ -89,37 +116,66 @@ export function buildSeedLedger(): LedgerEntry[] {
           amount,
           sourceType: "installment",
           sourceId: `ins-${parent.id}-${student.id}-t${i + 1}`,
-          description: `Scolarité ${ACADEMIC_YEAR} — Tranche ${i + 1} (${student.firstName} ${student.lastName}, ${student.level})`,
+          description: `Scolarité ${ACADEMIC_YEAR} — Tranche ${i + 1} (${student.firstName} ${student.lastName}, ${student.gradeLevel})`,
           actorId: "usr-adm-001",
           actorName: "Brahim Souilah",
           at: daysAgo(60),
           metadata: {
             tranche: i + 1,
+            gradeLevel: student.gradeLevel,
             level: student.level,
             baseAmount: tuition,
-            siblingDiscountApplied: siblingDiscount && childIndex >= 1 ? siblingDiscount.qualifier : null,
+            siblingDiscountApplied: siblingDiscount && childIndex >= 1 ? (siblingDiscount.discountCode ?? null) : null,
           },
         }));
       });
 
-      // Transport fee (one charge per student per year, due T1).
-      const tier = student.transportTier;
-      if (tier === "t1" || tier === "t2" || tier === "t3") {
-        const transportAmount = transportForTier(config, tier);
-        entries.push(createChargeEntry({
-          tenantId: TENANT_ID,
-          parentId: parent.id,
-          studentId: student.id,
-          category: "transport",
-          amount: transportAmount,
-          sourceType: "installment",
-          sourceId: `ins-${parent.id}-${student.id}-transport`,
-          description: `Transport ${ACADEMIC_YEAR} — Zone ${tier.toUpperCase()} (${student.firstName})`,
-          actorId: "usr-adm-001",
-          actorName: "Brahim Souilah",
-          at: daysAgo(60),
-          metadata: { tier },
-        }));
+      // Transport fee — uses per-destination 3-tranche schedule if the parent
+      // has a transport destination; falls back to legacy tier-based single
+      // charge if only `transportTier` is set on the student.
+      const destination = parent.transportDestination;
+      if (destination) {
+        const transportTranches = transportTranchesForDestination(config, destination);
+        transportTranches.forEach((tranche, i) => {
+          entries.push(createChargeEntry({
+            tenantId: TENANT_ID,
+            parentId: parent.id,
+            studentId: student.id,
+            category: "transport",
+            amount: tranche.amountDue,
+            sourceType: "installment",
+            sourceId: `ins-${parent.id}-${student.id}-transport-t${i + 1}`,
+            description: `Transport ${ACADEMIC_YEAR} — Tranche ${i + 1} (${student.firstName}, ${destination})`,
+            actorId: "usr-adm-001",
+            actorName: "Brahim Souilah",
+            at: daysAgo(60),
+            metadata: { tranche: i + 1, destination },
+          }));
+        });
+      } else {
+        // Legacy fallback — single transport charge based on student.transportTier.
+        const tier = student.transportTier;
+        if (tier === "t1" || tier === "t2" || tier === "t3") {
+          // Best-effort: derive destination from tier for the lookup.
+          const fallbackDestination = cityTierToDestination(tier);
+          if (fallbackDestination) {
+            const annualAmount = transportForDestination(config, fallbackDestination).annualAmount;
+            entries.push(createChargeEntry({
+              tenantId: TENANT_ID,
+              parentId: parent.id,
+              studentId: student.id,
+              category: "transport",
+              amount: annualAmount,
+              sourceType: "installment",
+              sourceId: `ins-${parent.id}-${student.id}-transport`,
+              description: `Transport ${ACADEMIC_YEAR} — Zone ${tier.toUpperCase()} (${student.firstName})`,
+              actorId: "usr-adm-001",
+              actorName: "Brahim Souilah",
+              at: daysAgo(60),
+              metadata: { tier, destination: fallbackDestination },
+            }));
+          }
+        }
       }
     }
   }

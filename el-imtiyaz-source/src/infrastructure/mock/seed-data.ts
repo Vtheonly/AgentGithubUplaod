@@ -17,11 +17,32 @@
  * (the single source of truth). The `seedInstallments` array is now
  * derived from the ledger via `ledger-seed.ts` (see `installmentsFromLedger()`).
  *
+ * Iteration 6:
+ *   - Each parent now carries an explicit `transportDestination` (canonical)
+ *     alongside the legacy `cityTier`. New code prefers `transportDestination`.
+ *   - Each student now carries an explicit `gradeLevel` (canonical) alongside
+ *     the legacy `level`+`gradeYear` pair.
+ *   - Tuition is now keyed by `GradeLevel` (14 grades) and payments derive
+ *     amounts from the granular per-grade pricing.
+ *
  * No hardcoded DZD amounts in seed data except as PricingConfig-derived
  * values (in `pricing-seed.ts`) or as illustrative expense amounts.
  */
 
-import { tuitionForLevel, tuitionTranches } from "../../domain/model/pricing";
+import {
+  tuitionForLevel,
+  tuitionForGradeLevel,
+  tuitionTranches,
+  tuitionTranchesForGrade,
+} from "../../domain/model/pricing";
+import {
+  gradeLevelFromLevelYear,
+  type GradeLevel,
+} from "../../domain/model/student";
+import {
+  cityTierToDestination,
+  type TransportDestination,
+} from "../../domain/model/parent";
 import { defaultPricingConfig } from "./pricing-seed";
 
 const NOW = new Date("2025-09-15T10:00:00Z");
@@ -46,10 +67,17 @@ export const seedParents = [
 ].map((p) => ({
   ...p,
   tenantId: TENANT_ID,
+  transportDestination: cityTierToDestination(p.cityTier) as TransportDestination,
   avatarUrl: null,
   createdAt: daysAgo(180),
   updatedAt: daysAgo(7),
 }));
+
+// Helper: derive gradeLevel from level + gradeYear (used for seed students
+// whose data was authored before the GradeLevel type was introduced).
+function gradeLevelFor(level: "primaire" | "cem" | "lycee", gradeYear: number): GradeLevel {
+  return gradeLevelFromLevelYear(level, gradeYear);
+}
 
 export const seedStudents = [
   { id: "stu-001", code: "ELV-2025-000001", parentId: "par-001", firstName: "Yacine", lastName: "Benali", gender: "male" as const, birthDate: "2014-03-12", level: "primaire" as const, gradeYear: 3, classId: "cls-001", medicalNotes: null },
@@ -70,6 +98,7 @@ export const seedStudents = [
 ].map((s) => ({
   ...s,
   tenantId: TENANT_ID,
+  gradeLevel: gradeLevelFor(s.level, s.gradeYear),
   enrollmentDate: daysAgo(120),
   photoUrl: null,
   transportTier: s.level === "primaire" ? "t1" : null,
@@ -115,15 +144,19 @@ export const seedPayments = Array.from({ length: 30 }, (_, i) => {
   const category = categories[i % categories.length];
   // Use the same source IDs as the ledger so cross-checks pass.
   const installmentId = i % 3 === 0 && student ? `ins-${parent.id}-${student.id}-t${(i % 3) + 1}` : null;
+  // Derive tuition amount from the granular grade-level 3-tranche schedule.
+  // Iteration 6: prefers per-grade-level pricing; falls back to legacy if needed.
+  const tuitionTrancheAmount = student
+    ? tuitionTranchesForGrade(defaultPricingConfig, student.gradeLevel)[i % 3].amountDue
+    : tuitionTranches(tuitionForLevel(defaultPricingConfig, "cem"))[i % 3].amountDue;
   return {
     id: `pay-${String(i + 1).padStart(3, "0")}`,
     tenantId: TENANT_ID,
     receiptNumber: `REC-2025-${String(i + 1).padStart(6, "0")}`,
     parentId: parent.id,
     studentId: student?.id ?? null,
-    // Derive amount from tuition tranches where possible to avoid arbitrary literals.
     amount: category === "tuition"
-      ? tuitionTranches(tuitionForLevel(defaultPricingConfig, student?.level ?? "cem"))[i % 3].amountDue
+      ? tuitionTrancheAmount
       : [8000, 3500, 5000, 6000, 4200][i % 5],
     method,
     status,
@@ -144,13 +177,15 @@ export const seedPayments = Array.from({ length: 30 }, (_, i) => {
  * Iteration 5: installments are now derived from the ledger. The
  * `seedInstallments` array is kept as a backward-compat shim for code
  * that consumes `Installment` objects directly. The amounts come from
- * `defaultPricingConfig.tuitionByLevel` (the single source of truth).
+ * `defaultPricingConfig.tuitionByGradeLevel` (the single source of truth).
+ *
+ * Iteration 6: uses per-grade-level tuition (granular 3-tranche schedule)
+ * instead of the legacy 3-way equal split.
  */
 export const seedInstallments = seedParents.slice(0, 6).flatMap((parent, idx) => {
   const student = seedStudents.find((s) => s.parentId === parent.id);
   if (!student) return [];
-  const tuition = tuitionForLevel(defaultPricingConfig, student.level);
-  const tranches = tuitionTranches(tuition);
+  const tranches = tuitionTranchesForGrade(defaultPricingConfig, student.gradeLevel);
   return [1, 2, 3].map((t) => {
     const due = new Date(NOW.getTime() + (t - 2) * 30 * 86_400_000);
     const amountDue = tranches[t - 1].amountDue;

@@ -30,7 +30,7 @@ import {
   maxDaysOverdueFromLedger,
 } from "../../domain/model/ledger";
 import type { PaymentCategory } from "../../domain/model/payment";
-import { tuitionTranches } from "../../domain/model/pricing";
+import { tuitionTranches, tuitionForLevel, transportForTier } from "../../domain/model/pricing";
 import { defaultPricingConfig } from "../../infrastructure/mock/pricing-seed";
 import {
   reconcileLedger,
@@ -458,7 +458,8 @@ describe("Ledger — pricing-derived charges", () => {
     });
     expect(entries).toHaveLength(3);
     const total = entries.reduce((s, e) => s + e.amount, 0);
-    expect(total).toBe(defaultPricingConfig.tuitionByLevel.cem);
+    // Iteration 6: tuitionForLevel now returns the first grade level's annual tuition within `cem` (1am = 330 000).
+    expect(total).toBe(tuitionForLevel(defaultPricingConfig, "cem"));
   });
 
   it("buildTransportChargeEntry uses pricing config tier", () => {
@@ -474,12 +475,14 @@ describe("Ledger — pricing-derived charges", () => {
       actorName: "U",
       sourceId: "src-2",
     });
-    expect(entry.amount).toBe(defaultPricingConfig.transportByTier.t2);
+    // Iteration 6: transportForTier("t2") maps to tidjelabine_sahel_figuier_corso (43 000 DA).
+    expect(entry.amount).toBe(transportForTier(defaultPricingConfig, "t2"));
     expect(entry.category).toBe("transport");
   });
 
-  it("sibling discounts are applied when provided", () => {
-    const sibling10 = defaultPricingConfig.discounts.find((d) => d.qualifier === "sibling_10")!;
+  it("sibling discounts are applied when provided (legacy sibling_10)", () => {
+    // Iteration 6: legacy sibling_10 was removed from defaults; we test with sibling_fixed instead.
+    const sibling = defaultPricingConfig.discounts.find((d) => d.qualifier === "sibling_fixed")!;
     const entries = buildTuitionChargeEntries({
       tenantId: TENANT,
       parentId: "p1",
@@ -491,20 +494,19 @@ describe("Ledger — pricing-derived charges", () => {
       actorId: "u1",
       actorName: "U",
       sourceId: "src-1",
-      discounts: [sibling10],
+      discounts: [sibling],
     });
-    const tuition = defaultPricingConfig.tuitionByLevel.cem;
+    const tuition = tuitionForLevel(defaultPricingConfig, "cem");
     // Discount is applied per-tranche, then each tranche is rounded.
     // Per-tranche rounding may differ from rounding the total.
     const expectedPerTranche = tuitionTranches(tuition).map((t) =>
-      Math.round(t.amountDue * 0.9),
+      Math.max(0, t.amountDue + sibling.amount), // -5000 per tranche
     );
     const expectedTotal = expectedPerTranche.reduce((s, a) => s + a, 0);
     const actualTotal = entries.reduce((s, e) => s + e.amount, 0);
     expect(actualTotal).toBe(expectedTotal);
-    // Sanity: the discount should reduce the total by ~10%.
+    // Sanity: the discount should reduce the total.
     expect(actualTotal).toBeLessThan(tuition);
-    expect(actualTotal).toBeGreaterThan(tuition * 0.85);
   });
 });
 

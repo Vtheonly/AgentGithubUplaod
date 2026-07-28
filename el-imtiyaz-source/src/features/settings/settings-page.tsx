@@ -62,7 +62,20 @@ export function SettingsPage() {
         title={t("nav.settings")}
         description="Configuration système, tarification, journal d'audit, RBAC, IA, sauvegardes"
       />
-      <PageTabs defaultValue="general" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+      {/*
+        Iteration 6: Settings now uses variant="rail" — a left vertical rail —
+        per the PageTabs design language (rail = "vertical variant for left-rail
+        settings pages"). The 7-tab count + long French labels (Tarification,
+        Journal d'audit, Sauvegardes) makes the elevated segmented control
+        at risk of overflow on narrower windows. The rail layout also reads
+        more like a classic settings navigation, which is the convention
+        users expect.
+      */}
+      <PageTabs
+        defaultValue="general"
+        variant="rail"
+        className="flex-1 flex flex-row gap-6 px-6 pb-6 min-h-0"
+      >
         <PageTabList>
           <PageTab value="general" label={t("settings.general")} icon={SettingsIcon} />
           <PageTab value="pricing" label="Tarification" icon={Tag} disabled={!canViewPricing} />
@@ -73,27 +86,29 @@ export function SettingsPage() {
           <PageTab value="locked" label={t("settings.locked")} icon={Lock} />
         </PageTabList>
 
-        <PageTabContent value="general">
-          <GeneralTab />
-        </PageTabContent>
-        <PageTabContent value="pricing">
-          {canViewPricing ? <PricingTab /> : <AccessDeniedCard />}
-        </PageTabContent>
-        <PageTabContent value="audit" scrollable={false}>
-          {canViewAudit ? <AuditLogTab /> : <AccessDeniedCard />}
-        </PageTabContent>
-        <PageTabContent value="rbac">
-          <RbacMatrixTab />
-        </PageTabContent>
-        <PageTabContent value="ai">
-          <AiConfigTab />
-        </PageTabContent>
-        <PageTabContent value="backup">
-          <BackupTab />
-        </PageTabContent>
-        <PageTabContent value="locked">
-          <LockedFeaturesTab />
-        </PageTabContent>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <PageTabContent value="general">
+            <GeneralTab />
+          </PageTabContent>
+          <PageTabContent value="pricing">
+            {canViewPricing ? <PricingTab /> : <AccessDeniedCard />}
+          </PageTabContent>
+          <PageTabContent value="audit" scrollable={false}>
+            {canViewAudit ? <AuditLogTab /> : <AccessDeniedCard />}
+          </PageTabContent>
+          <PageTabContent value="rbac">
+            <RbacMatrixTab />
+          </PageTabContent>
+          <PageTabContent value="ai">
+            <AiConfigTab />
+          </PageTabContent>
+          <PageTabContent value="backup">
+            <BackupTab />
+          </PageTabContent>
+          <PageTabContent value="locked">
+            <LockedFeaturesTab />
+          </PageTabContent>
+        </div>
       </PageTabs>
     </div>
   );

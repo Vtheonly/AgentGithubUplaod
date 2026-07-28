@@ -145,8 +145,22 @@ export function LoginScreen() {
   );
 }
 
-/** Compact particle logo for the login side panel. */
+/** Compact particle logo for the login side panel.
+ * Iteration 6: layered — circular particle rings in the background + the
+ * canonical EI monogram in the foreground. Restores the legacy "layered
+ * visual effects" + "animated circular particle effects" from the old
+ * desktop app.
+ */
 import { ParticleLogo } from "../../shared/components/particle-logo";
 function ParticleLogoMini() {
-  return <ParticleLogo mode="logo" text="EI" color="#349BD4" />;
+  return (
+    <div className="relative h-full w-full">
+      {/* Background: circular particle rings (low opacity, accent color) */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <ParticleLogo mode="circular" color="#6EC1E4" />
+      </div>
+      {/* Foreground: canonical EI monogram */}
+      <ParticleLogo mode="logo" text="EI" color="#349BD4" />
+    </div>
+  );
 }

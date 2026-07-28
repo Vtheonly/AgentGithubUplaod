@@ -471,12 +471,46 @@ function ReportsTab() {
         const students = repos.students.observe().get();
         await exportStudentRoster(students);
       } else if (code === "annuaire-personnel") {
+        // Iteration 6: implement personnel export via the shared exportToXlsx helper.
+        // Reuses the same export pattern as the PersonnelPage directory tab.
         const personnel = repos.personnel.observe().get();
-        await exportOutstandingDebtReport([], "xlsx"); // placeholder
-        // Use roster pattern
-        // eslint-disable-next-line no-console
-        console.log("Personnel export stub:", personnel.length);
-        toast.showInfo("Bientôt", `Export de l'annuaire (${personnel.length} entrées) — à venir.`);
+        if (personnel.length === 0) {
+          toast.showWarning("Aucun personnel", "Rien à exporter.");
+          return;
+        }
+        const { exportToXlsx } = await import("../../infrastructure/excel/export-engine");
+        const { STAFF_CATEGORY_LABELS_FR, PERSONNEL_STATUS_LABELS_FR } = await import("../../domain/model/personnel");
+        const columns = [
+          { header: "Code", key: "code", width: 14 },
+          { header: "Prénom", key: "firstName", width: 16 },
+          { header: "Nom", key: "lastName", width: 18 },
+          { header: "Catégorie", key: "category", width: 18 },
+          { header: "Téléphone", key: "phone", width: 18 },
+          { header: "E-mail", key: "email", width: 28 },
+          { header: "Date d'embauche", key: "hireDate", width: 14 },
+          { header: "Statut", key: "status", width: 14 },
+          { header: "Heures hebdo. cibles", key: "weeklyHoursTarget", width: 14 },
+          { header: "Heures hebdo. effectuées", key: "weeklyHoursLogged", width: 14 },
+          { header: "Salaire (DZD)", key: "salary", width: 16 },
+        ];
+        const rows = personnel.map((p) => ({
+          code: p.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          category: STAFF_CATEGORY_LABELS_FR[p.staffCategory],
+          phone: p.phone,
+          email: p.email ?? "",
+          hireDate: p.hireDate,
+          status: PERSONNEL_STATUS_LABELS_FR[p.status],
+          weeklyHoursTarget: p.weeklyHoursTarget,
+          weeklyHoursLogged: p.weeklyHoursLogged,
+          salary: p.salary != null ? new Intl.NumberFormat("fr-FR").format(p.salary) : "—",
+        }));
+        exportToXlsx(
+          [{ name: "Personnel", columns, rows }],
+          `annuaire-personnel-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        );
+        toast.showSuccess("Export XLSX", `${personnel.length} personnel(s) exporté(s).`);
         return;
       } else {
         toast.showInfo("Bientôt disponible", `Le rapport "${code}" sera disponible prochainement.`);
