@@ -1,0 +1,28 @@
+{
+  "name": "particle-import-engine",
+  "version": "1.0.0",
+  "description": "Standalone Node.js import engine for particle system image processing, physics simulation, and Electron IPC integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node --experimental-vm-modules dist/tests/run-tests.js",
+    "start": "node dist/index.js",
+    "demo": "node dist/demo.js"
+  },
+  "keywords": ["particle", "import", "engine", "electron", "physics"],
+  "license": "MIT",
+  "dependencies": {
+    "sharp": "^0.33.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
