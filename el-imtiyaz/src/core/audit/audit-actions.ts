@@ -72,6 +72,14 @@ export const AuditActions = {
   AiAnomalyJustificationRequested: "ai.anomaly_justification_requested",
   AiConfigUpdate: "ai.config_update",
   AiConfigTest: "ai.config_test",
+
+  // Excel Import Engine (plan §14) — iteration 11
+  ImportRunStarted: "import.run_started",
+  ImportRunCompleted: "import.run_completed",
+  ImportRowInserted: "import.row_inserted",
+  ImportRowUpdated: "import.row_updated",
+  ImportRowSkipped: "import.row_skipped",
+  ImportRowRejected: "import.row_rejected",
 } as const;
 
 export type AuditAction = (typeof AuditActions)[keyof typeof AuditActions];

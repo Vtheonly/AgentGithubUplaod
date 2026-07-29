@@ -15,6 +15,7 @@ import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../shared/ui/card";
 import { cn } from "../../shared/ui/cn";
+import { ParticleCanvas } from "../../shared/components/particle-canvas";
 
 
 
@@ -68,8 +69,12 @@ export function LoginScreen() {
           </div>
 
           <div className="h-[50vh] -mx-4">
-            {/* Particle logo for visual identity */}
-            <ParticleLogoMini />
+            {/*
+              Brand side-panel decoration — uses the new ParticleCanvas
+              wrapper around the renderer-side ParticleEngine. Particles
+              form the EI monogram and react to the cursor.
+            */}
+            <ParticleCanvas mode="logo" density={3} fillRatio={0.7} />
           </div>
 
           <p className="text-xs text-muted-foreground">
@@ -146,26 +151,6 @@ export function LoginScreen() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-/** Compact particle logo for the login side panel.
- * Iteration 6: layered — circular particle rings in the background + the
- * canonical EI monogram in the foreground. Restores the legacy "layered
- * visual effects" + "animated circular particle effects" from the old
- * desktop app.
- */
-import { ParticleLogo } from "../../shared/components/particle-logo";
-function ParticleLogoMini() {
-  return (
-    <div className="relative h-full w-full">
-      {/* Background: circular particle rings (low opacity, accent color) */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <ParticleLogo mode="circular" color="#6EC1E4" />
-      </div>
-      {/* Foreground: canonical EI monogram */}
-      <ParticleLogo mode="logo" text="EI" color="#349BD4" />
     </div>
   );
 }

@@ -4,7 +4,8 @@
  * Used by:
  *   - Audit log CSV/XLSX export (Settings → Audit tab)
  *   - Report export engine (Dashboard → Reports tab + Financials)
- *   - Excel bulk import (separate file: import-pipeline.ts)
+ *   - Excel import engine (import-engine/reporters/excel-reporter.ts)
+ *     — shares the same brand-styled header + zebra striping.
  *
  * Per plan §14: ExcelJS is restricted to import/export service modules
  * only — no formula parsing in runtime code.

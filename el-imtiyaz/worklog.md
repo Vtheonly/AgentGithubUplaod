@@ -137,3 +137,47 @@ Stage Summary:
 - 0 typecheck errors, 836 tests passing, production build clean.
 - Desktop application now fully matches the project plan and documentation.
 - Out-of-scope items (per user instruction "Focus only on the desktop application"): Supabase adapter, real AI API calls, real Edge Function deploy, real offsite vault, mobile parity verification, Routing/OSRM/TSP solver.
+
+---
+Task ID: 11-engine-reintegration
+Agent: main (orchestrator)
+Task: Iteration 11 — Reintegrate two standalone engines (Excel Import Engine + Particle Animation Engine) as first-class modules in the main src/ tree.
+
+Work Log:
+- Cloned the GitHub reference repo to /home/z/my-project/repo/el-imtiyaz (included both standalone engines: excel-import-engine/ + import-engine-particle/).
+- Verified baseline: 836 tests passing across 38 test files, typecheck clean.
+- Dispatched two parallel Explore subagents to produce comprehensive technical maps of both standalone engines (every file's API, dependencies, business logic, integration risks).
+- Read the existing project's excel infrastructure (dynamic-import.ts, client-schema.ts, import-pipeline.ts, export-engine.ts), audit system (audit-actions.ts, AuditRepository), Electron setup (main.ts, preload.ts, ipc-handlers.ts), particle implementation (particle-engine.ts, particle-logo.tsx, splash-screen.tsx), and core patterns (Result<T,E>, repository-provider, mock-repositories).
+- Phase 1 — Particle Animation Engine integration:
+  - Ported 12 files to src/shared/particle-engine/: types.ts (Buffer→Uint8Array, dropped IPC/Job types), errors.ts, physics/particle.ts, physics/morphing.ts, color/interpolator.ts, pipeline/sampler.ts, pipeline/projector.ts, pipeline/image-loader.ts (renderer-side, HTMLImageElement+canvas instead of sharp), pipeline/fallback.ts (Canvas 2D EI monogram instead of sharp SVG), pipeline/pipeline.ts, engine.ts (rAF-driven, no JobQueue/IPC), index.ts.
+  - Created src/shared/components/particle-canvas.tsx — reusable React wrapper.
+  - Rewrote src/features/auth/splash-screen.tsx to use new ParticleEngine directly (mode sequence: logo → circular → logo, mouse-reactive).
+  - Updated src/features/auth/login-screen.tsx to use ParticleCanvas (replaced deleted ParticleLogo).
+  - Deleted src/shared/components/particle-engine.ts + particle-logo.tsx (legacy).
+  - Added 76 unit tests across 4 test files (physics, color, pipeline, engine).
+- Phase 2 — Excel Import Engine integration:
+  - Ported 24 files to src/infrastructure/excel/import-engine/: types.ts, errors.ts, import-context.ts, schemas/ (4 schemas + index), parsers/ (excel-parser, sheet-detector), validators/ (row-validator, field-coercer, 6 rules), dedupe/upsert-matcher.ts, storage/ (storage-adapter interface + in-memory-adapter), reporters/ (json-reporter, excel-reporter), utils/ (id, checksum, logger), import-engine.ts (orchestrator), index.ts.
+  - Delegated mechanical porting of 6 validator rules to a subagent (with precise type contracts + typecheck verification).
+  - Added 6 new audit actions to src/core/audit/audit-actions.ts (import.run_started, import.run_completed, import.row_inserted/updated/skipped/rejected).
+  - Rewrote src/features/crm/excel-import-modal.tsx to use new ImportEngine: dry-run preview with per-sheet stats, atomic commit, JSON+Excel report downloads, audit log integration via repos.audit.log().
+  - Deleted src/infrastructure/excel/dynamic-import.ts, import-pipeline.ts, client-schema.ts + src/test/unit/dynamic-import.test.ts (22 tests — replaced by 90 new tests).
+  - Added 90 unit/integration tests across 3 test files (schemas, validators+coercer+matcher, engine+adapter).
+- Phase 3 — Cleanup:
+  - Removed standalone excel-import-engine/ directory (31 files, ~3000 LOC).
+  - Removed standalone import-engine-particle/ directory (17 files, ~2400 LOC).
+  - Updated src/infrastructure/excel/export-engine.ts doc comment to reference the new engine.
+- Phase 4 — Verification:
+  - npm run typecheck → clean (0 errors).
+  - npm test → 44 test files, 980 tests passing (up from 836 baseline; +144 new tests, 0 regressions).
+  - npx vite build → succeeds, 14.28s, all chunks under 1 MB.
+- Phase 5 — Documentation:
+  - Created docs/ITERATION-11-DONE.md with full integration matrix.
+  - Updated worklog.md (this entry).
+
+Stage Summary:
+- Both standalone engines fully reintegrated as first-class TypeScript modules in src/.
+- Particle engine: 12 new files + 1 React wrapper + 76 tests. Replaces legacy particle-engine.ts/particle-logo.tsx. Splash screen + login side panel use the new engine. No native deps (sharp dropped in favour of HTMLImageElement + canvas).
+- Excel engine: 24 new files + 6 audit actions + 90 tests. Replaces dynamic-import.ts/client-schema.ts/import-pipeline.ts. Modal uses new engine end-to-end (dry-run preview → atomic commit → report downloads). No native deps (better-sqlite3 dropped in favour of InMemoryAdapter).
+- Standalone directories removed: excel-import-engine/ (31 files) + import-engine-particle/ (17 files).
+- 0 typecheck errors, 980 tests passing, production build clean.
+- The final result feels as though both engines were originally designed as part of the application — not added later as standalone modules.
