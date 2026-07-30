@@ -1,24 +1,12 @@
-/**
- * ExcelParser — ExcelJS wrapper.
- *
- * Ported from `excel-import-engine/src/parsers/ExcelParser.js`. The
- * renderer version accepts a `File` or `ArrayBuffer` (the original
- * Node version accepted a file path). The ExcelJS API is identical
- * in both environments — only the entry point differs.
- *
- * Responsibilities:
- *   - Open `.xlsx` / `.xlsm` workbooks via ExcelJS (with cached formula results).
- *   - List sheets with detected schema.
- *   - Iterate rows of a sheet, emitting `{ headerName: value }` objects.
- *
- * The parser performs NO business validation — that's `RowValidator`'s job.
- */
 import ExcelJS from "exceljs";
 import type { ImportSchema } from "../types";
 import { SheetDetector } from "./sheet-detector";
 
 export interface IterateRowsOptions {
-  onRow?: (row: Record<string, unknown>, rowIndex: number) => Promise<void> | void;
+  onRow?: (
+    row: Record<string, unknown>,
+    rowIndex: number,
+  ) => Promise<void> | void;
   onProgress?: (read: number, total: number) => void;
 }
 
@@ -42,15 +30,18 @@ export class ExcelParser {
 
   /**
    * Open a workbook from a `File` (renderer) or `ArrayBuffer`.
-   *
-   * In the renderer, callers obtain the buffer via `await file.arrayBuffer()`.
    */
-  async open(input: File | ArrayBuffer | Uint8Array): Promise<ExcelJS.Workbook> {
+  async open(
+    input: File | ArrayBuffer | Uint8Array,
+  ): Promise<ExcelJS.Workbook> {
     let buffer: ArrayBuffer;
     if (input instanceof File) {
       buffer = await input.arrayBuffer();
     } else if (input instanceof Uint8Array) {
-      buffer = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength) as ArrayBuffer;
+      buffer = input.buffer.slice(
+        input.byteOffset,
+        input.byteOffset + input.byteLength,
+      ) as ArrayBuffer;
     } else {
       buffer = input;
     }
@@ -61,7 +52,9 @@ export class ExcelParser {
   }
 
   /** List sheets with detected schema. */
-  async listSheets(input: File | ArrayBuffer | Uint8Array): Promise<SheetInfo[]> {
+  async listSheets(
+    input: File | ArrayBuffer | Uint8Array,
+  ): Promise<SheetInfo[]> {
     const wb = await this.open(input);
     return wb.worksheets.map((ws) => {
       const headerRow = this.readHeaderRow(ws, 0);
@@ -70,12 +63,100 @@ export class ExcelParser {
     });
   }
 
+  private normalizeString(s: string): string {
+    return String(s || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  /**
+   * Dynamically search for the header row across the top 30 rows of a sheet.
+   */
+  private findHeaderRow(
+    ws: ExcelJS.Worksheet,
+    schema: ImportSchema | null,
+  ): { headerRowNumber: number; dataStartRow: number; headers: string[] } {
+    if (!schema || schema.headerRow === 0) {
+      const colCount = ws.columnCount || 1;
+      const headers: string[] = [];
+      for (let c = 1; c <= colCount; c++) headers.push(this.colLetter(c));
+      return { headerRowNumber: 0, dataStartRow: 1, headers };
+    }
+
+    const maxScanRows = Math.min(30, ws.rowCount || 30);
+    const requiredHeadersNorm = schema.requiredHeaders.map((h) =>
+      this.normalizeString(h),
+    );
+    const fieldHeadersNorm = schema.fields
+      .map((f) => (f.header ? this.normalizeString(f.header) : ""))
+      .filter(Boolean);
+
+    let bestRow = schema.headerRow || 1;
+    let bestScore = -1;
+    let bestHeaders: string[] = [];
+
+    const candidateRows = new Set<number>();
+    if (schema.headerRow && schema.headerRow <= ws.rowCount) {
+      candidateRows.add(schema.headerRow);
+    }
+    for (let r = 1; r <= maxScanRows; r++) {
+      candidateRows.add(r);
+    }
+
+    for (const r of candidateRows) {
+      const rowHeaders = this.readHeaderRow(ws, r);
+      if (rowHeaders.length === 0) continue;
+
+      const rowHeadersNorm = rowHeaders.map((h) => this.normalizeString(h));
+
+      let reqMatchCount = 0;
+      for (const reqH of requiredHeadersNorm) {
+        if (
+          rowHeadersNorm.some(
+            (h) => h === reqH || h.includes(reqH) || reqH.includes(h),
+          )
+        ) {
+          reqMatchCount++;
+        }
+      }
+
+      let fieldMatchCount = 0;
+      for (const fieldH of fieldHeadersNorm) {
+        if (
+          rowHeadersNorm.some(
+            (h) => h === fieldH || h.includes(fieldH) || fieldH.includes(h),
+          )
+        ) {
+          fieldMatchCount++;
+        }
+      }
+
+      const score = reqMatchCount * 10 + fieldMatchCount;
+      const isExplicit = schema.headerRow && r === schema.headerRow;
+
+      if (score > bestScore || (score === bestScore && isExplicit)) {
+        bestScore = score;
+        bestRow = r;
+        bestHeaders = rowHeaders;
+      }
+    }
+
+    let dataStartRow = bestRow + 1;
+    if (
+      schema.dataStartRow &&
+      schema.headerRow &&
+      bestRow === schema.headerRow
+    ) {
+      dataStartRow = schema.dataStartRow;
+    }
+
+    return { headerRowNumber: bestRow, dataStartRow, headers: bestHeaders };
+  }
+
   /**
    * Iterate rows of a worksheet.
-   *
-   * Calls `onRow(row, rowIndex)` for each non-empty row, where `row` is a
-   * `{ headerName: value }` object. The `onRow` callback may be async —
-   * the parser awaits it to guarantee deterministic ordering for upserts.
    */
   async iterateRows(
     ws: ExcelJS.Worksheet,
@@ -84,25 +165,7 @@ export class ExcelParser {
   ): Promise<IterateRowsResult> {
     const { onRow, onProgress } = opts;
 
-    // Note: use `??` (nullish coalescing) because `headerRow: 0` is a valid
-    // sentinel meaning "no header" — `||` would coerce 0 to 1 (bug).
-    const headerRowNumber = schema && schema.headerRow != null ? schema.headerRow : 1;
-    const dataStartRow =
-      schema && schema.dataStartRow != null
-        ? schema.dataStartRow
-        : headerRowNumber === 0
-        ? 1
-        : headerRowNumber + 1;
-
-    let headers: string[];
-    if (headerRowNumber === 0) {
-      // No header — generate synthetic A, B, C, … from column count.
-      const colCount = ws.columnCount || 1;
-      headers = [];
-      for (let c = 1; c <= colCount; c++) headers.push(this.colLetter(c));
-    } else {
-      headers = this.readHeaderRow(ws, headerRowNumber);
-    }
+    const { dataStartRow, headers } = this.findHeaderRow(ws, schema);
 
     const total = ws.rowCount || 0;
     let read = 0;
@@ -115,11 +178,11 @@ export class ExcelParser {
       const obj: Record<string, unknown> = {};
       for (let c = 1; c <= headers.length; c++) {
         const headerName = headers[c - 1];
-        if (!headerName) continue; // skip columns without a header
+        if (!headerName) continue;
         const cell = row.getCell(c);
-        const v = cell && cell.value !== undefined ? cell.value : null;
+        const v = this.normalizeCell(cell);
         if (v !== null && v !== "" && v !== undefined) isEmpty = false;
-        obj[headerName] = this.normalizeCell(cell);
+        obj[headerName] = v;
       }
 
       if (isEmpty) {
@@ -139,8 +202,11 @@ export class ExcelParser {
     return { rowsRead: read, headers };
   }
 
-  /** Read the header row cells as a string array (for sheet detection). */
-  private readHeaderRow(ws: ExcelJS.Worksheet, headerRowNumber: number): string[] {
+  /** Read the header row cells as a string array. */
+  private readHeaderRow(
+    ws: ExcelJS.Worksheet,
+    headerRowNumber: number,
+  ): string[] {
     if (headerRowNumber === 0) {
       const colCount = ws.columnCount || 1;
       const headers: string[] = [];
@@ -150,23 +216,16 @@ export class ExcelParser {
     const row = ws.getRow(headerRowNumber);
     if (!row) return [];
     const headers: string[] = [];
-    const colCount = ws.columnCount || row.cellCount || 0;
+    const colCount = Math.max(ws.columnCount || 0, row.cellCount || 0);
     for (let c = 1; c <= colCount; c++) {
       const cell = row.getCell(c);
       let v = this.normalizeCell(cell);
       if (typeof v === "string") v = v.trim();
-      headers.push(v as string);
+      headers.push((v ?? "") as string);
     }
     return headers;
   }
 
-  /**
-   * Normalise an ExcelJS cell value into a plain JS value.
-   *
-   * Handles formula objects (uses `.result`), shared formulas without
-   * cached results (returns null), hyperlinks (`.text`), rich text
-   * (concatenated), error cells (`#REF!` etc.), and dates (preserved).
-   */
   private normalizeCell(cell: ExcelJS.Cell | null | undefined): unknown {
     if (!cell) return null;
     let v: unknown = cell.value;
@@ -183,13 +242,13 @@ export class ExcelParser {
       if (obj.result !== undefined) {
         v = obj.result;
       } else if (obj.sharedFormula !== undefined || obj.formula !== undefined) {
-        v = null; // shared formula without cached result
+        v = null;
       } else if (obj.text !== undefined) {
         v = obj.text;
       } else if (Array.isArray(obj.richText)) {
         v = obj.richText.map((t) => t.text).join("");
       } else if (obj.error !== undefined) {
-        v = obj.error; // e.g. "#REF!"
+        v = obj.error;
       } else if (v instanceof Date) {
         // keep as-is
       } else {
@@ -204,7 +263,6 @@ export class ExcelParser {
     return v;
   }
 
-  /** Convert a 1-based column index to an Excel letter (1→A, 27→AA, etc.). */
   private colLetter(n: number): string {
     let s = "";
     while (n > 0) {

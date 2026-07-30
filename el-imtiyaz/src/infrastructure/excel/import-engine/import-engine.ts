@@ -1,24 +1,10 @@
-/**
- * ImportEngine — main orchestrator.
- *
- * Ported from `excel-import-engine/src/ImportEngine.js`. Ties together:
- *   - ExcelParser (read workbook, iterate rows)
- *   - SheetDetector (auto-detect schema per sheet)
- *   - RowValidator + FieldCoercer (coerce + validate cells)
- *   - UpsertMatcher (idempotent identity extraction)
- *   - StorageAdapter (in-memory record + run history store)
- *   - JsonReporter + ExcelReporter (human-reviewable export files)
- *
- * Replaces Node's `EventEmitter` with a tiny typed listener bag (mirrors
- * the pattern used by the renderer-side `ParticleEngine`). The lifecycle
- * events match the standalone engine's contract so any future IPC bridge
- * can consume them unchanged.
- *
- * Audit integration: the engine emits `import.run_started` and
- * `import.run_completed` audit actions via the optional `auditSink`
- * callback (the host wires this to `repos.audit.log()`).
- */
-import type { ImportSchema, ImportRecord, ImportOptions, ImportSource, SheetResult } from "./types";
+import type {
+  ImportSchema,
+  ImportRecord,
+  ImportOptions,
+  ImportSource,
+  SheetResult,
+} from "./types";
 import { ImportContext } from "./import-context";
 import { ExcelParser } from "./parsers/excel-parser";
 import { SheetDetector } from "./parsers/sheet-detector";
@@ -33,29 +19,38 @@ import { ConfigurationError, ImportEngineError } from "./errors";
 import { findSchemaByName } from "./schemas";
 import type ExcelJS from "exceljs";
 
-/** Audit sink — called by the engine to persist audit entries. */
 export interface AuditSink {
-  logAction(action: string, entityType: string, entityId: string, diff?: Record<string, unknown>, note?: string): Promise<void>;
+  logAction(
+    action: string,
+    entityType: string,
+    entityId: string,
+    diff?: Record<string, unknown>,
+    note?: string,
+  ): Promise<void>;
 }
 
 export interface ImportEngineConfig {
-  /** Storage adapter (defaults to `InMemoryAdapter`). */
   storage?: StorageAdapter;
-  /** Audit sink (defaults to no-op). Host wires this to `repos.audit.log()`. */
   auditSink?: AuditSink;
-  /** Enable report generation (default true). */
   generateReports?: boolean;
 }
-
-// ── Event types ──────────────────────────────────────────────────────────
 
 export type ImportEventMap = {
   start: { runId: string; filePath: string; fileChecksum: string | null };
   "sheet:start": { sheet: string; schema: string };
   "sheet:progress": { sheet: string; read: number; total: number };
-  "sheet:row": { sheet: string; row: ImportRecord; rowIndex: number; action: "insert" | "update" | "skip" | "dry-run" };
+  "sheet:row": {
+    sheet: string;
+    row: ImportRecord;
+    rowIndex: number;
+    action: "insert" | "update" | "skip" | "dry-run";
+  };
   "sheet:warn": { sheet: string; warning: { rule: string; message: string } };
-  "sheet:error": { sheet: string; error: { rule: string; message: string }; rowIndex: number };
+  "sheet:error": {
+    sheet: string;
+    error: { rule: string; message: string };
+    rowIndex: number;
+  };
   "sheet:done": { sheet: string; result: SheetResult };
   done: { context: ImportContext; reports: { json?: string; excel?: string } };
   error: { error: Error; context: ImportContext };
@@ -96,7 +91,6 @@ export class ImportEngine {
     this.excelReporter = new ExcelReporter();
   }
 
-  /** Initialise the storage adapter. Must be called before `importFile`. */
   async init(): Promise<void> {
     if (this.initialized) return;
     await this.storage.init();
@@ -104,15 +98,20 @@ export class ImportEngine {
     defaultLogger.info("Import engine initialised");
   }
 
-  /** Subscribe to an engine event. Returns an unsubscribe function. */
-  on<K extends EventName>(event: K, listener: Listener<ImportEventMap[K]>): () => void {
+  on<K extends EventName>(
+    event: K,
+    listener: Listener<ImportEventMap[K]>,
+  ): () => void {
     const set = this.listeners[event];
     const wrapped = listener as (payload: unknown) => void;
     set.add(wrapped);
     return () => set.delete(wrapped);
   }
 
-  private emit<K extends EventName>(event: K, payload: ImportEventMap[K]): void {
+  private emit<K extends EventName>(
+    event: K,
+    payload: ImportEventMap[K],
+  ): void {
     const set = this.listeners[event];
     for (const listener of set) {
       try {
@@ -123,14 +122,6 @@ export class ImportEngine {
     }
   }
 
-  /**
-   * Import an Excel file.
-   *
-   * @param file - The `File` or `ArrayBuffer` to import.
-   * @param filePath - The file's name (for audit + reporting).
-   * @param options - Import options (sheet filter, dryRun, strict, etc.).
-   * @returns The run's `ImportContext` with stats, errors, and sheet results.
-   */
   async importFile(
     file: File | ArrayBuffer | Uint8Array,
     filePath: string,
@@ -138,21 +129,40 @@ export class ImportEngine {
   ): Promise<ImportContext> {
     if (!this.initialized) await this.init();
 
-    const ctx = new ImportContext({ filePath, options, source: options.source ?? {} });
+    const ctx = new ImportContext({
+      filePath,
+      options,
+      source: options.source ?? {},
+    });
 
-    // Compute file metadata (checksum + size) from the byte buffer.
-    const bytes = file instanceof File ? new Uint8Array(await file.arrayBuffer()) : file instanceof Uint8Array ? file : new Uint8Array(file);
+    const bytes =
+      file instanceof File
+        ? new Uint8Array(await file.arrayBuffer())
+        : file instanceof Uint8Array
+          ? file
+          : new Uint8Array(file);
     await ctx.computeFileMetadata(bytes);
 
-    this.emit("start", { runId: ctx.runId, filePath, fileChecksum: ctx.fileChecksum });
-    defaultLogger.info(`Starting import run=${ctx.runId}`, { filePath, checksum: ctx.fileChecksum });
+    this.emit("start", {
+      runId: ctx.runId,
+      filePath,
+      fileChecksum: ctx.fileChecksum,
+    });
+    defaultLogger.info(`Starting import run=${ctx.runId}`, {
+      filePath,
+      checksum: ctx.fileChecksum,
+    });
 
-    // Audit: run started.
     await this.auditSink.logAction(
       "import.run_started",
       "import_run",
       ctx.runId,
-      { filePath, fileChecksum: ctx.fileChecksum, fileSize: ctx.fileSize, options },
+      {
+        filePath,
+        fileChecksum: ctx.fileChecksum,
+        fileSize: ctx.fileSize,
+        options,
+      },
       `Import démarré: ${filePath}`,
     );
 
@@ -162,10 +172,13 @@ export class ImportEngine {
 
       const targetSheets = this.selectSheets(sheets, options);
       if (targetSheets.length === 0) {
-        ctx.addWarning({ sheet: null, rule: "no_sheets", message: "Aucune feuille correspondante aux critères" });
+        ctx.addWarning({
+          sheet: null,
+          rule: "no_sheets",
+          message: "Aucune feuille correspondante aux critères",
+        });
       }
 
-      // Single transaction wraps all sheets (matches the standalone engine's contract).
       if (!options.dryRun) await this.storage.beginTransaction();
 
       try {
@@ -178,7 +191,7 @@ export class ImportEngine {
           try {
             await this.storage.rollbackTransaction();
           } catch {
-            // Swallow rollback errors — the original error is more important.
+            // Ignore rollback failure
           }
         }
         throw e;
@@ -186,32 +199,36 @@ export class ImportEngine {
 
       ctx.finish();
 
-      // Reports.
       const reports: { json?: string; excel?: string } = {};
       if (this.generateReports) {
         try {
           const jsonResult = await this.jsonReporter.write(ctx);
           reports.json = jsonResult.fileName;
         } catch (e) {
-          defaultLogger.warn("JSON report generation failed", { error: (e as Error).message });
+          defaultLogger.warn("JSON report generation failed", {
+            error: (e as Error).message,
+          });
         }
         try {
           const excelResult = await this.excelReporter.write(ctx);
           reports.excel = excelResult.fileName;
         } catch (e) {
-          defaultLogger.warn("Excel report generation failed", { error: (e as Error).message });
+          defaultLogger.warn("Excel report generation failed", {
+            error: (e as Error).message,
+          });
         }
       }
 
-      // Audit log persistence.
       if (!options.dryRun) {
         await this.storage.saveAuditRun(ctx);
       }
 
       this.emit("done", { context: ctx, reports });
-      defaultLogger.info(`Import run=${ctx.runId} finished`, { durationMs: ctx.durationMs, stats: ctx.stats });
+      defaultLogger.info(`Import run=${ctx.runId} finished`, {
+        durationMs: ctx.durationMs,
+        stats: ctx.stats,
+      });
 
-      // Audit: run completed.
       await this.auditSink.logAction(
         "import.run_completed",
         "import_run",
@@ -224,7 +241,6 @@ export class ImportEngine {
         `Import terminé: ${ctx.stats.rowsImported} insérés, ${ctx.stats.rowsRejected} rejetés`,
       );
 
-      // Strict mode: reject if any errors (post-commit, matching standalone behaviour).
       if (options.strict && ctx.errors.length > 0) {
         throw new ImportEngineError(
           `Mode strict : ${ctx.errors.length} erreur(s) — import annulé`,
@@ -238,29 +254,30 @@ export class ImportEngine {
       ctx.finish();
       const err = e as Error;
       this.emit("error", { error: err, context: ctx });
-      defaultLogger.error(`Import run=${ctx.runId} failed`, { message: err.message });
+      defaultLogger.error(`Import run=${ctx.runId} failed`, {
+        message: err.message,
+      });
       throw err;
     }
   }
 
-  /** Preview the sheets of a file without importing. */
-  async preview(file: File | ArrayBuffer | Uint8Array): Promise<{ name: string; rowCount: number; schema: ImportSchema | null }[]> {
+  async preview(
+    file: File | ArrayBuffer | Uint8Array,
+  ): Promise<
+    { name: string; rowCount: number; schema: ImportSchema | null }[]
+  > {
     if (!this.initialized) await this.init();
     return this.parser.listSheets(file);
   }
 
-  /** Close the engine and release storage resources. */
   async close(): Promise<void> {
     await this.storage.close();
     this.initialized = false;
   }
 
-  /** Expose the storage adapter (for tests + history views). */
   getStorage(): StorageAdapter {
     return this.storage;
   }
-
-  // ── Private helpers ────────────────────────────────────────────────────
 
   private selectSheets(
     allSheets: ExcelJS.Worksheet[],
@@ -275,7 +292,6 @@ export class ImportEngine {
     if (options.sheets && options.sheets.length > 0) {
       return allSheets.filter((ws) => options.sheets!.includes(ws.name));
     }
-    // Default: all sheets that match a known schema.
     return allSheets.filter((ws) => this.detector.detect(ws.name) !== null);
   }
 
@@ -287,13 +303,22 @@ export class ImportEngine {
     const sheetName = ws.name;
     const schema = this.detector.detect(sheetName);
     if (!schema) {
-      ctx.addWarning({ sheet: sheetName, rule: "unknown_schema", message: `Feuille « ${sheetName} » ignorée (schéma inconnu)` });
-      this.emit("sheet:warn", { sheet: sheetName, warning: { rule: "unknown_schema", message: "schéma inconnu" } });
+      ctx.addWarning({
+        sheet: sheetName,
+        rule: "unknown_schema",
+        message: `Feuille « ${sheetName} » ignorée (schéma inconnu)`,
+      });
+      this.emit("sheet:warn", {
+        sheet: sheetName,
+        warning: { rule: "unknown_schema", message: "schéma inconnu" },
+      });
       return;
     }
 
     this.emit("sheet:start", { sheet: sheetName, schema: schema.name });
-    defaultLogger.info(`Processing sheet « ${sheetName} » (schema=${schema.name})`);
+    defaultLogger.info(
+      `Processing sheet « ${sheetName} » (schema=${schema.name})`,
+    );
 
     const validator = new RowValidator(schema);
     const matcher = new UpsertMatcher(schema);
@@ -308,11 +333,16 @@ export class ImportEngine {
       rowsRejected: 0,
     };
 
-    // Use the parser's iterateRows.
     await this.parser.iterateRows(ws, schema, {
       onRow: async (rawRow, rowIndex) => {
         sheetResult.rowsRead += 1;
-        const { record, errors, warnings, skipped } = validator.validate(rawRow, rowIndex);
+        const { record, errors, warnings, skipped, isNonDataRow } =
+          validator.validate(rawRow, rowIndex);
+
+        if (isNonDataRow) {
+          sheetResult.rowsSkipped += 1;
+          return;
+        }
 
         for (const w of warnings) {
           ctx.addWarning({
@@ -324,7 +354,10 @@ export class ImportEngine {
             message: w.message,
             rawValue: w.rawValue,
           });
-          this.emit("sheet:warn", { sheet: sheetName, warning: { rule: w.rule, message: w.message } });
+          this.emit("sheet:warn", {
+            sheet: sheetName,
+            warning: { rule: w.rule, message: w.message },
+          });
         }
 
         if (skipped) {
@@ -350,40 +383,57 @@ export class ImportEngine {
           return;
         }
 
-        // REF schema special-case: fan-out into multiple reference tables.
         if (schema.name === "ref" && schema.extractAs) {
           await this.insertRefRecord(schema, record, ctx, sheetName, options);
           sheetResult.rowsImported += 1;
-          this.emit("sheet:row", { sheet: sheetName, row: record, rowIndex, action: "insert" });
+          this.emit("sheet:row", {
+            sheet: sheetName,
+            row: record,
+            rowIndex,
+            action: "insert",
+          });
           return;
         }
 
-        // Identity extraction for upsert.
         const identity = matcher.extractIdentity(record);
         if (!identity && matcher.identityFields.length > 0) {
-          ctx.addError({
+          ctx.addWarning({
             sheet: sheetName,
             rowIndex,
             field: "identity",
             header: matcher.identityFields.join(", "),
             rule: "identity",
-            message: `Ligne sans identité complète (${matcher.identityFields.join(", ")})`,
+            message: `Ligne ignorée : aucun identifiant valide (${matcher.identityFields.join(", ")})`,
             rawValue: JSON.stringify(record).slice(0, 200),
           });
-          sheetResult.rowsRejected += 1;
+          sheetResult.rowsSkipped += 1;
           return;
         }
 
-        // Upsert into storage.
         if (!options.dryRun) {
-          const result = await this.storage.upsertRecord(schema, record, matcher.identityFields, ctx.runId);
+          const result = await this.storage.upsertRecord(
+            schema,
+            record,
+            matcher.identityFields,
+            ctx.runId,
+          );
           if (result.action === "insert") sheetResult.rowsImported += 1;
           else if (result.action === "update") sheetResult.rowsUpdated += 1;
           else if (result.action === "skip") sheetResult.rowsSkipped += 1;
-          this.emit("sheet:row", { sheet: sheetName, row: record, rowIndex, action: result.action });
+          this.emit("sheet:row", {
+            sheet: sheetName,
+            row: record,
+            rowIndex,
+            action: result.action,
+          });
         } else {
           sheetResult.rowsImported += 1;
-          this.emit("sheet:row", { sheet: sheetName, row: record, rowIndex, action: "dry-run" });
+          this.emit("sheet:row", {
+            sheet: sheetName,
+            row: record,
+            rowIndex,
+            action: "dry-run",
+          });
         }
       },
       onProgress: (read, total) => {
@@ -415,7 +465,9 @@ export class ImportEngine {
       if (!value) continue;
       if (!options.dryRun) {
         try {
-          await this.storage.insertRecord(target.table, { [target.column]: value });
+          await this.storage.insertRecord(target.table, {
+            [target.column]: value,
+          });
         } catch (e) {
           ctx.addWarning({
             sheet: sheetName,
@@ -428,18 +480,13 @@ export class ImportEngine {
   }
 }
 
-/** Default no-op audit sink — used when the host doesn't wire one. */
 const defaultNoOpAuditSink: AuditSink = {
-  async logAction() {
-    // No-op.
-  },
+  async logAction() {},
 };
 
-/** Convenience factory. */
 export function createImportEngine(config?: ImportEngineConfig): ImportEngine {
   return new ImportEngine(config);
 }
 
-// Re-export schema lookup for convenience.
 export { findSchemaByName };
 export { ConfigurationError, ImportEngineError } from "./errors";

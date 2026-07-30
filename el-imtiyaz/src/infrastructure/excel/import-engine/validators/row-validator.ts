@@ -1,15 +1,3 @@
-/**
- * RowValidator — per-row orchestrator.
- *
- * Ported from `excel-import-engine/src/validators/RowValidator.js`. Iterates
- * the schema's fields, delegates to `FieldCoercer` for typed coercion, and
- * handles the special `monthlyArray` aggregation that groups N contiguous
- * columns into a month-keyed object.
- *
- * Header matching is case + trim insensitive — the original (case-preserved)
- * header is preferred, but a normalised fallback handles Excel files where
- * the header row has different casing.
- */
 import type { ImportSchema, FieldSpec, ImportRecord } from "../types";
 import { defaultCoercer } from "./field-coercer";
 import { parseNumber, type ParsedNumber } from "./rules/positive-number";
@@ -20,25 +8,203 @@ export interface RowValidationResult {
   errors: RuleIssue[];
   warnings: RuleIssue[];
   skipped: boolean;
+  isNonDataRow?: boolean;
 }
+
+const SUMMARY_KEYWORDS = [
+  "TOTAL",
+  "TOTAUX",
+  "SOMME",
+  "MOYENNE",
+  "NB",
+  "NOMBRE",
+  "RECAP",
+  "RECAPITULATIF",
+  "STATISTIQUE",
+  "COUNT",
+  "SUM",
+  "AVERAGE",
+];
+
+const HEADER_ALIASES: Record<string, string[]> = {
+  nom: [
+    "nom",
+    "nom & prenom",
+    "nom et prenom",
+    "nom prenom",
+    "eleve",
+    "eleves",
+    "éleve",
+    "élèves",
+    "nom eleve",
+    "nom élève",
+    "prenom eleve",
+    "prénom élève",
+  ],
+  eleve: [
+    "eleves",
+    "eleve",
+    "éleve",
+    "élèves",
+    "nom eleve",
+    "nom élève",
+    "prenom eleve",
+    "prénom élève",
+    "nom",
+  ],
+  prenomEleve: [
+    "prenom eleve",
+    "prénom élève",
+    "prenom",
+    "prénom",
+    "eleve",
+    "éleve",
+  ],
+  client: ["client", "clients", "nom client", "tuteur", "parent", "nom parent"],
+  devisNumero: [
+    "devis n°",
+    "n° devis",
+    "no devis",
+    "devis no",
+    "devis",
+    "num devis",
+  ],
+  devisAnnuel: ["devis annuel", "devis", "montant devis", "devis annue"],
+  classe: ["classe", "classes", "class"],
+  niveau: ["niveau", "niveaus", "cycle", "palier"],
+  nem: [
+    "nem",
+    "telephone",
+    "téléphone",
+    "tel",
+    "tél",
+    "phone",
+    "contact",
+    "mobile",
+  ],
+  email: ["e-mail", "email", "mail", "courriel"],
+  tuteur: ["tuteur", "parent", "nom parent", "client"],
+};
 
 export class RowValidator {
   private readonly schema: ImportSchema;
-  private readonly fieldByHeader: Map<string, FieldSpec>;
 
   constructor(schema: ImportSchema) {
     this.schema = schema;
-    this.fieldByHeader = new Map();
-    for (const f of schema.fields) {
-      const key = (f.header || "").toString().trim().toLowerCase();
-      this.fieldByHeader.set(key, f);
-    }
   }
 
-  validate(rawRow: Record<string, unknown>, rowIndex: number): RowValidationResult {
+  private normalizeString(s: string): string {
+    return String(s || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  /**
+   * Check if a raw row is a summary row, total row, or non-data row.
+   */
+  isSummaryOrNonDataRow(rawRow: Record<string, unknown>): boolean {
+    if (!rawRow || typeof rawRow !== "object") return true;
+
+    // 1. Check primary text fields for summary keywords
+    for (const [key, val] of Object.entries(rawRow)) {
+      if (key.startsWith("__")) continue;
+      if (typeof val === "string") {
+        const normVal = this.normalizeString(val).toUpperCase();
+        for (const kw of SUMMARY_KEYWORDS) {
+          if (
+            normVal === kw ||
+            normVal.startsWith(kw + " ") ||
+            normVal.startsWith(kw + ":") ||
+            normVal.startsWith(kw + " -") ||
+            normVal.startsWith(kw + "_")
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+
+    // 2. Check if key identifying fields for the schema are completely missing
+    if (this.schema.name === "etat") {
+      const nomVal = this.lookupValue(rawRow, {
+        key: "nom",
+        header: "NOM",
+        type: "string",
+        required: true,
+      });
+      if (!nomVal || typeof nomVal !== "string" || nomVal.trim() === "") {
+        return true; // No student name -> not a student row
+      }
+    } else if (this.schema.name === "bon") {
+      const eleveVal = this.lookupValue(rawRow, {
+        key: "eleve",
+        header: "ELEVES",
+        type: "string",
+        required: false,
+      });
+      const clientVal = this.lookupValue(rawRow, {
+        key: "client",
+        header: "CLIENT",
+        type: "string",
+        required: false,
+      });
+      if (
+        (!eleveVal || String(eleveVal).trim() === "") &&
+        (!clientVal || String(clientVal).trim() === "")
+      ) {
+        return true; // Neither student nor client name -> not a receipt row
+      }
+    } else if (this.schema.name === "devis") {
+      const prenomVal = this.lookupValue(rawRow, {
+        key: "prenomEleve",
+        header: "Prenom élève",
+        type: "string",
+        required: false,
+      });
+      const clientVal = this.lookupValue(rawRow, {
+        key: "client",
+        header: "Client",
+        type: "string",
+        required: false,
+      });
+      const devisNumVal = this.lookupValue(rawRow, {
+        key: "devisNumero",
+        header: "Devis n°",
+        type: "string",
+        required: false,
+      });
+      if (
+        (!prenomVal || String(prenomVal).trim() === "") &&
+        (!clientVal || String(clientVal).trim() === "") &&
+        (!devisNumVal || String(devisNumVal).trim() === "")
+      ) {
+        return true; // No quote info -> not a quote row
+      }
+    }
+
+    return false;
+  }
+
+  validate(
+    rawRow: Record<string, unknown>,
+    rowIndex: number,
+  ): RowValidationResult {
     const record: ImportRecord = {};
     const errors: RuleIssue[] = [];
     const warnings: RuleIssue[] = [];
+
+    // Check if summary or non-data row
+    if (this.isSummaryOrNonDataRow(rawRow)) {
+      return {
+        record: {},
+        errors: [],
+        warnings: [],
+        skipped: true,
+        isNonDataRow: true,
+      };
+    }
 
     for (const field of this.schema.fields) {
       if (field.type === "monthlyArray") {
@@ -51,7 +217,14 @@ export class RowValidator {
       const result = defaultCoercer.coerce(rawValue, field);
       record[field.key] = result.value;
       for (const e of result.errors) {
-        errors.push({ ...e, field: field.key, header: field.header, rawValue: e.rawValue ?? (rawValue !== undefined ? String(rawValue) : undefined) });
+        errors.push({
+          ...e,
+          field: field.key,
+          header: field.header,
+          rawValue:
+            e.rawValue ??
+            (rawValue !== undefined ? String(rawValue) : undefined),
+        });
       }
       for (const w of result.warnings) {
         warnings.push({ ...w, field: field.key, header: field.header });
@@ -61,19 +234,47 @@ export class RowValidator {
     return { record, errors, warnings, skipped: errors.length > 0 };
   }
 
-  private lookupValue(rawRow: Record<string, unknown>, field: FieldSpec): unknown {
-    // 1) Exact match (header as-is in the raw row).
+  private lookupValue(
+    rawRow: Record<string, unknown>,
+    field: FieldSpec,
+  ): unknown {
+    // 1) Direct exact match
     if (field.header && rawRow[field.header] !== undefined) {
       return rawRow[field.header];
     }
-    // 2) Normalised match (case + trim insensitive).
-    const targetKey = (field.header || "").toString().trim().toLowerCase();
-    if (!targetKey) return undefined;
-    for (const k of Object.keys(rawRow)) {
-      if (k && k.toString().trim().toLowerCase() === targetKey) {
-        return rawRow[k];
+    if (rawRow[field.key] !== undefined) {
+      return rawRow[field.key];
+    }
+
+    // 2) Normalized match (case, whitespace, accents)
+    const targetHeaderNorm = field.header
+      ? this.normalizeString(field.header)
+      : "";
+    const targetKeyNorm = this.normalizeString(field.key);
+
+    for (const [k, v] of Object.entries(rawRow)) {
+      if (k.startsWith("__")) continue;
+      const kNorm = this.normalizeString(k);
+      if (
+        (targetHeaderNorm && kNorm === targetHeaderNorm) ||
+        kNorm === targetKeyNorm
+      ) {
+        return v;
       }
     }
+
+    // 3) Aliases match
+    const aliases = HEADER_ALIASES[field.key] ?? [];
+    for (const [k, v] of Object.entries(rawRow)) {
+      if (k.startsWith("__")) continue;
+      const kNorm = this.normalizeString(k);
+      for (const alias of aliases) {
+        if (kNorm === this.normalizeString(alias)) {
+          return v;
+        }
+      }
+    }
+
     return undefined;
   }
 
@@ -81,34 +282,41 @@ export class RowValidator {
     rawRow: Record<string, unknown>,
     field: FieldSpec,
     warnings: RuleIssue[],
-    rowIndex: number,
+    _rowIndex: number,
   ): Record<string, number> {
     const count = field.count ?? 12;
     const labels = field.monthLabels ?? [];
     const arr: number[] = new Array(count).fill(0);
     const prefix = (field.header || "").toString().trim().toLowerCase();
 
-    // Heuristic: take the N columns after the header in iteration order.
     const rowKeys = Object.keys(rawRow);
-    const headerIdx = rowKeys.findIndex((k) => k.toString().trim().toLowerCase() === prefix);
+    const headerIdx = rowKeys.findIndex(
+      (k) => k.toString().trim().toLowerCase() === prefix,
+    );
     if (headerIdx === -1) {
-      // Header not found — return zero-filled object.
-      return arr.reduce((acc, val, i) => {
-        if (labels[i]) acc[labels[i]] = val;
-        else acc[String(i)] = val;
-        return acc;
-      }, {} as Record<string, number>);
+      return arr.reduce(
+        (acc, val, i) => {
+          if (labels[i]) acc[labels[i]] = val;
+          else acc[String(i)] = val;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
     }
 
     for (let i = 0; i < count; i++) {
       const k = rowKeys[headerIdx + 1 + i];
       if (!k) break;
       let v: unknown = rawRow[k];
-      // ExcelJS sometimes returns formula objects without a cached result.
       if (v && typeof v === "object" && !(v instanceof Date)) {
-        const obj = v as { result?: unknown; sharedFormula?: unknown; formula?: unknown };
+        const obj = v as {
+          result?: unknown;
+          sharedFormula?: unknown;
+          formula?: unknown;
+        };
         if (obj.result !== undefined) v = obj.result;
-        else if (obj.sharedFormula !== undefined || obj.formula !== undefined) continue;
+        else if (obj.sharedFormula !== undefined || obj.formula !== undefined)
+          continue;
         else continue;
       }
       if (v === null || v === undefined || v === "") continue;
@@ -127,10 +335,13 @@ export class RowValidator {
       }
     }
 
-    return arr.reduce((acc, val, i) => {
-      if (labels[i]) acc[labels[i]] = val;
-      else acc[String(i)] = val;
-      return acc;
-    }, {} as Record<string, number>);
+    return arr.reduce(
+      (acc, val, i) => {
+        if (labels[i]) acc[labels[i]] = val;
+        else acc[String(i)] = val;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
   }
 }
