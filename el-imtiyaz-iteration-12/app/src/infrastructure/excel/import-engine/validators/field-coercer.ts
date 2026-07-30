@@ -70,8 +70,21 @@ export class FieldCoercer {
 
       case "email": {
         const e = emailRule(rawValue, field);
-        if (e) errors.push(e);
-        else coercedValue = String(rawValue).trim().toLowerCase();
+        if (e) {
+          // Per Iteration 14: an invalid email on an OPTIONAL field is a
+          // warning, not an error. The real spreadsheet occasionally has
+          // non-email values in the E-MAIL column (e.g. "BON01" used as a
+          // cross-reference to the BON sheet). Blocking the entire row on
+          // such cells would reject many valid students.
+          if (field.required) {
+            errors.push(e);
+          } else {
+            warnings.push(e);
+            coercedValue = String(rawValue).trim();
+          }
+        } else {
+          coercedValue = String(rawValue).trim().toLowerCase();
+        }
         break;
       }
 
@@ -131,8 +144,21 @@ export class FieldCoercer {
 
       case "enum": {
         const e = enumRule(rawValue, field);
-        if (e) errors.push(e);
-        else coercedValue = String(rawValue).trim().toUpperCase();
+        if (e) {
+          // Per Iteration 14: when `tolerateUnknown` is set on the field,
+          // unknown enum values become warnings (not errors) so the row
+          // still imports. This is critical for fields like `niveau` and
+          // `OPTION` where the real spreadsheet contains operator-invented
+          // variants that aren't in the canonical enum.
+          if (field.tolerateUnknown) {
+            warnings.push(e);
+            coercedValue = String(rawValue).trim().toUpperCase();
+          } else {
+            errors.push(e);
+          }
+        } else {
+          coercedValue = String(rawValue).trim().toUpperCase();
+        }
         break;
       }
 

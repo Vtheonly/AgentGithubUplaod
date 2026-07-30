@@ -1,4 +1,5 @@
 import { getSupabaseRepositories } from './supabase/supabase-repositories';
+import { isSupabaseConfigured, useSupabase } from './supabase/supabase-client';
 /**
  * RepositoryProvider — dependency injection seam.
  *
@@ -204,31 +205,40 @@ const RepositoryContext = createContext<Repositories>(mockRepositories);
 
 /**
  * Auto-select repositories based on the Supabase configuration.
- * - If Supabase URL + anon key are configured (via Settings → Configuration
- *   tab or env vars) AND the use_supabase flag is true: use Supabase-backed
- *   repositories.
- * - Otherwise: use mockRepositories (in-memory, resets on reload).
+ *
+ * Decision matrix:
+ *   - If `useSupabase` flag is true AND Supabase URL + anon key are configured
+ *     (via Settings → Configuration tab or env vars): use Supabase-backed
+ *     repositories.
+ *   - Otherwise: use `mockRepositories` (in-memory, resets on reload).
  *
  * The Supabase adapter is loaded lazily so the mock layer works without
- * Supabase env vars being configured.
+ * Supabase env vars being configured. We also wrap the call in try/catch so
+ * a misconfigured Supabase project (bad URL, network error during init) falls
+ * back to mock instead of crashing the renderer.
  */
 function selectDefaultRepositories(): Repositories {
-  // Check both the local config flag AND that env vars are present
-  // (so the app doesn't crash if the flag is true but env vars are missing)
-  try {
-    // Dynamic import to avoid circular dependency
-      return getSupabaseRepositories();
-    if (supabaseClientModule.useSupabase && supabaseClientModule.isSupabaseConfigured()) {
-      // Using top-level ESM import
-      const supabaseRepos = getSupabaseRepositories();
-      console.info("[RepositoryProvider] Using Supabase-backed repositories");
-      return supabaseRepos;
-    }
-  } catch (err) {
-    console.error("[RepositoryProvider] Failed to initialize Supabase repositories, falling back to mock:", err);
+  // Step 1: must the Supabase adapter be used at all?
+  const wantSupabase = useSupabase && isSupabaseConfigured();
+  if (!wantSupabase) {
+    console.info(
+      "[RepositoryProvider] Using mock repositories — configure Supabase in Settings → Configuration to switch.",
+    );
+    return mockRepositories;
   }
-  console.info("[RepositoryProvider] Using mock repositories (configure Supabase in Settings → Configuration)");
-  return mockRepositories;
+
+  // Step 2: try to construct the Supabase-backed repository set.
+  try {
+    const supabaseRepos = getSupabaseRepositories();
+    console.info("[RepositoryProvider] Using Supabase-backed repositories");
+    return supabaseRepos;
+  } catch (err) {
+    console.error(
+      "[RepositoryProvider] Failed to initialize Supabase repositories, falling back to mock:",
+      err,
+    );
+    return mockRepositories;
+  }
 }
 
 const defaultRepositories = selectDefaultRepositories();

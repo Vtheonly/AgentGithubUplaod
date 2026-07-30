@@ -64,6 +64,7 @@ import { StatusChip } from "./status-chip";
 import { UnifiedModal } from "./unified-modal";
 import { LanguageSwitcher } from "./language-switcher";
 import { AlertDetailModal } from "./alert-detail-modal";
+import { SyncIndicator } from "./sync-indicator";
 import { cn } from "../ui/cn";
 import {
   makeSearchIndex,
@@ -212,6 +213,9 @@ export function Topbar() {
         </button>
 
         <div className="flex-1" />
+
+        {/* Sync indicator — Iteration 14: shows online + queue status. */}
+        <SyncIndicator />
 
         {/* Alerts — Iteration 9: click opens detail drawer (not just "mark read"). */}
         <DropdownMenu open={alertsOpen} onOpenChange={setAlertsOpen}>

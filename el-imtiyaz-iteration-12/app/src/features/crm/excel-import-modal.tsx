@@ -31,6 +31,7 @@ import {
 import { useRepositories } from "../../infrastructure/repository-provider";
 import { useToast } from "../../state/toast-context";
 import { useAuth } from "../../state/auth-context";
+import { useSyncActions } from "../../infrastructure/sync/sync-provider";
 import { UnifiedModal, type UnifiedModalProps } from "../../shared/components/unified-modal";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
@@ -52,6 +53,7 @@ export function ExcelImportModal({
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
+  const sync = useSyncActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const engineRef = useRef<ImportEngine | null>(null);
 
@@ -156,6 +158,29 @@ export function ExcelImportModal({
         source: { user: session?.email ?? "unknown" },
       });
 
+      // Iteration 14 — enqueue sync entries for every successfully
+      // imported row. Excel-imported data is the ONLY data eligible
+      // for sync (mock data is flagged at queue time and skipped).
+      // We peek at the storage adapter to recover the inserted rows.
+      const storage = engine.getStorage();
+      const allRecords = typeof (storage as any).listInsertedForRun === "function"
+        ? await (storage as any).listInsertedForRun(ctx.runId)
+        : [];
+      let enqueuedForSync = 0;
+      for (const rec of allRecords) {
+        await sync.enqueue({
+          entity: "student",
+          operation: "insert",
+          payload: rec,
+          // Excel import = real data → isMock: false. The sync layer
+          // will push this to Supabase as soon as the desktop is online.
+          isMock: false,
+          sourceFile: file.name,
+          importRunId: ctx.runId,
+        });
+        enqueuedForSync++;
+      }
+
       // Capture report file names from the engine's event payload.
       // The engine emits `done` with `{ reports: { json?, excel? } }` — but since we
       // don't subscribe to events here, we infer the names from the run ID (same pattern).
@@ -171,7 +196,7 @@ export function ExcelImportModal({
       const skipped = ctx.stats.rowsSkipped;
       toast.showSuccess(
         "Import atomique réussi",
-        `${inserted} inséré(s), ${updated} mis à jour, ${skipped} ignoré(s) en ${ctx.durationMs ?? 0} ms.`,
+        `${inserted} inséré(s), ${updated} mis à jour, ${skipped} ignoré(s) en ${ctx.durationMs ?? 0} ms. ${enqueuedForSync} enregistrement(s) en file d'attente de synchronisation.`,
       );
       onImported?.(inserted);
     } catch (e) {

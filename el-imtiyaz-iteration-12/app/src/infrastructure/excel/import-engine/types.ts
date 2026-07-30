@@ -41,6 +41,12 @@ export interface FieldSpec {
   readonly required: boolean;
   /** For `enum` fields: the allowed values (will be uppercased). */
   readonly values?: readonly string[];
+  /**
+   * For `enum` fields: when true, unknown values are recorded as warnings
+   * (not errors) so the row still imports. Used for fields where the real
+   * spreadsheet contains operator-invented variants (e.g. `niveau` codes).
+   */
+  readonly tolerateUnknown?: boolean;
   /** For `string`/`email` fields: minimum trimmed length. */
   readonly minLength?: number;
   /** For `number`/`numberOrRef` fields: minimum value. */

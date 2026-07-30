@@ -23,6 +23,7 @@ import {
   Tag,
   UserCheck,
   SlidersHorizontal,
+  RefreshCw,
 } from "lucide-react";
 import { useRepositories } from "../../infrastructure/repository-provider";
 import type { AuditEntry, AuditLogFilter } from "../../domain/model/audit";
@@ -50,6 +51,7 @@ import { AIConfigTab } from "./ai-config-tab";
 import { BackupTab as BackupTabImpl } from "./backup-tab";
 import { ApprovalsTab } from "./approvals-tab";
 import { ConfigurationTab } from "./configuration-tab";
+import { SyncTab } from "./sync-tab";
 import { exportAuditLog } from "../../infrastructure/excel/reports";
 import { useToast } from "../../state/toast-context";
 import {
@@ -67,7 +69,7 @@ export function SettingsPage() {
   // Iteration 7: read the `tab` query param so the topbar quick-backup button
   // (which navigates to /settings?tab=backup) auto-selects the Backup tab.
   const tabParam = searchParams.get("tab");
-  const initialTab = tabParam === "backup" || tabParam === "audit" || tabParam === "pricing" || tabParam === "rbac" || tabParam === "ai" || tabParam === "approvals" || tabParam === "config" || tabParam === "locked" || tabParam === "general"
+  const initialTab = tabParam === "backup" || tabParam === "audit" || tabParam === "pricing" || tabParam === "rbac" || tabParam === "ai" || tabParam === "approvals" || tabParam === "config" || tabParam === "sync" || tabParam === "locked" || tabParam === "general"
     ? tabParam
     : "general";
   const [activeTab, setActiveTab] = useState<string>(initialTab);
@@ -103,6 +105,7 @@ export function SettingsPage() {
           <PageTab value="rbac" label={t("settings.rbac")} icon={Shield} />
           <PageTab value="approvals" label="Inscriptions" icon={UserCheck} />
           <PageTab value="config" label="Configuration" icon={SlidersHorizontal} />
+          <PageTab value="sync" label="Synchronisation" icon={RefreshCw} />
           <PageTab value="ai" label={t("settings.ai")} icon={Bot} />
           <PageTab value="backup" label={t("settings.backup")} icon={Database} />
           <PageTab value="locked" label={t("settings.locked")} icon={Lock} />
@@ -126,6 +129,9 @@ export function SettingsPage() {
           </PageTabContent>
           <PageTabContent value="config" scrollable>
             <ConfigurationTab />
+          </PageTabContent>
+          <PageTabContent value="sync" scrollable>
+            <SyncTab />
           </PageTabContent>
           <PageTabContent value="ai">
             <AiConfigTab />

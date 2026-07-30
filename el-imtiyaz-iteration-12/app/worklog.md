@@ -242,3 +242,73 @@ Stage Summary:
 - RBAC-gated: SuperAdmin only
 - 1015 tests passing (1004 baseline + 11 new), 0 regressions
 - Only one-time manual setup remains: create Supabase project, deploy migrations + Edge Functions, set SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF secrets, create first SuperAdmin. After that, EVERYTHING is configurable from the UI.
+
+---
+Task ID: 14-sync-excel-modals
+Agent: main (orchestrator)
+Task: Iteration 14 — Fix sync not working, fix Excel import rejecting valid sheets, implement auto-sync with mock exclusion, verify modal unification, complete remaining work.
+
+Work Log:
+- Read the entire iteration-12 + iteration-13 docs to understand the baseline state (1015 tests, typecheck clean, build clean).
+- Read the entire_project_plan.txt + Clients_Sheet_Merged.txt to understand the business rules.
+- Read the actual `Suivis clients 2026_2027 .xlsx` to understand the real sheet structure.
+- Identified 3 critical bugs:
+  1. `selectDefaultRepositories()` in `repository-provider.tsx` had broken control flow — line 220 unconditionally called `getSupabaseRepositories()` even when Supabase wasn't configured.
+  2. The ETAT schema's `niveau` enum was too narrow (only 4 values vs. 14 in the real sheet). `NEM` was incorrectly marked required. Email validation was too strict.
+  3. The `UpsertMatcher.extractIdentity()` required ALL identity fields to be present, rejecting rows where NEM was empty.
+- Phase 1 — Fixed `selectDefaultRepositories()`:
+  - Rewrote with explicit two-step logic: check `useSupabase && isSupabaseConfigured()` first, then try `getSupabaseRepositories()` in a try/catch.
+  - Imported `isSupabaseConfigured` + `useSupabase` directly from `supabase-client.ts`.
+- Phase 2 — Fixed ETAT schema:
+  - Expanded `niveau` enum to all 14 documented codes (PRIM, COLG, LYC, GS, MS, PS, TPS, AUTISTE, NV2-NV5, CLYC, LYCI).
+  - Expanded `OPTION` enum to include TRNSP + TENSP + TRNP + "".
+  - Made NEM optional (`required: false`).
+  - Reduced `requiredHeaders` from 5 to 4 (NEM no longer required).
+  - Added `tolerateUnknown: true` flag to `niveau` and `option` fields.
+  - Added the `tolerateUnknown` field to the `FieldSpec` type.
+  - Updated `FieldCoercer` to honor `tolerateUnknown` — unknown enum values become warnings, not errors.
+  - Updated `FieldCoercer` to downgrade invalid emails on optional fields to warnings.
+  - Updated `UpsertMatcher.extractIdentity()` to skip empty identity fields rather than failing — identity is now built from whichever fields are present.
+- Phase 3 — Built SyncService:
+  - Created `src/infrastructure/sync/` module with 6 new files:
+    - `sync-types.ts` — type definitions
+    - `sync-queue-store.ts` — IndexedDB-backed queue with in-memory fallback
+    - `online-detector.ts` — `navigator.onLine` + window events + HTTP probe + `StubOnlineDetector` for tests
+    - `sync-service.ts` — main orchestrator with retry/backoff, mock exclusion, auto-sync triggers
+    - `mock-data-flag.ts` — centralised `isMockMode()` flag
+    - `sync-provider.tsx` — React context that wires the service into the tree
+  - Mock exclusion is enforced at TWO levels:
+    - `enqueue()`: if `isMock=true` → status=`skipped_mock` at queue time
+    - `drain()`: if `entry.isMock` → re-mark `skipped_mock` + skip push (defense in depth)
+  - Auto-sync triggers: app startup, online transition, new entry queued (debounced 2s), periodic poll (30s online, 120s offline), manual `syncNow()`.
+  - Retry: exponential backoff (1s × 2^attempts), max 5 attempts.
+- Phase 4 — Wired sync into React:
+  - Added `<SyncProvider>` to `app.tsx` between `<AuthProvider>` and `<ToastProvider>`.
+  - Created `SyncIndicator` widget in `topbar.tsx` showing online/queue state.
+  - Created `SyncTab` in Settings showing full queue table, manual sync button, clear queue action.
+  - Updated `ExcelImportModal.commit()` to enqueue sync entries for every imported row (isMock=false, sourceFile, importRunId).
+- Phase 5 — Verified modal unification:
+  - Confirmed zero raw `@radix-ui/react-dialog` imports in production code.
+  - Confirmed zero `<DialogPrimitive.*>` usage outside `unified-modal.tsx`.
+  - Added `modal-unification-regression.test.ts` to ban regressions.
+- Phase 6 — Tests:
+  - Added 12 new tests (3 new files + 6 updated existing tests).
+  - `excel-real-file.test.ts` — runs engine against the actual `Suivis clients 2026_2027 .xlsx` fixture. ETAT sheet: 389/403 rows import successfully (96.5%).
+  - `sync-service.test.ts` — 7 tests covering mock exclusion, real-data sync, retry backoff, no-op when Supabase unconfigured, clearQueue, snapshot subscription.
+  - `modal-unification-regression.test.ts` — 2 tests banning raw Dialog imports + DialogPrimitive usage.
+- Phase 7 — Verification:
+  - `tsc --noEmit` — clean (0 errors)
+  - `tsc -p electron/tsconfig.json` — clean (electron main compiles)
+  - `vite build` — 14.59s, all chunks build successfully
+  - `vitest run` — 49 files, 1027 tests passing in ~104s (was 1015 + 12 new)
+
+Stage Summary:
+- 3 critical bugs fixed (sync control flow, ETAT schema, identity extraction).
+- 8 new production files + 3 new test files.
+- 10 modified files.
+- 12 new tests, 0 regressions. Final test count: 1027 passing.
+- Real Excel sheet imports 389/403 rows (was 359/403 before fixes).
+- Mock data is NEVER synced — enforced at queue time AND drain time (defense in depth).
+- Auto-sync on internet reconnect via OnlineDetector's window event listeners.
+- Modal unification preserved at 100% + regression test guard added.
+- Typecheck clean, build clean, electron main compiles.

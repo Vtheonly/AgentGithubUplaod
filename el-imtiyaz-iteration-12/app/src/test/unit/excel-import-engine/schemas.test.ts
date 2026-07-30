@@ -30,8 +30,10 @@ describe("excel-import-engine / schemas", () => {
       expect(ETAT_SCHEMA.identity.strategy).toBe("upsert");
     });
 
-    it("requires the 5 canonical headers", () => {
-      expect(ETAT_SCHEMA.requiredHeaders).toEqual(["NEM", "NOM", "niveau", "CLASSE", "DEVIS ANNUEL"]);
+    it("requires the 4 canonical headers (NEM is optional per Iteration 14)", () => {
+      // Iteration 14: NEM is no longer required — the business doc describes
+      // it as "purely informational" and many valid students have no phone.
+      expect(ETAT_SCHEMA.requiredHeaders).toEqual(["NOM", "niveau", "CLASSE", "DEVIS ANNUEL"]);
     });
 
     it("includes the monthlyArray field for REGLEMENTS DETTES", () => {
@@ -44,9 +46,10 @@ describe("excel-import-engine / schemas", () => {
       ]);
     });
 
-    it("marks NEM, NOM, niveau, CLASSE, DEVIS ANNUEL as required", () => {
+    it("marks NOM, niveau, CLASSE, DEVIS ANNUEL as required (NEM is optional per Iteration 14)", () => {
       const requiredKeys = ETAT_SCHEMA.fields.filter((f) => f.required).map((f) => f.key);
-      expect(requiredKeys).toEqual(["nem", "nom", "niveau", "classe", "devisAnnuel"]);
+      // Iteration 14: NEM moved to optional (real sheet has many rows without phone).
+      expect(requiredKeys).toEqual(["nom", "niveau", "classe", "devisAnnuel"]);
     });
 
     it("uses phoneList type for NEM (multi-value phone)", () => {

@@ -144,7 +144,7 @@ describe("excel-import-engine / ImportEngine", () => {
     expect(auditCalls[1].action).toBe("import.run_completed");
   });
 
-  it("rejects invalid rows and records them in the errors list", async () => {
+  it("rejects invalid rows and records them in the errors list (Iteration 14: niveau + NEM relaxed)", async () => {
     const file = await makeFile([
       {
         name: "ETAT 20262027",
@@ -152,19 +152,25 @@ describe("excel-import-engine / ImportEngine", () => {
         rows: [
           // Valid row.
           ["0663701834", "ZIREG LEA", "PRIM", "CE1", 54000],
-          // Invalid niveau.
+          // Invalid niveau — downgraded to warning per Iteration 14 (tolerateUnknown).
+          // Row still imports.
           ["0770123456", "Test Student", "INVALID", "CE1", 30000],
-          // Missing required NEM.
-          ["", "Another Student", "PRIM", "CE1", 25000],
+          // Missing required NOM — this is a real required-field error.
+          ["", "", "PRIM", "CE1", 25000],
+          // Missing required niveau — real error.
+          ["0770123456", "No Niveau", "", "CE1", 25000],
         ],
       },
     ]);
 
     const ctx = await engine.importFile(file, "test.xlsx");
-    expect(ctx.stats.rowsRead).toBe(3);
-    expect(ctx.stats.rowsImported).toBe(1);
-    expect(ctx.stats.rowsRejected).toBe(2);
+    expect(ctx.stats.rowsRead).toBe(4);
+    expect(ctx.stats.rowsImported).toBe(2); // rows 1 + 2 (INVALID niveau now imports)
+    expect(ctx.stats.rowsRejected).toBe(2); // rows 3 + 4 (missing NOM, missing niveau)
     expect(ctx.errors).toHaveLength(2);
+    // Warnings include the INVALID niveau downgrade.
+    expect(ctx.warnings.length).toBeGreaterThanOrEqual(1);
+    expect(ctx.warnings.some((w) => w.rule === "enum")).toBe(true);
   });
 
   it("skips unchanged records on re-import (idempotent)", async () => {

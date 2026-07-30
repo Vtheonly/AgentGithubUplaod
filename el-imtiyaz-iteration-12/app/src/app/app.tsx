@@ -4,16 +4,22 @@
  * Order of providers (outermost → innermost):
  *   1. RepositoryProvider  — data layer (mock today, Supabase later)
  *   2. AuthProvider         — current session
- *   3. ToastProvider        — popups / dialogs
- *   4. ModalProvider        — modal manager
- *   5. TooltipProvider      — radix tooltip context
+ *   3. SyncProvider         — offline-first sync queue (Iter 14)
+ *   4. ToastProvider        — popups / dialogs
+ *   5. ModalProvider        — modal manager
+ *   6. TooltipProvider      — radix tooltip context
  *
  * The Router lives inside so that components can useNavigate.
+ *
+ * Iteration 14: SyncProvider sits inside AuthProvider so it can read
+ * the session's tenantId + actorId, and inside RepositoryProvider so
+ * the push handler can access the Supabase client.
  */
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { TooltipProvider } from "../shared/ui/tooltip";
 import { RepositoryProvider } from "../infrastructure/repository-provider";
 import { AuthProvider, useAuth } from "../state/auth-context";
+import { SyncProvider } from "../infrastructure/sync/sync-provider";
 import { ToastProvider } from "../state/toast-context";
 import { ModalProvider } from "../state/modal-context";
 import { ToastViewport } from "../shared/components/toast-viewport";
@@ -26,17 +32,19 @@ export function App() {
   return (
     <RepositoryProvider>
       <AuthProvider>
-        <ToastProvider>
-          <ModalProvider>
-            <TooltipProvider delayDuration={300}>
-              <SplashGate>
-                <AppRoutes />
-              </SplashGate>
-              <ToastViewport />
-              <ModalHost />
-            </TooltipProvider>
-          </ModalProvider>
-        </ToastProvider>
+        <SyncProvider>
+          <ToastProvider>
+            <ModalProvider>
+              <TooltipProvider delayDuration={300}>
+                <SplashGate>
+                  <AppRoutes />
+                </SplashGate>
+                <ToastViewport />
+                <ModalHost />
+              </TooltipProvider>
+            </ModalProvider>
+          </ToastProvider>
+        </SyncProvider>
       </AuthProvider>
     </RepositoryProvider>
   );

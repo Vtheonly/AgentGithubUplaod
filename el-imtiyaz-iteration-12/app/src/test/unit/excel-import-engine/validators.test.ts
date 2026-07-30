@@ -343,7 +343,9 @@ describe("excel-import-engine / RowValidator", () => {
       expect(result.record.devisAnnuel).toBe(54000);
     });
 
-    it("rejects a row missing required NEM", () => {
+    it("accepts a row missing optional NEM (Iteration 14)", () => {
+      // Iteration 14: NEM is no longer required per the business doc — it's
+      // "purely informational" and many valid students have no phone.
       const rawRow = {
         NOM: "ZIREG LEA",
         niveau: "PRIM",
@@ -351,11 +353,14 @@ describe("excel-import-engine / RowValidator", () => {
         "DEVIS ANNUEL": "54000",
       };
       const result = validator.validate(rawRow, 3);
-      expect(result.skipped).toBe(true);
-      expect(result.errors.some((e) => e.rule === "required")).toBe(true);
+      expect(result.skipped).toBe(false);
+      expect(result.record.nom).toBe("ZIREG LEA");
     });
 
-    it("rejects an invalid niveau enum value", () => {
+    it("downgrades an invalid niveau enum value to a warning (Iteration 14)", () => {
+      // Iteration 14: niveau has `tolerateUnknown: true` because the real
+      // sheet contains operator-invented codes (AUTISTE, MS, NV2, etc.).
+      // Unknown values become warnings, not errors — the row still imports.
       const rawRow = {
         NEM: "0663701834",
         NOM: "Test Student",
@@ -364,8 +369,9 @@ describe("excel-import-engine / RowValidator", () => {
         "DEVIS ANNUEL": "54000",
       };
       const result = validator.validate(rawRow, 4);
-      expect(result.skipped).toBe(true);
-      expect(result.errors.some((e) => e.rule === "enum")).toBe(true);
+      expect(result.skipped).toBe(false); // row imports
+      expect(result.warnings.some((e) => e.rule === "enum")).toBe(true);
+      expect(result.errors.some((e) => e.rule === "enum")).toBe(false);
     });
 
     it("coerces NEM phoneList (multi-value)", () => {
@@ -455,13 +461,26 @@ describe("excel-import-engine / UpsertMatcher", () => {
       expect(identity?.nem).toBe("0663701834,0770123456");
     });
 
-    it("returns null when any identity field is missing", () => {
+    it("returns null when ALL identity fields are missing (Iteration 14)", () => {
+      // Iteration 14: identity fields are now individually optional — the
+      // matcher builds an identity from whichever fields are present. Only
+      // returns null when EVERY identity field is empty.
       const record = {
-        nem: ["0663701834"],
-        // nom missing
+        // both nem and nom missing
       };
       const identity = matcher.extractIdentity(record);
       expect(identity).toBeNull();
+    });
+
+    it("builds identity from NOM alone when NEM is empty (Iteration 14)", () => {
+      const record = {
+        nem: [], // empty phoneList
+        nom: "ZIREG LEA",
+      };
+      const identity = matcher.extractIdentity(record);
+      expect(identity).not.toBeNull();
+      expect(identity?.nom).toBe("ZIREG LEA");
+      expect(identity?.nem).toBeUndefined();
     });
 
     it("strategy returns 'upsert'", () => {
