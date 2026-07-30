@@ -1,3 +1,4 @@
+import { getSupabaseRepositories } from './supabase/supabase-repositories';
 /**
  * RepositoryProvider — dependency injection seam.
  *
@@ -216,9 +217,9 @@ function selectDefaultRepositories(): Repositories {
   // (so the app doesn't crash if the flag is true but env vars are missing)
   try {
     // Dynamic import to avoid circular dependency
-    const supabaseClientModule = require("./supabase/supabase-client");
+      return getSupabaseRepositories();
     if (supabaseClientModule.useSupabase && supabaseClientModule.isSupabaseConfigured()) {
-      const { getSupabaseRepositories } = require("./supabase/supabase-repositories");
+      // Using top-level ESM import
       const supabaseRepos = getSupabaseRepositories();
       console.info("[RepositoryProvider] Using Supabase-backed repositories");
       return supabaseRepos;

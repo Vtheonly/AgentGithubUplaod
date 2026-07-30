@@ -39,7 +39,10 @@ create index if not exists ix_subjects_active on public.subjects (tenant_id, dom
 create index if not exists ix_grades_student_term on public.grades (student_id, class_subject_id);
 create index if not exists ix_grades_recent on public.grades (tenant_id, entered_at desc);
 create index if not exists ix_attendance_class_date_status on public.attendance_records (class_id, date, status);
-create index if not exists ix_homework_due_active on public.homework_assignments (target_class_id, due_date) where due_date >= current_date;
+-- NOTE: Removed partial predicate `WHERE due_date >= current_date` because `current_date` is STABLE,
+-- not IMMUTABLE, and PostgreSQL requires partial-index predicates to use only IMMUTABLE functions.
+-- The composite index below still supports due-date range scans efficiently.
+create index if not exists ix_homework_due_active on public.homework_assignments (target_class_id, due_date);
 
 -- ============================================================================
 -- CRM
@@ -126,12 +129,18 @@ create index if not exists ix_workflow_runs_recent on public.workflow_runs (tena
 create index if not exists ix_workflow_runs_failed on public.workflow_runs (tenant_id, triggered_at desc) where status in ('failed', 'timeout');
 create index if not exists ix_ai_provider_configs_active on public.ai_provider_configs (tenant_id, is_active) where is_active = true;
 create index if not exists ix_ai_request_logs_brin on public.ai_request_logs using brin (requested_at) with (pages_per_range = 32);
-create index if not exists ix_ai_request_logs_rate_window on public.ai_request_logs (tenant_id, requested_at) where requested_at > now() - interval '1 minute';
+-- NOTE: Removed partial predicate `WHERE requested_at > now() - interval '1 minute'` because
+-- `now()` is STABLE, not IMMUTABLE, and PostgreSQL forbids non-immutable functions in
+-- partial-index predicates. The composite (tenant_id, requested_at) index below still supports
+-- rate-limit lookups efficiently via a range scan on the most recent rows.
+create index if not exists ix_ai_request_logs_rate_window on public.ai_request_logs (tenant_id, requested_at);
 
 -- ============================================================================
 -- CALENDAR / NOTIFICATIONS / BACKUP
 -- ============================================================================
-create index if not exists ix_calendar_events_upcoming on public.calendar_events (tenant_id, start_at) where is_deleted = false and start_at >= now();
+-- NOTE: Removed partial predicate `WHERE start_at >= now()` because `now()` is STABLE, not
+-- IMMUTABLE. The remaining predicate `is_deleted = false` is fine on its own.
+create index if not exists ix_calendar_events_upcoming on public.calendar_events (tenant_id, start_at) where is_deleted = false;
 create index if not exists ix_notifications_unread_priority on public.notifications (tenant_id, priority, triggered_at desc) where is_read = false and dismissed_at is null;
 create index if not exists ix_notifications_target_user_unread on public.notifications (target_user_id, triggered_at desc) where is_read = false and dismissed_at is null and target_user_id is not null;
 create index if not exists ix_backup_archives_purge_due on public.backup_archives (tenant_id, purge_at) where purge_at is not null and status <> 'purged';

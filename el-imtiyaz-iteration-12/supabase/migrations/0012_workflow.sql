@@ -183,7 +183,10 @@ create table public.ai_request_logs (
 create index ai_request_logs_tenant_requested_idx on public.ai_request_logs (tenant_id, requested_at desc);
 create index ai_request_logs_user_idx on public.ai_request_logs (user_id, requested_at desc);
 create index ai_request_logs_feature_idx on public.ai_request_logs (tenant_id, feature, requested_at desc);
-create index ai_request_logs_rate_window_idx on public.ai_request_logs (tenant_id, requested_at) where requested_at > now() - interval '1 minute';
+-- NOTE: A partial index `WHERE requested_at > now() - interval '1 minute'` is INVALID in PostgreSQL
+-- because `now()` is STABLE, not IMMUTABLE, and partial-index predicates must use only IMMUTABLE
+-- functions. The composite (tenant_id, requested_at desc) index above already supports the
+-- rate-limit lookup efficiently via a range scan on the most recent rows.
 
 comment on table public.ai_request_logs is
   'Append-only AI request telemetry. Used for audit, cost tracking, and tenant rate limiting. Plan §12.07.';
@@ -191,7 +194,6 @@ comment on column public.ai_request_logs.user_id is 'user_profiles.id of the cal
 comment on column public.ai_request_logs.feature is 'AI feature discriminator: narrative=report narratives, drafting=expense/workflow drafts, anomaly=financial anomaly explanation.';
 comment on column public.ai_request_logs.success is 'TRUE if the provider returned a 2xx response and the app successfully parsed the body. FALSE otherwise (error_message explains).';
 comment on column public.ai_request_logs.latency_ms is 'End-to-end latency including network + provider inference. Used for SLO monitoring.';
-comment on column public.ai_request_logs.rate_window_idx is 'Index scoped to the last 60s for fast rate-limit checks.';
 
 -- ----------------------------------------------------------------------------
 -- 6. Triggers — touch_updated_at on every table with updated_at

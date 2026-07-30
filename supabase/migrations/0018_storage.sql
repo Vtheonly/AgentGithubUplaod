@@ -364,4 +364,7 @@ comment on function public.get_signed_url is
 -- ----------------------------------------------------------------------------
 -- 4. Comment on storage strategy
 -- ----------------------------------------------------------------------------
-comment on schema storage is 'Supabase Storage schema. All buckets are private (signed URLs only). Folder structure: <tenant_id>/<entity_id>/<filename> enforces tenant isolation.';
+-- NOTE: `comment on schema storage` is intentionally omitted. On Supabase the
+-- `storage` schema is owned by the `supabase_storage_admin` role, not by the
+-- migration user, so COMMENT ON SCHEMA storage fails with a permission error.
+-- The storage strategy is documented above in this file's header comment.

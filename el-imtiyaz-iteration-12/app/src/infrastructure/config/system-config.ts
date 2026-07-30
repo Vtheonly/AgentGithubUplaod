@@ -115,26 +115,21 @@ async function readLocalConfig(): Promise<LocalConfig> {
 }
 
 async function writeLocalConfig(config: LocalConfig): Promise<Result<void>> {
-  // Try Electron IPC first
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(config));
+  } catch (err) {
+    console.warn('Failed to set localStorage config:', err);
+  }
+
   if (window.elImtiyaz?.config) {
     try {
-      const result = await window.elImtiyaz.config.write(config as unknown as Record<string, unknown>);
-      if (!result.ok) {
-        return Err(Errors.server(`Failed to write local config: ${result.error}`));
-      }
-      return Ok(undefined);
+      await window.elImtiyaz.config.write(config as unknown as Record<string, unknown>);
     } catch (err) {
-      return Err(Errors.server(`Failed to write local config via IPC: ${(err as Error).message}`));
+      console.warn('Failed to write config via IPC:', err);
     }
   }
 
-  // Fallback: localStorage
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(config));
-    return Ok(undefined);
-  } catch (err) {
-    return Err(Errors.server(`Failed to write local config to localStorage: ${(err as Error).message}`));
-  }
+  return Ok(undefined);
 }
 
 async function deleteLocalConfig(): Promise<Result<void>> {

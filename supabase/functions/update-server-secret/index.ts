@@ -111,8 +111,8 @@ Deno.serve(async (req: Request) => {
   }
 
   // 6. Call Supabase Management API to update the secret
-  const projectRef = Deno.env.get("SUPABASE_PROJECT_REF") ?? "";
-  const accessToken = Deno.env.get("SUPABASE_ACCESS_TOKEN") ?? "";
+  const projectRef = Deno.env.get("PROJECT_REF") ?? Deno.env.get("SUPABASE_PROJECT_REF") ?? "";
+  const accessToken = Deno.env.get("PERSONAL_ACCESS_TOKEN") ?? Deno.env.get("SUPABASE_ACCESS_TOKEN") ?? "";
 
   if (!projectRef || !accessToken) {
     return jsonError(
@@ -210,8 +210,8 @@ export async function handleDelete(req: Request): Promise<Response> {
     return jsonError(req, 400, "invalid_key", `Key '${key}' is not in the allowed list`);
   }
 
-  const projectRef = Deno.env.get("SUPABASE_PROJECT_REF") ?? "";
-  const accessToken = Deno.env.get("SUPABASE_ACCESS_TOKEN") ?? "";
+  const projectRef = Deno.env.get("PROJECT_REF") ?? Deno.env.get("SUPABASE_PROJECT_REF") ?? "";
+  const accessToken = Deno.env.get("PERSONAL_ACCESS_TOKEN") ?? Deno.env.get("SUPABASE_ACCESS_TOKEN") ?? "";
 
   if (!projectRef || !accessToken) {
     return jsonError(req, 500, "management_api_not_configured", "SUPABASE_PROJECT_REF and SUPABASE_ACCESS_TOKEN must be set");

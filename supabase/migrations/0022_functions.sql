@@ -10,7 +10,11 @@
 -- privileges, NOT the caller's). This is necessary so they can write to
 -- tables like ledger_entries and audit_logs that have restrictive RLS.
 -- SECURITY DEFINER functions MUST set search_path = public to prevent
--- search_path injection attacks.
+-- search_path injection attacks. Functions that use extension-provided
+-- operators/functions (pg_trgm's similarity() / %, pgcrypto's
+-- gen_random_bytes()) must also include `extensions` in the search_path,
+-- because Supabase installs those extensions in the `extensions` schema
+-- and SQL-language functions validate operator references at CREATE time.
 -- ============================================================================
 
 -- ============================================================================
@@ -26,11 +30,12 @@ create or replace function public.batch_register_family(
 returns table(parent_id uuid, student_ids uuid[])
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
     v_parent_id uuid;
     v_student_ids uuid[] := '{}';
+    v_student_id uuid;
     v_student jsonb;
     v_parent_code text;
     v_student_code text;
@@ -76,7 +81,8 @@ begin
             current_date, 'enrolled', v_student->>'medical_notes',
             true, now(), now()
         )
-        returning id into array v_student_ids[cardinality(v_student_ids) + 1];
+        returning id into v_student_id;
+        v_student_ids := array_append(v_student_ids, v_student_id);
     end loop;
 
     -- Issue activation code (or use provided one)
@@ -703,37 +709,37 @@ returns table(entity_type text, entity_id uuid, label text, sublabel text, score
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
     -- Parents
     select 'parent'::text, p.id,
            p.last_name || ' ' || p.first_name,
            p.primary_phone,
-           similarity(p.last_name || ' ' || p.first_name, p_query)
+           extensions.similarity(p.last_name || ' ' || p.first_name, p_query) as score
       from public.parents p
      where p.tenant_id = p_tenant_id
        and p.deleted_at is null
-       and (p.last_name || ' ' || p.first_name) % p_query
+       and (p.last_name || ' ' || p.first_name) operator(extensions.%) p_query
     union all
     -- Students
     select 'student'::text, s.id,
            s.last_name || ' ' || s.first_name,
            s.student_code,
-           similarity(s.last_name || ' ' || s.first_name, p_query)
+           extensions.similarity(s.last_name || ' ' || s.first_name, p_query) as score
       from public.students s
      where s.tenant_id = p_tenant_id
        and s.deleted_at is null
-       and (s.last_name || ' ' || s.first_name) % p_query
+       and (s.last_name || ' ' || s.first_name) operator(extensions.%) p_query
     union all
     -- Personnel
     select 'personnel'::text, per.id,
            per.last_name || ' ' || per.first_name,
            per.personnel_code,
-           similarity(per.last_name || ' ' || per.first_name, p_query)
+           extensions.similarity(per.last_name || ' ' || per.first_name, p_query) as score
       from public.personnel per
      where per.tenant_id = p_tenant_id
        and per.deleted_at is null
-       and (per.last_name || ' ' || per.first_name) % p_query
+       and (per.last_name || ' ' || per.first_name) operator(extensions.%) p_query
     order by score desc
     limit p_limit;
 $$;

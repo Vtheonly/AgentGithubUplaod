@@ -31,6 +31,7 @@ as $$
 declare
     v_parent_id uuid;
     v_student_ids uuid[] := '{}';
+    v_student_id uuid;
     v_student jsonb;
     v_parent_code text;
     v_student_code text;
@@ -76,7 +77,8 @@ begin
             current_date, 'enrolled', v_student->>'medical_notes',
             true, now(), now()
         )
-        returning id into array v_student_ids[cardinality(v_student_ids) + 1];
+        returning id into v_student_id;
+        v_student_ids := array_append(v_student_ids, v_student_id);
     end loop;
 
     -- Issue activation code (or use provided one)
