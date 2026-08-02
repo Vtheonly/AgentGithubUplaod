@@ -99,15 +99,15 @@ describe("Excel import — comprehensive verification", () => {
     allStudents = unwrap(await mockStudentRepository.search(""));
   });
 
-  it("ETAT sheet: reads 11 rows (10 data + 1 summary)", () => {
+  it("ETAT sheet: reads 13 rows (12 data + 1 summary)", () => {
     const etat = ctx.sheetResults.find((s) => s.schema === "etat");
     expect(etat).toBeDefined();
-    expect(etat!.rowsRead).toBe(11);
+    expect(etat!.rowsRead).toBe(13);
   });
 
-  it("ETAT sheet: imports all 10 data rows (no missing students)", () => {
+  it("ETAT sheet: imports all 12 data rows (no missing students — import no matter what)", () => {
     const etat = ctx.sheetResults.find((s) => s.schema === "etat");
-    expect(etat!.rowsImported).toBe(10);
+    expect(etat!.rowsImported).toBe(12);
   });
 
   it("ETAT sheet: rejects 0 rows (every data row passes validation)", () => {
@@ -120,9 +120,9 @@ describe("Excel import — comprehensive verification", () => {
     expect(etat!.rowsSkipped).toBe(1);
   });
 
-  it("creates exactly 7 distinct parents (dedup by phone)", () => {
+  it("creates exactly 9 distinct parents (dedup by phone)", () => {
     const newParents = allParents.slice(parentsBefore);
-    expect(newParents.length).toBe(7);
+    expect(newParents.length).toBe(9);
   });
 
   it("AMRANI parent (phone 0661111111) has exactly 3 children linked", async () => {
@@ -183,9 +183,35 @@ describe("Excel import — comprehensive verification", () => {
     expect(z!.lastName).toBe("أمين");
   });
 
-  it("creates exactly 10 new students (no duplicates)", () => {
+  // ── Iteration 21 regression: "import student no matter what" ──────────
+  // These tests verify the fix for the real-file error:
+  //   ETAT 20262027/L355/required: Champ obligatoire manquant : « CLASSE »
+
+  it("REGRESSION: student with missing CLASSE still imports (L355 fix)", () => {
+    // SAYAH Karim has classe="" in the fixture — must still import.
+    const sayah = allStudents.find((s) => s.firstName === "SAYAH" && s.lastName === "Karim");
+    expect(sayah).toBeDefined();
+  });
+
+  it("REGRESSION: student with missing niveau AND classe AND devisAnnuel still imports", () => {
+    // Brahim Saidi has niveau="", classe="", devisAnnuel=0 — must still import.
+    // Splitter: "Brahim Saidi" → firstName="Brahim", lastName="Saidi".
+    const saidi = allStudents.find((s) => s.firstName === "Brahim" && s.lastName === "Saidi");
+    expect(saidi).toBeDefined();
+    // Missing niveau → mapper falls back to 1ap (primaire year 1).
+    expect(saidi!.level).toBe("primaire");
+    expect(saidi!.gradeYear).toBe(1);
+    expect(saidi!.gradeLevel).toBe("1ap");
+  });
+
+  it("REGRESSION: ETAT sheet rejects 0 rows even with missing required fields", () => {
+    const etat = ctx.sheetResults.find((s) => s.schema === "etat");
+    expect(etat!.rowsRejected).toBe(0);
+  });
+
+  it("creates exactly 12 new students (no duplicates)", () => {
     const newStudents = allStudents.slice(studentsBefore);
-    expect(newStudents.length).toBe(10);
+    expect(newStudents.length).toBe(12);
   });
 
   it("REF sheet: imports all 5 reference rows", () => {
@@ -221,11 +247,12 @@ describe("Excel import — comprehensive verification", () => {
     });
     const inserted = await storage.listInsertedForRun(reimportCtx.runId);
     const etatInserted = inserted.filter((r) => r.schemaName === "etat");
-    expect(etatInserted.length).toBe(10);
+    expect(etatInserted.length).toBe(12);
     for (const row of etatInserted) {
       const rec = row.record as Record<string, unknown>;
       expect(typeof rec.devisAnnuel).toBe("number");
-      expect(rec.devisAnnuel).toBeGreaterThan(0);
+      // devisAnnuel can be 0 for rows with missing financial data (import no matter what)
+      expect(rec.devisAnnuel).toBeGreaterThanOrEqual(0);
       expect(typeof rec.dettes).toBe("number");
       expect(typeof rec.remise).toBe("number");
       expect(typeof rec.remboursement).toBe("number");
@@ -261,7 +288,7 @@ describe("Excel import — comprehensive verification", () => {
     // We can't easily query the mock audit repo without observe(), but we
     // can at least confirm the import did not throw and stats are populated.
     expect(ctx.stats.sheetsProcessed).toBe(4);
-    expect(ctx.stats.rowsImported).toBe(15); // 10 ETAT + 5 REF
+    expect(ctx.stats.rowsImported).toBe(17); // 12 ETAT + 5 REF
     expect(ctx.runId).toMatch(/^run_/);
   });
 
@@ -304,8 +331,9 @@ describe("Excel import — comprehensive verification", () => {
       const entries = ledgerObs.get() ?? [];
       const importEntries = entries.filter((e) => e.sourceType === "bulk_import");
       const studentIds = new Set(importEntries.map((e) => e.studentId).filter((id): id is string => id !== null));
-      // All 10 imported students should have at least one ledger entry.
-      expect(studentIds.size).toBe(10);
+      // 11 of 12 imported students have financial data (the 12th — Brahim Saidi —
+      // has devisAnnuel=0, dettes=0, no reglements, so no ledger entries).
+      expect(studentIds.size).toBe(11);
     });
   });
 });

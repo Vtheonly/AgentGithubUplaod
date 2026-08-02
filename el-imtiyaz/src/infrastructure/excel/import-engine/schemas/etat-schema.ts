@@ -32,7 +32,10 @@ export const ETAT_SCHEMA: ImportSchema = {
   name: "etat",
   sheetMatchers: [/^ETAT/i, /^ETAT\s*\d+/i],
   headerRow: 1,
-  requiredHeaders: ["NOM", "niveau", "CLASSE", "DEVIS ANNUEL"],
+  // Iteration 21: Only NOM is truly required — "import student no matter what".
+  // CLASSE, niveau, DEVIS ANNUEL are all optional with defaults so missing
+  // cells never block a row from importing.
+  requiredHeaders: ["NOM"],
   identity: { fields: ["NEM", "NOM"], strategy: "upsert" },
   fields: [
     { key: "infos", header: "INFOS", type: "string", required: false },
@@ -44,13 +47,10 @@ export const ETAT_SCHEMA: ImportSchema = {
       key: "niveau",
       header: "niveau",
       type: "enum",
-      required: true,
-      // Per Clients_Sheet_Merged.txt → "01 - Level Codes (niveau)":
-      //   PRIM/COLG/LYC  — broad school levels
-      //   GS/MS/PS/TPS   — pre-school sections
-      //   AUTISTE        — special-needs class
-      //   NV2/3/4/5      — non-gradeable variants
-      //   CLYC/LYCI      — lycée variants (typos in source data, accepted)
+      // Iteration 21: was required:true — now optional with default.
+      // Missing niveau → mapper falls back to 1ap (primaire year 1).
+      required: false,
+      default: "PRIM",
       values: [
         "PRIM", "COLG", "LYC",
         "GS", "MS", "PS", "TPS",
@@ -58,25 +58,23 @@ export const ETAT_SCHEMA: ImportSchema = {
         "NV2", "NV3", "NV4", "NV5",
         "CLYC", "LYCI",
       ],
-      // Unknown enum values become warnings, not errors (see FieldCoercer).
       tolerateUnknown: true,
     },
-    { key: "classe", header: "CLASSE", type: "string", required: true },
+    // Iteration 21: was required:true — now optional with placeholder default.
+    // Missing CLASSE → "Non assignée" so the student still imports.
+    { key: "classe", header: "CLASSE", type: "string", required: false, default: "Non assignée" },
     {
       key: "option",
       header: "OPTION",
       type: "enum",
       required: false,
-      // Per Clients_Sheet_Merged.txt → "04 - Option Codes":
-      //   TRNSP — transport needed (canonical)
-      //   TENSP — variant / probable typo (4 occurrences in real sheet)
-      //   TRNP  — variant / probable typo (1 occurrence in real sheet)
       values: ["TRNSP", "TENSP", "TRNP", ""],
       tolerateUnknown: true,
     },
     { key: "remise", header: "REMISE", type: "number", required: false, default: 0, min: 0 },
     { key: "justification", header: "JUSTIFICATION", type: "string", required: false },
-    { key: "devisAnnuel", header: "DEVIS ANNUEL", type: "number", required: true, min: 0 },
+    // Iteration 21: was required:true — now optional with default 0.
+    { key: "devisAnnuel", header: "DEVIS ANNUEL", type: "number", required: false, default: 0, min: 0 },
     { key: "remboursement", header: "REMBOURCEMENT", type: "number", required: false, default: 0, min: 0 },
     { key: "dettes", header: "DETTES", type: "number", required: false, default: 0, min: 0 },
     {

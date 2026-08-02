@@ -231,7 +231,12 @@ export class RowValidator {
       }
     }
 
-    return { record, errors, warnings, skipped: errors.length > 0 };
+    // Iteration 21: "Import student no matter what" — never skip a data row.
+    // Convert all errors to warnings so they appear in the import report
+    // (for data quality awareness) but the row still gets upserted.
+    // The only rows that get skipped are non-data rows (summary/empty),
+    // handled by the isSummaryOrNonDataRow check above.
+    return { record, errors: [], warnings: [...warnings, ...errors], skipped: false };
   }
 
   private lookupValue(

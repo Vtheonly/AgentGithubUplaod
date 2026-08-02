@@ -127,17 +127,17 @@ export function ExcelImportModal({
       setFileName(file.name);
       setStage("preview");
 
-      if (ctx.errors.length > 0) {
-        setAlert({
-          tone: "warning",
-          title: `${ctx.errors.length} erreur(s) de validation`,
-          description: "Corrigez le fichier et rechargez-le. L'import sera impossible tant qu'il y a des erreurs.",
-        });
-      } else if (ctx.stats.rowsRead === 0) {
+      if (ctx.stats.rowsRead === 0) {
         setAlert({
           tone: "warning",
           title: "Aucune ligne à importer",
           description: "Le fichier est vide ou aucune feuille ne correspond à un schéma connu.",
+        });
+      } else if (ctx.stats.warnings > 0) {
+        setAlert({
+          tone: "info",
+          title: `${ctx.stats.rowsRead} ligne(s) prête(s) à importer (${ctx.stats.warnings} avertissement(s))`,
+          description: "Toutes les lignes seront importées. Les avertissements indiquent des données manquantes ou non standard qui ont été corrigées automatiquement (ex: CLASSE manquant → « Non assignée »).",
         });
       } else {
         setAlert({
@@ -228,7 +228,12 @@ export function ExcelImportModal({
   const showFooter = stage === "preview" || stage === "done";
   const totalRows = previewCtx?.stats.rowsRead ?? 0;
   const totalErrors = previewCtx?.errors.length ?? 0;
-  const canCommit = totalErrors === 0 && totalRows > 0;
+  const totalWarnings = previewCtx?.stats.warnings ?? 0;
+  // Iteration 21: "Import student no matter what" — allow commit even with
+  // validation errors. Errors are now downgraded to warnings by the validator,
+  // so `totalErrors` should always be 0. But even if some slip through, we
+  // only block commit when there are zero rows to import.
+  const canCommit = totalRows > 0;
 
   return (
     <UnifiedModal

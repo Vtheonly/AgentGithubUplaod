@@ -113,6 +113,22 @@ const etatRows: EtatRow[] = [
     devisAnnuel: 30000, dettes: 0,
     reglements: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   },
+  // Parent 8 — MISSING CLASSE (the real-file error at L355).
+  // Must still import via the "Non assignée" default.
+  {
+    nom: "SAYAH Karim", niveau: "PRIM", classe: "", nem: "0771112233",
+    tuteur: "SAYAH Ahmed", email: "ahmed.sayah@example.com",
+    devisAnnuel: 45000, dettes: 5000,
+    reglements: [1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  },
+  // Parent 9 — MISSING niveau AND CLASSE AND DEVIS ANNUEL.
+  // Must still import via defaults (niveau→PRIM/1ap, classe→Non assignée, devisAnnuel→0).
+  {
+    nom: "Brahim Saidi", niveau: "", classe: "", nem: "0554443322",
+    tuteur: "Saidi Mansour", email: null,
+    devisAnnuel: 0, dettes: 0,
+    reglements: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  },
 ];
 
 async function buildWorkbook(): Promise<ExcelJS.Workbook> {

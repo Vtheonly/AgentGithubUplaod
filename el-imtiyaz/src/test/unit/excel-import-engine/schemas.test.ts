@@ -30,10 +30,10 @@ describe("excel-import-engine / schemas", () => {
       expect(ETAT_SCHEMA.identity.strategy).toBe("upsert");
     });
 
-    it("requires the 4 canonical headers (NEM is optional per Iteration 14)", () => {
-      // Iteration 14: NEM is no longer required — the business doc describes
-      // it as "purely informational" and many valid students have no phone.
-      expect(ETAT_SCHEMA.requiredHeaders).toEqual(["NOM", "niveau", "CLASSE", "DEVIS ANNUEL"]);
+    it("requires only NOM header (Iteration 21: import no matter what)", () => {
+      // Iteration 21: only NOM is truly required. CLASSE, niveau, DEVIS ANNUEL
+      // are all optional with defaults so missing cells never block import.
+      expect(ETAT_SCHEMA.requiredHeaders).toEqual(["NOM"]);
     });
 
     it("includes the monthlyArray field for REGLEMENTS DETTES", () => {
@@ -46,10 +46,11 @@ describe("excel-import-engine / schemas", () => {
       ]);
     });
 
-    it("marks NOM, niveau, CLASSE, DEVIS ANNUEL as required (NEM is optional per Iteration 14)", () => {
+    it("marks only NOM as required (Iteration 21: import no matter what)", () => {
       const requiredKeys = ETAT_SCHEMA.fields.filter((f) => f.required).map((f) => f.key);
-      // Iteration 14: NEM moved to optional (real sheet has many rows without phone).
-      expect(requiredKeys).toEqual(["nom", "niveau", "classe", "devisAnnuel"]);
+      // Iteration 21: niveau, CLASSE, DEVIS ANNUEL all moved to optional with
+      // defaults so missing cells never block a row from importing.
+      expect(requiredKeys).toEqual(["nom"]);
     });
 
     it("uses phoneList type for NEM (multi-value phone)", () => {
