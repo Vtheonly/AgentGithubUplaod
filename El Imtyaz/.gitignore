@@ -1,0 +1,194 @@
+# ============================================================
+# El-Imtiyaz Desktop — Git Ignore
+# ============================================================
+
+# ------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------
+node_modules/
+node_modules/**/.cache/
+.pnp
+.pnp.js
+.pnp.cjs
+.pnp.loader.mjs
+
+# ------------------------------------------------------------
+# Build Outputs
+# ------------------------------------------------------------
+dist/
+dist-electron/
+release/
+out/
+build/
+*.tsbuildinfo
+*.tsbuildinfo.*
+.eslintcache
+
+# ------------------------------------------------------------
+# Environment Variables & Secrets
+# ------------------------------------------------------------
+# Vite / app env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env.staging.local
+
+# Supabase CLI env (contains DATABASE_URL with credentials)
+supabase/.env
+supabase/.env.local
+supabase/.env.*.local
+
+# Local config files (userData/config.json lives outside repo,
+# but keep any local overrides out of version control)
+*.config.local.json
+config.local.json
+
+# ------------------------------------------------------------
+# Electron
+# ------------------------------------------------------------
+# electron-builder output
+release/
+*.app
+*.dmg
+*.exe
+*.msi
+*.AppImage
+*.snap
+*.deb
+*.rpm
+*.pkg
+*.zip
+*.tar.gz
+
+# Electron user data / local storage (if ever created in repo)
+electron/userData/
+userData/
+
+# ------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+electron-debug.log*
+
+# ------------------------------------------------------------
+# Test & Coverage
+# ------------------------------------------------------------
+coverage/
+coverage.*
+.nyc_output/
+*.lcov
+*.lcov.info
+
+# Vitest
+.vitest/
+test-results/
+playwright-report/
+
+# ------------------------------------------------------------
+# Caches
+# ------------------------------------------------------------
+.cache/
+.cache-loader/
+.vite/
+.vite-cache/
+.temp/
+.tmp/
+*.cache
+*.cached
+
+# ------------------------------------------------------------
+# Supabase CLI
+# ------------------------------------------------------------
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/.env.local
+supabase/.env.*.local
+
+# ------------------------------------------------------------
+# Editor / IDE
+# ------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/*.code-snippets
+
+.idea/
+*.iml
+*.ipr
+*.iws
+.vs/
+.vscode-server/
+.fleet/
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------
+# OS Files
+# ------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ------------------------------------------------------------
+# Misc
+# ------------------------------------------------------------
+*.orig
+*.rej
+*.patch
+*.diff
+*.bak
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+*.lock
+!package-lock.json
+!pnpm-lock.yaml
+!yarn.lock
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Certificates / keys (never commit)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Database dumps
+*.sql.gz
+*.sql.bak
+*.dump
+*.dmp
+
+# Backup files
+*.backup
+*.bak
+backups/
