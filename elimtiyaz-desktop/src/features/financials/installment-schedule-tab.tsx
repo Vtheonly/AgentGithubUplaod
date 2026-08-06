@@ -17,7 +17,7 @@
  *     overdue alert generator (spec §6.3).
  */
 import { useState, useMemo, useEffect } from "react";
-import { Filter, Download, ChevronRight, Wallet, CalendarCog, RefreshCw, Zap, AlertTriangle } from "lucide-react";
+import { Filter, ChevronRight, Wallet, CalendarCog, RefreshCw, Zap, AlertTriangle } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -182,9 +182,6 @@ export function InstallmentScheduleTab() {
             ) : (
               <><Zap className="h-3 w-3" /> Scan retards</>
             )}
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs">
-            <Download className="h-3 w-3" /> Exporter
           </Button>
         </div>
 

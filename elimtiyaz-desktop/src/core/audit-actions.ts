@@ -25,6 +25,9 @@ export const AuditActions = {
   // Academic
   ClassCreate: "class.create",
   ClassUpdate: "class.update",
+  ClassArchive: "class.archive",
+  ClassRestore: "class.restore",
+  ClassDelete: "class.delete",
   SubjectCreate: "subject.create",
   SubjectUpdate: "subject.update",
   SubjectArchive: "subject.archive",
@@ -32,6 +35,45 @@ export const AuditActions = {
   GradeEnter: "grade.enter",
   AttendanceSubmit: "attendance.submit",
   HomeworkPush: "homework.push",
+
+  // School Year (lifecycle)
+  SchoolYearCreate: "school_year.create",
+  SchoolYearUpdate: "school_year.update",
+  SchoolYearArchive: "school_year.archive",
+  SchoolYearRestore: "school_year.restore",
+  SchoolYearDelete: "school_year.delete",
+  SchoolYearSetCurrent: "school_year.set_current",
+
+  // Clubs (plan §05.07)
+  ClubCreate: "club.create",
+  ClubUpdate: "club.update",
+  ClubArchive: "club.archive",
+  ClubRestore: "club.restore",
+  ClubDelete: "club.delete",
+  ClubMemberEnroll: "club.member_enroll",
+  ClubMemberWithdraw: "club.member_withdraw",
+  ClubActivityLog: "club.activity_log",
+  ClubActivityDelete: "club.activity_delete",
+
+  // Psychology (Psyc) — restricted audit trail
+  PsychologyFollowUpCreate: "psychology.followup_create",
+  PsychologyFollowUpUpdate: "psychology.followup_update",
+  PsychologyFollowUpClose: "psychology.followup_close",
+  PsychologyFollowUpDelete: "psychology.followup_delete",
+  PsychologySessionConduct: "psychology.session_conduct",
+  PsychologySessionDelete: "psychology.session_delete",
+  PsychologyReportCreate: "psychology.report_create",
+  PsychologyReportDelete: "psychology.report_delete",
+
+  // Speech Therapy (Orthophonie) — restricted audit trail
+  OrthophonieFollowUpCreate: "orthophonie.followup_create",
+  OrthophonieFollowUpUpdate: "orthophonie.followup_update",
+  OrthophonieFollowUpClose: "orthophonie.followup_close",
+  OrthophonieFollowUpDelete: "orthophonie.followup_delete",
+  OrthophonieEvaluationConduct: "orthophonie.evaluation_conduct",
+  OrthophonieEvaluationDelete: "orthophonie.evaluation_delete",
+  OrthophonieSessionConduct: "orthophonie.session_conduct",
+  OrthophonieSessionDelete: "orthophonie.session_delete",
 
   // Financial
   PaymentCreate: "payment.create",

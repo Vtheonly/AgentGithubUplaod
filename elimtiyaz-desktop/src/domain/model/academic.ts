@@ -40,6 +40,8 @@ export interface AcademicClass {
   readonly gradeYear: number;
   readonly section: string; // e.g. "Section B"
   readonly room: string | null;
+  /** Maximum student capacity. `null` = unlimited. */
+  readonly capacity: number | null;
   readonly enrolledCount: number;
   readonly homeroomTeacherId: string | null;
   readonly homeroomTeacherName: string | null;
@@ -60,6 +62,27 @@ export interface Subject {
   readonly passingGrade: number;
   readonly isExtracurricular: boolean;
   readonly isActive: boolean;
+  /**
+   * FK → Teacher (the primary teacher for this subject).
+   *
+   * Per user spec: "Every subject (matière) must be assigned to a teacher."
+   * This is the PRIMARY teacher; additional qualified teachers are linked
+   * via TeacherSubjectAssignment.
+   *
+   * NOTE: This references the Teacher entity (which references Person/Account),
+   * NOT the account directly. Nullable during creation but must be assigned
+   * before the subject can be activated.
+   */
+  readonly teacherId: string | null;
+  /** Denormalized teacher display name (read from Teacher→Personnel at assignment). */
+  readonly teacherName: string | null;
+  /**
+   * FK → AcademicYear. Root context.
+   * Subjects are scoped per academic year so the catalog can evolve
+   * (new subjects added, old ones retired) without affecting historical data.
+   */
+  readonly academicYearId: string;
+  readonly academicYearCode: string;
 }
 
 export interface ClassSubject {

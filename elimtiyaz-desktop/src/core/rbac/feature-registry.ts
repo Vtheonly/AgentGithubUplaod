@@ -74,11 +74,23 @@ export const Academics: FeatureNode = {
   label: "Pédagogie",
   requirement: requiresPermission(P.ViewAcademics),
   children: [
+    { id: "academics.school_years", label: "Années scolaires", requirement: requiresPermission(P.ViewAcademics) },
     { id: "academics.classes", label: "Classes", requirement: requiresPermission(P.ViewAcademics) },
     { id: "academics.subjects", label: "Matières", requirement: requiresPermission(P.ViewAcademics) },
     { id: "academics.roll_call", label: "Appel", requirement: requiresPermission(P.RollCall) },
     { id: "academics.grade_entry", label: "Saisie des notes", requirement: requiresPermission(P.EnterGrades) },
     { id: "academics.homework", label: "Devoirs", requirement: requiresPermission(P.AssignHomework) },
+    { id: "academics.clubs", label: "Clubs", requirement: requiresPermission(P.ViewClubs) },
+    {
+      id: "academics.psychology",
+      label: "Psychologie",
+      requirement: requiresAnyOf([P.ViewPsychology, P.ManagePsychology, P.ConductPsychologySession]),
+    },
+    {
+      id: "academics.orthophonie",
+      label: "Orthophonie",
+      requirement: requiresAnyOf([P.ViewOrthophonie, P.ManageOrthophonie, P.ConductOrthophonieSession]),
+    },
   ],
 };
 

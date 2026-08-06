@@ -148,7 +148,7 @@ export function TeacherDashboard() {
                     <p className="font-semibold text-sm text-foreground">{c.name}</p>
                     <p className="text-xs text-muted-foreground">Salle {c.room ?? "—"}</p>
                   </div>
-                  <StatusChip label={`${c.enrolledCount}/${c.capacity}`} tone="neutral" />
+                  <StatusChip label={`${c.enrolledCount}/${c.capacity ?? "∞"}`} tone="neutral" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-3">
                   {c.homeroomTeacherName ?? "—"}

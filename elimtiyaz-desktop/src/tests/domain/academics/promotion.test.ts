@@ -90,7 +90,7 @@ describe("Academic Year-End Promotion Engine", () => {
     ];
 
     const mockSubjects: Subject[] = [
-      { id: "sub-1", tenantId: "tenant-1", code: "MATH", name: "Maths", nameAr: null, cycle: "primaire", level: "primaire", coefficient: 4, passingGrade: 10, isExtracurricular: false, isActive: true },
+      { id: "sub-1", tenantId: "tenant-1", code: "MATH", name: "Maths", nameAr: null, cycle: "primaire", level: "primaire", coefficient: 4, passingGrade: 10, isExtracurricular: false, isActive: true, teacherId: null, teacherName: null, academicYearId: "ay-2025-2026", academicYearCode: "2025-2026" },
     ];
 
     const mockAssessments: Assessment[] = [

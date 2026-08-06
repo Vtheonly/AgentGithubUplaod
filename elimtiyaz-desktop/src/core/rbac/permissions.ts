@@ -30,6 +30,38 @@ export enum Permission {
   AssignHomework = "assign_homework",
   RollCall = "roll_call",
 
+  // Academic — School Year lifecycle (plan §05.05)
+  /** Create / edit / archive / restore / delete school years. */
+  ManageSchoolYears = "manage_school_years",
+
+  // Academic — Clubs (plan §05.07)
+  /** View the club catalog + memberships + activities. */
+  ViewClubs = "view_clubs",
+  /** Create / edit / archive / delete clubs. */
+  ManageClubs = "manage_clubs",
+  /** Enroll / withdraw students from clubs. */
+  EnrollClubMembers = "enroll_club_members",
+  /** Log club activities (sessions, meetings, events). */
+  LogClubActivities = "log_club_activities",
+
+  // Therapy — Psychology (Psyc) — RESTRICTED (plan §05.07)
+  /** View psychological follow-ups / sessions / reports. Restricted by confidentiality. */
+  ViewPsychology = "view_psychology",
+  /** Create / edit / close psychological follow-ups. Designated psychologists + admins only. */
+  ManagePsychology = "manage_psychology",
+  /** Conduct psychological sessions. Designated psychologists only. */
+  ConductPsychologySession = "conduct_psychology_session",
+  /** Create psychological reports. Designated psychologists only. */
+  CreatePsychologyReport = "create_psychology_report",
+
+  // Therapy — Speech Therapy (Orthophonie) — RESTRICTED (plan §05.07)
+  /** View speech therapy follow-ups / evaluations / sessions. */
+  ViewOrthophonie = "view_orthophonie",
+  /** Create / edit / close speech therapy follow-ups. Designated therapists + admins only. */
+  ManageOrthophonie = "manage_orthophonie",
+  /** Conduct speech therapy sessions + evaluations. Designated therapists only. */
+  ConductOrthophonieSession = "conduct_orthophonie_session",
+
   // Financial
   ViewFinancials = "view_financials",
   CollectPayment = "collect_payment",
@@ -133,6 +165,18 @@ export const PERMISSION_LABELS_FR: Record<Permission, string> = {
   [Permission.ManageClasses]: "Gérer les classes",
   [Permission.AssignHomework]: "Diffuser un devoir",
   [Permission.RollCall]: "Faire l'appel",
+  [Permission.ManageSchoolYears]: "Gérer les années scolaires",
+  [Permission.ViewClubs]: "Consulter les clubs",
+  [Permission.ManageClubs]: "Gérer les clubs",
+  [Permission.EnrollClubMembers]: "Inscrire aux clubs",
+  [Permission.LogClubActivities]: "Pointer les activités de club",
+  [Permission.ViewPsychology]: "Consulter le suivi psychologique",
+  [Permission.ManagePsychology]: "Gérer le suivi psychologique",
+  [Permission.ConductPsychologySession]: "Mener une séance de psychologie",
+  [Permission.CreatePsychologyReport]: "Rédiger un rapport psychologique",
+  [Permission.ViewOrthophonie]: "Consulter l'orthophonie",
+  [Permission.ManageOrthophonie]: "Gérer l'orthophonie",
+  [Permission.ConductOrthophonieSession]: "Mener une séance d'orthophonie",
   [Permission.ViewFinancials]: "Consulter les finances",
   [Permission.CollectPayment]: "Encaisser un paiement",
   [Permission.RefundPayment]: "Rembourser un paiement",
@@ -228,6 +272,9 @@ DEFAULT_ROLE_PERMISSIONS[Role.FinancialOfficer] = new Set<Permission>([
   Permission.ManagePurchaseRequests,
   Permission.ViewWorkforceReports,
   Permission.UseChat,
+  // Pédagogie redesign — financial officers can VIEW clubs/academics for billing
+  // context, but CANNOT manage therapy records (restricted).
+  Permission.ViewClubs,
 ]);
 
 DEFAULT_ROLE_PERMISSIONS[Role.Teacher] = new Set<Permission>([
@@ -247,6 +294,9 @@ DEFAULT_ROLE_PERMISSIONS[Role.Teacher] = new Set<Permission>([
   Permission.ClockInOut,
   Permission.SubmitRequests,
   Permission.UseChat,
+  // Pédagogie redesign — teachers can view clubs + log activities for clubs they supervise
+  Permission.ViewClubs,
+  Permission.LogClubActivities,
 ]);
 
 DEFAULT_ROLE_PERMISSIONS[Role.SupportStaff] = new Set<Permission>([
@@ -267,6 +317,9 @@ DEFAULT_ROLE_PERMISSIONS[Role.SupportStaff] = new Set<Permission>([
   Permission.ClockInOut,
   Permission.SubmitRequests,
   Permission.UseChat,
+  // Pédagogie redesign — support staff can enroll students in clubs
+  Permission.ViewClubs,
+  Permission.EnrollClubMembers,
 ]);
 
 DEFAULT_ROLE_PERMISSIONS[Role.Parent] = new Set<Permission>();
@@ -297,6 +350,15 @@ DEFAULT_ROLE_PERMISSIONS[Role.Manager] = new Set<Permission>([
   Permission.ViewReleve,
   Permission.UseAI,
   Permission.ClockInOut,
+  // Pédagogie redesign — managers have full oversight of clubs + therapy
+  // (program oversight, not direct clinical access — that's for designated staff)
+  Permission.ManageSchoolYears,
+  Permission.ViewClubs,
+  Permission.ManageClubs,
+  Permission.EnrollClubMembers,
+  Permission.LogClubActivities,
+  Permission.ViewPsychology,
+  Permission.ViewOrthophonie,
 ]);
 
 DEFAULT_ROLE_PERMISSIONS[Role.Buyer] = new Set<Permission>([

@@ -64,7 +64,7 @@ export function ClassDetailsDrawer({
       variant="drawer"
       size="lg"
       title={cls.name}
-      description={`Salle ${cls.room ?? "—"} • ${cls.enrolledCount}/${cls.capacity} élèves • ${todayIso()}`}
+      description={`Salle ${cls.room ?? "—"} • ${cls.enrolledCount}/${cls.capacity ?? "∞"} élèves • ${todayIso()}`}
       icon={GraduationCap}
       hideFooter
       footer={

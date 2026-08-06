@@ -161,7 +161,10 @@ export class MockDashboardRepository implements DashboardRepository {
     };
     const byCapacity = levels.map((lvl) => {
       const levelClasses = store.classes.filter((c) => c.level === lvl);
-      const capacity = levelClasses.reduce((sum, c) => sum + c.capacity, 0);
+      const capacity = levelClasses.reduce(
+        (sum, c) => sum + (c.capacity ?? 30),
+        0,
+      );
       const enrolled = levelClasses.reduce((sum, c) => sum + c.enrolledCount, 0);
       // The DemographicSlice `count` field carries the enrolled count; the
       // `percent` field carries the fill rate (enrolled / capacity * 100).

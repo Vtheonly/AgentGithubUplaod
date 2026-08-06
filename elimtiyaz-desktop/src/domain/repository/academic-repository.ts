@@ -14,13 +14,42 @@ import type {
 } from "../model/academic";
 import type { Student, AcademicLevel, GradeLevel } from "../model/student";
 import type { PromotionCandidate } from "../calc/academics/promotion";
+import type {
+  CreateSchoolYearInput,
+  UpdateSchoolYearInput,
+} from "../calc/academics/school-year";
 
+/**
+ * Academic Year repository — full lifecycle management (plan §05.05).
+ *
+ * Operations:
+ *   - create / update / archive / restore / delete
+ *   - set current year (only one current at a time)
+ *
+ * CRITICAL FINANCE ISOLATION:
+ *   School year operations MUST NOT recalculate, modify, or otherwise touch
+ *   financial records. The only finance-visible side effect of changing the
+ *   current year is via the enrollment repository (tuition pricing reads the
+ *   current year for default installment template) — and that is the
+ *   enrollment repository's responsibility, not the school year repository's.
+ */
 export interface AcademicYearRepository {
   observeAll(): Observable<AcademicYear[]>;
+  observeById(id: string): Observable<AcademicYear | null>;
   getCurrentYear(): Promise<Result<AcademicYear>>;
   getYearByCode(code: string): Promise<Result<AcademicYear | null>>;
-  setCurrentYear(id: string): Promise<Result<AcademicYear>>;
-  createAcademicYear(input: Omit<AcademicYear, "id" | "tenantId">): Promise<Result<AcademicYear>>;
+  setCurrentYear(id: string, actorId: string, actorName: string): Promise<Result<AcademicYear>>;
+  createAcademicYear(input: CreateSchoolYearInput, actorId: string, actorName: string): Promise<Result<AcademicYear>>;
+  updateAcademicYear(id: string, input: UpdateSchoolYearInput, actorId: string, actorName: string): Promise<Result<AcademicYear>>;
+  archiveAcademicYear(id: string, actorId: string, actorName: string): Promise<Result<AcademicYear>>;
+  restoreAcademicYear(id: string, actorId: string, actorName: string): Promise<Result<AcademicYear>>;
+  /**
+   * Hard-delete a school year. Only allowed when:
+   *   - It is not the current year
+   *   - It has no classes (active or archived)
+   *   - It has no students enrolled
+   */
+  deleteAcademicYear(id: string, actorId: string, actorName: string): Promise<Result<void>>;
 }
 
 export interface AcademicLevelRepository {

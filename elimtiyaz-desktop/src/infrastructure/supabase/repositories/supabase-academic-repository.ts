@@ -36,6 +36,10 @@ import type {
 } from "../../../domain/repository/academic-repository";
 import type { PromotionCandidate } from "../../../domain/calc/academics/promotion";
 import { createAcademicHistoryEntry } from "../../../domain/calc/academics/promotion";
+import type {
+  CreateSchoolYearInput,
+  UpdateSchoolYearInput,
+} from "../../../domain/calc/academics/school-year";
 
 // ============================================================================
 // 1. ACADEMIC YEAR REPOSITORY
@@ -62,6 +66,14 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     return this.subject;
   }
 
+  observeById(id: string): Observable<AcademicYear | null> {
+    const sub = new SubjectBehavior<AcademicYear | null>(null);
+    this.subject.subscribe((years) => {
+      sub.set(years.find((y) => y.id === id) ?? null);
+    });
+    return sub;
+  }
+
   async getCurrentYear(): Promise<Result<AcademicYear>> {
     const { data, error } = await this.client
       .from("academic_years")
@@ -84,7 +96,7 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     return Ok(data ? mapAcademicYearRow(data) : null);
   }
 
-  async setCurrentYear(id: string): Promise<Result<AcademicYear>> {
+  async setCurrentYear(id: string, _actorId: string, _actorName: string): Promise<Result<AcademicYear>> {
     // Unset current for all
     await this.client
       .from("academic_years")
@@ -104,7 +116,9 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
   }
 
   async createAcademicYear(
-    input: Omit<AcademicYear, "id" | "tenantId">,
+    input: CreateSchoolYearInput,
+    _actorId: string,
+    _actorName: string,
   ): Promise<Result<AcademicYear>> {
     const { data, error } = await this.client
       .from("academic_years")
@@ -114,8 +128,8 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
         start_date: input.startDate,
         end_date: input.endDate,
         term_structure: input.termStructure,
-        is_current: input.isCurrent,
-        is_archived: input.isArchived,
+        is_current: input.isCurrent ?? false,
+        is_archived: false,
       })
       .select()
       .single();
@@ -123,6 +137,67 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
     return Ok(mapAcademicYearRow(data));
+  }
+
+  async updateAcademicYear(
+    id: string,
+    input: UpdateSchoolYearInput,
+    _actorId: string,
+    _actorName: string,
+  ): Promise<Result<AcademicYear>> {
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (input.label !== undefined) patch.label = input.label;
+    if (input.startDate !== undefined) patch.start_date = input.startDate;
+    if (input.endDate !== undefined) patch.end_date = input.endDate;
+    if (input.termStructure !== undefined) patch.term_structure = input.termStructure;
+
+    const { data, error } = await this.client
+      .from("academic_years")
+      .update(patch)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) return Err(supabaseErrorToAppError(error));
+    await this.refresh();
+    return Ok(mapAcademicYearRow(data));
+  }
+
+  async archiveAcademicYear(id: string, _actorId: string, _actorName: string): Promise<Result<AcademicYear>> {
+    const { data, error } = await this.client
+      .from("academic_years")
+      .update({ is_archived: true, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) return Err(supabaseErrorToAppError(error));
+    await this.refresh();
+    return Ok(mapAcademicYearRow(data));
+  }
+
+  async restoreAcademicYear(id: string, _actorId: string, _actorName: string): Promise<Result<AcademicYear>> {
+    const { data, error } = await this.client
+      .from("academic_years")
+      .update({ is_archived: false, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) return Err(supabaseErrorToAppError(error));
+    await this.refresh();
+    return Ok(mapAcademicYearRow(data));
+  }
+
+  async deleteAcademicYear(id: string, _actorId: string, _actorName: string): Promise<Result<void>> {
+    const { error } = await this.client
+      .from("academic_years")
+      .delete()
+      .eq("id", id);
+
+    if (error) return Err(supabaseErrorToAppError(error));
+    await this.refresh();
+    return Ok(undefined);
   }
 }
 
@@ -832,10 +907,11 @@ function mapClassRow(row: Record<string, any>): AcademicClass {
     gradeYear: row.grade_code?.includes("ap") ? parseInt(row.grade_code) : 1,
     section: row.section,
     room: row.room,
-    capacity: row.capacity,
+    capacity: row.capacity ?? null,
     enrolledCount: row.enrolled_count ?? 0,
     homeroomTeacherId: row.homeroom_teacher_id,
     homeroomTeacherName: row.homeroom_teacher_name,
+    notes: row.notes ?? null,
     academicYear: row.academic_years?.code ?? "2025-2026",
     isActive: row.is_active,
   };
@@ -861,6 +937,10 @@ function mapSubjectRow(row: Record<string, any>): Subject {
     passingGrade: Number(row.passing_grade),
     isExtracurricular: row.is_extracurricular,
     isActive: row.is_active,
+    teacherId: row.teacher_id ?? null,
+    teacherName: row.teacher_name ?? null,
+    academicYearId: row.academic_year_id ?? "ay-2025-2026",
+    academicYearCode: row.academic_year_code ?? "2025-2026",
   };
 }
 

@@ -2,27 +2,59 @@
  * CRM hub — Hub 2.
  *
  * Tabs: Parents / Élèves / Inscription groupée.
- * The Parents tab opens a slide-over drawer on row click and supports
- * batch registration via the toolbar button.
+ *
+ * Redesign:
+ *   - Controlled tabs so the PageHeader actions are PURPOSE-BOUND to the
+ *     active tab (no more always-on Export/Import/Nouvelle inscription
+ *     buttons cluttering the header when the user is on a read-only tab).
+ *   - Removed dead "Filter Niveau" + "Download" toolbar buttons in
+ *     ParentsTab / StudentsTab (they had no onClick and did nothing).
+ *   - Removed unused `ComingSoonCard` import.
+ *   - Removed unused `useNavigate` import in ParentsTab.
+ *
+ * Tab-specific header actions:
+ *   - parents   : (none — list is read-only; row click opens detail drawer)
+ *   - students  : (none — list is read-only; row click opens detail drawer)
+ *   - batch     : Import Excel + Nouvelle inscription (the two real actions)
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Filter, Search, Download, Phone, MessageCircle, Mail, Eye, Users, GraduationCap, UserPlus, FileJson, FileSpreadsheet, Upload, ChevronDown } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Plus,
+  Search,
+  Phone,
+  MessageCircle,
+  Mail,
+  Eye,
+  Users,
+  GraduationCap,
+  UserPlus,
+  FileJson,
+  FileSpreadsheet,
+  Upload,
+  ChevronDown,
+  Download,
+} from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
-import type { Parent } from "../../domain/model/parent";
-import type { Student } from "../../domain/model/student";
-import { LEVEL_LABELS_FR, STUDENT_STATUS_LABELS_FR } from "../../domain/model/student";
+import {
+  LEVEL_LABELS_FR,
+  STUDENT_STATUS_LABELS_FR,
+} from "../../domain/model/student";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { PageHeader } from "../../shared/layout/page-header";
 import { Card, CardContent } from "../../shared/ui/card";
-import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
+import {
+  PageTabs,
+  PageTabList,
+  PageTab,
+  PageTabContent,
+} from "../../shared/layout/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { AsyncContent, EmptyState } from "../../shared/layout/state-views";
-import { ComingSoonCard } from "../../shared/layout/coming-soon-card";
 import { BatchRegistrationModal } from "./batch-registration-modal";
 import { ParentDetailDrawer } from "./parent-detail-drawer";
 import { StudentDetailDrawer } from "./student-detail-drawer";
@@ -35,6 +67,8 @@ import {
   type ExportData,
 } from "../../infrastructure/excel/data-export";
 
+type CrmTab = "parents" | "students" | "batch";
+
 export function CrmPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
@@ -42,6 +76,8 @@ export function CrmPage() {
   const parents = useObservable(() => repos.parents.observe(), []);
   const students = useObservable(() => repos.students.observe(), []);
   const ledger = useObservable(() => repos.ledger.observe(), []);
+
+  const [tab, setTab] = useState<CrmTab>("parents");
   const [batchOpen, setBatchOpen] = useState(false);
   const [drawerParentId, setDrawerParentId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -113,79 +149,43 @@ export function CrmPage() {
     }
   }
 
+  const descriptionFor = (active: CrmTab): string => {
+    switch (active) {
+      case "parents":
+        return "Annuaire des parents — cliquez une ligne pour ouvrir le détail.";
+      case "students":
+        return "Annuaire des élèves — cliquez une ligne pour ouvrir le profil.";
+      case "batch":
+        return "Inscription groupée : assistant 4 étapes (Parent + N élèves) ou import Excel bulk.";
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title={t("nav.crm")}
-        description="Gestion des parents et des élèves — inscription groupée 1→N, navigation bidirectionnelle"
+        description={descriptionFor(tab)}
         actions={
-          <>
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-              <Upload className="h-4 w-4" /> Import Excel
-            </Button>
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={exporting || students.length === 0}
-                onClick={() => setExportMenuOpen((v) => !v)}
-              >
-                <Download className="h-4 w-4" />
-                {exporting ? "Export…" : t("common.export")}
-                <ChevronDown className="h-3 w-3 ml-1" />
-              </Button>
-              {exportMenuOpen && (
-                <>
-                  {/* Click-away overlay */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setExportMenuOpen(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left"
-                      onClick={handleExportXlsx}
-                    >
-                      <FileSpreadsheet className="h-4 w-4 text-status-success" />
-                      <div>
-                        <p className="font-medium">Excel (.xlsx)</p>
-                        <p className="text-[10px] text-muted-foreground">4 feuilles : Résumé, Parents, Élèves, Journal</p>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
-                      onClick={handleExportJson}
-                    >
-                      <FileJson className="h-4 w-4 text-status-info" />
-                      <div>
-                        <p className="font-medium">JSON</p>
-                        <p className="text-[10px] text-muted-foreground">Format machine pour sauvegarde / re-import</p>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
-                      onClick={handleExportCsv}
-                    >
-                      <Download className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">CSV élèves</p>
-                        <p className="text-[10px] text-muted-foreground">Liste des élèves uniquement (compatible tableur)</p>
-                      </div>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-            <Button size="sm" onClick={() => setBatchOpen(true)}>
-              <Plus className="h-4 w-4" /> Nouvelle inscription
-            </Button>
-          </>
+          <TabActions
+            tab={tab}
+            importOpen={() => setImportOpen(true)}
+            batchOpen={() => setBatchOpen(true)}
+            exportMenuOpen={exportMenuOpen}
+            setExportMenuOpen={setExportMenuOpen}
+            exporting={exporting}
+            onExportXlsx={handleExportXlsx}
+            onExportJson={handleExportJson}
+            onExportCsv={handleExportCsv}
+            hasStudents={students.length > 0}
+            exportLabel={t("common.export")}
+          />
         }
       />
-      <PageTabs defaultValue="parents" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+      <PageTabs
+        value={tab}
+        onValueChange={(v) => setTab(v as CrmTab)}
+        className="flex-1 flex flex-col px-6 pb-6 min-h-0"
+      >
         <PageTabList>
           <PageTab value="parents" label="Parents" icon={Users} count={parents.length} />
           <PageTab value="students" label="Élèves" icon={GraduationCap} count={students.length} />
@@ -198,42 +198,10 @@ export function CrmPage() {
           <StudentsTab onOpenStudent={openStudent} />
         </PageTabContent>
         <PageTabContent value="batch">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  <FileSpreadsheet className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Inscription groupée (Parent + N élèves)</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Cliquez sur 'Nouvelle inscription' pour l'assistant 4 étapes, ou
-                    'Import Excel' pour le pipeline bulk 5 étapes (plan §14).
-                  </p>
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <Button variant="outline" className="justify-start h-auto py-3" onClick={() => setBatchOpen(true)}>
-                  <div className="flex items-start gap-2">
-                    <Plus className="h-4 w-4 mt-0.5" />
-                    <div className="text-left">
-                      <p className="text-sm font-medium">Assistant 4 étapes</p>
-                      <p className="text-xs text-muted-foreground">Inscription manuelle d'un parent + enfants</p>
-                    </div>
-                  </div>
-                </Button>
-                <Button variant="outline" className="justify-start h-auto py-3" onClick={() => setImportOpen(true)}>
-                  <div className="flex items-start gap-2">
-                    <Upload className="h-4 w-4 mt-0.5" />
-                    <div className="text-left">
-                      <p className="text-sm font-medium">Import Excel bulk</p>
-                      <p className="text-xs text-muted-foreground">Pipeline atomique 5 étapes (plan §14)</p>
-                    </div>
-                  </div>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <BatchTab
+            onBatch={() => setBatchOpen(true)}
+            onImport={() => setImportOpen(true)}
+          />
         </PageTabContent>
       </PageTabs>
 
@@ -273,9 +241,165 @@ export function CrmPage() {
   );
 }
 
+// ============================================================================
+// TabActions — purpose-bound action buttons that change based on active tab
+// ============================================================================
+
+function TabActions({
+  tab,
+  importOpen,
+  batchOpen,
+  exportMenuOpen,
+  setExportMenuOpen,
+  exporting,
+  onExportXlsx,
+  onExportJson,
+  onExportCsv,
+  hasStudents,
+  exportLabel,
+}: {
+  tab: CrmTab;
+  importOpen: () => void;
+  batchOpen: () => void;
+  exportMenuOpen: boolean;
+  setExportMenuOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  exporting: boolean;
+  onExportXlsx: () => Promise<void>;
+  onExportJson: () => void;
+  onExportCsv: () => void;
+  hasStudents: boolean;
+  exportLabel: string;
+}) {
+  if (tab !== "batch") {
+    // Parents + Students tabs are read-only lists — no header actions.
+    // The per-row action buttons (call, WhatsApp, view) live inside each row.
+    return null;
+  }
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={importOpen}>
+        <Upload className="h-4 w-4" /> Import Excel
+      </Button>
+      <div className="relative">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={exporting || !hasStudents}
+          onClick={() => setExportMenuOpen((v) => !v)}
+        >
+          <Download className="h-4 w-4" />
+          {exporting ? "Export…" : exportLabel}
+          <ChevronDown className="h-3 w-3 ml-1" />
+        </Button>
+        {exportMenuOpen && (
+          <>
+            {/* Click-away overlay */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setExportMenuOpen(false)}
+            />
+            <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+              <button
+                type="button"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left"
+                onClick={onExportXlsx}
+              >
+                <FileSpreadsheet className="h-4 w-4 text-status-success" />
+                <div>
+                  <p className="font-medium">Excel (.xlsx)</p>
+                  <p className="text-[10px] text-muted-foreground">4 feuilles : Résumé, Parents, Élèves, Journal</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
+                onClick={onExportJson}
+              >
+                <FileJson className="h-4 w-4 text-status-info" />
+                <div>
+                  <p className="font-medium">JSON</p>
+                  <p className="text-[10px] text-muted-foreground">Format machine pour sauvegarde / re-import</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
+                onClick={onExportCsv}
+              >
+                <Download className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">CSV élèves</p>
+                  <p className="text-[10px] text-muted-foreground">Liste des élèves uniquement (compatible tableur)</p>
+                </div>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      <Button size="sm" onClick={batchOpen}>
+        <Plus className="h-4 w-4" /> Nouvelle inscription
+      </Button>
+    </>
+  );
+}
+
+// ============================================================================
+// BatchTab — landing card for the Inscription groupée tab
+// ============================================================================
+
+function BatchTab({
+  onBatch,
+  onImport,
+}: {
+  onBatch: () => void;
+  onImport: () => void;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <FileSpreadsheet className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium">Inscription groupée (Parent + N élèves)</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Utilisez les actions ci-dessus pour démarrer l'assistant 4 étapes
+              ou l'import Excel bulk (pipeline 5 étapes, plan §14).
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Button variant="outline" className="justify-start h-auto py-3" onClick={onBatch}>
+            <div className="flex items-start gap-2">
+              <Plus className="h-4 w-4 mt-0.5" />
+              <div className="text-left">
+                <p className="text-sm font-medium">Assistant 4 étapes</p>
+                <p className="text-xs text-muted-foreground">Inscription manuelle d'un parent + enfants</p>
+              </div>
+            </div>
+          </Button>
+          <Button variant="outline" className="justify-start h-auto py-3" onClick={onImport}>
+            <div className="flex items-start gap-2">
+              <Upload className="h-4 w-4 mt-0.5" />
+              <div className="text-left">
+                <p className="text-sm font-medium">Import Excel bulk</p>
+                <p className="text-xs text-muted-foreground">Pipeline atomique 5 étapes (plan §14)</p>
+              </div>
+            </div>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
+// ParentsTab — read-only list with row-level actions
+// ============================================================================
+
 function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   const repos = useRepositories();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get("parentId");
   const parents = useObservable(() => repos.parents.observe(), []);
@@ -290,7 +414,7 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   return (
     <Card>
       <CardContent className="p-0">
-        {/* Toolbar */}
+        {/* Toolbar — search only. Removed dead "Filter Niveau" + "Download" buttons. */}
         <div className="flex items-center gap-2 border-b border-border p-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -301,8 +425,9 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
               className="pl-9"
             />
           </div>
-          <Button variant="outline" size="sm"><Filter className="h-4 w-4" /> Niveau</Button>
-          <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
+          <span className="text-xs text-muted-foreground ml-auto">
+            {filtered.length} parent(s)
+          </span>
         </div>
 
         <AsyncContent
@@ -310,7 +435,7 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
           error={null}
           items={filtered}
           emptyTitle="Aucun parent"
-          emptyDescription="Commencez par inscrire un premier parent."
+          emptyDescription="Commencez par inscrire un premier parent (onglet Inscription groupée)."
         >
           {(items) => (
             <ul className="divide-y divide-border">
@@ -369,25 +494,44 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   );
 }
 
+// ============================================================================
+// StudentsTab — read-only list
+// ============================================================================
+
 function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void }) {
   const repos = useRepositories();
   const students = useObservable(() => repos.students.observe(), []);
+  const [query, setQuery] = useState("");
+
+  const filtered = query.trim()
+    ? students.filter((s) =>
+        `${s.firstName} ${s.lastName} ${s.code}`.toLowerCase().includes(query.toLowerCase()),
+      )
+    : students;
+
   return (
     <Card>
       <CardContent className="p-0">
+        {/* Toolbar — search only. Removed dead "Filter Niveau" + "Download" buttons. */}
         <div className="flex items-center gap-2 border-b border-border p-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Rechercher un élève…" className="pl-9" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher un élève…"
+              className="pl-9"
+            />
           </div>
-          <Button variant="outline" size="sm"><Filter className="h-4 w-4" /> Niveau</Button>
-          <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
+          <span className="text-xs text-muted-foreground ml-auto">
+            {filtered.length} élève(s)
+          </span>
         </div>
-        {students.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState title="Aucun élève" />
         ) : (
           <ul className="divide-y divide-border">
-            {students.map((s) => (
+            {filtered.map((s) => (
               <li
                 key={s.id}
                 className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/5"

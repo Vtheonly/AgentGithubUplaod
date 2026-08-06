@@ -484,6 +484,7 @@ export const seedClasses = [
   academicYear: ACADEMIC_YEAR,
   academicYearId: "ay-2025-2026",
   academicLevelId: `al-${c.gradeCode}`,
+  capacity: null,
   isActive: true,
 }));
 
@@ -617,6 +618,16 @@ export const seedSubjects = [
       ? "cem"
       : "lycee") as any,
   isActive: true,
+  // Teacher normalization — link each subject to its primary teacher.
+  // The teacherSubjectAssignments seed (in teacher-seed.ts) establishes
+  // the authoritative teacher↔subject links; these denormalized fields
+  // are read from the Teacher→Personnel records for display convenience.
+  // Extracurricular subjects (sub-009..sub-012) have null teacherId here
+  // but are assigned via the club/activity system.
+  teacherId: null as string | null,
+  teacherName: null as string | null,
+  academicYearId: "ay-2025-2026",
+  academicYearCode: "2025-2026",
 }));
 
 const methods = ["cash", "check", "transfer"] as const;

@@ -31,7 +31,13 @@ import type {
   CalendarRepository,
   OverdueAlertGenerator,
 } from "../../domain/repository/repository";
-import type { PromotionRepository } from "../../domain/repository/academic-repository";
+import type { PromotionRepository, AcademicYearRepository } from "../../domain/repository/academic-repository";
+import type { ClubRepository } from "../../domain/repository/club-repository";
+import type {
+  PsychologyRepository,
+  OrthophonieRepository,
+} from "../../domain/repository/therapy-repository";
+import type { TeacherRepository } from "../../domain/repository/teacher-repository";
 import type {
   DepartmentRepository,
   ShiftRepository,
@@ -77,6 +83,11 @@ import {
   mockCalendarRepository,
   mockOverdueAlertGenerator,
   mockPromotionRepository,
+  mockAcademicYearRepository,
+  mockClubRepository,
+  mockPsychologyRepository,
+  mockOrthophonieRepository,
+  mockTeacherRepository,
 } from "../../infrastructure/mock/mock-repositories";
 import {
   mockDepartmentRepository,
@@ -107,6 +118,11 @@ export interface Repositories {
   readonly attendance: AttendanceRepository;
   readonly homework: HomeworkRepository;
   readonly promotion: PromotionRepository;
+  readonly academicYears: AcademicYearRepository;
+  readonly clubs: ClubRepository;
+  readonly psychology: PsychologyRepository;
+  readonly orthophonie: OrthophonieRepository;
+  readonly teachers: TeacherRepository;
   readonly payments: PaymentRepository;
   readonly installments: InstallmentRepository;
   readonly debt: DebtRepository;
@@ -153,6 +169,11 @@ export const mockRepositories: Repositories = {
   attendance: mockAttendanceRepository,
   homework: mockHomeworkRepository,
   promotion: mockPromotionRepository,
+  academicYears: mockAcademicYearRepository,
+  clubs: mockClubRepository,
+  psychology: mockPsychologyRepository,
+  orthophonie: mockOrthophonieRepository,
+  teachers: mockTeacherRepository,
   payments: mockPaymentRepository,
   installments: mockInstallmentRepository,
   debt: mockDebtRepository,

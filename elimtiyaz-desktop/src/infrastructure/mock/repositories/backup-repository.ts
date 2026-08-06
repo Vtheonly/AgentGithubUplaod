@@ -47,7 +47,15 @@ import {
   mockGradeRepository,
   mockAttendanceRepository,
   mockHomeworkRepository,
+  mockPromotionRepository,
 } from "./academic-repository";
+import { mockAcademicYearRepository } from "./academic-year-repository";
+import { mockClubRepository } from "./club-repository";
+import {
+  mockPsychologyRepository,
+  mockOrthophonieRepository,
+} from "./therapy-repository";
+import { mockTeacherRepository } from "./teacher-repository";
 import {
   mockPaymentRepository,
   mockInstallmentRepository,
@@ -211,6 +219,12 @@ export class MockBackupRepository implements BackupRepository {
       grades: mockGradeRepository,
       attendance: mockAttendanceRepository,
       homework: mockHomeworkRepository,
+      promotion: mockPromotionRepository,
+      academicYears: mockAcademicYearRepository,
+      clubs: mockClubRepository,
+      psychology: mockPsychologyRepository,
+      orthophonie: mockOrthophonieRepository,
+      teachers: mockTeacherRepository,
       payments: mockPaymentRepository,
       installments: mockInstallmentRepository,
       debt: mockDebtRepository,

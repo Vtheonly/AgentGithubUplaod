@@ -36,16 +36,52 @@ import {
 } from "../academic-seed";
 import { seedLedger } from "../ledger-seed";
 import { seedWorkflows, seedWorkflowRuns } from "../workflow-seed";
+import {
+  seedAcademicYears,
+  seedClubs,
+  seedClubMemberships,
+  seedClubActivities,
+  seedPsychologicalFollowUps,
+  seedPsychologicalSessions,
+  seedPsychologicalReports,
+  seedSpeechTherapyFollowUps,
+  seedSpeechTherapyEvaluations,
+  seedSpeechTherapySessions,
+} from "../pedagogy-seed";
+import {
+  seedTeachers,
+  seedTeacherSubjectAssignments,
+  seedTimetableEntries,
+} from "../teacher-seed";
 import type { Parent } from "../../../domain/model/parent";
 import type { Student } from "../../../domain/model/student";
 import type {
   AcademicClass,
+  AcademicYear,
   Subject,
   ClassSubject,
   Assessment,
   AttendanceRecord,
   Homework,
 } from "../../../domain/model/academic";
+import type {
+  Club,
+  ClubMembership,
+  ClubActivity,
+} from "../../../domain/model/club";
+import type {
+  PsychologicalFollowUp,
+  PsychologicalSession,
+  PsychologicalReport,
+  SpeechTherapyFollowUp,
+  SpeechTherapyEvaluation,
+  SpeechTherapySession,
+} from "../../../domain/model/therapy";
+import type {
+  Teacher,
+  TeacherSubjectAssignment,
+  TimetableEntry,
+} from "../../../domain/model/teacher";
 import type { Payment, Installment } from "../../../domain/model/payment";
 import type { Expense } from "../../../domain/model/expense";
 import type { Personnel, ReleveEntry } from "../../../domain/model/personnel";
@@ -89,6 +125,23 @@ export class MockStore {
   // Iteration 9: manually scheduled calendar events (follow-up calls, reminders, meetings).
   calendarEvents: CalendarEvent[] = [...seedCalendarEvents] as CalendarEvent[];
 
+  // Pédagogie redesign — new collections
+  academicYears: AcademicYear[] = [...seedAcademicYears];
+  clubs: Club[] = [...seedClubs];
+  clubMemberships: ClubMembership[] = [...seedClubMemberships];
+  clubActivities: ClubActivity[] = [...seedClubActivities];
+  psychologicalFollowUps: PsychologicalFollowUp[] = [...seedPsychologicalFollowUps];
+  psychologicalSessions: PsychologicalSession[] = [...seedPsychologicalSessions];
+  psychologicalReports: PsychologicalReport[] = [...seedPsychologicalReports];
+  speechTherapyFollowUps: SpeechTherapyFollowUp[] = [...seedSpeechTherapyFollowUps];
+  speechTherapyEvaluations: SpeechTherapyEvaluation[] = [...seedSpeechTherapyEvaluations];
+  speechTherapySessions: SpeechTherapySession[] = [...seedSpeechTherapySessions];
+
+  // Teacher normalization — Account → Person → Teacher → Subject
+  teachers: Teacher[] = [...seedTeachers];
+  teacherSubjectAssignments: TeacherSubjectAssignment[] = [...seedTeacherSubjectAssignments];
+  timetableEntries: TimetableEntry[] = [...seedTimetableEntries];
+
   parents$ = new SubjectBehavior<Parent[]>(this.parents);
   students$ = new SubjectBehavior<Student[]>(this.students);
   classes$ = new SubjectBehavior<AcademicClass[]>(this.classes);
@@ -109,6 +162,23 @@ export class MockStore {
   workflowRuns$ = new SubjectBehavior<WorkflowRun[]>(this.workflowRuns);
   calendarEvents$ = new SubjectBehavior<CalendarEvent[]>(this.calendarEvents);
 
+  // Pédagogie redesign — reactive streams for new collections
+  academicYears$ = new SubjectBehavior<AcademicYear[]>(this.academicYears);
+  clubs$ = new SubjectBehavior<Club[]>(this.clubs);
+  clubMemberships$ = new SubjectBehavior<ClubMembership[]>(this.clubMemberships);
+  clubActivities$ = new SubjectBehavior<ClubActivity[]>(this.clubActivities);
+  psychologicalFollowUps$ = new SubjectBehavior<PsychologicalFollowUp[]>(this.psychologicalFollowUps);
+  psychologicalSessions$ = new SubjectBehavior<PsychologicalSession[]>(this.psychologicalSessions);
+  psychologicalReports$ = new SubjectBehavior<PsychologicalReport[]>(this.psychologicalReports);
+  speechTherapyFollowUps$ = new SubjectBehavior<SpeechTherapyFollowUp[]>(this.speechTherapyFollowUps);
+  speechTherapyEvaluations$ = new SubjectBehavior<SpeechTherapyEvaluation[]>(this.speechTherapyEvaluations);
+  speechTherapySessions$ = new SubjectBehavior<SpeechTherapySession[]>(this.speechTherapySessions);
+
+  // Teacher normalization — reactive streams
+  teachers$ = new SubjectBehavior<Teacher[]>(this.teachers);
+  teacherSubjectAssignments$ = new SubjectBehavior<TeacherSubjectAssignment[]>(this.teacherSubjectAssignments);
+  timetableEntries$ = new SubjectBehavior<TimetableEntry[]>(this.timetableEntries);
+
   notifyParents() { this.parents$.set([...this.parents]); }
   notifyStudents() { this.students$.set([...this.students]); }
   notifyPayments() { this.payments$.set([...this.payments]); }
@@ -126,6 +196,21 @@ export class MockStore {
   notifyWorkflows() { this.workflows$.set([...this.workflows]); }
   notifyWorkflowRuns() { this.workflowRuns$.set([...this.workflowRuns]); }
   notifyCalendarEvents() { this.calendarEvents$.set([...this.calendarEvents]); }
+
+  // Pédagogie redesign — notify methods for new collections
+  notifyAcademicYears() { this.academicYears$.set([...this.academicYears]); }
+  notifyClubs() { this.clubs$.set([...this.clubs]); }
+  notifyClubMemberships() { this.clubMemberships$.set([...this.clubMemberships]); }
+  notifyClubActivities() { this.clubActivities$.set([...this.clubActivities]); }
+  notifyPsychologicalFollowUps() { this.psychologicalFollowUps$.set([...this.psychologicalFollowUps]); }
+  notifyPsychologicalSessions() { this.psychologicalSessions$.set([...this.psychologicalSessions]); }
+  notifyPsychologicalReports() { this.psychologicalReports$.set([...this.psychologicalReports]); }
+  notifySpeechTherapyFollowUps() { this.speechTherapyFollowUps$.set([...this.speechTherapyFollowUps]); }
+  notifySpeechTherapyEvaluations() { this.speechTherapyEvaluations$.set([...this.speechTherapyEvaluations]); }
+  notifySpeechTherapySessions() { this.speechTherapySessions$.set([...this.speechTherapySessions]); }
+  notifyTeachers() { this.teachers$.set([...this.teachers]); }
+  notifyTeacherSubjectAssignments() { this.teacherSubjectAssignments$.set([...this.teacherSubjectAssignments]); }
+  notifyTimetableEntries() { this.timetableEntries$.set([...this.timetableEntries]); }
 }
 
 /** Singleton store instance — shared by all mock repositories. */

@@ -126,6 +126,12 @@ export function SubjectsDirectoryTab() {
       isExtracurricular: form.isExtracurricular,
       nameAr: form.nameAr.trim() || null,
       isActive: true,
+      // Teacher normalization — new subjects start without a primary teacher.
+      // The admin assigns a teacher via the Teacher → Subject assignment UI.
+      teacherId: null,
+      teacherName: null,
+      academicYearId: "ay-2025-2026",
+      academicYearCode: "2025-2026",
     });
 
     if (result.ok) {

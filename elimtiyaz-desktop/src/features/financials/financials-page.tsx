@@ -3,15 +3,41 @@
  *
  * Tabs: Paiements / Tranches / Créances / Dépenses / Reçus.
  *
- * Iteration 2 additions:
+ * Redesign:
+ *   - Controlled tabs so the PageHeader actions are PURPOSE-BOUND to the
+ *     active tab. The dead always-on "Exporter" button (no onClick) is gone.
+ *   - Tab-specific header actions:
+ *       payments     → (none — list is read-only with search)
+ *       installments → Encaissement (collect a payment)
+ *       debt         → (none — read-only list with per-row Rappel action)
+ *       expenses     → Nouvelle dépense (submit a new expense)
+ *       receipts     → (none — read-only list)
+ *   - Removed unused `ComingSoonCard` import.
+ *   - Removed dead "Filter Méthode" + "Download" toolbar buttons in
+ *     PaymentsTab (no onClick, did nothing).
+ *
+ * Iteration 2 additions (preserved):
  *   - Counter Payment modal (with proof + receipt preview)
  *   - Expense submit modal
  *   - Expense detail drawer with full workflow (Approve/Reject/Disburse/Settle)
- *   - Installment Schedule tab (replaces ComingSoonCard) with one-click collect
+ *   - Installment Schedule tab (one-click collect)
  */
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Download, Filter, Search, Wallet, TrendingUp, AlertTriangle, Receipt, FileText, CreditCard, CalendarClock, AlertCircle, Send, FileCheck } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Wallet,
+  TrendingUp,
+  AlertTriangle,
+  Receipt,
+  FileText,
+  CreditCard,
+  CalendarClock,
+  AlertCircle,
+  Send,
+  FileCheck,
+} from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
@@ -30,7 +56,6 @@ import { Permission } from "../../core/rbac/permissions";
 import { PageHeader } from "../../shared/layout/page-header";
 import { KpiCard } from "../../shared/ui/kpi-card";
 import { StatusChip } from "../../shared/ui/status-chip";
-import { ComingSoonCard } from "../../shared/layout/coming-soon-card";
 import { Card, CardContent } from "../../shared/ui/card";
 import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
 import { Button } from "../../shared/ui/button";
@@ -41,6 +66,8 @@ import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
 import { ReceiptsTab } from "./receipts-tab";
 
+type FinanceTab = "payments" | "installments" | "debt" | "expenses" | "receipts";
+
 export function FinancialsPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
@@ -49,6 +76,7 @@ export function FinancialsPage() {
   const expenses = useObservable(() => repos.expenses.observe(), []);
   const debtSummary = useObservable(() => repos.debt.observeSummary(), []);
 
+  const [tab, setTab] = useState<FinanceTab>("payments");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseDetailId, setExpenseDetailId] = useState<string | null>(null);
@@ -69,25 +97,34 @@ export function FinancialsPage() {
     setExpenseDetailOpen(true);
   }
 
+  const descriptionFor = (active: FinanceTab): string => {
+    switch (active) {
+      case "payments":
+        return "Journal des paiements encaissés — recherchez par reçu, méthode ou catégorie.";
+      case "installments":
+        return "Échéancier des tranches par famille — encaissement en un clic.";
+      case "debt":
+        return "Top 20 débiteurs familiaux + répartition par niveau scolaire.";
+      case "expenses":
+        return "Demandes de dépenses — workflow Approbation → Décaissement → Justificatif.";
+      case "receipts":
+        return "Reçus générés — téléchargement PDF et régénération à la demande.";
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title={t("nav.financials")}
-        description="Paiements, tranches, créances, dépenses — avec génération automatique de reçus"
+        description={descriptionFor(tab)}
         actions={
-          <>
-            <Button variant="outline" size="sm"><Download className="h-4 w-4" /> {t("common.export")}</Button>
-            {canSubmitExpense && (
-              <Button variant="outline" size="sm" onClick={() => setExpenseOpen(true)}>
-                <FileText className="h-4 w-4" /> Dépense
-              </Button>
-            )}
-            {canCollect && (
-              <Button size="sm" onClick={() => setPaymentOpen(true)}>
-                <Plus className="h-4 w-4" /> Encaissement
-              </Button>
-            )}
-          </>
+          <TabActions
+            tab={tab}
+            canCollect={canCollect}
+            canSubmitExpense={canSubmitExpense}
+            onCollect={() => setPaymentOpen(true)}
+            onExpense={() => setExpenseOpen(true)}
+          />
         }
       />
 
@@ -100,7 +137,11 @@ export function FinancialsPage() {
         </div>
       </div>
 
-      <PageTabs defaultValue="payments" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+      <PageTabs
+        value={tab}
+        onValueChange={(v) => setTab(v as FinanceTab)}
+        className="flex-1 flex flex-col px-6 pb-6 min-h-0"
+      >
         <PageTabList>
           <PageTab value="payments" label="Paiements" icon={CreditCard} />
           <PageTab value="installments" label="Tranches" icon={CalendarClock} />
@@ -141,22 +182,84 @@ export function FinancialsPage() {
   );
 }
 
+// ============================================================================
+// TabActions — purpose-bound action buttons that change based on active tab
+// ============================================================================
+
+function TabActions({
+  tab,
+  canCollect,
+  canSubmitExpense,
+  onCollect,
+  onExpense,
+}: {
+  tab: FinanceTab;
+  canCollect: boolean;
+  canSubmitExpense: boolean;
+  onCollect: () => void;
+  onExpense: () => void;
+}) {
+  // Only render an action when it is directly relevant to the active tab.
+  switch (tab) {
+    case "installments":
+      // Tranches tab — primary action is collecting a payment against a tranche.
+      return canCollect ? (
+        <Button size="sm" onClick={onCollect}>
+          <Plus className="h-4 w-4" /> Encaissement
+        </Button>
+      ) : null;
+    case "expenses":
+      // Dépenses tab — primary action is submitting a new expense request.
+      return canSubmitExpense ? (
+        <Button variant="outline" size="sm" onClick={onExpense}>
+          <FileText className="h-4 w-4" /> Nouvelle dépense
+        </Button>
+      ) : null;
+    case "payments":
+    case "debt":
+    case "receipts":
+      // Read-only tabs — no header action. Per-row actions live inside each row.
+      return null;
+    default:
+      return null;
+  }
+}
+
+// ============================================================================
+// PaymentsTab — read-only list with search
+// ============================================================================
+
 function PaymentsTab() {
   const repos = useRepositories();
   const payments = useObservable(() => repos.payments.observe(), []);
+  const [query, setQuery] = useState("");
+
+  const filtered = query.trim()
+    ? payments.filter((p) =>
+        `${p.receiptNumber} ${p.method} ${p.category}`.toLowerCase().includes(query.toLowerCase()),
+      )
+    : payments;
+
   return (
     <Card>
       <CardContent className="p-0">
+        {/* Toolbar — search only. Removed dead "Filter Méthode" + "Download" buttons. */}
         <div className="flex items-center gap-2 border-b border-border p-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Rechercher un paiement…" className="pl-9" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher par numéro de reçu, méthode, catégorie…"
+              className="pl-9"
+            />
           </div>
-          <Button variant="outline" size="sm"><Filter className="h-4 w-4" /> Méthode</Button>
-          <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
+          <span className="text-xs text-muted-foreground ml-auto">
+            {filtered.length} paiement(s)
+          </span>
         </div>
         <ul className="divide-y divide-border">
-          {payments.slice(0, 20).map((p) => (
+          {filtered.slice(0, 50).map((p) => (
             <li key={p.id} className="flex items-center gap-3 p-3 hover:bg-accent/5">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

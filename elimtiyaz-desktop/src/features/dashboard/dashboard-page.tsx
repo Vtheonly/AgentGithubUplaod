@@ -35,6 +35,11 @@
  * Task 2-a — the three sub-tab components (OverviewTab, AlertsTab,
  * ReportsTab) were extracted into `./tabs/` to keep this file a thin
  * orchestrator. Behavior is preserved exactly.
+ *
+ * Tab-aware header actions (current refactor):
+ *   - overview → AcademicYearSelector + "Voir les détails" drill-down
+ *   - alerts   → AcademicYearSelector only (drill-down irrelevant)
+ *   - reports  → AcademicYearSelector only (each report has its own Download)
  */
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,6 +65,8 @@ import {
   AVAILABLE_ACADEMIC_YEARS,
 } from "./tabs/types";
 
+type DashboardTab = "overview" | "alerts" | "reports";
+
 export function DashboardPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
@@ -69,6 +76,7 @@ export function DashboardPage() {
   const [demographics, setDemographics] = useState<Demographics>({ grade: [], gender: [], age: [], capacity: [] });
   const [seeDetailsOpen, setSeeDetailsOpen] = useState(false);
   const [seeDetailsTab, setSeeDetailsTab] = useState<SeeDetailsTab>("revenue");
+  const [tab, setTab] = useState<DashboardTab>("overview");
 
   // Iteration 9 — academic year + date range filter.
   const [yearRange, setYearRange] = useState<AcademicYearRange>(() => ({
@@ -111,21 +119,30 @@ export function DashboardPage() {
         description="Vue d'ensemble de l'activité de l'établissement"
         actions={
           <>
-            {/* Iteration 9: replaced static "Année 2025-2026" button with interactive selector.
-                Removed AI Drafting Assistant button + static Export button per spec §2.1. */}
+            {/* The year selector applies to all tabs (KPIs / alerts / reports
+                are all scoped to the selected academic year). */}
             <AcademicYearSelector
               value={yearRange}
               onChange={setYearRange}
               availableYears={AVAILABLE_ACADEMIC_YEARS}
             />
-            <Button size="sm" onClick={() => openSeeDetails("revenue")}>
-              {t("dashboard.seeDetails")} <ChevronRight className="h-4 w-4" />
-            </Button>
+            {/* The "Voir les détails" drill-down button is only relevant on
+                the Overview tab — Alerts and Reports have their own per-row
+                actions. Hiding it on those tabs keeps the header clean. */}
+            {tab === "overview" && (
+              <Button size="sm" onClick={() => openSeeDetails("revenue")}>
+                {t("dashboard.seeDetails")} <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
           </>
         }
       />
 
-      <PageTabs defaultValue="overview" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+      <PageTabs
+        value={tab}
+        onValueChange={(v) => setTab(v as DashboardTab)}
+        className="flex-1 flex flex-col px-6 pb-6 min-h-0"
+      >
         <PageTabList>
           <PageTab value="overview" label={t("dashboard.overview")} icon={LayoutDashboard} />
           <PageTab

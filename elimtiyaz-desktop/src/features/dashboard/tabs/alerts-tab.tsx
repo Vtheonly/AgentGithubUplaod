@@ -4,10 +4,14 @@
  * Extracted from `dashboard-page.tsx` (Task 2-a). Behavior is preserved
  * exactly — only file location and imports changed.
  *
- * NOTE: the original source contained a typo on the empty-state
- * `AlertCreatorModal` (`"Alertes — Manueluelle"` vs. `"Alertes — Manuelle"`
- * in the populated state). It is preserved verbatim per the task spec
- * ("Behavior MUST be preserved exactly — only file location + imports change").
+ * Cleanup pass (current refactor):
+ *   - Removed the duplicate `AlertCreatorModal` that was rendered in the
+ *     empty-state branch (it was rendered twice when the list was empty —
+ *     once in the empty state, once at the bottom). Now there is exactly
+ *     one `AlertCreatorModal` instance, hoisted to the end of the
+ *     component so it works in both empty and populated states.
+ *   - Fixed the typo `"Alertes — Manueluelle"` → `"Alertes — Manuelle"`
+ *     on the empty-state sourceLabel.
  */
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -36,6 +40,8 @@ import { StatusChip } from "../../../shared/ui/status-chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select";
 import { AlertCreatorModal } from "../alert-creator-modal";
 import { AlertDetailModal } from "../alert-detail-modal";
+
+const SOURCE_LABEL = "Alertes — Manuelle";
 
 export function AlertsTab() {
   const repos = useRepositories();
@@ -98,7 +104,12 @@ export function AlertsTab() {
           </Button>
         </div>
         <EmptyState title="Aucune notification" description="Vous êtes à jour. Créez une alerte personnalisée si besoin." />
-        <AlertCreatorModal open={creatorOpen} onOpenChange={setCreatorOpen} sourceLabel="Alertes — Manueluelle" />
+        <AlertCreatorModal open={creatorOpen} onOpenChange={setCreatorOpen} sourceLabel={SOURCE_LABEL} />
+        <AlertDetailModal
+          alert={selected}
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+        />
       </div>
     );
   }
@@ -201,7 +212,7 @@ export function AlertsTab() {
         </CardContent>
       </Card>
 
-      <AlertCreatorModal open={creatorOpen} onOpenChange={setCreatorOpen} sourceLabel="Alertes — Manuelle" />
+      <AlertCreatorModal open={creatorOpen} onOpenChange={setCreatorOpen} sourceLabel={SOURCE_LABEL} />
       <AlertDetailModal
         alert={selected}
         open={detailOpen}

@@ -18,6 +18,13 @@ export {
   mockHomeworkRepository,
   mockPromotionRepository,
 } from "./repositories/academic-repository";
+export { mockAcademicYearRepository } from "./repositories/academic-year-repository";
+export { mockClubRepository } from "./repositories/club-repository";
+export {
+  mockPsychologyRepository,
+  mockOrthophonieRepository,
+} from "./repositories/therapy-repository";
+export { mockTeacherRepository } from "./repositories/teacher-repository";
 export {
   mockPaymentRepository,
   mockInstallmentRepository,
