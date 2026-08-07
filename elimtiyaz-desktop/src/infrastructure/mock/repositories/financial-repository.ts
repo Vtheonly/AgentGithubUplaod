@@ -36,7 +36,9 @@ import type {
   DebtSummary,
   AcademicCycle,
   UpdateInstallmentDueDateInput,
+  PaymentCategory,
 } from "../../../domain/model/payment";
+import type { AllocationResult } from "../../../domain/calc/payment/installments";
 import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
 import {
   store, TENANT_ID, appendAudit, nowIso, delay,
@@ -48,6 +50,7 @@ import {
 import {
   markInstallmentPaid, updateInstallmentDueDate,
   regenerateInstallmentsForCycle, findOverdueInstallments,
+  allocatePaymentAcrossInstallments,
 } from "./financial/installment-ops";
 import {
   observeDebtSummary, observeParentFinancialProfile, sendDebtReminder,
@@ -113,6 +116,24 @@ export class MockInstallmentRepository implements InstallmentRepository {
   }
   markPaid(id: string, paymentId: string): Promise<Result<Installment>> {
     return markInstallmentPaid(ctx, id, paymentId);
+  }
+  allocatePayment(
+    parentId: string,
+    paymentAmount: number,
+    paymentId: string,
+    categoryFilter?: PaymentCategory,
+    actorId?: string,
+    actorName?: string,
+  ): Promise<Result<AllocationResult>> {
+    return allocatePaymentAcrossInstallments(
+      ctx,
+      parentId,
+      paymentAmount,
+      paymentId,
+      categoryFilter,
+      actorId,
+      actorName,
+    );
   }
   updateDueDate(input: UpdateInstallmentDueDateInput): Promise<Result<Installment>> {
     return updateInstallmentDueDate(ctx, input);

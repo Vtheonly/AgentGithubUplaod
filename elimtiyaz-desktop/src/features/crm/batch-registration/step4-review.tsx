@@ -6,6 +6,7 @@
  */
 import { Badge } from "../../../shared/ui/badge";
 import { LEVEL_LABELS_FR } from "../../../domain/model/student";
+import { TRANSPORT_DESTINATION_LABELS_FR } from "../../../domain/model/parent";
 import { formatDzd } from "../../../core/format/currency";
 import type { Step1Parent, Step2Student, Billing } from "./types";
 
@@ -34,9 +35,9 @@ export function Step4({
         </p>
         <p className="text-xs text-muted-foreground">{parent.phone}</p>
         {parent.email && <p className="text-xs text-muted-foreground">{parent.email}</p>}
-        {parent.cityTier && (
+        {parent.transportDestination && (
           <Badge variant="outline">
-            {parent.cityTier === "t1" ? "Zone urbaine" : parent.cityTier === "t2" ? "Zone périurbaine" : "Zone rurale"}
+            {TRANSPORT_DESTINATION_LABELS_FR[parent.transportDestination]}
           </Badge>
         )}
       </div>

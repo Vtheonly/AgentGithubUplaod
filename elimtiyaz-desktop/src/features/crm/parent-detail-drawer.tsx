@@ -45,6 +45,11 @@ import {
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
 } from "../../domain/model/payment";
+import {
+  TRANSPORT_DESTINATION_LABELS_FR,
+  cityTierToDestination,
+  type TransportDestination,
+} from "../../domain/model/parent";
 import { Permission } from "../../core/rbac/permissions";
 import { generateAccountStatementPdf, downloadPdf } from "../../infrastructure/receipt-pdf";
 
@@ -166,7 +171,7 @@ export function ParentDetailDrawer({
             <Detail label="WhatsApp" value={parent.whatsapp ?? "—"} />
             <Detail label="E-mail" value={parent.email ?? "—"} />
             <Detail label="Profession" value={parent.occupation ?? "—"} />
-            <Detail label="Zone" value={zoneLabel(parent.cityTier)} />
+            <Detail label="Zone" value={zoneLabel(parent)} />
             <Detail label="Langue" value={parent.preferredLanguage === "fr" ? "Français" : "العربية"} />
             <Detail label="Adresse" value={parent.address ?? "—"} className="col-span-2" />
           </div>
@@ -434,12 +439,11 @@ function BalanceCard({
   );
 }
 
-function zoneLabel(tier: string | null): string {
-  if (!tier) return "—";
-  if (tier === "t1") return "Zone urbaine";
-  if (tier === "t2") return "Zone périurbaine";
-  if (tier === "t3") return "Zone rurale";
-  return tier;
+function zoneLabel(parent: { transportDestination?: TransportDestination | null; cityTier?: string | null }): string {
+  // Prefer the canonical TransportDestination field; fall back to legacy cityTier.
+  const dest = parent.transportDestination ?? cityTierToDestination(parent.cityTier as "t1" | "t2" | "t3" | null | undefined);
+  if (dest) return TRANSPORT_DESTINATION_LABELS_FR[dest];
+  return "—";
 }
 
 function levelLabel(level: string): string {

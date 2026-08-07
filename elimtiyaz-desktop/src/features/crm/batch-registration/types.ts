@@ -6,7 +6,7 @@
  * identical — only file location changed.
  */
 import type { AcademicLevel, Gender } from "../../../domain/model/student";
-import type { CityTier } from "../../../domain/model/parent";
+import type { TransportDestination } from "../../../domain/model/parent";
 import type { PricingConfig } from "../../../domain/model/pricing";
 
 export interface Step1Parent {
@@ -18,7 +18,8 @@ export interface Step1Parent {
   email: string;
   occupation: string;
   address: string;
-  cityTier: CityTier | "";
+  /** Canonical transport destination (preferred over legacy cityTier). */
+  transportDestination: TransportDestination | "";
   preferredLanguage: "fr" | "ar";
 }
 
@@ -29,7 +30,8 @@ export interface Step2Student {
   birthDate: string;
   level: AcademicLevel;
   gradeYear: number;
-  transportTier: CityTier | "";
+  /** Canonical transport destination per student (overrides parent if set). */
+  transportDestination: TransportDestination | "";
   medicalNotes: string;
 }
 
@@ -42,7 +44,7 @@ export const EMPTY_PARENT: Step1Parent = {
   email: "",
   occupation: "",
   address: "",
-  cityTier: "",
+  transportDestination: "",
   preferredLanguage: "fr",
 };
 
@@ -53,7 +55,7 @@ export const EMPTY_STUDENT: Step2Student = {
   birthDate: "",
   level: "primaire",
   gradeYear: 1,
-  transportTier: "",
+  transportDestination: "",
   medicalNotes: "",
 };
 
@@ -73,7 +75,12 @@ export interface BillingPerStudent {
   level: string;
   tuition: number;
   transport: number;
+  /** 3 tuition tranches. */
   tranches: ReadonlyArray<BillingTranche>;
+  /** 3 transport tranches (empty when student has no transport). */
+  transportTranches: ReadonlyArray<BillingTranche>;
+  /** Display name of the transport destination (or null when none). */
+  transportDestinationLabel: string | null;
 }
 
 /**

@@ -30,9 +30,21 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-modal";
 import { Button } from "../../shared/ui/button";
-import { LEVEL_LABELS_FR, type CreateStudentInput } from "../../domain/model/student";
-import type { CreateParentInput, CityTier } from "../../domain/model/parent";
-import { tuitionForLevel, transportForTier, tuitionTranches } from "../../domain/model/pricing";
+import {
+  LEVEL_LABELS_FR,
+  gradeLevelFromLevelYear,
+  type CreateStudentInput,
+} from "../../domain/model/student";
+import type { CreateParentInput, TransportDestination } from "../../domain/model/parent";
+import {
+  TRANSPORT_DESTINATION_LABELS_FR,
+} from "../../domain/model/parent";
+import {
+  tuitionForLevel,
+  tuitionTranchesForGrade,
+  transportForDestination,
+  transportTranchesForDestination,
+} from "../../domain/model/pricing";
 
 import { Step1 } from "./batch-registration/step1-parent";
 import { Step2 } from "./batch-registration/step2-students";
@@ -109,17 +121,29 @@ export function BatchRegistrationModal({
     let tuition = 0;
     let transport = 0;
     const perStudent = students.map((s, i) => {
-      const t = tuitionForLevel(pricing, s.level);
-      const tr = includeTransport && s.transportTier ? transportForTier(pricing, s.transportTier as CityTier) : 0;
+      // Granular grade-level pricing (14 grades, each with its own 3-tranche split).
+      const gradeLevel = gradeLevelFromLevelYear(s.level, s.gradeYear);
+      const tuitionPricing = tuitionForLevel(pricing, s.level);
+      const tuitionTranchesArray = tuitionTranchesForGrade(pricing, gradeLevel);
+      const t = tuitionPricing;
+
+      // Per-destination transport pricing (4 destinations, each with its own 3-tranche split).
+      const dest = (includeTransport && s.transportDestination ? s.transportDestination : null) as TransportDestination | null;
+      const transportPricing = dest ? transportForDestination(pricing, dest) : { annualAmount: 0, installments: [0, 0, 0] as const };
+      const transportTranchesArray = dest ? transportTranchesForDestination(pricing, dest) : [];
+
       tuition += t;
-      transport += tr;
+      transport += transportPricing.annualAmount;
+
       return {
         index: i + 1,
         name: `${s.firstName} ${s.lastName}`.trim() || `Élève ${i + 1}`,
         level: LEVEL_LABELS_FR[s.level],
         tuition: t,
-        transport: tr,
-        tranches: tuitionTranches(t),
+        transport: transportPricing.annualAmount,
+        tranches: tuitionTranchesArray,
+        transportTranches: transportTranchesArray,
+        transportDestinationLabel: dest ? TRANSPORT_DESTINATION_LABELS_FR[dest] : null,
       };
     });
     return {
@@ -145,7 +169,7 @@ export function BatchRegistrationModal({
         email: parent.email.trim() || null,
         occupation: parent.occupation.trim() || null,
         address: parent.address.trim() || null,
-        cityTier: parent.cityTier || null,
+        transportDestination: (parent.transportDestination || null) as TransportDestination | null,
         preferredLanguage: parent.preferredLanguage,
       };
       const studentInputs: CreateStudentInput[] = students.map((s) => ({
@@ -156,7 +180,8 @@ export function BatchRegistrationModal({
         level: s.level,
         gradeYear: s.gradeYear,
         medicalNotes: s.medicalNotes.trim() || null,
-        transportTier: s.transportTier || null,
+        // Student.transportTier is a bare string — we store the canonical destination key in it.
+        transportTier: (s.transportDestination || null) as string | null,
       }));
 
       const result = await repos.students.batchRegister({
@@ -279,7 +304,12 @@ export function BatchRegistrationModal({
       <div className="max-h-[50vh] overflow-y-auto">
         {step === 1 && <Step1 parent={parent} setParent={setParent} errors={errors} />}
         {step === 2 && (
-          <Step2 students={students} setStudents={setStudents} errors={errors} parentCityTier={parent.cityTier} />
+          <Step2
+            students={students}
+            setStudents={setStudents}
+            errors={errors}
+            parentTransportDestination={parent.transportDestination}
+          />
         )}
         {step === 3 && (
           <Step3

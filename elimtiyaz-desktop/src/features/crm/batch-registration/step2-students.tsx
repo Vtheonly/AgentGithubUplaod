@@ -17,7 +17,11 @@ import {
   SelectValue,
 } from "../../../shared/ui/select";
 import { LEVEL_YEARS, type AcademicLevel, type Gender } from "../../../domain/model/student";
-import type { CityTier } from "../../../domain/model/parent";
+import {
+  TRANSPORT_DESTINATIONS,
+  TRANSPORT_DESTINATION_LABELS_FR,
+  type TransportDestination,
+} from "../../../domain/model/parent";
 import type { Step2Student } from "./types";
 import { EMPTY_STUDENT } from "./types";
 
@@ -25,12 +29,12 @@ export function Step2({
   students,
   setStudents,
   errors,
-  parentCityTier,
+  parentTransportDestination,
 }: {
   students: Step2Student[];
   setStudents: (s: Step2Student[]) => void;
   errors: Record<string, string>;
-  parentCityTier: CityTier | "";
+  parentTransportDestination: TransportDestination | "";
 }) {
   function update(i: number, patch: Partial<Step2Student>) {
     const next = students.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
@@ -39,7 +43,7 @@ export function Step2({
   function add() {
     setStudents([
       ...students,
-      { ...EMPTY_STUDENT, transportTier: parentCityTier || "" },
+      { ...EMPTY_STUDENT, transportDestination: parentTransportDestination || "" },
     ]);
   }
   function remove(i: number) {
@@ -112,15 +116,15 @@ export function Step2({
             </FormField>
             <FormField label="Zone transport" hint="Laisser vide si pas de transport">
               <Select
-                value={s.transportTier}
-                onValueChange={(v) => update(i, { transportTier: v as CityTier })}
+                value={s.transportDestination}
+                onValueChange={(v) => update(i, { transportDestination: v as TransportDestination | "" })}
               >
                 <SelectTrigger><SelectValue placeholder="Sans transport" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Sans transport</SelectItem>
-                  <SelectItem value="t1">Zone urbaine (T1)</SelectItem>
-                  <SelectItem value="t2">Zone périurbaine (T2)</SelectItem>
-                  <SelectItem value="t3">Zone rurale (T3)</SelectItem>
+                  {TRANSPORT_DESTINATIONS.map((d) => (
+                    <SelectItem key={d} value={d}>{TRANSPORT_DESTINATION_LABELS_FR[d]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FormField>

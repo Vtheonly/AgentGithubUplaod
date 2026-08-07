@@ -14,7 +14,11 @@ import {
   SelectValue,
 } from "../../../shared/ui/select";
 import type { Gender } from "../../../domain/model/student";
-import type { CityTier } from "../../../domain/model/parent";
+import {
+  TRANSPORT_DESTINATIONS,
+  TRANSPORT_DESTINATION_LABELS_FR,
+  type TransportDestination,
+} from "../../../domain/model/parent";
 import type { Step1Parent } from "./types";
 
 export function Step1({
@@ -85,16 +89,16 @@ export function Step1({
       </FormField>
       <FormField label="Zone de résidence" hint="Détermine le tarif transport">
         <Select
-          value={parent.cityTier}
-          onValueChange={(v) => setParent({ ...parent, cityTier: v as CityTier })}
+          value={parent.transportDestination}
+          onValueChange={(v) => setParent({ ...parent, transportDestination: v as TransportDestination })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Sélectionner…" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="t1">Zone urbaine (T1)</SelectItem>
-            <SelectItem value="t2">Zone périurbaine (T2)</SelectItem>
-            <SelectItem value="t3">Zone rurale (T3)</SelectItem>
+            {TRANSPORT_DESTINATIONS.map((d) => (
+              <SelectItem key={d} value={d}>{TRANSPORT_DESTINATION_LABELS_FR[d]}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </FormField>

@@ -84,10 +84,26 @@ export function Step3({
                   ))}
                 </div>
                 {s.transport > 0 && (
-                  <div className="flex justify-between">
-                    <span>Transport</span>
-                    <span className="font-mono">{formatDzd(s.transport)}</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between mt-1">
+                      <span>
+                        Transport
+                        {s.transportDestinationLabel && (
+                          <span className="text-[10px] text-muted"> — {s.transportDestinationLabel}</span>
+                        )}
+                        <span className="ml-1">(3 tranches)</span>
+                      </span>
+                      <span className="font-mono">{formatDzd(s.transport)}</span>
+                    </div>
+                    <div className="pl-3 text-[10px]">
+                      {s.transportTranches.map((t) => (
+                        <div key={t.label} className="flex justify-between">
+                          <span>{t.label}</span>
+                          <span className="font-mono">{formatDzd(t.amountDue)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </li>

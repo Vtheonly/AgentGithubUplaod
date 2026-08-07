@@ -19,6 +19,11 @@ import {
   LEVEL_LABELS_FR,
   STUDENT_STATUS_LABELS_FR,
 } from "../../../domain/model/student";
+import {
+  TRANSPORT_DESTINATION_LABELS_FR,
+  cityTierToDestination,
+  type TransportDestination,
+} from "../../../domain/model/parent";
 
 export function InfoTab({
   studentId,
@@ -154,8 +159,12 @@ function Detail({
 
 function zoneLabel(tier: string | null | undefined): string {
   if (!tier) return "Sans transport";
-  if (tier === "t1") return "Zone urbaine (T1)";
-  if (tier === "t2") return "Zone périurbaine (T2)";
-  if (tier === "t3") return "Zone rurale (T3)";
-  return tier;
+  // New canonical TransportDestination values (e.g. "ville_boumerdes").
+  if (tier in (TRANSPORT_DESTINATION_LABELS_FR as Record<string, string>)) {
+    return TRANSPORT_DESTINATION_LABELS_FR[tier as TransportDestination];
+  }
+  // Legacy CityTier fallback ("t1" / "t2" / "t3").
+  const dest = cityTierToDestination(tier as "t1" | "t2" | "t3");
+  if (dest) return TRANSPORT_DESTINATION_LABELS_FR[dest];
+  return "Sans transport";
 }

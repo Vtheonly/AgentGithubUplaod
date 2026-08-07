@@ -17,7 +17,7 @@
  * custom so we can swap "Encaisser" / "Terminer + Partager" depending
  * on the stage.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search, Loader2, CheckCircle2, Share2, X, Upload, Wallet,
 } from "lucide-react";
@@ -30,12 +30,11 @@ import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-mo
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { FormField } from "../../shared/ui/form-field";
-import { MoneyInput } from "../../shared/ui/money-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../shared/ui/select";
 import { Separator } from "../../shared/ui/separator";
 import { StatusChip } from "../../shared/ui/status-chip";
-import { formatDzd, formatDzdPlain } from "../../core/format/currency";
-import { formatDateTime } from "../../core/format/date";
+import { formatDzd } from "../../core/format/currency";
+import { formatDateTime, formatDate } from "../../core/format/date";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
@@ -46,6 +45,22 @@ import {
   proofRequiredFor,
 } from "../../domain/model/payment";
 import type { Parent } from "../../domain/model/parent";
+import {
+  allocatePaymentToInstallments,
+  currentTrancheLabel,
+} from "../../domain/calc/payment/installments";
+import { PaymentSlider, type PaymentTrancheSpec } from "./payment-slider";
+import { DebtMeter } from "./debt-meter";
+
+/** Compact date label for the slider's tranche strip (e.g. "15 déc."). */
+function formatDateShort(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  } catch {
+    return iso;
+  }
+}
 
 type Stage = "form" | "success";
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
@@ -82,7 +97,11 @@ export function CounterPaymentModal({
   const [amount, setAmount] = useState<number>(presetAmount ?? 0);
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [category, setCategory] = useState<PaymentCategory>(presetCategory ?? "tuition");
-  const [installmentId, setInstallmentId] = useState<string | null>(presetInstallmentId ?? null);
+  // `installmentId` is intentionally NOT used as state anymore — the
+  // waterfall allocator distributes payments across all eligible unpaid
+  // installments automatically. The `presetInstallmentId` prop is kept
+  // for backwards compatibility with callers that pre-select a tranche,
+  // but we no longer constrain the payment to a single tranche.
   const [proofFileName, setProofFileName] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -110,7 +129,6 @@ export function CounterPaymentModal({
         setAmount(0);
         setMethod("cash");
         setCategory("tuition");
-        setInstallmentId(null);
         setProofFileName(null);
         setNotes("");
         setReceiptPayment(null);
@@ -126,7 +144,9 @@ export function CounterPaymentModal({
       if (presetStudentId) setSelectedStudentId(presetStudentId);
       if (presetAmount) setAmount(presetAmount);
       if (presetCategory) setCategory(presetCategory);
-      if (presetInstallmentId) setInstallmentId(presetInstallmentId);
+      // `presetInstallmentId` is intentionally ignored — the waterfall
+      // allocator will distribute the payment across all eligible
+      // unpaid installments automatically.
     }
   }, [open, presetParentId, presetStudentId, presetAmount, presetCategory, presetInstallmentId]);
 
@@ -146,18 +166,70 @@ export function CounterPaymentModal({
     })();
   }, [debouncedQuery, open, repos.parents]);
 
-  // Auto-suggest oldest unpaid installment matching category (plan §07.03)
+  // Auto-suggest oldest unpaid installment matching category (plan §07.03).
+  // We no longer force a single installmentId — the waterfall allocator will
+  // distribute the payment across all eligible unpaid installments. We still
+  // auto-prefill the amount to "complete the oldest unpaid tranche" when no
+  // preset was supplied.
   useEffect(() => {
-    if (presetInstallmentId) return;
+    if (presetAmount) return; // operator provided an explicit amount
     if (category !== "tuition" && category !== "transport") return;
     const matching = installments
       .filter((i) => i.category === category && i.status !== "paid")
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-    if (matching.length > 0) {
-      setInstallmentId(matching[0].id);
-      if (amount === 0) setAmount(matching[0].amountDue - matching[0].amountPaid);
+    if (matching.length > 0 && amount === 0) {
+      setAmount(matching[0].amountDue - matching[0].amountPaid);
     }
-  }, [installments, category, amount, presetInstallmentId]);
+  }, [installments, category, amount, presetAmount]);
+
+  // Build the tranche specs for the slider (category-filtered installments,
+  // sorted oldest-first, max 3 tranches shown for visual clarity).
+  const sliderTranches = useMemo<PaymentTrancheSpec[]>(() => {
+    const eligible = installments
+      .filter((i) => i.status !== "paid")
+      .filter((i) => category === "tuition" || category === "transport" ? i.category === category : true)
+      .slice()
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      .slice(0, 6); // cap at 6 visible tranches (2 cycles max)
+    return eligible.map((i) => ({
+      id: i.id,
+      label: i.label,
+      dueWindowLabel: formatDateShort(i.dueDate),
+      amountDue: i.amountDue,
+      amountPaid: i.amountPaid,
+    }));
+  }, [installments, category]);
+
+  // Compute the totals needed by the DebtMeter.
+  const totalDue = useMemo(
+    () => sliderTranches.reduce((s, t) => s + t.amountDue, 0),
+    [sliderTranches],
+  );
+  const alreadyPaid = useMemo(
+    () => sliderTranches.reduce((s, t) => s + Math.min(t.amountPaid, t.amountDue), 0),
+    [sliderTranches],
+  );
+
+  // Pre-compute the waterfall allocation plan for the live preview.
+  const allocationPreview = useMemo(() => {
+    if (!selectedParentId) return null;
+    const eligible = installments
+      .filter((i) => i.status !== "paid")
+      .filter((i) => category === "tuition" || category === "transport" ? i.category === category : true);
+    return allocatePaymentToInstallments(eligible, amount, category === "tuition" || category === "transport" ? category : undefined);
+  }, [installments, amount, category, selectedParentId]);
+
+  const overpayingNow = allocationPreview ? allocationPreview.unallocatedAmount > 0.5 : false;
+  const focusedTrancheLabelFromCalc = useMemo(
+    () => {
+      if (!selectedParentId) return null;
+      const eligible = installments
+        .filter((i) => i.status !== "paid")
+        .filter((i) => category === "tuition" || category === "transport" ? i.category === category : true);
+      return currentTrancheLabel(eligible, category === "tuition" || category === "transport" ? category : undefined);
+    },
+    [installments, category, selectedParentId],
+  );
 
   const selectedParent = parents.find((p) => p.id === selectedParentId);
   const proofRequired = proofRequiredFor(method);
@@ -179,6 +251,7 @@ export function CounterPaymentModal({
     }
     setSubmitting(true);
     try {
+      // 1. Collect the payment — creates Payment row + canonical Ledger entry.
       const result = await repos.payments.collect(
         {
           parentId: selectedParentId,
@@ -186,25 +259,50 @@ export function CounterPaymentModal({
           amount,
           method,
           category,
-          installmentId,
+          // installmentId stays null — the waterfall allocator handles linking.
+          installmentId: null,
           proofUrl: proofFileName ? `mock://proof/${proofFileName}` : null,
           notes: notes.trim() || null,
         },
         session.userId,
       );
       if (result.ok) {
-        // Auto-mark installment paid if linked
-        if (installmentId) {
-          await repos.installments.markPaid(installmentId, result.value.id);
-        }
-        // Auto-generate receipt
-        const receipt = await repos.payments.generateReceipt(result.value.id, session.userId);
-        if (receipt.ok) {
-          toast.showSuccess(
-            "Paiement encaissé",
-            `Reçu ${result.value.receiptNumber} généré automatiquement.`,
-          );
+        // 2. Waterfall Allocation — distribute the payment across all eligible
+        //    unpaid installments (oldest first). Guarantees Ledger ↔ Installment
+        //    consistency.
+        const categoryFilter = category === "tuition" || category === "transport" ? category : undefined;
+        const allocResult = await repos.installments.allocatePayment(
+          selectedParentId,
+          amount,
+          result.value.id,
+          categoryFilter,
+          session.userId,
+          session.displayName ?? "Session courante",
+        );
+        if (allocResult.ok) {
+          const plan = allocResult.value;
+          const trancheCount = plan.allocations.length;
+          const credit = plan.unallocatedAmount;
+          if (credit > 0.5) {
+            toast.showWarning(
+              "Paiement encaissé (avec excédent)",
+              `Alloué à ${trancheCount} tranche(s). Crédit parent : ${formatDzd(credit)}.`,
+            );
+          } else {
+            toast.showSuccess(
+              "Paiement encaissé",
+              `Alloué à ${trancheCount} tranche(s) via water­fall. Reçu ${result.value.receiptNumber}.`,
+            );
+          }
         } else {
+          toast.showWarning(
+            "Paiement encaissé (allocation échouée)",
+            "Le paiement a été enregistré au ledger mais l'allocation automatique a échoué. Vérifiez les tranches manuellement.",
+          );
+        }
+        // 3. Auto-generate receipt.
+        const receipt = await repos.payments.generateReceipt(result.value.id, session.userId);
+        if (!receipt.ok) {
           toast.showWarning("Paiement encaissé", "La génération du reçu a échoué.");
         }
         setReceiptPayment(result.value);
@@ -328,7 +426,7 @@ export function CounterPaymentModal({
                 onClick={() => {
                   setSelectedParentId(null);
                   setSelectedStudentId(null);
-                  setInstallmentId(null);
+                  setAmount(0);
                 }}
               >
                 <X className="h-3.5 w-3.5" />
@@ -358,7 +456,7 @@ export function CounterPaymentModal({
             </FormField>
           )}
 
-          {/* Category + method + amount */}
+          {/* Category + method */}
           <div className="grid gap-3 md:grid-cols-2">
             <FormField label="Catégorie" required>
               <Select value={category} onValueChange={(v) => setCategory(v as PaymentCategory)}>
@@ -372,52 +470,56 @@ export function CounterPaymentModal({
                 </SelectContent>
               </Select>
             </FormField>
-            <FormField label="Montant" required>
-              <MoneyInput value={amount} onChange={setAmount} />
+            <FormField label="Méthode" required>
+              <div className="grid grid-cols-3 gap-2 h-10">
+                {(["cash", "check", "transfer"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMethod(m)}
+                    className={`rounded-md border px-2 text-center text-xs transition-colors ${
+                      method === m
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {PAYMENT_METHOD_LABELS_FR[m]}
+                  </button>
+                ))}
+              </div>
             </FormField>
           </div>
 
-          <FormField label="Méthode" required>
-            <div className="grid grid-cols-3 gap-2">
-              {(["cash", "check", "transfer"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMethod(m)}
-                  className={`rounded-md border p-3 text-center text-sm transition-colors ${
-                    method === m
-                      ? "border-primary bg-primary/10 text-primary font-medium"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  {PAYMENT_METHOD_LABELS_FR[m]}
-                </button>
-              ))}
+          {/* === Interactive Payment Slider === */}
+          {selectedParent && sliderTranches.length > 0 && (
+            <PaymentSlider
+              tranches={sliderTranches}
+              value={amount}
+              onChange={setAmount}
+              disabled={submitting}
+            />
+          )}
+          {selectedParent && sliderTranches.length === 0 && (
+            <div className="rounded-md border border-status-success/40 bg-status-success/5 p-3 text-xs text-status-success">
+              ✓ Aucune tranche impayée pour cette catégorie — le paiement sera enregistré comme crédit parent.
             </div>
-          </FormField>
+          )}
 
-          {/* Installment auto-suggest */}
-          {installments.length > 0 && (category === "tuition" || category === "transport") && (
-            <FormField label="Tranche associée" hint="Auto-suggérée: la plus ancienne non payée de cette catégorie">
-              <Select
-                value={installmentId ?? "__none__"}
-                onValueChange={(v) => setInstallmentId(v === "__none__" ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— Aucune —</SelectItem>
-                  {installments
-                    .filter((i) => i.category === category)
-                    .map((i) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.label} — {formatDzdPlain(i.amountDue - i.amountPaid)} restant ({PAYMENT_STATUS_LABELS_FR[i.status]})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </FormField>
+          {/* === Debt Meter === */}
+          {selectedParent && (
+            <DebtMeter
+              totalDue={totalDue}
+              alreadyPaid={alreadyPaid}
+              payingNow={amount}
+              currentTrancheLabel={focusedTrancheLabelFromCalc}
+              statusNote={
+                allocationPreview && allocationPreview.allocations.length > 0
+                  ? `Sera alloué à ${allocationPreview.allocations.length} tranche(s) — waterfall chronologique.`
+                  : overpayingNow
+                    ? "Excédent — sera stocké comme crédit parent (avance)."
+                    : null
+              }
+            />
           )}
 
           {/* Proof capture (mandatory for check/transfer) */}

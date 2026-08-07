@@ -45,6 +45,13 @@ interface CollectPaymentBody {
   transfer_reference?: string;
   transfer_source_bank?: string;
   proof_path?: string;  // storage path under 'payment-proofs' bucket
+  /**
+   * Category filter for the Waterfall Allocation Engine.
+   * When `installment_id` is null, the payment is automatically distributed
+   * across the parent's unpaid installments (oldest first) in this category.
+   * Allowed values: "tuition" | "transport" | null (= all categories).
+   */
+  category_filter?: "tuition" | "transport" | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -103,7 +110,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // Call the collect_payment RPC
+  // Call the collect_payment RPC (creates payment + ledger entry + receipt + audit).
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase.rpc("collect_payment", {
     p_tenant_id: ctx.tenantId,
@@ -135,10 +142,74 @@ Deno.serve(async (req: Request) => {
 
   const result = data[0];
 
+  // ============================================================================
+  // Waterfall Allocation — when no specific installment_id was provided,
+  // automatically distribute the payment across the parent's unpaid
+  // installments (oldest first). Guarantees Ledger ↔ Installment
+  // mathematical consistency.
+  // ============================================================================
+  let allocations: Array<{
+    installment_id: string;
+    allocated_amount: number;
+    new_amount_paid: number;
+    new_status: string;
+    fully_satisfied: boolean;
+  }> = [];
+  let unallocated_credit = 0;
+
+  if (!body.installment_id && result.payment_id) {
+    const { data: allocData, error: allocError } = await supabase.rpc(
+      "allocate_payment_waterfall",
+      {
+        p_tenant_id: ctx.tenantId,
+        p_parent_id: body.parent_id,
+        p_payment_id: result.payment_id,
+        p_payment_amount: body.amount,
+        p_category_filter: body.category_filter ?? null,
+        p_actor_profile_id: ctx.userProfileId,
+      },
+    );
+
+    if (allocError) {
+      console.error("[collect-payment] Waterfall allocation failed:", allocError);
+      // Don't fail the whole request — the payment + ledger entry are already
+      // committed. The operator can re-run allocation manually.
+      return jsonOk(req, {
+        payment_id: result.payment_id,
+        receipt_id: result.receipt_id,
+        new_installment_status: result.new_installment_status,
+        allocations: [],
+        unallocated_credit: body.amount,
+        waterfall_error: allocError.message,
+        message: `Payment of ${body.amount} DZD collected, but waterfall allocation failed: ${allocError.message}. Manual allocation required.`,
+      });
+    }
+
+    if (allocData && Array.isArray(allocData)) {
+      allocations = allocData.map((row: Record<string, unknown>) => ({
+        installment_id: String(row.installment_id),
+        allocated_amount: Number(row.allocated_amount),
+        new_amount_paid: Number(row.new_amount_paid),
+        new_status: String(row.new_status),
+        fully_satisfied: Boolean(row.fully_satisfied),
+      }));
+      const totalAllocated = allocations.reduce(
+        (s, a) => s + a.allocated_amount,
+        0,
+      );
+      unallocated_credit = Math.max(0, body.amount - totalAllocated);
+    }
+  }
+
   return jsonOk(req, {
     payment_id: result.payment_id,
     receipt_id: result.receipt_id,
     new_installment_status: result.new_installment_status,
-    message: `Payment of ${body.amount} DZD collected successfully`,
+    allocations,
+    unallocated_credit,
+    allocated_tranche_count: allocations.length,
+    message: `Payment of ${body.amount} DZD collected. Allocated to ${allocations.length} tranche(s).${
+      unallocated_credit > 0 ? ` Credit: ${unallocated_credit} DZD.` : ""
+    }`,
   });
 });

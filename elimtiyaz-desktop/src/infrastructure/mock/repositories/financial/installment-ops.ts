@@ -13,11 +13,17 @@ import type {
   Installment,
   AcademicCycle,
   UpdateInstallmentDueDateInput,
+  PaymentCategory,
 } from "../../../../domain/model/payment";
 import {
   ACADEMIC_CYCLE_LABELS_FR,
   DEFAULT_CYCLE_TRANCHE_MONTHS,
 } from "../../../../domain/model/payment";
+import {
+  allocatePaymentToInstallments,
+  type AllocationResult,
+  type InstallmentAllocation,
+} from "../../../../domain/calc/payment/installments";
 import type { FinancialOpsCtx } from "./types";
 
 /** Iteration 9 — mark an installment as fully paid. */
@@ -156,4 +162,110 @@ export async function findOverdueInstallments(
     (i) => i.status !== "paid" && new Date(i.dueDate).getTime() < nowMs,
   );
   return Ok(overdue);
+}
+
+/**
+ * Waterfall Allocation — distribute a single payment across all eligible
+ * unpaid/partial installments for a parent, oldest first.
+ *
+ * This is the canonical "satisfy tranches chronologically" operation
+ * mandated by the architectural blueprint. It guarantees that:
+ *   - Every dinar of `paymentAmount` is either applied to an installment
+ *     or returned as `unallocatedAmount` (parent credit / overpayment).
+ *   - The Ledger (which receives a single payment credit of `paymentAmount`)
+ *     and the Installment table (which receives N partial updates) stay
+ *     mathematically consistent: their sum of `amountPaid` deltas equals
+ *     the ledger payment amount minus the unallocated credit.
+ *
+ * Behavior:
+ *   1. Loads all installments for `parentId` (optionally filtered by category).
+ *   2. Runs the pure `allocatePaymentToInstallments()` to compute allocations.
+ *   3. Persists each allocation: updates `amountPaid`, `status`, `paidDate`
+ *      (set when fully satisfied), and writes one audit entry per
+ *      installment touched (for full traceability).
+ *   4. Does NOT touch the Ledger — the caller is expected to have already
+ *      appended the canonical payment ledger entry via `collectPayment()`.
+ *
+ * @returns AllocationResult with per-installment breakdown + unallocated
+ *          amount (overpayment credit).
+ */
+export async function allocatePaymentAcrossInstallments(
+  ctx: FinancialOpsCtx,
+  parentId: string,
+  paymentAmount: number,
+  paymentId: string,
+  categoryFilter?: PaymentCategory,
+  actorId: string = "usr-current",
+  actorName: string = "Session courante",
+): Promise<Result<AllocationResult>> {
+  const { store, appendAudit, nowIso, delay } = ctx;
+  await delay(220);
+
+  if (paymentAmount <= 0) {
+    return Ok({
+      allocations: [],
+      unallocatedAmount: 0,
+      totalAllocated: 0,
+      paymentAmount,
+    });
+  }
+
+  // Snapshot current installments for this parent.
+  const parentInstallments = store.installments.filter((i) => i.parentId === parentId);
+
+  // Compute the allocation plan (pure function).
+  const plan = allocatePaymentToInstallments(parentInstallments, paymentAmount, categoryFilter);
+
+  // Persist each allocation.
+  const now = nowIso();
+  for (const alloc of plan.allocations) {
+    const idx = store.installments.findIndex((i) => i.id === alloc.installmentId);
+    if (idx < 0) continue;
+    const before = store.installments[idx];
+    const after: Installment = {
+      ...before,
+      amountPaid: alloc.newAmountPaid,
+      status: alloc.newStatus,
+      paidDate: alloc.fullySatisfied ? now : before.paidDate,
+    };
+    store.installments[idx] = after;
+    appendAudit({
+      action: AuditActions.InstallmentMarkPaid,
+      entityType: "installment",
+      entityId: alloc.installmentId,
+      actorId,
+      actorName,
+      diff: {
+        before: { amountPaid: before.amountPaid, status: before.status },
+        after: { amountPaid: alloc.newAmountPaid, status: alloc.newStatus, allocated: alloc.allocatedAmount },
+      },
+      note: `Waterfall — Paiement ${paymentId} → ${formatDzdBrief(alloc.allocatedAmount)}`,
+    });
+  }
+  if (plan.allocations.length > 0) {
+    store.notifyInstallments();
+  }
+
+  // If there's an unallocated amount (overpayment), audit-log it as parent credit.
+  if (plan.unallocatedAmount > 0) {
+    appendAudit({
+      action: "payment.adjust", // reuse adjustment action for the credit note
+      entityType: "parent",
+      entityId: parentId,
+      actorId,
+      actorName,
+      diff: {
+        before: null,
+        after: { unallocatedCredit: plan.unallocatedAmount, paymentId },
+      },
+      note: `Excédent de paiement non alloué (crédit parent) — ${formatDzdBrief(plan.unallocatedAmount)}`,
+    });
+  }
+
+  return Ok(plan);
+}
+
+/** Format a DZD amount compactly for audit log notes. */
+function formatDzdBrief(amount: number): string {
+  return `${amount.toLocaleString("fr-FR")} DZD`;
 }
