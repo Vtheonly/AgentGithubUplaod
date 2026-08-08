@@ -3,6 +3,18 @@
  *
  * Extracted from `financial-repository.ts` in task 6-b. Behavior preserved
  * verbatim — only file location + import paths changed.
+ *
+ * UNIFIED ARCHITECTURE (this revision):
+ *   - `collectPayment` now runs the waterfall allocation engine
+ *     (`allocatePaymentAcrossInstallments`) and writes a `parent_credit`
+ *     adjustment entry when there's an overpayment. This closes the loop
+ *     on Invariant 2 (Waterfall Conservation) and Invariant 4 (Cleared
+ *     Funds Only) — uncleared checks/transfers no longer mark tranches
+ *     as `"paid"`.
+ *   - `refundPayment` now calls `revertPaymentAllocation` (LIFO) to
+ *     subtract the reversed amount from `installment.amountPaid` (or
+ *     `amountPending`) and re-evaluate tranche statuses. This closes
+ *     the loop on Invariant 5 (Reversal Balance).
  */
 import type { Result } from "../../../../core/result";
 import { Ok, Err } from "../../../../core/result";
@@ -17,9 +29,24 @@ import type {
 } from "../../../../domain/model/payment";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import { deriveAccountId } from "../../../../domain/calc/ledger";
+import { allocatePaymentAcrossInstallments } from "./installment-ops";
+import { revertPaymentAllocation } from "../../../../domain/calc/payment/installments";
 import type { FinancialOpsCtx } from "./types";
 
-/** Iteration 5: collect a payment + append the canonical ledger entry. */
+/**
+ * Collect a payment and atomically:
+ *   1. Insert the `payments` row.
+ *   2. Append the canonical payment ledger entry (negative credit).
+ *   3. Run the waterfall allocator against the parent's installments:
+ *      - For cash (status="paid"): increment `amountPaid`, possibly mark
+ *        tranches as `"paid"` / `"partial"`.
+ *      - For check/transfer (status="pending"): increment `amountPending`
+ *        only; status becomes `"pending_clearance"`. The tranche is NOT
+ *        considered satisfied until the underlying payment clears.
+ *   4. If there's an overpayment (`unallocatedAmount > 0`), append a
+ *      `parent_credit` adjustment entry under category `"parent_credit"`
+ *      so the credit can be auto-absorbed by future charges.
+ */
 export async function collectPayment(
   ctx: FinancialOpsCtx,
   input: CollectPaymentInput,
@@ -51,10 +78,10 @@ export async function collectPayment(
   store.payments.unshift(payment);
   store.notifyPayments();
 
-  // Iteration 5: append the corresponding ledger entry. This is the
-  // single source of truth for the payment's effect on the parent's
-  // balance. The payment table is now a denormalized view; the ledger
-  // is canonical.
+  // === 1. Append the canonical payment ledger entry ===
+  // The ledger is the single source of truth; the payments table is a
+  // denormalized view. accountId is student-scoped when studentId is
+  // provided, parent-scoped otherwise.
   const ledgerEntry: LedgerEntry = {
     id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
     tenantId,
@@ -82,6 +109,72 @@ export async function collectPayment(
   store.ledger = [...store.ledger, ledgerEntry];
   store.notifyLedger();
 
+  // === 2. Run the waterfall allocator ===
+  // For cash (status="paid"): increments amountPaid, possibly marks tranches "paid".
+  // For check/transfer (status="pending"): increments amountPending ONLY;
+  // status becomes "pending_clearance". Tranche is NOT satisfied until clearance.
+  const allocationResult = await allocatePaymentAcrossInstallments(
+    ctx,
+    input.parentId,
+    input.amount,
+    payment.id,
+    input.category,
+    collectedBy,
+    "Session courante",
+    status,
+  );
+
+  // === 3. Record overpayment as parent_credit (if any) ===
+  if (allocationResult.ok) {
+    const unallocated = allocationResult.value.unallocatedAmount;
+    if (unallocated > 0.5) {
+      const creditEntry: LedgerEntry = {
+        id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
+        tenantId,
+        // Parent-level credit account: student-scoped-null.
+        accountId: deriveAccountId(input.parentId, "parent_credit", null),
+        parentId: input.parentId,
+        studentId: null,
+        category: "parent_credit",
+        amount: -unallocated, // negative = credit (school owes parent)
+        type: "adjustment",
+        sourceType: "adjustment",
+        sourceId: `credit-${payment.id}`,
+        method: null,
+        receiptNumber: payment.receiptNumber,
+        paymentStatus: null,
+        reversesId: null,
+        description: `Crédit parent (excédent de paiement reçu ${payment.receiptNumber})`,
+        actorId: collectedBy,
+        actorName: "Session courante",
+        at: nowIso(),
+        metadata: Object.freeze({
+          sourcePaymentId: payment.id,
+          unallocatedAmount: unallocated,
+          category: "parent_credit",
+        }),
+      };
+      store.ledger = [...store.ledger, creditEntry];
+      store.notifyLedger();
+      appendAudit({
+        action: AuditActions.PaymentAdjust,
+        entityType: "adjustment",
+        entityId: creditEntry.id,
+        actorId: collectedBy,
+        actorName: "Session courante",
+        diff: {
+          before: null,
+          after: {
+            amount: -unallocated,
+            category: "parent_credit",
+            sourcePaymentId: payment.id,
+          },
+        },
+        note: `Excédent de paiement ${payment.receiptNumber} stocké comme crédit parent`,
+      });
+    }
+  }
+
   appendAudit({
     action: AuditActions.PaymentCreate,
     entityType: "payment",
@@ -95,6 +188,9 @@ export async function collectPayment(
         method: payment.method,
         receipt: payment.receiptNumber,
         ledgerEntryId: ledgerEntry.id,
+        status: payment.status,
+        allocations: allocationResult.ok ? allocationResult.value.allocations.length : 0,
+        unallocatedCredit: allocationResult.ok ? allocationResult.value.unallocatedAmount : 0,
       },
     },
   });
@@ -102,8 +198,16 @@ export async function collectPayment(
 }
 
 /**
- * Iteration 6: refund a payment + append a ledger reversal entry that
- * negates the original payment's ledger entry.
+ * Refund / cancel a payment atomically:
+ *   1. Update `payments.status` to `"refunded"`.
+ *   2. Append a ledger reversal entry that negates the original payment entry.
+ *   3. Call `revertPaymentAllocation` (LIFO) to subtract the reversed
+ *      amount from the installments' `amountPaid` (or `amountPending`
+ *      when the original payment was uncleared) and re-evaluate statuses.
+ *   4. Write an audit entry per affected installment.
+ *
+ * This implements Invariant 5 (Reversal Balance) and ensures tranches
+ * are correctly re-opened when a check bounces or a payment is canceled.
  */
 export async function refundPayment(
   ctx: FinancialOpsCtx,
@@ -118,10 +222,7 @@ export async function refundPayment(
   store.payments[idx] = after;
   store.notifyPayments();
 
-  // Iteration 6: Append a ledger reversal entry that negates the original
-  // payment's ledger entry. The plan's accounting engine mandates that every
-  // refund be traceable — the ledger must reflect the reversal so the parent's
-  // balance is correctly re-computed by replay.
+  // === 1. Append the ledger reversal entry ===
   const originalLedgerEntry = store.ledger.find(
     (e) => e.sourceType === "payment" && e.sourceId === id && e.type === "payment",
   );
@@ -154,6 +255,57 @@ export async function refundPayment(
     };
     store.ledger = [...store.ledger, reversalEntry];
     store.notifyLedger();
+
+    // === 2. Reverse the waterfall allocation (LIFO) ===
+    // Determine whether the original payment was cleared or pending.
+    const originalWasPending = originalLedgerEntry.paymentStatus === "pending";
+    const parentInstallments = store.installments.filter((i) => i.parentId === before.parentId);
+    const revertResult = revertPaymentAllocation(
+      parentInstallments,
+      before.amount,
+      before.category,
+      originalWasPending,
+    );
+
+    // === 3. Persist each revert ===
+    for (const rev of revertResult.reverts) {
+      const insIdx = store.installments.findIndex((i) => i.id === rev.installmentId);
+      if (insIdx < 0) continue;
+      const insBefore = store.installments[insIdx];
+      store.installments[insIdx] = {
+        ...insBefore,
+        amountPaid: rev.newAmountPaid,
+        amountPending: rev.newAmountPending,
+        status: rev.newStatus,
+        // Clear paidDate if the tranche is no longer satisfied.
+        paidDate: rev.newStatus === "paid" ? insBefore.paidDate : null,
+      };
+      appendAudit({
+        action: "installment.revert_allocation",
+        entityType: "installment",
+        entityId: rev.installmentId,
+        actorId: "usr-current",
+        actorName: "Session courante",
+        diff: {
+          before: {
+            amountPaid: insBefore.amountPaid,
+            amountPending: insBefore.amountPending,
+            status: insBefore.status,
+          },
+          after: {
+            amountPaid: rev.newAmountPaid,
+            amountPending: rev.newAmountPending,
+            status: rev.newStatus,
+            reverted: rev.revertedAmount,
+          },
+        },
+        note: `Inversion LIFO — paiement ${id} remboursé. Reverted ${rev.revertedAmount} DZD.`,
+      });
+    }
+    if (revertResult.reverts.length > 0) {
+      store.notifyInstallments();
+    }
+
     appendAudit({
       action: AuditActions.PaymentRefund,
       entityType: "payment",
@@ -162,7 +314,13 @@ export async function refundPayment(
       actorName: "Session courante",
       diff: {
         before: { status: before.status, ledgerEntryId: originalLedgerEntry.id },
-        after: { status: "refunded", reversalEntryId: reversalEntry.id },
+        after: {
+          status: "refunded",
+          reversalEntryId: reversalEntry.id,
+          revertsCount: revertResult.reverts.length,
+          totalReverted: revertResult.totalReverted,
+          unreverted: revertResult.unrevertedAmount,
+        },
       },
     });
   } else {
@@ -180,7 +338,7 @@ export async function refundPayment(
   return Ok(after);
 }
 
-/** Adjust a parent's account (manual entry — no ledger effect). */
+/** Adjust a parent's account (manual entry — appends an adjustment ledger entry). */
 export async function adjustAccount(
   ctx: FinancialOpsCtx,
   parentId: string,
@@ -188,7 +346,7 @@ export async function adjustAccount(
   reason: string,
   approvedBy: string,
 ): Promise<Result<AccountAdjustment>> {
-  const { appendAudit, nowIso, delay } = ctx;
+  const { store, appendAudit, nowIso, delay, tenantId } = ctx;
   await delay(200);
   const adj: AccountAdjustment = {
     id: `adj-${Date.now()}`,
@@ -199,13 +357,42 @@ export async function adjustAccount(
     approvedAt: nowIso(),
     receiptRef: null,
   };
+
+  // Also append an adjustment ledger entry so the parent's balance reflects
+  // the credit/debit. The category is "other" by default — callers wanting
+  // parent_credit semantics should use the dedicated overpayment flow inside
+  // `collectPayment`.
+  const adjustmentEntry: LedgerEntry = {
+    id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
+    tenantId,
+    accountId: deriveAccountId(parentId, "other", null),
+    parentId,
+    studentId: null,
+    category: "other",
+    amount, // signed: + for debit (penalty), - for credit (waiver)
+    type: "adjustment",
+    sourceType: "adjustment",
+    sourceId: adj.id,
+    method: null,
+    receiptNumber: null,
+    paymentStatus: null,
+    reversesId: null,
+    description: reason,
+    actorId: approvedBy,
+    actorName: "Session courante",
+    at: nowIso(),
+    metadata: Object.freeze({ reason, adjustmentId: adj.id }),
+  };
+  store.ledger = [...store.ledger, adjustmentEntry];
+  store.notifyLedger();
+
   appendAudit({
     action: AuditActions.PaymentAdjust,
     entityType: "adjustment",
     entityId: adj.id,
     actorId: approvedBy,
     actorName: "Session courante",
-    diff: { before: null, after: { amount, reason } },
+    diff: { before: null, after: { amount, reason, ledgerEntryId: adjustmentEntry.id } },
   });
   return Ok(adj);
 }

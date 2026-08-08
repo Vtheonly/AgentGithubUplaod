@@ -53,6 +53,7 @@ export function computeAccountBalance(
   let totalRefunded = 0;
   let totalCleared = 0;
   let totalPending = 0;
+  let unallocatedCredit = 0;
   let lastActivityAt: string | null = null;
 
   // Detect reversal chains: an entry with `reversesId` cancels out the
@@ -79,6 +80,11 @@ export function computeAccountBalance(
       case "adjustment":
         // Adjustments can be + or -.
         totalAdjusted += e.amount;
+        // Track parent_credit adjustments separately so callers can
+        // auto-apply them to future charges.
+        if (e.category === "parent_credit") {
+          unallocatedCredit += e.amount;
+        }
         break;
       case "refund":
         // Refunds are negative.
@@ -108,6 +114,7 @@ export function computeAccountBalance(
     totalPending,
     totalAdjusted,
     totalRefunded,
+    unallocatedCredit,
     entryCount: relevant.length,
     lastActivityAt,
   };
@@ -150,6 +157,7 @@ export function computeParentSummary(
   let totalPending = 0;
   let totalAdjusted = 0;
   let totalRefunded = 0;
+  let totalUnallocatedCredit = 0;
   let entryCount = 0;
   let lastActivityAt: string | null = null;
 
@@ -161,6 +169,7 @@ export function computeParentSummary(
     totalPending += acc.totalPending;
     totalAdjusted += acc.totalAdjusted;
     totalRefunded += acc.totalRefunded;
+    totalUnallocatedCredit += acc.unallocatedCredit;
     entryCount += acc.entryCount;
     if (lastActivityAt === null || (acc.lastActivityAt && acc.lastActivityAt > lastActivityAt)) {
       lastActivityAt = acc.lastActivityAt;
@@ -184,6 +193,7 @@ export function computeParentSummary(
     totalPending,
     totalAdjusted,
     totalRefunded,
+    totalUnallocatedCredit,
     accounts,
     entryCount,
     lastActivityAt,

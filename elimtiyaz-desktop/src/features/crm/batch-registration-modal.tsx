@@ -51,6 +51,7 @@ import { Step2 } from "./batch-registration/step2-students";
 import { Step3 } from "./batch-registration/step3-billing";
 import { Step4 } from "./batch-registration/step4-review";
 import { computeBilling } from "./batch-registration/compute-billing";
+import type { Billing } from "./batch-registration/types";
 import { EMPTY_PARENT, EMPTY_STUDENT, PHONE_RE, EMAIL_RE, type Step1Parent, type Step2Student } from "./batch-registration/types";
 
 export function BatchRegistrationModal({
@@ -116,43 +117,19 @@ export function BatchRegistrationModal({
   }
 
   // === Billing computation (step 3) ===
-  const billing = useMemo<ReturnType<typeof computeBilling>>(() => {
-    const registrationFee = includeRegistration ? pricing.registrationFee : 0;
-    let tuition = 0;
-    let transport = 0;
-    const perStudent = students.map((s, i) => {
-      // Granular grade-level pricing (14 grades, each with its own 3-tranche split).
-      const gradeLevel = gradeLevelFromLevelYear(s.level, s.gradeYear);
-      const tuitionPricing = tuitionForLevel(pricing, s.level);
-      const tuitionTranchesArray = tuitionTranchesForGrade(pricing, gradeLevel);
-      const t = tuitionPricing;
-
-      // Per-destination transport pricing (4 destinations, each with its own 3-tranche split).
-      const dest = (includeTransport && s.transportDestination ? s.transportDestination : null) as TransportDestination | null;
-      const transportPricing = dest ? transportForDestination(pricing, dest) : { annualAmount: 0, installments: [0, 0, 0] as const };
-      const transportTranchesArray = dest ? transportTranchesForDestination(pricing, dest) : [];
-
-      tuition += t;
-      transport += transportPricing.annualAmount;
-
-      return {
-        index: i + 1,
-        name: `${s.firstName} ${s.lastName}`.trim() || `Élève ${i + 1}`,
-        level: LEVEL_LABELS_FR[s.level],
-        tuition: t,
-        transport: transportPricing.annualAmount,
-        tranches: tuitionTranchesArray,
-        transportTranches: transportTranchesArray,
-        transportDestinationLabel: dest ? TRANSPORT_DESTINATION_LABELS_FR[dest] : null,
-      };
+  // Now delegates to the pure `computeBilling` helper which evaluates all 5
+  // official `Prices.md` discounts ONCE on the gross annual tuition, then
+  // splits the net across tranches (or 1 entry for `full_annual`). This
+  // eliminates the double-discounting bug documented in the architectural
+  // blueprint (discounts were previously applied per-tranche inside
+  // `buildTuitionChargeEntries`).
+  const billing = useMemo<Billing>(() => {
+    return computeBilling({
+      students,
+      pricing,
+      includeRegistration,
+      includeTransport,
     });
-    return {
-      perStudent,
-      registrationFee,
-      totalTuition: tuition,
-      totalTransport: transport,
-      grandTotal: registrationFee + tuition + transport,
-    };
   }, [students, pricing, includeRegistration, includeTransport]);
 
   // === Atomic submit ===
@@ -182,6 +159,7 @@ export function BatchRegistrationModal({
         medicalNotes: s.medicalNotes.trim() || null,
         // Student.transportTier is a bare string — we store the canonical destination key in it.
         transportTier: (s.transportDestination || null) as string | null,
+        paymentPlan: s.paymentPlan,
       }));
 
       const result = await repos.students.batchRegister({

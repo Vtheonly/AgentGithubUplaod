@@ -14,10 +14,73 @@
  *       * "Tranche 1 (À l'inscription)"
  *       * "Tranche 2 (01 Déc – 15 Déc)"
  *       * "Tranche 3 (01 Mar – 15 Mar)"
+ *
+ * UNIFIED ARCHITECTURE additions:
+ *   - `getOfficialTransportDueDates(startYear)` — returns the official ISO
+ *     due-date triple per `Prices.md`: Sept 15 / Dec 15 / Mar 15.
+ *   - `getOfficialTransportTrancheSplit(destination)` — returns the exact
+ *     per-destination tranche amounts from `Prices.md` (e.g. Ville Boumerdes
+ *     = 20k/10k/10k DA, Autres = 30k/15k/10k DA).
  */
 import type { TransportDestination } from "@/domain/model/parent";
 import { cityTierToDestination } from "@/domain/model/parent";
 import type { PricingConfig, TransportPricing } from "@/domain/model/pricing";
+
+/* ============================================================ */
+/*  Official schedule generators (Prices.md — 2026-2027)        */
+/* ============================================================ */
+
+/**
+ * Official transport tranche due dates per `Prices.md`.
+ *
+ * Identical to the tuition calendar:
+ *   - Tranche 1: September 15 of `startYear`      (at registration)
+ *   - Tranche 2: December 15 of `startYear`       (window: Dec 1 – 15)
+ *   - Tranche 3: March 15 of `startYear + 1`      (window: Mar 1 – 15)
+ *
+ * @param startYear  The calendar year in which the academic year starts.
+ * @returns A 3-tuple of ISO date strings `[T1, T2, T3]`.
+ */
+export function getOfficialTransportDueDates(
+  startYear: number,
+): readonly [string, string, string] {
+  return [
+    new Date(Date.UTC(startYear, 8, 15)).toISOString(), // Sept 15
+    new Date(Date.UTC(startYear, 11, 15)).toISOString(), // Dec 15
+    new Date(Date.UTC(startYear + 1, 2, 15)).toISOString(), // Mar 15
+  ];
+}
+
+/**
+ * Official transport tranche split per `Prices.md`.
+ *
+ * Returns the exact per-destination tranche amounts in DA:
+ *
+ * | Destination                                  | T1     | T2     | T3     |
+ * |----------------------------------------------|--------|--------|--------|
+ * | ville_boumerdes                              | 20,000 | 10,000 | 10,000 |
+ * | tidjelabine_sahel_figuier_corso              | 20,000 | 13,000 | 10,000 |
+ * | boudouaou_thenia_zemmouri                    | 30,000 | 12,000 | 10,000 |
+ * | autres                                       | 30,000 | 15,000 | 10,000 |
+ *
+ * These amounts are the *official* schedule and sum exactly to the annual
+ * transport fee for each destination. They are used as the canonical
+ * allocation when generating transport charge entries + installments.
+ */
+export function getOfficialTransportTrancheSplit(
+  destination: TransportDestination,
+): readonly [number, number, number] {
+  switch (destination) {
+    case "ville_boumerdes":
+      return [20_000, 10_000, 10_000];
+    case "tidjelabine_sahel_figuier_corso":
+      return [20_000, 13_000, 10_000];
+    case "boudouaou_thenia_zemmouri":
+      return [30_000, 12_000, 10_000];
+    case "autres":
+      return [30_000, 15_000, 10_000];
+  }
+}
 
 /**
  * Convenience: look up transport pricing for a destination.

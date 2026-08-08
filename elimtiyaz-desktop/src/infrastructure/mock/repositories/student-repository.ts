@@ -80,6 +80,7 @@ export class MockStudentRepository implements StudentRepository {
       medicalNotes: input.medicalNotes ?? null,
       transportTier: input.transportTier ?? null,
       status: "active",
+      paymentPlan: input.paymentPlan ?? "tranches",
       createdAt: nowIso(),
       updatedAt: nowIso(),
     };
@@ -211,6 +212,7 @@ export class MockStudentRepository implements StudentRepository {
           medicalNotes: sInput.medicalNotes ?? null,
           transportTier: sInput.transportTier ?? null,
           status: "active",
+          paymentPlan: sInput.paymentPlan ?? "tranches",
           createdAt: nowIso(),
           updatedAt: nowIso(),
         };

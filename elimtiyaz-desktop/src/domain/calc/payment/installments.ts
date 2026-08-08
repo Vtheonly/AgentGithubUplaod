@@ -104,6 +104,18 @@ export function agingBucketFromDays(daysOverdue: number): AgingBucket {
 /*                                                              */
 /*  Any excess (overpayment) is returned as `unallocatedAmount` */
 /*  so the caller can store it as parent credit.                */
+/*                                                              */
+/*  UNIFIED ARCHITECTURE:                                       */
+/*  - Branches on `paymentStatus`:                              */
+/*    * "paid"     → increments `amountPaid`; may transition    */
+/*                   status to "paid" / "partial".              */
+/*    * "pending"  → increments `amountPending` ONLY; status    */
+/*                   transitions to "pending_clearance"; the    */
+/*                   tranche is NOT considered satisfied until   */
+/*                   the underlying payment clears the bank.    */
+/*  - `InstallmentAllocation` now also reports the new          */
+/*    `amountPending` value and distinguishes cleared vs        */
+/*    pending allocations.                                     */
 /* ============================================================ */
 
 /**
@@ -118,10 +130,14 @@ export interface InstallmentAllocation {
   readonly allocatedAmount: number;
   /** New `amountPaid` value for this installment after allocation. */
   readonly newAmountPaid: number;
+  /** New `amountPending` value for this installment after allocation. */
+  readonly newAmountPending: number;
   /** New `status` value for this installment after allocation. */
-  readonly newStatus: "paid" | "partial" | "overdue" | "pending";
+  readonly newStatus: "paid" | "partial" | "overdue" | "pending" | "pending_clearance";
   /** True if this installment transitioned from non-paid to paid. */
   readonly fullySatisfied: boolean;
+  /** Whether this allocation was a cleared (paid) or pending allocation. */
+  readonly cleared: boolean;
 }
 
 /**
@@ -150,27 +166,34 @@ export interface AllocationResult {
  *      Ties broken by `id` ASC for determinism.
  *   3. The payment is applied to the first eligible installment up to
  *      its remaining balance; any remainder flows to the next.
- *   4. After allocation, an installment's status is recomputed:
- *        - `amountPaid >= amountDue` → "paid"
- *        - `amountPaid > 0`          → "partial"
- *        - else (amountPaid === 0)   → original status preserved
+ *   4. Branch on `paymentStatus`:
+ *        - `"paid"`: increment `amountPaid`. If `amountPaid >= amountDue`,
+ *          transition status to `"paid"`; else if `amountPaid > 0`,
+ *          transition to `"partial"`.
+ *        - `"pending"`: increment `amountPending` ONLY. Transition status
+ *          to `"pending_clearance"`. Do NOT touch `amountPaid` and do NOT
+ *          transition to `"paid"` — Invariant 4 (Cleared Funds Only).
  *   5. If the payment exceeds the sum of all remaining balances, the
  *      excess is returned as `unallocatedAmount` (parent credit).
  *
  * This function is PURE — it does not mutate the input installments.
  * Callers (repository layer) must persist the resulting new states.
  *
- * @param installments  All installments for the parent (or for a
- *                      category-filtered subset). The function will
- *                      filter and sort internally.
- * @param paymentAmount The total amount being paid. Must be >= 0.
- * @param categoryFilter Optional — if provided, only installments
- *                      matching this category are eligible.
+ * @param installments     All installments for the parent (or for a
+ *                         category-filtered subset). The function will
+ *                         filter and sort internally.
+ * @param paymentAmount    The total amount being paid. Must be >= 0.
+ * @param categoryFilter   Optional — if provided, only installments
+ *                         matching this category are eligible.
+ * @param paymentStatus    Clearing status of the underlying payment.
+ *                         Defaults to `"paid"` (cash). Use `"pending"`
+ *                         for uncleared checks/transfers.
  */
 export function allocatePaymentToInstallments(
   installments: readonly Installment[],
   paymentAmount: number,
   categoryFilter?: Installment["category"],
+  paymentStatus: "paid" | "pending" = "paid",
 ): AllocationResult {
   if (paymentAmount <= 0) {
     return {
@@ -194,27 +217,46 @@ export function allocatePaymentToInstallments(
 
   const allocations: InstallmentAllocation[] = [];
   let remaining = paymentAmount;
+  const cleared = paymentStatus === "paid";
 
   for (const ins of eligible) {
     if (remaining <= 0) break;
+    // For cleared payments, the remaining debt is `amountDue - amountPaid`.
+    // For pending payments, we still allocate against (amountDue - amountPaid),
+    // but the funds land in `amountPending` — they don't reduce the debt yet.
     const insRemaining = clampNonNegative(ins.amountDue - ins.amountPaid);
     if (insRemaining <= 0) continue;
     const allocate = Math.min(remaining, insRemaining);
-    const newAmountPaid = ins.amountPaid + allocate;
-    const fullySatisfied = newAmountPaid >= ins.amountDue;
-    const newStatus: InstallmentAllocation["newStatus"] = fullySatisfied
-      ? "paid"
-      : newAmountPaid > 0
-        ? "partial"
-        : ins.status === "overdue"
-          ? "overdue"
-          : "pending";
+    let newAmountPaid = ins.amountPaid;
+    let newAmountPending = ins.amountPending ?? 0;
+    let newStatus: InstallmentAllocation["newStatus"];
+    let fullySatisfied = false;
+
+    if (cleared) {
+      newAmountPaid = ins.amountPaid + allocate;
+      fullySatisfied = newAmountPaid >= ins.amountDue;
+      newStatus = fullySatisfied
+        ? "paid"
+        : newAmountPaid > 0
+          ? "partial"
+          : ins.status === "overdue"
+            ? "overdue"
+            : "pending";
+    } else {
+      // Pending: funds land in amountPending; status becomes "pending_clearance".
+      newAmountPending = (ins.amountPending ?? 0) + allocate;
+      fullySatisfied = false; // Never satisfied by pending funds.
+      newStatus = "pending_clearance";
+    }
+
     allocations.push({
       installmentId: ins.id,
       allocatedAmount: allocate,
       newAmountPaid,
+      newAmountPending,
       newStatus,
       fullySatisfied,
+      cleared,
     });
     remaining -= allocate;
   }
@@ -225,6 +267,156 @@ export function allocatePaymentToInstallments(
     unallocatedAmount: clampNonNegative(remaining),
     totalAllocated,
     paymentAmount,
+  };
+}
+
+/* ============================================================ */
+/*  Reverse-Waterfall (LIFO) — Refunds / Cancellations          */
+/*                                                              */
+/*  When a payment is refunded, canceled, or rejected (e.g. a    */
+/*  bounced check), the original waterfall allocation must be    */
+/*  reversed. This function walks the installments in REVERSE    */
+/*  chronological order (newest satisfied tranche first) and     */
+/*  subtracts the reversal amount from `amountPaid` (or          */
+/*  `amountPending` if the original payment was uncleared).      */
+/*                                                              */
+/*  Invariant 5 (Reversal Balance):                              */
+/*    reversalEntry.amount + originalEntry.amount === 0          */
+/*                                                              */
+/*  After un-allocation, each affected installment's status is   */
+/*  re-evaluated:                                               */
+/*    - amountPaid >= amountDue           → "paid"               */
+/*    - amountPaid > 0                    → "partial"            */
+/*    - amountPaid === 0 & dueDate < now  → "overdue"            */
+/*    - amountPaid === 0 & dueDate >= now → "pending"            */
+/* ============================================================ */
+
+/**
+ * A single un-allocation result — how much was subtracted from a
+ * specific installment, plus the resulting post-reversal state.
+ */
+export interface RevertAllocation {
+  readonly installmentId: string;
+  /** Amount subtracted from this installment (>= 0). */
+  readonly revertedAmount: number;
+  readonly newAmountPaid: number;
+  readonly newAmountPending: number;
+  readonly newStatus: "paid" | "partial" | "overdue" | "pending";
+  /** True if the installment transitioned from "paid" to non-paid. */
+  readonly reopened: boolean;
+}
+
+/**
+ * Result of the reverse-waterfall un-allocation.
+ *
+ * Invariant: `sum(revertedAmount) === min(reversalAmount, totalRevertible)`.
+ */
+export interface RevertAllocationResult {
+  readonly reverts: readonly RevertAllocation[];
+  /** Sum of all `revertedAmount` values. */
+  readonly totalReverted: number;
+  /** Leftover reversal amount that couldn't be absorbed (rare —
+   *  indicates a data-integrity problem). */
+  readonly unrevertedAmount: number;
+  readonly reversalAmount: number;
+}
+
+/**
+ * Re-evaluate an installment's status based on its post-reversal
+ * `amountPaid` and `dueDate` vs `now`.
+ */
+export function reevaluateInstallmentStatus(
+  amountPaid: number,
+  amountDue: number,
+  dueDate: string,
+  now: Date = new Date(),
+): "paid" | "partial" | "overdue" | "pending" {
+  if (amountPaid >= amountDue && amountDue > 0) return "paid";
+  if (amountPaid > 0) return "partial";
+  // amountPaid === 0
+  return isStrictlyPast(dueDate, now) ? "overdue" : "pending";
+}
+
+/**
+ * Pure function: reverse a prior waterfall allocation in LIFO order
+ * (newest satisfied tranche un-allocated first).
+ *
+ * Behavior:
+ *   1. Select installments where `amountPaid > 0` (or `amountPending > 0`
+ *      when `originalWasPending = true`).
+ *   2. Sort by `dueDate` DESCENDING (newest satisfied tranche first).
+ *   3. Subtract `reversalAmount` sequentially from each installment's
+ *      `amountPaid` (or `amountPending`), clamped at 0.
+ *   4. Re-evaluate each affected installment's status via
+ *      `reevaluateInstallmentStatus`.
+ *   5. Return the per-installment un-allocation breakdown.
+ *
+ * This function is PURE — it does not mutate the input installments.
+ *
+ * @param installments         All installments for the parent.
+ * @param reversalAmount       The amount to reverse (positive number).
+ * @param categoryFilter       Optional — restrict reversal to a category.
+ * @param originalWasPending   When `true`, subtract from `amountPending`
+ *                             instead of `amountPaid` (the original payment
+ *                             was an uncleared check/transfer that was
+ *                             canceled before clearing).
+ */
+export function revertPaymentAllocation(
+  installments: readonly Installment[],
+  reversalAmount: number,
+  categoryFilter?: Installment["category"],
+  originalWasPending: boolean = false,
+  now: Date = new Date(),
+): RevertAllocationResult {
+  if (reversalAmount <= 0) {
+    return { reverts: [], totalReverted: 0, unrevertedAmount: 0, reversalAmount };
+  }
+
+  const eligible = installments
+    .filter((i) =>
+      originalWasPending
+        ? (i.amountPending ?? 0) > 0
+        : i.amountPaid > 0,
+    )
+    .filter((i) => (categoryFilter ? i.category === categoryFilter : true))
+    .slice()
+    .sort((a, b) => {
+      // LIFO: newest satisfied tranche first.
+      const da = new Date(a.dueDate).getTime();
+      const db = new Date(b.dueDate).getTime();
+      if (da !== db) return db - da;
+      return a.id < b.id ? 1 : a.id > b.id ? -1 : 0; // reverse id tiebreak
+    });
+
+  const reverts: RevertAllocation[] = [];
+  let remaining = reversalAmount;
+
+  for (const ins of eligible) {
+    if (remaining <= 0) break;
+    const bucket = originalWasPending ? (ins.amountPending ?? 0) : ins.amountPaid;
+    if (bucket <= 0) continue;
+    const revert = Math.min(remaining, bucket);
+    const newAmountPaid = originalWasPending ? ins.amountPaid : Math.max(0, ins.amountPaid - revert);
+    const newAmountPending = originalWasPending ? Math.max(0, (ins.amountPending ?? 0) - revert) : (ins.amountPending ?? 0);
+    const newStatus = reevaluateInstallmentStatus(newAmountPaid, ins.amountDue, ins.dueDate, now);
+    const reopened = ins.status === "paid" && newStatus !== "paid";
+    reverts.push({
+      installmentId: ins.id,
+      revertedAmount: revert,
+      newAmountPaid,
+      newAmountPending,
+      newStatus,
+      reopened,
+    });
+    remaining -= revert;
+  }
+
+  const totalReverted = reversalAmount - remaining;
+  return {
+    reverts,
+    totalReverted,
+    unrevertedAmount: clampNonNegative(remaining),
+    reversalAmount,
   };
 }
 

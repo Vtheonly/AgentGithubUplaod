@@ -1028,6 +1028,7 @@ function mapStudentRow(row: Record<string, any>): Student {
     medicalNotes: row.medical_notes,
     transportTier: null,
     status: row.is_active ? "active" : "suspended",
+    paymentPlan: (row.payment_plan as Student["paymentPlan"]) ?? "tranches",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

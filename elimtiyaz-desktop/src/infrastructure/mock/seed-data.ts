@@ -360,6 +360,7 @@ export const seedStudents = [
   photoUrl: null,
   transportTier: s.level === "primaire" ? "t1" : null,
   status: "active" as const,
+  paymentPlan: "tranches" as const,
   createdAt: daysAgo(120),
   updatedAt: daysAgo(2),
 }));
@@ -708,6 +709,7 @@ export const seedInstallments = seedParents
         label: `Tranche ${t}`,
         amountDue,
         amountPaid: paid ? amountDue : t === 2 ? Math.round(amountDue / 2) : 0,
+        amountPending: 0,
         dueDate: iso(due),
         paidDate: paid ? iso(due) : null,
         status: paid
@@ -716,6 +718,8 @@ export const seedInstallments = seedParents
             ? ("partial" as const)
             : ("pending" as const),
         academicCycle: cycle,
+        paymentPlan: "tranches" as const,
+        isCustomSchedule: false,
         customSchedule: false,
         customScheduleNote: null,
       };

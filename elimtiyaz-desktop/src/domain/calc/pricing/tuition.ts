@@ -16,14 +16,100 @@
  *     per the official fee schedule).
  *   - `tuitionForLevel` returns the FIRST grade level within the academic
  *     level — preserves the legacy "best-effort fallback" semantics.
+ *
+ * UNIFIED ARCHITECTURE additions:
+ *   - `getOfficialTuitionDueDates(startYear, cycle)` — returns the official
+ *     ISO due-date triple per `Prices.md`: Sept 15 / Dec 15 / Mar 15 of
+ *     `(startYear+1)`. This is the canonical schedule for ALL cycles
+ *     (Primaire, CEM, Lycée) per the 2026-2027 fee schedule.
+ *   - `getOfficialTuitionTrancheSplit(grossAnnual, cycle)` — returns the
+ *     official 40% / 30% / 30% tranche split per `Prices.md`.
  */
 import type { AcademicLevel, GradeLevel } from "@/domain/model/student";
 import {
   GRADE_LEVELS,
   academicLevelFromGradeLevel,
 } from "@/domain/model/student";
+import type { AcademicCycle } from "@/domain/model/payment";
 import type { PricingConfig, TuitionPricing } from "@/domain/model/pricing";
 import { splitIntoParts } from "../shared/money";
+
+/* ============================================================ */
+/*  Official schedule generators (Prices.md — 2026-2027)        */
+/* ============================================================ */
+
+/**
+ * Official tuition tranche due dates per `Prices.md`.
+ *
+ * For every cycle (Primaire, CEM, Lycée) the schedule is identical:
+ *   - Tranche 1: September 15 of `startYear`      (at registration)
+ *   - Tranche 2: December 15 of `startYear`       (window: Dec 1 – 15)
+ *   - Tranche 3: March 15 of `startYear + 1`      (window: Mar 1 – 15)
+ *
+ * The `cycle` parameter is accepted for API symmetry with future
+ * cycle-specific schedules but currently does not alter the output —
+ * all cycles follow the same official calendar per `Prices.md`.
+ *
+ * @param startYear  The calendar year in which the academic year starts
+ *                   (e.g. 2026 for the 2026-2027 academic year).
+ * @param cycle      The student's education cycle (prescolaire / primaire /
+ *                   cem / lycee). Currently informational only.
+ * @returns A 3-tuple of ISO date strings `[T1, T2, T3]`.
+ */
+export function getOfficialTuitionDueDates(
+  startYear: number,
+  cycle?: AcademicCycle,
+): readonly [string, string, string] {
+  // Cycle is accepted for symmetry; per Prices.md all cycles share the
+  // same Sept 15 / Dec 15 / Mar 15 schedule.
+  void cycle;
+  return [
+    new Date(Date.UTC(startYear, 8, 15)).toISOString(), // Sept 15
+    new Date(Date.UTC(startYear, 11, 15)).toISOString(), // Dec 15
+    new Date(Date.UTC(startYear + 1, 2, 15)).toISOString(), // Mar 15
+  ];
+}
+
+/**
+ * Official tuition tranche percentage split per `Prices.md`.
+ *
+ * Every grade level follows the same 40% / 30% / 30% allocation:
+ *   - Tranche 1 (At Registration): 40% of annual fee
+ *   - Tranche 2 (Dec 1 – 15):      30% of annual fee
+ *   - Tranche 3 (Mar 1 – 15):      30% of annual fee
+ *
+ * The split is applied to the **net** annual tuition (gross minus evaluated
+ * system discounts) — never to per-tranche gross amounts, to avoid the
+ * double-discounting bug documented in the architectural blueprint.
+ *
+ * @returns A 3-tuple of percentages summing to 100: `[40, 30, 30]`.
+ */
+export function getOfficialTuitionTrancheSplit(
+  _grossAnnual?: number,
+  _cycle?: AcademicCycle,
+): readonly [number, number, number] {
+  return [40, 30, 30];
+}
+
+/**
+ * Split a net annual tuition amount into 3 tranches using the official
+ * `Prices.md` 40% / 30% / 30% allocation, with the remainder absorbed
+ * into Tranche 3 to guarantee exact conservation:
+ *
+ *   T1 = round(net × 0.40)
+ *   T2 = round(net × 0.30)
+ *   T3 = net − T1 − T2
+ *
+ * Invariant: T1 + T2 + T3 === net  (no dinar is lost or invented).
+ */
+export function splitNetTuitionByOfficialSchedule(
+  netAnnual: number,
+): readonly [number, number, number] {
+  const t1 = Math.round(netAnnual * 0.4);
+  const t2 = Math.round(netAnnual * 0.3);
+  const t3 = netAnnual - t1 - t2;
+  return [t1, t2, t3];
+}
 
 /**
  * Convenience: look up the TuitionPricing for a granular grade level.

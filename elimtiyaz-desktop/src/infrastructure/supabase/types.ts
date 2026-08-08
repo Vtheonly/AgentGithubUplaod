@@ -227,7 +227,7 @@ export interface PaymentRow {
   transfer_reference: string | null;
   transfer_source_bank: string | null;
   proof_path: string | null;
-  status: "paid" | "pending" | "unpaid" | "refunded" | "cancelled";
+  status: "paid" | "pending" | "unpaid" | "refunded" | "cancelled" | "partial" | "overdue" | "pending_clearance";
   collected_at: string;
   collected_by: string | null;
   notes: string | null;
@@ -246,10 +246,17 @@ export interface InstallmentRow {
   tranche_number: 1 | 2 | 3;
   amount_due: number;
   amount_paid: number;
+  /**
+   * Uncleared non-cash funds (pending check/transfer) sitting on this tranche.
+   * Invariant 4: a tranche is "paid" only when amount_paid >= amount_due;
+   * amount_pending is excluded from satisfaction until the payment clears.
+   */
+  amount_pending: number;
   due_date: string;
   paid_date: string | null;
-  status: "unpaid" | "partial" | "paid" | "overdue";
-  academic_cycle: "primaire" | "cem" | "lycee" | "prescolaire" | null;
+  status: "unpaid" | "partial" | "paid" | "overdue" | "pending_clearance";
+  academic_cycle: "prescolaire" | "primaire" | "cem" | "lycee" | null;
+  payment_plan: "full_annual" | "tranches";
   is_custom_schedule: boolean;
   custom_schedule_note: string | null;
   created_at: string;
@@ -482,6 +489,64 @@ export interface Database {
       refund_payment: {
         Args: { p_tenant_id: string; p_payment_id: string; p_actor_profile_id: string; p_reason: string };
         Returns: string;
+      };
+      /**
+       * UNIFIED ARCHITECTURE: Atomic payment collection + waterfall allocation.
+       *
+       * Replaces the multi-step client-side flow (insert payment → insert
+       * ledger entry → update installments) with a single RPC that wraps
+       * everything in BEGIN ... COMMIT. If any step fails, the entire
+       * transaction rolls back — no partial state is ever visible.
+       *
+       * Implementation: `supabase/migrations/0026_unified_financial.sql`.
+       */
+      collect_and_allocate_payment: {
+        Args: {
+          p_tenant_id: string;
+          p_parent_id: string;
+          p_student_id: string | null;
+          p_amount: number;
+          p_method: "cash" | "check" | "transfer";
+          p_category: string;
+          p_installment_id: string | null;
+          p_proof_path: string | null;
+          p_notes: string | null;
+          p_actor_id: string;
+          p_actor_name: string;
+        };
+        Returns: {
+          payment_id: string;
+          receipt_number: string;
+          payment_status: string;
+          total_allocated: number;
+          unallocated_credit: number;
+          allocations: unknown; // JSONB array of { installmentId, allocatedAmount, newAmountPaid, newStatus, fullySatisfied }
+        };
+      };
+      /**
+       * UNIFIED ARCHITECTURE: Atomic payment reversal + LIFO un-allocation.
+       *
+       * Replaces the multi-step client-side refund flow (mark refunded →
+       * append reversal entry → revert installment amountPaid) with a
+       * single RPC. Implements Invariant 5 (Reversal Balance).
+       *
+       * Implementation: `supabase/migrations/0026_unified_financial.sql`.
+       */
+      revert_payment_allocation: {
+        Args: {
+          p_tenant_id: string;
+          p_payment_id: string;
+          p_actor_id: string;
+          p_actor_name: string;
+          p_reason: string;
+        };
+        Returns: {
+          payment_id: string;
+          new_status: string;
+          reversal_entry_id: string;
+          reverts_count: number;
+          total_reverted: number;
+        };
       };
       run_overdue_scan: { Args: { p_tenant_id: string; p_as_of?: string }; Returns: unknown };
       expire_pending_approvals: { Args: Record<string, never>; Returns: number };

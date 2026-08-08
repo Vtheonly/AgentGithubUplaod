@@ -1,15 +1,60 @@
 /**
- * Payment & Financial domain — plan §07.
+ * Payment & Financial domain — plan §07 (revised in the Unified Financial
+ * Architecture refactor).
  *
  * Payment methods: Cash / Check / Transfer (3 only).
- * Payment lifecycle: pending → partial → paid (or overdue / refunded / cancelled).
+ * Payment lifecycle:
+ *   pending → partial → paid (or overdue / refunded / cancelled)
+ *   pending_clearance — uncleared non-cash funds sitting on an installment
+ *                        without yet satisfying debt (Invariant 4).
  * Non-cash requires proof scan (mandatory).
- * Tuition = 3 tranches; Transport = tier-based.
+ * Tuition = 3 tranches OR 1 full-annual installment (per `paymentPlan`).
+ * Transport = destination-based 3 tranches.
  * Discretionary Account Adjustments replace deprecated scholarships (§07.04).
+ *
+ * UNIFIED FINANCIAL ARCHITECTURE (this revision):
+ *   - `PaymentCategory` now covers every billable service in the platform:
+ *     tuition, transport, canteen, uniform, books, extracurricular,
+ *     therapy_psychology, therapy_speech, second_apron, parent_credit, other.
+ *   - `Installment` now tracks `amountPending` (uncleared non-cash funds)
+ *     separately from `amountPaid` (cleared funds) so tranches are NEVER
+ *     marked "paid" by a check that has not yet cleared the bank.
+ *   - `Installment` now carries `academicCycle`, `paymentPlan`, and custom
+ *     schedule metadata so the schedule generator + UI can reason about
+ *     the official `Prices.md` cycle rules.
+ *   - `PaymentNavigationContext` + `PaymentLineItem` define the universal
+ *     payload consumed by `UnifiedPaymentModal` — every payment entry point
+ *     in the app (topbar bell, debt dashboard, parent/student drawers,
+ *     installment grid, clubs, therapy, canteen) constructs one of these
+ *     and hands it to the modal.
  */
 export type PaymentMethod = "cash" | "check" | "transfer";
-export type PaymentStatus = "pending" | "partial" | "paid" | "overdue" | "refunded" | "cancelled";
 
+/**
+ * Payment lifecycle statuses.
+ *
+ * `pending_clearance` is reserved for *installments* (not payments themselves)
+ * to represent "an uncleared check/transfer is sitting on this tranche but
+ * has not yet satisfied the debt". Payments themselves still use `pending`
+ * until bank clearance transitions them to `paid`.
+ */
+export type PaymentStatus =
+  | "pending"
+  | "partial"
+  | "paid"
+  | "overdue"
+  | "refunded"
+  | "cancelled"
+  | "pending_clearance";
+
+/**
+ * Canonical billable categories — used by `payments.category`,
+ * `ledger_entries.category`, `installments.category`.
+ *
+ * `parent_credit` is special: it represents an overpayment / advance credit
+ * balance held at the parent level (no specific student). It is the only
+ * category whose account ID is intentionally student-scoped-null.
+ */
 export type PaymentCategory =
   | "tuition"
   | "transport"
@@ -17,7 +62,22 @@ export type PaymentCategory =
   | "uniform"
   | "books"
   | "extracurricular"
+  | "therapy_psychology"
+  | "therapy_speech"
+  | "second_apron"
+  | "parent_credit"
   | "other";
+
+/**
+ * Explicit payment-plan selection — drives whether the billing engine
+ * generates 1 full-annual charge/installment or 3 tranches.
+ *
+ * - `"full_annual"`  → ONE charge + ONE installment for the net annual fee.
+ *                     Enables the 10% early-bird discount when paid ≤ June 30.
+ * - `"tranches"`     → THREE charges + THREE installments per `Prices.md`
+ *                     cycle-specific schedule (default).
+ */
+export type PaymentPlan = "full_annual" | "tranches";
 
 export interface Payment {
   readonly id: string;
@@ -43,37 +103,58 @@ export interface Installment {
   readonly parentId: string;
   readonly studentId: string | null;
   readonly category: PaymentCategory;
-  readonly label: string; // "Tranche 1" / "Tranche 2" / "Tranche 3"
+  readonly label: string; // "Tranche 1" / "Tranche 2" / "Tranche 3" / "Année complète"
   readonly amountDue: number;
+  /** Cleared funds applied to this tranche (cash, cleared check, cleared transfer). */
   readonly amountPaid: number;
+  /**
+   * Uncleared non-cash funds sitting on this tranche (pending check/transfer).
+   *
+   * Invariant 4 (Cleared Funds Only):
+   *   A tranche may be marked `"paid"` ONLY when `amountPaid >= amountDue`.
+   *   Uncleared funds live in `amountPending` and transition into
+   *   `amountPaid` when the underlying payment's status moves
+   *   `"pending"` → `"paid"`.
+   */
+  readonly amountPending: number;
   readonly dueDate: string;
   readonly paidDate: string | null;
   readonly status: PaymentStatus;
   /**
-   * Iteration 9 — flexible installment schedules (plan §07.03 expansion).
-   *
    * The education cycle the installment was generated for. Drives the
-   * default due-date template (Primaire / CEM / Lycée each have their own
-   * pattern), but the actual `dueDate` can be overridden per parent to
-   * accommodate custom payment agreements.
+   * default due-date template (Primaire / CEM / Lycée each follow the
+   * official `Prices.md` schedule: Sept 15 / Dec 15 / Mar 15).
    */
   readonly academicCycle?: AcademicCycle;
+  /**
+   * Whether this installment represents a 100% full-annual payment or a
+   * single tranche of a 3-part schedule. Drives charge-entry generation
+   * (1 vs 3 entries) and slider rendering.
+   */
+  readonly paymentPlan?: PaymentPlan;
   /**
    * True when the due date has been manually overridden per parent.
    * False when the installment follows the standard cycle template.
    */
-  readonly customSchedule?: boolean;
+  readonly isCustomSchedule?: boolean;
   /** Optional note describing the custom payment agreement (e.g. "Échelonnement exceptionnel"). */
   readonly customScheduleNote?: string | null;
+  /** Backward-compat alias for `isCustomSchedule` (older code reads `customSchedule`). */
+  readonly customSchedule?: boolean;
 }
 
 /**
  * Education cycle — used to drive cycle-based installment templates.
  * Each cycle can have its own default tranche dates and amounts.
  */
-export type AcademicCycle = "primaire" | "cem" | "lycee";
+export type AcademicCycle = "prescolaire" | "primaire" | "cem" | "lycee";
+
+/** Legacy alias — `primaire` historically included preschool. New code
+ * should distinguish `prescolaire` when it matters for pricing. */
+export type AcademicCycleLegacy = "primaire" | "cem" | "lycee";
 
 export const ACADEMIC_CYCLE_LABELS_FR: Record<AcademicCycle, string> = {
+  prescolaire: "Préscolaire",
   primaire: "Primaire",
   cem: "CEM / Collège",
   lycee: "Lycée",
@@ -86,10 +167,19 @@ export const ACADEMIC_CYCLE_LABELS_FR: Record<AcademicCycle, string> = {
  * overrides are applied via `InstallmentRepository.updateDueDate`.
  *
  * Source: legacy Excel workflow — September / December / March is the
- * historical default; CEM and Lycée shift the 3rd tranche later because
+ * historical default. CEM and Lycée shift the 3rd tranche later because
  * their school year ends later.
+ *
+ * UNIFIED ARCHITECTURE NOTE: The canonical, official schedule per
+ * `Prices.md` is Sept 15 / Dec 15 / Mar 15 for ALL cycles (Primaire,
+ * CEM, Lycée) AND for Transport. The legacy month offsets below are kept
+ * only for backward compatibility with existing seed data; new code MUST
+ * use `getOfficialTuitionDueDates` / `getOfficialTransportDueDates`
+ * from `domain/calc/pricing/` which always return the Sept 15 / Dec 15 /
+ * Mar 15 schedule.
  */
 export const DEFAULT_CYCLE_TRANCHE_MONTHS: Record<AcademicCycle, readonly [number, number, number]> = {
+  prescolaire: [9, 12, 3], // Sept / Dec / March
   primaire: [9, 12, 3],   // Sept / Dec / March
   cem: [9, 12, 4],         // Sept / Dec / April
   lycee: [9, 1, 5],        // Sept / Jan / May
@@ -163,6 +253,7 @@ export const PAYMENT_STATUS_LABELS_FR: Record<PaymentStatus, string> = {
   overdue: "En retard",
   refunded: "Remboursé",
   cancelled: "Annulé",
+  pending_clearance: "En cours d'encaissement",
 };
 
 export const PAYMENT_CATEGORY_LABELS_FR: Record<PaymentCategory, string> = {
@@ -172,6 +263,10 @@ export const PAYMENT_CATEGORY_LABELS_FR: Record<PaymentCategory, string> = {
   uniform: "Uniforme",
   books: "Livres",
   extracurricular: "Activité parascolaire",
+  therapy_psychology: "Psychologie",
+  therapy_speech: "Orthophonie",
+  second_apron: "2ème Tablier",
+  parent_credit: "Crédit Parent",
   other: "Autre",
 };
 
@@ -182,6 +277,80 @@ export const AGING_BUCKET_LABELS_FR: Record<AgingBucket, string> = {
   "91_180": "91–180 j",
   "180_plus": "180+ j",
 };
+
+/* ================================================================== */
+/*  Universal Payment Navigation Context (UnifiedPaymentModal input)  */
+/* ================================================================== */
+
+/**
+ * Adaptive slider operational mode — drives how `AdaptivePaymentSlider`
+ * renders its track and snap points, and how `UnifiedPaymentModal`
+ * validates the submission.
+ *
+ * - `"single_item"`         → Paying for one non-divisible item (club, uniform,
+ *                             2nd apron, single therapy session/package).
+ * - `"installment_tranche"` → Paying toward one or more scheduled tuition /
+ *                             transport tranches for a specific student.
+ * - `"consolidated_debt"`   → Paying a custom amount toward the family's
+ *                             total accumulated overdue debt across all services.
+ * - `"account_adjustment"`  → Administrative credit (discount/waiver) or debit
+ *                             (penalty) applied directly to the account.
+ */
+export type PaymentNavigationMode =
+  | "single_item"
+  | "installment_tranche"
+  | "consolidated_debt"
+  | "account_adjustment";
+
+/**
+ * A single billable line item inside a `PaymentNavigationContext`.
+ *
+ * Each line item carries its own gross/discount/net/already-paid/remaining
+ * breakdown so the modal can render a precise summary card without
+ * duplicating financial math in the UI (Zero-Logic Rule).
+ */
+export interface PaymentLineItem {
+  readonly itemId: string;
+  readonly category: PaymentCategory;
+  readonly label: string;
+  readonly grossAmount: number;
+  readonly discountAmount: number;
+  readonly netAmount: number;
+  readonly alreadyPaidAmount: number;
+  readonly remainingAmount: number;
+  readonly dueDate?: string;
+  readonly isOverdue?: boolean;
+  readonly daysOverdue?: number;
+}
+
+/**
+ * The universal payload every payment entry point constructs and hands to
+ * `UnifiedPaymentModal`. Replaces ad-hoc preset props on the old
+ * `CounterPaymentModal`.
+ *
+ * Constructing a context is cheap and pure — no financial math happens here.
+ * The modal reads the context, calls into `domain/calc/` for previews,
+ * and dispatches the final collection via `PaymentRepository.collect()`.
+ */
+export interface PaymentNavigationContext {
+  readonly parentId: string;
+  readonly parentName?: string;
+  readonly parentCode?: string;
+  readonly studentId?: string | null;
+  readonly studentName?: string;
+  readonly mode: PaymentNavigationMode;
+  /** Target installment / line-item id, when applicable. */
+  readonly targetItemId?: string;
+  /** Pre-filled payment amount (e.g. remaining tranche debt). */
+  readonly presetAmount?: number;
+  readonly overdueDays?: number;
+  readonly dueWindowLabel?: string;
+  readonly lineItems: readonly PaymentLineItem[];
+  /** Whether partial payments are permitted for this item. */
+  readonly allowPartial?: boolean;
+  /** Originating route (for back-navigation / analytics). */
+  readonly originRoute?: string;
+}
 
 export interface CollectPaymentInput {
   readonly parentId: string;

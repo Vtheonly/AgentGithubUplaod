@@ -17,6 +17,8 @@ import {
   allocatePaymentToInstallments,
   currentTrancheLabel,
   isOverpayment,
+  revertPaymentAllocation,
+  reevaluateInstallmentStatus,
 } from "../../../domain/calc/payment/installments";
 import type { Installment } from "../../../domain/model/payment";
 
@@ -29,6 +31,7 @@ function makeInstallment(overrides: Partial<Installment> = {}): Installment {
     label: overrides.label ?? "Tranche 1",
     amountDue: overrides.amountDue ?? 100_000,
     amountPaid: overrides.amountPaid ?? 0,
+    amountPending: overrides.amountPending ?? 0,
     dueDate: overrides.dueDate ?? "2025-09-15",
     paidDate: overrides.paidDate ?? null,
     status: overrides.status ?? "pending",
@@ -182,5 +185,140 @@ describe("Waterfall Allocation Engine — isOverpayment", () => {
     ];
     expect(isOverpayment(installments, 100_000)).toBe(false);
     expect(isOverpayment(installments, 50_000)).toBe(false);
+  });
+});
+
+describe("Waterfall Allocation Engine — pending vs cleared (Invariant 4)", () => {
+  it("marks tranche as 'paid' for a CLEARED cash payment", () => {
+    const installments = [makeInstallment({ amountDue: 100_000, amountPaid: 0 })];
+    const result = allocatePaymentToInstallments(installments, 100_000, "tuition", "paid");
+    expect(result.allocations).toHaveLength(1);
+    expect(result.allocations[0].newStatus).toBe("paid");
+    expect(result.allocations[0].newAmountPaid).toBe(100_000);
+    expect(result.allocations[0].newAmountPending).toBe(0);
+    expect(result.allocations[0].cleared).toBe(true);
+    expect(result.allocations[0].fullySatisfied).toBe(true);
+  });
+
+  it("does NOT mark tranche as 'paid' for an UNCLEARED check (pending)", () => {
+    const installments = [makeInstallment({ amountDue: 100_000, amountPaid: 0 })];
+    const result = allocatePaymentToInstallments(installments, 100_000, "tuition", "pending");
+    expect(result.allocations).toHaveLength(1);
+    // Critical Invariant 4 assertion: pending funds NEVER mark a tranche as "paid".
+    expect(result.allocations[0].newStatus).toBe("pending_clearance");
+    expect(result.allocations[0].newAmountPaid).toBe(0); // amountPaid unchanged
+    expect(result.allocations[0].newAmountPending).toBe(100_000); // funds land in amountPending
+    expect(result.allocations[0].cleared).toBe(false);
+    expect(result.allocations[0].fullySatisfied).toBe(false);
+  });
+
+  it("still conserves the total: sum(allocated) + unallocated === paymentAmount for pending", () => {
+    const installments = [
+      makeInstallment({ id: "t1", amountDue: 100_000, amountPaid: 0, dueDate: "2026-09-15" }),
+      makeInstallment({ id: "t2", amountDue: 50_000, amountPaid: 0, dueDate: "2026-12-15" }),
+    ];
+    const result = allocatePaymentToInstallments(installments, 120_000, "tuition", "pending");
+    const totalAlloc = result.allocations.reduce((s, a) => s + a.allocatedAmount, 0);
+    expect(totalAlloc + result.unallocatedAmount).toBe(120_000);
+  });
+
+  it("defaults to 'paid' status when paymentStatus is omitted (backward compat)", () => {
+    const installments = [makeInstallment({ amountDue: 100_000, amountPaid: 0 })];
+    const result = allocatePaymentToInstallments(installments, 100_000);
+    expect(result.allocations[0].cleared).toBe(true);
+    expect(result.allocations[0].newStatus).toBe("paid");
+  });
+});
+
+describe("Reverse-Waterfall Allocation (LIFO) — revertPaymentAllocation", () => {
+  it("reverts the newest satisfied tranche first (LIFO)", () => {
+    const installments = [
+      {
+        ...makeInstallment({ id: "t1", amountDue: 100_000, amountPaid: 100_000, status: "paid" as const, dueDate: "2026-09-15" }),
+      },
+      {
+        ...makeInstallment({ id: "t2", amountDue: 100_000, amountPaid: 100_000, status: "paid" as const, dueDate: "2026-12-15" }),
+      },
+      {
+        ...makeInstallment({ id: "t3", amountDue: 100_000, amountPaid: 100_000, status: "paid" as const, dueDate: "2027-03-15" }),
+      },
+    ];
+    // Reverse 50,000 — should come out of t3 (newest) first.
+    const result = revertPaymentAllocation(installments, 50_000);
+    expect(result.reverts).toHaveLength(1);
+    expect(result.reverts[0].installmentId).toBe("t3");
+    expect(result.reverts[0].revertedAmount).toBe(50_000);
+    expect(result.reverts[0].newAmountPaid).toBe(50_000);
+    expect(result.reverts[0].newStatus).toBe("partial");
+    expect(result.reverts[0].reopened).toBe(true);
+    expect(result.totalReverted).toBe(50_000);
+  });
+
+  it("reverts across multiple tranches in LIFO order when reversal exceeds one tranche", () => {
+    const installments = [
+      {
+        ...makeInstallment({ id: "t1", amountDue: 100_000, amountPaid: 100_000, status: "paid" as const, dueDate: "2026-09-15" }),
+      },
+      {
+        ...makeInstallment({ id: "t2", amountDue: 100_000, amountPaid: 100_000, status: "paid" as const, dueDate: "2026-12-15" }),
+      },
+      {
+        ...makeInstallment({ id: "t3", amountDue: 100_000, amountPaid: 100_000, status: "paid" as const, dueDate: "2027-03-15" }),
+      },
+    ];
+    // Reverse 150,000 — should fully drain t3 (100k) + partially drain t2 (50k).
+    const result = revertPaymentAllocation(installments, 150_000);
+    expect(result.reverts).toHaveLength(2);
+    expect(result.reverts[0].installmentId).toBe("t3");
+    expect(result.reverts[0].revertedAmount).toBe(100_000);
+    expect(result.reverts[0].newAmountPaid).toBe(0);
+    // Now (2026-08-08) is BEFORE 2027-03-15, so the tranche should be "pending", not "overdue".
+    expect(result.reverts[0].newStatus).toBe("pending");
+    expect(result.reverts[1].installmentId).toBe("t2");
+    expect(result.reverts[1].revertedAmount).toBe(50_000);
+    expect(result.reverts[1].newAmountPaid).toBe(50_000);
+    expect(result.reverts[1].newStatus).toBe("partial");
+    expect(result.totalReverted).toBe(150_000);
+  });
+
+  it("conserves the reversal amount exactly: sum(reverted) === min(reversal, totalRevertible)", () => {
+    const installments = [
+      {
+        ...makeInstallment({ id: "t1", amountDue: 100_000, amountPaid: 30_000, status: "partial" as const, dueDate: "2026-09-15" }),
+      },
+    ];
+    // Revert 50,000 — only 30,000 is revertible.
+    const result = revertPaymentAllocation(installments, 50_000);
+    expect(result.totalReverted).toBe(30_000);
+    expect(result.unrevertedAmount).toBe(20_000);
+  });
+
+  it("reverts from amountPending when originalWasPending is true (bounced check)", () => {
+    const installments = [
+      {
+        ...makeInstallment({ id: "t1", amountDue: 100_000, amountPaid: 0, amountPending: 100_000, status: "pending_clearance" as const, dueDate: "2026-09-15" }),
+      },
+    ];
+    const result = revertPaymentAllocation(installments, 100_000, undefined, true);
+    expect(result.reverts).toHaveLength(1);
+    expect(result.reverts[0].newAmountPending).toBe(0);
+    expect(result.reverts[0].newAmountPaid).toBe(0); // unchanged
+    expect(result.totalReverted).toBe(100_000);
+  });
+
+  it("returns an empty result when reversalAmount <= 0", () => {
+    const installments = [makeInstallment({ amountDue: 100_000, amountPaid: 50_000 })];
+    const result = revertPaymentAllocation(installments, 0);
+    expect(result.reverts).toHaveLength(0);
+    expect(result.totalReverted).toBe(0);
+  });
+
+  it("reevaluateInstallmentStatus correctly classifies paid/partial/overdue/pending", () => {
+    const past = "2025-01-01";
+    const future = "2027-12-31";
+    expect(reevaluateInstallmentStatus(100, 100, future)).toBe("paid");
+    expect(reevaluateInstallmentStatus(50, 100, future)).toBe("partial");
+    expect(reevaluateInstallmentStatus(0, 100, past)).toBe("overdue");
+    expect(reevaluateInstallmentStatus(0, 100, future)).toBe("pending");
   });
 });

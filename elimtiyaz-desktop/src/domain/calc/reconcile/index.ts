@@ -43,6 +43,9 @@ export {
   crossCheckPayments,
   crossCheckInstallments,
   crossCheckBalanceSum,
+  crossCheckInstallmentPayments,
+  crossCheckClearedBalance,
+  crossCheckParentCredit,
 } from "./cross-checks";
 
 /**

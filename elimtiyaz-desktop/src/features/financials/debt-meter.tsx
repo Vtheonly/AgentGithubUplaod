@@ -1,6 +1,6 @@
 /**
- * DebtMeter — color-coded progress bar that visualizes the parent's payment
- * state alongside an in-progress payment.
+ * UnifiedDebtMeter — color-coded progress bar that visualizes the parent's
+ * payment state alongside an in-progress payment.
  *
  * Shows:
  *   - Total amount due
@@ -9,6 +9,17 @@
  *   - Remaining debt after this payment (gray)
  *   - Current tranche focus indicator
  *   - Overpaid / Underpaid badge
+ *   - Parent credit balance (when overpayment has been banked)
+ *
+ * UNIFIED ARCHITECTURE (this revision):
+ *   - New optional `unallocatedCredit` prop displays the parent's banked
+ *     credit balance (from prior overpayments) as a distinct row, making
+ *     it clear when future invoices will be auto-absorbed.
+ *   - Enhanced status badges: "Dette entièrement soldée" (when remaining
+ *     hits 0), "Excédent de +X (Crédit Parent)" (when overpaying), and
+ *     "Tranche cible : [Label]" (when paying toward a specific tranche).
+ *   - `UnifiedDebtMeter` is exported as an alias for `DebtMeter` so
+ *     callers adopting the unified architecture can use the new name.
  *
  * Plan §07 architectural blueprint: "Alongside the slider, add a debt meter
  * that clearly shows: how much has been paid, how much is still owed, the
@@ -28,6 +39,13 @@ export interface DebtMeterProps {
   currentTrancheLabel: string | null;
   /** Optional note about which tranche will be completed/cleared. */
   statusNote?: string | null;
+  /**
+   * Optional parent credit balance (always <= 0). When provided, displays
+   * a row showing the banked credit that will be auto-absorbed by future
+   * invoices. Positive numbers represent the magnitude (e.g. 5000 = 5,000 DA
+   * credit). Defaults to 0 (no credit).
+   */
+  unallocatedCredit?: number;
 }
 
 export function DebtMeter({
@@ -36,6 +54,7 @@ export function DebtMeter({
   payingNow,
   currentTrancheLabel,
   statusNote,
+  unallocatedCredit = 0,
 }: DebtMeterProps) {
   const remainingAfter = Math.max(0, totalDue - alreadyPaid - payingNow);
   const totalProjected = alreadyPaid + payingNow;
@@ -46,19 +65,19 @@ export function DebtMeter({
   const payingPct = totalDue > 0 ? Math.min(100 - paidPct, (payingNow / totalDue) * 100) : 0;
   const remainingPct = Math.max(0, 100 - paidPct - payingPct);
 
-  // Status badge selection.
+  // Status badge selection (enhanced with new badges).
   let badge: { tone: "success" | "warning" | "danger" | "neutral"; label: string };
   if (totalDue === 0) {
     badge = { tone: "neutral", label: "Aucune tranche due" };
   } else if (overpayment > 0.5) {
     badge = {
       tone: "warning",
-      label: `Excédent +${formatDzdPlain(overpayment)} (crédit parent)`,
+      label: `Excédent de +${formatDzdPlain(overpayment)} (Crédit Parent)`,
     };
   } else if (remainingAfter <= 0.5) {
     badge = {
       tone: "success",
-      label: "Soldera l'intégralité de la dette",
+      label: "Dette entièrement soldée",
     };
   } else if (payingNow > 0) {
     badge = {
@@ -100,6 +119,14 @@ export function DebtMeter({
           <p className="text-[10px] uppercase text-muted-foreground">Reste après</p>
           <p className="font-mono font-semibold text-status-danger">{formatDzdPlain(remainingAfter)}</p>
         </div>
+        {unallocatedCredit > 0 && (
+          <div className="col-span-2 border-t border-border pt-2 mt-1">
+            <p className="text-[10px] uppercase text-muted-foreground">Crédit parent disponible</p>
+            <p className="font-mono font-semibold text-status-warning">
+              {formatDzdPlain(unallocatedCredit)} (sera absorbé sur la prochaine facture)
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Segmented progress bar */}
@@ -146,3 +173,10 @@ export function DebtMeter({
     </div>
   );
 }
+
+/**
+ * Backward-compat alias — `DebtMeter` is the canonical export, but callers
+ * adopting the unified architecture can import `UnifiedDebtMeter` by name
+ * to make the intent explicit.
+ */
+export const UnifiedDebtMeter = DebtMeter;

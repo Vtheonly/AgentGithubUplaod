@@ -124,6 +124,17 @@ export interface AccountBalance {
   readonly totalCleared: number;
   /** Sum of pending payments (status === "pending"). */
   readonly totalPending: number;
+  /**
+   * Unallocated parent credit on this account (always <= 0).
+   *
+   * Computed as the sum of `adjustment` entries with `category === "parent_credit"`
+   * on this account. These represent overpayments / advance credits that
+   * should be auto-applied to future charges before requiring new payments.
+   *
+   * Only present on parent-level accounts (`studentId === null` and
+   * `category === "parent_credit"`).
+   */
+  readonly unallocatedCredit: number;
   /** Count of entries that contributed to this balance. */
   readonly entryCount: number;
   /** Timestamp of the most recent entry. */
@@ -146,6 +157,17 @@ export interface ParentLedgerSummary {
   readonly totalPending: number;
   readonly totalAdjusted: number;
   readonly totalRefunded: number;
+  /**
+   * Total unallocated parent credit across all the parent's accounts.
+   *
+   * This is the sum of all `parent_credit` adjustment entries — i.e.
+   * overpayments the parent has banked with the school that should be
+   * automatically applied to future charges.
+   *
+   * Always <= 0. A non-zero value means the school owes the parent money
+   * (advance credit).
+   */
+  readonly totalUnallocatedCredit: number;
   readonly accounts: readonly AccountBalance[];
   readonly entryCount: number;
   readonly lastActivityAt: string | null;

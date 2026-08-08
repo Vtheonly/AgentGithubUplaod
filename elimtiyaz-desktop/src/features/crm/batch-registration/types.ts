@@ -8,6 +8,7 @@
 import type { AcademicLevel, Gender } from "../../../domain/model/student";
 import type { TransportDestination } from "../../../domain/model/parent";
 import type { PricingConfig } from "../../../domain/model/pricing";
+import type { PaymentPlan } from "../../../domain/model/payment";
 
 export interface Step1Parent {
   firstName: string;
@@ -33,6 +34,8 @@ export interface Step2Student {
   /** Canonical transport destination per student (overrides parent if set). */
   transportDestination: TransportDestination | "";
   medicalNotes: string;
+  /** Payment plan for this student's annual tuition (defaults to "tranches"). */
+  paymentPlan: PaymentPlan;
 }
 
 export const EMPTY_PARENT: Step1Parent = {
@@ -57,6 +60,7 @@ export const EMPTY_STUDENT: Step2Student = {
   gradeYear: 1,
   transportDestination: "",
   medicalNotes: "",
+  paymentPlan: "tranches",
 };
 
 export const PHONE_RE = /^[+]?[0-9\s]{8,15}$/;
@@ -68,19 +72,36 @@ export interface BillingTranche {
   amountDue: number;
 }
 
+/** Itemized discount line shown in the billing breakdown. */
+export interface BillingDiscount {
+  code: string;
+  label: string;
+  amount: number; // signed (negative = credit)
+  reason: string;
+}
+
 /** Per-student billing breakdown rendered in step 3 and step 4. */
 export interface BillingPerStudent {
   index: number;
   name: string;
   level: string;
+  /** Gross annual tuition before discounts. */
   tuition: number;
+  /** Total signed discount applied to this student's tuition. */
+  tuitionDiscount: number;
+  /** Net annual tuition after discounts. */
+  netTuition: number;
+  /** Itemized discounts (empty when none apply). */
+  discounts: ReadonlyArray<BillingDiscount>;
   transport: number;
-  /** 3 tuition tranches. */
+  /** 3 tuition tranches (or 1 when paymentPlan === "full_annual"). */
   tranches: ReadonlyArray<BillingTranche>;
   /** 3 transport tranches (empty when student has no transport). */
   transportTranches: ReadonlyArray<BillingTranche>;
   /** Display name of the transport destination (or null when none). */
   transportDestinationLabel: string | null;
+  /** Payment plan selected for this student. */
+  paymentPlan: "full_annual" | "tranches";
 }
 
 /**
@@ -92,6 +113,8 @@ export interface Billing {
   registrationFee: number;
   totalTuition: number;
   totalTransport: number;
+  /** Sum of all per-student discounts (negative number). */
+  totalDiscounts: number;
   grandTotal: number;
 }
 
@@ -101,4 +124,8 @@ export interface BillingInput {
   pricing: PricingConfig;
   includeRegistration: boolean;
   includeTransport: boolean;
+  /** Calendar year the academic year starts (for June-30 cutoff). */
+  academicYearStartYear?: number;
+  /** ISO date the parent intends to settle (for early-bird evaluation). */
+  paymentDate?: string;
 }

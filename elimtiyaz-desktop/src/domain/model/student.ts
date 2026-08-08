@@ -3,8 +3,10 @@
  * creates a Parent + N Students in a single transaction (plan §04.03).
  */
 import type { Gender, Parent, CreateParentInput } from "./parent";
+import type { PaymentPlan } from "./payment";
 
 export type { Gender } from "./parent";
+export type { PaymentPlan } from "./payment";
 
 export type AcademicLevel = "primaire" | "cem" | "lycee";
 export type StudentStatus = "active" | "graduated" | "transferred" | "suspended" | "withdrawn";
@@ -190,6 +192,16 @@ export interface Student {
   readonly medicalNotes: string | null;
   readonly transportTier: string | null;
   readonly status: StudentStatus;
+  /**
+   * Selected payment plan for this student's annual tuition.
+   *
+   * - `"full_annual"` → 1 charge + 1 installment for the net annual fee
+   *                     (enables 10% early-bird discount when paid ≤ June 30).
+   * - `"tranches"`    → 3 charges + 3 installments per `Prices.md` schedule.
+   *
+   * Defaults to `"tranches"` for new enrollments.
+   */
+  readonly paymentPlan: PaymentPlan;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -206,6 +218,8 @@ export interface CreateStudentInput {
   readonly classId?: string | null;
   readonly medicalNotes?: string | null;
   readonly transportTier?: string | null;
+  /** Payment plan — defaults to `"tranches"` when omitted. */
+  readonly paymentPlan?: PaymentPlan;
 }
 
 export interface BatchRegistrationInput {

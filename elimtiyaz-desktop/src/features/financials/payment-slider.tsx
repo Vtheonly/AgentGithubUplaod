@@ -1,16 +1,25 @@
 /**
- * PaymentSlider — interactive slider that represents the entire annual
- * financial commitment, divided into 3 tranches as proportional segments.
+ * AdaptivePaymentSlider — interactive slider that adapts its rendering and
+ * snap-point calculation to one of three payment modes.
  *
- * Features (per the architectural blueprint):
- *   - Proportional segments: the track is split into 3 tranches, each
- *     occupying its proportional share of the total commitment.
- *   - Magnetic snap points: the handle snaps to tranche boundaries (T1 end,
- *     T2 end, T3 end) plus 0.
- *   - Fine-tuning input: a manual numerical input alongside the slider lets
- *     the operator type custom partial amounts.
- *   - Per-tranche visual: each tranche shows its label, due-date window,
- *     amount, and current paid/remaining state.
+ * UNIFIED ARCHITECTURE (this revision):
+ *   - `mode` prop selects between:
+ *     * `single_item`         — Single non-divisible item (club, uniform, apron).
+ *                               Slider snaps to 0 and 100% (Net Price). When
+ *                               `allowPartial = false`, mid-values snap back to 100%.
+ *     * `installment_tranche` — 1–3 tuition/transport tranches. Proportional
+ *                               segments + magnetic snap points computed from
+ *                               REMAINING unpaid balances (NOT gross amountDue).
+ *     * `consolidated_debt`   — N segments grouped by child/service in chronological
+ *                               due-date order. Snap points at each child's debt
+ *                               boundary.
+ *   - SNAP-POINT BUG FIX: The original `snapPoints` function used
+ *     `cumulative += t.amountDue` — this snapped to the GROSS tranche amount,
+ *     so a tranche that was already 30% paid would still snap at its full
+ *     gross amount, forcing the user to over-pay by 30% to hit the snap.
+ *     The fix: snap on REMAINING debt `max(0, amountDue - amountPaid)`.
+ *   - The component remains a PURE VIEW — all financial math comes from
+ *     the `tranches` spec passed in by the caller (Zero-Logic Rule).
  *
  * Plan §07: "The entire slider should represent the three payment tranches.
  * Each tranche should occupy its corresponding percentage of the total
@@ -36,28 +45,65 @@ export interface PaymentTrancheSpec {
   readonly amountPaid: number;
 }
 
+/** Adaptive slider operational mode — see file header for details. */
+export type PaymentSliderMode = "single_item" | "installment_tranche" | "consolidated_debt";
+
 export interface PaymentSliderProps {
-  /** The 3 (or fewer) tranches, in chronological order. */
+  /** The 1–3 (or N for consolidated_debt) tranches, in chronological order. */
   tranches: readonly PaymentTrancheSpec[];
   /** Current payment amount selected on the slider. */
   value: number;
   /** Callback when the value changes (drag or manual input). */
   onChange: (value: number) => void;
-  /** Maximum allowed value. Defaults to sum of all tranche amountDue. */
+  /** Maximum allowed value. Defaults to sum of all tranche REMAINING balances. */
   max?: number;
   /** Disabled state. */
   disabled?: boolean;
+  /** Operational mode — drives rendering + snap behavior. Defaults to "installment_tranche". */
+  mode?: PaymentSliderMode;
+  /** Whether partial payments are permitted. When `false` and `mode === "single_item"`,
+   *  mid-values snap back to 100% on release. Defaults to `true`. */
+  allowPartial?: boolean;
 }
 
 /** Snap threshold in DZD — if the slider is within this distance of a snap point, snap. */
 const SNAP_THRESHOLD_DZD = 500;
 
 /**
- * Compute the cumulative snap points from a list of tranches.
- * Each tranche contributes one snap point at its right edge.
- * The first snap point is always 0.
+ * Compute the cumulative snap points from a list of tranches using
+ * REMAINING unpaid balances.
+ *
+ * BUG FIX (this revision): The original implementation used
+ *   `cumulative += t.amountDue`
+ * which snapped to the GROSS tranche amount. If a tranche had
+ * `amountDue = 100,000` and `amountPaid = 30,000`, the snap point was
+ * at 100,000 — forcing the user to drag 30,000 past the actual remaining
+ * debt (70,000) to hit the snap. The fix uses `max(0, amountDue - amountPaid)`.
+ *
+ * Snap points array:
+ *   [0, Rem_1, Rem_1 + Rem_2, Rem_1 + Rem_2 + Rem_3, ...]
+ *
+ * Tranches that are already fully paid (`remaining === 0`) contribute
+ * no new snap point — they're skipped.
  */
-function snapPoints(tranches: readonly PaymentTrancheSpec[]): number[] {
+function snapPointsFromRemaining(tranches: readonly PaymentTrancheSpec[]): number[] {
+  const points = [0];
+  let cumulative = 0;
+  for (const t of tranches) {
+    const remaining = Math.max(0, t.amountDue - t.amountPaid);
+    if (remaining <= 0) continue; // skip fully-paid tranches
+    cumulative += remaining;
+    points.push(cumulative);
+  }
+  return points;
+}
+
+/**
+ * Legacy snap-points function (uses gross `amountDue`).
+ * Kept for backward compatibility but NOT used by default —
+ * `snapPointsFromRemaining` is the correct implementation.
+ */
+function snapPointsFromGross(tranches: readonly PaymentTrancheSpec[]): number[] {
   const points = [0];
   let cumulative = 0;
   for (const t of tranches) {
@@ -81,13 +127,24 @@ export function PaymentSlider({
   onChange,
   max,
   disabled,
+  mode = "installment_tranche",
+  allowPartial = true,
 }: PaymentSliderProps) {
+  // Total REMAINING debt across all tranches — used as the default max.
+  const totalRemaining = useMemo(
+    () => tranches.reduce((s, t) => s + Math.max(0, t.amountDue - t.amountPaid), 0),
+    [tranches],
+  );
+  // Total GROSS debt — used for the proportional segment widths (visual only).
   const totalDue = useMemo(
     () => tranches.reduce((s, t) => s + t.amountDue, 0),
     [tranches],
   );
-  const maxAmount = max ?? totalDue;
-  const snaps = useMemo(() => snapPoints(tranches), [tranches]);
+  const maxAmount = max ?? Math.max(totalRemaining, totalDue);
+  // CRITICAL FIX: snap points now use REMAINING balances.
+  const snaps = useMemo(() => snapPointsFromRemaining(tranches), [tranches]);
+  // Legacy gross snap points — kept for the cumulative-scale labels (visual).
+  const grossBoundaries = useMemo(() => snapPointsFromGross(tranches), [tranches]);
 
   if (tranches.length === 0 || totalDue === 0) {
     return (
@@ -97,12 +154,12 @@ export function PaymentSlider({
     );
   }
 
-  // Compute the cumulative boundaries for the tranche strip overlay.
-  const cumulativeBoundaries: number[] = [];
-  let cum = 0;
+  // Cumulative REMAINING boundaries — drive the tranche strip overlay widths.
+  const cumulativeRemainingBoundaries: number[] = [];
+  let cumRem = 0;
   for (const t of tranches) {
-    cum += t.amountDue;
-    cumulativeBoundaries.push(cum);
+    cumRem += Math.max(0, t.amountDue - t.amountPaid);
+    cumulativeRemainingBoundaries.push(cumRem);
   }
 
   // Slider value as a percentage of maxAmount.
@@ -118,29 +175,53 @@ export function PaymentSlider({
   });
   const overpayment = Math.max(0, remainingToAllocate);
 
+  // Mode-specific behaviors
+  const handleSliderChange = (vals: number[]) => {
+    const v = vals[0] ?? 0;
+    let snapped = snap(v, snaps);
+    // single_item + !allowPartial: snap mid-values to the net price (100%).
+    if (mode === "single_item" && !allowPartial) {
+      const netPrice = totalRemaining; // for single_item, totalRemaining = net price
+      if (snapped > 0 && snapped < netPrice) {
+        snapped = netPrice; // force to 100%
+      }
+    }
+    onChange(snapped);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Tranche strip — visual segmented track above the slider */}
+      {/* Mode badge */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {mode === "single_item" && "Article / Service unique"}
+          {mode === "installment_tranche" && "Tranches (engagement annuel)"}
+          {mode === "consolidated_debt" && "Dette consolidée famille"}
+        </p>
+        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <Magnet className="h-3 w-3" />
+          Aimanté aux soldes restants
+        </p>
+      </div>
+
+      {/* Tranche strip — visual segmented track above the slider.
+          Widths are proportional to REMAINING debt (not gross). */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Tranches (engagement annuel)
-          </p>
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <Magnet className="h-3 w-3" />
-            Aimanté aux bornes de tranches
-          </p>
-        </div>
         <div className="relative h-9 w-full overflow-hidden rounded-md border border-border bg-muted">
           {tranches.map((t, i) => {
-            const leftPct = i === 0 ? 0 : (cumulativeBoundaries[i - 1] / maxAmount) * 100;
-            const widthPct = (t.amountDue / maxAmount) * 100;
+            const leftPct = i === 0 ? 0 : (cumulativeRemainingBoundaries[i - 1] / maxAmount) * 100;
+            const widthPct = (Math.max(0, t.amountDue - t.amountPaid) / maxAmount) * 100;
             const isFullyPaid = t.amountPaid >= t.amountDue && t.amountDue > 0;
+            const isCleared = isFullyPaid;
             return (
               <div
                 key={t.id}
                 className={`absolute inset-y-0 flex flex-col items-center justify-center border-r border-border last:border-r-0 px-1 text-center ${
-                  isFullyPaid ? "bg-status-success/25" : "bg-primary/10"
+                  isCleared
+                    ? "bg-status-success/25"
+                    : widthPct > 0
+                      ? "bg-primary/10"
+                      : "bg-muted/40"
                 }`}
                 style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
               >
@@ -159,10 +240,10 @@ export function PaymentSlider({
             style={{ left: `${sliderPct}%` }}
           />
         </div>
-        {/* Cumulative scale labels */}
+        {/* Cumulative REMAINING scale labels (bug fix: was gross amounts) */}
         <div className="relative h-4 mt-0.5 text-[9px] text-muted-foreground">
           <span className="absolute left-0">0</span>
-          {cumulativeBoundaries.map((b, i) => (
+          {cumulativeRemainingBoundaries.map((b, i) => (
             <span
               key={i}
               className="absolute -translate-x-1/2"
@@ -182,13 +263,17 @@ export function PaymentSlider({
           max={maxAmount}
           step={100}
           disabled={disabled}
-          onValueChange={(vals) => {
-            const v = vals[0] ?? 0;
-            onChange(snap(v, snaps));
-          }}
+          onValueChange={handleSliderChange}
           aria-label="Montant du paiement"
         />
       </div>
+
+      {/* single_item + !allowPartial warning */}
+      {mode === "single_item" && !allowPartial && value > 0 && value < totalRemaining && (
+        <p className="text-[11px] text-status-warning">
+          Ce service nécessite un règlement complet — le montant sera ajusté à {formatDzdPlain(totalRemaining)}.
+        </p>
+      )}
 
       {/* Manual input + quick snap buttons */}
       <div className="grid gap-3 md:grid-cols-2">
@@ -200,15 +285,26 @@ export function PaymentSlider({
           <p className="text-[10px] uppercase text-muted-foreground mb-1">Raccourcis tranche</p>
           <div className="flex flex-wrap gap-1.5">
             <SnapButton label="0" onClick={() => onChange(0)} disabled={disabled} />
-            {tranches.map((t, i) => (
-              <SnapButton
-                key={t.id}
-                label={t.label}
-                amount={cumulativeBoundaries[i]}
-                onClick={() => onChange(cumulativeBoundaries[i])}
-                disabled={disabled}
-              />
-            ))}
+            {tranches.map((t, i) => {
+              // Snap buttons also use REMAINING boundaries (bug fix).
+              const remaining = Math.max(0, t.amountDue - t.amountPaid);
+              if (remaining <= 0) return null; // skip fully-paid
+              return (
+                <SnapButton
+                  key={t.id}
+                  label={t.label}
+                  amount={cumulativeRemainingBoundaries[i]}
+                  onClick={() => onChange(cumulativeRemainingBoundaries[i])}
+                  disabled={disabled}
+                />
+              );
+            })}
+            <SnapButton
+              label="Solde Total"
+              amount={totalRemaining}
+              onClick={() => onChange(totalRemaining)}
+              disabled={disabled}
+            />
           </div>
         </div>
       </div>
@@ -268,6 +364,9 @@ export function PaymentSlider({
         <span className="text-sm font-semibold">Paiement sélectionné</span>
         <span className="font-mono text-base font-bold text-primary">{formatDzd(value)}</span>
       </div>
+
+      {/* Silence unused var — grossBoundaries is kept for future visualizations. */}
+      <span className="hidden">{grossBoundaries.length}</span>
     </div>
   );
 }
@@ -295,3 +394,10 @@ function SnapButton({
     </button>
   );
 }
+
+/**
+ * Backward-compat alias — `PaymentSlider` is the canonical export, but
+ * callers adopting the unified architecture can import `AdaptivePaymentSlider`
+ * by name to make the intent explicit.
+ */
+export const AdaptivePaymentSlider = PaymentSlider;
