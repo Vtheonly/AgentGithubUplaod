@@ -43,7 +43,8 @@ import { Label } from "../../shared/ui/label";
 import { Textarea } from "../../shared/ui/textarea";
 import { FormField } from "../../shared/ui/form-field";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
-import { CounterPaymentModal } from "./counter-payment-modal";
+import { UnifiedPaymentModal } from "./unified-payment-modal";
+import type { PaymentNavigationContext } from "../../domain/model/payment";
 
 interface Row extends Installment {
   parentName: string;
@@ -290,13 +291,52 @@ export function InstallmentScheduleTab() {
       </CardContent>
 
       {collectFor && (
-        <CounterPaymentModal
+        <UnifiedPaymentModal
           open={!!collectFor}
           onOpenChange={(o) => !o && setCollectFor(null)}
-          presetParentId={collectFor.parentId}
-          presetInstallmentId={collectFor.installmentId}
-          presetAmount={collectFor.amount}
-          presetCategory={collectFor.category}
+          context={
+            (() => {
+              // Find the row to compute exact remaining + due date.
+              const row = rows.find((r) => r.id === collectFor.installmentId);
+              const parent = parents.find((p) => p.id === collectFor.parentId);
+              const remaining = row
+                ? Math.max(0, row.amountDue - row.amountPaid)
+                : collectFor.amount;
+              const isOverdue = row?.status === "overdue";
+              const overdueDays = row && isOverdue
+                ? Math.max(0, Math.floor((Date.now() - new Date(row.dueDate).getTime()) / 86_400_000))
+                : undefined;
+              const ctx: PaymentNavigationContext = {
+                parentId: collectFor.parentId,
+                parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
+                parentCode: parent?.code,
+                studentId: row?.studentId ?? null,
+                mode: "installment_tranche",
+                targetItemId: collectFor.installmentId,
+                presetAmount: remaining,
+                overdueDays,
+                dueWindowLabel: row ? new Date(row.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : undefined,
+                lineItems: row
+                  ? [{
+                      itemId: row.id,
+                      category: row.category,
+                      label: row.label,
+                      grossAmount: row.amountDue,
+                      discountAmount: 0,
+                      netAmount: row.amountDue,
+                      alreadyPaidAmount: row.amountPaid,
+                      remainingAmount: remaining,
+                      dueDate: row.dueDate,
+                      isOverdue,
+                      daysOverdue: overdueDays,
+                    }]
+                  : [],
+                allowPartial: true,
+                originRoute: "financials.installment_schedule",
+              };
+              return ctx;
+            })()
+          }
         />
       )}
 

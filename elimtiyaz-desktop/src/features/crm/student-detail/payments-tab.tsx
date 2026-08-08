@@ -3,8 +3,12 @@
  *
  * Extracted from `student-detail-drawer.tsx` (iteration 6-a). Behavior
  * preserved exactly — only file location + import paths changed.
+ *
+ * Epic 6.3 (this revision): added "Encaisser part élève" button that opens
+ * `UnifiedPaymentModal` in `installment_tranche` mode scoped to this student.
  */
-import { ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Wallet } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
@@ -16,7 +20,9 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  type PaymentNavigationContext,
 } from "../../../domain/model/payment";
+import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
 
 export function PaymentsTab({
   studentId,
@@ -27,22 +33,56 @@ export function PaymentsTab({
 }) {
   const repos = useRepositories();
   const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
+  const parents = useObservable(() => repos.parents.observe(), []);
   const payments = useObservable(() => repos.payments.observeByStudent(studentId), [studentId]);
   const installments = useObservable(() => repos.installments.observeByStudent(studentId), [studentId]);
   const familyProfile = useObservable(
     () => repos.debt.observeParentProfile(student?.parentId ?? ""),
     [student?.parentId],
   );
+  // === Epic 6.3 — UnifiedPaymentModal trigger ===
+  const [collectOpen, setCollectOpen] = useState(false);
 
   if (!student) return null;
 
   const individualPaid = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
   const individualPending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
-  const individualOverdue = installments
-    .filter((i) => i.status !== "paid")
-    .reduce((s, i) => s + (i.amountDue - i.amountPaid), 0);
+  const unpaidInstallments = installments.filter((i) => i.status !== "paid");
+  const individualOverdue = unpaidInstallments.reduce((s, i) => s + (i.amountDue - i.amountPaid), 0);
   const familyOutstanding = familyProfile?.totalOutstanding ?? 0;
   const familyOverdue = familyProfile?.overdueAmount ?? 0;
+
+  // Build the navigation context for "Encaisser part élève" — scoped to
+  // this student's unpaid installments only.
+  const parent = parents.find((p) => p.id === student.parentId);
+  const collectContext: PaymentNavigationContext | null = unpaidInstallments.length > 0
+    ? {
+        parentId: student.parentId,
+        parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
+        parentCode: parent?.code,
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        mode: "installment_tranche",
+        presetAmount: individualOverdue,
+        lineItems: unpaidInstallments
+          .slice()
+          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+          .map((i) => ({
+            itemId: i.id,
+            category: i.category,
+            label: i.label,
+            grossAmount: i.amountDue,
+            discountAmount: 0,
+            netAmount: i.amountDue,
+            alreadyPaidAmount: i.amountPaid,
+            remainingAmount: Math.max(0, i.amountDue - i.amountPaid),
+            dueDate: i.dueDate,
+            isOverdue: i.status === "overdue",
+          })),
+        allowPartial: true,
+        originRoute: "crm.student_drawer.payments",
+      }
+    : null;
 
   return (
     <div className="space-y-4">
@@ -85,11 +125,22 @@ export function PaymentsTab({
             <CardTitle className="text-sm">Paiements individuels</CardTitle>
             <CardDescription>{payments.length} paiement(s) affecté(s) à cet élève</CardDescription>
           </div>
-          {student && onOpenParent && (
-            <Button size="sm" variant="outline" onClick={() => onOpenParent(student.parentId)}>
-              Profil financier famille <ArrowRight className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-2">
+            {/* Epic 6.3 — Encaisser part élève → UnifiedPaymentModal (installment_tranche) */}
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setCollectOpen(true)}
+              disabled={individualOverdue <= 0}
+            >
+              <Wallet className="h-3.5 w-3.5" /> Encaisser part élève
             </Button>
-          )}
+            {student && onOpenParent && (
+              <Button size="sm" variant="outline" onClick={() => onOpenParent(student.parentId)}>
+                Profil financier famille <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {payments.length === 0 ? (
@@ -122,6 +173,13 @@ export function PaymentsTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Epic 6.3 — UnifiedPaymentModal scoped to this student's installments */}
+      <UnifiedPaymentModal
+        open={collectOpen}
+        onOpenChange={setCollectOpen}
+        context={collectContext}
+      />
     </div>
   );
 }

@@ -6,9 +6,10 @@
  *   - SuperAdmin / Manager (oversight)
  *   - The assigned psychologist
  *
- * FINANCE ISOLATION: This tab operates only on `repos.psychology`.
- * It does NOT touch the ledger / payments / installments / debt.
- * Billing for PSY1/PSY2 sessions is handled separately by Finance.
+ * UNIFIED ARCHITECTURE (Epic 4.4 + 6.5): `createFollowUp` now appends a
+ * `therapy_psychology` charge to the ledger automatically. The "Ouvrir &
+ * Encaisser" button opens `UnifiedPaymentModal` in `single_item` mode so
+ * the cashier can collect the semester forfait (10,000 DA) immediately.
  */
 import { useState, useMemo } from "react";
 import {
@@ -17,6 +18,7 @@ import {
   Lock,
   Search,
   Shield,
+  Wallet,
 } from "lucide-react";
 import { Card, CardContent } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
@@ -38,6 +40,9 @@ import {
 } from "../../../shared/ui/unified-modal";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
+import type { PaymentNavigationContext } from "../../../domain/model/payment";
+import { buildTherapyCharge } from "../../../domain/calc/ledger/non-tuition-charges";
+import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
 import { useToast } from "../../../app/providers/toast-provider";
 import { useAuth } from "../../../app/providers/auth-provider";
 import type { PsychologicalFollowUp } from "../../../domain/model/therapy";
@@ -277,6 +282,9 @@ function CreateFollowUpModal({
   const [notes, setNotes] = useState("");
   const [alert, setAlert] = useState<Alert | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // === Epic 6.5 — Ouvrir & Encaisser (therapy single_item mode) ===
+  const [collectCtx, setCollectCtx] = useState<PaymentNavigationContext | null>(null);
+  const [collectOpen, setCollectOpen] = useState(false);
 
   // Filter personnel to only psychologists (best-effort heuristic — there is no
   // dedicated "psychologist" role/category in the existing model, so we use
@@ -341,7 +349,99 @@ function CreateFollowUpModal({
     }
   }
 
+  /**
+   * Epic 6.5 — Ouvrir & Encaisser:
+   *   1. Creates the follow-up (which appends a `therapy_psychology`
+   *      charge to the ledger via Epic 4.4).
+   *   2. Closes the create modal.
+   *   3. Opens `UnifiedPaymentModal` in `single_item` mode with the
+   *      semester forfait (10,000 DA) pre-filled.
+   */
+  async function handleCreateAndCollect() {
+    if (!session) return;
+    setSubmitting(true);
+    setAlert(null);
+    const psy = personnel.find((p) => p.id === psychologistId);
+    if (!psy) {
+      setAlert({ tone: "error", title: "Psychologue requis", description: "Veuillez sélectionner un psychologue." });
+      setSubmitting(false);
+      return;
+    }
+    const res = await repos.psychology.createFollowUp(
+      {
+        studentId,
+        psychologistId: psy.id,
+        psychologistName: `${psy.firstName} ${psy.lastName}`,
+        reason: reason.trim(),
+        startDate,
+        confidentialityLevel: confidentiality,
+        parentConsent,
+        parentConsentDate: parentConsent ? parentConsentDate : null,
+        notes: notes.trim() || null,
+        academicYearId: "ay-2025-2026",
+        academicYearCode: "2025-2026",
+      },
+      session.userId,
+      session.displayName,
+    );
+    setSubmitting(false);
+    if (!res.ok) {
+      setAlert({ tone: "error", title: "Échec", description: res.error.userMessage });
+      return;
+    }
+    const stu = students.find((s) => s.id === studentId);
+    if (!stu) return;
+    // Look up the canonical semester forfait price (10,000 DA per Prices.md).
+    let forfaitPrice = 10_000;
+    try {
+      const charge = buildTherapyCharge(
+        {
+          tenantId: "tenant-el-imtiyaz-oran-001",
+          parentId: stu.parentId,
+          studentId: stu.id,
+          actorId: session.userId,
+          actorName: session.displayName,
+          sourceType: "manual_entry",
+          sourceId: `preview-${res.value.id}`,
+        },
+        "psychology",
+        "semester",
+        stu ? `${stu.firstName} ${stu.lastName}` : undefined,
+      );
+      forfaitPrice = charge.amount;
+    } catch {
+      // Fall back to default 10,000 DA.
+    }
+    const ctx: PaymentNavigationContext = {
+      parentId: stu.parentId,
+      studentId: stu.id,
+      studentName: `${stu.firstName} ${stu.lastName}`,
+      mode: "single_item",
+      presetAmount: forfaitPrice,
+      lineItems: [{
+        itemId: `psy-${res.value.id}`,
+        category: "therapy_psychology",
+        label: `Psychologie — Forfait Semestre (${stu.firstName} ${stu.lastName})`,
+        grossAmount: forfaitPrice,
+        discountAmount: 0,
+        netAmount: forfaitPrice,
+        alreadyPaidAmount: 0,
+        remainingAmount: forfaitPrice,
+      }],
+      allowPartial: false,
+      originRoute: "academics.psychology.create_and_collect",
+    };
+    setCollectCtx(ctx);
+    onOpenChange(false);
+    setTimeout(() => setCollectOpen(true), 100);
+    toast.showSuccess(
+      "Suivi ouvert — encaissement en cours",
+      `Forfait semestre: ${forfaitPrice.toLocaleString("fr-FR")} DA à encaisser.`,
+    );
+  }
+
   return (
+    <>
     <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
@@ -356,6 +456,30 @@ function CreateFollowUpModal({
       onSubmit={handleSubmit}
       alert={alert}
       onDismissAlert={() => setAlert(null)}
+      footer={
+        <div className="flex items-center gap-2 w-full">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Annuler
+          </Button>
+          <div className="flex-1" />
+          {/* Epic 6.5 — Ouvrir & Encaisser (single_item mode) */}
+          <Button
+            variant="default"
+            onClick={handleCreateAndCollect}
+            disabled={submitting || !studentId || !reason.trim()}
+            title="Ouvrir le suivi et encaisser le forfait semestre"
+          >
+            <Wallet className="h-3.5 w-3.5" /> Ouvrir & Encaisser
+          </Button>
+          <Button
+            variant="default"
+            onClick={handleSubmit}
+            disabled={submitting || !studentId || !reason.trim()}
+          >
+            {submitting ? "…" : "Ouvrir le suivi"}
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-3">
         <FormField label="Élève" required>
@@ -456,5 +580,13 @@ function CreateFollowUpModal({
         </FormField>
       </div>
     </UnifiedModal>
+
+    {/* Epic 6.5 — UnifiedPaymentModal for therapy forfait collection */}
+    <UnifiedPaymentModal
+      open={collectOpen}
+      onOpenChange={setCollectOpen}
+      context={collectCtx}
+    />
+    </>
   );
 }

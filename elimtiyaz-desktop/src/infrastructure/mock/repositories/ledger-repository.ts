@@ -27,6 +27,9 @@ import {
   crossCheckPayments,
   crossCheckInstallments,
   crossCheckBalanceSum,
+  crossCheckInstallmentPayments,
+  crossCheckClearedBalance,
+  crossCheckParentCredit,
 } from "../../../domain/calc/reconcile";
 import type { ReconciliationReport } from "../../../domain/reconcile-types";
 import { store, appendAudit, delay } from "./mock-store";
@@ -54,7 +57,8 @@ export class MockLedgerRepository implements LedgerRepository {
       entityId: entry.id,
       actorId: entry.actorId,
       actorName: entry.actorName,
-      diff: { before: null, after: { type: entry.type, amount: entry.amount, accountId: entry.accountId } },
+      diff: { before: null, after: { type: entry.type, amount: entry.amount, accountId: entry.accountId, category: entry.category } },
+      note: `Écriture ${entry.type} — ${entry.amount.toLocaleString("fr-FR")} DZD [${entry.category}] ${entry.description.slice(0, 60)}`,
     });
     return Ok(entry);
   }
@@ -69,7 +73,8 @@ export class MockLedgerRepository implements LedgerRepository {
       entityId: "batch",
       actorId: entries[0]?.actorId ?? "system",
       actorName: entries[0]?.actorName ?? "System",
-      diff: { before: null, after: { count: entries.length } },
+      diff: { before: null, after: { count: entries.length, totalAmount: entries.reduce((s, e) => s + e.amount, 0) } },
+      note: `Ajout en lot de ${entries.length} écriture(s) de ledger`,
     });
     return Ok(entries);
   }
@@ -87,7 +92,8 @@ export class MockLedgerRepository implements LedgerRepository {
       entityId: reversal.id,
       actorId,
       actorName,
-      diff: { before: { entryId: original.id, amount: original.amount }, after: { entryId: reversal.id, amount: reversal.amount } },
+      diff: { before: { entryId: original.id, amount: original.amount, type: original.type }, after: { entryId: reversal.id, amount: reversal.amount, type: reversal.type, reversesId: original.id } },
+      note: `Inversion de l'écriture ${original.id} (${original.amount.toLocaleString("fr-FR")} DZD) — motif: ${reason}`,
     });
     return Ok(reversal);
   }
@@ -103,6 +109,12 @@ export class MockLedgerRepository implements LedgerRepository {
   /**
    * Run reconciliation against the entire ledger. Also cross-checks
    * the Payment and Installment tables against the ledger.
+   *
+   * UNIFIED ARCHITECTURE (Epic 7.1): now also runs the 3 new cross-checks
+   * introduced in iteration 1:
+   *   - `crossCheckInstallmentPayments` (UNBACKED_TRANCHE_SATISFACTION)
+   *   - `crossCheckClearedBalance` (PAYMENT_LEDGER_MISMATCH)
+   *   - `crossCheckParentCredit` (UNBACKED_PARENT_CREDIT)
    */
   async reconcile(): Promise<Result<ReconciliationReport>> {
     await delay(150);
@@ -127,7 +139,55 @@ export class MockLedgerRepository implements LedgerRepository {
     const accountIds = new Set(store.ledger.map((e) => e.accountId));
     const balances = Array.from(accountIds).map((accId) => computeAccountBalance(store.ledger, accId));
     const balanceViolations = crossCheckBalanceSum(store.ledger, balances);
-    const allViolations = [...report.violations, ...paymentViolations, ...installmentViolations, ...balanceViolations];
+
+    // === Epic 7.1 — NEW cross-checks ===
+    // 1. Installment ↔ ledger payment backing (UNBACKED_TRANCHE_SATISFACTION)
+    const installmentPaymentViolations = crossCheckInstallmentPayments(
+      store.installments.map((i) => ({
+        id: i.id,
+        parentId: i.parentId,
+        studentId: i.studentId,
+        category: i.category,
+        amountDue: i.amountDue,
+        amountPaid: i.amountPaid,
+        label: i.label,
+        status: i.status,
+      })),
+      store.ledger,
+    );
+    // 2. Cleared payments ↔ cleared ledger payment credits (PAYMENT_LEDGER_MISMATCH)
+    const clearedBalanceViolations = crossCheckClearedBalance(
+      store.payments.map((p) => ({ id: p.id, amount: p.amount, status: p.status })),
+      store.ledger,
+    );
+    // 3. Parent credit backing (UNBACKED_PARENT_CREDIT)
+    const parentSummaries = store.parents.map((p) => {
+      const parentName = `${p.firstName} ${p.lastName}`;
+      const summary = computeParentSummary(store.ledger, p.id, parentName);
+      return {
+        parentId: p.id,
+        parentName,
+        totalOutstanding: summary.totalOutstanding,
+        accounts: summary.accounts.map((a) => ({
+          accountId: a.accountId,
+          category: a.category,
+          studentId: a.studentId,
+          balance: a.balance,
+          unallocatedCredit: a.unallocatedCredit,
+        })),
+      };
+    });
+    const parentCreditViolations = crossCheckParentCredit(parentSummaries, store.ledger);
+
+    const allViolations = [
+      ...report.violations,
+      ...paymentViolations,
+      ...installmentViolations,
+      ...balanceViolations,
+      ...installmentPaymentViolations,
+      ...clearedBalanceViolations,
+      ...parentCreditViolations,
+    ];
     return Ok({
       ...report,
       violations: allViolations,

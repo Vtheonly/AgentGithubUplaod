@@ -1,9 +1,15 @@
 /**
  * Mock ClubRepository — Clubs + Memberships + Activities (plan §05.07).
  *
- * FINANCE ISOLATION: This repository ONLY touches club-related collections.
- * It does NOT touch ledger / payments / installments / debt. Billing for
- * clubs is handled by Finance via the complementary-services pricing.
+ * UNIFIED ARCHITECTURE (Epic 4.3):
+ *   `enrollMember` now appends an `extracurricular` charge entry to the
+ *   unified ledger so the parent's account balance reflects the club fee.
+ *   The charge is student-scoped (`accountId = deriveAccountId(parentId,
+ *   "extracurricular", studentId)`) and uses the canonical 2026-2027
+ *   pricing (chess: 9,000 DA, english: 11,000 DA, etc.). If the parent
+ *   has a `parent_credit` balance from a prior overpayment, the
+ *   `computeAccountBalance` engine will automatically net it against
+ *   this new charge.
  */
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
@@ -35,6 +41,7 @@ import {
   checkDuplicateClubCode,
 } from "../../../domain/calc/clubs/validation";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import { buildClubEnrollmentCharge } from "../../../domain/calc/ledger/non-tuition-charges";
 
 function genId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -327,14 +334,63 @@ export class MockClubRepository implements ClubRepository {
     store.clubMemberships = [...store.clubMemberships, membership];
     store.notifyClubMemberships();
 
+    // === Append the canonical ledger charge entry (Epic 4.3) ===
+    // The charge is student-scoped so the parent summary rolls it up
+    // correctly. The price comes from the official 2026-2027 schedule
+    // (chess: 9,000 DA, english: 11,000 DA, etc.).
+    let chargeEntryId: string | null = null;
+    try {
+      const charge = buildClubEnrollmentCharge(
+        {
+          tenantId: TENANT_ID,
+          parentId: student.parentId,
+          studentId: student.id,
+          actorId: input.enrolledById,
+          actorName: input.enrolledByName,
+          sourceType: "manual_entry",
+          sourceId: membership.id,
+          description: `Inscription Club ${club.name} — ${membership.studentName}`,
+        },
+        club.category,
+        club.name,
+      );
+      store.ledger = [...store.ledger, charge];
+      store.notifyLedger();
+      chargeEntryId = charge.id;
+    } catch (e) {
+      // If the charge build fails (e.g. no price configured), log a warning
+      // audit entry but don't fail the enrollment — the membership is still
+      // recorded so the student can attend. The accountant can append a
+      // manual charge later.
+      appendAudit({
+        action: AuditActions.ClubMemberEnroll,
+        entityType: "club_membership",
+        entityId: membership.id,
+        actorId: input.enrolledById,
+        actorName: input.enrolledByName,
+        diff: { before: null, after: { warning: "charge_build_failed", error: String(e) } },
+        note: `Échec de la création de l'écriture de charge pour ${club.name}`,
+      });
+    }
+
     appendAudit({
       action: AuditActions.ClubMemberEnroll,
       entityType: "club_membership",
       entityId: membership.id,
       actorId: input.enrolledById,
       actorName: input.enrolledByName,
-      diff: { before: null, after: { clubId: club.id, studentId: student.id } },
-      note: `${membership.studentName} inscrit au club ${club.name}`,
+      diff: {
+        before: null,
+        after: {
+          clubId: club.id,
+          studentId: student.id,
+          ledgerChargeEntryId: chargeEntryId,
+          category: "extracurricular",
+        },
+      },
+      note: `${membership.studentName} inscrit au club ${club.name}${
+        chargeEntryId ? ` — charge ${chargeEntryId.slice(0, 12)}…` : ""
+      }`,
     });
 
     return Ok(membership);

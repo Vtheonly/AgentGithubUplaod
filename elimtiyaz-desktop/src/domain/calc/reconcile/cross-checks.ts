@@ -232,33 +232,84 @@ export function crossCheckInstallmentPayments(
     }
   }
 
+  // === Per-installment precise check (when paymentToInstallmentId provided) ===
+  // Each installment's amountPaid must be backed by the exact cleared payments
+  // mapped to it via the paymentToInstallmentId map.
   for (const inst of installments) {
     const precise = preciseClearedByInstallment.get(inst.id);
-    let backing: number;
-    if (precise !== undefined) {
-      backing = precise;
-    } else {
-      // Fall back to per-account aggregation.
-      const key = accountKey(inst.parentId, inst.category, inst.studentId);
-      backing = (clearedByAccount.get(key) ?? 0) + (adjustmentsByAccount.get(key) ?? 0);
-    }
-    const diff = inst.amountPaid - backing;
+    if (precise === undefined) continue; // skip — no precise attribution available
+    const diff = inst.amountPaid - precise;
     if (Math.abs(diff) > 0.01) {
       out.push({
         severity: "error",
         code: "UNBACKED_TRANCHE_SATISFACTION",
         message:
           `Installment ${inst.id} (${inst.label}) has amountPaid=${inst.amountPaid} ` +
-          `but cleared ledger backing=${backing.toFixed(2)} (diff=${diff.toFixed(2)}). ` +
+          `but precise cleared ledger backing=${precise.toFixed(2)} (diff=${diff.toFixed(2)}). ` +
           `Status="${inst.status}".`,
         details: {
           installmentId: inst.id,
           amountPaid: inst.amountPaid,
-          clearedBacking: backing,
+          clearedBacking: precise,
           diff,
           status: inst.status,
+          mode: "precise",
         },
       });
+    }
+  }
+
+  // === Account-level aggregate check (fallback when no precise map) ===
+  // When we don't have per-installment attribution, the correct invariant is:
+  //   Σ installment.amountDue on account ≡ Σ cleared payments + Σ credit adjustments on account
+  // We compare the SUM of installments' amountPaid per account to the account's
+  // cleared backing. This avoids false positives when a parent has multiple
+  // installments on the same account (e.g. 3 tuition tranches).
+  if (!paymentToInstallmentId || paymentToInstallmentId.size === 0) {
+    const amountPaidByAccount = new Map<string, number>();
+    const installmentCountByAccount = new Map<string, number>();
+    for (const inst of installments) {
+      const key = accountKey(inst.parentId, inst.category, inst.studentId);
+      amountPaidByAccount.set(key, (amountPaidByAccount.get(key) ?? 0) + inst.amountPaid);
+      installmentCountByAccount.set(key, (installmentCountByAccount.get(key) ?? 0) + 1);
+    }
+    for (const [key, totalAmountPaid] of amountPaidByAccount) {
+      const cleared = clearedByAccount.get(key) ?? 0;
+      const adjustments = adjustmentsByAccount.get(key) ?? 0;
+      const backing = cleared + adjustments;
+      const diff = totalAmountPaid - backing;
+      if (Math.abs(diff) > 0.01) {
+        const count = installmentCountByAccount.get(key) ?? 1;
+        const [parentId, category, studentId] = key.split("|");
+        // Under-backed (diff > 0): installment amountPaid exceeds cleared
+        // payments — a real data integrity ERROR (tranche marked paid
+        // without payment backing).
+        // Over-backed (diff < 0): cleared payments exceed installment
+        // amountPaid — the parent overpaid and the excess hasn't been
+        // converted to parent_credit yet. This is a WARNING, not an error.
+        const isOverbacked = diff < 0;
+        out.push({
+          severity: isOverbacked ? "warning" : "error",
+          code: "UNBACKED_TRANCHE_SATISFACTION",
+          message:
+            `Account parent=${parentId} category=${category} student=${studentId || "—"} ` +
+            `has ${count} installment(s) with Σ amountPaid=${totalAmountPaid.toFixed(2)} ` +
+            `but cleared ledger backing=${backing.toFixed(2)} (diff=${diff.toFixed(2)}).` +
+            (isOverbacked ? " [over-backed — excess should be parent_credit]" : ""),
+          details: {
+            accountKey: key,
+            parentId,
+            category,
+            studentId: studentId || null,
+            installmentCount: count,
+            totalAmountPaid,
+            clearedBacking: backing,
+            diff,
+            mode: "account_aggregate",
+            overbacked: isOverbacked,
+          },
+        });
+      }
     }
   }
   return out;

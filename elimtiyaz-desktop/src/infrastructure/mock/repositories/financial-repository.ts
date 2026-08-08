@@ -40,6 +40,7 @@ import type {
 } from "../../../domain/model/payment";
 import type { AllocationResult } from "../../../domain/calc/payment/installments";
 import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
+import type { LedgerEntry } from "../../../domain/model/ledger";
 import {
   store, TENANT_ID, appendAudit, nowIso, delay,
 } from "./mock-store";
@@ -47,6 +48,11 @@ import { type FinancialOpsCtx } from "./financial/types";
 import {
   collectPayment, refundPayment, adjustAccount, generateReceiptForPayment,
 } from "./financial/payment-ops";
+import {
+  appendManualCharge,
+  type AppendManualChargeInput,
+  type AdditionalServiceQualifier,
+} from "./financial/charge-ops";
 import {
   markInstallmentPaid, updateInstallmentDueDate,
   regenerateInstallmentsForCycle, findOverdueInstallments,
@@ -97,6 +103,17 @@ export class MockPaymentRepository implements PaymentRepository {
   }
   generateReceipt(paymentId: string, generatedBy: string): Promise<Result<Receipt>> {
     return generateReceiptForPayment(ctx, paymentId, generatedBy);
+  }
+  /**
+   * Append an à-la-carte charge for an additional service (canteen, uniform,
+   * books, 2nd apron). Used by the UnifiedPaymentModal `single_item` mode and
+   * the parent drawer's "Sell service" action.
+   */
+  appendManualCharge(
+    input: AppendManualChargeInput,
+    actorId: string,
+  ): Promise<Result<LedgerEntry>> {
+    return appendManualCharge(ctx, input, actorId);
   }
 }
 

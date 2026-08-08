@@ -354,9 +354,11 @@ describe("Club repository — CRUD + memberships + activities", () => {
     expect((res as any).value.title).toBe("Test Activity");
   });
 
-  it("FINANCE ISOLATION: club operations do NOT touch finance", async () => {
+  it("UNIFIED ARCHITECTURE (Epic 4.3): enrollMember appends an extracurricular charge to the ledger", async () => {
     const before = snapshotFinance();
-    await repo.createClub(
+    // Create a fresh club (previous tests may have left seed clubs in a
+    // paused / archived state).
+    const createRes = await repo.createClub(
       {
         code: "CLUB-FIN-TEST",
         name: "Finance Isolation Test",
@@ -367,14 +369,19 @@ describe("Club repository — CRUD + memberships + activities", () => {
       ACTOR.actorId,
       ACTOR.actorName,
     );
-    await repo.enrollMember({
-      clubId: "club-001",
-      studentId: "stu-015",
+    expect(createRes.ok).toBe(true);
+    const newClubId = (createRes as any).value.id;
+
+    // Enroll a seed student NOT already in any club.
+    const res = await repo.enrollMember({
+      clubId: newClubId,
+      studentId: "stu-003",
       enrolledById: ACTOR.actorId,
       enrolledByName: ACTOR.actorName,
     });
+    expect(res.ok).toBe(true);
     await repo.logActivity({
-      clubId: "club-001",
+      clubId: newClubId,
       title: "x",
       description: "y",
       date: new Date().toISOString(),
@@ -384,9 +391,17 @@ describe("Club repository — CRUD + memberships + activities", () => {
       attendeeStudentIds: [],
     });
     const after = snapshotFinance();
+    // No payments or installments created — club billing is via ledger charges.
     expect(after.payments.length).toBe(before.payments.length);
     expect(after.installments.length).toBe(before.installments.length);
-    expect(after.ledger.length).toBe(before.ledger.length);
+    // Exactly one new ledger entry — the extracurricular charge.
+    expect(after.ledger.length).toBe(before.ledger.length + 1);
+    const newEntry = after.ledger[after.ledger.length - 1];
+    expect(newEntry.type).toBe("charge");
+    expect(newEntry.category).toBe("extracurricular");
+    expect(newEntry.amount).toBe(9_000); // chess club annual price per Prices.md
+    expect(newEntry.studentId).toBe("stu-003");
+    // logActivity does NOT create additional charges.
   });
 });
 
@@ -513,9 +528,9 @@ describe("Psychology repository — follow-ups + sessions + reports", () => {
     ).toBe(0);
   });
 
-  it("FINANCE ISOLATION: psychology operations do NOT touch finance", async () => {
+  it("UNIFIED ARCHITECTURE (Epic 4.4): psychology createFollowUp appends a therapy_psychology charge to the ledger", async () => {
     const before = snapshotFinance();
-    await repo.createFollowUp(
+    const res = await repo.createFollowUp(
       {
         studentId: "stu-004",
         psychologistId: "per-007",
@@ -530,6 +545,22 @@ describe("Psychology repository — follow-ups + sessions + reports", () => {
       ACTOR.actorId,
       ACTOR.actorName,
     );
+    expect(res.ok).toBe(true);
+    const after = snapshotFinance();
+    // No payments or installments created — therapy billing is via ledger charges.
+    expect(after.payments.length).toBe(before.payments.length);
+    expect(after.installments.length).toBe(before.installments.length);
+    // Exactly one new ledger entry — the therapy_psychology charge.
+    expect(after.ledger.length).toBe(before.ledger.length + 1);
+    const newEntry = after.ledger[after.ledger.length - 1];
+    expect(newEntry.type).toBe("charge");
+    expect(newEntry.category).toBe("therapy_psychology");
+    expect(newEntry.amount).toBe(10_000); // semester package per Prices.md
+    expect(newEntry.studentId).toBe("stu-004");
+  });
+
+  it("UNIFIED ARCHITECTURE (Epic 4.4): conductSession does NOT append additional charges (billed at follow-up creation)", async () => {
+    const before = snapshotFinance();
     await repo.conductSession({
       followUpId: "psy-fu-001",
       date: new Date().toISOString(),
@@ -540,9 +571,9 @@ describe("Psychology repository — follow-ups + sessions + reports", () => {
       conductedByName: ACTOR.actorName,
     });
     const after = snapshotFinance();
+    expect(after.ledger.length).toBe(before.ledger.length);
     expect(after.payments.length).toBe(before.payments.length);
     expect(after.installments.length).toBe(before.installments.length);
-    expect(after.ledger.length).toBe(before.ledger.length);
   });
 });
 
@@ -652,7 +683,7 @@ describe("Orthophonie repository — follow-ups + evaluations + sessions", () =>
     expect((res as any).value.status).toBe("closed");
   });
 
-  it("FINANCE ISOLATION: orthophonie operations do NOT touch finance", async () => {
+  it("UNIFIED ARCHITECTURE (Epic 4.4): conductEvaluation and conductSession do NOT append additional charges (billed at follow-up creation only)", async () => {
     const before = snapshotFinance();
     await repo.conductEvaluation({
       followUpId: "ortho-fu-001",
@@ -676,6 +707,7 @@ describe("Orthophonie repository — follow-ups + evaluations + sessions", () =>
       conductedByName: ACTOR.actorName,
     });
     const after = snapshotFinance();
+    // Evaluation + Session don't create new charges — billing is at follow-up creation.
     expect(after.payments.length).toBe(before.payments.length);
     expect(after.installments.length).toBe(before.installments.length);
     expect(after.ledger.length).toBe(before.ledger.length);

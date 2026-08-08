@@ -166,6 +166,24 @@ export interface PaymentRepository {
   refund(id: string): Promise<Result<Payment>>;
   adjust(parentId: string, amount: number, reason: string, approvedBy: string): Promise<Result<AccountAdjustment>>;
   generateReceipt(paymentId: string, generatedBy: string): Promise<Result<Receipt>>;
+  /**
+   * Append an à-la-carte charge for an additional service (canteen, uniform,
+   * books, 2nd apron). Used by the UnifiedPaymentModal `single_item` mode and
+   * the parent drawer's "Sell service" action.
+   *
+   * UNIFIED ARCHITECTURE (Epic 4.3): ensures every billable service — not
+   * just tuition + transport — writes a `charge` entry to `ledger_entries`.
+   */
+  appendManualCharge(input: {
+    parentId: string;
+    studentId: string;
+    serviceQualifier:
+      | "canteen_term"
+      | "uniform"
+      | "books"
+      | "second_apron";
+    description?: string;
+  }, actorId: string): Promise<Result<LedgerEntry>>;
 }
 
 export interface InstallmentRepository {

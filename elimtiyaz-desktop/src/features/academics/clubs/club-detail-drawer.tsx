@@ -16,6 +16,7 @@ import {
   Plus,
   Trash2,
   Clock,
+  Wallet,
 } from "lucide-react";
 import { Card, CardContent } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
@@ -40,6 +41,9 @@ import { useObservable } from "../../../shared/hooks/use-observable";
 import { useToast } from "../../../app/providers/toast-provider";
 import { useAuth } from "../../../app/providers/auth-provider";
 import type { Club, ClubMembership, ClubActivity } from "../../../domain/model/club";
+import type { PaymentNavigationContext } from "../../../domain/model/payment";
+import { buildClubEnrollmentCharge } from "../../../domain/calc/ledger/non-tuition-charges";
+import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
 
@@ -381,6 +385,9 @@ function EnrollMemberModal({
   const [notes, setNotes] = useState("");
   const [alert, setAlert] = useState<Alert | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // === Epic 6.5 — Inscrire & Encaisser ===
+  const [collectCtx, setCollectCtx] = useState<PaymentNavigationContext | null>(null);
+  const [collectOpen, setCollectOpen] = useState(false);
 
   // Hide students already active in this club
   const activeMemberIds = new Set(
@@ -422,7 +429,84 @@ function EnrollMemberModal({
     }
   }
 
+  /**
+   * Epic 6.5 — Inscrire & Encaisser:
+   *   1. Enrolls the student (same as `handleSubmit`).
+   *   2. Closes the enrollment modal.
+   *   3. Opens `UnifiedPaymentModal` in `single_item` mode with the club
+   *      fee pre-filled (extracurricular category). The ledger charge was
+   *      already appended by `enrollMember` (Epic 4.3), so the payment
+   *      satisfies that charge via the waterfall allocator.
+   */
+  async function handleEnrollAndCollect() {
+    if (!session) return;
+    setSubmitting(true);
+    setAlert(null);
+    const res = await repos.clubs.enrollMember({
+      clubId: club.id,
+      studentId,
+      enrolledById: session.userId,
+      enrolledByName: session.displayName,
+      notes: notes.trim() || null,
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      setAlert({ tone: "error", title: "Échec", description: res.error.userMessage });
+      return;
+    }
+    const stu = students.find((s) => s.id === studentId);
+    if (!stu) return;
+    // Look up the canonical club price (chess: 9,000 DA, english: 11,000 DA, etc.)
+    // via the same helper used by the ledger charge builder.
+    let clubPrice = 9_000;
+    try {
+      const charge = buildClubEnrollmentCharge(
+        {
+          tenantId: "tenant-el-imtiyaz-oran-001",
+          parentId: stu.parentId,
+          studentId: stu.id,
+          actorId: session.userId,
+          actorName: session.displayName,
+          sourceType: "manual_entry",
+          sourceId: `preview-${res.value.id}`,
+        },
+        club.category,
+        club.name,
+      );
+      clubPrice = charge.amount;
+    } catch {
+      // Fall back to default 9,000 DA if pricing lookup fails.
+    }
+    const ctx: PaymentNavigationContext = {
+      parentId: stu.parentId,
+      studentId: stu.id,
+      studentName: `${stu.firstName} ${stu.lastName}`,
+      mode: "single_item",
+      presetAmount: clubPrice,
+      lineItems: [{
+        itemId: `club-${club.id}`,
+        category: "extracurricular",
+        label: `Club ${club.name} — inscription annuelle`,
+        grossAmount: clubPrice,
+        discountAmount: 0,
+        netAmount: clubPrice,
+        alreadyPaidAmount: 0,
+        remainingAmount: clubPrice,
+      }],
+      allowPartial: false,
+      originRoute: "academics.clubs.enroll_and_collect",
+    };
+    setCollectCtx(ctx);
+    onOpenChange(false);
+    setTimeout(() => setCollectOpen(true), 100);
+    toast.showSuccess(
+      "Inscription réussie — encaissement en cours",
+      `${stu.firstName} ${stu.lastName} inscrit au club ${club.name}. Encaissez ${clubPrice.toLocaleString("fr-FR")} DA.`,
+    );
+  }
+
   return (
+    <>
     <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
@@ -436,6 +520,30 @@ function EnrollMemberModal({
       onSubmit={handleSubmit}
       alert={alert}
       onDismissAlert={() => setAlert(null)}
+      footer={
+        <div className="flex items-center gap-2 w-full">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Annuler
+          </Button>
+          <div className="flex-1" />
+          {/* Epic 6.5 — Inscrire & Encaisser (single_item mode) */}
+          <Button
+            variant="default"
+            onClick={handleEnrollAndCollect}
+            disabled={submitting || !studentId}
+            title="Inscrire l'élève et encaisser le tarif du club"
+          >
+            <Wallet className="h-3.5 w-3.5" /> Inscrire & Encaisser
+          </Button>
+          <Button
+            variant="default"
+            onClick={handleSubmit}
+            disabled={submitting || !studentId}
+          >
+            {submitting ? "…" : "Inscrire"}
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-3">
         <FormField label="Élève" required>
@@ -468,6 +576,14 @@ function EnrollMemberModal({
         </FormField>
       </div>
     </UnifiedModal>
+
+    {/* Epic 6.5 — UnifiedPaymentModal for club fee collection */}
+    <UnifiedPaymentModal
+      open={collectOpen}
+      onOpenChange={setCollectOpen}
+      context={collectCtx}
+    />
+    </>
   );
 }
 

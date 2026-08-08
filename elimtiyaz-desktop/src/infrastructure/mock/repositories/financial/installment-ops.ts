@@ -32,14 +32,17 @@ export async function markInstallmentPaid(
   ctx: FinancialOpsCtx,
   id: string,
   paymentId: string,
+  actorId: string = "usr-current",
+  actorName: string = "Session courante",
 ): Promise<Result<Installment>> {
   const { store, appendAudit, nowIso, delay } = ctx;
   await delay(180);
   const idx = store.installments.findIndex((i) => i.id === id);
   if (idx < 0) return Err(Errors.notFound("Installment", id));
+  const before = store.installments[idx];
   const after: Installment = {
-    ...store.installments[idx],
-    amountPaid: store.installments[idx].amountDue,
+    ...before,
+    amountPaid: before.amountDue,
     paidDate: nowIso(),
     status: "paid",
   };
@@ -49,9 +52,13 @@ export async function markInstallmentPaid(
     action: AuditActions.InstallmentMarkPaid,
     entityType: "installment",
     entityId: id,
-    actorId: "usr-current",
-    actorName: "Session courante",
-    note: `Payment ${paymentId}`,
+    actorId,
+    actorName,
+    diff: {
+      before: { amountPaid: before.amountPaid, status: before.status },
+      after: { amountPaid: after.amountPaid, status: after.status, paidDate: after.paidDate },
+    },
+    note: `Tranche marquée payée par le paiement ${paymentId} — ${after.amountDue.toLocaleString("fr-FR")} DZD`,
   });
   return Ok(after);
 }

@@ -193,6 +193,7 @@ export async function collectPayment(
         unallocatedCredit: allocationResult.ok ? allocationResult.value.unallocatedAmount : 0,
       },
     },
+    note: `Encaissement ${payment.receiptNumber} — ${payment.method} (${payment.category}) ${payment.amount.toLocaleString("fr-FR")} DZD [${payment.status}]`,
   });
   return Ok(payment);
 }
@@ -322,6 +323,7 @@ export async function refundPayment(
           unreverted: revertResult.unrevertedAmount,
         },
       },
+      note: `Remboursement ${before.receiptNumber} — inversion LIFO de ${revertResult.totalReverted.toLocaleString("fr-FR")} DZD sur ${revertResult.reverts.length} tranche(s)`,
     });
   } else {
     // No original ledger entry found — log a warning but still record the refund.
@@ -393,6 +395,7 @@ export async function adjustAccount(
     actorId: approvedBy,
     actorName: "Session courante",
     diff: { before: null, after: { amount, reason, ledgerEntryId: adjustmentEntry.id } },
+    note: `Ajustement manuel — ${amount > 0 ? "débit" : "crédit"} de ${Math.abs(amount).toLocaleString("fr-FR")} DZD (${reason})`,
   });
   return Ok(adj);
 }
@@ -421,6 +424,8 @@ export async function generateReceiptForPayment(
     entityId: receipt.id,
     actorId: generatedBy,
     actorName: "Session courante",
+    diff: { before: null, after: { receiptNumber: p.receiptNumber, paymentId, pdfUrl: receipt.pdfUrl } },
+    note: `Reçu généré pour le paiement ${p.receiptNumber} (${p.amount.toLocaleString("fr-FR")} DZD)`,
   });
   return Ok(receipt);
 }

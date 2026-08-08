@@ -1,16 +1,20 @@
 /**
  * Mock Therapy repositories — Psychology (Psyc) + Speech Therapy (Orthophonie).
  *
- * CRITICAL CONSTRAINTS:
- *   1. FINANCE ISOLATION — These repositories do NOT touch the ledger,
- *      payments, installments, debt, or receipts. Billing for therapy
- *      sessions is handled by Finance via PSY1/PSY2/ORTH1/ORTH2 codes.
+ * UNIFIED ARCHITECTURE (Epic 4.4):
+ *   `conductSession` (both psychology + orthophonie) now appends a charge
+ *   entry to the unified ledger when a follow-up is opened, so the
+ *   parent's account balance reflects the therapy fee. The charge uses
+ *   category `"therapy_psychology"` or `"therapy_speech"` and is priced
+ *   per the official 2026-2027 schedule (10,000 DA / semester or 20,000
+ *   DA / annual for 20 sessions).
  *
- *   2. SENSITIVITY — These records contain medical/psychological data.
+ * CRITICAL CONSTRAINTS:
+ *   1. SENSITIVITY — These records contain medical/psychological data.
  *      The repository exposes all data; the UI layer is responsible for
  *      filtering by RBAC (see `canViewPsychologicalFollowUp` etc.).
  *
- *   3. AUDIT — Every CRUD operation is audit-logged. Therapy audit entries
+ *   2. AUDIT — Every CRUD operation is audit-logged. Therapy audit entries
  *      should be treated with extra care (plan §05.07).
  */
 import type { Result } from "../../../core/result";
@@ -54,6 +58,7 @@ import {
   canCloseSpeechTherapyFollowUp,
 } from "../../../domain/calc/therapy/validation";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import { buildTherapyCharge } from "../../../domain/calc/ledger/non-tuition-charges";
 
 function genId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -145,14 +150,60 @@ export class MockPsychologyRepository implements PsychologyRepository {
     store.psychologicalFollowUps = [fu, ...store.psychologicalFollowUps];
     store.notifyPsychologicalFollowUps();
 
+    // === Append the canonical ledger charge entry (Epic 4.4) ===
+    // Billing model: when a follow-up is opened, the parent is billed for
+    // a semester package (10,000 DA / 20 sessions) by default. The
+    // accountant can append an annual top-up charge later if needed.
+    let chargeEntryId: string | null = null;
+    try {
+      const charge = buildTherapyCharge(
+        {
+          tenantId: TENANT_ID,
+          parentId: student.parentId,
+          studentId: student.id,
+          actorId,
+          actorName,
+          sourceType: "manual_entry",
+          sourceId: fu.id,
+        },
+        "psychology",
+        "semester",
+        fu.studentName,
+      );
+      store.ledger = [...store.ledger, charge];
+      store.notifyLedger();
+      chargeEntryId = charge.id;
+    } catch (e) {
+      appendAudit({
+        action: AuditActions.PsychologyFollowUpCreate,
+        entityType: "psychological_followup",
+        entityId: fu.id,
+        actorId,
+        actorName,
+        diff: { before: null, after: { warning: "charge_build_failed", error: String(e) } },
+        note: `Échec de la création de l'écriture de charge pour ${fu.studentName}`,
+      });
+    }
+
     appendAudit({
       action: AuditActions.PsychologyFollowUpCreate,
       entityType: "psychological_followup",
       entityId: fu.id,
       actorId,
       actorName,
-      diff: { before: null, after: { studentId: student.id, psychologistId: input.psychologistId } },
-      note: `Suivi psychologique ouvert pour ${fu.studentName}`,
+      diff: {
+        before: null,
+        after: {
+          studentId: student.id,
+          psychologistId: input.psychologistId,
+          ledgerChargeEntryId: chargeEntryId,
+          category: "therapy_psychology",
+          billingPeriod: "semester",
+        },
+      },
+      note: `Suivi psychologique ouvert pour ${fu.studentName}${
+        chargeEntryId ? ` — charge ${chargeEntryId.slice(0, 12)}…` : ""
+      }`,
     });
 
     return Ok(fu);
@@ -494,14 +545,59 @@ export class MockOrthophonieRepository implements OrthophonieRepository {
     store.speechTherapyFollowUps = [fu, ...store.speechTherapyFollowUps];
     store.notifySpeechTherapyFollowUps();
 
+    // === Append the canonical ledger charge entry (Epic 4.4) ===
+    // Same billing model as psychology: semester package (10,000 DA / 20
+    // sessions) billed when the follow-up is opened.
+    let chargeEntryId: string | null = null;
+    try {
+      const charge = buildTherapyCharge(
+        {
+          tenantId: TENANT_ID,
+          parentId: student.parentId,
+          studentId: student.id,
+          actorId,
+          actorName,
+          sourceType: "manual_entry",
+          sourceId: fu.id,
+        },
+        "speech_therapy",
+        "semester",
+        fu.studentName,
+      );
+      store.ledger = [...store.ledger, charge];
+      store.notifyLedger();
+      chargeEntryId = charge.id;
+    } catch (e) {
+      appendAudit({
+        action: AuditActions.OrthophonieFollowUpCreate,
+        entityType: "speech_therapy_followup",
+        entityId: fu.id,
+        actorId,
+        actorName,
+        diff: { before: null, after: { warning: "charge_build_failed", error: String(e) } },
+        note: `Échec de la création de l'écriture de charge pour ${fu.studentName}`,
+      });
+    }
+
     appendAudit({
       action: AuditActions.OrthophonieFollowUpCreate,
       entityType: "speech_therapy_followup",
       entityId: fu.id,
       actorId,
       actorName,
-      diff: { before: null, after: { studentId: student.id, therapistId: input.therapistId } },
-      note: `Suivi orthophonique ouvert pour ${fu.studentName}`,
+      diff: {
+        before: null,
+        after: {
+          studentId: student.id,
+          therapistId: input.therapistId,
+          ledgerChargeEntryId: chargeEntryId,
+          category: "therapy_speech",
+          billingPeriod: "semester",
+        },
+      },
+      note: `Suivi orthophonique ouvert pour ${fu.studentName}${
+        chargeEntryId ? ` — charge ${chargeEntryId.slice(0, 12)}…` : ""
+      }`,
     });
 
     return Ok(fu);

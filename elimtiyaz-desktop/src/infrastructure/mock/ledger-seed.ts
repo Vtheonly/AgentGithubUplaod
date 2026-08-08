@@ -237,6 +237,9 @@ export function buildSeedLedger(): LedgerEntry[] {
   }));
 
   // 4. Assign deterministic IDs.
+  // (Backing payments for paid installments are now generated in seed-data.ts
+  //  as part of `seedPayments`, so step 2 above already creates their ledger
+  //  entries naturally — no synthetic ledger-only entries needed here.)
   return entries.map((e, i) => ({
     ...e,
     id: `led-2025-${String(i + 1).padStart(6, "0")}`,

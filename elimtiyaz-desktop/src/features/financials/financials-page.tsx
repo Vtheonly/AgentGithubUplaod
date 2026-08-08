@@ -61,6 +61,8 @@ import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/lay
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { CounterPaymentModal } from "./counter-payment-modal";
+import { UnifiedPaymentModal } from "./unified-payment-modal";
+import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { ExpenseSubmitModal } from "./expense-submit-modal";
 import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
@@ -290,6 +292,8 @@ function DebtTab() {
   const debt = useObservable(() => repos.debt.observeSummary(), []);
   const students = useObservable(() => repos.students.observe(), []);
   const [reminding, setReminding] = useState<string | null>(null);
+  // === Epic 6.2 — UnifiedPaymentModal integration ===
+  const [collectFor, setCollectFor] = useState<{ parentId: string; parentName: string; amount: number } | null>(null);
 
   async function sendReminder(parentId: string, name: string) {
     setReminding(parentId);
@@ -388,6 +392,20 @@ function DebtTab() {
                   >
                     {reminding === d.parentId ? "…" : "Rappel"}
                   </Button>
+                  {/* Epic 6.2 — Encaisser créance → UnifiedPaymentModal (consolidated_debt) */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() =>
+                      setCollectFor({
+                        parentId: d.parentId,
+                        parentName: d.parentName,
+                        amount: d.outstandingAmount,
+                      })
+                    }
+                  >
+                    <Wallet className="h-3.5 w-3.5" /> Encaisser
+                  </Button>
                 </li>
               ))
             )}
@@ -429,6 +447,37 @@ function DebtTab() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Epic 6.2 — UnifiedPaymentModal for consolidated debt collection */}
+      {collectFor && (
+        <UnifiedPaymentModal
+          open={!!collectFor}
+          onOpenChange={(o) => !o && setCollectFor(null)}
+          context={
+            (() => {
+              const ctx: PaymentNavigationContext = {
+                parentId: collectFor.parentId,
+                parentName: collectFor.parentName,
+                mode: "consolidated_debt",
+                presetAmount: collectFor.amount,
+                lineItems: [{
+                  itemId: `debt-${collectFor.parentId}`,
+                  category: "other",
+                  label: "Solde familial consolidé",
+                  grossAmount: collectFor.amount,
+                  discountAmount: 0,
+                  netAmount: collectFor.amount,
+                  alreadyPaidAmount: 0,
+                  remainingAmount: collectFor.amount,
+                }],
+                allowPartial: true,
+                originRoute: "financials.debt_dashboard",
+              };
+              return ctx;
+            })()
+          }
+        />
       )}
     </div>
   );

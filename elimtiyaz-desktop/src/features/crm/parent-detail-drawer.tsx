@@ -45,6 +45,7 @@ import {
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
 } from "../../domain/model/payment";
+import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import {
   TRANSPORT_DESTINATION_LABELS_FR,
   cityTierToDestination,
@@ -82,6 +83,8 @@ export function ParentDetailDrawer({
     () => repos.payments.observeByParent(parentId ?? ""),
     [parentId],
   );
+  // === Epic 6.3 — UnifiedPaymentModal trigger ===
+  const [collectOpen, setCollectOpen] = useState(false);
 
   if (!open || !parentId || !parent) return null;
 
@@ -107,6 +110,7 @@ export function ParentDetailDrawer({
   }
 
   return (
+    <>
     <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
@@ -130,6 +134,15 @@ export function ParentDetailDrawer({
       footer={
         <>
           <AdjustAccountButton parentId={parent.id} outstanding={outstanding} />
+          {/* Epic 6.3 — Encaisser / Régler → UnifiedPaymentModal (consolidated_debt) */}
+          <Button
+            variant="default"
+            onClick={() => setCollectOpen(true)}
+            disabled={outstanding <= 0}
+            title={outstanding > 0 ? `Encaisser ${formatDzdPlain(outstanding)}` : "Aucun solde dû"}
+          >
+            <Wallet className="h-4 w-4" /> Encaisser / Régler
+          </Button>
           <div className="ml-auto flex items-center gap-1.5">
             <Button variant="outline" size="icon" title="Appeler" onClick={() => window.open(`tel:${parent.phone}`)}>
               <Phone className="h-4 w-4" />
@@ -310,7 +323,37 @@ export function ParentDetailDrawer({
           </div>
         </section>
       </div>
+
+      {/* Epic 6.3 — UnifiedPaymentModal for parent-level consolidated debt collection */}
+      <UnifiedPaymentModal
+        open={collectOpen}
+        onOpenChange={setCollectOpen}
+        context={
+          outstanding > 0
+            ? {
+                parentId: parent.id,
+                parentName: `${parent.firstName} ${parent.lastName}`,
+                parentCode: parent.code,
+                mode: "consolidated_debt",
+                presetAmount: outstanding,
+                lineItems: [{
+                  itemId: `parent-debt-${parent.id}`,
+                  category: "other",
+                  label: "Solde familial consolidé",
+                  grossAmount: outstanding,
+                  discountAmount: 0,
+                  netAmount: outstanding,
+                  alreadyPaidAmount: 0,
+                  remainingAmount: outstanding,
+                }],
+                allowPartial: true,
+                originRoute: "crm.parent_drawer",
+              }
+            : null
+        }
+      />
     </UnifiedModal>
+    </>
   );
 }
 

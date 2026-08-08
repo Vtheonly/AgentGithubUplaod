@@ -17,7 +17,7 @@
  *   - Audit info (created by, created at)
  *   - Actions: mark as read, dismiss, edit, deep-link to entity
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -29,6 +29,7 @@ import {
   CheckCheck,
   ArrowUpRight,
   AlertTriangle,
+  Wallet,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
@@ -45,6 +46,8 @@ import {
   type AppNotification,
 } from "../../domain/model/operations";
 import { ROLE_LABELS_FR } from "../../core/rbac/roles";
+import { UnifiedPaymentModal } from "../../features/financials/unified-payment-modal";
+import type { PaymentNavigationContext } from "../../domain/model/payment";
 
 export interface AlertDetailModalProps {
   alert: AppNotification | null;
@@ -55,6 +58,8 @@ export interface AlertDetailModalProps {
 export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModalProps) {
   const repos = useRepositories();
   const navigate = useNavigate();
+  // === Epic 6.1 — UnifiedPaymentModal trigger for overdue installment alerts ===
+  const [collectOpen, setCollectOpen] = useState(false);
 
   const linkedEntity = useMemo(() => {
     if (!alert?.entityType || !alert?.entityId) return null;
@@ -83,10 +88,26 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
           : null;
       }
       case "installment": {
-        const i = repos.installments.observeByParent("").get().find((x) => x.id === alert.entityId);
-        return i
-          ? { kind: "installment" as const, label: i.label, subtitle: `${i.amountDue.toLocaleString("fr-FR")} DZD`, route: `/financials?installment=${i.id}` }
-          : null;
+        // Search across all parents to find the installment.
+        const parentsList = repos.parents.observe().get();
+        let found: { installment: any; parent: any } | null = null;
+        for (const p of parentsList) {
+          const items = repos.installments.observeByParent(p.id).get();
+          const match = items.find((x) => x.id === alert.entityId);
+          if (match) {
+            found = { installment: match, parent: p };
+            break;
+          }
+        }
+        if (!found) return null;
+        return {
+          kind: "installment" as const,
+          label: found.installment.label,
+          subtitle: `${found.installment.amountDue.toLocaleString("fr-FR")} DZD`,
+          route: `/financials?installment=${found.installment.id}`,
+          installment: found.installment,
+          parent: found.parent,
+        };
       }
       case "homework": {
         return { kind: "homework" as const, label: "Devoir", subtitle: alert.entityId, route: `/academics?homework=${alert.entityId}` };
@@ -97,6 +118,46 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
   }, [alert, repos]);
 
   if (!alert) return null;
+
+  // === Epic 6.1 — Build the PaymentNavigationContext for installment alerts ===
+  const isInstallmentAlert = alert.entityType === "installment" && linkedEntity && (linkedEntity as any).installment;
+  const installmentCtx: PaymentNavigationContext | null = isInstallmentAlert
+    ? (() => {
+        const inst = (linkedEntity as any).installment;
+        const parent = (linkedEntity as any).parent;
+        const remaining = Math.max(0, inst.amountDue - inst.amountPaid);
+        const isOverdue = inst.status === "overdue";
+        const overdueDays = isOverdue
+          ? Math.max(0, Math.floor((Date.now() - new Date(inst.dueDate).getTime()) / 86_400_000))
+          : undefined;
+        return {
+          parentId: inst.parentId,
+          parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
+          parentCode: parent?.code,
+          studentId: inst.studentId ?? null,
+          mode: "installment_tranche" as const,
+          targetItemId: inst.id,
+          presetAmount: remaining,
+          overdueDays,
+          dueWindowLabel: new Date(inst.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
+          lineItems: [{
+            itemId: inst.id,
+            category: inst.category,
+            label: inst.label,
+            grossAmount: inst.amountDue,
+            discountAmount: 0,
+            netAmount: inst.amountDue,
+            alreadyPaidAmount: inst.amountPaid,
+            remainingAmount: remaining,
+            dueDate: inst.dueDate,
+            isOverdue,
+            daysOverdue: overdueDays,
+          }],
+          allowPartial: true,
+          originRoute: "dashboard.alert_detail",
+        };
+      })()
+    : null;
 
   async function handleMarkRead() {
     if (!alert) return;
@@ -119,6 +180,7 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
   const priorityTone = ALERT_PRIORITY_TONE[alert.priority];
 
   return (
+    <>
     <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
@@ -146,6 +208,13 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
             Supprimer
           </Button>
           <div className="flex-1" />
+          {/* Epic 6.1 — Encaisser directly from overdue installment alert */}
+          {isInstallmentAlert && installmentCtx && (
+            <Button variant="default" size="sm" onClick={() => setCollectOpen(true)}>
+              <Wallet className="h-3.5 w-3.5" />
+              Encaisser {installmentCtx.presetAmount ? `${installmentCtx.presetAmount.toLocaleString("fr-FR")} DZD` : ""}
+            </Button>
+          )}
           {linkedEntity && (
             <Button variant="outline" size="sm" onClick={handleDeepLink}>
               <ArrowUpRight className="h-3.5 w-3.5" />
@@ -257,5 +326,13 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
         )}
       </div>
     </UnifiedModal>
+
+    {/* Epic 6.1 — UnifiedPaymentModal for overdue installment alerts */}
+    <UnifiedPaymentModal
+      open={collectOpen}
+      onOpenChange={setCollectOpen}
+      context={installmentCtx}
+    />
+    </>
   );
 }
