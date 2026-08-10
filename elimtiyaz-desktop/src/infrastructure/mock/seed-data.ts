@@ -141,6 +141,7 @@ export const seedParents = [
 ].map((p) => ({
   ...p,
   tenantId: TENANT_ID,
+  displayName: `${p.firstName} ${p.lastName}`.trim(),
   transportDestination: cityTierToDestination(
     p.cityTier,
   ) as TransportDestination,
@@ -355,6 +356,7 @@ export const seedStudents = [
 ].map((s) => ({
   ...s,
   tenantId: TENANT_ID,
+  displayName: `${s.firstName} ${s.lastName}`.trim(),
   gradeLevel: gradeLevelFor(s.level, s.gradeYear),
   enrollmentDate: daysAgo(120),
   photoUrl: null,

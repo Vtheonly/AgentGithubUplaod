@@ -57,6 +57,7 @@ import { StatusChip } from "../../shared/ui/status-chip";
 import { AsyncContent, EmptyState } from "../../shared/layout/state-views";
 import { BatchRegistrationModal } from "./batch-registration-modal";
 import { ParentDetailDrawer } from "./parent-detail-drawer";
+import { parentDisplayName } from "../../domain/model/parent";
 import { StudentDetailDrawer } from "./student-detail-drawer";
 import { ExcelImportModal } from "./excel-import-modal";
 import { useToast } from "../../app/providers/toast-provider";
@@ -407,7 +408,7 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
 
   const filtered = query.trim()
     ? parents.filter((p) =>
-        `${p.firstName} ${p.lastName} ${p.phone} ${p.code}`.toLowerCase().includes(query.toLowerCase()),
+        `${p.firstName} ${p.lastName} ${p.displayName ?? ""} ${p.phone} ${p.code}`.toLowerCase().includes(query.toLowerCase()),
       )
     : parents;
 
@@ -456,7 +457,7 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {p.firstName} {p.lastName}
+                          {parentDisplayName(p)}
                         </p>
                         <span className="font-mono text-xs text-muted-foreground">{p.code}</span>
                       </div>

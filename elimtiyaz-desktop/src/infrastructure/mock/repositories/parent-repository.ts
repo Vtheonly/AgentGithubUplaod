@@ -57,6 +57,7 @@ export class MockParentRepository implements ParentRepository {
       code: `PAR-${year}-${randomParentSuffix()}`,
       firstName: input.firstName,
       lastName: input.lastName,
+      displayName: input.displayName ?? `${input.firstName} ${input.lastName}`.trim(),
       gender: input.gender,
       phone: input.phone,
       whatsapp: input.whatsapp ?? null,

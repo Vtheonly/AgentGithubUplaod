@@ -199,10 +199,19 @@ export function ExcelImportModal({
         source: { user: session?.email ?? "unknown" },
       });
 
-      // Iteration 14 — enqueue sync entries for every successfully
-      // imported row. Excel-imported data is the ONLY data eligible
-      // for sync (mock data is flagged at queue time and skipped).
-      // We peek at the storage adapter to recover the inserted rows.
+      // Iteration 14 + 0027 unification — enqueue sync entries for every
+      // successfully imported row.
+      //
+      // When Supabase IS configured, the SupabaseParentRepository /
+      // SupabaseStudentRepository / SupabaseLedgerRepository that the
+      // importer invoked have ALREADY written to Supabase via the
+      // idempotent `upsert_*_from_import` RPCs (migration 0027). The
+      // queue entries below are an audit trail + a safety net for the
+      // offline case (when Supabase isn't configured, the importer
+      // writes to the mock layer and the queue is drained later).
+      //
+      // The `operation` field is informational — the upsert RPCs handle
+      // insert-vs-update idempotently at the database layer.
       const storage = engine.getStorage();
       const allRecords = typeof storage.listInsertedForRun === "function"
         ? await storage.listInsertedForRun(ctx.runId)

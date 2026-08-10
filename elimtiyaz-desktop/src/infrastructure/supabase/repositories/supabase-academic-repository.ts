@@ -1017,6 +1017,7 @@ function mapStudentRow(row: Record<string, any>): Student {
     parentId: row.parent_id,
     firstName: row.first_name,
     lastName: row.last_name,
+    displayName: row.display_name ?? null,
     gender: row.gender,
     birthDate: row.date_of_birth,
     enrollmentDate: row.enrollment_date,

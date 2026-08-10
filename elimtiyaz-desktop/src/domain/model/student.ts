@@ -180,6 +180,12 @@ export interface Student {
   readonly parentId: string; // NOT NULL FK — plan §04.01
   readonly firstName: string;
   readonly lastName: string;
+  /**
+   * COMPLETE display name as imported (e.g. "BENALI Sara").
+   * When non-null, UI shows this verbatim instead of `{firstName} {lastName}`.
+   * Migration 0027.
+   */
+  readonly displayName: string | null;
   readonly gender: Gender;
   readonly birthDate: string; // ISO date
   readonly enrollmentDate: string; // ISO date
@@ -209,6 +215,8 @@ export interface Student {
 export interface CreateStudentInput {
   readonly firstName: string;
   readonly lastName: string;
+  /** Complete name. When omitted, derived from first+last. */
+  readonly displayName?: string | null;
   readonly gender: Gender;
   readonly birthDate: string;
   readonly level: AcademicLevel;
@@ -220,6 +228,17 @@ export interface CreateStudentInput {
   readonly transportTier?: string | null;
   /** Payment plan — defaults to `"tranches"` when omitted. */
   readonly paymentPlan?: PaymentPlan;
+}
+
+/**
+ * Returns the COMPLETE student name for display.
+ * Prefers `displayName` and falls back to `{firstName} {lastName}`.
+ */
+export function studentDisplayName(s: Pick<Student, "firstName" | "lastName" | "displayName">): string {
+  const dn = (s.displayName ?? "").trim();
+  if (dn) return dn;
+  const composed = `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
+  return composed || "—";
 }
 
 export interface BatchRegistrationInput {

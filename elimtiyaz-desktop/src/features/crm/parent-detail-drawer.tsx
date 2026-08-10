@@ -49,6 +49,7 @@ import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import {
   TRANSPORT_DESTINATION_LABELS_FR,
   cityTierToDestination,
+  parentDisplayName,
   type TransportDestination,
 } from "../../domain/model/parent";
 import { Permission } from "../../core/rbac/permissions";
@@ -123,7 +124,7 @@ export function ParentDetailDrawer({
           <Avatar className="h-9 w-9">
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <span>{parent.firstName} {parent.lastName}</span>
+          <span>{parentDisplayName(parent)}</span>
         </span>
       }
       description={
@@ -332,7 +333,7 @@ export function ParentDetailDrawer({
           outstanding > 0
             ? {
                 parentId: parent.id,
-                parentName: `${parent.firstName} ${parent.lastName}`,
+                parentName: parentDisplayName(parent),
                 parentCode: parent.code,
                 mode: "consolidated_debt",
                 presetAmount: outstanding,

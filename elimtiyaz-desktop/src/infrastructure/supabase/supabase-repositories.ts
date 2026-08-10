@@ -6,6 +6,10 @@
  * ARCHITECTURE:
  *   - Auth: SupabaseAuthRepository (wraps supabase.auth) — fully implemented
  *   - Approval workflow: SupabaseApprovalRepository (wraps Edge Function) — fully implemented
+ *   - Parents / Students / Payments / Ledger: Supabase implementations that
+ *     call the idempotent upsert RPCs declared in migration
+ *     `0027_shared_unification.sql`. These are the canonical write paths
+ *     shared with the Android app.
  *   - Audit: minimal Supabase adapter calling the `write_audit_log` RPC
  *   - Notifications: minimal Supabase adapter (read + mark-read)
  *   - All other repositories: FALLBACK to mock implementations with a console
@@ -27,6 +31,12 @@ import { mockRepositories } from "../../app/providers/repository-provider";
 import { getSupabaseClient } from "./supabase-client";
 import { SupabaseAuthRepository } from "./repositories/supabase-auth-repository";
 import { SupabaseApprovalRepository } from "./repositories/supabase-approval-repository";
+import {
+  SupabaseParentRepository,
+  SupabaseStudentRepository,
+  SupabasePaymentRepository,
+  SupabaseLedgerRepository,
+} from "./repositories/supabase-shared-repositories";
 
 /**
  * Build a Repositories object backed by Supabase for auth + approval workflow,
@@ -46,12 +56,22 @@ export function getSupabaseRepositories(): Repositories {
   const auth = new SupabaseAuthRepository(client);
   const approvals = new SupabaseApprovalRepository(client);
 
+  // Shared entities — backed by the migration 0027 RPCs.
+  const parents = new SupabaseParentRepository(client);
+  const students = new SupabaseStudentRepository(client);
+  const payments = new SupabasePaymentRepository(client);
+  const ledger = new SupabaseLedgerRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
     ...mockRepositories,
     auth,
-    // All other repositories remain on the mock layer for now. They will be
+    parents,
+    students,
+    payments,
+    ledger,
+    // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
   };
@@ -74,4 +94,11 @@ export interface RepositoriesWithApprovals extends Repositories {
   approvals: SupabaseApprovalRepository;
 }
 
-export { SupabaseAuthRepository, SupabaseApprovalRepository };
+export {
+  SupabaseAuthRepository,
+  SupabaseApprovalRepository,
+  SupabaseParentRepository,
+  SupabaseStudentRepository,
+  SupabasePaymentRepository,
+  SupabaseLedgerRepository,
+};

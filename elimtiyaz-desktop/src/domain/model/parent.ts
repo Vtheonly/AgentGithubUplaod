@@ -59,6 +59,14 @@ export interface Parent {
   readonly code: string; // PAR-2025-A4F9
   readonly firstName: string;
   readonly lastName: string;
+  /**
+   * COMPLETE display name as imported (e.g. "BENALI Mohamed").
+   * When non-null, UI MUST show this verbatim instead of `{firstName} {lastName}`.
+   * Fixes the "Tuteur BENALI" prefix bug — the importer used to set
+   * `firstName="Tuteur"` as a placeholder, producing prefixed displays.
+   * Migration 0027 + this field preserve the full name end-to-end.
+   */
+  readonly displayName: string | null;
   readonly gender: Gender;
   readonly phone: string;
   readonly whatsapp: string | null;
@@ -78,6 +86,8 @@ export interface Parent {
 export interface CreateParentInput {
   readonly firstName: string;
   readonly lastName: string;
+  /** Complete name (e.g. "BENALI Mohamed"). When omitted, derived from first+last. */
+  readonly displayName?: string | null;
   readonly gender: Gender;
   readonly phone: string;
   readonly whatsapp?: string | null;
@@ -91,3 +101,18 @@ export interface CreateParentInput {
 }
 
 export type UpdateParentInput = Partial<CreateParentInput>;
+
+/**
+ * Returns the COMPLETE parent name for display.
+ * Prefers `displayName` (the full imported name) and falls back to
+ * `{firstName} {lastName}` only when `displayName` is null/empty.
+ *
+ * Use this everywhere a parent name is rendered in the UI — never
+ * read `firstName`/`lastName` directly for display.
+ */
+export function parentDisplayName(p: Pick<Parent, "firstName" | "lastName" | "displayName">): string {
+  const dn = (p.displayName ?? "").trim();
+  if (dn) return dn;
+  const composed = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
+  return composed || "—";
+}

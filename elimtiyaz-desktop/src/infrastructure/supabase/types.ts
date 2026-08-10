@@ -166,6 +166,14 @@ export interface ParentRow {
   parent_code: string;
   first_name: string;
   last_name: string;
+  /**
+   * COMPLETE display name as imported (e.g. "BENALI Mohamed").
+   * When non-null, the UI MUST show this verbatim — never fall back to
+   * first_name/last_name. Fixes the "Tuteur BENALI" prefix bug.
+   *
+   * Added by migration 0027_shared_unification.sql.
+   */
+  display_name: string | null;
   primary_phone: string;
   secondary_phone: string | null;
   email: string | null;
@@ -192,6 +200,11 @@ export interface StudentRow {
   first_name: string;
   middle_name: string | null;
   last_name: string;
+  /**
+   * COMPLETE display name as imported. When non-null, UI shows this verbatim.
+   * Added by migration 0027_shared_unification.sql.
+   */
+  display_name: string | null;
   date_of_birth: string;
   gender: "male" | "female" | "other" | null;
   grade_level_id: string | null;
@@ -214,12 +227,25 @@ export interface PaymentRow {
   id: string;
   tenant_id: string;
   payment_number: string;
+  /**
+   * Alias for `payment_number` — kept in sync by trigger `sync_payments_receipt_number`.
+   * Used by the unified financial RPCs and the desktop domain model.
+   * Added by migration 0027_shared_unification.sql.
+   */
+  receipt_number: string | null;
   parent_id: string;
   student_id: string | null;
   invoice_id: string | null;
   installment_id: string | null;
   amount: number;
   method: "cash" | "check" | "transfer";
+  /**
+   * Billing category — drives which ledger account the payment lands on.
+   * Added by migration 0027_shared_unification.sql.
+   */
+  category: "tuition" | "transport" | "canteen" | "uniform" | "books" |
+            "extracurricular" | "therapy_psychology" | "therapy_speech" |
+            "second_apron" | "parent_credit" | "other";
   check_number: string | null;
   check_bank_name: string | null;
   check_issue_date: string | null;
@@ -280,6 +306,18 @@ export interface LedgerEntryRow {
   description: string | null;
   entry_date: string;
   created_at: string;
+  // ── Unified columns (added by migration 0027_shared_unification.sql) ──
+  // These mirror the desktop domain `LedgerEntry` shape and the 0026 RPCs.
+  source_type: string | null;
+  source_id: string | null;
+  method: "cash" | "check" | "transfer" | null;
+  receipt_number: string | null;
+  payment_status: string | null;
+  reverses_id: string | null;
+  actor_id: string | null;
+  actor_name: string | null;
+  at: string | null;
+  metadata: Record<string, unknown> | null;
 }
 
 // ============================================================================
@@ -363,6 +401,8 @@ export interface AuditLogRow {
   session_id: string | null;
   before_json: Record<string, unknown> | null;
   after_json: Record<string, unknown> | null;
+  /** Compat alias used by the 0026 atomic RPCs. Computed from before/after. */
+  diff: Record<string, unknown> | null;
   note: string | null;
   ip_address: string | null;
   user_agent: string | null;
@@ -370,6 +410,41 @@ export interface AuditLogRow {
   supersedes_id: string | null;
   occurred_at: string;
   created_at: string;
+}
+
+// ============================================================================
+// Shared sync + device-token tables (migration 0027_shared_unification.sql)
+// ============================================================================
+
+export interface SyncQueueRow {
+  id: string;
+  tenant_id: string;
+  entity: string;
+  operation: "insert" | "update" | "delete";
+  actor_id: string | null;
+  payload: Record<string, unknown>;
+  source_file: string | null;
+  import_run_id: string | null;
+  status: "pending" | "synced" | "failed" | "skipped_mock";
+  attempts: number;
+  last_error: string | null;
+  queued_at: string;
+  last_attempt_at: string | null;
+  pushed_at: string | null;
+  created_at: string;
+}
+
+export interface DeviceTokenRow {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  token: string;
+  platform: "android" | "ios" | "web";
+  app_version: string | null;
+  is_active: boolean;
+  last_seen_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface NotificationRow {
@@ -420,6 +495,8 @@ export interface Database {
       personnel: { Row: PersonnelRow; Insert: Partial<PersonnelRow>; Update: Partial<PersonnelRow> };
       audit_logs: { Row: AuditLogRow; Insert: Partial<AuditLogRow>; Update: Partial<AuditLogRow> };
       notifications: { Row: NotificationRow; Insert: Partial<NotificationRow>; Update: Partial<NotificationRow> };
+      sync_queue: { Row: SyncQueueRow; Insert: Partial<SyncQueueRow>; Update: Partial<SyncQueueRow> };
+      device_tokens: { Row: DeviceTokenRow; Insert: Partial<DeviceTokenRow>; Update: Partial<DeviceTokenRow> };
     };
     Views: {
       vw_dashboard_kpis: { Row: Record<string, unknown> };
@@ -551,6 +628,67 @@ export interface Database {
       run_overdue_scan: { Args: { p_tenant_id: string; p_as_of?: string }; Returns: unknown };
       expire_pending_approvals: { Args: Record<string, never>; Returns: number };
       refresh_all_materialized_views: { Args: Record<string, never>; Returns: void };
+      // ── Shared unification RPCs (migration 0027) ──
+      register_fcm_token: {
+        Args: { p_user_id: string; p_token: string; p_platform?: string };
+        Returns: string;
+      };
+      upsert_parent_from_import: {
+        Args: {
+          p_tenant_id: string;
+          p_parent_code: string;
+          p_first_name: string;
+          p_last_name: string;
+          p_display_name?: string | null;
+          p_primary_phone?: string | null;
+          p_secondary_phone?: string | null;
+          p_email?: string | null;
+          p_occupation?: string | null;
+          p_address?: string | null;
+          p_city?: string | null;
+          p_relationship?: string | null;
+          p_preferred_language?: string;
+          p_is_active?: boolean;
+        };
+        Returns: { parent_id: string; parent_code: string; was_inserted: boolean }[];
+      };
+      upsert_student_from_import: {
+        Args: {
+          p_tenant_id: string;
+          p_student_code: string;
+          p_parent_id: string;
+          p_first_name: string;
+          p_last_name: string;
+          p_display_name?: string | null;
+          p_middle_name?: string | null;
+          p_date_of_birth?: string | null;
+          p_gender?: string | null;
+          p_grade_level_id?: string | null;
+          p_class_id?: string | null;
+          p_enrollment_date?: string | null;
+          p_enrollment_status?: string;
+          p_medical_notes?: string | null;
+          p_is_active?: boolean;
+        };
+        Returns: { student_id: string; student_code: string; was_inserted: boolean }[];
+      };
+      upsert_payment_from_import: {
+        Args: Record<string, unknown>;
+        Returns: { payment_id: string; payment_number: string; was_inserted: boolean }[];
+      };
+      upsert_ledger_entry_from_import: {
+        Args: Record<string, unknown>;
+        Returns: { entry_id: string; was_inserted: boolean }[];
+      };
+      mark_sync_queue_processed: {
+        Args: { p_id: string; p_status: string; p_error?: string | null };
+        Returns: void;
+      };
+      pull_parents_for_sync: { Args: { p_tenant_id: string; p_since?: string; p_limit?: number }; Returns: unknown };
+      pull_students_for_sync: { Args: { p_tenant_id: string; p_since?: string; p_limit?: number }; Returns: unknown };
+      pull_payments_for_sync: { Args: { p_tenant_id: string; p_since?: string; p_limit?: number }; Returns: unknown };
+      pull_ledger_entries_for_sync: { Args: { p_tenant_id: string; p_since?: string; p_limit?: number }; Returns: unknown };
+      pull_device_tokens_for_sync: { Args: { p_tenant_id: string; p_since?: string; p_limit?: number }; Returns: unknown };
     };
   };
 }

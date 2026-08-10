@@ -184,8 +184,30 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     let action: "insert" | "update" | "skip";
     let studentId: string | null = null;
     if (existing) {
-      action = "update";
-      studentId = existing.id;
+      // Actually call updateStudent() so changes to grade level, transport
+      // tier, class assignment, etc. propagate on re-import. The previous
+      // implementation set `action = "update"` but never called the update
+      // method — leaving the existing record unchanged.
+      const updateResult = await this.deps.students.updateStudent(existing.id, {
+        firstName: studentInput.firstName,
+        lastName: studentInput.lastName,
+        displayName: studentInput.displayName,
+        level: studentInput.level,
+        gradeYear: studentInput.gradeYear,
+        gradeLevel: studentInput.gradeLevel,
+        classId: studentInput.classId,
+        medicalNotes: studentInput.medicalNotes,
+        transportTier: studentInput.transportTier,
+      });
+      if (updateResult.ok) {
+        action = "update";
+        studentId = updateResult.value.id;
+      } else {
+        // Update failed — fall back to the existing ID so financial entries
+        // still land against the right student.
+        action = "update";
+        studentId = existing.id;
+      }
     } else {
       const result = await this.deps.students.createStudent(parent.id, studentInput);
       if (!result.ok) {
@@ -225,14 +247,26 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // have an EMPTY TUTEUR cell, and the 65 non-empty values are all "NV"
     // (a status flag, not a name). So in practice, TUTEUR is unused.
     //
-    // To avoid creating 325 placeholder parents named "Tuteur Inconnu", we
-    // derive the parent's family name from the student's NOM column when
-    // TUTEUR is missing or non-name-like. NOM is in `LASTNAME FIRSTNAME`
-    // order, so the first token of NOM is the family name and becomes the
-    // parent's lastName; the remaining tokens become the parent's
-    // firstName (optional — many parents are addressed by family name only).
+    // PARENT-DISPLAY-NAME FIX (migration 0027):
+    // The previous logic set `firstName = "Tuteur"` as a placeholder when
+    // TUTEUR was missing — this produced prefixed displays like
+    // "Tuteur BENALI" instead of the complete name.
+    //
+    // The new logic:
+    //   1. If TUTEUR is name-like → use TUTEUR as the COMPLETE parent name.
+    //      Split it for indexing (first/last) but ALSO store the full string
+    //      in `displayName` so the UI shows the complete name verbatim.
+    //   2. If TUTEUR is missing/non-name-like → derive the parent's family
+    //      name from the student's NOM column (NOM is LASTNAME FIRSTNAME
+    //      order, so the first token is the family name). Store the FULL
+    //      NOM (e.g. "BENALI Mohamed") as `displayName` — this preserves
+    //      the complete name through the pipeline.
+    //   3. NEVER use "Tuteur" as a placeholder for firstName — that was the
+    //      root cause of the prefix bug.
+
     let lastName = "Inconnu";
-    let firstName = "Tuteur";
+    let firstName = "";
+    let displayName: string | null = null;
 
     const isNameLikeTuteur =
       !!tuteurRaw &&
@@ -242,23 +276,31 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       /^[a-zA-ZÀ-ÿ\u0600-\u06FF][a-zA-ZÀ-ÿ\u0600-\u06FF\s'-]{1,}$/.test(tuteurRaw);
 
     if (isNameLikeTuteur) {
+      // TUTEUR is a real name — use it as the COMPLETE display name.
       const tuteurParts = splitFullName(tuteurRaw);
       lastName = tuteurParts.lastName || "Inconnu";
-      firstName = tuteurParts.firstName || "Tuteur";
+      firstName = tuteurParts.firstName || "";
+      displayName = tuteurRaw; // preserve the COMPLETE TUTEUR string verbatim
     } else if (record.nom) {
       // Derive parent name from student NOM (LASTNAME FIRSTNAME order).
       const nomParts = splitFullName(record.nom);
       if (nomParts.lastName) {
         lastName = nomParts.lastName;
-        // Don't inherit the student's first name as the parent's — leave the
-        // parent's first name as the placeholder. The user can fill it in
-        // via the Parent drawer later.
+        // Don't inherit the student's first name as the parent's — the
+        // parent's firstName is left empty. The COMPLETE name is preserved
+        // in `displayName` below.
+        firstName = "";
       }
+      // Preserve the FULL NOM string (e.g. "BENALI Mohamed") as the parent's
+      // display name. This is the key fix — the UI will now show the
+      // complete name instead of "Tuteur BENALI".
+      displayName = String(record.nom).trim();
     }
 
     return {
       firstName,
       lastName,
+      displayName,
       gender: "unspecified",
       phone: phone || "(inconnu)",
       email,
@@ -268,14 +310,17 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
   /**
    * Find an existing parent by phone first; when phone is "(inconnu)"
-   * (blank NEM), fall back to matching on (firstName, lastName) so that
-   * re-imports don't create duplicate placeholder parents.
+   * (blank NEM), fall back to matching on (firstName, lastName, displayName)
+   * so that re-imports don't create duplicate placeholder parents.
    *
-   * When the parent's lastName was derived from the student's NOM (the
-   * common case — TUTEUR is empty in 325/390 rows of the real workbook),
-   * we also accept a match where lastName is the same AND firstName is the
-   * placeholder "Tuteur" — this handles the case where a sibling was
-   * imported first under that placeholder name.
+   * The match strategy is intentionally multi-pronged to keep imports
+   * idempotent across the migration from the old "Tuteur <LastName>" format
+   * to the new displayName-based format:
+   *   1. Exact phone match.
+   *   2. Exact (firstName, lastName) match — handles both the old placeholder
+   *      format and the new empty-firstName format.
+   *   3. Exact displayName match — the canonical idempotency key for
+   *      placeholder parents.
    */
   private async findExistingParent(input: CreateParentInput): Promise<Parent | null> {
     if (input.phone && input.phone !== "(inconnu)") {
@@ -287,7 +332,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       return null;
     }
     // Placeholder parent — match by name to keep re-imports idempotent.
-    const result = await this.deps.parents.search(input.firstName || input.lastName);
+    const query = input.displayName ?? input.lastName ?? input.firstName ?? "";
+    const result = await this.deps.parents.search(query);
     if (!result.ok) return null;
     return (
       result.value.find(
@@ -295,7 +341,23 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           p.phone === "(inconnu)" &&
           p.firstName === input.firstName &&
           p.lastName === input.lastName,
-      ) ?? null
+      ) ??
+      result.value.find(
+        (p) =>
+          p.phone === "(inconnu)" &&
+          input.displayName !== null &&
+          p.displayName === input.displayName,
+      ) ??
+      // Backward-compat: also match the OLD placeholder format where
+      // firstName was "Tuteur". This lets a re-import upgrade an existing
+      // row to the new displayName format instead of creating a duplicate.
+      result.value.find(
+        (p) =>
+          p.phone === "(inconnu)" &&
+          p.firstName === "Tuteur" &&
+          p.lastName === input.lastName,
+      ) ??
+      null
     );
   }
 
@@ -309,9 +371,13 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // transport, fall back to the OPTION code so the flag is preserved.
     const distination = (record.distination as string | undefined)?.trim() || null;
     const optionCode = (record.option as string | undefined)?.trim() || null;
+    // Preserve the FULL student NOM (e.g. "BENALI Mohamed") as the display
+    // name so the UI shows the complete name verbatim.
+    const nomRaw = (record.nom as string | undefined)?.trim() || null;
     return {
       firstName: nameParts.firstName,
       lastName: nameParts.lastName || "Inconnu",
+      displayName: nomRaw,
       gender: "unspecified",
       birthDate: "2000-01-01",
       level: mapping.academicLevel,
