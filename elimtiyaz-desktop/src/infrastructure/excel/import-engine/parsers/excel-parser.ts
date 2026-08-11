@@ -115,7 +115,9 @@ export class ExcelParser {
       for (const reqH of requiredHeadersNorm) {
         if (
           rowHeadersNorm.some(
-            (h) => h === reqH || h.includes(reqH) || reqH.includes(h),
+            (h) =>
+              h === reqH ||
+              (h.length >= 3 && reqH.length >= 3 && (h.includes(reqH) || reqH.includes(h))),
           )
         ) {
           reqMatchCount++;
@@ -126,7 +128,9 @@ export class ExcelParser {
       for (const fieldH of fieldHeadersNorm) {
         if (
           rowHeadersNorm.some(
-            (h) => h === fieldH || h.includes(fieldH) || fieldH.includes(h),
+            (h) =>
+              h === fieldH ||
+              (h.length >= 3 && fieldH.length >= 3 && (h.includes(fieldH) || fieldH.includes(h))),
           )
         ) {
           fieldMatchCount++;

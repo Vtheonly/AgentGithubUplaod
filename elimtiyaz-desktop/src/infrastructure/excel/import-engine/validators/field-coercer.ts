@@ -97,11 +97,17 @@ export class FieldCoercer {
           // the rule message describes the failure; the caller (RowValidator) decides
           // severity. For now, treat all phone issues as warnings (tolerant).
           warnings.push(e);
-        } else {
+        }
+        // Always normalize and set coercedValue — even when there's a warning.
+        // This ensures the best-effort phone number is passed downstream so
+        // rows with slightly non-standard numbers still get stored.
+        {
           const parts = String(rawValue).split(/[/,]/).map((s) => s.trim()).filter(Boolean);
-          coercedValue = parts.map((p) => normalizePhone(p));
-          if (field.type === "phone" && Array.isArray(coercedValue)) {
-            coercedValue = (coercedValue as string[])[0] ?? null;
+          const normalized = parts.map((p) => normalizePhone(p)).filter(Boolean);
+          if (field.type === "phone") {
+            coercedValue = normalized[0] ?? String(rawValue).trim();
+          } else {
+            coercedValue = normalized.length > 0 ? normalized : [String(rawValue).trim()];
           }
         }
         break;

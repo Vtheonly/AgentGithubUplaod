@@ -32,6 +32,7 @@ import type {
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
+import { supabaseErrorToAppError } from "../supabase-client";
 import type {
   Parent,
   CreateParentInput,
@@ -74,28 +75,38 @@ import type {
 
 const TENANT_FALLBACK = "00000000-0000-0000-0000-000000000001";
 
+function getSessionFromStorage(): { tenantId?: string; userId?: string; displayName?: string } | null {
+  try {
+    const raw = localStorage.getItem("el-imtiyaz.session");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function getTenantId(): string {
   // The tenant id is stored on the session by the auth provider.
   // Fall back to the seed tenant when the session isn't loaded yet.
   try {
-    const raw = localStorage.getItem("el-imtiyaz.session.tenantId");
-    if (raw) return raw;
+    const sess = getSessionFromStorage();
+    if (sess?.tenantId) return sess.tenantId;
   } catch { /* ignore */ }
   return TENANT_FALLBACK;
 }
 
 function getActorId(): string {
   try {
-    const raw = localStorage.getItem("el-imtiyaz.session.userId");
-    if (raw) return raw;
+    const sess = getSessionFromStorage();
+    if (sess?.userId) return sess.userId;
   } catch { /* ignore */ }
   return "excel-import";
 }
 
 function getActorName(): string {
   try {
-    const raw = localStorage.getItem("el-imtiyaz.session.displayName");
-    if (raw) return raw;
+    const sess = getSessionFromStorage();
+    if (sess?.displayName) return sess.displayName;
   } catch { /* ignore */ }
   return "Excel Import";
 }
@@ -427,7 +438,7 @@ export class SupabaseParentRepository implements ParentRepository {
       this.byIdCache.set(parent.id, new SubjectBehavior<Parent | null>(parent));
       return Ok(parent);
     } catch (e) {
-      return Err(Errors.unknown(e as Error));
+      return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
     }
   }
 
@@ -608,7 +619,7 @@ export class SupabaseStudentRepository implements StudentRepository {
       this.cache.update((list) => [patched, ...list.filter((s) => s.id !== patched.id)]);
       return Ok(patched);
     } catch (e) {
-      return Err(Errors.unknown(e as Error));
+      return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
     }
   }
 

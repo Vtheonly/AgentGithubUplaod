@@ -418,6 +418,15 @@ BEGIN
     LIMIT 1;
   END IF;
 
+  IF v_existing IS NULL AND p_email IS NOT NULL AND TRIM(p_email) <> '' THEN
+    SELECT id INTO v_existing
+    FROM public.parents
+    WHERE tenant_id = p_tenant_id
+      AND email = TRIM(p_email)
+      AND deleted_at IS NULL
+    LIMIT 1;
+  END IF;
+
   IF v_existing IS NOT NULL THEN
     UPDATE public.parents SET
       first_name            = COALESCE(NULLIF(TRIM(p_first_name), ''), first_name),
@@ -436,17 +445,42 @@ BEGIN
     WHERE id = v_existing;
     v_id := v_existing;
   ELSE
-    INSERT INTO public.parents (
-      tenant_id, parent_code, first_name, last_name, display_name,
-      primary_phone, secondary_phone, email, occupation, address,
-      relationship, is_active, transport_destination, city_tier
-    ) VALUES (
-      p_tenant_id, v_code, v_first, v_last, v_disp,
-      v_phone, p_secondary_phone, p_email, p_occupation, p_address,
-      p_relationship, p_is_active, p_transport_destination, p_city_tier
-    )
-    RETURNING id INTO v_id;
-    v_inserted := true;
+    BEGIN
+      INSERT INTO public.parents (
+        tenant_id, parent_code, first_name, last_name, display_name,
+        primary_phone, secondary_phone, email, occupation, address,
+        relationship, is_active, transport_destination, city_tier
+      ) VALUES (
+        p_tenant_id, v_code, v_first, v_last, v_disp,
+        v_phone, p_secondary_phone, p_email, p_occupation, p_address,
+        p_relationship, p_is_active, p_transport_destination, p_city_tier
+      )
+      RETURNING id INTO v_id;
+      v_inserted := true;
+    EXCEPTION WHEN unique_violation THEN
+      SELECT id INTO v_id
+      FROM public.parents
+      WHERE tenant_id = p_tenant_id
+        AND (parent_code = v_code OR (email IS NOT NULL AND email = TRIM(p_email)))
+        AND deleted_at IS NULL
+      LIMIT 1;
+      IF v_id IS NOT NULL THEN
+        UPDATE public.parents SET
+          first_name            = COALESCE(NULLIF(TRIM(p_first_name), ''), first_name),
+          last_name             = COALESCE(NULLIF(TRIM(p_last_name), ''), last_name),
+          display_name          = COALESCE(v_disp, display_name),
+          primary_phone         = CASE WHEN p_primary_phone IS NOT NULL AND TRIM(p_primary_phone) <> '' THEN p_primary_phone ELSE primary_phone END,
+          secondary_phone       = COALESCE(p_secondary_phone, secondary_phone),
+          occupation            = COALESCE(NULLIF(TRIM(p_occupation), ''), occupation),
+          address               = COALESCE(NULLIF(TRIM(p_address), ''), address),
+          relationship          = COALESCE(p_relationship, relationship),
+          is_active             = p_is_active,
+          transport_destination = COALESCE(NULLIF(TRIM(p_transport_destination), ''), transport_destination),
+          city_tier             = COALESCE(NULLIF(TRIM(p_city_tier), ''), city_tier),
+          updated_at            = now()
+        WHERE id = v_id;
+      END IF;
+    END;
   END IF;
 
   RETURN QUERY SELECT v_id, v_code, v_inserted;

@@ -19,7 +19,7 @@
 import type { FieldSpec } from "../../types";
 import type { RuleIssue } from "./types";
 
-const PHONE_REGEX = /^(?:(?:\+|00)213|0)\s*[567]\d{8}$/;
+const PHONE_REGEX = /^(?:(?:\+|00)213|0)\s*[2-7]\d{8}$/;
 
 /**
  * Normalise un numéro de téléphone brut.

@@ -300,6 +300,14 @@ export function ExcelImportModal({
         );
       }
       onImported?.(inserted);
+
+      // Trigger immediate sync push so Supabase gets the data now rather
+      // than waiting for the next periodic sync cycle.
+      try {
+        await sync.syncNow();
+      } catch (syncErr) {
+        console.warn("[ExcelImportModal] sync.syncNow() failed — data is queued and will sync later:", syncErr);
+      }
     } catch (e) {
       setStage("preview");
       setAlert({
@@ -537,7 +545,9 @@ export function ExcelImportModal({
                     <span className="font-mono text-status-danger shrink-0">
                       L{e.rowIndex} ({e.identity}):
                     </span>
-                    <span className="text-muted-foreground break-all">{e.error}</span>
+                    <span className="text-muted-foreground break-all">
+                      {typeof e.error === "object" ? JSON.stringify(e.error) : String(e.error)}
+                    </span>
                   </li>
                 ))}
                 {skipErrors.length > 20 && (

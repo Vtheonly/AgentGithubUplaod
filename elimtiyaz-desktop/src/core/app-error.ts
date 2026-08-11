@@ -55,6 +55,21 @@ export const Errors = {
         cause: err,
       };
     }
+    if (typeof err === "object" && err !== null) {
+      const obj = err as Record<string, unknown>;
+      const msg =
+        typeof obj.message === "string" && obj.message
+          ? obj.message
+          : typeof obj.details === "string" && obj.details
+          ? obj.details
+          : JSON.stringify(err);
+      return {
+        code: "ERR_UNKNOWN",
+        message: msg,
+        userMessage: "Une erreur inattendue s'est produite.",
+        cause: err,
+      };
+    }
     return {
       code: "ERR_UNKNOWN",
       message: String(err),

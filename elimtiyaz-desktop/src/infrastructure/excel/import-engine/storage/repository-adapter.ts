@@ -81,6 +81,38 @@ export interface InsertedRow {
   readonly entities: ReadonlyArray<{ kind: InsertedEntityKind; entity: Parent | Student | LedgerEntry }>;
 }
 
+function formatErrorMessage(err: unknown): string {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (typeof err === "object") {
+    const obj = err as Record<string, unknown>;
+    let msg = "";
+    if (typeof obj.message === "string" && obj.message && obj.message !== "[object Object]") {
+      msg = obj.message;
+    } else if (typeof obj.userMessage === "string" && obj.userMessage) {
+      msg = obj.userMessage;
+    }
+    if (obj.cause && typeof obj.cause === "object") {
+      const causeStr = formatErrorMessage(obj.cause);
+      if (causeStr && causeStr !== msg && causeStr !== "[object Object]") {
+        msg = msg ? `${msg} (${causeStr})` : causeStr;
+      }
+    } else if (obj.details && typeof obj.details === "string") {
+      msg = msg ? `${msg} — ${obj.details}` : obj.details;
+    } else if (obj.hint && typeof obj.hint === "string") {
+      msg = msg ? `${msg} — ${obj.hint}` : obj.hint;
+    }
+    if (msg) return msg;
+    try {
+      const json = JSON.stringify(err);
+      if (json && json !== "{}") return json;
+    } catch {
+      /* ignore */
+    }
+  }
+  return String(err);
+}
+
 export class RepositoryStorageAdapter extends StorageAdapter {
   private readonly deps: RepositoryStorageAdapterDeps;
   private readonly rowsByRun: Map<string, InsertedRow[]> = new Map();
@@ -245,9 +277,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       const result = await this.deps.students.createStudent(parent.id, studentInput);
       if (!result.ok) {
         // Surface the student creation error (same pattern as ensureParent).
-        const errMsg = (result.error as { message?: string; userMessage?: string })?.message
-          ?? (result.error as { userMessage?: string })?.userMessage
-          ?? String(result.error);
+        const errMsg = formatErrorMessage(result.error);
         const rowIndex = typeof (record as { __rowIndex?: number }).__rowIndex === "number"
           ? (record as { __rowIndex: number }).__rowIndex
           : 0;
@@ -312,19 +342,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     if (existing) return existing;
     const result = await this.deps.parents.createParent(input);
     if (!result.ok) {
-      // CRITICAL FIX: surface the actual error so the user can diagnose
-      // WHY rows are being skipped. The previous implementation silently
-      // returned null, which caused `upsertEtatRecord` to return
-      // `{ action: "skip" }` — the user saw "390 ignoré(s)" with no
-      // explanation. Common causes:
-      //   - Migration 0028 not applied → RPC rejects p_transport_destination / p_city_tier params
-      //   - tenant_id FK violation → the tenant doesn't exist in the `tenants` table
-      //   - RLS blocking the write (the RPC is SECURITY DEFINER but the
-      //     caller still needs a valid JWT)
-      //   - Network / Supabase URL misconfigured
-      const errMsg = (result.error as { message?: string; userMessage?: string })?.message
-        ?? (result.error as { userMessage?: string })?.userMessage
-        ?? String(result.error);
+      const errMsg = formatErrorMessage(result.error);
       const rowIndex = typeof (record as { __rowIndex?: number }).__rowIndex === "number"
         ? (record as { __rowIndex: number }).__rowIndex
         : 0;
@@ -438,7 +456,13 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         const match = result.value.find((p) => p.phone === input.phone);
         if (match) return match;
       }
-      return null;
+    }
+    if (input.email) {
+      const result = await this.deps.parents.search(input.email);
+      if (result.ok) {
+        const match = result.value.find((p) => p.email === input.email);
+        if (match) return match;
+      }
     }
     // Placeholder parent — match by name to keep re-imports idempotent.
     const query = input.displayName ?? input.lastName ?? input.firstName ?? "";

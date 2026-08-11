@@ -231,6 +231,8 @@ export class RowValidator {
       }
     }
 
+    record.__rowIndex = (rawRow.__rowIndex as number) ?? rowIndex;
+
     // Iteration 21: "Import student no matter what" — never skip a data row.
     // Convert all errors to warnings so they appear in the import report
     // (for data quality awareness) but the row still gets upserted.
