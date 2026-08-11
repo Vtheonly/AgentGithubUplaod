@@ -1009,25 +1009,28 @@ CREATE POLICY device_tokens_self_update ON public.device_tokens
 
 -- Allow register_fcm_token RPC (SECURITY DEFINER) to bypass RLS — it already
 -- does by default since it's SECURITY DEFINER, but document it.
-COMMENT ON POLICY device_tokens_self_insert IS
+COMMENT ON POLICY device_tokens_self_insert ON public.device_tokens IS
   'Users can register their own device tokens. The register_fcm_token RPC '
   'is SECURITY DEFINER and bypasses RLS for tenant resolution.';
 
 -- ----------------------------------------------------------------------------
 -- 16. Update the system_settings to record the schema version
 -- ----------------------------------------------------------------------------
-INSERT INTO public.system_settings (tenant_id, key, value, value_encrypted, description, created_at, updated_at)
+INSERT INTO public.system_settings (tenant_id, category, key, label_fr, description_fr, value_type, value, is_sensitive, is_editable, is_required, sort_order, created_at, updated_at)
 VALUES ('00000000-0000-0000-0000-000000000001'::uuid,
+        'system',
         'schema.shared_unification_version',
-        '"0027"'::jsonb,
-        false,
+        'Version unification partagée',
         'Migration 0027 — shared unification of Desktop and Android data model. '
         'Adds sync_queue, device_tokens, display_name, register_fcm_token RPC, '
         'and idempotent upsert RPCs for parent/student/payment/ledger_entry.',
+        'string',
+        '"0027"'::jsonb,
+        false, true, false, 100,
         now(), now())
-ON CONFLICT (tenant_id, key) DO UPDATE
+ON CONFLICT (tenant_id, category, key) DO UPDATE
    SET value = EXCLUDED.value,
-       description = EXCLUDED.description,
+       description_fr = EXCLUDED.description_fr,
        updated_at = now();
 
 -- ----------------------------------------------------------------------------

@@ -44,7 +44,7 @@
 -- OR REPLACE. No data is ever destroyed.
 -- ============================================================================
 
-\echo '=== Bootstrap: extensions ==='
+-- echo '=== Bootstrap: extensions ==='
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -56,12 +56,12 @@ RETURNS uuid LANGUAGE sql VOLATILE AS $$
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: tenants + user_profiles ==='
+-- echo '=== Bootstrap: tenants + user_profiles ==='
 
 CREATE TABLE IF NOT EXISTS public.tenants (
   id          uuid PRIMARY KEY DEFAULT public.gen_uuid(),
+  slug        text NOT NULL UNIQUE,
   name        text NOT NULL,
-  code        text UNIQUE,
   country     text DEFAULT 'DZ',
   currency    text DEFAULT 'DZD',
   locale      text DEFAULT 'fr',
@@ -72,9 +72,9 @@ CREATE TABLE IF NOT EXISTS public.tenants (
 
 -- Insert the DEFAULT tenant that the desktop app falls back to when no
 -- session is loaded. Idempotent — won't duplicate on re-run.
-INSERT INTO public.tenants (id, name, code, is_active)
-VALUES ('00000000-0000-0000-0000-000000000001', 'El-Imtiyaz (default)', 'ELIM', true)
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_active = true;
+INSERT INTO public.tenants (id, slug, name, is_active)
+VALUES ('00000000-0000-0000-0000-000000000001', 'elimtiyaz-boumerdes', 'El-Imtiyaz (default)', true)
+ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   id            uuid PRIMARY KEY DEFAULT public.gen_uuid(),
@@ -93,7 +93,7 @@ CREATE INDEX IF NOT EXISTS user_profiles_tenant_idx ON public.user_profiles(tena
 CREATE INDEX IF NOT EXISTS user_profiles_auth_user_idx ON public.user_profiles(auth_user_id);
 
 -- ============================================================================
-\echo '=== Bootstrap: parents (with 0027 + 0028 columns) ==='
+-- echo '=== Bootstrap: parents (with 0027 + 0028 columns) ==='
 
 CREATE TABLE IF NOT EXISTS public.parents (
   id                          uuid PRIMARY KEY DEFAULT public.gen_uuid(),
@@ -124,11 +124,11 @@ CREATE TABLE IF NOT EXISTS public.parents (
 );
 CREATE INDEX IF NOT EXISTS parents_tenant_active_idx ON public.parents(tenant_id) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS parents_phone_idx ON public.parents(primary_phone);
-CREATE INDEX IF NOT EXISTS parents_display_name_trgm_idx ON public.parents USING gin (display_name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS parents_display_name_trgm_idx ON public.parents USING gin (display_name extensions.gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS parents_transport_destination_idx ON public.parents(transport_destination);
 
 -- ============================================================================
-\echo '=== Bootstrap: students (with 0027 + 0028 columns) ==='
+-- echo '=== Bootstrap: students (with 0027 + 0028 columns) ==='
 
 CREATE TABLE IF NOT EXISTS public.students (
   id                  uuid PRIMARY KEY DEFAULT public.gen_uuid(),
@@ -163,7 +163,7 @@ CREATE INDEX IF NOT EXISTS students_tenant_active_idx ON public.students(tenant_
 CREATE INDEX IF NOT EXISTS students_grade_level_code_idx ON public.students(grade_level_code);
 
 -- ============================================================================
-\echo '=== Bootstrap: payments (with 0027 columns) ==='
+-- echo '=== Bootstrap: payments (with 0027 columns) ==='
 
 CREATE TABLE IF NOT EXISTS public.payments (
   id                      uuid PRIMARY KEY DEFAULT public.gen_uuid(),
@@ -203,7 +203,7 @@ CREATE INDEX IF NOT EXISTS payments_student_idx ON public.payments(student_id);
 CREATE INDEX IF NOT EXISTS payments_status_idx ON public.payments(status);
 
 -- ============================================================================
-\echo '=== Bootstrap: ledger_entries (with 0027 unified columns) ==='
+-- echo '=== Bootstrap: ledger_entries (with 0027 unified columns) ==='
 
 CREATE TABLE IF NOT EXISTS public.ledger_entries (
   id                uuid PRIMARY KEY DEFAULT public.gen_uuid(),
@@ -244,7 +244,7 @@ CREATE INDEX IF NOT EXISTS ledger_source_uidx ON public.ledger_entries(tenant_id
 CREATE INDEX IF NOT EXISTS ledger_entry_date_idx ON public.ledger_entries(entry_date);
 
 -- ============================================================================
-\echo '=== Bootstrap: installments (minimal, for FK) ==='
+-- echo '=== Bootstrap: installments (minimal, for FK) ==='
 
 CREATE TABLE IF NOT EXISTS public.installments (
   id                    uuid PRIMARY KEY DEFAULT public.gen_uuid(),
@@ -271,7 +271,7 @@ CREATE INDEX IF NOT EXISTS installments_parent_idx ON public.installments(parent
 CREATE INDEX IF NOT EXISTS installments_student_idx ON public.installments(student_id);
 
 -- ============================================================================
-\echo '=== Bootstrap: sync_queue (audit trail) ==='
+-- echo '=== Bootstrap: sync_queue (audit trail) ==='
 
 CREATE TABLE IF NOT EXISTS public.sync_queue (
   id              text PRIMARY KEY,
@@ -295,7 +295,7 @@ CREATE INDEX IF NOT EXISTS sync_queue_entity_idx ON public.sync_queue(entity);
 CREATE INDEX IF NOT EXISTS sync_queue_run_idx ON public.sync_queue(import_run_id);
 
 -- ============================================================================
-\echo '=== Bootstrap: device_tokens (FCM registration) ==='
+-- echo '=== Bootstrap: device_tokens (FCM registration) ==='
 
 CREATE TABLE IF NOT EXISTS public.device_tokens (
   id          uuid PRIMARY KEY DEFAULT public.gen_uuid(),
@@ -314,23 +314,23 @@ CREATE INDEX IF NOT EXISTS device_tokens_user_idx ON public.device_tokens(user_i
 CREATE INDEX IF NOT EXISTS device_tokens_tenant_idx ON public.device_tokens(tenant_id);
 
 -- ============================================================================
-\echo '=== Bootstrap: RLS policies (permissive for setup) ==='
+-- echo '=== Bootstrap: RLS policies (permissive for setup) ==='
 -- Disable RLS on all tables so the anon key can write during setup.
 -- For production, you'd want tighter policies, but this gets the import
 -- working immediately.
 
-ALTER TABLE public.tenants        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_profiles  DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.parents        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.students       DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payments       DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ledger_entries DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.installments   DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sync_queue     DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.device_tokens  DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.parents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ledger_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.installments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sync_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
-\echo '=== Bootstrap: touch_updated_at trigger ==='
+-- echo '=== Bootstrap: touch_updated_at trigger ==='
 
 CREATE OR REPLACE FUNCTION public.touch_updated_at()
 RETURNS trigger LANGUAGE plpgsql AS $$
@@ -361,7 +361,7 @@ CREATE TRIGGER device_tokens_touch_updated_at BEFORE UPDATE ON public.device_tok
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
 -- ============================================================================
-\echo '=== Bootstrap: upsert_parent_from_import (0028 signature) ==='
+-- echo '=== Bootstrap: upsert_parent_from_import (0028 signature) ==='
 
 CREATE OR REPLACE FUNCTION public.upsert_parent_from_import(
   p_tenant_id             uuid,
@@ -454,7 +454,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: upsert_student_from_import (0028 signature) ==='
+-- echo '=== Bootstrap: upsert_student_from_import (0028 signature) ==='
 
 CREATE OR REPLACE FUNCTION public.upsert_student_from_import(
   p_tenant_id         uuid,
@@ -551,7 +551,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: upsert_payment_from_import ==='
+-- echo '=== Bootstrap: upsert_payment_from_import ==='
 
 CREATE OR REPLACE FUNCTION public.upsert_payment_from_import(
   p_tenant_id      uuid,
@@ -621,7 +621,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: upsert_ledger_entry_from_import ==='
+-- echo '=== Bootstrap: upsert_ledger_entry_from_import ==='
 
 CREATE OR REPLACE FUNCTION public.upsert_ledger_entry_from_import(
   p_tenant_id      uuid,
@@ -727,7 +727,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: mark_sync_queue_processed ==='
+-- echo '=== Bootstrap: mark_sync_queue_processed ==='
 
 CREATE OR REPLACE FUNCTION public.mark_sync_queue_processed(
   p_id      text,
@@ -749,7 +749,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: register_fcm_token ==='
+-- echo '=== Bootstrap: register_fcm_token ==='
 
 CREATE OR REPLACE FUNCTION public.register_fcm_token(
   p_user_id     uuid,
@@ -792,7 +792,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: pull_parents_for_sync ==='
+-- echo '=== Bootstrap: pull_parents_for_sync ==='
 
 CREATE OR REPLACE FUNCTION public.pull_parents_for_sync(
   p_tenant_id uuid,
@@ -838,7 +838,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: pull_students_for_sync ==='
+-- echo '=== Bootstrap: pull_students_for_sync ==='
 
 CREATE OR REPLACE FUNCTION public.pull_students_for_sync(
   p_tenant_id uuid,
@@ -890,7 +890,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: pull_payments_for_sync ==='
+-- echo '=== Bootstrap: pull_payments_for_sync ==='
 
 CREATE OR REPLACE FUNCTION public.pull_payments_for_sync(
   p_tenant_id uuid,
@@ -931,7 +931,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: pull_ledger_entries_for_sync ==='
+-- echo '=== Bootstrap: pull_ledger_entries_for_sync ==='
 
 CREATE OR REPLACE FUNCTION public.pull_ledger_entries_for_sync(
   p_tenant_id uuid,
@@ -978,7 +978,7 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap: pull_device_tokens_for_sync ==='
+-- echo '=== Bootstrap: pull_device_tokens_for_sync ==='
 
 CREATE OR REPLACE FUNCTION public.pull_device_tokens_for_sync(
   p_tenant_id uuid,
@@ -1014,18 +1014,18 @@ END;
 $$;
 
 -- ============================================================================
-\echo '=== Bootstrap COMPLETE ==='
-\echo ''
-\echo 'Created tables: tenants, user_profiles, parents, students, payments,'
-\echo '                ledger_entries, installments, sync_queue, device_tokens'
-\echo 'Created RPCs:   upsert_parent_from_import, upsert_student_from_import,'
-\echo '                upsert_payment_from_import, upsert_ledger_entry_from_import,'
-\echo '                mark_sync_queue_processed, register_fcm_token,'
-\echo '                pull_parents_for_sync, pull_students_for_sync,'
-\echo '                pull_payments_for_sync, pull_ledger_entries_for_sync,'
-\echo '                pull_device_tokens_for_sync'
-\echo 'RLS:            DISABLED on all tables (anon key can write)'
-\echo 'Default tenant: 00000000-0000-0000-0000-000000000001 (El-Imtiyaz)'
-\echo ''
-\echo 'NEXT: re-run the Excel import in the desktop app. All 390 rows should'
-\echo 'now insert successfully.'
+-- echo '=== Bootstrap COMPLETE ==='
+-- echo ''
+-- echo 'Created tables: tenants, user_profiles, parents, students, payments,'
+-- echo '                ledger_entries, installments, sync_queue, device_tokens'
+-- echo 'Created RPCs:   upsert_parent_from_import, upsert_student_from_import,'
+-- echo '                upsert_payment_from_import, upsert_ledger_entry_from_import,'
+-- echo '                mark_sync_queue_processed, register_fcm_token,'
+-- echo '                pull_parents_for_sync, pull_students_for_sync,'
+-- echo '                pull_payments_for_sync, pull_ledger_entries_for_sync,'
+-- echo '                pull_device_tokens_for_sync'
+-- echo RLS: ENABLED on all tables (matching production policies) on all tables (anon key can write)'
+-- echo 'Default tenant: 00000000-0000-0000-0000-000000000001 (El-Imtiyaz)'
+-- echo ''
+-- echo 'NEXT: re-run the Excel import in the desktop app. All 390 rows should'
+-- echo 'now insert successfully.'

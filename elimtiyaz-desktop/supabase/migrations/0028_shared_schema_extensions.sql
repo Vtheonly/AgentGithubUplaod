@@ -37,7 +37,9 @@
 -- will use them when present, falling back gracefully when absent.
 -- ============================================================================
 
-\echo '=== Migration 0028: shared schema extensions (transport, grade level, payment plan) ==='
+-- ============================================================================
+-- Migration 0028: shared schema extensions (transport, grade level, payment plan)
+-- ============================================================================
 
 -- ----------------------------------------------------------------------------
 -- parents.transport_destination
@@ -141,7 +143,10 @@ CREATE INDEX IF NOT EXISTS students_grade_level_code_idx
 -- Replace upsert_parent_from_import to accept transport_destination + city_tier.
 -- The new function is backward-compatible: the new params default to NULL,
 -- so existing callers that don't pass them keep working.
+-- NOTE: 0027 created this function returning TABLE(...). We must DROP it first
+-- because PostgreSQL cannot change a function's return type via CREATE OR REPLACE.
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.upsert_parent_from_import(uuid, text, text, text, text, text, text, text, text, text, text, text, text, boolean);
 CREATE OR REPLACE FUNCTION public.upsert_parent_from_import(
   p_tenant_id        uuid,
   p_parent_code      text,
@@ -247,7 +252,9 @@ $$;
 -- ----------------------------------------------------------------------------
 -- Replace upsert_student_from_import to accept grade_level_code,
 -- transport_tier, payment_plan.
+-- NOTE: 0027 created this function returning TABLE(...). We must DROP it first.
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.upsert_student_from_import(uuid, text, uuid, text, text, text, text, date, text, uuid, uuid, date, text, text, boolean);
 CREATE OR REPLACE FUNCTION public.upsert_student_from_import(
   p_tenant_id        uuid,
   p_student_code     text,
@@ -354,7 +361,9 @@ $$;
 
 -- ----------------------------------------------------------------------------
 -- Update pull_students_for_sync to include the new columns.
+-- NOTE: 0027 created this function returning jsonb. We must DROP it first.
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.pull_students_for_sync(uuid, timestamptz, integer);
 CREATE OR REPLACE FUNCTION public.pull_students_for_sync(
   p_tenant_id uuid,
   p_since     timestamptz DEFAULT NULL,
@@ -406,7 +415,9 @@ $$;
 
 -- ----------------------------------------------------------------------------
 -- Update pull_parents_for_sync to include the new columns.
+-- NOTE: 0027 created this function returning jsonb. We must DROP it first.
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.pull_parents_for_sync(uuid, timestamptz, integer);
 CREATE OR REPLACE FUNCTION public.pull_parents_for_sync(
   p_tenant_id uuid,
   p_since     timestamptz DEFAULT NULL,
@@ -451,4 +462,8 @@ BEGIN
 END;
 $$;
 
-\echo '=== Migration 0028 complete: parents.transport_destination + city_tier, students.grade_level_code + transport_tier + payment_plan, updated upsert + pull RPCs ==='
+-- ============================================================================
+-- End of migration 0028: parents.transport_destination + city_tier,
+-- students.grade_level_code + transport_tier + payment_plan,
+-- updated upsert + pull RPCs
+-- ============================================================================
