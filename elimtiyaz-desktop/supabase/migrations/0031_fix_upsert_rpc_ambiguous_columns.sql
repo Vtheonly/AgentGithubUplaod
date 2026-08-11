@@ -2,62 +2,33 @@
 -- EL-IMTIYAZ EDUCATIONAL PLATFORM
 -- Migration: 0031_fix_upsert_rpc_ambiguous_columns.sql
 -- Module: Shared schema (upsert RPC ambiguity fix)
---
--- WHY THIS EXISTS:
---   Migrations 0027 + 0028 declared the upsert_*_from_import RPCs with
---   `RETURNS TABLE(parent_id uuid, parent_code text, was_inserted boolean)`.
---   In plpgsql, the output column names of a `RETURNS TABLE` function are
---   in scope as variables inside the function body — they live alongside
---   the columns of the tables being queried.
---
---   When the function body then says:
---     SELECT id INTO v_existing FROM public.parents
---      WHERE tenant_id = p_tenant_id
---        AND parent_code = v_code      -- AMBIGUOUS
---        AND deleted_at IS NULL
---
---   PostgreSQL cannot decide whether `parent_code` refers to:
---     (a) the OUTPUT column variable declared in RETURNS TABLE, or
---     (b) the `parents.parent_code` column.
---
---   At runtime this surfaces as:
---     ERROR: column reference "parent_code" is ambiguous
---
---   This breaks EVERY Excel import call to `upsert_parent_from_import`
---   (and the equivalent student / payment RPCs), which in turn cascades
---   into ~390 failed parent creations per import run, hundreds of failed
---   sync queue pushes, and a flood of console errors that the user sees
---   as "1,170 sync notifications".
---
--- THE FIX:
---   Re-declare each upsert_*_from_import RPC with TABLE-ALIASED column
---   references everywhere (e.g. `p.parent_code` instead of bare
---   `parent_code`). Qualified references are never ambiguous with output
---   column variables, so the planner picks the table column unambiguously.
---
---   Because PostgreSQL's `CREATE OR REPLACE FUNCTION` cannot change a
---   function's signature or return shape, we DROP first then CREATE.
---   The DROP is idempotent (IF EXISTS), so re-running this migration is
---   a safe no-op.
---
---   This migration also supercedes 0030's version of
---   `upsert_ledger_entry_from_import` (0030 fixed the uuid-vs-text bug
---   but NOT the ambiguity bug — the ledger function had the same
---   ambiguity issue on `entry_number` / `source_type` / `source_id`).
---   The version below keeps 0030's uuid fix AND adds the alias fix.
 -- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Drop all existing versions of the 4 upsert RPCs dynamically
+-- ----------------------------------------------------------------------------
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN 
+        SELECT oid::regprocedure AS func_signature
+        FROM pg_proc
+        WHERE proname IN (
+            'upsert_parent_from_import',
+            'upsert_student_from_import',
+            'upsert_payment_from_import',
+            'upsert_ledger_entry_from_import'
+        )
+        AND pronamespace = 'public'::regnamespace
+    LOOP
+        EXECUTE 'DROP FUNCTION ' || r.func_signature || ' CASCADE';
+    END LOOP;
+END $$;
 
 -- ============================================================================
 -- 1. upsert_parent_from_import
 -- ============================================================================
-DROP FUNCTION IF EXISTS public.upsert_parent_from_import(
-  uuid, text, text, text, text, text, text, text, text, text, text, text, text, boolean,
-  text, text
-);
-DROP FUNCTION IF EXISTS public.upsert_parent_from_import(
-  uuid, text, text, text, text, text, text, text, text, text, text, text, text, boolean
-);
-
 CREATE OR REPLACE FUNCTION public.upsert_parent_from_import(
   p_tenant_id             uuid,
   p_parent_code           text,
@@ -94,8 +65,6 @@ DECLARE
   v_disp      text := COALESCE(NULLIF(TRIM(p_display_name), ''), NULLIF(TRIM(v_first || ' ' || v_last), ''));
   v_phone     text := COALESCE(NULLIF(TRIM(p_primary_phone), ''), '(inconnu)');
 BEGIN
-  -- NOTE: every column reference is qualified with the `p.` alias so it
-  -- cannot be confused with the function's RETURNS TABLE output columns.
   SELECT p.id INTO v_existing
   FROM public.parents p
   WHERE p.tenant_id = p_tenant_id
@@ -118,7 +87,7 @@ BEGIN
     WHERE p.tenant_id = p_tenant_id
       AND p.display_name = v_disp
       AND p.deleted_at IS NULL
-    LIMIT 1;
+  LIMIT 1;
   END IF;
 
   IF v_existing IS NULL AND p_email IS NOT NULL AND TRIM(p_email) <> '' THEN
@@ -193,19 +162,11 @@ $$;
 COMMENT ON FUNCTION public.upsert_parent_from_import IS
   'Idempotent upsert for parents. Identity resolution order: '
   '(tenant, parent_code) → (tenant, primary_phone) → (tenant, display_name) → (tenant, email). '
-  'Output columns are prefixed with out_ to avoid column-reference ambiguity with the parents table.';
+  'Output columns prefixed with out_ to avoid column-reference ambiguity with the parents table.';
 
 -- ============================================================================
 -- 2. upsert_student_from_import
 -- ============================================================================
-DROP FUNCTION IF EXISTS public.upsert_student_from_import(
-  uuid, text, uuid, text, text, text, text, date, text, uuid, uuid, date, text, text, boolean,
-  text, text, text
-);
-DROP FUNCTION IF EXISTS public.upsert_student_from_import(
-  uuid, text, uuid, text, text, text, text, date, text, uuid, uuid, date, text, text, boolean
-);
-
 CREATE OR REPLACE FUNCTION public.upsert_student_from_import(
   p_tenant_id         uuid,
   p_student_code      text,
@@ -313,11 +274,6 @@ COMMENT ON FUNCTION public.upsert_student_from_import IS
 -- ============================================================================
 -- 3. upsert_payment_from_import
 -- ============================================================================
-DROP FUNCTION IF EXISTS public.upsert_payment_from_import(
-  uuid, text, uuid, uuid, uuid, uuid, numeric, text, text, text,
-  text, text, date, date, text, text, text, timestamptz, uuid, text, uuid
-);
-
 CREATE OR REPLACE FUNCTION public.upsert_payment_from_import(
   p_tenant_id        uuid,
   p_payment_number   text,
@@ -419,13 +375,7 @@ COMMENT ON FUNCTION public.upsert_payment_from_import IS
 
 -- ============================================================================
 -- 4. upsert_ledger_entry_from_import
---    (re-applies 0030s uuid fix AND adds the alias fix)
 -- ============================================================================
-DROP FUNCTION IF EXISTS public.upsert_ledger_entry_from_import(
-    uuid, text, uuid, uuid, text, text, numeric, text, text, text, text,
-    text, text, text, text, text, text, timestamptz, jsonb
-);
-
 CREATE OR REPLACE FUNCTION public.upsert_ledger_entry_from_import(
     p_tenant_id     uuid,
     p_entry_number  text DEFAULT NULL,
