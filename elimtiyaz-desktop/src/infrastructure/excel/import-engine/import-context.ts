@@ -40,6 +40,23 @@ export class ImportContext {
   warnings: ImportIssue[] = [];
   durationMs: number | null = null;
 
+  /**
+   * Generated reports (only populated for non-dry-run imports).
+   *
+   * Each report carries its file name AND its raw bytes — the bytes are
+   * NOT auto-downloaded. The caller (e.g. ExcelImportModal) is responsible
+   * for offering a "Download report" button and calling `downloadBlob()`
+   * when the user clicks it.
+   *
+   * This fixes the "every Excel upload generates another Excel + JSON
+   * file at the beginning and at the end" bug — the previous implementation
+   * auto-downloaded on every commit.
+   */
+  reports: {
+    json?: { fileName: string; bytes: Uint8Array };
+    excel?: { fileName: string; bytes: Uint8Array };
+  } = {};
+
   constructor(opts: { filePath: string; options: ImportOptions; source?: ImportSource }) {
     this.runId = generateRunId();
     this.startedAt = new Date();

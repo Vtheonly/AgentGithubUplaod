@@ -285,11 +285,15 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         const list = this.errorsByRun.get(runId) ?? [];
         list.push({ rowIndex, identity, error: `Student creation failed: ${errMsg}` });
         this.errorsByRun.set(runId, list);
-        // eslint-disable-next-line no-console
-        console.error(
-          `[ExcelImport] Student creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
-          result.error,
-        );
+        // Throttle console output: only log the first student creation
+        // failure per run (same rationale as ensureParent).
+        if (list.filter((e) => e.error.startsWith("Student creation failed")).length === 1) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[ExcelImport] Student creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
+            result.error,
+          );
+        }
         return { action: "skip" };
       }
       action = "insert";
@@ -351,13 +355,23 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       const list = this.errorsByRun.get(runId) ?? [];
       list.push({ rowIndex, identity, error: errMsg });
       this.errorsByRun.set(runId, list);
-      // Also log to console so the user can see it in DevTools even before
-      // the modal reads getErrorsForRun.
-      // eslint-disable-next-line no-console
-      console.error(
-        `[ExcelImport] Parent creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
-        result.error,
-      );
+      // Throttle console output: only the FIRST failure of each run logs
+      // the full error (with stack/object). Subsequent failures are
+      // tracked in `errorsByRun` and surfaced in the modal — flooding the
+      // console with 390 identical "column reference is ambiguous" errors
+      // makes DevTools unusable.
+      if (list.length === 1) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[ExcelImport] Parent creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
+          result.error,
+        );
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[ExcelImport] Further parent creation failures in this run will be ` +
+          `collected silently and shown in the modal. Run ID: ${runId}`,
+        );
+      }
       return null;
     }
     return result.value;

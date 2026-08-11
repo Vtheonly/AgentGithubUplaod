@@ -380,9 +380,9 @@ CREATE OR REPLACE FUNCTION public.upsert_parent_from_import(
   p_transport_destination text DEFAULT NULL,    -- 0028
   p_city_tier             text DEFAULT NULL     -- 0028
 ) RETURNS TABLE (
-  parent_id      uuid,
-  parent_code    text,
-  was_inserted   boolean
+  out_parent_id      uuid,
+  out_parent_code    text,
+  out_was_inserted   boolean
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -399,50 +399,53 @@ DECLARE
   v_disp      text := COALESCE(NULLIF(TRIM(p_display_name), ''), NULLIF(TRIM(v_first || ' ' || v_last), ''));
   v_phone     text := COALESCE(NULLIF(TRIM(p_primary_phone), ''), '(inconnu)');
 BEGIN
-  SELECT id INTO v_existing
-  FROM public.parents
-  WHERE tenant_id = p_tenant_id AND parent_code = v_code AND deleted_at IS NULL
+  -- Column references are qualified with `p.` to avoid the plpgsql
+  -- "column reference is ambiguous" error caused by RETURNS TABLE output
+  -- column names colliding with table column references.
+  SELECT p.id INTO v_existing
+  FROM public.parents p
+  WHERE p.tenant_id = p_tenant_id AND p.parent_code = v_code AND p.deleted_at IS NULL
   LIMIT 1;
 
   IF v_existing IS NULL AND v_phone <> '(inconnu)' THEN
-    SELECT id INTO v_existing
-    FROM public.parents
-    WHERE tenant_id = p_tenant_id AND primary_phone = v_phone AND deleted_at IS NULL
+    SELECT p.id INTO v_existing
+    FROM public.parents p
+    WHERE p.tenant_id = p_tenant_id AND p.primary_phone = v_phone AND p.deleted_at IS NULL
     LIMIT 1;
   END IF;
 
   IF v_existing IS NULL AND v_disp IS NOT NULL THEN
-    SELECT id INTO v_existing
-    FROM public.parents
-    WHERE tenant_id = p_tenant_id AND display_name = v_disp AND deleted_at IS NULL
+    SELECT p.id INTO v_existing
+    FROM public.parents p
+    WHERE p.tenant_id = p_tenant_id AND p.display_name = v_disp AND p.deleted_at IS NULL
     LIMIT 1;
   END IF;
 
   IF v_existing IS NULL AND p_email IS NOT NULL AND TRIM(p_email) <> '' THEN
-    SELECT id INTO v_existing
-    FROM public.parents
-    WHERE tenant_id = p_tenant_id
-      AND email = TRIM(p_email)
-      AND deleted_at IS NULL
+    SELECT p.id INTO v_existing
+    FROM public.parents p
+    WHERE p.tenant_id = p_tenant_id
+      AND p.email = TRIM(p_email)
+      AND p.deleted_at IS NULL
     LIMIT 1;
   END IF;
 
   IF v_existing IS NOT NULL THEN
-    UPDATE public.parents SET
-      first_name            = COALESCE(NULLIF(TRIM(p_first_name), ''), first_name),
-      last_name             = COALESCE(NULLIF(TRIM(p_last_name), ''), last_name),
-      display_name          = COALESCE(v_disp, display_name),
-      primary_phone         = CASE WHEN p_primary_phone IS NOT NULL AND TRIM(p_primary_phone) <> '' THEN p_primary_phone ELSE primary_phone END,
-      secondary_phone       = COALESCE(p_secondary_phone, secondary_phone),
-      email                 = COALESCE(NULLIF(TRIM(p_email), ''), email),
-      occupation            = COALESCE(NULLIF(TRIM(p_occupation), ''), occupation),
-      address               = COALESCE(NULLIF(TRIM(p_address), ''), address),
-      relationship          = COALESCE(p_relationship, relationship),
+    UPDATE public.parents p SET
+      first_name            = COALESCE(NULLIF(TRIM(p_first_name), ''), p.first_name),
+      last_name             = COALESCE(NULLIF(TRIM(p_last_name), ''), p.last_name),
+      display_name          = COALESCE(v_disp, p.display_name),
+      primary_phone         = CASE WHEN p_primary_phone IS NOT NULL AND TRIM(p_primary_phone) <> '' THEN p_primary_phone ELSE p.primary_phone END,
+      secondary_phone       = COALESCE(p_secondary_phone, p.secondary_phone),
+      email                 = COALESCE(NULLIF(TRIM(p_email), ''), p.email),
+      occupation            = COALESCE(NULLIF(TRIM(p_occupation), ''), p.occupation),
+      address               = COALESCE(NULLIF(TRIM(p_address), ''), p.address),
+      relationship          = COALESCE(p_relationship, p.relationship),
       is_active             = p_is_active,
-      transport_destination = COALESCE(NULLIF(TRIM(p_transport_destination), ''), transport_destination),
-      city_tier             = COALESCE(NULLIF(TRIM(p_city_tier), ''), city_tier),
+      transport_destination = COALESCE(NULLIF(TRIM(p_transport_destination), ''), p.transport_destination),
+      city_tier             = COALESCE(NULLIF(TRIM(p_city_tier), ''), p.city_tier),
       updated_at            = now()
-    WHERE id = v_existing;
+    WHERE p.id = v_existing;
     v_id := v_existing;
   ELSE
     BEGIN
@@ -458,27 +461,27 @@ BEGIN
       RETURNING id INTO v_id;
       v_inserted := true;
     EXCEPTION WHEN unique_violation THEN
-      SELECT id INTO v_id
-      FROM public.parents
-      WHERE tenant_id = p_tenant_id
-        AND (parent_code = v_code OR (email IS NOT NULL AND email = TRIM(p_email)))
-        AND deleted_at IS NULL
+      SELECT p.id INTO v_id
+      FROM public.parents p
+      WHERE p.tenant_id = p_tenant_id
+        AND (p.parent_code = v_code OR (p.email IS NOT NULL AND p.email = TRIM(p_email)))
+        AND p.deleted_at IS NULL
       LIMIT 1;
       IF v_id IS NOT NULL THEN
-        UPDATE public.parents SET
-          first_name            = COALESCE(NULLIF(TRIM(p_first_name), ''), first_name),
-          last_name             = COALESCE(NULLIF(TRIM(p_last_name), ''), last_name),
-          display_name          = COALESCE(v_disp, display_name),
-          primary_phone         = CASE WHEN p_primary_phone IS NOT NULL AND TRIM(p_primary_phone) <> '' THEN p_primary_phone ELSE primary_phone END,
-          secondary_phone       = COALESCE(p_secondary_phone, secondary_phone),
-          occupation            = COALESCE(NULLIF(TRIM(p_occupation), ''), occupation),
-          address               = COALESCE(NULLIF(TRIM(p_address), ''), address),
-          relationship          = COALESCE(p_relationship, relationship),
+        UPDATE public.parents p SET
+          first_name            = COALESCE(NULLIF(TRIM(p_first_name), ''), p.first_name),
+          last_name             = COALESCE(NULLIF(TRIM(p_last_name), ''), p.last_name),
+          display_name          = COALESCE(v_disp, p.display_name),
+          primary_phone         = CASE WHEN p_primary_phone IS NOT NULL AND TRIM(p_primary_phone) <> '' THEN p_primary_phone ELSE p.primary_phone END,
+          secondary_phone       = COALESCE(p_secondary_phone, p.secondary_phone),
+          occupation            = COALESCE(NULLIF(TRIM(p_occupation), ''), p.occupation),
+          address               = COALESCE(NULLIF(TRIM(p_address), ''), p.address),
+          relationship          = COALESCE(p_relationship, p.relationship),
           is_active             = p_is_active,
-          transport_destination = COALESCE(NULLIF(TRIM(p_transport_destination), ''), transport_destination),
-          city_tier             = COALESCE(NULLIF(TRIM(p_city_tier), ''), city_tier),
+          transport_destination = COALESCE(NULLIF(TRIM(p_transport_destination), ''), p.transport_destination),
+          city_tier             = COALESCE(NULLIF(TRIM(p_city_tier), ''), p.city_tier),
           updated_at            = now()
-        WHERE id = v_id;
+        WHERE p.id = v_id;
       END IF;
     END;
   END IF;
@@ -510,9 +513,9 @@ CREATE OR REPLACE FUNCTION public.upsert_student_from_import(
   p_transport_tier    text DEFAULT NULL,    -- 0028
   p_payment_plan      text DEFAULT 'tranches'  -- 0028
 ) RETURNS TABLE (
-  student_id     uuid,
-  student_code   text,
-  was_inserted   boolean
+  out_student_id     uuid,
+  out_student_code   text,
+  out_was_inserted   boolean
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -529,39 +532,39 @@ DECLARE
   v_disp      text := COALESCE(NULLIF(TRIM(p_display_name), ''), NULLIF(TRIM(v_first || ' ' || v_last), ''));
   v_plan      text := CASE WHEN p_payment_plan IN ('tranches','full_annual') THEN p_payment_plan ELSE 'tranches' END;
 BEGIN
-  SELECT id INTO v_existing
-  FROM public.students
-  WHERE tenant_id = p_tenant_id AND student_code = v_code AND deleted_at IS NULL
+  SELECT s.id INTO v_existing
+  FROM public.students s
+  WHERE s.tenant_id = p_tenant_id AND s.student_code = v_code AND s.deleted_at IS NULL
   LIMIT 1;
 
   IF v_existing IS NULL AND v_first <> '' AND v_last <> '' THEN
-    SELECT id INTO v_existing
-    FROM public.students
-    WHERE tenant_id = p_tenant_id AND parent_id = p_parent_id
-      AND first_name = v_first AND last_name = v_last AND deleted_at IS NULL
+    SELECT s.id INTO v_existing
+    FROM public.students s
+    WHERE s.tenant_id = p_tenant_id AND s.parent_id = p_parent_id
+      AND s.first_name = v_first AND s.last_name = v_last AND s.deleted_at IS NULL
     LIMIT 1;
   END IF;
 
   IF v_existing IS NOT NULL THEN
-    UPDATE public.students SET
+    UPDATE public.students s SET
       parent_id         = p_parent_id,
-      first_name        = COALESCE(NULLIF(TRIM(p_first_name), ''), first_name),
-      last_name         = COALESCE(NULLIF(TRIM(p_last_name), ''), last_name),
-      display_name      = COALESCE(v_disp, display_name),
-      middle_name       = COALESCE(p_middle_name, middle_name),
-      date_of_birth     = COALESCE(p_date_of_birth, date_of_birth),
-      gender            = COALESCE(p_gender, gender),
-      grade_level_id    = COALESCE(p_grade_level_id, grade_level_id),
-      class_id          = COALESCE(p_class_id, class_id),
-      enrollment_date   = COALESCE(p_enrollment_date, enrollment_date),
-      enrollment_status = COALESCE(NULLIF(TRIM(p_enrollment_status), ''), enrollment_status),
-      medical_notes     = COALESCE(p_medical_notes, medical_notes),
+      first_name        = COALESCE(NULLIF(TRIM(p_first_name), ''), s.first_name),
+      last_name         = COALESCE(NULLIF(TRIM(p_last_name), ''), s.last_name),
+      display_name      = COALESCE(v_disp, s.display_name),
+      middle_name       = COALESCE(p_middle_name, s.middle_name),
+      date_of_birth     = COALESCE(p_date_of_birth, s.date_of_birth),
+      gender            = COALESCE(p_gender, s.gender),
+      grade_level_id    = COALESCE(p_grade_level_id, s.grade_level_id),
+      class_id          = COALESCE(p_class_id, s.class_id),
+      enrollment_date   = COALESCE(p_enrollment_date, s.enrollment_date),
+      enrollment_status = COALESCE(NULLIF(TRIM(p_enrollment_status), ''), s.enrollment_status),
+      medical_notes     = COALESCE(p_medical_notes, s.medical_notes),
       is_active         = p_is_active,
-      grade_level_code  = COALESCE(NULLIF(TRIM(p_grade_level_code), ''), grade_level_code),
-      transport_tier    = COALESCE(NULLIF(TRIM(p_transport_tier), ''), transport_tier),
+      grade_level_code  = COALESCE(NULLIF(TRIM(p_grade_level_code), ''), s.grade_level_code),
+      transport_tier    = COALESCE(NULLIF(TRIM(p_transport_tier), ''), s.transport_tier),
       payment_plan      = v_plan,
       updated_at        = now()
-    WHERE id = v_existing;
+    WHERE s.id = v_existing;
     v_id := v_existing;
   ELSE
     INSERT INTO public.students (
@@ -601,9 +604,9 @@ CREATE OR REPLACE FUNCTION public.upsert_payment_from_import(
   p_collected_by   text DEFAULT NULL,
   p_notes          text DEFAULT NULL
 ) RETURNS TABLE (
-  payment_id      uuid,
-  payment_number  text,
-  was_inserted    boolean
+  out_payment_id      uuid,
+  out_payment_number  text,
+  out_was_inserted    boolean
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -617,25 +620,25 @@ DECLARE
   v_inserted  boolean := false;
   v_status    text := COALESCE(p_status, CASE WHEN p_method = 'cash' THEN 'paid' ELSE 'pending' END);
 BEGIN
-  SELECT id INTO v_existing
-  FROM public.payments
-  WHERE tenant_id = p_tenant_id AND payment_number = v_code
+  SELECT pay.id INTO v_existing
+  FROM public.payments pay
+  WHERE pay.tenant_id = p_tenant_id AND pay.payment_number = v_code
   LIMIT 1;
 
   IF v_existing IS NOT NULL THEN
-    UPDATE public.payments SET
+    UPDATE public.payments pay SET
       parent_id     = p_parent_id,
-      student_id    = COALESCE(p_student_id, student_id),
-      amount        = COALESCE(NULLIF(p_amount, 0), amount),
-      method        = COALESCE(p_method, method),
-      category      = COALESCE(p_category, category),
-      status        = COALESCE(p_status, status),
-      proof_path    = COALESCE(p_proof_path, proof_path),
-      collected_at  = COALESCE(p_collected_at, collected_at),
-      collected_by  = COALESCE(p_collected_by, collected_by),
-      notes         = COALESCE(p_notes, notes),
+      student_id    = COALESCE(p_student_id, pay.student_id),
+      amount        = COALESCE(NULLIF(p_amount, 0), pay.amount),
+      method        = COALESCE(p_method, pay.method),
+      category      = COALESCE(p_category, pay.category),
+      status        = COALESCE(p_status, pay.status),
+      proof_path    = COALESCE(p_proof_path, pay.proof_path),
+      collected_at  = COALESCE(p_collected_at, pay.collected_at),
+      collected_by  = COALESCE(p_collected_by, pay.collected_by),
+      notes         = COALESCE(p_notes, pay.notes),
       updated_at    = now()
-    WHERE id = v_existing;
+    WHERE pay.id = v_existing;
     v_id := v_existing;
   ELSE
     INSERT INTO public.payments (
@@ -678,8 +681,8 @@ CREATE OR REPLACE FUNCTION public.upsert_ledger_entry_from_import(
   p_at             timestamptz DEFAULT NULL,
   p_metadata       jsonb DEFAULT NULL
 ) RETURNS TABLE (
-  entry_id      uuid,
-  was_inserted  boolean
+  out_entry_id      uuid,
+  out_was_inserted  boolean
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -706,40 +709,42 @@ BEGIN
   END IF;
 
   -- Identity: (tenant_id, source_type, source_id) when source_id is present.
+  -- Column references are qualified with `le.` to avoid the plpgsql
+  -- "column reference is ambiguous" error.
   IF p_source_id IS NOT NULL AND p_source_type IS NOT NULL THEN
-    SELECT id INTO v_existing
-    FROM public.ledger_entries
-    WHERE tenant_id = p_tenant_id AND source_type = p_source_type AND source_id = p_source_id
+    SELECT le.id INTO v_existing
+    FROM public.ledger_entries le
+    WHERE le.tenant_id = p_tenant_id AND le.source_type = p_source_type AND le.source_id = p_source_id
     LIMIT 1;
   END IF;
 
   IF v_existing IS NULL AND p_entry_number IS NOT NULL THEN
-    SELECT id INTO v_existing
-    FROM public.ledger_entries
-    WHERE tenant_id = p_tenant_id AND entry_number = p_entry_number
+    SELECT le.id INTO v_existing
+    FROM public.ledger_entries le
+    WHERE le.tenant_id = p_tenant_id AND le.entry_number = p_entry_number
     LIMIT 1;
   END IF;
 
   IF v_existing IS NOT NULL THEN
-    UPDATE public.ledger_entries SET
+    UPDATE public.ledger_entries le SET
       parent_id      = p_parent_id,
-      student_id     = COALESCE(p_student_id, student_id),
+      student_id     = COALESCE(p_student_id, le.student_id),
       account_id     = v_acct,
       entry_type     = v_type,
       amount         = v_amount,
-      category       = COALESCE(p_category, category),
-      description    = COALESCE(p_description, description),
-      source_type    = COALESCE(p_source_type, source_type),
-      source_id      = COALESCE(p_source_id, source_id),
-      method         = COALESCE(p_method, method),
-      receipt_number = COALESCE(p_receipt_number, receipt_number),
-      payment_status = COALESCE(p_payment_status, payment_status),
-      reverses_id    = COALESCE(p_reverses_id, reverses_id),
-      actor_id       = COALESCE(p_actor_id, actor_id),
-      actor_name     = COALESCE(p_actor_name, actor_name),
-      at             = COALESCE(p_at, at),
-      metadata       = COALESCE(p_metadata, metadata)
-    WHERE id = v_existing;
+      category       = COALESCE(p_category, le.category),
+      description    = COALESCE(p_description, le.description),
+      source_type    = COALESCE(p_source_type, le.source_type),
+      source_id      = COALESCE(p_source_id, le.source_id),
+      method         = COALESCE(p_method, le.method),
+      receipt_number = COALESCE(p_receipt_number, le.receipt_number),
+      payment_status = COALESCE(p_payment_status, le.payment_status),
+      reverses_id    = COALESCE(p_reverses_id, le.reverses_id),
+      actor_id       = COALESCE(p_actor_id, le.actor_id),
+      actor_name     = COALESCE(p_actor_name, le.actor_name),
+      at             = COALESCE(p_at, le.at),
+      metadata       = COALESCE(p_metadata, le.metadata)
+    WHERE le.id = v_existing;
     v_id := v_existing;
   ELSE
     INSERT INTO public.ledger_entries (

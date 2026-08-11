@@ -48,6 +48,23 @@ const BRAND_BLUE_DEEP_HEX = "2B7FB0";
 /* ------------------------------------------------------------------ */
 
 export async function exportToXlsx(sheets: SheetSpec[], filename: string): Promise<void> {
+  const bytes = await buildXlsxBuffer(sheets);
+  downloadBlob(bytes, filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
+/**
+ * Build an XLSX workbook in memory and return the raw bytes.
+ *
+ * Use this when you want to decide LATER whether to download the file
+ * (e.g. offering a "Download report" button on the done screen rather
+ * than auto-downloading on every import). Pair with `downloadBlob()`
+ * when the user actually clicks the button.
+ *
+ * Extracted from `exportToXlsx` so the brand-styled header + zebra
+ * striping logic is shared between auto-download and manual-download
+ * callers.
+ */
+export async function buildXlsxBuffer(sheets: SheetSpec[]): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "El-Imtiyaz Desktop";
   wb.created = new Date();
@@ -103,9 +120,8 @@ export async function exportToXlsx(sheets: SheetSpec[], filename: string): Promi
     }
   }
 
-  // Generate buffer and trigger download
   const buffer = await wb.xlsx.writeBuffer();
-  downloadBlob(new Uint8Array(buffer), filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  return new Uint8Array(buffer);
 }
 
 /* ------------------------------------------------------------------ */

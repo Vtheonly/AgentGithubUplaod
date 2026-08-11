@@ -11,12 +11,25 @@
  *   1. `Résumé` — global metrics + per-sheet detail.
  *   2. `Lignes rejetées` — one row per error.
  *   3. `Avertissements` — one row per warning.
+ *
+ * ITERATION 23 (auto-download fix): Previously this class called
+ * `exportToXlsx()` directly, which forced a browser download EVERY time
+ * the user imported an Excel file. Users complained that "every Excel
+ * upload generates another Excel file at the beginning and at the end".
+ * Now the XLSX bytes are returned in-memory (as a Uint8Array) and the
+ * UI decides whether to download them via a "Download Excel report"
+ * button on the done screen.
  */
 import type { ImportContext } from "../import-context";
-import { exportToXlsx, type SheetSpec } from "../../export-engine";
+import {
+  buildXlsxBuffer,
+  type SheetSpec,
+} from "../../export-engine";
 
 export interface ExcelReportResult {
   fileName: string;
+  /** Raw XLSX bytes. The caller decides whether to download them. */
+  bytes: Uint8Array;
 }
 
 const BRAND_BLUE = "349BD4";
@@ -111,8 +124,8 @@ export class ExcelReporter {
     };
 
     const fileName = `import-report-${context.runId}.xlsx`;
-    await exportToXlsx([summarySheet, rejectedSheet, warningsSheet], fileName);
-    return { fileName };
+    const bytes = await buildXlsxBuffer([summarySheet, rejectedSheet, warningsSheet]);
+    return { fileName, bytes };
   }
 }
 

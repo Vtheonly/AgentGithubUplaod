@@ -362,6 +362,13 @@ export class SupabaseParentRepository implements ParentRepository {
   }
 
   private async refreshById(id: string): Promise<void> {
+    // Guard against invalid IDs — when the upsert RPC fails (e.g. the
+    // previous "column reference is ambiguous" bug), the caller may pass
+    // an empty/undefined string here, which produces a 400 from PostgREST
+    // (`parents?select=*&id=eq.`). Skip the round-trip entirely.
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return;
+    }
     try {
       const { data, error } = await this.client
         .from("parents")
@@ -419,14 +426,18 @@ export class SupabaseParentRepository implements ParentRepository {
         p_city_tier: input.cityTier ?? null,
       });
       if (error) throw error;
-      const row = (data as { parent_id: string; parent_code: string; was_inserted: boolean }[])[0];
-      if (!row) throw new Error("upsert_parent_from_import returned no rows");
+      // NOTE: migration 0031 renamed the RPC output columns to `out_*`
+      // to avoid the plpgsql `column reference "parent_code" is ambiguous`
+      // error caused by RETURNS TABLE column names colliding with table
+      // column references inside the function body.
+      const row = (data as { out_parent_id: string; out_parent_code: string; out_was_inserted: boolean }[])[0];
+      if (!row || !row.out_parent_id) throw new Error("upsert_parent_from_import returned no rows");
 
       // Fetch the full row.
       const { data: fullRow, error: fetchErr } = await this.client
         .from("parents")
         .select("*")
-        .eq("id", row.parent_id)
+        .eq("id", row.out_parent_id)
         .maybeSingle();
       if (fetchErr) throw fetchErr;
       const parent = mapParentRow(fullRow as ParentRow);
@@ -597,13 +608,14 @@ export class SupabaseStudentRepository implements StudentRepository {
         p_payment_plan: input.paymentPlan ?? "tranches",
       });
       if (error) throw error;
-      const row = (data as { student_id: string; student_code: string; was_inserted: boolean }[])[0];
-      if (!row) throw new Error("upsert_student_from_import returned no rows");
+      // NOTE: migration 0031 renamed the RPC output columns to `out_*`.
+      const row = (data as { out_student_id: string; out_student_code: string; out_was_inserted: boolean }[])[0];
+      if (!row || !row.out_student_id) throw new Error("upsert_student_from_import returned no rows");
 
       const { data: fullRow, error: fetchErr } = await this.client
         .from("students")
         .select("*")
-        .eq("id", row.student_id)
+        .eq("id", row.out_student_id)
         .maybeSingle();
       if (fetchErr) throw fetchErr;
       const student = mapStudentRow(fullRow as StudentRow);
@@ -760,13 +772,14 @@ export class SupabasePaymentRepository implements PaymentRepository {
         p_notes: input.notes ?? null,
       });
       if (error) throw error;
-      const row = (data as { payment_id: string; payment_number: string; was_inserted: boolean }[])[0];
-      if (!row) throw new Error("upsert_payment_from_import returned no rows");
+      // NOTE: migration 0031 renamed the RPC output columns to `out_*`.
+      const row = (data as { out_payment_id: string; out_payment_number: string; out_was_inserted: boolean }[])[0];
+      if (!row || !row.out_payment_id) throw new Error("upsert_payment_from_import returned no rows");
 
       const { data: fullRow, error: fetchErr } = await this.client
         .from("payments")
         .select("*")
-        .eq("id", row.payment_id)
+        .eq("id", row.out_payment_id)
         .maybeSingle();
       if (fetchErr) throw fetchErr;
       const payment = mapPaymentRow(fullRow as PaymentRow);

@@ -303,8 +303,16 @@ describe("ImportEngine — dryRun skips report generation", () => {
   it("DOES generate reports when dryRun=false (commit step)", async () => {
     // Verify the non-dry-run path STILL generates reports — we don't
     // want to break the commit step's report download UX.
-    const jsonWrite = vi.fn().mockResolvedValue({ fileName: "report.json", summary: {} });
-    const excelWrite = vi.fn().mockResolvedValue({ fileName: "report.xlsx" });
+    // NOTE: reporters now return in-memory bytes instead of auto-downloading.
+    const jsonWrite = vi.fn().mockResolvedValue({
+      fileName: "report.json",
+      bytes: new TextEncoder().encode("{}"),
+      summary: {},
+    });
+    const excelWrite = vi.fn().mockResolvedValue({
+      fileName: "report.xlsx",
+      bytes: new Uint8Array([0x50, 0x4b]), // PK zip header
+    });
 
     const storage = new InMemoryAdapter();
     const engine = new ImportEngine({ storage });
@@ -316,10 +324,15 @@ describe("ImportEngine — dryRun skips report generation", () => {
     };
 
     const bytes = await buildMinimalXlsx();
-    await engine.importFile(bytes, "minimal.xlsx", { dryRun: false });
+    const ctx = await engine.importFile(bytes, "minimal.xlsx", { dryRun: false });
 
     // Both reporters SHOULD have been called for the commit step.
     expect(jsonWrite).toHaveBeenCalledTimes(1);
     expect(excelWrite).toHaveBeenCalledTimes(1);
+    // Reports are attached to the context (not auto-downloaded).
+    expect(ctx.reports.json).toBeDefined();
+    expect(ctx.reports.json?.fileName).toBe("report.json");
+    expect(ctx.reports.excel).toBeDefined();
+    expect(ctx.reports.excel?.fileName).toBe("report.xlsx");
   });
 });

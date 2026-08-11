@@ -2,15 +2,21 @@
  * JSON reporter — produces a machine-readable import-report file.
  *
  * Ported from `excel-import-engine/src/reporters/JsonReporter.js`. The
- * renderer version triggers a browser download via `Blob` + `URL.createObjectURL`
- * rather than writing to the file system (the original used `fs.writeFileSync`).
+ * renderer version RETURNS the report bytes (UTF-8 JSON) so the caller
+ * can decide what to do with them — typically offering a "Download JSON
+ * report" button on the done screen.
+ *
+ * Previously this class called `downloadBlob()` directly, which forced a
+ * browser download EVERY time the user imported an Excel file. Users
+ * complained that "every Excel upload generates another JSON file at the
+ * beginning and at the end". Now the bytes are returned in-memory and the
+ * UI decides whether to download them.
  *
  * The JSON payload is the full `ImportContext.toJSON()` output — the same
  * shape that gets persisted to the audit log. This file is the human-
  * reviewable export; the audit log is the canonical system of record.
  */
 import type { ImportContext } from "../import-context";
-import { downloadBlob } from "../../export-engine";
 
 export interface JsonReportSummary {
   runId: string;
@@ -25,6 +31,8 @@ export interface JsonReportSummary {
 
 export interface JsonReportResult {
   fileName: string;
+  /** Raw UTF-8 JSON bytes. The caller decides whether to download them. */
+  bytes: Uint8Array;
   summary: JsonReportSummary;
 }
 
@@ -33,8 +41,8 @@ export class JsonReporter {
     const payload = context.toJSON();
     const json = JSON.stringify(payload, null, 2);
     const fileName = `import-report-${context.runId}.json`;
-    downloadBlob(new TextEncoder().encode(json), fileName, "application/json");
-    return { fileName, summary: this.summarize(payload) };
+    const bytes = new TextEncoder().encode(json);
+    return { fileName, bytes, summary: this.summarize(payload) };
   }
 
   private summarize(ctx: Record<string, unknown>): JsonReportSummary {

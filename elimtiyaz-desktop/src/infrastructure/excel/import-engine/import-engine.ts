@@ -52,7 +52,23 @@ export type ImportEventMap = {
     rowIndex: number;
   };
   "sheet:done": { sheet: string; result: SheetResult };
-  done: { context: ImportContext; reports: { json?: string; excel?: string } };
+  done: {
+    context: ImportContext;
+    /**
+     * Generated reports (only for non-dry-run imports).
+     *
+     * Each report carries its file name AND its raw bytes — the bytes
+     * are NOT auto-downloaded. The caller (e.g. ExcelImportModal) is
+     * responsible for offering a "Download report" button and calling
+     * `downloadBlob()` when the user clicks it. This prevents the
+     * "every Excel upload generates another Excel + JSON file" issue
+     * that occurred when reporters auto-downloaded on every commit.
+     */
+    reports: {
+      json?: { fileName: string; bytes: Uint8Array };
+      excel?: { fileName: string; bytes: Uint8Array };
+    };
+  };
   error: { error: Error; context: ImportContext };
 };
 
@@ -203,12 +219,16 @@ export class ImportEngine {
       // preview step (dryRun=true) used to trigger downloads too — that
       // caused the "every Excel upload generates another Excel + JSON
       // file at the beginning AND at the end" bug. Now only the commit
-      // step (dryRun=false) emits reports.
-      const reports: { json?: string; excel?: string } = {};
+      // step (dryRun=false) emits reports, AND the bytes are returned
+      // in-memory (not auto-downloaded) — the UI offers download buttons.
+      const reports: {
+        json?: { fileName: string; bytes: Uint8Array };
+        excel?: { fileName: string; bytes: Uint8Array };
+      } = {};
       if (this.generateReports && !options.dryRun) {
         try {
           const jsonResult = await this.jsonReporter.write(ctx);
-          reports.json = jsonResult.fileName;
+          reports.json = { fileName: jsonResult.fileName, bytes: jsonResult.bytes };
         } catch (e) {
           defaultLogger.warn("JSON report generation failed", {
             error: (e as Error).message,
@@ -216,13 +236,16 @@ export class ImportEngine {
         }
         try {
           const excelResult = await this.excelReporter.write(ctx);
-          reports.excel = excelResult.fileName;
+          reports.excel = { fileName: excelResult.fileName, bytes: excelResult.bytes };
         } catch (e) {
           defaultLogger.warn("Excel report generation failed", {
             error: (e as Error).message,
           });
         }
       }
+      // Attach reports to the context so the caller (ExcelImportModal)
+      // can read ctx.reports and offer download buttons.
+      ctx.reports = reports;
 
       if (!options.dryRun) {
         await this.storage.saveAuditRun(ctx);
