@@ -86,6 +86,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   private readonly rowsByRun: Map<string, InsertedRow[]> = new Map();
   private readonly runs: Map<string, RunAuditEntry> = new Map();
   private initialized = false;
+  /** The runId of the import currently in progress — used to tag errors. */
+  private currentRunId: string | null = null;
 
   constructor(deps: RepositoryStorageAdapterDeps) {
     super();
@@ -116,6 +118,9 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     identityKeys: readonly string[],
     runId: string,
   ): Promise<UpsertResult> {
+    // Track the current runId so ensureParent / ensureStudent can tag
+    // their errors with the right run for later display in the modal.
+    this.currentRunId = runId;
     if (schema.name === "etat") {
       return this.upsertEtatRecord(record, runId);
     }
@@ -239,6 +244,22 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     } else {
       const result = await this.deps.students.createStudent(parent.id, studentInput);
       if (!result.ok) {
+        // Surface the student creation error (same pattern as ensureParent).
+        const errMsg = (result.error as { message?: string; userMessage?: string })?.message
+          ?? (result.error as { userMessage?: string })?.userMessage
+          ?? String(result.error);
+        const rowIndex = typeof (record as { __rowIndex?: number }).__rowIndex === "number"
+          ? (record as { __rowIndex: number }).__rowIndex
+          : 0;
+        const identity = studentInput.displayName ?? `${studentInput.firstName} ${studentInput.lastName}`;
+        const list = this.errorsByRun.get(runId) ?? [];
+        list.push({ rowIndex, identity, error: `Student creation failed: ${errMsg}` });
+        this.errorsByRun.set(runId, list);
+        // eslint-disable-next-line no-console
+        console.error(
+          `[ExcelImport] Student creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
+          result.error,
+        );
         return { action: "skip" };
       }
       action = "insert";
@@ -273,12 +294,55 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     return { action };
   }
 
+  /**
+   * Track per-row errors so the modal can show WHY rows were skipped
+   * instead of the previous opaque "X ignoré(s)" message. The key is
+   * the runId; the value is a list of { rowIndex, identity, error }.
+   */
+  private readonly errorsByRun: Map<string, Array<{ rowIndex: number; identity: string; error: string }>> = new Map();
+
+  /** Return the collected errors for a run (used by the modal). */
+  getErrorsForRun(runId: string): Array<{ rowIndex: number; identity: string; error: string }> {
+    return this.errorsByRun.get(runId) ?? [];
+  }
+
   private async ensureParent(record: ImportRecord): Promise<Parent | null> {
     const input = this.buildParentInput(record);
     const existing = await this.findExistingParent(input);
     if (existing) return existing;
     const result = await this.deps.parents.createParent(input);
-    return result.ok ? result.value : null;
+    if (!result.ok) {
+      // CRITICAL FIX: surface the actual error so the user can diagnose
+      // WHY rows are being skipped. The previous implementation silently
+      // returned null, which caused `upsertEtatRecord` to return
+      // `{ action: "skip" }` — the user saw "390 ignoré(s)" with no
+      // explanation. Common causes:
+      //   - Migration 0028 not applied → RPC rejects p_transport_destination / p_city_tier params
+      //   - tenant_id FK violation → the tenant doesn't exist in the `tenants` table
+      //   - RLS blocking the write (the RPC is SECURITY DEFINER but the
+      //     caller still needs a valid JWT)
+      //   - Network / Supabase URL misconfigured
+      const errMsg = (result.error as { message?: string; userMessage?: string })?.message
+        ?? (result.error as { userMessage?: string })?.userMessage
+        ?? String(result.error);
+      const rowIndex = typeof (record as { __rowIndex?: number }).__rowIndex === "number"
+        ? (record as { __rowIndex: number }).__rowIndex
+        : 0;
+      const identity = input.displayName ?? input.phone ?? input.lastName ?? "(unknown)";
+      const runId = this.currentRunId ?? "unknown";
+      const list = this.errorsByRun.get(runId) ?? [];
+      list.push({ rowIndex, identity, error: errMsg });
+      this.errorsByRun.set(runId, list);
+      // Also log to console so the user can see it in DevTools even before
+      // the modal reads getErrorsForRun.
+      // eslint-disable-next-line no-console
+      console.error(
+        `[ExcelImport] Parent creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
+        result.error,
+      );
+      return null;
+    }
+    return result.value;
   }
 
   private buildParentInput(record: ImportRecord): CreateParentInput {

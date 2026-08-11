@@ -230,3 +230,28 @@ Stage Summary:
   - `app/src/main/java/com/example/infrastructure/supabase/SharedDtoMappers.kt` (new)
   - `app/src/main/java/com/example/infrastructure/sync/PullSyncRepository.kt` (new)
   - `app/src/main/java/com/example/infrastructure/sync/SyncWorker.kt` (pull wiring)
+
+---
+Task ID: 3
+Agent: parent (orchestrator)
+Task: Package both modified repositories as ZIP files in /home/z/my-project/download/.
+
+Work Log:
+- Cleaned build artifacts from both repos (node_modules, dist, .vite,
+  .gradle, build, local.properties) to keep the ZIPs small.
+- Copied CHANGES_SUMMARY.md + WORKLOG.md into both repos so the changes
+  are self-documenting inside each ZIP.
+- Created:
+  - /home/z/my-project/download/desktop-elimtiyaz-fixed.zip (1.6 MB, 568 files)
+    Contains the full desktop repo + the real Suivis clients 2026_2027.xlsx
+    + migration 0028 + the new real-excel-import test + all fixes.
+  - /home/z/my-project/download/android-elimtiyaz-fixed.zip (1.4 MB, 466 files)
+    Contains the full android repo + PermissionHelpers.kt +
+    PullSyncRepository.kt + SharedDtoMappers.kt + all fixes.
+- Verified both ZIPs contain the expected key files via `unzip -l`.
+
+Stage Summary:
+- Both ZIPs are ready for delivery.
+- Desktop: tsc clean, 359/359 tests pass (including the new real-excel-import test).
+- Android: full Gradle build could not run (no javac in env), but all
+  changes follow existing codebase patterns and were verified by manual review.

@@ -72,6 +72,8 @@ export function ExcelImportModal({
   const [commitCtx, setCommitCtx] = useState<ImportContext | null>(null);
   const [reports, setReports] = useState<{ json?: string; excel?: string } | null>(null);
   const [alert, setAlert] = useState<Alert | null>(null);
+  /** Per-row errors collected during the commit (parent/student creation failures). */
+  const [skipErrors, setSkipErrors] = useState<Array<{ rowIndex: number; identity: string; error: string }>>([]);
 
   function reset() {
     setStage("select");
@@ -81,6 +83,7 @@ export function ExcelImportModal({
     setCommitCtx(null);
     setReports(null);
     setAlert(null);
+    setSkipErrors([]);
     // Clear the underlying input so re-opening the modal lets the user pick
     // the same file again (the input's `change` event won't fire otherwise).
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -223,9 +226,9 @@ export function ExcelImportModal({
       //
       // The `operation` field is informational — the upsert RPCs handle
       // insert-vs-update idempotently at the database layer.
-      const storage = engine.getStorage();
-      const allRecords = typeof storage.listInsertedForRun === "function"
-        ? await storage.listInsertedForRun(ctx.runId)
+      const storageForSync = engine.getStorage();
+      const allRecords = typeof storageForSync.listInsertedForRun === "function"
+        ? await storageForSync.listInsertedForRun(ctx.runId)
         : [];
       let enqueuedForSync = 0;
       for (const rec of allRecords) {
@@ -268,10 +271,34 @@ export function ExcelImportModal({
       const inserted = ctx.stats.rowsImported;
       const updated = ctx.stats.rowsUpdated;
       const skipped = ctx.stats.rowsSkipped;
-      toast.showSuccess(
-        "Import atomique réussi",
-        `${inserted} inséré(s), ${updated} mis à jour, ${skipped} ignoré(s) en ${ctx.durationMs ?? 0} ms. ${enqueuedForSync} enregistrement(s) en file d'attente de synchronisation.`,
-      );
+
+      // Collect the per-row errors from the storage adapter so we can show
+      // the user WHY rows were skipped (instead of the previous opaque
+      // "X ignoré(s)" message). The adapter logs every parent/student
+      // creation failure with the actual RPC error message.
+      const storage = engine.getStorage();
+      const skipErrors = storage instanceof RepositoryStorageAdapter
+        ? storage.getErrorsForRun(ctx.runId)
+        : [];
+      if (skipErrors.length > 0) {
+        setSkipErrors(skipErrors);
+      }
+
+      if (skipped > 0 && skipErrors.length > 0) {
+        // Show a WARNING (not success) because rows were silently dropped.
+        const firstErr = skipErrors[0];
+        toast.showWarning(
+          "Import partiel — lignes ignorées",
+          `${inserted} inséré(s), ${updated} mis à jour, ${skipped} ignoré(s). ` +
+          `Première erreur (ligne ${firstErr.rowIndex}, "${firstErr.identity}"): ${firstErr.error}. ` +
+          `Voir la liste complète ci-dessous et la console (Ctrl+Shift+I).`,
+        );
+      } else {
+        toast.showSuccess(
+          "Import atomique réussi",
+          `${inserted} inséré(s), ${updated} mis à jour, ${skipped} ignoré(s) en ${ctx.durationMs ?? 0} ms. ${enqueuedForSync} enregistrement(s) en file d'attente de synchronisation.`,
+        );
+      }
       onImported?.(inserted);
     } catch (e) {
       setStage("preview");
@@ -484,13 +511,51 @@ export function ExcelImportModal({
       {/* Stage: done */}
       {stage === "done" && commitCtx && (
         <div className="space-y-4">
-          <div className="rounded-md border border-status-success/40 bg-status-success/5 p-4 text-center">
-            <CheckCircle2 className="h-10 w-10 text-status-success mx-auto mb-2" />
-            <p className="text-base font-medium text-status-success">Import réussi</p>
+          <div className={`rounded-md border p-4 text-center ${skipErrors.length > 0 ? "border-status-warning/40 bg-status-warning/5" : "border-status-success/40 bg-status-success/5"}`}>
+            {skipErrors.length > 0 ? (
+              <AlertTriangle className="h-10 w-10 text-status-warning mx-auto mb-2" />
+            ) : (
+              <CheckCircle2 className="h-10 w-10 text-status-success mx-auto mb-2" />
+            )}
+            <p className={`text-base font-medium ${skipErrors.length > 0 ? "text-status-warning" : "text-status-success"}`}>
+              {skipErrors.length > 0 ? "Import partiel" : "Import réussi"}
+            </p>
             <p className="text-sm text-muted-foreground mt-1">
               {commitCtx.stats.rowsImported} inséré(s), {commitCtx.stats.rowsUpdated} mis à jour, {commitCtx.stats.rowsSkipped} ignoré(s) en {commitCtx.durationMs ?? 0} ms.
             </p>
           </div>
+
+          {/* Skip errors — the actual reason rows were dropped */}
+          {skipErrors.length > 0 && (
+            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 max-h-48 overflow-y-auto">
+              <p className="text-xs font-medium text-status-danger mb-1">
+                {skipErrors.length} ligne(s) ignorée(s) à cause d'erreurs (affichage des 20 premières) :
+              </p>
+              <ul className="space-y-0.5 text-xs">
+                {skipErrors.slice(0, 20).map((e, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="font-mono text-status-danger shrink-0">
+                      L{e.rowIndex} ({e.identity}):
+                    </span>
+                    <span className="text-muted-foreground break-all">{e.error}</span>
+                  </li>
+                ))}
+                {skipErrors.length > 20 && (
+                  <li className="text-muted-foreground italic">
+                    + {skipErrors.length - 20} autre(s) erreur(s)… (voir la console avec Ctrl+Shift+I)
+                  </li>
+                )}
+              </ul>
+              <div className="mt-2 pt-2 border-t border-status-danger/20 text-[11px] text-muted-foreground">
+                <p className="font-medium text-foreground mb-0.5">Causes possibles :</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li>La migration <code className="font-mono">0028_shared_schema_extensions.sql</code> n'est pas appliquée sur Supabase → les paramètres <code className="font-mono">p_transport_destination</code> / <code className="font-mono">p_grade_level_code</code> sont rejetés.</li>
+                  <li>Le <code className="font-mono">tenant_id</code> de la session n'existe pas dans la table <code className="font-mono">tenants</code> → violation de clé étrangère.</li>
+                  <li>RLS bloque l'écriture (vérifiez que l'utilisateur est authentifié).</li>
+                </ul>
+              </div>
+            </div>
+          )}
 
           {/* Report downloads */}
           {reports && (
