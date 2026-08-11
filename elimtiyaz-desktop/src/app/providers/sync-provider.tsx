@@ -103,6 +103,10 @@ async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           p_relationship: null,
           p_preferred_language: (p.preferredLanguage as string) ?? "fr",
           p_is_active: true,
+          // Migration 0028 — pass transport_destination + city_tier so the
+          // queue safety-net path persists the same fields as the importer.
+          p_transport_destination: (p.transportDestination as string) ?? (p.transport_destination as string) ?? null,
+          p_city_tier: (p.cityTier as string) ?? (p.city_tier as string) ?? null,
         });
         if (error) throw error;
         break;
@@ -124,6 +128,12 @@ async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           p_enrollment_status: "active",
           p_medical_notes: (p.medicalNotes as string) ?? (p.medical_notes as string) ?? null,
           p_is_active: true,
+          // Migration 0028 — pass grade_level_code + transport_tier +
+          // payment_plan so the queue safety-net path persists the same
+          // fields as the importer.
+          p_grade_level_code: (p.gradeLevel as string) ?? (p.grade_level_code as string) ?? null,
+          p_transport_tier: (p.transportTier as string) ?? (p.transport_tier as string) ?? null,
+          p_payment_plan: (p.paymentPlan as string) ?? (p.payment_plan as string) ?? "tranches",
         });
         if (error) throw error;
         break;

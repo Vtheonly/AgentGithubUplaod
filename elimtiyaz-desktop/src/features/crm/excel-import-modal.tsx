@@ -210,6 +210,17 @@ export function ExcelImportModal({
       // offline case (when Supabase isn't configured, the importer
       // writes to the mock layer and the queue is drained later).
       //
+      // PAYLOAD-SHAPE FIX: Previously the modal enqueued the whole
+      // `StorageRecord` wrapper as `payload`, but `defaultPushHandler`
+      // reads fields like `firstName`, `lastName`, `displayName`,
+      // `parentId`, `amount` directly off `payload`. Those fields live
+      // on the domain entities (Parent / Student / LedgerEntry), NOT
+      // on the StorageRecord wrapper or the raw ImportRecord. The fix:
+      // iterate the `entities` array on each StorageRecord and enqueue
+      // ONE sync entry per domain entity, using the entity object itself
+      // as the payload. This way the RPC receives the correct shape and
+      // Supabase actually gets the data.
+      //
       // The `operation` field is informational — the upsert RPCs handle
       // insert-vs-update idempotently at the database layer.
       const storage = engine.getStorage();
@@ -218,17 +229,30 @@ export function ExcelImportModal({
         : [];
       let enqueuedForSync = 0;
       for (const rec of allRecords) {
-        await sync.enqueue({
-          entity: "student",
-          operation: "insert",
-          payload: rec as unknown as Record<string, unknown>,
-          // Excel import = real data → isMock: false. The sync layer
-          // will push this to Supabase as soon as the desktop is online.
-          isMock: false,
-          sourceFile: fileName,
-          importRunId: ctx.runId,
-        });
-        enqueuedForSync++;
+        // Each StorageRecord may carry 0..N resolved domain entities
+        // (parent, student, ledger_entry). Enqueue one sync entry per
+        // entity so the dispatcher routes to the correct upsert RPC.
+        const entities = rec.entities ?? [];
+        if (entities.length === 0) {
+          // Non-ETAT row (BON, Devis, REF) — no domain entity to sync.
+          continue;
+        }
+        for (const { kind, entity } of entities) {
+          // Payload is the domain entity itself — `defaultPushHandler`
+          // reads firstName/lastName/displayName/parentId/amount/etc.
+          // directly off this object.
+          await sync.enqueue({
+            entity: kind as "parent" | "student" | "ledger_entry" | "payment",
+            operation: "insert",
+            payload: entity as unknown as Record<string, unknown>,
+            // Excel import = real data → isMock: false. The sync layer
+            // will push this to Supabase as soon as the desktop is online.
+            isMock: false,
+            sourceFile: fileName,
+            importRunId: ctx.runId,
+          });
+          enqueuedForSync++;
+        }
       }
 
       // Capture report file names from the engine's event payload.

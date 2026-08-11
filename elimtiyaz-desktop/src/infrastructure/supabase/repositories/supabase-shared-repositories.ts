@@ -37,9 +37,10 @@ import type {
   CreateParentInput,
   UpdateParentInput,
   TransportDestination,
+  CityTier,
   Gender,
 } from "../../../domain/model/parent";
-import { cityTierToDestination } from "../../../domain/model/parent";
+import { cityTierToDestination, TRANSPORT_DESTINATIONS } from "../../../domain/model/parent";
 import type {
   Student,
   CreateStudentInput,
@@ -107,6 +108,70 @@ function studentCode(year: number, seq: number): string {
   return `ELV-${year}-${String(seq).padStart(6, "0")}`;
 }
 
+/**
+ * Compute a short stable hash (6 hex chars) from an arbitrary string.
+ * Used to derive deterministic parent/student codes from identity fields
+ * (phone, display name) so that re-importing the same Excel row produces
+ * the SAME code, letting the `upsert_*_from_import` RPCs hit their primary
+ * identity match (tenant_id, parent_code) / (tenant_id, student_code)
+ * instead of falling through to weaker fallbacks.
+ *
+ * Implementation: FNV-1a 32-bit, hex-encoded, truncated to 6 chars.
+ * Not cryptographic — the goal is determinism + low collision rate across
+ * a few thousand parents/students, which FNV-1a easily achieves.
+ */
+function stableHash(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  // Force unsigned 32-bit and encode as 8-char hex, take first 6.
+  return (h >>> 0).toString(16).padStart(8, "0").slice(0, 6).toUpperCase();
+}
+
+/**
+ * Derive a deterministic parent code from the parent's identity fields.
+ * The code is `PAR-{year}-{6-hex}` where the hex is a stable hash of
+ * (primary_phone || display_name || first_name+last_name).
+ *
+ * Re-importing the same Excel row produces the same code → the
+ * `upsert_parent_from_import` RPC's primary identity match
+ * `(tenant_id, parent_code)` succeeds → idempotent upsert, no duplicates.
+ */
+function deterministicParentCode(year: number, input: CreateParentInput): string {
+  const identity = [
+    input.phone ?? "",
+    input.displayName ?? "",
+    input.firstName ?? "",
+    input.lastName ?? "",
+  ].join("|").trim();
+  // If we have no identity at all, fall back to random — but this should
+  // never happen because the importer always sets at least one field.
+  const suffix = identity.length > 0 ? stableHash(identity) : randomParentSuffix();
+  return `PAR-${year}-${suffix}`;
+}
+
+/**
+ * Derive a deterministic student code from (parentId, student display name).
+ * Re-importing the same Excel row produces the same code → primary identity
+ * match `(tenant_id, student_code)` succeeds → idempotent upsert.
+ */
+function deterministicStudentCode(
+  year: number,
+  parentId: string,
+  input: CreateStudentInput,
+): string {
+  const identity = [
+    parentId ?? "",
+    input.displayName ?? "",
+    input.firstName ?? "",
+    input.lastName ?? "",
+  ].join("|").trim();
+  const suffix = identity.length > 0 ? stableHash(identity) : String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+  return `ELV-${year}-${suffix}`;
+}
+
 function toIsoDate(d: string | Date | null | undefined): string | null {
   if (!d) return null;
   if (d instanceof Date) return d.toISOString();
@@ -118,6 +183,20 @@ function toIsoDate(d: string | Date | null | undefined): string | null {
 // ============================================================================
 
 function mapParentRow(r: ParentRow): Parent {
+  // The DB column `city_tier` (migration 0028) stores raw text — usually
+  // "t1" / "t2" / "t3" but possibly null or unrecognized. Coerce to the
+  // CityTier union when recognized; otherwise null.
+  const rawCityTier = (r as { city_tier?: string | null }).city_tier;
+  const cityTier: CityTier | null =
+    rawCityTier === "t1" || rawCityTier === "t2" || rawCityTier === "t3" ? rawCityTier : null;
+  // The DB column `transport_destination` (migration 0028) stores raw text.
+  // Coerce to the TransportDestination union when recognized; otherwise null
+  // (the UI tolerates null and falls back to other display fields).
+  const rawTransport = (r as { transport_destination?: string | null }).transport_destination;
+  const transportDestination: TransportDestination | null =
+    rawTransport && (TRANSPORT_DESTINATIONS as readonly string[]).includes(rawTransport)
+      ? (rawTransport as TransportDestination)
+      : null;
   return {
     id: r.id,
     tenantId: r.tenant_id,
@@ -131,8 +210,8 @@ function mapParentRow(r: ParentRow): Parent {
     email: r.email,
     occupation: r.occupation,
     address: r.address,
-    cityTier: null,
-    transportDestination: null,
+    cityTier,
+    transportDestination,
     preferredLanguage: "fr",
     avatarUrl: null,
     createdAt: r.created_at,
@@ -141,10 +220,23 @@ function mapParentRow(r: ParentRow): Parent {
 }
 
 function mapStudentRow(r: StudentRow): Student {
-  // Decode gradeLevel from grade_level_id is not possible without joining
-  // academic_levels. We fall back to "1ap" so the UI doesn't crash; the
-  // importer path sets the proper level via the upsert RPC.
+  // Decode gradeLevel from the new `grade_level_code` column (migration 0028).
+  // Fall back to "1ap" only when the column is NULL (e.g. rows created before
+  // the migration was applied). The importer path always sets it via the
+  // upsert RPC's p_grade_level_code parameter.
+  const codeFromDb = (r as { grade_level_code?: string | null }).grade_level_code;
   const fallbackLevel: GradeLevel = "1ap";
+  let gradeLevel: GradeLevel;
+  if (codeFromDb && typeof codeFromDb === "string") {
+    // The importer stores canonical codes like "1ap", "CE1", "CP", "GS".
+    // We trust whatever was stored — the importer's mapNiveauCode already
+    // normalized it. If the value isn't a recognized GradeLevel, fall back.
+    gradeLevel = codeFromDb as GradeLevel;
+  } else {
+    gradeLevel = fallbackLevel;
+  }
+  const transportTier = (r as { transport_tier?: string | null }).transport_tier ?? null;
+  const paymentPlan = (r as { payment_plan?: string | null }).payment_plan === "full_annual" ? "full_annual" : "tranches";
   return {
     id: r.id,
     tenantId: r.tenant_id,
@@ -156,15 +248,15 @@ function mapStudentRow(r: StudentRow): Student {
     gender: (r.gender as Gender) ?? "unspecified",
     birthDate: r.date_of_birth,
     enrollmentDate: r.enrollment_date,
-    level: academicLevelFromGradeLevel(fallbackLevel),
-    gradeYear: gradeYearFromGradeLevel(fallbackLevel),
-    gradeLevel: fallbackLevel,
+    level: academicLevelFromGradeLevel(gradeLevel),
+    gradeYear: gradeYearFromGradeLevel(gradeLevel),
+    gradeLevel,
     classId: r.class_id,
     photoUrl: null,
     medicalNotes: r.medical_notes,
-    transportTier: null,
+    transportTier,
     status: r.enrollment_status as Student["status"],
-    paymentPlan: "tranches",
+    paymentPlan,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -288,7 +380,11 @@ export class SupabaseParentRepository implements ParentRepository {
     try {
       const tenantId = getTenantId();
       const year = new Date().getFullYear();
-      const parentCode = `PAR-${year}-${randomParentSuffix()}`;
+      // DETERMINISTIC CODE: derive from identity fields so re-imports hit
+      // the primary identity match `(tenant_id, parent_code)` and the RPC
+      // performs an UPDATE instead of falling through to weaker fallbacks
+      // (phone match, display_name match) that may or may not exist.
+      const parentCode = deterministicParentCode(year, input);
       const transportDestination: TransportDestination | null =
         input.transportDestination ?? cityTierToDestination(input.cityTier) ?? null;
 
@@ -306,6 +402,10 @@ export class SupabaseParentRepository implements ParentRepository {
         p_relationship: null,
         p_preferred_language: input.preferredLanguage ?? "fr",
         p_is_active: true,
+        // NEW (migration 0028): persist transport_destination + city_tier so
+        // Android can read them back via pull_parents_for_sync.
+        p_transport_destination: transportDestination ?? null,
+        p_city_tier: input.cityTier ?? null,
       });
       if (error) throw error;
       const row = (data as { parent_id: string; parent_code: string; was_inserted: boolean }[])[0];
@@ -319,14 +419,10 @@ export class SupabaseParentRepository implements ParentRepository {
         .maybeSingle();
       if (fetchErr) throw fetchErr;
       const parent = mapParentRow(fullRow as ParentRow);
-      // Persist transportDestination for downstream pricing (separate column
-      // not in the upsert RPC — write directly).
-      if (transportDestination) {
-        await this.client
-          .from("parents")
-          .update({ address: input.address ?? null } as never)
-          .eq("id", parent.id);
-      }
+      // transportDestination is now persisted by the RPC (migration 0028)
+      // — no need for a separate update query. The previous implementation
+      // wrote to `address` (wrong column) and used `as never` to silence
+      // the typecheck, which silently dropped the transport destination.
       this.cache.update((list) => [parent, ...list.filter((p) => p.id !== parent.id)]);
       this.byIdCache.set(parent.id, new SubjectBehavior<Parent | null>(parent));
       return Ok(parent);
@@ -346,6 +442,14 @@ export class SupabaseParentRepository implements ParentRepository {
       if (updates.email !== undefined) patch.email = updates.email;
       if (updates.occupation !== undefined) patch.occupation = updates.occupation;
       if (updates.address !== undefined) patch.address = updates.address;
+      // NEW (migration 0028): persist transport_destination + city_tier.
+      // Previously these were silently dropped because the columns didn't exist.
+      if (updates.transportDestination !== undefined) {
+        patch.transport_destination = updates.transportDestination;
+      }
+      if (updates.cityTier !== undefined) {
+        patch.city_tier = updates.cityTier;
+      }
       if (updates.preferredLanguage !== undefined) {
         // stored as system_setting, not on parents row — skip.
       }
@@ -451,8 +555,11 @@ export class SupabaseStudentRepository implements StudentRepository {
     try {
       const tenantId = getTenantId();
       const year = new Date().getFullYear();
-      const seq = Math.floor(Math.random() * 1_000_000) + 1;
-      const code = studentCode(year, seq);
+      // DETERMINISTIC CODE: derive from (parentId, displayName) so re-imports
+      // hit the primary identity match `(tenant_id, student_code)` and the
+      // RPC performs an UPDATE instead of falling through to the weaker
+      // (parent_id, first_name, last_name) fallback.
+      const code = deterministicStudentCode(year, parentId, input);
       const gradeLevel: GradeLevel =
         input.gradeLevel ?? gradeLevelFromLevelYear(input.level, input.gradeYear);
 
@@ -472,6 +579,11 @@ export class SupabaseStudentRepository implements StudentRepository {
         p_enrollment_status: "active",
         p_medical_notes: input.medicalNotes ?? null,
         p_is_active: true,
+        // NEW (migration 0028): persist grade_level_code, transport_tier,
+        // payment_plan so Android reads them back via pull_students_for_sync.
+        p_grade_level_code: input.gradeLevel ?? null,
+        p_transport_tier: input.transportTier ?? null,
+        p_payment_plan: input.paymentPlan ?? "tranches",
       });
       if (error) throw error;
       const row = (data as { student_id: string; student_code: string; was_inserted: boolean }[])[0];
@@ -510,8 +622,18 @@ export class SupabaseStudentRepository implements StudentRepository {
       if (updates.gender !== undefined) patch.gender = updates.gender === "unspecified" ? null : updates.gender;
       if (updates.classId !== undefined) patch.class_id = updates.classId;
       if (updates.medicalNotes !== undefined) patch.medical_notes = updates.medicalNotes;
+      // NEW (migration 0028): persist transport_tier + grade_level_code +
+      // payment_plan on update. Previously these were silently skipped
+      // because the columns didn't exist, so re-imports that changed
+      // transport tier or grade didn't propagate.
       if (updates.transportTier !== undefined) {
-        // No dedicated column — skip; the desktop keeps it in the in-memory cache.
+        patch.transport_tier = updates.transportTier;
+      }
+      if (updates.gradeLevel !== undefined) {
+        patch.grade_level_code = updates.gradeLevel;
+      }
+      if (updates.paymentPlan !== undefined) {
+        patch.payment_plan = updates.paymentPlan;
       }
       if (Object.keys(patch).length > 0) {
         const { error } = await this.client.from("students").update(patch).eq("id", id);

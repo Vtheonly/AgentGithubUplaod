@@ -47,7 +47,29 @@ export interface RepositoryStorageAdapterDeps {
   readonly actorName?: string;
 }
 
-interface InsertedRow {
+/**
+ * The kind of domain entity that was resolved for an inserted row.
+ * The sync queue dispatcher uses this to route the row to the correct
+ * `upsert_*_from_import` RPC (migration 0027).
+ */
+export type InsertedEntityKind = "parent" | "student" | "ledger_entry" | "payment" | "raw";
+
+/**
+ * A row inserted during an import run, together with the resolved domain
+ * entities (Parent / Student / LedgerEntry) that were created or updated.
+ *
+ * The `record` field preserves the raw ImportRecord (French Excel fields)
+ * for audit + reporting. The `entities` field carries the canonical domain
+ * objects the sync queue needs to push to Supabase.
+ *
+ * CRITICAL: the sync queue's `defaultPushHandler` reads fields like
+ * `firstName`, `lastName`, `displayName`, `parentId`, `amount`, etc. directly
+ * off `payload`. Those fields live on the domain entities (Parent / Student /
+ * LedgerEntry), NOT on the raw ImportRecord. Without this `entities` field,
+ * the sync queue would receive a payload shaped like `{ nom, nem, tuteur, ... }`
+ * and every RPC call would fail silently with `p_first_name = undefined`.
+ */
+export interface InsertedRow {
   readonly id: string;
   readonly schemaName: string;
   readonly runId: string;
@@ -55,6 +77,8 @@ interface InsertedRow {
   readonly identity: Record<string, string | number>;
   readonly checksum: string;
   readonly insertedAt: string;
+  /** Resolved domain entities for the sync queue. May be empty for non-ETAT schemas. */
+  readonly entities: ReadonlyArray<{ kind: InsertedEntityKind; entity: Parent | Student | LedgerEntry }>;
 }
 
 export class RepositoryStorageAdapter extends StorageAdapter {
@@ -166,6 +190,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       lastUpdatedRunId: r.runId,
       lastUpdatedAt: r.insertedAt,
       checksum: r.checksum,
+      entities: r.entities,
     }));
   }
 
@@ -183,6 +208,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     const existing = await this.findExistingStudent(parent, studentInput);
     let action: "insert" | "update" | "skip";
     let studentId: string | null = null;
+    let resolvedStudent: Student | null = null;
     if (existing) {
       // Actually call updateStudent() so changes to grade level, transport
       // tier, class assignment, etc. propagate on re-import. The previous
@@ -202,11 +228,13 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       if (updateResult.ok) {
         action = "update";
         studentId = updateResult.value.id;
+        resolvedStudent = updateResult.value;
       } else {
         // Update failed — fall back to the existing ID so financial entries
         // still land against the right student.
         action = "update";
         studentId = existing.id;
+        resolvedStudent = existing;
       }
     } else {
       const result = await this.deps.students.createStudent(parent.id, studentInput);
@@ -215,16 +243,33 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       }
       action = "insert";
       studentId = result.value.id;
+      resolvedStudent = result.value;
     }
     // Persist financial data (DEVIS ANNUEL charge, REMISE adjustment, DETTES
     // charge, REMBOURSEMENT refund, REGLEMENTS DETTES payments) to the ledger
     // so each student's transactions, balances, and payment history are
     // queryable from the CRM. Without this, financial data is dropped on
     // the floor — see iteration 21.
+    let ledgerEntries: LedgerEntry[] = [];
     if (this.deps.ledger && studentId) {
-      await this.persistFinancialEntries(record, parent.id, studentId, runId);
+      ledgerEntries = await this.persistFinancialEntries(record, parent.id, studentId, runId);
     }
-    this.trackInsertedRow("etat", record, ["NEM", "NOM"], runId);
+    // Build the resolved-entities list for the sync queue. The sync queue's
+    // defaultPushHandler reads firstName/lastName/displayName/parentId/amount
+    // directly off payload — those fields live on the domain entities, NOT
+    // on the raw ImportRecord. Without this list, every queue push sends
+    // undefined fields to the upsert RPCs and Supabase never receives the
+    // imported data.
+    const entities: Array<{ kind: InsertedEntityKind; entity: Parent | Student | LedgerEntry }> = [
+      { kind: "parent", entity: parent },
+    ];
+    if (resolvedStudent) {
+      entities.push({ kind: "student", entity: resolvedStudent });
+    }
+    for (const le of ledgerEntries) {
+      entities.push({ kind: "ledger_entry", entity: le });
+    }
+    this.trackInsertedRow("etat", record, ["NEM", "NOM"], runId, entities);
     return { action };
   }
 
@@ -468,8 +513,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     parentId: string,
     studentId: string,
     runId: string,
-  ): Promise<void> {
-    if (!this.deps.ledger) return;
+  ): Promise<LedgerEntry[]> {
+    if (!this.deps.ledger) return [];
     const ledger = this.deps.ledger;
     const tenantId = this.deps.tenantId;
     const actorId = this.deps.actorId ?? "excel-import";
@@ -503,6 +548,16 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     const t1 = numOrZero(record.t1);
     const t2 = numOrZero(record.t2);
     const t3 = numOrZero(record.t3);
+    // Extended columns (PSY/ORTH/E-PLANT/Ratrapage/quarterly).
+    const psy1 = numOrZero(record.psy1);
+    const psy2 = numOrZero(record.psy2);
+    const orth1 = numOrZero(record.orth1);
+    const orth2 = numOrZero(record.orth2);
+    const eplant = numOrZero(record.eplant);
+    const ratrapage = numOrZero(record.ratrapage);
+    const septembre = numOrZero(record.septembre);
+    const decembre = numOrZero(record.decembre);
+    const mars = numOrZero(record.mars);
 
     // Stable sourceId per (student, field) — used for idempotent re-imports.
     const sid = (field: string): string => `${studentId}:${field}`;
@@ -775,8 +830,221 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       );
     }
 
-    if (entries.length === 0) return;
+    // ── Therapy + extra sessions block (Z–AE) ─────────────────────────────
+    // These categories were added to the ledger_entries_category_check by
+    // migration 0026/0027. Each therapy session is a separate payment entry
+    // so the student's therapy history is queryable per session.
+
+    // PSY1 — psychology session 1.
+    if (psy1 > 0 && !alreadyHas("PSY1")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "therapy_psychology",
+          amount: psy1,
+          method: "cash",
+          receiptNumber: sid("PSY1"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("PSY1"),
+          description: `Séance psychologie 1 (PSY1) — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "PSY1", importRunId: runId },
+        }),
+      );
+    }
+
+    // PSY2 — psychology session 2.
+    if (psy2 > 0 && !alreadyHas("PSY2")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "therapy_psychology",
+          amount: psy2,
+          method: "cash",
+          receiptNumber: sid("PSY2"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("PSY2"),
+          description: `Séance psychologie 2 (PSY2) — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "PSY2", importRunId: runId },
+        }),
+      );
+    }
+
+    // ORTH1 — speech therapy session 1.
+    if (orth1 > 0 && !alreadyHas("ORTH1")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "therapy_speech",
+          amount: orth1,
+          method: "cash",
+          receiptNumber: sid("ORTH1"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("ORTH1"),
+          description: `Séance orthophonie 1 (ORTH1) — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "ORTH1", importRunId: runId },
+        }),
+      );
+    }
+
+    // ORTH2 — speech therapy session 2.
+    if (orth2 > 0 && !alreadyHas("ORTH2")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "therapy_speech",
+          amount: orth2,
+          method: "cash",
+          receiptNumber: sid("ORTH2"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("ORTH2"),
+          description: `Séance orthophonie 2 (ORTH2) — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "ORTH2", importRunId: runId },
+        }),
+      );
+    }
+
+    // E-PLANT — extra support plan payment (modeled as "other").
+    if (eplant > 0 && !alreadyHas("EPLANT")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "other",
+          amount: eplant,
+          method: "cash",
+          receiptNumber: sid("EPLANT"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("EPLANT"),
+          description: `E-PLANT (plan d'accompagnement) — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "EPLANT", importRunId: runId },
+        }),
+      );
+    }
+
+    // Ratrapage — catch-up session payment (modeled as "tuition").
+    if (ratrapage > 0 && !alreadyHas("RATRAPAGE")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "tuition",
+          amount: ratrapage,
+          method: "cash",
+          receiptNumber: sid("RATRAPAGE"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("RATRAPAGE"),
+          description: `Rattrapage — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "RATRAPAGE", importRunId: runId },
+        }),
+      );
+    }
+
+    // ── Quarterly tranches (AF, AH, AJ) ───────────────────────────────────
+    // September / December / March quarterly tuition tranches.
+
+    if (septembre > 0 && !alreadyHas("SEPTEMBRE")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "tuition",
+          amount: septembre,
+          method: "cash",
+          receiptNumber: sid("SEPTEMBRE"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("SEPTEMBRE"),
+          description: `Tranche septembre — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "SEPTEMBRE", importRunId: runId },
+        }),
+      );
+    }
+
+    if (decembre > 0 && !alreadyHas("DECEMBRE")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "tuition",
+          amount: decembre,
+          method: "cash",
+          receiptNumber: sid("DECEMBRE"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("DECEMBRE"),
+          description: `Tranche décembre — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "DECEMBRE", importRunId: runId },
+        }),
+      );
+    }
+
+    if (mars > 0 && !alreadyHas("MARS")) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "tuition",
+          amount: mars,
+          method: "cash",
+          receiptNumber: sid("MARS"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("MARS"),
+          description: `Tranche mars — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "MARS", importRunId: runId },
+        }),
+      );
+    }
+
+    if (entries.length === 0) return [];
     await ledger.appendMany(entries);
+    return entries;
   }
 
   // ── Generic tracked upsert (BON, Devis, REF) ──────────────────────────
@@ -787,7 +1055,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     identityKeys: readonly string[],
     runId: string,
   ): Promise<UpsertResult> {
-    this.trackInsertedRow(schema.name, record, identityKeys, runId);
+    // Non-ETAT schemas don't resolve to domain entities — pass an empty list.
+    this.trackInsertedRow(schema.name, record, identityKeys, runId, []);
     return { action: "insert" };
   }
 
@@ -796,6 +1065,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     record: ImportRecord,
     identityKeys: readonly string[],
     runId: string,
+    entities: ReadonlyArray<{ kind: InsertedEntityKind; entity: Parent | Student | LedgerEntry }>,
   ): void {
     const identity: Record<string, string | number> = {};
     for (const key of identityKeys) {
@@ -812,6 +1082,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       identity,
       checksum: "", // Computed lazily to avoid async in sync helper.
       insertedAt: new Date().toISOString(),
+      entities,
     };
     const list = this.rowsByRun.get(runId) ?? [];
     list.push(row);

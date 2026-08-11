@@ -38,6 +38,18 @@
  *   | W   | 1T                   | t1             | number   | (1st transport tranche paid)
  *   | X   | T2                   | t2             | number   | (2nd transport tranche paid)
  *   | Y   | t3                   | t3             | number   | (3rd transport tranche paid)
+ *   | Z   | PSY1                 | psy1           | number   | (psychology session 1 — therapy_psychology)
+ *   | AA  | PSY2                 | psy2           | number   | (psychology session 2 — therapy_psychology)
+ *   | AB  | ORTH1                | orth1          | number   | (speech therapy session 1 — therapy_speech)
+ *   | AC  | ORTH2                | orth2          | number   | (speech therapy session 2 — therapy_speech)
+ *   | AD  | E-PLANT              | eplant         | number   | (extra support plan payment)
+ *   | AE  | Ratrapage            | ratrapage      | number   | (catch-up session payment)
+ *   | AF  | SEPTEMBRE            | septembre      | number   | (September quarterly tranche)
+ *   | AG  | CREANCES SEPTEMBRE   | creanceSeptembre | number | (September outstanding — informational)
+ *   | AH  | DECEMBRE             | decembre       | number   | (December quarterly tranche)
+ *   | AI  | CREANCES DECEMBRE    | creanceDecembre | number  | (December outstanding — informational)
+ *   | AJ  | MARS                 | mars           | number   | (March quarterly tranche)
+ *   | AK  | CREANCES MARS        | creanceMars    | number   | (March outstanding — informational)
  *
  * The schema also tolerates the documented Excel quirks:
  *   - `#REF!` formula errors → warnings, row still imports.
@@ -53,6 +65,14 @@
  * That was completely wrong — those columns are independent financial fields.
  * REGLEMENTS DETTES is now a single `number` field, and each payment column
  * is its own field.
+ *
+ * EXTENDED COLUMNS (PSY/ORTH/quarterly): columns Z..AK capture therapy
+ * payments (psychology, speech), the E-PLANT flag, catch-up sessions, and
+ * the three quarterly tranches (September, December, March). These were
+ * previously dropped because the schema stopped at column Y. They are now
+ * parsed so the importer captures the COMPLETE financial picture per row
+ * and the therapy payments can be written as `therapy_psychology` /
+ * `therapy_speech` ledger entries (migration 0027 added these categories).
  */
 import type { ImportSchema } from "../types";
 
@@ -134,5 +154,28 @@ export const ETAT_SCHEMA: ImportSchema = {
     { key: "t1", header: "1T", type: "number", required: false, default: 0, min: 0 },
     { key: "t2", header: "T2", type: "number", required: false, default: 0, min: 0 },
     { key: "t3", header: "t3", type: "number", required: false, default: 0, min: 0 },
+
+    // ── Therapy + extra sessions block (Z–AE) ────────────────────────────
+    // These columns capture payments for therapy sessions (psychology,
+    // speech therapy) and extra support sessions. They feed the ledger as
+    // `therapy_psychology` / `therapy_speech` entries (categories added by
+    // migration 0026/0027).
+    { key: "psy1", header: "PSY1", type: "number", required: false, default: 0, min: 0 },
+    { key: "psy2", header: "PSY2", type: "number", required: false, default: 0, min: 0 },
+    { key: "orth1", header: "ORTH1", type: "number", required: false, default: 0, min: 0 },
+    { key: "orth2", header: "ORTH2", type: "number", required: false, default: 0, min: 0 },
+    { key: "eplant", header: "E-PLANT", type: "number", required: false, default: 0, min: 0 },
+    { key: "ratrapage", header: "Ratrapage", type: "number", required: false, default: 0, min: 0 },
+
+    // ── Quarterly tranches block (AF–AK) ─────────────────────────────────
+    // September / December / March quarterly payments + their outstanding
+    // balances. The amounts feed the ledger as `tuition` payments; the
+    // CREANCES columns are informational (the ledger recomputes balances).
+    { key: "septembre", header: "SEPTEMBRE", type: "number", required: false, default: 0, min: 0 },
+    { key: "creanceSeptembre", header: "CREANCES SEPTEMBRE", type: "number", required: false, default: 0 },
+    { key: "decembre", header: "DECEMBRE", type: "number", required: false, default: 0, min: 0 },
+    { key: "creanceDecembre", header: "CREANCES DECEMBRE", type: "number", required: false, default: 0 },
+    { key: "mars", header: "MARS", type: "number", required: false, default: 0, min: 0 },
+    { key: "creanceMars", header: "CREANCES MARS", type: "number", required: false, default: 0 },
   ],
 };

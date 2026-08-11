@@ -25,6 +25,20 @@ export interface StorageRecord {
   readonly lastUpdatedRunId: string;
   readonly lastUpdatedAt: string;
   readonly checksum: string;
+  /**
+   * Resolved domain entities (Parent / Student / LedgerEntry) that were
+   * created or updated for this row. Used by the sync queue to push the
+   * correct shape to the `upsert_*_from_import` RPCs.
+   *
+   * Each entry is tagged with its entity kind so the dispatcher can route
+   * to the right RPC. The entity object is the canonical domain model
+   * (firstName, lastName, displayName, parentId, amount, etc.) — NOT the
+   * raw French Excel fields.
+   *
+   * May be empty for non-ETAT schemas (BON, Devis, REF) that don't resolve
+   * to domain entities.
+   */
+  readonly entities?: ReadonlyArray<{ kind: string; entity: unknown }>;
 }
 
 export interface RunAuditEntry {
