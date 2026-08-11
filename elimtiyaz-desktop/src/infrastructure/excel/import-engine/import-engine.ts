@@ -199,8 +199,13 @@ export class ImportEngine {
 
       ctx.finish();
 
+      // Reports are ONLY generated for real (non-dry-run) imports. The
+      // preview step (dryRun=true) used to trigger downloads too — that
+      // caused the "every Excel upload generates another Excel + JSON
+      // file at the beginning AND at the end" bug. Now only the commit
+      // step (dryRun=false) emits reports.
       const reports: { json?: string; excel?: string } = {};
-      if (this.generateReports) {
+      if (this.generateReports && !options.dryRun) {
         try {
           const jsonResult = await this.jsonReporter.write(ctx);
           reports.json = jsonResult.fileName;

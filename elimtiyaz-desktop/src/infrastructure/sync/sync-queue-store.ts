@@ -70,6 +70,48 @@ class IndexedDBQueueStore {
     return this.txn("readwrite", (os) => os.put(entry));
   }
 
+  /**
+   * Add multiple entries in a SINGLE IndexedDB transaction.
+   *
+   * Why this matters: the Excel import path enqueues ~1,170 entries at
+   * once (parent + student + ledger_entry per row × ~390 rows). Calling
+   * `add()` N times opens N separate transactions → N round-trips to
+   * IndexedDB → N snapshot emissions → N React re-renders. Batching
+   * cuts all of that to ONE transaction + ONE snapshot emission.
+   *
+   * Falls back to a synchronous loop when using the in-memory store
+   * (the loop is already O(N) Map.set calls — no batching needed).
+   */
+  async addBatch(entries: readonly SyncQueueEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+    if (this.usingFallback) {
+      for (const entry of entries) this.memFallback.set(entry.id, entry);
+      return;
+    }
+    return new Promise((resolve, reject) => {
+      const txn = this.db!.transaction(STORE_NAME, "readwrite");
+      const os = txn.objectStore(STORE_NAME);
+      let pending = entries.length;
+      let firstError: DOMException | null = null;
+      for (const entry of entries) {
+        const req = os.put(entry);
+        req.onsuccess = () => {
+          if (--pending === 0) {
+            if (firstError) reject(firstError);
+            else resolve();
+          }
+        };
+        req.onerror = () => {
+          if (!firstError) firstError = req.error;
+          if (--pending === 0) reject(firstError ?? req.error);
+        };
+      }
+      // If no entries were processed (shouldn't happen — we checked above),
+      // resolve immediately so the promise doesn't dangle.
+      if (entries.length === 0) resolve();
+    });
+  }
+
   async update(entry: SyncQueueEntry): Promise<void> {
     return this.add(entry); // put() upserts
   }

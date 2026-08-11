@@ -153,6 +153,75 @@ export class SyncService {
   }
 
   /**
+   * Enqueue MULTIPLE mutations in ONE shot — used by the Excel import
+   * path which would otherwise call `enqueue()` ~1,170 times in a tight
+   * loop (parent + student + ledger_entry per row × ~390 rows).
+   *
+   * Why this matters: every `enqueue()` call calls `refreshSnapshot()`
+   * which emits a snapshot to every subscriber. With 1,170 calls, every
+   * subscriber (SyncIndicator, SyncTab, anywhere `useSyncStatus()` is
+   * used) re-renders 1,170 times during a single Excel commit. The UI
+   * freezes for seconds and the user sees a flood of "sync
+   * notifications" — even though only the FINAL count matters.
+   *
+   * Batching cuts all of that to:
+   *   - ONE IndexedDB transaction (much faster than N round-trips).
+   *   - ONE `refreshSnapshot()` call (ONE React re-render per consumer).
+   *   - ONE debounced drain schedule.
+   *
+   * @returns the created queue entry IDs in order.
+   */
+  async enqueueBatch(
+    inputs: ReadonlyArray<{
+      entity: SyncEntityKind;
+      operation: SyncOperation;
+      payload: Record<string, unknown>;
+      isMock: boolean;
+      sourceFile?: string;
+      importRunId?: string;
+    }>,
+  ): Promise<string[]> {
+    if (inputs.length === 0) return [];
+    const tenantId = this.opts.tenantId();
+    const actorId = this.opts.actorId();
+    // Build all entries up-front so we can write them in a single
+    // IndexedDB transaction. Generating IDs + timestamps here (not in
+    // a loop inside the store) keeps the store's `addBatch` pure.
+    const now = new Date().toISOString();
+    const entries: SyncQueueEntry[] = inputs.map((input) => {
+      const id = generateId();
+      return {
+        id,
+        queuedAt: now,
+        lastAttemptAt: null,
+        entity: input.entity,
+        operation: input.operation,
+        tenantId,
+        actorId,
+        payload: input.payload,
+        isMock: input.isMock,
+        sourceFile: input.sourceFile,
+        importRunId: input.importRunId,
+        status: input.isMock ? "skipped_mock" : "pending",
+        attempts: 0,
+        lastError: null,
+      };
+    });
+    await this.store.addBatch(entries);
+    // ONE snapshot refresh for the whole batch — instead of N.
+    await this.refreshSnapshot();
+
+    // Schedule ONE debounced drain (not N). The drain itself already
+    // processes all pending entries in a single pass, so multiple
+    // schedules would just dedupe to the same timer.
+    const hasNonMock = entries.some((e) => !e.isMock);
+    if (hasNonMock) {
+      this.scheduleDebouncedDrain();
+    }
+    return entries.map((e) => e.id);
+  }
+
+  /**
    * Manually trigger a sync drain. Returns when the drain completes
    * (success or failure). Safe to call when offline — it'll no-op.
    */

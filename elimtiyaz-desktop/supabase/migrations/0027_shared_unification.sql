@@ -693,6 +693,31 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 12. RPC: upsert_ledger_entry_from_import — idempotent by (tenant, source_type, source_id)
 -- ----------------------------------------------------------------------------
+-- BUG FIX (iteration 22): The original function declared `v_id text` and
+-- tried to INSERT it as the `id` column. But `ledger_entries.id` is `uuid`
+-- (declared in migration 0007 line 226 as `uuid primary key default
+-- public.gen_uuid()`). Inserting a text value like 'led-1234567890-abcd1234'
+-- into a uuid column raises:
+--   ERROR: column "id" is of type uuid but expression is of type text
+--
+-- The fix mirrors the bootstrap migration (9000):
+--   1. Declare `v_id uuid`.
+--   2. On INSERT, omit `id` from the column list — let the table's DEFAULT
+--      `gen_uuid()` populate it, then capture the generated UUID via
+--      `RETURNING id INTO v_id`.
+--   3. Change the return type from `table(entry_id text, was_inserted boolean)`
+--      to `table(entry_id uuid, was_inserted boolean)`.
+--
+-- Because PostgreSQL's `CREATE OR REPLACE FUNCTION` cannot change the return
+-- type, we DROP the old function first. The DROP is by parameter signature
+-- (which is unchanged), so it removes any prior version — whether the buggy
+-- `RETURNS table(text, boolean)` version or the fixed `RETURNS table(uuid,
+-- boolean)` version — and the subsequent CREATE installs the fixed version.
+-- Re-running the migration is a safe no-op (DROP + CREATE).
+DROP FUNCTION IF EXISTS public.upsert_ledger_entry_from_import(
+    uuid, text, uuid, uuid, text, text, numeric, text, text, text, text,
+    text, text, text, text, text, text, timestamptz, jsonb
+);
 CREATE OR REPLACE FUNCTION public.upsert_ledger_entry_from_import(
     p_tenant_id     uuid,
     p_entry_number  text DEFAULT NULL,
@@ -714,12 +739,12 @@ CREATE OR REPLACE FUNCTION public.upsert_ledger_entry_from_import(
     p_at            timestamptz DEFAULT NULL,
     p_metadata      jsonb DEFAULT NULL
 )
-RETURNS table(entry_id text, was_inserted boolean)
+RETURNS table(entry_id uuid, was_inserted boolean)
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    v_id text;
+    v_id uuid;
     v_existing RECORD;
     v_inserted boolean := false;
     v_entry_number text;
@@ -742,12 +767,21 @@ BEGIN
 
     IF NOT FOUND AND p_entry_number IS NOT NULL THEN
         -- Fallback: match by (tenant, entry_number).
-        SELECT id INTO v_existing
+        SELECT id, entry_number INTO v_existing
           FROM public.ledger_entries
          WHERE tenant_id = p_tenant_id
            AND entry_number = p_entry_number
          LIMIT 1;
     END IF;
+
+    -- Normalize the entry_number — needed both for INSERT and for fallback
+    -- matching above. Use the existing row's entry_number when updating
+    -- (preserves the original ID even if the caller omitted it on re-import).
+    v_entry_number := COALESCE(
+        v_existing.entry_number,
+        NULLIF(TRIM(p_entry_number), ''),
+        'LED-' || EXTRACT(EPOCH FROM now())::bigint || '-' || UPPER(SUBSTRING(MD5(RANDOM()::text), 1, 6))
+    );
 
     IF FOUND THEN
         v_id := v_existing.id;
@@ -772,18 +806,18 @@ BEGIN
                metadata       = COALESCE(p_metadata, metadata)
          WHERE id = v_id;
     ELSE
-        -- Generate a stable text id when none provided.
-        v_id := COALESCE(p_entry_number,
-                         'led-' || EXTRACT(EPOCH FROM now())::bigint || '-' || SUBSTRING(gen_random_uuid()::TEXT, 1, 8));
-        v_entry_number := COALESCE(p_entry_number, v_id);
+        -- Insert without specifying `id` — the table's DEFAULT
+        -- `public.gen_uuid()` populates the UUID primary key. Capture the
+        -- generated id via RETURNING so we can return it to the caller.
+        -- This is the fix for the "column id is of type uuid" error.
         v_inserted := true;
         INSERT INTO public.ledger_entries (
-            id, tenant_id, entry_number, parent_id, student_id, account_id,
+            tenant_id, entry_number, parent_id, student_id, account_id,
             entry_type, amount, category, description, entry_date, created_at,
             source_type, source_id, method, receipt_number, payment_status,
             reverses_id, actor_id, actor_name, at, metadata
         ) VALUES (
-            v_id, p_tenant_id, v_entry_number, p_parent_id, p_student_id, v_account_id,
+            p_tenant_id, v_entry_number, p_parent_id, p_student_id, v_account_id,
             COALESCE(NULLIF(p_entry_type, ''), 'charge'),
             COALESCE(p_amount, 0),
             COALESCE(NULLIF(p_category, ''), 'other'),
@@ -792,7 +826,8 @@ BEGIN
             p_source_type, p_source_id, p_method, p_receipt_number, p_payment_status,
             p_reverses_id, p_actor_id, p_actor_name,
             COALESCE(p_at, now()), p_metadata
-        );
+        )
+        RETURNING id INTO v_id;
     END IF;
 
     RETURN QUERY SELECT v_id, v_inserted;

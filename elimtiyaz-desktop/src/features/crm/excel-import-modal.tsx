@@ -224,13 +224,31 @@ export function ExcelImportModal({
       // as the payload. This way the RPC receives the correct shape and
       // Supabase actually gets the data.
       //
+      // BATCHED ENQUEUE: Previously the modal called `sync.enqueue()` in
+      // a loop — once per domain entity (parent + student + ledger_entry
+      // per row × ~390 rows ≈ 1,170 entries). Each call emitted a
+      // snapshot, triggering 1,170 React re-renders across every
+      // `useSyncStatus()` consumer (topbar indicator, sync tab, etc.).
+      // The user saw "1,170 sync notifications during sync" — even
+      // though only the final count mattered. Batching collapses all
+      // of that to ONE IndexedDB transaction + ONE snapshot emission.
+      //
       // The `operation` field is informational — the upsert RPCs handle
       // insert-vs-update idempotently at the database layer.
       const storageForSync = engine.getStorage();
       const allRecords = typeof storageForSync.listInsertedForRun === "function"
         ? await storageForSync.listInsertedForRun(ctx.runId)
         : [];
-      let enqueuedForSync = 0;
+      // Build the full enqueue payload list in one pass — no per-entry
+      // await, no per-entry snapshot emission.
+      const batchInputs: Array<{
+        entity: "parent" | "student" | "ledger_entry" | "payment";
+        operation: "insert";
+        payload: Record<string, unknown>;
+        isMock: false;
+        sourceFile: string;
+        importRunId: string;
+      }> = [];
       for (const rec of allRecords) {
         // Each StorageRecord may carry 0..N resolved domain entities
         // (parent, student, ledger_entry). Enqueue one sync entry per
@@ -244,7 +262,7 @@ export function ExcelImportModal({
           // Payload is the domain entity itself — `defaultPushHandler`
           // reads firstName/lastName/displayName/parentId/amount/etc.
           // directly off this object.
-          await sync.enqueue({
+          batchInputs.push({
             entity: kind as "parent" | "student" | "ledger_entry" | "payment",
             operation: "insert",
             payload: entity as unknown as Record<string, unknown>,
@@ -254,9 +272,13 @@ export function ExcelImportModal({
             sourceFile: fileName,
             importRunId: ctx.runId,
           });
-          enqueuedForSync++;
         }
       }
+      // ONE batched enqueue → ONE snapshot emission → ONE drain schedule.
+      // This replaces the previous per-entity loop that caused ~1,170
+      // snapshot emissions during a single Excel commit.
+      await sync.enqueueBatch(batchInputs);
+      const enqueuedForSync = batchInputs.length;
 
       // Capture report file names from the engine's event payload.
       // The engine emits `done` with `{ reports: { json?, excel? } }` — but since we

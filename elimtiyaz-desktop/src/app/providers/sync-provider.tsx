@@ -40,6 +40,22 @@ export interface SyncActions {
     sourceFile?: string;
     importRunId?: string;
   }) => Promise<string>;
+  /**
+   * Enqueue MANY mutations in ONE shot. Returns the created queue entry IDs.
+   *
+   * Use this instead of calling `enqueue` in a loop — batching cuts the
+   * snapshot emissions (and the resulting React re-renders) from N to 1,
+   * which is the difference between a smooth Excel import and a UI that
+   * freezes for seconds with a flood of sync notifications.
+   */
+  enqueueBatch: (inputs: ReadonlyArray<{
+    entity: SyncQueueEntry["entity"];
+    operation: SyncQueueEntry["operation"];
+    payload: Record<string, unknown>;
+    isMock: boolean;
+    sourceFile?: string;
+    importRunId?: string;
+  }>) => Promise<string[]>;
   /** Manually trigger a sync drain. */
   syncNow: () => Promise<{ pushed: number; failed: number; skippedMock: number }>;
   /** Clear all queue entries (admin only — wire to a confirmation modal). */
@@ -240,6 +256,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const actions = useMemo<SyncActions>(
     () => ({
       enqueue: (input) => service.enqueue(input),
+      enqueueBatch: (inputs) => service.enqueueBatch(inputs),
       syncNow: () => service.syncNow(),
       clearQueue: () => service.clearQueue(),
       probeNow: () => getSyncServiceProbeNow(service),
