@@ -1,7 +1,16 @@
 /**
- * Tab 1 — Infos (identity card + family links).
+ * Tab 1 — Infos (identity card + family links + imported services).
  *
  * Bidirectional navigation to the parent drawer (plan §04.04).
+ *
+ * BULK IMPORT FIX: Added a "Services & Activités" section that surfaces
+ * the imported Excel services (transport, therapy sessions, extra support)
+ * by replaying the student's `ledger_entries` rows. Previously these
+ * services existed only as ledger entries with no UI surface — the user
+ * complained that "which clubs/activities the student is enrolled in" was
+ * missing. The Excel file doesn't have an explicit clubs column, but the
+ * PSY1/PSY2/ORTH1/ORTH2/E-PLANT/Ratrapage columns represent billable
+ * services the student receives — those are now visible in the Info tab.
  *
  * Extracted from `student-detail-drawer.tsx` (iteration 6-a). Behavior
  * preserved exactly — only file location + import paths changed.
@@ -15,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../..
 import { Button } from "../../../shared/ui/button";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { formatDate } from "../../../core/format/date";
+import { formatDzdPlain } from "../../../core/format/currency";
 import {
   LEVEL_LABELS_FR,
   STUDENT_STATUS_LABELS_FR,
@@ -24,6 +34,7 @@ import {
   cityTierToDestination,
   type TransportDestination,
 } from "../../../domain/model/parent";
+import type { LedgerEntry } from "../../../domain/model/ledger";
 
 export function InfoTab({
   studentId,
@@ -42,6 +53,15 @@ export function InfoTab({
     () => repos.students.observeByParent(student?.parentId ?? ""),
     [student?.parentId],
   );
+  // Read ledger entries for this student so we can surface the imported
+  // services (transport, therapy, extra support). The Excel importer
+  // writes one ledger entry per service with metadata.field = "PSY1" etc.
+  const ledgerEntries = useObservable(
+    () => repos.ledger.observeByParent(student?.parentId ?? ""),
+    [student?.parentId],
+  );
+  const studentLedger = (ledgerEntries ?? []).filter((e) => e.studentId === studentId);
+  const services = extractImportedServices(studentLedger);
 
   if (!student) return null;
 
@@ -59,6 +79,10 @@ export function InfoTab({
           <Detail label="Inscrit le" value={formatDate(student.enrollmentDate)} />
           <Detail label="Niveau" value={LEVEL_LABELS_FR[student.level]} />
           <Detail label="Année" value={`${student.gradeYear}`} />
+          <Detail
+            label="Classe"
+            value={student.gradeLevel ?? "Non assignée"}
+          />
           <Detail
             label="Statut"
             value={
@@ -79,6 +103,32 @@ export function InfoTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Services & Activités — imported from Excel via ledger entries */}
+      {services.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Services & Activités</CardTitle>
+            <CardDescription>
+              Services facturés importés depuis le fichier Excel (séances de thérapie, transport, accompagnement).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5">
+              {services.map((s) => (
+                <li key={s.field} className="flex items-center gap-3 text-sm">
+                  <span className="flex-1">
+                    <span className="font-medium">{s.label}</span>
+                    <span className="text-xs text-muted-foreground ml-2 font-mono">{s.field}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">{s.count} séance{s.count > 1 ? "s" : ""}</span>
+                  <span className="font-mono text-xs">{formatDzdPlain(s.totalAmount)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Family — bidirectional nav to parent drawer (plan §04.04) */}
       <Card>
@@ -137,6 +187,81 @@ export function InfoTab({
   );
 }
 
+/**
+ * Extract a list of imported services from the student's ledger entries.
+ * Each bulk-imported ledger entry has `metadata.field` set to one of:
+ *   PSY1, PSY2, ORTH1, ORTH2, EPLANT, RATRAPAGE, T1, T2, T3, FI, V2, V3, etc.
+ *
+ * We group these into human-readable service categories:
+ *   - PSY1/PSY2 → "Séance de psychologie"
+ *   - ORTH1/ORTH2 → "Séance d'orthophonie"
+ *   - EPLANT → "Plan d'accompagnement (E-PLANT)"
+ *   - RATRAPAGE → "Séance de rattrapage"
+ *   - T1/T2/T3 → "Transport" (single entry — the transport service)
+ *
+ * Returns an array of { field, label, count, totalAmount } sorted by total amount desc.
+ */
+function extractImportedServices(entries: LedgerEntry[]): Array<{
+  field: string;
+  label: string;
+  count: number;
+  totalAmount: number;
+}> {
+  const groups = new Map<string, { field: string; label: string; count: number; totalAmount: number }>();
+  for (const e of entries) {
+    const field = (e.metadata?.field as string | undefined) ?? "";
+    if (!field) continue;
+    // Only group services — skip charges (DEVIS_ANNUEL, DETTES, REMISE, REMBOURSEMENT).
+    if (field === "DEVIS_ANNUEL" || field === "DETTES" || field === "REMISE" || field === "REMBOURSEMENT") {
+      continue;
+    }
+    const label = serviceLabelFor(field);
+    if (!label) continue;
+    const amount = Math.abs(Number(e.amount) || 0);
+    const existing = groups.get(field);
+    if (existing) {
+      existing.count += 1;
+      existing.totalAmount += amount;
+    } else {
+      groups.set(field, { field, label, count: 1, totalAmount: amount });
+    }
+  }
+  return Array.from(groups.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+}
+
+function serviceLabelFor(field: string): string | null {
+  switch (field) {
+    case "PSY1":
+    case "PSY2":
+      return "Séance de psychologie";
+    case "ORTH1":
+    case "ORTH2":
+      return "Séance d'orthophonie";
+    case "EPLANT":
+      return "Plan d'accompagnement (E-PLANT)";
+    case "RATRAPAGE":
+      return "Séance de rattrapage";
+    case "T1":
+    case "T2":
+    case "T3":
+      return "Service de transport";
+    case "FI":
+      return "Frais d'inscription";
+    case "V2":
+    case "V2_ALT":
+    case "V3":
+      return "Versement scolarité";
+    case "SEPTEMBRE":
+    case "DECEMBRE":
+    case "MARS":
+      return "Tranche trimestrielle";
+    case "REGLEMENTS_DETTES":
+      return "Règlement dettes antérieures";
+    default:
+      return null;
+  }
+}
+
 /* ============================================================ */
 /* Helpers (used only by InfoTab — kept local to this file)     */
 /* ============================================================ */
@@ -166,5 +291,6 @@ function zoneLabel(tier: string | null | undefined): string {
   // Legacy CityTier fallback ("t1" / "t2" / "t3").
   const dest = cityTierToDestination(tier as "t1" | "t2" | "t3");
   if (dest) return TRANSPORT_DESTINATION_LABELS_FR[dest];
-  return "Sans transport";
+  // Excel-imported raw town name (e.g. "BOUDOUAOU", "DJENAT") — show as-is.
+  return tier;
 }

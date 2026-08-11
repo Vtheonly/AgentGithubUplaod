@@ -23,8 +23,10 @@ import type {
   DebtRepository,
   ExpenseRepository,
   Observable,
+  ImportInstallmentInput,
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
+import { Ok } from "../../../core/result";
 import { SubjectBehavior } from "../subject-behavior";
 import type {
   Payment,
@@ -160,6 +162,57 @@ export class MockInstallmentRepository implements InstallmentRepository {
   }
   findOverdue(now: Date = new Date()): Promise<Result<readonly Installment[]>> {
     return findOverdueInstallments(ctx, now);
+  }
+  /**
+   * Bulk-import an installment row idempotently. Used by the Excel importer
+   * to create one installment per tuition tranche (Sept 15 / Dec 15 / Mar 15)
+   * and per transport tranche, marking them paid/partial/unpaid according
+   * to the imported amounts. Re-imports update the same row in place.
+   *
+   * Identity: `(tenant, parentId, studentId, category, trancheNumber)`.
+   * The mock store uses a deterministic id derived from these fields so
+   * re-imports hit the same record.
+   */
+  async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
+    await delay(120);
+    const id = `imp-${input.parentId}-${input.studentId}-${input.category}-${input.trancheNumber}`;
+    const existingIdx = store.installments.findIndex((i) => i.id === id);
+    const installment: Installment = {
+      id,
+      parentId: input.parentId,
+      studentId: input.studentId,
+      category: input.category,
+      label: input.label,
+      amountDue: input.amountDue,
+      amountPaid: input.amountPaid,
+      amountPending: 0,
+      dueDate: input.dueDate,
+      paidDate: input.paidDate,
+      status: input.status,
+      academicCycle: input.academicCycle,
+      paymentPlan: input.paymentPlan ?? "tranches",
+      isCustomSchedule: false,
+      customScheduleNote: null,
+    };
+    if (existingIdx >= 0) {
+      store.installments[existingIdx] = installment;
+    } else {
+      store.installments.push(installment);
+    }
+    store.notifyInstallments();
+    appendAudit({
+      action: "installment.import_from_bulk",
+      entityType: "installment",
+      entityId: id,
+      actorId: input.actorId ?? "excel-import",
+      actorName: input.actorName ?? "Excel Import",
+      diff: {
+        before: existingIdx >= 0 ? "updated" : null,
+        after: { category: input.category, trancheNumber: input.trancheNumber, amountDue: input.amountDue, amountPaid: input.amountPaid, status: input.status },
+      },
+      note: `Tranche ${input.trancheNumber} (${input.label}) — import Excel`,
+    });
+    return Ok(installment);
   }
 }
 

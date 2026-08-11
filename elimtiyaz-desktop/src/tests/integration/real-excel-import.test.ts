@@ -38,13 +38,14 @@ import ExcelJS from "exceljs";
 import { ImportEngine } from "../../infrastructure/excel/import-engine";
 import { ETAT_SCHEMA } from "../../infrastructure/excel/import-engine/schemas/etat-schema";
 import { RepositoryStorageAdapter } from "../../infrastructure/excel/import-engine/storage/repository-adapter";
-import type { ParentRepository, StudentRepository, LedgerRepository, Observable } from "../../domain/repository/repository";
+import type { ParentRepository, StudentRepository, LedgerRepository, PaymentRepository, InstallmentRepository, Observable, ImportInstallmentInput } from "../../domain/repository/repository";
 import type { Result } from "../../core/result";
 import { Ok, Err } from "../../core/result";
 import { Errors } from "../../core/app-error";
 import type { Parent, CreateParentInput, UpdateParentInput } from "../../domain/model/parent";
 import type { Student, CreateStudentInput } from "../../domain/model/student";
 import type { LedgerEntry } from "../../domain/model/ledger";
+import type { Payment, Installment, CollectPaymentInput, PaymentCategory } from "../../domain/model/payment";
 import { SubjectBehavior } from "../../infrastructure/mock/subject-behavior";
 
 // The workbook is at the repo root (one level above `elimtiyaz-desktop/`).
@@ -222,12 +223,124 @@ describeOrSkip("Real Excel import — Suivis clients 2026_2027.xlsx", () => {
     // The second import should report mostly `update` actions, not `insert`.
     expect(ctx2.stats.rowsUpdated, "re-import should report updates").toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // BULK IMPORT FIX — payments + installments creation
+  // ──────────────────────────────────────────────────────────────────────────
+  // These tests verify the fix for the user's complaint that "no payment
+  // history" and "no payment tranches/installments" were being created.
+  // The fix wires PaymentRepository + InstallmentRepository into the
+  // RepositoryStorageAdapter so each ETAT row's payment fields produce
+  // corresponding `payments` and `installments` rows (not just ledger
+  // entries). The student payments tab reads from these tables.
+
+  it("creates `payments` rows for every payment-type field (FI, V2, T1, PSY1, etc.)", async () => {
+    const engine = makeEngine({ withPaymentsAndInstallments: true });
+    const ctx = await engine.importFile(xlsxBytes, XLSX_PATH!, { dryRun: false });
+    const records = await engine.getStorage().listInsertedForRun(ctx.runId);
+    // The adapter should have produced `payment` entities alongside the
+    // ledger entries. At least ONE row in the real workbook has FI > 0
+    // (registration fee), so we should get at least one payment entity.
+    const paymentEntities = records.flatMap(
+      (r) => (r.entities ?? []).filter((e) => e.kind === "payment").map((e) => e.entity as Payment),
+    );
+    expect(
+      paymentEntities.length,
+      "expected at least one payment entity (FI/V2/T1/etc.) from the real workbook",
+    ).toBeGreaterThan(0);
+    // Every payment should have a deterministic receipt number starting with
+    // "IMP-" (the importer's convention) so re-imports are idempotent.
+    for (const p of paymentEntities.slice(0, 10)) {
+      expect(p.receiptNumber, `payment ${p.id} receiptNumber should start with IMP-`).toMatch(/^IMP-/);
+    }
+  }, TEST_TIMEOUT_MS);
+
+  it("creates `installments` rows for tuition + transport tranches", async () => {
+    const engine = makeEngine({ withPaymentsAndInstallments: true });
+    const ctx = await engine.importFile(xlsxBytes, XLSX_PATH!, { dryRun: false });
+    const records = await engine.getStorage().listInsertedForRun(ctx.runId);
+    const installmentEntities = records.flatMap(
+      (r) => (r.entities ?? []).filter((e) => e.kind === "installment").map((e) => e.entity as Installment),
+    );
+    expect(
+      installmentEntities.length,
+      "expected at least one installment entity (tuition/transport tranche) from the real workbook",
+    ).toBeGreaterThan(0);
+    // Every student with a DEVIS ANNUEL > 0 should have at least one tuition
+    // installment. Every student with transport (OPTION=TRNSP or DISTINATION)
+    // should have at least one transport installment.
+    const tuitionInstallments = installmentEntities.filter((i) => i.category === "tuition");
+    const transportInstallments = installmentEntities.filter((i) => i.category === "transport");
+    expect(tuitionInstallments.length, "expected at least one tuition installment").toBeGreaterThan(0);
+    // The real workbook has many students with OPTION=TRNSP and DISTINATION
+    // populated (e.g. "BOUDOUAOU") — so transport installments should exist.
+    expect(transportInstallments.length, "expected at least one transport installment").toBeGreaterThan(0);
+  }, TEST_TIMEOUT_MS);
+
+  it("links each student to its parent via parentId (parent-child relationship)", async () => {
+    const engine = makeEngine();
+    const ctx = await engine.importFile(xlsxBytes, XLSX_PATH!, { dryRun: false });
+    const records = await engine.getStorage().listInsertedForRun(ctx.runId);
+    const parents = records.flatMap(
+      (r) => (r.entities ?? []).filter((e) => e.kind === "parent").map((e) => e.entity as Parent),
+    );
+    const students = records.flatMap(
+      (r) => (r.entities ?? []).filter((e) => e.kind === "student").map((e) => e.entity as Student),
+    );
+    expect(parents.length, "should have at least one parent").toBeGreaterThan(0);
+    expect(students.length, "should have at least one student").toBeGreaterThan(0);
+    // Every student should have a non-empty parentId that matches an
+    // existing parent — this is the parent-child relationship link.
+    const parentIds = new Set(parents.map((p) => p.id));
+    for (const s of students) {
+      expect(s.parentId, `student ${s.code} should have a parentId`).toBeTruthy();
+      expect(
+        parentIds.has(s.parentId),
+        `student ${s.code} parentId ${s.parentId} should match an existing parent`,
+      ).toBe(true);
+    }
+    // Multiple students should share a parent (the real workbook has families
+    // like SEDIKI with 2+ children sharing the same NEM phone number).
+    const parentsWithMultipleChildren = new Map<string, number>();
+    for (const s of students) {
+      parentsWithMultipleChildren.set(s.parentId, (parentsWithMultipleChildren.get(s.parentId) ?? 0) + 1);
+    }
+    const familiesWithMultipleChildren = Array.from(parentsWithMultipleChildren.values()).filter((n) => n > 1).length;
+    expect(
+      familiesWithMultipleChildren,
+      "expected at least one parent with multiple children (family)",
+    ).toBeGreaterThan(0);
+  }, TEST_TIMEOUT_MS);
+
+  it("imports student information: level, gradeLevel, transport tier (DISTINATION)", async () => {
+    const engine = makeEngine();
+    const ctx = await engine.importFile(xlsxBytes, XLSX_PATH!, { dryRun: false });
+    const records = await engine.getStorage().listInsertedForRun(ctx.runId);
+    const students = records.flatMap(
+      (r) => (r.entities ?? []).filter((e) => e.kind === "student").map((e) => e.entity as Student),
+    );
+    expect(students.length).toBeGreaterThan(0);
+    // Every student should have a non-empty gradeLevel (mapped from the
+    // niveau column: PRIM → 1ap, COLG → 1am, LYC → 1ere_annee, etc.).
+    for (const s of students.slice(0, 20)) {
+      expect(s.gradeLevel, `student ${s.code} should have a gradeLevel`).toBeTruthy();
+      expect(s.level, `student ${s.code} should have an academic level`).toBeTruthy();
+    }
+    // At least one student should have a non-empty transportTier (DISTINATION
+    // column — e.g. "BOUDOUAOU", "DJENAT", "FIGUIER"). The real workbook
+    // has many rows with transport.
+    const studentsWithTransport = students.filter((s) => s.transportTier);
+    expect(
+      studentsWithTransport.length,
+      "expected at least one student with a transport tier (DISTINATION)",
+    ).toBeGreaterThan(0);
+  }, TEST_TIMEOUT_MS);
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Build an ImportEngine wired to FAST in-memory stub repositories. */
-function makeEngine(opts?: { shareReposWith?: ImportEngine }): ImportEngine {
+function makeEngine(opts?: { shareReposWith?: ImportEngine; withPaymentsAndInstallments?: boolean }): ImportEngine {
   // For the idempotency test: when shareReposWith is provided, reuse the
   // same repository instances so the second import sees the first import's data.
   if (opts?.shareReposWith) {
@@ -250,10 +363,14 @@ function makeEngine(opts?: { shareReposWith?: ImportEngine }): ImportEngine {
   const parents = new FastParentRepo();
   const students = new FastStudentRepo();
   const ledger = new FastLedgerRepo();
+  const payments = opts?.withPaymentsAndInstallments ? new FastPaymentRepo() : undefined;
+  const installments = opts?.withPaymentsAndInstallments ? new FastInstallmentRepo() : undefined;
   const deps = {
     parents,
     students,
     ledger,
+    payments,
+    installments,
     tenantId: "test-tenant",
     actorId: "test-actor",
     actorName: "Test Actor",
@@ -420,6 +537,129 @@ class FastLedgerRepo implements LedgerRepository {
   }
   async reconcile(): Promise<Result<import("../../domain/reconcile").ReconciliationReport>> {
     return Err(Errors.server("not implemented in stub"));
+  }
+}
+
+/**
+ * Fast in-memory stub PaymentRepository for the bulk-import tests.
+ * Implements just enough of the interface for the importer's `collect()`
+ * calls to succeed. The `receiptNumber` from the input is used verbatim
+ * (deterministic) so re-imports are idempotent at the payments level.
+ */
+class FastPaymentRepo implements PaymentRepository {
+  private readonly rows = new Map<string, Payment>();
+  private readonly cache = new SubjectBehavior<Payment[]>([]);
+
+  observe(): Observable<Payment[]> { return this.cache; }
+  observeByParent(parentId: string): Observable<Payment[]> {
+    return new SubjectBehavior<Payment[]>([...this.rows.values()].filter((p) => p.parentId === parentId));
+  }
+  observeByStudent(studentId: string): Observable<Payment[]> {
+    return new SubjectBehavior<Payment[]>([...this.rows.values()].filter((p) => p.studentId === studentId));
+  }
+  observeById(id: string): Observable<Payment | null> {
+    return new SubjectBehavior<Payment | null>(this.rows.get(id) ?? null);
+  }
+  async collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
+    const receiptNumber = input.receiptNumber ?? `REC-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const now = input.collectedAt ?? new Date().toISOString();
+    // Idempotent: if a payment with the same receiptNumber exists, return it.
+    const existing = [...this.rows.values()].find((p) => p.receiptNumber === receiptNumber);
+    if (existing) return Ok(existing);
+    const id = `pay-${String(this.rows.size + 1).padStart(3, "0")}`;
+    const payment: Payment = {
+      id,
+      tenantId: "test-tenant",
+      receiptNumber,
+      parentId: input.parentId,
+      studentId: input.studentId,
+      amount: input.amount,
+      method: input.method,
+      status: "paid",
+      category: input.category,
+      installmentId: input.installmentId,
+      proofUrl: input.proofUrl ?? null,
+      notes: input.notes ?? null,
+      collectedBy,
+      collectedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.rows.set(id, payment);
+    this.cache.set([...this.rows.values()]);
+    return Ok(payment);
+  }
+  async refund(): Promise<Result<Payment>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async adjust(): Promise<Result<import("../../domain/model/payment").AccountAdjustment>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async generateReceipt(): Promise<Result<import("../../domain/model/payment").Receipt>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async appendManualCharge(): Promise<Result<LedgerEntry>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+}
+
+/**
+ * Fast in-memory stub InstallmentRepository for the bulk-import tests.
+ * Implements `importInstallment` (the new bulk-import method) with
+ * idempotent upsert by (parentId, studentId, category, trancheNumber).
+ */
+class FastInstallmentRepo implements InstallmentRepository {
+  private readonly rows = new Map<string, Installment>();
+
+  private key(parentId: string, studentId: string, category: PaymentCategory, trancheNumber: number): string {
+    return `${parentId}:${studentId}:${category}:${trancheNumber}`;
+  }
+
+  observeByParent(parentId: string): Observable<Installment[]> {
+    return new SubjectBehavior<Installment[]>([...this.rows.values()].filter((i) => i.parentId === parentId));
+  }
+  observeByStudent(studentId: string): Observable<Installment[]> {
+    return new SubjectBehavior<Installment[]>([...this.rows.values()].filter((i) => i.studentId === studentId));
+  }
+  observeById(id: string): Observable<Installment | null> {
+    return new SubjectBehavior<Installment | null>(this.rows.get(id) ?? null);
+  }
+  async markPaid(): Promise<Result<Installment>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async allocatePayment(): Promise<Result<import("../../domain/calc/payment/installments").AllocationResult>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async updateDueDate(): Promise<Result<Installment>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async regenerateForCycle(): Promise<Result<readonly Installment[]>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async findOverdue(): Promise<Result<readonly Installment[]>> {
+    return Ok([]);
+  }
+  async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
+    const k = this.key(input.parentId, input.studentId, input.category, input.trancheNumber);
+    const installment: Installment = {
+      id: `imp-${k}`,
+      parentId: input.parentId,
+      studentId: input.studentId,
+      category: input.category,
+      label: input.label,
+      amountDue: input.amountDue,
+      amountPaid: input.amountPaid,
+      amountPending: 0,
+      dueDate: input.dueDate,
+      paidDate: input.paidDate,
+      status: input.status,
+      academicCycle: input.academicCycle,
+      paymentPlan: input.paymentPlan ?? "tranches",
+      isCustomSchedule: false,
+      customScheduleNote: null,
+    };
+    this.rows.set(k, installment);
+    return Ok(installment);
   }
 }
 

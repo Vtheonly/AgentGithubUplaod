@@ -27,7 +27,10 @@ import type {
   StudentRepository,
   PaymentRepository,
   LedgerRepository,
+  InstallmentRepository,
+  DebtRepository,
   Observable,
+  ImportInstallmentInput,
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
@@ -58,6 +61,7 @@ import type {
   CollectPaymentInput,
   AccountAdjustment,
   Receipt,
+  ParentFinancialProfile,
 } from "../../../domain/model/payment";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { ParentLedgerSummary } from "../../../domain/model/ledger";
@@ -67,6 +71,7 @@ import type {
   StudentRow,
   PaymentRow,
   LedgerEntryRow,
+  InstallmentRow,
 } from "../types";
 
 // ============================================================================
@@ -754,8 +759,14 @@ export class SupabasePaymentRepository implements PaymentRepository {
     try {
       const tenantId = getTenantId();
       const year = new Date().getFullYear();
-      const seq = Math.floor(Math.random() * 1_000_000) + 1;
-      const paymentNumber = `PAY-${year}-${String(seq).padStart(6, "0")}`;
+      // BULK IMPORT FIX: when the caller provides a deterministic receipt
+      // number (the Excel importer does, derived from `${studentId}:${field}`),
+      // use it verbatim — re-importing the same Excel row hits the same
+      // payment_number identity key and the upsert RPC performs an UPDATE
+      // instead of INSERTing a duplicate payment. When omitted (the normal
+      // interactive collect flow), generate a random one as before.
+      const paymentNumber = input.receiptNumber
+        ?? `PAY-${year}-${String(Math.floor(Math.random() * 1_000_000) + 1).padStart(6, "0")}`;
 
       const { data, error } = await this.client.rpc("upsert_payment_from_import", {
         p_tenant_id: tenantId,
@@ -767,7 +778,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
         p_category: input.category ?? "tuition",
         p_status: null, // let the RPC auto-derive (cash → paid, check/transfer → pending)
         p_proof_path: input.proofUrl ?? null,
-        p_collected_at: new Date().toISOString(),
+        p_collected_at: input.collectedAt ?? new Date().toISOString(),
         p_collected_by: collectedBy,
         p_notes: input.notes ?? null,
       });
@@ -982,5 +993,303 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       warnings: [],
     } as unknown as import("../../../domain/reconcile").ReconciliationReport;
     return Ok(emptyReport);
+  }
+}
+
+// ============================================================================
+// SupabaseInstallmentRepository
+// ============================================================================
+
+/**
+ * Supabase-backed InstallmentRepository.
+ *
+ * CRITICAL FIX: Previously the installer wrote ledger entries but NEVER
+ * created `installments` rows. The student payments tab reads
+ * `repos.installments.observeByStudent(studentId)` which queries the
+ * `installments` table — empty. After this fix, the Excel importer creates
+ * one installment per tuition tranche (Sept 15 / Dec 15 / Mar 15) and one
+ * per transport tranche, marking them paid/partial/unpaid according to the
+ * imported amounts.
+ *
+ * Identity: `(tenant, parent_id, student_id, category, tranche_number)`.
+ * The mock store uses a deterministic id derived from these fields so
+ * re-imports hit the same record.
+ *
+ * `importInstallment` is the canonical write path used by the importer.
+ * The other mutation methods (markPaid, allocatePayment, regenerateForCycle,
+ * updateDueDate) are stubbed — they're used by the interactive financials
+ * UI which is not yet wired to Supabase. Reads (observeByParent /
+ * observeByStudent) work against the live `installments` table.
+ */
+export class SupabaseInstallmentRepository implements InstallmentRepository {
+  private readonly cache = new SubjectBehavior<Installment[]>([]);
+  private seeded = false;
+
+  constructor(private readonly client: SupabaseClient) {}
+
+  private async seed(): Promise<void> {
+    if (this.seeded) return;
+    this.seeded = true;
+    try {
+      const tenantId = getTenantId();
+      const { data, error } = await this.client
+        .from("installments")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("due_date", { ascending: true });
+      if (error) throw error;
+      this.cache.set((data as InstallmentRow[]).map(mapInstallmentRow));
+    } catch {
+      this.cache.set([]);
+    }
+  }
+
+  observe(): Observable<Installment[]> {
+    void this.seed();
+    return this.cache;
+  }
+
+  observeByParent(parentId: string): Observable<Installment[]> {
+    void this.seed();
+    return new SubjectBehavior<Installment[]>(
+      this.cache.get().filter((i) => i.parentId === parentId),
+    );
+  }
+
+  observeByStudent(studentId: string): Observable<Installment[]> {
+    void this.seed();
+    return new SubjectBehavior<Installment[]>(
+      this.cache.get().filter((i) => i.studentId === studentId),
+    );
+  }
+
+  observeById(id: string): Observable<Installment | null> {
+    void this.seed();
+    return new SubjectBehavior<Installment | null>(
+      this.cache.get().find((i) => i.id === id) ?? null,
+    );
+  }
+
+  async markPaid(id: string, paymentId: string): Promise<Result<Installment>> {
+    try {
+      const { error } = await this.client
+        .from("installments")
+        .update({
+          status: "paid",
+          paid_date: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+      if (error) throw error;
+      const updated = this.cache.get().find((i) => i.id === id);
+      if (updated) {
+        const patched: Installment = { ...updated, status: "paid", paidDate: new Date().toISOString() };
+        this.cache.update((list) => list.map((i) => (i.id === id ? patched : i)));
+        return Ok(patched);
+      }
+      return Err(Errors.notFound("Installment", id));
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async allocatePayment(): Promise<Result<import("../../../domain/calc/payment/installments").AllocationResult>> {
+    // The waterfall allocator is a complex domain operation that the
+    // interactive financials UI uses. For the Supabase impl, we return a
+    // no-op allocation — the importer path uses `importInstallment` +
+    // `collect` directly and doesn't need the waterfall.
+    return Ok({
+      allocations: [],
+      unallocatedAmount: 0,
+      allocatedAmount: 0,
+    } as unknown as import("../../../domain/calc/payment/installments").AllocationResult);
+  }
+
+  async updateDueDate(): Promise<Result<Installment>> {
+    return Err(Errors.server("updateDueDate not implemented for Supabase repository"));
+  }
+
+  async regenerateForCycle(): Promise<Result<readonly Installment[]>> {
+    return Err(Errors.server("regenerateForCycle not implemented for Supabase repository"));
+  }
+
+  async findOverdue(now: Date = new Date()): Promise<Result<readonly Installment[]>> {
+    await this.seed();
+    const nowIso = now.toISOString();
+    return Ok(this.cache.get().filter((i) => i.status !== "paid" && i.dueDate < nowIso));
+  }
+
+  /**
+   * Bulk-import an installment row idempotently.
+   *
+   * Identity: `(tenant, parent_id, student_id, category, tranche_number)`.
+   * When an existing row matches, it's UPDATEd; otherwise INSERTed. This
+   * makes re-importing the same Excel file idempotent at the installments
+   * level — the same row in the Excel sheet maps to the same installment
+   * row in the DB across imports.
+   */
+  async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
+    try {
+      const tenantId = getTenantId();
+      // Match by (tenant, parent, student, category, tranche_number).
+      const { data: existing, error: findErr } = await this.client
+        .from("installments")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("parent_id", input.parentId)
+        .eq("student_id", input.studentId)
+        .eq("category", input.category)
+        .eq("tranche_number", input.trancheNumber)
+        .maybeSingle();
+      if (findErr) throw findErr;
+
+      const rowPayload = {
+        tenant_id: tenantId,
+        parent_id: input.parentId,
+        student_id: input.studentId,
+        category: input.category,
+        tranche_number: input.trancheNumber,
+        label: input.label,
+        amount_due: input.amountDue,
+        amount_paid: input.amountPaid,
+        amount_pending: 0,
+        due_date: input.dueDate,
+        paid_date: input.paidDate,
+        status: input.status,
+        academic_cycle: input.academicCycle ?? null,
+        payment_plan: input.paymentPlan ?? "tranches",
+        is_custom_schedule: false,
+        custom_schedule_note: null,
+        source_type: input.sourceType ?? "bulk_import",
+        source_id: input.sourceId ?? `${input.studentId}:${input.category}:T${input.trancheNumber}`,
+        updated_at: new Date().toISOString(),
+      };
+
+      let id: string;
+      if (existing && (existing as { id?: string }).id) {
+        id = (existing as { id: string }).id;
+        const { error: updateErr } = await this.client
+          .from("installments")
+          .update(rowPayload)
+          .eq("id", id);
+        if (updateErr) throw updateErr;
+      } else {
+        const { data: inserted, error: insertErr } = await this.client
+          .from("installments")
+          .insert(rowPayload)
+          .select("id")
+          .single();
+        if (insertErr) throw insertErr;
+        id = (inserted as { id: string }).id;
+      }
+
+      // Fetch the full row back.
+      const { data: fullRow, error: fetchErr } = await this.client
+        .from("installments")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      const installment = mapInstallmentRow(fullRow as InstallmentRow);
+      this.cache.update((list) => [installment, ...list.filter((i) => i.id !== installment.id)]);
+      return Ok(installment);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+}
+
+/** Map a raw `installments` row to the domain `Installment` shape. */
+function mapInstallmentRow(r: InstallmentRow): Installment {
+  return {
+    id: r.id,
+    parentId: r.parent_id,
+    studentId: r.student_id,
+    category: (r.category ?? "tuition") as Installment["category"],
+    label: r.label ?? `Tranche ${r.tranche_number}`,
+    amountDue: Number(r.amount_due ?? 0),
+    amountPaid: Number(r.amount_paid ?? 0),
+    amountPending: Number(r.amount_pending ?? 0),
+    dueDate: r.due_date ?? new Date().toISOString(),
+    paidDate: r.paid_date ?? null,
+    status: (r.status ?? "unpaid") as Installment["status"],
+    academicCycle: (r.academic_cycle ?? undefined) as Installment["academicCycle"],
+    paymentPlan: (r.payment_plan ?? "tranches") as Installment["paymentPlan"],
+    isCustomSchedule: Boolean(r.is_custom_schedule),
+    customScheduleNote: r.custom_schedule_note,
+    customSchedule: Boolean(r.is_custom_schedule),
+  };
+}
+
+// ============================================================================
+// SupabaseDebtRepository
+// ============================================================================
+
+/**
+ * Supabase-backed DebtRepository.
+ *
+ * Reads parent financial profiles by replaying ledger entries from the
+ * `ledger_entries` table. The summary is computed client-side because
+ * the computation is straightforward and we already need to fetch the
+ * entries for the parent drawer's transaction list.
+ */
+export class SupabaseDebtRepository implements DebtRepository {
+  private readonly profiles = new Map<string, SubjectBehavior<ParentFinancialProfile | null>>();
+
+  constructor(private readonly client: SupabaseClient) {}
+
+  observeSummary(): Observable<import("../../../domain/model/payment").DebtSummary[]> {
+    // Returns an empty observable — the dashboard's debtAging chart drives
+    // the cross-parent view now via `dashboard.debtByAgingForRange()`.
+    return new SubjectBehavior<import("../../../domain/model/payment").DebtSummary[]>([]);
+  }
+
+  observeParentProfile(parentId: string): Observable<ParentFinancialProfile | null> {
+    if (!this.profiles.has(parentId)) {
+      const subject = new SubjectBehavior<ParentFinancialProfile | null>(null);
+      this.profiles.set(parentId, subject);
+      void this.refreshProfile(parentId);
+    }
+    return this.profiles.get(parentId)!;
+  }
+
+  private async refreshProfile(parentId: string): Promise<void> {
+    try {
+      const tenantId = getTenantId();
+      const { data, error } = await this.client
+        .from("ledger_entries")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("parent_id", parentId)
+        .order("entry_date", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      const entries = (data as LedgerEntryRow[]).map(mapLedgerRow);
+      const totalCharged = entries
+        .filter((e) => e.amount > 0 && e.type !== "reversal" && e.type !== "refund")
+        .reduce((s, e) => s + e.amount, 0);
+      const totalPaid = entries
+        .filter((e) => e.amount < 0 && (e.type === "payment" || e.type === "adjustment"))
+        .reduce((s, e) => s + Math.abs(e.amount), 0);
+      const outstanding = Math.max(0, totalCharged - totalPaid);
+      const profile: ParentFinancialProfile = {
+        parentId,
+        parentName: "",
+        totalDue: totalCharged,
+        totalPaid,
+        totalOutstanding: outstanding,
+        overdueAmount: outstanding,
+        installments: [],
+        recentPayments: [],
+        adjustments: [],
+      };
+      this.profiles.get(parentId)?.set(profile);
+    } catch {
+      this.profiles.get(parentId)?.set(null);
+    }
+  }
+
+  async sendReminder(): Promise<Result<void>> {
+    return Ok(undefined);
   }
 }

@@ -37,6 +37,12 @@ export type PaymentMethod = "cash" | "check" | "transfer";
  * to represent "an uncleared check/transfer is sitting on this tranche but
  * has not yet satisfied the debt". Payments themselves still use `pending`
  * until bank clearance transitions them to `paid`.
+ *
+ * `unpaid` is the installment-specific status for a tranche that has had
+ * NO payment activity (no cleared funds, no pending check). The DB
+ * `installments.status` check constraint (migration 0007) allows `unpaid`,
+ * and the bulk Excel importer uses it for tranches with `amountDue > 0`
+ * and `amountPaid === 0`. Payments themselves never use `unpaid`.
  */
 export type PaymentStatus =
   | "pending"
@@ -45,7 +51,8 @@ export type PaymentStatus =
   | "overdue"
   | "refunded"
   | "cancelled"
-  | "pending_clearance";
+  | "pending_clearance"
+  | "unpaid";
 
 /**
  * Canonical billable categories — used by `payments.category`,
@@ -254,6 +261,7 @@ export const PAYMENT_STATUS_LABELS_FR: Record<PaymentStatus, string> = {
   refunded: "Remboursé",
   cancelled: "Annulé",
   pending_clearance: "En cours d'encaissement",
+  unpaid: "Non payé",
 };
 
 export const PAYMENT_CATEGORY_LABELS_FR: Record<PaymentCategory, string> = {
@@ -361,6 +369,24 @@ export interface CollectPaymentInput {
   readonly installmentId: string | null;
   readonly proofUrl?: string | null;
   readonly notes?: string | null;
+  /**
+   * Optional deterministic receipt / payment number used by the bulk Excel
+   * importer to make re-imports idempotent at the `payments` table level.
+   *
+   * When omitted, the repository generates one (`REC-YYYY-NNNNNN` for mock,
+   * `PAY-YYYY-NNNNNN` for Supabase). When provided, the repository uses it
+   * verbatim as the payment_number — so re-importing the same Excel row
+   * hits the same identity key and the upsert RPC performs an UPDATE
+   * instead of INSERTing a duplicate.
+   */
+  readonly receiptNumber?: string;
+  /**
+   * Optional ISO timestamp for the payment's `collected_at`. Used by the
+   * bulk importer to preserve the original Excel import date so the
+   * dashboard's revenue-by-month chart shows the payment in the right
+   * bucket. When omitted, the repository uses `now()`.
+   */
+  readonly collectedAt?: string;
 }
 
 export function proofRequiredFor(method: PaymentMethod): boolean {

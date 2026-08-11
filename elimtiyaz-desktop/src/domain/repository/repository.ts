@@ -36,6 +36,7 @@ import type {
   UpdateInstallmentDueDateInput,
   AcademicCycle,
   PaymentCategory,
+  PaymentPlan,
 } from "../model/payment";
 import type { AllocationResult } from "../calc/payment/installments";
 import type {
@@ -233,6 +234,51 @@ export interface InstallmentRepository {
   regenerateForCycle(parentId: string, cycle: AcademicCycle, actorId: string, actorName: string): Promise<Result<readonly Installment[]>>;
   /** Find installments whose due date has passed but are not fully paid. Used by the automated overdue alert generator. */
   findOverdue(now?: Date): Promise<Result<readonly Installment[]>>;
+  /**
+   * Bulk-import an installment row idempotently.
+   *
+   * Used by the Excel importer to create one installment per tuition tranche
+   * (Sept 15 / Dec 15 / Mar 15) and per transport tranche, marking them
+   * paid/partial/unpaid according to the imported amounts. Re-importing the
+   * same Excel row updates the same installment in place rather than
+   * creating duplicates — identity is `(tenant, parentId, studentId, category, trancheNumber)`.
+   *
+   * Implementations:
+   *   - Mock: appends to `store.installments` with the deterministic id
+   *     `imp-${parentId}-${studentId}-${category}-${trancheNumber}`.
+   *   - Supabase: calls the `upsert_installment_from_import` RPC.
+   *
+   * Implementations that don't support bulk import (none in this codebase,
+   * but kept as a safety net) should return `Err(server("not implemented"))`.
+   */
+  importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>>;
+}
+
+/**
+ * Input for `InstallmentRepository.importInstallment` — the bulk-import
+ * path that creates or updates an installment row idempotently.
+ *
+ * The `trancheNumber` (1, 2, or 3) plus `category`, `parentId`, `studentId`
+ * form the identity key. Re-importing the same Excel row produces the same
+ * identity key → the existing installment is updated rather than duplicated.
+ */
+export interface ImportInstallmentInput {
+  readonly parentId: string;
+  readonly studentId: string;
+  readonly category: PaymentCategory;
+  readonly trancheNumber: 1 | 2 | 3;
+  readonly label: string;
+  readonly amountDue: number;
+  readonly amountPaid: number;
+  readonly dueDate: string;
+  readonly paidDate: string | null;
+  readonly status: "unpaid" | "partial" | "paid" | "overdue" | "pending_clearance";
+  readonly academicCycle?: AcademicCycle;
+  readonly paymentPlan?: PaymentPlan;
+  readonly sourceType?: string;
+  readonly sourceId?: string;
+  readonly actorId?: string;
+  readonly actorName?: string;
 }
 
 export interface DebtRepository {

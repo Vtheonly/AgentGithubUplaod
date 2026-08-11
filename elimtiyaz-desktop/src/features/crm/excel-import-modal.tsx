@@ -114,10 +114,18 @@ export function ExcelImportModal({
       // the LedgerRepository so each row's financial data (DEVIS ANNUEL,
       // DETTES, REMISE, REMBOURSEMENT, REGLEMENTS DETTES) is written as
       // ledger entries linked to the imported student.
+      //
+      // BULK IMPORT FIX: also wires PaymentRepository + InstallmentRepository
+      // so the importer creates `payments` rows (for the student payments
+      // tab) AND `installments` rows (for the installment schedule tab).
+      // Without these, the tabs showed "no payment history" / "no tranches"
+      // even though the ledger entries existed.
       const storage = new RepositoryStorageAdapter({
         parents: repos.parents,
         students: repos.students,
         ledger: repos.ledger,
+        payments: repos.payments,
+        installments: repos.installments,
         tenantId: session?.tenantId ?? "default",
         actorId: session?.userId ?? "system",
         actorName: session?.displayName ?? "System",

@@ -36,7 +36,10 @@ import {
   SupabaseStudentRepository,
   SupabasePaymentRepository,
   SupabaseLedgerRepository,
+  SupabaseInstallmentRepository,
+  SupabaseDebtRepository,
 } from "./repositories/supabase-shared-repositories";
+import { SupabaseDashboardRepository } from "./repositories/supabase-dashboard-repository";
 
 /**
  * Build a Repositories object backed by Supabase for auth + approval workflow,
@@ -61,6 +64,19 @@ export function getSupabaseRepositories(): Repositories {
   const students = new SupabaseStudentRepository(client);
   const payments = new SupabasePaymentRepository(client);
   const ledger = new SupabaseLedgerRepository(client);
+  // CRITICAL FIX: Installments + Debt MUST also read from Supabase —
+  // previously they fell back to the mock store, so when the Excel importer
+  // wrote to Supabase (parents/students/payments/ledger) the student
+  // payments tab kept showing "no installments" / "no payment history"
+  // even though the data existed in Supabase. Now they read from the
+  // same Supabase tables the importer writes to.
+  const installments = new SupabaseInstallmentRepository(client);
+  const debt = new SupabaseDebtRepository(client);
+  // CRITICAL FIX: Dashboard MUST also read from Supabase — previously it
+  // fell back to the mock store, so when the Excel importer wrote to
+  // Supabase (parents/students/payments/ledger) the dashboard kept showing
+  // the mock seed data (or zeros) instead of the real imported numbers.
+  const dashboard = new SupabaseDashboardRepository(client);
 
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
@@ -71,6 +87,9 @@ export function getSupabaseRepositories(): Repositories {
     students,
     payments,
     ledger,
+    installments,
+    debt,
+    dashboard,
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
@@ -101,4 +120,7 @@ export {
   SupabaseStudentRepository,
   SupabasePaymentRepository,
   SupabaseLedgerRepository,
+  SupabaseInstallmentRepository,
+  SupabaseDebtRepository,
+  SupabaseDashboardRepository,
 };

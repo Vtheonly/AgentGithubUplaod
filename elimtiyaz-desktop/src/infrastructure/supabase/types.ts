@@ -267,9 +267,14 @@ export interface InstallmentRow {
   tenant_id: string;
   parent_id: string;
   student_id: string;
-  service_enrollment_id: string;
+  /** Optional FK to service_enrollments. NULL for bulk-imported tranches (migration 0032). */
+  service_enrollment_id: string | null;
   invoice_id: string | null;
   tranche_number: 1 | 2 | 3;
+  /** Human-readable tranche label (migration 0032). */
+  label?: string | null;
+  /** Billing category — denormalized from service_enrollments for bulk-imported rows (migration 0032). */
+  category?: string | null;
   amount_due: number;
   amount_paid: number;
   /**
@@ -285,6 +290,10 @@ export interface InstallmentRow {
   payment_plan: "full_annual" | "tranches";
   is_custom_schedule: boolean;
   custom_schedule_note: string | null;
+  /** Provenance — "bulk_import" / "manual_entry" / null (migration 0032). */
+  source_type?: string | null;
+  /** Stable id within the source (migration 0032). */
+  source_id?: string | null;
   created_at: string;
   updated_at: string;
 }
