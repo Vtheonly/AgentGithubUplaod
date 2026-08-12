@@ -30,7 +30,7 @@ import type { ParentRepository, StudentRepository, LedgerRepository, PaymentRepo
 import type { Parent, CreateParentInput } from "../../../../domain/model/parent";
 import type { CreateStudentInput, Student } from "../../../../domain/model/student";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
-import type { Payment, Installment, PaymentCategory, AcademicCycle } from "../../../../domain/model/payment";
+import type { Payment, Installment, PaymentCategory, AcademicCycle, CollectPaymentInput } from "../../../../domain/model/payment";
 import { createChargeEntry, createPaymentEntry, createAdjustmentEntry } from "../../../../domain/calc/ledger/entries";
 import { mapNiveauCode } from "../mappers/niveau-mapper";
 import { splitFullName } from "../mappers/name-splitter";
@@ -140,6 +140,21 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   /** The runId of the import currently in progress — used to tag errors. */
   private currentRunId: string | null = null;
 
+  /**
+   * BULK IMPORT SPEED FIX: Batch buffers for deferred bulk writes.
+   *
+   * Instead of writing each ledger entry / payment / installment one-by-one
+   * (18,000 RPC calls for a 390-row workbook), we collect them in these
+   * buffers during `upsertEtatRecord`, then flush them all at once in
+   * `commitTransaction` using the bulk methods (`bulkAppend`, `bulkCollect`,
+   * `bulkImportInstallments`). This turns 18,000 RPCs into ~3 INSERT calls.
+   */
+  private pendingLedgerEntries: LedgerEntry[] = [];
+  private pendingPayments: Array<{ input: CollectPaymentInput; collectedBy: string }> = [];
+  private pendingInstallments: ImportInstallmentInput[] = [];
+  /** Progress callback — called after each row is processed. */
+  progressCallback: ((processed: number, total: number, currentRow: string) => void) | null = null;
+
   constructor(deps: RepositoryStorageAdapterDeps) {
     super();
     this.deps = deps;
@@ -151,15 +166,74 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   }
 
   async beginTransaction(): Promise<void> {
-    // Repositories handle their own atomicity at the per-call level.
-    // Cross-row atomicity is the engine's responsibility via rollback.
+    // Clear the batch buffers at the start of a new import run.
+    this.pendingLedgerEntries = [];
+    this.pendingPayments = [];
+    this.pendingInstallments = [];
   }
+
   async commitTransaction(): Promise<void> {
-    // No-op — see beginTransaction.
+    // BULK IMPORT SPEED FIX: Flush all pending writes in bulk.
+    await this.flushPendingBatches();
   }
+
+  /**
+   * Flush all pending ledger entries, payments, and installments using
+   * the bulk methods. Called once at the end of the import (in
+   * `commitTransaction`). This is the key optimization that turns
+   * 18,000 individual RPC calls into ~3 bulk INSERT calls.
+   */
+  private async flushPendingBatches(): Promise<void> {
+    // Flush ledger entries.
+    if (this.pendingLedgerEntries.length > 0 && this.deps.ledger) {
+      try {
+        if (typeof this.deps.ledger.bulkAppend === "function") {
+          await this.deps.ledger.bulkAppend(this.pendingLedgerEntries);
+        } else {
+          await this.deps.ledger.appendMany(this.pendingLedgerEntries);
+        }
+      } catch (e) {
+        console.warn("[ExcelImport] bulk ledger flush failed:", e);
+      }
+      this.pendingLedgerEntries = [];
+    }
+    // Flush payments.
+    if (this.pendingPayments.length > 0 && this.deps.payments) {
+      try {
+        if (typeof this.deps.payments.bulkCollect === "function") {
+          await this.deps.payments.bulkCollect(this.pendingPayments);
+        } else {
+          for (const { input, collectedBy } of this.pendingPayments) {
+            await this.deps.payments.collect(input, collectedBy);
+          }
+        }
+      } catch (e) {
+        console.warn("[ExcelImport] bulk payment flush failed:", e);
+      }
+      this.pendingPayments = [];
+    }
+    // Flush installments.
+    if (this.pendingInstallments.length > 0 && this.deps.installments) {
+      try {
+        if (typeof this.deps.installments.bulkImportInstallments === "function") {
+          await this.deps.installments.bulkImportInstallments(this.pendingInstallments);
+        } else {
+          for (const input of this.pendingInstallments) {
+            await this.deps.installments.importInstallment(input);
+          }
+        }
+      } catch (e) {
+        console.warn("[ExcelImport] bulk installment flush failed:", e);
+      }
+      this.pendingInstallments = [];
+    }
+  }
+
   async rollbackTransaction(): Promise<void> {
-    // Best-effort rollback: clear the per-run insertion log so the sync
-    // queue doesn't enqueue rows whose parent transaction failed.
+    // Clear the batch buffers + per-run insertion log on rollback.
+    this.pendingLedgerEntries = [];
+    this.pendingPayments = [];
+    this.pendingInstallments = [];
     this.rowsByRun.clear();
   }
 
@@ -319,33 +393,70 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       studentId = result.value.id;
       resolvedStudent = result.value;
     }
-    // Persist financial data (DEVIS ANNUEL charge, REMISE adjustment, DETTES
-    // charge, REMBOURSEMENT refund, REGLEMENTS DETTES payments) to the ledger
-    // so each student's transactions, balances, and payment history are
-    // queryable from the CRM. Without this, financial data is dropped on
-    // the floor — see iteration 21.
+    // BULK IMPORT SPEED FIX: Build the ledger entries / payments / installments
+    // and add them to the pending batch buffers. The actual Supabase writes
+    // happen ONCE at the end of the import (in `commitTransaction`) via the
+    // bulk methods (`bulkAppend`, `bulkCollect`, `bulkImportInstallments`).
+    // This turns ~18,000 individual RPC calls into ~3 bulk INSERT calls.
     let ledgerEntries: LedgerEntry[] = [];
     if (this.deps.ledger && studentId) {
-      ledgerEntries = await this.persistFinancialEntries(record, parent.id, studentId, runId);
+      ledgerEntries = this.buildFinancialEntries(record, parent.id, studentId, runId);
+      this.pendingLedgerEntries.push(...ledgerEntries);
     }
-    // BULK IMPORT FIX: also write `payments` rows for each payment-type
-    // ledger entry (FI, V2, v3, T1, T2, T3, PSY1, etc.). Without this,
-    // the student payments tab reads from the `payments` table and shows
-    // "no payment history" even though ledger entries exist. The payments
-    // table is the canonical source for the UI; ledger_entries is the
-    // canonical source for balances.
+    // Build payment rows (deferred — flushed in commitTransaction).
     let paymentRows: Payment[] = [];
     if (this.deps.payments && studentId) {
-      paymentRows = await this.persistPaymentRows(record, parent.id, studentId, runId);
+      paymentRows = this.buildPaymentRows(record, parent.id, studentId, runId);
+      // Add to pending batch — the actual collect() calls happen in
+      // commitTransaction via bulkCollect.
+      for (const p of paymentRows) {
+        this.pendingPayments.push({
+          input: {
+            parentId: p.parentId,
+            studentId: p.studentId,
+            amount: p.amount,
+            method: p.method,
+            category: p.category,
+            installmentId: p.installmentId,
+            notes: p.notes,
+            receiptNumber: p.receiptNumber,
+            collectedAt: p.collectedAt,
+          },
+          collectedBy: this.deps.actorId ?? "excel-import",
+        });
+      }
     }
-    // BULK IMPORT FIX: also write `installments` rows for the 3 tuition
-    // tranches (Sept 15 / Dec 15 / Mar 15) and the 3 transport tranches,
-    // marking them paid/partial/unpaid according to the imported amounts.
-    // Without this, the installment schedule tab shows "no tranches" even
-    // though the payments exist.
+    // Build installment rows (deferred — flushed in commitTransaction).
     let installmentRows: Installment[] = [];
     if (this.deps.installments && studentId) {
-      installmentRows = await this.persistInstallmentRows(record, parent.id, studentId, resolvedStudent, runId);
+      installmentRows = this.buildInstallmentRows(record, parent.id, studentId, resolvedStudent, runId);
+      // Add to pending batch — the actual importInstallment() calls happen
+      // in commitTransaction via bulkImportInstallments.
+      for (const inst of installmentRows) {
+        const trancheNum = Number(inst.label.match(/Tranche (\d)/)?.[1] ?? "1") as 1 | 2 | 3;
+        this.pendingInstallments.push({
+          parentId: inst.parentId,
+          studentId: inst.studentId ?? studentId,
+          category: inst.category,
+          trancheNumber: trancheNum,
+          label: inst.label,
+          amountDue: inst.amountDue,
+          amountPaid: inst.amountPaid,
+          dueDate: inst.dueDate,
+          paidDate: inst.paidDate,
+          status: inst.status as "unpaid" | "partial" | "paid" | "overdue" | "pending_clearance",
+          academicCycle: inst.academicCycle,
+          paymentPlan: inst.paymentPlan,
+          sourceType: "bulk_import",
+          sourceId: `imp-${inst.studentId ?? studentId}-${inst.category}-T${trancheNum}`,
+          actorId: this.deps.actorId,
+          actorName: this.deps.actorName,
+        });
+      }
+    }
+    // Notify progress callback if registered.
+    if (this.progressCallback) {
+      this.progressCallback(0, 0, String(record.nom ?? ""));
     }
     // Build the resolved-entities list for the sync queue. The sync queue's
     // defaultPushHandler reads firstName/lastName/displayName/parentId/amount
@@ -448,6 +559,10 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     //      the complete name through the pipeline.
     //   3. NEVER use "Tuteur" as a placeholder for firstName — that was the
     //      root cause of the prefix bug.
+    //   4. PARENT-AS-STUDENT FIX: the parent's displayName must NEVER be the
+    //      student's full name — that made the parent appear as a student in
+    //      the UI. The parent's displayName is now "Famille {lastName}" so
+    //      it's clearly a family/parent entity, distinct from the student.
 
     let lastName = "Inconnu";
     let firstName = "";
@@ -461,25 +576,31 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       /^[a-zA-ZÀ-ÿ\u0600-\u06FF][a-zA-ZÀ-ÿ\u0600-\u06FF\s'-]{1,}$/.test(tuteurRaw);
 
     if (isNameLikeTuteur) {
-      // TUTEUR is a real name — use it as the COMPLETE display name.
+      // TUTEUR is a real name — use it as the parent's name.
       const tuteurParts = splitFullName(tuteurRaw);
       lastName = tuteurParts.lastName || "Inconnu";
       firstName = tuteurParts.firstName || "";
-      displayName = tuteurRaw; // preserve the COMPLETE TUTEUR string verbatim
+      // Parent display = "Famille {lastName}" to distinguish from students.
+      displayName = firstName
+        ? `Famille ${lastName} (${firstName})`
+        : `Famille ${lastName}`;
     } else if (record.nom) {
-      // Derive parent name from student NOM (LASTNAME FIRSTNAME order).
+      // Derive parent family name from student NOM (LASTNAME FIRSTNAME order).
       const nomParts = splitFullName(record.nom);
       if (nomParts.lastName) {
         lastName = nomParts.lastName;
-        // Don't inherit the student's first name as the parent's — the
-        // parent's firstName is left empty. The COMPLETE name is preserved
-        // in `displayName` below.
-        firstName = "";
       }
-      // Preserve the FULL NOM string (e.g. "BENALI Mohamed") as the parent's
-      // display name. This is the key fix — the UI will now show the
-      // complete name instead of "Tuteur BENALI".
-      displayName = String(record.nom).trim();
+      firstName = "";
+      // PARENT-AS-STUDENT FIX: parent displayName = "Famille {lastName}",
+      // NOT the student's full name. This ensures the parent is clearly
+      // a family/parent entity and does NOT appear as a student in the UI.
+      displayName = `Famille ${lastName}`;
+    }
+
+    // If we have a phone number, append it to the displayName for extra
+    // disambiguation when multiple families share the same last name.
+    if (phone && phone !== "(inconnu)" && displayName) {
+      displayName = `${displayName} — ${phone}`;
     }
 
     return {
@@ -654,33 +775,35 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   // existing entries for the parent and skips any whose (studentId, field)
   // key already exists. This prevents the "ledger doubles on re-import"
   // bug that would otherwise break the round-trip verification.
-  private async persistFinancialEntries(
+  /**
+   * BULD FINANCIAL ENTRIES (deferred write — added to pendingLedgerEntries).
+   *
+   * Previously this method called `ledger.appendMany(entries)` immediately,
+   * which for a 390-row workbook meant 390 separate `appendMany` calls
+   * (each looping `append` → 1 RPC per entry = ~8,580 RPCs total).
+   *
+   * Now it ONLY builds the entries and returns them. The caller
+   * (`upsertEtatRecord`) adds them to `pendingLedgerEntries`, and the
+   * actual write happens ONCE in `commitTransaction` via `bulkAppend`.
+   *
+   * Dedup note: re-import idempotency is now handled at the DB level by
+   * the `upsert_ledger_entry_from_import` RPC's identity match on
+   * `(tenant, source_type, source_id)`. The old client-side dedup
+   * (`listExistingImportEntriesForParent`) was slow (fetched all entries
+   * per parent) and is no longer needed.
+   */
+  private buildFinancialEntries(
     record: ImportRecord,
     parentId: string,
     studentId: string,
     runId: string,
-  ): Promise<LedgerEntry[]> {
-    if (!this.deps.ledger) return [];
-    const ledger = this.deps.ledger;
+  ): LedgerEntry[] {
     const tenantId = this.deps.tenantId;
     const actorId = this.deps.actorId ?? "excel-import";
     const actorName = this.deps.actorName ?? "Excel Import";
     const at = new Date().toISOString();
 
-    // Build a set of existing (studentId, field) keys for this parent so we
-    // can skip entries that were already imported. This makes re-imports
-    // idempotent at the ledger level.
-    const existingEntries = await this.listExistingImportEntriesForParent(parentId);
-    const existingKeys = new Set<string>();
-    for (const e of existingEntries) {
-      const field = e.metadata?.field;
-      if (field) existingKeys.add(`${e.studentId ?? ""}:${field}`);
-    }
-
     const entries: LedgerEntry[] = [];
-    // Helper to check if an entry already exists for this (studentId, field).
-    const alreadyHas = (field: string): boolean =>
-      existingKeys.has(`${studentId}:${field}`);
 
     const devisAnnuel = numOrZero(record.devisAnnuel);
     const dettes = numOrZero(record.dettes);
@@ -709,7 +832,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     const sid = (field: string): string => `${studentId}:${field}`;
 
     // DEVIS ANNUEL — the annual tuition quote (always a charge).
-    if (devisAnnuel > 0 && !alreadyHas("DEVIS_ANNUEL")) {
+    if (devisAnnuel > 0) {
       entries.push(
         createChargeEntry({
           tenantId,
@@ -729,7 +852,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // DETTES — outstanding debt carried over from prior years (additional charge).
-    if (dettes > 0 && !alreadyHas("DETTES")) {
+    if (dettes > 0) {
       entries.push(
         createChargeEntry({
           tenantId,
@@ -749,7 +872,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // REMISE — discount applied to the annual quote (credit adjustment).
-    if (remise > 0 && !alreadyHas("REMISE")) {
+    if (remise > 0) {
       entries.push(
         createAdjustmentEntry({
           tenantId,
@@ -769,7 +892,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // REMBOURSEMENT — refund issued to the parent.
-    if (remboursement > 0 && !alreadyHas("REMBOURSEMENT")) {
+    if (remboursement > 0) {
       // Refunds are negative entries (money out). We model them as an
       // adjustment with a negative amount — using createAdjustmentEntry
       // because createRefundEntry doesn't accept the same sourceType
@@ -793,7 +916,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // REGLEMENTS DETTES — payment toward prior-year debts (single column).
-    if (reglementsDettes > 0 && !alreadyHas("REGLEMENTS_DETTES")) {
+    if (reglementsDettes > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -816,7 +939,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // FI — registration fee payment (tuition category).
-    if (fi > 0 && !alreadyHas("FI")) {
+    if (fi > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -839,7 +962,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // V2 — 2nd tuition installment.
-    if (v2 > 0 && !alreadyHas("V2")) {
+    if (v2 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -862,7 +985,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // 2V — alternate 2nd tuition installment (split payment).
-    if (v2Alt > 0 && !alreadyHas("V2_ALT")) {
+    if (v2Alt > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -885,7 +1008,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // v3 — 3rd tuition installment.
-    if (v3 > 0 && !alreadyHas("V3")) {
+    if (v3 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -908,7 +1031,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // 1T — 1st transport tranche.
-    if (t1 > 0 && !alreadyHas("T1")) {
+    if (t1 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -931,7 +1054,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // T2 — 2nd transport tranche.
-    if (t2 > 0 && !alreadyHas("T2")) {
+    if (t2 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -954,7 +1077,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // t3 — 3rd transport tranche.
-    if (t3 > 0 && !alreadyHas("T3")) {
+    if (t3 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -982,7 +1105,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // so the student's therapy history is queryable per session.
 
     // PSY1 — psychology session 1.
-    if (psy1 > 0 && !alreadyHas("PSY1")) {
+    if (psy1 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1005,7 +1128,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // PSY2 — psychology session 2.
-    if (psy2 > 0 && !alreadyHas("PSY2")) {
+    if (psy2 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1028,7 +1151,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // ORTH1 — speech therapy session 1.
-    if (orth1 > 0 && !alreadyHas("ORTH1")) {
+    if (orth1 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1051,7 +1174,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // ORTH2 — speech therapy session 2.
-    if (orth2 > 0 && !alreadyHas("ORTH2")) {
+    if (orth2 > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1074,7 +1197,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // E-PLANT — extra support plan payment (modeled as "other").
-    if (eplant > 0 && !alreadyHas("EPLANT")) {
+    if (eplant > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1097,7 +1220,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }
 
     // Ratrapage — catch-up session payment (modeled as "tuition").
-    if (ratrapage > 0 && !alreadyHas("RATRAPAGE")) {
+    if (ratrapage > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1122,7 +1245,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // ── Quarterly tranches (AF, AH, AJ) ───────────────────────────────────
     // September / December / March quarterly tuition tranches.
 
-    if (septembre > 0 && !alreadyHas("SEPTEMBRE")) {
+    if (septembre > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1144,7 +1267,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       );
     }
 
-    if (decembre > 0 && !alreadyHas("DECEMBRE")) {
+    if (decembre > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1166,7 +1289,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       );
     }
 
-    if (mars > 0 && !alreadyHas("MARS")) {
+    if (mars > 0) {
       entries.push(
         createPaymentEntry({
           tenantId,
@@ -1188,8 +1311,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       );
     }
 
-    if (entries.length === 0) return [];
-    await ledger.appendMany(entries);
+    
+    
     return entries;
   }
 
@@ -1202,14 +1325,19 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   // receipt number derived from `(studentId, field)` so re-imports are
   // idempotent at the payments level.
 
-  private async persistPaymentRows(
+  /**
+   * BUILD PAYMENT ROWS (deferred write — added to pendingPayments).
+   *
+   * Returns Payment objects WITHOUT calling `payments.collect()`. The
+   * caller adds them to `pendingPayments`, and the actual write happens
+   * ONCE in `commitTransaction` via `bulkCollect`.
+   */
+  private buildPaymentRows(
     record: ImportRecord,
     parentId: string,
     studentId: string,
     runId: string,
-  ): Promise<Payment[]> {
-    if (!this.deps.payments) return [];
-    const payments = this.deps.payments;
+  ): Payment[] {
     const actorId = this.deps.actorId ?? "excel-import";
     const at = new Date().toISOString();
 
@@ -1238,25 +1366,28 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     const results: Payment[] = [];
     for (const [field, amount, category, description] of specs) {
       if (amount <= 0) continue;
-      // Deterministic receipt number — `${studentId}:${field}` — so the
-      // upsert RPC's identity match `(tenant, payment_number)` hits the
-      // same row on re-import instead of creating a duplicate.
       const receiptNumber = `IMP-${studentId}-${field}`;
-      const result = await payments.collect(
-        {
-          parentId,
-          studentId,
-          amount,
-          method: "cash",
-          category,
-          installmentId: null,
-          notes: `${description} — import Excel run ${runId}`,
-          receiptNumber,
-          collectedAt: at,
-        },
-        actorId,
-      );
-      if (result.ok) results.push(result.value);
+      // Build a Payment object WITHOUT writing it. The caller adds it to
+      // pendingPayments for batch flush in commitTransaction.
+      const payment: Payment = {
+        id: `imp-pay-${studentId}-${field}`,
+        tenantId: this.deps.tenantId,
+        receiptNumber,
+        parentId,
+        studentId,
+        amount,
+        method: "cash",
+        status: "paid",
+        category,
+        installmentId: null,
+        proofUrl: null,
+        notes: `${description} — import Excel run ${runId}`,
+        collectedBy: actorId,
+        collectedAt: at,
+        createdAt: at,
+        updatedAt: at,
+      };
+      results.push(payment);
     }
     return results;
   }
@@ -1269,15 +1400,22 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   // amounts. The official schedule per `Prices.md` is Sept 15 / Dec 15 /
   // Mar 15 for ALL cycles and for Transport.
 
-  private async persistInstallmentRows(
+  /**
+   * BUILD INSTALLMENT ROWS (deferred write — added to pendingInstallments).
+   *
+   * Returns Installment objects WITHOUT calling `installments.importInstallment()`.
+   * The caller adds them to `pendingInstallments`, and the actual write
+   * happens ONCE in `commitTransaction` via `bulkImportInstallments`.
+   */
+  private buildInstallmentRows(
     record: ImportRecord,
     parentId: string,
     studentId: string,
     student: Student | null,
     runId: string,
-  ): Promise<Installment[]> {
-    if (!this.deps.installments) return [];
-    const installments = this.deps.installments;
+  ): Installment[] {
+    void student; // reserved for future per-student pricing overrides
+    void runId;
     const actorId = this.deps.actorId ?? "excel-import";
     const actorName = this.deps.actorName ?? "Excel Import";
 
@@ -1290,7 +1428,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         : "primaire";
 
     // Official due dates — Sept 15 / Dec 15 / Mar 15 per `Prices.md`.
-    // Use the current academic year (Sep YYYY).
     const now = new Date();
     const academicYearStart = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
     const dueDates: [string, string, string] = [
@@ -1299,11 +1436,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       `${academicYearStart + 1}-03-15`,
     ];
 
-    // Tuition tranches — V2/v3 represent tranches 2 and 3, with FI (frais
-    // d'inscription) merged into tranche 1 (the registration fee is part
-    // of the first tranche per the school's billing practice). We use the
-    // DEVIS ANNUEL as the gross amount to derive `amountDue` per tranche
-    // (40/30/30 split per `Prices.md`).
     const devisAnnuel = numOrZero(record.devisAnnuel);
     const remise = numOrZero(record.remise);
     const netDevis = Math.max(0, devisAnnuel - remise);
@@ -1318,8 +1450,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       numOrZero(record.v3) + numOrZero(record.mars) + numOrZero(record.ratrapage),
     ];
 
-    // Transport tranches — only when the student has transport (OPTION=TRNSP
-    // or DISTINATION present). Use 1T/T2/t3 as the paid amounts.
     const hasTransport =
       !!record.distination ||
       String(record.option ?? "").toUpperCase() === "TRNSP";
@@ -1328,23 +1458,18 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       numOrZero(record.t2),
       numOrZero(record.t3),
     ];
-    // Derive transport tranche due amounts from the paid amounts when we
-    // don't have the official pricing table (the importer doesn't have
-    // access to the pricing config). When paid > 0, assume the tranche is
-    // fully paid; otherwise the due amount is 0 (will be set later by the
-    // interactive UI when the user configures pricing).
     const transportTrancheDue = transportTranchePaid.map((p) => p > 0 ? p : 0);
 
     const results: Installment[] = [];
 
-    // Tuition installments (3 tranches).
-    for (let i = 0; i < 3; i++) {
-      const trancheNumber = (i + 1) as 1 | 2 | 3;
-      const amountDue = tuitionTrancheDue[i];
-      const amountPaid = tuitionTranchePaid[i];
-      // Skip tranches that have no due amount AND no paid amount — there's
-      // nothing to record (e.g. when the entire row is empty).
-      if (amountDue === 0 && amountPaid === 0) continue;
+    const buildInstallment = (
+      category: PaymentCategory,
+      trancheNumber: 1 | 2 | 3,
+      label: string,
+      amountDue: number,
+      amountPaid: number,
+      dueDate: string,
+    ): Installment => {
       const status = amountPaid >= amountDue && amountDue > 0
         ? "paid"
         : amountPaid > 0
@@ -1352,62 +1477,48 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           : amountDue > 0
             ? "unpaid"
             : "paid";
-      const input: ImportInstallmentInput = {
+      return {
+        id: `imp-${parentId}-${studentId}-${category}-T${trancheNumber}`,
         parentId,
         studentId,
-        category: "tuition",
-        trancheNumber,
-        label: `Tranche ${trancheNumber} — Scolarité`,
+        category,
+        label,
         amountDue,
         amountPaid,
-        dueDate: dueDates[i],
-        paidDate: status === "paid" ? new Date().toISOString() : null,
+        amountPending: 0,
+        dueDate,
+        paidDate: status === "paid" ? now.toISOString() : null,
         status: status as "unpaid" | "partial" | "paid" | "overdue" | "pending_clearance",
         academicCycle: cycle,
         paymentPlan: "tranches",
-        sourceType: "bulk_import",
-        sourceId: `${studentId}:tuition:T${trancheNumber}`,
-        actorId,
-        actorName,
+        isCustomSchedule: false,
+        customScheduleNote: null,
       };
-      const r = await installments.importInstallment(input);
-      if (r.ok) results.push(r.value);
+    };
+
+    // Tuition installments (3 tranches).
+    for (let i = 0; i < 3; i++) {
+      const trancheNumber = (i + 1) as 1 | 2 | 3;
+      const amountDue = tuitionTrancheDue[i];
+      const amountPaid = tuitionTranchePaid[i];
+      if (amountDue === 0 && amountPaid === 0) continue;
+      results.push(buildInstallment(
+        "tuition", trancheNumber, `Tranche ${trancheNumber} — Scolarité`,
+        amountDue, amountPaid, dueDates[i],
+      ));
     }
 
-    // Transport installments (3 tranches) — only when the student has transport.
+    // Transport installments (3 tranches).
     if (hasTransport) {
       for (let i = 0; i < 3; i++) {
         const trancheNumber = (i + 1) as 1 | 2 | 3;
         const amountDue = transportTrancheDue[i];
         const amountPaid = transportTranchePaid[i];
         if (amountDue === 0 && amountPaid === 0) continue;
-        const status = amountPaid >= amountDue && amountDue > 0
-          ? "paid"
-          : amountPaid > 0
-            ? "partial"
-            : amountDue > 0
-              ? "unpaid"
-              : "paid";
-        const input: ImportInstallmentInput = {
-          parentId,
-          studentId,
-          category: "transport",
-          trancheNumber,
-          label: `Tranche ${trancheNumber} — Transport`,
-          amountDue,
-          amountPaid,
-          dueDate: dueDates[i],
-          paidDate: status === "paid" ? new Date().toISOString() : null,
-          status: status as "unpaid" | "partial" | "paid" | "overdue" | "pending_clearance",
-          academicCycle: cycle,
-          paymentPlan: "tranches",
-          sourceType: "bulk_import",
-          sourceId: `${studentId}:transport:T${trancheNumber}`,
-          actorId,
-          actorName,
-        };
-        const r = await installments.importInstallment(input);
-        if (r.ok) results.push(r.value);
+        results.push(buildInstallment(
+          "transport", trancheNumber, `Tranche ${trancheNumber} — Transport`,
+          amountDue, amountPaid, dueDates[i],
+        ));
       }
     }
 

@@ -103,6 +103,44 @@ export interface Payment {
   readonly collectedAt: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /**
+   * PAYMENT BREAKDOWN: the total expected amount for the charges this
+   * payment covers. When `amount > expectedAmount`, the difference is
+   * `excessAmount` (overpayment). 0 when not set (legacy payments).
+   */
+  readonly expectedAmount?: number;
+  /**
+   * PAYMENT BREAKDOWN: the amount paid ABOVE the expectedAmount.
+   * 0 when fully allocated or when expectedAmount is not set.
+   */
+  readonly excessAmount?: number;
+  /**
+   * PAYMENT BREAKDOWN: remark/note explaining an overpayment.
+   * Example: "Parent paid 360,000 instead of 300,000 — excess 60,000
+   * held as parent credit for next year."
+   */
+  readonly excessRemark?: string | null;
+}
+
+/**
+ * PAYMENT BREAKDOWN: a single allocation of a payment to a charge/installment.
+ *
+ * A 300,000 payment can be split into multiple allocations:
+ *   - 250,000 → tuition charge (category: "tuition")
+ *   - 50,000  → transport charge (category: "transport")
+ *
+ * The sum of all allocations for a payment should equal the payment's
+ * `amount` (or `expectedAmount` when there's an overpayment).
+ */
+export interface PaymentAllocation {
+  readonly id: string;
+  readonly paymentId: string;
+  readonly chargeId: string | null;
+  readonly installmentId: string | null;
+  readonly category: PaymentCategory;
+  readonly allocatedAmount: number;
+  readonly label: string | null;
+  readonly createdAt: string;
 }
 
 export interface Installment {

@@ -32,6 +32,7 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useSyncActions } from "../../app/providers/sync-provider";
+import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-modal";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
@@ -90,6 +91,13 @@ export function ExcelImportModal({
   const [alert, setAlert] = useState<Alert | null>(null);
   /** Per-row errors collected during the commit (parent/student creation failures). */
   const [skipErrors, setSkipErrors] = useState<Array<{ rowIndex: number; identity: string; error: string }>>([]);
+  /** Progress feedback during the commit step — shows phase + current/total. */
+  const [commitProgress, setCommitProgress] = useState<{
+    phase: "importing" | "flushing" | "reports" | "done";
+    current: number;
+    total: number;
+    label: string;
+  } | null>(null);
 
   function reset() {
     setStage("select");
@@ -100,6 +108,7 @@ export function ExcelImportModal({
     setReports(null);
     setAlert(null);
     setSkipErrors([]);
+    setCommitProgress(null);
     // Clear the underlying input so re-opening the modal lets the user pick
     // the same file again (the input's `change` event won't fire otherwise).
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -219,6 +228,7 @@ export function ExcelImportModal({
     }
     setStage("committing");
     setAlert(null);
+    setCommitProgress({ phase: "importing", current: 0, total: previewCtx.stats.rowsRead, label: "Lecture du fichier Excel..." });
     try {
       const engine = getEngine();
       const ctx = await engine.importFile(fileBytes, fileName, {
@@ -226,83 +236,60 @@ export function ExcelImportModal({
         source: { user: session?.email ?? "unknown" },
       });
 
-      // Iteration 14 + 0027 unification — enqueue sync entries for every
-      // successfully imported row.
+      setCommitProgress({ phase: "flushing", current: ctx.stats.rowsImported, total: ctx.stats.rowsRead, label: "Écriture en base (flush bulk)..." });
+
+      // SYNC QUEUE FIX: When Supabase IS configured, the importer's
+      // RepositoryStorageAdapter has ALREADY written all data to Supabase
+      // via the bulk methods (bulkAppend / bulkCollect / bulkImportInstallments)
+      // or via the createParent / createStudent RPCs. Enqueuing 1,170 sync
+      // entries that redundantly call the same upsert RPCs is wasteful and
+      // fills the sync queue with no-op entries.
       //
-      // When Supabase IS configured, the SupabaseParentRepository /
-      // SupabaseStudentRepository / SupabaseLedgerRepository that the
-      // importer invoked have ALREADY written to Supabase via the
-      // idempotent `upsert_*_from_import` RPCs (migration 0027). The
-      // queue entries below are an audit trail + a safety net for the
-      // offline case (when Supabase isn't configured, the importer
-      // writes to the mock layer and the queue is drained later).
-      //
-      // PAYLOAD-SHAPE FIX: Previously the modal enqueued the whole
-      // `StorageRecord` wrapper as `payload`, but `defaultPushHandler`
-      // reads fields like `firstName`, `lastName`, `displayName`,
-      // `parentId`, `amount` directly off `payload`. Those fields live
-      // on the domain entities (Parent / Student / LedgerEntry), NOT
-      // on the StorageRecord wrapper or the raw ImportRecord. The fix:
-      // iterate the `entities` array on each StorageRecord and enqueue
-      // ONE sync entry per domain entity, using the entity object itself
-      // as the payload. This way the RPC receives the correct shape and
-      // Supabase actually gets the data.
-      //
-      // BATCHED ENQUEUE: Previously the modal called `sync.enqueue()` in
-      // a loop — once per domain entity (parent + student + ledger_entry
-      // per row × ~390 rows ≈ 1,170 entries). Each call emitted a
-      // snapshot, triggering 1,170 React re-renders across every
-      // `useSyncStatus()` consumer (topbar indicator, sync tab, etc.).
-      // The user saw "1,170 sync notifications during sync" — even
-      // though only the final count mattered. Batching collapses all
-      // of that to ONE IndexedDB transaction + ONE snapshot emission.
-      //
-      // The `operation` field is informational — the upsert RPCs handle
-      // insert-vs-update idempotently at the database layer.
-      const storageForSync = engine.getStorage();
-      const allRecords = typeof storageForSync.listInsertedForRun === "function"
-        ? await storageForSync.listInsertedForRun(ctx.runId)
-        : [];
-      // Build the full enqueue payload list in one pass — no per-entry
-      // await, no per-entry snapshot emission.
-      const batchInputs: Array<{
-        entity: "parent" | "student" | "ledger_entry" | "payment";
-        operation: "insert";
-        payload: Record<string, unknown>;
-        isMock: false;
-        sourceFile: string;
-        importRunId: string;
-      }> = [];
-      for (const rec of allRecords) {
-        // Each StorageRecord may carry 0..N resolved domain entities
-        // (parent, student, ledger_entry). Enqueue one sync entry per
-        // entity so the dispatcher routes to the correct upsert RPC.
-        const entities = rec.entities ?? [];
-        if (entities.length === 0) {
-          // Non-ETAT row (BON, Devis, REF) — no domain entity to sync.
-          continue;
+      // The sync queue is now ONLY used when Supabase is NOT configured
+      // (mock mode) — in that case the importer wrote to the mock store
+      // and the queue is drained later when Supabase becomes available.
+      const isSupabaseMode = isSupabaseConfigured();
+      let enqueuedForSync = 0;
+      if (!isSupabaseMode) {
+        // Mock mode — enqueue sync entries so they're pushed when Supabase
+        // comes online later.
+        const storageForSync = engine.getStorage();
+        const allRecords = typeof storageForSync.listInsertedForRun === "function"
+          ? await storageForSync.listInsertedForRun(ctx.runId)
+          : [];
+        const batchInputs: Array<{
+          entity: "parent" | "student" | "ledger_entry" | "payment" | "installment";
+          operation: "insert";
+          payload: Record<string, unknown>;
+          isMock: false;
+          sourceFile: string;
+          importRunId: string;
+        }> = [];
+        for (const rec of allRecords) {
+          const entities = rec.entities ?? [];
+          if (entities.length === 0) continue;
+          for (const { kind, entity } of entities) {
+            batchInputs.push({
+              entity: kind as "parent" | "student" | "ledger_entry" | "payment" | "installment",
+              operation: "insert",
+              payload: entity as unknown as Record<string, unknown>,
+              isMock: false,
+              sourceFile: fileName,
+              importRunId: ctx.runId,
+            });
+          }
         }
-        for (const { kind, entity } of entities) {
-          // Payload is the domain entity itself — `defaultPushHandler`
-          // reads firstName/lastName/displayName/parentId/amount/etc.
-          // directly off this object.
-          batchInputs.push({
-            entity: kind as "parent" | "student" | "ledger_entry" | "payment",
-            operation: "insert",
-            payload: entity as unknown as Record<string, unknown>,
-            // Excel import = real data → isMock: false. The sync layer
-            // will push this to Supabase as soon as the desktop is online.
-            isMock: false,
-            sourceFile: fileName,
-            importRunId: ctx.runId,
-          });
+        if (batchInputs.length > 0) {
+          await sync.enqueueBatch(batchInputs);
+          enqueuedForSync = batchInputs.length;
         }
+      } else {
+        // Supabase mode — data is already in Supabase. Trigger an immediate
+        // sync drain to process any pre-existing queue entries (cleanup).
+        await sync.syncNow().catch(() => { /* ignore — best-effort */ });
       }
-      // ONE batched enqueue → ONE snapshot emission → ONE drain schedule.
-      // This replaces the previous per-entity loop that caused ~1,170
-      // snapshot emissions during a single Excel commit.
-      await sync.enqueueBatch(batchInputs);
-      const enqueuedForSync = batchInputs.length;
+
+      setCommitProgress({ phase: "reports", current: ctx.stats.rowsRead, total: ctx.stats.rowsRead, label: "Génération des rapports..." });
 
       // Capture report bytes from the engine. The engine generates the
       // bytes in-memory and does NOT auto-download them — the user must
@@ -311,6 +298,7 @@ export function ExcelImportModal({
       // at the end" bug where files were auto-downloaded on every commit.
       setReports(ctx.reports ?? null);
       setCommitCtx(ctx);
+      setCommitProgress({ phase: "done", current: ctx.stats.rowsRead, total: ctx.stats.rowsRead, label: "Import terminé" });
       setStage("done");
 
       const inserted = ctx.stats.rowsImported;
@@ -554,10 +542,26 @@ export function ExcelImportModal({
 
       {/* Stage: committing */}
       {stage === "committing" && (
-        <div className="flex flex-col items-center justify-center gap-3 py-8">
+        <div className="flex flex-col items-center justify-center gap-4 py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm font-medium">Insertion atomique en cours…</p>
-          <p className="text-xs text-muted-foreground">BEGIN…COMMIT — tout réussit ou tout échoue. Rapports générés après commit.</p>
+          <p className="text-sm font-medium">{commitProgress?.label ?? "Insertion atomique en cours…"}</p>
+          <p className="text-xs text-muted-foreground">
+            Phase: <span className="font-mono">{commitProgress?.phase ?? "importing"}</span>
+            {commitProgress && commitProgress.total > 0 && (
+              <> · {commitProgress.current}/{commitProgress.total} lignes</>
+            )}
+          </p>
+          {commitProgress && commitProgress.total > 0 && (
+            <div className="w-full max-w-md h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.round((commitProgress.current / commitProgress.total) * 100))}%` }}
+              />
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            BEGIN…COMMIT — tout réussit ou tout échoue. Rapports générés après commit.
+          </p>
         </div>
       )}
 

@@ -164,6 +164,15 @@ export interface PaymentRepository {
   observeByStudent(studentId: string): Observable<Payment[]>;
   observeById(id: string): Observable<Payment | null>;
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>>;
+  /**
+   * BULK IMPORT FIX: Batch-collect many payments in a SINGLE Supabase
+   * INSERT call instead of one RPC per payment. ~100x faster for the
+   * Excel importer.
+   *
+   * Falls back to looping `collect()` when the repository doesn't support
+   * bulk collect.
+   */
+  bulkCollect?(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>>;
   refund(id: string): Promise<Result<Payment>>;
   adjust(parentId: string, amount: number, reason: string, approvedBy: string): Promise<Result<AccountAdjustment>>;
   generateReceipt(paymentId: string, generatedBy: string): Promise<Result<Receipt>>;
@@ -252,6 +261,15 @@ export interface InstallmentRepository {
    * but kept as a safety net) should return `Err(server("not implemented"))`.
    */
   importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>>;
+  /**
+   * BULK IMPORT FIX: Batch-import many installments in a SINGLE Supabase
+   * upsert call instead of one per installment. ~100x faster for the
+   * Excel importer.
+   *
+   * Falls back to looping `importInstallment()` when the repository doesn't
+   * support bulk import.
+   */
+  bulkImportInstallments?(inputs: readonly ImportInstallmentInput[]): Promise<Result<readonly Installment[]>>;
 }
 
 /**
@@ -460,6 +478,16 @@ export interface LedgerRepository {
   observeByAccount(accountId: string): Observable<LedgerEntry[]>;
   append(entry: LedgerEntry): Promise<Result<LedgerEntry>>;
   appendMany(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>>;
+  /**
+   * BULK IMPORT FIX: Batch-insert many ledger entries in a SINGLE Supabase
+   * INSERT call instead of one RPC per entry. This is ~100x faster for the
+   * Excel importer (390 rows × ~22 entries = ~8,580 entries → 1 INSERT
+   * instead of 8,580 RPCs).
+   *
+   * Falls back to `appendMany` (loop) when the repository doesn't support
+   * bulk insert (e.g. mock repository).
+   */
+  bulkAppend?(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>>;
   /** Reverse a prior entry by ID. Returns the new reversal entry. */
   reverse(originalId: string, reason: string, actorId: string, actorName: string): Promise<Result<LedgerEntry>>;
   /** Compute the full parent ledger summary (computed via replay — never stored). */

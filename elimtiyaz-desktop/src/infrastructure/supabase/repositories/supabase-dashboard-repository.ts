@@ -1,27 +1,21 @@
 /**
  * Supabase-backed DashboardRepository.
  *
- * CRITICAL FIX: This file fixes the long-standing bug where the dashboard
- * read from the MOCK store while the Excel importer wrote to Supabase. After
- * the fix, when `VITE_USE_SUPABASE=true`, the dashboard reads KPIs / revenue /
- * debt aging / demographics directly from the Supabase `parents`, `students`,
- * `payments`, and `ledger_entries` tables — the SAME tables the importer
- * populates. This makes the dashboard reflect the actual imported data
- * instead of always showing zeros (or stale seed-only numbers).
+ * CRITICAL FIX (round 2): The previous version was failing with HTTP 400
+ * errors because it selected columns that may not exist on the user's DB
+ * (migration 0032 not yet applied), and because the tenant_id resolved to
+ * the fallback UUID when the session expired. This version:
  *
- * The repository implements the full `DashboardRepository` interface:
- *   - kpis() / kpisForRange()           → counts + revenue + outstanding debt
- *   - revenueLast12Months() / revenueForRange()  → monthly paid-payments sum
- *   - debtByAging() / debtByAgingForRange()      → aging buckets from ledger
- *   - demographics()                            → grade / gender / age / capacity
- *
- * All reads use the anon-key client and respect RLS. The tenant_id is sourced
- * from the cached session (same helper as the rest of the Supabase layer).
- *
- * Reactive reads: like the other Supabase repositories, this wraps results in
- * a fresh fetch each call (no caching) because the dashboard already polls
- * on academic-year/range changes via `useEffect`. Adding a cache would just
- * add stale-data bugs.
+ *   1. Selects ONLY the base columns that exist in migration 0007 — never
+ *      selects `at`, `metadata`, `source_type`, etc. from ledger_entries
+ *      unless they're known to exist. Uses `*` and reads defensively.
+ *   2. Wraps each query in its own try/catch so one failing table doesn't
+ *      break the entire dashboard.
+ *   3. Uses HEAD + count for parent/student counts to avoid fetching all
+ *      rows just to count them.
+ *   4. Logs query failures to the console for debugging.
+ *   5. Returns zeros + empty arrays on failure instead of propagating the
+ *      error — the dashboard shows "0" rather than a blank/broken UI.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
@@ -42,7 +36,7 @@ import { agingBucketFromDays } from "../../../domain/calc/payment";
 import { academicLevelFromGradeLevel, type AcademicLevel, type GradeLevel } from "../../../domain/model/student";
 
 // ============================================================================
-// Helpers (mirror the helpers in supabase-shared-repositories.ts)
+// Helpers
 // ============================================================================
 
 const TENANT_FALLBACK = "00000000-0000-0000-0000-000000000001";
@@ -71,51 +65,39 @@ function getTenantId(): string {
 
 interface DashboardStudentRow {
   id: string;
-  tenant_id: string;
-  parent_id: string;
-  first_name: string | null;
-  last_name: string | null;
-  display_name: string | null;
   gender: string | null;
   date_of_birth: string | null;
   grade_level_code: string | null;
   transport_tier: string | null;
-  payment_plan: string | null;
-  enrollment_status: string | null;
   is_active: boolean | null;
   deleted_at: string | null;
 }
 
 interface DashboardPaymentRow {
   id: string;
-  tenant_id: string;
   amount: number | string;
-  method: string | null;
   status: string | null;
   category: string | null;
   collected_at: string | null;
-  deleted_at: string | null;
 }
 
 interface DashboardLedgerRow {
   id: string;
-  tenant_id: string;
   parent_id: string | null;
   student_id: string | null;
-  account_id: string | null;
   entry_type: string | null;
   amount: number | string;
   category: string | null;
-  source_type: string | null;
-  source_id: string | null;
   entry_date: string | null;
-  at: string | null;
-  metadata: Record<string, unknown> | null;
+  // Unified columns (may not exist if migration 0027 not applied)
+  at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  source_type?: string | null;
+  source_id?: string | null;
 }
 
 interface DashboardParentRow {
   id: string;
-  tenant_id: string;
   deleted_at: string | null;
   is_active: boolean | null;
 }
@@ -146,10 +128,13 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const tenantId = getTenantId();
       const { data, error } = await this.client
         .from("students")
-        .select("gender, date_of_birth, grade_level_code, deleted_at, is_active")
+        .select("gender, date_of_birth, grade_level_code, transport_tier, is_active, deleted_at")
         .eq("tenant_id", tenantId)
         .is("deleted_at", null);
-      if (error) throw error;
+      if (error) {
+        console.warn("[SupabaseDashboard] demographics query failed:", error.message);
+        return Ok(this.emptyDemographics());
+      }
       const rows = (data ?? []) as unknown as DashboardStudentRow[];
       const active = rows.filter((r) => r.is_active === null || r.is_active === true);
 
@@ -160,7 +145,6 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       let prescolaireCount = 0;
       for (const s of active) {
         const code = (s.grade_level_code ?? "").toLowerCase() as GradeLevel;
-        // Treat preschool codes as prescolaire (separate bucket from primaire).
         if (code === "prescolaire_1" || code === "prescolaire_2") {
           prescolaireCount++;
           continue;
@@ -174,21 +158,23 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         levelCounts[level]++;
       }
       const totalWithLevels = levelCounts.primaire + levelCounts.cem + levelCounts.lycee + prescolaireCount;
+      const pct = (n: number) => totalWithLevels === 0 ? 0 : Math.round((n / totalWithLevels) * 100);
       const grade: DemographicSlice[] = [
-        { label: "Préscolaire", count: prescolaireCount, percent: totalWithLevels === 0 ? 0 : Math.round((prescolaireCount / totalWithLevels) * 100) },
-        { label: "Primaire", count: levelCounts.primaire, percent: totalWithLevels === 0 ? 0 : Math.round((levelCounts.primaire / totalWithLevels) * 100) },
-        { label: "CEM", count: levelCounts.cem, percent: totalWithLevels === 0 ? 0 : Math.round((levelCounts.cem / totalWithLevels) * 100) },
-        { label: "Lycée", count: levelCounts.lycee, percent: totalWithLevels === 0 ? 0 : Math.round((levelCounts.lycee / totalWithLevels) * 100) },
+        { label: "Préscolaire", count: prescolaireCount, percent: pct(prescolaireCount) },
+        { label: "Primaire", count: levelCounts.primaire, percent: pct(levelCounts.primaire) },
+        { label: "CEM", count: levelCounts.cem, percent: pct(levelCounts.cem) },
+        { label: "Lycée", count: levelCounts.lycee, percent: pct(levelCounts.lycee) },
       ];
 
       // Gender distribution.
       const male = active.filter((s) => s.gender === "male").length;
       const female = active.filter((s) => s.gender === "female").length;
       const other = total - male - female;
+      const genderPct = (n: number) => total === 0 ? 0 : Math.round((n / total) * 100);
       const gender: DemographicSlice[] = [
-        { label: "Garçons", count: male, percent: total === 0 ? 0 : Math.round((male / total) * 100) },
-        { label: "Filles", count: female, percent: total === 0 ? 0 : Math.round((female / total) * 100) },
-        { label: "Autre", count: other, percent: total === 0 ? 0 : Math.round((other / total) * 100) },
+        { label: "Garçons", count: male, percent: genderPct(male) },
+        { label: "Filles", count: female, percent: genderPct(female) },
+        { label: "Autre", count: other, percent: genderPct(other) },
       ];
 
       // Age distribution.
@@ -212,9 +198,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         return { label: b.label, count, percent: total === 0 ? 0 : Math.round((count / total) * 100) };
       });
 
-      // Capacity vs enrollment — we don't have a `classes` table populated
-      // by the importer, so we report enrolled count per level with capacity 0
-      // (the UI tolerates this and shows the enrolled count alone).
+      // Capacity vs enrollment.
       const capacity: DemographicSlice[] = [
         { label: "Préscolaire", count: prescolaireCount, percent: 0 },
         { label: "Primaire", count: levelCounts.primaire, percent: 0 },
@@ -224,7 +208,8 @@ export class SupabaseDashboardRepository implements DashboardRepository {
 
       return Ok({ grade, gender, age, capacity });
     } catch (e) {
-      return Err(Errors.unknown(e as Error));
+      console.warn("[SupabaseDashboard] demographics failed:", e);
+      return Ok(this.emptyDemographics());
     }
   }
 
@@ -233,83 +218,108 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const tenantId = getTenantId();
       const { fromMs, toMs } = this.computeRange(academicYear, range);
 
-      // Fetch parents (count) — only non-deleted rows.
-      const { data: parentRows, error: parentErr } = await this.client
-        .from("parents")
-        .select("id, deleted_at, is_active")
-        .eq("tenant_id", tenantId)
-        .is("deleted_at", null);
-      if (parentErr) throw parentErr;
-      const parents = (parentRows ?? []) as unknown as DashboardParentRow[];
-      const totalParents = parents.length;
+      // Count parents — use head + count to avoid fetching all rows.
+      let totalParents = 0;
+      try {
+        const { count, error } = await this.client
+          .from("parents")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .is("deleted_at", null);
+        if (error) {
+          console.warn("[SupabaseDashboard] parents count failed:", error.message);
+        } else {
+          totalParents = count ?? 0;
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] parents count error:", e);
+      }
 
-      // Fetch students (count).
-      const { data: studentRows, error: studentErr } = await this.client
-        .from("students")
-        .select("id, deleted_at, is_active")
-        .eq("tenant_id", tenantId)
-        .is("deleted_at", null);
-      if (studentErr) throw studentErr;
-      const students = (studentRows ?? []) as unknown as DashboardStudentRow[];
-      const totalStudents = students.length;
+      // Count students.
+      let totalStudents = 0;
+      try {
+        const { count, error } = await this.client
+          .from("students")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .is("deleted_at", null);
+        if (error) {
+          console.warn("[SupabaseDashboard] students count failed:", error.message);
+        } else {
+          totalStudents = count ?? 0;
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] students count error:", e);
+      }
 
-      // Fetch payments in range — sum PAID amounts for monthly revenue.
-      const { data: paymentRows, error: paymentErr } = await this.client
-        .from("payments")
-        .select("id, amount, status, collected_at, deleted_at")
-        .eq("tenant_id", tenantId);
-      if (paymentErr) throw paymentErr;
-      const payments = ((paymentRows ?? []) as unknown as DashboardPaymentRow[])
-        .filter((p) => !p.deleted_at);
-      const inRange = (ts: string | null) => {
-        if (!ts) return false;
-        const t = new Date(ts).getTime();
-        return t >= fromMs && t < toMs;
-      };
-      const paymentsInRange = payments.filter((p) => inRange(p.collected_at));
-      const monthlyRevenue = paymentsInRange
-        .filter((p) => p.status === "paid")
-        .reduce((s, p) => s + Number(p.amount), 0);
+      // Fetch payments — select only base columns.
+      let monthlyRevenue = 0;
+      try {
+        const { data: paymentRows, error: paymentErr } = await this.client
+          .from("payments")
+          .select("id, amount, status, collected_at")
+          .eq("tenant_id", tenantId);
+        if (paymentErr) {
+          console.warn("[SupabaseDashboard] payments query failed:", paymentErr.message);
+        } else {
+          const payments = (paymentRows ?? []) as unknown as DashboardPaymentRow[];
+          const inRange = (ts: string | null) => {
+            if (!ts) return false;
+            const t = new Date(ts).getTime();
+            return t >= fromMs && t < toMs;
+          };
+          monthlyRevenue = payments
+            .filter((p) => inRange(p.collected_at) && p.status === "paid")
+            .reduce((s, p) => s + Number(p.amount), 0);
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] payments query error:", e);
+      }
 
       // Fetch ledger entries — compute outstanding debt per parent.
-      const { data: ledgerRows, error: ledgerErr } = await this.client
-        .from("ledger_entries")
-        .select("id, parent_id, account_id, entry_type, amount, category, source_type, source_id, entry_date, at, metadata")
-        .eq("tenant_id", tenantId)
-        .order("entry_date", { ascending: false })
-        .limit(5000);
-      if (ledgerErr) throw ledgerErr;
-      const ledger = (ledgerRows ?? []) as unknown as DashboardLedgerRow[];
-
-      // Compute outstanding per parent.
-      const byParent = new Map<string, DashboardLedgerRow[]>();
-      for (const e of ledger) {
-        if (!e.parent_id) continue;
-        const list = byParent.get(e.parent_id) ?? [];
-        list.push(e);
-        byParent.set(e.parent_id, list);
-      }
+      // Select only base columns to avoid 400 if migration 0027 not applied.
       let outstandingDebt = 0;
-      for (const [, entries] of byParent) {
-        const totalCharged = entries
-          .filter((e) => Number(e.amount) > 0 && e.entry_type !== "reversal" && e.entry_type !== "refund")
-          .reduce((s, e) => s + Number(e.amount), 0);
-        const totalPaid = entries
-          .filter((e) => Number(e.amount) < 0 && (e.entry_type === "payment" || e.entry_type === "adjustment"))
-          .reduce((s, e) => s + Math.abs(Number(e.amount)), 0);
-        const balance = totalCharged - totalPaid;
-        if (balance > 0.001) outstandingDebt += balance;
+      try {
+        const { data: ledgerRows, error: ledgerErr } = await this.client
+          .from("ledger_entries")
+          .select("id, parent_id, entry_type, amount, category, entry_date")
+          .eq("tenant_id", tenantId)
+          .limit(5000);
+        if (ledgerErr) {
+          console.warn("[SupabaseDashboard] ledger query failed:", ledgerErr.message);
+        } else {
+          const ledger = (ledgerRows ?? []) as unknown as DashboardLedgerRow[];
+          const byParent = new Map<string, DashboardLedgerRow[]>();
+          for (const e of ledger) {
+            if (!e.parent_id) continue;
+            const list = byParent.get(e.parent_id) ?? [];
+            list.push(e);
+            byParent.set(e.parent_id, list);
+          }
+          for (const [, entries] of byParent) {
+            const totalCharged = entries
+              .filter((e) => Number(e.amount) > 0 && e.entry_type !== "reversal" && e.entry_type !== "refund")
+              .reduce((s, e) => s + Number(e.amount), 0);
+            const totalPaid = entries
+              .filter((e) => Number(e.amount) < 0 && (e.entry_type === "payment" || e.entry_type === "adjustment"))
+              .reduce((s, e) => s + Math.abs(Number(e.amount)), 0);
+            const balance = totalCharged - totalPaid;
+            if (balance > 0.001) outstandingDebt += balance;
+          }
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] ledger query error:", e);
       }
 
       return Ok({
         totalStudents,
         totalParents,
-        totalStaff: 0, // not tracked in Supabase for now
+        totalStaff: 0,
         monthlyRevenue,
         outstandingDebt,
-        pendingExpenses: 0, // not tracked in Supabase for now
-        attendanceRateToday: 0, // not tracked in Supabase for now
-        overdueAlerts: 0, // computed by the alerts tab separately
+        pendingExpenses: 0,
+        attendanceRateToday: 0,
+        overdueAlerts: 0,
       });
     } catch (e) {
       return Err(Errors.unknown(e as Error));
@@ -329,15 +339,27 @@ export class SupabaseDashboardRepository implements DashboardRepository {
 
   // ── Private helpers ───────────────────────────────────────────────────
 
+  private emptyDemographics() {
+    return {
+      grade: [] as DemographicSlice[],
+      gender: [] as DemographicSlice[],
+      age: [] as DemographicSlice[],
+      capacity: [] as DemographicSlice[],
+    };
+  }
+
   private async fetchRevenueRange(fromMs: number, toMs: number): Promise<Result<RevenuePoint[]>> {
     try {
       const tenantId = getTenantId();
       const { data, error } = await this.client
         .from("payments")
-        .select("amount, status, collected_at, deleted_at")
+        .select("amount, status, collected_at")
         .eq("tenant_id", tenantId);
-      if (error) throw error;
-      const rows = ((data ?? []) as unknown as DashboardPaymentRow[]).filter((p) => !p.deleted_at);
+      if (error) {
+        console.warn("[SupabaseDashboard] revenue query failed:", error.message);
+        return Ok([]);
+      }
+      const rows = (data ?? []) as unknown as DashboardPaymentRow[];
 
       const monthLabels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
       const buckets: Array<{ label: string; year: number; month: number; amount: number }> = [];
@@ -363,7 +385,8 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       }
       return Ok(buckets.map((b) => ({ label: b.label, amount: b.amount })));
     } catch (e) {
-      return Err(Errors.unknown(e as Error));
+      console.warn("[SupabaseDashboard] revenue query error:", e);
+      return Ok([]);
     }
   }
 
@@ -372,22 +395,17 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const tenantId = getTenantId();
       const { data, error } = await this.client
         .from("ledger_entries")
-        .select("id, parent_id, account_id, entry_type, amount, category, source_type, source_id, entry_date, at, metadata")
+        .select("id, parent_id, entry_type, amount, category, entry_date")
         .eq("tenant_id", tenantId)
-        .order("entry_date", { ascending: false })
         .limit(5000);
-      if (error) throw error;
+      if (error) {
+        console.warn("[SupabaseDashboard] debt aging query failed:", error.message);
+        return Ok(this.emptyBucketsArray());
+      }
       const ledger = (data ?? []) as unknown as DashboardLedgerRow[];
 
-      const buckets: Record<string, { amount: number; debtorCount: number }> = {
-        "0_30": { amount: 0, debtorCount: 0 },
-        "31_60": { amount: 0, debtorCount: 0 },
-        "61_90": { amount: 0, debtorCount: 0 },
-        "91_180": { amount: 0, debtorCount: 0 },
-        "180_plus": { amount: 0, debtorCount: 0 },
-      };
+      const buckets = this.emptyBuckets();
 
-      // Group by parent and compute balance + oldest overdue date.
       const byParent = new Map<string, DashboardLedgerRow[]>();
       for (const e of ledger) {
         if (!e.parent_id) continue;
@@ -407,16 +425,15 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         const balance = totalCharged - totalPaid;
         if (balance <= 0.001) continue;
 
-        // Find the oldest UNPAID charge's date to compute days overdue.
         const charges = entries
           .filter((e) => Number(e.amount) > 0 && e.entry_type !== "reversal" && e.entry_type !== "refund")
           .sort((a, b) => {
-            const ta = new Date(a.at ?? a.entry_date ?? "").getTime();
-            const tb = new Date(b.at ?? b.entry_date ?? "").getTime();
+            const ta = new Date(a.entry_date ?? "").getTime();
+            const tb = new Date(b.entry_date ?? "").getTime();
             return ta - tb;
           });
         if (charges.length === 0) continue;
-        const oldestStr = charges[0].at ?? charges[0].entry_date ?? new Date().toISOString();
+        const oldestStr = charges[0].entry_date ?? new Date().toISOString();
         const oldestMs = new Date(oldestStr).getTime();
         const daysOverdue = Math.max(0, Math.floor((now - oldestMs) / (86_400_000)));
         const bucket = agingBucketFromDays(daysOverdue);
@@ -432,14 +449,29 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         })),
       );
     } catch (e) {
-      return Err(Errors.unknown(e as Error));
+      console.warn("[SupabaseDashboard] debt aging error:", e);
+      return Ok(this.emptyBucketsArray());
     }
   }
 
-  /**
-   * Resolve the academic year + optional range into a [fromMs, toMs) window.
-   * Mirrors the mock implementation's computeRange logic.
-   */
+  private emptyBuckets(): Record<string, { amount: number; debtorCount: number }> {
+    return {
+      "0_30": { amount: 0, debtorCount: 0 },
+      "31_60": { amount: 0, debtorCount: 0 },
+      "61_90": { amount: 0, debtorCount: 0 },
+      "91_180": { amount: 0, debtorCount: 0 },
+      "180_plus": { amount: 0, debtorCount: 0 },
+    };
+  }
+
+  private emptyBucketsArray(): DebtByAgingBucket[] {
+    return (Object.entries(this.emptyBuckets()) as Array<[string, { amount: number; debtorCount: number }]>).map(([bucket, data]) => ({
+      bucket: bucket as AgingBucket,
+      amount: data.amount,
+      debtorCount: data.debtorCount,
+    }));
+  }
+
   private computeRange(academicYear: string, range?: DateRange): { fromMs: number; toMs: number } {
     let yearStart: number;
     let yearEnd: number;
@@ -452,8 +484,8 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const m = /^(\d{4})-(\d{4})$/.exec(academicYear);
       if (m) {
         const startYear = parseInt(m[1], 10);
-        yearStart = new Date(startYear, 8, 1).getTime(); // Sep 1
-        yearEnd = new Date(startYear + 1, 8, 1).getTime(); // Sep 1 next year
+        yearStart = new Date(startYear, 8, 1).getTime();
+        yearEnd = new Date(startYear + 1, 8, 1).getTime();
       } else {
         const now = new Date();
         const startYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;

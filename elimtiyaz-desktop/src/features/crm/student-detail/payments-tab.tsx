@@ -1,8 +1,13 @@
 /**
- * Tab 4 — Paiements (individual share + family balance).
+ * Tab 4 — Paiements (individual share + family balance + payment breakdown).
  *
  * Extracted from `student-detail-drawer.tsx` (iteration 6-a). Behavior
  * preserved exactly — only file location + import paths changed.
+ *
+ * BULK IMPORT FIX (round 2): Now uses the PaymentBreakdownCard component
+ * to show what each payment covers (Education: 250,000, Transport: 50,000,
+ * etc.) and any overpayment with remark. The old single-line display
+ * showed only the amount without explanation.
  *
  * Epic 6.3 (this revision): added "Encaisser part élève" button that opens
  * `UnifiedPaymentModal` in `installment_tranche` mode scoped to this student.
@@ -23,6 +28,7 @@ import {
   type PaymentNavigationContext,
 } from "../../../domain/model/payment";
 import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
+import { PaymentBreakdownCard } from "../../financials/payment-breakdown-card";
 
 export function PaymentsTab({
   studentId,
@@ -122,8 +128,10 @@ export function PaymentsTab({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-sm">Paiements individuels</CardTitle>
-            <CardDescription>{payments.length} paiement(s) affecté(s) à cet élève</CardDescription>
+            <CardTitle className="text-sm">Historique des paiements</CardTitle>
+            <CardDescription>
+              {payments.length} paiement(s) · cliquez pour voir le détail de ce que couvre chaque paiement
+            </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {/* Epic 6.3 — Encaisser part élève → UnifiedPaymentModal (installment_tranche) */}
@@ -148,28 +156,20 @@ export function PaymentsTab({
               Aucun paiement affecté à cet élève.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
-              {payments.slice(0, 10).map((p) => (
-                <li key={p.id} className="flex items-center gap-3 py-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs">{p.receiptNumber}</span>
-                      <StatusChip
-                        label={PAYMENT_STATUS_LABELS_FR[p.status]}
-                        tone={p.status === "paid" ? "success" : p.status === "pending" ? "warning" : "neutral"}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {PAYMENT_METHOD_LABELS_FR[p.method]} · {PAYMENT_CATEGORY_LABELS_FR[p.category]}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-mono font-semibold">{formatDzdPlain(p.amount)}</p>
-                    <p className="text-[10px] text-muted-foreground">{formatRelative(p.collectedAt)}</p>
-                  </div>
-                </li>
+            /* PAYMENT BREAKDOWN: Show each payment with its breakdown card
+               instead of the old single-line display. This makes it clear
+               what each payment covers (Education, Transport, etc.) and
+               any overpayment with remark. */
+            <div className="space-y-3">
+              {payments.slice(0, 20).map((p) => (
+                <PaymentBreakdownCard key={p.id} payment={p} />
               ))}
-            </ul>
+              {payments.length > 20 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  + {payments.length - 20} paiement(s) précédent(s)…
+                </p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
