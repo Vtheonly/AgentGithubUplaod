@@ -853,6 +853,10 @@ export class SupabasePaymentRepository implements PaymentRepository {
         collected_at: input.collectedAt ?? now,
         collected_by: collectedBy,
         notes: input.notes ?? null,
+        // PAYMENT BREAKDOWN columns (migration 0033).
+        expected_amount: (input as { expectedAmount?: number }).expectedAmount ?? 0,
+        excess_amount: (input as { excessAmount?: number }).excessAmount ?? 0,
+        excess_remark: (input as { excessRemark?: string | null }).excessRemark ?? null,
       }));
       // Insert in chunks of 500.
       const CHUNK_SIZE = 500;
