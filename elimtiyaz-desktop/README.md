@@ -38,3 +38,6 @@ Electron 33 · Vite 6 · React 18 · TypeScript 5.7 · Tailwind CSS 3.4 · shadc
 ## License
 
 UNLICENSED (private)
+
+
+SO FAR THS IS THE BIG VERSION FULL WORKING VERSION
