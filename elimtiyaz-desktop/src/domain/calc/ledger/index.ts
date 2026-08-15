@@ -15,6 +15,7 @@
  */
 export * from "./account-id";
 export * from "./balance";
+export * from "./ledger-balance";
 export * from "./overdue";
 export * from "./entries";
 export * from "./charges";
