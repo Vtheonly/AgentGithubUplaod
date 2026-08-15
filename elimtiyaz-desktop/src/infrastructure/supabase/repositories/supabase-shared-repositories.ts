@@ -1118,15 +1118,15 @@ export class SupabaseLedgerRepository implements LedgerRepository {
     } as ParentLedgerSummary);
   }
 
-  async reconcile(): Promise<Result<import("../../../domain/reconcile").ReconciliationReport>> {
+  async reconcile(): Promise<Result<import("../../../domain/calc/reconcile").ReconciliationReport>> {
     // Reconciliation is a desktop-only sweep; the mock + supabase impls
     // both return an empty report. The full reconcile() lives in
-    // `domain/reconcile.ts` and reads from the in-memory cache.
+    // `domain/calc/reconcile/index.ts` and reads from the in-memory cache.
     const emptyReport = {
       checked: 0,
       violations: [],
       warnings: [],
-    } as unknown as import("../../../domain/reconcile").ReconciliationReport;
+    } as unknown as import("../../../domain/calc/reconcile").ReconciliationReport;
     return Ok(emptyReport);
   }
 }
@@ -1228,7 +1228,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
     }
   }
 
-  async allocatePayment(): Promise<Result<import("../../../domain/calc/payment/installments").AllocationResult>> {
+  async allocatePayment(): Promise<Result<import("../../../domain/calc/payment/waterfall-allocator").AllocationResult>> {
     // The waterfall allocator is a complex domain operation that the
     // interactive financials UI uses. For the Supabase impl, we return a
     // no-op allocation — the importer path uses `importInstallment` +
@@ -1237,7 +1237,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
       allocations: [],
       unallocatedAmount: 0,
       allocatedAmount: 0,
-    } as unknown as import("../../../domain/calc/payment/installments").AllocationResult);
+    } as unknown as import("../../../domain/calc/payment/waterfall-allocator").AllocationResult);
   }
 
   async updateDueDate(): Promise<Result<Installment>> {

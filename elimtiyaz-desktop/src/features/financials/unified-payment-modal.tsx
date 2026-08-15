@@ -54,10 +54,8 @@ import {
   proofRequiredFor,
 } from "../../domain/model/payment";
 import type { Parent } from "../../domain/model/parent";
-import {
-  allocatePaymentToInstallments,
-  currentTrancheLabel,
-} from "../../domain/calc/payment/installments";
+import { allocatePaymentToInstallments } from "../../domain/calc/payment/waterfall-allocator";
+import { currentTrancheLabel } from "../../domain/calc/payment/queries";
 import { PaymentSlider, type PaymentTrancheSpec, type PaymentSliderMode } from "./payment-slider";
 import { DebtMeter } from "./debt-meter";
 import { generatePaymentReceiptPdf } from "../../infrastructure/receipt-pdf/payment-receipt";

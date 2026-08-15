@@ -15,11 +15,13 @@
 import { describe, it, expect } from "vitest";
 import {
   allocatePaymentToInstallments,
-  currentTrancheLabel,
   isOverpayment,
+} from "../../../domain/calc/payment/waterfall-allocator";
+import {
   revertPaymentAllocation,
   reevaluateInstallmentStatus,
-} from "../../../domain/calc/payment/installments";
+} from "../../../domain/calc/payment/lifo-reversal";
+import { currentTrancheLabel } from "../../../domain/calc/payment/queries";
 import type { Installment } from "../../../domain/model/payment";
 
 function makeInstallment(overrides: Partial<Installment> = {}): Installment {

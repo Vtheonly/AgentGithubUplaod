@@ -19,7 +19,7 @@ import { daysBetweenFloor, isStrictlyPast } from "../shared/dates";
  * or 0 if there are no overdue charges.
  *
  * Note: This is the LEDGER-aware version. The installment-aware version
- * (`maxDaysOverdue` in `payment/installments.ts`) operates on `Installment[]`
+ * (`maxDaysOverdue` in `payment/queries.ts`) operates on `Installment[]`
  * instead of `LedgerEntry[]`. Both are kept because they serve different
  * data sources (the ledger vs. the installments table).
  *

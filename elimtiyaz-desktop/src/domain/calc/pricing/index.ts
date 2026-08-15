@@ -5,12 +5,16 @@
  * from `@domain/calc/pricing`.
  *
  * Submodules:
- *   - `discounts` — applyDiscount, findDiscountByCode, computeSiblingDiscount
- *   - `tuition`   — tuitionForGradeLevel, tuitionForLevel,
- *                   tuitionTranchesForGrade, tuitionTranches
- *   - `transport` — transportForDestination, transportForTier,
- *                   transportTranchesForDestination
+ *   - `discount-rules`  — 5 canonical discount evaluators + legacy pricing-config
+ *                         helpers (applyDiscount, findDiscountByCode,
+ *                         computeSiblingDiscount)
+ *   - `discount-engine` — evaluateAllSystemDiscounts, sumDiscounts
+ *   - `tuition`         — tuitionForGradeLevel, tuitionForLevel,
+ *                         tuitionTranchesForGrade, tuitionTranches
+ *   - `transport`       — transportForDestination, transportForTier,
+ *                         transportTranchesForDestination
  */
-export * from "./discounts";
+export * from "./discount-rules";
+export * from "./discount-engine";
 export * from "./tuition";
 export * from "./transport";

@@ -535,7 +535,7 @@ class FastLedgerRepo implements LedgerRepository {
   async summary(_parentId: string): Promise<Result<import("../../domain/model/ledger").ParentLedgerSummary>> {
     return Err(Errors.server("not implemented in stub"));
   }
-  async reconcile(): Promise<Result<import("../../domain/reconcile").ReconciliationReport>> {
+  async reconcile(): Promise<Result<import("../../domain/calc/reconcile").ReconciliationReport>> {
     return Err(Errors.server("not implemented in stub"));
   }
 }
@@ -627,7 +627,7 @@ class FastInstallmentRepo implements InstallmentRepository {
   async markPaid(): Promise<Result<Installment>> {
     return Err(Errors.server("not implemented in stub"));
   }
-  async allocatePayment(): Promise<Result<import("../../domain/calc/payment/installments").AllocationResult>> {
+  async allocatePayment(): Promise<Result<import("../../domain/calc/payment/waterfall-allocator").AllocationResult>> {
     return Err(Errors.server("not implemented in stub"));
   }
   async updateDueDate(): Promise<Result<Installment>> {

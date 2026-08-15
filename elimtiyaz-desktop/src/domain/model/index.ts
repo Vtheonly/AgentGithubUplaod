@@ -1,14 +1,16 @@
 /**
  * Domain model barrel — re-exports all model interfaces.
  *
- * Note: `academic.ts` and `student.ts` both export `AcademicHistoryEntry`,
- * `PromotionDecision`, and `PROMOTION_DECISION_LABELS_FR` for backward
- * compatibility. To avoid duplicate-export errors, we re-export explicitly
- * from `student.ts` (canonical) and re-export `academic.ts` with exclusions.
+ * Phase 4A consolidation (single source of truth):
+ *   - `AcademicCycle`, `AcademicHistoryEntry`, `PromotionDecision`, and
+ *     `PROMOTION_DECISION_LABELS_FR` are defined EXCLUSIVELY in `./academic`.
+ *     `./student` and `./payment` re-export them for backward compatibility
+ *     with callers that imported them from those modules historically.
  *
- * `AcademicCycle` is exported by both `academic.ts` and `payment.ts` —
- * same definition, so we re-export from `academic.ts` (canonical) and
- * exclude it from `payment.ts`.
+ * To avoid duplicate-export errors in this barrel, the canonical names are
+ * re-exported from `./academic` only, and excluded from the `./student` and
+ * `./payment` re-export lists below (the `./student` and `./payment` modules
+ * themselves still re-export them for direct-import callers).
  */
 export * from "./parent";
 export {
@@ -24,12 +26,11 @@ export {
   type CreateStudentInput,
   type BatchRegistrationInput,
   type BatchRegistrationResult,
-  type AcademicHistoryEntry,
-  type PromotionDecision,
+  // AcademicHistoryEntry, PromotionDecision, PROMOTION_DECISION_LABELS_FR
+  // omitted — canonical definitions re-exported from ./academic below.
   LEVEL_LABELS_FR,
   LEVEL_YEARS,
   STUDENT_STATUS_LABELS_FR,
-  PROMOTION_DECISION_LABELS_FR,
 } from "./student";
 export {
   // Types
@@ -46,11 +47,13 @@ export {
   type AttendanceSession,
   type AttendanceRecord,
   type Homework,
+  type AcademicHistoryEntry,
+  type PromotionDecision,
   // Constants
   ATTENDANCE_STATUS_LABELS_FR,
   ATTENDANCE_STATUS_SHORT,
   SESSION_LABELS_FR,
-  // PROMOTION_DECISION_LABELS_FR omitted — re-exported from ./student
+  PROMOTION_DECISION_LABELS_FR,
   DEFAULT_PASSING_GRADE,
   // Functions
   computeSubjectAverage,
@@ -61,7 +64,7 @@ export {
 } from "./academic";
 export {
   // Re-export everything from payment.ts EXCEPT AcademicCycle (already
-  // re-exported from ./academic above).
+  // re-exported from ./academic above — ./payment now imports it from there).
   type Payment,
   type PaymentMethod,
   type PaymentStatus,

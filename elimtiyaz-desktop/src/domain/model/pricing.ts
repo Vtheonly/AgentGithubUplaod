@@ -173,7 +173,7 @@ export {
   applyDiscount,
   findDiscountByCode,
   computeSiblingDiscount,
-} from "../calc/pricing/discounts";
+} from "../calc/pricing/discount-rules";
 
 export const PRICING_CATEGORY_LABELS_FR: Record<PricingCategory, string> = {
   tuition: "Scolarité",

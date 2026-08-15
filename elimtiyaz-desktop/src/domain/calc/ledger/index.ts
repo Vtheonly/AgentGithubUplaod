@@ -6,7 +6,9 @@
  *
  * Submodules:
  *   - `account-id` — deriveAccountId
- *   - `balance`    — computeAccountBalance, computeParentSummary
+ *   - `balance`    — computeAccountBalance, computeParentSummary,
+ *                    replayParentLedger, balanceForAccount,
+ *                    totalOutstandingAcrossAccounts
  *   - `overdue`    — maxDaysOverdueFromLedger, buildOverdueDueDateMap
  *   - `entries`    — createChargeEntry, createPaymentEntry, createAdjustmentEntry,
  *                    createRefundEntry, createReversalEntry
@@ -15,7 +17,6 @@
  */
 export * from "./account-id";
 export * from "./balance";
-export * from "./ledger-balance";
 export * from "./overdue";
 export * from "./entries";
 export * from "./charges";

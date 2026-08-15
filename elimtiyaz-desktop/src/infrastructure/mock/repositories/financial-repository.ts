@@ -40,7 +40,7 @@ import type {
   UpdateInstallmentDueDateInput,
   PaymentCategory,
 } from "../../../domain/model/payment";
-import type { AllocationResult } from "../../../domain/calc/payment/installments";
+import type { AllocationResult } from "../../../domain/calc/payment/waterfall-allocator";
 import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import {

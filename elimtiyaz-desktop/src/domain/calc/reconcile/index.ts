@@ -13,9 +13,10 @@
  * but it does affect the violation ordering in the report, which some
  * downstream consumers may rely on for stable diffs).
  *
- * This module also re-exports the individual checks and cross-checks so
- * callers can import them from a single location:
- *   `import { reconcileLedger, crossCheckPayments, ... } from "@/domain/calc/reconcile"`
+ * This module also re-exports the individual checks, cross-checks, and
+ * the reconciliation types so callers can import them from a single
+ * location:
+ *   `import { reconcileLedger, crossCheckPayments, type ReconciliationReport, ... } from "@/domain/calc/reconcile"`
  */
 import type { LedgerEntry } from "@/domain/model/ledger";
 import type { ReconciliationReport, ReconciliationViolation } from "@/domain/reconcile-types";
@@ -28,6 +29,14 @@ import {
   checkDuplicateReceiptNumbers,
   checkTenantConsistency,
 } from "./checks";
+
+// Re-export reconciliation types so callers have a single import location
+// (previously re-exported via the deleted `domain/reconcile.ts` shim).
+export type {
+  ReconciliationSeverity,
+  ReconciliationViolation,
+  ReconciliationReport,
+} from "@/domain/reconcile-types";
 
 // Re-export individual checks + cross-checks so callers have a single import.
 export {

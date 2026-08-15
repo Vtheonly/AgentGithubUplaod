@@ -5,11 +5,15 @@
  * from `@domain/calc/payment`.
  *
  * Submodules:
- *   - `sums`         — sumPaidPayments, sumInstallmentsDue, sumInstallmentsPaid
- *   - `installments` — installmentRemaining, totalOutstanding, overdueAmount,
- *                      maxDaysOverdue, agingBucketFromDays
- *   - `revenue`      — revenueByMonth, revenueByCategory, monthlyRevenue
+ *   - `sums`               — sumPaidPayments, sumInstallmentsDue, sumInstallmentsPaid
+ *   - `queries`            — installmentRemaining, totalOutstanding, overdueAmount,
+ *                            maxDaysOverdue, agingBucketFromDays, currentTrancheLabel
+ *   - `waterfall-allocator` — allocatePaymentToInstallments, isOverpayment
+ *   - `lifo-reversal`      — revertPaymentAllocation, reevaluateInstallmentStatus
+ *   - `revenue`            — revenueByMonth, revenueByCategory, monthlyRevenue
  */
 export * from "./sums";
-export * from "./installments";
+export * from "./queries";
+export * from "./waterfall-allocator";
+export * from "./lifo-reversal";
 export * from "./revenue";

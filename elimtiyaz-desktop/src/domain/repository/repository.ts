@@ -38,7 +38,7 @@ import type {
   PaymentCategory,
   PaymentPlan,
 } from "../model/payment";
-import type { AllocationResult } from "../calc/payment/installments";
+import type { AllocationResult } from "../calc/payment/waterfall-allocator";
 import type {
   AppNotification,
   DashboardKpi,
@@ -493,7 +493,7 @@ export interface LedgerRepository {
   /** Compute the full parent ledger summary (computed via replay — never stored). */
   summary(parentId: string): Promise<Result<ParentLedgerSummary>>;
   /** Run reconciliation against the entire ledger. */
-  reconcile(): Promise<Result<import("../reconcile").ReconciliationReport>>;
+  reconcile(): Promise<Result<import("../calc/reconcile").ReconciliationReport>>;
 }
 
 /* ------------------------------------------------------------------ */

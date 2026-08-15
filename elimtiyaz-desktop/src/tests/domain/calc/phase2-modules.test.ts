@@ -10,7 +10,7 @@ import {
 import { allocatePaymentToInstallments, isOverpayment } from "../../../domain/calc/payment/waterfall-allocator";
 import { revertPaymentAllocation, reevaluateInstallmentStatus } from "../../../domain/calc/payment/lifo-reversal";
 import { reconcileFinancials, clearedBalancesReconcile } from "../../../domain/calc/reconcile/reconciliation";
-import { replayParentLedger, balanceForAccount } from "../../../domain/calc/ledger/ledger-balance";
+import { replayParentLedger, balanceForAccount } from "../../../domain/calc/ledger/balance";
 import type { Installment, Payment } from "../../../domain/model/payment";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import { createChargeEntry, createPaymentEntry } from "../../../domain/calc/ledger/entries";

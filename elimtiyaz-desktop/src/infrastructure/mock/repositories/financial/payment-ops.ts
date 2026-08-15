@@ -30,7 +30,7 @@ import type {
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import { deriveAccountId } from "../../../../domain/calc/ledger";
 import { allocatePaymentAcrossInstallments } from "./installment-ops";
-import { revertPaymentAllocation } from "../../../../domain/calc/payment/installments";
+import { revertPaymentAllocation } from "../../../../domain/calc/payment/lifo-reversal";
 import type { FinancialOpsCtx } from "./types";
 
 /**

@@ -27,7 +27,15 @@
  *     in the app (topbar bell, debt dashboard, parent/student drawers,
  *     installment grid, clubs, therapy, canteen) constructs one of these
  *     and hands it to the modal.
+ *
+ * `AcademicCycle` is imported from `./academic` (the canonical source) and
+ * re-exported here so existing callers importing from `./payment` continue
+ * to work.
  */
+import type { AcademicCycle } from "./academic";
+
+export type { AcademicCycle };
+
 export type PaymentMethod = "cash" | "check" | "transfer";
 
 /**
@@ -191,8 +199,11 @@ export interface Installment {
 /**
  * Education cycle — used to drive cycle-based installment templates.
  * Each cycle can have its own default tranche dates and amounts.
+ *
+ * Canonical definition lives in `./academic` (re-exported at the top of this
+ * file). `AcademicCycleLegacy` is the only cycle-related type still defined
+ * here because it is payment-specific (legacy alias that drops `prescolaire`).
  */
-export type AcademicCycle = "prescolaire" | "primaire" | "cem" | "lycee";
 
 /** Legacy alias — `primaire` historically included preschool. New code
  * should distinguish `prescolaire` when it matters for pricing. */
@@ -457,7 +468,7 @@ export {
   overdueAmount,
   maxDaysOverdue,
   agingBucketFromDays,
-} from "../calc/payment/installments";
+} from "../calc/payment/queries";
 
 export {
   revenueByMonth,

@@ -23,7 +23,7 @@ import {
   allocatePaymentToInstallments,
   type AllocationResult,
   type InstallmentAllocation,
-} from "../../../../domain/calc/payment/installments";
+} from "../../../../domain/calc/payment/waterfall-allocator";
 import { getOfficialTuitionDueDates } from "../../../../domain/calc/pricing";
 import type { FinancialOpsCtx } from "./types";
 

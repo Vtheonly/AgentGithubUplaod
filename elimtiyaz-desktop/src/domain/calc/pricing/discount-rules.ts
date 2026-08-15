@@ -1,9 +1,20 @@
 /**
- * Discount Rules — the 5 canonical `Prices.md` (2026-2027) discount evaluators.
+ * Discount Rules — the 5 canonical `Prices.md` (2026-2027) discount evaluators
+ * plus the legacy pricing-config lookup helpers (`applyDiscount`,
+ * `findDiscountByCode`, `computeSiblingDiscount`).
+ *
  * Each rule is PURE: zero I/O, zero side effects.
  */
 import type { GradeLevel } from "../../model/student";
 import type { PaymentPlan } from "../../model/payment";
+import type {
+  PricingConfig,
+  PricingEntry,
+  DiscountCode,
+  DiscountType,
+} from "../../model/pricing";
+
+export type { GradeLevel, PaymentPlan };
 
 export const PASSAGE_DE_PALIER_AMOUNT = -10_000;
 export const SIBLING_PER_CHILD_AMOUNT = 5_000;
@@ -60,4 +71,40 @@ export function evaluateSeniorityDiscount(
 export function isCycleTransition(previous: GradeLevel | null, current: GradeLevel): boolean {
   if (!previous) return false;
   return CYCLE_TRANSITIONS.some(([from, to]) => previous === from && current === to);
+}
+
+// ─── Legacy pricing-config helpers ───────────────────────────────────────────
+// These wrap the discount evaluators above for callers that operate on
+// a `PricingConfig` (the runtime fee schedule). Moved here from the deleted
+// `discounts.ts` shim so all discount logic lives in one place.
+
+/** Apply a single `DiscountType` (percentage or fixed) to a base amount. */
+export function applyDiscount(
+  baseAmount: number,
+  discount: { amount: number; discountType: DiscountType },
+): number {
+  if (discount.discountType === "percentage") {
+    const pct = Math.max(0, Math.min(100, discount.amount));
+    return Math.round(baseAmount * (1 - pct / 100));
+  }
+  return Math.max(0, baseAmount + discount.amount);
+}
+
+/** Find an active discount entry by its `discountCode`. */
+export function findDiscountByCode(
+  config: PricingConfig,
+  code: DiscountCode,
+): PricingEntry | undefined {
+  return config.discounts.find((d) => d.discountCode === code && d.isActive);
+}
+
+/** Total sibling discount given a `sibling_fixed` config entry and child count. */
+export function computeSiblingDiscount(
+  config: PricingConfig,
+  childrenCount: number,
+): number {
+  if (childrenCount <= 1) return 0;
+  const entry = findDiscountByCode(config, "sibling_fixed");
+  if (!entry) return 0;
+  return entry.amount * (childrenCount - 1);
 }

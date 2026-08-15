@@ -99,14 +99,14 @@ import {
   mockPerformanceReviewRepository,
   mockChatRepository,
   mockOnboardingRepository,
-} from "../../infrastructure/mock/workforce-mock-repositories";
+} from "../../infrastructure/mock/workforce";
 import {
   mockSupplierRepository,
   mockPurchaseRequestRepository,
   mockDeliveryRepository,
   mockInventoryRepository,
   mockWarehouseTaskRepository,
-} from "../../infrastructure/mock/operations-mock-repositories";
+} from "../../infrastructure/mock/operations";
 
 export interface Repositories {
   readonly auth: AuthRepository;

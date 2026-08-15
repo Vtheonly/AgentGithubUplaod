@@ -4,13 +4,23 @@
  */
 import type { Gender, Parent, CreateParentInput } from "./parent";
 import type { PaymentPlan } from "./payment";
+// `AcademicHistoryEntry`, `PromotionDecision`, and `PROMOTION_DECISION_LABELS_FR`
+// are defined canonically in `./academic` (single source of truth per the
+// Phase 4A consolidation directive). They are re-exported below for backward
+// compatibility with callers importing them from `./student`.
+import type {
+  AcademicHistoryEntry,
+  PromotionDecision,
+} from "./academic";
+import { PROMOTION_DECISION_LABELS_FR } from "./academic";
 
 export type { Gender } from "./parent";
 export type { PaymentPlan } from "./payment";
+export type { AcademicHistoryEntry, PromotionDecision };
+export { PROMOTION_DECISION_LABELS_FR };
 
 export type AcademicLevel = "primaire" | "cem" | "lycee";
 export type StudentStatus = "active" | "graduated" | "transferred" | "suspended" | "withdrawn";
-export type PromotionDecision = "promoted" | "repeated" | "graduated" | "transferred";
 
 /**
  * Granular grade level — the canonical pedagogical placement of a student.
@@ -251,17 +261,8 @@ export interface BatchRegistrationResult {
   readonly students: readonly Student[];
 }
 
-export interface AcademicHistoryEntry {
-  readonly academicYear: string;
-  readonly level: AcademicLevel;
-  readonly gradeYear: number;
-  readonly classId: string | null;
-  readonly className: string | null;
-  readonly gpa: number;
-  readonly rank: number | null;
-  readonly decision: PromotionDecision;
-  readonly narrative: string | null;
-}
+// `AcademicHistoryEntry` is re-exported from `./academic` at the top of this
+// file — see the import block above.
 
 export const LEVEL_LABELS_FR: Record<AcademicLevel, string> = {
   primaire: "Primaire",
@@ -283,9 +284,6 @@ export const STUDENT_STATUS_LABELS_FR: Record<StudentStatus, string> = {
   withdrawn: "Retiré",
 };
 
-export const PROMOTION_DECISION_LABELS_FR: Record<PromotionDecision, string> = {
-  promoted: "Promu",
-  repeated: "Redouble",
-  graduated: "Diplômé",
-  transferred: "Transféré",
-};
+// `PROMOTION_DECISION_LABELS_FR` is re-exported from `./academic` at the top
+// of this file. The canonical definition (with gender-neutral `Promu(e)` /
+// `Diplômé(e)` / `Transféré(e)` labels) lives in `./academic`.

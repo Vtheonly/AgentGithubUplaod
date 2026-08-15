@@ -16,6 +16,10 @@
  *   - Reversed entries are excluded from typed totals (totalCharged, totalPaid,
  *     etc.) but the reversal's signed amount still contributes to `balance`.
  *   - The `reversedIds` set is computed once before the main loop.
+ *
+ * Convenience aliases (`replayParentLedger`, `balanceForAccount`,
+ * `totalOutstandingAcrossAccounts`) were moved here from the deleted
+ * `ledger-balance.ts` shim so all balance logic lives in one place.
  */
 import type { LedgerEntry } from "@/domain/model/ledger";
 import type {
@@ -198,4 +202,50 @@ export function computeParentSummary(
     entryCount,
     lastActivityAt,
   };
+}
+
+// ─── Convenience aliases (moved from the deleted `ledger-balance.ts` shim) ────
+
+/**
+ * Convenience wrapper around `computeParentSummary` that mirrors the legacy
+ * signature. Reads ALL entries (caller filters by tenant) and replays them
+ * for a single parent.
+ */
+export function replayParentLedger(
+  allEntries: readonly LedgerEntry[],
+  parentId: string,
+  parentName: string,
+  overdueCategoryDueDates: ReadonlyMap<string, Date> = new Map(),
+  now: Date = new Date(),
+): ParentLedgerSummary {
+  return computeParentSummary(allEntries, parentId, parentName, overdueCategoryDueDates, now);
+}
+
+/**
+ * Convenience wrapper around `computeAccountBalance` that mirrors the legacy
+ * signature.
+ */
+export function balanceForAccount(
+  allEntries: readonly LedgerEntry[],
+  accountId: string,
+  now: Date = new Date(),
+): AccountBalance {
+  return computeAccountBalance(allEntries, accountId, now);
+}
+
+/**
+ * Sum of `balance` across every distinct `accountId` present in `allEntries`.
+ * Useful for tenant-wide exposure dashboards. Each account is replayed
+ * independently.
+ */
+export function totalOutstandingAcrossAccounts(
+  allEntries: readonly LedgerEntry[],
+  now: Date = new Date(),
+): number {
+  const accountIds = new Set(allEntries.map((e) => e.accountId));
+  let total = 0;
+  for (const accId of accountIds) {
+    total += computeAccountBalance(allEntries, accId, now).balance;
+  }
+  return total;
 }

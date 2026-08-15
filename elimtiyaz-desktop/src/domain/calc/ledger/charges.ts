@@ -19,7 +19,7 @@
  *     bug: a −5,000 DA sibling discount was being applied to *each* tranche
  *     (3 × −5,000 = −15,000 DA) instead of once on the annual total.
  *   - Callers MUST now pre-evaluate discounts on the annual gross total
- *     via `evaluateAllSystemDiscounts` (see `domain/calc/pricing/discounts.ts`)
+ *     via `evaluateAllSystemDiscounts` (see `domain/calc/pricing/discount-engine.ts`)
  *     and pass the resulting NET tranche amounts via the new `netTrancheAmounts`
  *     input field. When `netTrancheAmounts` is provided, it overrides the
  *     config-derived gross tranche amounts.

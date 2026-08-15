@@ -17,10 +17,12 @@ import {
   evaluateEarlyAnnualDiscount,
   evaluateAcademicExcellenceDiscount,
   evaluateSeniorityDiscount,
+  PASSAGE_DE_PALIER_AMOUNT,
+} from "../../../domain/calc/pricing/discount-rules";
+import {
   evaluateAllSystemDiscounts,
   sumDiscounts,
-  PASSAGE_DE_PALIER_AMOUNT,
-} from "../../../domain/calc/pricing/discounts";
+} from "../../../domain/calc/pricing/discount-engine";
 
 describe("Discount Rule 1 — Passage de palier", () => {
   it("returns -10,000 DA when transitioning 5AP → 1AM (Primary → CEM)", () => {

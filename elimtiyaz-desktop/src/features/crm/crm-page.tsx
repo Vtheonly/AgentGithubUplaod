@@ -22,7 +22,6 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
   Plus,
-  Search,
   Phone,
   MessageCircle,
   Mail,
@@ -41,6 +40,9 @@ import {
   LEVEL_LABELS_FR,
   STUDENT_STATUS_LABELS_FR,
 } from "../../domain/model/student";
+import type { Parent } from "../../domain/model/parent";
+import { parentDisplayName } from "../../domain/model/parent";
+import type { Student } from "../../domain/model/student";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { PageHeader } from "../../shared/layout/page-header";
 import { Card, CardContent } from "../../shared/ui/card";
@@ -51,13 +53,12 @@ import {
   PageTabContent,
 } from "../../shared/layout/page-tabs";
 import { Button } from "../../shared/ui/button";
-import { Input } from "../../shared/ui/input";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { StatusChip } from "../../shared/ui/status-chip";
-import { AsyncContent, EmptyState } from "../../shared/layout/state-views";
+import { DataTable, type DataTableColumn, type DataTableAction } from "../../shared/ui/data-table";
+import { EmptyState } from "../../shared/layout/state-views";
 import { BatchRegistrationModal } from "./batch-registration-modal";
 import { ParentDetailDrawer } from "./parent-detail-drawer";
-import { parentDisplayName } from "../../domain/model/parent";
 import { StudentDetailDrawer } from "./student-detail-drawer";
 import { ExcelImportModal } from "./excel-import-modal";
 import { useToast } from "../../app/providers/toast-provider";
@@ -396,7 +397,7 @@ function BatchTab({
 }
 
 // ============================================================================
-// ParentsTab — read-only list with row-level actions
+// ParentsTab — read-only DataTable<Parent> with row-level actions
 // ============================================================================
 
 function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
@@ -404,164 +405,190 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get("parentId");
   const parents = useObservable(() => repos.parents.observe(), []);
-  const [query, setQuery] = useState("");
 
-  const filtered = query.trim()
-    ? parents.filter((p) =>
-        `${p.firstName} ${p.lastName} ${p.displayName ?? ""} ${p.phone} ${p.code}`.toLowerCase().includes(query.toLowerCase()),
-      )
-    : parents;
+  const columns: readonly DataTableColumn<Parent>[] = [
+    {
+      header: "Nom",
+      accessor: (p) => parentDisplayName(p),
+      cell: (p) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback>
+              {p.firstName[0]}
+              {p.lastName[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">
+              {parentDisplayName(p)}
+            </p>
+            <span className="font-mono text-[11px] text-muted-foreground">{p.code}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Téléphone",
+      accessor: "phone",
+      cell: (p) => <span className="font-mono text-xs">{p.phone}</span>,
+    },
+    {
+      header: "Adresse",
+      accessor: "address",
+      cell: (p) => <span className="text-xs text-muted-foreground">{p.address ?? "—"}</span>,
+      className: "hidden md:table-cell",
+    },
+  ];
+
+  const actions: readonly DataTableAction<Parent>[] = [
+    {
+      label: "",
+      icon: <Phone className="h-4 w-4" />,
+      variant: "ghost",
+      onClick: (p) => window.open(`tel:${p.phone}`),
+    },
+    {
+      label: "",
+      icon: <MessageCircle className="h-4 w-4" />,
+      variant: "ghost",
+      onClick: (p) => window.open(`https://wa.me/${(p.whatsapp ?? "").replace(/[\s+]/g, "")}`),
+      disabled: (p) => !p.whatsapp,
+    },
+    {
+      label: "",
+      icon: <Mail className="h-4 w-4" />,
+      variant: "ghost",
+      onClick: (p) => window.open(`mailto:${p.email}`),
+      disabled: (p) => !p.email,
+    },
+    {
+      label: "Consulter",
+      icon: <Eye className="h-4 w-4" />,
+      variant: "ghost",
+      onClick: (p) => onOpenParent(p.id),
+    },
+  ];
+
+  if (parents.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <EmptyState
+            title="Aucun parent"
+            description="Commencez par inscrire un premier parent (onglet Inscription groupée)."
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
-      <CardContent className="p-0">
-        {/* Toolbar — search only. Removed dead "Filter Niveau" + "Download" buttons. */}
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher par nom, téléphone, code…"
-              className="pl-9"
-            />
-          </div>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {filtered.length} parent(s)
-          </span>
-        </div>
-
-        <AsyncContent
-          isLoading={false}
-          error={null}
-          items={filtered}
-          emptyTitle="Aucun parent"
-          emptyDescription="Commencez par inscrire un premier parent (onglet Inscription groupée)."
-        >
-          {(items) => (
-            <ul className="divide-y divide-border">
-              {items.map((p) => {
-                const isHighlighted = p.id === highlightId;
-                return (
-                  <li
-                    key={p.id}
-                    className={`flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-accent/5 ${isHighlighted ? "bg-primary/10" : ""}`}
-                    onClick={() => onOpenParent(p.id)}
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback>
-                        {p.firstName[0]}
-                        {p.lastName[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {parentDisplayName(p)}
-                        </p>
-                        <span className="font-mono text-xs text-muted-foreground">{p.code}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">{p.phone}</p>
-                    </div>
-                    <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{p.address ?? "—"}</span>
-                    </div>
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" title="Appeler" onClick={() => window.open(`tel:${p.phone}`)}>
-                        <Phone className="h-4 w-4" />
-                      </Button>
-                      {p.whatsapp ? (
-                        <Button variant="ghost" size="icon" title="WhatsApp" onClick={() => window.open(`https://wa.me/${(p.whatsapp ?? "").replace(/[\s+]/g, "")}`)}>
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {p.email ? (
-                        <Button variant="ghost" size="icon" title="E-mail" onClick={() => window.open(`mailto:${p.email}`)}>
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      <Button variant="ghost" size="icon" title="Consulter" onClick={() => onOpenParent(p.id)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </AsyncContent>
+      <CardContent className="p-3">
+        <DataTable<Parent>
+          data={parents}
+          columns={columns}
+          actions={actions}
+          searchFields={["firstName", "lastName", "displayName", "phone", "code"]}
+          searchPlaceholder="Rechercher par nom, téléphone, code…"
+          emptyMessage="Aucun parent ne correspond à votre recherche."
+          onRowClick={(p) => onOpenParent(p.id)}
+          getRowId={(p) => p.id}
+          pageSize={12}
+          toolbar={
+            highlightId ? (
+              <span className="text-xs text-muted-foreground">Parent mis en surbrillance : {highlightId}</span>
+            ) : null
+          }
+        />
       </CardContent>
     </Card>
   );
 }
 
 // ============================================================================
-// StudentsTab — read-only list
+// StudentsTab — read-only DataTable<Student>
 // ============================================================================
 
 function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void }) {
   const repos = useRepositories();
   const students = useObservable(() => repos.students.observe(), []);
-  const [query, setQuery] = useState("");
 
-  const filtered = query.trim()
-    ? students.filter((s) =>
-        `${s.firstName} ${s.lastName} ${s.code}`.toLowerCase().includes(query.toLowerCase()),
-      )
-    : students;
+  const columns: readonly DataTableColumn<Student>[] = [
+    {
+      header: "Nom",
+      accessor: (s) => `${s.firstName} ${s.lastName}`,
+      cell: (s) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback>
+              {s.firstName[0]}{s.lastName[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">
+              {s.firstName} {s.lastName}
+            </p>
+            <span className="font-mono text-[11px] text-muted-foreground">{s.code}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Niveau",
+      accessor: "level",
+      cell: (s) => (
+        <span className="text-xs text-muted-foreground">
+          {LEVEL_LABELS_FR[s.level]} — Année {s.gradeYear}
+        </span>
+      ),
+    },
+    {
+      header: "Statut",
+      accessor: "status",
+      cell: (s) => (
+        <StatusChip
+          label={STUDENT_STATUS_LABELS_FR[s.status]}
+          tone={s.status === "active" ? "success" : "neutral"}
+        />
+      ),
+      sortable: true,
+    },
+  ];
+
+  const actions: readonly DataTableAction<Student>[] = [
+    {
+      label: "Consulter",
+      icon: <Eye className="h-4 w-4" />,
+      variant: "ghost",
+      onClick: (s) => onOpenStudent(s.id),
+    },
+  ];
+
+  if (students.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <EmptyState title="Aucun élève" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
-      <CardContent className="p-0">
-        {/* Toolbar — search only. Removed dead "Filter Niveau" + "Download" buttons. */}
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un élève…"
-              className="pl-9"
-            />
-          </div>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {filtered.length} élève(s)
-          </span>
-        </div>
-        {filtered.length === 0 ? (
-          <EmptyState title="Aucun élève" />
-        ) : (
-          <ul className="divide-y divide-border">
-            {filtered.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/5"
-                onClick={() => onOpenStudent(s.id)}
-              >
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback>
-                    {s.firstName[0]}{s.lastName[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {s.firstName} {s.lastName}
-                    </p>
-                    <span className="font-mono text-xs text-muted-foreground">{s.code}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {LEVEL_LABELS_FR[s.level]} — Année {s.gradeYear}
-                  </p>
-                </div>
-                <StatusChip
-                  label={STUDENT_STATUS_LABELS_FR[s.status]}
-                  tone={s.status === "active" ? "success" : "neutral"}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+      <CardContent className="p-3">
+        <DataTable<Student>
+          data={students}
+          columns={columns}
+          actions={actions}
+          searchFields={["firstName", "lastName", "code"]}
+          searchPlaceholder="Rechercher un élève…"
+          emptyMessage="Aucun élève ne correspond à votre recherche."
+          onRowClick={(s) => onOpenStudent(s.id)}
+          getRowId={(s) => s.id}
+          pageSize={12}
+        />
       </CardContent>
     </Card>
   );
