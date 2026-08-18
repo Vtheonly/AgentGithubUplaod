@@ -1,47 +1,51 @@
 /**
- * ReceiptsTab — replaces the previous ComingSoonCard.
+ * ReceiptsTab — re-downloadable payment receipts + account statement generator.
  *
- * Iteration 3-B (plan §07.05): PDF receipts auto-generated on payment.
- *   - Recent Payment Receipt (single transaction, RCP-2026-XXXXX)
- *   - Full Account Statement (complete ledger per parent)
- *
- * No manual "Generate Receipt" button — every payment already triggers
- * repository.generateReceipt() on creation. This tab lets users
- * RE-DOWNLOAD the PDF for any past payment + export an account statement.
- *
- * Uses the shared PDF service (pdf-lib) so the visual language matches
- * every other generated document in the application.
+ * Refactored to consume `<DataTable<Payment>>` for the receipts list (instead
+ * of bespoke `<ul>/<li>` markup + hand-rolled search/filter state). The
+ * account-statement generator stays as a small Card on top because it's a
+ * form-style control, not a list.
  */
 import { useState } from "react";
-import { FileText, Download, Search, Loader2, FileBarChart, User } from "lucide-react";
+import { FileText, Download, Loader2, FileBarChart } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
-import { useDebounce } from "../../shared/hooks/use-debounce";
 import { useToast } from "../../app/providers/toast-provider";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
-import { Input } from "../../shared/ui/input";
-import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
-import { EmptyState } from "../../shared/layout/state-views";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../../shared/ui/select";
 import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableAction,
+} from "../../shared/ui/data-table";
+import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  type Payment,
 } from "../../domain/model/payment";
-import { formatDzd, formatDzdPlain } from "../../core/format/currency";
-import { formatRelative, formatDate } from "../../core/format/date";
+import { formatDzdPlain } from "../../core/format/currency";
+import { formatRelative } from "../../core/format/date";
 import {
   generatePaymentReceiptPdf,
   generateAccountStatementPdf,
   downloadPdf,
 } from "../../infrastructure/receipt-pdf";
-import type { Payment, Parent } from "../../domain/model";
+import type { Parent } from "../../domain/model";
+
+const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
+  paid: "success",
+  pending: "warning",
+  overdue: "danger",
+  refunded: "neutral",
+  partial: "info",
+};
 
 export function ReceiptsTab() {
   const repos = useRepositories();
@@ -49,23 +53,9 @@ export function ReceiptsTab() {
   const payments = useObservable(() => repos.payments.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
 
-  const [query, setQuery] = useState("");
-  const debounced = useDebounce(query, 220);
-  const [methodFilter, setMethodFilter] = useState<string>("all");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [statementParentId, setStatementParentId] = useState<string>("");
   const [downloadingStatement, setDownloadingStatement] = useState(false);
-
-  const filtered = payments.filter((p) => {
-    if (methodFilter !== "all" && p.method !== methodFilter) return false;
-    if (!debounced.trim()) return true;
-    const q = debounced.toLowerCase();
-    const parent = parents.find((par) => par.id === p.parentId);
-    return (
-      p.receiptNumber.toLowerCase().includes(q) ||
-      (parent && `${parent.firstName} ${parent.lastName} ${parent.code}`.toLowerCase().includes(q))
-    );
-  });
 
   async function downloadReceipt(payment: Payment) {
     setDownloadingId(payment.id);
@@ -105,6 +95,63 @@ export function ReceiptsTab() {
       setDownloadingStatement(false);
     }
   }
+
+  const parentNameOf = (p: Payment): string => {
+    const parent = parents.find((par) => par.id === p.parentId);
+    return parent ? `${parent.firstName} ${parent.lastName}` : "—";
+  };
+
+  const columns: readonly DataTableColumn<Payment>[] = [
+    {
+      header: "Reçu",
+      accessor: "receiptNumber",
+      cell: (p) => <span className="font-mono font-medium">{p.receiptNumber}</span>,
+    },
+    {
+      header: "Parent",
+      accessor: (p) => parentNameOf(p),
+      cell: (p) => parentNameOf(p),
+    },
+    {
+      header: "Méthode",
+      accessor: "method",
+      cell: (p) => PAYMENT_METHOD_LABELS_FR[p.method],
+    },
+    {
+      header: "Catégorie",
+      accessor: "category",
+      cell: (p) => PAYMENT_CATEGORY_LABELS_FR[p.category],
+    },
+    {
+      header: "Montant",
+      accessor: "amount",
+      cell: (p) => <span className="font-mono font-semibold">{formatDzdPlain(p.amount)}</span>,
+    },
+    {
+      header: "Date",
+      accessor: "collectedAt",
+      cell: (p) => formatRelative(p.collectedAt),
+    },
+    {
+      header: "Statut",
+      accessor: "status",
+      cell: (p) => (
+        <StatusChip
+          label={PAYMENT_STATUS_LABELS_FR[p.status]}
+          tone={PAYMENT_STATUS_TONE[p.status] ?? "neutral"}
+        />
+      ),
+    },
+  ];
+
+  const actions: readonly DataTableAction<Payment>[] = [
+    {
+      label: "PDF",
+      variant: "outline",
+      icon: <Download className="size-3.5" />,
+      onClick: (p) => downloadReceipt(p),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -147,95 +194,23 @@ export function ReceiptsTab() {
       {/* Receipts list */}
       <Card>
         <CardHeader className="border-b border-border">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" /> Reçus de paiement
-              </CardTitle>
-              <CardDescription>
-                {filtered.length} reçu(s) — cliquez sur une ligne pour télécharger le PDF.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Reçu, parent…"
-                  className="pl-9 w-48"
-                />
-              </div>
-              <Select value={methodFilter} onValueChange={setMethodFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toutes méthodes</SelectItem>
-                  <SelectItem value="cash">Espèces</SelectItem>
-                  <SelectItem value="check">Chèque</SelectItem>
-                  <SelectItem value="transfer">Virement</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" /> Reçus de paiement
+          </CardTitle>
+          <CardDescription>
+            Cliquez sur une ligne ou sur l'action PDF pour télécharger le reçu.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
-          {filtered.length === 0 ? (
-            <EmptyState title="Aucun reçu" description="Aucun paiement ne correspond à votre recherche." />
-          ) : (
-            <ul className="divide-y divide-border">
-              {filtered.slice(0, 50).map((p) => {
-                const parent = parents.find((par) => par.id === p.parentId);
-                return (
-                  <li
-                    key={p.id}
-                    className="flex items-center gap-3 p-3 hover:bg-accent/5 cursor-pointer"
-                    onClick={() => downloadReceipt(p)}
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <FileText className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-mono font-medium">{p.receiptNumber}</span>
-                        <StatusChip
-                          label={PAYMENT_STATUS_LABELS_FR[p.status]}
-                          tone={p.status === "paid" ? "success" : p.status === "pending" ? "warning" : "neutral"}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {parent ? `${parent.firstName} ${parent.lastName}` : "—"}
-                        <span>·</span>
-                        <span>{PAYMENT_METHOD_LABELS_FR[p.method]}</span>
-                        <span>·</span>
-                        <span>{PAYMENT_CATEGORY_LABELS_FR[p.category]}</span>
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-mono font-semibold">{formatDzdPlain(p.amount)}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatRelative(p.collectedAt)}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      disabled={downloadingId === p.id}
-                      onClick={(e) => { e.stopPropagation(); downloadReceipt(p); }}
-                      title="Télécharger le PDF"
-                    >
-                      {downloadingId === p.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+        <CardContent className="pt-4">
+          <DataTable<Payment>
+            data={payments}
+            columns={columns}
+            actions={actions}
+            searchFields={["receiptNumber"]}
+            searchPlaceholder="Rechercher un numéro de reçu…"
+            pageSize={15}
+            onRowClick={(p) => downloadReceipt(p)}
+          />
         </CardContent>
       </Card>
 
@@ -243,10 +218,14 @@ export function ReceiptsTab() {
         Plan §07.05 — les reçus sont générés automatiquement à l'encaissement.
         Ce tableau permet de re-télécharger un reçu à tout moment.
       </p>
+
+      {/* Loading indicator while a PDF is being generated (subtle visual hint) */}
+      {downloadingId && (
+        <div className="fixed bottom-4 right-4 rounded-md border border-border bg-popover px-4 py-2 text-xs text-muted-foreground shadow-lg">
+          <Loader2 className="inline size-3.5 mr-1.5 animate-spin" />
+          Génération du PDF…
+        </div>
+      )}
     </div>
   );
 }
-
-// Re-export for type compatibility
-void formatDate;
-void Badge;

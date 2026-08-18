@@ -20,7 +20,7 @@ export function DataTable<T>(props: DataTableProps<T>): ReactNode {
   const {
     data, columns, actions, searchFields, searchPlaceholder = "Rechercher…",
     emptyMessage = "Aucune donnée.", pageSize = 10, onRowClick, getRowId,
-    title, toolbar,
+    title, toolbar, hideSearch = false,
   } = props;
 
   const [search, setSearch] = useState("");
@@ -89,20 +89,22 @@ export function DataTable<T>(props: DataTableProps<T>): ReactNode {
 
   return (
     <div className="flex flex-col gap-3">
-      {(title || searchFields !== null) && (
+      {(title || (searchFields !== null && !hideSearch)) && (
         <div className="flex items-center justify-between gap-3">
           {title ? <h3 className="text-base font-semibold">{title}</h3> : <span />}
           <div className="flex items-center gap-2">
             {toolbar}
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="h-8 w-56 pl-8"
-              />
-            </div>
+            {!hideSearch && (
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="h-8 w-56 pl-8"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

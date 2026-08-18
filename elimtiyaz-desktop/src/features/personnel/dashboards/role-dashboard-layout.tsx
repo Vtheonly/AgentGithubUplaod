@@ -1,13 +1,20 @@
 /**
  * RoleDashboardLayout — unified dashboard shell for 7 role dashboards.
+ *
+ * Self-contained: inlines the previously separate `dashboard-primitives.tsx`
+ * `DashboardGrid` / `DashboardKpiRow` / `DashboardSection` layout helpers so
+ * role dashboards no longer need to import from two files. `DashboardSection`
+ * is re-exported for downstream management tabs that still need an inline
+ * card wrapper.
  */
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Bell, Clock } from "lucide-react";
 import { Button } from "../../../shared/ui/button";
 import { Avatar, AvatarFallback } from "../../../shared/ui/avatar";
-import { DashboardGrid, DashboardKpiRow, DashboardSection } from "./dashboard-primitives";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../shared/ui/card";
 import { KpiCard } from "../../../shared/ui/kpi-card";
+import { ComingSoonCard } from "../../../shared/layout/coming-soon-card";
 
 export interface DashboardKpi {
   readonly label: string;
@@ -57,7 +64,7 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
   const initials = actorName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <DashboardGrid>
+    <div className="grid gap-4 p-6 pb-12">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Avatar><AvatarFallback>{initials}</AvatarFallback></Avatar>
@@ -86,7 +93,7 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
         </div>
       </div>
 
-      <DashboardKpiRow>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi, i) => {
           const Icon = kpi.icon;
           return (
@@ -99,7 +106,7 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
             />
           );
         })}
-      </DashboardKpiRow>
+      </div>
 
       {tasks.length > 0 && (
         <DashboardSection title="Tâches en attente" action={<span className="text-xs text-muted-foreground">{tasks.length} à traiter</span>}>
@@ -142,6 +149,39 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
       )}
 
       {children}
-    </DashboardGrid>
+    </div>
   );
 }
+
+/**
+ * DashboardSection — inline card wrapper re-exported for management tabs
+ * that need a titled card with optional header action.
+ */
+export function DashboardSection({
+  title,
+  icon: Icon,
+  action,
+  children,
+  className = "",
+}: {
+  title: string;
+  icon?: LucideIcon;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card className={className}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+          {title}
+        </CardTitle>
+        {action}
+      </CardHeader>
+      <CardContent className="pt-2">{children}</CardContent>
+    </Card>
+  );
+}
+
+export { KpiCard, ComingSoonCard };

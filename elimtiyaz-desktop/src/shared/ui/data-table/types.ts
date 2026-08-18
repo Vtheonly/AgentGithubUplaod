@@ -25,6 +25,8 @@ export interface DataTableProps<T> {
   readonly columns: readonly DataTableColumn<T>[];
   readonly actions?: readonly DataTableAction<T>[];
   readonly searchFields?: readonly (keyof T)[];
+  /** When true, the search input is hidden even if searchFields is provided. */
+  readonly hideSearch?: boolean;
   readonly searchPlaceholder?: string;
   readonly emptyMessage?: string;
   readonly pageSize?: number;

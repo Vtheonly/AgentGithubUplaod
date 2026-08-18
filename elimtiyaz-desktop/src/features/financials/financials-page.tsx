@@ -3,30 +3,20 @@
  *
  * Tabs: Paiements / Tranches / Créances / Dépenses / Reçus.
  *
- * Redesign:
- *   - Controlled tabs so the PageHeader actions are PURPOSE-BOUND to the
- *     active tab. The dead always-on "Exporter" button (no onClick) is gone.
- *   - Tab-specific header actions:
- *       payments     → (none — list is read-only with search)
- *       installments → Encaissement (collect a payment)
- *       debt         → (none — read-only list with per-row Rappel action)
- *       expenses     → Nouvelle dépense (submit a new expense)
- *       receipts     → (none — read-only list)
- *   - Removed unused `ComingSoonCard` import.
- *   - Removed dead "Filter Méthode" + "Download" toolbar buttons in
- *     PaymentsTab (no onClick, did nothing).
- *
- * Iteration 2 additions (preserved):
- *   - Counter Payment modal (with proof + receipt preview)
- *   - Expense submit modal
- *   - Expense detail drawer with full workflow (Approve/Reject/Disburse/Settle)
- *   - Installment Schedule tab (one-click collect)
+ * Refactored:
+ *   - `PaymentsTab` now uses `<DataTable<Payment>>` instead of bespoke
+ *     `<ul>/<li>` markup + hand-rolled search state.
+ *   - `ExpensesTab` now uses `<DataTable<Expense>>` with declarative row
+ *     actions and `onRowClick` to open the detail drawer.
+ *   - `DebtTab` keeps its two cards (Top 20 débiteurs + per-grade breakdown)
+ *     but the Top 20 list is rendered via `<DataTable>`.
+ *   - `PaymentNavigationContext` integration with `<UnifiedPaymentModal>`
+ *     for consolidated debt collection is preserved.
  */
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
-  Search,
   Wallet,
   TrendingUp,
   AlertTriangle,
@@ -50,8 +40,14 @@ import {
   AGING_BUCKET_LABELS_FR,
   sumPaidPayments,
   monthlyRevenue,
+  type Payment,
+  type PaymentNavigationContext,
 } from "../../domain/model/payment";
-import { EXPENSE_STATUS_LABELS_FR, EXPENSE_CATEGORY_LABELS_FR } from "../../domain/model/expense";
+import {
+  EXPENSE_STATUS_LABELS_FR,
+  EXPENSE_CATEGORY_LABELS_FR,
+  type Expense,
+} from "../../domain/model/expense";
 import { Permission } from "../../core/rbac/permissions";
 import { PageHeader } from "../../shared/layout/page-header";
 import { KpiCard } from "../../shared/ui/kpi-card";
@@ -59,10 +55,9 @@ import { StatusChip } from "../../shared/ui/status-chip";
 import { Card, CardContent } from "../../shared/ui/card";
 import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
 import { Button } from "../../shared/ui/button";
-import { Input } from "../../shared/ui/input";
+import { DataTable, type DataTableColumn, type DataTableAction } from "../../shared/ui/data-table";
 import { CounterPaymentModal } from "./counter-payment-modal";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
-import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { ExpenseSubmitModal } from "./expense-submit-modal";
 import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
@@ -82,13 +77,10 @@ export function FinancialsPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseDetailId, setExpenseDetailId] = useState<string | null>(null);
-  const [expenseDetailOpen, setExpenseDetailOpen] = useState(false);
 
-  // Iteration 5: use shared helpers — no duplicated logic.
   const totalToday = sumPaidPayments(payments);
   const pendingExpenses = expenses.filter((e) => e.status === "submitted").length;
   const overdueDebt = debtSummary.reduce((s, d) => s + d.outstandingAmount, 0);
-  // Monthly revenue = sum of paid payments collected this month.
   const monthlyRev = monthlyRevenue(payments);
 
   const canCollect = !!session && session.permissions.has(Permission.CollectPayment);
@@ -96,7 +88,6 @@ export function FinancialsPage() {
 
   function openExpense(id: string) {
     setExpenseDetailId(id);
-    setExpenseDetailOpen(true);
   }
 
   const descriptionFor = (active: FinanceTab): string => {
@@ -153,7 +144,7 @@ export function FinancialsPage() {
         </PageTabList>
 
         <PageTabContent value="payments">
-          <PaymentsTab />
+          <PaymentsTab payments={payments} />
         </PageTabContent>
         <PageTabContent value="installments">
           <InstallmentScheduleTab />
@@ -162,7 +153,7 @@ export function FinancialsPage() {
           <DebtTab />
         </PageTabContent>
         <PageTabContent value="expenses">
-          <ExpensesTab onOpenExpense={openExpense} />
+          <ExpensesTab expenses={expenses} onOpenExpense={openExpense} />
         </PageTabContent>
         <PageTabContent value="receipts">
           <ReceiptsTab />
@@ -177,8 +168,8 @@ export function FinancialsPage() {
       />
       <ExpenseDetailDrawer
         expenseId={expenseDetailId}
-        open={expenseDetailOpen}
-        onOpenChange={setExpenseDetailOpen}
+        open={expenseDetailId !== null}
+        onOpenChange={(o) => !o && setExpenseDetailId(null)}
       />
     </div>
   );
@@ -201,17 +192,14 @@ function TabActions({
   onCollect: () => void;
   onExpense: () => void;
 }) {
-  // Only render an action when it is directly relevant to the active tab.
   switch (tab) {
     case "installments":
-      // Tranches tab — primary action is collecting a payment against a tranche.
       return canCollect ? (
         <Button size="sm" onClick={onCollect}>
           <Plus className="h-4 w-4" /> Encaissement
         </Button>
       ) : null;
     case "expenses":
-      // Dépenses tab — primary action is submitting a new expense request.
       return canSubmitExpense ? (
         <Button variant="outline" size="sm" onClick={onExpense}>
           <FileText className="h-4 w-4" /> Nouvelle dépense
@@ -220,7 +208,6 @@ function TabActions({
     case "payments":
     case "debt":
     case "receipts":
-      // Read-only tabs — no header action. Per-row actions live inside each row.
       return null;
     default:
       return null;
@@ -228,63 +215,156 @@ function TabActions({
 }
 
 // ============================================================================
-// PaymentsTab — read-only list with search
+// PaymentsTab — DataTable-backed list
 // ============================================================================
 
-function PaymentsTab() {
-  const repos = useRepositories();
-  const payments = useObservable(() => repos.payments.observe(), []);
-  const [query, setQuery] = useState("");
+const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
+  paid: "success",
+  pending: "warning",
+  overdue: "danger",
+  refunded: "neutral",
+  partial: "info",
+};
 
-  const filtered = query.trim()
-    ? payments.filter((p) =>
-        `${p.receiptNumber} ${p.method} ${p.category}`.toLowerCase().includes(query.toLowerCase()),
-      )
-    : payments;
+function PaymentsTab({ payments }: { payments: readonly Payment[] }) {
+  const columns: readonly DataTableColumn<Payment>[] = [
+    {
+      header: "Reçu",
+      accessor: "receiptNumber",
+      cell: (p) => <span className="font-mono font-medium">{p.receiptNumber}</span>,
+    },
+    {
+      header: "Méthode",
+      accessor: "method",
+      cell: (p) => PAYMENT_METHOD_LABELS_FR[p.method],
+    },
+    {
+      header: "Catégorie",
+      accessor: "category",
+      cell: (p) => PAYMENT_CATEGORY_LABELS_FR[p.category],
+    },
+    {
+      header: "Montant",
+      accessor: "amount",
+      cell: (p) => <span className="font-mono font-semibold">{formatDzd(p.amount)}</span>,
+    },
+    {
+      header: "Date",
+      accessor: "collectedAt",
+      cell: (p) => formatRelative(p.collectedAt),
+    },
+    {
+      header: "Statut",
+      accessor: "status",
+      cell: (p) => (
+        <StatusChip
+          label={PAYMENT_STATUS_LABELS_FR[p.status]}
+          tone={PAYMENT_STATUS_TONE[p.status] ?? "neutral"}
+        />
+      ),
+    },
+  ];
 
   return (
-    <Card>
-      <CardContent className="p-0">
-        {/* Toolbar — search only. Removed dead "Filter Méthode" + "Download" buttons. */}
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher par numéro de reçu, méthode, catégorie…"
-              className="pl-9"
-            />
-          </div>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {filtered.length} paiement(s)
-          </span>
-        </div>
-        <ul className="divide-y divide-border">
-          {filtered.slice(0, 50).map((p) => (
-            <li key={p.id} className="flex items-center gap-3 p-3 hover:bg-accent/5">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground font-mono">{p.receiptNumber}</p>
-                  <StatusChip
-                    label={PAYMENT_STATUS_LABELS_FR[p.status]}
-                    tone={p.status === "paid" ? "success" : p.status === "pending" ? "warning" : p.status === "overdue" ? "danger" : p.status === "refunded" ? "neutral" : "info"}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {PAYMENT_METHOD_LABELS_FR[p.method]} • {PAYMENT_CATEGORY_LABELS_FR[p.category]}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold tnum">{formatDzd(p.amount)}</p>
-                <p className="text-[10px] text-muted-foreground">{formatRelative(p.collectedAt)}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+    <DataTable<Payment>
+      data={payments}
+      columns={columns}
+      searchFields={["receiptNumber", "method", "category"]}
+      searchPlaceholder="Rechercher un reçu, méthode, catégorie…"
+      pageSize={15}
+    />
   );
+}
+
+// ============================================================================
+// ExpensesTab — DataTable-backed list with row click → drawer
+// ============================================================================
+
+const EXPENSE_STATUS_TONE: Record<string, "success" | "info" | "warning" | "danger" | "neutral"> = {
+  draft: "neutral",
+  submitted: "warning",
+  approved: "info",
+  rejected: "danger",
+  disbursed: "warning",
+  settled: "success",
+};
+
+function ExpensesTab({
+  expenses,
+  onOpenExpense,
+}: {
+  expenses: readonly Expense[];
+  onOpenExpense: (id: string) => void;
+}) {
+  const columns: readonly DataTableColumn<Expense>[] = [
+    {
+      header: "Réf.",
+      accessor: "requestCode",
+      cell: (e) => <span className="font-mono">{e.requestCode}</span>,
+    },
+    {
+      header: "Intitulé",
+      accessor: "title",
+      cell: (e) => <span className="font-medium">{e.title}</span>,
+    },
+    {
+      header: "Catégorie",
+      accessor: "category",
+      cell: (e) => EXPENSE_CATEGORY_LABELS_FR[e.category],
+    },
+    { header: "Bénéficiaire", accessor: "payee" },
+    {
+      header: "Montant",
+      accessor: "amount",
+      cell: (e) => <span className="font-mono font-semibold">{formatDzd(e.amount)}</span>,
+    },
+    {
+      header: "Statut",
+      accessor: "status",
+      cell: (e) => (
+        <div className="flex flex-col items-start gap-1">
+          <StatusChip label={EXPENSE_STATUS_LABELS_FR[e.status]} tone={EXPENSE_STATUS_TONE[e.status] ?? "neutral"} />
+          {e.anomalyScore != null && e.anomalyScore > 0.7 && (
+            <StatusChip label="Anomalie" tone="danger" />
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const actions: readonly DataTableAction<Expense>[] = [
+    {
+      label: "Détails",
+      variant: "outline",
+      onClick: (e) => onOpenExpense(e.id),
+    },
+  ];
+
+  return (
+    <DataTable<Expense>
+      data={expenses}
+      columns={columns}
+      actions={actions}
+      searchFields={["title", "requestCode", "payee"]}
+      searchPlaceholder="Rechercher une dépense…"
+      pageSize={15}
+      onRowClick={(e) => onOpenExpense(e.id)}
+    />
+  );
+}
+
+// ============================================================================
+// DebtTab — Top 20 family debtors (DataTable) + per-grade breakdown (bars)
+// ============================================================================
+
+interface DebtSummaryRow {
+  readonly parentId: string;
+  readonly parentName: string;
+  readonly parentPhone: string;
+  readonly studentCount: number;
+  readonly bucket: string;
+  readonly daysOverdue: number;
+  readonly outstandingAmount: number;
 }
 
 function DebtTab() {
@@ -292,7 +372,6 @@ function DebtTab() {
   const debt = useObservable(() => repos.debt.observeSummary(), []);
   const students = useObservable(() => repos.students.observe(), []);
   const [reminding, setReminding] = useState<string | null>(null);
-  // === Epic 6.2 — UnifiedPaymentModal integration ===
   const [collectFor, setCollectFor] = useState<{ parentId: string; parentName: string; amount: number } | null>(null);
 
   async function sendReminder(parentId: string, name: string) {
@@ -300,7 +379,6 @@ function DebtTab() {
     try {
       const r = await repos.debt.sendReminder(parentId);
       if (r.ok) {
-        // Open WhatsApp with pre-filled message
         const debtor = debt.find((d) => d.parentId === parentId);
         if (debtor) {
           const msg = `Bonjour ${name}, votre solde dû envers El-Imtiyaz est de ${formatDzd(debtor.outstandingAmount)}. Merci de régulariser dans les meilleurs délais.`;
@@ -312,23 +390,20 @@ function DebtTab() {
     }
   }
 
-  // Iteration 10 — Top 20 Family Debtors ranking (plan §07.06).
-  // Sort by outstanding amount desc, take top 20.
-  const top20Debtors = [...debt]
-    .filter((d) => d.outstandingAmount > 0)
-    .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
-    .slice(0, 20);
+  const top20Debtors = useMemo(
+    () => [...debt]
+      .filter((d) => d.outstandingAmount > 0)
+      .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
+      .slice(0, 20),
+    [debt],
+  );
 
-  // Iteration 10 — Per-Grade breakdown (plan §07.06).
-  // For each debtor, look up their students' grade levels and attribute the
-  // outstanding amount proportionally across those grades.
   const perGradeBreakdown = useMemo(() => {
     const totals = new Map<string, number>();
     for (const d of debt) {
       if (d.outstandingAmount <= 0) continue;
       const familyStudents = students.filter((s) => s.parentId === d.parentId);
       if (familyStudents.length === 0) {
-        // Attribute to "Inconnu" if we can't resolve any student.
         totals.set("Inconnu", (totals.get("Inconnu") ?? 0) + d.outstandingAmount);
         continue;
       }
@@ -345,88 +420,96 @@ function DebtTab() {
 
   const maxGradeAmount = perGradeBreakdown.length > 0 ? perGradeBreakdown[0].amount : 1;
 
+  const columns: readonly DataTableColumn<DebtSummaryRow>[] = [
+    {
+      header: "#",
+      accessor: "parentId",
+      cell: (_d, idx) => (
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-status-danger/10 text-xs font-mono font-semibold text-status-danger">
+          {idx + 1}
+        </span>
+      ),
+      sortable: false,
+    },
+    {
+      header: "Parent",
+      accessor: "parentName",
+      cell: (d) => (
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">{d.parentName}</p>
+          <p className="text-xs text-muted-foreground font-mono">{d.parentPhone}</p>
+        </div>
+      ),
+    },
+    { header: "Élèves", accessor: "studentCount", cell: (d) => `${d.studentCount} enfant(s)` },
+    {
+      header: "Tranche d'âge",
+      accessor: "bucket",
+      cell: (d) => (
+        <StatusChip
+          label={AGING_BUCKET_LABELS_FR[d.bucket as keyof typeof AGING_BUCKET_LABELS_FR] ?? d.bucket}
+          tone={d.bucket === "0_30" ? "success" : d.bucket === "31_60" ? "warning" : "danger"}
+        />
+      ),
+    },
+    { header: "Retard", accessor: "daysOverdue", cell: (d) => `${d.daysOverdue} j` },
+    {
+      header: "Créance",
+      accessor: "outstandingAmount",
+      cell: (d) => <span className="font-mono font-bold text-status-danger">{formatDzd(d.outstandingAmount)}</span>,
+    },
+  ];
+
+  const actions: readonly DataTableAction<DebtSummaryRow>[] = [
+    {
+      label: "Rappel",
+      variant: "outline",
+      onClick: (d) => sendReminder(d.parentId, d.parentName),
+    },
+    {
+      label: "Encaisser",
+      variant: "default",
+      icon: <Wallet className="size-3.5" />,
+      onClick: (d) => setCollectFor({
+        parentId: d.parentId,
+        parentName: d.parentName,
+        amount: d.outstandingAmount,
+      }),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      {/* Iteration 10 — Top 20 Family Debtors ranking (plan §07.06) */}
       <Card>
-        <CardContent className="p-0">
-          <div className="border-b border-border p-3">
-            <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-status-danger" />
-              Top 20 débiteurs familiaux
-              <span className="text-[10px] text-muted-foreground font-normal">
-                (plan §07.06 — priorisation du recouvrement)
-              </span>
-            </h3>
-          </div>
-          <ul className="divide-y divide-border">
-            {top20Debtors.length === 0 ? (
-              <li className="p-6 text-center text-sm text-muted-foreground">
-                Aucune créance en cours. 
-              </li>
-            ) : (
-              top20Debtors.map((d, idx) => (
-                <li key={d.parentId} className="flex items-center gap-3 p-3 hover:bg-accent/5">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-status-danger/10 text-xs font-mono font-semibold text-status-danger">
-                    {idx + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{d.parentName}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{d.parentPhone}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <StatusChip
-                      label={AGING_BUCKET_LABELS_FR[d.bucket]}
-                      tone={d.bucket === "0_30" ? "success" : d.bucket === "31_60" ? "warning" : "danger"}
-                    />
-                    <p className="text-xs text-muted-foreground">{d.daysOverdue} j</p>
-                  </div>
-                  <p className="text-sm font-semibold tnum text-status-danger min-w-[120px] text-right">
-                    {formatDzd(d.outstandingAmount)}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={reminding === d.parentId}
-                    onClick={() => sendReminder(d.parentId, d.parentName)}
-                  >
-                    {reminding === d.parentId ? "…" : "Rappel"}
-                  </Button>
-                  {/* Epic 6.2 — Encaisser créance → UnifiedPaymentModal (consolidated_debt) */}
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() =>
-                      setCollectFor({
-                        parentId: d.parentId,
-                        parentName: d.parentName,
-                        amount: d.outstandingAmount,
-                      })
-                    }
-                  >
-                    <Wallet className="h-3.5 w-3.5" /> Encaisser
-                  </Button>
-                </li>
-              ))
-            )}
-          </ul>
+        <CardContent className="pt-3">
+          <h3 className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
+            <AlertCircle className="h-4 w-4 text-status-danger" />
+            Top 20 débiteurs familiaux
+            <span className="text-[10px] text-muted-foreground font-normal">
+              (plan §07.06 — priorisation du recouvrement)
+            </span>
+          </h3>
+          <DataTable<DebtSummaryRow>
+            data={top20Debtors as unknown as DebtSummaryRow[]}
+            columns={columns}
+            actions={actions}
+            pageSize={20}
+            hideSearch
+          />
         </CardContent>
       </Card>
 
-      {/* Iteration 10 — Per-Grade breakdown (plan §07.06) */}
       {perGradeBreakdown.length > 0 && (
         <Card>
-          <CardContent className="p-0">
-            <div className="border-b border-border p-3">
-              <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Répartition par niveau scolaire
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  (part proportionnelle par élève de la famille)
-                </span>
-              </h3>
-            </div>
-            <div className="p-3 space-y-2">
+          <CardContent className="pt-3">
+            <h3 className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Répartition par niveau scolaire
+              <span className="text-[10px] text-muted-foreground font-normal">
+                (part proportionnelle par élève de la famille)
+              </span>
+            </h3>
+            <div className="space-y-2">
               {perGradeBreakdown.map((g) => {
                 const pct = maxGradeAmount > 0 ? (g.amount / maxGradeAmount) * 100 : 0;
                 return (
@@ -449,7 +532,6 @@ function DebtTab() {
         </Card>
       )}
 
-      {/* Epic 6.2 — UnifiedPaymentModal for consolidated debt collection */}
       {collectFor && (
         <UnifiedPaymentModal
           open={!!collectFor}
@@ -480,53 +562,5 @@ function DebtTab() {
         />
       )}
     </div>
-  );
-}
-
-function ExpensesTab({ onOpenExpense }: { onOpenExpense: (id: string) => void }) {
-  const repos = useRepositories();
-  const expenses = useObservable(() => repos.expenses.observe(), []);
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <ul className="divide-y divide-border">
-          {expenses.map((e) => (
-            <li
-              key={e.id}
-              className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/5"
-              onClick={() => onOpenExpense(e.id)}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
-                  <span className="font-mono text-xs text-muted-foreground">{e.requestCode}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {EXPENSE_CATEGORY_LABELS_FR[e.category]} • {e.payee}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <StatusChip
-                  label={EXPENSE_STATUS_LABELS_FR[e.status]}
-                  tone={
-                    e.status === "settled" ? "success" :
-                    e.status === "approved" ? "info" :
-                    e.status === "disbursed" ? "warning" :
-                    e.status === "rejected" ? "danger" :
-                    "warning"
-                  }
-                />
-                {e.anomalyScore != null && e.anomalyScore > 0.7 && (
-                  <StatusChip label="Anomalie" tone="danger" />
-                )}
-              </div>
-              <p className="text-sm font-semibold tnum min-w-[120px] text-right">
-                {formatDzd(e.amount)}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
   );
 }

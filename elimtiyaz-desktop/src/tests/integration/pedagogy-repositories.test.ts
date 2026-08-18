@@ -9,8 +9,10 @@
  *
  * CRITICAL FINANCE ISOLATION TEST:
  *   The test suite verifies that NO ledger / payment / installment / debt
- *   entries are created or modified by any of the new repositories.
- *   This is the user's most important non-functional requirement.
+ *   entries are created or modified by any of the new repositories
+ *   (except for the unified-architecture charges for club enrollment and
+ *   therapy follow-ups, which intentionally append a single ledger entry
+ *   per Epic 4.3/4.4). The shared helper lives in `_helpers/finance-isolation.ts`.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { store } from "../../infrastructure/mock/repositories/mock-store";
@@ -23,22 +25,14 @@ import {
 import type {
   AcademicYear,
 } from "../../domain/model/academic";
-import type {
-  Payment,
-  Installment,
-} from "../../domain/model/payment";
-import type { LedgerEntry } from "../../domain/model/ledger";
+import {
+  snapshotFinance,
+  expectFinanceUnchanged,
+  expectSingleLedgerChargeAppended,
+  TEST_ACTOR,
+} from "../_helpers/finance-isolation";
 
-const ACTOR = { actorId: "usr-test", actorName: "Test User" };
-
-// Helper to snapshot the finance state
-function snapshotFinance() {
-  return {
-    payments: [...store.payments] as Payment[],
-    installments: [...store.installments] as Installment[],
-    ledger: [...store.ledger] as LedgerEntry[],
-  };
-}
+const ACTOR = TEST_ACTOR;
 
 describe("Academic Year repository — full lifecycle", () => {
   let repo: MockAcademicYearRepository;
@@ -205,10 +199,7 @@ describe("Academic Year repository — full lifecycle", () => {
     );
     await repo.archiveAcademicYear("ay-2026-2027", ACTOR.actorId, ACTOR.actorName);
     await repo.restoreAcademicYear("ay-2026-2027", ACTOR.actorId, ACTOR.actorName);
-    const after = snapshotFinance();
-    expect(after.payments.length).toBe(before.payments.length);
-    expect(after.installments.length).toBe(before.installments.length);
-    expect(after.ledger.length).toBe(before.ledger.length);
+    expectFinanceUnchanged(before);
   });
 });
 
@@ -390,13 +381,7 @@ describe("Club repository — CRUD + memberships + activities", () => {
       conductedByName: ACTOR.actorName,
       attendeeStudentIds: [],
     });
-    const after = snapshotFinance();
-    // No payments or installments created — club billing is via ledger charges.
-    expect(after.payments.length).toBe(before.payments.length);
-    expect(after.installments.length).toBe(before.installments.length);
-    // Exactly one new ledger entry — the extracurricular charge.
-    expect(after.ledger.length).toBe(before.ledger.length + 1);
-    const newEntry = after.ledger[after.ledger.length - 1];
+    const newEntry = expectSingleLedgerChargeAppended(before);
     expect(newEntry.type).toBe("charge");
     expect(newEntry.category).toBe("extracurricular");
     expect(newEntry.amount).toBe(9_000); // chess club annual price per Prices.md
@@ -546,13 +531,7 @@ describe("Psychology repository — follow-ups + sessions + reports", () => {
       ACTOR.actorName,
     );
     expect(res.ok).toBe(true);
-    const after = snapshotFinance();
-    // No payments or installments created — therapy billing is via ledger charges.
-    expect(after.payments.length).toBe(before.payments.length);
-    expect(after.installments.length).toBe(before.installments.length);
-    // Exactly one new ledger entry — the therapy_psychology charge.
-    expect(after.ledger.length).toBe(before.ledger.length + 1);
-    const newEntry = after.ledger[after.ledger.length - 1];
+    const newEntry = expectSingleLedgerChargeAppended(before);
     expect(newEntry.type).toBe("charge");
     expect(newEntry.category).toBe("therapy_psychology");
     expect(newEntry.amount).toBe(10_000); // semester package per Prices.md
@@ -570,10 +549,7 @@ describe("Psychology repository — follow-ups + sessions + reports", () => {
       conductedById: ACTOR.actorId,
       conductedByName: ACTOR.actorName,
     });
-    const after = snapshotFinance();
-    expect(after.ledger.length).toBe(before.ledger.length);
-    expect(after.payments.length).toBe(before.payments.length);
-    expect(after.installments.length).toBe(before.installments.length);
+    expectFinanceUnchanged(before);
   });
 });
 
@@ -706,10 +682,7 @@ describe("Orthophonie repository — follow-ups + evaluations + sessions", () =>
       conductedById: ACTOR.actorId,
       conductedByName: ACTOR.actorName,
     });
-    const after = snapshotFinance();
     // Evaluation + Session don't create new charges — billing is at follow-up creation.
-    expect(after.payments.length).toBe(before.payments.length);
-    expect(after.installments.length).toBe(before.installments.length);
-    expect(after.ledger.length).toBe(before.ledger.length);
+    expectFinanceUnchanged(before);
   });
 });

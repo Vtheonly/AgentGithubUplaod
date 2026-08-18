@@ -1,26 +1,40 @@
 /**
- * Manager dashboard — team supervision (iteration 8 / 9 auth bridge fix).
+ * Manager dashboard — team supervision.
  *
- * A Manager supervises one or more teams. Their dashboard surfaces:
- *   - Top-line KPIs (team headcount, open tasks, pending leave, attendance today)
+ * A Manager supervises one or more teams. Surfaces:
+ *   - KPIs (team headcount, open tasks, pending leave, attendance today)
  *   - Team roster (employees whose supervisorId === me OR departmentId === my dept)
  *   - Team tasks with status chips + inline status updates
  *   - Pending requests from team members with approve / reject
- *   - "Create task" modal routed through UnifiedModal
+ *   - "Create task" modal routed through `<AutoFormModal>`
  *
- * Iteration 9: the displayName→personnel match hack is replaced by the new
- * PersonnelRepository.observeByUserId() bridge, which reacts to the live
- * personnel store instead of a string-equality lookup.
+ * Refactored to consume `<RoleDashboardLayout>` + `<AutoFormModal>` so the
+ * KPI row, task list, activity feed, and creation modal all flow through the
+ * shared UI primitives instead of bespoke markup and hand-rolled form state.
  */
 import { useMemo, useState } from "react";
 import {
-  Users, ClipboardList, CalendarClock, CheckCircle2, XCircle,
-  Plus, ListTodo, UserCheck, Activity,
+  Users, ListTodo, ClipboardList, CalendarClock, CheckCircle2, XCircle,
+  Plus,
 } from "lucide-react";
+import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
+import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+import { StatusChip } from "../../../shared/ui/status-chip";
+import { Button } from "../../../shared/ui/button";
+import { Avatar, AvatarFallback } from "../../../shared/ui/avatar";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "../../../shared/ui/select";
+import {
+  RoleDashboardLayout,
+  type DashboardKpi,
+  type DashboardTask,
+  type DashboardFeedItem,
+} from "./role-dashboard-layout";
 import {
   TASK_PRIORITY_LABELS_FR,
   TASK_STATUS_LABELS_FR,
@@ -29,20 +43,9 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "../../../domain/model/workforce";
-import { PERSONNEL_STATUS_LABELS_FR } from "../../../domain/model/personnel";
-import { StatusChip } from "../../../shared/ui/status-chip";
-import { Button } from "../../../shared/ui/button";
-import { Input } from "../../../shared/ui/input";
-import { Label } from "../../../shared/ui/label";
-import { Textarea } from "../../../shared/ui/textarea";
-import { Avatar, AvatarFallback } from "../../../shared/ui/avatar";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "../../../shared/ui/select";
-import { UnifiedModal } from "../../../shared/ui/unified-modal";
-import {
-  DashboardGrid, DashboardKpiRow, DashboardSection, KpiCard,
-} from "./dashboard-primitives";
+import { PERSONNEL_STATUS_LABELS_FR, type Personnel } from "../../../domain/model/personnel";
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
   pending: "neutral",
@@ -53,7 +56,15 @@ const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "dan
   cancelled: "neutral",
 };
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const CreateTaskSchema = z.object({
+  title: z.string().min(3, "Titre requis (min. 3 caractères)"),
+  description: z.string().optional().default(""),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  assigneeId: z.string().optional().default(""),
+  dueDate: z.string().optional().default(""),
+});
+
+type CreateTaskFormData = z.infer<typeof CreateTaskSchema>;
 
 export function ManagerDashboard() {
   const repos = useRepositories();
@@ -61,7 +72,6 @@ export function ManagerDashboard() {
   const toast = useToast();
 
   const personnel = useObservable(() => repos.personnel.observe(), []);
-  const departments = useObservable(() => repos.departments.observe(), []);
   const tasks = useObservable(() => repos.tasks.observe(), []);
   const leaveRequests = useObservable(() => repos.leaveRequests.observe(), []);
   const todayAttendance = useObservable(
@@ -71,14 +81,12 @@ export function ManagerDashboard() {
 
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
-  // Iteration 9: resolve the manager's own personnel record via the
-  // auth→personnel userId bridge (replaces the displayName string match).
   const me = useObservable(
     () => repos.personnel.observeByUserId(session?.userId ?? ""),
     [session?.userId],
   );
 
-  const teamMembers = useMemo(() => {
+  const teamMembers = useMemo<Personnel[]>(() => {
     if (!me) return [];
     return personnel.filter(
       (p) => p.id !== me.id && (p.supervisorId === me.id || p.departmentId === me.departmentId),
@@ -124,7 +132,7 @@ export function ManagerDashboard() {
         "La décision a été enregistrée.",
       );
     } else {
-      toast.showError("Erreur", "Impossible d'enregistrer la décision.");
+      toast.showError("Erreur", result.error.userMessage);
     }
   }
 
@@ -134,295 +142,193 @@ export function ManagerDashboard() {
     if (result.ok) {
       toast.showSuccess("Tâche mise à jour", `Statut : ${TASK_STATUS_LABELS_FR[status]}.`);
     } else {
-      toast.showError("Erreur", "Impossible de mettre à jour la tâche.");
+      toast.showError("Erreur", result.error.userMessage);
     }
   }
 
-  return (
-    <DashboardGrid>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Tableau de bord Responsable</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {me ? `Équipe : ${me.position}` : "Supervision d'équipe, tâches, demandes et assiduité."}
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-          <Plus className="h-4 w-4" /> Créer une tâche
-        </Button>
-      </div>
-
-      <DashboardKpiRow>
-        <KpiCard
-          label="Effectif équipe"
-          value={teamMembers.length.toString()}
-          icon={<Users className="h-5 w-5" />}
-          tone="default"
-          hint={`${teamMembers.filter((p) => p.status === "active").length} actifs`}
-        />
-        <KpiCard
-          label="Tâches ouvertes"
-          value={openTeamTasks.length.toString()}
-          icon={<ListTodo className="h-5 w-5" />}
-          tone={openTeamTasks.length > 0 ? "warning" : "default"}
-        />
-        <KpiCard
-          label="Demandes en attente"
-          value={pendingTeamRequests.length.toString()}
-          icon={<ClipboardList className="h-5 w-5" />}
-          tone={pendingTeamRequests.length > 0 ? "warning" : "default"}
-        />
-        <KpiCard
-          label="Assiduité aujourd'hui"
-          value={`${attendanceRate}%`}
-          icon={<CalendarClock className="h-5 w-5" />}
-          tone={attendanceRate >= 80 ? "success" : attendanceRate >= 50 ? "warning" : "danger"}
-        />
-      </DashboardKpiRow>
-
-      <DashboardSection title="Équipe" icon={Users}>
-        {teamMembers.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            Aucun membre d'équipe rattaché.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {teamMembers.map((p) => (
-              <li key={p.id} className="py-2.5 flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback>{p.firstName[0]}{p.lastName[0]}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {p.firstName} {p.lastName}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">{p.position}</p>
-                </div>
-                <StatusChip
-                  label={PERSONNEL_STATUS_LABELS_FR[p.status]}
-                  tone={p.status === "active" ? "success" : p.status === "on_leave" ? "warning" : "neutral"}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </DashboardSection>
-
-      <DashboardSection
-        title="Tâches de l'équipe"
-        icon={ListTodo}
-        action={<span className="text-xs text-muted-foreground">{openTeamTasks.length} ouverte(s)</span>}
-      >
-        {teamTasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Aucune tâche affectée à l'équipe.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {teamTasks.slice(0, 8).map((task) => (
-              <li key={task.id} className="py-3 flex items-center gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {TASK_PRIORITY_LABELS_FR[task.priority]}
-                    {task.dueDate ? ` • Échéance ${task.dueDate}` : ""}
-                  </p>
-                </div>
-                <StatusChip label={TASK_STATUS_LABELS_FR[task.status]} tone={TASK_STATUS_TONE[task.status]} />
-                {task.status !== "completed" && task.status !== "cancelled" && (
-                  <Select onValueChange={(v) => handleUpdateTaskStatus(task.id, v as TaskStatus)}>
-                    <SelectTrigger className="h-8 w-40 text-xs">
-                      <SelectValue placeholder="Changer le statut" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="in_progress">En cours</SelectItem>
-                      <SelectItem value="blocked">Bloquée</SelectItem>
-                      <SelectItem value="completed">Terminée</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </DashboardSection>
-
-      <DashboardSection
-        title="Demandes à traiter"
-        icon={ClipboardList}
-        action={<StatusChip label={`${pendingTeamRequests.length} en attente`} tone="warning" />}
-      >
-        {pendingTeamRequests.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Aucune demande en attente.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {pendingTeamRequests.map((req) => (
-              <li key={req.id} className="py-3 flex items-center gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{req.personnelName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {REQUEST_TYPE_LABELS_FR[req.type]} • {req.fromDate} → {req.toDate}
-                  </p>
-                  {req.reason && (
-                    <p className="text-xs text-muted-foreground mt-0.5 italic">« {req.reason} »</p>
-                  )}
-                </div>
-                <StatusChip label={REQUEST_STATUS_LABELS_FR[req.status]} tone="warning" />
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => handleDecide(req.id, "rejected")}>
-                    <XCircle className="h-4 w-4" /> Refuser
-                  </Button>
-                  <Button size="sm" onClick={() => handleDecide(req.id, "approved")}>
-                    <CheckCircle2 className="h-4 w-4" /> Approuver
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </DashboardSection>
-
-      <DashboardSection title="Activité assiduité du jour" icon={Activity}>
-        {todayAttendance.filter((e) => teamIds.has(e.personnelId)).length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            Aucun pointage enregistré aujourd'hui pour l'équipe.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {todayAttendance
-              .filter((e) => teamIds.has(e.personnelId))
-              .slice(0, 6)
-              .map((e) => {
-                const member = teamMembers.find((m) => m.id === e.personnelId);
-                return (
-                  <li key={e.id} className="py-2 flex items-center gap-3">
-                    <UserCheck className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground truncate">
-                        {member ? `${member.firstName} ${member.lastName}` : e.personnelId}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(e.timestamp).toLocaleTimeString("fr-FR")} — {e.eventType.replace("_", " ")}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        )}
-      </DashboardSection>
-
-      <CreateTaskModal
-        open={createTaskOpen}
-        onOpenChange={setCreateTaskOpen}
-        teamMembers={teamMembers}
-        defaultDepartmentId={me?.departmentId ?? null}
-      />
-    </DashboardGrid>
-  );
-}
-
-function CreateTaskModal({
-  open,
-  onOpenChange,
-  teamMembers,
-  defaultDepartmentId,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  teamMembers: readonly { id: string; firstName: string; lastName: string }[];
-  defaultDepartmentId: string | null;
-}) {
-  const repos = useRepositories();
-  const { session } = useAuth();
-  const toast = useToast();
-
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<TaskPriority>("medium");
-  const [assigneeId, setAssigneeId] = useState<string>("");
-  const [dueDate, setDueDate] = useState<string>("");
-
-  function reset() {
-    setTitle(""); setDescription(""); setPriority("medium"); setAssigneeId(""); setDueDate("");
-  }
-
-  async function handleSubmit() {
+  async function handleCreateTask(data: CreateTaskFormData) {
     if (!session) return;
-    if (!title.trim()) {
-      toast.showWarning("Titre requis", "Veuillez saisir un titre de tâche.");
-      return;
-    }
     const result = await repos.tasks.createTask({
-      title: title.trim(),
-      description: description.trim(),
-      priority,
-      departmentId: defaultDepartmentId,
-      assigneeIds: assigneeId ? [assigneeId] : [],
-      dueDate: dueDate || null,
+      title: data.title,
+      description: data.description ?? "",
+      priority: data.priority as TaskPriority,
+      departmentId: me?.departmentId ?? null,
+      assigneeIds: data.assigneeId ? [data.assigneeId] : [],
+      dueDate: data.dueDate || null,
       createdBy: session.userId,
       createdByName: session.displayName,
     });
     if (result.ok) {
       toast.showSuccess("Tâche créée", "La tâche a été affectée à l'équipe.");
-      reset();
-      onOpenChange(false);
+      setCreateTaskOpen(false);
     } else {
-      toast.showError("Erreur", "Impossible de créer la tâche.");
+      throw new Error(result.error.userMessage);
     }
   }
 
+  const kpis: readonly DashboardKpi[] = [
+    { label: "Effectif équipe", value: teamMembers.length, icon: Users, trend: `${teamMembers.filter((p) => p.status === "active").length} actifs` },
+    { label: "Tâches ouvertes", value: openTeamTasks.length, icon: ListTodo },
+    { label: "Demandes en attente", value: pendingTeamRequests.length, icon: ClipboardList, trend: pendingTeamRequests.length > 0 ? "À traiter" : undefined },
+    { label: "Assiduité aujourd'hui", value: `${attendanceRate}%`, icon: CalendarClock },
+  ];
+
+  const dashboardTasks: readonly DashboardTask[] = pendingTeamRequests.slice(0, 5).map((req) => ({
+    id: req.id,
+    label: `${req.personnelName} — ${REQUEST_TYPE_LABELS_FR[req.type]}`,
+    description: `${req.fromDate} → ${req.toDate}${req.reason ? ` : ${req.reason}` : ""}`,
+    priority: "high",
+  }));
+
+  const feed: readonly DashboardFeedItem[] = openTeamTasks.slice(0, 6).map((t) => ({
+    id: t.id,
+    label: t.title,
+    description: `${TASK_PRIORITY_LABELS_FR[t.priority]}${t.dueDate ? ` · Échéance ${t.dueDate}` : ""}`,
+    timestamp: TASK_STATUS_LABELS_FR[t.status],
+    icon: ListTodo,
+  }));
+
+  const createTaskFields: readonly AutoFormField[] = [
+    { name: "title", label: "Titre", type: "text", required: true, wide: true, placeholder: "Ex. Préparer commande manuels" },
+    {
+      name: "priority", label: "Priorité", type: "select", required: true,
+      options: [
+        { label: "Basse", value: "low" },
+        { label: "Moyenne", value: "medium" },
+        { label: "Haute", value: "high" },
+        { label: "Urgente", value: "urgent" },
+      ],
+    },
+    {
+      name: "assigneeId", label: "Assigner à", type: "select",
+      options: [
+        { label: "— Non assignée —", value: "" },
+        ...teamMembers.map((m) => ({ label: `${m.firstName} ${m.lastName}`, value: m.id })),
+      ],
+    },
+    { name: "dueDate", label: "Échéance", type: "date" },
+    { name: "description", label: "Description", type: "textarea", wide: true },
+  ];
+
   return (
-    <UnifiedModal
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Créer une tâche"
-      description="Affectez une tâche à un membre de l'équipe."
-      icon={Plus}
-      size="md"
-      submitLabel="Créer"
-      submitIcon={CheckCircle2}
-      onSubmit={handleSubmit}
-    >
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="task-title">Titre</Label>
-          <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Préparer commande manuels" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="task-desc">Description</Label>
-          <Textarea id="task-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Priorité</Label>
-            <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Basse</SelectItem>
-                <SelectItem value="medium">Moyenne</SelectItem>
-                <SelectItem value="high">Haute</SelectItem>
-                <SelectItem value="urgent">Urgente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-due">Échéance</Label>
-            <Input id="task-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Assigné à</Label>
-          <Select value={assigneeId} onValueChange={setAssigneeId}>
-            <SelectTrigger><SelectValue placeholder="Sélectionner un membre" /></SelectTrigger>
-            <SelectContent>
-              {teamMembers.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.firstName} {m.lastName}
-                </SelectItem>
+    <>
+      <RoleDashboardLayout
+        role="Responsable"
+        actorName={session?.displayName ?? "Responsable"}
+        kpis={kpis}
+        tasks={dashboardTasks}
+        feed={feed}
+        actions={[
+          { label: "Créer une tâche", icon: Plus, variant: "default", onClick: () => setCreateTaskOpen(true) },
+        ]}
+      >
+        {/* Team roster */}
+        <div className="rounded-lg border bg-card p-4">
+          <h3 className="text-sm font-semibold mb-3">Équipe ({teamMembers.length})</h3>
+          {teamMembers.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Aucun membre d'équipe rattaché.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {teamMembers.map((p) => (
+                <li key={p.id} className="py-2.5 flex items-center gap-3">
+                  <Avatar className="size-9">
+                    <AvatarFallback>{`${p.firstName[0]}${p.lastName[0]}`.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.firstName} {p.lastName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.position}</p>
+                  </div>
+                  <StatusChip
+                    label={PERSONNEL_STATUS_LABELS_FR[p.status]}
+                    tone={p.status === "active" ? "success" : p.status === "on_leave" ? "warning" : "neutral"}
+                  />
+                </li>
               ))}
-            </SelectContent>
-          </Select>
+            </ul>
+          )}
         </div>
-      </div>
-    </UnifiedModal>
+
+        {/* Team tasks with inline status updates */}
+        <div className="rounded-lg border bg-card p-4">
+          <h3 className="text-sm font-semibold mb-3">Tâches de l'équipe</h3>
+          {teamTasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Aucune tâche affectée à l'équipe.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {teamTasks.slice(0, 8).map((task) => (
+                <li key={task.id} className="py-3 flex items-center gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{task.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {TASK_PRIORITY_LABELS_FR[task.priority]}
+                      {task.dueDate ? ` · Échéance ${task.dueDate}` : ""}
+                    </p>
+                  </div>
+                  <StatusChip label={TASK_STATUS_LABELS_FR[task.status]} tone={TASK_STATUS_TONE[task.status]} />
+                  {task.status !== "completed" && task.status !== "cancelled" && (
+                    <Select onValueChange={(v) => handleUpdateTaskStatus(task.id, v as TaskStatus)}>
+                      <SelectTrigger className="h-8 w-40 text-xs">
+                        <SelectValue placeholder="Changer le statut" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="in_progress">En cours</SelectItem>
+                        <SelectItem value="blocked">Bloquée</SelectItem>
+                        <SelectItem value="completed">Terminée</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Pending leave requests with approve / reject */}
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">Demandes à traiter</h3>
+            <StatusChip label={`${pendingTeamRequests.length} en attente`} tone="warning" />
+          </div>
+          {pendingTeamRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Aucune demande en attente.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pendingTeamRequests.map((req) => (
+                <li key={req.id} className="py-3 flex items-center gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{req.personnelName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {REQUEST_TYPE_LABELS_FR[req.type]} · {req.fromDate} → {req.toDate}
+                    </p>
+                    {req.reason && <p className="text-xs text-muted-foreground mt-0.5 italic">« {req.reason} »</p>}
+                  </div>
+                  <StatusChip label={REQUEST_STATUS_LABELS_FR[req.status]} tone="warning" />
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => handleDecide(req.id, "rejected")}>
+                      <XCircle className="size-3.5" /> Refuser
+                    </Button>
+                    <Button size="sm" onClick={() => handleDecide(req.id, "approved")}>
+                      <CheckCircle2 className="size-3.5" /> Approuver
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </RoleDashboardLayout>
+
+      <AutoFormModal
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+        title="Créer une tâche d'équipe"
+        description="Affectez une tâche à un membre de l'équipe."
+        schema={CreateTaskSchema}
+        fields={createTaskFields}
+        initialValues={{ priority: "medium" }}
+        onSubmit={handleCreateTask}
+        submitLabel="Créer la tâche"
+      />
+    </>
   );
 }

@@ -1,6 +1,13 @@
 /**
  * Onboarding wizard — iteration 8 (plan §09 expansion).
  *
+ * Refactored to consume the shared `<Wizard>` primitive (instead of the
+ * hand-rolled 180-line stepper chrome). The 11 step components stay
+ * unchanged — they are simply declared as `WizardStep` entries with their
+ * `render` function. Per-step validation is left to the step components
+ * themselves (they call `repos.onboarding.completeStep()` directly when
+ * their own state is valid).
+ *
  * First-run setup of the organizational structure. Asks the user:
  *   1. Welcome
  *   2. Departments (default taxonomy + custom)
@@ -21,21 +28,16 @@
  * The wizard is gated to SuperAdmin only (requires ManageOnboarding perm).
  *
  * Step components live in `./steps/`. This file is just the orchestrator:
- * it renders the stepper chrome + footer nav and routes to the active step.
+ * it declares the steps and forwards the finish callback.
  */
-import { useEffect } from "react";
-import {
-  ChevronRight, ChevronLeft, Sparkles, CheckCircle2,
-} from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { Sparkles } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useToast } from "../../../app/providers/toast-provider";
-import { useAuth } from "../../../app/providers/auth-provider";
-import { Button } from "../../../shared/ui/button";
-import { Progress } from "../../../shared/ui/progress";
-import { cn } from "../../../shared/ui/cn";
-import { ONBOARDING_STEPS, type OnboardingStep } from "../../../domain/model/workforce";
-import { STEP_LABELS_FR, STEP_ICONS } from "./steps/shared";
+import { Wizard, type WizardStep } from "../../../shared/ui/wizard";
+import { ONBOARDING_STEPS } from "../../../domain/model/workforce";
+import { STEP_LABELS_FR } from "./steps/shared";
 import { WelcomeStep } from "./steps/welcome-step";
 import { DepartmentsStep } from "./steps/departments-step";
 import { RolesStep } from "./steps/roles-step";
@@ -51,7 +53,6 @@ import { DoneStep } from "./steps/done-step";
 export function OnboardingWizard() {
   const repos = useRepositories();
   const toast = useToast();
-  const { session } = useAuth();
   const state = useObservable(() => repos.onboarding.observe(), []);
 
   // Auto-start onboarding if it hasn't been started yet.
@@ -60,6 +61,28 @@ export function OnboardingWizard() {
       repos.onboarding.start();
     }
   }, [state, repos.onboarding]);
+
+  const steps: readonly WizardStep[] = useMemo(
+    () => [
+      { id: "welcome", label: STEP_LABELS_FR.welcome, render: () => <WelcomeStep /> },
+      { id: "departments", label: STEP_LABELS_FR.departments, render: () => <DepartmentsStep /> },
+      { id: "roles", label: STEP_LABELS_FR.roles, render: () => <RolesStep /> },
+      { id: "employees", label: STEP_LABELS_FR.employees, render: () => <EmployeesStep /> },
+      { id: "admins", label: STEP_LABELS_FR.admins, render: () => <AdminsStep /> },
+      { id: "managers", label: STEP_LABELS_FR.managers, render: () => <ManagersStep /> },
+      { id: "working_hours", label: STEP_LABELS_FR.working_hours, render: () => <WorkingHoursStep /> },
+      { id: "shift_types", label: STEP_LABELS_FR.shift_types, render: () => <ShiftTypesStep /> },
+      { id: "permissions", label: STEP_LABELS_FR.permissions, render: () => <PermissionsStep /> },
+      { id: "review", label: STEP_LABELS_FR.review, render: () => <ReviewStep /> },
+      { id: "done", label: STEP_LABELS_FR.done, render: () => <DoneStep />, isFinal: true },
+    ],
+    [],
+  );
+
+  async function handleFinish() {
+    await repos.onboarding.complete();
+    toast.showSuccess("Configuration terminée", "Votre organisation est prête.");
+  }
 
   if (!state) {
     return (
@@ -72,130 +95,18 @@ export function OnboardingWizard() {
     );
   }
 
-  const stepIndex = ONBOARDING_STEPS.indexOf(state.currentStep);
-  const totalSteps = ONBOARDING_STEPS.length;
-  const progress = Math.round((stepIndex / (totalSteps - 1)) * 100);
-
-  async function next() {
-    await repos.onboarding.completeStep(state!.currentStep);
-    const nextStep = ONBOARDING_STEPS[stepIndex + 1];
-    if (nextStep) {
-      await repos.onboarding.advanceTo(nextStep);
-    }
-  }
-
-  async function back() {
-    const prevStep = ONBOARDING_STEPS[stepIndex - 1];
-    if (prevStep) {
-      await repos.onboarding.advanceTo(prevStep);
-    }
-  }
-
-  async function finish() {
-    await repos.onboarding.complete();
-    toast.showSuccess("Configuration terminée", "Votre organisation est prête.");
-  }
+  void ONBOARDING_STEPS; // kept for type-compatibility with downstream consumers
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-background to-background/50">
-      {/* Stepper */}
-      <div className="border-b border-border bg-popover/30 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                Configuration initiale
-              </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Étape {stepIndex + 1} sur {totalSteps} — {STEP_LABELS_FR[state.currentStep]}
-              </p>
-            </div>
-            <Progress value={progress} className="w-40" />
-          </div>
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {ONBOARDING_STEPS.filter((s) => s !== "done").map((step, idx) => {
-              const Icon = STEP_ICONS[step];
-              const isActive = step === state.currentStep;
-              const isDone = state.completedSteps.has(step);
-              return (
-                <div key={step} className="flex items-center shrink-0">
-                  <div
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-                      isActive
-                        ? "bg-primary/15 text-primary"
-                        : isDone
-                          ? "text-status-success"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{STEP_LABELS_FR[step]}</span>
-                    {isDone && !isActive && <CheckCircle2 className="h-3 w-3" />}
-                  </div>
-                  {idx < ONBOARDING_STEPS.length - 2 && (
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/50 mx-0.5" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Step content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-8">
-          <OnboardingStepContent step={state.currentStep} />
-        </div>
-      </div>
-
-      {/* Footer nav */}
-      <div className="border-t border-border bg-popover/30 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={back} disabled={stepIndex === 0}>
-            <ChevronLeft className="h-4 w-4" /> Précédent
-          </Button>
-          <div className="text-xs text-muted-foreground">
-            {session?.displayName && `Connecté en tant que ${session.displayName}`}
-          </div>
-          {state.currentStep === "review" ? (
-            <Button size="sm" onClick={finish}>
-              <CheckCircle2 className="h-4 w-4" /> Terminer la configuration
-            </Button>
-          ) : state.currentStep === "welcome" ? (
-            <Button size="sm" onClick={next}>
-              Commencer <ChevronRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button size="sm" onClick={next}>
-              Continuer <ChevronRight className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="flex h-full items-center justify-center p-6">
+      <Wizard
+        open={true}
+        onOpenChange={() => { /* wizard is always open until finish */ }}
+        title="Configuration de l'organisation"
+        steps={steps}
+        onFinish={handleFinish}
+        widthClass="max-w-4xl"
+      />
     </div>
   );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Step content router                                                */
-/* ------------------------------------------------------------------ */
-
-function OnboardingStepContent({ step }: { step: OnboardingStep }) {
-  switch (step) {
-    case "welcome": return <WelcomeStep />;
-    case "departments": return <DepartmentsStep />;
-    case "roles": return <RolesStep />;
-    case "employees": return <EmployeesStep />;
-    case "admins": return <AdminsStep />;
-    case "managers": return <ManagersStep />;
-    case "working_hours": return <WorkingHoursStep />;
-    case "shift_types": return <ShiftTypesStep />;
-    case "permissions": return <PermissionsStep />;
-    case "review": return <ReviewStep />;
-    case "done": return <DoneStep />;
-    default: return null;
-  }
 }

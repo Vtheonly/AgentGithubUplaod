@@ -1,51 +1,36 @@
 /**
- * Buyer dashboard — purchase requests, suppliers, purchase orders (iteration 9).
+ * Buyer dashboard — purchase requests, suppliers, purchase orders.
  *
  * The Buyer handles the procurement cycle:
  *   draft → submitted → approved → ordered → received
  *
- * Dashboard surfaces:
- *   - KPIs (open requests, pending deliveries, suppliers, avg response time)
- *   - Buyer's own tasks (filtered by session.userId)
- *   - Purchase requests with status workflow (live from repos.purchaseRequests)
- *   - Suppliers directory (live from repos.suppliers)
- *   - "New purchase request" UnifiedModal form
- *
- * Iteration 9: the inline SEED_REQUESTS / SEED_SUPPLIERS constants were
- * promoted to first-class domain entities (operations-workforce.ts) backed
- * by reactive repositories (operations-repository.ts). All mutations now
- * go through repos.purchaseRequests.updateStatus / createPurchaseRequest.
+ * Refactored to consume `<RoleDashboardLayout>` + `<AutoFormModal>` so the
+ * KPI row, task list, activity feed, and creation modal all flow through the
+ * shared UI primitives instead of bespoke `<ul>` markup and hand-rolled
+ * form-state.
  */
 import { useMemo, useState } from "react";
-import {
-  ShoppingCart, Truck, Building2, Clock, Plus, CheckCircle2,
-  PackageCheck, ListTodo,
-} from "lucide-react";
+import { ShoppingCart, Truck, Building2, Clock, Plus, PackageCheck } from "lucide-react";
+import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
-import { TASK_STATUS_LABELS_FR, type TaskStatus } from "../../../domain/model/workforce";
+import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+import { StatusChip } from "../../../shared/ui/status-chip";
+import { Button } from "../../../shared/ui/button";
+import {
+  RoleDashboardLayout,
+  type DashboardKpi,
+  type DashboardTask,
+  type DashboardFeedItem,
+} from "./role-dashboard-layout";
 import {
   PURCHASE_REQUEST_STATUS_LABELS_FR,
   PURCHASE_REQUEST_PRIORITY_LABELS_FR,
-  type PurchaseRequest,
   type PurchaseRequestStatus,
   type PurchaseRequestPriority,
-  type Supplier,
 } from "../../../domain/model/operations-workforce";
-import { StatusChip } from "../../../shared/ui/status-chip";
-import { Button } from "../../../shared/ui/button";
-import { Input } from "../../../shared/ui/input";
-import { Label } from "../../../shared/ui/label";
-import { Textarea } from "../../../shared/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "../../../shared/ui/select";
-import { UnifiedModal } from "../../../shared/ui/unified-modal";
-import {
-  DashboardGrid, DashboardKpiRow, DashboardSection, KpiCard,
-} from "./dashboard-primitives";
 
 const PURCHASE_STATUS_TONE: Record<PurchaseRequestStatus, "neutral" | "info" | "warning" | "success" | "danger"> = {
   draft: "neutral",
@@ -57,22 +42,22 @@ const PURCHASE_STATUS_TONE: Record<PurchaseRequestStatus, "neutral" | "info" | "
   cancelled: "neutral",
 };
 
-const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
-  pending: "neutral",
-  assigned: "info",
-  in_progress: "warning",
-  blocked: "danger",
-  completed: "success",
-  cancelled: "neutral",
-};
+const PurchaseRequestSchema = z.object({
+  title: z.string().min(3, "Titre requis (min. 3 caractères)"),
+  description: z.string().optional().default(""),
+  supplierId: z.string().optional().default(""),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  amount: z.number().min(1, "Montant supérieur à 0 requis"),
+});
+
+type PurchaseRequestFormData = z.infer<typeof PurchaseRequestSchema>;
 
 /** Linear progression for the "Avancer" button — skips terminal/side statuses. */
 const ADVANCE_ORDER: PurchaseRequestStatus[] = ["draft", "submitted", "approved", "ordered", "received"];
 
 function nextStatus(current: PurchaseRequestStatus): PurchaseRequestStatus | null {
   const idx = ADVANCE_ORDER.indexOf(current);
-  if (idx === -1 || idx === ADVANCE_ORDER.length - 1) return null;
-  return ADVANCE_ORDER[idx + 1];
+  return idx === -1 || idx === ADVANCE_ORDER.length - 1 ? null : ADVANCE_ORDER[idx + 1];
 }
 
 export function BuyerDashboard() {
@@ -80,20 +65,14 @@ export function BuyerDashboard() {
   const { session } = useAuth();
   const toast = useToast();
 
-  // Reactive domain data — replaces the previous inline SEED_* constants.
   const requests = useObservable(() => repos.purchaseRequests.observe(), []);
   const suppliers = useObservable(() => repos.suppliers.observe(), []);
-
-  const [newRequestOpen, setNewRequestOpen] = useState(false);
-
-  // The buyer's own tasks (mock repo returns nothing for the auth userId, so
-  // we also fall back to tasks tagged for the buyer department).
   const myTasks = useObservable(
-    () => session
-      ? repos.tasks.observeByAssignee(session.userId)
-      : repos.tasks.observe(),
+    () => session ? repos.tasks.observeByAssignee(session.userId) : repos.tasks.observe(),
     [session?.userId],
   );
+
+  const [newRequestOpen, setNewRequestOpen] = useState(false);
 
   const openRequests = useMemo(
     () => requests.filter((r) => r.status !== "received" && r.status !== "cancelled"),
@@ -110,312 +89,145 @@ export function BuyerDashboard() {
     return m;
   }, [suppliers]);
 
-  async function advanceStatus(id: string, current: PurchaseRequestStatus) {
-    if (!session) return;
-    const next = nextStatus(current);
-    if (!next) return;
-    const result = await repos.purchaseRequests.updateStatus(id, next, session.userId, session.displayName);
-    if (result.ok) {
-      toast.showSuccess("Demande mise à jour", `Statut : ${PURCHASE_REQUEST_STATUS_LABELS_FR[next]}.`);
-    } else {
-      toast.showError("Erreur", "Impossible de mettre à jour la demande.");
-    }
-  }
+  const supplierOptions = useMemo(
+    () => [
+      { label: "— Aucun fournisseur —", value: "" },
+      ...suppliers.map((s) => ({ label: s.name, value: s.id })),
+    ],
+    [suppliers],
+  );
 
-  async function handleCreate(input: {
-    title: string;
-    description: string;
-    priority: PurchaseRequestPriority;
-    supplierId: string | null;
-    amount: number;
-  }) {
+  const formFields: readonly AutoFormField[] = [
+    { name: "title", label: "Objet de la commande", type: "text", required: true, wide: true, placeholder: "Ex. Manuels scolaires T2" },
+    { name: "supplierId", label: "Fournisseur", type: "select", options: supplierOptions },
+    {
+      name: "priority", label: "Priorité", type: "select", required: true,
+      options: [
+        { label: "Basse", value: "low" },
+        { label: "Moyenne", value: "medium" },
+        { label: "Haute", value: "high" },
+        { label: "Urgente", value: "urgent" },
+      ],
+    },
+    { name: "amount", label: "Montant estimé (DZD)", type: "money", required: true },
+    { name: "description", label: "Description détaillée", type: "textarea", wide: true, placeholder: "Précisez le besoin…" },
+  ];
+
+  async function handleCreate(data: PurchaseRequestFormData) {
     if (!session) return;
-    const result = await repos.purchaseRequests.createPurchaseRequest({
-      title: input.title,
-      description: input.description,
-      priority: input.priority,
-      supplierId: input.supplierId,
+    const res = await repos.purchaseRequests.createPurchaseRequest({
+      title: data.title,
+      description: data.description ?? "",
+      priority: data.priority as PurchaseRequestPriority,
+      supplierId: data.supplierId || null,
       departmentId: null,
-      // Collapse the form's single amount field into a single line item so
-      // the new contract's required `lines` array is satisfied without
-      // complicating the UX with a multi-line editor.
       lines: [{
         id: `prl-${Date.now()}`,
-        description: input.title,
+        description: data.title,
         quantity: 1,
         unit: "forfait",
-        estimatedUnitPrice: input.amount,
+        estimatedUnitPrice: data.amount,
       }],
       requestedBy: session.userId,
       requestedByName: session.displayName,
     });
-    if (result.ok) {
-      toast.showSuccess("Demande créée", "La demande d'achat a été enregistrée comme brouillon.");
+    if (res.ok) {
+      toast.showSuccess("Demande créée", "Le brouillon d'achat a été enregistré.");
       setNewRequestOpen(false);
     } else {
-      toast.showError("Erreur", "Impossible de créer la demande.");
+      throw new Error(res.error.userMessage);
     }
   }
 
+  async function handleAdvance(id: string, current: PurchaseRequestStatus) {
+    if (!session) return;
+    const next = nextStatus(current);
+    if (!next) return;
+    const res = await repos.purchaseRequests.updateStatus(id, next, session.userId, session.displayName);
+    if (res.ok) {
+      toast.showSuccess("Statut mis à jour", `Passé à : ${PURCHASE_REQUEST_STATUS_LABELS_FR[next]}`);
+    } else {
+      toast.showError("Erreur", res.error.userMessage);
+    }
+  }
+
+  const kpis: readonly DashboardKpi[] = [
+    { label: "Demandes ouvertes", value: openRequests.length, icon: ShoppingCart, trend: `${openRequests.length} en cours` },
+    { label: "Livraisons en attente", value: pendingDeliveries, icon: Truck },
+    { label: "Fournisseurs", value: suppliers.length, icon: Building2 },
+    { label: "Délai moyen", value: "2,4 j", icon: Clock },
+  ];
+
+  const tasks: readonly DashboardTask[] = myTasks.slice(0, 5).map((t) => ({
+    id: t.id,
+    label: t.title,
+    description: t.dueDate ? `Échéance : ${t.dueDate}` : undefined,
+    priority: t.priority === "urgent" || t.priority === "high" ? "high" : "medium",
+  }));
+
+  const feed: readonly DashboardFeedItem[] = requests.slice(0, 5).map((r) => ({
+    id: r.id,
+    label: `${r.requestCode} — ${r.title}`,
+    description: `${new Intl.NumberFormat("fr-FR").format(r.totalAmount)} DZD · ${PURCHASE_REQUEST_STATUS_LABELS_FR[r.status]}`,
+    timestamp: new Date(r.requestedAt).toLocaleDateString("fr-FR"),
+    icon: ShoppingCart,
+  }));
+
   return (
-    <DashboardGrid>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Tableau de bord Acheteur</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Demandes d'achat, fournisseurs, bons de commande et réceptions.
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setNewRequestOpen(true)}>
-          <Plus className="h-4 w-4" /> Nouvelle demande d'achat
-        </Button>
-      </div>
-
-      <DashboardKpiRow>
-        <KpiCard
-          label="Demandes ouvertes"
-          value={openRequests.length.toString()}
-          icon={<ShoppingCart className="h-5 w-5" />}
-          tone={openRequests.length > 0 ? "warning" : "default"}
-        />
-        <KpiCard
-          label="Livraisons en attente"
-          value={pendingDeliveries.toString()}
-          icon={<Truck className="h-5 w-5" />}
-          tone={pendingDeliveries > 0 ? "info" : "default"}
-        />
-        <KpiCard
-          label="Fournisseurs"
-          value={suppliers.length.toString()}
-          icon={<Building2 className="h-5 w-5" />}
-          tone="default"
-        />
-        <KpiCard
-          label="Temps de réponse moyen"
-          value="2,4 j"
-          icon={<Clock className="h-5 w-5" />}
-          tone="info"
-          hint="Délai fournisseur moyen"
-        />
-      </DashboardKpiRow>
-
-      <DashboardSection title="Mes tâches" icon={ListTodo}>
-        {myTasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            Aucune tâche vous est actuellement affectée.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {myTasks.slice(0, 6).map((task) => (
-              <li key={task.id} className="py-2.5 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
-                  {task.dueDate && (
-                    <p className="text-xs text-muted-foreground">Échéance {task.dueDate}</p>
-                  )}
-                </div>
-                <StatusChip label={TASK_STATUS_LABELS_FR[task.status]} tone={TASK_STATUS_TONE[task.status]} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </DashboardSection>
-
-      <DashboardSection
-        title="Demandes d'achat"
-        icon={ShoppingCart}
-        action={<span className="text-xs text-muted-foreground">{requests.length} au total</span>}
+    <>
+      <RoleDashboardLayout
+        role="Acheteur"
+        actorName={session?.displayName ?? "Acheteur"}
+        kpis={kpis}
+        tasks={tasks}
+        feed={feed}
+        actions={[
+          { label: "Nouvelle demande", icon: Plus, variant: "default", onClick: () => setNewRequestOpen(true) },
+        ]}
       >
-        <ul className="divide-y divide-border">
-          {requests.map((r) => {
-            const next = nextStatus(r.status);
-            return (
-              <li key={r.id} className="py-3 flex items-center gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+        <div className="rounded-lg border bg-card p-4">
+          <h3 className="text-sm font-semibold mb-3">Toutes les demandes d'achat</h3>
+          <ul className="divide-y divide-border">
+            {requests.map((r) => {
+              const next = nextStatus(r.status);
+              return (
+                <li key={r.id} className="py-3 flex items-center justify-between gap-3">
+                  <div>
                     <span className="font-mono text-xs text-muted-foreground mr-2">{r.requestCode}</span>
-                    {r.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.supplierId ? (supplierNameById.get(r.supplierId) ?? "—") : "Fournisseur non assigné"}
-                    {" • "}
-                    {new Intl.NumberFormat("fr-FR").format(r.totalAmount)} DZD
-                    {" • "}
-                    {PURCHASE_REQUEST_PRIORITY_LABELS_FR[r.priority]}
-                    {" • "}
-                    {new Date(r.requestedAt).toLocaleDateString("fr-FR")}
-                  </p>
-                </div>
-                <StatusChip
-                  label={PURCHASE_REQUEST_STATUS_LABELS_FR[r.status]}
-                  tone={PURCHASE_STATUS_TONE[r.status]}
-                />
-                {next && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => advanceStatus(r.id, r.status)}
-                  >
-                    <PackageCheck className="h-4 w-4" /> Avancer
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </DashboardSection>
-
-      <DashboardSection title="Fournisseurs" icon={Building2}>
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-          {suppliers.map((s) => (
-            <SupplierCard key={s.id} supplier={s} />
-          ))}
+                    <span className="font-medium text-sm">{r.title}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {r.supplierId ? (supplierNameById.get(r.supplierId) ?? "—") : "Fournisseur non assigné"}
+                      {" · "}
+                      {new Intl.NumberFormat("fr-FR").format(r.totalAmount)} DZD
+                      {" · "}
+                      {PURCHASE_REQUEST_PRIORITY_LABELS_FR[r.priority]}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusChip label={PURCHASE_REQUEST_STATUS_LABELS_FR[r.status]} tone={PURCHASE_STATUS_TONE[r.status]} />
+                    {next && (
+                      <Button size="sm" variant="outline" onClick={() => handleAdvance(r.id, r.status)}>
+                        <PackageCheck className="size-3.5 mr-1" /> Avancer
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
-      </DashboardSection>
+      </RoleDashboardLayout>
 
-      <NewPurchaseRequestModal
+      <AutoFormModal
         open={newRequestOpen}
         onOpenChange={setNewRequestOpen}
-        suppliers={suppliers}
+        title="Nouvelle demande d'achat"
+        description="Créez une demande d'approvisionnement."
+        schema={PurchaseRequestSchema}
+        fields={formFields}
         onSubmit={handleCreate}
+        submitLabel="Créer le brouillon"
       />
-    </DashboardGrid>
-  );
-}
-
-function SupplierCard({ supplier }: { supplier: Supplier }) {
-  const archived = supplier.archivedAt !== null;
-  return (
-    <div className="rounded-lg border border-border p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-medium text-sm text-foreground truncate">{supplier.name}</p>
-          <p className="text-xs text-muted-foreground truncate">
-            Contact : {supplier.contactName} • {supplier.category}
-          </p>
-        </div>
-        <StatusChip
-          label={archived ? "Archivé" : "Actif"}
-          tone={archived ? "neutral" : "success"}
-        />
-      </div>
-      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-mono">{supplier.phone}</span>
-        <span>Notation : {supplier.rating.toFixed(1)}/5</span>
-      </div>
-    </div>
-  );
-}
-
-function NewPurchaseRequestModal({
-  open,
-  onOpenChange,
-  suppliers,
-  onSubmit,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  suppliers: readonly Supplier[];
-  onSubmit: (input: {
-    title: string;
-    description: string;
-    priority: PurchaseRequestPriority;
-    supplierId: string | null;
-    amount: number;
-  }) => void | Promise<void>;
-}) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [supplierId, setSupplierId] = useState("");
-  const [priority, setPriority] = useState<PurchaseRequestPriority>("medium");
-  const [amount, setAmount] = useState("");
-
-  function reset() {
-    setTitle(""); setDescription(""); setSupplierId("");
-    setPriority("medium"); setAmount("");
-  }
-
-  function handleSubmit() {
-    const amt = Number(amount);
-    if (!title.trim() || !Number.isFinite(amt) || amt <= 0) return;
-    onSubmit({
-      title: title.trim(),
-      description: description.trim(),
-      priority,
-      supplierId: supplierId || null,
-      amount: amt,
-    });
-    reset();
-  }
-
-  return (
-    <UnifiedModal
-      open={open}
-      onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}
-      title="Nouvelle demande d'achat"
-      description="Sera enregistrée comme brouillon avant soumission."
-      icon={Plus}
-      size="md"
-      submitLabel="Créer le brouillon"
-      submitIcon={CheckCircle2}
-      onSubmit={handleSubmit}
-    >
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="pr-title">Objet</Label>
-          <Input
-            id="pr-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex. Manuels scolaires trimestre 2"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="pr-desc">Description</Label>
-          <Textarea
-            id="pr-desc"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            placeholder="Détaillez le besoin…"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Fournisseur</Label>
-            <Select value={supplierId} onValueChange={setSupplierId}>
-              <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
-              <SelectContent>
-                {suppliers.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Priorité</Label>
-            <Select value={priority} onValueChange={(v) => setPriority(v as PurchaseRequestPriority)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Basse</SelectItem>
-                <SelectItem value="medium">Moyenne</SelectItem>
-                <SelectItem value="high">Haute</SelectItem>
-                <SelectItem value="urgent">Urgente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="pr-amount">Montant estimé (DZD)</Label>
-          <Input
-            id="pr-amount"
-            type="number"
-            min={0}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </div>
-      </div>
-    </UnifiedModal>
+    </>
   );
 }

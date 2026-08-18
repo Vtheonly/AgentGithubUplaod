@@ -65,6 +65,20 @@ describe("DataTable primitive", () => {
       expect(screen.queryByText("Amina")).not.toBeInTheDocument();
     });
   });
+
+  it("hides the search input when hideSearch is true", () => {
+    render(
+      <DataTable
+        data={data}
+        columns={[{ header: "Nom", accessor: "name" }]}
+        searchPlaceholder="Rechercher…"
+        hideSearch
+      />,
+    );
+    expect(screen.queryByPlaceholderText("Rechercher…")).not.toBeInTheDocument();
+    // Data is still rendered
+    expect(screen.getByText("Karim")).toBeInTheDocument();
+  });
 });
 
 describe("AutoFormModal primitive", () => {
@@ -111,6 +125,21 @@ describe("AutoFormModal primitive", () => {
       />,
     );
     expect(screen.getByDisplayValue("Karim")).toBeInTheDocument();
+  });
+
+  it("renders a password field with type=password so credentials are masked", () => {
+    const PwSchema = z.object({ secret: z.string().min(1, "Requis") });
+    render(
+      <AutoFormModal
+        open onOpenChange={() => {}} title="Mot de passe"
+        schema={PwSchema}
+        fields={[{ name: "secret", label: "Mot de passe", type: "password", required: true }]}
+        initialValues={{ secret: "supersecret" }}
+        onSubmit={() => {}}
+      />,
+    );
+    const input = screen.getByDisplayValue("supersecret") as HTMLInputElement;
+    expect(input.type).toBe("password");
   });
 });
 

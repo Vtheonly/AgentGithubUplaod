@@ -1,23 +1,21 @@
 /**
- * InstallmentScheduleTab — replaces the ComingSoonCard.
+ * InstallmentScheduleTab — single consolidated table of installments across
+ * all parents.
  *
- * Shows all installments across all parents. Clicking a row opens the
- * Counter Payment modal pre-filled with that installment's data.
+ * Refactored to consume `<DataTable<Row>>` (instead of bespoke `<ul>/<li>`
+ * + hand-rolled filter state) and `<AutoFormModal>` for the due-date editor
+ * (instead of the bespoke `EditDueDateModal` UnifiedModal). The cycle-based
+ * regeneration modal is kept as a small `AutoFormModal` too.
  *
  * Per plan §07.03: Tuition = 3 tranches; Transport = tier-based.
- *
- * Iteration 9 — Flexible installment schedules + automated overdue alerts
- * (spec §6.1, §6.2, §6.3):
- *   - Each row now has an "Edit due date" action that opens a modal to
- *     override the due date per parent (custom payment agreement).
- *   - A "Regenerate for cycle" action re-templates the installments for
- *     Primaire / CEM / Lycée default tranche months.
- *   - Custom-scheduled installments are badged "Personnalisé".
- *   - A "Run overdue scan" button in the toolbar triggers the automated
- *     overdue alert generator (spec §6.3).
+ * Iteration 9 features (flexible schedule + custom notes + cycle regeneration
+ * + overdue scan) are preserved.
  */
 import { useState, useMemo, useEffect } from "react";
-import { Filter, ChevronRight, Wallet, CalendarCog, RefreshCw, Zap, AlertTriangle } from "lucide-react";
+import {
+  Wallet, CalendarCog, RefreshCw, Zap, AlertTriangle,
+} from "lucide-react";
+import { z } from "zod";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -29,20 +27,21 @@ import {
   PAYMENT_STATUS_LABELS_FR,
   ACADEMIC_CYCLE_LABELS_FR,
   type AcademicCycle,
-  type PaymentCategory,
   type Installment,
 } from "../../domain/model/payment";
-import type { Parent } from "../../domain/model/parent";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../shared/ui/select";
-import { Input } from "../../shared/ui/input";
-import { Label } from "../../shared/ui/label";
-import { Textarea } from "../../shared/ui/textarea";
-import { FormField } from "../../shared/ui/form-field";
-import { UnifiedModal } from "../../shared/ui/unified-modal";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "../../shared/ui/select";
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableAction,
+} from "../../shared/ui/data-table";
+import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 
@@ -50,27 +49,37 @@ interface Row extends Installment {
   parentName: string;
 }
 
+const DueDateSchema = z.object({
+  dueDate: z.string().min(4, "Date d'échéance requise"),
+  note: z.string().optional().default(""),
+});
+
+const CycleSchema = z.object({
+  cycle: z.enum(["primaire", "cem", "lycee"]),
+});
+
+const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
+  paid: "success",
+  partial: "warning",
+  pending: "info",
+  overdue: "danger",
+  cancelled: "neutral",
+};
+
 export function InstallmentScheduleTab() {
   const repos = useRepositories();
   const { session } = useAuth();
   const toast = useToast();
   const parents = useObservable(() => repos.parents.observe(), []);
   const [rows, setRows] = useState<Row[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<PaymentCategory | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [collectFor, setCollectFor] = useState<{
-    parentId: string;
-    installmentId: string;
-    amount: number;
-    category: PaymentCategory;
-  } | null>(null);
-  // Iteration 9 — flexible schedule editor state.
+  const [collectFor, setCollectFor] = useState<Row | null>(null);
   const [editDueDateFor, setEditDueDateFor] = useState<Row | null>(null);
   const [regenerateFor, setRegenerateFor] = useState<{ parentId: string; parentName: string } | null>(null);
   const [scanningOverdue, setScanningOverdue] = useState(false);
 
   // Build the merged list by reading each parent's installments.
-  // Re-runs whenever parents changes (which happens on parent create/update).
   useEffect(() => {
     const merged: Row[] = [];
     for (const p of parents) {
@@ -81,7 +90,6 @@ export function InstallmentScheduleTab() {
     }
     setRows(merged);
 
-    // Also subscribe to each parent's installments for live updates.
     const unsubs: Array<() => void> = [];
     for (const p of parents) {
       const obs = repos.installments.observeByParent(p.id);
@@ -113,13 +121,6 @@ export function InstallmentScheduleTab() {
     return { totalDue, totalPaid, totalRemaining, overdueCount };
   }, [filtered]);
 
-  /**
-   * Iteration 9 — run the automated overdue alert generator on demand.
-   * Per spec §6.3: "Implement automated trigger logic so that when an
-   * installment term threshold passes without payment confirmation, the
-   * system automatically generates an overdue alert across all relevant
-   * views."
-   */
   async function handleRunOverdueScan() {
     setScanningOverdue(true);
     try {
@@ -139,14 +140,185 @@ export function InstallmentScheduleTab() {
     }
   }
 
+  async function handleDueDateSubmit(data: z.infer<typeof DueDateSchema>) {
+    if (!session || !editDueDateFor) return;
+    const result = await repos.installments.updateDueDate({
+      installmentId: editDueDateFor.id,
+      dueDate: new Date(data.dueDate).toISOString(),
+      note: data.note?.trim() || null,
+      actorId: session.userId,
+      actorName: session.displayName,
+    });
+    if (result.ok) {
+      toast.showSuccess("Échéance modifiée", `${editDueDateFor.label} — ${editDueDateFor.parentName} → ${formatDate(data.dueDate)}`);
+      setEditDueDateFor(null);
+    } else {
+      throw new Error(result.error.userMessage);
+    }
+  }
+
+  async function handleCycleSubmit(data: z.infer<typeof CycleSchema>) {
+    if (!session || !regenerateFor) return;
+    const result = await repos.installments.regenerateForCycle(
+      regenerateFor.parentId,
+      data.cycle as AcademicCycle,
+      session.userId,
+      session.displayName,
+    );
+    if (result.ok) {
+      toast.showSuccess(
+        "Tranches re-modélisées",
+        `${regenerateFor.parentName} — ${result.value.length} tranche(s) selon le cycle ${ACADEMIC_CYCLE_LABELS_FR[data.cycle as AcademicCycle]}.`,
+      );
+      setRegenerateFor(null);
+    } else {
+      throw new Error(result.error.userMessage);
+    }
+  }
+
+  const columns: readonly DataTableColumn<Row>[] = [
+    {
+      header: "Parent",
+      accessor: "parentName",
+      cell: (i) => (
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">{i.parentName}</p>
+          <Badge variant="outline" className="text-[10px] mt-0.5">{i.label}</Badge>
+        </div>
+      ),
+    },
+    {
+      header: "Catégorie",
+      accessor: "category",
+      cell: (i) => (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs">{PAYMENT_CATEGORY_LABELS_FR[i.category]}</span>
+          {i.academicCycle && (
+            <Badge variant="outline" className="text-[9px] text-muted-foreground w-fit">
+              {ACADEMIC_CYCLE_LABELS_FR[i.academicCycle]}
+            </Badge>
+          )}
+          {i.customSchedule && (
+            <Badge variant="outline" className="text-[9px] text-status-warning bg-status-warning/10 w-fit">
+              Personnalisé
+            </Badge>
+          )}
+          {i.status === "overdue" && (
+            <Badge variant="outline" className="text-[9px] text-status-danger bg-status-danger/10 w-fit">
+              <AlertTriangle className="size-2.5 mr-0.5" /> Alerte auto
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Montant dû",
+      accessor: "amountDue",
+      cell: (i) => <span className="font-mono">{formatDzd(i.amountDue)}</span>,
+    },
+    {
+      header: "Reste",
+      accessor: (i) => i.amountDue - i.amountPaid,
+      cell: (i) => <span className="font-mono font-semibold">{formatDzd(i.amountDue - i.amountPaid)}</span>,
+    },
+    {
+      header: "Échéance",
+      accessor: "dueDate",
+      cell: (i) => formatDate(i.dueDate),
+    },
+    {
+      header: "Statut",
+      accessor: "status",
+      cell: (i) => (
+        <StatusChip
+          label={PAYMENT_STATUS_LABELS_FR[i.status as keyof typeof PAYMENT_STATUS_LABELS_FR] ?? i.status}
+          tone={PAYMENT_STATUS_TONE[i.status] ?? "neutral"}
+        />
+      ),
+    },
+  ];
+
+  const actions: readonly DataTableAction<Row>[] = [
+    {
+      label: "Encaisser",
+      variant: "outline",
+      icon: <Wallet className="size-3.5" />,
+      disabled: (i) => i.status === "paid" || (i.amountDue - i.amountPaid) <= 0,
+      onClick: (i) => setCollectFor(i),
+    },
+    {
+      label: "Échéance",
+      variant: "ghost",
+      icon: <CalendarCog className="size-3.5" />,
+      disabled: (i) => i.status === "paid",
+      onClick: (i) => setEditDueDateFor(i),
+    },
+  ];
+
+  // Build the PaymentNavigationContext when collectFor is set
+  const collectContext: PaymentNavigationContext | null = useMemo(() => {
+    if (!collectFor) return null;
+    const parent = parents.find((p) => p.id === collectFor.parentId);
+    const remaining = Math.max(0, collectFor.amountDue - collectFor.amountPaid);
+    const isOverdue = collectFor.status === "overdue";
+    const overdueDays = isOverdue
+      ? Math.max(0, Math.floor((Date.now() - new Date(collectFor.dueDate).getTime()) / 86_400_000))
+      : undefined;
+    return {
+      parentId: collectFor.parentId,
+      parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
+      parentCode: parent?.code,
+      studentId: collectFor.studentId ?? null,
+      mode: "installment_tranche",
+      targetItemId: collectFor.id,
+      presetAmount: remaining,
+      overdueDays,
+      dueWindowLabel: new Date(collectFor.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
+      lineItems: [{
+        itemId: collectFor.id,
+        category: collectFor.category,
+        label: collectFor.label,
+        grossAmount: collectFor.amountDue,
+        discountAmount: 0,
+        netAmount: collectFor.amountDue,
+        alreadyPaidAmount: collectFor.amountPaid,
+        remainingAmount: remaining,
+        dueDate: collectFor.dueDate,
+        isOverdue,
+        daysOverdue: overdueDays,
+      }],
+      allowPartial: true,
+      originRoute: "financials.installment_schedule",
+    } as PaymentNavigationContext;
+  }, [collectFor, parents]);
+
+  const dueDateFields: readonly AutoFormField[] = [
+    { name: "dueDate", label: "Nouvelle date d'échéance", type: "date", required: true, wide: true },
+    {
+      name: "note", label: "Motif de l'aménagement", type: "textarea", wide: true,
+      placeholder: "Ex. Échelonnement exceptionnel accordé par la direction…",
+      help: "Cette note sera visible dans l'audit et badgée « Personnalisé » sur la tranche.",
+    },
+  ];
+
+  const cycleFields: readonly AutoFormField[] = [
+    {
+      name: "cycle", label: "Cycle scolaire", type: "select", required: true, wide: true,
+      options: [
+        { label: "Primaire — Sep / Déc / Mar", value: "primaire" },
+        { label: "CEM — Sep / Déc / Avr", value: "cem" },
+        { label: "Lycée — Sep / Jan / Mai", value: "lycee" },
+      ],
+    },
+  ];
+
   return (
     <Card>
-      <CardContent className="p-0">
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as PaymentCategory | "all")}>
-            <SelectTrigger className="w-44 h-8 text-xs">
-              <Filter className="h-3 w-3 mr-1" />
+      <CardContent className="pt-3 space-y-3">
+        {/* Toolbar with category + status filters + overdue scan */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-44 h-9">
               <SelectValue placeholder="Catégorie" />
             </SelectTrigger>
             <SelectContent>
@@ -157,7 +329,7 @@ export function InstallmentScheduleTab() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36 h-8 text-xs">
+            <SelectTrigger className="w-36 h-9">
               <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
@@ -169,381 +341,90 @@ export function InstallmentScheduleTab() {
             </SelectContent>
           </Select>
           <div className="flex-1" />
-          {/* Iteration 9 — manual overdue scan trigger */}
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs"
             onClick={handleRunOverdueScan}
             disabled={scanningOverdue}
             title="Scanner les tranches en retard et générer des alertes"
           >
             {scanningOverdue ? (
-              <><RefreshCw className="h-3 w-3 animate-spin" /> Scan…</>
+              <><RefreshCw className="size-3.5 animate-spin" /> Scan…</>
             ) : (
-              <><Zap className="h-3 w-3" /> Scan retards</>
+              <><Zap className="size-3.5" /> Scan retards</>
             )}
           </Button>
         </div>
 
         {/* Totals header */}
-        <div className="grid grid-cols-4 gap-2 border-b border-border p-3 bg-muted/20">
+        <div className="grid grid-cols-4 gap-2 rounded-md border bg-muted/20 p-3">
           <Total label="Total dû" value={formatDzd(totals.totalDue)} tone="default" />
           <Total label="Payé" value={formatDzd(totals.totalPaid)} tone="success" />
           <Total label="Reste" value={formatDzd(totals.totalRemaining)} tone="danger" />
           <Total label="En retard" value={String(totals.overdueCount)} tone="warning" />
         </div>
 
-        {/* List */}
-        <ul className="divide-y divide-border">
-          {filtered.length === 0 ? (
-            <li className="p-6 text-center text-sm text-muted-foreground">
-              Aucune tranche ne correspond aux filtres.
-            </li>
-          ) : (
-            filtered.map((i) => {
-              const remaining = i.amountDue - i.amountPaid;
-              const canCollect = i.status !== "paid" && remaining > 0;
-              return (
-                <li
-                  key={i.id}
-                  className="flex items-center gap-3 p-3 hover:bg-accent/5"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium truncate">{i.parentName}</p>
-                      <Badge variant="outline" className="text-[10px]">{i.label}</Badge>
-                      <span className="text-[10px] text-muted-foreground">{PAYMENT_CATEGORY_LABELS_FR[i.category]}</span>
-                      {/* Iteration 9 — badges for cycle + custom schedule */}
-                      {i.academicCycle && (
-                        <Badge variant="outline" className="text-[9px] text-muted-foreground">
-                          {ACADEMIC_CYCLE_LABELS_FR[i.academicCycle]}
-                        </Badge>
-                      )}
-                      {i.customSchedule && (
-                        <Badge variant="outline" className="text-[9px] text-status-warning bg-status-warning/10">
-                          Personnalisé
-                        </Badge>
-                      )}
-                      {i.status === "overdue" && (
-                        <Badge variant="outline" className="text-[9px] text-status-danger bg-status-danger/10">
-                          <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                          Alerte auto
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Échéance: {formatDate(i.dueDate)}
-                      {i.paidDate && ` · Payée: ${formatDate(i.paidDate)}`}
-                      {i.customScheduleNote && ` · ${i.customScheduleNote}`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-mono">{formatDzdPlain(remaining)}</p>
-                    <p className="text-[10px] text-muted-foreground">restant</p>
-                  </div>
-                  <StatusChip
-                    label={PAYMENT_STATUS_LABELS_FR[i.status as keyof typeof PAYMENT_STATUS_LABELS_FR] ?? i.status}
-                    tone={
-                      i.status === "paid"
-                        ? "success"
-                        : i.status === "partial"
-                          ? "warning"
-                          : i.status === "overdue"
-                            ? "danger"
-                            : "info"
-                    }
-                  />
-                  {/* Iteration 9 — edit due date action (per-parent flexible schedule) */}
-                  {i.status !== "paid" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      title="Modifier l'échéance (échelonnement personnalisé)"
-                      onClick={() => setEditDueDateFor(i)}
-                    >
-                      <CalendarCog className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {canCollect && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCollectFor({
-                          parentId: i.parentId,
-                          installmentId: i.id,
-                          amount: remaining,
-                          category: i.category,
-                        })
-                      }
-                    >
-                      <Wallet className="h-3.5 w-3.5" /> Encaisser
-                      <ChevronRight className="h-3 w-3" />
-                    </Button>
-                  )}
-                </li>
-              );
-            })
-          )}
-        </ul>
+        <DataTable<Row>
+          data={filtered}
+          columns={columns}
+          actions={actions}
+          searchFields={["parentName", "label"]}
+          searchPlaceholder="Rechercher un parent, une tranche…"
+          pageSize={15}
+          emptyMessage="Aucune tranche ne correspond aux filtres."
+        />
       </CardContent>
 
-      {collectFor && (
+      {collectContext && (
         <UnifiedPaymentModal
-          open={!!collectFor}
+          open={collectContext !== null}
           onOpenChange={(o) => !o && setCollectFor(null)}
-          context={
-            (() => {
-              // Find the row to compute exact remaining + due date.
-              const row = rows.find((r) => r.id === collectFor.installmentId);
-              const parent = parents.find((p) => p.id === collectFor.parentId);
-              const remaining = row
-                ? Math.max(0, row.amountDue - row.amountPaid)
-                : collectFor.amount;
-              const isOverdue = row?.status === "overdue";
-              const overdueDays = row && isOverdue
-                ? Math.max(0, Math.floor((Date.now() - new Date(row.dueDate).getTime()) / 86_400_000))
-                : undefined;
-              const ctx: PaymentNavigationContext = {
-                parentId: collectFor.parentId,
-                parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
-                parentCode: parent?.code,
-                studentId: row?.studentId ?? null,
-                mode: "installment_tranche",
-                targetItemId: collectFor.installmentId,
-                presetAmount: remaining,
-                overdueDays,
-                dueWindowLabel: row ? new Date(row.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : undefined,
-                lineItems: row
-                  ? [{
-                      itemId: row.id,
-                      category: row.category,
-                      label: row.label,
-                      grossAmount: row.amountDue,
-                      discountAmount: 0,
-                      netAmount: row.amountDue,
-                      alreadyPaidAmount: row.amountPaid,
-                      remainingAmount: remaining,
-                      dueDate: row.dueDate,
-                      isOverdue,
-                      daysOverdue: overdueDays,
-                    }]
-                  : [],
-                allowPartial: true,
-                originRoute: "financials.installment_schedule",
-              };
-              return ctx;
-            })()
-          }
+          context={collectContext}
         />
       )}
 
-      {/* Iteration 9 — flexible due date editor */}
-      {editDueDateFor && (
-        <EditDueDateModal
-          row={editDueDateFor}
-          onClose={() => setEditDueDateFor(null)}
-          onRegenerate={(parentId, parentName) => {
-            setEditDueDateFor(null);
-            setRegenerateFor({ parentId, parentName });
-          }}
-        />
-      )}
+      <AutoFormModal
+        open={editDueDateFor !== null}
+        onOpenChange={(o) => !o && setEditDueDateFor(null)}
+        title={editDueDateFor ? `Modifier l'échéance — ${editDueDateFor.label}` : "Modifier l'échéance"}
+        description={editDueDateFor ? `${editDueDateFor.parentName} · ${formatDzdPlain(editDueDateFor.amountDue - editDueDateFor.amountPaid)} DZD restant` : ""}
+        schema={DueDateSchema}
+        fields={dueDateFields}
+        initialValues={editDueDateFor ? {
+          dueDate: editDueDateFor.dueDate.slice(0, 10),
+          note: editDueDateFor.customScheduleNote ?? "",
+        } : undefined}
+        onSubmit={handleDueDateSubmit}
+        submitLabel="Enregistrer l'échéance"
+      />
 
-      {/* Iteration 9 — cycle-based regeneration */}
-      {regenerateFor && (
-        <RegenerateForCycleModal
-          parentId={regenerateFor.parentId}
-          parentName={regenerateFor.parentName}
-          onClose={() => setRegenerateFor(null)}
-        />
-      )}
+      <AutoFormModal
+        open={regenerateFor !== null}
+        onOpenChange={(o) => !o && setRegenerateFor(null)}
+        title={regenerateFor ? `Re-modéliser par cycle — ${regenerateFor.parentName}` : "Re-modéliser par cycle"}
+        description="Les tranches en attente seront re-calendriées selon le cycle choisi. Les tranches payées sont conservées."
+        schema={CycleSchema}
+        fields={cycleFields}
+        initialValues={{ cycle: "primaire" }}
+        onSubmit={handleCycleSubmit}
+        submitLabel="Re-modéliser"
+        footer={
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              if (editDueDateFor) {
+                setRegenerateFor({ parentId: editDueDateFor.parentId, parentName: editDueDateFor.parentName });
+                setEditDueDateFor(null);
+              }
+            }}
+          >
+            <RefreshCw className="inline size-3 mr-1" />
+            Re-modéliser par cycle
+          </button>
+        }
+      />
     </Card>
-  );
-}
-
-/**
- * Iteration 9 — Edit due date modal (spec §6.1: flexible installment schedules).
- *
- * Overrides an installment's due date per parent to accommodate custom
- * payment agreements. Marks the installment `customSchedule: true` for
- * badge display.
- */
-function EditDueDateModal({
-  row,
-  onClose,
-  onRegenerate,
-}: {
-  row: Row;
-  onClose: () => void;
-  onRegenerate: (parentId: string, parentName: string) => void;
-}) {
-  const repos = useRepositories();
-  const { session } = useAuth();
-  const toast = useToast();
-  const [dueDate, setDueDate] = useState(row.dueDate.slice(0, 10));
-  const [note, setNote] = useState(row.customScheduleNote ?? "");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit() {
-    if (!session) return;
-    setSubmitting(true);
-    try {
-      const result = await repos.installments.updateDueDate({
-        installmentId: row.id,
-        dueDate: new Date(dueDate).toISOString(),
-        note: note.trim() || null,
-        actorId: session.userId,
-        actorName: session.displayName,
-      });
-      if (result.ok) {
-        toast.showSuccess("Échéance modifiée", `${row.label} — ${row.parentName} → ${formatDate(dueDate)}`);
-        onClose();
-      } else {
-        toast.showError("Échec", result.error.userMessage);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <UnifiedModal
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={`Modifier l'échéance — ${row.label}`}
-      description={`${row.parentName} · ${formatDzdPlain(row.amountDue - row.amountPaid)} DZD restant`}
-      icon={CalendarCog}
-      iconTone="primary"
-      size="md"
-      submitLabel="Enregistrer"
-      submitLoading={submitting}
-      onSubmit={handleSubmit}
-      footerLeading={
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-xs"
-          onClick={() => onRegenerate(row.parentId, row.parentName)}
-          title="Re-modéliser selon le cycle (Primaire / CEM / Lycée)"
-        >
-          <RefreshCw className="h-3 w-3" />
-          Re-modéliser par cycle
-        </Button>
-      }
-    >
-      <div className="space-y-4">
-        <FormField label="Nouvelle date d'échéance" htmlFor="due-date" required>
-          <Input
-            id="due-date"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-          />
-        </FormField>
-        <FormField label="Note (optionnel)" htmlFor="due-note">
-          <Textarea
-            id="due-note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Ex. Échelonnement exceptionnel accordé par la direction…"
-            rows={3}
-            maxLength={300}
-          />
-          <p className="text-[10px] text-muted-foreground">
-            Cette note sera visible dans l'audit et badgee « Personnalisé » sur la tranche.
-          </p>
-        </FormField>
-      </div>
-    </UnifiedModal>
-  );
-}
-
-/**
- * Iteration 9 — Regenerate installments for a cycle (spec §6.2: cycle-based
- * installment customization).
- *
- * Re-templates the parent's pending/partial installments using the default
- * tranche months for the given cycle (Primaire = Sep/Dec/Mar,
- * CEM = Sep/Dec/Apr, Lycée = Sep/Jan/May). Paid installments are preserved.
- */
-function RegenerateForCycleModal({
-  parentId,
-  parentName,
-  onClose,
-}: {
-  parentId: string;
-  parentName: string;
-  onClose: () => void;
-}) {
-  const repos = useRepositories();
-  const { session } = useAuth();
-  const toast = useToast();
-  const [cycle, setCycle] = useState<AcademicCycle>("primaire");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit() {
-    if (!session) return;
-    setSubmitting(true);
-    try {
-      const result = await repos.installments.regenerateForCycle(
-        parentId,
-        cycle,
-        session.userId,
-        session.displayName,
-      );
-      if (result.ok) {
-        toast.showSuccess(
-          "Tranches re-modélisées",
-          `${parentName} — ${result.value.length} tranche(s) selon le cycle ${ACADEMIC_CYCLE_LABELS_FR[cycle]}.`,
-        );
-        onClose();
-      } else {
-        toast.showError("Échec", result.error.userMessage);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <UnifiedModal
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={`Re-modéliser par cycle — ${parentName}`}
-      description="Les tranches en attente seront re-calendriées selon le cycle choisi. Les tranches payées sont conservées."
-      icon={RefreshCw}
-      iconTone="primary"
-      size="md"
-      submitLabel="Re-modéliser"
-      submitLoading={submitting}
-      onSubmit={handleSubmit}
-    >
-      <div className="space-y-4">
-        <FormField label="Cycle scolaire" htmlFor="cycle">
-          <Select value={cycle} onValueChange={(v) => setCycle(v as AcademicCycle)}>
-            <SelectTrigger id="cycle">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(ACADEMIC_CYCLE_LABELS_FR) as AcademicCycle[]).map((c) => (
-                <SelectItem key={c} value={c}>{ACADEMIC_CYCLE_LABELS_FR[c]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormField>
-        <div className="rounded-md border border-status-info/30 bg-status-info/10 p-3 text-xs text-status-info space-y-1">
-          <p className="font-medium">Calendrier par défaut:</p>
-          <ul className="list-disc list-inside space-y-0.5">
-            <li>Primaire: Septembre / Décembre / Mars</li>
-            <li>CEM: Septembre / Décembre / Avril</li>
-            <li>Lycée: Septembre / Janvier / Mai</li>
-          </ul>
-        </div>
-      </div>
-    </UnifiedModal>
   );
 }
 

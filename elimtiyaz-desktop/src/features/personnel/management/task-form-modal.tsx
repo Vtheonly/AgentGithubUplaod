@@ -1,53 +1,30 @@
 /**
  * TaskFormModal — create form for a new Task.
  *
- * Fields: title, description, priority dropdown, department dropdown,
- * multi-select assignees, due date, tags (comma-separated).
- *
- * Submits via `repos.tasks.createTask`. The actor (creator) is the current
- * session user. Tags are parsed from a comma-separated string into an array.
+ * Refactored to consume `<AutoFormModal<T>>` so form-state, validation, and
+ * field rendering all flow through the shared primitive instead of hand-
+ * rolled `useState` + bespoke `<UnifiedModal>` form. Tags are kept as a
+ * comma-separated text input parsed at submission time.
  */
-import { useState } from "react";
-import { Plus, ListChecks } from "lucide-react";
+import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
-import { UnifiedModal } from "../../../shared/ui/unified-modal";
-import { FormField } from "../../../shared/ui/form-field";
-import { Input } from "../../../shared/ui/input";
-import { Textarea } from "../../../shared/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "../../../shared/ui/select";
-import {
-  TASK_PRIORITY_LABELS_FR,
-  type TaskPriority,
-} from "../../../domain/model/workforce";
+import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+import { type TaskPriority } from "../../../domain/model/workforce";
 
-const PRIORITIES: readonly TaskPriority[] = ["low", "medium", "high", "urgent"];
+const TaskSchema = z.object({
+  title: z.string().min(3, "Titre requis (min. 3 caractères)"),
+  description: z.string().optional().default(""),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  departmentId: z.string().optional().default(""),
+  assigneeId: z.string().optional().default(""),
+  dueDate: z.string().optional().default(""),
+  tags: z.string().optional().default(""),
+});
 
-interface FormState {
-  title: string;
-  description: string;
-  priority: TaskPriority;
-  departmentId: string;
-  assigneeIds: string[];
-  dueDate: string;
-  tags: string;
-}
-
-function emptyForm(): FormState {
-  return {
-    title: "",
-    description: "",
-    priority: "medium",
-    departmentId: "",
-    assigneeIds: [],
-    dueDate: "",
-    tags: "",
-  };
-}
+type TaskFormData = z.infer<typeof TaskSchema>;
 
 export function TaskFormModal({
   open,
@@ -64,180 +41,69 @@ export function TaskFormModal({
   const departments = useObservable(() => repos.departments.observe(), []);
   const personnel = useObservable(() => repos.personnel.observe(), []);
 
-  const [form, setForm] = useState<FormState>(emptyForm);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const fields: readonly AutoFormField[] = [
+    { name: "title", label: "Titre de la tâche", type: "text", required: true, wide: true, placeholder: "Ex. Préparer les bulletins Q1" },
+    {
+      name: "priority", label: "Priorité", type: "select", required: true,
+      options: [
+        { label: "Basse", value: "low" },
+        { label: "Moyenne", value: "medium" },
+        { label: "Haute", value: "high" },
+        { label: "Urgente", value: "urgent" },
+      ],
+    },
+    {
+      name: "departmentId", label: "Département", type: "select",
+      options: [
+        { label: "— Aucun département —", value: "" },
+        ...departments.filter((d) => !d.archivedAt).map((d) => ({ label: d.name, value: d.id })),
+      ],
+    },
+    {
+      name: "assigneeId", label: "Assigner à", type: "select",
+      options: [
+        { label: "— Non assignée —", value: "" },
+        ...personnel.map((p) => ({ label: `${p.firstName} ${p.lastName}`, value: p.id })),
+      ],
+    },
+    { name: "dueDate", label: "Date d'échéance", type: "date" },
+    { name: "tags", label: "Étiquettes", type: "text", wide: true, placeholder: "Séparées par des virgules…" },
+    { name: "description", label: "Description", type: "textarea", wide: true, placeholder: "Objectifs, consignes…" },
+  ];
 
-  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((s) => ({ ...s, [key]: value }));
-  }
-
-  function toggleAssignee(id: string) {
-    setForm((s) => ({
-      ...s,
-      assigneeIds: s.assigneeIds.includes(id)
-        ? s.assigneeIds.filter((x) => x !== id)
-        : [...s.assigneeIds, id],
-    }));
-  }
-
-  function reset() {
-    setForm(emptyForm());
-    setError(null);
-  }
-
-  async function handleSubmit() {
-    if (!form.title.trim()) {
-      setError("Le titre est obligatoire.");
-      return;
-    }
-    if (!session) {
-      setError("Session expirée. Reconnectez-vous.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    const tags = form.tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    const result = await repos.tasks.createTask({
-      title: form.title.trim(),
-      description: form.description.trim(),
-      priority: form.priority,
-      departmentId: form.departmentId || null,
-      assigneeIds: form.assigneeIds,
-      dueDate: form.dueDate || null,
+  async function handleSubmit(data: TaskFormData) {
+    if (!session) return;
+    const tags = data.tags ? data.tags.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    const res = await repos.tasks.createTask({
+      title: data.title,
+      description: data.description ?? "",
+      priority: data.priority as TaskPriority,
+      departmentId: data.departmentId || null,
+      assigneeIds: data.assigneeId ? [data.assigneeId] : [],
+      dueDate: data.dueDate || null,
       createdBy: session.userId,
       createdByName: session.displayName,
       tags,
     });
-    setSubmitting(false);
-    if (result.ok) {
-      toast.showSuccess("Tâche créée", `« ${result.value.title} » a été ajoutée au tableau.`);
-      reset();
+    if (res.ok) {
+      toast.showSuccess("Tâche créée", `« ${res.value.title} » ajoutée.`);
       onCreated?.();
-      onOpenChange(false);
     } else {
-      setError(result.error.userMessage);
+      throw new Error(res.error.userMessage);
     }
   }
 
-  // Reset on close
-  function handleOpenChange(o: boolean) {
-    if (!o) reset();
-    onOpenChange(o);
-  }
-
-  // Filter personnel by selected department (if any)
-  const candidateAssignees = form.departmentId
-    ? personnel.filter((p) => p.departmentId === form.departmentId)
-    : personnel;
-
   return (
-    <UnifiedModal
+    <AutoFormModal
       open={open}
-      onOpenChange={handleOpenChange}
-      variant="dialog"
-      size="lg"
-      icon={session ? Plus : ListChecks}
-      iconTone="primary"
+      onOpenChange={onOpenChange}
       title="Nouvelle tâche"
-      description="Renseignez le titre, la priorité et les affectations."
-      submitLabel="Créer la tâche"
-      submitLoading={submitting}
+      description="Créez et assignez une tâche à un collaborateur."
+      schema={TaskSchema}
+      fields={fields}
+      initialValues={{ priority: "medium" }}
       onSubmit={handleSubmit}
-      alert={error ? { tone: "error", title: "Erreur", description: error } : null}
-      onDismissAlert={() => setError(null)}
-    >
-      <div className="space-y-4">
-        <FormField label="Titre" required>
-          <Input
-            value={form.title}
-            onChange={(e) => update("title", e.target.value)}
-            placeholder="Ex. Préparer les bulletins Q1"
-          />
-        </FormField>
-        <FormField label="Description">
-          <Textarea
-            value={form.description}
-            onChange={(e) => update("description", e.target.value)}
-            placeholder="Détails, contexte, objectifs…"
-            rows={3}
-          />
-        </FormField>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Priorité" required>
-            <Select value={form.priority} onValueChange={(v) => update("priority", v as TaskPriority)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PRIORITIES.map((p) => (
-                  <SelectItem key={p} value={p}>{TASK_PRIORITY_LABELS_FR[p]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-          <FormField label="Échéance">
-            <Input type="date" value={form.dueDate} onChange={(e) => update("dueDate", e.target.value)} />
-          </FormField>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Département">
-            <Select value={form.departmentId} onValueChange={(v) => update("departmentId", v)}>
-              <SelectTrigger><SelectValue placeholder="Aucun département" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Aucun</SelectItem>
-                {departments.filter((d) => !d.archivedAt).map((d) => (
-                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-          <FormField label="Tags (séparés par des virgules)">
-            <Input
-              value={form.tags}
-              onChange={(e) => update("tags", e.target.value)}
-              placeholder="Ex. achat, rentree"
-            />
-          </FormField>
-        </div>
-        <FormField
-          label="Affectations"
-          hint={form.departmentId ? "Personnel du département sélectionné." : "Tous les employés sont éligibles."}
-        >
-          <div className="border border-border rounded-md max-h-44 overflow-y-auto divide-y divide-border">
-            {candidateAssignees.length === 0 ? (
-              <p className="p-3 text-xs text-muted-foreground text-center">Aucun employé à affecter.</p>
-            ) : (
-              candidateAssignees.map((p) => {
-                const checked = form.assigneeIds.includes(p.id);
-                return (
-                  <label
-                    key={p.id}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-accent/5"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleAssignee(p.id)}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    <span className="flex-1 truncate">
-                      {p.firstName} {p.lastName}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground truncate">{p.position || "—"}</span>
-                  </label>
-                );
-              })
-            )}
-          </div>
-          {form.assigneeIds.length > 0 && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {form.assigneeIds.length} personne(s) sélectionnée(s).
-            </p>
-          )}
-        </FormField>
-      </div>
-    </UnifiedModal>
+      submitLabel="Créer la tâche"
+    />
   );
 }

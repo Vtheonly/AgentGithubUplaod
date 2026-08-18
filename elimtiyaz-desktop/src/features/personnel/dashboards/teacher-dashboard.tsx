@@ -1,60 +1,57 @@
 /**
- * Teacher dashboard — pedagogical workspace (iteration 8 / 9 auth bridge fix).
+ * Teacher dashboard — pedagogical workspace.
  *
  * Teachers do ALL their pedagogical work from the Personnel dashboard and
- * never switch to the Student module. Surfaces:
- *   - KPIs (my classes, my students, homework to grade, attendance to take)
- *   - "My classes" grid — cards filtered by homeroomTeacherId === my personnel id
- *   - Click a class → UnifiedModal drawer with roster / grades / attendance / homework
- *   - "Assign homework" UnifiedModal → repos.homework.push()
- *   - "Take attendance" UnifiedModal → repos.attendance.recordRollCall()
- *   - "Enter grades" UnifiedModal → repos.grades.enterGrade() per student
- *   - Recent homework assigned (repos.homework.observeByTeacher)
- *   - Parent communications (mock 3 entries)
+ * never switch to the Student module.
  *
- * Iteration 9: the displayName→personnel match hack is replaced by the new
- * PersonnelRepository.observeByUserId() bridge. The teacher's personnel id
- * feeds all downstream class / homework observables.
- *
- * Task 6-b: the four modals + the class-details drawer have been extracted
- * into the `./teacher-dashboard/` subfolder. This file is now a thin
- * orchestrator that owns the dashboard state and renders the KPI grid +
- * the four sub-components.
+ * Refactored to consume `<RoleDashboardLayout>` (KPI row + class cards feed
+ * + homework feed) and `<AutoFormModal>` (assign-homework form). The
+ * previous `teacher-dashboard/` subfolder with mini-modals for taking
+ * attendance and entering grades is replaced by direct navigation to the
+ * canonical full-screen workflows `RollCallScreen` and `GradeEntryScreen`,
+ * which are built for dynamic 30+ student rosters.
  */
 import { useMemo, useState } from "react";
-import {
-  GraduationCap, Users, BookOpen, ClipboardCheck, Plus,
-  BookMarked, MessageSquare,
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { GraduationCap, Users, BookOpen, ClipboardCheck, Plus, BookMarked } from "lucide-react";
+import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
-import { StatusChip } from "../../../shared/ui/status-chip";
+import { useToast } from "../../../app/providers/toast-provider";
+import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
 import { Button } from "../../../shared/ui/button";
+import { StatusChip } from "../../../shared/ui/status-chip";
 import {
-  DashboardGrid, DashboardKpiRow, DashboardSection, KpiCard,
-} from "./dashboard-primitives";
-import { SEED_PARENT_COMMS } from "./teacher-dashboard/types";
-import { ClassDetailsDrawer } from "./teacher-dashboard/class-details-drawer";
-import { AssignHomeworkModal } from "./teacher-dashboard/assign-homework-modal";
-import { TakeAttendanceModal } from "./teacher-dashboard/take-attendance-modal";
-import { EnterGradesModal } from "./teacher-dashboard/enter-grades-modal";
+  RoleDashboardLayout,
+  type DashboardKpi,
+  type DashboardTask,
+  type DashboardFeedItem,
+} from "./role-dashboard-layout";
+
+const HomeworkSchema = z.object({
+  classId: z.string().min(1, "Classe requise"),
+  subjectId: z.string().min(1, "Matière requise"),
+  title: z.string().min(3, "Titre requis (min. 3 caractères)"),
+  dueDate: z.string().min(4, "Date limite requise"),
+  description: z.string().optional().default(""),
+});
+
+type HomeworkFormData = z.infer<typeof HomeworkSchema>;
 
 export function TeacherDashboard() {
+  const navigate = useNavigate();
   const repos = useRepositories();
   const { session } = useAuth();
+  const toast = useToast();
 
   const classes = useObservable(() => repos.classes.observe(), []);
   const subjects = useObservable(() => repos.subjects.observe(), []);
 
-  const [drawerClassId, setDrawerClassId] = useState<string | null>(null);
   const [homeworkOpen, setHomeworkOpen] = useState(false);
-  const [attendanceOpen, setAttendanceOpen] = useState(false);
-  const [gradesOpen, setGradesOpen] = useState(false);
-  const [activeClassId, setActiveClassId] = useState<string>("");
 
-  // Iteration 9: resolve the teacher's own personnel record via the
-  // auth→personnel userId bridge (replaces the displayName string match).
+  // Resolve the teacher's own personnel record via the auth→personnel
+  // userId bridge.
   const me = useObservable(
     () => repos.personnel.observeByUserId(session?.userId ?? ""),
     [session?.userId],
@@ -70,166 +67,122 @@ export function TeacherDashboard() {
     [teacherId],
   );
 
-  const drawerClass = useMemo(
-    () => classes.find((c) => c.id === drawerClassId) ?? null,
-    [classes, drawerClassId],
+  const totalStudents = useMemo(
+    () => myClasses.reduce((sum, c) => sum + c.enrolledCount, 0),
+    [myClasses],
   );
 
-  function openActionModal(kind: "homework" | "attendance" | "grades", classId: string) {
-    setActiveClassId(classId);
-    if (kind === "homework") setHomeworkOpen(true);
-    else if (kind === "attendance") setAttendanceOpen(true);
-    else setGradesOpen(true);
+  async function handleAssignHomework(data: HomeworkFormData) {
+    const res = await repos.homework.push({
+      classId: data.classId,
+      subjectId: data.subjectId,
+      teacherId,
+      teacherName: session?.displayName ?? "Enseignant",
+      title: data.title,
+      description: data.description ?? "",
+      dueDate: data.dueDate,
+      attachments: [],
+    });
+    if (res.ok) {
+      toast.showSuccess("Devoir publié", "Les élèves et parents ont été notifiés.");
+      setHomeworkOpen(false);
+    } else {
+      throw new Error(res.error.userMessage);
+    }
   }
 
+  const kpis: readonly DashboardKpi[] = [
+    { label: "Mes classes", value: myClasses.length, icon: GraduationCap },
+    { label: "Mes élèves", value: totalStudents, icon: Users },
+    { label: "Devoirs à noter", value: myHomework.length, icon: BookOpen, trend: myHomework.length > 0 ? "À corriger" : undefined },
+    { label: "Appel à faire", value: myClasses.length, icon: ClipboardCheck, trend: myClasses.length > 0 ? "À traiter" : undefined },
+  ];
+
+  // Tasks = roll-call for each class with students enrolled
+  const tasks: readonly DashboardTask[] = myClasses.map((c) => ({
+    id: c.id,
+    label: `Faire l'appel — ${c.name}`,
+    description: `${c.enrolledCount} élèves inscrits`,
+    onClick: () => navigate(`/academics/class/${c.id}/roll-call`),
+  }));
+
+  // Feed = recent homework
+  const feed: readonly DashboardFeedItem[] = myHomework.slice(0, 5).map((h) => ({
+    id: h.id,
+    label: h.title,
+    description: `${h.subjectName} — À rendre le ${h.dueDate} · ${h.acknowledgedCount} élève(s) informé(s)`,
+    timestamp: h.pushedAt ? "Publié" : "Brouillon",
+    icon: BookOpen,
+  }));
+
+  const homeworkFields: readonly AutoFormField[] = [
+    {
+      name: "classId", label: "Classe", type: "select", required: true,
+      options: myClasses.map((c) => ({ label: c.name, value: c.id })),
+    },
+    {
+      name: "subjectId", label: "Matière", type: "select", required: true,
+      options: subjects.map((s) => ({ label: s.name, value: s.id })),
+    },
+    { name: "title", label: "Titre du devoir", type: "text", required: true, wide: true, placeholder: "Ex. Devoir Chapitre 5" },
+    { name: "dueDate", label: "Date de rendu", type: "date", required: true },
+    { name: "description", label: "Consignes", type: "textarea", wide: true, placeholder: "Précisez les attentes…" },
+  ];
+
   return (
-    <DashboardGrid>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Tableau de bord Enseignant</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {me ? me.position : "Vos classes, devoirs, notes et appels."}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {myClasses[0] && (
-            <>
-              <Button size="sm" variant="outline" onClick={() => openActionModal("attendance", myClasses[0].id)}>
-                <ClipboardCheck className="h-4 w-4" /> Faire l'appel
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => openActionModal("grades", myClasses[0].id)}>
-                <BookMarked className="h-4 w-4" /> Saisir des notes
-              </Button>
-              <Button size="sm" onClick={() => openActionModal("homework", myClasses[0].id)}>
-                <Plus className="h-4 w-4" /> Donner un devoir
-              </Button>
-            </>
+    <>
+      <RoleDashboardLayout
+        role="Enseignant"
+        actorName={session?.displayName ?? "Enseignant"}
+        kpis={kpis}
+        tasks={tasks}
+        feed={feed}
+        actions={[
+          { label: "Nouveau devoir", icon: Plus, variant: "default", onClick: () => setHomeworkOpen(true) },
+        ]}
+      >
+        <div className="rounded-lg border bg-card p-4">
+          <h3 className="text-sm font-semibold mb-3">Mes classes affectées</h3>
+          {myClasses.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Aucune classe ne vous est affectée. Contactez le responsable pédagogique.
+            </p>
+          ) : (
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {myClasses.map((c) => (
+                <div key={c.id} className="rounded-lg border p-3 flex flex-col justify-between space-y-3">
+                  <div>
+                    <p className="font-semibold text-sm">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">Salle : {c.room ?? "—"} · {c.enrolledCount} élèves</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <StatusChip label={`${c.enrolledCount}/${c.capacity ?? "∞"}`} tone="neutral" />
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/academics/class/${c.id}/roll-call`)}>
+                        <ClipboardCheck className="size-3.5 mr-1" /> Appel
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/academics/class/${c.id}`)}>
+                        <BookMarked className="size-3.5 mr-1" /> Notes
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      </div>
+      </RoleDashboardLayout>
 
-      <DashboardKpiRow>
-        <KpiCard label="Mes classes" value={myClasses.length.toString()} icon={<GraduationCap className="h-5 w-5" />} tone="default" />
-        <KpiCard
-          label="Mes élèves"
-          value={myClasses.reduce((acc, c) => acc + c.enrolledCount, 0).toString()}
-          icon={<Users className="h-5 w-5" />}
-          tone="info"
-        />
-        <KpiCard
-          label="Devoirs à noter"
-          value={myHomework.length.toString()}
-          icon={<BookOpen className="h-5 w-5" />}
-          tone={myHomework.length > 0 ? "warning" : "default"}
-        />
-        <KpiCard
-          label="Appel à faire"
-          value={myClasses.length.toString()}
-          icon={<ClipboardCheck className="h-5 w-5" />}
-          tone={myClasses.length > 0 ? "warning" : "default"}
-        />
-      </DashboardKpiRow>
-
-      <DashboardSection title="Mes classes" icon={GraduationCap}>
-        {myClasses.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            Aucune classe ne vous est affectée. Contactez le responsable pédagogique.
-          </p>
-        ) : (
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {myClasses.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setDrawerClassId(c.id)}
-                className="text-left rounded-lg border border-border p-4 hover:bg-accent/5 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-sm text-foreground">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">Salle {c.room ?? "—"}</p>
-                  </div>
-                  <StatusChip label={`${c.enrolledCount}/${c.capacity ?? "∞"}`} tone="neutral" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-3">
-                  {c.homeroomTeacherName ?? "—"}
-                </p>
-              </button>
-            ))}
-          </div>
-        )}
-      </DashboardSection>
-
-      <DashboardSection title="Devoirs donnés récemment" icon={BookOpen}>
-        {myHomework.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Aucun devoir récent.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {myHomework.slice(0, 5).map((hw) => (
-              <li key={hw.id} className="py-2.5 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{hw.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {hw.subjectName} • À rendre le {hw.dueDate} • {hw.acknowledgedCount} élève(s) informé(s)
-                  </p>
-                </div>
-                <StatusChip label={hw.pushedAt ? "Publié" : "Brouillon"} tone={hw.pushedAt ? "success" : "neutral"} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </DashboardSection>
-
-      <DashboardSection title="Communications parents" icon={MessageSquare}>
-        <ul className="divide-y divide-border">
-          {SEED_PARENT_COMMS.map((pc) => (
-            <li key={pc.id} className="py-2.5 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground truncate">
-                  <span className="font-medium">{pc.parent}</span>
-                  <span className="text-muted-foreground"> · élève {pc.student}</span>
-                </p>
-                <p className="text-xs text-muted-foreground truncate">{pc.subject}</p>
-              </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{pc.at}</span>
-            </li>
-          ))}
-        </ul>
-      </DashboardSection>
-
-      <ClassDetailsDrawer
-        cls={drawerClass}
-        open={drawerClassId !== null}
-        onOpenChange={(o) => { if (!o) setDrawerClassId(null); }}
-        onAssignHomework={(id) => openActionModal("homework", id)}
-        onTakeAttendance={(id) => openActionModal("attendance", id)}
-        onEnterGrades={(id) => openActionModal("grades", id)}
-      />
-
-      <AssignHomeworkModal
+      <AutoFormModal
         open={homeworkOpen}
         onOpenChange={setHomeworkOpen}
-        classes={myClasses}
-        subjects={subjects}
-        teacherId={teacherId}
-        teacherName={session?.displayName ?? ""}
+        title="Donner un devoir"
+        description="Le devoir sera envoyé aux portails des élèves et parents."
+        schema={HomeworkSchema}
+        fields={homeworkFields}
+        onSubmit={handleAssignHomework}
+        submitLabel="Publier le devoir"
       />
-
-      <TakeAttendanceModal
-        open={attendanceOpen}
-        onOpenChange={setAttendanceOpen}
-        classId={activeClassId}
-        classes={myClasses}
-        recordedBy={session?.userId ?? ""}
-      />
-
-      <EnterGradesModal
-        open={gradesOpen}
-        onOpenChange={setGradesOpen}
-        classId={activeClassId}
-        classes={myClasses}
-        subjects={subjects}
-        enteredBy={session?.userId ?? ""}
-      />
-    </DashboardGrid>
+    </>
   );
 }

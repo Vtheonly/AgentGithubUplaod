@@ -9,46 +9,41 @@
  *   1. The main Dashboard → Alerts tab ("Alertes & Notifications")
  *   2. The Personnel workspace ("PersonnelPage")
  *
- * Both locations instantiate this exact same component so the alert
- * creation experience is identical everywhere. This is a hard requirement:
- * "There should never be multiple modal styles across the application."
- *
- * The form supports:
- *   - Title & Description
- *   - Trigger Date/Time & Timers (for scheduled reminders)
- *   - Priority Level (Low, Medium, High, Urgent)
- *   - Targeting: dispatch to ANY specific user or role across the platform
- *     without restrictions (broadcast / user / role).
- *   - Source label (auto-derived from the calling context, overridable).
- *
- * Validation:
- *   - Title is required (min 3 chars).
- *   - Body is required (min 5 chars).
- *   - If priority is "urgent", a trigger date is recommended (warning).
- *   - If target is "user", a userId must be selected.
- *   - If target is "role", a role must be selected.
+ * Refactored to consume `<AutoFormModal<T>>` so form-state, Zod validation,
+ * and field rendering all flow through the shared primitive instead of
+ * hand-rolled `useState` + bespoke `<UnifiedModal>` form. The original
+ * target-kind selector (broadcast / role / user) is collapsed into two
+ * fields: `targetRole` (empty = broadcast) and `targetUserId`. The handler
+ * decides whether to attach `targetRole` only, both, or neither.
  */
-import { useState, useEffect, useMemo } from "react";
-import { BellPlus, AlertTriangle } from "lucide-react";
+import { useMemo } from "react";
+import { z } from "zod";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
-import { UnifiedModal } from "../../shared/ui/unified-modal";
-import { FormField } from "../../shared/ui/form-field";
-import { Input } from "../../shared/ui/input";
-import { Textarea } from "../../shared/ui/textarea";
-import { Label } from "../../shared/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../shared/ui/select";
-import { Button } from "../../shared/ui/button";
+import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
 import { Role, ROLE_LABELS_FR, STAFF_ROLES } from "../../core/rbac/roles";
 import {
-  AlertPriority,
+  type AlertPriority,
+  type NotificationType,
   ALERT_PRIORITY_LABELS_FR,
-  NotificationType,
   NOTIFICATION_TYPE_LABELS_FR,
 } from "../../domain/model/operations";
+import { useObservable } from "../../shared/hooks/use-observable";
 
-type TargetKind = "broadcast" | "role" | "user";
+const AlertSchema = z.object({
+  title: z.string().min(3, "Titre requis (min. 3 caractères)"),
+  body: z.string().min(5, "Description requise (min. 5 caractères)"),
+  type: z.enum([
+    "payment_overdue", "expense_pending", "attendance_alert",
+    "homework", "audit", "system", "message", "custom",
+  ]).default("custom"),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  targetRole: z.string().optional().default(""),
+  targetUserId: z.string().optional().default(""),
+});
+
+type AlertFormData = z.infer<typeof AlertSchema>;
 
 export interface AlertCreatorModalProps {
   open: boolean;
@@ -68,257 +63,72 @@ export function AlertCreatorModal({
   const repos = useRepositories();
   const { session } = useAuth();
   const toast = useToast();
+  const personnel = useObservable(() => repos.personnel.observe(), []);
 
-  const personnel = useRepositories().personnel.observe().get();
+  const userOptions = useMemo(
+    () => [
+      { label: "— Diffusion (tous les rôles) —", value: "" },
+      ...personnel.map((p) => ({ label: `${p.firstName} ${p.lastName}`, value: p.id })),
+    ],
+    [personnel],
+  );
 
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [type, setType] = useState<NotificationType>("custom");
-  const [priority, setPriority] = useState<AlertPriority>("medium");
-  const [targetKind, setTargetKind] = useState<TargetKind>("broadcast");
-  const [targetRole, setTargetRole] = useState<Role>(Role.Teacher);
-  const [targetUserId, setTargetUserId] = useState<string>("");
-  const [triggerDate, setTriggerDate] = useState("");
-  const [triggerTime, setTriggerTime] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const fields: readonly AutoFormField[] = [
+    { name: "title", label: "Titre de l'alerte", type: "text", required: true, wide: true, placeholder: "Ex. Réunion exceptionnelle" },
+    {
+      name: "type", label: "Type", type: "select", required: true,
+      options: Object.entries(NOTIFICATION_TYPE_LABELS_FR).map(([k, label]) => ({ label, value: k })),
+    },
+    {
+      name: "priority", label: "Priorité", type: "select", required: true,
+      options: Object.entries(ALERT_PRIORITY_LABELS_FR).map(([k, label]) => ({ label, value: k })),
+    },
+    {
+      name: "targetRole", label: "Rôle cible", type: "select",
+      options: [
+        { label: "— Tous les utilisateurs (Diffusion) —", value: "" },
+        ...Array.from(STAFF_ROLES).map((r) => ({ label: ROLE_LABELS_FR[r], value: r })),
+      ],
+      wide: true,
+    },
+    {
+      name: "targetUserId", label: "Utilisateur spécifique (optionnel)", type: "select",
+      options: userOptions, wide: true,
+    },
+    { name: "body", label: "Contenu du message", type: "textarea", required: true, wide: true, placeholder: "Précisez l'objet de l'alerte…" },
+  ];
 
-  // Reset form when modal opens.
-  useEffect(() => {
-    if (open) {
-      setTitle("");
-      setBody("");
-      setType("custom");
-      setPriority("medium");
-      setTargetKind("broadcast");
-      setTargetRole(Role.Teacher);
-      setTargetUserId("");
-      setTriggerDate("");
-      setTriggerTime("");
-      setError(null);
-    }
-  }, [open]);
-
-  const validation = useMemo(() => {
-    if (title.trim().length < 3) return "Le titre doit contenir au moins 3 caractères.";
-    if (body.trim().length < 5) return "La description doit contenir au moins 5 caractères.";
-    if (targetKind === "user" && !targetUserId) return "Veuillez sélectionner un utilisateur cible.";
-    if (targetKind === "role" && !targetRole) return "Veuillez sélectionner un rôle cible.";
-    return null;
-  }, [title, body, targetKind, targetUserId, targetRole]);
-
-  const showTriggerWarning = priority === "urgent" && !triggerDate;
-
-  async function handleSubmit() {
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    if (!session) {
-      setError("Session expirée. Veuillez vous reconnecter.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const triggeredAt =
-        triggerDate && triggerTime
-          ? new Date(`${triggerDate}T${triggerTime}:00`).toISOString()
-          : triggerDate
-            ? new Date(`${triggerDate}T09:00:00`).toISOString()
-            : null;
-
-      const result = await repos.notifications.create({
-        title: title.trim(),
-        body: body.trim(),
-        type,
-        priority,
-        sourceLabel,
-        targetUserId: targetKind === "user" ? targetUserId : null,
-        targetRole: targetKind === "role" ? targetRole : null,
-        triggeredAt,
-        createdBy: session.userId,
-      });
-      if (!result.ok) {
-        setError(result.error.userMessage);
-        return;
-      }
-      toast.showSuccess("Alerte créée", `« ${title.trim()} » a été diffusée.`);
+  async function handleSubmit(data: AlertFormData) {
+    if (!session) return;
+    const res = await repos.notifications.create({
+      title: data.title,
+      body: data.body,
+      type: data.type as NotificationType,
+      priority: data.priority as AlertPriority,
+      sourceLabel,
+      targetRole: (data.targetRole as Role) || null,
+      targetUserId: data.targetUserId || null,
+      createdBy: session.userId,
+    });
+    if (res.ok) {
+      toast.showSuccess("Alerte créée", `« ${data.title} » a été diffusée.`);
       onCreated?.();
-      onOpenChange(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSubmitting(false);
+    } else {
+      throw new Error(res.error.userMessage);
     }
   }
 
   return (
-    <UnifiedModal
+    <AutoFormModal
       open={open}
       onOpenChange={onOpenChange}
-      title="Nouvelle alerte"
-      description="Créer et diffuser une alerte personnalisée vers n'importe quel utilisateur ou rôle."
-      icon={BellPlus}
-      iconTone="primary"
-      size="lg"
-      submitLabel="Diffuser l'alerte"
-      submitIcon={BellPlus}
-      submitLoading={submitting}
-      alert={
-        error
-          ? { tone: "error", title: "Erreur de validation", description: error }
-          : showTriggerWarning
-            ? { tone: "warning", title: "Priorité urgente sans déclencheur", description: "Pour une alerte urgente, il est recommandé de définir une date de déclenchement." }
-            : null
-      }
+      title="Créer une alerte"
+      description="Diffuser une notification ciblée à un rôle ou à tous les collaborateurs."
+      schema={AlertSchema}
+      fields={fields}
+      initialValues={{ type: "custom", priority: "medium", targetRole: "", targetUserId: "" }}
       onSubmit={handleSubmit}
-    >
-      <div className="space-y-4">
-        <FormField label="Titre" htmlFor="alert-title" required>
-          <Input
-            id="alert-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex. Réunion exceptionnelle conseil pédagogique"
-            maxLength={120}
-          />
-        </FormField>
-
-        <FormField label="Description" htmlFor="alert-body" required>
-          <Textarea
-            id="alert-body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Détails de l'alerte, contexte, action attendue…"
-            rows={4}
-            maxLength={500}
-          />
-          <p className="text-[10px] text-muted-foreground">{body.length}/500 caractères</p>
-        </FormField>
-
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Type" htmlFor="alert-type">
-            <Select value={type} onValueChange={(v) => setType(v as NotificationType)}>
-              <SelectTrigger id="alert-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(NOTIFICATION_TYPE_LABELS_FR).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-
-          <FormField label="Priorité" htmlFor="alert-priority">
-            <Select value={priority} onValueChange={(v) => setPriority(v as AlertPriority)}>
-              <SelectTrigger id="alert-priority">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(ALERT_PRIORITY_LABELS_FR).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Date de déclenchement" htmlFor="alert-trigger-date">
-            <Input
-              id="alert-trigger-date"
-              type="date"
-              value={triggerDate}
-              onChange={(e) => setTriggerDate(e.target.value)}
-            />
-          </FormField>
-          <FormField label="Heure" htmlFor="alert-trigger-time">
-            <Input
-              id="alert-trigger-time"
-              type="time"
-              value={triggerTime}
-              onChange={(e) => setTriggerTime(e.target.value)}
-              disabled={!triggerDate}
-            />
-          </FormField>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs">Cible</Label>
-          <div className="grid grid-cols-3 gap-2">
-            <Button
-              type="button"
-              variant={targetKind === "broadcast" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTargetKind("broadcast")}
-            >
-              Tous
-            </Button>
-            <Button
-              type="button"
-              variant={targetKind === "role" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTargetKind("role")}
-            >
-              Par rôle
-            </Button>
-            <Button
-              type="button"
-              variant={targetKind === "user" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTargetKind("user")}
-            >
-              Par utilisateur
-            </Button>
-          </div>
-
-          {targetKind === "role" && (
-            <FormField label="Rôle cible" htmlFor="alert-target-role">
-              <Select value={targetRole} onValueChange={(v) => setTargetRole(v as Role)}>
-                <SelectTrigger id="alert-target-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(STAFF_ROLES).map((r) => (
-                    <SelectItem key={r} value={r}>{ROLE_LABELS_FR[r]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-          )}
-
-          {targetKind === "user" && (
-            <FormField label="Utilisateur cible" htmlFor="alert-target-user">
-              <Select value={targetUserId} onValueChange={setTargetUserId}>
-                <SelectTrigger id="alert-target-user">
-                  <SelectValue placeholder="Sélectionner…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {personnel
-                    .filter((p) => p.userId)
-                    .map((p) => (
-                      <SelectItem key={p.userId} value={p.userId!}>
-                        {p.firstName} {p.lastName} — {ROLE_LABELS_FR[p.roleId]}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-          )}
-        </div>
-
-        {showTriggerWarning && (
-          <div className="flex items-start gap-2 rounded-md border border-status-warning/30 bg-status-warning/10 p-2 text-xs text-status-warning">
-            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <p>
-              Pour une alerte urgente, il est recommandé de définir une date de déclenchement
-              afin que le destinataire puisse être notifié à temps.
-            </p>
-          </div>
-        )}
-      </div>
-    </UnifiedModal>
+      submitLabel="Diffuser l'alerte"
+    />
   );
 }

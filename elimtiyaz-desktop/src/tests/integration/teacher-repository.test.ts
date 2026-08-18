@@ -13,18 +13,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { store } from "../../infrastructure/mock/repositories/mock-store";
 import { MockTeacherRepository } from "../../infrastructure/mock/repositories/teacher-repository";
-import type { Payment, Installment } from "../../domain/model/payment";
-import type { LedgerEntry } from "../../domain/model/ledger";
+import {
+  snapshotFinance,
+  expectFinanceUnchanged,
+  TEST_ACTOR,
+} from "../_helpers/finance-isolation";
 
-const ACTOR = { actorId: "usr-test", actorName: "Test User" };
-
-function snapshotFinance() {
-  return {
-    payments: [...store.payments] as Payment[],
-    installments: [...store.installments] as Installment[],
-    ledger: [...store.ledger] as LedgerEntry[],
-  };
-}
+const ACTOR = TEST_ACTOR;
 
 describe("Teacher Repository — CRUD + referential integrity", () => {
   let repo: MockTeacherRepository;
@@ -156,10 +151,7 @@ describe("Teacher Repository — CRUD + referential integrity", () => {
       ACTOR.actorId,
       ACTOR.actorName,
     );
-    const after = snapshotFinance();
-    expect(after.payments.length).toBe(before.payments.length);
-    expect(after.installments.length).toBe(before.installments.length);
-    expect(after.ledger.length).toBe(before.ledger.length);
+    expectFinanceUnchanged(before);
   });
 });
 
@@ -381,10 +373,7 @@ describe("Timetable (Emploi du Temps)", () => {
       ACTOR.actorId,
       ACTOR.actorName,
     );
-    const after = snapshotFinance();
-    expect(after.payments.length).toBe(before.payments.length);
-    expect(after.installments.length).toBe(before.installments.length);
-    expect(after.ledger.length).toBe(before.ledger.length);
+    expectFinanceUnchanged(before);
   });
 });
 

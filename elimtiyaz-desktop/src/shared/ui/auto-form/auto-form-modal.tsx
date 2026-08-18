@@ -101,6 +101,8 @@ function renderField(f: AutoFormField, field: { value: unknown; onChange: (v: un
       return <Input id={f.name} type="email" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
     case "tel":
       return <Input id={f.name} type="tel" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
+    case "password":
+      return <Input id={f.name} type="password" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
     case "date":
       return <Input id={f.name} type="date" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} disabled={f.disabled} />;
     case "select":

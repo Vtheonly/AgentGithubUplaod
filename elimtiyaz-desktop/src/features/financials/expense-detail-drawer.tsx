@@ -4,40 +4,34 @@
  * Plan §08:
  *   Draft → Submitted → Approved/Rejected → Disbursed → Settled (with proof)
  *
- * Renders a vertical timeline of the 4 stages. Status-gated action buttons
- * appear based on the current state and the user's permissions:
- *   - submitted: Approve / Reject (ApproveExpense permission)
- *   - approved: Disburse (DisburseExpense permission)
- *   - disbursed: Settle Proof (SettleExpenseProof permission)
+ * Refactored to consume `<EntityDetailDrawer<Expense>>` so the drawer chrome,
+ * metadata grid, tab body, and sticky action bar all flow through the shared
+ * primitive. The reject confirmation now uses `<ConfirmModal>`. The disburse
+ * step uses `<ConfirmModal>` too (it's a one-click destructive-ish action
+ * that benefits from explicit confirmation). The proof upload uses a small
+ * `<AutoFormModal>` to collect the proof file name (mocked in this iteration).
  *
  * Anomaly badge renders when anomalyScore > 0.7 (signal, not verdict —
  * human always decides).
- *
- * Iteration 4: migrated from raw `Drawer` + 2 raw `Dialog`s to `UnifiedModal`
- * so the expense drawer and its 3 nested modals (reject / disburse / proof)
- * share the exact same chrome, padding, header, footer, animations, and
- * close behavior as every other modal in the application.
  */
 import { useState } from "react";
+import { z } from "zod";
 import {
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  DollarSign,
-  Upload,
-  Receipt,
+  AlertTriangle, CheckCircle2, XCircle, DollarSign, Upload,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
-import { UnifiedModal } from "../../shared/ui/unified-modal";
-import { Button } from "../../shared/ui/button";
-import { StatusChip } from "../../shared/ui/status-chip";
-import { Separator } from "../../shared/ui/separator";
-import { Textarea } from "../../shared/ui/textarea";
-import { FormField } from "../../shared/ui/form-field";
+import {
+  EntityDetailDrawer,
+  type EntityDrawerTab,
+  type EntityDrawerAction,
+  type EntityDrawerMetaItem,
+} from "../../shared/ui/entity-drawer";
 import { ConfirmModal } from "../../shared/ui/unified-modal";
+import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+import { StatusChip } from "../../shared/ui/status-chip";
 import { formatDzd } from "../../core/format/currency";
 import { formatRelative, formatDateTime } from "../../core/format/date";
 import {
@@ -50,6 +44,14 @@ import { Permission } from "../../core/rbac/permissions";
 import { AnomalyExplainerModal } from "./anomaly-explainer-modal";
 
 const STAGE_ORDER: ExpenseStatus[] = ["submitted", "approved", "disbursed", "settled"];
+
+const ProofSchema = z.object({
+  proofFileName: z.string().min(3, "Nom du justificatif requis"),
+});
+
+const proofFields: readonly AutoFormField[] = [
+  { name: "proofFileName", label: "Justificatif (nom de fichier)", type: "text", required: true, wide: true, placeholder: "recu-facture.pdf" },
+];
 
 export function ExpenseDetailDrawer({
   expenseId,
@@ -68,371 +70,193 @@ export function ExpenseDetailDrawer({
     [expenseId],
   );
 
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-  const [disburseDialogOpen, setDisburseDialogOpen] = useState(false);
-  const [proofDialogOpen, setProofDialogOpen] = useState(false);
-  const [proofFileName, setProofFileName] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [disburseOpen, setDisburseOpen] = useState(false);
+  const [proofOpen, setProofOpen] = useState(false);
   const [anomalyOpen, setAnomalyOpen] = useState(false);
 
-  if (!open || !expenseId || !expense) return null;
+  if (!expense) return null;
 
   const canApprove = !!session && session.permissions.has(Permission.ApproveExpense) && session.userId !== expense.submittedBy;
   const canDisburse = !!session && session.permissions.has(Permission.DisburseExpense);
   const canSettle = !!session && session.permissions.has(Permission.SettleExpenseProof);
   const hasAnomaly = (expense.anomalyScore ?? 0) > 0.7;
-  const isRejected = expense.status === "rejected";
   const currentStageIdx = STAGE_ORDER.indexOf(expense.status);
 
-  async function approve() {
+  async function handleApprove() {
     if (!session) return;
-    setBusy(true);
-    try {
-      const r = await repos.expenses.approve(expense!.id, session.userId, "Approuvé");
-      if (r.ok) toast.showSuccess("Dépense approuvée");
-      else toast.showError("Échec", r.error.userMessage);
-    } finally {
-      setBusy(false);
-    }
+    const r = await repos.expenses.approve(expense!.id, session.userId, "Approuvé");
+    if (r.ok) toast.showSuccess("Dépense approuvée");
+    else toast.showError("Échec", r.error.userMessage);
   }
 
-  async function reject() {
-    if (!session || !rejectReason.trim()) {
-      toast.showWarning("Motif requis", "Le rejet nécessite un motif.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const r = await repos.expenses.reject(expense!.id, session.userId, rejectReason.trim());
-      if (r.ok) {
-        toast.showSuccess("Dépense rejetée");
-        setRejectDialogOpen(false);
-        setRejectReason("");
-      } else {
-        toast.showError("Échec", r.error.userMessage);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function disburse() {
+  async function handleReject() {
     if (!session) return;
-    setBusy(true);
-    try {
-      const r = await repos.expenses.disburse(expense!.id, session.userId);
-      if (r.ok) {
-        toast.showSuccess("Fonds décaissés");
-        setDisburseDialogOpen(false);
-      } else {
-        toast.showError("Échec", r.error.userMessage);
-      }
-    } finally {
-      setBusy(false);
+    const r = await repos.expenses.reject(expense!.id, session.userId, "Non conforme");
+    if (r.ok) {
+      toast.showSuccess("Dépense rejetée");
+      setRejectOpen(false);
+    } else {
+      toast.showError("Échec", r.error.userMessage);
     }
   }
 
-  async function settleProof() {
-    if (!session || !proofFileName) {
-      toast.showWarning("Justificatif requis", "Téléversez un justificatif avant de clôturer.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const r = await repos.expenses.settleProof(expense!.id, `mock://proof/${proofFileName}`, session.userId);
-      if (r.ok) {
-        toast.showSuccess("Dépense justifiée et clôturée");
-        setProofDialogOpen(false);
-        setProofFileName(null);
-      } else {
-        toast.showError("Échec", r.error.userMessage);
-      }
-    } finally {
-      setBusy(false);
+  async function handleDisburse() {
+    if (!session) return;
+    const r = await repos.expenses.disburse(expense!.id, session.userId);
+    if (r.ok) {
+      toast.showSuccess("Fonds décaissés");
+      setDisburseOpen(false);
+    } else {
+      toast.showError("Échec", r.error.userMessage);
     }
   }
 
-  return (
-    <>
-      <UnifiedModal
-        open={open}
-        onOpenChange={onOpenChange}
-        variant="drawer"
-        size="lg"
-        icon={Receipt}
-        iconTone="primary"
-        title={
-          <span className="flex items-center gap-2">
-            <span className="truncate">{expense.title}</span>
-            <code className="text-xs font-mono text-muted-foreground">{expense.requestCode}</code>
-          </span>
-        }
-        description={`${EXPENSE_CATEGORY_LABELS_FR[expense.category]} · ${expense.payee}`}
-        hideFooter={expense.status === "settled" || expense.status === "rejected" || !((expense.status === "submitted" && canApprove) || (expense.status === "approved" && canDisburse) || (expense.status === "disbursed" && canSettle))}
-        footer={
-          <>
-            {expense.status === "submitted" && canApprove && (
-              <>
-                <Button onClick={approve} disabled={busy}>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Approuver
-                </Button>
-                <Button variant="outline" onClick={() => setRejectDialogOpen(true)}>
-                  <XCircle className="h-4 w-4" /> Rejeter
-                </Button>
-              </>
-            )}
-            {expense.status === "approved" && canDisburse && (
-              <Button onClick={() => setDisburseDialogOpen(true)} disabled={busy}>
-                <DollarSign className="h-4 w-4" /> Décaisser les fonds
-              </Button>
-            )}
-            {expense.status === "disbursed" && canSettle && (
-              <Button onClick={() => setProofDialogOpen(true)} disabled={busy}>
-                <Upload className="h-4 w-4" /> Téléverser justificatif
-              </Button>
-            )}
-            {(expense.status === "settled" || expense.status === "rejected") && (
-              <span className="text-xs text-muted-foreground text-center py-2 ml-auto">
-                {expense.status === "settled" ? "Dépense clôturée et justifiée." : "Dépense rejetée."}
-              </span>
-            )}
-          </>
-        }
-      >
-        <div className="space-y-5">
-          {/* Anomaly banner — clickable to open the AnomalyExplainerModal (plan §11.07) */}
+  async function handleSettleProof(data: z.infer<typeof ProofSchema>) {
+    if (!session) return;
+    const r = await repos.expenses.settleProof(expense!.id, `mock://proof/${data.proofFileName}`, session.userId);
+    if (r.ok) {
+      toast.showSuccess("Dépense justifiée et clôturée");
+      setProofOpen(false);
+    } else {
+      throw new Error(r.error.userMessage);
+    }
+  }
+
+  const metadata = (e: Expense): readonly EntityDrawerMetaItem[] => [
+    { label: "Montant", value: formatDzd(e.amount) },
+    { label: "Catégorie", value: EXPENSE_CATEGORY_LABELS_FR[e.category] },
+    { label: "Bénéficiaire", value: e.payee },
+    { label: "Statut", value: EXPENSE_STATUS_LABELS_FR[e.status] },
+    { label: "Soumis par", value: e.submittedBy },
+    { label: "Date", value: formatDateTime(e.submittedAt) },
+  ];
+
+  const tabs = (e: Expense): readonly EntityDrawerTab<Expense>[] => [
+    {
+      id: "workflow",
+      label: "Workflow & Détails",
+      content: () => (
+        <div className="space-y-4 text-sm">
           {hasAnomaly && (
             <button
               type="button"
               onClick={() => setAnomalyOpen(true)}
-              className="w-full text-left rounded-md border border-status-danger/40 bg-status-danger/10 p-3 flex items-start gap-2 transition-colors hover:bg-status-danger/15 cursor-pointer"
-              title="Cliquer pour voir l'explication de l'anomalie"
+              className="w-full rounded-md border border-status-danger/40 bg-status-danger/10 p-3 text-left hover:bg-status-danger/20 transition-colors"
             >
-              <AlertTriangle className="h-4 w-4 text-status-danger shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-status-danger">Anomalie détectée — cliquer pour l'explication</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{expense.anomalyNote}</p>
-                <p className="text-[10px] text-muted-foreground mt-1 italic">
-                  Signal — l'humain décide toujours (plan §11).
-                </p>
+              <div className="flex items-center gap-2 font-medium text-status-danger">
+                <AlertTriangle className="size-4" /> Anomalie IA Détectée
               </div>
+              <p className="text-xs text-muted-foreground mt-1">{e.anomalyNote ?? "Score d'anomalie élevé"}</p>
             </button>
           )}
 
-          {/* Header card */}
-          <div className="rounded-md border border-border p-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Montant</span>
-              <span className="font-mono font-semibold text-base">{formatDzd(expense.amount)}</span>
-            </div>
-            {expense.description && (
-              <div>
-                <p className="text-[10px] uppercase text-muted-foreground">Description</p>
-                <p className="text-foreground">{expense.description}</p>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Demandeur</span>
-              <span>{expense.submittedBy}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Soumise</span>
-              <span>{formatRelative(expense.submittedAt)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Statut</span>
-              <StatusChip
-                label={EXPENSE_STATUS_LABELS_FR[expense.status]}
-                tone={
-                  expense.status === "settled"
-                    ? "success"
-                    : expense.status === "approved"
-                      ? "info"
-                      : expense.status === "disbursed"
-                        ? "warning"
-                        : expense.status === "rejected"
-                          ? "danger"
-                          : "warning"
-                }
-              />
-            </div>
-          </div>
+          {/* Vertical timeline */}
+          <ol className="relative border-l border-border pl-4 space-y-3">
+            {STAGE_ORDER.map((stage, idx) => {
+              const reached = idx <= currentStageIdx;
+              const isCurrent = idx === currentStageIdx;
+              return (
+                <li key={stage} className="relative">
+                  <span
+                    className={`absolute -left-[21px] top-1 size-3 rounded-full border-2 border-background ${
+                      reached ? "bg-primary" : "bg-muted"
+                    } ${isCurrent ? "ring-2 ring-primary/30" : ""}`}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className={`font-medium ${reached ? "text-foreground" : "text-muted-foreground"}`}>
+                      {EXPENSE_STATUS_LABELS_FR[stage]}
+                    </span>
+                    {isCurrent && <StatusChip label="En cours" tone="info" />}
+                  </div>
+                  {reached && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatRelative(e.submittedAt)}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
 
-          <Separator />
-
-          {/* Timeline */}
-          <section>
-            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">
-              Cycle d'approbation
-            </p>
-            <ol className="space-y-3">
-              {STAGE_ORDER.map((stage, idx) => {
-                const isPast = !isRejected && idx < currentStageIdx;
-                const isCurrent = !isRejected && idx === currentStageIdx;
-                const isFuture = !isRejected && idx > currentStageIdx;
-                const isRejectStage = isRejected && idx === 0;
-                return (
-                  <li key={stage} className="flex items-start gap-3">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${
-                          isPast
-                            ? "border-status-success bg-status-success/15 text-status-success"
-                            : isCurrent
-                              ? "border-primary bg-primary/15 text-primary"
-                              : isRejectStage
-                                ? "border-status-danger bg-status-danger/15 text-status-danger"
-                                : "border-border text-muted-foreground"
-                        }`}
-                      >
-                        {isPast ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : isRejectStage ? (
-                          <XCircle className="h-4 w-4" />
-                        ) : (
-                          <span className="text-xs font-bold">{idx + 1}</span>
-                        )}
-                      </div>
-                      {idx < STAGE_ORDER.length - 1 && (
-                        <div className={`w-px h-6 mt-1 ${isPast ? "bg-status-success" : "bg-border"}`} />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pt-0.5">
-                      <p className={`text-sm font-medium ${isFuture ? "text-muted-foreground" : "text-foreground"}`}>
-                        {EXPENSE_STATUS_LABELS_FR[stage]}
-                      </p>
-                      {stage === "submitted" && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatDateTime(expense.submittedAt)} · {expense.submittedBy}
-                        </p>
-                      )}
-                      {stage === "approved" && expense.approvedAt && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatDateTime(expense.approvedAt)} · {expense.approvedBy}
-                          {expense.approvalNote && ` — "${expense.approvalNote}"`}
-                        </p>
-                      )}
-                      {stage === "disbursed" && expense.disbursedAt && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatDateTime(expense.disbursedAt)} · {expense.disbursedBy}
-                        </p>
-                      )}
-                      {stage === "settled" && expense.proofUploadedAt && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatDateTime(expense.proofUploadedAt)} · {expense.proofUploadedBy}
-                        </p>
-                      )}
-                      {isRejectStage && expense.approvalNote && (
-                        <p className="text-[11px] text-status-danger">
-                          Motif: {expense.approvalNote}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-
-          {/* Proof image (if settled) */}
-          {expense.proofUrl && (
-            <section>
-              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
-                Justificatif
-              </p>
-              <div className="rounded-md border border-border p-3 text-center">
-                <img
-                  src={expense.proofUrl}
-                  alt="Justificatif"
-                  className="max-h-32 mx-auto rounded"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-                <p className="text-[10px] text-muted-foreground mt-1 font-mono">{expense.proofUrl}</p>
-              </div>
-            </section>
+          {e.status === "rejected" && (
+            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3">
+              <p className="text-xs font-medium text-status-danger">Demande rejetée</p>
+              <p className="text-xs text-muted-foreground mt-1">{e.approvalNote ?? "Aucun motif fourni."}</p>
+            </div>
           )}
+
+          <div>
+            <p className="text-xs uppercase text-muted-foreground">Description</p>
+            <p className="mt-1">{e.description || "Aucune description fournie."}</p>
+          </div>
         </div>
-      </UnifiedModal>
+      ),
+    },
+  ];
 
-      {/* Reject dialog — UnifiedModal with destructive submit */}
-      <UnifiedModal
-        open={rejectDialogOpen}
-        onOpenChange={setRejectDialogOpen}
-        variant="dialog"
-        size="sm"
-        icon={XCircle}
-        iconTone="danger"
-        title="Rejeter la dépense"
-        description="Le motif est obligatoire et sera tracé dans l'audit."
-        submitLabel="Confirmer le rejet"
-        submitVariant="destructive"
-        submitIcon={XCircle}
-        submitDisabled={!rejectReason.trim()}
-        submitLoading={busy}
-        onSubmit={reject}
-      >
-        <FormField label="Motif du rejet" required>
-          <Textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Justificatif manquant, montant excessif…"
-            rows={3}
-          />
-        </FormField>
-      </UnifiedModal>
+  const actions = (e: Expense): readonly EntityDrawerAction<Expense>[] => {
+    const list: EntityDrawerAction<Expense>[] = [];
+    if (e.status === "submitted" && canApprove) {
+      list.push(
+        { label: "Approuver", icon: <CheckCircle2 className="size-3.5" />, variant: "default", onClick: handleApprove },
+        { label: "Rejeter", icon: <XCircle className="size-3.5" />, variant: "destructive", onClick: () => setRejectOpen(true) },
+      );
+    }
+    if (e.status === "approved" && canDisburse) {
+      list.push({ label: "Décaisser", icon: <DollarSign className="size-3.5" />, variant: "default", onClick: () => setDisburseOpen(true) });
+    }
+    if (e.status === "disbursed" && canSettle) {
+      list.push({ label: "Téléverser reçu", icon: <Upload className="size-3.5" />, variant: "default", onClick: () => setProofOpen(true) });
+    }
+    return list;
+  };
 
-      {/* Disburse confirm — ConfirmModal (built on UnifiedModal) */}
-      <ConfirmModal
-        open={disburseDialogOpen}
-        onOpenChange={setDisburseDialogOpen}
-        title="Décaisser les fonds ?"
-        description={`Les fonds (${formatDzd(expense.amount)}) seront libérés au bénéficiaire "${expense.payee}". Action tracée dans l'audit.`}
-        confirmLabel="Décaisser"
-        onConfirm={disburse}
+  return (
+    <>
+      <EntityDetailDrawer<Expense>
+        open={open}
+        onOpenChange={onOpenChange}
+        entity={expense}
+        title={(e) => e.title}
+        subtitle={(e) => `${e.requestCode} · ${EXPENSE_CATEGORY_LABELS_FR[e.category]}`}
+        metadata={metadata}
+        tabs={tabs}
+        actions={actions}
       />
 
-      {/* Settle proof dialog — UnifiedModal with file upload */}
-      <UnifiedModal
-        open={proofDialogOpen}
-        onOpenChange={setProofDialogOpen}
-        variant="dialog"
-        size="sm"
-        icon={Upload}
-        iconTone="primary"
-        title="Téléverser le justificatif"
-        description="Le justificatif (reçu/facture) est OBLIGATOIRE avant clôture (plan §08)."
-        submitLabel="Justifier et clôturer"
-        submitIcon={CheckCircle2}
-        submitDisabled={!proofFileName}
-        submitLoading={busy}
-        onSubmit={settleProof}
-      >
-        <FormField label="Fichier justificatif" required>
-          <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
-            <Upload className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {proofFileName ?? "Téléverser un justificatif (image/PDF)"}
-            </span>
-            <input
-              type="file"
-              accept="image/*,.pdf"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) setProofFileName(f.name);
-              }}
-            />
-          </label>
-        </FormField>
-      </UnifiedModal>
+      <ConfirmModal
+        open={rejectOpen}
+        onOpenChange={setRejectOpen}
+        title="Rejeter la dépense"
+        description="Confirmez-vous le rejet de cette demande de fonds ? Le motif par défaut « Non conforme » sera enregistré."
+        confirmLabel="Rejeter la demande"
+        destructive
+        onConfirm={handleReject}
+      />
 
-      {/* Anomaly explainer modal — opens when the anomaly banner is clicked */}
+      <ConfirmModal
+        open={disburseOpen}
+        onOpenChange={setDisburseOpen}
+        title="Décaisser les fonds"
+        description={`Confirmez-vous le décaissement de ${formatDzd(expense.amount)} au profit de ${expense.payee} ?`}
+        confirmLabel="Décaisser"
+        onConfirm={handleDisburse}
+      />
+
+      <AutoFormModal
+        open={proofOpen}
+        onOpenChange={setProofOpen}
+        title="Téléverser le justificatif"
+        description="Joignez le justificatif de la dépense pour clôturer la demande."
+        schema={ProofSchema}
+        fields={proofFields}
+        onSubmit={handleSettleProof}
+        submitLabel="Clôturer la dépense"
+      />
+
       <AnomalyExplainerModal
-        expenseId={expenseId}
+        expenseId={expense.id}
         open={anomalyOpen}
         onOpenChange={setAnomalyOpen}
       />

@@ -27,7 +27,7 @@ import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
-import { DashboardSection } from "../dashboards/dashboard-primitives";
+import { DashboardSection } from "../dashboards/role-dashboard-layout";
 import { Button } from "../../../shared/ui/button";
 import { Input } from "../../../shared/ui/input";
 import { Textarea } from "../../../shared/ui/textarea";

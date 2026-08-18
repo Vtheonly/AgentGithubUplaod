@@ -1,28 +1,41 @@
 /**
  * ExpenseSubmitModal — submit a new expense ticket (plan §08).
  *
- * Form: title, description, amount, category (controlled list), payee.
- * Calls ExpenseRepository.submit() which sets status to "submitted".
- * Anomaly detection is server-side (mocked as null in current iteration).
- *
- * Iteration 3: refactored to use UnifiedModal — consistent header,
- * footer, loading state, error display, and animation with every
- * other modal in the application.
+ * Refactored to consume `<AutoFormModal<T>>` so form-state, Zod validation,
+ * and field rendering all flow through the shared primitive instead of
+ * hand-rolled `useState` + bespoke `<UnifiedModal>` form. Anomaly detection
+ * is server-side.
  */
-import { useState } from "react";
-import { Send } from "lucide-react";
+import { z } from "zod";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
-import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-modal";
-import { Input } from "../../shared/ui/input";
-import { Textarea } from "../../shared/ui/textarea";
-import { FormField } from "../../shared/ui/form-field";
-import { MoneyInput } from "../../shared/ui/money-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../shared/ui/select";
+import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
 import { EXPENSE_CATEGORY_LABELS_FR, type ExpenseCategory } from "../../domain/model/expense";
 
-type Alert = NonNullable<UnifiedModalProps["alert"]>;
+const ExpenseSchema = z.object({
+  title: z.string().min(3, "Titre requis (min. 3 caractères)"),
+  description: z.string().optional().default(""),
+  amount: z.number().min(1, "Montant supérieur à 0 requis"),
+  category: z.enum([
+    "utilities", "supplies", "maintenance", "transport",
+    "event", "salary", "tax", "rent", "other",
+  ]),
+  payee: z.string().min(2, "Bénéficiaire requis"),
+});
+
+type ExpenseFormData = z.infer<typeof ExpenseSchema>;
+
+const fields: readonly AutoFormField[] = [
+  { name: "title", label: "Intitulé de la dépense", type: "text", required: true, wide: true, placeholder: "Ex. Réparation climatisation" },
+  {
+    name: "category", label: "Catégorie", type: "select", required: true,
+    options: Object.entries(EXPENSE_CATEGORY_LABELS_FR).map(([k, label]) => ({ label, value: k })),
+  },
+  { name: "amount", label: "Montant (DZD)", type: "money", required: true },
+  { name: "payee", label: "Bénéficiaire / Fournisseur", type: "text", required: true, wide: true, placeholder: "Ex. Climat Oran Services" },
+  { name: "description", label: "Justification / Détails", type: "textarea", wide: true, placeholder: "Détails de l'intervention…" },
+];
 
 export function ExpenseSubmitModal({
   open,
@@ -36,111 +49,38 @@ export function ExpenseSubmitModal({
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState(0);
-  const [category, setCategory] = useState<ExpenseCategory>("supplies");
-  const [payee, setPayee] = useState("");
-  const [alert, setAlert] = useState<Alert | null>(null);
 
-  function reset() {
-    setTitle("");
-    setDescription("");
-    setAmount(0);
-    setCategory("supplies");
-    setPayee("");
-    setAlert(null);
-  }
-
-  async function submit() {
+  async function handleSubmit(data: ExpenseFormData) {
     if (!session) return;
-    if (!title.trim() || amount <= 0 || !payee.trim()) {
-      setAlert({
-        tone: "warning",
-        title: "Champs invalides",
-        description: "Titre, montant et bénéficiaire sont requis.",
-      });
-      return;
-    }
-    const r = await repos.expenses.submit(
+    const res = await repos.expenses.submit(
       {
-        title: title.trim(),
-        description: description.trim(),
-        amount,
-        category,
-        payee: payee.trim(),
+        title: data.title,
+        description: data.description ?? "",
+        amount: data.amount,
+        category: data.category as ExpenseCategory,
+        payee: data.payee,
       },
       session.userId,
     );
-    if (r.ok) {
-      toast.showSuccess("Dépense soumise", `${r.value.requestCode} — en attente d'approbation.`);
-      onSubmitted?.(r.value.id);
-      onOpenChange(false);
-      setTimeout(reset, 200);
+    if (res.ok) {
+      toast.showSuccess("Demande soumise", `${res.value.requestCode} — en attente d'approbation.`);
+      onSubmitted?.(res.value.id);
     } else {
-      setAlert({
-        tone: "error",
-        title: "Échec de la soumission",
-        description: r.error.userMessage,
-      });
+      throw new Error(res.error.userMessage);
     }
   }
 
   return (
-    <UnifiedModal
+    <AutoFormModal
       open={open}
       onOpenChange={onOpenChange}
-      size="md"
-      variant="dialog"
-      icon={Send}
-      iconTone="primary"
       title="Nouvelle demande de dépense"
-      description="Sera soumise pour approbation. Pas d'auto-approbation (plan §08)."
-      submitLabel="Soumettre"
-      submitIcon={Send}
-      onSubmit={submit}
-      alert={alert}
-      onDismissAlert={() => setAlert(null)}
-    >
-      <div className="space-y-4">
-        <FormField label="Titre" required>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Réparation climatisation salle B12"
-          />
-        </FormField>
-        <FormField label="Description">
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Détails complémentaires…"
-            rows={3}
-          />
-        </FormField>
-        <div className="grid gap-3 md:grid-cols-2">
-          <FormField label="Catégorie" required hint="Liste contrôlée — pas de texte libre">
-            <Select value={category} onValueChange={(v) => setCategory(v as ExpenseCategory)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(EXPENSE_CATEGORY_LABELS_FR).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-          <FormField label="Montant" required>
-            <MoneyInput value={amount} onChange={setAmount} />
-          </FormField>
-        </div>
-        <FormField label="Bénéficiaire" required>
-          <Input
-            value={payee}
-            onChange={(e) => setPayee(e.target.value)}
-            placeholder="Climat Oran Services"
-          />
-        </FormField>
-      </div>
-    </UnifiedModal>
+      description="Soumettez une dépense pour validation par l'administration."
+      schema={ExpenseSchema}
+      fields={fields}
+      initialValues={{ category: "supplies", amount: 0 }}
+      onSubmit={handleSubmit}
+      submitLabel="Soumettre la dépense"
+    />
   );
 }

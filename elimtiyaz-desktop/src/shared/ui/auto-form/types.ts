@@ -2,7 +2,7 @@ import type { z, ZodType } from "zod";
 import type { ReactNode } from "react";
 
 export type AutoFormFieldType =
-  | "text" | "textarea" | "number" | "email" | "tel" | "date"
+  | "text" | "password" | "textarea" | "number" | "email" | "tel" | "date"
   | "select" | "switch" | "money";
 
 export interface AutoFormFieldOption {
