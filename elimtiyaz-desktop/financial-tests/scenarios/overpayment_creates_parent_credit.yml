@@ -1,0 +1,101 @@
+name: overpayment_creates_parent_credit
+description: |
+  A parent with one outstanding tuition tranche of 100,000 DZD.
+  Parent pays 150,000 DZD cash — a 50,000 DZD overpayment.
+  After payment:
+    - 100,000 DZD absorbed by the tranche (status=paid).
+    - 50,000 DZD written as a parent_credit adjustment on the
+      parent-scoped `parent:par-001:category:parent_credit` account
+      with studentId=null (INV-7).
+    - totalUnallocatedCredit = -50,000 DZD (negative = banked credit).
+  Tests INV-7 (overpayment → parent_credit) — the critical bug R4 fixed.
+given:
+  ledger_entries:
+    - id: led-seed-1
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      account_id: "parent:par-001:category:tuition:student:stu-001"
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      amount: 10000000
+      type: charge
+      source_type: installment
+      source_id: ins-001
+      method: null
+      receipt_number: null
+      payment_status: null
+      reverses_id: null
+      description: "Scolarité Tranche 1"
+      actor_id: system
+      actor_name: System
+      at: "2026-09-15T00:00:00Z"
+      metadata: { tranche: 1, paymentPlan: tranches }
+  installments:
+    - id: ins-001
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      label: "Tranche 1"
+      amount_due: 10000000
+      amount_paid: 0
+      amount_pending: 0
+      due_date: "2026-09-15T00:00:00Z"
+      status: unpaid
+when:
+  kind: collect_payment
+  parent_id: par-001
+  student_id: stu-001
+  amount: 15000000   # 150,000 DZD
+  method: cash
+  category: tuition
+  actor_id: usr-001
+  actor_name: "Agent comptoir"
+then:
+  expected_account_balance:
+    # CANONICAL-FINANCIAL-LOGIC.md §4 INV-7 — the canonical workflow writes
+    # the FULL payment (-15M centimes) on the tuition:student account, then
+    # a SEPARATE -5M adjustment on the parent_credit account. The tuition
+    # account therefore shows -5M (overpayment, "stuck" credit), and the
+    # parent_credit account shows -5M (banked credit, auto-absorbable).
+    #
+    # The total across both accounts is -10M, but the parent is only owed
+    # 5M — the auto-absorb logic scans ONLY parent_credit accounts, so
+    # the -5M on tuition is not absorbed. This is a known limitation
+    # documented in unification-logic-docs/NEXT-ITERATION.md.
+    account_id: "parent:par-001:category:tuition:student:stu-001"
+    balance: -5000000   # overpayment stuck here (charge +10M, payment -15M)
+    total_charged: 10000000
+    total_paid: 15000000      # full payment received
+    total_cleared: 15000000
+    total_pending: 0
+    total_adjusted: 0         # no adjustment on this account
+    total_refunded: 0
+    unallocated_credit: 0     # parent_credit is NOT on this account
+  # The parent_credit account has the banked credit.
+  expected_parent_credit_account_balance:
+    account_id: "parent:par-001:category:parent_credit"
+    balance: -5000000        # negative = banked credit
+    total_charged: 0
+    total_paid: 0
+    total_cleared: 0
+    total_pending: 0
+    total_adjusted: -5000000
+    total_refunded: 0
+    unallocated_credit: -5000000
+  expected_parent_summary:
+    parent_id: par-001
+    # Total = -5M (tuition overpayment) + -5M (parent_credit) = -10M.
+    total_outstanding: -10000000
+    total_overdue: 0
+    total_charged: 10000000
+    total_paid: 15000000
+    total_cleared: 15000000
+    total_pending: 0
+    total_adjusted: -5000000       # sum of all adjustments (here: just the parent_credit)
+    total_refunded: 0
+    total_unallocated_credit: -5000000   # only counts parent_credit accounts
+  expected_installments:
+    - id: ins-001
+      amount_paid: 10000000
+      amount_pending: 0
+      status: paid

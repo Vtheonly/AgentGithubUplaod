@@ -1,0 +1,74 @@
+name: single_payment_partial
+description: |
+  A parent with one outstanding tuition tranche of 100,000 DZD.
+  Parent pays 25,000 DZD cash (cleared immediately).
+  After payment: totalPaid = 25,000, totalOutstanding = 75,000.
+  Tests INV-1 (balance via replay) + INV-6 (waterfall allocation).
+given:
+  ledger_entries:
+    - id: led-seed-1
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      account_id: "parent:par-001:category:tuition:student:stu-001"
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      amount: 10000000   # 100,000 DZD = 10,000,000 centimes
+      type: charge
+      source_type: installment
+      source_id: ins-001
+      method: null
+      receipt_number: null
+      payment_status: null
+      reverses_id: null
+      description: "Scolarité Tranche 1"
+      actor_id: system
+      actor_name: System
+      at: "2026-09-15T00:00:00Z"
+      metadata: { tranche: 1, paymentPlan: tranches, gradeLevel: 2ap }
+  installments:
+    - id: ins-001
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      label: "Tranche 1 (Sept–Déc)"
+      amount_due: 10000000
+      amount_paid: 0
+      amount_pending: 0
+      due_date: "2026-09-15T00:00:00Z"
+      status: unpaid
+when:
+  kind: collect_payment
+  parent_id: par-001
+  student_id: stu-001
+  amount: 2500000     # 25,000 DZD
+  method: cash
+  category: tuition
+  actor_id: usr-001
+  actor_name: "Agent comptoir"
+then:
+  expected_account_balance:
+    account_id: "parent:par-001:category:tuition:student:stu-001"
+    balance: 7500000   # 75,000 DZD remaining
+    total_charged: 10000000
+    total_paid: 2500000
+    total_cleared: 2500000
+    total_pending: 0
+    total_adjusted: 0
+    total_refunded: 0
+    unallocated_credit: 0
+  expected_parent_summary:
+    parent_id: par-001
+    total_outstanding: 7500000
+    total_overdue: 0
+    total_charged: 10000000
+    total_paid: 2500000
+    total_cleared: 2500000
+    total_pending: 0
+    total_adjusted: 0
+    total_refunded: 0
+    total_unallocated_credit: 0
+  expected_installments:
+    - id: ins-001
+      amount_paid: 2500000
+      amount_pending: 0
+      status: partial

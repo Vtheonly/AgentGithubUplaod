@@ -1,0 +1,92 @@
+name: refund_cleared_payment
+description: |
+  A parent has a fully-paid tuition tranche (100,000 DZD cash).
+  Parent requests a refund of 100,000 DZD.
+  The refund writes:
+    - a reversal entry (amount = +10,000,000, reversesId = original payment's id)
+    - LIFO reverts the installment: amount_paid -> 0, status -> unpaid
+  Tests INV-8 (refund LIFO) — cleared-payment branch.
+given:
+  ledger_entries:
+    - id: led-charge-1
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      account_id: "parent:par-001:category:tuition:student:stu-001"
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      amount: 10000000
+      type: charge
+      source_type: installment
+      source_id: ins-001
+      method: null
+      receipt_number: null
+      payment_status: null
+      reverses_id: null
+      description: "Scolarité Tranche 1"
+      actor_id: system
+      actor_name: System
+      at: "2026-09-15T00:00:00Z"
+      metadata: { tranche: 1 }
+    - id: led-pay-1
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      account_id: "parent:par-001:category:tuition:student:stu-001"
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      amount: -10000000     # negative = payment
+      type: payment
+      source_type: payment
+      source_id: pay-001
+      method: cash
+      receipt_number: "REC-2026-000001"
+      payment_status: paid   # cleared
+      reverses_id: null
+      description: "Encaissement REC-2026-000001"
+      actor_id: usr-001
+      actor_name: "Agent comptoir"
+      at: "2026-09-20T00:00:00Z"
+      metadata: { }
+  installments:
+    - id: ins-001
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      label: "Tranche 1"
+      amount_due: 10000000
+      amount_paid: 10000000   # fully paid (matches the ledger entry)
+      amount_pending: 0
+      due_date: "2026-09-15T00:00:00Z"
+      status: paid
+when:
+  kind: refund_payment
+  payment_id: pay-001
+  reason: "Annulation — erreur de saisie"
+  actor_id: usr-001
+  actor_name: "Agent comptoir"
+then:
+  expected_account_balance:
+    account_id: "parent:par-001:category:tuition:student:stu-001"
+    balance: 10000000       # back to the charged amount (refund cancels the payment)
+    total_charged: 10000000
+    total_paid: 0            # payment is reversed
+    total_cleared: 0
+    total_pending: 0
+    total_adjusted: 0
+    total_refunded: 0        # the refund entry's amount is excluded from typed totals
+    unallocated_credit: 0
+  expected_parent_summary:
+    parent_id: par-001
+    total_outstanding: 10000000
+    total_overdue: 0
+    total_charged: 10000000
+    total_paid: 0
+    total_cleared: 0
+    total_pending: 0
+    total_adjusted: 0
+    total_refunded: 0
+    total_unallocated_credit: 0
+  expected_installments:
+    - id: ins-001
+      amount_paid: 0
+      amount_pending: 0
+      status: unpaid         # status reverted (or 'pending' depending on now vs dueDate)

@@ -1,0 +1,76 @@
+name: pending_check_payment
+description: |
+  A parent pays by check (uncleared). The payment reduces the balance
+  immediately (INV-5: pending payments count toward balance), but the
+  installment goes to status=pending_clearance — NOT paid (INV-6:
+  uncleared funds never mark a tranche as paid).
+  Then the check clears: totalPending decreases, totalCleared increases,
+  installment.status transitions to paid. Balance does NOT change.
+given:
+  ledger_entries:
+    - id: led-seed-1
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      account_id: "parent:par-001:category:tuition:student:stu-001"
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      amount: 10000000
+      type: charge
+      source_type: installment
+      source_id: ins-001
+      method: null
+      receipt_number: null
+      payment_status: null
+      reverses_id: null
+      description: "Scolarité Tranche 1"
+      actor_id: system
+      actor_name: System
+      at: "2026-09-15T00:00:00Z"
+      metadata: { tranche: 1 }
+  installments:
+    - id: ins-001
+      parent_id: par-001
+      student_id: stu-001
+      category: tuition
+      label: "Tranche 1"
+      amount_due: 10000000
+      amount_paid: 0
+      amount_pending: 0
+      due_date: "2026-09-15T00:00:00Z"
+      status: unpaid
+when:
+  kind: collect_payment
+  parent_id: par-001
+  student_id: stu-001
+  amount: 10000000     # exactly the tranche amount
+  method: check        # uncleared
+  category: tuition
+  actor_id: usr-001
+  actor_name: "Agent comptoir"
+then:
+  expected_account_balance:
+    account_id: "parent:par-001:category:tuition:student:stu-001"
+    balance: 0          # balance reduced immediately
+    total_charged: 10000000
+    total_paid: 10000000
+    total_cleared: 0     # NOT cleared — pending payment
+    total_pending: 10000000  # all in the pending bucket
+    total_adjusted: 0
+    total_refunded: 0
+    unallocated_credit: 0
+  expected_parent_summary:
+    parent_id: par-001
+    total_outstanding: 0
+    total_overdue: 0
+    total_charged: 10000000
+    total_paid: 10000000
+    total_cleared: 0
+    total_pending: 10000000
+    total_adjusted: 0
+    total_refunded: 0
+    total_unallocated_credit: 0
+  expected_installments:
+    - id: ins-001
+      amount_paid: 0           # uncleared — no cleared funds yet
+      amount_pending: 10000000 # in the pending bucket
+      status: pending_clearance

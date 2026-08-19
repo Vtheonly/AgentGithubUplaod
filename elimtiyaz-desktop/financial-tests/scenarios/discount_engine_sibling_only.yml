@@ -1,0 +1,23 @@
+name: discount_engine_sibling_only
+description: |
+  A student with no qualifying conditions except being the 2nd child.
+  Only sibling_fixed fires: -5,000 DZD.
+  Tests R6 — single-rule case.
+when:
+  kind: evaluate_discounts
+  gross_tuition: 20000000    # 200,000 DZD
+  previous_grade_level: null
+  current_grade_level: "2ap"
+  child_index: 2
+  payment_plan: tranches
+  payment_date: "2026-09-15T00:00:00Z"   # after June 30 — no full_annual
+  academic_year_start_year: 2026
+  academic_year_start: "2026-09-15T00:00:00Z"
+  enrollment_date: "2026-09-01T00:00:00Z"  # 0 years seniority
+  previous_rank: null
+then:
+  expected_discounts:
+    - code: sibling_fixed
+      amount: -500000     # -5,000 DZD
+  expected_total_discount: -500000
+  expected_net_tuition: 19500000    # 195,000 DZD
