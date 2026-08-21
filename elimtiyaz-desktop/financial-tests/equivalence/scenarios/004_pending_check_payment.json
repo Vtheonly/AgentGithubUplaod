@@ -1,0 +1,69 @@
+{
+  "id": "004_pending_check_payment",
+  "description": "A 25,000 DZD CHECK payment against 100,000 DZD tuition. Pending payments MUST increment amountPending (NOT amountPaid) and MUST NOT mark the tranche as paid (INV-5 + INV-6).",
+  "category": "waterfall",
+  "tags": [
+    "payment",
+    "check",
+    "pending"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Test Parent"
+    },
+    "students": [
+      {
+        "id": "stu-001",
+        "parentId": "par-001",
+        "gradeLevel": "1ap",
+        "paymentPlan": "tranches"
+      }
+    ],
+    "ledgerEntries": [
+      {
+        "id": "led-1",
+        "parentId": "par-001",
+        "studentId": "stu-001",
+        "category": "tuition",
+        "amount": 10000000,
+        "type": "charge",
+        "sourceType": "installment",
+        "sourceId": "ins-1",
+        "actorId": "u1",
+        "actorName": "Alice",
+        "at": "2026-01-15T10:00:00Z",
+        "description": "Tuition tranche 1"
+      }
+    ],
+    "installments": [
+      {
+        "id": "ins-1",
+        "parentId": "par-001",
+        "studentId": "stu-001",
+        "category": "tuition",
+        "label": "Tranche 1",
+        "amountDue": 10000000,
+        "amountPaid": 0,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "status": "unpaid"
+      }
+    ],
+    "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "allocatePayment",
+    "paymentAmount": 2500000,
+    "category": "tuition",
+    "paymentStatus": "pending",
+    "paymentId": "pay-001"
+  },
+  "then": {
+    "totalOutstanding": 7500000,
+    "totalPaid": 0,
+    "totalPending": 2500000
+  }
+}

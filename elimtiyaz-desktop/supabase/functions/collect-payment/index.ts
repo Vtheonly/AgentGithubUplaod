@@ -110,29 +110,40 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // Call the collect_payment RPC (creates payment + ledger entry + receipt + audit).
+  // ============================================================================
+  // CANONICAL ENGINE INVOCATION (migration 0034)
+  // ============================================================================
+  // Previously this edge function called TWO RPCs in sequence:
+  //   1. `collect_payment` (0022) — pre-waterfall, single-installment
+  //   2. `allocate_payment_waterfall` (0025) — different tolerance + status fallback
+  //
+  // That was a divergent third implementation — the two RPCs computed state
+  // differently from the canonical app-side engines. Migration 0034:
+  //   - Dropped `collect_payment`, `allocate_payment_waterfall`, `refund_payment`
+  //   - Rewrote `collect_and_allocate_payment` (0026) to match the canonical
+  //     engine EXACTLY (waterfall + parent_credit + audit in one atomic
+  //     transaction, with the originalWasPending branch).
+  //
+  // This edge function now calls ONLY the canonical RPC. Single code path,
+  // single set of business rules, atomic transaction.
+  // ============================================================================
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase.rpc("collect_payment", {
+  const { data, error } = await supabase.rpc("collect_and_allocate_payment", {
     p_tenant_id: ctx.tenantId,
     p_parent_id: body.parent_id,
     p_student_id: body.student_id ?? null,
     p_amount: body.amount,
     p_method: body.method,
-    p_invoice_id: body.invoice_id ?? null,
+    p_category: body.category ?? "tuition",
     p_installment_id: body.installment_id ?? null,
-    p_actor_profile_id: ctx.userProfileId,
-    p_notes: body.notes ?? null,
-    p_check_number: body.check_number ?? null,
-    p_check_bank_name: body.check_bank_name ?? null,
-    p_check_issue_date: body.check_issue_date ?? null,
-    p_check_clearance_date: body.check_clearance_date ?? null,
-    p_transfer_reference: body.transfer_reference ?? null,
-    p_transfer_source_bank: body.transfer_source_bank ?? null,
     p_proof_path: body.proof_path ?? null,
+    p_notes: body.notes ?? null,
+    p_actor_id: ctx.userProfileId,
+    p_actor_name: ctx.userDisplayName ?? "Système",
   });
 
   if (error) {
-    console.error("[collect-payment] RPC failed:", error);
+    console.error("[collect-payment] canonical RPC failed:", error);
     return jsonError(req, 500, "collection_failed", "Failed to collect payment", error.message);
   }
 
@@ -142,72 +153,35 @@ Deno.serve(async (req: Request) => {
 
   const result = data[0];
 
-  // ============================================================================
-  // Waterfall Allocation — when no specific installment_id was provided,
-  // automatically distribute the payment across the parent's unpaid
-  // installments (oldest first). Guarantees Ledger ↔ Installment
-  // mathematical consistency.
-  // ============================================================================
-  let allocations: Array<{
+  // Map the canonical RPC's payload to the edge function's response shape.
+  // The canonical RPC returns:
+  //   payment_id, receipt_number, payment_status,
+  //   total_allocated, unallocated_credit, allocations (JSONB array)
+  const allocations: Array<{
     installment_id: string;
     allocated_amount: number;
     new_amount_paid: number;
     new_status: string;
     fully_satisfied: boolean;
-  }> = [];
-  let unallocated_credit = 0;
-
-  if (!body.installment_id && result.payment_id) {
-    const { data: allocData, error: allocError } = await supabase.rpc(
-      "allocate_payment_waterfall",
-      {
-        p_tenant_id: ctx.tenantId,
-        p_parent_id: body.parent_id,
-        p_payment_id: result.payment_id,
-        p_payment_amount: body.amount,
-        p_category_filter: body.category_filter ?? null,
-        p_actor_profile_id: ctx.userProfileId,
-      },
-    );
-
-    if (allocError) {
-      console.error("[collect-payment] Waterfall allocation failed:", allocError);
-      // Don't fail the whole request — the payment + ledger entry are already
-      // committed. The operator can re-run allocation manually.
-      return jsonOk(req, {
-        payment_id: result.payment_id,
-        receipt_id: result.receipt_id,
-        new_installment_status: result.new_installment_status,
-        allocations: [],
-        unallocated_credit: body.amount,
-        waterfall_error: allocError.message,
-        message: `Payment of ${body.amount} DZD collected, but waterfall allocation failed: ${allocError.message}. Manual allocation required.`,
-      });
-    }
-
-    if (allocData && Array.isArray(allocData)) {
-      allocations = allocData.map((row: Record<string, unknown>) => ({
-        installment_id: String(row.installment_id),
-        allocated_amount: Number(row.allocated_amount),
-        new_amount_paid: Number(row.new_amount_paid),
-        new_status: String(row.new_status),
-        fully_satisfied: Boolean(row.fully_satisfied),
-      }));
-      const totalAllocated = allocations.reduce(
-        (s, a) => s + a.allocated_amount,
-        0,
-      );
-      unallocated_credit = Math.max(0, body.amount - totalAllocated);
-    }
-  }
+  }> = (result.allocations ?? []).map((row: Record<string, unknown>) => ({
+    installment_id: String(row.installmentId ?? row.installment_id ?? ""),
+    allocated_amount: Number(row.allocatedAmount ?? row.allocated_amount ?? 0),
+    new_amount_paid: Number(row.newAmountPaid ?? row.new_amount_paid ?? 0),
+    new_status: String(row.newStatus ?? row.new_status ?? ""),
+    fully_satisfied: Boolean(row.fullySatisfied ?? row.fully_satisfied ?? false),
+  }));
+  const unallocated_credit = Number(result.unallocated_credit ?? 0);
 
   return jsonOk(req, {
     payment_id: result.payment_id,
-    receipt_id: result.receipt_id,
-    new_installment_status: result.new_installment_status,
+    receipt_id: result.receipt_number,
+    receipt_number: result.receipt_number,
+    payment_status: result.payment_status,
+    new_installment_status: allocations[0]?.new_status ?? null,
     allocations,
     unallocated_credit,
     allocated_tranche_count: allocations.length,
+    total_allocated: Number(result.total_allocated ?? 0),
     message: `Payment of ${body.amount} DZD collected. Allocated to ${allocations.length} tranche(s).${
       unallocated_credit > 0 ? ` Credit: ${unallocated_credit} DZD.` : ""
     }`,

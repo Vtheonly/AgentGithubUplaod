@@ -1,0 +1,28 @@
+{
+  "scenarioId": "022_idempotency_repeated_allocate",
+  "category": "idempotency",
+  "operationType": "syncRoundTrip",
+  "discoveredAt": "2026-08-19T22-24-01",
+  "discrepancies": [
+    {
+      "path": "canonical.totalOutstanding (android)",
+      "desktopValue": 2500000,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.totalPaid (android)",
+      "desktopValue": 7500000,
+      "androidValue": null,
+      "delta": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 0,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

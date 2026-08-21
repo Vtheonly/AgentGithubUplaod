@@ -1,0 +1,46 @@
+{
+  "id": "012_discount_all_5_rules_combined",
+  "description": "Student who: transitions 5ap→1am (passage_palier -10000), is child #2 (sibling_fixed -5000), pays annual early (full_annual -10%), was rank 1 (highest_average -10%), has 6y seniority (seniority_5y -5%). Verifies all 5 rules fire in single pass on gross with no compounding.",
+  "category": "discount_engine",
+  "tags": [
+    "discount",
+    "all_5_rules"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Test Parent"
+    },
+    "students": [],
+    "ledgerEntries": [],
+    "installments": [],
+    "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "evaluateAllSystemDiscounts",
+    "discountParams": {
+      "grossTuition": 33000000,
+      "previousGradeLevel": "5ap",
+      "currentGradeLevel": "1am",
+      "childIndex": 2,
+      "paymentPlan": "full_annual",
+      "paymentDate": "2025-06-15T10:00:00Z",
+      "academicYearStartYear": 2025,
+      "academicYearStart": "2025-09-01T00:00:00Z",
+      "enrollmentDate": "2019-09-01T00:00:00Z",
+      "previousRank": 1
+    }
+  },
+  "then": {
+    "discountsApplied": [
+      "passage_palier",
+      "sibling_fixed",
+      "full_annual",
+      "highest_average",
+      "seniority_5y"
+    ],
+    "totalDiscount": -9750000
+  }
+}

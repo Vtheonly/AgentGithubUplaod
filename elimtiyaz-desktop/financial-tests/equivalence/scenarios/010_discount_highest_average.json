@@ -1,0 +1,30 @@
+{
+  "id": "010_discount_highest_average",
+  "description": "Student ranked #1 in previous palier qualifies for -10% academic excellence discount.",
+  "category": "discount_engine",
+  "tags": ["discount", "highest_average"],
+  "given": {
+    "tenantId": "t1", "parent": {"id": "par-001", "name": "Test Parent"},
+    "students": [], "ledgerEntries": [], "installments": [], "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "evaluateAllSystemDiscounts",
+    "discountParams": {
+      "grossTuition": 33000000,
+      "previousGradeLevel": null,
+      "currentGradeLevel": "1ap",
+      "childIndex": 1,
+      "paymentPlan": "tranches",
+      "paymentDate": "2026-09-15T10:00:00Z",
+      "academicYearStartYear": 2025,
+      "academicYearStart": "2025-09-01T00:00:00Z",
+      "enrollmentDate": "2026-09-01T00:00:00Z",
+      "previousRank": 1
+    }
+  },
+  "then": {
+    "discountsApplied": ["highest_average"],
+    "totalDiscount": -3300000
+  }
+}

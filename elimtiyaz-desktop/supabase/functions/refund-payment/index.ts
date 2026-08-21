@@ -89,16 +89,24 @@ Deno.serve(async (req: Request) => {
     return jsonError(req, 409, "already_refunded", "This payment has already been refunded");
   }
 
-  // 6. Call the refund_payment RPC
-  const { data, error } = await supabase.rpc("refund_payment", {
+  // ============================================================================
+  // CANONICAL ENGINE INVOCATION (migration 0034)
+  // ============================================================================
+  // Previously called the legacy `refund_payment` RPC (0022) — non-LIFO,
+  // single-installment, broke paid_date. Migration 0034 dropped that RPC.
+  // Now calls `revert_payment_allocation` (canonical LIFO with the
+  // originalWasPending branch).
+  // ============================================================================
+  const { data, error } = await supabase.rpc("revert_payment_allocation", {
     p_tenant_id: ctx.tenantId,
     p_payment_id: body.payment_id,
-    p_actor_profile_id: ctx.userProfileId,
+    p_actor_id: ctx.userProfileId,
+    p_actor_name: ctx.userDisplayName ?? ctx.email ?? "Système",
     p_reason: body.reason.trim(),
   });
 
   if (error) {
-    console.error("[refund-payment] RPC failed:", error);
+    console.error("[refund-payment] canonical RPC failed:", error);
     return jsonError(req, 500, "refund_failed", "Failed to process refund", error.message);
   }
 
@@ -107,7 +115,11 @@ Deno.serve(async (req: Request) => {
   }
 
   const result = data[0];
-  const reversalPaymentId: string = result.reversal_payment_id;
+  // Canonical RPC returns: payment_id, new_status, reversal_entry_id,
+  // reverts_count, total_reverted.
+  const reversalPaymentId: string | null = result.reversal_entry_id ?? null;
+  const revertsCount: number = Number(result.reverts_count ?? 0);
+  const totalReverted: number = Number(result.total_reverted ?? 0);
 
   // 7. Write audit log (belt-and-suspenders — the RPC also writes one, but this
   //    captures the actor's profile_id + request_id for traceability)

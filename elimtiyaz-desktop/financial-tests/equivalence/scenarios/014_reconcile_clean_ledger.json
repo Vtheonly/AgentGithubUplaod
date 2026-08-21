@@ -1,0 +1,50 @@
+{
+  "id": "014_reconcile_clean_ledger",
+  "description": "A clean ledger with no violations — reconciler should report 0 errors and 0 warnings.",
+  "category": "reconcile",
+  "tags": ["reconcile", "clean"],
+  "given": {
+    "tenantId": "t1",
+    "parent": {"id": "par-001", "name": "Test Parent"},
+    "students": [{"id": "stu-001", "parentId": "par-001", "gradeLevel": "1ap", "paymentPlan": "tranches"}],
+    "ledgerEntries": [
+      {
+        "id": "led-1", "parentId": "par-001", "studentId": "stu-001",
+        "category": "tuition", "amount": 10000000, "type": "charge",
+        "sourceType": "installment", "sourceId": "ins-1",
+        "actorId": "u1", "actorName": "Alice",
+        "at": "2026-01-15T10:00:00Z",
+        "description": "T1"
+      },
+      {
+        "id": "led-2", "parentId": "par-001", "studentId": "stu-001",
+        "category": "tuition", "amount": -5000000, "type": "payment",
+        "sourceType": "payment", "sourceId": "pay-1",
+        "method": "cash", "receiptNumber": "REC-1",
+        "paymentStatus": "paid",
+        "actorId": "u1", "actorName": "Alice",
+        "at": "2026-02-15T10:00:00Z",
+        "description": "Payment 1"
+      }
+    ],
+    "installments": [
+      {
+        "id": "ins-1", "parentId": "par-001", "studentId": "stu-001",
+        "category": "tuition", "label": "T1",
+        "amountDue": 10000000, "amountPaid": 5000000, "amountPending": 0,
+        "dueDate": "2026-09-15", "status": "partial"
+      }
+    ],
+    "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "reconcileLedger",
+    "includePayments": false,
+    "includeInstallments": true,
+    "includeParentSummaries": false
+  },
+  "then": {
+    "pass": true
+  }
+}

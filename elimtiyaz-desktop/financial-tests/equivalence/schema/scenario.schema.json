@@ -1,0 +1,253 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://el-imtiyaz/canonical/scenario.schema.json",
+  "title": "Cross-Platform Equivalence Scenario",
+  "description": "Canonical, platform-neutral JSON format for testing that the desktop (TypeScript) and Android (Kotlin) financial engines produce identical results for the same inputs and operation sequences. All monetary values are in CENTIMES (Long) — never DZD floats — to avoid cross-language floating-point drift. All timestamps are ISO-8601 UTC strings.",
+  "type": "object",
+  "required": ["id", "description", "category", "given", "when", "then"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable, unique scenario identifier (e.g. '001_simple_payment'). Used as the filename and the result-file key."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable explanation of what this scenario verifies."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "balance",
+        "parent_summary",
+        "waterfall",
+        "lifo_reversal",
+        "discount_engine",
+        "reconcile",
+        "overpayment",
+        "refund",
+        "sync_round_trip",
+        "idempotency",
+        "boundary",
+        "property_based",
+        "complex_sequence"
+      ],
+      "description": "Test category — used by the comparator to group results."
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Optional tags for filtering (e.g. ['overpayment', 'parent_credit', 'cash'])."
+    },
+    "given": {
+      "$ref": "#/definitions/InitialState"
+    },
+    "when": {
+      "$ref": "#/definitions/Operation"
+    },
+    "then": {
+      "$ref": "#/definitions/Expectation"
+    }
+  },
+  "definitions": {
+    "InitialState": {
+      "type": "object",
+      "description": "The complete input state fed to BOTH engines. Identical bytes go to desktop and Android.",
+      "required": ["tenantId", "ledgerEntries"],
+      "properties": {
+        "tenantId": {"type": "string"},
+        "parent": {"$ref": "#/definitions/Parent"},
+        "students": {"type": "array", "items": {"$ref": "#/definitions/Student"}},
+        "ledgerEntries": {"type": "array", "items": {"$ref": "#/definitions/LedgerEntryInput"}},
+        "installments": {"type": "array", "items": {"$ref": "#/definitions/InstallmentInput"}},
+        "payments": {"type": "array", "items": {"$ref": "#/definitions/PaymentInput"}},
+        "academicYearStartYear": {"type": "integer", "default": 2025}
+      }
+    },
+    "Parent": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"}
+      }
+    },
+    "Student": {
+      "type": "object",
+      "required": ["id", "parentId", "gradeLevel"],
+      "properties": {
+        "id": {"type": "string"},
+        "parentId": {"type": "string"},
+        "gradeLevel": {"type": "string"},
+        "paymentPlan": {"type": "string", "enum": ["full_annual", "tranches"], "default": "tranches"},
+        "enrollmentDate": {"type": "string", "format": "date-time"},
+        "previousGradeLevel": {"type": ["string", "null"]},
+        "previousRank": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "LedgerEntryInput": {
+      "type": "object",
+      "description": "A ledger entry in canonical form. Amounts are in CENTIMES (Long). Signed: +charge, -payment, -refund, ±adjustment.",
+      "required": ["id", "parentId", "category", "amount", "type", "sourceType", "sourceId", "actorId", "actorName", "at"],
+      "properties": {
+        "id": {"type": "string"},
+        "parentId": {"type": "string"},
+        "studentId": {"type": ["string", "null"]},
+        "category": {"type": "string", "enum": ["tuition", "transport", "canteen", "uniform", "books", "extracurricular", "parent_credit", "therapy_psychology", "therapy_speech", "second_apron", "other"]},
+        "amount": {"type": "integer", "description": "Centimes (Long). Signed per type."},
+        "type": {"type": "string", "enum": ["charge", "payment", "adjustment", "refund", "reversal", "transfer"]},
+        "sourceType": {"type": "string", "enum": ["installment", "payment", "expense", "adjustment", "refund", "bulk_import", "manual_entry"]},
+        "sourceId": {"type": "string"},
+        "method": {"type": ["string", "null"], "enum": ["cash", "check", "transfer", null]},
+        "receiptNumber": {"type": ["string", "null"]},
+        "paymentStatus": {"type": ["string", "null"], "enum": ["paid", "pending", "partial", "overdue", "refunded", "cancelled", "pending_clearance", "unpaid", null]},
+        "reversesId": {"type": ["string", "null"]},
+        "description": {"type": "string"},
+        "actorId": {"type": "string"},
+        "actorName": {"type": "string"},
+        "at": {"type": "string", "format": "date-time"},
+        "metadata": {"type": "object"}
+      }
+    },
+    "InstallmentInput": {
+      "type": "object",
+      "required": ["id", "parentId", "category", "amountDue", "dueDate"],
+      "properties": {
+        "id": {"type": "string"},
+        "parentId": {"type": "string"},
+        "studentId": {"type": ["string", "null"]},
+        "category": {"type": "string"},
+        "label": {"type": "string"},
+        "amountDue": {"type": "integer", "description": "Centimes"},
+        "amountPaid": {"type": "integer", "default": 0, "description": "Centimes"},
+        "amountPending": {"type": "integer", "default": 0, "description": "Centimes"},
+        "dueDate": {"type": "string"},
+        "paidDate": {"type": ["string", "null"]},
+        "status": {"type": "string", "default": "unpaid"},
+        "academicCycle": {"type": ["string", "null"]}
+      }
+    },
+    "PaymentInput": {
+      "type": "object",
+      "required": ["id", "parentId", "amount", "method", "status", "category", "receiptNumber", "collectedBy", "collectedAt"],
+      "properties": {
+        "id": {"type": "string"},
+        "parentId": {"type": "string"},
+        "studentId": {"type": ["string", "null"]},
+        "amount": {"type": "integer", "description": "Centimes"},
+        "method": {"type": "string", "enum": ["cash", "check", "transfer"]},
+        "status": {"type": "string"},
+        "category": {"type": "string"},
+        "receiptNumber": {"type": "string"},
+        "installmentId": {"type": ["string", "null"]},
+        "collectedBy": {"type": "string"},
+        "collectedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "Operation": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "computeAccountBalance",
+            "computeParentSummary",
+            "allocatePayment",
+            "revertPaymentAllocation",
+            "evaluateAllSystemDiscounts",
+            "reconcileLedger",
+            "collectPayment",
+            "refundPayment",
+            "applyAdjustment",
+            "syncRoundTrip"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "computeAccountBalance"}}},
+          "then": {"properties": {"accountId": {"type": "string"}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "computeParentSummary"}}},
+          "then": {"properties": {"parentId": {"type": "string"}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "allocatePayment"}}},
+          "then": {
+            "properties": {
+              "paymentAmount": {"type": "integer", "description": "Centimes"},
+              "category": {"type": "string"},
+              "paymentStatus": {"type": "string", "enum": ["paid", "pending"]},
+              "paymentId": {"type": "string"}
+            },
+            "required": ["paymentAmount", "category", "paymentStatus"]
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "revertPaymentAllocation"}}},
+          "then": {
+            "properties": {
+              "reversalAmount": {"type": "integer", "description": "Centimes"},
+              "category": {"type": "string"},
+              "originalWasPending": {"type": "boolean"}
+            },
+            "required": ["reversalAmount", "category", "originalWasPending"]
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "evaluateAllSystemDiscounts"}}},
+          "then": {
+            "properties": {
+              "discountParams": {"$ref": "#/definitions/DiscountParams"}
+            },
+            "required": ["discountParams"]
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "reconcileLedger"}}},
+          "then": {
+            "properties": {
+              "includePayments": {"type": "boolean", "default": false},
+              "includeInstallments": {"type": "boolean", "default": false},
+              "includeParentSummaries": {"type": "boolean", "default": false}
+            }
+          }
+        }
+      ]
+    },
+    "DiscountParams": {
+      "type": "object",
+      "required": ["grossTuition", "currentGradeLevel", "childIndex", "paymentPlan", "paymentDate", "academicYearStartYear", "academicYearStart", "enrollmentDate"],
+      "properties": {
+        "grossTuition": {"type": "integer", "description": "Centimes"},
+        "previousGradeLevel": {"type": ["string", "null"]},
+        "currentGradeLevel": {"type": "string"},
+        "childIndex": {"type": "integer", "minimum": 1},
+        "paymentPlan": {"type": "string", "enum": ["full_annual", "tranches"]},
+        "paymentDate": {"type": "string", "format": "date-time"},
+        "academicYearStartYear": {"type": "integer"},
+        "academicYearStart": {"type": "string", "format": "date-time"},
+        "enrollmentDate": {"type": "string", "format": "date-time"},
+        "previousRank": {"type": ["integer", "null"], "minimum": 1},
+        "siblingPerChildAmount": {"type": "integer", "description": "Centimes. Override the canonical -5000 DZD per child."}
+      }
+    },
+    "Expectation": {
+      "type": "object",
+      "description": "Optional canonical expected values. If omitted, the comparator only checks desktop == android. If present, the comparator also checks desktop == expected AND android == expected.",
+      "properties": {
+        "totalOutstanding": {"type": "integer"},
+        "totalPaid": {"type": "integer"},
+        "totalCharged": {"type": "integer"},
+        "totalOverdue": {"type": "integer"},
+        "totalCleared": {"type": "integer"},
+        "totalPending": {"type": "integer"},
+        "totalUnallocatedCredit": {"type": "integer"},
+        "balance": {"type": "integer"},
+        "violations": {"type": "array"},
+        "pass": {"type": "boolean"}
+      }
+    }
+  }
+}

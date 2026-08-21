@@ -1,0 +1,21 @@
+{
+  "scenarioId": "014_reconcile_clean_ledger",
+  "category": "reconcile",
+  "operationType": "reconcileLedger",
+  "discoveredAt": "2026-08-19T22-24-01",
+  "discrepancies": [
+    {
+      "path": "canonical.pass",
+      "desktopValue": true,
+      "androidValue": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 1,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

@@ -1,0 +1,73 @@
+{
+  "id": "017_zero_payment",
+  "description": "Boundary case: 0 DZD payment. Should be rejected by the entry factory (require amount > 0) — both engines must reject identically.",
+  "category": "boundary",
+  "tags": [
+    "boundary",
+    "zero",
+    "validation"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Test Parent"
+    },
+    "students": [
+      {
+        "id": "stu-001",
+        "parentId": "par-001",
+        "gradeLevel": "1ap",
+        "paymentPlan": "tranches"
+      }
+    ],
+    "ledgerEntries": [
+      {
+        "id": "led-1",
+        "parentId": "par-001",
+        "studentId": "stu-001",
+        "category": "tuition",
+        "amount": 10000000,
+        "type": "charge",
+        "sourceType": "installment",
+        "sourceId": "ins-1",
+        "actorId": "u1",
+        "actorName": "Alice",
+        "at": "2026-01-15T10:00:00Z",
+        "description": "T1"
+      }
+    ],
+    "installments": [
+      {
+        "id": "ins-1",
+        "parentId": "par-001",
+        "studentId": "stu-001",
+        "category": "tuition",
+        "label": "T1",
+        "amountDue": 10000000,
+        "amountPaid": 0,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "status": "unpaid"
+      }
+    ],
+    "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "allocatePayment",
+    "paymentAmount": 0,
+    "category": "tuition",
+    "paymentStatus": "paid",
+    "paymentId": "pay-001"
+  },
+  "then": {
+    "allocations": [],
+    "unallocatedAmount": 0,
+    "totalAllocated": 0,
+    "totalPaid": 0,
+    "totalPending": 0,
+    "totalOutstanding": 10000000,
+    "_comment": "Zero-amount payment: the waterfall allocator returns early with no allocations. No state change. Both engines must agree on this no-op behavior."
+  }
+}

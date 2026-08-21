@@ -1,0 +1,30 @@
+{
+  "id": "011_discount_seniority_5y",
+  "description": "Student enrolled 6+ years before academic year start qualifies for -5% seniority discount.",
+  "category": "discount_engine",
+  "tags": ["discount", "seniority"],
+  "given": {
+    "tenantId": "t1", "parent": {"id": "par-001", "name": "Test Parent"},
+    "students": [], "ledgerEntries": [], "installments": [], "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "evaluateAllSystemDiscounts",
+    "discountParams": {
+      "grossTuition": 33000000,
+      "previousGradeLevel": null,
+      "currentGradeLevel": "1ap",
+      "childIndex": 1,
+      "paymentPlan": "tranches",
+      "paymentDate": "2026-09-15T10:00:00Z",
+      "academicYearStartYear": 2025,
+      "academicYearStart": "2025-09-01T00:00:00Z",
+      "enrollmentDate": "2019-09-01T00:00:00Z",
+      "previousRank": null
+    }
+  },
+  "then": {
+    "discountsApplied": ["seniority_5y"],
+    "totalDiscount": -1650000
+  }
+}

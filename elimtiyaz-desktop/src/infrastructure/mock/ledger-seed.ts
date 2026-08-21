@@ -14,6 +14,20 @@
  * is now derived from the per-destination pricing (`transportByDestination`)
  * using the destination's own 3-tranche schedule. Sibling discounts use the
  * new `sibling_fixed` code (−5 000 DA per additional child).
+ *
+ * TIER 2 R17 (desktop) — fixed the per-tranche double-discount bug.
+ * Previously the sibling discount was applied INSIDE the tranches.forEach
+ * loop, so a 3-tranche student × −5,000 DZD per tranche = −15,000 DZD total
+ * sibling discount, instead of the intended −5,000 DZD. The fix applies
+ * discounts ONCE on the gross annual tuition via the canonical
+ * `evaluateAllSystemDiscounts` engine, then splits the net via
+ * `splitNetTuitionByOfficialSchedule` — exactly what `computeBilling`
+ * does. This closes the desktop-internal inconsistency between the seed
+ * state and the interactive batch-registration flow.
+ *
+ * TIER 2 R24 (desktop) — added a `parent_credit` adjustment entry to
+ * `par-001` so the canonical overpayment flow is exercised in mock mode.
+ * The desktop's `crossCheckParentCredit` reconciler now has data to verify.
  */
 import type { LedgerEntry } from "../../domain/model/ledger";
 import {
@@ -27,9 +41,11 @@ import {
   tuitionTranchesForGrade,
   transportForDestination,
   transportTranchesForDestination,
-  applyDiscount,
+  splitNetTuitionByOfficialSchedule,
+  evaluateAllSystemDiscounts,
+  sumDiscounts,
   type PricingConfig,
-} from "../../domain/model/pricing";
+} from "../../domain/calc/pricing";
 import type { Payment } from "../../domain/model/payment";
 import {
   TENANT_ID,
@@ -87,26 +103,40 @@ export function buildSeedLedger(): LedgerEntry[] {
   // 1. For each parent + student: generate tuition tranches + transport tranches.
   for (const parent of seedParents) {
     const students = seedStudents.filter((s) => s.parentId === parent.id);
-    // Iteration 6: use the sibling_fixed discount (−5 000 DA per additional child).
-    // Applied to all children except the first.
-    const siblingDiscount = students.length > 1
-      ? config.discounts.find((d) => d.discountCode === "sibling_fixed")
-      : null;
 
     for (const student of students) {
       const childIndex = students.findIndex((s) => s.id === student.id);
 
-      // Tuition tranches (3 per student per academic year) — uses the
-      // granular per-grade-level pricing.
-      const tuition = tuitionForGradeLevel(config, student.gradeLevel).annualAmount;
-      const tranches = tuitionTranchesForGrade(config, student.gradeLevel);
+      // === TIER 2 R17 — Single-pass discount evaluation on the GROSS annual ===
+      // Previously the sibling discount was applied INSIDE the tranches.forEach
+      // loop, tripling it for 3-tranche families. Now we evaluate all 5
+      // canonical discount rules ONCE on the gross annual tuition, then split
+      // the net via `splitNetTuitionByOfficialSchedule` — exactly what
+      // `computeBilling` does. Only `sibling_fixed` is wired here because the
+      // seed data doesn't carry `previousGradeLevel` / `previousRank` /
+      // `enrollmentDate` / `paymentPlan` per student; the other 4 rules
+      // correctly return 0 because their preconditions aren't met.
+      const grossTuition = tuitionForGradeLevel(config, student.gradeLevel).annualAmount;
+      const discountEvals = evaluateAllSystemDiscounts({
+        grossTuition,
+        previousGradeLevel: null,           // not tracked in seed data
+        currentGradeLevel: student.gradeLevel,
+        childIndex: childIndex + 1,         // 1-based
+        paymentPlan: "tranches",             // seed students default to tranches
+        paymentDate: daysAgo(60),
+        academicYearStartYear: 2025,
+        academicYearStart: iso(new Date(Date.UTC(2025, 8, 1))),
+        enrollmentDate: daysAgo(365 * 2),   // reasonable for new students
+        previousRank: null,                  // not tracked in seed data
+      });
+      const tuitionDiscount = sumDiscounts(discountEvals); // negative
+      const netTuition = Math.max(0, grossTuition + tuitionDiscount);
 
-      tranches.forEach((tranche, i) => {
-        let amount = tranche.amountDue;
-        // Apply sibling_fixed discount to all children except the first.
-        if (siblingDiscount && siblingDiscount.discountType && childIndex >= 1) {
-          amount = applyDiscount(amount, { amount: siblingDiscount.amount, discountType: siblingDiscount.discountType });
-        }
+      // === Split the net tuition via the canonical 40/30/30 schedule ===
+      // (preserves the `T1 + T2 + T3 === net` invariant — no dinar lost).
+      const trancheSplits = splitNetTuitionByOfficialSchedule(netTuition);
+      const trancheLabels = ["Tranche 1", "Tranche 2", "Tranche 3"];
+      trancheSplits.forEach((amount, i) => {
         const dueDate = trancheDueDates[i];
         entries.push(createChargeEntry({
           tenantId: TENANT_ID,
@@ -116,7 +146,7 @@ export function buildSeedLedger(): LedgerEntry[] {
           amount,
           sourceType: "installment",
           sourceId: `ins-${parent.id}-${student.id}-t${i + 1}`,
-          description: `Scolarité ${ACADEMIC_YEAR} — Tranche ${i + 1} (${student.firstName} ${student.lastName}, ${student.gradeLevel})`,
+          description: `Scolarité ${ACADEMIC_YEAR} — ${trancheLabels[i]} (${student.firstName} ${student.lastName}, ${student.gradeLevel})`,
           actorId: "usr-adm-001",
           actorName: "Brahim Souilah",
           at: daysAgo(60),
@@ -124,10 +154,16 @@ export function buildSeedLedger(): LedgerEntry[] {
             tranche: i + 1,
             gradeLevel: student.gradeLevel,
             level: student.level,
-            baseAmount: tuition,
-            siblingDiscountApplied: siblingDiscount && childIndex >= 1 ? (siblingDiscount.discountCode ?? null) : null,
+            baseAmount: grossTuition,
+            // TIER 2 R17 — record which discounts fired (audit trail).
+            discountsApplied: discountEvals
+              .filter((d) => d.applied)
+              .map((d) => ({ code: d.code, amount: d.amount, reason: d.reason })),
+            netTuition,
+            tuitionDiscount,
           },
         }));
+        void dueDate;
       });
 
       // Transport fee — uses per-destination 3-tranche schedule if the parent
@@ -178,6 +214,7 @@ export function buildSeedLedger(): LedgerEntry[] {
         }
       }
     }
+    void tuitionTranchesForGrade; // (kept for callers; not used in seed)
   }
 
   // 2. For each payment: create a corresponding ledger entry.
@@ -234,6 +271,37 @@ export function buildSeedLedger(): LedgerEntry[] {
     actorName: "Fatima Belkacem (Fin)",
     at: daysAgo(10),
     metadata: { daysLate: 20, ratePerDay: 100 },
+  }));
+
+  // TIER 2 R24 — parent_credit adjustment on par-001.
+  // This exercises the canonical overpayment → parent_credit flow in mock
+  // mode. The entry:
+  //   - category = "parent_credit"
+  //   - studentId = null (parent-scoped, NOT student-scoped)
+  //   - accountId = parent:par-001:category:parent_credit
+  //   - amount = -50000 (credit: school owes parent 50,000 DZD from a
+  //     previous-year overpayment that will auto-absorb on next invoice)
+  //
+  // After this entry, `computeParentSummary` will report
+  // `totalUnallocatedCredit = 50,000 DZD` for par-001, and the desktop's
+  // `crossCheckParentCredit` reconciler will have data to verify.
+  entries.push(createAdjustmentEntry({
+    tenantId: TENANT_ID,
+    parentId: "par-001",
+    studentId: null,
+    category: "parent_credit",
+    amount: -50000, // credit: overpayment from previous year
+    reason: "Trop-perçu année précédente — sera absorbé sur la prochaine facture",
+    sourceType: "adjustment",
+    sourceId: "adj-003",
+    actorId: "usr-fin-001",
+    actorName: "Fatima Belkacem (Fin)",
+    at: daysAgo(5),
+    metadata: {
+      origin: "previous_year_overpayment",
+      autoAbsorb: true,
+      decisionId: "DEC-2024-141",
+    },
   }));
 
   // 4. Assign deterministic IDs.

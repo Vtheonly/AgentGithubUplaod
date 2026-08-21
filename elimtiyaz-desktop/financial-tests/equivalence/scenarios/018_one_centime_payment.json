@@ -1,0 +1,42 @@
+{
+  "id": "018_one_centime_payment",
+  "description": "Boundary case: payment of 1 centime (0.01 DZD). Should be allocated to the oldest tranche; outstanding reduces by exactly 1 centime.",
+  "category": "boundary",
+  "tags": ["boundary", "minimal", "centime"],
+  "given": {
+    "tenantId": "t1",
+    "parent": {"id": "par-001", "name": "Test Parent"},
+    "students": [{"id": "stu-001", "parentId": "par-001", "gradeLevel": "1ap", "paymentPlan": "tranches"}],
+    "ledgerEntries": [
+      {
+        "id": "led-1", "parentId": "par-001", "studentId": "stu-001",
+        "category": "tuition", "amount": 10000000, "type": "charge",
+        "sourceType": "installment", "sourceId": "ins-1",
+        "actorId": "u1", "actorName": "Alice",
+        "at": "2026-01-15T10:00:00Z",
+        "description": "T1"
+      }
+    ],
+    "installments": [
+      {
+        "id": "ins-1", "parentId": "par-001", "studentId": "stu-001",
+        "category": "tuition", "label": "T1",
+        "amountDue": 10000000, "amountPaid": 0, "amountPending": 0,
+        "dueDate": "2026-09-15", "status": "unpaid"
+      }
+    ],
+    "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "allocatePayment",
+    "paymentAmount": 1,
+    "category": "tuition",
+    "paymentStatus": "paid",
+    "paymentId": "pay-001"
+  },
+  "then": {
+    "totalOutstanding": 9999999,
+    "totalPaid": 1
+  }
+}

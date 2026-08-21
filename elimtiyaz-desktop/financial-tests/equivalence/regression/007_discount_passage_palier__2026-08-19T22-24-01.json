@@ -1,0 +1,29 @@
+{
+  "scenarioId": "007_discount_passage_palier",
+  "category": "discount_engine",
+  "operationType": "evaluateAllSystemDiscounts",
+  "discoveredAt": "2026-08-19T22-24-01",
+  "discrepancies": [
+    {
+      "path": "canonical.discountsApplied",
+      "desktopValue": [
+        "passage_palier"
+      ],
+      "androidValue": []
+    },
+    {
+      "path": "canonical.totalDiscount (android)",
+      "desktopValue": -1000000,
+      "androidValue": null,
+      "delta": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 12,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

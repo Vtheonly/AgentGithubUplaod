@@ -89,7 +89,14 @@ import {
 } from "../../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
 import { reconcileLedger } from "../../../domain/calc/reconcile";
-import { crossCheckBalanceSum } from "../../../domain/calc/reconcile/cross-checks";
+import {
+  crossCheckBalanceSum,
+  crossCheckPayments,
+  crossCheckInstallments,
+  crossCheckInstallmentPayments,
+  crossCheckClearedBalance,
+  crossCheckParentCredit,
+} from "../../../domain/calc/reconcile/cross-checks";
 
 // ============================================================================
 // Helpers
@@ -1351,20 +1358,105 @@ export class SupabaseLedgerRepository implements LedgerRepository {
     // (UNBACKED_TRANCHE_SATISFACTION) would not fire even when
     // `markPaid` was setting `status='paid'` without incrementing
     // `amount_paid`.
+    //
+    // TIER 2 (extension of R1.2) — wired the 4 entity-cross-checks by
+    // fetching payments + installments + parent summaries DIRECTLY from
+    // Supabase tables. This avoids the circular dependency between Ledger
+    // ↔ Payment ↔ Installment repositories by querying the tables inline
+    // rather than injecting sibling repositories.
     try {
       await this.seed();
       const ledger = this.cache.get();
-      // The Supabase impl does not currently hold a reference to the
-      // payment/installment repositories, so we run the in-ledger
-      // reconciler + the balance-sum cross-check inline. The 4 entity-cross-
-      // checks (payments, installments, cleared-balance, parent-credit)
-      // require external inputs and will be wired in a follow-up that
-      // injects the sibling repositories into this constructor.
       const report = reconcileLedger(ledger);
       const accountIds = new Set(ledger.map((e) => e.accountId));
       const balances = Array.from(accountIds).map((accId) => computeAccountBalance(ledger, accId));
       const balanceViolations = crossCheckBalanceSum(ledger, balances);
-      const allViolations = [...report.violations, ...balanceViolations];
+
+      // TIER 2 — fetch cross-check inputs directly from Supabase tables.
+      // We use the same column names as the desktop's mapPaymentRow /
+      // mapInstallmentRow helpers so the data shape matches what the
+      // canonical cross-checks expect.
+      const [paymentsRes, installmentsRes, parentsRes] = await Promise.all([
+        this.client.from("payments").select("*"),
+        this.client.from("installments").select("*"),
+        this.client.from("parents").select("*"),
+      ]);
+
+      const paymentRows = (paymentsRes.data ?? []) as unknown as Array<{
+        id: string; amount: number; status: string; receipt_number: string | null;
+        payment_number: string | null; installment_id: string | null;
+      }>;
+      const installmentRows = (installmentsRes.data ?? []) as unknown as Array<{
+        id: string; parent_id: string; student_id: string | null;
+        category: string; amount_due: number; amount_paid: number;
+        label: string | null; tranche_number: number | null; status: string;
+      }>;
+      const parentRows = (parentsRes.data ?? []) as unknown as Array<{
+        id: string; first_name: string; last_name: string; display_name: string | null;
+      }>;
+
+      // Map to the cross-check input shapes.
+      const paymentInputs = paymentRows.map((p) => ({
+        id: p.id,
+        amount: Number(p.amount),
+        status: p.status,
+        receiptNumber: p.receipt_number ?? p.payment_number ?? "",
+      }));
+      const installmentInputs = installmentRows.map((i) => ({
+        id: i.id,
+        parentId: i.parent_id,
+        studentId: i.student_id,
+        category: i.category,
+        amountDue: Number(i.amount_due),
+        amountPaid: Number(i.amount_paid),
+        label: i.label ?? `Tranche ${i.tranche_number ?? 1}`,
+        status: i.status,
+      }));
+      // Build per-parent summaries via the canonical computeParentSummary.
+      const parentSummaries = parentRows.map((p) => {
+        const parentEntries = ledger.filter((e) => e.parentId === p.id);
+        const summary = computeParentSummary(
+          parentEntries,
+          p.id,
+          p.display_name ?? `${p.first_name} ${p.last_name}`.trim() || "—",
+        );
+        return {
+          parentId: p.id,
+          parentName: p.display_name ?? `${p.first_name} ${p.last_name}`.trim() || "—",
+          totalOutstanding: summary.totalOutstanding,
+          accounts: summary.accounts.map((acc) => ({
+            accountId: acc.accountId,
+            category: acc.category,
+            studentId: acc.studentId,
+            balance: acc.balance,
+            unallocatedCredit: acc.unallocatedCredit,
+          })),
+        };
+      });
+      // Build paymentId → installmentId lookup from payment rows.
+      const paymentToInstallmentId = new Map<string, string>();
+      for (const p of paymentRows) {
+        if (p.installment_id) paymentToInstallmentId.set(p.id, p.installment_id);
+      }
+
+      // Run the 4 entity-cross-checks.
+      const paymentViolations = crossCheckPayments(paymentInputs, ledger);
+      const installmentViolations = crossCheckInstallments(installmentInputs, ledger);
+      const installmentPaymentViolations = crossCheckInstallmentPayments(
+        installmentInputs, ledger, paymentToInstallmentId,
+      );
+      const clearedBalanceViolations = crossCheckClearedBalance(paymentInputs, ledger);
+      const parentCreditViolations = crossCheckParentCredit(parentSummaries, ledger);
+
+      const allViolations = [
+        ...report.violations,
+        ...balanceViolations,
+        ...paymentViolations,
+        ...installmentViolations,
+        ...installmentPaymentViolations,
+        ...clearedBalanceViolations,
+        ...parentCreditViolations,
+      ];
       return Ok({
         ...report,
         violations: allViolations,

@@ -1,0 +1,30 @@
+{
+  "id": "009_discount_full_annual_early_payment",
+  "description": "Full-annual payment before June 30 qualifies for -10% discount. Verifies the early-annual rule applies on gross tuition.",
+  "category": "discount_engine",
+  "tags": ["discount", "full_annual", "early_payment"],
+  "given": {
+    "tenantId": "t1", "parent": {"id": "par-001", "name": "Test Parent"},
+    "students": [], "ledgerEntries": [], "installments": [], "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "evaluateAllSystemDiscounts",
+    "discountParams": {
+      "grossTuition": 33000000,
+      "previousGradeLevel": null,
+      "currentGradeLevel": "1ap",
+      "childIndex": 1,
+      "paymentPlan": "full_annual",
+      "paymentDate": "2025-06-15T10:00:00Z",
+      "academicYearStartYear": 2025,
+      "academicYearStart": "2025-09-01T00:00:00Z",
+      "enrollmentDate": "2024-09-01T00:00:00Z",
+      "previousRank": null
+    }
+  },
+  "then": {
+    "discountsApplied": ["full_annual"],
+    "totalDiscount": -3300000
+  }
+}

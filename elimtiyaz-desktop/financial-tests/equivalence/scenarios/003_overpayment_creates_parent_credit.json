@@ -1,0 +1,45 @@
+{
+  "id": "003_overpayment_creates_parent_credit",
+  "description": "Cash payment of 150,000 DZD against a 100,000 DZD tuition charge. The 50,000 DZD overpayment MUST produce a parent_credit adjustment on the parent-scoped parent_credit account (INV-7).",
+  "category": "overpayment",
+  "tags": ["overpayment", "parent_credit", "cash"],
+  "given": {
+    "tenantId": "t1",
+    "parent": {"id": "par-001", "name": "Test Parent"},
+    "students": [{"id": "stu-001", "parentId": "par-001", "gradeLevel": "1ap", "paymentPlan": "tranches"}],
+    "ledgerEntries": [
+      {
+        "id": "led-1", "parentId": "par-001", "studentId": "stu-001",
+        "category": "tuition", "amount": 10000000, "type": "charge",
+        "sourceType": "installment", "sourceId": "ins-1",
+        "actorId": "u1", "actorName": "Alice",
+        "at": "2026-01-15T10:00:00Z",
+        "description": "Tuition tranche 1"
+      }
+    ],
+    "installments": [
+      {
+        "id": "ins-1", "parentId": "par-001", "studentId": "stu-001",
+        "category": "tuition", "label": "Tranche 1",
+        "amountDue": 10000000, "amountPaid": 0, "amountPending": 0,
+        "dueDate": "2026-09-15", "status": "unpaid"
+      }
+    ],
+    "payments": [],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "allocatePayment",
+    "paymentAmount": 15000000,
+    "category": "tuition",
+    "paymentStatus": "paid",
+    "paymentId": "pay-001"
+  },
+  "then": {
+    "totalOutstanding": 0,
+    "totalPaid": 10000000,
+    "totalUnallocatedCredit": -5000000,
+    "unallocatedAmount": 5000000,
+    "totalAllocated": 10000000
+  }
+}
