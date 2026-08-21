@@ -111,7 +111,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // ============================================================================
-  // CANONICAL ENGINE INVOCATION (migration 0034)
+  // CANONICAL ENGINE INVOCATION (migration 0034 + 0035 Tier 3 fix)
   // ============================================================================
   // Previously this edge function called TWO RPCs in sequence:
   //   1. `collect_payment` (0022) — pre-waterfall, single-installment
@@ -124,17 +124,33 @@ Deno.serve(async (req: Request) => {
   //     engine EXACTLY (waterfall + parent_credit + audit in one atomic
   //     transaction, with the originalWasPending branch).
   //
+  // Migration 0035 (Tier 3) additionally:
+  //   - Re-issued the DROPs with the correct argument signatures (0034 had
+  //     signature mismatches that silently left the divergent functions
+  //     callable).
+  //   - Fixed this edge function's `category_filter` → `p_category` mapping
+  //     (previously read `body.category`, which was always undefined, so
+  //     every payment silently defaulted to "tuition").
+  //
   // This edge function now calls ONLY the canonical RPC. Single code path,
   // single set of business rules, atomic transaction.
   // ============================================================================
   const supabase = createServiceRoleClient();
+
+  // TIER 3 FIX: the body interface defines `category_filter` (line 54 above),
+  // but the previous code passed `body.category` (always undefined). The
+  // canonical RPC parameter is `p_category`. When the caller does not specify
+  // a category, we pass `null` so the canonical engine treats it as "all
+  // categories" (no filter) — matching the desktop's mock + Supabase behavior.
+  const categoryFilter = body.category_filter ?? null;
+
   const { data, error } = await supabase.rpc("collect_and_allocate_payment", {
     p_tenant_id: ctx.tenantId,
     p_parent_id: body.parent_id,
     p_student_id: body.student_id ?? null,
     p_amount: body.amount,
     p_method: body.method,
-    p_category: body.category ?? "tuition",
+    p_category: categoryFilter,
     p_installment_id: body.installment_id ?? null,
     p_proof_path: body.proof_path ?? null,
     p_notes: body.notes ?? null,

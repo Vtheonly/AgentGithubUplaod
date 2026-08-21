@@ -976,6 +976,10 @@ export class SupabasePaymentRepository implements PaymentRepository {
     amount: number,
     reason: string,
     approvedBy: string,
+    options?: {
+      category?: PaymentCategory;
+      studentId?: string | null;
+    },
   ): Promise<Result<AccountAdjustment>> {
     // CANONICAL-FINANCIAL-LOGIC.md §4 INV-7 + §4 INV-10 — the Supabase
     // `adjust` workflow MUST write a canonical adjustment ledger entry
@@ -983,19 +987,35 @@ export class SupabasePaymentRepository implements PaymentRepository {
     // than returning Err("not implemented"). Returning Err would silently
     // disable the discretionary adjustment workflow in Supabase mode —
     // exactly the desktop-internal inconsistency Tier 1 R1 closes.
+    //
+    // TIER 3 FIX (R1.5 + studentId bug):
+    //   Previously this method had `const studentId = isCredit ? null : null`
+    //   — both branches returned null, so positive (debit) adjustments like
+    //   late fees were written to a parent-scoped tuition account instead
+    //   of the student-scoped account. This is now fixed: when the caller
+    //   provides a `studentId`, the accountId is student-scoped.
+    //
+    //   The optional `category` parameter (R1.5) lets callers apply a
+    //   positive adjustment to a non-tuition category (e.g. a canteen
+    //   surcharge). When omitted, defaults to `tuition` for debits and
+    //   `parent_credit` for credits.
     try {
       const tenantId = getTenantId();
       const nowIso = new Date().toISOString();
       const adjustmentId = `led-${nowIso}-${Math.random().toString(36).slice(2, 10)}`;
       // Overpayment credits use category=parent_credit + studentId=null + a
       // parent-scoped accountId. Positive adjustments (penalty / late fee)
-      // use category=tuition + the student-scoped accountId of the parent's
-      // primary student — this preserves the canonical "negative balance
-      // implies parent_credit" invariant.
+      // use the caller-specified category (default tuition) + the
+      // caller-specified studentId (default null) — this preserves the
+      // canonical "negative balance implies parent_credit" invariant (INV-3).
       const isCredit = amount < 0;
-      const category: PaymentCategory = isCredit ? "parent_credit" : "tuition";
-      const studentId: string | null = isCredit ? null : null; // caller does not specify student here
-      const accountId = `parent:${parentId}:category:${category}`;
+      const category: PaymentCategory = isCredit
+        ? "parent_credit"
+        : (options?.category ?? "tuition");
+      const studentId: string | null = isCredit ? null : (options?.studentId ?? null);
+      const accountId = studentId
+        ? `parent:${parentId}:category:${category}:student:${studentId}`
+        : `parent:${parentId}:category:${category}`;
       const { error } = await this.client.rpc("upsert_ledger_entry_from_import", {
         p_tenant_id: tenantId,
         p_entry_number: adjustmentId,
@@ -1015,7 +1035,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
         p_actor_id: approvedBy,
         p_actor_name: approvedBy,
         p_at: nowIso,
-        p_metadata: { reason, source: "supabase.adjust" },
+        p_metadata: { reason, source: "supabase.adjust", category, studentId },
       });
       if (error) throw error;
       // Invalidate the ledger cache so the next read picks up the adjustment.

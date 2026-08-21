@@ -347,6 +347,10 @@ export async function adjustAccount(
   amount: number,
   reason: string,
   approvedBy: string,
+  options?: {
+    category?: PaymentCategory;
+    studentId?: string | null;
+  },
 ): Promise<Result<AccountAdjustment>> {
   const { store, appendAudit, nowIso, delay, tenantId } = ctx;
   await delay(200);
@@ -360,17 +364,30 @@ export async function adjustAccount(
     receiptRef: null,
   };
 
-  // Also append an adjustment ledger entry so the parent's balance reflects
-  // the credit/debit. The category is "other" by default — callers wanting
-  // parent_credit semantics should use the dedicated overpayment flow inside
-  // `collectPayment`.
+  // CANONICAL RULES (Tier 3 R1.5 + studentId bug fix):
+  //   - Credit (amount < 0): always written to the parent_credit account
+  //     with studentId = null. This preserves INV-3.
+  //   - Debit (amount > 0): written to the caller-specified category
+  //     (default "tuition") and studentId (default null). When studentId
+  //     is provided, the accountId is student-scoped.
+  //
+  // Before Tier 3, the mock always used category="other" + studentId=null
+  // — divergent from the Supabase implementation which used parent_credit
+  // for credits + tuition for debits. This unifies both modes.
+  const isCredit = amount < 0;
+  const category: PaymentCategory = isCredit
+    ? "parent_credit"
+    : (options?.category ?? "tuition");
+  const studentId: string | null = isCredit ? null : (options?.studentId ?? null);
+  const accountId = deriveAccountId(parentId, category, studentId);
+
   const adjustmentEntry: LedgerEntry = {
     id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
     tenantId,
-    accountId: deriveAccountId(parentId, "other", null),
+    accountId,
     parentId,
-    studentId: null,
-    category: "other",
+    studentId,
+    category,
     amount, // signed: + for debit (penalty), - for credit (waiver)
     type: "adjustment",
     sourceType: "adjustment",
@@ -383,7 +400,7 @@ export async function adjustAccount(
     actorId: approvedBy,
     actorName: "Session courante",
     at: nowIso(),
-    metadata: Object.freeze({ reason, adjustmentId: adj.id }),
+    metadata: Object.freeze({ reason, adjustmentId: adj.id, category, studentId }),
   };
   store.ledger = [...store.ledger, adjustmentEntry];
   store.notifyLedger();
@@ -394,7 +411,7 @@ export async function adjustAccount(
     entityId: adj.id,
     actorId: approvedBy,
     actorName: "Session courante",
-    diff: { before: null, after: { amount, reason, ledgerEntryId: adjustmentEntry.id } },
+    diff: { before: null, after: { amount, reason, ledgerEntryId: adjustmentEntry.id, category, studentId } },
     note: `Ajustement manuel — ${amount > 0 ? "débit" : "crédit"} de ${Math.abs(amount).toLocaleString("fr-FR")} DZD (${reason})`,
   });
   return Ok(adj);

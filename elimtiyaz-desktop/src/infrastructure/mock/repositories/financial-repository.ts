@@ -100,8 +100,17 @@ export class MockPaymentRepository implements PaymentRepository {
   refund(id: string): Promise<Result<Payment>> {
     return refundPayment(ctx, id);
   }
-  adjust(parentId: string, amount: number, reason: string, approvedBy: string): Promise<Result<AccountAdjustment>> {
-    return adjustAccount(ctx, parentId, amount, reason, approvedBy);
+  adjust(
+    parentId: string,
+    amount: number,
+    reason: string,
+    approvedBy: string,
+    options?: {
+      category?: PaymentCategory;
+      studentId?: string | null;
+    },
+  ): Promise<Result<AccountAdjustment>> {
+    return adjustAccount(ctx, parentId, amount, reason, approvedBy, options);
   }
   generateReceipt(paymentId: string, generatedBy: string): Promise<Result<Receipt>> {
     return generateReceiptForPayment(ctx, paymentId, generatedBy);

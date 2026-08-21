@@ -34,6 +34,18 @@ import type {
 import type { AgingBucket } from "../../../domain/model/payment";
 import { agingBucketFromDays } from "../../../domain/calc/payment";
 import { academicLevelFromGradeLevel, type AcademicLevel, type GradeLevel } from "../../../domain/model/student";
+// TIER 3 FIX: import the canonical engine — the Supabase dashboard previously
+// computed outstanding / debt-aging via inline `Σ` calculations that diverged
+// from the mock (which uses `computeParentSummary`). The inline calculation
+// didn't handle reversed-originals correctly (counted them in typed totals),
+// producing different dashboard numbers in Mock vs Supabase mode for the
+// same ledger state.
+import {
+  computeParentSummary,
+  buildOverdueDueDateMap,
+  maxDaysOverdueFromLedger,
+} from "../../../domain/calc/ledger";
+import type { LedgerEntry } from "../../../domain/model/ledger";
 
 // ============================================================================
 // Helpers
@@ -100,6 +112,37 @@ interface DashboardParentRow {
   id: string;
   deleted_at: string | null;
   is_active: boolean | null;
+}
+
+// ============================================================================
+// TIER 3 FIX: Canonical engine adapter
+// ============================================================================
+// Map a raw Supabase ledger_entries row to the canonical `LedgerEntry` domain
+// shape so the canonical `computeParentSummary` engine can consume it. This
+// eliminates the inline `Σ` calculations that previously diverged from the
+// mock repository's canonical engine call.
+function mapLedgerRowToEntry(row: DashboardLedgerRow): LedgerEntry {
+  return {
+    id: row.id,
+    tenantId: "", // not used by computeParentSummary
+    accountId: "", // not used by computeParentSummary (it groups by parent_id)
+    parentId: row.parent_id ?? "",
+    studentId: row.student_id ?? null,
+    category: (row.category ?? "other") as LedgerEntry["category"],
+    amount: Number(row.amount),
+    type: (row.entry_type ?? "adjustment") as LedgerEntry["type"],
+    sourceType: (row.source_type ?? "manual_entry") as LedgerEntry["sourceType"],
+    sourceId: row.source_id ?? null,
+    method: null,
+    receiptNumber: null,
+    paymentStatus: null,
+    reversesId: null,
+    description: null,
+    actorId: null,
+    actorName: null,
+    at: row.at ?? row.entry_date ?? new Date().toISOString(),
+    metadata: Object.freeze({}),
+  };
 }
 
 // ============================================================================
@@ -282,29 +325,33 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       try {
         const { data: ledgerRows, error: ledgerErr } = await this.client
           .from("ledger_entries")
-          .select("id, parent_id, entry_type, amount, category, entry_date")
+          .select("id, parent_id, student_id, entry_type, amount, category, entry_date, at, metadata, source_type, source_id, reverses_id, payment_status, method, receipt_number")
           .eq("tenant_id", tenantId)
           .limit(5000);
         if (ledgerErr) {
           console.warn("[SupabaseDashboard] ledger query failed:", ledgerErr.message);
         } else {
+          // TIER 3 FIX: use the canonical `computeParentSummary` engine
+          // (same function the mock repository uses) instead of the inline
+          // `Σ` calculation. The inline calculation didn't handle
+          // reversed-originals correctly (counted them in typed totals),
+          // producing different outstanding amounts in Mock vs Supabase
+          // mode for the same ledger state.
           const ledger = (ledgerRows ?? []) as unknown as DashboardLedgerRow[];
-          const byParent = new Map<string, DashboardLedgerRow[]>();
-          for (const e of ledger) {
-            if (!e.parent_id) continue;
-            const list = byParent.get(e.parent_id) ?? [];
-            list.push(e);
-            byParent.set(e.parent_id, list);
+          const byParent = new Map<string, LedgerEntry[]>();
+          for (const row of ledger) {
+            if (!row.parent_id) continue;
+            const entry = mapLedgerRowToEntry(row);
+            const list = byParent.get(row.parent_id) ?? [];
+            list.push(entry);
+            byParent.set(row.parent_id, list);
           }
-          for (const [, entries] of byParent) {
-            const totalCharged = entries
-              .filter((e) => Number(e.amount) > 0 && e.entry_type !== "reversal" && e.entry_type !== "refund")
-              .reduce((s, e) => s + Number(e.amount), 0);
-            const totalPaid = entries
-              .filter((e) => Number(e.amount) < 0 && (e.entry_type === "payment" || e.entry_type === "adjustment"))
-              .reduce((s, e) => s + Math.abs(Number(e.amount)), 0);
-            const balance = totalCharged - totalPaid;
-            if (balance > 0.001) outstandingDebt += balance;
+          for (const [parentId, entries] of byParent) {
+            const dueDateMap = buildOverdueDueDateMap(entries);
+            const summary = computeParentSummary(entries, parentId, "", dueDateMap);
+            if (summary.totalOutstanding > 0.001) {
+              outstandingDebt += summary.totalOutstanding;
+            }
           }
         }
       } catch (e) {
@@ -395,7 +442,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const tenantId = getTenantId();
       const { data, error } = await this.client
         .from("ledger_entries")
-        .select("id, parent_id, entry_type, amount, category, entry_date")
+        .select("id, parent_id, student_id, entry_type, amount, category, entry_date, at, metadata, source_type, source_id, reverses_id, payment_status, method, receipt_number")
         .eq("tenant_id", tenantId)
         .limit(5000);
       if (error) {
@@ -406,38 +453,27 @@ export class SupabaseDashboardRepository implements DashboardRepository {
 
       const buckets = this.emptyBuckets();
 
-      const byParent = new Map<string, DashboardLedgerRow[]>();
-      for (const e of ledger) {
-        if (!e.parent_id) continue;
-        const list = byParent.get(e.parent_id) ?? [];
-        list.push(e);
-        byParent.set(e.parent_id, list);
+      // TIER 3 FIX: use the canonical `computeParentSummary` engine instead
+      // of the inline `Σ` calculation. The inline calculation didn't handle
+      // reversed-originals correctly (counted them in typed totals),
+      // producing different debt-aging buckets in Mock vs Supabase mode.
+      const byParent = new Map<string, LedgerEntry[]>();
+      for (const row of ledger) {
+        if (!row.parent_id) continue;
+        const entry = mapLedgerRowToEntry(row);
+        const list = byParent.get(row.parent_id) ?? [];
+        list.push(entry);
+        byParent.set(row.parent_id, list);
       }
 
-      const now = Date.now();
-      for (const [, entries] of byParent) {
-        const totalCharged = entries
-          .filter((e) => Number(e.amount) > 0 && e.entry_type !== "reversal" && e.entry_type !== "refund")
-          .reduce((s, e) => s + Number(e.amount), 0);
-        const totalPaid = entries
-          .filter((e) => Number(e.amount) < 0 && (e.entry_type === "payment" || e.entry_type === "adjustment"))
-          .reduce((s, e) => s + Math.abs(Number(e.amount)), 0);
-        const balance = totalCharged - totalPaid;
-        if (balance <= 0.001) continue;
+      for (const [parentId, entries] of byParent) {
+        const dueDateMap = buildOverdueDueDateMap(entries);
+        const summary = computeParentSummary(entries, parentId, "", dueDateMap);
+        if (summary.totalOutstanding <= 0.001) continue;
 
-        const charges = entries
-          .filter((e) => Number(e.amount) > 0 && e.entry_type !== "reversal" && e.entry_type !== "refund")
-          .sort((a, b) => {
-            const ta = new Date(a.entry_date ?? "").getTime();
-            const tb = new Date(b.entry_date ?? "").getTime();
-            return ta - tb;
-          });
-        if (charges.length === 0) continue;
-        const oldestStr = charges[0].entry_date ?? new Date().toISOString();
-        const oldestMs = new Date(oldestStr).getTime();
-        const daysOverdue = Math.max(0, Math.floor((now - oldestMs) / (86_400_000)));
-        const bucket = agingBucketFromDays(daysOverdue);
-        buckets[bucket].amount += balance;
+        const days = maxDaysOverdueFromLedger(entries);
+        const bucket = agingBucketFromDays(days);
+        buckets[bucket].amount += summary.totalOutstanding;
         buckets[bucket].debtorCount += 1;
       }
 

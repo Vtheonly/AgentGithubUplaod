@@ -174,7 +174,36 @@ export interface PaymentRepository {
    */
   bulkCollect?(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>>;
   refund(id: string): Promise<Result<Payment>>;
-  adjust(parentId: string, amount: number, reason: string, approvedBy: string): Promise<Result<AccountAdjustment>>;
+  /**
+   * Apply a signed adjustment (debit or credit) to a parent's ledger.
+   *
+   * CANONICAL RULES (Tier 3 unification, R1.5):
+   *   - If `amount < 0` (credit): the adjustment is written to the
+   *     `parent_credit` account with `studentId = null` (parent-scoped).
+   *     This preserves INV-3 ("negative balance on non-parent_credit
+   *     account is a reconciler violation").
+   *   - If `amount > 0` (debit, e.g. late fee / penalty): the adjustment
+   *     is written to the caller-specified `category` (default `tuition`)
+   *     and `studentId` (default `null`). When `studentId` is provided,
+   *     the accountId is student-scoped; otherwise it is parent-scoped.
+   *
+   * The optional `category` and `studentId` parameters let callers apply
+   * a positive adjustment to a non-tuition category (e.g. a canteen
+   * surcharge) or to a specific student's account. When omitted, the
+   * canonical defaults apply.
+   *
+   * @returns the created AccountAdjustment record (with `id` for audit trail)
+   */
+  adjust(
+    parentId: string,
+    amount: number,
+    reason: string,
+    approvedBy: string,
+    options?: {
+      category?: PaymentCategory;
+      studentId?: string | null;
+    },
+  ): Promise<Result<AccountAdjustment>>;
   generateReceipt(paymentId: string, generatedBy: string): Promise<Result<Receipt>>;
   /**
    * Append an à-la-carte charge for an additional service (canteen, uniform,
