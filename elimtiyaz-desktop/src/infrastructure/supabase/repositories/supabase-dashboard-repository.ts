@@ -31,8 +31,9 @@ import type {
   DebtByAgingBucket,
   DemographicSlice,
 } from "../../../domain/model/operations";
-import type { AgingBucket } from "../../../domain/model/payment";
-import { agingBucketFromDays } from "../../../domain/calc/payment";
+import type { AgingBucket, Payment, PaymentCategory, PaymentMethod, PaymentStatus } from "../../../domain/model/payment";
+import { agingBucketFromDays, sumPaidPayments } from "../../../domain/calc/payment";
+import { sumOf } from "../../../domain/calc/shared/money";
 import { academicLevelFromGradeLevel, type AcademicLevel, type GradeLevel } from "../../../domain/model/student";
 // TIER 3 FIX: import the canonical engine — the Supabase dashboard previously
 // computed outstanding / debt-aging via inline `Σ` calculations that diverged
@@ -142,6 +143,39 @@ function mapLedgerRowToEntry(row: DashboardLedgerRow): LedgerEntry {
     actorName: null,
     at: row.at ?? row.entry_date ?? new Date().toISOString(),
     metadata: Object.freeze({}),
+  };
+}
+
+// TIER 4 FIX (bypass #3 + #4): Canonical payment adapter.
+// Map a raw Supabase `payments` row to the canonical `Payment` domain shape so
+// the canonical `sumPaidPayments` / `revenueByMonth` functions from
+// `domain/calc/payment` can consume it. This eliminates the inline
+// `filter(paid).reduce(amount)` and per-bucket `+= Number(amount)` sums that
+// previously duplicated the canonical revenue helpers.
+//
+// Only the fields read by the canonical helpers are populated with real data
+// (`id`, `amount`, `status`, `category`, `collectedAt`); the rest are
+// defaulted since the canonical `sumPaidPayments` / `revenueByMonth` only
+// inspect those 5 fields. Mirrors the `mapLedgerRowToEntry` pattern.
+function mapPaymentRowToPayment(row: DashboardPaymentRow): Payment {
+  const collectedAt = row.collected_at ?? new Date(0).toISOString();
+  return {
+    id: row.id,
+    tenantId: "",
+    receiptNumber: "",
+    parentId: "",
+    studentId: null,
+    amount: Number(row.amount),
+    method: "cash" as PaymentMethod,
+    status: (row.status ?? "pending") as PaymentStatus,
+    category: (row.category ?? "other") as PaymentCategory,
+    installmentId: null,
+    proofUrl: null,
+    notes: null,
+    collectedBy: "",
+    collectedAt,
+    createdAt: collectedAt,
+    updatedAt: collectedAt,
   };
 }
 
@@ -305,15 +339,28 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         if (paymentErr) {
           console.warn("[SupabaseDashboard] payments query failed:", paymentErr.message);
         } else {
-          const payments = (paymentRows ?? []) as unknown as DashboardPaymentRow[];
+          const rows = (paymentRows ?? []) as unknown as DashboardPaymentRow[];
           const inRange = (ts: string | null) => {
             if (!ts) return false;
             const t = new Date(ts).getTime();
             return t >= fromMs && t < toMs;
           };
-          monthlyRevenue = payments
-            .filter((p) => inRange(p.collected_at) && p.status === "paid")
-            .reduce((s, p) => s + Number(p.amount), 0);
+          // TIER 4 FIX (bypass #3): delegate the paid-status filter + sum to
+          // the canonical `sumPaidPayments` helper from
+          // `domain/calc/payment/sums.ts` (re-exported via the
+          // `domain/calc/payment` barrel). The previous inline
+          //   `payments.filter(paid + inRange).reduce((s,p) => s + Number(p.amount), 0)`
+          // duplicated the canonical "sum of paid payments" rule. The in-range
+          // date filter is preserved — the canonical `monthlyRevenue(payments)`
+          // helper filters to the *current calendar month* which doesn't match
+          // the academic-year / YTD scoping of `kpisForRange(academicYear, range)`,
+          // so we apply the canonical paid-sum to the in-range subset instead.
+          // Displayed values are unchanged: `sumPaidPayments` filters by
+          // `status === "paid"` and sums `amount` — identical to the bypass.
+          const inRangePayments = rows
+            .filter((p) => inRange(p.collected_at))
+            .map(mapPaymentRowToPayment);
+          monthlyRevenue = sumPaidPayments(inRangePayments);
         }
       } catch (e) {
         console.warn("[SupabaseDashboard] payments query error:", e);
@@ -421,14 +468,42 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         });
         cursor.setMonth(cursor.getMonth() + 1);
       }
-      for (const p of rows) {
-        if (p.status !== "paid") continue;
-        if (!p.collected_at) continue;
-        const d = new Date(p.collected_at);
-        const t = d.getTime();
-        if (t < fromMs || t >= toMs) continue;
-        const bucket = buckets.find((b) => b.year === d.getFullYear() && b.month === d.getMonth());
-        if (bucket) bucket.amount += Number(p.amount);
+      // TIER 4 FIX (bypass #4): delegate the per-bucket paid-payment sum to
+      // the canonical `sumOf` helper from `domain/calc/shared/money` (the
+      // same helper used by `sumPaidPayments` and `monthlyRevenue`
+      // internally). The previous inline loop
+      //   `for (p of rows) if (paid && inRange) bucket.amount += Number(p.amount)`
+      // duplicated the canonical "sum paid payments by month" rule.
+      //
+      // We use `sumOf` (rather than `revenueByMonth` directly) because
+      // `revenueByMonth` always builds a fixed 12-month window ending at
+      // `now`'s month — it doesn't support arbitrary [fromMs, toMs) ranges
+      // like Q1 / semester / month presets that callers pass via
+      // `revenueForRange(year, range)`. We preserve the bypass's bucketing
+      // (which handles arbitrary ranges) but route the per-bucket SUM
+      // through the canonical helper so the aggregation rule ("sum of paid
+      // payments, dropping non-finite values") matches the rest of the
+      // calc engine.
+      const paidInRangePayments: Payment[] = rows
+        .filter((p) => p.status === "paid" && p.collected_at)
+        .map(mapPaymentRowToPayment)
+        .filter((p) => {
+          const t = new Date(p.collectedAt).getTime();
+          return t >= fromMs && t < toMs;
+        });
+      // Group by `${year}-${month}` so each bucket's sum is computed in a
+      // single canonical `sumOf` call.
+      const groupedByMonth = new Map<string, Payment[]>();
+      for (const p of paidInRangePayments) {
+        const d = new Date(p.collectedAt);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        const list = groupedByMonth.get(key) ?? [];
+        list.push(p);
+        groupedByMonth.set(key, list);
+      }
+      for (const bucket of buckets) {
+        const key = `${bucket.year}-${bucket.month}`;
+        bucket.amount = sumOf(groupedByMonth.get(key) ?? [], (p) => p.amount);
       }
       return Ok(buckets.map((b) => ({ label: b.label, amount: b.amount })));
     } catch (e) {

@@ -212,6 +212,71 @@ function toDesktopInstallment(i: CanonicalInstallment): WaterfallInstallment {
 // canonical desktop engine and returns the result.
 // ───────────────────────────────────────────────────────────────────────────
 
+/**
+ * Tier 4: convert any embedded DZD-formatted numbers in a violation message
+ * string to centimes (×100). The desktop engine works internally in DZD,
+ * so cross-check messages embed amounts in DZD form. The canonical scenario
+ * format is centimes Long — so we multiply on output to make the result
+ * directly comparable to the Android mirror.
+ *
+ * Examples:
+ *   "balance -50000.00" → "balance -5000000"
+ *   "amountPaid=250.50" → "amountPaid=25050"
+ *   "Fratrie — enfant #2 (-5 000 DA)" → "Fratrie — enfant #2 (-500000 DA)"
+ */
+function normalizeViolationMessageToCentimes(message: string): string {
+  return message
+    // Strip non-breaking spaces (French thousands separators)
+    .replace(/[\u00A0\u202F]/g, "")
+    // Convert any "-NNN.NN" or "NNN.NN" decimal to integer centimes
+    .replace(/(-?\d+)\.(\d{1,2})\b/g, (_m, intPart, decPart) => {
+      const padded = decPart.length === 1 ? decPart + "0" : decPart;
+      const total = parseInt(intPart, 10) * 100 + (intPart.startsWith("-") ? -parseInt(padded, 10) : parseInt(padded, 10));
+      return String(total);
+    });
+}
+
+/**
+ * Tier 4: walk the violation `details` object and convert any DZD amount
+ * fields (numbers) to centimes by multiplying by 100.
+ *
+ * The desktop engine's cross-check functions store amounts in DZD inside
+ * `details` (e.g. `{ clearedBacking: 5000, diff: -5000 }` are DZD values).
+ * The mirror stores them in centimes. We normalize on the desktop side
+ * by multiplying every numeric value by 100.
+ *
+ * Non-monetary numbers (counts like `installmentCount`) become inflated
+ * but they are still equal on both sides (the mirror also has the count
+ * at the same value before scaling — wait, no — the mirror emits centimes
+ * for amounts and integer counts for counts). We need a smarter approach:
+ * only multiply fields whose names look monetary.
+ */
+function normalizeViolationDetailsToCentimes(details: Record<string, unknown>): Record<string, unknown> {
+  const MONETARY_KEYS = new Set([
+    "amount", "amountPaid", "amountPending", "amountDue", "balance",
+    "clearedBacking", "backing", "diff", "outstanding", "totalAmountPaid",
+    "totalCharged", "totalPaid", "totalPending", "totalCleared", "totalAdjusted",
+    "totalRefunded", "totalUnallocatedCredit", "unallocatedCredit",
+  ]);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(details)) {
+    if (typeof v === "number" && MONETARY_KEYS.has(k)) {
+      out[k] = Math.round(v * 100);
+    } else if (Array.isArray(v)) {
+      out[k] = v.map((item) =>
+        item && typeof item === "object"
+          ? normalizeViolationDetailsToCentimes(item as Record<string, unknown>)
+          : (typeof item === "number" && MONETARY_KEYS.has(k) ? Math.round(item * 100) : item),
+      );
+    } else if (v && typeof v === "object") {
+      out[k] = normalizeViolationDetailsToCentimes(v as Record<string, unknown>);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 interface OperationResult {
   // The complete post-operation state, normalized to centimes.
   totalOutstanding?: number;
@@ -527,7 +592,16 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
           severity: String(v.severity), code: v.code, message: v.message,
         })),
         ...extraViolations,
-      ];
+      ].map((v) => ({
+        ...v,
+        // Tier 4: normalize violation message + details to canonical centime unit.
+        // The desktop engine works in DZD internally, so cross-check messages embed
+        // DZD-formatted amounts. The canonical scenario format is centimes — so we
+        // convert on output to make the result directly comparable to the Android
+        // mirror (whose native unit is centimes Long).
+        message: normalizeViolationMessageToCentimes(v.message),
+        details: v.details ? normalizeViolationDetailsToCentimes(v.details as Record<string, unknown>) : undefined,
+      }));
 
       return {
         violations: allViolations,

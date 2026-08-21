@@ -28,6 +28,11 @@ import {
   ACADEMIC_CYCLE_LABELS_FR,
   type AcademicCycle,
   type Installment,
+  // TIER 4 FIX (bypass #2) — canonical installment sum helpers from
+  // `domain/calc/payment` (re-exported via `domain/model/payment`).
+  sumInstallmentsDue,
+  sumInstallmentsPaid,
+  totalOutstanding,
 } from "../../domain/model/payment";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -114,9 +119,14 @@ export function InstallmentScheduleTab() {
   }, [rows, categoryFilter, statusFilter]);
 
   const totals = useMemo(() => {
-    const totalDue = filtered.reduce((s, i) => s + i.amountDue, 0);
-    const totalPaid = filtered.reduce((s, i) => s + i.amountPaid, 0);
-    const totalRemaining = totalDue - totalPaid;
+    // TIER 4 FIX (bypass #2) — delegate to canonical helpers from
+    // `domain/calc/payment` instead of inline `reduce` over raw rows.
+    // `sumInstallmentsDue` / `sumInstallmentsPaid` are the canonical
+    // sum-of-amountDue / sum-of-amountPaid helpers; `totalOutstanding`
+    // is `clampNonNegative(sumDue - sumPaid)` (canonical remaining).
+    const totalDue = sumInstallmentsDue(filtered);
+    const totalPaid = sumInstallmentsPaid(filtered);
+    const totalRemaining = totalOutstanding(filtered);
     const overdueCount = filtered.filter((i) => i.status === "overdue").length;
     return { totalDue, totalPaid, totalRemaining, overdueCount };
   }, [filtered]);

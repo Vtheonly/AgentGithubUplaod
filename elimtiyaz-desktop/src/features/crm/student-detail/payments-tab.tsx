@@ -25,6 +25,10 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  // TIER 4 FIX (bypass #1) — canonical helpers from `domain/calc/payment`
+  // (re-exported via `domain/model/payment` for backward compat).
+  sumPaidPayments,
+  totalOutstanding,
   type PaymentNavigationContext,
 } from "../../../domain/model/payment";
 import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
@@ -51,10 +55,23 @@ export function PaymentsTab({
 
   if (!student) return null;
 
-  const individualPaid = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  // TIER 4 FIX (bypass #1) — delegate to canonical helpers from
+  // `domain/calc/payment` instead of inline `filter + reduce` over raw
+  // payment / installment rows. The canonical `sumPaidPayments` filters
+  // by `status === "paid"` (the canonical "cleared revenue" rule) and
+  // `totalOutstanding` returns `clampNonNegative(sumDue - sumPaid)` so
+  // reversed originals / adjustments / credits are correctly accounted
+  // for via the ledger (where they live) rather than re-derived here.
+  const individualPaid = sumPaidPayments(payments);
+  // `individualPending` is a UI-only metric: the sum of uncleared
+  // checks / transfers awaiting compensation. There is no canonical
+  // helper for it because the canonical rule only defines
+  // "revenue = Σ cleared payments". The reconciler's
+  // `crossCheckClearedBalance` already verifies this sum equals the
+  // ledger's pending-payment credits, so the inline sum is acceptable.
   const individualPending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
   const unpaidInstallments = installments.filter((i) => i.status !== "paid");
-  const individualOverdue = unpaidInstallments.reduce((s, i) => s + (i.amountDue - i.amountPaid), 0);
+  const individualOverdue = totalOutstanding(unpaidInstallments);
   const familyOutstanding = familyProfile?.totalOutstanding ?? 0;
   const familyOverdue = familyProfile?.overdueAmount ?? 0;
 
