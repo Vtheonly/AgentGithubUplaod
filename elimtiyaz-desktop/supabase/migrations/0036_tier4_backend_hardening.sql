@@ -125,7 +125,7 @@ BEGIN
         RETURN QUERY SELECT v_tenant, v_expired;
     END LOOP;
 END;
-$$;
+$$ SET search_path = public;
 
 COMMENT ON FUNCTION public.expire_pending_approvals() IS
     'Iterates all tenants with pending approvals, expires any older than 30 days. Returns one row per tenant with the expired count. Called by the scheduled expire-pending-approvals Edge Function.';
@@ -152,7 +152,7 @@ BEGIN
     EXECUTE format('REFRESH MATERIALIZED VIEW CONCURRENTLY public.%I', p_name);
     RETURN TRUE;
 END;
-$$;
+$$ SET search_path = public;
 
 COMMENT ON FUNCTION public.refresh_materialized_view(text) IS
     'Refresh a single canonical materialized view by name. Allowed names: mv_dashboard_kpis, mv_debt_aging, mv_top_debtors, mv_revenue_by_month. Used by the refresh-materialized-views Edge Function per-view fallback.';
