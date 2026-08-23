@@ -180,12 +180,20 @@ function stableHash(input: string): string {
  * `(tenant_id, parent_code)` succeeds → idempotent upsert, no duplicates.
  */
 function deterministicParentCode(year: number, input: CreateParentInput): string {
+  // CANONICAL (cross-platform equivalence fix): filter out BOTH null and EMPTY
+  // identity fields (after per-field trim) before joining. Previously empty
+  // strings were joined while Android's listOfNotNull skipped them, so the
+  // same parent produced different parent_codes on each platform — breaking
+  // the idempotent (tenant_id, parent_code) upsert match.
   const identity = [
     input.phone ?? "",
     input.displayName ?? "",
     input.firstName ?? "",
     input.lastName ?? "",
-  ].join("|").trim();
+  ]
+    .map((f) => f.trim())
+    .filter((f) => f.length > 0)
+    .join("|");
   // If we have no identity at all, fall back to random — but this should
   // never happen because the importer always sets at least one field.
   const suffix = identity.length > 0 ? stableHash(identity) : randomParentSuffix();

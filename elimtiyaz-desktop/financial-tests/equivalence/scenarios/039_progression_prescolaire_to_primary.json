@@ -1,0 +1,24 @@
+{
+  "id": "039_progression_prescolaire_to_primary",
+  "description": "prescolaire_2 → 1ap (preschool to primary).",
+  "category": "academic",
+  "tags": [
+    "academic",
+    "promotion"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": []
+  },
+  "when": {
+    "type": "getNextGradeProgression",
+    "gradeLevel": "prescolaire_2"
+  },
+  "then": {
+    "nextGradeCode": "1ap",
+    "nextLevel": "primaire",
+    "nextGradeYear": 1,
+    "nextCycle": "primaire",
+    "isGraduation": false
+  }
+}

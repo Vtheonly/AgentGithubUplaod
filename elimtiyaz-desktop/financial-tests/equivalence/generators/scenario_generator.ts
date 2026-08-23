@@ -77,7 +77,13 @@ function pick<T>(rng: () => number, arr: readonly T[]): T {
 
 function pickAmount(rng: () => number, boundary: boolean): number {
   if (boundary && rng() < 0.3) {
-    return pick(rng, BOUNDARY_AMOUNTS);
+    // CANONICAL STATE VALIDITY: ledger amounts must be non-zero (SQL CHECK
+    // `amount <> 0` + the entry factories' invariants). Zero / negative
+    // ledger amounts are IMPOSSIBLE canonical states — clamp to the smallest
+    // valid magnitude (zero PAYMENT amounts are still generated deliberately
+    // to exercise the amount > 0 operation validation).
+    const raw = pick(rng, BOUNDARY_AMOUNTS);
+    return Math.max(1, Math.abs(raw));
   }
   return pick(rng, NORMAL_AMOUNTS);
 }
@@ -312,7 +318,10 @@ function generateReconcileScenario(rng: () => number, idx: number): GeneratedSce
 
 function generateBoundaryScenario(rng: () => number, idx: number): GeneratedScenario {
   // Test boundary amounts aggressively.
-  const amountDue = pick(rng, BOUNDARY_AMOUNTS);
+  // CANONICAL STATE VALIDITY: a ledger charge amount must be > 0 (SQL CHECK
+  // `amount <> 0` + createChargeEntry invariant) — clamp zero to 1 centime so
+  // the generated INITIAL STATE is seedable on the backend.
+  const amountDue = Math.max(1, pick(rng, BOUNDARY_AMOUNTS));
   const paymentAmount = pick(rng, [
     0, 1, amountDue - 1, amountDue, amountDue + 1, amountDue + 100,
   ]);

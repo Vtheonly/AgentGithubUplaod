@@ -43,6 +43,15 @@ import {
 } from "../../../src/domain/calc/pricing/discount-engine";
 import { reconcileLedger } from "../../../src/domain/calc/reconcile";
 import {
+  computeSubjectAverage,
+  computeOverallGpa,
+} from "../../../src/domain/model/academic";
+import { getNextGradeProgression } from "../../../src/domain/calc/academics/promotion";
+import {
+  stableHash,
+  deterministicParentCode,
+} from "../../equivalence/android_mirror/kotlin_mirror_engine";
+import {
   crossCheckBalanceSum,
   crossCheckPayments,
   crossCheckInstallments,
@@ -118,6 +127,15 @@ interface CanonicalScenario {
     installments?: CanonicalInstallment[];
     payments?: CanonicalPayment[];
     academicYearStartYear?: number;
+    // Academic / CRM extension fields.
+    assessment?: {
+      devoir1: number | null; devoir2: number | null; examen: number | null;
+      subjectAverage?: number | null; coefficient?: number; isExtracurricular?: boolean;
+    };
+    assessments?: Array<{
+      devoir1?: number | null; devoir2?: number | null; examen?: number | null;
+      subjectAverage?: number | null; coefficient?: number; isExtracurricular?: boolean;
+    }>;
   };
   when: {
     type: string;
@@ -369,6 +387,12 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
     }
 
     case "allocatePayment": {
+      // CANONICAL RULE — zero/negative payment amounts are invalid operations
+      // (SQL collect_and_allocate_payment raises; Android collect() validates;
+      // desktop mock now validates too).
+      if (typeof when.paymentAmount === "number" && when.paymentAmount <= 0) {
+        return { error: `Payment amount must be > 0 (got ${when.paymentAmount})` };
+      }
       const installments = (given.installments ?? []).map(toDesktopInstallment);
       const paymentAmount = centimesToDzd(when.paymentAmount as number);
       const category = when.category as string;
@@ -590,6 +614,7 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
       const allViolations = [
         ...report.violations.map((v) => ({
           severity: String(v.severity), code: v.code, message: v.message,
+          details: (v as { details?: unknown }).details,
         })),
         ...extraViolations,
       ].map((v) => ({
@@ -686,6 +711,56 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
         totalCharged: dzdToCentimes(summary.totalCharged),
         totalUnallocatedCredit: dzdToCentimes(summary.totalUnallocatedCredit),
       };
+    }
+
+    // ── Academic / CRM canonical operations (cross-platform spec) ──
+
+    case "computeSubjectAverage": {
+      const a = (when.assessment ?? given.assessment) as { devoir1: number | null; devoir2: number | null; examen: number | null };
+      const avg = computeSubjectAverage(a.devoir1, a.devoir2, a.examen);
+      return {
+        subjectAverage: avg,
+        averageIsNotNull: avg != null,
+      };
+    }
+
+    case "computeOverallGpa": {
+      const list = ((when.assessments ?? given.assessments) ?? []) as Array<{
+        devoir1: number | null; devoir2: number | null; examen: number | null;
+        subjectAverage: number | null; coefficient: number; isExtracurricular?: boolean;
+      }>;
+      const gpa = computeOverallGpa(list);
+      return {
+        gpa,
+        gpaIsNotNull: gpa != null,
+      };
+    }
+
+    case "getNextGradeProgression": {
+      const grade = when.gradeLevel as string;
+      const prog = getNextGradeProgression(grade as never);
+      return {
+        nextGradeCode: prog.nextGradeCode ?? "",
+        nextLevel: prog.nextLevel ?? "",
+        nextGradeYear: prog.nextGradeYear ?? -1,
+        nextCycle: prog.nextCycle ?? "",
+        isGraduation: prog.isGraduation,
+      };
+    }
+
+    case "deterministicParentCode": {
+      const identity = when.identity as {
+        phone?: string | null; displayName?: string | null;
+        firstName?: string | null; lastName?: string | null;
+      };
+      const year = (when.year as number) ?? 2026;
+      const code = deterministicParentCode(year, identity);
+      return { parentCode: code };
+    }
+
+    case "stableHash": {
+      const input = when.hashInput as string;
+      return { hash: stableHash(input) };
     }
 
     default:

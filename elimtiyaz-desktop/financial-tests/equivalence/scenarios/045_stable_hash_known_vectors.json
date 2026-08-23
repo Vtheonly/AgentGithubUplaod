@@ -1,0 +1,21 @@
+{
+  "id": "045_stable_hash_known_vectors",
+  "description": "FNV-1a canonical vectors: hash('') = 811C9D, hash('a') = E40C29 (asserted on both platforms' test suites).",
+  "category": "crm",
+  "tags": [
+    "crm",
+    "identity",
+    "hash"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": []
+  },
+  "when": {
+    "type": "stableHash",
+    "hashInput": "a"
+  },
+  "then": {
+    "hash": "E40C29"
+  }
+}

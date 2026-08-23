@@ -1,0 +1,28 @@
+{
+  "id": "027_subject_average_missing_devoir2_is_null",
+  "description": "REGRESSION (null-coercion fix): with ANY mark missing the average is NOT computable — null. The old desktop/Android rule coerced nulls to 0 ((12+0+2*15)/4 = 10.5), deflating partial assessments; the SQL trigger leaves subject_average NULL. Canonical = null.",
+  "category": "academic",
+  "tags": [
+    "academic",
+    "subject_average",
+    "regression",
+    "null_handling"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": [],
+    "assessment": {
+      "devoir1": 12,
+      "devoir2": null,
+      "examen": 15,
+      "coefficient": 2
+    }
+  },
+  "when": {
+    "type": "computeSubjectAverage"
+  },
+  "then": {
+    "subjectAverage": null,
+    "averageIsNotNull": false
+  }
+}

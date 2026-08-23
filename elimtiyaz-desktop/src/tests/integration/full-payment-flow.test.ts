@@ -25,9 +25,17 @@ function current<T>(obs: { get?(): T }): T {
 
 describe("Integration: Full Payment Flow (mock repository)", () => {
   it("collects a cash payment, runs waterfall, and writes the canonical ledger entry", async () => {
-    const parentId = "par-001";
+    // NOTE: par-001's seed marks ALL THREE tranches fully paid (idx 0 in the
+    // seeder → paid on every tranche), so "pay the remaining" would collect 0
+    // — an INVALID canonical operation (SQL collect_and_allocate_payment
+    // raises on amount <= 0; Android collect() validates; the mock now
+    // validates too). par-002's T3 is the first seed tranche with a remaining
+    // balance — use it so the flow stays meaningful.
+    const parentId = "par-002";
     const beforeInstallments = current<Installment[]>(mockInstallmentRepository.observeByParent(parentId));
-    const target = beforeInstallments[0];
+    const target = beforeInstallments.find(
+      (i) => i.status !== "paid" && i.amountDue - i.amountPaid > 0,
+    );
     expect(target).toBeDefined();
 
     const input: CollectPaymentInput = {

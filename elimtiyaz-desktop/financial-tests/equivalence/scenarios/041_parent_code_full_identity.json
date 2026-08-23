@@ -1,0 +1,27 @@
+{
+  "id": "041_parent_code_full_identity",
+  "description": "Deterministic parent code from a full identity (FNV-1a over phone|displayName|firstName|lastName).",
+  "category": "crm",
+  "tags": [
+    "crm",
+    "identity",
+    "parent_code"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": []
+  },
+  "when": {
+    "type": "deterministicParentCode",
+    "year": 2026,
+    "identity": {
+      "phone": "0550123456",
+      "displayName": "Famille ZIREG",
+      "firstName": "Karim",
+      "lastName": "ZIREG"
+    }
+  },
+  "then": {
+    "parentCode": "PAR-2026-<computed>"
+  }
+}

@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS public.students (
                       CHECK (payment_plan IN ('tranches','full_annual')), -- 0028
   enrollment_date     date NOT NULL DEFAULT current_date,
   enrollment_status   text NOT NULL DEFAULT 'active'
-                      CHECK (enrollment_status IN ('inquiry','quoted','enrolled','active','withdrawn','graduated')),
+                      CHECK (enrollment_status IN ('inquiry','quoted','enrolled','active','suspended','transferred','withdrawn','graduated')) -- 0037 canonical superset,
   medical_notes       text,
   is_active           boolean NOT NULL DEFAULT true,
   auth_user_id        uuid,
@@ -259,7 +259,7 @@ CREATE TABLE IF NOT EXISTS public.installments (
   amount_pending        numeric(12,2) DEFAULT 0 NOT NULL,    -- 0026
   due_date              date,
   paid_date             date,
-  status                text CHECK (status IN ('unpaid','partial','paid','overdue')),
+  status                text CHECK (status IN ('unpaid','partial','paid','overdue','pending','pending_clearance')) -- 0037 canonical 6-value set,
   academic_cycle        text CHECK (academic_cycle IS NULL OR academic_cycle IN ('prescolaire','primaire','cem','lycee')),
   payment_plan          text DEFAULT 'tranches' NOT NULL CHECK (payment_plan IN ('full_annual','tranches')),
   is_custom_schedule    boolean DEFAULT false NOT NULL,

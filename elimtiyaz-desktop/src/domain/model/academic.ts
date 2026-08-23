@@ -200,18 +200,43 @@ export const PROMOTION_DECISION_LABELS_FR: Record<PromotionDecision, string> = {
 
 export const DEFAULT_PASSING_GRADE = 10.0;
 
+/**
+ * Canonical subject average — (D1 + D2 + 2×Ex) / 4.
+ *
+ * CANONICAL RULES (cross-platform equivalence):
+ * 1. The average is only computable when ALL THREE marks are non-null.
+ *    This matches the SQL trigger `compute_grade_subject_average()` (the
+ *    persistence-layer authority). The previous coerce-nulls-to-0 rule
+ *    deflated partial assessments and diverged from the backend.
+ * 2. Rounded to 2 decimals via integer-scaled math — bit-identical to
+ *    PostgreSQL's ROUND(numeric, 2) and the Android engine at .xx5
+ *    boundaries.
+ */
 export function computeSubjectAverage(
   devoir1: number | null,
   devoir2: number | null,
   examen: number | null,
 ): number | null {
-  if (devoir1 == null && devoir2 == null && examen == null) return null;
-  const d1 = devoir1 ?? 0;
-  const d2 = devoir2 ?? 0;
-  const ex = examen ?? 0;
-  return Number(((d1 + d2 + ex * 2) / 4).toFixed(2));
+  if (devoir1 == null || devoir2 == null || examen == null) return null;
+  const d1c = Math.round(devoir1 * 100);
+  const d2c = Math.round(devoir2 * 100);
+  const exc = Math.round(examen * 100);
+  const avgCents = Math.round((d1c + d2c + 2 * exc) / 4);
+  return avgCents / 100;
 }
 
+/**
+ * Canonical coefficient-weighted GPA.
+ *
+ * CANONICAL RULES (cross-platform equivalence):
+ * 1. Extracurricular modules are EXCLUDED (matches SQL
+ *    fn_calculate_student_term_gpa's `s.is_extracurricular = FALSE`).
+ * 2. Assessments without a computable subject average are skipped.
+ * 3. Integer-scaled math (centi-averages × centi-coefficients): products are
+ *    exact integers, and the final division is exact whenever the true
+ *    quotient is k + 0.5 — so Math.round gives decimal half-up,
+ *    bit-identical to PostgreSQL ROUND(numeric, 2) and the Android engine.
+ */
 export function computeOverallGpa(
   assessments: ReadonlyArray<{
     subjectAverage: number | null;
@@ -219,17 +244,19 @@ export function computeOverallGpa(
     isExtracurricular?: boolean;
   }>,
 ): number | null {
-  let weightedSum = 0;
-  let totalCoef = 0;
+  let weightedSumCents = 0; // Σ(avg_cents × coef_cents)
+  let totalCoefCents = 0;
 
   for (const a of assessments) {
     if (a.subjectAverage == null || a.isExtracurricular) continue;
-    weightedSum += a.subjectAverage * a.coefficient;
-    totalCoef += a.coefficient;
+    const avgCents = Math.round(a.subjectAverage * 100);
+    const coefCents = Math.round(a.coefficient * 100);
+    weightedSumCents += avgCents * coefCents;
+    totalCoefCents += coefCents;
   }
 
-  if (totalCoef === 0) return null;
-  return Number((weightedSum / totalCoef).toFixed(2));
+  if (totalCoefCents === 0) return null;
+  return Math.round(weightedSumCents / totalCoefCents) / 100;
 }
 
 export function isPassing(

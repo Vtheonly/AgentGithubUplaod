@@ -782,10 +782,13 @@ export interface ParentCodeInput {
 }
 
 export function deterministicParentCode(year: number, input: ParentCodeInput): string {
+  // CANONICAL: filter null + empty (after per-field trim) — mirrors the
+  // Android IdentityCodes.kt / desktop supabase-shared-repositories.ts fix.
   const identity = [input.phone, input.displayName, input.firstName, input.lastName]
-    .filter((s): s is string => s !== null && s !== undefined && s !== "")
-    .join("|")
-    .trim();
+    .filter((s): s is string => s !== null && s !== undefined)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .join("|");
   let suffix: string;
   if (identity.length > 0) {
     suffix = stableHash(identity);

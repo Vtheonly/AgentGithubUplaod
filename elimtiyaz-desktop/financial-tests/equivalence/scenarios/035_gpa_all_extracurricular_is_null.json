@@ -1,0 +1,28 @@
+{
+  "id": "035_gpa_all_extracurricular_is_null",
+  "description": "GPA is null when every assessment is extracurricular (no academic subjects graded).",
+  "category": "academic",
+  "tags": [
+    "academic",
+    "gpa",
+    "extracurricular"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": [],
+    "assessments": [
+      {
+        "subjectAverage": 18,
+        "coefficient": 2,
+        "isExtracurricular": true
+      }
+    ]
+  },
+  "when": {
+    "type": "computeOverallGpa"
+  },
+  "then": {
+    "gpa": null,
+    "gpaIsNotNull": false
+  }
+}

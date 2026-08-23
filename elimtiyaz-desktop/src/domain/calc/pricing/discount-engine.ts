@@ -40,6 +40,19 @@ export interface EvaluateAllDiscountsParams {
   readonly siblingPerChildAmount?: number;
 }
 
+/** Group thousands with a plain space (fr-FR style, canonical byte-identical
+ *  across desktop / Android / reports). */
+function groupAmountFr(n: number): string {
+  const parts: string[] = [];
+  let rest = Math.floor(Math.abs(n));
+  if (rest === 0) return "0";
+  while (rest > 0) {
+    parts.unshift(String(rest % 1000));
+    rest = Math.floor(rest / 1000);
+  }
+  return parts.join(" ");
+}
+
 export function evaluateAllSystemDiscounts(
   params: EvaluateAllDiscountsParams,
 ): readonly DiscountEvaluation[] {
@@ -55,7 +68,11 @@ export function evaluateAllSystemDiscounts(
   const sibling = evaluateSiblingDiscount(params.childIndex, params.siblingPerChildAmount);
   pushRule(out, {
     code: "sibling_fixed",
-    label: `Fratrie — enfant #${params.childIndex} (−${Math.abs(sibling).toLocaleString("fr-FR")} DA)`,
+    // CANONICAL (cross-platform equivalence): byte-identical label format
+    // on desktop and Android — toLocaleString("fr-FR") emits a narrow
+    // no-break space (U+202F) on Node but a different separator on Android's
+    // JVM. Both platforms now use a plain-space manual grouping.
+    label: `Fratrie — enfant #${params.childIndex} (−${groupAmountFr(Math.abs(sibling))} DA)`,
     amount: sibling, reason: `Enfant ${params.childIndex} de la fratrie`,
   });
 

@@ -21,15 +21,28 @@ describe("Academic GPA & Score Calculations Engine", () => {
       expect(avg).toBe(16.5);
     });
 
-    it("should handle partial null entries gracefully defaulting missing tests to 0", () => {
-      // (12 + 0 + 2*15) / 4 = 42 / 4 = 10.5
-      const avg = computeSubjectAverage(12, null, 15);
-      expect(avg).toBe(10.5);
+    it("should return null when ANY mark is missing (canonical all-3 rule)", () => {
+      // CANONICAL (cross-platform equivalence): the subject average is only
+      // computable when all three marks exist — this matches the SQL trigger
+      // compute_grade_subject_average(), which leaves subject_average NULL
+      // while any mark is missing. The previous coerce-to-0 rule deflated
+      // partial assessments and diverged from the backend + Android.
+      expect(computeSubjectAverage(12, null, 15)).toBeNull();
+      expect(computeSubjectAverage(null, 16, 18)).toBeNull();
+      expect(computeSubjectAverage(14, null, null)).toBeNull();
     });
 
     it("should return null if all test scores are null", () => {
       const avg = computeSubjectAverage(null, null, null);
       expect(avg).toBeNull();
+    });
+
+    it("should round .xx5 boundary values with decimal half-up (SQL parity)", () => {
+      // (12 + 13 + 2*14.75)/4 = 54.5/4 = 13.625 → 13.63 (decimal half-up,
+      // NOT the binary-float 13.62 that toFixed produced).
+      expect(computeSubjectAverage(12, 13, 14.75)).toBe(13.63);
+      // (11 + 13 + 2*14.775)/4 = 53.55/4 = 13.3875 → 13.39
+      expect(computeSubjectAverage(11, 13, 14.775)).toBe(13.39);
     });
   });
 

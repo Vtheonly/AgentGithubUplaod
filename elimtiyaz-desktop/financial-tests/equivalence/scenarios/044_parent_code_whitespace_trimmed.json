@@ -1,0 +1,28 @@
+{
+  "id": "044_parent_code_whitespace_trimmed",
+  "description": "REGRESSION (hash-input alignment fix): each identity field is trimmed before hashing — ' 0550123456 ' hashes identically to '0550123456'.",
+  "category": "crm",
+  "tags": [
+    "crm",
+    "identity",
+    "regression",
+    "parent_code"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": []
+  },
+  "when": {
+    "type": "deterministicParentCode",
+    "year": 2026,
+    "identity": {
+      "phone": " 0550123456 ",
+      "displayName": " Famille ZIREG ",
+      "firstName": "  ",
+      "lastName": null
+    }
+  },
+  "then": {
+    "sameCodeAs": "042_parent_code_null_fields_filtered"
+  }
+}

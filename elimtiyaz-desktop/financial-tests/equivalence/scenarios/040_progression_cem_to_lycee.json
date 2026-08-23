@@ -1,0 +1,24 @@
+{
+  "id": "040_progression_cem_to_lycee",
+  "description": "4am → 1ere_annee (CEM to Lycée cycle transition).",
+  "category": "academic",
+  "tags": [
+    "academic",
+    "promotion"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": []
+  },
+  "when": {
+    "type": "getNextGradeProgression",
+    "gradeLevel": "4am"
+  },
+  "then": {
+    "nextGradeCode": "1ere_annee",
+    "nextLevel": "lycee",
+    "nextGradeYear": 1,
+    "nextCycle": "lycee",
+    "isGraduation": false
+  }
+}

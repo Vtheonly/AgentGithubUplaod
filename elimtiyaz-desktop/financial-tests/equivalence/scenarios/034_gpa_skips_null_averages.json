@@ -1,0 +1,31 @@
+{
+  "id": "034_gpa_skips_null_averages",
+  "description": "Assessments whose average is not computable are skipped entirely (not counted as 0). Here only one subject has an average → GPA = 18.",
+  "category": "academic",
+  "tags": [
+    "academic",
+    "gpa",
+    "null_handling"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": [],
+    "assessments": [
+      {
+        "subjectAverage": null,
+        "coefficient": 4
+      },
+      {
+        "subjectAverage": 18,
+        "coefficient": 2
+      }
+    ]
+  },
+  "when": {
+    "type": "computeOverallGpa"
+  },
+  "then": {
+    "gpa": 18,
+    "gpaIsNotNull": true
+  }
+}

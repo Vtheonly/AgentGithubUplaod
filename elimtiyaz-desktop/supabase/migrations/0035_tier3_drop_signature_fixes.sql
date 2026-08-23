@@ -215,7 +215,14 @@ compute_parent_outstanding, compute_parent_outstanding_v2,
 compute_overdue_amount, get_parent_summary, or run_overdue_scan — they were
 divergent third implementations removed in 0034 + 0035.';
 
-COMMENT ON FUNCTION public.compute_account_balance IS
+-- FRESH-DB FIX: 0007's legacy 1-arg compute_account_balance(p_account_id text)
+-- was never dropped, so the bare COMMENT below failed with
+-- 'function name "public.compute_account_balance" is not unique' on any
+-- database built from scratch. Drop the legacy overload, then comment on the
+-- canonical 2-arg signature explicitly.
+DROP FUNCTION IF EXISTS public.compute_account_balance(p_account_id text);
+
+COMMENT ON FUNCTION public.compute_account_balance(p_account_id text, p_as_of timestamptz) IS
 'Canonical single-account balance replay (migration 0034 + 0035 guard).
 This is the ONLY function that may compute a single account balance.';
 

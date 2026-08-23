@@ -111,6 +111,11 @@ ALTER TABLE public.installments
 -- ============================================================================
 
 DROP TRIGGER IF EXISTS trg_sync_payments_receipt_number ON public.payments;
+-- FRESH-DB FIX: migration 0027 actually named this trigger
+-- `payments_sync_receipt_number` (not `trg_...`). Dropping only the wrong
+-- name left the real trigger in place, so the subsequent DROP FUNCTION
+-- failed on any database built from scratch.
+DROP TRIGGER IF EXISTS payments_sync_receipt_number ON public.payments;
 DROP FUNCTION IF EXISTS public.sync_payments_receipt_number();
 
 CREATE OR REPLACE FUNCTION public.sync_payments_receipt_number()
@@ -158,6 +163,14 @@ DROP FUNCTION IF EXISTS public.update_installment_status();
 --   6. Audit log.
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS collect_and_allocate_payment(
+  uuid, uuid, uuid, numeric, text, text, uuid, text, text, uuid, text
+);
+-- FRESH-DB FIX (bug #12): the function previously had NO way to pass check /
+-- transfer details while the enforce_payment_proof trigger REQUIRES them for
+-- non-cash methods — collecting a check or transfer payment could never
+-- succeed. The three detail params are now part of the signature and are
+-- persisted on the payments row.
 CREATE OR REPLACE FUNCTION collect_and_allocate_payment(
   p_tenant_id UUID,
   p_parent_id UUID,
@@ -169,7 +182,10 @@ CREATE OR REPLACE FUNCTION collect_and_allocate_payment(
   p_proof_path TEXT,
   p_notes TEXT,
   p_actor_id UUID,
-  p_actor_name TEXT
+  p_actor_name TEXT,
+  p_check_number TEXT DEFAULT NULL,
+  p_check_bank_name TEXT DEFAULT NULL,
+  p_transfer_reference TEXT DEFAULT NULL
 ) RETURNS TABLE (
   payment_id UUID,
   receipt_number TEXT,
@@ -207,12 +223,15 @@ BEGIN
   v_status := CASE WHEN p_method = 'cash' THEN 'paid' ELSE 'pending' END;
 
   -- 2. Generate receipt number REC-YYYY-XXXXXX.
+  -- FRESH-DB FIX: `receipt_number` is ALSO an output column of this function's
+  -- RETURNS TABLE — the unqualified reference was ambiguous and raised
+  -- "column reference receipt_number is ambiguous" on EVERY call.
   SELECT COALESCE(MAX(
-    CAST(SUBSTRING(receipt_number FROM '\d{6}$') AS INT)
+    CAST(SUBSTRING(pay.receipt_number FROM '\d{6}$') AS INT)
   ), 0) + 1 INTO v_seq
-  FROM payments
-  WHERE tenant_id = p_tenant_id
-    AND receipt_number LIKE 'REC-' || v_year || '-%';
+  FROM payments pay
+  WHERE pay.tenant_id = p_tenant_id
+    AND pay.receipt_number LIKE 'REC-' || v_year || '-%';
   v_receipt := 'REC-' || v_year || '-' || LPAD(v_seq::TEXT, 6, '0');
 
   -- 3. Insert payment row.
@@ -220,10 +239,12 @@ BEGIN
   INSERT INTO payments (
     id, tenant_id, payment_number, receipt_number, parent_id, student_id, amount,
     method, status, category, installment_id, proof_path, notes,
+    check_number, check_bank_name, transfer_reference,
     collected_by, collected_at, created_at, updated_at
   ) VALUES (
     v_payment_id, p_tenant_id, v_receipt, v_receipt, p_parent_id, p_student_id, p_amount,
     p_method, v_status, p_category, p_installment_id, p_proof_path, p_notes,
+    p_check_number, p_check_bank_name, p_transfer_reference,
     p_actor_id, NOW(), NOW(), NOW()
   );
 
@@ -232,10 +253,13 @@ BEGIN
   IF p_student_id IS NOT NULL THEN
     v_account_id := v_account_id || ':student:' || p_student_id;
   END IF;
+  -- FRESH-DB FIX: the previous INSERT listed a `type` column (the real column
+  -- is `entry_type`), supplied a text `id` for the uuid primary key, and
+  -- omitted the NOT NULL `entry_number` — it failed on EVERY call.
   v_ledger_id := 'led-' || EXTRACT(EPOCH FROM NOW()) || '-' || SUBSTRING(gen_random_uuid()::TEXT, 1, 8);
   INSERT INTO ledger_entries (
-    id, tenant_id, account_id, parent_id, student_id, category, amount,
-    type, source_type, source_id, method, receipt_number, payment_status,
+    entry_number, tenant_id, account_id, parent_id, student_id, category, amount,
+    entry_type, source_type, source_id, method, receipt_number, payment_status,
     reverses_id, description, actor_id, actor_name, at, metadata
   ) VALUES (
     v_ledger_id, p_tenant_id, v_account_id, p_parent_id, p_student_id,
@@ -299,9 +323,11 @@ BEGIN
     -- 5a. Overpayment -> parent_credit adjustment ledger entry (INV-7).
     --     The credit goes on parent:X:category:parent_credit (studentId = NULL).
     IF v_unallocated > 0 THEN
+      -- FRESH-DB FIX: same triple bug as the payment entry INSERT (type
+      -- column, text id into uuid PK, missing NOT NULL entry_number).
       INSERT INTO ledger_entries (
-        id, tenant_id, account_id, parent_id, student_id, category, amount,
-        type, source_type, source_id, method, receipt_number, payment_status,
+        entry_number, tenant_id, account_id, parent_id, student_id, category, amount,
+        entry_type, source_type, source_id, method, receipt_number, payment_status,
         reverses_id, description, actor_id, actor_name, at, metadata
       ) VALUES (
         'led-' || EXTRACT(EPOCH FROM NOW()) || '-' || SUBSTRING(gen_random_uuid()::TEXT, 1, 8),
@@ -309,7 +335,7 @@ BEGIN
         'parent:' || p_parent_id || ':category:parent_credit',
         p_parent_id, NULL, 'parent_credit', -v_unallocated,
         'adjustment', 'adjustment', 'credit-' || v_payment_id::TEXT,
-        NULL, v_receipt, NULL, NULL,
+        NULL, NULL, NULL, NULL,
         'Crédit parent (excédent de paiement reçu ' || v_receipt || ')',
         p_actor_id::TEXT, p_actor_name, NOW(),
         JSONB_BUILD_OBJECT('sourcePaymentId', v_payment_id, 'unallocatedAmount', v_unallocated)
@@ -373,8 +399,10 @@ BEGIN
     id, tenant_id, action, entity_type, entity_id, actor_id, actor_name,
     diff, note, created_at
   ) VALUES (
-    gen_random_uuid(), p_tenant_id, 'payment.collect', 'payment', v_payment_id::TEXT,
-    p_actor_id::TEXT, p_actor_name,
+    -- FRESH-DB FIX: entity_id / actor_id are uuid columns — the previous
+    -- ::TEXT casts made this INSERT fail on EVERY call.
+    gen_random_uuid(), p_tenant_id, 'payment.collect', 'payment', v_payment_id,
+    p_actor_id, p_actor_name,
     JSONB_BUILD_OBJECT(
       'amount', p_amount, 'method', p_method, 'receipt', v_receipt,
       'status', v_status, 'allocations', v_alloc,
@@ -456,7 +484,7 @@ BEGIN
   -- 3. Find original ledger entry + insert reversal.
   SELECT * INTO v_original_ledger
     FROM ledger_entries
-    WHERE source_type = 'payment' AND source_id = p_payment_id::TEXT AND type = 'payment'
+    WHERE source_type = 'payment' AND source_id = p_payment_id::TEXT AND entry_type = 'payment'
     LIMIT 1;
 
   IF FOUND THEN
@@ -464,10 +492,12 @@ BEGIN
     -- was 'pending' (uncleared funds). This is the CRITICAL branch.
     v_original_was_pending := (v_original_ledger.payment_status = 'pending');
 
+    -- FRESH-DB FIX: same triple bug (type column, text id into uuid PK,
+    -- missing NOT NULL entry_number).
     v_reversal_id := 'led-' || EXTRACT(EPOCH FROM NOW()) || '-' || SUBSTRING(gen_random_uuid()::TEXT, 1, 8);
     INSERT INTO ledger_entries (
-      id, tenant_id, account_id, parent_id, student_id, category, amount,
-      type, source_type, source_id, method, receipt_number, payment_status,
+      entry_number, tenant_id, account_id, parent_id, student_id, category, amount,
+      entry_type, source_type, source_id, method, receipt_number, payment_status,
       reverses_id, description, actor_id, actor_name, at, metadata
     ) VALUES (
       v_reversal_id, p_tenant_id, v_original_ledger.account_id,
@@ -476,7 +506,7 @@ BEGIN
       'reversal', 'payment', p_payment_id::TEXT,
       -- Canonical: refund/reversal entries have method=null, paymentStatus=null.
       NULL, v_original_ledger.receipt_number, NULL,
-      v_original_ledger.id,
+      v_original_ledger.id::TEXT,
       'Remboursement ' || v_payment.receipt_number || ' — inversion de l''écriture de paiement',
       p_actor_id::TEXT, p_actor_name, NOW(),
       JSONB_BUILD_OBJECT('refundReason', p_reason, 'originalPaymentId', p_payment_id, 'originalWasPending', v_original_was_pending)
@@ -577,7 +607,7 @@ BEGIN
     id, tenant_id, action, entity_type, entity_id, actor_id, actor_name,
     diff, note, created_at
   ) VALUES (
-    gen_random_uuid(), p_tenant_id, 'payment.refund', 'payment', p_payment_id::TEXT,
+    gen_random_uuid(), p_tenant_id, 'payment.refund', 'payment', p_payment_id,
     p_actor_id::TEXT, p_actor_name,
     JSONB_BUILD_OBJECT(
       'before', JSONB_BUILD_OBJECT('status', v_payment.status),
@@ -652,20 +682,20 @@ DECLARE
 BEGIN
   FOR v_acc IN
     SELECT
-      account_id,
-      category,
-      student_id,
-      SUM(amount) FILTER (WHERE at <= p_as_of) AS balance,
-      SUM(amount) FILTER (WHERE type = 'charge' AND at <= p_as_of AND reverses_id IS NULL) AS charged,
-      SUM(ABS(amount)) FILTER (WHERE type = 'payment' AND at <= p_as_of AND reverses_id IS NULL) AS paid,
-      SUM(amount) FILTER (WHERE type = 'adjustment' AND at <= p_as_of AND reverses_id IS NULL) AS adjusted,
-      SUM(ABS(amount)) FILTER (WHERE type = 'refund' AND at <= p_as_of AND reverses_id IS NULL) AS refunded,
-      SUM(ABS(amount)) FILTER (WHERE type = 'payment' AND payment_status = 'paid' AND at <= p_as_of AND reverses_id IS NULL) AS cleared,
-      SUM(ABS(amount)) FILTER (WHERE type = 'payment' AND payment_status = 'pending' AND at <= p_as_of AND reverses_id IS NULL) AS pending,
-      SUM(amount) FILTER (WHERE type = 'adjustment' AND category = 'parent_credit' AND at <= p_as_of AND reverses_id IS NULL) AS unallocated_credit
-    FROM ledger_entries
-    WHERE parent_id = p_parent_id
-    GROUP BY account_id, category, student_id
+      le.account_id,
+      le.category,
+      le.student_id,
+      SUM(le.amount) FILTER (WHERE le.at <= p_as_of) AS balance,
+      COALESCE(SUM(le.amount) FILTER (WHERE le.entry_type = 'charge' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0) AS charged,
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'payment' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0) AS paid,
+      COALESCE(SUM(le.amount) FILTER (WHERE le.entry_type = 'adjustment' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0) AS adjusted,
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'refund' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0) AS refunded,
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'payment' AND le.payment_status = 'paid' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0) AS cleared,
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'payment' AND le.payment_status = 'pending' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0) AS pending,
+      COALESCE(SUM(le.amount) FILTER (WHERE le.entry_type = 'adjustment' AND le.category = 'parent_credit' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0) AS unallocated_credit
+    FROM ledger_entries le
+    WHERE le.parent_id = p_parent_id
+    GROUP BY le.account_id, le.category, le.student_id
   LOOP
     v_account_count := v_account_count + 1;
 
@@ -673,7 +703,7 @@ BEGIN
     SELECT MAX(le.at) INTO v_latest_charge_due_date
       FROM ledger_entries le
       WHERE le.account_id = v_acc.account_id
-        AND le.type = 'charge'
+        AND le.entry_type = 'charge'
         AND le.at <= p_as_of
         AND le.reverses_id IS NULL;
 
@@ -681,10 +711,10 @@ BEGIN
     -- (via source_id JOIN to installments). If not found, fall back to entry's at.
     SELECT ins.due_date::TIMESTAMPTZ INTO v_latest_charge_due_date
       FROM installments ins
-      WHERE ins.id = (
+      WHERE ins.id::text = (
         SELECT le.source_id FROM ledger_entries le
         WHERE le.account_id = v_acc.account_id
-          AND le.type = 'charge'
+          AND le.entry_type = 'charge'
           AND le.at <= p_as_of
           AND le.reverses_id IS NULL
         ORDER BY le.at DESC LIMIT 1
@@ -765,16 +795,23 @@ BEGIN
   RETURN QUERY
     SELECT
       p_account_id,
-      SUM(amount) FILTER (WHERE at <= p_as_of),
-      SUM(amount) FILTER (WHERE type = 'charge' AND at <= p_as_of AND reverses_id IS NULL),
-      SUM(ABS(amount)) FILTER (WHERE type = 'payment' AND at <= p_as_of AND reverses_id IS NULL),
-      SUM(amount) FILTER (WHERE type = 'adjustment' AND at <= p_as_of AND reverses_id IS NULL),
-      SUM(ABS(amount)) FILTER (WHERE type = 'refund' AND at <= p_as_of AND reverses_id IS NULL),
-      SUM(ABS(amount)) FILTER (WHERE type = 'payment' AND payment_status = 'paid' AND at <= p_as_of AND reverses_id IS NULL),
-      SUM(ABS(amount)) FILTER (WHERE type = 'payment' AND payment_status = 'pending' AND at <= p_as_of AND reverses_id IS NULL),
-      SUM(amount) FILTER (WHERE type = 'adjustment' AND category = 'parent_credit' AND at <= p_as_of AND reverses_id IS NULL)
-    FROM ledger_entries
-    WHERE account_id = p_account_id;
+      COALESCE(SUM(le.amount) FILTER (WHERE le.at <= p_as_of), 0),
+      -- CANONICAL REVERSAL SEMANTICS: an entry is excluded from TYPED totals
+      -- when another entry's reverses_id points at it (matches the desktop's
+      -- reversedIds set). The previous `reverses_id IS NULL` filter kept the
+      -- reversed ORIGINAL in the totals while excluding the reversal rows —
+      -- inflating total_paid for every refunded payment.
+      COALESCE(SUM(le.amount) FILTER (WHERE le.entry_type = 'charge' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0),
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'payment' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0),
+      COALESCE(SUM(le.amount) FILTER (WHERE le.entry_type = 'adjustment' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0),
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'refund' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0),
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'payment' AND le.payment_status = 'paid' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0),
+      COALESCE(SUM(ABS(le.amount)) FILTER (WHERE le.entry_type = 'payment' AND le.payment_status = 'pending' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0),
+      COALESCE(SUM(le.amount) FILTER (WHERE le.entry_type = 'adjustment' AND le.category = 'parent_credit' AND le.at <= p_as_of AND NOT EXISTS (SELECT 1 FROM ledger_entries rev WHERE rev.tenant_id = le.tenant_id AND (rev.reverses_id = le.id::text OR rev.reverses_id = le.entry_number))), 0)
+    -- FRESH-DB FIX: `account_id` is an output column of the RETURNS TABLE —
+    -- qualify with the table alias to avoid the ambiguity error.
+    FROM ledger_entries le
+    WHERE le.account_id = p_account_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -832,6 +869,10 @@ LEFT JOIN payments pay ON pay.tenant_id = t.id
 GROUP BY t.id;
 
 -- 9b. mv_debt_aging — canonical aging using compute_parent_summary
+-- FRESH-DB FIX: 0021's mv_top_debtors depends on mv_debt_aging — it must be
+-- dropped first or this DROP fails with "cannot drop ... because other
+-- objects depend on it" on any database built from scratch.
+DROP MATERIALIZED VIEW IF EXISTS public.mv_top_debtors;
 DROP MATERIALIZED VIEW IF EXISTS public.mv_debt_aging;
 CREATE MATERIALIZED VIEW public.mv_debt_aging AS
 SELECT
@@ -894,7 +935,6 @@ SELECT
   -- entry cancels it. To compute NET revenue, join to ledger_entries.
   COUNT(*) FILTER (WHERE status = 'paid') AS payment_count
 FROM payments
-WHERE deleted_at IS NULL
 GROUP BY tenant_id, DATE_TRUNC('month', collected_at);
 
 -- 9e. vw_revenue_by_category — canonical (excludes refunds via ledger join)
@@ -910,15 +950,17 @@ SELECT
     - COALESCE((
         SELECT SUM(ABS(le.amount))
         FROM ledger_entries le
-        WHERE le.type = 'refund'
+        WHERE le.entry_type = 'refund'
           AND le.reverses_id IS NULL
           AND le.parent_id = pay.parent_id
           AND le.category = COALESCE(pay.category, 'other')
       ), 0) AS net_revenue,
   COUNT(*) FILTER (WHERE pay.status = 'paid') AS payment_count
 FROM payments pay
-WHERE pay.deleted_at IS NULL
-GROUP BY pay.tenant_id, COALESCE(pay.category, 'other'), DATE_TRUNC('month', pay.collected_at), pay.parent_id;
+-- FRESH-DB FIX: the payments table has no deleted_at column; group by the
+-- RAW category (the correlated refund subquery references pay.category,
+-- which cannot be matched against the COALESCE grouping expression).
+GROUP BY pay.tenant_id, pay.category, DATE_TRUNC('month', pay.collected_at), pay.parent_id;
 
 -- ============================================================================
 -- STEP 10: Verification — confirm all divergent functions are gone.

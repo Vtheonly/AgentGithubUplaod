@@ -291,6 +291,31 @@ begin
        and a.term = v_term
        and a.kind = 'examen';
 
+    -- BUG FIX (TIER 4): the lookups above only see rows ALREADY IN THE TABLE.
+    -- When the completing mark (e.g. the examen) is being INSERTED, its own
+    -- lookup returned NULL and the average was never computed — the compute
+    -- path could only fire on a subsequent UPDATE. NEW's own score is now
+    -- substituted for its kind so the average is set on the completing row.
+    if new.assessment_id in (
+        select id from public.assessments
+         where term = v_term and kind = 'devoir_1'
+           and class_subject_id = v_class_subject_id
+    ) then
+        v_d1 := new.score;
+    elsif new.assessment_id in (
+        select id from public.assessments
+         where term = v_term and kind = 'devoir_2'
+           and class_subject_id = v_class_subject_id
+    ) then
+        v_d2 := new.score;
+    elsif new.assessment_id in (
+        select id from public.assessments
+         where term = v_term and kind = 'examen'
+           and class_subject_id = v_class_subject_id
+    ) then
+        v_ex := new.score;
+    end if;
+
     if v_d1 is not null and v_d2 is not null and v_ex is not null then
         new.subject_average := round(((v_d1 + v_d2 + 2 * v_ex) / 4.0)::numeric, 2);
     end if;

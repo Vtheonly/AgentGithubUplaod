@@ -54,6 +54,16 @@ export async function collectPayment(
 ): Promise<Result<Payment>> {
   const { store, appendAudit, nowIso, delay, tenantId } = ctx;
   await delay(250);
+  // TIER 4 FIX — canonical input validation (matches the Android collect()
+  // guard AND the SQL collect_and_allocate_payment RPC / enforce_payment_proof
+  // trigger). The desktop mock previously accepted zero/negative amounts and
+  // proof-less check payments while both other implementations rejected them.
+  if (input.amount <= 0) {
+    return Err(Errors.validation("Payment amount must be > 0"));
+  }
+  if (input.method !== "cash" && !input.proofPath) {
+    return Err(Errors.validation(`Proof is required for ${input.method} payments`));
+  }
   const year = new Date().getFullYear();
   const seq = store.payments.length + 1;
   const status: PaymentStatus = input.method === "cash" ? "paid" : "pending";

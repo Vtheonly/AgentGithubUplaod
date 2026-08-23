@@ -705,7 +705,7 @@ returns table(entity_type text, entity_id uuid, label text, sublabel text, score
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, extensions -- pg_trgm's similarity() lives in `extensions`
 as $$
     -- Parents
     select 'parent'::text, p.id,
@@ -736,7 +736,7 @@ as $$
      where per.tenant_id = p_tenant_id
        and per.deleted_at is null
        and (per.last_name || ' ' || per.first_name) % p_query
-    order by score desc
+    order by 5 desc  -- positional: UNION output columns are not aliased, so `score` is unresolvable
     limit p_limit;
 $$;
 
