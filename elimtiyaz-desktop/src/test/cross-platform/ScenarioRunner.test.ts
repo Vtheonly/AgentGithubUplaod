@@ -56,7 +56,7 @@ describe("cross-platform scenario: single_payment_partial", () => {
       actorId: "system",
       actorName: "System",
       description: "Scolarité Tranche 1",
-      at: new Date("2026-09-15T00:00:00Z"),
+      at: "2026-09-15T00:00:00Z",
     });
     const entries: LedgerEntry[] = [charge];
 
@@ -70,22 +70,27 @@ describe("cross-platform scenario: single_payment_partial", () => {
       method: "cash",
       receiptNumber: "REC-2026-000001",
       paymentStatus: "paid",
+      sourceType: "payment",
       sourceId: "pay-001",
       actorId: "usr-001",
       actorName: "Agent comptoir",
       description: "Encaissement REC-2026-000001",
-      at: now,
+      at: now.toISOString(),
     });
     entries.push(paymentEntry);
 
     const waterfallInstallment = {
       id: "ins-001",
+      parentId: "par-001",
+      studentId: "stu-001",
       category: "tuition" as const,
+      label: "Tranche 1",
       amountDue: 10_000_000,
       amountPaid: 0,
       amountPending: 0,
       dueDate: "2026-09-15T00:00:00Z",
-      status: "unpaid",
+      paidDate: null,
+      status: "unpaid" as const,
     };
     const allocation = allocatePaymentToInstallments(
       [waterfallInstallment],
@@ -139,7 +144,7 @@ describe("cross-platform scenario: overpayment_creates_parent_credit", () => {
       actorId: "system",
       actorName: "System",
       description: "Scolarité Tranche 1",
-      at: new Date("2026-09-15T00:00:00Z"),
+      at: "2026-09-15T00:00:00Z",
     });
     const entries: LedgerEntry[] = [charge];
 
@@ -153,22 +158,27 @@ describe("cross-platform scenario: overpayment_creates_parent_credit", () => {
       method: "cash",
       receiptNumber: "REC-2026-000002",
       paymentStatus: "paid",
+      sourceType: "payment",
       sourceId: "pay-002",
       actorId: "usr-001",
       actorName: "Agent comptoir",
       description: "Encaissement REC-2026-000002",
-      at: now,
+      at: now.toISOString(),
     });
     entries.push(paymentEntry);
 
     const waterfallInstallment = {
       id: "ins-001",
+      parentId: "par-001",
+      studentId: "stu-001",
       category: "tuition" as const,
+      label: "Tranche 1",
       amountDue: 10_000_000,
       amountPaid: 0,
       amountPending: 0,
       dueDate: "2026-09-15T00:00:00Z",
-      status: "unpaid",
+      paidDate: null,
+      status: "unpaid" as const,
     };
     const allocation = allocatePaymentToInstallments(
       [waterfallInstallment],
@@ -184,11 +194,12 @@ describe("cross-platform scenario: overpayment_creates_parent_credit", () => {
       studentId: null,
       category: "parent_credit",
       amount: -allocation.unallocatedAmount,
+      sourceType: "adjustment",
       sourceId: "pay-002",
       actorId: "usr-001",
       actorName: "Agent comptoir",
       reason: "Crédit parent (trop-perçu) REC-2026-000002",
-      at: now,
+      at: now.toISOString(),
     });
     entries.push(creditEntry);
 
@@ -231,7 +242,7 @@ describe("cross-platform scenario: pending_check_payment", () => {
       actorId: "system",
       actorName: "System",
       description: "Scolarité Tranche 1",
-      at: new Date("2026-09-15T00:00:00Z"),
+      at: "2026-09-15T00:00:00Z",
     });
     const entries: LedgerEntry[] = [charge];
 
@@ -244,11 +255,12 @@ describe("cross-platform scenario: pending_check_payment", () => {
       method: "check",
       receiptNumber: "REC-2026-000003",
       paymentStatus: "pending",
+      sourceType: "payment",
       sourceId: "pay-003",
       actorId: "usr-001",
       actorName: "Agent comptoir",
       description: "Chèque REC-2026-000003",
-      at: now,
+      at: now.toISOString(),
     });
     entries.push(paymentEntry);
 
@@ -260,12 +272,16 @@ describe("cross-platform scenario: pending_check_payment", () => {
 
     const waterfallInstallment = {
       id: "ins-001",
+      parentId: "par-001",
+      studentId: "stu-001",
       category: "tuition" as const,
+      label: "Tranche 1",
       amountDue: 10_000_000,
       amountPaid: 0,
       amountPending: 0,
       dueDate: "2026-09-15T00:00:00Z",
-      status: "unpaid",
+      paidDate: null,
+      status: "unpaid" as const,
     };
     const allocation = allocatePaymentToInstallments(
       [waterfallInstallment],
@@ -297,7 +313,7 @@ describe("cross-platform scenario: refund_cleared_payment", () => {
       actorId: "system",
       actorName: "System",
       description: "Scolarité Tranche 1",
-      at: new Date("2026-09-15T00:00:00Z"),
+      at: "2026-09-15T00:00:00Z",
     });
     const payment = createPaymentEntry({
       tenantId: TENANT,
@@ -308,11 +324,12 @@ describe("cross-platform scenario: refund_cleared_payment", () => {
       method: "cash",
       receiptNumber: "REC-2026-000001",
       paymentStatus: "paid",
+      sourceType: "payment",
       sourceId: "pay-001",
       actorId: "usr-001",
       actorName: "Agent comptoir",
       description: "Encaissement REC-2026-000001",
-      at: new Date("2026-09-20T00:00:00Z"),
+      at: "2026-09-20T00:00:00Z",
     });
     const entries: LedgerEntry[] = [charge, payment];
 
@@ -320,18 +337,22 @@ describe("cross-platform scenario: refund_cleared_payment", () => {
       reason: "Annulation — erreur de saisie",
       actorId: "usr-001",
       actorName: "Agent comptoir",
-      at: now,
+      at: now.toISOString(),
     });
     entries.push(reversal);
 
     const waterfallInstallment = {
       id: "ins-001",
+      parentId: "par-001",
+      studentId: "stu-001",
       category: "tuition" as const,
+      label: "Tranche 1",
       amountDue: 10_000_000,
       amountPaid: 10_000_000,
       amountPending: 0,
       dueDate: "2026-09-15T00:00:00Z",
-      status: "paid",
+      paidDate: "2026-09-20T00:00:00Z",
+      status: "paid" as const,
     };
     const revert = revertPaymentAllocation(
       [waterfallInstallment],
@@ -370,7 +391,7 @@ describe("cross-platform scenario: refund_pending_payment (R5 fix)", () => {
       actorId: "system",
       actorName: "System",
       description: "Scolarité Tranche 1",
-      at: new Date("2026-09-15T00:00:00Z"),
+      at: "2026-09-15T00:00:00Z",
     });
     const payment = createPaymentEntry({
       tenantId: TENANT,
@@ -381,11 +402,12 @@ describe("cross-platform scenario: refund_pending_payment (R5 fix)", () => {
       method: "check",
       receiptNumber: "REC-2026-000001",
       paymentStatus: "pending",  // UNCLEARED
+      sourceType: "payment",
       sourceId: "pay-001",
       actorId: "usr-001",
       actorName: "Agent comptoir",
       description: "Chèque REC-2026-000001",
-      at: new Date("2026-09-20T00:00:00Z"),
+      at: "2026-09-20T00:00:00Z",
     });
     const entries: LedgerEntry[] = [charge, payment];
 
@@ -393,18 +415,22 @@ describe("cross-platform scenario: refund_pending_payment (R5 fix)", () => {
       reason: "Chèque sans provision",
       actorId: "usr-001",
       actorName: "Agent comptoir",
-      at: now,
+      at: now.toISOString(),
     });
     entries.push(reversal);
 
     const waterfallInstallment = {
       id: "ins-001",
+      parentId: "par-001",
+      studentId: "stu-001",
       category: "tuition" as const,
+      label: "Tranche 1",
       amountDue: 10_000_000,
       amountPaid: 0,
       amountPending: 10_000_000,
       dueDate: "2026-09-15T00:00:00Z",
-      status: "pending_clearance",
+      paidDate: null,
+      status: "pending_clearance" as const,
     };
     // CRITICAL: originalWasPending = true because payment was PENDING.
     const revert = revertPaymentAllocation(

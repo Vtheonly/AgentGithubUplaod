@@ -7,7 +7,9 @@ import {
 import {
   gradeLevelFromLevelYear,
   type GradeLevel,
+  type AcademicLevel,
 } from "../../domain/model/student";
+import type { AcademicHistoryEntry } from "../../domain/model/academic";
 import {
   cityTierToDestination,
   type TransportDestination,
@@ -363,9 +365,44 @@ export const seedStudents = [
   transportTier: s.level === "primaire" ? "t1" : null,
   status: "active" as const,
   paymentPlan: "tranches" as const,
+  // Seed one academic-history entry for the previous year so the student
+  // drawer's "Historique académique" card shows realistic data out of the
+  // box (previously it was always empty — nothing ever wrote history).
+  academicHistory: seedHistoryFor(s),
   createdAt: daysAgo(120),
   updatedAt: daysAgo(2),
 }));
+
+/**
+ * Deterministic previous-year history for seed students.
+ * Students in their first year (gradeYear 1) start with no history.
+ */
+function seedHistoryFor(s: {
+  id: string;
+  level: AcademicLevel;
+  gradeYear: number;
+}): AcademicHistoryEntry[] {
+  if (s.gradeYear < 2) return [];
+  const prevYearNum = s.gradeYear - 1;
+  const seedGpa = 11 + (Number(s.id.replace(/\D/g, "")) % 8); // deterministic 11..18
+  return [
+    {
+      studentId: s.id,
+      academicYear: "2024-2025",
+      cycle: s.level === "primaire" ? "primaire" : s.level,
+      level: s.level,
+      gradeCode: gradeLevelFor(s.level, prevYearNum),
+      gradeYear: prevYearNum,
+      classId: null,
+      className: null,
+      gpa: seedGpa,
+      rank: null,
+      decision: "promoted",
+      narrative: null,
+      recordedAt: daysAgo(400),
+    },
+  ];
+}
 
 // Multiple independent classes across grade levels, with custom names & notes
 export const seedClasses = [

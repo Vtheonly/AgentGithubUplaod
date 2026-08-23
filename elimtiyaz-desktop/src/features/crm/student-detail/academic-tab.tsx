@@ -34,10 +34,13 @@ export function AcademicTab({ studentId }: { studentId: string }) {
   const [downloading, setDownloading] = useState(false);
   const assessments = useObservable(() => repos.grades.observeForStudent(studentId), [studentId]);
 
-  // Academic history is append-only and lives on the student entity itself
-  // (plan §04.07). For mock layer, we read it from the student object.
+  // FIX (academic history): `academicHistory` is now a real (optional) field
+  // on the Student model, appended by the batch-promotion flow — the previous
+  // `as unknown as` cast read a field that never existed, so the card was
+  // always empty. Also derive a lightweight equivalent view from stored
+  // assessments so the tab shows meaningful data before the first promotion.
   const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
-  const history = (student as unknown as { academicHistory?: AcademicHistoryEntry[] })?.academicHistory ?? [];
+  const history = student?.academicHistory ?? [];
 
   const termAssessments = assessments.filter((a) => a.term === term);
 

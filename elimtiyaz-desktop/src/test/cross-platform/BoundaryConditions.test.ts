@@ -69,7 +69,7 @@ function balanceFor(chargeAmount: number, paymentAmount: number | null = null): 
 describe("Boundary: zero values", () => {
   test("zero-payment waterfall allocates nothing", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 0, "tuition", "paid");
     expect(result.allocations).toHaveLength(0);
@@ -111,7 +111,7 @@ describe("Boundary: one centime (0.01 DZD)", () => {
 
   test("1-centime overpayment creates 1-centime unallocatedAmount", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 1, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 1, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 2, "tuition", "paid");
     // 1 centime allocated, 1 centime unallocated
@@ -159,7 +159,7 @@ describe("Boundary: one centime (0.01 DZD)", () => {
 describe("Boundary: exact match (payment == amount due)", () => {
   test("exact payment produces zero balance and 'paid' status", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 5_000_000, "tuition", "paid");
     expect(result.allocations[0].allocatedAmount).toBe(5_000_000);
@@ -170,7 +170,7 @@ describe("Boundary: exact match (payment == amount due)", () => {
 
   test("1-centime under-payment produces 'partial' status", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 4_999_999, "tuition", "paid");
     expect(result.allocations[0].newAmountPaid).toBe(4_999_999);
@@ -179,7 +179,7 @@ describe("Boundary: exact match (payment == amount due)", () => {
 
   test("1-centime over-payment produces 'paid' status + 1-centime unallocated", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 5_000_001, "tuition", "paid");
     expect(result.allocations[0].newStatus).toBe("paid");
@@ -213,7 +213,7 @@ describe("Boundary: large values", () => {
 describe("Boundary: refund edge cases", () => {
   test("refund of 0 produces no reverts", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "paid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: "2026-09-16T00:00:00Z", status: "paid" as const },
     ];
     const result = revertPaymentAllocation(installments, 0, "tuition", false);
     expect(result.reverts).toHaveLength(0);
@@ -222,7 +222,7 @@ describe("Boundary: refund edge cases", () => {
 
   test("refund of 1 centime produces 1-centime revert", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "paid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: "2026-09-16T00:00:00Z", status: "paid" as const },
     ];
     const result = revertPaymentAllocation(installments, 1, "tuition", false);
     expect(result.reverts).toHaveLength(1);
@@ -232,7 +232,7 @@ describe("Boundary: refund edge cases", () => {
 
   test("refund exceeding amountPaid only reverts what's available", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 3_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "partial" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 3_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "partial" as const },
     ];
     // Try to refund 10M but only 3M is available
     const result = revertPaymentAllocation(installments, 10_000_000, "tuition", false);
@@ -253,7 +253,7 @@ describe("Boundary: waterfall edge cases", () => {
 
   test("waterfall with fully-paid installments allocates nothing", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "paid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: "2026-09-16T00:00:00Z", status: "paid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 5_000_000, "tuition", "paid");
     expect(result.allocations).toHaveLength(0);
@@ -262,7 +262,7 @@ describe("Boundary: waterfall edge cases", () => {
 
   test("waterfall with category mismatch allocates nothing", () => {
     const installments = [
-      { id: "ins-1", category: "transport" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "transport" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 5_000_000, "tuition", "paid");
     expect(result.allocations).toHaveLength(0);
@@ -271,9 +271,9 @@ describe("Boundary: waterfall edge cases", () => {
 
   test("waterfall across multiple installments with exact total", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 3_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
-      { id: "ins-2", category: "tuition" as const, amountDue: 3_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-12-15T00:00:00Z", status: "unpaid" as const },
-      { id: "ins-3", category: "tuition" as const, amountDue: 3_000_000, amountPaid: 0, amountPending: 0, dueDate: "2027-03-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 3_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
+      { id: "ins-2", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 2", amountDue: 3_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-12-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
+      { id: "ins-3", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 3", amountDue: 3_000_000, amountPaid: 0, amountPending: 0, dueDate: "2027-03-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 9_000_000, "tuition", "paid");
     expect(result.allocations).toHaveLength(3);

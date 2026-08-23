@@ -34,12 +34,14 @@ import {
 import {
   computeAccountBalance as computeAccountBalanceDesktop,
   computeParentSummary as computeParentSummaryDesktop,
-  deriveAccountId as deriveAccountIdDesktop,
-  allocatePaymentToInstallments as allocateDesktop,
-  revertPaymentAllocation as revertDesktop,
+} from "../../domain/calc/ledger/balance";
+import { deriveAccountId as deriveAccountIdDesktop } from "../../domain/calc/ledger/account-id";
+import { allocatePaymentToInstallments as allocateDesktop } from "../../domain/calc/payment/waterfall-allocator";
+import { revertPaymentAllocation as revertDesktop } from "../../domain/calc/payment/lifo-reversal";
+import {
   evaluateAllSystemDiscounts as evaluateDiscountsDesktop,
   sumDiscounts as sumDiscountsDesktop,
-} from "../../domain/calc/ledger/balance";
+} from "../../domain/calc/pricing/discount-engine";
 import { splitNetTuitionByOfficialSchedule as splitDesktop } from "../../domain/calc/pricing/tuition";
 import { evaluateAllSystemDiscounts as evaluateDiscountsDesktopAlt } from "../../domain/calc/pricing/discount-engine";
 
@@ -84,12 +86,12 @@ describe("INV-1: Balance is computed, never stored", () => {
   it("desktop engine: same input produces same centime-level balance", () => {
     const entries = [
       { id: "l1", tenantId: "t1", accountId: "parent:par-1:category:tuition", parentId: "par-1",
-        studentId: null, category: "tuition", amount: 100000, type: "charge" as const,
+        studentId: null, category: "tuition" as const, amount: 100000, type: "charge" as const,
         sourceType: "installment" as const, sourceId: "i1", method: null, receiptNumber: null,
         paymentStatus: null, reversesId: null, description: "test",
         actorId: "u1", actorName: "Alice", at: "2026-01-15T10:00:00Z", metadata: {} },
       { id: "l2", tenantId: "t1", accountId: "parent:par-1:category:tuition", parentId: "par-1",
-        studentId: null, category: "tuition", amount: -30000, type: "payment" as const,
+        studentId: null, category: "tuition" as const, amount: -30000, type: "payment" as const,
         sourceType: "payment" as const, sourceId: "p1", method: "cash" as const, receiptNumber: "R1",
         paymentStatus: "paid" as const, reversesId: null, description: "test",
         actorId: "u1", actorName: "Alice", at: "2026-02-15T10:00:00Z", metadata: {} },
@@ -307,12 +309,12 @@ describe("Cross-platform invariant: desktop == mirror at centime precision", () 
     // Desktop: amounts in DZD (1/100 of centimes)
     const desktopEntries = [
       { id: "l1", tenantId: "t1", accountId: "parent:par-1:category:tuition", parentId: "par-1",
-        studentId: null, category: "tuition", amount: 100000, type: "charge" as const,
+        studentId: null, category: "tuition" as const, amount: 100000, type: "charge" as const,
         sourceType: "installment" as const, sourceId: "i1", method: null, receiptNumber: null,
         paymentStatus: null, reversesId: null, description: "test",
         actorId: "u1", actorName: "Alice", at: "2026-01-15T10:00:00Z", metadata: {} },
       { id: "l2", tenantId: "t1", accountId: "parent:par-1:category:tuition", parentId: "par-1",
-        studentId: null, category: "tuition", amount: -25000, type: "payment" as const,
+        studentId: null, category: "tuition" as const, amount: -25000, type: "payment" as const,
         sourceType: "payment" as const, sourceId: "p1", method: "cash" as const, receiptNumber: "R1",
         paymentStatus: "paid" as const, reversesId: null, description: "test",
         actorId: "u1", actorName: "Alice", at: "2026-02-15T10:00:00Z", metadata: {} },

@@ -187,8 +187,16 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * the bulk methods. Called once at the end of the import (in
    * `commitTransaction`). This is the key optimization that turns
    * 18,000 individual RPC calls into ~3 bulk INSERT calls.
+   *
+   * FIX (silent data loss): bulk flush failures were previously swallowed
+   * with `console.warn` and the import still reported SUCCESS — financial
+   * data (ledger entries / payments / installments) could silently vanish.
+   * Since the pipeline is documented as atomic ("BEGIN…COMMIT — tout réussit
+   * ou tout échoue"), a flush failure now FAILS the import with a clear
+   * message so the user knows nothing was silently dropped.
    */
   private async flushPendingBatches(): Promise<void> {
+    const failures: string[] = [];
     // Flush ledger entries.
     if (this.pendingLedgerEntries.length > 0 && this.deps.ledger) {
       try {
@@ -198,7 +206,9 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           await this.deps.ledger.appendMany(this.pendingLedgerEntries);
         }
       } catch (e) {
-        console.warn("[ExcelImport] bulk ledger flush failed:", e);
+        failures.push(
+          `écritures du journal (${this.pendingLedgerEntries.length}): ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
       this.pendingLedgerEntries = [];
     }
@@ -213,7 +223,9 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           }
         }
       } catch (e) {
-        console.warn("[ExcelImport] bulk payment flush failed:", e);
+        failures.push(
+          `paiements (${this.pendingPayments.length}): ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
       this.pendingPayments = [];
     }
@@ -228,9 +240,17 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           }
         }
       } catch (e) {
-        console.warn("[ExcelImport] bulk installment flush failed:", e);
+        failures.push(
+          `tranches (${this.pendingInstallments.length}): ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
       this.pendingInstallments = [];
+    }
+    if (failures.length > 0) {
+      throw new Error(
+        `Échec de l'écriture en base (flush bulk) — ${failures.join(" ; ")}. ` +
+          "L'import a été annulé : aucune donnée financière n'a été partiellement appliquée en silence.",
+      );
     }
   }
 

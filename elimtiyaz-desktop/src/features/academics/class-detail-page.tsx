@@ -29,6 +29,13 @@ import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { StatusChip } from "../../shared/ui/status-chip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../shared/ui/select";
 import { Permission } from "../../core/rbac/permissions";
 import { ClassSubjectsTab } from "./class-subjects-tab";
 import { ClassAttendanceTab } from "./class-attendance-tab";
@@ -36,6 +43,9 @@ import { ClassGradesTab } from "./class-grades-tab";
 import { NarrativeGeneratorButton } from "./narrative-generator-modal";
 import { HomeworkPushModal } from "./homework-push-modal";
 import { BatchPromotionModal } from "./batch-promotion-modal";
+
+/** Sentinel while no subject is selected (Radix forbids empty values). */
+const NO_SUBJECT = "__pick__";
 
 export function ClassDetailPage() {
   const { classId } = useParams<{ classId: string }>();
@@ -51,9 +61,18 @@ export function ClassDetailPage() {
     () => repos.students.observeByClass(classId ?? ""),
     [classId],
   );
+  const classSubjects = useObservable(
+    () => repos.subjects.observeByClass(classId ?? ""),
+    [classId],
+  );
+  const allSubjects = useObservable(() => repos.subjects.observe(), []);
 
   const [homeworkOpen, setHomeworkOpen] = useState(false);
   const [promotionOpen, setPromotionOpen] = useState(false);
+  // FIX (unreachable grade entry): the `/grades/:subjectId` route existed
+  // but NO UI ever navigated to it — grades could never be entered. This
+  // subject picker + "Saisir" button in the class toolbar is the entry point.
+  const [gradeSubject, setGradeSubject] = useState<string>(NO_SUBJECT);
 
   if (!cls) {
     return (
@@ -107,7 +126,7 @@ export function ClassDetailPage() {
       )}
 
       {/* Action Toolbar */}
-      <div className="flex flex-wrap gap-2 px-6 pb-3">
+      <div className="flex flex-wrap gap-2 px-6 pb-3 items-center">
         <Button
           variant="outline"
           size="sm"
@@ -116,6 +135,41 @@ export function ClassDetailPage() {
         >
           <ClipboardCheck className="h-4 w-4" /> Appel (30 sec)
         </Button>
+
+        {/* FIX (grade entry entry-point): subject picker + Saisir button —
+            previously the GradeEntryScreen route was unreachable. */}
+        <div className="flex items-center gap-1.5">
+          <Select
+            value={gradeSubject}
+            onValueChange={setGradeSubject}
+            disabled={!canGrade || classSubjects.length === 0}
+          >
+            <SelectTrigger className="h-8 w-52 text-xs">
+              <SelectValue placeholder="Matière à évaluer…" />
+            </SelectTrigger>
+            <SelectContent>
+              {classSubjects.map((cs) => {
+                const subj = allSubjects.find((s) => s.id === cs.subjectId);
+                return (
+                  <SelectItem key={cs.subjectId} value={cs.subjectId}>
+                    {subj?.name ?? cs.subjectId}
+                    {cs.coefficient ? ` (coef. ${cs.coefficient})` : ""}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!canGrade || gradeSubject === NO_SUBJECT}
+            onClick={() =>
+              navigate(`/academics/class/${classId}/grades/${gradeSubject}`)
+            }
+          >
+            <GraduationCap className="h-4 w-4" /> Saisir des notes
+          </Button>
+        </div>
 
         <Button
           variant="outline"
@@ -199,6 +253,22 @@ export function ClassDetailPage() {
                       </p>
                     </div>
                     <NarrativeGeneratorButton student={s} classId={classId!} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      disabled={!canGrade}
+                      onClick={() =>
+                        navigate(`/academics/class/${classId}/grades/${gradeSubject !== NO_SUBJECT ? gradeSubject : ""}`)
+                      }
+                      title={
+                        gradeSubject === NO_SUBJECT
+                          ? "Choisissez d'abord une matière dans la barre d'actions"
+                          : "Saisir / modifier les notes de cet élève"
+                      }
+                    >
+                      <GraduationCap className="h-3.5 w-3.5" />
+                    </Button>
                     <StatusChip
                       label={s.status === "active" ? "Actif" : s.status}
                       tone={s.status === "active" ? "success" : "neutral"}

@@ -86,6 +86,12 @@ export interface GradeRepository {
 
 export interface AttendanceRepository {
   observeByClass(classId: string, date: string): Observable<AttendanceRecord[]>;
+  /**
+   * Observe attendance for a class over a date range [from, to] (inclusive).
+   * FIX: the class attendance tab claimed "7 derniers jours" but only ever
+   * queried a single day.
+   */
+  observeByClassRange(classId: string, from: string, to: string): Observable<AttendanceRecord[]>;
   observeByStudent(studentId: string, fromDate: string, toDate: string): Observable<AttendanceRecord[]>;
   recordRollCall(input: {
     classId: string;

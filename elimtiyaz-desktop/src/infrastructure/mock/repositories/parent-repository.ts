@@ -15,7 +15,7 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
 import { randomParentSuffix } from "../../../core/format/id";
-import { SubjectBehavior } from "../subject-behavior";
+import { derived } from "../subject-behavior";
 import type {
   Parent,
   CreateParentInput,
@@ -31,7 +31,9 @@ export class MockParentRepository implements ParentRepository {
   }
 
   observeById(id: string): Observable<Parent | null> {
-    return new SubjectBehavior(store.parents.find((p) => p.id === id) ?? null);
+    // FIX (reactivity): derive from the store stream so the parent drawer
+    // reflects edits made after the drawer was mounted.
+    return derived([store.parents$], () => store.parents.find((p) => p.id === id) ?? null);
   }
 
   async search(query: string): Promise<Result<Parent[]>> {
@@ -48,11 +50,13 @@ export class MockParentRepository implements ParentRepository {
   async createParent(input: CreateParentInput): Promise<Result<Parent>> {
     await delay(200);
     const year = new Date().getFullYear();
+    // FIX (id collisions): max-seq allocation instead of `length + 1`.
+    const seq = nextParentSeq();
     // Iteration 6: derive transportDestination from cityTier if not explicitly provided.
     const transportDestination: TransportDestination | null =
       input.transportDestination ?? cityTierToDestination(input.cityTier) ?? null;
     const parent: Parent = {
-      id: `par-${String(store.parents.length + 1).padStart(3, "0")}`,
+      id: `par-${String(seq).padStart(3, "0")}`,
       tenantId: TENANT_ID,
       code: `PAR-${year}-${randomParentSuffix()}`,
       firstName: input.firstName,
@@ -124,6 +128,19 @@ export class MockParentRepository implements ParentRepository {
     });
     return Ok(undefined);
   }
+}
+
+/**
+ * Max-seq id allocation — avoids reusing ids after deletions.
+ * Scans `par-XXX` ids and returns max(seq) + 1 (min 1).
+ */
+function nextParentSeq(): number {
+  let max = 0;
+  for (const p of store.parents) {
+    const m = /^par-(\d+)$/.exec(p.id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max + 1;
 }
 
 /** Singleton instance — exported for the barrel re-export in `mock-repositories.ts`. */

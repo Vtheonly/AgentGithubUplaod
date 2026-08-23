@@ -33,7 +33,7 @@ import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { Wizard, type WizardStep } from "../../shared/ui/wizard";
-import type { CreateStudentInput } from "../../domain/model/student";
+import type { CreateStudentInput, Student } from "../../domain/model/student";
 import type { CreateParentInput, TransportDestination } from "../../domain/model/parent";
 
 import { Step1 } from "./batch-registration/step1-parent";
@@ -50,15 +50,24 @@ import {
   type Step1Parent,
   type Step2Student,
 } from "./batch-registration/types";
+import type { Parent } from "../../domain/model/parent";
 
 export function BatchRegistrationModal({
   open,
   onOpenChange,
   onSubmitted,
+  presetParent,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onSubmitted?: (parentId: string) => void;
+  /**
+   * FIX (add-child duplication): when provided, children are attached to
+   * THIS existing parent instead of creating a duplicate parent record.
+   * Previously the parent drawer's "Ajouter un enfant" button opened a
+   * blank wizard that always created a NEW parent.
+   */
+  presetParent?: Parent | null;
 }) {
   const repos = useRepositories();
   const toast = useToast();
@@ -84,6 +93,25 @@ export function BatchRegistrationModal({
     }
   }, [open]);
 
+  // FIX (add-child duplication): when re-opening with a preset parent,
+  // prefill step 1 from the existing record so children attach to it.
+  useEffect(() => {
+    if (open && presetParent) {
+      setParent({
+        firstName: presetParent.firstName,
+        lastName: presetParent.lastName,
+        gender: presetParent.gender,
+        phone: presetParent.phone,
+        whatsapp: presetParent.whatsapp ?? "",
+        email: presetParent.email ?? "",
+        occupation: presetParent.occupation ?? "",
+        address: presetParent.address ?? "",
+        transportDestination: presetParent.transportDestination ?? "",
+        preferredLanguage: presetParent.preferredLanguage === "ar" ? "ar" : "fr",
+      });
+    }
+  }, [open, presetParent]);
+
   // === Billing computation (step 3) ===
   // Now delegates to the pure `computeBilling` helper which evaluates all 5
   // official `Prices.md` discounts ONCE on the gross annual tuition, then
@@ -102,9 +130,10 @@ export function BatchRegistrationModal({
 
   // === Step validation (returns a human-readable error string or null) ===
   function validateStep1(): string | null {
+    // FIX: validation copy bug — lastName error said "Prénom requis".
     const e: Record<string, string> = {};
     if (!parent.firstName.trim()) e.parent_firstName = "Prénom requis";
-    if (!parent.lastName.trim()) e.parent_lastName = "Prénom requis";
+    if (!parent.lastName.trim()) e.parent_lastName = "Nom requis";
     if (!parent.phone.trim()) e.parent_phone = "Téléphone requis";
     else if (!PHONE_RE.test(parent.phone)) e.parent_phone = "Format invalide (8-15 chiffres)";
     if (parent.email && !EMAIL_RE.test(parent.email)) e.parent_email = "E-mail invalide";
@@ -133,18 +162,7 @@ export function BatchRegistrationModal({
     if (!session) {
       throw new Error("Session expirée — reconnectez-vous puis réessayez.");
     }
-    const parentInput: CreateParentInput = {
-      firstName: parent.firstName.trim(),
-      lastName: parent.lastName.trim(),
-      gender: parent.gender,
-      phone: parent.phone.trim(),
-      whatsapp: parent.whatsapp.trim() || null,
-      email: parent.email.trim() || null,
-      occupation: parent.occupation.trim() || null,
-      address: parent.address.trim() || null,
-      transportDestination: (parent.transportDestination || null) as TransportDestination | null,
-      preferredLanguage: parent.preferredLanguage,
-    };
+
     const studentInputs: CreateStudentInput[] = students.map((s) => ({
       firstName: s.firstName.trim(),
       lastName: s.lastName.trim(),
@@ -158,9 +176,43 @@ export function BatchRegistrationModal({
       paymentPlan: s.paymentPlan,
     }));
 
+    // FIX (add-child duplication): attach children to the EXISTING parent
+    // when one was provided — do NOT create a duplicate parent record.
+    if (presetParent) {
+      const created: Student[] = [];
+      for (const input of studentInputs) {
+        const r = await repos.students.createStudent(presetParent.id, input);
+        if (!r.ok) throw new Error(r.error.userMessage);
+        created.push(r.value);
+      }
+      toast.showSuccess(
+        "Enfant(s) ajouté(s)",
+        `${created.length} élève(s) rattaché(s) au dossier de ${presetParent.firstName} ${presetParent.lastName}.`,
+      );
+      onSubmitted?.(presetParent.id);
+      return;
+    }
+
+    const parentInput: CreateParentInput = {
+      firstName: parent.firstName.trim(),
+      lastName: parent.lastName.trim(),
+      gender: parent.gender,
+      phone: parent.phone.trim(),
+      whatsapp: parent.whatsapp.trim() || null,
+      email: parent.email.trim() || null,
+      occupation: parent.occupation.trim() || null,
+      address: parent.address.trim() || null,
+      transportDestination: (parent.transportDestination || null) as TransportDestination | null,
+      preferredLanguage: parent.preferredLanguage,
+    };
+
     const result = await repos.students.batchRegister({
       parent: parentInput,
       students: studentInputs,
+      // FIX (billing persistence): forward the step-3 billing configuration
+      // so the repository persists the promised charges + installment schedule.
+      includeRegistration,
+      includeTransport,
     });
 
     if (result.ok) {
@@ -179,8 +231,17 @@ export function BatchRegistrationModal({
     {
       id: "parent",
       label: "Parent",
-      description: "Identité et coordonnées du parent",
-      render: () => <Step1 parent={parent} setParent={setParent} errors={errors} />,
+      description: presetParent
+        ? "Parent existant — les enfants seront rattachés à son dossier"
+        : "Identité et coordonnées du parent",
+      render: () => (
+        <Step1
+          parent={parent}
+          setParent={setParent}
+          errors={errors}
+          lockedParent={presetParent}
+        />
+      ),
       validate: validateStep1,
     },
     {
@@ -224,7 +285,11 @@ export function BatchRegistrationModal({
     <Wizard
       open={open}
       onOpenChange={onOpenChange}
-      title="Inscription groupée (Parent + Élèves)"
+      title={
+        presetParent
+          ? `Ajouter un enfant — ${presetParent.firstName} ${presetParent.lastName}`
+          : "Inscription groupée (Parent + Élèves)"
+      }
       steps={steps}
       onFinish={submit}
       widthClass="max-w-3xl"

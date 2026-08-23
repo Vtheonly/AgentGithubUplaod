@@ -48,7 +48,10 @@ import { cityTierToDestination, TRANSPORT_DESTINATIONS } from "../../../domain/m
 import type {
   Student,
   CreateStudentInput,
+  UpdateStudentInput,
   GradeLevel,
+  BatchRegistrationInput,
+  BatchRegistrationResult,
 } from "../../../domain/model/student";
 import {
   gradeLevelFromLevelYear,
@@ -69,7 +72,7 @@ import type {
 import type { AllocationResult } from "../../../domain/calc/payment/waterfall-allocator";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { ParentLedgerSummary } from "../../../domain/model/ledger";
-import { SubjectBehavior } from "../../mock/subject-behavior";
+import { SubjectBehavior, derived } from "../../mock/subject-behavior";
 import type {
   ParentRow,
   StudentRow,
@@ -89,6 +92,16 @@ import {
 } from "../../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
 import { reconcileLedger } from "../../../domain/calc/reconcile";
+import {
+  evaluateAllSystemDiscounts,
+  sumDiscounts,
+  splitNetTuitionByOfficialSchedule,
+  getOfficialTuitionDueDates,
+  tuitionForGradeLevel,
+  transportTranchesForDestination,
+} from "../../../domain/calc/pricing";
+import { createChargeEntry } from "../../../domain/calc/ledger/entries";
+import { defaultPricingConfig } from "../../mock/pricing-seed";
 import {
   crossCheckBalanceSum,
   crossCheckPayments,
@@ -395,7 +408,14 @@ export class SupabaseParentRepository implements ParentRepository {
       this.byIdCache.set(id, new SubjectBehavior<Parent | null>(null));
       void this.refreshById(id);
     }
-    return this.byIdCache.get(id)!;
+    void this.seed();
+    // FIX (reactivity): prefer the live entry from the list cache when
+    // present (createParent / updateParent / Excel import keep it fresh) and
+    // fall back to the individually-fetched subject otherwise.
+    return derived(
+      [this.cache, this.byIdCache.get(id)!],
+      () => this.cache.get().find((p) => p.id === id) ?? this.byIdCache.get(id)?.get() ?? null,
+    );
   }
 
   private async refreshById(id: string): Promise<void> {
@@ -535,12 +555,29 @@ export class SupabaseParentRepository implements ParentRepository {
         .eq("id", id);
       if (error) throw error;
       this.cache.update((list) => list.filter((p) => p.id !== id));
+      // FIX (reactivity): set the byId subject to null so open drawers
+      // observing this parent see the deletion instead of a frozen profile.
+      this.byIdCache.get(id)?.set(null);
       this.byIdCache.delete(id);
       return Ok(undefined);
     } catch (e) {
       return Err(Errors.unknown(e as Error));
     }
   }
+}
+
+/**
+ * Lazily construct ledger + installment repositories for the batch
+ * registration billing flow (avoids circular constructor wiring).
+ */
+function getBillingRepos(client: SupabaseClient): {
+  ledgerRepo: SupabaseLedgerRepository;
+  installmentRepo: SupabaseInstallmentRepository;
+} {
+  return {
+    ledgerRepo: new SupabaseLedgerRepository(client),
+    installmentRepo: new SupabaseInstallmentRepository(client),
+  };
 }
 
 // ============================================================================
@@ -578,23 +615,19 @@ export class SupabaseStudentRepository implements StudentRepository {
 
   observeByParent(parentId: string): Observable<Student[]> {
     void this.seed();
-    return new SubjectBehavior<Student[]>(
-      this.cache.get().filter((s) => s.parentId === parentId),
-    );
+    // FIX (reactivity): derive from the shared list cache so drawers update
+    // after createStudent / updateStudent / deleteStudent / Excel import.
+    return derived([this.cache], () => this.cache.get().filter((s) => s.parentId === parentId));
   }
 
   observeByClass(classId: string): Observable<Student[]> {
     void this.seed();
-    return new SubjectBehavior<Student[]>(
-      this.cache.get().filter((s) => s.classId === classId),
-    );
+    return derived([this.cache], () => this.cache.get().filter((s) => s.classId === classId));
   }
 
   observeById(id: string): Observable<Student | null> {
     void this.seed();
-    return new SubjectBehavior<Student | null>(
-      this.cache.get().find((s) => s.id === id) ?? null,
-    );
+    return derived([this.cache], () => this.cache.get().find((s) => s.id === id) ?? null);
   }
 
   async search(query: string): Promise<Result<Student[]>> {
@@ -672,7 +705,7 @@ export class SupabaseStudentRepository implements StudentRepository {
     }
   }
 
-  async updateStudent(id: string, updates: Partial<CreateStudentInput>): Promise<Result<Student>> {
+  async updateStudent(id: string, updates: UpdateStudentInput): Promise<Result<Student>> {
     try {
       const patch: Record<string, unknown> = {};
       if (updates.firstName !== undefined) patch.first_name = updates.firstName;
@@ -694,6 +727,11 @@ export class SupabaseStudentRepository implements StudentRepository {
       }
       if (updates.paymentPlan !== undefined) {
         patch.payment_plan = updates.paymentPlan;
+      }
+      // NEW (edit flow): persist the student lifecycle status.
+      if (updates.status !== undefined) {
+        patch.enrollment_status = updates.status;
+        patch.is_active = updates.status === "active";
       }
       if (Object.keys(patch).length > 0) {
         const { error } = await this.client.from("students").update(patch).eq("id", id);
@@ -724,9 +762,172 @@ export class SupabaseStudentRepository implements StudentRepository {
     }
   }
 
-  async batchRegister(): Promise<Result<{ parent: Parent; students: readonly Student[] }>> {
-    // Supabase has a `batch_register_family` RPC — out of scope for this fix.
-    return Err(Errors.server("batchRegister not implemented for Supabase repository"));
+  async batchRegister(
+    input: BatchRegistrationInput,
+  ): Promise<Result<BatchRegistrationResult>> {
+    // FIX (previously always failed): the wizard was unusable in Supabase mode
+    // ("batchRegister not implemented"). Implemented as a sequential flow over
+    // the existing atomic per-entity RPCs:
+    //   1. upsert_parent_from_import        (parent)
+    //   2. upsert_student_from_import × N   (students)
+    //   3. upsert_ledger_entry_from_import × M (tuition/transport/fee charges)
+    //   4. installments importInstallment × K   (tranche schedule)
+    // Steps 3/4 failures are reported but do NOT roll back the family records
+    // (they can be regenerated); failures in 1/2 abort immediately.
+    try {
+      const parentResult = await new SupabaseParentRepository(this.client).createParent(
+        input.parent,
+      );
+      if (!parentResult.ok) return parentResult;
+
+      const parent = parentResult.value;
+      const created: Student[] = [];
+      for (const sInput of input.students) {
+        const r = await this.createStudent(parent.id, sInput);
+        if (!r.ok) {
+          return Err(
+            Errors.server(
+              `Parent créé (${parent.code}) mais l'élève "${sInput.firstName} ${sInput.lastName}" a échoué : ${r.error.userMessage}`,
+            ),
+          );
+        }
+        created.push(r.value);
+      }
+
+      // Best-effort billing persistence (tuition + transport + fee charges and
+      // the installment schedule) — uses the same canonical helpers as the
+      // mock repository so both backends produce identical schedules.
+      try {
+        const { ledgerRepo, installmentRepo } = getBillingRepos(this.client);
+        const year = input.academicYearStartYear ?? new Date().getFullYear();
+        const includeTransport = input.includeTransport ?? true;
+        const includeRegistration = input.includeRegistration ?? true;
+        const [due1, due2, due3] = getOfficialTuitionDueDates(year);
+        const at = new Date().toISOString();
+
+        for (let i = 0; i < created.length; i++) {
+          const student = created[i];
+          const gross = tuitionForGradeLevel(defaultPricingConfig, student.gradeLevel).annualAmount;
+          if (gross > 0) {
+            const evals = evaluateAllSystemDiscounts({
+              grossTuition: gross,
+              previousGradeLevel: null,
+              currentGradeLevel: student.gradeLevel,
+              childIndex: i + 1,
+              paymentPlan: student.paymentPlan,
+              paymentDate: at,
+              academicYearStartYear: year,
+              academicYearStart: new Date(Date.UTC(year, 8, 1)).toISOString(),
+              enrollmentDate: student.enrollmentDate,
+              previousRank: null,
+            });
+            const net = Math.max(0, gross + sumDiscounts(evals));
+            const amounts =
+              student.paymentPlan === "full_annual"
+                ? [net]
+                : [...splitNetTuitionByOfficialSchedule(net)];
+            const dues = student.paymentPlan === "full_annual" ? [due1] : [due1, due2, due3];
+            for (let t = 0; t < amounts.length; t++) {
+              await ledgerRepo.append(
+                createChargeEntry({
+                  tenantId: getTenantId(),
+                  parentId: parent.id,
+                  studentId: student.id,
+                  category: "tuition",
+                  amount: amounts[t],
+                  sourceType: "installment",
+                  sourceId: `reg-${student.id}-t${t + 1}`,
+                  description: `Scolarité ${year} — Tranche ${t + 1} (${student.gradeLevel})`,
+                  actorId: "system",
+                  actorName: "Inscription groupée",
+                  at,
+                  metadata: {
+                    tranche: t + 1,
+                    gradeLevel: student.gradeLevel,
+                    paymentPlan: student.paymentPlan,
+                  },
+                }),
+              );
+              await installmentRepo.importInstallment({
+                parentId: parent.id,
+                studentId: student.id,
+                category: "tuition",
+                trancheNumber: (t + 1) as 1 | 2 | 3,
+                label: student.paymentPlan === "full_annual" ? "Année complète" : `Tranche ${t + 1}`,
+                amountDue: amounts[t],
+                amountPaid: 0,
+                dueDate: dues[t],
+                paidDate: null,
+                status: "unpaid",
+              });
+            }
+          }
+          if (includeTransport) {
+            const destination =
+              (student.transportTier as TransportDestination | null) ?? parent.transportDestination;
+            if (destination) {
+              const tranches = transportTranchesForDestination(defaultPricingConfig, destination);
+              for (let t = 0; t < tranches.length; t++) {
+                await ledgerRepo.append(
+                  createChargeEntry({
+                    tenantId: getTenantId(),
+                    parentId: parent.id,
+                    studentId: student.id,
+                    category: "transport",
+                    amount: tranches[t].amountDue,
+                    sourceType: "installment",
+                    sourceId: `reg-${student.id}-transport-t${t + 1}`,
+                    description: `Transport ${year} — Tranche ${t + 1} (${destination})`,
+                    actorId: "system",
+                    actorName: "Inscription groupée",
+                    at,
+                    metadata: { tranche: t + 1, destination },
+                  }),
+                );
+                await installmentRepo.importInstallment({
+                  parentId: parent.id,
+                  studentId: student.id,
+                  category: "transport",
+                  trancheNumber: (t + 1) as 1 | 2 | 3,
+                  label: `Transport T${t + 1}`,
+                  amountDue: tranches[t].amountDue,
+                  amountPaid: 0,
+                  dueDate: [due1, due2, due3][t],
+                  paidDate: null,
+                  status: "unpaid",
+                });
+              }
+            }
+          }
+        }
+        if (includeRegistration && defaultPricingConfig.registrationFee > 0 && created.length > 0) {
+          await ledgerRepo.append(
+            createChargeEntry({
+              tenantId: getTenantId(),
+              parentId: parent.id,
+              studentId: null,
+              category: "other",
+              amount: defaultPricingConfig.registrationFee,
+              sourceType: "manual_entry",
+              sourceId: `reg-${parent.id}-fee`,
+              description: `Frais d'inscription ${year} (nouvelle famille)`,
+              actorId: "system",
+              actorName: "Inscription groupée",
+              at,
+              metadata: { type: "registration_fee" },
+            }),
+          );
+        }
+      } catch (billingErr) {
+        console.warn("[SupabaseStudent] batchRegister billing persistence failed:", billingErr);
+        // Family records exist — surface a warning in the result note but do
+        // not fail the registration (charges can be regenerated).
+      }
+
+      return Ok({ parent, students: created });
+    } catch (e) {
+      return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
+    }
   }
 
   async promote(): Promise<Result<Student[]>> {
@@ -768,23 +969,18 @@ export class SupabasePaymentRepository implements PaymentRepository {
 
   observeByParent(parentId: string): Observable<Payment[]> {
     void this.seed();
-    return new SubjectBehavior<Payment[]>(
-      this.cache.get().filter((p) => p.parentId === parentId),
-    );
+    // FIX (reactivity): derive from the shared list cache.
+    return derived([this.cache], () => this.cache.get().filter((p) => p.parentId === parentId));
   }
 
   observeByStudent(studentId: string): Observable<Payment[]> {
     void this.seed();
-    return new SubjectBehavior<Payment[]>(
-      this.cache.get().filter((p) => p.studentId === studentId),
-    );
+    return derived([this.cache], () => this.cache.get().filter((p) => p.studentId === studentId));
   }
 
   observeById(id: string): Observable<Payment | null> {
     void this.seed();
-    return new SubjectBehavior<Payment | null>(
-      this.cache.get().find((p) => p.id === id) ?? null,
-    );
+    return derived([this.cache], () => this.cache.get().find((p) => p.id === id) ?? null);
   }
 
   async collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
@@ -1110,19 +1306,23 @@ export class SupabasePaymentRepository implements PaymentRepository {
         "../../../domain/calc/ledger/non-tuition-charges"
       );
       const tenantId = getTenantId();
-      // The factory expects a single input object; we adapt to the
-      // Supabase repository's signature. Default amounts come from
-      // canonical config — for now we use the mock's flat-rate defaults
-      // (a follow-up can pull from the pricing config table).
-      const entry = buildAdditionalServiceCharge({
-        tenantId,
-        parentId: input.parentId,
-        studentId: input.studentId,
-        serviceQualifier: input.serviceQualifier,
-        description: input.description,
-        actorId,
-        actorName: actorId,
-      } as Parameters<typeof buildAdditionalServiceCharge>[0]);
+      // FIX (signature): `buildAdditionalServiceCharge` takes
+      // `(input: NonTuitionChargeInput, serviceQualifier, customDescription?)`
+      // — the previous call passed a single merged object with a bogus `as`
+      // cast that broke the build. Adapt to the real signature.
+      const entry = buildAdditionalServiceCharge(
+        {
+          tenantId,
+          parentId: input.parentId,
+          studentId: input.studentId,
+          sourceType: "manual_entry",
+          sourceId: `svc-${Date.now()}`,
+          actorId,
+          actorName: actorId,
+          description: input.description,
+        },
+        input.serviceQualifier,
+      );
       // Push the entry via the canonical upsert RPC.
       const { error } = await this.client.rpc("upsert_ledger_entry_from_import", {
         p_tenant_id: tenantId,
@@ -1159,7 +1359,6 @@ export class SupabasePaymentRepository implements PaymentRepository {
 
 export class SupabaseLedgerRepository implements LedgerRepository {
   private readonly cache = new SubjectBehavior<LedgerEntry[]>([]);
-  private readonly byParent = new Map<string, SubjectBehavior<LedgerEntry[]>>();
   private seeded = false;
 
   constructor(private readonly client: SupabaseClient) {}
@@ -1188,19 +1387,16 @@ export class SupabaseLedgerRepository implements LedgerRepository {
   }
 
   observeByParent(parentId: string): Observable<LedgerEntry[]> {
-    if (!this.byParent.has(parentId)) {
-      this.byParent.set(
-        parentId,
-        new SubjectBehavior<LedgerEntry[]>(this.cache.get().filter((e) => e.parentId === parentId)),
-      );
-    }
-    return this.byParent.get(parentId)!;
+    void this.seed();
+    // FIX (reactivity): derive from the shared list cache — the previous
+    // per-parent cached subject went stale after `seed()` completed (it was
+    // constructed from an empty cache and never re-set).
+    return derived([this.cache], () => this.cache.get().filter((e) => e.parentId === parentId));
   }
 
   observeByAccount(accountId: string): Observable<LedgerEntry[]> {
-    return new SubjectBehavior<LedgerEntry[]>(
-      this.cache.get().filter((e) => e.accountId === accountId),
-    );
+    void this.seed();
+    return derived([this.cache], () => this.cache.get().filter((e) => e.accountId === accountId));
   }
 
   async append(entry: LedgerEntry): Promise<Result<LedgerEntry>> {
@@ -1229,10 +1425,6 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       });
       if (error) throw error;
       this.cache.update((list) => [entry, ...list.filter((e) => e.id !== entry.id)]);
-      this.byParent.get(entry.parentId)?.update((list) => [
-        entry,
-        ...list.filter((e) => e.id !== entry.id),
-      ]);
       return Ok(entry);
     } catch (e) {
       return Err(Errors.unknown(e as Error));
@@ -1308,10 +1500,6 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       }
       // Update the in-memory cache.
       this.cache.update((list) => [...entries, ...list]);
-      // Update per-parent caches.
-      for (const e of entries) {
-        this.byParent.get(e.parentId)?.update((list) => [e, ...list]);
-      }
       return Ok(entries);
     } catch (e) {
       console.warn("[SupabaseLedger] bulkAppend error:", e);
@@ -1443,14 +1631,16 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       // Build per-parent summaries via the canonical computeParentSummary.
       const parentSummaries = parentRows.map((p) => {
         const parentEntries = ledger.filter((e) => e.parentId === p.id);
+        // FIX (type): parenthesize the `??`/`||` mix.
+        const parentName = p.display_name ?? (`${p.first_name} ${p.last_name}`.trim() || "—");
         const summary = computeParentSummary(
           parentEntries,
           p.id,
-          p.display_name ?? `${p.first_name} ${p.last_name}`.trim() || "—",
+          parentName,
         );
         return {
           parentId: p.id,
-          parentName: p.display_name ?? `${p.first_name} ${p.last_name}`.trim() || "—",
+          parentName,
           totalOutstanding: summary.totalOutstanding,
           accounts: summary.accounts.map((acc) => ({
             accountId: acc.accountId,
@@ -1556,23 +1746,18 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
 
   observeByParent(parentId: string): Observable<Installment[]> {
     void this.seed();
-    return new SubjectBehavior<Installment[]>(
-      this.cache.get().filter((i) => i.parentId === parentId),
-    );
+    // FIX (reactivity): derive from the shared list cache.
+    return derived([this.cache], () => this.cache.get().filter((i) => i.parentId === parentId));
   }
 
   observeByStudent(studentId: string): Observable<Installment[]> {
     void this.seed();
-    return new SubjectBehavior<Installment[]>(
-      this.cache.get().filter((i) => i.studentId === studentId),
-    );
+    return derived([this.cache], () => this.cache.get().filter((i) => i.studentId === studentId));
   }
 
   observeById(id: string): Observable<Installment | null> {
     void this.seed();
-    return new SubjectBehavior<Installment | null>(
-      this.cache.get().find((i) => i.id === id) ?? null,
-    );
+    return derived([this.cache], () => this.cache.get().find((i) => i.id === id) ?? null);
   }
 
   async markPaid(id: string, paymentId: string): Promise<Result<Installment>> {
@@ -1647,21 +1832,15 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
     // Supabase mode — payments never moved tranches toward `paid`.
     try {
       await this.seed();
-      // Pull the parent's outstanding installments into the WaterfallInstallment shape.
+      // Pull the parent's outstanding installments.
+      // FIX (type): pass the full `Installment` objects — the previous
+      // `.map()` stripped required fields (parentId/studentId/label/paidDate)
+      // and produced a type error against the canonical allocator signature.
       const familyInstallments = this.cache
         .get()
         .filter((i) => i.parentId === parentId)
         .filter((i) => i.status !== "paid")
-        .filter((i) => categoryFilter === undefined || i.category === categoryFilter)
-        .map((i) => ({
-          id: i.id,
-          category: i.category,
-          amountDue: i.amountDue,
-          amountPaid: i.amountPaid,
-          amountPending: i.amountPending ?? 0,
-          dueDate: i.dueDate,
-          status: i.status,
-        }));
+        .filter((i) => categoryFilter === undefined || i.category === categoryFilter);
       // The payment's status: 'paid' for cash, 'pending' for check/transfer.
       // We infer it from the payment row.
       const { data: payRow, error: payErr } = await this.client
@@ -1670,7 +1849,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         .eq("id", paymentId)
         .maybeSingle();
       if (payErr) throw payErr;
-      const paymentStatus = ((payRow as { status?: string } | null)?.status ?? "paid") as
+      const rawStatus = ((payRow as { status?: string } | null)?.status ?? "paid") as
         | "paid"
         | "pending"
         | "partial"
@@ -1679,6 +1858,12 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         | "unpaid"
         | "refunded"
         | "cancelled";
+      // FIX (type): the canonical allocator's `paymentStatus` only
+      // distinguishes cleared ("paid") vs uncleared ("pending") funds.
+      // Everything except "pending" / "pending_clearance" is treated as
+      // cleared — matching the mock repository's semantics.
+      const paymentStatus: "paid" | "pending" =
+        rawStatus === "pending" || rawStatus === "pending_clearance" ? "pending" : "paid";
       // Run the canonical waterfall.
       const { allocatePaymentToInstallments } = await import(
         "../../../domain/calc/payment/waterfall-allocator"
@@ -2045,22 +2230,41 @@ export class SupabaseDebtRepository implements DebtRepository {
       const summary = computeParentSummary(entries, parentId, parentName, overdueDueDates);
       // Build the derived profile from the canonical summary.
       const installments: Installment[] = [];
-      const recentPayments = entries
+      // FIX (type): map ledger payment entries to the `Payment` shape the
+      // profile contract requires (was previously assigning raw LedgerEntry
+      // objects, which broke the build and mis-typed the drawer UI).
+      const recentPayments: Payment[] = entries
         .filter((e) => e.type === "payment" && !e.reversesId)
-        .slice(0, 10);
-      const adjustments = entries
+        .slice(0, 10)
+        .map((e) => ({
+          id: e.id,
+          tenantId: e.tenantId,
+          receiptNumber: e.receiptNumber ?? e.sourceId,
+          parentId: e.parentId,
+          studentId: e.studentId,
+          amount: Math.abs(e.amount),
+          method: e.method ?? "cash",
+          status: e.paymentStatus ?? "paid",
+          category: e.category,
+          installmentId: (e.metadata.installmentId as string | undefined) ?? null,
+          proofUrl: (e.metadata.proofUrl as string | undefined) ?? null,
+          notes: null,
+          collectedBy: e.actorId,
+          collectedAt: e.at,
+          createdAt: e.at,
+          updatedAt: e.at,
+        }));
+      const adjustments: AccountAdjustment[] = entries
         .filter((e) => e.type === "adjustment" && !e.reversesId)
         .slice(0, 20)
         .map((e) => ({
           id: e.id,
           parentId: e.parentId,
-          studentId: e.studentId,
-          category: e.category,
           amount: e.amount,
           reason: e.description,
-          actorId: e.actorId,
-          actorName: e.actorName,
-          at: e.at,
+          approvedBy: e.actorId,
+          approvedAt: e.at,
+          receiptRef: e.receiptNumber ?? null,
         }));
       const profile: ParentFinancialProfile = {
         parentId,

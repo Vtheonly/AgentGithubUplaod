@@ -22,8 +22,13 @@ import {
   TRANSPORT_DESTINATION_LABELS_FR,
   type TransportDestination,
 } from "../../../domain/model/parent";
+import type { PaymentPlan } from "../../../domain/model/payment";
 import type { Step2Student } from "./types";
 import { EMPTY_STUDENT } from "./types";
+
+/** Sentinel for "no transport" — Radix Select forbids empty-string values.
+ *  FIX: `<SelectItem value="">` threw at runtime when the dropdown opened. */
+const NO_TRANSPORT = "__none__";
 
 export function Step2({
   students,
@@ -115,16 +120,38 @@ export function Step2({
               </Select>
             </FormField>
             <FormField label="Zone transport" hint="Laisser vide si pas de transport">
+              {/* FIX (Radix crash): empty-string SelectItem values are
+                  forbidden by Radix — use a sentinel mapped back to "". */}
               <Select
-                value={s.transportDestination}
-                onValueChange={(v) => update(i, { transportDestination: v as TransportDestination | "" })}
+                value={s.transportDestination || NO_TRANSPORT}
+                onValueChange={(v) =>
+                  update(i, {
+                    transportDestination: v === NO_TRANSPORT ? "" : (v as TransportDestination),
+                  })
+                }
               >
-                <SelectTrigger><SelectValue placeholder="Sans transport" /></SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sans transport</SelectItem>
+                  <SelectItem value={NO_TRANSPORT}>Sans transport</SelectItem>
                   {TRANSPORT_DESTINATIONS.map((d) => (
                     <SelectItem key={d} value={d}>{TRANSPORT_DESTINATION_LABELS_FR[d]}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {/* FIX (dead config): `paymentPlan` drove the billing computation
+                (40/30/30 tranches vs full annual with early-bird discount)
+                but had NO UI control — every student silently defaulted to
+                "tranches". It is now selectable per student. */}
+            <FormField label="Plan de paiement" hint="Année complète : −10% si payée avant le 30 juin">
+              <Select
+                value={s.paymentPlan}
+                onValueChange={(v) => update(i, { paymentPlan: v as PaymentPlan })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tranches">3 tranches (40/30/30)</SelectItem>
+                  <SelectItem value="full_annual">Année complète (−10%)</SelectItem>
                 </SelectContent>
               </Select>
             </FormField>

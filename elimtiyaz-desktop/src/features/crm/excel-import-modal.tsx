@@ -397,10 +397,32 @@ export function ExcelImportModal({
         ) : null
       }
     >
+      {/* Hidden file input — rendered at ALL stages (not only "select")
+          so the preview stage's "Changer" button can trigger it.
+          FIX: previously the input only mounted during the select stage,
+          so `fileInputRef.current` was null in the preview stage and the
+          "Changer" button did nothing. */}
+      <input
+        ref={fileInputRef}
+        id="excel-import-file-input"
+        type="file"
+        accept=".xlsx,.xlsm"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            // Switching files restarts the pipeline from a clean preview.
+            setStage("select");
+            void handleFile(f);
+          }
+        }}
+      />
+
       {/* Stage: select file */}
       {stage === "select" && (
         <div className="space-y-4">
           <label
+            htmlFor="excel-import-file-input"
             className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border p-8 cursor-pointer hover:bg-accent/5 transition-colors"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
@@ -420,16 +442,6 @@ export function ExcelImportModal({
                 Format attendu : Suivis clients — feuilles ETAT / BON / Devis / REF.
               </p>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xlsm"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handleFile(f);
-              }}
-            />
           </label>
           <div className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">
             <p className="font-medium text-foreground mb-1">Règles d'import (plan §14 + moteur intégré):</p>

@@ -156,9 +156,13 @@ export function buildSeedLedger(): LedgerEntry[] {
             level: student.level,
             baseAmount: grossTuition,
             // TIER 2 R17 — record which discounts fired (audit trail).
-            discountsApplied: discountEvals
-              .filter((d) => d.applied)
-              .map((d) => ({ code: d.code, amount: d.amount, reason: d.reason })),
+            // FIX (type): metadata values must be primitives — serialize the
+            // discount list to JSON.
+            discountsApplied: JSON.stringify(
+              discountEvals
+                .filter((d) => d.applied)
+                .map((d) => ({ code: d.code, amount: d.amount, reason: d.reason })),
+            ),
             netTuition,
             tuitionDiscount,
           },

@@ -13,7 +13,7 @@ import type {
   CreateParentInput,
   UpdateParentInput,
 } from "../model/parent";
-import type { Student, CreateStudentInput, BatchRegistrationInput, BatchRegistrationResult } from "../model/student";
+import type { Student, CreateStudentInput, UpdateStudentInput, BatchRegistrationInput, BatchRegistrationResult } from "../model/student";
 import type {
   AcademicClass,
   Subject,
@@ -92,7 +92,7 @@ export interface StudentRepository {
   observeById(id: string): Observable<Student | null>;
   search(query: string): Promise<Result<Student[]>>;
   createStudent(parentId: string, input: CreateStudentInput): Promise<Result<Student>>;
-  updateStudent(id: string, updates: Partial<CreateStudentInput>): Promise<Result<Student>>;
+  updateStudent(id: string, updates: UpdateStudentInput): Promise<Result<Student>>;
   deleteStudent(id: string): Promise<Result<void>>;
   batchRegister(input: BatchRegistrationInput): Promise<Result<BatchRegistrationResult>>;
   promote(studentIds: string[], academicYear: string): Promise<Result<Student[]>>;
@@ -132,6 +132,12 @@ export interface GradeRepository {
 
 export interface AttendanceRepository {
   observeByClass(classId: string, date: string): Observable<AttendanceRecord[]>;
+  /**
+   * Observe attendance for a class over a date range [from, to] (inclusive).
+   * FIX: the class attendance tab claimed "7 derniers jours" but only ever
+   * queried a single day.
+   */
+  observeByClassRange(classId: string, from: string, to: string): Observable<AttendanceRecord[]>;
   observeByStudent(studentId: string, from: string, to: string): Observable<AttendanceRecord[]>;
   recordRollCall(input: {
     classId: string;

@@ -12,9 +12,14 @@
  *   - Académique  → grade book per term (D1/D2/Examen/Moy) + academic history
  *   - Présences   → attendance summary with 3+ absence alert badge (plan §09.03)
  *   - Paiements   → individual share + family balance
+ *
+ * FIX (editing): a "Modifier" footer action now opens the EditStudentModal,
+ * wiring `repos.students.updateStudent` into the UI for the first time —
+ * previously student records were read-only after registration.
  */
+import { useState } from "react";
 import {
-  GraduationCap, Calendar, Wallet, Info,
+  GraduationCap, Calendar, Wallet, Info, Pencil,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
@@ -24,6 +29,7 @@ import { InfoTab } from "./student-detail/info-tab";
 import { AcademicTab } from "./student-detail/academic-tab";
 import { AttendanceTab } from "./student-detail/attendance-tab";
 import { PaymentsTab } from "./student-detail/payments-tab";
+import { EditStudentModal } from "./edit-student-modal";
 
 export function StudentDetailDrawer({
   studentId,
@@ -37,6 +43,7 @@ export function StudentDetailDrawer({
   onOpenParent?: (parentId: string) => void;
 }) {
   const repos = useRepositories();
+  const [editOpen, setEditOpen] = useState(false);
   const student = useObservable(
     () => repos.students.observeById(studentId ?? ""),
     [studentId],
@@ -70,17 +77,34 @@ export function StudentDetailDrawer({
   ];
 
   return (
-    <EntityDetailDrawer<Student>
-      open={open}
-      onOpenChange={onOpenChange}
-      entity={entity}
-      widthClass="max-w-lg"
-      title={(s) => `${s.firstName} ${s.lastName}`}
-      subtitle={(s) => `${s.code} · ${LEVEL_LABELS_FR[s.level]} · Année ${s.gradeYear}`}
-      avatar={(s) => ({
-        initials: `${s.firstName[0] ?? ""}${s.lastName[0] ?? ""}`.toUpperCase(),
-      })}
-      tabs={() => tabs}
-    />
+    <>
+      <EntityDetailDrawer<Student>
+        open={open}
+        onOpenChange={onOpenChange}
+        entity={entity}
+        widthClass="max-w-lg"
+        title={(s) => `${s.firstName} ${s.lastName}`}
+        subtitle={(s) => `${s.code} · ${LEVEL_LABELS_FR[s.level]} · Année ${s.gradeYear}`}
+        avatar={(s) => ({
+          initials: `${s.firstName[0] ?? ""}${s.lastName[0] ?? ""}`.toUpperCase(),
+        })}
+        tabs={() => tabs}
+        actions={() => [
+          {
+            label: "Modifier",
+            onClick: () => setEditOpen(true),
+            variant: "outline",
+            icon: <Pencil className="h-4 w-4" />,
+          },
+        ]}
+      />
+      {entity && (
+        <EditStudentModal
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          studentId={entity.id}
+        />
+      )}
+    </>
   );
 }

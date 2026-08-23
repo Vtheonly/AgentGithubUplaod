@@ -37,6 +37,7 @@ describe("Integration: Full Payment Flow (mock repository)", () => {
       (i) => i.status !== "paid" && i.amountDue - i.amountPaid > 0,
     );
     expect(target).toBeDefined();
+    if (!target) return; // type-narrowing guard — the assertion above already fails the test when undefined
 
     const input: CollectPaymentInput = {
       parentId,

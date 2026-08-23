@@ -17,7 +17,7 @@
  *   - students  : (none — list is read-only; row click opens detail drawer)
  *   - batch     : Import Excel + Nouvelle inscription (the two real actions)
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -78,6 +78,7 @@ export function CrmPage() {
   const parents = useObservable(() => repos.parents.observe(), []);
   const students = useObservable(() => repos.students.observe(), []);
   const ledger = useObservable(() => repos.ledger.observe(), []);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [tab, setTab] = useState<CrmTab>("parents");
   const [batchOpen, setBatchOpen] = useState(false);
@@ -88,6 +89,20 @@ export function CrmPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // FIX (add-child duplication): holds the Parent entity the wizard should
+  // attach new children to (set by the parent drawer's "Ajouter un enfant").
+  // Cleared when the wizard closes so a later "Nouvelle inscription" from
+  // the header starts from a blank form.
+  const [presetParentId, setPresetParentId] = useState<string | null>(null);
+  const presetParent = presetParentId
+    ? parents.find((p) => p.id === presetParentId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!batchOpen && presetParentId !== null) {
+      setPresetParentId(null);
+    }
+  }, [batchOpen, presetParentId]);
 
   function openParent(parentId: string) {
     setDrawerParentId(parentId);
@@ -98,6 +113,39 @@ export function CrmPage() {
     setStudentDrawerId(studentId);
     setStudentDrawerOpen(true);
   }
+
+  // FIX (deep links): global-search routes to `/crm?studentId=…` and
+  // `/crm?parentId=…` — previously `studentId` was ignored entirely and
+  // `parentId` only rendered a raw-UUID banner. Both now open the matching
+  // drawer, switch to the right tab, and clean the param afterwards.
+  useEffect(() => {
+    const parentId = searchParams.get("parentId");
+    const studentId = searchParams.get("studentId");
+    if (parentId) {
+      setTab("parents");
+      openParent(parentId);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("parentId");
+          return next;
+        },
+        { replace: true },
+      );
+    } else if (studentId) {
+      setTab("students");
+      openStudent(studentId);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("studentId");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   function buildExportData(): ExportData {
     return {
@@ -211,16 +259,19 @@ export function CrmPage() {
         open={batchOpen}
         onOpenChange={setBatchOpen}
         onSubmitted={(parentId) => openParent(parentId)}
+        presetParent={presetParent}
       />
       <ParentDetailDrawer
         parentId={drawerParentId}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        onAddChild={(pid) => {
+        onAddChild={(parent) => {
+          // FIX (add-child duplication): lock the wizard onto THIS parent so
+          // the new children attach to it — previously a blank wizard created
+          // a duplicate parent record.
           setDrawerOpen(false);
+          setPresetParentId(parent.id);
           setBatchOpen(true);
-          // Note: in a future iteration we could pre-fill the parent step.
-          void pid;
         }}
       />
       <StudentDetailDrawer
@@ -402,8 +453,6 @@ function BatchTab({
 
 function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   const repos = useRepositories();
-  const [searchParams] = useSearchParams();
-  const highlightId = searchParams.get("parentId");
   const parents = useObservable(() => repos.parents.observe(), []);
 
   const columns: readonly DataTableColumn<Parent>[] = [
@@ -495,11 +544,6 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
           onRowClick={(p) => onOpenParent(p.id)}
           getRowId={(p) => p.id}
           pageSize={12}
-          toolbar={
-            highlightId ? (
-              <span className="text-xs text-muted-foreground">Parent mis en surbrillance : {highlightId}</span>
-            ) : null
-          }
         />
       </CardContent>
     </Card>

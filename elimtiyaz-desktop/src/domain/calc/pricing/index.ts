@@ -18,3 +18,11 @@ export * from "./discount-rules";
 export * from "./discount-engine";
 export * from "./tuition";
 export * from "./transport";
+// Re-export the pricing model types so callers can import everything
+// (including `type PricingConfig`) from `@domain/calc/pricing`.
+export type {
+  PricingConfig,
+  PricingEntry,
+  TuitionPricing,
+  TransportPricing,
+} from "@/domain/model/pricing";

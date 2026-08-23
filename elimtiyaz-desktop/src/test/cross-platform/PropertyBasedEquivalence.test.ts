@@ -227,13 +227,17 @@ describe("Property-based: 500 generated scenarios preserve canonical invariants"
 
     // Verify waterfall conservation: Σ allocations + unallocated = payment amount
     if (scenario.paymentAmount > 0) {
-      const installmentsForWaterfall = scenario.installments.map((ins) => ({
+      const installmentsForWaterfall = scenario.installments.map((ins, i) => ({
         id: ins.id,
+        parentId: "par-gen",
+        studentId: "stu-gen",
         category: scenario.category,
+        label: `Tranche ${i + 1}`,
         amountDue: ins.amountDue,
         amountPaid: 0,
         amountPending: 0,
         dueDate: ins.dueDate,
+        paidDate: null,
         status: "unpaid" as const,
       }));
       const allocation = allocatePaymentToInstallments(
@@ -261,13 +265,17 @@ describe("Property-based: LIFO reversal conserves amounts", () => {
     if (scenario.paymentAmount <= 0) return; // skip zero-payment scenarios
 
     // Set up installments as if the payment had been allocated
-    const installments = scenario.installments.map((ins) => ({
+    const installments = scenario.installments.map((ins, i) => ({
       id: ins.id,
+      parentId: "par-gen",
+      studentId: "stu-gen",
       category: scenario.category,
+      label: `Tranche ${i + 1}`,
       amountDue: ins.amountDue,
       amountPaid: scenario.paymentStatus === "paid" ? Math.min(ins.amountDue, scenario.paymentAmount) : 0,
       amountPending: scenario.paymentStatus === "pending" ? Math.min(ins.amountDue, scenario.paymentAmount) : 0,
       dueDate: ins.dueDate,
+      paidDate: null,
       status: "paid" as const,
     }));
 

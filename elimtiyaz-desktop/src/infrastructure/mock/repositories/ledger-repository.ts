@@ -12,7 +12,7 @@ import type {
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
-import { SubjectBehavior } from "../subject-behavior";
+import { derived } from "../subject-behavior";
 import type {
   LedgerEntry,
   ParentLedgerSummary,
@@ -40,11 +40,13 @@ export class MockLedgerRepository implements LedgerRepository {
   }
 
   observeByParent(parentId: string): Observable<LedgerEntry[]> {
-    return new SubjectBehavior(store.ledger.filter((e) => e.parentId === parentId));
+    // FIX (reactivity): derive from the store stream so financial history
+    // views refresh after any ledger append/reversal/import.
+    return derived([store.ledger$], () => store.ledger.filter((e) => e.parentId === parentId));
   }
 
   observeByAccount(accountId: string): Observable<LedgerEntry[]> {
-    return new SubjectBehavior(store.ledger.filter((e) => e.accountId === accountId));
+    return derived([store.ledger$], () => store.ledger.filter((e) => e.accountId === accountId));
   }
 
   async append(entry: LedgerEntry): Promise<Result<LedgerEntry>> {

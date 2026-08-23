@@ -20,16 +20,55 @@ import {
   type TransportDestination,
 } from "../../../domain/model/parent";
 import type { Step1Parent } from "./types";
+import type { Parent } from "../../../domain/model/parent";
 
 export function Step1({
   parent,
   setParent,
   errors,
+  lockedParent,
 }: {
   parent: Step1Parent;
   setParent: (p: Step1Parent) => void;
   errors: Record<string, string>;
+  /**
+   * FIX (add-child duplication): when set, the wizard is in "add children to
+   * an existing parent" mode — step 1 becomes a read-only summary of the
+   * locked parent instead of an editable form that would create a duplicate.
+   */
+  lockedParent?: Parent | null;
 }) {
+  if (lockedParent) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+          <p className="font-medium text-primary">Parent existant sélectionné</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Les nouveaux élèves seront rattachés au dossier ci-dessous — aucun
+            nouveau parent ne sera créé. Pour corriger les coordonnées, utilisez
+            « Modifier » dans le tiroir du parent.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-border p-3 text-sm">
+          <ReadonlyField label="Nom" value={`${lockedParent.firstName} ${lockedParent.lastName}`} />
+          <ReadonlyField label="Code" value={lockedParent.code} mono />
+          <ReadonlyField label="Téléphone" value={lockedParent.phone} mono />
+          <ReadonlyField label="WhatsApp" value={lockedParent.whatsapp ?? "—"} mono />
+          <ReadonlyField label="E-mail" value={lockedParent.email ?? "—"} />
+          <ReadonlyField label="Profession" value={lockedParent.occupation ?? "—"} />
+          <ReadonlyField
+            label="Zone"
+            value={
+              lockedParent.transportDestination
+                ? TRANSPORT_DESTINATION_LABELS_FR[lockedParent.transportDestination]
+                : "—"
+            }
+          />
+          <ReadonlyField label="Adresse" value={lockedParent.address ?? "—"} />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="grid gap-3 md:grid-cols-2">
       <FormField label="Prénom" required error={errors.parent_firstName}>
@@ -123,6 +162,23 @@ export function Step1({
           </SelectContent>
         </Select>
       </FormField>
+    </div>
+  );
+}
+
+function ReadonlyField({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase text-muted-foreground">{label}</p>
+      <p className={`text-sm text-foreground ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>
   );
 }

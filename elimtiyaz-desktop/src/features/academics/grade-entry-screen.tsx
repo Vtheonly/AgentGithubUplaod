@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -65,27 +65,44 @@ export function GradeEntryScreen() {
     [classId],
   );
   const subjects = useObservable(() => repos.subjects.observe(), []);
+  const classAssessments = useObservable(
+    () => repos.grades.observeForClass(classId ?? ""),
+    [classId],
+  );
 
   const subject = subjects.find((s) => s.id === subjectId);
   const [term, setTerm] = useState<AcademicTerm>("T1");
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // FIX (edit semantics): initialize the entry grid from the roster AND
+  // pre-load any existing marks for the selected subject + term. Previously
+  // the form always started blank, so saving blindly OVERWROTE previously
+  // entered grades with nulls for any student the teacher skipped.
+  // A stable init-key guard prevents mid-typing resets when the underlying
+  // observables re-emit without relevant changes.
+  const lastInitKeyRef = useRef("");
   useEffect(() => {
-    if (rows.length === 0 && students.length > 0) {
-      setRows(
-        students.map((s) => ({
+    const initKey = `${subjectId}|${term}|${students.map((s) => s.id).join(",")}|${classAssessments.length}`;
+    if (students.length === 0 || initKey === lastInitKeyRef.current) return;
+    lastInitKeyRef.current = initKey;
+    setRows(
+      students.map((s) => {
+        const existing = classAssessments.find(
+          (a) => a.studentId === s.id && a.subjectId === subjectId && a.term === term,
+        );
+        return {
           studentId: s.id,
           firstName: s.firstName,
           lastName: s.lastName,
           code: s.code,
-          d1: "",
-          d2: "",
-          examen: "",
-        })),
-      );
-    }
-  }, [students, rows.length]);
+          d1: existing?.devoir1 != null ? String(existing.devoir1) : "",
+          d2: existing?.devoir2 != null ? String(existing.devoir2) : "",
+          examen: existing?.examen != null ? String(existing.examen) : "",
+        };
+      }),
+    );
+  }, [students, classAssessments, subjectId, term]);
 
   function updateRow(
     studentId: string,
@@ -178,9 +195,14 @@ export function GradeEntryScreen() {
 
       const result = await repos.grades.enterGradesBatch(payload);
       if (result.ok) {
+        // FIX (edit semantics): report whether this was a pure save or an
+        // overwrite of previously entered marks.
+        const previouslyEntered = classAssessments.filter(
+          (a) => a.subjectId === subjectId && a.term === term,
+        ).length;
         toast.showSuccess(
-          "Notes enregistrées",
-          `${result.value.length} note(s) sauvegardée(s).`,
+          previouslyEntered > 0 ? "Notes mises à jour" : "Notes enregistrées",
+          `${result.value.length} note(s) sauvegardée(s)${previouslyEntered > 0 ? ` (remplace ${previouslyEntered} saisie(s) précédente(s))` : ""}.`,
         );
         navigate(`/academics/class/${classId}`);
       } else {

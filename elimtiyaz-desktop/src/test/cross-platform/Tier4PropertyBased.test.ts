@@ -34,6 +34,7 @@ import {
   computeAccountBalance as computeAccountBalanceDesktop,
   computeParentSummary as computeParentSummaryDesktop,
 } from "../../domain/calc/ledger/balance";
+import type { LedgerEntry as DesktopLedgerEntry } from "../../domain/model/ledger";
 import { allocatePaymentToInstallments as allocateDesktop } from "../../domain/calc/payment/waterfall-allocator";
 import { revertPaymentAllocation as revertDesktop } from "../../domain/calc/payment/lifo-reversal";
 
@@ -239,15 +240,7 @@ describe("Property: cross-platform mirror == desktop at centime precision", () =
     it(`scenario #${i}: mirror balance == desktop balance (in centimes)`, () => {
       const entryCount = 3 + Math.floor(rng() * 8);
       const mirrorEntries: LedgerEntry[] = [];
-      const desktopEntries: Array<{
-        id: string; tenantId: string; accountId: string; parentId: string;
-        studentId: string | null; category: string; amount: number; type: "charge" | "payment" | "adjustment" | "refund" | "reversal" | "transfer";
-        sourceType: "installment" | "payment" | "expense" | "adjustment" | "refund" | "bulk_import" | "manual_entry";
-        sourceId: string; method: "cash" | "check" | "transfer" | null; receiptNumber: string | null;
-        paymentStatus: "paid" | "pending" | "partial" | "overdue" | "refunded" | "cancelled" | "pending_clearance" | "unpaid" | null;
-        reversesId: string | null; description: string;
-        actorId: string; actorName: string; at: string; metadata: Record<string, unknown>;
-      }> = [];
+      const desktopEntries: DesktopLedgerEntry[] = [];
 
       for (let j = 0; j < entryCount; j++) {
         const isCharge = rng() > 0.4;

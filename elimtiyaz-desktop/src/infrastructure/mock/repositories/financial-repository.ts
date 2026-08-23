@@ -27,7 +27,7 @@ import type {
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
 import { Ok } from "../../../core/result";
-import { SubjectBehavior } from "../subject-behavior";
+import { derived } from "../subject-behavior";
 import type {
   Payment,
   Installment,
@@ -86,13 +86,15 @@ export class MockPaymentRepository implements PaymentRepository {
     return store.payments$;
   }
   observeByParent(parentId: string): Observable<Payment[]> {
-    return new SubjectBehavior(store.payments.filter((p) => p.parentId === parentId));
+    // FIX (reactivity): derive from the store stream so payment history in
+    // drawers refreshes after collect/refund/adjust/import operations.
+    return derived([store.payments$], () => store.payments.filter((p) => p.parentId === parentId));
   }
   observeByStudent(studentId: string): Observable<Payment[]> {
-    return new SubjectBehavior(store.payments.filter((p) => p.studentId === studentId));
+    return derived([store.payments$], () => store.payments.filter((p) => p.studentId === studentId));
   }
   observeById(id: string): Observable<Payment | null> {
-    return new SubjectBehavior(store.payments.find((p) => p.id === id) ?? null);
+    return derived([store.payments$], () => store.payments.find((p) => p.id === id) ?? null);
   }
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
     return collectPayment(ctx, input, collectedBy);
@@ -134,13 +136,14 @@ export class MockPaymentRepository implements PaymentRepository {
 
 export class MockInstallmentRepository implements InstallmentRepository {
   observeByParent(parentId: string): Observable<Installment[]> {
-    return new SubjectBehavior(store.installments.filter((i) => i.parentId === parentId));
+    // FIX (reactivity): derive from the store stream.
+    return derived([store.installments$], () => store.installments.filter((i) => i.parentId === parentId));
   }
   observeByStudent(studentId: string): Observable<Installment[]> {
-    return new SubjectBehavior(store.installments.filter((i) => i.studentId === studentId));
+    return derived([store.installments$], () => store.installments.filter((i) => i.studentId === studentId));
   }
   observeById(id: string): Observable<Installment | null> {
-    return new SubjectBehavior<Installment | null>(store.installments.find((i) => i.id === id) ?? null);
+    return derived([store.installments$], () => store.installments.find((i) => i.id === id) ?? null);
   }
   markPaid(id: string, paymentId: string): Promise<Result<Installment>> {
     return markInstallmentPaid(ctx, id, paymentId);
@@ -250,10 +253,10 @@ export class MockExpenseRepository implements ExpenseRepository {
     return store.expenses$;
   }
   observeByStatus(status: string): Observable<Expense[]> {
-    return new SubjectBehavior(store.expenses.filter((e) => e.status === status));
+    return derived([store.expenses$], () => store.expenses.filter((e) => e.status === status));
   }
   observeById(id: string): Observable<Expense | null> {
-    return new SubjectBehavior(store.expenses.find((e) => e.id === id) ?? null);
+    return derived([store.expenses$], () => store.expenses.find((e) => e.id === id) ?? null);
   }
   submit(input: SubmitExpenseInput, submittedBy: string): Promise<Result<Expense>> {
     return submitExpense(ctx, input, submittedBy);

@@ -13,8 +13,9 @@
  *   - `PaymentNavigationContext` integration with `<UnifiedPaymentModal>`
  *     for consolidated debt collection is preserved.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plus,
   Wallet,
@@ -62,6 +63,7 @@ import { ExpenseSubmitModal } from "./expense-submit-modal";
 import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
 import { ReceiptsTab } from "./receipts-tab";
+import { PaymentDetailDrawer } from "./payment-detail-drawer";
 
 type FinanceTab = "payments" | "installments" | "debt" | "expenses" | "receipts";
 
@@ -69,6 +71,8 @@ export function FinancialsPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const payments = useObservable(() => repos.payments.observe(), []);
   const expenses = useObservable(() => repos.expenses.observe(), []);
   const debtSummary = useObservable(() => repos.debt.observeSummary(), []);
@@ -77,6 +81,28 @@ export function FinancialsPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseDetailId, setExpenseDetailId] = useState<string | null>(null);
+  // FIX (missing detail view): payment detail drawer — payments previously
+  // had no inspection UI, and the global-search deep link
+  // `/financials?paymentId=…` was ignored entirely.
+  const [paymentDetailId, setPaymentDetailId] = useState<string | null>(null);
+
+  // FIX (deep link): `/financials?paymentId=…` opens the payment drawer on
+  // the payments tab, then cleans the param.
+  useEffect(() => {
+    const paymentId = searchParams.get("paymentId");
+    if (paymentId) {
+      setTab("payments");
+      setPaymentDetailId(paymentId);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("paymentId");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [searchParams, setSearchParams]);
 
   const totalToday = sumPaidPayments(payments);
   const pendingExpenses = expenses.filter((e) => e.status === "submitted").length;
@@ -144,7 +170,7 @@ export function FinancialsPage() {
         </PageTabList>
 
         <PageTabContent value="payments">
-          <PaymentsTab payments={payments} />
+          <PaymentsTab payments={payments} onOpenPayment={setPaymentDetailId} />
         </PageTabContent>
         <PageTabContent value="installments">
           <InstallmentScheduleTab />
@@ -161,6 +187,15 @@ export function FinancialsPage() {
       </PageTabs>
 
       <CounterPaymentModal open={paymentOpen} onOpenChange={setPaymentOpen} />
+      <PaymentDetailDrawer
+        paymentId={paymentDetailId}
+        open={paymentDetailId !== null}
+        onOpenChange={(o) => !o && setPaymentDetailId(null)}
+        onOpenParent={(parentId) => {
+          setPaymentDetailId(null);
+          navigate(`/crm?parentId=${parentId}`);
+        }}
+      />
       <ExpenseSubmitModal
         open={expenseOpen}
         onOpenChange={setExpenseOpen}
@@ -226,7 +261,13 @@ const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "ne
   partial: "info",
 };
 
-function PaymentsTab({ payments }: { payments: readonly Payment[] }) {
+function PaymentsTab({
+  payments,
+  onOpenPayment,
+}: {
+  payments: readonly Payment[];
+  onOpenPayment: (id: string) => void;
+}) {
   const columns: readonly DataTableColumn<Payment>[] = [
     {
       header: "Reçu",
@@ -269,6 +310,8 @@ function PaymentsTab({ payments }: { payments: readonly Payment[] }) {
     <DataTable<Payment>
       data={payments}
       columns={columns}
+      onRowClick={(p) => onOpenPayment(p.id)}
+      getRowId={(p) => p.id}
       searchFields={["receiptNumber", "method", "category"]}
       searchPlaceholder="Rechercher un reçu, méthode, catégorie…"
       pageSize={15}

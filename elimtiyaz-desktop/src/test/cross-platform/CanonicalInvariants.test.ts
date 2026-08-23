@@ -280,8 +280,8 @@ describe("INV-5: Valid payments only", () => {
 describe("INV-6: Waterfall allocation", () => {
   test("allocates to oldest installment first", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
-      { id: "ins-2", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-12-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
+      { id: "ins-2", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 2", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-12-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 6_000_000, "tuition", "paid");
     expect(result.allocations).toHaveLength(2);
@@ -296,7 +296,7 @@ describe("INV-6: Waterfall allocation", () => {
 
   test("overpayment is captured as unallocatedAmount", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 7_000_000, "tuition", "paid");
     expect(result.allocations[0].allocatedAmount).toBe(5_000_000);
@@ -305,8 +305,8 @@ describe("INV-6: Waterfall allocation", () => {
 
   test("category filter excludes non-matching installments", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "unpaid" as const },
-      { id: "ins-2", category: "transport" as const, amountDue: 2_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-16T00:00:00Z", status: "unpaid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "unpaid" as const },
+      { id: "ins-2", parentId: PARENT, studentId: STUDENT, category: "transport" as const, label: "Tranche 1", amountDue: 2_000_000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-16T00:00:00Z", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocatePaymentToInstallments(installments, 5_000_000, "tuition", "paid");
     expect(result.allocations).toHaveLength(1);
@@ -367,7 +367,7 @@ describe("INV-7: Overpayment → parent_credit", () => {
 describe("INV-8: Refund = LIFO reversal", () => {
   test("refund of a cleared (paid) payment subtracts from amountPaid", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", status: "paid" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15T00:00:00Z", paidDate: "2026-09-16T00:00:00Z", status: "paid" as const },
     ];
     // Refund 3M of a cleared payment — originalWasPending=false
     const result = revertPaymentAllocation(installments, 3_000_000, "tuition", false);
@@ -380,7 +380,7 @@ describe("INV-8: Refund = LIFO reversal", () => {
 
   test("refund of a pending payment subtracts from amountPending (not amountPaid)", () => {
     const installments = [
-      { id: "ins-1", category: "tuition" as const, amountDue: 5_000_000, amountPaid: 0, amountPending: 5_000_000, dueDate: "2026-09-15T00:00:00Z", status: "pending_clearance" as const },
+      { id: "ins-1", parentId: PARENT, studentId: STUDENT, category: "tuition" as const, label: "Tranche 1", amountDue: 5_000_000, amountPaid: 0, amountPending: 5_000_000, dueDate: "2026-09-15T00:00:00Z", paidDate: null, status: "pending_clearance" as const },
     ];
     // Refund 3M of a pending payment — originalWasPending=true
     const result = revertPaymentAllocation(installments, 3_000_000, "tuition", true);

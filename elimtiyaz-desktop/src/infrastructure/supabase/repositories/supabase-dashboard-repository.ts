@@ -133,14 +133,16 @@ function mapLedgerRowToEntry(row: DashboardLedgerRow): LedgerEntry {
     amount: Number(row.amount),
     type: (row.entry_type ?? "adjustment") as LedgerEntry["type"],
     sourceType: (row.source_type ?? "manual_entry") as LedgerEntry["sourceType"],
-    sourceId: row.source_id ?? null,
+    // FIX (type): `sourceId`, `description`, `actorId`, `actorName` are
+    // non-nullable on `LedgerEntry` — provide fallbacks instead of null.
+    sourceId: row.source_id ?? row.id,
     method: null,
     receiptNumber: null,
     paymentStatus: null,
     reversesId: null,
-    description: null,
-    actorId: null,
-    actorName: null,
+    description: row.entry_type ?? "ledger entry",
+    actorId: "system",
+    actorName: "Supabase",
     at: row.at ?? row.entry_date ?? new Date().toISOString(),
     metadata: Object.freeze({}),
   };

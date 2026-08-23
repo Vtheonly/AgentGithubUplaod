@@ -294,8 +294,9 @@ export function computeAccountBalance(
   };
 }
 
-function maxOf(a: string | null, b: string): string {
+function maxOf(a: string | null, b: string | null): string | null {
   if (a === null) return b;
+  if (b === null) return a;
   return a >= b ? a : b;
 }
 
@@ -846,7 +847,7 @@ export const RECONCILE_CODES = {
   UNBACKED_TRANCHE_SATISFACTION: "UNBACKED_TRANCHE_SATISFACTION",
   PAYMENT_LEDGER_MISMATCH: "PAYMENT_LEDGER_MISMATCH",
   UNBACKED_PARENT_CREDIT: "UNBACKED_PARENT_CREDIT",
-} as const;
+} as Record<string, string>;
 
 export type ReconcileSeverity = "ERROR" | "WARNING" | "INFO";
 

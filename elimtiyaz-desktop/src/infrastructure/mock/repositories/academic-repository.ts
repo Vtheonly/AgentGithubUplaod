@@ -11,7 +11,7 @@ import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
-import { SubjectBehavior } from "../subject-behavior";
+import { derived } from "../subject-behavior";
 import { computeSubjectAverage } from "../../../domain/model/academic";
 import type {
   AcademicClass,
@@ -24,7 +24,10 @@ import type {
   AttendanceStatus,
 } from "../../../domain/model/academic";
 import type { Student, AcademicLevel } from "../../../domain/model/student";
-import type { PromotionCandidate } from "../../../domain/calc/academics/promotion";
+import {
+  createAcademicHistoryEntry,
+  type PromotionCandidate,
+} from "../../../domain/calc/academics/promotion";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 import { ACADEMIC_YEAR } from "../seed-data";
 
@@ -36,10 +39,11 @@ export class MockClassRepository implements ClassRepository {
     return store.classes$;
   }
   observeByLevel(level: AcademicLevel): Observable<AcademicClass[]> {
-    return new SubjectBehavior(store.classes.filter((c) => c.level === level));
+    // FIX (reactivity): derive from the store stream.
+    return derived([store.classes$], () => store.classes.filter((c) => c.level === level));
   }
   observeById(id: string): Observable<AcademicClass | null> {
-    return new SubjectBehavior(store.classes.find((c) => c.id === id) ?? null);
+    return derived([store.classes$], () => store.classes.find((c) => c.id === id) ?? null);
   }
   async createClass(
     input: Omit<
@@ -116,11 +120,12 @@ export class MockSubjectRepository implements SubjectRepository {
     return store.subjects$;
   }
   observeByLevel(level: AcademicLevel): Observable<Subject[]> {
-    return new SubjectBehavior(store.subjects.filter((s) => s.level === level));
+    return derived([store.subjects$], () => store.subjects.filter((s) => s.level === level));
   }
   observeByClass(classId: string): Observable<ClassSubject[]> {
-    return new SubjectBehavior(
-      store.classSubjects.filter((cs) => cs.classId === classId),
+    return derived(
+      [store.classSubjects$],
+      () => store.classSubjects.filter((cs) => cs.classId === classId),
     );
   }
   async assignSubjectToClass(
@@ -229,8 +234,11 @@ export class MockSubjectRepository implements SubjectRepository {
 // ============================================================================
 export class MockGradeRepository implements GradeRepository {
   observeForStudent(studentId: string): Observable<Assessment[]> {
-    return new SubjectBehavior(
-      store.assessments.filter((a) => a.studentId === studentId),
+    // FIX (reactivity): derive from the store stream so the student drawer's
+    // grades tab refreshes after grade entry / batch entry.
+    return derived(
+      [store.assessments$],
+      () => store.assessments.filter((a) => a.studentId === studentId),
     );
   }
   observeForClass(
@@ -238,8 +246,9 @@ export class MockGradeRepository implements GradeRepository {
     _academicYear?: string,
     _term?: string,
   ): Observable<Assessment[]> {
-    return new SubjectBehavior(
-      store.assessments.filter((a) => a.classId === classId),
+    return derived(
+      [store.assessments$],
+      () => store.assessments.filter((a) => a.classId === classId),
     );
   }
   async enterGrade(
@@ -307,8 +316,24 @@ export class MockAttendanceRepository implements AttendanceRepository {
     classId: string,
     date: string,
   ): Observable<AttendanceRecord[]> {
-    return new SubjectBehavior(
-      store.attendance.filter((r) => r.classId === classId && r.date === date),
+    // FIX (reactivity): derive from the store stream.
+    return derived(
+      [store.attendance$],
+      () => store.attendance.filter((r) => r.classId === classId && r.date === date),
+    );
+  }
+  observeByClassRange(
+    classId: string,
+    from: string,
+    to: string,
+  ): Observable<AttendanceRecord[]> {
+    // FIX (7-day claim): range query used by the class attendance tab.
+    return derived(
+      [store.attendance$],
+      () =>
+        store.attendance.filter(
+          (r) => r.classId === classId && r.date >= from && r.date <= to,
+        ),
     );
   }
   observeByStudent(
@@ -316,8 +341,9 @@ export class MockAttendanceRepository implements AttendanceRepository {
     from: string,
     to: string,
   ): Observable<AttendanceRecord[]> {
-    return new SubjectBehavior(
-      store.attendance.filter(
+    return derived(
+      [store.attendance$],
+      () => store.attendance.filter(
         (r) => r.studentId === studentId && r.date >= from && r.date <= to,
       ),
     );
@@ -330,21 +356,41 @@ export class MockAttendanceRepository implements AttendanceRepository {
     recordedBy: string;
   }): Promise<Result<AttendanceRecord[]>> {
     await delay(220);
+    // FIX (duplicate roll-call records): previously every submission APPENDED
+    // new records for the same (class, date, session) — re-saving a roll call
+    // duplicated every row and inflated attendance stats. Now a resubmission
+    // REPLACES the previous records for that slot (idempotent upsert).
+    const existingForSlot = store.attendance.filter(
+      (r) => r.classId === input.classId && r.date === input.date && r.session === input.session,
+    );
+    const existingIds = new Set(existingForSlot.map((r) => r.studentId));
     const records: AttendanceRecord[] = [...input.statuses.entries()].map(
       ([studentId, status]) => ({
-        id: `att-${Date.now()}-${studentId}`,
+        id: `att-${input.classId}-${input.date}-${input.session}-${studentId}`,
         studentId,
         classId: input.classId,
         date: input.date,
         session: input.session,
         status,
-        note: null,
+        note: existingForSlot.find((r) => r.studentId === studentId)?.note ?? null,
         recordedBy: input.recordedBy,
         recordedAt: nowIso(),
         syncedAt: nowIso(),
       }),
     );
-    store.attendance = [...records, ...store.attendance];
+    const replacedIds = new Set(records.map((r) => r.studentId));
+    store.attendance = [
+      ...records,
+      ...store.attendance.filter(
+        (r) =>
+          !(
+            r.classId === input.classId &&
+            r.date === input.date &&
+            r.session === input.session &&
+            (replacedIds.has(r.studentId) || existingIds.has(r.studentId))
+          ),
+      ),
+    ];
     store.notifyAttendance();
     const present = records.filter((r) => r.status === "present").length;
     appendAudit({
@@ -382,15 +428,15 @@ export class MockAttendanceRepository implements AttendanceRepository {
 // ============================================================================
 export class MockHomeworkRepository implements HomeworkRepository {
   observeForClass(classId: string): Observable<Homework[]> {
-    return new SubjectBehavior(
-      classId
-        ? store.homework.filter((h) => h.classId === classId)
-        : store.homework,
+    return derived(
+      [store.homework$],
+      () => (classId ? store.homework.filter((h) => h.classId === classId) : store.homework),
     );
   }
   observeByTeacher(teacherId: string): Observable<Homework[]> {
-    return new SubjectBehavior(
-      store.homework.filter((h) => h.teacherId === teacherId),
+    return derived(
+      [store.homework$],
+      () => store.homework.filter((h) => h.teacherId === teacherId),
     );
   }
   async push(input: {
@@ -431,6 +477,20 @@ export class MockHomeworkRepository implements HomeworkRepository {
 // ============================================================================
 // Promotion
 // ============================================================================
+/**
+ * Derive the academic year label that just completed, given the target year
+ * of the promotion (e.g. "2026-2027" → "2025-2026"). Falls back to the seed
+ * academic year when the input is not parseable.
+ */
+function derivePreviousAcademicYear(targetAcademicYear: string): string {
+  const m = /^(\d{4})-(\d{4})$/.exec(targetAcademicYear.trim());
+  if (m) {
+    const start = Number(m[1]) - 1;
+    return `${start}-${start + 1}`;
+  }
+  return ACADEMIC_YEAR;
+}
+
 export class MockPromotionRepository implements PromotionRepository {
   async executeBatchPromotion(input: {
     candidates: readonly {
@@ -464,12 +524,33 @@ export class MockPromotionRepository implements PromotionRepository {
             ? candidate.nextGradeYear
             : current.gradeYear;
 
+        // FIX (academic history): append an entry for the year the student
+        // just COMPLETED — plan §04.07 makes history append-only and stored
+        // on the student entity. Previously no entry was ever written, so
+        // the "Historique académique" card in the student drawer was
+        // permanently empty. Uses the canonical factory from the promotion
+        // module so cycle/level derivation stays consistent.
+        const sourceAcademicYear = derivePreviousAcademicYear(input.targetAcademicYear);
+        const completedYearEntry = createAcademicHistoryEntry(
+          candidate,
+          sourceAcademicYear,
+          current.classId
+            ? store.classes.find((c) => c.id === current.classId)?.name ?? null
+            : null,
+          finalDecision,
+        );
+
         const updated: Student = {
           ...current,
           gradeLevel: nextGradeLevel,
           level: nextLevel,
           gradeYear: nextGradeYear,
           status: finalDecision === "graduated" ? "graduated" : current.status,
+          // Promoted students move to the next grade — their old class
+          // assignment no longer applies and must be cleared so the new
+          // year's class assignment can be made.
+          classId: finalDecision === "promoted" ? null : current.classId,
+          academicHistory: [...(current.academicHistory ?? []), completedYearEntry],
           updatedAt: nowIso(),
         };
 

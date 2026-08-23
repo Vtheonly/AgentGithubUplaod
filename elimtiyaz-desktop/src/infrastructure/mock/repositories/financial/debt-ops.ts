@@ -10,7 +10,7 @@
 import type { Result } from "../../../../core/result";
 import { Ok } from "../../../../core/result";
 import { AuditActions } from "../../../../core/audit-actions";
-import { SubjectBehavior } from "../../subject-behavior";
+import { derived } from "../../subject-behavior";
 import type {
   DebtSummary,
   ParentFinancialProfile,
@@ -33,24 +33,29 @@ export function observeDebtSummary(
   ctx: FinancialOpsCtx,
 ): Observable<DebtSummary[]> {
   const { store } = ctx;
-  const summaries: DebtSummary[] = store.parents.map((p) => {
-    const parentEntries = store.ledger.filter((e) => e.parentId === p.id);
-    const dueDateMap = buildOverdueDueDateMap(parentEntries);
-    const summary = computeParentSummary(parentEntries, p.id, `${p.firstName} ${p.lastName}`, dueDateMap);
-    const days = maxDaysOverdueFromLedger(parentEntries);
-    return {
-      id: `debt-${p.id}`,
-      parentId: p.id,
-      parentName: `${p.firstName} ${p.lastName}`,
-      parentPhone: p.phone,
-      studentCount: store.students.filter((s) => s.parentId === p.id).length,
-      outstandingAmount: summary.totalOutstanding,
-      daysOverdue: days,
-      bucket: agingBucketFromDays(days),
-    };
+  // FIX (reactivity): derive from ALL underlying streams (parents, students,
+  // ledger) so the debt dashboard refreshes after any mutation instead of
+  // freezing at first mount.
+  return derived([store.parents$, store.students$, store.ledger$], () => {
+    const summaries: DebtSummary[] = store.parents.map((p) => {
+      const parentEntries = store.ledger.filter((e) => e.parentId === p.id);
+      const dueDateMap = buildOverdueDueDateMap(parentEntries);
+      const summary = computeParentSummary(parentEntries, p.id, `${p.firstName} ${p.lastName}`, dueDateMap);
+      const days = maxDaysOverdueFromLedger(parentEntries);
+      return {
+        id: `debt-${p.id}`,
+        parentId: p.id,
+        parentName: `${p.firstName} ${p.lastName}`,
+        parentPhone: p.phone,
+        studentCount: store.students.filter((s) => s.parentId === p.id).length,
+        outstandingAmount: summary.totalOutstanding,
+        daysOverdue: days,
+        bucket: agingBucketFromDays(days),
+      };
+    });
+    // Only include parents with a non-zero outstanding balance.
+    return summaries.filter((s) => s.outstandingAmount > 0.001);
   });
-  // Only include parents with a non-zero outstanding balance.
-  return new SubjectBehavior(summaries.filter((s) => s.outstandingAmount > 0.001));
 }
 
 /**
@@ -65,27 +70,35 @@ export function observeParentFinancialProfile(
   parentId: string,
 ): Observable<ParentFinancialProfile | null> {
   const { store } = ctx;
-  const parent = store.parents.find((p) => p.id === parentId);
-  if (!parent) return new SubjectBehavior<ParentFinancialProfile | null>(null);
-  const parentEntries = store.ledger.filter((e) => e.parentId === parentId);
-  const dueDateMap = buildOverdueDueDateMap(parentEntries);
-  const summary = computeParentSummary(parentEntries, parentId, `${parent.firstName} ${parent.lastName}`, dueDateMap);
-  const installments = store.installments.filter((i) => i.parentId === parentId);
-  const payments = store.payments
-    .filter((p) => p.parentId === parentId)
-    .sort((a, b) => b.collectedAt.localeCompare(a.collectedAt))
-    .slice(0, 10);
-  return new SubjectBehavior<ParentFinancialProfile | null>({
-    parentId,
-    parentName: `${parent.firstName} ${parent.lastName}`,
-    totalDue: summary.totalCharged,
-    totalPaid: summary.totalCleared,
-    totalOutstanding: summary.totalOutstanding,
-    overdueAmount: summary.totalOverdue,
-    installments,
-    recentPayments: payments,
-    adjustments: [],
-  });
+  // FIX (reactivity): derive from parents + ledger + installments + payments
+  // streams so the parent drawer's Finances tab updates immediately after
+  // "Encaisser / Régler", adjustments, refunds, or Excel imports.
+  return derived(
+    [store.parents$, store.ledger$, store.installments$, store.payments$],
+    (): ParentFinancialProfile | null => {
+      const parent = store.parents.find((p) => p.id === parentId);
+      if (!parent) return null;
+      const parentEntries = store.ledger.filter((e) => e.parentId === parentId);
+      const dueDateMap = buildOverdueDueDateMap(parentEntries);
+      const summary = computeParentSummary(parentEntries, parentId, `${parent.firstName} ${parent.lastName}`, dueDateMap);
+      const installments = store.installments.filter((i) => i.parentId === parentId);
+      const payments = store.payments
+        .filter((p) => p.parentId === parentId)
+        .sort((a, b) => b.collectedAt.localeCompare(a.collectedAt))
+        .slice(0, 10);
+      return {
+        parentId,
+        parentName: `${parent.firstName} ${parent.lastName}`,
+        totalDue: summary.totalCharged,
+        totalPaid: summary.totalCleared,
+        totalOutstanding: summary.totalOutstanding,
+        overdueAmount: summary.totalOverdue,
+        installments,
+        recentPayments: payments,
+        adjustments: [],
+      };
+    },
+  );
 }
 
 /** Send a (mock) debt reminder to a parent + write an audit entry. */

@@ -28,15 +28,18 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
   const todayStr = today.toISOString().slice(0, 10);
   const weekAgoStr = weekAgo.toISOString().slice(0, 10);
 
-  // observeByClass(classId, date) — pass today's date as a reasonable default
+  // FIX (7-day claim): the header says "7 derniers jours" but the query
+  // fetched only TODAY's records — the 7-day range was computed and never
+  // used. Query the real range via the new `observeByClassRange`.
   const records = useObservable(
-    () => repos.attendance.observeByClass(classId, todayStr),
-    [classId, todayStr],
+    () => repos.attendance.observeByClassRange(classId, weekAgoStr, todayStr),
+    [classId, weekAgoStr, todayStr],
   );
 
-  // Group by date
+  // Group by date (then session) — newest first.
   const byDate = new Map<string, typeof records>();
   for (const r of records) {
+    if (r.date < weekAgoStr || r.date > todayStr) continue;
     if (!byDate.has(r.date)) byDate.set(r.date, []);
     byDate.get(r.date)!.push(r);
   }

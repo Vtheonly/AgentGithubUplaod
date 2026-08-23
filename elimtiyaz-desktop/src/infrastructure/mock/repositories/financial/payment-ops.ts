@@ -26,6 +26,7 @@ import type {
   Receipt,
   CollectPaymentInput,
   PaymentStatus,
+  PaymentCategory,
 } from "../../../../domain/model/payment";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import { deriveAccountId } from "../../../../domain/calc/ledger";
@@ -61,7 +62,12 @@ export async function collectPayment(
   if (input.amount <= 0) {
     return Err(Errors.validation("Payment amount must be > 0"));
   }
-  if (input.method !== "cash" && !input.proofPath) {
+  // FIX (type error → runtime bug): the guard referenced `input.proofPath`,
+  // which does NOT exist on `CollectPaymentInput` (the field is `proofUrl`).
+  // Since `undefined` is always falsy, EVERY non-cash payment was rejected
+  // with "Proof is required" even when a proof URL was supplied — checks and
+  // transfers could never be collected in mock mode.
+  if (input.method !== "cash" && !input.proofUrl) {
     return Err(Errors.validation(`Proof is required for ${input.method} payments`));
   }
   const year = new Date().getFullYear();

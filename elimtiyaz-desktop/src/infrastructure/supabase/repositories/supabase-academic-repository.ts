@@ -623,6 +623,29 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
     return sub;
   }
 
+  observeByClassRange(
+    classId: string,
+    from: string,
+    to: string,
+  ): Observable<AttendanceRecord[]> {
+    // FIX (7-day claim): range query used by the class attendance tab —
+    // previously the tab claimed "7 derniers jours" but only queried today.
+    const sub = new SubjectBehavior<AttendanceRecord[]>([]);
+    const fetchRange = async () => {
+      const { data } = await this.client
+        .from("attendance_records")
+        .select("*")
+        .eq("class_id", classId)
+        .gte("record_date", from)
+        .lte("record_date", to)
+        .order("record_date", { ascending: false });
+
+      if (data) sub.set(data.map(mapAttendanceRow));
+    };
+    fetchRange();
+    return sub;
+  }
+
   observeByStudent(
     studentId: string,
     fromDate: string,

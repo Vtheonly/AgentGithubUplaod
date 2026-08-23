@@ -23,6 +23,7 @@ import {
   Wallet,
   AlertTriangle,
   Users,
+  Pencil,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -47,6 +48,7 @@ import {
   type ParentFinancialProfile,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
+import { EditParentModal } from "./edit-parent-modal";
 import {
   TRANSPORT_DESTINATION_LABELS_FR,
   cityTierToDestination,
@@ -66,7 +68,8 @@ export function ParentDetailDrawer({
   parentId: string | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onAddChild?: (parentId: string) => void;
+  /** Receives the FULL parent entity so callers can prefill the wizard. */
+  onAddChild?: (parent: Parent) => void;
 }) {
   const repos = useRepositories();
   const toast = useToast();
@@ -91,6 +94,9 @@ export function ParentDetailDrawer({
   // === Epic 6.3 — UnifiedPaymentModal + AdjustAccount modal triggers ===
   const [collectOpen, setCollectOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  // FIX (editing): edit modal trigger — `updateParent` was previously
+  // implemented in every repository but unreachable from any UI.
+  const [editOpen, setEditOpen] = useState(false);
 
   // The drawer expects an entity or null; when closed/missing we render an
   // empty portal so animations work correctly.
@@ -152,7 +158,7 @@ export function ParentDetailDrawer({
               Enfants ({students.length})
             </SectionTitle>
             {onAddChild && (
-              <Button size="sm" variant="outline" onClick={() => onAddChild(p.id)}>
+              <Button size="sm" variant="outline" onClick={() => onAddChild(p)}>
                 <Plus className="h-4 w-4" /> Ajouter un enfant
               </Button>
             )}
@@ -209,6 +215,13 @@ export function ParentDetailDrawer({
   const canAdjust = !!session && session.permissions.has(Permission.AdjustAccount);
   const actions = (p: Parent): readonly EntityDrawerAction<Parent>[] => {
     const list: EntityDrawerAction<Parent>[] = [];
+    // FIX (editing): expose the parent edit modal from the drawer footer.
+    list.push({
+      label: "Modifier",
+      onClick: () => setEditOpen(true),
+      variant: "outline",
+      icon: <Pencil className="h-4 w-4" />,
+    });
     if (canAdjust) {
       list.push({
         label: "Ajuster le compte",
@@ -277,6 +290,11 @@ export function ParentDetailDrawer({
       {/* === Sibling modals (triggered by drawer actions) === */}
       {entity && (
         <>
+          <EditParentModal
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            parentId={entity.id}
+          />
           <AdjustAccountModal
             open={adjustOpen}
             onOpenChange={setAdjustOpen}

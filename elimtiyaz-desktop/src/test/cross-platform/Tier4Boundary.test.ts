@@ -81,7 +81,7 @@ describe("Boundary: zero value (0 centimes)", () => {
 
   it("desktop: 0-DZD payment produces the same canonical state", () => {
     const installments = [
-      { id: "i1", parentId: "par-1", studentId: null, category: "tuition", amountDue: 50000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15", status: "unpaid", label: "T1" },
+      { id: "i1", parentId: "par-1", studentId: null, category: "tuition" as const, label: "T1", amountDue: 50000, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15", paidDate: null, status: "unpaid" as const },
     ];
     const result = allocateDesktop(installments, 0, "tuition", "paid");
     expect(result.allocations).toHaveLength(0);
@@ -111,7 +111,7 @@ describe("Boundary: 1 centime (= 0.01 DZD)", () => {
 
     // Desktop (DZD) — 0.01 DZD against 0.01 DZD obligation
     const desktopInstallments = [
-      { id: "i1", parentId: "par-1", studentId: null, category: "tuition", amountDue: 0.01, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15", status: "unpaid", label: "T1" },
+      { id: "i1", parentId: "par-1", studentId: null, category: "tuition" as const, label: "T1", amountDue: 0.01, amountPaid: 0, amountPending: 0, dueDate: "2026-09-15", paidDate: null, status: "unpaid" as const },
     ];
     const desktopResult = allocateDesktop(desktopInstallments, 0.01, "tuition", "paid");
 
@@ -364,7 +364,7 @@ describe("Boundary: cross-platform equivalence at boundary values", () => {
       const mirrorResult = allocatePaymentToInstallments(mirrorInstallments, tc.centimes, "tuition", "paid");
 
       const desktopInstallments = [
-        { id: "i1", parentId: "par-1", studentId: null, category: "tuition", amountDue: DZD(tc.centimes), amountPaid: 0, amountPending: 0, dueDate: "2026-09-15", status: "unpaid", label: "T1" },
+        { id: "i1", parentId: "par-1", studentId: null, category: "tuition" as const, label: "T1", amountDue: DZD(tc.centimes), amountPaid: 0, amountPending: 0, dueDate: "2026-09-15", paidDate: null, status: "unpaid" as const },
       ];
       const desktopResult = allocateDesktop(desktopInstallments, DZD(tc.centimes), "tuition", "paid");
 

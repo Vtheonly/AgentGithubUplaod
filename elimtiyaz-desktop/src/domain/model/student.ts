@@ -218,6 +218,12 @@ export interface Student {
    * Defaults to `"tranches"` for new enrollments.
    */
   readonly paymentPlan: PaymentPlan;
+  /**
+   * Append-only academic history — one entry per completed academic year
+   * (plan §04.07). Written by the batch promotion flow; rendered in the
+   * student drawer's "Académique" tab.
+   */
+  readonly academicHistory?: readonly AcademicHistoryEntry[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -241,6 +247,19 @@ export interface CreateStudentInput {
 }
 
 /**
+ * Partial update payload for an existing student.
+ *
+ * Extends the create input with lifecycle fields the edit form manages
+ * (`status`, `academicHistory`) — previously `updateStudent` only accepted
+ * `Partial<CreateStudentInput>`, which silently excluded the student status
+ * from any edit flow.
+ */
+export interface UpdateStudentInput extends Partial<CreateStudentInput> {
+  readonly status?: StudentStatus;
+  readonly academicHistory?: readonly AcademicHistoryEntry[];
+}
+
+/**
  * Returns the COMPLETE student name for display.
  * Prefers `displayName` and falls back to `{firstName} {lastName}`.
  */
@@ -254,6 +273,20 @@ export function studentDisplayName(s: Pick<Student, "firstName" | "lastName" | "
 export interface BatchRegistrationInput {
   readonly parent: CreateParentInput;
   readonly students: readonly CreateStudentInput[];
+  /**
+   * Billing flags from the wizard's step 3 — when omitted the repository
+   * applies its defaults (registration fee included, transport included).
+   *
+   * FIX (billing persistence): previously the wizard computed a full billing
+   * summary (tuition + discounts + tranches + transport + registration fee)
+   * but submitted only `{parent, students}` — no charges, ledger entries, or
+   * installments were ever created, so new families started with a zero
+   * balance despite the "Total facturé" shown in the review step.
+   */
+  readonly includeRegistration?: boolean;
+  readonly includeTransport?: boolean;
+  /** Calendar year the academic year starts (for due dates + discounts). */
+  readonly academicYearStartYear?: number;
 }
 
 export interface BatchRegistrationResult {
