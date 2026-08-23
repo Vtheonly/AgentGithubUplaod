@@ -5,6 +5,7 @@ import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
+import { getTenantId, isUuid } from "./supabase-shared-repositories";
 import type { Observable } from "../../../domain/repository/repository";
 import type {
   AcademicClass,
@@ -23,6 +24,10 @@ import type {
   Student,
   AcademicLevel,
   GradeLevel,
+} from "../../../domain/model/student";
+import {
+  academicLevelFromGradeLevel,
+  gradeYearFromGradeLevel,
 } from "../../../domain/model/student";
 import type {
   AcademicYearRepository,
@@ -97,10 +102,12 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
   }
 
   async setCurrentYear(id: string, _actorId: string, _actorName: string): Promise<Result<AcademicYear>> {
-    // Unset current for all
+    // Unset current for all other years of the tenant (explicit tenant scope —
+    // see createAcademicYear).
     await this.client
       .from("academic_years")
       .update({ is_current: false })
+      .eq("tenant_id", getTenantId())
       .filter("id", "neq", id);
 
     const { data, error } = await this.client
@@ -120,6 +127,17 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     _actorId: string,
     _actorName: string,
   ): Promise<Result<AcademicYear>> {
+    // Only one current year at a time — unset the flag on every other year
+    // of the tenant first (same semantics as the mock implementation). The
+    // explicit tenant filter keeps the UPDATE scoped (PostgREST PATCH without
+    // a filter would touch every tenant's rows).
+    if (input.isCurrent) {
+      await this.client
+        .from("academic_years")
+        .update({ is_current: false })
+        .eq("tenant_id", getTenantId());
+    }
+
     const { data, error } = await this.client
       .from("academic_years")
       .insert({
@@ -246,25 +264,53 @@ export class SupabaseAcademicLevelRepository implements AcademicLevelRepository 
 // ============================================================================
 export class SupabaseClassRepository implements ClassRepository {
   private readonly subject = new SubjectBehavior<AcademicClass[]>([]);
+  /** Per-class enrolled-student counts (students.class_id histogram). */
+  private enrolledByClass = new Map<string, number>();
 
   constructor(private readonly client: SupabaseClient) {
     this.refresh();
   }
 
   private async refresh(): Promise<void> {
-    const { data } = await this.client
-      .from("classes")
-      .select(
-        `
-        *,
-        academic_years!inner(code)
-      `,
-      )
-      .eq("is_active", true)
-      .order("code", { ascending: true });
+    try {
+      const [{ data, error }, enrolled] = await Promise.all([
+        this.client
+          .from("classes")
+          .select(
+            `
+            *,
+            academic_years!inner(code, label)
+          `,
+          )
+          .eq("is_active", true)
+          .order("code", { ascending: true }),
+        // enrolledCount is derived from the students table (the classes table
+        // has no enrolled_count column) — one histogram query per refresh.
+        this.client
+          .from("students")
+          .select("class_id")
+          .not("class_id", "is", null),
+      ] as const);
 
-    if (data) {
-      this.subject.set(data.map(mapClassRow));
+      if (error) throw error;
+
+      this.enrolledByClass = new Map<string, number>();
+      for (const row of (enrolled.data ?? []) as { class_id: string | null }[]) {
+        if (row.class_id) {
+          this.enrolledByClass.set(
+            row.class_id,
+            (this.enrolledByClass.get(row.class_id) ?? 0) + 1,
+          );
+        }
+      }
+
+      if (data) {
+        this.subject.set(
+          data.map((row) => mapClassRow(row, this.enrolledByClass.get(row.id) ?? 0)),
+        );
+      }
+    } catch {
+      // Silently degrade to the current cache — the UI shows "no classes".
     }
   }
 
@@ -304,16 +350,20 @@ export class SupabaseClassRepository implements ClassRepository {
         grade_code: input.gradeCode,
         section: input.section || "A",
         room: input.room,
-        capacity: input.capacity,
-        homeroom_teacher_id: input.homeroomTeacherId,
+        capacity: input.capacity ?? 30,
+        // Mock-era ids ("per-001") are not UUIDs — never send them to the
+        // uuid column.
+        homeroom_teacher_id: isUuid(input.homeroomTeacherId)
+          ? input.homeroomTeacherId
+          : null,
         homeroom_teacher_name: input.homeroomTeacherName,
       })
-      .select(`*, academic_years!inner(code)`)
+      .select(`*, academic_years!inner(code, label)`)
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
-    return Ok(mapClassRow(data));
+    return Ok(mapClassRow(data, this.enrolledByClass.get(data.id) ?? 0));
   }
 
   async updateClass(
@@ -324,9 +374,12 @@ export class SupabaseClassRepository implements ClassRepository {
     if (updates.name !== undefined) patch.name = updates.name;
     if (updates.code !== undefined) patch.code = updates.code;
     if (updates.room !== undefined) patch.room = updates.room;
-    if (updates.capacity !== undefined) patch.capacity = updates.capacity;
+    if (updates.capacity !== undefined)
+      patch.capacity = updates.capacity ?? 30;
     if (updates.homeroomTeacherId !== undefined)
-      patch.homeroom_teacher_id = updates.homeroomTeacherId;
+      patch.homeroom_teacher_id = isUuid(updates.homeroomTeacherId)
+        ? updates.homeroomTeacherId
+        : null;
     if (updates.homeroomTeacherName !== undefined)
       patch.homeroom_teacher_name = updates.homeroomTeacherName;
     patch.updated_at = new Date().toISOString();
@@ -335,12 +388,12 @@ export class SupabaseClassRepository implements ClassRepository {
       .from("classes")
       .update(patch)
       .eq("id", id)
-      .select(`*, academic_years!inner(code)`)
+      .select(`*, academic_years!inner(code, label)`)
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
-    return Ok(mapClassRow(data));
+    return Ok(mapClassRow(data, this.enrolledByClass.get(data.id) ?? 0));
   }
 
   async deleteClass(id: string): Promise<Result<void>> {
@@ -360,9 +413,12 @@ export class SupabaseClassRepository implements ClassRepository {
 // ============================================================================
 export class SupabaseSubjectRepository implements SubjectRepository {
   private readonly subject = new SubjectBehavior<Subject[]>([]);
+  /** All class-subject assignments — kept reactive for `observeByClass`. */
+  private readonly classSubjects = new SubjectBehavior<ClassSubject[]>([]);
 
   constructor(private readonly client: SupabaseClient) {
     this.refresh();
+    this.refreshClassSubjects();
   }
 
   private async refresh(): Promise<void> {
@@ -374,6 +430,17 @@ export class SupabaseSubjectRepository implements SubjectRepository {
 
     if (data) {
       this.subject.set(data.map(mapSubjectRow));
+    }
+  }
+
+  private async refreshClassSubjects(): Promise<void> {
+    const { data } = await this.client
+      .from("class_subjects")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      this.classSubjects.set(data.map(mapClassSubjectRow));
     }
   }
 
@@ -390,30 +457,33 @@ export class SupabaseSubjectRepository implements SubjectRepository {
   }
 
   observeByClass(classId: string): Observable<ClassSubject[]> {
+    // Derived from the shared assignments cache so assign/remove mutations
+    // propagate to every open class-subjects tab.
     const sub = new SubjectBehavior<ClassSubject[]>([]);
-    const fetchClassSubjects = async () => {
-      const { data } = await this.client
-        .from("class_subjects")
-        .select("*")
-        .eq("class_id", classId);
-
-      if (data) {
-        sub.set(data.map(mapClassSubjectRow));
-      }
-    };
-    fetchClassSubjects();
+    this.classSubjects.subscribe((all) => {
+      sub.set(all.filter((cs) => cs.classId === classId));
+    });
     return sub;
   }
 
   async assignSubjectToClass(
     input: Omit<ClassSubject, "id">,
   ): Promise<Result<ClassSubject>> {
+    if (!isUuid(input.classId) || !isUuid(input.subjectId)) {
+      return Err(
+        Errors.validation(
+          "L'assignation matière-classe nécessite des identifiants Supabase valides.",
+        ),
+      );
+    }
+
     const { data, error } = await this.client
       .from("class_subjects")
       .insert({
         class_id: input.classId,
         subject_id: input.subjectId,
-        teacher_id: input.teacherId,
+        // Mock-era personnel ids ("per-001") are not UUIDs.
+        teacher_id: isUuid(input.teacherId) ? input.teacherId : null,
         teacher_name: input.teacherName,
         weekly_hours: input.weeklyHours,
         coefficient: input.coefficient,
@@ -422,6 +492,7 @@ export class SupabaseSubjectRepository implements SubjectRepository {
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
+    await this.refreshClassSubjects();
     return Ok(mapClassSubjectRow(data));
   }
 
@@ -431,6 +502,7 @@ export class SupabaseSubjectRepository implements SubjectRepository {
       .delete()
       .eq("id", id);
     if (error) return Err(supabaseErrorToAppError(error));
+    await this.refreshClassSubjects();
     return Ok(undefined);
   }
 
@@ -674,18 +746,28 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
     statuses: ReadonlyMap<string, AttendanceStatus>;
     recordedBy: string;
   }): Promise<Result<AttendanceRecord[]>> {
-    const payload = Array.from(input.statuses.entries()).map(
-      ([studentId, status]) => ({
+    if (!isUuid(input.classId)) {
+      return Err(
+        Errors.validation(
+          "L'appel nécessite une classe Supabase valide (identifiant non-UUID reçu).",
+        ),
+      );
+    }
+
+    const payload = Array.from(input.statuses.entries())
+      .filter(([studentId]) => isUuid(studentId))
+      .map(([studentId, status]) => ({
         student_id: studentId,
         class_id: input.classId,
         record_date: input.date,
         session: input.session,
         status,
-        recorded_by: input.recordedBy,
+        recorded_by: isUuid(input.recordedBy) ? input.recordedBy : null,
         recorded_at: new Date().toISOString(),
         synced_at: new Date().toISOString(),
-      }),
-    );
+      }));
+
+    if (payload.length === 0) return Ok([]);
 
     const { data, error } = await this.client
       .from("attendance_records")
@@ -696,16 +778,30 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
     return Ok(data.map(mapAttendanceRow));
   }
 
+  /**
+   * Absence alert dispatch (plan §05.04 — parents notified after 3+ absences).
+   *
+   * The `dispatch-absence-alerts` Edge Function is NOT deployed in this
+   * project (see supabase/functions/). Rather than failing the roll-call
+   * flow with a 404, we mirror the mock implementation: append an audit
+   * entry via the `write_audit_log` RPC (migration 0014) so the alert intent
+   * is traceable, and return Ok. When the Edge Function is deployed, this
+   * method should be switched to `client.functions.invoke`.
+   */
   async alertAbsences(studentIds: string[]): Promise<Result<void>> {
-    // Triggers automated absence alert push to parent portal
-    const { error } = await this.client.functions.invoke(
-      "dispatch-absence-alerts",
-      {
-        body: { student_ids: studentIds },
-      },
-    );
-
-    if (error) return Err(supabaseErrorToAppError(error));
+    try {
+      await this.client.rpc("write_audit_log", {
+        p_tenant_id: getTenantId(),
+        p_action: "attendance.alert_absences",
+        p_entity_type: "student",
+        p_entity_id: null,
+        p_actor_id: null,
+        p_actor_name: "Système",
+        p_note: `Seuil 3+ absences atteint pour ${studentIds.length} élève(s)`,
+      });
+    } catch {
+      // The audit entry is best-effort — never fail the alert call on it.
+    }
     return Ok(undefined);
   }
 }
@@ -756,19 +852,46 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
     dueDate: string;
     attachments: readonly string[];
   }): Promise<Result<Homework>> {
+    if (!isUuid(input.classId) || !isUuid(input.subjectId) || !isUuid(input.teacherId)) {
+      return Err(
+        Errors.validation(
+          "La publication de devoirs nécessite des identifiants Supabase valides (classe / matière / enseignant).",
+        ),
+      );
+    }
+
+    // Resolve the subject display name and the current academic year code
+    // (previously both were hardcoded — "Matière" / "2025-2026").
+    const [subjectRes, yearRes] = await Promise.all([
+      this.client
+        .from("subjects")
+        .select("name_fr")
+        .eq("id", input.subjectId)
+        .maybeSingle(),
+      this.client
+        .from("academic_years")
+        .select("code, label")
+        .eq("is_current", true)
+        .maybeSingle(),
+    ]);
+    const subjectName =
+      (subjectRes.data as { name_fr?: string } | null)?.name_fr ?? "Matière";
+    const yearRow = yearRes.data as { code?: string | null; label?: string | null } | null;
+    const academicYear = yearRow?.code ?? yearRow?.label ?? "2025-2026";
+
     const { data, error } = await this.client
       .from("homework")
       .insert({
         class_id: input.classId,
         subject_id: input.subjectId,
-        subject_name: "Matière",
+        subject_name: subjectName,
         teacher_id: input.teacherId,
         teacher_name: input.teacherName,
         title: input.title,
         description: input.description,
         due_date: input.dueDate,
         attachments: input.attachments,
-        academic_year: "2025-2026",
+        academic_year: academicYear,
         pushed_at: new Date().toISOString(),
       })
       .select()
@@ -776,10 +899,16 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
 
     if (error) return Err(supabaseErrorToAppError(error));
 
-    // Trigger push notification to student/parent portal
-    await this.client.functions.invoke("push-homework-notification", {
-      body: { homework_id: data.id },
-    });
+    // Best-effort portal push notification. The `push-homework-notification`
+    // Edge Function is optional (not currently deployed in supabase/functions)
+    // — functions.invoke resolves with { error } instead of throwing, and the
+    // result is intentionally ignored so the homework insert stays the source
+    // of truth.
+    void this.client
+      .functions.invoke("push-homework-notification", {
+        body: { homework_id: data.id },
+      })
+      .catch(() => undefined);
 
     return Ok(mapHomeworkRow(data));
   }
@@ -788,9 +917,40 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
 // ============================================================================
 // 8. PROMOTION REPOSITORY (Decoupled Batch Execution)
 // ============================================================================
+/**
+ * Derive the academic year label that just completed, given the target year
+ * of the promotion (e.g. "2026-2027" → "2025-2026"). Mirrors the mock
+ * implementation so the history entry records the COMPLETED year.
+ */
+function derivePreviousAcademicYear(targetAcademicYear: string): string {
+  const m = /^(\d{4})-(\d{4})$/.exec(targetAcademicYear.trim());
+  if (m) {
+    const start = Number(m[1]) - 1;
+    return `${start}-${start + 1}`;
+  }
+  return targetAcademicYear;
+}
+
 export class SupabasePromotionRepository implements PromotionRepository {
   constructor(private readonly client: SupabaseClient) {}
 
+  /**
+   * Batch promotion — direct table operations:
+   *
+   *   1. Upsert the permanent academic history entries into
+   *      `student_academic_histories` (migration 0029) for the year the
+   *      student just COMPLETED.
+   *   2. Advance promoted students: `students.grade_level_code` ← next grade
+   *      level (level / gradeYear are derived from the code via the canonical
+   *      helpers, exactly like the shared student repository), and clear
+   *      `class_id` — the old class assignment no longer applies.
+   *   3. Graduated students (3ème année) get `enrollment_status = 'graduated'`.
+   *   4. Best-effort audit entry via the `write_audit_log` RPC (0014).
+   *
+   * NOTE: the original implementation called an `execute_batch_promotion` RPC
+   * that does NOT exist in any migration — it would have failed with
+   * PGRST202 at runtime. The student updates are therefore issued directly.
+   */
   async executeBatchPromotion(input: {
     candidates: readonly {
       candidate: PromotionCandidate;
@@ -800,19 +960,19 @@ export class SupabasePromotionRepository implements PromotionRepository {
     performedBy: string;
     performedByName: string;
   }): Promise<Result<{ promotedStudents: Student[]; updatedCount: number }>> {
+    const completedYear = derivePreviousAcademicYear(input.targetAcademicYear);
     const historyPayloads: Record<string, unknown>[] = [];
     const studentUpdates: {
       id: string;
       gradeLevel: GradeLevel;
-      level: AcademicLevel;
-      gradeYear: number;
     }[] = [];
+    const graduatedIds: string[] = [];
 
     for (const item of input.candidates) {
       const { candidate, finalDecision } = item;
       const history = createAcademicHistoryEntry(
         candidate,
-        input.targetAcademicYear,
+        completedYear,
         null,
         finalDecision,
       );
@@ -823,48 +983,108 @@ export class SupabasePromotionRepository implements PromotionRepository {
         cycle: history.cycle,
         grade_code: history.gradeCode,
         grade_year: history.gradeYear,
+        class_id: isUuid(history.classId) ? history.classId : null,
+        class_name: history.className,
         gpa: history.gpa,
         decision: history.decision,
         narrative: history.narrative,
         recorded_at: new Date().toISOString(),
       });
 
+      if (!isUuid(candidate.student.id)) continue; // mock-era id — not in Supabase
+
       if (
         finalDecision === "promoted" &&
-        candidate.nextGradeLevel &&
-        candidate.nextAcademicLevel &&
-        candidate.nextGradeYear
+        candidate.nextGradeLevel
       ) {
         studentUpdates.push({
           id: candidate.student.id,
           gradeLevel: candidate.nextGradeLevel,
-          level: candidate.nextAcademicLevel,
-          gradeYear: candidate.nextGradeYear,
         });
+      } else if (finalDecision === "graduated") {
+        graduatedIds.push(candidate.student.id);
       }
     }
 
-    // 1. Insert permanent academic history entries
-    const { error: historyErr } = await this.client
-      .from("student_academic_histories")
-      .upsert(historyPayloads, { onConflict: "student_id,academic_year" });
-
-    if (historyErr) return Err(supabaseErrorToAppError(historyErr));
-
-    // 2. Execute RPC stored procedure for atomic student level advancement
-    const { data: updatedStudents, error: updateErr } = await this.client.rpc(
-      "execute_batch_promotion",
-      {
-        p_student_updates: studentUpdates,
-        p_actor_id: input.performedBy,
-      },
+    // 1. Permanent academic history (append-only, idempotent per student+year).
+    // Only rows with Supabase uuid student ids can be persisted.
+    const persistableHistory = historyPayloads.filter((p) =>
+      isUuid(p.student_id as string),
     );
+    if (persistableHistory.length > 0) {
+      const { error: historyErr } = await this.client
+        .from("student_academic_histories")
+        .upsert(persistableHistory, {
+          onConflict: "student_id,academic_year",
+        });
+      if (historyErr) return Err(supabaseErrorToAppError(historyErr));
+    }
 
-    if (updateErr) return Err(supabaseErrorToAppError(updateErr));
+    // 2. Advance promoted students to the next grade level + clear class.
+    const now = new Date().toISOString();
+    for (const upd of studentUpdates) {
+      const { error } = await this.client
+        .from("students")
+        .update({
+          grade_level_code: upd.gradeLevel,
+          class_id: null,
+          updated_at: now,
+        })
+        .eq("id", upd.id);
+      if (error) return Err(supabaseErrorToAppError(error));
+    }
+
+    // 3. Graduations.
+    for (const id of graduatedIds) {
+      const { error } = await this.client
+        .from("students")
+        .update({
+          enrollment_status: "graduated",
+          class_id: null,
+          updated_at: now,
+        })
+        .eq("id", id);
+      if (error) return Err(supabaseErrorToAppError(error));
+    }
+
+    const updatedIds = [
+      ...studentUpdates.map((u) => u.id),
+      ...graduatedIds,
+    ];
+
+    // 4. Best-effort audit entry (canonical write_audit_log RPC, migration 0014).
+    try {
+      await this.client.rpc("write_audit_log", {
+        p_tenant_id: getTenantId(),
+        p_action: "student.promote",
+        p_entity_type: "student",
+        p_entity_id: null,
+        p_actor_id: isUuid(input.performedBy) ? input.performedBy : null,
+        p_actor_name: input.performedByName,
+        p_before_json: null,
+        p_after_json: {
+          count: updatedIds.length,
+          targetYear: input.targetAcademicYear,
+        },
+        p_note: `Promotion de classe exécutée vers l'année ${input.targetAcademicYear}`,
+      });
+    } catch {
+      // Audit is best-effort — the promotion itself already succeeded.
+    }
+
+    // 5. Re-read the updated students for the return payload.
+    if (updatedIds.length === 0) {
+      return Ok({ promotedStudents: [], updatedCount: 0 });
+    }
+    const { data: rows, error: fetchErr } = await this.client
+      .from("students")
+      .select("*")
+      .in("id", updatedIds);
+    if (fetchErr) return Err(supabaseErrorToAppError(fetchErr));
 
     return Ok({
-      promotedStudents: (updatedStudents ?? []).map(mapStudentRow),
-      updatedCount: studentUpdates.length,
+      promotedStudents: (rows ?? []).map(mapStudentRow),
+      updatedCount: updatedIds.length,
     });
   }
 }
@@ -876,7 +1096,10 @@ function mapAcademicYearRow(row: Record<string, any>): AcademicYear {
   return {
     id: row.id,
     tenantId: row.tenant_id,
-    code: row.code,
+    // The `code` column (migration 0029) is NULL on the live seeded year —
+    // fall back to the label ("2026-2027") so the domain contract
+    // (`code: string`) and the UI never see null.
+    code: row.code ?? row.label,
     label: row.label,
     startDate: row.start_date,
     endDate: row.end_date,
@@ -900,7 +1123,10 @@ function mapAcademicLevelRow(row: Record<string, any>): AcademicLevelModel {
   };
 }
 
-function mapClassRow(row: Record<string, any>): AcademicClass {
+function mapClassRow(
+  row: Record<string, any>,
+  enrolledCount?: number,
+): AcademicClass {
   const cycleMap: Record<string, AcademicLevel> = {
     prescolaire_1: "primaire",
     prescolaire_2: "primaire",
@@ -931,11 +1157,16 @@ function mapClassRow(row: Record<string, any>): AcademicClass {
     section: row.section,
     room: row.room,
     capacity: row.capacity ?? null,
-    enrolledCount: row.enrolled_count ?? 0,
+    enrolledCount: enrolledCount ?? row.enrolled_count ?? 0,
     homeroomTeacherId: row.homeroom_teacher_id,
     homeroomTeacherName: row.homeroom_teacher_name,
     notes: row.notes ?? null,
-    academicYear: row.academic_years?.code ?? "2025-2026",
+    // The joined year's `code` is NULL on the live seeded year (0029 column) —
+    // fall back to its label before the static mock default.
+    academicYear:
+      row.academic_years?.code ??
+      row.academic_years?.label ??
+      "2025-2026",
     isActive: row.is_active,
   };
 }
@@ -1033,6 +1264,11 @@ function mapHomeworkRow(row: Record<string, any>): Homework {
 }
 
 function mapStudentRow(row: Record<string, any>): Student {
+  // students table has no level / grade_year / grade_level columns — the
+  // canonical source is `grade_level_code` (migration 0028), from which
+  // level + gradeYear are derived via the domain helpers (same routine as
+  // the shared SupabaseStudentRepository).
+  const gradeLevel = (row.grade_level_code ?? "1ap") as GradeLevel;
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -1041,17 +1277,23 @@ function mapStudentRow(row: Record<string, any>): Student {
     firstName: row.first_name,
     lastName: row.last_name,
     displayName: row.display_name ?? null,
-    gender: row.gender,
+    gender: row.gender ?? "unspecified",
     birthDate: row.date_of_birth,
     enrollmentDate: row.enrollment_date,
-    level: row.level,
-    gradeYear: row.grade_year,
-    gradeLevel: row.grade_level,
+    level: academicLevelFromGradeLevel(gradeLevel),
+    gradeYear: gradeYearFromGradeLevel(gradeLevel),
+    gradeLevel,
     classId: row.class_id,
     photoUrl: null,
     medicalNotes: row.medical_notes,
     transportTier: null,
-    status: row.is_active ? "active" : "suspended",
+    status: (row.enrollment_status === "withdrawn"
+      ? "withdrawn"
+      : row.enrollment_status === "graduated"
+        ? "graduated"
+        : row.is_active
+          ? "active"
+          : "suspended") as Student["status"],
     paymentPlan: (row.payment_plan as Student["paymentPlan"]) ?? "tranches",
     createdAt: row.created_at,
     updatedAt: row.updated_at,

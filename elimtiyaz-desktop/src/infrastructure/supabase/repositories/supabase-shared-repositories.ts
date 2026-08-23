@@ -127,7 +127,7 @@ function getSessionFromStorage(): { tenantId?: string; userId?: string; displayN
   }
 }
 
-function getTenantId(): string {
+export function getTenantId(): string {
   // The tenant id is stored on the session by the auth provider.
   // Fall back to the seed tenant when the session isn't loaded yet.
   try {
@@ -137,7 +137,7 @@ function getTenantId(): string {
   return TENANT_FALLBACK;
 }
 
-function getActorId(): string {
+export function getActorId(): string {
   try {
     const sess = getSessionFromStorage();
     if (sess?.userId) return sess.userId;
@@ -145,7 +145,7 @@ function getActorId(): string {
   return "excel-import";
 }
 
-function getActorName(): string {
+export function getActorName(): string {
   try {
     const sess = getSessionFromStorage();
     if (sess?.displayName) return sess.displayName;
@@ -237,6 +237,15 @@ function toIsoDate(d: string | Date | null | undefined): string | null {
   if (!d) return null;
   if (d instanceof Date) return d.toISOString();
   return d;
+}
+
+/**
+ * Whether the given string is a well-formed UUID. Domain ids coming from the
+ * mock layer (e.g. "per-001", "cls-003") are NOT valid Postgres UUIDs — use
+ * this guard before sending a value to a `uuid` column / RPC parameter.
+ */
+export function isUuid(value: string | null | undefined): boolean {
+  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 // ============================================================================

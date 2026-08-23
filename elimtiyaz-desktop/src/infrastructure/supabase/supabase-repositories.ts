@@ -6,12 +6,22 @@
  * ARCHITECTURE:
  *   - Auth: SupabaseAuthRepository (wraps supabase.auth) — fully implemented
  *   - Approval workflow: SupabaseApprovalRepository (wraps Edge Function) — fully implemented
- *   - Parents / Students / Payments / Ledger: Supabase implementations that
- *     call the idempotent upsert RPCs declared in migration
- *     `0027_shared_unification.sql`. These are the canonical write paths
- *     shared with the Android app.
- *   - Audit: minimal Supabase adapter calling the `write_audit_log` RPC
- *   - Notifications: minimal Supabase adapter (read + mark-read)
+ *   - Parents / Students / Payments / Ledger / Installments / Debt: Supabase
+ *     implementations that call the idempotent upsert RPCs declared in
+ *     migration `0027_shared_unification.sql`. These are the canonical write
+ *     paths shared with the Android app.
+ *   - Dashboard: SupabaseDashboardRepository (KPIs straight from the tables)
+ *   - Academics (DESKTOP-1): academic years, classes, subjects (+class-subject
+ *     assignments), grades/assessments, attendance, homework and batch
+ *     promotion — see `supabase-academic-repository.ts` (tables 0004 + 0029).
+ *   - Audit (DESKTOP-1): SupabaseAuditLogRepository — `write_audit_log` RPC
+ *     (migration 0014) + filtered queries on `audit_logs` (Settings → Journal
+ *     d'audit reads real data).
+ *   - Notifications (DESKTOP-1): SupabaseNotificationRepository — `notifications`
+ *     table (migration 0013) with the observable-cache pattern.
+ *   - Personnel + Departments (DESKTOP-1): entity CRUD on `personnel` (0009)
+ *     and `departments` (0010). Releve/timesheets, workforce tasks, chat,
+ *     shifts, schedules and onboarding remain on the mock layer.
  *   - All other repositories: FALLBACK to mock implementations with a console
  *     warning. This allows incremental migration — each repository can be
  *     ported to Supabase independently without blocking the release.
@@ -40,6 +50,22 @@ import {
   SupabaseDebtRepository,
 } from "./repositories/supabase-shared-repositories";
 import { SupabaseDashboardRepository } from "./repositories/supabase-dashboard-repository";
+import {
+  SupabaseAcademicYearRepository,
+  SupabaseClassRepository,
+  SupabaseSubjectRepository,
+  SupabaseGradeRepository,
+  SupabaseAttendanceRepository,
+  SupabaseHomeworkRepository,
+  SupabasePromotionRepository,
+} from "./repositories/supabase-academic-repository";
+import { SupabaseAuditLogRepository } from "./repositories/supabase-audit-log-repository";
+import { SupabaseNotificationRepository } from "./repositories/supabase-notification-repository";
+import {
+  SupabasePersonnelRepository,
+  SupabaseDepartmentRepository,
+  RoleLookup,
+} from "./repositories/supabase-personnel-repository";
 
 /**
  * Build a Repositories object backed by Supabase for auth + approval workflow,
@@ -78,6 +104,34 @@ export function getSupabaseRepositories(): Repositories {
   // the mock seed data (or zeros) instead of the real imported numbers.
   const dashboard = new SupabaseDashboardRepository(client);
 
+  // DESKTOP-1 — Academics: previously every academic entity silently fell
+  // back to the mock store in Supabase mode, so classes / subjects / grades /
+  // attendance / homework created in the UI were never persisted and the
+  // screens showed mock seed data instead of the (empty) live tables.
+  const academicYears = new SupabaseAcademicYearRepository(client);
+  const classes = new SupabaseClassRepository(client);
+  const subjects = new SupabaseSubjectRepository(client);
+  const grades = new SupabaseGradeRepository(client);
+  const attendance = new SupabaseAttendanceRepository(client);
+  const homework = new SupabaseHomeworkRepository(client);
+  const promotion = new SupabasePromotionRepository(client);
+
+  // DESKTOP-1 — Audit: Settings → Journal d'audit now queries the real
+  // `audit_logs` table (migration 0014) and every `log()` call appends via
+  // the canonical `write_audit_log` RPC.
+  const audit = new SupabaseAuditLogRepository(client);
+
+  // DESKTOP-1 — Notifications: alerts feed reads/writes the `notifications`
+  // table (migration 0013).
+  const notifications = new SupabaseNotificationRepository(client);
+
+  // DESKTOP-1 — Personnel + departments (entity CRUD only — the remaining
+  // workforce repositories stay mock-backed). The RoleLookup is shared
+  // between personnel writes (role code → uuid) and reads (uuid → code).
+  const roleLookup = new RoleLookup(client);
+  const personnel = new SupabasePersonnelRepository(client, roleLookup);
+  const departments = new SupabaseDepartmentRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -90,6 +144,18 @@ export function getSupabaseRepositories(): Repositories {
     installments,
     debt,
     dashboard,
+    // DESKTOP-1 — newly Supabase-backed:
+    academicYears,
+    classes,
+    subjects,
+    grades,
+    attendance,
+    homework,
+    promotion,
+    audit,
+    notifications,
+    personnel,
+    departments,
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
@@ -123,4 +189,15 @@ export {
   SupabaseInstallmentRepository,
   SupabaseDebtRepository,
   SupabaseDashboardRepository,
+  SupabaseAcademicYearRepository,
+  SupabaseClassRepository,
+  SupabaseSubjectRepository,
+  SupabaseGradeRepository,
+  SupabaseAttendanceRepository,
+  SupabaseHomeworkRepository,
+  SupabasePromotionRepository,
+  SupabaseAuditLogRepository,
+  SupabaseNotificationRepository,
+  SupabasePersonnelRepository,
+  SupabaseDepartmentRepository,
 };

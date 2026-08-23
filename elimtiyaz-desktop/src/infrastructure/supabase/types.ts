@@ -111,12 +111,16 @@ export interface PermissionRow {
 export interface AcademicYearRow {
   id: string;
   tenant_id: string;
+  /** Short code ("2025-2026") — added by migration 0029. */
+  code: string | null;
   label: string;
   start_date: string;
   end_date: string;
   term_structure: "semester" | "trimester" | "quarter";
   is_current: boolean;
   is_archived: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AcademicLevelRow {
@@ -124,10 +128,16 @@ export interface AcademicLevelRow {
   tenant_id: string;
   cycle: "prescolaire" | "primaire" | "cem" | "lycee";
   year_label: string;
+  /** French label ("1ère Année Primaire") — added by migration 0029. */
+  label_fr: string | null;
+  /** Arabic label — added by migration 0029. */
+  label_ar: string | null;
   year_number: number;
   grade_code: string;
   sort_order: number;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ClassRow {
@@ -140,8 +150,14 @@ export interface ClassRow {
   name: string | null;
   capacity: number;
   homeroom_teacher_id: string | null;
+  /** Denormalized homeroom teacher name — added by migration 0029. */
+  homeroom_teacher_name: string | null;
+  /** Grade-level code ("3ap") — added by migration 0029. */
+  grade_code: string | null;
   room: string | null;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SubjectRow {
@@ -152,8 +168,16 @@ export interface SubjectRow {
   name_ar: string | null;
   name_en: string | null;
   domain: "scolarite" | "club" | "therapy" | "auxiliary";
+  /** Academic cycle — added by migration 0029. */
+  cycle: "prescolaire" | "primaire" | "cem" | "lycee" | null;
   default_coefficient: number;
+  /** Passing grade (default 10) — added by migration 0029. */
+  passing_grade: number;
+  /** Extracurricular flag — added by migration 0029. */
+  is_extracurricular: boolean;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
@@ -480,6 +504,26 @@ export interface NotificationRow {
 }
 
 // ============================================================================
+// Departments (migration 0010_workforce.sql)
+// ============================================================================
+
+export interface DepartmentRow {
+  id: string;
+  tenant_id: string;
+  code: string;
+  name_fr: string;
+  label_ar: string | null;
+  color_hex: string | null;
+  head_personnel_id: string | null;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
 // Convenience type: the Database shape expected by Supabase's typed client
 // ============================================================================
 
@@ -495,6 +539,7 @@ export interface Database {
       academic_levels: { Row: AcademicLevelRow; Insert: Partial<AcademicLevelRow>; Update: Partial<AcademicLevelRow> };
       classes: { Row: ClassRow; Insert: Partial<ClassRow>; Update: Partial<ClassRow> };
       subjects: { Row: SubjectRow; Insert: Partial<SubjectRow>; Update: Partial<SubjectRow> };
+      departments: { Row: DepartmentRow; Insert: Partial<DepartmentRow>; Update: Partial<DepartmentRow> };
       parents: { Row: ParentRow; Insert: Partial<ParentRow>; Update: Partial<ParentRow> };
       students: { Row: StudentRow; Insert: Partial<StudentRow>; Update: Partial<StudentRow> };
       payments: { Row: PaymentRow; Insert: Partial<PaymentRow>; Update: Partial<PaymentRow> };
