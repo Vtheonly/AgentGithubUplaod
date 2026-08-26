@@ -8,6 +8,8 @@ import { Badge } from "../../../shared/ui/badge";
 import { LEVEL_LABELS_FR } from "../../../domain/model/student";
 import { TRANSPORT_DESTINATION_LABELS_FR } from "../../../domain/model/parent";
 import { formatDzd } from "../../../core/format/currency";
+import { useRepositories } from "../../../app/providers/repository-provider";
+import { useObservable } from "../../../shared/hooks/use-observable";
 import type { Step1Parent, Step2Student, Billing } from "./types";
 
 export function Step4({
@@ -19,6 +21,9 @@ export function Step4({
   students: Step2Student[];
   billing: Billing;
 }) {
+  const repos = useRepositories();
+  // vault §04.03 — review shows the assigned class alongside the level.
+  const classes = useObservable(() => repos.classes.observe(), []);
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-status-success/40 bg-status-success/5 p-3">
@@ -47,16 +52,21 @@ export function Step4({
           Élèves ({students.length})
         </p>
         <ul className="space-y-1.5">
-          {students.map((s, i) => (
-            <li key={i} className="flex items-center justify-between text-sm">
-              <span>
-                {s.firstName} {s.lastName}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {LEVEL_LABELS_FR[s.level]} · Année {s.gradeYear}
-              </span>
-            </li>
-          ))}
+          {students.map((s, i) => {
+            const klass = classes.find((c) => c.id === s.classId) ?? null;
+            return (
+              <li key={i} className="flex items-center justify-between text-sm">
+                <span>
+                  {s.firstName}
+                  {s.middleName ? ` ${s.middleName}` : ""} {s.lastName}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {LEVEL_LABELS_FR[s.level]} · Année {s.gradeYear}
+                  {klass ? ` · ${klass.name}` : ""}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </div>
 

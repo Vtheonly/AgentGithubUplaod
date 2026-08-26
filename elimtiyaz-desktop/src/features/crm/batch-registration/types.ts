@@ -26,11 +26,18 @@ export interface Step1Parent {
 
 export interface Step2Student {
   firstName: string;
+  /** Optional middle name (vault §04.03 — child block field list). */
+  middleName: string;
   lastName: string;
   gender: Gender;
   birthDate: string;
   level: AcademicLevel;
   gradeYear: number;
+  /**
+   * Optional class assignment (vault §04.03 — "Assigned Academic Level &
+   * Class"). `""` = unassigned; resolved to `classId: null` on submit.
+   */
+  classId: string;
   /** Canonical transport destination per student (overrides parent if set). */
   transportDestination: TransportDestination | "";
   medicalNotes: string;
@@ -53,11 +60,13 @@ export const EMPTY_PARENT: Step1Parent = {
 
 export const EMPTY_STUDENT: Step2Student = {
   firstName: "",
+  middleName: "",
   lastName: "",
   gender: "unspecified",
   birthDate: "",
   level: "primaire",
   gradeYear: 1,
+  classId: "",
   transportDestination: "",
   medicalNotes: "",
   paymentPlan: "tranches",

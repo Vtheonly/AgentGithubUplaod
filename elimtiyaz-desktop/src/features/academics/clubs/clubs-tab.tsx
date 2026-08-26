@@ -18,6 +18,7 @@ import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useToast } from "../../../app/providers/toast-provider";
 import { useAuth } from "../../../app/providers/auth-provider";
+import { useCurrentAcademicYear } from "../hooks/use-current-academic-year";
 import type { Club, ClubCategory, CreateClubInput, UpdateClubInput } from "../../../domain/model/club";
 import { CLUB_CATEGORIES, CLUB_CATEGORY_LABELS_FR } from "../../../domain/model/club";
 import { ClubDetailDrawer } from "./club-detail-drawer";
@@ -50,6 +51,7 @@ export function ClubsTab({ canManage }: { canManage: boolean }) {
   const { session } = useAuth();
   const clubs = useObservable(() => repos.clubs.observe(), []);
   const personnel = useObservable(() => repos.personnel.observe(), []);
+  const currentYear = useCurrentAcademicYear();
 
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -111,8 +113,10 @@ export function ClubsTab({ canManage }: { canManage: boolean }) {
       capacity: (data.capacity ?? "").trim() ? parseInt(data.capacity, 10) : null,
       supervisorId,
       supervisorName: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : null,
-      academicYearId: "ay-2025-2026",
-      academicYearCode: "2025-2026",
+      // FIX (vault §05.05 — dynamic year scoping): use the CURRENT academic
+      // year instead of a hard-coded "ay-2025-2026".
+      academicYearId: currentYear.id,
+      academicYearCode: currentYear.code,
     };
     const res = await repos.clubs.createClub(input, session.userId, session.displayName);
     if (res.ok) {

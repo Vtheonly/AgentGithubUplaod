@@ -161,23 +161,20 @@ export class DesktopClient {
     if (!this.probe.has.upsert_installment_from_import) {
       return { ok: false, skipped: true, error: "upsert_installment_from_import not deployed (pre-0037)" };
     }
-    // 0037 ref-based contract: label drives tranche_number derivation; the
-    // ref provides sync identity. Amounts DZD.
     return rpc("upsert_installment_from_import", {
       p_tenant_id: T(),
       p_parent_id: inst.parentId,
-      p_installment_ref: inst.sourceId,
       p_student_id: inst.studentId,
-      p_category: inst.category || "tuition",
-      p_label: inst.label ?? `Tranche ${inst.trancheNumber}`,
-      p_amount_due: inst.amountDue,
+      p_tranche_number: inst.trancheNumber,
+      p_amount_due: inst.amountDue, // DZD
       p_amount_paid: inst.amountPaid ?? 0,
       p_amount_pending: inst.amountPending ?? 0,
       p_due_date: inst.dueDate,
-      p_paid_date: null,
       p_status: inst.status || "unpaid",
-      p_academic_cycle: inst.academicCycle || null,
-      p_academic_year: inst.academicYear || null,
+      p_category: inst.category || "tuition",
+      p_payment_plan: inst.paymentPlan || "tranches",
+      p_source_type: "manual_entry",
+      p_source_id: inst.sourceId,
     });
   }
 
@@ -358,23 +355,21 @@ export class MobileClient {
     if (!this.probe.has.upsert_installment_from_import) {
       return { ok: false, skipped: true, error: "upsert_installment_from_import not deployed (pre-0037)" };
     }
-    // 0037 ref-based contract; mobile path converts centimes -> DZD (/100.0)
-    // exactly like SyncQueueDispatcher.kt, and pushes its local ref + code.
+    const parentRef = this.refMode === "code" ? inst.parentCode : inst.parentId;
     return rpc("upsert_installment_from_import", {
       p_tenant_id: T(),
-      p_parent_id: inst.parentCode ?? inst.parentId,
-      p_installment_ref: inst.sourceId,
+      p_parent_id: parentRef,
       p_student_id: inst.studentId,
-      p_category: inst.category || "tuition",
-      p_label: inst.label ?? `Tranche ${inst.trancheNumber}`,
+      p_tranche_number: inst.trancheNumber,
       p_amount_due: MobileClient.dzd(Math.round(inst.amountDue * 100)),
       p_amount_paid: MobileClient.dzd(Math.round((inst.amountPaid ?? 0) * 100)),
       p_amount_pending: MobileClient.dzd(Math.round((inst.amountPending ?? 0) * 100)),
       p_due_date: inst.dueDate,
-      p_paid_date: null,
       p_status: inst.status || "unpaid",
-      p_academic_cycle: inst.academicCycle || null,
-      p_academic_year: inst.academicYear || null,
+      p_category: inst.category || "tuition",
+      p_payment_plan: inst.paymentPlan || "tranches",
+      p_source_type: "android_sync",
+      p_source_id: inst.sourceId,
     });
   }
 

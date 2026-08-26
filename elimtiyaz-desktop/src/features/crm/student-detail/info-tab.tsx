@@ -53,6 +53,13 @@ export function InfoTab({
     () => repos.students.observeByParent(student?.parentId ?? ""),
     [student?.parentId],
   );
+  // FIX (vault §04.06): resolve the ASSIGNED CLASS name ("Classe") instead
+  // of showing the raw gradeLevel code — the vault's Identity section
+  // expects placement info a staff member can read directly.
+  const classes = useObservable(() => repos.classes.observe(), []);
+  const assignedClass = student?.classId
+    ? classes.find((c) => c.id === student.classId) ?? null
+    : null;
   // Read ledger entries for this student so we can surface the imported
   // services (transport, therapy, extra support). The Excel importer
   // writes one ledger entry per service with metadata.field = "PSY1" etc.
@@ -81,7 +88,12 @@ export function InfoTab({
           <Detail label="Année" value={`${student.gradeYear}`} />
           <Detail
             label="Classe"
-            value={student.gradeLevel ?? "Non assignée"}
+            value={assignedClass ? assignedClass.name : "Non assignée"}
+          />
+          <Detail
+            label="Niveau détaillé"
+            value={student.gradeLevel ?? "—"}
+            mono
           />
           <Detail
             label="Statut"

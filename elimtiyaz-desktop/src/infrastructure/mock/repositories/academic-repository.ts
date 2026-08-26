@@ -30,6 +30,7 @@ import {
 } from "../../../domain/calc/academics/promotion";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 import { ACADEMIC_YEAR } from "../seed-data";
+import type { AppError } from "../../../core/result";
 
 // ============================================================================
 // Classes (Unlimited creation per grade level, zero capacity limits)
@@ -196,6 +197,29 @@ export class MockSubjectRepository implements SubjectRepository {
     const after: Subject = { ...before, ...updates };
     store.subjects = store.subjects.map((s) => (s.id === id ? after : s));
     store.subjects$.set(store.subjects);
+
+    // FIX (vault §05.06 — "Coefficient edits should trigger an automatic GPA
+    // recompute for affected students"): assessments persist a coefficient
+    // snapshot at entry time and every GPA surface (backend
+    // `fn_calculate_student_term_gpa`, Android engine, desktop drawers) reads
+    // that snapshot. When an admin changes a subject's coefficient, the
+    // stored snapshots for NON-ARCHIVED years are re-weighted so every GPA
+    // recomputes automatically (assessments$ is a derived observable).
+    // Archived years are deliberately left untouched — history is
+    // append-only (§04.07).
+    let reweighted = 0;
+    if (updates.coefficient != null && updates.coefficient !== before.coefficient) {
+      const archivedYearCodes = new Set(
+        store.academicYears.filter((y) => y.isArchived).map((y) => y.code),
+      );
+      store.assessments = store.assessments.map((a) => {
+        if (a.subjectId !== id || archivedYearCodes.has(a.academicYear)) return a;
+        reweighted += 1;
+        return { ...a, coefficient: updates.coefficient as number };
+      });
+      if (reweighted > 0) store.notifyAssessments();
+    }
+
     appendAudit({
       action: AuditActions.SubjectUpdate,
       entityType: "subject",
@@ -205,7 +229,10 @@ export class MockSubjectRepository implements SubjectRepository {
       diff: { before, after },
       note:
         updates.coefficient != null
-          ? `Coefficient modifié: ${before.coefficient} → ${updates.coefficient}`
+          ? `Coefficient modifié: ${before.coefficient} → ${updates.coefficient}` +
+            (reweighted > 0
+              ? ` — ${reweighted} évaluation(s) re-pondérée(s), moyennes recalculées`
+              : " — aucune évaluation active à re-pondérer")
           : "Matière modifiée",
     });
     return Ok(after);
@@ -255,6 +282,13 @@ export class MockGradeRepository implements GradeRepository {
     input: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">,
   ): Promise<Result<Assessment>> {
     await delay(150);
+    // FIX (vault §04.07 / §06.05 — append-only history): reject any write
+    // targeting an ARCHIVED academic year. Once a year is archived its
+    // records are read-only; corrections require a new audit-logged entry
+    // that supersedes the original. Enforced at the repository layer, not
+    // just in the UI (same pattern as the 0–20 score CHECK constraint).
+    const archivedYearErr = this.archivedYearError(input.academicYear);
+    if (archivedYearErr) return Err(archivedYearErr);
     const asm: Assessment = {
       ...input,
       id: `asm-${Date.now()}`,
@@ -283,6 +317,13 @@ export class MockGradeRepository implements GradeRepository {
     >,
   ): Promise<Result<Assessment[]>> {
     await delay(250);
+    // FIX (vault §04.07 / §06.05 — append-only history): reject the whole
+    // batch if ANY row targets an archived academic year (all-or-nothing,
+    // mirroring the atomicity rule of batch registration §04.03).
+    for (const input of inputs) {
+      const archivedYearErr = this.archivedYearError(input.academicYear);
+      if (archivedYearErr) return Err(archivedYearErr);
+    }
     const created: Assessment[] = inputs.map((input) => ({
       ...input,
       id: `asm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -305,6 +346,22 @@ export class MockGradeRepository implements GradeRepository {
       diff: { before: null, after: { count: created.length } },
     });
     return Ok(created);
+  }
+
+  /**
+   * Returns an AppError when `academicYear` refers to an archived school
+   * year, otherwise null. Unknown years (no matching AcademicYear record)
+   * are treated as writable to stay backwards-compatible with seeded data.
+   */
+  private archivedYearError(academicYear: string): AppError | null {
+    const year = store.academicYears.find((y) => y.code === academicYear);
+    if (year?.isArchived) {
+      const msg =
+        `Année scolaire ${academicYear} archivée — lecture seule. ` +
+        `L'historique académique est append-only (plan §04.07).`;
+      return Errors.validation(msg, msg);
+    }
+    return null;
   }
 }
 

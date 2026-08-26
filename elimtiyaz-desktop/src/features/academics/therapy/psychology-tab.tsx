@@ -40,6 +40,7 @@ import {
 } from "../../../shared/ui/unified-modal";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
+import { useCurrentAcademicYear } from "../hooks/use-current-academic-year";
 import type { PaymentNavigationContext } from "../../../domain/model/payment";
 import { buildTherapyCharge } from "../../../domain/calc/ledger/non-tuition-charges";
 import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
@@ -269,6 +270,9 @@ function CreateFollowUpModal({
   const { session } = useAuth();
   const students = useObservable(() => repos.students.observe(), []);
   const personnel = useObservable(() => repos.personnel.observe(), []);
+  // FIX (vault §05.05): scope the follow-up to the CURRENT academic year
+  // instead of the hard-coded "ay-2025-2026".
+  const currentYear = useCurrentAcademicYear();
 
   const [studentId, setStudentId] = useState("");
   const [psychologistId, setPsychologistId] = useState("");
@@ -325,8 +329,8 @@ function CreateFollowUpModal({
         parentConsent,
         parentConsentDate: parentConsent ? parentConsentDate : null,
         notes: notes.trim() || null,
-        academicYearId: "ay-2025-2026",
-        academicYearCode: "2025-2026",
+        academicYearId: currentYear.id,
+        academicYearCode: currentYear.code,
       },
       session.userId,
       session.displayName,
@@ -378,8 +382,8 @@ function CreateFollowUpModal({
         parentConsent,
         parentConsentDate: parentConsent ? parentConsentDate : null,
         notes: notes.trim() || null,
-        academicYearId: "ay-2025-2026",
-        academicYearCode: "2025-2026",
+        academicYearId: currentYear.id,
+        academicYearCode: currentYear.code,
       },
       session.userId,
       session.displayName,

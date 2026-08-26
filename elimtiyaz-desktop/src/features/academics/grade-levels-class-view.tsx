@@ -38,6 +38,7 @@ import {
 } from "../../shared/ui/unified-modal";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import {
@@ -278,6 +279,8 @@ function CreateClassModal({
   const toast = useToast();
   const { session } = useAuth();
   const personnel = useObservable(() => repos.personnel.observe(), []);
+  // FIX (vault §05.05): scope new classes to the CURRENT academic year.
+  const currentYear = useCurrentAcademicYear();
 
   const [gradeCode, setGradeCode] = useState<GradeLevel>(
     presetGradeCode ?? "1ap",
@@ -314,7 +317,7 @@ function CreateClassModal({
     const code = `CLS-${gradeCode.toUpperCase()}-${section.replace(/\s+/g, "").toUpperCase()}-${Date.now().toString(36).slice(-3)}`;
 
     const result = await repos.classes.createClass({
-      academicYearId: "ay-2025-2026",
+      academicYearId: currentYear.id,
       academicLevelId: `al-${gradeCode}`,
       code,
       name: derivedName,

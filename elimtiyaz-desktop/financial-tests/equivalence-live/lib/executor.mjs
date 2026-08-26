@@ -72,7 +72,6 @@ export async function executeCanonicalScenario({ probe, index = 1 } = {}) {
     await step("ledger.charge", () =>
       client.pushCharge({
         parentId: ctx.parentId,
-        parentCode: canon.parent.parentCode,
         studentId: ctx.studentId,
         category: charge.category,
         amount: charge.amount,

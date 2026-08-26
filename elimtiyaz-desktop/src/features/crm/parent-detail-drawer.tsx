@@ -57,6 +57,7 @@ import {
   type TransportDestination,
 } from "../../domain/model/parent";
 import { Permission } from "../../core/rbac/permissions";
+import { cn } from "../../shared/ui/cn";
 import { generateAccountStatementPdf, downloadPdf } from "../../infrastructure/receipt-pdf";
 
 export function ParentDetailDrawer({
@@ -64,12 +65,20 @@ export function ParentDetailDrawer({
   open,
   onOpenChange,
   onAddChild,
+  onOpenStudent,
 }: {
   parentId: string | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   /** Receives the FULL parent entity so callers can prefill the wizard. */
   onAddChild?: (parent: Parent) => void;
+  /**
+   * FIX (bidirectional navigation, plan §04.04): clicking a child in the
+   * parent drawer opens the Student drawer. Previously only Student→Parent
+   * navigation existed — the vault requires BOTH directions from any
+   * profile view.
+   */
+  onOpenStudent?: (studentId: string) => void;
 }) {
   const repos = useRepositories();
   const toast = useToast();
@@ -90,6 +99,10 @@ export function ParentDetailDrawer({
     () => repos.payments.observeByParent(parentId ?? ""),
     [parentId],
   );
+  // FIX (§04.04/§04.05): resolve each child's assigned class so the children
+  // list shows "grade level + assigned class" as the vault requires —
+  // previously only the level/year badge was displayed.
+  const classes = useObservable(() => repos.classes.observe(), []);
 
   // === Epic 6.3 — UnifiedPaymentModal + AdjustAccount modal triggers ===
   const [collectOpen, setCollectOpen] = useState(false);
@@ -167,32 +180,53 @@ export function ParentDetailDrawer({
             <p className="text-xs text-muted-foreground">Aucun enfant inscrit.</p>
           ) : (
             <ul className="space-y-1.5">
-              {students.map((s) => (
-                <li
-                  key={s.id}
-                  className="flex items-center gap-3 rounded-md border border-border p-2.5 hover:bg-accent/5"
-                >
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">
-                      {s.firstName[0]}
-                      {s.lastName[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {s.firstName} {s.lastName}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground font-mono">{s.code}</p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">
-                    {levelLabel(s.level)} · An. {s.gradeYear}
-                  </Badge>
-                  <StatusChip
-                    label={s.status === "active" ? "Actif" : s.status}
-                    tone={s.status === "active" ? "success" : "neutral"}
-                  />
-                </li>
-              ))}
+              {students.map((s) => {
+                const klass = classes.find((c) => c.id === s.classId) ?? null;
+                const clickable = !!onOpenStudent;
+                return (
+                  <li
+                    key={s.id}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md border border-border p-2.5",
+                      clickable &&
+                        "cursor-pointer hover:bg-accent/10 hover:border-primary/30 transition-colors",
+                    )}
+                    onClick={() => clickable && onOpenStudent(s.id)}
+                    title={
+                      clickable
+                        ? "Ouvrir le dossier de l'élève (navigation bidirectionnelle §04.04)"
+                        : undefined
+                    }
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="text-xs">
+                        {s.firstName[0]}
+                        {s.lastName[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {s.firstName} {s.lastName}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground font-mono">{s.code}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant="outline" className="text-[10px]">
+                        {levelLabel(s.level)} · An. {s.gradeYear}
+                      </Badge>
+                      {klass && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {klass.name}
+                        </span>
+                      )}
+                    </div>
+                    <StatusChip
+                      label={s.status === "active" ? "Actif" : s.status}
+                      tone={s.status === "active" ? "success" : "neutral"}
+                    />
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

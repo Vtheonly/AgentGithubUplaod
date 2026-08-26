@@ -130,7 +130,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SET search_path = public;
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_sync_payments_receipt_number
   BEFORE INSERT OR UPDATE ON public.payments
@@ -422,7 +422,7 @@ BEGIN
       v_unallocated,
       v_alloc;
 END;
-$$ LANGUAGE plpgsql SET search_path = public;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- STEP 6: Rewrite revert_payment_allocation with the originalWasPending branch.
@@ -624,7 +624,7 @@ BEGIN
   RETURN QUERY
     SELECT p_payment_id, 'refunded'::TEXT, v_reversal_id, v_count, v_total_reverted;
 END;
-$$ LANGUAGE plpgsql SET search_path = public;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- STEP 7: Create the canonical compute_parent_summary function.
@@ -769,7 +769,7 @@ BEGIN
       v_account_count,
       v_accounts;
 END;
-$$ LANGUAGE plpgsql SET search_path = public;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- STEP 8: Rewrite compute_account_balance to match the canonical engine.
@@ -813,7 +813,7 @@ BEGIN
     FROM ledger_entries le
     WHERE le.account_id = p_account_id;
 END;
-$$ LANGUAGE plpgsql SET search_path = public;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- STEP 9: Rewrite the materialized views to use canonical formulas.
@@ -823,28 +823,21 @@ $$ LANGUAGE plpgsql SET search_path = public;
 
 -- 9a. mv_dashboard_kpis — canonical KPIs
 DROP MATERIALIZED VIEW IF EXISTS public.mv_dashboard_kpis;
--- CARTESIAN-PRODUCT FIX: the previous definition LEFT JOINed parents x
--- students x payments and aggregated with GROUP BY tenant — every payment
--- row was repeated once per (parent, student) pair, inflating SUM(amount)
--- columns by the row-multiplication factor (e.g. revenue 389x on the
--- production dataset). COUNT(DISTINCT) columns masked the bug.
--- All aggregates are now computed in per-tenant scalar subqueries.
 CREATE MATERIALIZED VIEW public.mv_dashboard_kpis AS
 SELECT
   t.id AS tenant_id,
-  (SELECT COUNT(*) FROM parents p
-    WHERE p.tenant_id = t.id AND p.deleted_at IS NULL) AS total_parents,
-  (SELECT COUNT(*) FROM students s
-    WHERE s.tenant_id = t.id AND s.enrollment_status = 'active'
-      AND s.deleted_at IS NULL) AS total_students,
-  (SELECT COALESCE(SUM(pay.amount), 0) FROM payments pay
-    WHERE pay.tenant_id = t.id AND pay.status = 'paid'
+  COUNT(DISTINCT p.id) AS total_parents,
+  COUNT(DISTINCT s.id) FILTER (WHERE s.enrollment_status = 'active') AS total_students,
+  COALESCE(SUM(pay.amount) FILTER (
+    WHERE pay.status = 'paid'
       AND pay.collected_at >= date_trunc('month', NOW())
-      AND pay.collected_at < date_trunc('month', NOW() + INTERVAL '1 month')) AS monthly_revenue,
-  (SELECT COALESCE(SUM(pay.amount), 0) FROM payments pay
-    WHERE pay.tenant_id = t.id AND pay.status = 'paid'
+      AND pay.collected_at < date_trunc('month', NOW() + INTERVAL '1 month')
+  ), 0) AS monthly_revenue,
+  COALESCE(SUM(pay.amount) FILTER (
+    WHERE pay.status = 'paid'
       AND pay.collected_at >= date_trunc('day', NOW())
-      AND pay.collected_at < date_trunc('day', NOW() + INTERVAL '1 day')) AS today_revenue,
+      AND pay.collected_at < date_trunc('day', NOW() + INTERVAL '1 day')
+  ), 0) AS today_revenue,
   (
     SELECT COALESCE(SUM(summary.total_outstanding), 0)
     FROM parents p2
@@ -863,11 +856,17 @@ SELECT
     CROSS JOIN LATERAL compute_parent_summary(p2.id) AS summary
     WHERE p2.tenant_id = t.id AND p2.deleted_at IS NULL AND summary.total_overdue > 0
   ) AS overdue_families_count,
-  (SELECT COUNT(*) FROM payments pay
-    WHERE pay.tenant_id = t.id AND pay.method = 'check' AND pay.status = 'pending') AS pending_checks_count,
-  (SELECT COALESCE(SUM(pay.amount), 0) FROM payments pay
-    WHERE pay.tenant_id = t.id AND pay.method = 'check' AND pay.status = 'pending') AS pending_checks_amount
-FROM tenants t;
+  COUNT(DISTINCT pay.id) FILTER (
+    WHERE pay.method = 'check' AND pay.status = 'pending'
+  ) AS pending_checks_count,
+  COALESCE(SUM(pay.amount) FILTER (
+    WHERE pay.method = 'check' AND pay.status = 'pending'
+  ), 0) AS pending_checks_amount
+FROM tenants t
+LEFT JOIN parents p ON p.tenant_id = t.id AND p.deleted_at IS NULL
+LEFT JOIN students s ON s.parent_id = p.id AND s.deleted_at IS NULL
+LEFT JOIN payments pay ON pay.tenant_id = t.id
+GROUP BY t.id;
 
 -- 9b. mv_debt_aging — canonical aging using compute_parent_summary
 -- FRESH-DB FIX: 0021's mv_top_debtors depends on mv_debt_aging — it must be

@@ -1,7 +1,8 @@
 /**
  * StudentDetailDrawer — slide-over panel showing a student's complete profile.
  *
- * Plan §04.05 / §04.07: 4-tab slide-over — Infos / Académique / Présences / Paiements.
+ * Plan §04.05 / §04.06 / §04.07: 5-tab slide-over — Infos / Académique /
+ * Présences / Paiements / Documents.
  *
  * Phase 4B refactor: now built on the shared `<EntityDetailDrawer<T>>` primitive
  * (`src/shared/ui/entity-drawer/`) instead of `UnifiedModal variant="drawer"`.
@@ -12,6 +13,8 @@
  *   - Académique  → grade book per term (D1/D2/Examen/Moy) + academic history
  *   - Présences   → attendance summary with 3+ absence alert badge (plan §09.03)
  *   - Paiements   → individual share + family balance
+ *   - Documents   → uploaded attachments (vault §04.06: medical certificates,
+ *                   justification letters, contracts)
  *
  * FIX (editing): a "Modifier" footer action now opens the EditStudentModal,
  * wiring `repos.students.updateStudent` into the UI for the first time —
@@ -29,6 +32,7 @@ import { InfoTab } from "./student-detail/info-tab";
 import { AcademicTab } from "./student-detail/academic-tab";
 import { AttendanceTab } from "./student-detail/attendance-tab";
 import { PaymentsTab } from "./student-detail/payments-tab";
+import { DocumentsTab } from "./student-detail/documents-tab";
 import { EditStudentModal } from "./edit-student-modal";
 
 export function StudentDetailDrawer({
@@ -73,6 +77,14 @@ export function StudentDetailDrawer({
       id: "payments",
       label: "Paiements",
       content: () => <PaymentsTab studentId={studentId ?? ""} onOpenParent={onOpenParent} />,
+    },
+    // FIX (vault §04.06): the required Documents section of the Student
+    // Profile Drawer — uploaded attachments (medical certificates,
+    // justification letters, contracts).
+    {
+      id: "documents",
+      label: "Documents",
+      content: () => <DocumentsTab studentId={studentId ?? ""} />,
     },
   ];
 

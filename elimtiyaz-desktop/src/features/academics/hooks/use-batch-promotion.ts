@@ -24,9 +24,27 @@ export function useBatchPromotion(classId: string) {
     [classId],
   );
   const subjects = useObservable(() => repos.subjects.observe(), []);
+  const cls = useObservable(
+    () => repos.classes.observeById(classId),
+    [classId],
+  );
+  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
+
+  // FIX (hardcoded year): derive the source academic year from the class
+  // (falling back to the repository's current year) instead of the
+  // hardcoded "2025-2026" — the promotion queue now stays correct when the
+  // operator works on a class from a different year.
+  const sourceAcademicYear =
+    cls?.academicYear ??
+    academicYears.find((y) => y.isCurrent)?.code ??
+    "2025-2026";
+  const defaultTargetYear = (() => {
+    const m = /^(\d{4})-(\d{4})$/.exec(sourceAcademicYear);
+    return m ? `${Number(m[2])}-${Number(m[2]) + 1}` : "2026-2027";
+  })();
 
   const [threshold, setThreshold] = useState<number>(DEFAULT_PASSING_GRADE);
-  const [targetYear, setTargetYear] = useState<string>("2026-2027");
+  const [targetYear, setTargetYear] = useState<string>(defaultTargetYear);
   const [overrides, setOverrides] = useState<Map<string, PromotionDecision>>(
     new Map(),
   );
@@ -37,11 +55,11 @@ export function useBatchPromotion(classId: string) {
       students,
       assessments,
       subjects,
-      academicYear: "2025-2026",
+      academicYear: sourceAcademicYear,
       targetAcademicYear: targetYear,
       passingThreshold: threshold,
     });
-  }, [students, assessments, subjects, targetYear, threshold]);
+  }, [students, assessments, subjects, sourceAcademicYear, targetYear, threshold]);
 
   const candidates: PromotionCandidate[] = useMemo(() => {
     return reviewQueue.candidates.map((c) => {
@@ -103,6 +121,7 @@ export function useBatchPromotion(classId: string) {
     setThreshold,
     targetYear,
     setTargetYear,
+    sourceAcademicYear,
     candidates,
     reviewQueue,
     setStudentDecisionOverride,

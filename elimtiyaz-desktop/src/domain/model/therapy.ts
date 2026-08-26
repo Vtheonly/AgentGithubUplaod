@@ -49,6 +49,41 @@ export type ConfidentialityLevel =
   | "restricted";  // visible only to the psychologist + SuperAdmin
 
 /**
+ * Attachment kind for therapy medical documentation (vault §05.07:
+ * "Therapy services often have medical documentation requirements; keep
+ * them in a distinct sub-module with their own attachment schema").
+ *
+ * This schema is deliberately SEPARATE from student documents and homework
+ * attachments — therapy records carry medical/psychological sensitivity and
+ * are access-controlled by the therapy RBAC permissions, not the generic
+ * student document permissions.
+ */
+export type TherapyAttachmentKind =
+  | "medical_report"   // compte-rendu médical
+  | "assessment"       // bilan / évaluation initiale
+  | "prescription"     // ordonnance
+  | "consent_form"     // consentement parental signé
+  | "other";
+
+export const THERAPY_ATTACHMENT_KIND_LABELS_FR: Record<TherapyAttachmentKind, string> = {
+  medical_report: "Compte-rendu médical",
+  assessment: "Bilan / Évaluation",
+  prescription: "Ordonnance",
+  consent_form: "Consentement parental",
+  other: "Autre",
+};
+
+/** A medical-documentation attachment on a therapy follow-up (vault §05.07). */
+export interface TherapyAttachment {
+  readonly id: string;
+  readonly fileName: string;
+  readonly kind: TherapyAttachmentKind;
+  readonly uploadedBy: string;
+  readonly uploadedAt: string; // ISO datetime
+  readonly note: string | null;
+}
+
+/**
  * PsychologicalFollowUp — the umbrella case file for a student receiving
  * psychological support. A student can have multiple follow-ups over time
  * (e.g. one in 2025, another in 2027), but only ONE active follow-up at
@@ -73,6 +108,11 @@ export interface PsychologicalFollowUp {
   readonly parentConsentDate: string | null;
   /** High-level notes visible to authorized staff (NOT session details). */
   readonly notes: string | null;
+  /**
+   * Medical documentation attachments (vault §05.07 — own attachment schema,
+   * distinct from student documents and clubs).
+   */
+  readonly attachments?: readonly TherapyAttachment[];
   readonly academicYearId: string;
   readonly academicYearCode: string;
   readonly createdAt: string;
@@ -89,6 +129,7 @@ export interface CreatePsychologicalFollowUpInput {
   readonly parentConsent: boolean;
   readonly parentConsentDate: string | null;
   readonly notes?: string | null;
+  readonly attachments?: readonly TherapyAttachment[];
   readonly academicYearId: string;
   readonly academicYearCode: string;
 }
@@ -99,6 +140,7 @@ export interface UpdatePsychologicalFollowUpInput {
   readonly status?: PsychologicalFollowUpStatus;
   readonly confidentialityLevel?: ConfidentialityLevel;
   readonly notes?: string | null;
+  readonly attachments?: readonly TherapyAttachment[];
 }
 
 /**
@@ -208,6 +250,8 @@ export interface SpeechTherapyFollowUp {
   readonly parentConsent: boolean;
   readonly parentConsentDate: string | null;
   readonly notes: string | null;
+  /** Medical documentation attachments (vault §05.07 — own schema). */
+  readonly attachments?: readonly TherapyAttachment[];
   readonly academicYearId: string;
   readonly academicYearCode: string;
   readonly createdAt: string;
@@ -223,6 +267,7 @@ export interface CreateSpeechTherapyFollowUpInput {
   readonly parentConsent: boolean;
   readonly parentConsentDate: string | null;
   readonly notes?: string | null;
+  readonly attachments?: readonly TherapyAttachment[];
   readonly academicYearId: string;
   readonly academicYearCode: string;
 }
@@ -232,6 +277,7 @@ export interface UpdateSpeechTherapyFollowUpInput {
   readonly endDate?: string | null;
   readonly status?: SpeechTherapyFollowUpStatus;
   readonly notes?: string | null;
+  readonly attachments?: readonly TherapyAttachment[];
 }
 
 /**

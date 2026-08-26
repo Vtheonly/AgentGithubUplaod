@@ -273,6 +273,13 @@ export function CrmPage() {
           setPresetParentId(parent.id);
           setBatchOpen(true);
         }}
+        // FIX (bidirectional navigation, plan §04.04): Parent→Student leg.
+        // Mirrors the Student→Parent wiring below — clicking a child opens
+        // the student drawer and closes the parent drawer.
+        onOpenStudent={(studentId) => {
+          setDrawerOpen(false);
+          openStudent(studentId);
+        }}
       />
       <StudentDetailDrawer
         studentId={studentDrawerId}

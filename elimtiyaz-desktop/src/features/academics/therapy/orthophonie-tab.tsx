@@ -37,6 +37,7 @@ import {
 } from "../../../shared/ui/unified-modal";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
+import { useCurrentAcademicYear } from "../hooks/use-current-academic-year";
 import { useToast } from "../../../app/providers/toast-provider";
 import { useAuth } from "../../../app/providers/auth-provider";
 import type { SpeechTherapyFollowUp } from "../../../domain/model/therapy";
@@ -239,6 +240,9 @@ function CreateOrthoFollowUpModal({
   const { session } = useAuth();
   const students = useObservable(() => repos.students.observe(), []);
   const personnel = useObservable(() => repos.personnel.observe(), []);
+  // FIX (vault §05.05): scope the follow-up to the CURRENT academic year
+  // instead of the hard-coded "ay-2025-2026".
+  const currentYear = useCurrentAcademicYear();
 
   const [studentId, setStudentId] = useState("");
   const [therapistId, setTherapistId] = useState("");
@@ -287,8 +291,8 @@ function CreateOrthoFollowUpModal({
         parentConsent,
         parentConsentDate: parentConsent ? parentConsentDate : null,
         notes: notes.trim() || null,
-        academicYearId: "ay-2025-2026",
-        academicYearCode: "2025-2026",
+        academicYearId: currentYear.id,
+        academicYearCode: currentYear.code,
       },
       session.userId,
       session.displayName,
@@ -336,8 +340,8 @@ function CreateOrthoFollowUpModal({
         parentConsent,
         parentConsentDate: parentConsent ? parentConsentDate : null,
         notes: notes.trim() || null,
-        academicYearId: "ay-2025-2026",
-        academicYearCode: "2025-2026",
+        academicYearId: currentYear.id,
+        academicYearCode: currentYear.code,
       },
       session.userId,
       session.displayName,

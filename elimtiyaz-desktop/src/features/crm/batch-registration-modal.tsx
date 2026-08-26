@@ -165,11 +165,15 @@ export function BatchRegistrationModal({
 
     const studentInputs: CreateStudentInput[] = students.map((s) => ({
       firstName: s.firstName.trim(),
+      // vault §04.03 — optional middle name from the child block.
+      middleName: s.middleName.trim() || null,
       lastName: s.lastName.trim(),
       gender: s.gender,
       birthDate: s.birthDate,
       level: s.level,
       gradeYear: s.gradeYear,
+      // vault §04.03 — optional class assignment ("" → null = unassigned).
+      classId: s.classId || null,
       medicalNotes: s.medicalNotes.trim() || null,
       // Student.transportTier is a bare string — we store the canonical destination key in it.
       transportTier: (s.transportDestination || null) as string | null,

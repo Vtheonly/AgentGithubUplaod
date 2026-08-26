@@ -23,6 +23,42 @@ export type AcademicLevel = "primaire" | "cem" | "lycee";
 export type StudentStatus = "active" | "graduated" | "transferred" | "suspended" | "withdrawn";
 
 /**
+ * Student document category (plan §04.06 — Student Profile Drawer,
+ * "Documents" section: medical certificates, justification letters,
+ * contracts, and other attachments).
+ */
+export type StudentDocumentCategory =
+  | "medical" // certificat médical
+  | "justification" // justificatif d'absence / lettre
+  | "contract" // contrat d'inscription
+  | "other";
+
+export const STUDENT_DOCUMENT_CATEGORY_LABELS_FR: Record<StudentDocumentCategory, string> = {
+  medical: "Certificat médical",
+  justification: "Justificatif / Lettre",
+  contract: "Contrat",
+  other: "Autre",
+};
+
+/**
+ * A document attached to a student's profile (plan §04.06).
+ *
+ * Storage note: mirrors the `PersonnelDocument` pattern — a descriptive
+ * record (file name, category, uploader, optional note). The mock store
+ * keeps these in memory; the Supabase layer persists them in the additive
+ * `documents_json` column on `students` (migration 0038), exactly like
+ * personnel documents.
+ */
+export interface StudentDocument {
+  readonly id: string;
+  readonly fileName: string;
+  readonly category: StudentDocumentCategory;
+  readonly note: string | null;
+  readonly uploadedBy: string;
+  readonly uploadedAt: string; // ISO datetime
+}
+
+/**
  * Granular grade level — the canonical pedagogical placement of a student.
  *
  * Drives tuition pricing per the official 2026-2027 fee schedule:
@@ -189,6 +225,8 @@ export interface Student {
   readonly code: string; // ELV-2025-001234
   readonly parentId: string; // NOT NULL FK — plan §04.01
   readonly firstName: string;
+  /** Optional middle name (vault §04.03 — batch registration child block). */
+  readonly middleName?: string | null;
   readonly lastName: string;
   /**
    * COMPLETE display name as imported (e.g. "BENALI Sara").
@@ -224,12 +262,20 @@ export interface Student {
    * student drawer's "Académique" tab.
    */
   readonly academicHistory?: readonly AcademicHistoryEntry[];
+  /**
+   * Uploaded attachments (plan §04.06 — Student Profile Drawer "Documents"
+   * section): medical certificates, justification letters, contracts.
+   * Follows the same descriptive-record pattern as `PersonnelDocument`.
+   */
+  readonly documents?: readonly StudentDocument[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
 
 export interface CreateStudentInput {
   readonly firstName: string;
+  /** Optional middle name (vault §04.03). Persisted to `students.middle_name`. */
+  readonly middleName?: string | null;
   readonly lastName: string;
   /** Complete name. When omitted, derived from first+last. */
   readonly displayName?: string | null;
@@ -257,6 +303,8 @@ export interface CreateStudentInput {
 export interface UpdateStudentInput extends Partial<CreateStudentInput> {
   readonly status?: StudentStatus;
   readonly academicHistory?: readonly AcademicHistoryEntry[];
+  /** Vault §04.06 — document attachments managed by the Documents tab. */
+  readonly documents?: readonly StudentDocument[];
 }
 
 /**

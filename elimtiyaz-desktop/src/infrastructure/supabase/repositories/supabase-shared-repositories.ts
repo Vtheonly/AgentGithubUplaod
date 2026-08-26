@@ -307,12 +307,18 @@ function mapStudentRow(r: StudentRow): Student {
   }
   const transportTier = (r as { transport_tier?: string | null }).transport_tier ?? null;
   const paymentPlan = (r as { payment_plan?: string | null }).payment_plan === "full_annual" ? "full_annual" : "tranches";
+  // vault §04.06 — descriptive document records (documents_json, migration 0038).
+  const documents = ((r as { documents_json?: unknown }).documents_json ?? null) as
+    | Student["documents"]
+    | null;
   return {
     id: r.id,
     tenantId: r.tenant_id,
     code: r.student_code,
     parentId: r.parent_id,
     firstName: r.first_name,
+    // vault §04.03 — read back the optional middle name.
+    middleName: (r as { middle_name?: string | null }).middle_name ?? null,
     lastName: r.last_name,
     displayName: r.display_name ?? null,
     gender: (r.gender as Gender) ?? "unspecified",
@@ -327,6 +333,7 @@ function mapStudentRow(r: StudentRow): Student {
     transportTier,
     status: r.enrollment_status as Student["status"],
     paymentPlan,
+    ...(documents ? { documents } : {}),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -671,7 +678,10 @@ export class SupabaseStudentRepository implements StudentRepository {
         p_first_name: input.firstName,
         p_last_name: input.lastName,
         p_display_name: input.displayName ?? `${input.firstName} ${input.lastName}`.trim(),
-        p_middle_name: null,
+        // vault §04.03 — middle name is part of the child block; the RPC has
+        // supported p_middle_name since migration 0027 but the desktop never
+        // forwarded it (always null).
+        p_middle_name: input.middleName ?? null,
         p_date_of_birth: input.birthDate ?? null,
         p_gender: input.gender === "unspecified" ? null : input.gender,
         p_grade_level_id: null,
@@ -719,6 +729,8 @@ export class SupabaseStudentRepository implements StudentRepository {
       const patch: Record<string, unknown> = {};
       if (updates.firstName !== undefined) patch.first_name = updates.firstName;
       if (updates.lastName !== undefined) patch.last_name = updates.lastName;
+      // vault §04.03 — persist the optional middle name on edit.
+      if (updates.middleName !== undefined) patch.middle_name = updates.middleName;
       if (updates.displayName !== undefined) patch.display_name = updates.displayName;
       if (updates.birthDate !== undefined) patch.date_of_birth = updates.birthDate;
       if (updates.gender !== undefined) patch.gender = updates.gender === "unspecified" ? null : updates.gender;
@@ -741,6 +753,12 @@ export class SupabaseStudentRepository implements StudentRepository {
       if (updates.status !== undefined) {
         patch.enrollment_status = updates.status;
         patch.is_active = updates.status === "active";
+      }
+      // NEW (vault §04.06 — Documents tab): persist the descriptive document
+      // records via the additive `documents_json` column (migration 0038),
+      // mirroring the personnel `documents_json` pattern.
+      if (updates.documents !== undefined) {
+        patch.documents_json = updates.documents;
       }
       if (Object.keys(patch).length > 0) {
         const { error } = await this.client.from("students").update(patch).eq("id", id);

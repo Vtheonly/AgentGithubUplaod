@@ -141,6 +141,8 @@ export class MockPsychologyRepository implements PsychologyRepository {
       parentConsent: input.parentConsent,
       parentConsentDate: input.parentConsentDate,
       notes: input.notes ?? null,
+      // vault §05.07 — medical documentation attachments (own schema).
+      attachments: input.attachments ?? [],
       academicYearId: input.academicYearId,
       academicYearCode: input.academicYearCode,
       createdAt: nowIso(),
@@ -232,6 +234,8 @@ export class MockPsychologyRepository implements PsychologyRepository {
       ...(input.status !== undefined ? { status: input.status } : {}),
       ...(input.confidentialityLevel !== undefined ? { confidentialityLevel: input.confidentialityLevel } : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      // vault §05.07 — attachment list is replaceable on update.
+      ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
       updatedAt: nowIso(),
     };
     store.psychologicalFollowUps[idx] = after;
@@ -536,6 +540,8 @@ export class MockOrthophonieRepository implements OrthophonieRepository {
       parentConsent: input.parentConsent,
       parentConsentDate: input.parentConsentDate,
       notes: input.notes ?? null,
+      // vault §05.07 — medical documentation attachments (own schema).
+      attachments: input.attachments ?? [],
       academicYearId: input.academicYearId,
       academicYearCode: input.academicYearCode,
       createdAt: nowIso(),
@@ -625,6 +631,8 @@ export class MockOrthophonieRepository implements OrthophonieRepository {
       ...(input.endDate !== undefined ? { endDate: input.endDate } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      // vault §05.07 — attachment list is replaceable on update.
+      ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
       updatedAt: nowIso(),
     };
     store.speechTherapyFollowUps[idx] = after;

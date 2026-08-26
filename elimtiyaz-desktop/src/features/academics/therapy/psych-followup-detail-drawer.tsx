@@ -53,6 +53,7 @@ import {
   PSYCHOLOGICAL_SESSION_TYPE_LABELS_FR,
   CONFIDENTIALITY_LABELS_FR,
 } from "../../../domain/model/therapy";
+import { TherapyAttachmentsCard } from "./therapy-attachments-card";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
 
@@ -142,6 +143,24 @@ export function PsychFollowUpDetailDrawer({
           sessions={sessions}
           canManage={canManage}
           onAddSession={() => setSessionOpen(true)}
+        />
+
+        {/* vault §05.07 — medical documentation attachments (own schema). */}
+        <TherapyAttachmentsCard
+          attachments={followUp.attachments ?? []}
+          canManage={canManage}
+          uploadingBy={"Session courante"}
+          onSave={async (next) => {
+            const r = await repos.psychology.updateFollowUp(
+              followUp.id,
+              { attachments: next },
+              "usr-current",
+              "Session courante",
+            );
+            if (!r.ok) {
+              throw new Error(r.error.userMessage);
+            }
+          }}
         />
 
         <ReportsCard

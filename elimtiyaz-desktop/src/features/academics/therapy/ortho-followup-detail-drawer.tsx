@@ -53,6 +53,7 @@ import {
   SPEECH_THERAPY_EVALUATION_TYPE_LABELS_FR,
   SPEECH_THERAPY_PROGRESS_LABELS_FR,
 } from "../../../domain/model/therapy";
+import { TherapyAttachmentsCard } from "./therapy-attachments-card";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
 
@@ -137,6 +138,24 @@ export function OrthoFollowUpDetailDrawer({
           sessions={sessions}
           canManage={canManage}
           onAddSession={() => setSessionOpen(true)}
+        />
+
+        {/* vault §05.07 — medical documentation attachments (own schema). */}
+        <TherapyAttachmentsCard
+          attachments={followUp.attachments ?? []}
+          canManage={canManage}
+          uploadingBy={"Session courante"}
+          onSave={async (next) => {
+            const r = await repos.orthophonie.updateFollowUp(
+              followUp.id,
+              { attachments: next },
+              "usr-current",
+              "Session courante",
+            );
+            if (!r.ok) {
+              throw new Error(r.error.userMessage);
+            }
+          }}
         />
 
         {canManage && followUp.status !== "closed" && (

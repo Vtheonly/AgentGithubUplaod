@@ -552,8 +552,55 @@ export class SupabaseSubjectRepository implements SubjectRepository {
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
+
+    // FIX (vault §05.06 — coefficient edits trigger an automatic GPA
+    // recompute): the canonical GPA (SQL `fn_calculate_student_term_gpa`,
+    // Android engine, desktop drawers) reads the coefficient SNAPSHOT stored
+    // on each assessment row. When the subject's default coefficient changes,
+    // re-weight the stored snapshots for NON-ARCHIVED academic years so every
+    // affected student's GPA recomputes. Archived years stay untouched
+    // (append-only history, §04.07). This keeps desktop / mobile / backend
+    // bit-identical because all three read `assessments.coefficient`.
+    if (updates.coefficient !== undefined) {
+      const archivedCodes = await this.archivedYearCodes();
+      let query = this.client
+        .from("assessments")
+        .update({ coefficient: updates.coefficient })
+        .eq("subject_id", id);
+      if (archivedCodes.length > 0) {
+        // Exclude archived years from the re-weight (append-only history).
+        // PostgREST `in` filter takes a parenthesized, quoted list.
+        query = query.not(
+          "academic_year",
+          "in",
+          `(${archivedCodes.map((c) => `"${c}"`).join(",")})`,
+        );
+      }
+      const { error: reweightError } = await query;
+      if (reweightError) {
+        // Non-fatal: the subject row itself was updated successfully. Surface
+        // the re-weight failure so operators know GPAs may be stale.
+        console.warn(
+          "[supabase-subject-repo] coefficient re-weight failed:",
+          reweightError.message,
+        );
+      }
+    }
+
     await this.refresh();
     return Ok(mapSubjectRow(data));
+  }
+
+  /**
+   * Codes of all archived academic years — used to keep archived-year
+   * assessments untouched when re-weighting coefficients (append-only rule).
+   */
+  private async archivedYearCodes(): Promise<string[]> {
+    const { data } = await this.client
+      .from("academic_years")
+      .select("code")
+      .eq("is_archived", true);
+    return (data ?? []).map((r: { code: string }) => r.code);
   }
 
   async archiveSubject(id: string): Promise<Result<void>> {
@@ -613,6 +660,15 @@ export class SupabaseGradeRepository implements GradeRepository {
   async enterGrade(
     input: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">,
   ): Promise<Result<Assessment>> {
+    // FIX (vault §04.07 — append-only history): refuse writes to archived
+    // academic years, mirroring the mock repository and the backend rule.
+    const archived = await this.isArchivedYear(input.academicYear);
+    if (archived) {
+      const msg =
+        `Année scolaire ${input.academicYear} archivée — lecture seule ` +
+        `(append-only, plan §04.07).`;
+      return Err(Errors.validation(msg, msg));
+    }
     const { data, error } = await this.client
       .from("assessments")
       .upsert(
@@ -644,6 +700,18 @@ export class SupabaseGradeRepository implements GradeRepository {
       Omit<Assessment, "id" | "subjectAverage" | "enteredAt">
     >,
   ): Promise<Result<Assessment[]>> {
+    // FIX (vault §04.07 — append-only history): all-or-nothing rejection of
+    // batches targeting archived years (mirrors the mock repository).
+    const yearSet = new Set(inputs.map((i) => i.academicYear));
+    for (const year of yearSet) {
+      const archived = await this.isArchivedYear(year);
+      if (archived) {
+        const msg =
+          `Année scolaire ${year} archivée — lecture seule ` +
+          `(append-only, plan §04.07).`;
+        return Err(Errors.validation(msg, msg));
+      }
+    }
     const payload = inputs.map((input) => ({
       student_id: input.studentId,
       class_id: input.classId,
@@ -668,6 +736,16 @@ export class SupabaseGradeRepository implements GradeRepository {
 
     if (error) return Err(supabaseErrorToAppError(error));
     return Ok(data.map(mapAssessmentRow));
+  }
+
+  /** True when `academicYear` maps to an archived academic_years row. */
+  private async isArchivedYear(academicYear: string): Promise<boolean> {
+    const { data } = await this.client
+      .from("academic_years")
+      .select("is_archived")
+      .eq("code", academicYear)
+      .maybeSingle();
+    return data?.is_archived === true;
   }
 }
 

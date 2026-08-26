@@ -12,6 +12,7 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { Permission } from "../../core/rbac/permissions";
 import {
   computeSubjectAverage,
   isPassing,
@@ -27,6 +28,7 @@ import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
+import { AlertTriangle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -74,6 +76,22 @@ export function GradeEntryScreen() {
   const [term, setTerm] = useState<AcademicTerm>("T1");
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // FIX (vault §04.07 / §06.05 — append-only history + RBAC): the grade-entry
+  // route is not directly guarded, so enforce BOTH conditions here:
+  //   1. the session must hold the EnterGrades permission (teachers+), and
+  //   2. the class's academic year must NOT be archived — archived years are
+  //      read-only; corrections require a new audit-logged entry.
+  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
+  const classYear = cls ? academicYears.find((y) => y.code === cls.academicYear) : undefined;
+  const isArchivedYear = classYear?.isArchived ?? false;
+  const canEnterGrades = !!session && session.permissions.has(Permission.EnterGrades);
+  const readOnly = isArchivedYear || !canEnterGrades;
+  const readOnlyReason = isArchivedYear
+    ? `L'année scolaire ${cls?.academicYear ?? ""} est archivée — historique en lecture seule (append-only, plan §04.07).`
+    : !canEnterGrades
+      ? "Votre rôle ne dispose pas de la permission de saisie des notes (EnterGrades)."
+      : null;
 
   // FIX (edit semantics): initialize the entry grid from the roster AND
   // pre-load any existing marks for the selected subject + term. Previously
@@ -163,6 +181,10 @@ export function GradeEntryScreen() {
 
   async function save() {
     if (!session || !classId || !subjectId) return;
+    if (readOnly) {
+      toast.showWarning("Saisie bloquée", readOnlyReason ?? "");
+      return;
+    }
     setSaving(true);
     try {
       const payload: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">[] =
@@ -281,6 +303,15 @@ export function GradeEntryScreen() {
           </Badge>
         </div>
       </div>
+
+      {/* FIX (append-only history): read-only banner for archived years or
+          sessions lacking the EnterGrades permission. */}
+      {readOnly && readOnlyReason && (
+        <div className="mx-6 mb-3 flex items-center gap-2 rounded-md border border-status-warning/40 bg-status-warning/10 p-2.5 text-xs text-status-warning">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{readOnlyReason}</span>
+        </div>
+      )}
 
       <div className="mx-6 mb-3 grid grid-cols-3 gap-2">
         <StatBox
@@ -401,13 +432,13 @@ export function GradeEntryScreen() {
         <p className="text-xs text-muted-foreground font-mono">
           Formule : SubjectAverage = (D1 + D2 + 2·Examen) / 4
         </p>
-        <Button onClick={save} disabled={saving || rows.length === 0}>
+        <Button onClick={save} disabled={saving || rows.length === 0 || readOnly}>
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Save className="h-4 w-4" />
           )}
-          Enregistrer les notes
+          {readOnly ? "Lecture seule" : "Enregistrer les notes"}
         </Button>
       </div>
     </div>

@@ -16,6 +16,7 @@ import { DataTable, type DataTableColumn } from "../../shared/ui/data-table";
 import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
 import { Permission } from "../../core/rbac/permissions";
 import { LEVEL_LABELS_FR, type AcademicLevel } from "../../domain/model/student";
+import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
 import type { AcademicCycle, Subject } from "../../domain/model/academic";
 
 const CYCLE_OPTIONS = [
@@ -54,6 +55,8 @@ export function SubjectsDirectoryTab() {
   const toast = useToast();
   const { session } = useAuth();
   const subjects = useObservable(() => repos.subjects.observe(), []);
+  // FIX (vault §05.05): scope new subjects to the CURRENT academic year.
+  const currentYear = useCurrentAcademicYear();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
@@ -106,8 +109,8 @@ export function SubjectsDirectoryTab() {
       isActive: true,
       teacherId: null,
       teacherName: null,
-      academicYearId: "ay-2025-2026",
-      academicYearCode: "2025-2026",
+      academicYearId: currentYear.id,
+      academicYearCode: currentYear.code,
     };
 
     if (editingSubject) {

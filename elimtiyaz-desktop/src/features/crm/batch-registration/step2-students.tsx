@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from "../../../shared/ui/select";
 import { LEVEL_YEARS, type AcademicLevel, type Gender } from "../../../domain/model/student";
+import { useRepositories } from "../../../app/providers/repository-provider";
+import { useObservable } from "../../../shared/hooks/use-observable";
 import {
   TRANSPORT_DESTINATIONS,
   TRANSPORT_DESTINATION_LABELS_FR,
@@ -30,6 +32,9 @@ import { EMPTY_STUDENT } from "./types";
  *  FIX: `<SelectItem value="">` threw at runtime when the dropdown opened. */
 const NO_TRANSPORT = "__none__";
 
+/** Sentinel for "no class assigned" — Radix Select forbids empty-string values. */
+const NO_CLASS = "__none__";
+
 export function Step2({
   students,
   setStudents,
@@ -41,6 +46,12 @@ export function Step2({
   errors: Record<string, string>;
   parentTransportDestination: TransportDestination | "";
 }) {
+  const repos = useRepositories();
+  // vault §04.03 — "Assigned Academic Level & Class": offer the class roster
+  // filtered by the selected level so children can be placed in a section at
+  // registration time (previously class assignment required a later edit).
+  const classes = useObservable(() => repos.classes.observe(), []);
+
   function update(i: number, patch: Partial<Step2Student>) {
     const next = students.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
     setStudents(next);
@@ -77,6 +88,10 @@ export function Step2({
             <FormField label="Prénom" required error={errors[`stu_${i}_firstName`]}>
               <Input value={s.firstName} onChange={(e) => update(i, { firstName: e.target.value })} placeholder="Yacine" />
             </FormField>
+            {/* vault §04.03 — optional middle name, part of the child block. */}
+            <FormField label="Deuxième prénom" hint="Optionnel">
+              <Input value={s.middleName} onChange={(e) => update(i, { middleName: e.target.value })} placeholder="Mohamed" />
+            </FormField>
             <FormField label="Nom" required error={errors[`stu_${i}_lastName`]}>
               <Input value={s.lastName} onChange={(e) => update(i, { lastName: e.target.value })} placeholder="Benali" />
             </FormField>
@@ -109,13 +124,30 @@ export function Step2({
             <FormField label="Année">
               <Select
                 value={String(s.gradeYear)}
-                onValueChange={(v) => update(i, { gradeYear: Number(v) })}
+                onValueChange={(v) => update(i, { gradeYear: Number(v), classId: "" })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: LEVEL_YEARS[s.level] }, (_, k) => k + 1).map((y) => (
                     <SelectItem key={y} value={String(y)}>Année {y}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {/* vault §04.03 — class assignment within the selected level. */}
+            <FormField label="Classe" hint="Optionnel — filtré par niveau">
+              <Select
+                value={s.classId || NO_CLASS}
+                onValueChange={(v) => update(i, { classId: v === NO_CLASS ? "" : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_CLASS}>Non assignée</SelectItem>
+                  {classes
+                    .filter((c) => c.level === s.level && c.gradeYear === s.gradeYear)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </FormField>
