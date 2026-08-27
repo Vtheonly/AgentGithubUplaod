@@ -125,6 +125,12 @@ export interface AttendanceRecord {
   readonly date: string;
   readonly session: AttendanceSession;
   readonly status: AttendanceStatus;
+  /**
+   * VAULT §09.01 — arrival time logged when status = "late" ("Tapping LATE
+   * opens an inline time selector to log the arrival time"). Mirrors the
+   * backend `attendance_records.arrival_time` column (migration 0004).
+   */
+  readonly arrivalTime?: string | null;
   readonly note: string | null;
   readonly recordedBy: string;
   readonly recordedAt: string;

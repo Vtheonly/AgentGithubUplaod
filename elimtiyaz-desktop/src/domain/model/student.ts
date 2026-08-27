@@ -54,6 +54,13 @@ export interface StudentDocument {
   readonly fileName: string;
   readonly category: StudentDocumentCategory;
   readonly note: string | null;
+  /**
+   * VAULT §12.07 — private-bucket storage path (`<tenant>/<student>/<file>`).
+   * Present when the binary was uploaded through the media vault; null for
+   * legacy descriptive records. Display ALWAYS goes through a fresh signed
+   * URL (5-minute expiry, never cached).
+   */
+  readonly storagePath?: string | null;
   readonly uploadedBy: string;
   readonly uploadedAt: string; // ISO datetime
 }

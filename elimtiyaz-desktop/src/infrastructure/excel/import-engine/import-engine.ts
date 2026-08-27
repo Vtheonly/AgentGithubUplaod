@@ -201,6 +201,23 @@ export class ImportEngine {
         for (const ws of targetSheets) {
           await this.processSheet(ws, ctx, options);
         }
+        // VAULT §14.02 — ATOMIC IMPORT: "If any row fails validation, the
+        // ENTIRE import rolls back via atomic transaction. No partial
+        // imports. A partial import leaves the database in an inconsistent
+        // state with some rows imported and others not."
+        //
+        // The check happens BEFORE commitTransaction so the rollback path
+        // actually undoes everything (previously `strict` mode threw AFTER
+        // the commit — the data was already persisted and the "partial"
+        // status leaked through).
+        if (!options.dryRun && ctx.errors.length > 0) {
+          throw new ImportEngineError(
+            `${ctx.errors.length} ligne(s) en erreur — import ANNULÉ (atomique, aucune donnée partielle). ` +
+              "Corrigez les lignes signalées dans le rapport puis relancez.",
+            "ATOMIC_IMPORT_ABORTED",
+            { errorsCount: ctx.errors.length, firstErrors: ctx.errors.slice(0, 5) },
+          );
+        }
         if (!options.dryRun) await this.storage.commitTransaction();
       } catch (e) {
         if (!options.dryRun) {

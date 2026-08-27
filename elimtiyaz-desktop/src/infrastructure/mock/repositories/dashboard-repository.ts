@@ -23,6 +23,7 @@ import type {
   DemographicSlice,
 } from "../../../domain/model/operations";
 import type { AgingBucket } from "../../../domain/model/payment";
+import { GRADE_LEVELS, GRADE_LEVEL_LABELS_FR } from "../../../domain/model/student";
 import {
   agingBucketFromDays,
   monthlyRevenue,
@@ -119,15 +120,20 @@ export class MockDashboardRepository implements DashboardRepository {
   async demographics(): Promise<Result<{ grade: DemographicSlice[]; gender: DemographicSlice[]; age: DemographicSlice[]; capacity: DemographicSlice[] }>> {
     await delay(120);
     const total = store.students.length;
-    const byLevel = [
-      { label: "Primaire", count: store.students.filter((s) => s.level === "primaire").length },
-      { label: "CEM", count: store.students.filter((s) => s.level === "cem").length },
-      { label: "Lycée", count: store.students.filter((s) => s.level === "lycee").length },
-    ];
+    // VAULT §15.03 — Grade Level Distribution is a BAR chart "per grade
+    // (1AP, 2AP, …, 3ème Année)" — NOT a pie by cycle. Each of the 14
+    // canonical GradeLevels gets its own bar.
+    const byLevel = GRADE_LEVELS.map((gl) => ({
+      label: GRADE_LEVEL_LABELS_FR[gl],
+      count: store.students.filter((s) => s.gradeLevel === gl).length,
+    })).filter((s) => s.count > 0);
+    // VAULT §15.03 — Gender Distribution includes the "Unspecified" slice
+    // (Male / Female / Unspecified ratio) — previously dropped entirely.
     const byGender = [
       { label: "Garçons", count: store.students.filter((s) => s.gender === "male").length },
       { label: "Filles", count: store.students.filter((s) => s.gender === "female").length },
-    ];
+      { label: "Non spécifié", count: store.students.filter((s) => s.gender !== "male" && s.gender !== "female").length },
+    ].filter((s) => s.count > 0);
 
     // Iteration 10 — Age distribution histogram (plan §15.03).
     // Buckets: <6, 6-8, 9-11, 12-14, 15-17, 18+
@@ -151,29 +157,22 @@ export class MockDashboardRepository implements DashboardRepository {
       return { label: b.label, count };
     });
 
-    // Iteration 10 — Capacity vs Enrollment gauge (plan §15.03).
-    // For each academic level, sum class capacities vs enrolled students.
-    const levels = ["primaire", "cem", "lycee"] as const;
-    const levelLabels: Record<typeof levels[number], string> = {
-      primaire: "Primaire",
-      cem: "CEM",
-      lycee: "Lycée",
-    };
-    const byCapacity = levels.map((lvl) => {
-      const levelClasses = store.classes.filter((c) => c.level === lvl);
-      const capacity = levelClasses.reduce(
-        (sum, c) => sum + (c.capacity ?? 30),
-        0,
-      );
-      const enrolled = levelClasses.reduce((sum, c) => sum + c.enrolledCount, 0);
-      // The DemographicSlice `count` field carries the enrolled count; the
-      // `percent` field carries the fill rate (enrolled / capacity * 100).
-      return {
-        label: levelLabels[lvl],
-        count: enrolled,
-        percent: capacity > 0 ? Math.round((enrolled / capacity) * 100) : 0,
-      };
-    });
+    // VAULT §15.03 — Capacity vs Enrollment is a GAUGE PER CLASS
+    // ("Enrollment as % of max capacity per class") — not per-level bars.
+    // Each slice = one class; `count` carries the enrolled count and
+    // `percent` the fill rate (enrolled / capacity × 100).
+    const byCapacity = store.classes
+      .map((c) => {
+        const capacity = c.capacity ?? 30;
+        const enrolled = c.enrolledCount;
+        return {
+          label: c.name,
+          count: enrolled,
+          percent: capacity > 0 ? Math.round((enrolled / capacity) * 100) : 0,
+        };
+      })
+      .sort((a, b) => b.percent - a.percent)
+      .slice(0, 12);
 
     return Ok({
       grade: byLevel.map((s) => ({ ...s, percent: total === 0 ? 0 : Math.round((s.count / total) * 100) })),

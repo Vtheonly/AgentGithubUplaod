@@ -14,6 +14,16 @@ export interface AuditEntry {
   readonly entityId: string;
   readonly actorId: string;
   readonly actorName: string;
+  /**
+   * VAULT §12.02 — actor role at the time of the action (part of the
+   * contextual audit schema: actor_id, actor_name, role, action…).
+   */
+  readonly actorRole?: string | null;
+  /**
+   * VAULT §12.02 — session telemetry `{ ip, device, session_id }` captured
+   * with every entry. Never truncated.
+   */
+  readonly sessionId?: string | null;
   readonly diff: string | null; // JSON diff { before, after }
   readonly note: string | null;
   readonly ipAddress: string | null;

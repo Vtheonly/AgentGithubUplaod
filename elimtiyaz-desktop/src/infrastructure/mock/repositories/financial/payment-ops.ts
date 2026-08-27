@@ -32,6 +32,7 @@ import type { LedgerEntry } from "../../../../domain/model/ledger";
 import { deriveAccountId } from "../../../../domain/calc/ledger";
 import { allocatePaymentAcrossInstallments } from "./installment-ops";
 import { revertPaymentAllocation } from "../../../../domain/calc/payment/lifo-reversal";
+import { clearPendingAllocation } from "../../../../domain/calc/payment/clearance";
 import type { FinancialOpsCtx } from "./types";
 
 /**
@@ -70,11 +71,24 @@ export async function collectPayment(
   if (input.method !== "cash" && !input.proofUrl) {
     return Err(Errors.validation(`Proof is required for ${input.method} payments`));
   }
+  // VAULT §07.01 — method-specific structured fields. Mirrors the backend
+  // `enforce_payment_proof` trigger (migration 0007): check → number + bank
+  // name; transfer → transaction reference.
+  if (input.method === "check" && (!input.checkNumber?.trim() || !input.checkBankName?.trim())) {
+    return Err(Errors.validation("Le numéro de chèque et le nom de la banque sont obligatoires pour un paiement par chèque"));
+  }
+  if (input.method === "transfer" && !input.transferReference?.trim()) {
+    return Err(Errors.validation("La référence de transaction est obligatoire pour un virement"));
+  }
   const year = new Date().getFullYear();
   const seq = store.payments.length + 1;
   const status: PaymentStatus = input.method === "cash" ? "paid" : "pending";
   const payment: Payment = {
-    id: `pay-${String(seq).padStart(3, "0")}`,
+    // IDs must be GLOBALLY unique: the pure sequence (`pay-003`) collides
+    // when earlier payments are removed (Excel rollback, test isolation),
+    // which would wrongly trip the waterfall idempotency guard for a NEW
+    // payment that happens to reuse the id. A random suffix keeps ids unique.
+    id: `pay-${String(seq).padStart(3, "0")}-${Math.random().toString(36).slice(2, 8)}`,
     tenantId,
     receiptNumber: `REC-${year}-${String(seq).padStart(6, "0")}`,
     parentId: input.parentId,
@@ -86,6 +100,12 @@ export async function collectPayment(
     installmentId: input.installmentId,
     proofUrl: input.proofUrl ?? null,
     notes: input.notes ?? null,
+    checkNumber: input.checkNumber?.trim() || null,
+    checkBankName: input.checkBankName?.trim() || null,
+    checkIssueDate: input.checkIssueDate || null,
+    checkClearanceDate: input.checkClearanceDate || null,
+    transferReference: input.transferReference?.trim() || null,
+    transferSourceBank: input.transferSourceBank?.trim() || null,
     collectedBy,
     collectedAt: nowIso(),
     createdAt: nowIso(),
@@ -120,6 +140,10 @@ export async function collectPayment(
     metadata: Object.freeze({
       installmentId: input.installmentId ?? null,
       proofUrl: input.proofUrl ?? null,
+      checkNumber: payment.checkNumber ?? null,
+      checkBankName: payment.checkBankName ?? null,
+      transferReference: payment.transferReference ?? null,
+      transferSourceBank: payment.transferSourceBank ?? null,
     }),
   };
   store.ledger = [...store.ledger, ledgerEntry];
@@ -356,6 +380,242 @@ export async function refundPayment(
   return Ok(after);
 }
 
+/**
+ * PENDING → PAID transition (vault §07.02 — "bank clearance verified").
+ *
+ * Marks an uncleared check / bank transfer as cleared by the bank:
+ *   1. `payments.status` moves "pending" → "paid".
+ *   2. Uncleared installment funds (`amountPending`) move into `amountPaid`,
+ *      oldest tranche first (waterfall order), statuses re-evaluated —
+ *      Invariant 4 (Cleared Funds Only).
+ *   3. Audit entry records actor + timestamp + before/after deltas.
+ */
+export async function markPaymentCleared(
+  ctx: FinancialOpsCtx,
+  id: string,
+  actorId: string,
+  actorName: string = "Session courante",
+): Promise<Result<Payment>> {
+  const { store, appendAudit, nowIso, delay } = ctx;
+  await delay(200);
+  const idx = store.payments.findIndex((p) => p.id === id);
+  if (idx < 0) return Err(Errors.notFound("Payment", id));
+  const before = store.payments[idx];
+  if (before.status !== "pending") {
+    return Err(Errors.conflict(`Seuls les paiements en attente peuvent être confirmés par la banque (statut actuel : ${before.status})`));
+  }
+
+  const after: Payment = { ...before, status: "paid", updatedAt: nowIso() };
+  store.payments[idx] = after;
+  store.notifyPayments();
+
+  // === Move uncleared funds into cleared funds (waterfall order) ===
+  const parentInstallments = store.installments.filter((i) => i.parentId === before.parentId);
+  const clearResult = clearPendingAllocation(
+    parentInstallments,
+    before.amount,
+    before.category,
+  );
+  for (const clr of clearResult.clears) {
+    const insIdx = store.installments.findIndex((i) => i.id === clr.installmentId);
+    if (insIdx < 0) continue;
+    const insBefore = store.installments[insIdx];
+    store.installments[insIdx] = {
+      ...insBefore,
+      amountPaid: clr.newAmountPaid,
+      amountPending: clr.newAmountPending,
+      status: clr.newStatus,
+      paidDate: clr.fullySatisfied ? (insBefore.paidDate ?? nowIso()) : insBefore.paidDate,
+    };
+    appendAudit({
+      action: "installment.clear_funds",
+      entityType: "installment",
+      entityId: clr.installmentId,
+      actorId,
+      actorName,
+      diff: {
+        before: {
+          amountPaid: insBefore.amountPaid,
+          amountPending: insBefore.amountPending,
+          status: insBefore.status,
+        },
+        after: {
+          amountPaid: clr.newAmountPaid,
+          amountPending: clr.newAmountPending,
+          status: clr.newStatus,
+          cleared: clr.clearedAmount,
+        },
+      },
+      note: `Compensation bancaire — paiement ${id} confirmé. ${clr.clearedAmount.toLocaleString("fr-FR")} DZD clearés.`,
+    });
+  }
+  if (clearResult.clears.length > 0) {
+    store.notifyInstallments();
+  }
+
+  appendAudit({
+    action: "payment.mark_cleared",
+    entityType: "payment",
+    entityId: id,
+    actorId,
+    actorName,
+    diff: {
+      before: { status: "pending", amount: before.amount },
+      after: {
+        status: "paid",
+        clearedInstallments: clearResult.clears.length,
+        totalCleared: clearResult.totalCleared,
+      },
+    },
+    note: `Compensation bancaire confirmée pour ${before.receiptNumber} — ${before.method} de ${before.amount.toLocaleString("fr-FR")} DZD`,
+  });
+  return Ok(after);
+}
+
+/**
+ * PENDING → UNPAID transition (vault §07.02 — "check bounces / transfer fails").
+ *
+ * Marks an uncleared non-cash payment as failed:
+ *   1. `payments.status` moves "pending" → "unpaid".
+ *   2. The uncleared allocation is reversed LIFO (`amountPending`
+ *      decremented, statuses re-evaluated — tranches reopen).
+ *   3. A reversal ledger entry exactly negates the original payment entry
+ *      (Invariant 5).
+ *   4. The mandatory reason is audit-logged with actor + timestamp.
+ */
+export async function markPaymentBounced(
+  ctx: FinancialOpsCtx,
+  id: string,
+  reason: string,
+  actorId: string,
+  actorName: string = "Session courante",
+): Promise<Result<Payment>> {
+  const { store, appendAudit, nowIso, delay, tenantId } = ctx;
+  await delay(200);
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    return Err(Errors.validation("Un motif est obligatoire pour marquer un paiement comme échoué (chèque sans provision / virement rejeté)"));
+  }
+  const idx = store.payments.findIndex((p) => p.id === id);
+  if (idx < 0) return Err(Errors.notFound("Payment", id));
+  const before = store.payments[idx];
+  if (before.status !== "pending") {
+    return Err(Errors.conflict(`Seuls les paiements en attente peuvent être marqués échoués (statut actuel : ${before.status})`));
+  }
+
+  const after: Payment = { ...before, status: "unpaid", notes: trimmedReason, updatedAt: nowIso() };
+  store.payments[idx] = after;
+  store.notifyPayments();
+
+  // === 1. Append the ledger reversal entry (exactly negates the original) ===
+  const originalLedgerEntry = store.ledger.find(
+    (e) => e.sourceType === "payment" && e.sourceId === id && e.type === "payment",
+  );
+  if (originalLedgerEntry) {
+    const reversalEntry: LedgerEntry = {
+      id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
+      tenantId,
+      accountId: originalLedgerEntry.accountId,
+      parentId: originalLedgerEntry.parentId,
+      studentId: originalLedgerEntry.studentId,
+      category: originalLedgerEntry.category,
+      amount: -originalLedgerEntry.amount,
+      type: "reversal",
+      sourceType: "payment",
+      sourceId: id,
+      method: originalLedgerEntry.method,
+      receiptNumber: originalLedgerEntry.receiptNumber,
+      paymentStatus: "unpaid",
+      reversesId: originalLedgerEntry.id,
+      description: `Échec d'encaissement ${before.receiptNumber} — chèque/virement rejeté`,
+      actorId,
+      actorName,
+      at: nowIso(),
+      metadata: Object.freeze({
+        bounceReason: trimmedReason,
+        originalPaymentId: id,
+      }),
+    };
+    store.ledger = [...store.ledger, reversalEntry];
+    store.notifyLedger();
+
+    // === 2. Reverse the uncleared allocation (LIFO) — tranches reopen ===
+    const parentInstallments = store.installments.filter((i) => i.parentId === before.parentId);
+    const revertResult = revertPaymentAllocation(
+      parentInstallments,
+      before.amount,
+      before.category,
+      true, // original was pending — decrement amountPending
+    );
+    for (const rev of revertResult.reverts) {
+      const insIdx = store.installments.findIndex((i) => i.id === rev.installmentId);
+      if (insIdx < 0) continue;
+      const insBefore = store.installments[insIdx];
+      store.installments[insIdx] = {
+        ...insBefore,
+        amountPaid: rev.newAmountPaid,
+        amountPending: rev.newAmountPending,
+        status: rev.newStatus,
+        paidDate: rev.newStatus === "paid" ? insBefore.paidDate : null,
+      };
+      appendAudit({
+        action: "installment.revert_allocation",
+        entityType: "installment",
+        entityId: rev.installmentId,
+        actorId,
+        actorName,
+        diff: {
+          before: {
+            amountPaid: insBefore.amountPaid,
+            amountPending: insBefore.amountPending,
+            status: insBefore.status,
+          },
+          after: {
+            amountPaid: rev.newAmountPaid,
+            amountPending: rev.newAmountPending,
+            status: rev.newStatus,
+            reverted: rev.revertedAmount,
+          },
+        },
+        note: `Rejet bancaire — paiement ${id} échoué. Reverted ${rev.revertedAmount} DZD (fonds non clearés).`,
+      });
+    }
+    if (revertResult.reverts.length > 0) {
+      store.notifyInstallments();
+    }
+
+    appendAudit({
+      action: "payment.mark_bounced",
+      entityType: "payment",
+      entityId: id,
+      actorId,
+      actorName,
+      diff: {
+        before: { status: "pending", amount: before.amount },
+        after: {
+          status: "unpaid",
+          reason: trimmedReason,
+          reversalEntryId: reversalEntry.id,
+          revertsCount: revertResult.reverts.length,
+          totalReverted: revertResult.totalReverted,
+        },
+      },
+      note: `Rejet bancaire ${before.receiptNumber} (${before.method}) — motif : ${trimmedReason}`,
+    });
+  } else {
+    appendAudit({
+      action: "payment.mark_bounced",
+      entityType: "payment",
+      entityId: id,
+      actorId,
+      actorName,
+      diff: { before: { status: "pending" }, after: { status: "unpaid", reason: trimmedReason } },
+      note: `Rejet bancaire ${before.receiptNumber} — motif : ${trimmedReason} (aucune écriture de ledger correspondante)`,
+    });
+  }
+  return Ok(after);
+}
+
 /** Adjust a parent's account (manual entry — appends an adjustment ledger entry). */
 export async function adjustAccount(
   ctx: FinancialOpsCtx,
@@ -397,6 +657,13 @@ export async function adjustAccount(
   const studentId: string | null = isCredit ? null : (options?.studentId ?? null);
   const accountId = deriveAccountId(parentId, category, studentId);
 
+  // VAULT §07.04 — full before/after JSON delta. The "before" snapshot is the
+  // parent's outstanding balance BEFORE the adjustment; "after" is the balance
+  // once the signed adjustment lands (debit ↑ debt, credit ↓ debt).
+  const parentEntriesBefore = store.ledger.filter((e) => e.parentId === parentId);
+  const balanceBefore = parentEntriesBefore.reduce((acc, e) => acc + e.amount, 0);
+  const balanceAfter = balanceBefore + amount;
+
   const adjustmentEntry: LedgerEntry = {
     id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
     tenantId,
@@ -427,7 +694,20 @@ export async function adjustAccount(
     entityId: adj.id,
     actorId: approvedBy,
     actorName: "Session courante",
-    diff: { before: null, after: { amount, reason, ledgerEntryId: adjustmentEntry.id, category, studentId } },
+    diff: {
+      before: {
+        parentOutstandingBalance: Math.round(balanceBefore * 100) / 100,
+      },
+      after: {
+        parentOutstandingBalance: Math.round(balanceAfter * 100) / 100,
+        amount,
+        reason,
+        ledgerEntryId: adjustmentEntry.id,
+        category,
+        studentId,
+        kind: amount < 0 ? "credit" : "debit",
+      },
+    },
     note: `Ajustement manuel — ${amount > 0 ? "débit" : "crédit"} de ${Math.abs(amount).toLocaleString("fr-FR")} DZD (${reason})`,
   });
   return Ok(adj);

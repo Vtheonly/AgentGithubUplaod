@@ -142,9 +142,10 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
                               key={s}
                               label={`${c} ${ATTENDANCE_STATUS_LABELS_FR[s]}`}
                               tone={
+                                // VAULT §09.03 — EXCUSED = warning, LATE = info.
                                 s === "present" ? "success" :
-                                s === "late" ? "warning" :
-                                s === "absent_excused" ? "info" : "danger"
+                                s === "late" ? "info" :
+                                s === "absent_excused" ? "warning" : "danger"
                               }
                             />
                           );

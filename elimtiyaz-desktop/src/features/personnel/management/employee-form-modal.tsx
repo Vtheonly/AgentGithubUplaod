@@ -31,7 +31,9 @@ import {
 } from "../../../domain/model/personnel";
 
 const STAFF_CATEGORIES: readonly StaffCategory[] = [
-  "teacher", "administration", "support", "maintenance", "driver", "buyer", "warehouse", "worker",
+  // VAULT §09.07 — includes the Médical / Thérapie category (orthophonistes,
+  // psychologues) — never merged into Teaching.
+  "teacher", "administration", "support", "maintenance", "driver", "buyer", "warehouse", "worker", "medical",
 ];
 const PAYROLL_METHODS: readonly PayrollMethod[] = ["cash", "bank_transfer", "check", "mobile_money"];
 const PERSONNEL_STATUSES: readonly PersonnelStatus[] = [
@@ -49,7 +51,7 @@ const EmployeeSchema = z.object({
   position: z.string().min(2, "Poste requis"),
   roleId: z.nativeEnum(Role),
   staffCategory: z.enum([
-    "teacher", "administration", "support", "maintenance", "driver", "buyer", "warehouse", "worker",
+    "teacher", "administration", "support", "maintenance", "driver", "buyer", "warehouse", "worker", "medical",
   ]),
   departmentId: z.string().optional().default(""),
   supervisorId: z.string().optional().default(""),

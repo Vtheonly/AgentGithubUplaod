@@ -20,7 +20,9 @@ export type ImportEngineErrorCode =
   | "VALIDATION_ERROR"
   | "CONFIGURATION_ERROR"
   | "AGGREGATED_IMPORT_ERRORS"
-  | "STRICT_MODE_REJECTED";
+  | "STRICT_MODE_REJECTED"
+  /** VAULT §14.02 — atomic import aborted (row errors → full rollback). */
+  | "ATOMIC_IMPORT_ABORTED";
 
 export class ImportEngineError extends Error {
   readonly code: ImportEngineErrorCode;

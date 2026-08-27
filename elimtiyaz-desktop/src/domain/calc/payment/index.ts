@@ -10,10 +10,12 @@
  *                            maxDaysOverdue, agingBucketFromDays, currentTrancheLabel
  *   - `waterfall-allocator` — allocatePaymentToInstallments, isOverpayment
  *   - `lifo-reversal`      — revertPaymentAllocation, reevaluateInstallmentStatus
+ *   - `clearance`          — clearPendingAllocation (PENDING → PAID bank clearance)
  *   - `revenue`            — revenueByMonth, revenueByCategory, monthlyRevenue
  */
 export * from "./sums";
 export * from "./queries";
 export * from "./waterfall-allocator";
 export * from "./lifo-reversal";
+export * from "./clearance";
 export * from "./revenue";

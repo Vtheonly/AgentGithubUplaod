@@ -47,6 +47,7 @@ import {
   type DataTableAction,
 } from "../../shared/ui/data-table";
 import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 
@@ -83,6 +84,8 @@ export function InstallmentScheduleTab() {
   const [editDueDateFor, setEditDueDateFor] = useState<Row | null>(null);
   const [regenerateFor, setRegenerateFor] = useState<{ parentId: string; parentName: string } | null>(null);
   const [scanningOverdue, setScanningOverdue] = useState(false);
+  // VAULT §10.08 — manual triggers require a confirmation dialog (two clicks).
+  const [confirmScanOpen, setConfirmScanOpen] = useState(false);
 
   // Build the merged list by reading each parent's installments.
   useEffect(() => {
@@ -140,13 +143,14 @@ export function InstallmentScheduleTab() {
         if (count === 0) {
           toast.showInfo("Aucun nouveau retard", "Toutes les tranches en retard ont déjà une alerte.");
         } else {
-          toast.showSuccess("Alertes générées", `${count} alerte(s) de retard créée(s).`);
+          toast.showSuccess("Alertes générées", `${count} alerte(s) de retard / d'échéance créée(s).`);
         }
       } else {
         toast.showError("Échec du scan", result.error.userMessage);
       }
     } finally {
       setScanningOverdue(false);
+      setConfirmScanOpen(false);
     }
   }
 
@@ -354,7 +358,7 @@ export function InstallmentScheduleTab() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRunOverdueScan}
+            onClick={() => setConfirmScanOpen(true)}
             disabled={scanningOverdue}
             title="Scanner les tranches en retard et générer des alertes"
           >
@@ -392,6 +396,22 @@ export function InstallmentScheduleTab() {
           context={collectContext}
         />
       )}
+
+      {/* VAULT §10.08 — confirmation dialog before the manual overdue scan */}
+      <ConfirmModal
+        open={confirmScanOpen}
+        onOpenChange={setConfirmScanOpen}
+        title="Scanner les retards maintenant"
+        description={
+          <>
+            Le scan parcourt toutes les tranches et génère une alerte pour chaque tranche en
+            retard ou arrivant à échéance sous 7 jours (dédupliquées par tranche). Les alertes
+            sont notifiées à l'officier financier et journalisées.
+          </>
+        }
+        confirmLabel="Lancer le scan"
+        onConfirm={handleRunOverdueScan}
+      />
 
       <AutoFormModal
         open={editDueDateFor !== null}

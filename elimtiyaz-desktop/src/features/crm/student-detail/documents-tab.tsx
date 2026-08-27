@@ -17,7 +17,7 @@
  *     `documents_json` column (additive migration 0038).
  */
 import { useRef, useState } from "react";
-import { FileText, Paperclip, Trash2, Upload, FileBadge } from "lucide-react";
+import { FileText, Paperclip, Trash2, Upload, FileBadge, Eye } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useToast } from "../../../app/providers/toast-provider";
@@ -33,6 +33,11 @@ import {
   type StudentDocumentCategory,
 } from "../../../domain/model/student";
 import { Permission } from "../../../core/rbac/permissions";
+import {
+  uploadPrivateMedia,
+  freshSignedMediaUrl,
+  mockVaultHas,
+} from "../../../infrastructure/storage/media-vault";
 
 const CATEGORY_OPTIONS: readonly StudentDocumentCategory[] = [
   "medical",
@@ -69,21 +74,89 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
   function handleFilesSelected(files: FileList | null) {
     if (!files || files.length === 0) return;
     const uploadedBy = session?.displayName ?? "Session courante";
-    const additions: StudentDocument[] = Array.from(files).map((f, i) => ({
-      id: `doc-${Date.now()}-${i}`,
-      fileName: f.name,
-      category: pendingCategory,
-      note: pendingNote.trim() || null,
-      uploadedBy,
-      uploadedAt: new Date().toISOString(),
-    }));
-    setPendingNote("");
-    void persist([...documents, ...additions]);
-    toast.showSuccess(
-      "Document(s) ajouté(s)",
-      `${additions.length} pièce(s) jointe(s) au dossier de l'élève.`,
-    );
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    // VAULT §12.07 — every file goes through the PRIVATE media vault
+    // (signed-URL flow, never a public URL). The stored record keeps the
+    // vault path; display fetches a fresh 5-minute signed URL each time.
+    void (async () => {
+      const additions: StudentDocument[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        try {
+          const uploaded = await uploadPrivateMedia({
+            bucket: "student-documents",
+            entityId: studentId,
+            tenantId: student?.tenantId ?? "mock",
+            file: f,
+          });
+          additions.push({
+            id: `doc-${Date.now()}-${i}`,
+            fileName: f.name,
+            category: pendingCategory,
+            note: pendingNote.trim() || null,
+            // Vault storage path (private bucket) — persisted for the
+            // signed-URL display flow.
+            storagePath: uploaded.path,
+            uploadedBy,
+            uploadedAt: new Date().toISOString(),
+          });
+        } catch (e) {
+          toast.showError(
+            "Échec du téléversement",
+            `${f.name}: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+      }
+      if (additions.length > 0) {
+        setPendingNote("");
+        await persist([...documents, ...additions]);
+        toast.showSuccess(
+          "Document(s) ajouté(s)",
+          `${additions.length} pièce(s) jointe(s) au dossier de l'élève (coffre privé).`,
+        );
+        // VAULT §12.01 — sensitive-record views/uploads are audited.
+        void repos.audit.log({
+          action: "student.document_upload",
+          entityType: "student",
+          entityId: studentId,
+          actorId: session?.userId ?? "usr-current",
+          actorName: uploadedBy,
+          tenantId: student?.tenantId ?? "mock",
+          diff: { before: null, after: { count: additions.length, category: pendingCategory } },
+          note: `${additions.length} document(s) « ${STUDENT_DOCUMENT_CATEGORY_LABELS_FR[pendingCategory]} » ajouté(s) au coffre privé`,
+        });
+      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    })();
+  }
+
+  /**
+   * VAULT §12.07 — open a document via a FRESH signed URL (5-min expiry,
+   * never cached). The URL is requested on every click.
+   */
+  async function openDocument(doc: StudentDocument) {
+    const url = await freshSignedMediaUrl({
+      bucket: "student-documents",
+      path: doc.storagePath ?? "",
+    });
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      // Sensitive-record view audit (medical docs are PII).
+      void repos.audit.log({
+        action: "record.sensitive_view",
+        entityType: "student_document",
+        entityId: doc.id,
+        actorId: session?.userId ?? "usr-current",
+        actorName: session?.displayName ?? "Session courante",
+        tenantId: student?.tenantId ?? "mock",
+        diff: { before: null, after: { fileName: doc.fileName, category: doc.category, channel: "signed_url" } },
+        note: `Consultation du document « ${doc.fileName} » via URL signée`,
+      });
+    } else {
+      toast.showInfo(
+        "Document descriptif",
+        "Ce document est un enregistrement descriptif (métadonnées) — aucun fichier binaire associé n'est disponible en mode démo.",
+      );
+    }
   }
 
   function removeDocument(doc: StudentDocument) {
@@ -176,6 +249,17 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
                     {d.note ? ` · ${d.note}` : ""}
                   </p>
                 </div>
+                {/* VAULT §12.07 — view via fresh signed URL */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
+                  onClick={() => void openDocument(d)}
+                  disabled={!d.storagePath && !mockVaultHas(d.storagePath ?? "")}
+                  title={d.storagePath ? "Ouvrir via URL signée (5 min)" : "Aucun fichier binaire (mode démo)"}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
                 <Badge variant="outline" className="text-[10px] shrink-0">
                   {STUDENT_DOCUMENT_CATEGORY_LABELS_FR[d.category]}
                 </Badge>
@@ -200,8 +284,8 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
 
         <p className="text-[10px] text-muted-foreground flex items-center gap-1">
           <FileText className="h-3 w-3" />
-          Les pièces jointes sont des enregistrements descriptifs (nom, catégorie, note) — le
-          stockage binaire est assuré par la couche de stockage de la plateforme.
+          Pièces jointes stockées dans le coffre privé (bucket non public) — accès par URL
+          signée à durée limitée (5 min, plan §12.07).
         </p>
       </CardContent>
     </Card>

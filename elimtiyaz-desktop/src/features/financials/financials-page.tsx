@@ -28,9 +28,12 @@ import {
   AlertCircle,
   Send,
   FileCheck,
+  Bell,
+  Lock,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
+import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { formatDzd } from "../../core/format/currency";
 import { formatRelative } from "../../core/format/date";
@@ -56,6 +59,7 @@ import { StatusChip } from "../../shared/ui/status-chip";
 import { Card, CardContent } from "../../shared/ui/card";
 import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
 import { Button } from "../../shared/ui/button";
+import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
 import { DataTable, type DataTableColumn, type DataTableAction } from "../../shared/ui/data-table";
 import { CounterPaymentModal } from "./counter-payment-modal";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
@@ -412,10 +416,42 @@ interface DebtSummaryRow {
 
 function DebtTab() {
   const repos = useRepositories();
+  const toast = useToast();
+  const { session } = useAuth();
   const debt = useObservable(() => repos.debt.observeSummary(), []);
   const students = useObservable(() => repos.students.observe(), []);
+  const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
   const [reminding, setReminding] = useState<string | null>(null);
   const [collectFor, setCollectFor] = useState<{ parentId: string; parentName: string; amount: number } | null>(null);
+  // VAULT §10.08 — every manual bulk trigger requires a confirmation dialog
+  // (two clicks: initiate + confirm).
+  const [confirmBroadcast, setConfirmBroadcast] = useState(false);
+  const [confirmLock, setConfirmLock] = useState(false);
+  const [confirmReminderFor, setConfirmReminderFor] = useState<DebtSummaryRow | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // VAULT §07.06 — Total Outstanding trend vs last month (↑ / ↓).
+  // Debt 30 days ago = Σ max(0, per-parent ledger balance at cutoff).
+  const { debtNow, debtPrevMonth, debtTrend } = useMemo(() => {
+    const now = debt.reduce((acc, d) => acc + d.outstandingAmount, 0);
+    const cutoff = Date.now() - 30 * 86_400_000;
+    const byParent = new Map<string, number>();
+    for (const e of ledgerEntries) {
+      const at = new Date(e.at).getTime();
+      if (at > cutoff) continue;
+      byParent.set(e.parentId, (byParent.get(e.parentId) ?? 0) + e.amount);
+    }
+    let prev = 0;
+    for (const balance of byParent.values()) {
+      if (balance > 0) prev += balance;
+    }
+    const delta = now - prev;
+    return {
+      debtNow: now,
+      debtPrevMonth: prev,
+      debtTrend: Math.abs(delta) < 0.005 ? null : delta > 0 ? "up" : "down",
+    };
+  }, [debt, ledgerEntries]);
 
   async function sendReminder(parentId: string, name: string) {
     setReminding(parentId);
@@ -430,6 +466,44 @@ function DebtTab() {
       }
     } finally {
       setReminding(null);
+    }
+  }
+
+  // VAULT §10.07 — "Broadcast Overdue Payment Reminders" one-click trigger.
+  async function broadcastReminders() {
+    setBulkBusy(true);
+    try {
+      const r = await repos.debt.broadcastReminders(0, session?.userId);
+      if (r.ok) {
+        toast.showSuccess(
+          "Rappels diffusés",
+          `${r.value} rappel(s) envoyé(s) aux débiteurs — notifications portail + journal d'audit.`,
+        );
+      } else {
+        toast.showError("Échec de la diffusion", r.error.userMessage);
+      }
+    } finally {
+      setBulkBusy(false);
+      setConfirmBroadcast(false);
+    }
+  }
+
+  // VAULT §10.07 — "Lock Delinquent Accounts" (> 90 days overdue).
+  async function lockDelinquent() {
+    setBulkBusy(true);
+    try {
+      const r = await repos.debt.lockDelinquentAccounts(90, session?.userId);
+      if (r.ok) {
+        toast.showWarning(
+          "Comptes délinquants verrouillés",
+          `${r.value} compte(s) marqué(s) FINANCIALLY_RESTRICTED (> 90 jours de retard). Chaque restriction est journalisée.`,
+        );
+      } else {
+        toast.showError("Échec du verrouillage", r.error.userMessage);
+      }
+    } finally {
+      setBulkBusy(false);
+      setConfirmLock(false);
     }
   }
 
@@ -507,7 +581,7 @@ function DebtTab() {
     {
       label: "Rappel",
       variant: "outline",
-      onClick: (d) => sendReminder(d.parentId, d.parentName),
+      onClick: (d) => setConfirmReminderFor(d),
     },
     {
       label: "Encaisser",
@@ -523,6 +597,67 @@ function DebtTab() {
 
   return (
     <div className="space-y-4">
+      {/* VAULT §07.06 — Debt Dashboard sections 1 + 4: Total Outstanding (with
+          MoM trend) + Actions (broadcast reminders / lock delinquent). */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card>
+          <CardContent className="pt-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Créances totales</p>
+                <p className="text-2xl font-mono font-bold text-status-danger">
+                  {formatDzd(debtNow)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Il y a 30 jours : {formatDzd(debtPrevMonth)}
+                </p>
+              </div>
+              {debtTrend && (
+                <div
+                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                    debtTrend === "up"
+                      ? "bg-status-danger/10 text-status-danger"
+                      : "bg-status-success/10 text-status-success"
+                  }`}
+                >
+                  <TrendingUp
+                    className={`h-3.5 w-3.5 ${debtTrend === "down" ? "rotate-180" : ""}`}
+                  />
+                  {debtTrend === "up" ? "En hausse" : "En baisse"} vs mois dernier
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-3">
+            <p className="text-xs uppercase text-muted-foreground mb-2">Actions groupées</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkBusy || top20Debtors.length === 0}
+                onClick={() => setConfirmBroadcast(true)}
+              >
+                <Bell className="h-4 w-4" /> Diffuser les rappels
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkBusy || top20Debtors.length === 0}
+                onClick={() => setConfirmLock(true)}
+              >
+                <Lock className="h-4 w-4" /> Verrouiller comptes délinquants
+              </Button>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Rappels : notification portail à chaque débiteur. Verrouillage : FINANCIALLY_RESTRICTED
+              pour les retards supérieurs à 90 jours (plan §07.06 / §10.07 — confirmation requise).
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardContent className="pt-3">
           <h3 className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
@@ -604,6 +739,55 @@ function DebtTab() {
           }
         />
       )}
+
+      {/* VAULT §10.08 — confirmation dialogs for every manual trigger */}
+      <ConfirmModal
+        open={confirmBroadcast}
+        onOpenChange={setConfirmBroadcast}
+        title="Diffuser les rappels de paiement"
+        description={
+          <>
+            Un rappel sera envoyé à <b>chaque débiteur</b> de la liste (notification portail +
+            journal d'audit). Cette action groupée s'applique aux {top20Debtors.length} famille(s)
+            endettées affichées — elle ne peut pas être annulée après confirmation.
+          </>
+        }
+        confirmLabel="Diffuser maintenant"
+        onConfirm={broadcastReminders}
+      />
+      <ConfirmModal
+        open={confirmLock}
+        onOpenChange={setConfirmLock}
+        destructive
+        title="Verrouiller les comptes délinquants"
+        description={
+          <>
+            Tous les comptes avec plus de <b>90 jours</b> de retard seront marqués
+            FINANCIALLY_RESTRICTED (accès restreint). Chaque restriction est journalisée
+            avec l'identité de l'acteur. Les comptes déjà restreints sont ignorés.
+          </>
+        }
+        confirmLabel="Verrouiller"
+        onConfirm={lockDelinquent}
+      />
+      <ConfirmModal
+        open={!!confirmReminderFor}
+        onOpenChange={(o) => !o && setConfirmReminderFor(null)}
+        title={`Envoyer un rappel à ${confirmReminderFor?.parentName ?? ""}`}
+        description={
+          <>
+            Un rappel WhatsApp sera préparé et un événement d'audit sera enregistré pour la
+            créance de <b>{confirmReminderFor ? formatDzd(confirmReminderFor.outstandingAmount) : ""}</b>
+            (retard : {confirmReminderFor?.daysOverdue ?? 0} jours).
+          </>
+        }
+        confirmLabel="Envoyer le rappel"
+        onConfirm={() => {
+          if (!confirmReminderFor) return;
+          void sendReminder(confirmReminderFor.parentId, confirmReminderFor.parentName);
+          setConfirmReminderFor(null);
+        }}
+      />
     </div>
   );
 }

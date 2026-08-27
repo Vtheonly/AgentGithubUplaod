@@ -179,7 +179,7 @@ export function SplashScreen({
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#242526] transition-opacity duration-400"
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-surface-background transition-opacity duration-400"
       style={{ opacity: exiting ? 0 : 1 }}
       aria-label="El-Imtiyaz"
       role="img"
@@ -215,8 +215,8 @@ export function SplashScreen({
         settle (CSS animation).
       */}
       <div className="absolute bottom-16 flex flex-col items-center gap-2 animate-fade-in pointer-events-none">
-        <p className="text-lg font-semibold text-[#EFF2F3] tracking-wide">El-Imtiyaz</p>
-        <p className="text-sm text-[#6EC1E4]">Plateforme de gestion scolaire</p>
+        <p className="text-lg font-semibold text-foreground tracking-wide">El-Imtiyaz</p>
+        <p className="text-sm text-brand-blue-light">Plateforme de gestion scolaire</p>
       </div>
     </div>
   );

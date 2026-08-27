@@ -60,6 +60,7 @@ import { PaymentSlider, type PaymentTrancheSpec, type PaymentSliderMode } from "
 import { DebtMeter } from "./debt-meter";
 import { generatePaymentReceiptPdf } from "../../infrastructure/receipt-pdf/payment-receipt";
 import { downloadPdf } from "../../infrastructure/receipt-pdf/download";
+import { uploadPrivateMedia } from "../../infrastructure/storage/media-vault";
 
 type Stage = "form" | "success";
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
@@ -121,7 +122,19 @@ export function UnifiedPaymentModal({
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [category, setCategory] = useState<PaymentCategory>("tuition");
   const [proofFileName, setProofFileName] = useState<string | null>(null);
+  // VAULT §12.07 — proof uploads go through the private media vault
+  // (signed-URL flow); `proofVaultPath` is the persisted storage path.
+  const [proofVaultPath, setProofVaultPath] = useState<string | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
   const [notes, setNotes] = useState("");
+  // VAULT §07.01 — structured non-cash payment fields (mirrors the backend
+  // `payments` columns from migration 0007).
+  const [checkNumber, setCheckNumber] = useState("");
+  const [checkBankName, setCheckBankName] = useState("");
+  const [checkIssueDate, setCheckIssueDate] = useState("");
+  const [checkClearanceDate, setCheckClearanceDate] = useState("");
+  const [transferReference, setTransferReference] = useState("");
+  const [transferSourceBank, setTransferSourceBank] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
@@ -156,7 +169,14 @@ export function UnifiedPaymentModal({
         setMethod("cash");
         setCategory("tuition");
         setProofFileName(null);
+        setProofVaultPath(null);
         setNotes("");
+        setCheckNumber("");
+        setCheckBankName("");
+        setCheckIssueDate("");
+        setCheckClearanceDate("");
+        setTransferReference("");
+        setTransferSourceBank("");
         setReceiptPayment(null);
         setPdfBytes(null);
         setAlert(null);
@@ -291,8 +311,33 @@ export function UnifiedPaymentModal({
     !!effectiveParentId &&
     amount > 0 &&
     !singleItemViolation &&
-    (!proofRequired || !!proofFileName) &&
+    (!proofRequired || (!!proofFileName && !!proofVaultPath)) &&
+    // VAULT §07.01 — structured fields required for non-cash methods.
+    (method !== "check" || (!!checkNumber.trim() && !!checkBankName.trim())) &&
+    (method !== "transfer" || !!transferReference.trim()) &&
     !!session;
+
+  /** VAULT §12.07 — upload the proof to the PRIVATE media vault. */
+  async function handleProofFileSelected(file: File | null) {
+    setProofFileName(file?.name ?? null);
+    setProofVaultPath(null);
+    if (!file) return;
+    setProofUploading(true);
+    try {
+      const uploaded = await uploadPrivateMedia({
+        bucket: "payment-proofs",
+        entityId: effectiveParentId ?? "unknown-parent",
+        tenantId: "mock",
+        file,
+      });
+      setProofVaultPath(uploaded.path);
+    } catch (e) {
+      toast.showError("Échec du téléversement", e instanceof Error ? e.message : String(e));
+      setProofFileName(null);
+    } finally {
+      setProofUploading(false);
+    }
+  }
 
   async function submit() {
     if (!session || !effectiveParentId) return;
@@ -301,6 +346,24 @@ export function UnifiedPaymentModal({
         tone: "warning",
         title: "Justificatif requis",
         description: "Chèque et virement nécessitent un justificatif (plan §18.03).",
+      });
+      return;
+    }
+    // VAULT §07.01 — structured non-cash field validation (mirrors the
+    // backend enforce_payment_proof trigger).
+    if (method === "check" && (!checkNumber.trim() || !checkBankName.trim())) {
+      setAlert({
+        tone: "warning",
+        title: "Champs chèque manquants",
+        description: "Le numéro de chèque et le nom de la banque sont obligatoires (plan §07.01).",
+      });
+      return;
+    }
+    if (method === "transfer" && !transferReference.trim()) {
+      setAlert({
+        tone: "warning",
+        title: "Référence manquante",
+        description: "La référence de transaction est obligatoire pour un virement (plan §07.01).",
       });
       return;
     }
@@ -314,6 +377,13 @@ export function UnifiedPaymentModal({
     }
     setSubmitting(true);
     try {
+      // NOTE (double-allocation fix): `collect()` is ATOMIC in both modes —
+      // the mock runs the waterfall internally and the Supabase path calls
+      // the `collect_and_allocate_payment` RPC. A second explicit
+      // `allocatePayment()` call here previously re-allocated the same
+      // amount against the NEXT unpaid tranches (mock) or overwrote correct
+      // server-side allocations from a stale cache (Supabase), producing
+      // ledger inconsistency. Allocation is now left entirely to collect().
       const result = await repos.payments.collect(
         {
           parentId: effectiveParentId,
@@ -322,8 +392,14 @@ export function UnifiedPaymentModal({
           method,
           category,
           installmentId: context?.targetItemId ?? null,
-          proofUrl: proofFileName ? `mock://proof/${proofFileName}` : null,
+          proofUrl: proofVaultPath ?? (proofFileName ? `mock://proof/${proofFileName}` : null),
           notes: notes.trim() || null,
+          checkNumber: checkNumber.trim() || null,
+          checkBankName: checkBankName.trim() || null,
+          checkIssueDate: checkIssueDate || null,
+          checkClearanceDate: checkClearanceDate || null,
+          transferReference: transferReference.trim() || null,
+          transferSourceBank: transferSourceBank.trim() || null,
         },
         session.userId,
       );
@@ -335,36 +411,15 @@ export function UnifiedPaymentModal({
         });
         return;
       }
-      // === Run waterfall allocation ===
-      const categoryFilter =
-        category === "tuition" || category === "transport" ? category : undefined;
-      const allocResult = await repos.installments.allocatePayment(
-        effectiveParentId,
-        amount,
-        result.value.id,
-        categoryFilter,
-        session.userId,
-        session.displayName ?? "Session courante",
-      );
-      if (allocResult.ok) {
-        const plan = allocResult.value;
-        const trancheCount = plan.allocations.length;
-        const credit = plan.unallocatedAmount;
-        if (credit > 0.5) {
-          toast.showWarning(
-            "Paiement encaissé (avec excédent)",
-            `Alloué à ${trancheCount} tranche(s). Crédit parent : ${formatDzd(credit)}.`,
-          );
-        } else {
-          toast.showSuccess(
-            "Paiement encaissé",
-            `Alloué à ${trancheCount} tranche(s) via waterfall. Reçu ${result.value.receiptNumber}.`,
-          );
-        }
+      if (result.value.status === "paid") {
+        toast.showSuccess(
+          "Paiement encaissé",
+          `${result.value.amount.toLocaleString("fr-FR")} DZD encaissés. Reçu ${result.value.receiptNumber}. Allocation waterfall appliquée.`,
+        );
       } else {
         toast.showWarning(
-          "Paiement encaissé (allocation échouée)",
-          "Le paiement a été enregistré au ledger mais l'allocation automatique a échoué. Vérifiez les tranches manuellement.",
+          "Paiement enregistré — en attente",
+          `${result.value.amount.toLocaleString("fr-FR")} DZD (${PAYMENT_METHOD_LABELS_FR[result.value.method]}). Statut : En attente de compensation bancaire. Reçu ${result.value.receiptNumber}.`,
         );
       }
       // === Generate receipt (DB record + PDF bytes) ===
@@ -703,12 +758,15 @@ export function UnifiedPaymentModal({
             <FormField
               label="Justificatif (scan)"
               required
-              error={!proofFileName ? "Obligatoire pour chèque et virement (plan §18.03)" : undefined}
+              error={!proofFileName ? "Obligatoire pour chèque et virement (plan §18.03)" : proofVaultPath ? undefined : "Téléversement en cours…"}
+              hint="Stockage privé — accès par URL signée (5 min) uniquement"
             >
               <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
                 <Upload className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  {proofFileName ?? "Téléverser un justificatif (image/PDF)"}
+                  {proofUploading
+                    ? "Téléversement vers le coffre privé…"
+                    : proofFileName ?? "Téléverser un justificatif (image/PDF)"}
                 </span>
                 <input
                   type="file"
@@ -716,7 +774,7 @@ export function UnifiedPaymentModal({
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) setProofFileName(f.name);
+                    void handleProofFileSelected(f ?? null);
                   }}
                 />
               </label>
@@ -725,12 +783,77 @@ export function UnifiedPaymentModal({
                   variant="ghost"
                   size="sm"
                   className="mt-1 text-xs"
-                  onClick={() => setProofFileName(null)}
+                  onClick={() => {
+                    setProofFileName(null);
+                    setProofVaultPath(null);
+                  }}
                 >
                   Retirer
                 </Button>
               )}
             </FormField>
+          )}
+
+          {/* === SECTION 4b: Structured non-cash fields (vault §07.01) === */}
+          {method === "check" && (
+            <div className="rounded-md border border-border bg-surface-elevated/40 p-3 space-y-3">
+              <p className="text-xs font-medium text-foreground">
+                Détails du chèque <span className="text-status-danger">*</span>
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField label="N° de chèque" required error={!checkNumber.trim() ? "Obligatoire" : undefined}>
+                  <Input
+                    value={checkNumber}
+                    onChange={(e) => setCheckNumber(e.target.value)}
+                    placeholder="ex. 004512"
+                  />
+                </FormField>
+                <FormField label="Banque" required error={!checkBankName.trim() ? "Obligatoire" : undefined}>
+                  <Input
+                    value={checkBankName}
+                    onChange={(e) => setCheckBankName(e.target.value)}
+                    placeholder="ex. BNA"
+                  />
+                </FormField>
+                <FormField label="Date d'émission">
+                  <Input
+                    type="date"
+                    value={checkIssueDate}
+                    onChange={(e) => setCheckIssueDate(e.target.value)}
+                  />
+                </FormField>
+                <FormField label="Date d'échéance / compensation">
+                  <Input
+                    type="date"
+                    value={checkClearanceDate}
+                    onChange={(e) => setCheckClearanceDate(e.target.value)}
+                  />
+                </FormField>
+              </div>
+            </div>
+          )}
+          {method === "transfer" && (
+            <div className="rounded-md border border-border bg-surface-elevated/40 p-3 space-y-3">
+              <p className="text-xs font-medium text-foreground">
+                Détails du virement <span className="text-status-danger">*</span>
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField label="Référence de transaction" required error={!transferReference.trim() ? "Obligatoire" : undefined}>
+                  <Input
+                    value={transferReference}
+                    onChange={(e) => setTransferReference(e.target.value)}
+                    placeholder="ex. VIR-2026-00871"
+                  />
+                </FormField>
+                <FormField label="Banque émettrice">
+                  <Input
+                    value={transferSourceBank}
+                    onChange={(e) => setTransferSourceBank(e.target.value)}
+                    placeholder="ex. CPA"
+                  />
+                </FormField>
+              </div>
+            </div>
           )}
 
           {/* Notes */}

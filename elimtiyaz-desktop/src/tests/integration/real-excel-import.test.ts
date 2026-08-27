@@ -592,6 +592,12 @@ class FastPaymentRepo implements PaymentRepository {
   async refund(): Promise<Result<Payment>> {
     return Err(Errors.server("not implemented in stub"));
   }
+  async markCleared(): Promise<Result<Payment>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async markBounced(): Promise<Result<Payment>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
   async adjust(): Promise<Result<import("../../domain/model/payment").AccountAdjustment>> {
     return Err(Errors.server("not implemented in stub"));
   }
@@ -617,6 +623,9 @@ class FastInstallmentRepo implements InstallmentRepository {
 
   observeByParent(parentId: string): Observable<Installment[]> {
     return new SubjectBehavior<Installment[]>([...this.rows.values()].filter((i) => i.parentId === parentId));
+  }
+  observe(): Observable<Installment[]> {
+    return new SubjectBehavior<Installment[]>([...this.rows.values()]);
   }
   observeByStudent(studentId: string): Observable<Installment[]> {
     return new SubjectBehavior<Installment[]>([...this.rows.values()].filter((i) => i.studentId === studentId));

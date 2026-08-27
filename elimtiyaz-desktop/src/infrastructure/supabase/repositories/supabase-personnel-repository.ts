@@ -86,7 +86,7 @@ function stableHash(input: string): string {
   return (h >>> 0).toString(16).padStart(8, "0").slice(0, 6).toUpperCase();
 }
 
-/** Domain StaffCategory (8 values) → DB staff_category (4 values, migration 0009 CHECK). */
+/** Domain StaffCategory (9 values) → DB staff_category (4 values, migration 0009 CHECK). */
 const CATEGORY_TO_DB: Record<StaffCategory, "administration" | "teaching" | "support" | "medical"> = {
   teacher: "teaching",
   administration: "administration",
@@ -96,6 +96,8 @@ const CATEGORY_TO_DB: Record<StaffCategory, "administration" | "teaching" | "sup
   buyer: "support",
   warehouse: "support",
   worker: "support",
+  // VAULT §09.07 — Médical / Thérapie maps to its own DB category.
+  medical: "medical",
 };
 
 /** DB staff_category → domain StaffCategory (lossy for the support family — see header note 1). */

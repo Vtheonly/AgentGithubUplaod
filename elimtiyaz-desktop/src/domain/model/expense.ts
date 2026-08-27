@@ -27,6 +27,24 @@ export type ExpenseCategory =
   | "rent"
   | "other";
 
+/**
+ * VAULT §08.02 — Tier-1 request urgency (Low / Medium / High).
+ * Drives review prioritization in the approver's queue.
+ */
+export type ExpenseUrgency = "low" | "medium" | "high";
+
+export const EXPENSE_URGENCY_LABELS_FR: Record<ExpenseUrgency, string> = {
+  low: "Basse",
+  medium: "Moyenne",
+  high: "Haute",
+};
+
+export const EXPENSE_URGENCY_TONE: Record<ExpenseUrgency, "success" | "warning" | "danger"> = {
+  low: "success",
+  medium: "warning",
+  high: "danger",
+};
+
 export interface Expense {
   readonly id: string;
   readonly tenantId: string;
@@ -35,6 +53,8 @@ export interface Expense {
   readonly description: string;
   readonly amount: number;
   readonly category: ExpenseCategory;
+  /** VAULT §08.02 — Tier-1 request urgency (Low / Medium / High). */
+  readonly urgency: ExpenseUrgency;
   readonly payee: string;
   readonly status: ExpenseStatus;
   readonly submittedBy: string;
@@ -47,6 +67,13 @@ export interface Expense {
   readonly proofUrl: string | null;
   readonly proofUploadedBy: string | null;
   readonly proofUploadedAt: string | null;
+  /**
+   * VAULT §08.05 (Tier 3) — the ACTUAL final spent amount, entered by staff
+   * at settlement alongside the receipt proof. May differ from the
+   * requested `amount`; the financial officer verifies it against the
+   * disbursed funds before the ticket closes.
+   */
+  readonly finalSpentAmount: number | null;
   readonly anomalyScore: number | null;
   readonly anomalyNote: string | null;
 }
@@ -78,4 +105,6 @@ export interface SubmitExpenseInput {
   readonly amount: number;
   readonly category: ExpenseCategory;
   readonly payee: string;
+  /** VAULT §08.02 — urgency (Low / Medium / High), default "medium". */
+  readonly urgency?: ExpenseUrgency;
 }

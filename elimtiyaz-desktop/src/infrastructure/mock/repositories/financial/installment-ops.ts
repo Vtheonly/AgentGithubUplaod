@@ -236,6 +236,24 @@ export async function allocatePaymentAcrossInstallments(
     });
   }
 
+  // IDEMPOTENCY GUARD (vault §07.08): if this payment was already run
+  // through the waterfall, do NOT allocate it again. `collectPayment()`
+  // allocates atomically; a second explicit `allocatePayment()` call for
+  // the same payment previously double-counted (tranches satisfied twice
+  // — once by collect, once here — with a single ledger backing entry).
+  if (!store.allocatedPaymentIds) {
+    store.allocatedPaymentIds = new Set<string>();
+  }
+  if (store.allocatedPaymentIds.has(paymentId)) {
+    return Ok({
+      allocations: [],
+      unallocatedAmount: 0,
+      totalAllocated: 0,
+      paymentAmount,
+    });
+  }
+  store.allocatedPaymentIds.add(paymentId);
+
   // Snapshot current installments for this parent.
   const parentInstallments = store.installments.filter((i) => i.parentId === parentId);
 

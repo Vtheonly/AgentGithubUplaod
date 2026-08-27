@@ -10,8 +10,13 @@ export const AuditActions = {
   // Auth
   AuthLogin: "auth.login",
   AuthLogout: "auth.logout",
+  AuthLoginFailed: "auth.login_failed",
   AuthPasswordReset: "auth.password_reset",
   AuthSessionRevoked: "auth.session_revoked",
+  /** VAULT §12.01 — system exports (PDF / XLSX / CSV) are tracked events. */
+  SystemExport: "system.export",
+  /** VAULT §12.01 — sensitive record views (data access requests) are tracked. */
+  SensitiveRecordView: "record.sensitive_view",
 
   // CRM
   ParentCreate: "parent.create",

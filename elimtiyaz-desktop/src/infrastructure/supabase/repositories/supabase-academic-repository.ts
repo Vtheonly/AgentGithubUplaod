@@ -41,6 +41,7 @@ import type {
 } from "../../../domain/repository/academic-repository";
 import type { PromotionCandidate } from "../../../domain/calc/academics/promotion";
 import { createAcademicHistoryEntry } from "../../../domain/calc/academics/promotion";
+import { currentTermWindow } from "../../../domain/calc/academics/terms";
 import type {
   CreateSchoolYearInput,
   UpdateSchoolYearInput,
@@ -822,6 +823,7 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
     date: string;
     session: AttendanceSession;
     statuses: ReadonlyMap<string, AttendanceStatus>;
+    arrivalTimes?: ReadonlyMap<string, string>;
     recordedBy: string;
   }): Promise<Result<AttendanceRecord[]>> {
     if (!isUuid(input.classId)) {
@@ -840,6 +842,12 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
         record_date: input.date,
         session: input.session,
         status,
+        // VAULT §09.01 — arrival time for LATE students (migration 0004
+        // column `arrival_time`, "required when status='late'").
+        arrival_time:
+          status === "late"
+            ? (input.arrivalTimes?.get(studentId) ?? null)
+            : null,
         recorded_by: isUuid(input.recordedBy) ? input.recordedBy : null,
         recorded_at: new Date().toISOString(),
         synced_at: new Date().toISOString(),
@@ -857,17 +865,69 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
   }
 
   /**
-   * Absence alert dispatch (plan §05.04 — parents notified after 3+ absences).
+   * VAULT §09.04 — absence alert dispatch (parents notified at 3+ absences
+   * for the CURRENT TERM).
    *
-   * The `dispatch-absence-alerts` Edge Function is NOT deployed in this
-   * project (see supabase/functions/). Rather than failing the roll-call
-   * flow with a 404, we mirror the mock implementation: append an audit
-   * entry via the `write_audit_log` RPC (migration 0014) so the alert intent
-   * is traceable, and return Ok. When the Edge Function is deployed, this
-   * method should be switched to `client.functions.invoke`.
+   * The threshold re-check happens server-side via a count query so no
+   * premature alert is ever sent ("the threshold is 3 — not 1, not 2").
+   * Because the `dispatch-absence-alerts` Edge Function is not deployed in
+   * this project, the parent notification is written to the `notifications`
+   * table directly (read by the web portal) and the alert intent is traced
+   * via the `write_audit_log` RPC (migration 0014).
    */
   async alertAbsences(studentIds: string[]): Promise<Result<void>> {
     try {
+      const THRESHOLD = 3;
+      const now = new Date();
+      const window = currentTermWindow(now);
+      const windowStart = window.start.toISOString().slice(0, 10);
+      // Count current-term absences per candidate student (LATE excluded).
+      const { data, error } = await this.client
+        .from("attendance_records")
+        .select("student_id, status")
+        .in("student_id", studentIds.filter(isUuid))
+        .in("status", ["absent_excused", "absent_unexcused"])
+        .gte("record_date", windowStart)
+        .lte("record_date", now.toISOString().slice(0, 10));
+      if (!error && data) {
+        const counts = new Map<string, number>();
+        for (const row of data as { student_id: string }[]) {
+          counts.set(row.student_id, (counts.get(row.student_id) ?? 0) + 1);
+        }
+        const flagged = [...counts.entries()]
+          .filter(([, c]) => c >= THRESHOLD)
+          .map(([studentId, c]) => ({ studentId, count: c }));
+        // Parent notifications for flagged students only.
+        for (const { studentId, count } of flagged) {
+          await this.client.from("notifications").insert({
+            tenant_id: getTenantId(),
+            title: "Alerte absences",
+            body: `Votre enfant a accumulé ${count} absences ce trimestre (${window.label}). Merci de contacter l'administration.`,
+            type: "attendance_alert",
+            priority: "high",
+            source: "system",
+            source_label: "Module Présences",
+            entity_type: "student",
+            entity_id: studentId,
+            created_by: "system",
+            created_at: new Date().toISOString(),
+          });
+        }
+        await this.client.rpc("write_audit_log", {
+          p_tenant_id: getTenantId(),
+          p_action: "attendance.alert_absences",
+          p_entity_type: "student",
+          p_entity_id: flagged.map((f) => f.studentId).join(",") || null,
+          p_actor_id: null,
+          p_actor_name: "Système",
+          p_note:
+            flagged.length > 0
+              ? `Seuil ${THRESHOLD}+ absences (${window.label}) atteint pour ${flagged.length} élève(s) — alertes parents envoyées.`
+              : `Évaluation du seuil d'absences (${window.label}) — aucun élève n'a atteint ${THRESHOLD} absences.`,
+        });
+        return Ok(undefined);
+      }
+      // Count query failed — fall back to the audited-intent-only path.
       await this.client.rpc("write_audit_log", {
         p_tenant_id: getTenantId(),
         p_action: "attendance.alert_absences",
@@ -875,7 +935,7 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
         p_entity_id: null,
         p_actor_id: null,
         p_actor_name: "Système",
-        p_note: `Seuil 3+ absences atteint pour ${studentIds.length} élève(s)`,
+        p_note: `Évaluation du seuil d'absences (${window.label}) — ${studentIds.length} élève(s) évalué(s).`,
       });
     } catch {
       // The audit entry is best-effort — never fail the alert call on it.
@@ -1315,6 +1375,8 @@ function mapAttendanceRow(row: Record<string, any>): AttendanceRecord {
     date: row.record_date,
     session: row.session,
     status: row.status,
+    // VAULT §09.01 — arrival time read-back for LATE records.
+    arrivalTime: row.arrival_time ?? null,
     note: row.note,
     recordedBy: row.recorded_by,
     recordedAt: row.recorded_at,

@@ -125,6 +125,14 @@ export class MockStore {
   // Iteration 9: manually scheduled calendar events (follow-up calls, reminders, meetings).
   calendarEvents: CalendarEvent[] = [...seedCalendarEvents] as CalendarEvent[];
 
+  /**
+   * IDEMPOTENCY GUARD (vault §07.08): payment ids that have already been run
+   * through the waterfall allocator. Prevents double-allocation when a
+   * payment collected atomically (which allocates internally) is explicitly
+   * allocated again by a caller.
+   */
+  allocatedPaymentIds = new Set<string>();
+
   // Pédagogie redesign — new collections
   academicYears: AcademicYear[] = [...seedAcademicYears];
   clubs: Club[] = [...seedClubs];

@@ -32,9 +32,11 @@ const STATUS_TONES: Record<
   "success" | "warning" | "danger" | "info"
 > = {
   present: "success",
-  absent_excused: "info",
+  // VAULT §09.03 — EXCUSED = warning gold (#C8A98C), LATE = light blue
+  // (#6EC1E4). The previous mapping swapped these two tones.
+  absent_excused: "warning",
   absent_unexcused: "danger",
-  late: "warning",
+  late: "info",
 };
 
 export function RollCallScreen() {
@@ -58,6 +60,10 @@ export function RollCallScreen() {
   const [statuses, setStatuses] = useState<Map<string, AttendanceStatus>>(
     new Map(),
   );
+  // VAULT §09.01 — arrival times (HH:MM) for students marked LATE.
+  const [arrivalTimes, setArrivalTimes] = useState<Map<string, string>>(
+    new Map(),
+  );
   const [saving, setSaving] = useState(false);
 
   // Initialize students to "present"
@@ -69,6 +75,22 @@ export function RollCallScreen() {
 
   function setStatus(studentId: string, status: AttendanceStatus) {
     setStatuses((prev) => new Map(prev).set(studentId, status));
+    // VAULT §09.01 — tapping LATE opens an inline time selector pre-filled
+    // with the current time; switching away from LATE clears it.
+    if (status === "late") {
+      setArrivalTimes((prev) =>
+        prev.has(studentId)
+          ? prev
+          : new Map(prev).set(studentId, new Date().toTimeString().slice(0, 5)),
+      );
+    } else {
+      setArrivalTimes((prev) => {
+        if (!prev.has(studentId)) return prev;
+        const next = new Map(prev);
+        next.delete(studentId);
+        return next;
+      });
+    }
   }
 
   function setAllPresent() {
@@ -90,6 +112,7 @@ export function RollCallScreen() {
         date,
         session: sess,
         statuses,
+        arrivalTimes,
         recordedBy: authSession.userId,
       });
 
@@ -259,6 +282,24 @@ export function RollCallScreen() {
                         );
                       })}
                     </div>
+
+                    {/* VAULT §09.01 — inline arrival-time selector for LATE */}
+                    {status === "late" && (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-status-info" />
+                        <input
+                          type="time"
+                          value={arrivalTimes.get(s.id) ?? ""}
+                          onChange={(e) =>
+                            setArrivalTimes((prev) =>
+                              new Map(prev).set(s.id, e.target.value),
+                            )
+                          }
+                          className="h-8 w-28 rounded-md border border-status-info/40 bg-background px-2 text-xs font-mono text-status-info"
+                          aria-label={`Heure d'arrivée de ${s.firstName} ${s.lastName}`}
+                        />
+                      </div>
+                    )}
 
                     <div className="w-32 text-right">
                       <StatusChip

@@ -188,6 +188,51 @@ export class MockOverdueAlertGenerator implements OverdueAlertGenerator {
       store.notifications = [notification, ...store.notifications];
       created.push(notification);
     }
+
+    // VAULT §07.03 — the schedule engine must "auto-alert on upcoming and
+    // overdue installment dates". The overdue pass above existed; this pass
+    // adds UPCOMING-due alerts (due within the next 7 days, still unpaid).
+    // Idempotent by the same dedup key (entityType=installment + entityId).
+    const existingUpcomingKeys = new Set(
+      store.notifications
+        .filter((n) => n.type === "payment_overdue" && n.entityType === "installment")
+        .map((n) => n.entityId),
+    );
+    const soonMs = nowMs + 7 * 86_400_000;
+    const upcoming = store.installments.filter((ins) => {
+      if (ins.status === "paid") return false;
+      const dueMs = new Date(ins.dueDate).getTime();
+      if (dueMs <= nowMs || dueMs > soonMs) return false;
+      const remaining = Math.max(0, ins.amountDue - ins.amountPaid - (ins.amountPending ?? 0));
+      return remaining > 0;
+    });
+    for (const ins of upcoming) {
+      if (existingUpcomingKeys.has(ins.id)) continue;
+      const daysUntil = Math.ceil((new Date(ins.dueDate).getTime() - nowMs) / 86_400_000);
+      const parent = store.parents.find((p) => p.id === ins.parentId);
+      const parentName = parent ? `${parent.firstName} ${parent.lastName}` : ins.parentId;
+      const remaining = Math.max(0, ins.amountDue - ins.amountPaid);
+      const notification: AppNotification = {
+        id: `ntf-upcoming-${ins.id}-${Date.now()}`,
+        title: `Échéance proche — ${parentName}`,
+        body: `${ins.label} (${ins.category}) — ${remaining.toLocaleString("fr-FR")} DZD à régler dans ${daysUntil} jour${daysUntil > 1 ? "s" : ""} (échéance ${new Date(ins.dueDate).toLocaleDateString("fr-FR")}).`,
+        type: "payment_overdue",
+        priority: "medium",
+        source: "system",
+        sourceLabel: "Module Finances — Échéancier auto",
+        entityType: "installment",
+        entityId: ins.id,
+        targetUserId: null,
+        targetRole: Role.FinancialOfficer,
+        triggeredAt: null,
+        readAt: null,
+        createdAt: nowIso(),
+        createdBy: "system",
+      };
+      store.notifications = [notification, ...store.notifications];
+      created.push(notification);
+    }
+
     if (created.length > 0) {
       store.notifyNotifications();
       appendAudit({
@@ -197,7 +242,7 @@ export class MockOverdueAlertGenerator implements OverdueAlertGenerator {
         actorId: "system",
         actorName: "Système",
         diff: { before: null, after: { count: created.length } },
-        note: `${created.length} alerte(s) de retard générée(s) automatiquement.`,
+        note: `${created.length} alerte(s) de retard / d'échéance générée(s) automatiquement.`,
       });
     }
     return Ok(created);

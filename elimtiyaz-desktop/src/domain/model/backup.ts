@@ -31,6 +31,9 @@ export interface BackupArchive {
     studentCount: number;
     paymentCount: number;
     ledgerEntryCount: number;
+    /** VAULT §13.01 — installments + workflow schemas are part of the snapshot. */
+    installmentCount?: number;
+    workflowCount?: number;
   };
 }
 

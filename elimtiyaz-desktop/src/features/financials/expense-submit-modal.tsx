@@ -11,7 +11,12 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
-import { EXPENSE_CATEGORY_LABELS_FR, type ExpenseCategory } from "../../domain/model/expense";
+import {
+  EXPENSE_CATEGORY_LABELS_FR,
+  EXPENSE_URGENCY_LABELS_FR,
+  type ExpenseCategory,
+  type ExpenseUrgency,
+} from "../../domain/model/expense";
 
 const ExpenseSchema = z.object({
   title: z.string().min(3, "Titre requis (min. 3 caractères)"),
@@ -21,6 +26,7 @@ const ExpenseSchema = z.object({
     "utilities", "supplies", "maintenance", "transport",
     "event", "salary", "tax", "rent", "other",
   ]),
+  urgency: z.enum(["low", "medium", "high"]).default("medium"),
   payee: z.string().min(2, "Bénéficiaire requis"),
 });
 
@@ -32,9 +38,13 @@ const fields: readonly AutoFormField[] = [
     name: "category", label: "Catégorie", type: "select", required: true,
     options: Object.entries(EXPENSE_CATEGORY_LABELS_FR).map(([k, label]) => ({ label, value: k })),
   },
+  {
+    name: "urgency", label: "Urgence", type: "select", required: true,
+    options: Object.entries(EXPENSE_URGENCY_LABELS_FR).map(([k, label]) => ({ label, value: k })),
+  },
   { name: "amount", label: "Montant (DZD)", type: "money", required: true },
   { name: "payee", label: "Bénéficiaire / Fournisseur", type: "text", required: true, wide: true, placeholder: "Ex. Climat Oran Services" },
-  { name: "description", label: "Justification / Détails", type: "textarea", wide: true, placeholder: "Détails de l'intervention…" },
+  { name: "description", label: "Justification opérationnelle", type: "textarea", wide: true, placeholder: "Justification de la dépense (contexte, urgence, bénéfice attendu)…" },
 ];
 
 export function ExpenseSubmitModal({
@@ -58,6 +68,7 @@ export function ExpenseSubmitModal({
         description: data.description ?? "",
         amount: data.amount,
         category: data.category as ExpenseCategory,
+        urgency: (data.urgency ?? "medium") as ExpenseUrgency,
         payee: data.payee,
       },
       session.userId,
@@ -78,7 +89,7 @@ export function ExpenseSubmitModal({
       description="Soumettez une dépense pour validation par l'administration."
       schema={ExpenseSchema}
       fields={fields}
-      initialValues={{ category: "supplies", amount: 0 }}
+      initialValues={{ category: "supplies", urgency: "medium", amount: 0 }}
       onSubmit={handleSubmit}
       submitLabel="Soumettre la dépense"
     />

@@ -64,6 +64,12 @@ export interface Workflow {
   readonly triggerType: WorkflowTriggerType;
   readonly lastDeployedAt: string | null;
   readonly status: WorkflowStatus;
+  /**
+   * VAULT §10.09 (best practice 5) — maximum execution count per day per
+   * workflow, to prevent runaway loops. Mirrors the backend
+   * `workflows.max_daily_executions` column (migration 0012, default 100).
+   */
+  readonly maxDailyExecutions?: number;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly createdBy: string;

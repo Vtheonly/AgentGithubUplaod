@@ -79,6 +79,12 @@ export interface Parent {
   readonly transportDestination: TransportDestination | null;
   readonly preferredLanguage: "fr" | "ar" | "en";
   readonly avatarUrl: string | null;
+  /**
+   * VAULT §07.06 — financial restriction flag. Applied to delinquent
+   * accounts (61–90+ days overdue, "Lock Delinquent Accounts" action).
+   * Mirrors the backend `parents.is_financially_restricted` column.
+   */
+  readonly financiallyRestricted?: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

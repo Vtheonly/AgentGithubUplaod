@@ -22,10 +22,29 @@ import {
 } from "./mock-store";
 
 export class MockAuthRepository implements AuthRepository {
+  /** Tracks the last successful sign-in (for the logout audit event). */
+  private lastSession: Session | null = null;
+
   async signIn(email: string, password: string): Promise<Result<Session>> {
     await delay(220);
     const account = seedAccounts.find((a) => a.email === email && a.password === password);
     if (!account) {
+      // VAULT §12.01 — authentication events are tracked, INCLUDING failed
+      // attempts. The failed login is attributed to the attempted identity
+      // (email prefix when it matches a known account) and audit-logged.
+      const attempted = seedAccounts.find((a) => a.email === email);
+      appendAudit({
+        action: AuditActions.AuthLoginFailed,
+        entityType: "session",
+        entityId: attempted?.userId ?? email,
+        actorId: attempted?.userId ?? "anonymous",
+        actorName: attempted?.displayName ?? email,
+        diff: {
+          before: null,
+          after: { email, reason: "invalid_credentials", knownAccount: !!attempted },
+        },
+        note: `Tentative de connexion échouée (${email})`,
+      });
       return Err(Errors.unauthorized("Invalid credentials"));
     }
     const role = account.role as Role;
@@ -42,18 +61,39 @@ export class MockAuthRepository implements AuthRepository {
       expiresAt: Date.now() + 8 * 3600_000,
       locale: "fr",
     };
+    this.lastSession = session;
     appendAudit({
       action: AuditActions.AuthLogin,
       entityType: "session",
       entityId: session.userId,
       actorId: session.userId,
       actorName: session.displayName,
+      diff: {
+        before: null,
+        after: { email: session.email, role: session.role },
+      },
       note: "Connexion réussie",
     });
     return Ok(session);
   }
 
   async signOut(): Promise<Result<void>> {
+    // VAULT §12.01 — logout is an authentication event and must be audited.
+    if (this.lastSession) {
+      appendAudit({
+        action: AuditActions.AuthLogout,
+        entityType: "session",
+        entityId: this.lastSession.userId,
+        actorId: this.lastSession.userId,
+        actorName: this.lastSession.displayName,
+        diff: {
+          before: { email: this.lastSession.email, role: this.lastSession.role },
+          after: null,
+        },
+        note: "Déconnexion",
+      });
+      this.lastSession = null;
+    }
     return Ok(undefined);
   }
 

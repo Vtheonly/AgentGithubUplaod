@@ -200,7 +200,19 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit }: Dag
         from: edgeDraft.fromId,
         to: node.id,
       };
-      emit(nodes, [...edges, newEdge]);
+      const nextEdges = [...edges, newEdge];
+      emit(nodes, nextEdges);
+      // VAULT §10.09 (best practice 7) — LIVE cycle feedback: check the new
+      // connection IMMEDIATELY so the offending edge renders red before the
+      // user clicks Save (previously the cycle banner only appeared on save).
+      const cycle = detectCycle(nodes, nextEdges);
+      if (cycle.hasCycle) {
+        setCycleError(
+          `Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle. Ce connexion créera une boucle : corrigez avant de sauvegarder.`,
+        );
+      } else {
+        setCycleError(null);
+      }
     }
     setEdgeDraft(null);
   }
@@ -211,6 +223,14 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit }: Dag
     const nextEdges = edges.filter((e) => e.from !== id && e.to !== id);
     emit(nextNodes, nextEdges);
     if (selectedId === id) setSelectedId(null);
+    // VAULT §10.09 (best practice 7) — re-evaluate the live cycle state after
+    // deleting a node (the cycle may have been resolved by the deletion).
+    const cycle = detectCycle(nextNodes, nextEdges);
+    setCycleError(
+      cycle.hasCycle
+        ? `Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle. Corrigez avant de sauvegarder.`
+        : null,
+    );
   }
 
   /* --------------------- Save + Deploy --------------------- */

@@ -112,6 +112,18 @@ export interface Payment {
   readonly createdAt: string;
   readonly updatedAt: string;
   /**
+   * METHOD-SPECIFIC FIELDS (plan §07.01 — mirrors the backend `payments`
+   * columns from migration 0007). Required for non-cash payments:
+   * check → checkNumber + checkBankName (+ issue/clearance dates),
+   * transfer → transferReference (+ source bank).
+   */
+  readonly checkNumber?: string | null;
+  readonly checkBankName?: string | null;
+  readonly checkIssueDate?: string | null;
+  readonly checkClearanceDate?: string | null;
+  readonly transferReference?: string | null;
+  readonly transferSourceBank?: string | null;
+  /**
    * PAYMENT BREAKDOWN: the total expected amount for the charges this
    * payment covers. When `amount > expectedAmount`, the difference is
    * `excessAmount` (overpayment). 0 when not set (legacy payments).
@@ -418,6 +430,18 @@ export interface CollectPaymentInput {
   readonly installmentId: string | null;
   readonly proofUrl?: string | null;
   readonly notes?: string | null;
+  /** Check # (required when method = "check" — plan §07.01 + migration 0007 trigger). */
+  readonly checkNumber?: string | null;
+  /** Bank name (required when method = "check"). */
+  readonly checkBankName?: string | null;
+  /** Check issue date (ISO, optional). */
+  readonly checkIssueDate?: string | null;
+  /** Check expiry / clearance date (ISO, optional). */
+  readonly checkClearanceDate?: string | null;
+  /** Transaction reference ID (required when method = "transfer"). */
+  readonly transferReference?: string | null;
+  /** Source bank (recommended when method = "transfer"). */
+  readonly transferSourceBank?: string | null;
   /**
    * Optional deterministic receipt / payment number used by the bulk Excel
    * importer to make re-imports idempotent at the `payments` table level.
@@ -440,6 +464,58 @@ export interface CollectPaymentInput {
 
 export function proofRequiredFor(method: PaymentMethod): boolean {
   return method !== "cash";
+}
+
+/* ================================================================== */
+/*  Discretionary Account Adjustment reason codes (plan §07.04)        */
+/* ================================================================== */
+
+/**
+ * CONTROLLED LIST of adjustment reason codes — no free text allowed
+ * (vault §07.04: "Admin selects an approval reason code from a controlled
+ * list (no free-text)").
+ *
+ * This list mirrors VERBATIM the backend `account_adjustments.reason_code`
+ * CHECK constraint (migration 0007) so the desktop, the SQL layer and the
+ * Android app share the same controlled vocabulary. The scholarship system
+ * was replaced by these audited adjustments — `scholarship_replacement` is
+ * the explicit code for legacy scholarship-style relief.
+ */
+export const ADJUSTMENT_REASON_CODES = [
+  "sibling_discount",
+  "staff_family",
+  "early_payment",
+  "passage_palier",
+  "seniority_5y",
+  "highest_average",
+  "full_annual",
+  "scholarship_replacement",
+  "hardship",
+  "correction",
+  "late_fee_waiver",
+  "other",
+] as const;
+
+export type AdjustmentReasonCode = (typeof ADJUSTMENT_REASON_CODES)[number];
+
+export const ADJUSTMENT_REASON_LABELS_FR: Record<AdjustmentReasonCode, string> = {
+  sibling_discount: "Réduction fratrie",
+  staff_family: "Famille du personnel",
+  early_payment: "Paiement anticipé",
+  passage_palier: "Passage de palier",
+  seniority_5y: "Ancienneté 5 ans",
+  highest_average: "Meilleure moyenne",
+  full_annual: "Paiement annuel complet",
+  scholarship_replacement: "Remplacement bourse (supprimée)",
+  hardship: "Difficulté sociale",
+  correction: "Correction d'erreur",
+  late_fee_waiver: "Annulation pénalité de retard",
+  other: "Autre (préciser en note)",
+};
+
+/** Type guard — validates that a free-form string is a legal reason code. */
+export function isAdjustmentReasonCode(value: string): value is AdjustmentReasonCode {
+  return (ADJUSTMENT_REASON_CODES as readonly string[]).includes(value);
 }
 
 /* ================================================================== */

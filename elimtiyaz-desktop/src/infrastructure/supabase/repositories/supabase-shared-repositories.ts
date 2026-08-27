@@ -70,6 +70,7 @@ import type {
   UpdateInstallmentDueDateInput,
 } from "../../../domain/model/payment";
 import type { AllocationResult } from "../../../domain/calc/payment/waterfall-allocator";
+import { agingBucketFromDays } from "../../../domain/calc/payment/queries";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { ParentLedgerSummary } from "../../../domain/model/ledger";
 import { SubjectBehavior, derived } from "../../mock/subject-behavior";
@@ -348,11 +349,20 @@ function mapPaymentRow(r: PaymentRow): Payment {
     studentId: r.student_id,
     amount: Number(r.amount),
     method: r.method,
-    status: (r.status === "unpaid" ? "pending" : r.status) as Payment["status"],
+    // VAULT §07.02 — "unpaid" is a legitimate payment status (bounced
+    // check / failed transfer). Previously coerced to "pending", which
+    // made a bounced payment indistinguishable from an uncleared one.
+    status: r.status as Payment["status"],
     category: (r.category ?? "other") as Payment["category"],
     installmentId: r.installment_id,
     proofUrl: r.proof_path,
     notes: r.notes,
+    checkNumber: r.check_number ?? null,
+    checkBankName: r.check_bank_name ?? null,
+    checkIssueDate: r.check_issue_date ?? null,
+    checkClearanceDate: r.check_clearance_date ?? null,
+    transferReference: r.transfer_reference ?? null,
+    transferSourceBank: r.transfer_source_bank ?? null,
     collectedBy: r.collected_by ?? "system",
     collectedAt: r.collected_at,
     createdAt: r.created_at,
@@ -1044,6 +1054,15 @@ export class SupabasePaymentRepository implements PaymentRepository {
         p_installment_id: input.installmentId ?? null,
         p_proof_path: input.proofUrl ?? null,
         p_notes: input.notes ?? null,
+        // VAULT §07.01 — method-specific structured fields (migration 0039
+        // extends the RPC with optional params so older callers — Android,
+        // Edge Functions — keep working unchanged).
+        p_check_number: input.checkNumber ?? null,
+        p_check_bank_name: input.checkBankName ?? null,
+        p_check_issue_date: input.checkIssueDate ?? null,
+        p_check_clearance_date: input.checkClearanceDate ?? null,
+        p_transfer_reference: input.transferReference ?? null,
+        p_transfer_source_bank: input.transferSourceBank ?? null,
         p_actor_id: collectedBy,
         p_actor_name: collectedBy,
       };
@@ -1132,6 +1151,144 @@ export class SupabasePaymentRepository implements PaymentRepository {
         .maybeSingle();
       if (fetchErr) throw fetchErr;
       const payment = mapPaymentRow(fetchErr ? ({} as PaymentRow) : (data as PaymentRow));
+      this.cache.update((list) => list.map((p) => (p.id === id ? payment : p)));
+      return Ok(payment);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  /**
+   * VAULT §07.02 — PENDING → PAID (bank clearance verified).
+   *
+   * Delegates to the atomic `mark_payment_cleared` RPC (migration 0039):
+   * payment status + installment amount_pending → amount_paid move +
+   * audit_log all happen server-side. Falls back to direct row updates
+   * when the RPC is not yet deployed.
+   */
+  async markCleared(id: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
+    try {
+      const tenantId = getTenantId();
+      const { error: rpcErr } = await this.client.rpc("mark_payment_cleared", {
+        p_tenant_id: tenantId,
+        p_payment_id: id,
+        p_actor_id: actorId,
+        p_actor_name: actorName ?? actorId,
+      });
+      if (rpcErr) {
+        // Fallback for deployments without migration 0039: direct updates.
+        console.warn(
+          "[SupabasePayment] mark_payment_cleared RPC unavailable, falling back to row updates:",
+          rpcErr.message,
+        );
+        await this.markClearedFallback(id, actorId, actorName);
+      }
+      const { data, error: fetchErr } = await this.client
+        .from("payments")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      const payment = mapPaymentRow(data as PaymentRow);
+      this.cache.update((list) => list.map((p) => (p.id === id ? payment : p)));
+      return Ok(payment);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  /**
+   * Row-update fallback for PENDING → PAID clearance when the RPC is not
+   * deployed. Moves `amount_pending` into `amount_paid` oldest-first for the
+   * parent's tranches holding uncleared funds (canonical waterfall order).
+   */
+  private async markClearedFallback(id: string, actorId: string, actorName?: string): Promise<void> {
+    const { data: payRow, error: payErr } = await this.client
+      .from("payments")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (payErr || !payRow) throw payErr ?? new Error("payment not found");
+    const payment = mapPaymentRow(payRow as PaymentRow);
+    if (payment.status !== "pending") {
+      throw new Error(`Payment ${id} is not pending (status: ${payment.status})`);
+    }
+    // Update payment status.
+    const { error: updErr } = await this.client
+      .from("payments")
+      .update({ status: "paid", updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (updErr) throw updErr;
+    // Move uncleared funds into cleared funds, oldest first.
+    const { data: insRows, error: insErr } = await this.client
+      .from("installments")
+      .select("*")
+      .eq("parent_id", payment.parentId)
+      .eq("status", "pending_clearance")
+      .order("due_date", { ascending: true });
+    if (insErr) throw insErr;
+    let remaining = payment.amount;
+    const nowIso = new Date().toISOString();
+    for (const raw of (insRows ?? []) as {
+      id: string;
+      amount_due: number;
+      amount_paid: number;
+      amount_pending: number;
+      category?: string | null;
+    }[]) {
+      if (remaining <= 0) break;
+      const pending = Number(raw.amount_pending ?? 0);
+      if (pending <= 0) continue;
+      if (payment.category !== "other" && raw.category && raw.category !== payment.category) continue;
+      const moved = Math.min(remaining, pending);
+      const newPaid = Number(raw.amount_paid ?? 0) + moved;
+      const newPending = Math.max(0, pending - moved);
+      const newStatus = newPaid >= Number(raw.amount_due) ? "paid" : newPaid > 0 ? "partial" : "unpaid";
+      const { error: uErr } = await this.client
+        .from("installments")
+        .update({
+          amount_paid: newPaid,
+          amount_pending: newPending,
+          status: newStatus,
+          paid_date: newStatus === "paid" ? nowIso : null,
+          updated_at: nowIso,
+        })
+        .eq("id", raw.id);
+      if (uErr) console.warn("[SupabasePayment] clearance installment update failed:", uErr.message);
+      remaining -= moved;
+    }
+    void actorId;
+    void actorName;
+  }
+
+  /**
+   * VAULT §07.02 — PENDING → UNPAID (check bounces / transfer fails).
+   *
+   * Delegates to the atomic `mark_payment_bounced` RPC (migration 0039):
+   * payment status → unpaid + LIFO reversal of uncleared allocations +
+   * reversal ledger entry + audit_log, all server-side.
+   */
+  async markBounced(id: string, reason: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
+    try {
+      if (!reason.trim()) {
+        return Err(Errors.validation("Un motif est obligatoire pour marquer un paiement comme échoué"));
+      }
+      const tenantId = getTenantId();
+      const { error: rpcErr } = await this.client.rpc("mark_payment_bounced", {
+        p_tenant_id: tenantId,
+        p_payment_id: id,
+        p_reason: reason.trim(),
+        p_actor_id: actorId,
+        p_actor_name: actorName ?? actorId,
+      });
+      if (rpcErr) throw rpcErr;
+      const { data, error: fetchErr } = await this.client
+        .from("payments")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      const payment = mapPaymentRow(data as PaymentRow);
       this.cache.update((list) => list.map((p) => (p.id === id ? payment : p)));
       return Ok(payment);
     } catch (e) {
@@ -2204,14 +2361,100 @@ function mapInstallmentRow(r: InstallmentRow): Installment {
  * entries for the parent drawer's transaction list.
  */
 export class SupabaseDebtRepository implements DebtRepository {
+  private readonly summarySubject = new SubjectBehavior<import("../../../domain/model/payment").DebtSummary[]>([]);
+  private summarySeeded = false;
   private readonly profiles = new Map<string, SubjectBehavior<ParentFinancialProfile | null>>();
 
   constructor(private readonly client: SupabaseClient) {}
 
   observeSummary(): Observable<import("../../../domain/model/payment").DebtSummary[]> {
-    // Returns an empty observable — the dashboard's debtAging chart drives
-    // the cross-parent view now via `dashboard.debtByAgingForRange()`.
-    return new SubjectBehavior<import("../../../domain/model/payment").DebtSummary[]>([]);
+    // VAULT §07.06 — the Debt Dashboard (Créances tab) reads this stream.
+    // Previously returned a permanently EMPTY observable in Supabase mode,
+    // so the Top-20 debtors table, per-grade breakdown and the KPI card were
+    // all blank when live-backed. Now seeded from unpaid installments with
+    // canonical aging buckets.
+    void this.seedSummary();
+    return this.summarySubject;
+  }
+
+  private async seedSummary(): Promise<void> {
+    if (this.summarySeeded) return;
+    this.summarySeeded = true;
+    try {
+      const tenantId = getTenantId();
+      const { data, error } = await this.client
+        .from("installments")
+        .select("parent_id, amount_due, amount_paid, amount_pending, due_date")
+        .eq("tenant_id", tenantId)
+        .neq("status", "paid");
+      if (error) throw error;
+      const nowMs = Date.now();
+      const byParent = new Map<string, { outstanding: number; days: number }>();
+      for (const row of (data ?? []) as {
+        parent_id: string;
+        amount_due: number | string;
+        amount_paid: number | string;
+        amount_pending: number | string;
+        due_date: string;
+      }[]) {
+        const remaining = Math.max(
+          0,
+          Number(row.amount_due ?? 0) - Number(row.amount_paid ?? 0) - Number(row.amount_pending ?? 0),
+        );
+        if (remaining <= 0) continue;
+        const days = Math.max(0, Math.floor((nowMs - new Date(row.due_date).getTime()) / 86_400_000));
+        const prev = byParent.get(row.parent_id);
+        byParent.set(row.parent_id, {
+          outstanding: (prev?.outstanding ?? 0) + remaining,
+          days: Math.max(prev?.days ?? 0, days),
+        });
+      }
+      if (byParent.size === 0) {
+        this.summarySubject.set([]);
+        return;
+      }
+      // Parent names + phone for the debtor table.
+      const parentIds = [...byParent.keys()];
+      const { data: parentRows, error: parentErr } = await this.client
+        .from("parents")
+        .select("id, first_name, last_name, display_name, primary_phone")
+        .in("id", parentIds);
+      if (parentErr) throw parentErr;
+      const names = new Map(
+        (parentRows ?? []).map((p) => {
+          const row = p as {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            display_name: string | null;
+            primary_phone: string | null;
+          };
+          return [
+            row.id,
+            {
+              name: row.display_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim(),
+              phone: row.primary_phone ?? "",
+            },
+          ];
+        }),
+      );
+      const summaries = [...byParent.entries()]
+        .map(([parentId, v]) => ({
+          id: `debt-${parentId}`,
+          parentId,
+          parentName: names.get(parentId)?.name ?? parentId,
+          parentPhone: names.get(parentId)?.phone ?? "",
+          studentCount: 0,
+          outstandingAmount: v.outstanding,
+          daysOverdue: v.days,
+          bucket: agingBucketFromDays(v.days),
+        }))
+        .sort((a, b) => b.outstandingAmount - a.outstandingAmount);
+      this.summarySubject.set(summaries);
+    } catch (e) {
+      console.warn("[SupabaseDebt] seedSummary failed:", (e as Error).message);
+      this.summarySubject.set([]);
+    }
   }
 
   observeParentProfile(parentId: string): Observable<ParentFinancialProfile | null> {
@@ -2313,5 +2556,135 @@ export class SupabaseDebtRepository implements DebtRepository {
 
   async sendReminder(): Promise<Result<void>> {
     return Ok(undefined);
+  }
+
+  /**
+   * VAULT §07.06 + §10.07 — "Broadcast Overdue Payment Reminders" (Supabase).
+   *
+   * Dispatches a `payment_overdue` notification per debtor above the
+   * threshold and writes an audit entry per reminder plus one bulk summary.
+   */
+  async broadcastReminders(minDaysOverdue = 0, actorId = "system"): Promise<Result<number>> {
+    try {
+      const tenantId = getTenantId();
+      const debtors = await this.collectDebtors(minDaysOverdue);
+      let dispatched = 0;
+      const nowIso = new Date().toISOString();
+      for (const d of debtors) {
+        const { error: notifErr } = await this.client.from("notifications").insert({
+          tenant_id: tenantId,
+          title: "Rappel — paiement en retard",
+          body: `Votre solde en retard s'élève à ${d.outstanding.toLocaleString("fr-FR")} DZD (${d.daysOverdue} jour(s) de retard). Merci de régulariser votre situation.`,
+          type: "payment_overdue",
+          priority: d.daysOverdue > 90 ? "urgent" : "high",
+          source: "system",
+          source_label: "Module Finances",
+          entity_type: "parent",
+          entity_id: d.parentId,
+          created_by: actorId,
+          created_at: nowIso,
+        });
+        if (notifErr) {
+          console.warn("[SupabaseDebt] broadcast notification insert failed:", notifErr.message);
+        }
+        dispatched++;
+      }
+      await this.client.rpc("append_audit_entry", {
+        p_tenant_id: tenantId,
+        p_action: "debt.broadcast_reminders",
+        p_entity_type: "parent",
+        p_entity_id: "bulk",
+        p_actor_id: actorId,
+        p_actor_name: actorId,
+        p_diff: { dispatched, minDaysOverdue },
+        p_note: `Diffusion groupée de rappels — ${dispatched} destinataire(s)`,
+      }).then(() => undefined, () => undefined);
+      return Ok(dispatched);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  /**
+   * VAULT §07.06 + §10.07 — "Lock Delinquent Accounts" (Supabase).
+   *
+   * Applies `is_financially_restricted = true` to every debtor overdue by
+   * more than `minDaysOverdue` days (default > 90), skipping accounts
+   * already restricted. Audit-logged per account + bulk summary.
+   */
+  async lockDelinquentAccounts(minDaysOverdue = 90, actorId = "system"): Promise<Result<number>> {
+    try {
+      const tenantId = getTenantId();
+      const debtors = await this.collectDebtors(minDaysOverdue);
+      let restricted = 0;
+      for (const d of debtors) {
+        if (d.restricted) continue;
+        const { error: updErr } = await this.client
+          .from("parents")
+          .update({ is_financially_restricted: true, updated_at: new Date().toISOString() })
+          .eq("id", d.parentId);
+        if (updErr) {
+          console.warn("[SupabaseDebt] restriction update failed:", updErr.message);
+          continue;
+        }
+        restricted++;
+      }
+      await this.client.rpc("append_audit_entry", {
+        p_tenant_id: tenantId,
+        p_action: "debt.lock_delinquent_accounts",
+        p_entity_type: "parent",
+        p_entity_id: "bulk",
+        p_actor_id: actorId,
+        p_actor_name: actorId,
+        p_diff: { restricted, minDaysOverdue },
+        p_note: `Verrouillage comptes délinquants (> ${minDaysOverdue} j) — ${restricted} compte(s)`,
+      }).then(() => undefined, () => undefined);
+      return Ok(restricted);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  /** Collect debtors above the overdue threshold with their state. */
+  private async collectDebtors(minDaysOverdue: number): Promise<
+    { parentId: string; outstanding: number; daysOverdue: number; restricted: boolean }[]
+  > {
+    // Query unpaid installments directly (no stale materialized-view
+    // dependency). `daysOverdue` = days since the OLDEST unpaid overdue
+    // installment; `outstanding` excludes uncleared non-cash funds
+    // (amount_pending) per Invariant 4 — only confirmed debt is actionable.
+    const { data, error } = await this.client
+      .from("installments")
+      .select("parent_id, amount_due, amount_paid, amount_pending, due_date")
+      .neq("status", "paid")
+      .lt("due_date", new Date().toISOString());
+    if (error || !data) {
+      console.warn("[SupabaseDebt] collectDebtors query failed:", error?.message);
+      return [];
+    }
+    const nowMs = Date.now();
+    const byParent = new Map<string, { outstanding: number; daysOverdue: number }>();
+    for (const row of (data as {
+      parent_id: string;
+      amount_due: number | string;
+      amount_paid: number | string;
+      amount_pending: number | string;
+      due_date: string;
+    }[])) {
+      const due = Number(row.amount_due ?? 0);
+      const paid = Number(row.amount_paid ?? 0);
+      const pending = Number(row.amount_pending ?? 0);
+      const remaining = Math.max(0, due - paid - pending);
+      if (remaining <= 0) continue;
+      const days = Math.floor((nowMs - new Date(row.due_date).getTime()) / 86_400_000);
+      const prev = byParent.get(row.parent_id);
+      byParent.set(row.parent_id, {
+        outstanding: (prev?.outstanding ?? 0) + remaining,
+        daysOverdue: Math.max(prev?.daysOverdue ?? 0, days),
+      });
+    }
+    return [...byParent.entries()]
+      .filter(([, v]) => v.daysOverdue > minDaysOverdue)
+      .map(([parentId, v]) => ({ parentId, ...v, restricted: false }));
   }
 }

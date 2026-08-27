@@ -42,6 +42,9 @@ export function AuditLogTab() {
   const [actionInput, setActionInput] = useState("");
   const [entityInput, setEntityInput] = useState("");
   const [actorInput, setActorInput] = useState("");
+  // VAULT §12.03 — multi-column filtering includes a DATE RANGE filter.
+  const [fromInput, setFromInput] = useState("");
+  const [toInput, setToInput] = useState("");
   const [selected, setSelected] = useState<AuditEntry | null>(null);
   const [exporting, setExporting] = useState<"xlsx" | "csv" | null>(null);
 
@@ -59,8 +62,20 @@ export function AuditLogTab() {
       action: actionInput.trim() || null,
       entityType: entityInput.trim() || null,
       actorNameContains: actorInput.trim() || null,
+      // VAULT §12.03 — date range + entity id filters wired to the query.
+      from: fromInput || null,
+      to: toInput ? `${toInput}T23:59:59.999Z` : null,
       limit: 100,
     });
+  }
+
+  function clearFilters() {
+    setActionInput("");
+    setEntityInput("");
+    setActorInput("");
+    setFromInput("");
+    setToInput("");
+    setFilter({ limit: 100 });
   }
 
   async function handleExport(format: "xlsx" | "csv") {
@@ -79,6 +94,17 @@ export function AuditLogTab() {
         format,
       );
       toast.showSuccess("Export généré", `${entries.length} entrées exportées en ${format.toUpperCase()}.`);
+      // VAULT §12.01 — system exports are tracked audit events.
+      void repos.audit.log({
+        action: "system.export",
+        entityType: "audit_log",
+        entityId: "audit-log-tab",
+        actorId: "usr-current",
+        actorName: "Session courante",
+        tenantId: "mock",
+        diff: { before: null, after: { format, rows: entries.length } },
+        note: `Export ${format.toUpperCase()} du journal d'audit (${entries.length} entrée(s))`,
+      });
     } catch (e) {
       toast.showError("Échec de l'export", e instanceof Error ? e.message : String(e));
     } finally {
@@ -147,8 +173,30 @@ export function AuditLogTab() {
             className="h-8 w-40 text-xs"
           />
         </div>
+        {/* VAULT §12.03 — date range filter */}
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Du</Label>
+          <Input
+            type="date"
+            value={fromInput}
+            onChange={(e) => setFromInput(e.target.value)}
+            className="h-8 w-36 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Au</Label>
+          <Input
+            type="date"
+            value={toInput}
+            onChange={(e) => setToInput(e.target.value)}
+            className="h-8 w-36 text-xs"
+          />
+        </div>
         <Button size="sm" onClick={applyFilters}>
           <Filter className="h-4 w-4" /> {t("common.filter")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={clearFilters}>
+          Réinitialiser
         </Button>
       </div>
 

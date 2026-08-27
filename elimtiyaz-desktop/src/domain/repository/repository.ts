@@ -144,8 +144,25 @@ export interface AttendanceRepository {
     date: string;
     session: AttendanceSession;
     statuses: ReadonlyMap<string, AttendanceStatus>;
+    /**
+     * VAULT §09.01 — arrival times (HH:MM) for students marked LATE.
+     * Keyed by studentId; ignored for other statuses.
+     */
+    arrivalTimes?: ReadonlyMap<string, string>;
     recordedBy: string;
   }): Promise<Result<AttendanceRecord[]>>;
+  /**
+   * VAULT §09.04 — automated absence alerts. The implementation MUST:
+   *   1. Count each student's absences for the CURRENT TERM (not a rolling
+   *      window).
+   *   2. Only act on students whose count reaches the threshold of 3 —
+   *      "never send the alert before the threshold is hit".
+   *   3. Flag the student (audit) and dispatch a parent notification.
+   *
+   * The input is the set of students that JUST became non-present in the
+   * submitted roll call; the repository re-checks the threshold before
+   * alerting.
+   */
   alertAbsences(studentIds: string[]): Promise<Result<void>>;
 }
 
@@ -180,6 +197,35 @@ export interface PaymentRepository {
    */
   bulkCollect?(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>>;
   refund(id: string): Promise<Result<Payment>>;
+  /**
+   * PENDING → PAID transition (vault §07.02 — "bank clearance verified").
+   *
+   * Marks an uncleared check / bank transfer as cleared by the bank:
+   *   1. `payments.status` moves `"pending"` → `"paid"`.
+   *   2. Every installment holding uncleared funds from this payment has
+   *      `amountPending` moved into `amountPaid` (oldest tranche first,
+   *      mirroring the waterfall order), and its status is re-evaluated
+   *      (Invariant 4: Cleared Funds Only — a tranche becomes `"paid"`
+   *      only once cleared funds cover it).
+   *   3. An audit entry records the transition (actor + timestamp).
+   *
+   * Cash payments are already `"paid"` — calling this on them returns a
+   * conflict error.
+   */
+  markCleared(id: string, actorId: string, actorName?: string): Promise<Result<Payment>>;
+  /**
+   * PENDING → UNPAID transition (vault §07.02 — "check bounces / transfer
+   * fails").
+   *
+   * Marks an uncleared non-cash payment as failed:
+   *   1. `payments.status` moves `"pending"` → `"unpaid"`.
+   *   2. The uncleared allocation is reversed LIFO (`amountPending`
+   *      decremented, statuses re-evaluated — tranches reopen).
+   *   3. A reversal ledger entry exactly negates the original payment entry
+   *      (Invariant 5).
+   *   4. The mandatory `reason` is audit-logged with the actor + timestamp.
+   */
+  markBounced(id: string, reason: string, actorId: string, actorName?: string): Promise<Result<Payment>>;
   /**
    * Apply a signed adjustment (debit or credit) to a parent's ledger.
    *
@@ -232,6 +278,11 @@ export interface PaymentRepository {
 }
 
 export interface InstallmentRepository {
+  /**
+   * All installments (tenant-wide). Used by the backup snapshot
+   * (vault §13.01) and analytics surfaces.
+   */
+  observe(): Observable<Installment[]>;
   observeByParent(parentId: string): Observable<Installment[]>;
   observeByStudent(studentId: string): Observable<Installment[]>;
   observeById(id: string): Observable<Installment | null>;
@@ -338,6 +389,24 @@ export interface DebtRepository {
   observeSummary(): Observable<DebtSummary[]>;
   observeParentProfile(parentId: string): Observable<ParentFinancialProfile | null>;
   sendReminder(parentId: string): Promise<Result<void>>;
+  /**
+   * VAULT §07.06 (Debt Dashboard — Actions) + §10.07 — "Broadcast Overdue
+   * Payment Reminders": sends a reminder (notification + audit entry) to
+   * EVERY debtor above `minDaysOverdue` (default 0 = all overdue debtors).
+   * One-click admin bulk trigger — must be confirmation-gated in the UI.
+   *
+   * @returns the number of reminders dispatched.
+   */
+  broadcastReminders(minDaysOverdue?: number, actorId?: string): Promise<Result<number>>;
+  /**
+   * VAULT §07.06 (Actions) + §10.07 — "Lock Delinquent Accounts": applies
+   * `FINANCIALLY_RESTRICTED` to every debtor overdue by more than
+   * `minDaysOverdue` days (vault default: > 90 days). Each restriction is
+   * audit-logged; already-restricted parents are skipped.
+   *
+   * @returns the number of accounts newly restricted.
+   */
+  lockDelinquentAccounts(minDaysOverdue?: number, actorId?: string): Promise<Result<number>>;
 }
 
 export interface ExpenseRepository {
@@ -348,7 +417,12 @@ export interface ExpenseRepository {
   approve(id: string, approver: string, note?: string): Promise<Result<Expense>>;
   reject(id: string, approver: string, note: string): Promise<Result<Expense>>;
   disburse(id: string, disbursedBy: string): Promise<Result<Expense>>;
-  settleProof(id: string, proofUrl: string, uploadedBy: string): Promise<Result<Expense>>;
+  /**
+   * VAULT §08.05 (Tier 3) — settle with the receipt proof AND the actual
+   * final spent amount entered by staff. The financial officer verifies
+   * the receipt against the disbursed amount before the ticket closes.
+   */
+  settleProof(id: string, proofUrl: string, uploadedBy: string, finalSpentAmount?: number): Promise<Result<Expense>>;
 }
 
 export interface PersonnelRepository {

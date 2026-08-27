@@ -16,7 +16,22 @@
  */
 import type { Role } from "../../core/rbac/roles";
 
-export type StaffCategory = "teacher" | "administration" | "support" | "maintenance" | "driver" | "buyer" | "warehouse" | "worker";
+export type StaffCategory =
+  | "teacher"
+  | "administration"
+  | "support"
+  | "maintenance"
+  | "driver"
+  | "buyer"
+  | "warehouse"
+  | "worker"
+  /**
+   * VAULT §09.07 — Medical & Therapy Personnel (Médical): orthophonistes,
+   * psychologists. NEVER combined into the Teaching category — therapy
+   * services have distinct billing and documentation rules. Mirrors the
+   * backend `staff_category` CHECK (migration 0009) which includes 'medical'.
+   */
+  | "medical";
 export type PersonnelStatus = "active" | "on_leave" | "suspended" | "terminated" | "archived";
 export type ReleveActivity = "course" | "meeting" | "supervision" | "correction" | "task" | "delivery" | "warehouse" | "other";
 
@@ -97,6 +112,15 @@ export interface ReleveEntry {
   readonly subjectId: string | null;
   /** Optional link to the workforce Task that generated this entry. */
   readonly taskId?: string | null;
+  /**
+   * VAULT §09.06 — machine-readable kind for AUTO-POPULATED entries
+   * (the Relevé is an automated operational ledger, not just a manual
+   * timesheet). Auto entries are still append-only and audit-logged;
+   * teachers cannot edit them.
+   */
+  readonly autoKind?: "grade_entry" | "homework_push" | "roll_call" | null;
+  /** Human description of the activity (auto entries carry a summary). */
+  readonly note?: string | null;
   readonly recordedAt: string;
 }
 
@@ -109,6 +133,8 @@ export const STAFF_CATEGORY_LABELS_FR: Record<StaffCategory, string> = {
   buyer: "Acheteur",
   warehouse: "Magasinier",
   worker: "Ouvrier",
+  // VAULT §09.07 — Médical & Thérapie (orthophonistes, psychologues).
+  medical: "Médical / Thérapie",
 };
 
 export const PERSONNEL_STATUS_LABELS_FR: Record<PersonnelStatus, string> = {

@@ -157,6 +157,15 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   private pendingLedgerEntries: LedgerEntry[] = [];
   private pendingPayments: Array<{ input: CollectPaymentInput; collectedBy: string }> = [];
   private pendingInstallments: ImportInstallmentInput[] = [];
+  /**
+   * VAULT §14.02 — atomicity compensation log: parent/student ids CREATED
+   * during the current run. If the run fails, `rollbackTransaction`
+   * compensates by deleting them (students first, then parents) so NO
+   * partial import ever persists. Previously parents/students were written
+   * row-by-row immediately and a later failure left them orphaned.
+   */
+  private createdStudentIds: string[] = [];
+  private createdParentIds: string[] = [];
   /** Progress callback — called after each row is processed. */
   progressCallback: ((processed: number, total: number, currentRow: string) => void) | null = null;
 
@@ -171,15 +180,20 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   }
 
   async beginTransaction(): Promise<void> {
-    // Clear the batch buffers at the start of a new import run.
+    // Clear the batch buffers + the compensation log at the start of a run.
     this.pendingLedgerEntries = [];
     this.pendingPayments = [];
     this.pendingInstallments = [];
+    this.createdStudentIds = [];
+    this.createdParentIds = [];
   }
 
   async commitTransaction(): Promise<void> {
     // BULK IMPORT SPEED FIX: Flush all pending writes in bulk.
     await this.flushPendingBatches();
+    // The run succeeded — the created parents/students are now permanent.
+    this.createdStudentIds = [];
+    this.createdParentIds = [];
   }
 
   /**
@@ -255,10 +269,31 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   }
 
   async rollbackTransaction(): Promise<void> {
+    // VAULT §14.02 — compensating rollback: "If any row fails validation,
+    // the ENTIRE import rolls back via atomic transaction. No partial
+    // imports." Parents/students were inserted row-by-row during the run;
+    // reverse them (students BEFORE parents — parents with children cannot
+    // be deleted) so the database returns to its pre-import state.
+    for (const studentId of this.createdStudentIds.reverse()) {
+      try {
+        await this.deps.students.deleteStudent(studentId);
+      } catch {
+        // Best-effort compensation — log and continue with the rest.
+      }
+    }
+    for (const parentId of this.createdParentIds.reverse()) {
+      try {
+        await this.deps.parents.deleteParent(parentId);
+      } catch {
+        // Best-effort compensation.
+      }
+    }
     // Clear the batch buffers + per-run insertion log on rollback.
     this.pendingLedgerEntries = [];
     this.pendingPayments = [];
     this.pendingInstallments = [];
+    this.createdStudentIds = [];
+    this.createdParentIds = [];
     this.rowsByRun.clear();
   }
 
@@ -417,6 +452,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       action = "insert";
       studentId = result.value.id;
       resolvedStudent = result.value;
+      // VAULT §14.02 — record the created student for compensating rollback.
+      this.createdStudentIds.push(result.value.id);
     }
     // BULK IMPORT SPEED FIX: Build the ledger entries / payments / installments
     // and add them to the pending batch buffers. The actual Supabase writes
@@ -554,6 +591,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       }
       return null;
     }
+    // VAULT §14.02 — record the created parent for compensating rollback.
+    this.createdParentIds.push(result.value.id);
     return result.value;
   }
 

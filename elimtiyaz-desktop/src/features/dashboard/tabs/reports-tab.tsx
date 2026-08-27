@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useToast } from "../../../app/providers/toast-provider";
+import { useAuth } from "../../../app/providers/auth-provider";
+import { AuditActions } from "../../../core/audit-actions";
 import {
   exportRevenueReport, exportOutstandingDebtReport, exportStudentRoster,
 } from "../../../infrastructure/excel/reports";
@@ -29,6 +31,7 @@ import { Badge } from "../../../shared/ui/badge";
 export function ReportsTab() {
   const repos = useRepositories();
   const toast = useToast();
+  const { session } = useAuth();
   const [exporting, setExporting] = useState<string | null>(null);
 
   // Iteration 9: ONLY macro / organization-level aggregate reports.
@@ -82,6 +85,7 @@ export function ReportsTab() {
   async function handleExport(code: string, format: "XLSX" | "PDF") {
     setExporting(`${code}-${format}`);
     try {
+      let exportedRows: number | null = null;
       if (code === "revenu-mensuel" && format === "XLSX") {
         const payments = repos.payments.observe().get();
         const today = new Date();
@@ -91,6 +95,7 @@ export function ReportsTab() {
           from: from.toISOString().slice(0, 10),
           to: today.toISOString().slice(0, 10),
         });
+        exportedRows = payments.length;
       } else if (code === "revenu-mensuel" && format === "PDF") {
         // For now, generate a PDF version of the same data via the receipts engine.
         // (Iteration 9: minimal PDF report — just a styled summary.)
@@ -98,22 +103,25 @@ export function ReportsTab() {
         return;
       } else if (code === "creances-agees") {
         const summary = repos.debt.observeSummary().get();
-        await exportOutstandingDebtReport(
-          summary
-            .filter((d) => d.outstandingAmount > 0)
-            .map((d) => ({
-              parentCode: d.parentId,
-              parentName: d.parentName,
-              parentPhone: "",
-              bucket: d.bucket as "0_30" | "31_60" | "61_90" | "91_180" | "180_plus",
-              daysOverdue: d.daysOverdue,
-              outstandingAmount: d.outstandingAmount,
-            })),
-          "xlsx",
-        );
+        const parents = repos.parents.observe().get();
+        const rows = summary
+          .filter((d) => d.outstandingAmount > 0)
+          .map((d) => ({
+            // VAULT §14.04 — debt report carries the real parent phone +
+            // code (previously placeholders: parentId + "").
+            parentCode: parents.find((p) => p.id === d.parentId)?.code ?? d.parentId,
+            parentName: d.parentName,
+            parentPhone: d.parentPhone || parents.find((p) => p.id === d.parentId)?.phone || "",
+            bucket: d.bucket as "0_30" | "31_60" | "61_90" | "91_180" | "180_plus",
+            daysOverdue: d.daysOverdue,
+            outstandingAmount: d.outstandingAmount,
+          }));
+        await exportOutstandingDebtReport(rows, "xlsx");
+        exportedRows = rows.length;
       } else if (code === "effectifs-niveau") {
         const students = repos.students.observe().get();
         await exportStudentRoster(students);
+        exportedRows = students.length;
       } else if (code === "annuaire-personnel") {
         const personnel = repos.personnel.observe().get();
         if (personnel.length === 0) {
@@ -182,6 +190,20 @@ export function ReportsTab() {
         return;
       }
       toast.showSuccess("Export généré", `Le rapport ${code} a été téléchargé.`);
+      // VAULT §12.01 — system exports (PDF / XLSX / CSV) are tracked audit
+      // events, attributed to the exporting user.
+      if (exportedRows !== null) {
+        void repos.audit.log({
+          action: AuditActions.SystemExport,
+          entityType: "report",
+          entityId: code,
+          actorId: session?.userId ?? "system",
+          actorName: session?.displayName ?? "Session courante",
+          tenantId: session?.tenantId ?? "mock",
+          diff: { before: null, after: { report: code, format, rows: exportedRows } },
+          note: `Export ${format} — rapport « ${code} » (${exportedRows} ligne(s))`,
+        });
+      }
     } catch (e) {
       toast.showError("Échec de l'export", e instanceof Error ? e.message : String(e));
     } finally {

@@ -34,7 +34,7 @@ import type {
 import type { AgingBucket, Payment, PaymentCategory, PaymentMethod, PaymentStatus } from "../../../domain/model/payment";
 import { agingBucketFromDays, sumPaidPayments } from "../../../domain/calc/payment";
 import { sumOf } from "../../../domain/calc/shared/money";
-import { academicLevelFromGradeLevel, type AcademicLevel, type GradeLevel } from "../../../domain/model/student";
+import { academicLevelFromGradeLevel, GRADE_LEVEL_LABELS_FR, type AcademicLevel, type GradeLevel } from "../../../domain/model/student";
 // TIER 3 FIX: import the canonical engine — the Supabase dashboard previously
 // computed outstanding / debt-aging via inline `Σ` calculations that diverged
 // from the mock (which uses `computeParentSummary`). The inline calculation
@@ -219,33 +219,22 @@ export class SupabaseDashboardRepository implements DashboardRepository {
 
       const total = active.length;
 
-      // Grade distribution — map grade_level_code → academic level.
-      const levelCounts: Record<AcademicLevel, number> = { primaire: 0, cem: 0, lycee: 0 };
-      let prescolaireCount = 0;
+      // VAULT §15.03 — Grade Level Distribution is a BAR chart PER GRADE
+      // (1AP, 2AP, …, 3ème Année) — not a pie by cycle. Each canonical
+      // GradeLevel gets its own bar; unknown codes land in "Autre".
+      const gradeCounts = new Map<string, number>();
       for (const s of active) {
         const code = (s.grade_level_code ?? "").toLowerCase() as GradeLevel;
-        if (code === "prescolaire_1" || code === "prescolaire_2") {
-          prescolaireCount++;
-          continue;
-        }
-        let level: AcademicLevel;
-        try {
-          level = academicLevelFromGradeLevel(code);
-        } catch {
-          level = "primaire";
-        }
-        levelCounts[level]++;
+        const label = (GRADE_LEVEL_LABELS_FR as Record<string, string>)[code] ?? "Autre";
+        gradeCounts.set(label, (gradeCounts.get(label) ?? 0) + 1);
       }
-      const totalWithLevels = levelCounts.primaire + levelCounts.cem + levelCounts.lycee + prescolaireCount;
+      const totalWithLevels = [...gradeCounts.values()].reduce((a, b) => a + b, 0);
       const pct = (n: number) => totalWithLevels === 0 ? 0 : Math.round((n / totalWithLevels) * 100);
-      const grade: DemographicSlice[] = [
-        { label: "Préscolaire", count: prescolaireCount, percent: pct(prescolaireCount) },
-        { label: "Primaire", count: levelCounts.primaire, percent: pct(levelCounts.primaire) },
-        { label: "CEM", count: levelCounts.cem, percent: pct(levelCounts.cem) },
-        { label: "Lycée", count: levelCounts.lycee, percent: pct(levelCounts.lycee) },
-      ];
+      const grade: DemographicSlice[] = [...gradeCounts.entries()]
+        .map(([label, count]) => ({ label, count, percent: pct(count) }))
+        .sort((a, b) => b.count - a.count);
 
-      // Gender distribution.
+      // Gender distribution — VAULT §15.03: Male / Female / Unspecified.
       const male = active.filter((s) => s.gender === "male").length;
       const female = active.filter((s) => s.gender === "female").length;
       const other = total - male - female;
@@ -253,7 +242,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const gender: DemographicSlice[] = [
         { label: "Garçons", count: male, percent: genderPct(male) },
         { label: "Filles", count: female, percent: genderPct(female) },
-        { label: "Autre", count: other, percent: genderPct(other) },
+        { label: "Non spécifié", count: other, percent: genderPct(other) },
       ];
 
       // Age distribution.
@@ -277,18 +266,49 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         return { label: b.label, count, percent: total === 0 ? 0 : Math.round((count / total) * 100) };
       });
 
-      // Capacity vs enrollment.
-      const capacity: DemographicSlice[] = [
-        { label: "Préscolaire", count: prescolaireCount, percent: 0 },
-        { label: "Primaire", count: levelCounts.primaire, percent: 0 },
-        { label: "CEM", count: levelCounts.cem, percent: 0 },
-        { label: "Lycée", count: levelCounts.lycee, percent: 0 },
-      ];
+      // VAULT §15.03 — Capacity vs Enrollment: GAUGE PER CLASS with REAL
+      // fill rates (enrolled / capacity × 100). Previously every level was
+      // hardcoded to percent: 0, leaving the gauges empty in Supabase mode.
+      const capacity: DemographicSlice[] = await this.computeClassCapacity(tenantId);
 
       return Ok({ grade, gender, age, capacity });
     } catch (e) {
       console.warn("[SupabaseDashboard] demographics failed:", e);
       return Ok(this.emptyDemographics());
+    }
+  }
+
+  /**
+   * VAULT §15.03 — Capacity vs Enrollment per CLASS: fetches classes with
+   * their capacity + enrolled counts and computes the real fill rate
+   * (enrolled / capacity × 100). Returns the top 12 classes by fill rate.
+   */
+  private async computeClassCapacity(tenantId: string): Promise<DemographicSlice[]> {
+    try {
+      const { data, error } = await this.client
+        .from("classes")
+        .select("name, capacity, enrolled_count")
+        .eq("tenant_id", tenantId)
+        .order("name", { ascending: true });
+      if (error || !data) {
+        console.warn("[SupabaseDashboard] classes capacity query failed:", error?.message);
+        return [];
+      }
+      return (data as { name: string; capacity: number | null; enrolled_count: number | null }[])
+        .map((c) => {
+          const capacity = Number(c.capacity ?? 30);
+          const enrolled = Number(c.enrolled_count ?? 0);
+          return {
+            label: c.name,
+            count: enrolled,
+            percent: capacity > 0 ? Math.round((enrolled / capacity) * 100) : 0,
+          };
+        })
+        .sort((a, b) => b.percent - a.percent)
+        .slice(0, 12);
+    } catch (e) {
+      console.warn("[SupabaseDashboard] computeClassCapacity failed:", e);
+      return [];
     }
   }
 

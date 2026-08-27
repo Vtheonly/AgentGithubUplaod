@@ -35,6 +35,7 @@ import {
   encodeUtf8,
   decodeUtf8,
 } from "./aes-256";
+import { backupFileName } from "../../core/format/id";
 import {
   storeArchive,
   getArchive,
@@ -46,45 +47,88 @@ import {
 /** localStorage key for the backup passphrase (mock-only; production uses a secrets manager). */
 export const BACKUP_PASSPHRASE_KEY = "el-imtiyaz:backup-passphrase";
 
-/** Default passphrase for the mock — overridable via localStorage. */
-const DEFAULT_BACKUP_PASSPHRASE = "el-imtiyaz-mock-passphrase-change-me";
-
 /** Salt for PBKDF2 — fixed per tenant in the mock; production would use a per-tenant secret. */
 const BACKUP_SALT = encodeUtf8("el-imtiyaz-backup-salt-v1");
 
 /**
- * Get the configured backup passphrase from localStorage, falling back to
- * the default. In production (plan §13.02) this would query a separate
- * secrets manager (HSM or Supabase secrets).
+ * VAULT §13.02 — the AES key is stored SEPARATELY from the backup files and
+ * is NEVER hard-coded in the backup script. The passphrase MUST be set by
+ * the administrator (Settings → Sauvegarde) before the first backup; it is
+ * read at runtime from the secrets store (localStorage in the mock,
+ * Supabase secrets / HSM in production).
  */
-export function getBackupPassphrase(): string {
+export function getBackupPassphrase(): string | null {
   try {
     if (typeof localStorage !== "undefined") {
       const stored = localStorage.getItem(BACKUP_PASSPHRASE_KEY);
       if (stored && stored.length > 0) return stored;
     }
   } catch {
-    /* localStorage may be unavailable in some environments — fall back to default. */
+    /* localStorage may be unavailable in some environments. */
   }
-  return DEFAULT_BACKUP_PASSPHRASE;
+  return null;
+}
+
+/** Set (or clear) the backup passphrase at runtime. */
+export function setBackupPassphrase(passphrase: string | null): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    if (passphrase && passphrase.length > 0) {
+      localStorage.setItem(BACKUP_PASSPHRASE_KEY, passphrase);
+    } else {
+      localStorage.removeItem(BACKUP_PASSPHRASE_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Whether a backup passphrase has been configured. */
+export function hasBackupPassphrase(): boolean {
+  return getBackupPassphrase() !== null;
 }
 
 /** Derive the AES-256-GCM CryptoKey from the configured passphrase. */
 export async function deriveBackupKey(): Promise<CryptoKey> {
-  return generateKey(getBackupPassphrase(), BACKUP_SALT);
+  const passphrase = getBackupPassphrase();
+  if (!passphrase) {
+    throw Errors.validation(
+      "Aucune phrase secrète de sauvegarde configurée",
+      "Configurez la phrase secrète (Settings → Sauvegarde) avant de lancer une sauvegarde. La clé AES-256 ne doit jamais être codée en dur (plan §13.02).",
+    );
+  }
+  return generateKey(passphrase, BACKUP_SALT);
 }
 
-/** Snapshot the current mock state into a serializable object. */
+/**
+ * VAULT §13.01 — the snapshot captures the COMPLETE operational state: the
+ * data collections (the mock-layer equivalent of the PostgreSQL dump) PLUS
+ * the system configuration state (workflow schemas, RBAC matrix,
+ * pricing/academic configuration). AI provider config is out of scope.
+ */
 function snapshotState(repos: Repositories): Record<string, unknown> {
+  // RBAC matrix overrides persist in localStorage (Settings → RBAC).
+  let rbacMatrixOverrides: unknown = null;
+  try {
+    const raw = localStorage.getItem("el-imtiyaz:rbac-matrix-overrides");
+    if (raw) rbacMatrixOverrides = JSON.parse(raw);
+  } catch {
+    /* ignore */
+  }
   return {
     snapshotAt: new Date().toISOString(),
     tenantId: "tenant-el-imtiyaz-oran-001",
+    // Operational data (mock-layer "PostgreSQL dump").
     parents: repos.parents.observe().get(),
     students: repos.students.observe().get(),
     payments: repos.payments.observe().get(),
+    installments: repos.installments.observe().get(),
     ledger: repos.ledger.observe().get(),
     expenses: repos.expenses.observe().get(),
     personnel: repos.personnel.observe().get(),
+    // System configuration state (vault §13.01 item 2).
+    workflows: repos.workflows.observe().get(),
+    rbacMatrixOverrides,
   };
 }
 
@@ -171,8 +215,8 @@ export async function runBackup(
     // 4. Checksum
     const checksum = await sha256(ciphertext);
 
-    // 5. Store
-    const archiveId = `bak-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // 5. Store — VAULT §13.02: archive named `backup-YYYY-MM-DD-HHMMSS.db`.
+    const archiveId = backupFileName();
     const metadata = buildArchiveMetadata(
       archiveId,
       ciphertext.byteLength,
@@ -183,6 +227,8 @@ export async function runBackup(
         studentCount: (snapshot.students as unknown[] | undefined)?.length ?? 0,
         paymentCount: (snapshot.payments as unknown[] | undefined)?.length ?? 0,
         ledgerEntryCount: (snapshot.ledger as unknown[] | undefined)?.length ?? 0,
+        installmentCount: (snapshot.installments as unknown[] | undefined)?.length ?? 0,
+        workflowCount: (snapshot.workflows as unknown[] | undefined)?.length ?? 0,
       },
     );
     await storeArchive({ id: archiveId, metadata, ciphertext, iv });

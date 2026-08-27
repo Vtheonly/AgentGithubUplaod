@@ -18,13 +18,29 @@ export interface Demographics {
 }
 
 /** Colors per debt-aging bucket, used by the debt-aging chart on OverviewTab. */
+/**
+ * Aging-tier chart colors — resolved from the design-token CSS variables at
+ * RUNTIME (never hard-coded hex strings in components, plan §03). Falls back
+ * to the canonical palette values when the DOM is unavailable (SSR/tests).
+ */
 export const AGING_COLORS: Record<string, string> = {
-  "0_30": "#3FA66E",
-  "31_60": "#6EC1E4",
-  "61_90": "#C8A98C",
-  "91_180": "#C0504D",
-  "180_plus": "#836C68",
+  "0_30": tokenOr("--status-success", "#3fa66e"),
+  "31_60": tokenOr("--status-info", "#6ec1e4"),
+  "61_90": tokenOr("--status-warning", "#c8a98c"),
+  "91_180": tokenOr("--status-danger", "#c0504d"),
+  "180_plus": tokenOr("--brand-brown", "#836c68"),
 };
+
+/** Resolve a CSS design token with a canonical fallback. */
+function tokenOr(name: string, fallback: string): string {
+  try {
+    if (typeof document === "undefined") return fallback;
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 /** Academic years selectable via the AcademicYearSelector in the page header. */
 export const AVAILABLE_ACADEMIC_YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];

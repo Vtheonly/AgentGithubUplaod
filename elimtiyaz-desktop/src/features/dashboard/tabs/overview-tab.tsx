@@ -31,6 +31,17 @@ import type {
 } from "../../../domain/model/operations";
 import { formatDzd, formatDzdPlain } from "../../../core/format/currency";
 import { AGING_BUCKET_LABELS_FR } from "../../../domain/model/payment";
+
+/** Resolve a design-token CSS variable to its runtime hex value (plan §03). */
+function token(name: string, fallback: string): string {
+  try {
+    if (typeof document === "undefined") return fallback;
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  } catch {
+    return fallback;
+  }
+}
 import { KpiCard } from "../../../shared/ui/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
 import { DashboardCalendar } from "../dashboard-calendar";
@@ -60,8 +71,9 @@ export function OverviewTab({
     ? Math.round((totalRevenue / (totalRevenue + totalDebt)) * 100)
     : 0;
 
-  const gradeColors = ["#349BD4", "#6EC1E4", "#C8A98C"];
-  const genderColors = ["#349BD4", "#C8A98C"];
+  // Color tokens resolved at runtime — never hard-coded hex (plan §03).
+  const gradeColor = token("--brand-blue", "#349bd4");
+  const genderColors = [token("--brand-blue", "#349bd4"), token("--brand-gold", "#c8a98c"), token("--brand-slate", "#3b464c")];
 
   return (
     <div className="space-y-4">
@@ -202,30 +214,24 @@ export function OverviewTab({
         <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => onDrillDown("demographics")}>
           <CardHeader>
             <CardTitle className="text-sm">{t("dashboard.charts.gradeDistribution")}</CardTitle>
-            <CardDescription>Répartition par cycle scolaire</CardDescription>
+            <CardDescription>Effectifs par niveau (1AP → 3ème Année)</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* VAULT §15.03 — grade distribution is a BAR chart per grade
+                (a pie cannot show a distribution over 14 grade levels). */}
             <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={demographics.grade} dataKey="count" nameKey="label" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                    {demographics.grade.map((_, i) => (
-                      <Cell key={i} fill={gradeColors[i % gradeColors.length]} />
-                    ))}
-                  </Pie>
+                <BarChart data={demographics.grade}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }} axisLine={false} tickLine={false} interval={0} angle={-35} textAnchor="end" height={44} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
                   <RTooltip
                     contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: number) => [`${v} élèves`, "Effectif"]}
                   />
-                </PieChart>
+                  <Bar dataKey="count" fill={gradeColor} radius={[3, 3, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
-            </div>
-            <div className="flex justify-center gap-3 mt-2 flex-wrap">
-              {demographics.grade.map((s, i) => (
-                <div key={s.label} className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full" style={{ background: gradeColors[i % gradeColors.length] }} />
-                  <span className="text-xs text-muted-foreground">{s.label}: {s.count} ({s.percent}%)</span>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>

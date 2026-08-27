@@ -49,6 +49,7 @@ import {
 import { type FinancialOpsCtx } from "./financial/types";
 import {
   collectPayment, refundPayment, adjustAccount, generateReceiptForPayment,
+  markPaymentCleared, markPaymentBounced,
 } from "./financial/payment-ops";
 import {
   appendManualCharge,
@@ -62,6 +63,7 @@ import {
 } from "./financial/installment-ops";
 import {
   observeDebtSummary, observeParentFinancialProfile, sendDebtReminder,
+  broadcastDebtReminders, lockDelinquentAccounts,
 } from "./financial/debt-ops";
 import {
   submitExpense, approveExpense, rejectExpense, disburseExpense,
@@ -102,6 +104,12 @@ export class MockPaymentRepository implements PaymentRepository {
   refund(id: string): Promise<Result<Payment>> {
     return refundPayment(ctx, id);
   }
+  markCleared(id: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
+    return markPaymentCleared(ctx, id, actorId, actorName);
+  }
+  markBounced(id: string, reason: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
+    return markPaymentBounced(ctx, id, reason, actorId, actorName);
+  }
   adjust(
     parentId: string,
     amount: number,
@@ -135,6 +143,9 @@ export class MockPaymentRepository implements PaymentRepository {
 // ============================================================================
 
 export class MockInstallmentRepository implements InstallmentRepository {
+  observe(): Observable<Installment[]> {
+    return store.installments$;
+  }
   observeByParent(parentId: string): Observable<Installment[]> {
     // FIX (reactivity): derive from the store stream.
     return derived([store.installments$], () => store.installments.filter((i) => i.parentId === parentId));
@@ -241,6 +252,12 @@ export class MockDebtRepository implements DebtRepository {
   }
   sendReminder(parentId: string): Promise<Result<void>> {
     return sendDebtReminder(ctx, parentId);
+  }
+  broadcastReminders(minDaysOverdue?: number, actorId?: string): Promise<Result<number>> {
+    return broadcastDebtReminders(ctx, minDaysOverdue ?? 0, actorId ?? "usr-current");
+  }
+  lockDelinquentAccounts(minDaysOverdue?: number, actorId?: string): Promise<Result<number>> {
+    return lockDelinquentAccounts(ctx, minDaysOverdue ?? 90, actorId ?? "usr-current");
   }
 }
 

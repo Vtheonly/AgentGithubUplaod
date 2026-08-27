@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   Users,
   Pencil,
+  KeyRound,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -45,9 +46,13 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  ADJUSTMENT_REASON_CODES,
+  ADJUSTMENT_REASON_LABELS_FR,
+  type AdjustmentReasonCode,
   type ParentFinancialProfile,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
+import { activationCode as generateActivationCode } from "../../core/format/id";
 import { EditParentModal } from "./edit-parent-modal";
 import {
   TRANSPORT_DESTINATION_LABELS_FR,
@@ -247,6 +252,29 @@ export function ParentDetailDrawer({
 
   // === Actions (footer) ===
   const canAdjust = !!session && session.permissions.has(Permission.AdjustAccount);
+  // VAULT §02 — staff issues the activation code (KeyIcon action).
+  const canIssueActivation = !!session && session.permissions.has(Permission.EditParent);
+  const [activationCode, setActivationCode] = useState<string | null>(null);
+
+  function issueActivationCode(parent: Parent) {
+    // 6–7 digit numeric code, single-use, staff-issued at enrollment
+    // (vault §02). The Supabase path persists it via the
+    // `generate_activation_code` RPC (approvals module); the mock path
+    // generates + audit-logs it locally.
+    const code = generateActivationCode();
+    setActivationCode(code);
+    void repos.audit.log({
+      action: "parent.activation_code_issued",
+      entityType: "parent",
+      entityId: parent.id,
+      actorId: session?.userId ?? "usr-current",
+      actorName: session?.displayName ?? "Session courante",
+      tenantId: parent.tenantId,
+      diff: { before: null, after: { parentCode: parent.code } },
+      note: `Code d'activation portail émis pour ${parentDisplayName(parent)} (usage unique, lié au profil maître)`,
+    });
+  }
+
   const actions = (p: Parent): readonly EntityDrawerAction<Parent>[] => {
     const list: EntityDrawerAction<Parent>[] = [];
     // FIX (editing): expose the parent edit modal from the drawer footer.
@@ -256,6 +284,15 @@ export function ParentDetailDrawer({
       variant: "outline",
       icon: <Pencil className="h-4 w-4" />,
     });
+    // VAULT §02 — Account Activation Protocol (staff-issued code).
+    if (canIssueActivation) {
+      list.push({
+        label: "Code d'activation",
+        onClick: (pp) => issueActivationCode(pp),
+        variant: "outline",
+        icon: <KeyRound className="h-4 w-4" />,
+      });
+    }
     if (canAdjust) {
       list.push({
         label: "Ajuster le compte",
@@ -324,6 +361,50 @@ export function ParentDetailDrawer({
       {/* === Sibling modals (triggered by drawer actions) === */}
       {entity && (
         <>
+          {/* VAULT §02 — activation code display (single-use, staff-issued). */}
+          <UnifiedModal
+            open={activationCode !== null}
+            onOpenChange={(o) => !o && setActivationCode(null)}
+            variant="dialog"
+            size="sm"
+            icon={KeyRound}
+            iconTone="primary"
+            title="Code d'activation portail"
+            description="Communiquez ce code au parent : il le saisira sur le portail web après connexion Google pour lier son compte au profil de la famille (usage unique)."
+            hideFooter
+          >
+            <div className="space-y-3 text-center">
+              <p className="text-4xl font-mono font-bold tracking-[0.35em] text-primary">
+                {activationCode}
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(activationCode ?? "");
+                    toast.showSuccess("Code copié", "Le code d'activation est dans le presse-papiers.");
+                  }}
+                >
+                  Copier le code
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const msg = `Votre code d'activation pour le portail El-Imtiyaz : ${activationCode}. Ouvrez le portail, connectez-vous avec Google, puis saisissez ce code (usage unique).`;
+                    window.open(`https://wa.me/${(entity.whatsapp ?? entity.phone).replace(/[\s+]/g, "")}?text=${encodeURIComponent(msg)}`);
+                  }}
+                >
+                  <MessageCircle className="h-4 w-4" /> Envoyer via WhatsApp
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Code à 6-7 chiffres, à usage unique, lié au profil maître de la famille — protocole
+                d'activation du portail (plan §02). L'émission est journalisée.
+              </p>
+            </div>
+          </UnifiedModal>
           <EditParentModal
             open={editOpen}
             onOpenChange={setEditOpen}
@@ -464,6 +545,35 @@ function FinancesTab({
           <p className="px-3 py-3 text-xs text-muted-foreground">Aucun paiement.</p>
         )}
       </div>
+
+      {/* VAULT §07.06 — discretionary adjustment history (replaces scholarships) */}
+      <div className="rounded-md border border-border">
+        <div className="border-b border-border px-3 py-1.5 bg-muted/30">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Historique des ajustements discrétionnaires
+          </p>
+        </div>
+        {profile && profile.adjustments.length > 0 ? (
+          <ul className="divide-y divide-border text-xs">
+            {profile.adjustments.slice(0, 8).map((a) => (
+              <li key={a.id} className="px-3 py-2 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`font-mono font-medium ${a.amount < 0 ? "text-status-success" : "text-status-danger"}`}
+                  >
+                    {a.amount < 0 ? "−" : "+"}{formatDzdPlain(Math.abs(a.amount))}
+                  </span>
+                  <span className="text-muted-foreground">{formatRelative(a.approvedAt)}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground font-mono">{a.approvedBy}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{a.reason}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="px-3 py-3 text-xs text-muted-foreground">Aucun ajustement.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -487,24 +597,34 @@ function AdjustAccountModal({
   const { session } = useAuth();
   const toast = useToast();
   const [amount, setAmount] = useState(0);
-  const [reason, setReason] = useState("");
+  // VAULT §07.04 — reason code from the CONTROLLED list (no free text) +
+  // mandatory administrative note.
+  const [reasonCode, setReasonCode] = useState<AdjustmentReasonCode>("sibling_discount");
+  const [adminNote, setAdminNote] = useState("");
 
   async function submit() {
-    if (amount === 0 || !reason.trim()) {
-      toast.showWarning("Champs invalides", "Montant non nul et motif requis.");
+    if (amount === 0 || !adminNote.trim()) {
+      toast.showWarning("Champs invalides", "Montant non nul et note administrative requis.");
       return;
     }
+    // Compose the auditable reason: controlled code (for the backend
+    // reason_code CHECK constraint) + the admin's explanatory note.
+    const reason = `[${reasonCode}] ${adminNote.trim()}`;
     const r = await repos.payments.adjust(
       parentId,
       amount,
-      reason.trim(),
+      reason,
       session?.userId ?? "usr-current",
     );
     if (r.ok) {
-      toast.showSuccess("Ajustement appliqué", formatDzd(amount));
+      toast.showSuccess(
+        "Ajustement appliqué",
+        `${amount < 0 ? "Crédit" : "Débit"} de ${formatDzdPlain(Math.abs(amount))} — ${ADJUSTMENT_REASON_LABELS_FR[reasonCode]}`,
+      );
       onOpenChange(false);
       setAmount(0);
-      setReason("");
+      setReasonCode("sibling_discount");
+      setAdminNote("");
     } else {
       toast.showError("Échec", r.error.userMessage);
     }
@@ -523,7 +643,7 @@ function AdjustAccountModal({
       submitLabel="Appliquer"
       submitIcon={Wallet}
       onSubmit={submit}
-      submitDisabled={amount === 0 || !reason.trim()}
+      submitDisabled={amount === 0 || !adminNote.trim()}
     >
       <div className="space-y-3">
         <div className="rounded-md border border-border p-2 text-xs">
@@ -533,15 +653,28 @@ function AdjustAccountModal({
         <FormField
           label="Montant"
           required
-          hint="Positif = crédit (remise). Négatif = débit (pénalité)."
+          hint="Négatif = crédit (remise / annulation de dette). Positif = débit (pénalité / frais supplémentaires)."
         >
           <MoneyInput value={amount} onChange={setAmount} />
         </FormField>
-        <FormField label="Motif" required hint="Reason code obligatoire pour audit">
+        <FormField label="Motif (reason code)" required hint="Liste contrôlée — aucun texte libre (plan §07.04)">
+          <select
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            value={reasonCode}
+            onChange={(e) => setReasonCode(e.target.value as AdjustmentReasonCode)}
+          >
+            {ADJUSTMENT_REASON_CODES.map((code) => (
+              <option key={code} value={code}>
+                {ADJUSTMENT_REASON_LABELS_FR[code]}
+              </option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label="Note administrative" required hint="Obligatoire — expliquer la décision pour l'audit">
           <Textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Remise fratrie 2ème enfant — 10%"
+            value={adminNote}
+            onChange={(e) => setAdminNote(e.target.value)}
+            placeholder="ex. Remise fratrie 10% applicable au 2ème enfant (décision direction)"
             rows={3}
           />
         </FormField>

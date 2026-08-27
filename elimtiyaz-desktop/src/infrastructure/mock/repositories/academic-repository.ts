@@ -30,6 +30,8 @@ import {
 } from "../../../domain/calc/academics/promotion";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 import { ACADEMIC_YEAR } from "../seed-data";
+import { currentTermWindow, isDateInCurrentTerm } from "../../../domain/calc/academics/terms";
+import { logAutoReleveEntry } from "./auto-releve";
 import type { AppError } from "../../../core/result";
 
 // ============================================================================
@@ -308,6 +310,18 @@ export class MockGradeRepository implements GradeRepository {
       actorId: input.enteredBy,
       actorName: "Session courante",
     });
+    // VAULT §09.06 — auto-populate the teacher's Relevé (grades entered).
+    logAutoReleveEntry({
+      store,
+      appendAudit,
+      nowIso,
+      actorId: input.enteredBy,
+      kind: "grade_entry",
+      activity: "correction",
+      classId: input.classId,
+      subjectId: input.subjectId,
+      note: `Note saisie — ${input.devoir1 ?? "—"}/${input.devoir2 ?? "—"}/${input.examen ?? "—"}`,
+    });
     return Ok(asm);
   }
 
@@ -344,6 +358,18 @@ export class MockGradeRepository implements GradeRepository {
       actorId: inputs[0]?.enteredBy ?? "mock",
       actorName: "Session courante",
       diff: { before: null, after: { count: created.length } },
+    });
+    // VAULT §09.06 — auto-populate the teacher's Relevé (grades entered).
+    logAutoReleveEntry({
+      store,
+      appendAudit,
+      nowIso,
+      actorId: inputs[0]?.enteredBy ?? "mock",
+      kind: "grade_entry",
+      activity: "correction",
+      classId: inputs[0]?.classId ?? null,
+      subjectId: inputs[0]?.subjectId ?? null,
+      note: `Saisie groupée — ${created.length} note(s)`,
     });
     return Ok(created);
   }
@@ -410,6 +436,7 @@ export class MockAttendanceRepository implements AttendanceRepository {
     date: string;
     session: AttendanceSession;
     statuses: ReadonlyMap<string, AttendanceStatus>;
+    arrivalTimes?: ReadonlyMap<string, string>;
     recordedBy: string;
   }): Promise<Result<AttendanceRecord[]>> {
     await delay(220);
@@ -429,6 +456,11 @@ export class MockAttendanceRepository implements AttendanceRepository {
         date: input.date,
         session: input.session,
         status,
+        // VAULT §09.01 — arrival time logged for LATE students.
+        arrivalTime:
+          status === "late"
+            ? (input.arrivalTimes?.get(studentId) ?? null)
+            : null,
         note: existingForSlot.find((r) => r.studentId === studentId)?.note ?? null,
         recordedBy: input.recordedBy,
         recordedAt: nowIso(),
@@ -462,19 +494,108 @@ export class MockAttendanceRepository implements AttendanceRepository {
           total: records.length,
           present,
           absent: records.length - present,
+          late: records.filter((r) => r.status === "late").length,
         },
       },
+    });
+    // VAULT §09.06 — auto-populate the teacher's Relevé (attendance
+    // submission record — daily roll call completion).
+    logAutoReleveEntry({
+      store,
+      appendAudit,
+      nowIso,
+      actorId: input.recordedBy,
+      kind: "roll_call",
+      activity: "supervision",
+      classId: input.classId,
+      note: `Appel enregistré (${input.session === "morning" ? "matin" : input.session === "afternoon" ? "après-midi" : "journée"}) — ${present}/${records.length} présents`,
     });
     return Ok(records);
   }
   async alertAbsences(studentIds: string[]): Promise<Result<void>> {
+    // VAULT §09.04 — automated absence alerts:
+    //   1. Count each student's absences for the CURRENT TERM (T1/T2/T3 —
+    //      not a rolling window).
+    //   2. Only alert when the count reaches the threshold of 3 — "never
+    //      send the alert before the threshold is hit. The threshold is 3 —
+    //      not 1, not 2."
+    //   3. Flag the student card + dispatch a parent notification.
+    const THRESHOLD = 3;
+    const now = new Date();
+    const window = currentTermWindow(now);
+    const alerts: { studentId: string; count: number }[] = [];
+    for (const studentId of studentIds) {
+      const termAbsences = store.attendance.filter(
+        (r) =>
+          r.studentId === studentId &&
+          r.status !== "present" &&
+          r.status !== "late" && // LATE is not an absence
+          isDateInCurrentTerm(r.date, now),
+      ).length;
+      if (termAbsences >= THRESHOLD) {
+        alerts.push({ studentId, count: termAbsences });
+      }
+    }
+    if (alerts.length === 0) {
+      // No student hit the threshold — no premature alerts (vault critical
+      // rule). Still audit the evaluation for traceability.
+      appendAudit({
+        action: "attendance.alert_absences",
+        entityType: "student",
+        entityId: studentIds.join(","),
+        actorId: "system",
+        actorName: "Système",
+        diff: {
+          before: null,
+          after: { evaluated: studentIds.length, alerted: 0, threshold: THRESHOLD, term: window.label },
+        },
+        note: `Évaluation du seuil d'absences (${window.label}) — aucun élève n'a atteint ${THRESHOLD} absences.`,
+      });
+      return Ok(undefined);
+    }
+    // Dispatch one parent notification per flagged student.
+    for (const { studentId, count } of alerts) {
+      const student = store.students.find((s) => s.id === studentId);
+      const parent = student ? store.parents.find((p) => p.id === student.parentId) : null;
+      const displayName = student ? `${student.firstName} ${student.lastName}` : studentId;
+      const notification = {
+        id: `ntf-absence-${studentId}-${Date.now()}`,
+        title: `Alerte absences — ${displayName}`,
+        body: `${displayName} a accumulé ${count} absences ce trimestre (${window.label}). Merci de contacter l'administration pour justifier ces absences.`,
+        type: "attendance_alert" as const,
+        priority: "high" as const,
+        source: "system" as const,
+        sourceLabel: "Module Présences",
+        entityType: "student",
+        entityId: studentId,
+        targetUserId: null,
+        targetRole: null,
+        triggeredAt: null,
+        readAt: null,
+        createdAt: nowIso(),
+        createdBy: "system",
+      };
+      store.notifications = [notification, ...store.notifications];
+      void parent; // parent identity retained for the portal-targeting integration
+    }
+    store.notifyNotifications();
     appendAudit({
       action: "attendance.alert_absences",
       entityType: "student",
-      entityId: studentIds.join(","),
+      entityId: alerts.map((a) => a.studentId).join(","),
       actorId: "system",
       actorName: "Système",
-      note: `Seuil 3+ absences atteint pour ${studentIds.length} élève(s)`,
+      diff: {
+        before: null,
+        after: {
+          evaluated: studentIds.length,
+          alerted: alerts.length,
+          threshold: THRESHOLD,
+          term: window.label,
+          students: alerts.map((a) => ({ studentId: a.studentId, absences: a.count })),
+        },
+      },
+      note: `Seuil ${THRESHOLD}+ absences atteint pour ${alerts.length} élève(s) (${window.label}) — alertes parents envoyées.`,
     });
     return Ok(undefined);
   }
@@ -526,6 +647,19 @@ export class MockHomeworkRepository implements HomeworkRepository {
       entityId: hw.id,
       actorId: input.teacherId,
       actorName: input.teacherName,
+    });
+    // VAULT §09.06 — auto-populate the teacher's Relevé (homework
+    // assignments issued — engagement metric).
+    logAutoReleveEntry({
+      store,
+      appendAudit,
+      nowIso,
+      actorId: input.teacherId,
+      kind: "homework_push",
+      activity: "task",
+      classId: input.classId,
+      subjectId: input.subjectId,
+      note: `Devoir publié — « ${input.title} » (${subject?.name ?? "Matière"}${input.attachments.length > 0 ? `, ${input.attachments.length} pièce(s) jointe(s)` : ""})`,
     });
     return Ok(hw);
   }

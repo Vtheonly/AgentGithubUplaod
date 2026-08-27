@@ -34,10 +34,20 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { Permission } from "../../core/rbac/permissions";
-import { formatDateTime, formatDate } from "../../core/format/date";
+import { formatDateTime, formatDate, formatRelative } from "../../core/format/date";
 import {
   getSystemConfigService,
 } from "../../infrastructure/system-config";
+import {
+  hasBackupPassphrase,
+  setBackupPassphrase,
+} from "../../infrastructure/backup/backup-service";
+import {
+  readRunLog,
+  checkVaultCapacity,
+  type BackupRunLogEntry,
+  type StorageCapacity,
+} from "../../infrastructure/backup/backup-scheduler";
 import { isSupabaseConfigured, getSupabaseClient } from "../../infrastructure/supabase/supabase-client";
 import {
   BACKUP_STATUS_LABELS_FR,
@@ -150,6 +160,16 @@ export function BackupTab() {
   const [restoring, setRestoring] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [purging, setPurging] = useState(false);
+  // VAULT §13.02 / §13.06 — passphrase state + daemon run log + capacity.
+  const [passphraseReady, setPassphraseReady] = useState(hasBackupPassphrase());
+  const [passphraseInput, setPassphraseInput] = useState("");
+  const [runLog, setRunLog] = useState<BackupRunLogEntry[]>([]);
+  const [capacity, setCapacity] = useState<StorageCapacity | null>(null);
+
+  useEffect(() => {
+    setRunLog(readRunLog());
+    void checkVaultCapacity().then(setCapacity);
+  }, []);
 
   const canManage = !!session && session.permissions.has(Permission.ManageBackups);
   const actorId = session?.userId ?? "usr-current";
@@ -169,9 +189,30 @@ export function BackupTab() {
       } else {
         toast.showError("Échec de la sauvegarde", r.error.userMessage);
       }
+      setRunLog(readRunLog());
+      setCapacity(await checkVaultCapacity());
     } finally {
       setRunningBackup(false);
     }
+  }
+
+  /** VAULT §13.02 — set the backup passphrase (never hard-coded). */
+  function handleSavePassphrase() {
+    const trimmed = passphraseInput.trim();
+    if (trimmed.length < 8) {
+      toast.showWarning(
+        "Phrase secrète trop courte",
+        "Utilisez au moins 8 caractères. Elle protège la clé AES-256 de toutes les archives.",
+      );
+      return;
+    }
+    setBackupPassphrase(trimmed);
+    setPassphraseReady(true);
+    setPassphraseInput("");
+    toast.showSuccess(
+      "Phrase secrète configurée",
+      "La clé de chiffrement est maintenant dérivée de votre phrase secrète (stockée séparément des archives). Conservez-la précieusement — sans elle, aucune restauration n'est possible.",
+    );
   }
 
   async function handleRestore() {
@@ -303,8 +344,128 @@ export function BackupTab() {
       </Card>
 
       {/* ---------------------------------------------------------------- */}
-      {/*  Archives table                                                   */}
+      {/*  VAULT §13.02 — passphrase configuration (never hard-coded)      */}
       {/* ---------------------------------------------------------------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Shield className="size-5 text-primary" />
+            Clé de chiffrement (phrase secrète)
+          </CardTitle>
+          <CardDescription>
+            La clé AES-256 est dérivée de votre phrase secrète, stockée SÉPARÉMENT des archives —
+            jamais codée en dur (plan §13.02).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {passphraseReady ? (
+            <div className="flex items-center gap-2 text-sm">
+              <StatusChip label="Configurée" tone="success" />
+              <span className="text-muted-foreground text-xs">
+                Sauvegardes chiffrées avec la clé dérivée de la phrase secrète enregistrée.
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-2.5 text-xs text-status-warning">
+                Aucune phrase secrète configurée — les sauvegardes sont désactivées jusqu'à
+                configuration de la clé. Saisissez une phrase secrète (min. 8 caractères).
+              </div>
+              {canManage && (
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={passphraseInput}
+                    onChange={(e) => setPassphraseInput(e.target.value)}
+                    placeholder="Phrase secrète de sauvegarde"
+                    className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm"
+                  />
+                  <Button onClick={handleSavePassphrase} disabled={!passphraseInput.trim()}>
+                    Enregistrer la clé
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ---------------------------------------------------------------- */}
+      {/*  VAULT §13.06 — vault capacity + daemon run log                  */}
+      {/* ---------------------------------------------------------------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <HardDrive className="size-5 text-primary" />
+            Coffre & journal du démon
+          </CardTitle>
+          <CardDescription>
+            Espace du coffre (alerte à 80%) · historique des exécutions planifiées et manuelles.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {capacity?.usedPercent != null ? (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Espace utilisé : {formatBytes(capacity.usageBytes ?? 0)} / {formatBytes(capacity.quotaBytes ?? 0)}
+                </span>
+                <span className={capacity.alert ? "font-semibold text-status-danger" : "text-muted-foreground"}>
+                  {capacity.usedPercent}%
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${capacity.alert ? "bg-status-danger" : "bg-status-success"}`}
+                  style={{ width: `${Math.min(100, capacity.usedPercent)}%` }}
+                />
+              </div>
+              {capacity.alert && (
+                <p className="text-[11px] text-status-danger">
+                  Capacité critique — purgez les anciennes archives ou exportez-les vers le coffre hors-site.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Estimation d'espace non disponible dans cet environnement.
+            </p>
+          )}
+          {runLog.length > 0 ? (
+            <div className="rounded-md border border-border max-h-56 overflow-y-auto">
+              <ul className="divide-y divide-border text-xs">
+                {runLog.map((entry, i) => (
+                  <li key={`${entry.at}-${i}`} className="flex items-center gap-2 px-3 py-2">
+                    <StatusChip
+                      label={entry.status === "success" ? "OK" : "Échec"}
+                      tone={entry.status === "success" ? "success" : "danger"}
+                    />
+                    <span className="text-muted-foreground font-mono text-[10px]">
+                      {formatDateTime(entry.at)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {entry.trigger === "scheduled" ? "planifiée (02:00)" : "manuelle"}
+                    </span>
+                    {entry.sizeBytes != null && (
+                      <span className="text-muted-foreground font-mono">{formatBytes(entry.sizeBytes)}</span>
+                    )}
+                    <span className="text-muted-foreground">{entry.durationMs} ms</span>
+                    {entry.error && (
+                      <span className="ml-auto truncate text-status-danger" title={entry.error}>
+                        {entry.error}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Aucune exécution enregistrée pour l'instant. La prochaine sauvegarde planifiée : {formatRelative(nextScheduledRun(backupCfg).toISOString())}.
+            </p>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">

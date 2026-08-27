@@ -25,6 +25,11 @@ import type {
   WorkflowTriggerType,
 } from "../../../domain/model/workflow";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import {
+  evaluateConditionTree,
+  parseConditionConfig,
+  defaultConditionContext,
+} from "../../../domain/calc/workflow/condition-evaluator";
 
 export class MockWorkflowRepository implements WorkflowRepository {
   observe(): Observable<Workflow[]> {
@@ -90,6 +95,22 @@ export class MockWorkflowRepository implements WorkflowRepository {
       createdBy: before.createdBy,
       updatedAt: nowIso(),
     };
+    // VAULT §10.09 (best practice 1) — run Kahn's algorithm on EVERY canvas
+    // save, not just on publish: a cyclic graph cannot even be saved.
+    const cycle = detectCycle(after.nodes, after.edges);
+    if (cycle.hasCycle) {
+      return Err(Errors.validation(
+        `Workflow has a cycle (${cycle.cycleNodeIds.size} nodes)`,
+        "Cycle détecté — sauvegarde impossible (algorithme de Kahn, plan §18.04).",
+      ));
+    }
+    // VAULT §10.09 (best practice 5) — validate the daily execution cap.
+    if (after.maxDailyExecutions !== undefined && after.maxDailyExecutions < 1) {
+      return Err(Errors.validation(
+        "maxDailyExecutions must be >= 1",
+        "Le plafond d'exécutions quotidiennes doit être au moins 1.",
+      ));
+    }
     store.workflows = store.workflows.map((w, i) => (i === idx ? after : w));
     store.notifyWorkflows();
     appendAudit({
@@ -183,8 +204,34 @@ export class MockWorkflowRepository implements WorkflowRepository {
     if (wf.status === "disabled") {
       return Err(Errors.conflict("Workflow is disabled", "Ce workflow est désactivé."));
     }
-    // Build a WorkflowRun with per-node results. Each node takes 50-200ms;
-    // conditions always succeed; actions have a 90% success rate (mock).
+    // VAULT §10.09 (best practice 5) — daily execution cap prevents runaway
+    // loops. Mirrors the backend `workflows.max_daily_executions` (default 100).
+    const cap = wf.maxDailyExecutions ?? 100;
+    const todayPrefix = new Date().toISOString().slice(0, 10);
+    const todayRuns = store.workflowRuns.filter(
+      (r) => r.workflowId === id && r.startedAt.slice(0, 10) === todayPrefix,
+    ).length;
+    if (todayRuns >= cap) {
+      appendAudit({
+        action: AuditActions.WorkflowTriggered,
+        entityType: "workflow",
+        entityId: id,
+        actorId,
+        actorName,
+        diff: { before: null, after: null },
+        note: `Échec: plafond quotidien atteint (${todayRuns}/${cap} exécutions aujourd'hui)`,
+      });
+      return Err(Errors.conflict(
+        `Daily execution limit reached (${todayRuns}/${cap})`,
+        `Plafond quotidien atteint — ${todayRuns}/${cap} exécutions aujourd'hui. Le workflow redeviendra exécutable demain.`,
+      ));
+    }
+    // Build a WorkflowRun with per-node results. Each node takes 50-200ms.
+    // VAULT §10.05 — condition nodes are evaluated with the REAL Boolean
+    // tree evaluator (AND/OR/NOT + comparisons, missing fields → false
+    // + warning, never an exception); downstream actions are skipped when a
+    // condition fails. Action nodes keep the 90% mock success rate.
+    const conditionContext = defaultConditionContext();
     const startedAtMs = Date.now();
     const startedAt = nowIso();
     const results: WorkflowNodeResult[] = [];
@@ -192,6 +239,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     let failed = false;
     let failedNodeId: string | null = null;
     let timedOut = false;
+    let conditionFailed = false;
     for (const n of wf.nodes) {
       const nodeStart = new Date(cursor).toISOString();
       // charCodeAt may return NaN for short ids; coerce to 0 via Number.isNaN.
@@ -201,23 +249,53 @@ export class MockWorkflowRepository implements WorkflowRepository {
       cursor += dur;
       const nodeEnd = new Date(cursor).toISOString();
       let nodeStatus: WorkflowNodeResult["status"] = "succeeded";
-      if (n.type === "action") {
+      let output: string | undefined = `OK (${n.subtype})`;
+      let error: string | undefined;
+
+      if (n.type === "condition") {
+        if (conditionFailed) {
+          // A previous condition failed — this branch is not taken.
+          nodeStatus = "skipped";
+          output = undefined;
+        } else {
+          const tree = parseConditionConfig(n.config.condition ?? n.config._condition);
+          const verdict = evaluateConditionTree(tree, {
+            ...conditionContext,
+            ...((n.config._context as Record<string, unknown> | undefined) ?? {}),
+          });
+          if (verdict.passed) {
+            nodeStatus = "succeeded";
+            output = `Condition remplie (${n.subtype})`;
+          } else {
+            nodeStatus = "skipped";
+            conditionFailed = true;
+            output = `Condition non remplie — branche suivante ignorée. ${verdict.warnings.join(" ")}`.trim();
+          }
+        }
+      } else if (conditionFailed) {
+        // Downstream non-condition nodes are skipped after a failed condition.
+        nodeStatus = "skipped";
+        output = undefined;
+      } else if (n.type === "action") {
         // 90% success rate (deterministic by node id hash so tests are stable).
         const hash = (Number.isNaN(charAt0) ? 0 : charAt0) + (Number.isNaN(charAt2) ? 0 : charAt2);
         if (hash % 10 === 0) {
           nodeStatus = "failed";
           failed = true;
           failedNodeId = n.id;
+          output = undefined;
+          error = "Échec de l'action (mock 90%)";
         }
       }
+
       results.push({
         nodeId: n.id,
         nodeLabel: n.label,
         status: nodeStatus,
         startedAt: nodeStart,
         completedAt: nodeEnd,
-        output: nodeStatus === "succeeded" ? `OK (${n.subtype})` : undefined,
-        error: nodeStatus === "failed" ? "Échec de l'action (mock 90%)" : undefined,
+        output,
+        error,
       });
       if (failed) break;
     }
