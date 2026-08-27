@@ -1,0 +1,27 @@
+{
+  "scenarioId": "029_subject_average_boundary_xx5_rounds_half_up",
+  "category": "academic",
+  "operationType": "computeSubjectAverage",
+  "discoveredAt": "2026-08-27T21-51-09",
+  "discrepancies": [
+    {
+      "path": "canonical.subjectAverage (android)",
+      "desktopValue": 13.63,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.averageIsNotNull",
+      "desktopValue": true,
+      "androidValue": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 0,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

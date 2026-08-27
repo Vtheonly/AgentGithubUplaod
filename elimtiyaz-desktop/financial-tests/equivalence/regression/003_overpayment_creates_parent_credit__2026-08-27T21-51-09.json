@@ -1,0 +1,46 @@
+{
+  "scenarioId": "003_overpayment_creates_parent_credit",
+  "category": "overpayment",
+  "operationType": "allocatePayment",
+  "discoveredAt": "2026-08-27T21-51-09",
+  "discrepancies": [
+    {
+      "path": "canonical.totalOutstanding (android)",
+      "desktopValue": 0,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.totalPaid (android)",
+      "desktopValue": 10000000,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.totalUnallocatedCredit (android)",
+      "desktopValue": -5000000,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.unallocatedAmount (android)",
+      "desktopValue": 5000000,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.totalAllocated (android)",
+      "desktopValue": 10000000,
+      "androidValue": null,
+      "delta": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 0,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

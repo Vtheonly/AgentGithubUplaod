@@ -30,7 +30,8 @@ export type MediaBucket =
   | "payment-proofs"
   | "student-documents"
   | "expense-receipts"
-  | "therapy-attachments";
+  | "therapy-attachments"
+  | "homework-attachments";
 
 export interface UploadMediaResult {
   /** Storage path (`<tenantId>/<entityId>/<filename>`) — persist this. */
@@ -59,8 +60,12 @@ export async function uploadPrivateMedia(params: {
 }): Promise<UploadMediaResult> {
   const { bucket, entityId, tenantId, file } = params;
   // Normalized storage path per migration 0018: <tenant>/<entity>/<filename>.
+  // The timestamp + random suffix guarantees uniqueness even when the same
+  // file is uploaded twice within the same millisecond (Supabase uploads use
+  // upsert:false, so a path collision would fail the second upload).
   const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `${tenantId}/${entityId}/${Date.now()}-${safeName}`;
+  const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+  const path = `${tenantId}/${entityId}/${Date.now()}-${uniqueSuffix}-${safeName}`;
 
   if (isSupabaseConfigured()) {
     const client = getSupabaseClient();

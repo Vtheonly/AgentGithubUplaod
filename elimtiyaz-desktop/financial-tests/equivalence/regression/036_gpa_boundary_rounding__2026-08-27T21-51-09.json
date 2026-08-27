@@ -1,0 +1,27 @@
+{
+  "scenarioId": "036_gpa_boundary_rounding",
+  "category": "academic",
+  "operationType": "computeOverallGpa",
+  "discoveredAt": "2026-08-27T21-51-09",
+  "discrepancies": [
+    {
+      "path": "canonical.gpa (android)",
+      "desktopValue": 15.38,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.gpaIsNotNull",
+      "desktopValue": true,
+      "androidValue": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 0,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

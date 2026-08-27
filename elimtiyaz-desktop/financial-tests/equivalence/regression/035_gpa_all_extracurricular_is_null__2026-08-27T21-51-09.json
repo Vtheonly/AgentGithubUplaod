@@ -1,0 +1,21 @@
+{
+  "scenarioId": "035_gpa_all_extracurricular_is_null",
+  "category": "academic",
+  "operationType": "computeOverallGpa",
+  "discoveredAt": "2026-08-27T21-51-09",
+  "discrepancies": [
+    {
+      "path": "canonical.gpaIsNotNull",
+      "desktopValue": false,
+      "androidValue": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 0,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

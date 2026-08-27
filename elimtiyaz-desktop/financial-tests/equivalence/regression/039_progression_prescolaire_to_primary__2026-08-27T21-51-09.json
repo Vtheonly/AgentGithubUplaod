@@ -1,0 +1,27 @@
+{
+  "scenarioId": "039_progression_prescolaire_to_primary",
+  "category": "academic",
+  "operationType": "getNextGradeProgression",
+  "discoveredAt": "2026-08-27T21-51-09",
+  "discrepancies": [
+    {
+      "path": "canonical.nextGradeYear (android)",
+      "desktopValue": 1,
+      "androidValue": null,
+      "delta": null
+    },
+    {
+      "path": "canonical.isGraduation",
+      "desktopValue": false,
+      "androidValue": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 0,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

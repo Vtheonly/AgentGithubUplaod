@@ -703,8 +703,17 @@ export interface Database {
           p_relationship?: string | null;
           p_preferred_language?: string;
           p_is_active?: boolean;
+          // Migration 0028 — transport destination + city tier (parity with
+          // Android's pull_parents_for_sync read-back).
+          p_transport_destination?: string | null;
+          p_city_tier?: string | null;
+          // Migration 0037 / vault §02.08 — deterministic activation code so
+          // imported/registered parents can activate the Web Portal.
+          p_activation_code?: string | null;
         };
-        Returns: { parent_id: string; parent_code: string; was_inserted: boolean }[];
+        // Migration 0031 — output columns renamed to out_* (plpgsql
+        // "column reference is ambiguous" fix).
+        Returns: { out_parent_id: string; out_parent_code: string; out_was_inserted: boolean }[];
       };
       upsert_student_from_import: {
         Args: {

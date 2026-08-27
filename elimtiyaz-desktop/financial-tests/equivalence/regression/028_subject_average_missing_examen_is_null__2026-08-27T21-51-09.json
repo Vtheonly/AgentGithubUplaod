@@ -1,0 +1,21 @@
+{
+  "scenarioId": "028_subject_average_missing_examen_is_null",
+  "category": "academic",
+  "operationType": "computeSubjectAverage",
+  "discoveredAt": "2026-08-27T21-51-09",
+  "discrepancies": [
+    {
+      "path": "canonical.averageIsNotNull",
+      "desktopValue": false,
+      "androidValue": null
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "missing",
+  "canonicalExpectedMet": false,
+  "durationMs": {
+    "desktop": 0,
+    "android": 0
+  },
+  "status": "DISCOVERED"
+}

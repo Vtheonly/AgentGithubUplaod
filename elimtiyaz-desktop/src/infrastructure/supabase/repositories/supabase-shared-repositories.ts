@@ -74,6 +74,7 @@ import { agingBucketFromDays } from "../../../domain/calc/payment/queries";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { ParentLedgerSummary } from "../../../domain/model/ledger";
 import { SubjectBehavior, derived } from "../../mock/subject-behavior";
+import { deterministicActivationCode } from "../../../core/format/id";
 import type {
   ParentRow,
   StudentRow,
@@ -486,6 +487,14 @@ export class SupabaseParentRepository implements ParentRepository {
       // performs an UPDATE instead of falling through to weaker fallbacks
       // (phone match, display_name match) that may or may not exist.
       const parentCode = deterministicParentCode(year, input);
+      // VAULT §02.08 (Account Activation Protocol) — populate the activation
+      // code on parent creation exactly like the Android app does
+      // (migration 0037 added `p_activation_code` to this RPC precisely so
+      // activation codes are no longer missing for imported/registered
+      // parents). Deterministic FNV-1a of (tenantId|parentCode) keeps the
+      // upsert idempotent: re-importing the same family converges on the
+      // same code instead of issuing a new one each run.
+      const activationCodeValue = deterministicActivationCode(parentCode, tenantId);
       const transportDestination: TransportDestination | null =
         input.transportDestination ?? cityTierToDestination(input.cityTier) ?? null;
 
@@ -503,6 +512,9 @@ export class SupabaseParentRepository implements ParentRepository {
         p_relationship: null,
         p_preferred_language: input.preferredLanguage ?? "fr",
         p_is_active: true,
+        // 0037: deterministic activation code (vault §02.08) — populated so
+        // the family can activate the Web Portal right after enrollment.
+        p_activation_code: activationCodeValue,
         // NEW (migration 0028): persist transport_destination + city_tier so
         // Android can read them back via pull_parents_for_sync.
         p_transport_destination: transportDestination ?? null,

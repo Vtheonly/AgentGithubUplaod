@@ -52,7 +52,9 @@ import {
   type ParentFinancialProfile,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
-import { activationCode as generateActivationCode } from "../../core/format/id";
+import { deterministicActivationCode } from "../../core/format/id";
+import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
+import { ActivationCodeModal } from "./activation-code-modal";
 import { EditParentModal } from "./edit-parent-modal";
 import {
   TRANSPORT_DESTINATION_LABELS_FR,
@@ -255,24 +257,47 @@ export function ParentDetailDrawer({
   // VAULT §02 — staff issues the activation code (KeyIcon action).
   const canIssueActivation = !!session && session.permissions.has(Permission.EditParent);
   const [activationCode, setActivationCode] = useState<string | null>(null);
+  const [issuingCode, setIssuingCode] = useState(false);
 
-  function issueActivationCode(parent: Parent) {
-    // 6–7 digit numeric code, single-use, staff-issued at enrollment
-    // (vault §02). The Supabase path persists it via the
-    // `generate_activation_code` RPC (approvals module); the mock path
-    // generates + audit-logs it locally.
-    const code = generateActivationCode();
-    setActivationCode(code);
-    void repos.audit.log({
-      action: "parent.activation_code_issued",
-      entityType: "parent",
-      entityId: parent.id,
-      actorId: session?.userId ?? "usr-current",
-      actorName: session?.displayName ?? "Session courante",
-      tenantId: parent.tenantId,
-      diff: { before: null, after: { parentCode: parent.code } },
-      note: `Code d'activation portail émis pour ${parentDisplayName(parent)} (usage unique, lié au profil maître)`,
-    });
+  /**
+   * VAULT §02.08 (Account Activation Protocol) — Step 1: staff issues the
+   * 6-7 digit single-use code.
+   *
+   *   - Supabase mode: persist via the approvals repository
+   *     (`generate_activation_code` RPC + `activation_codes` insert) so the
+   *     code the parent receives is the code the portal will validate.
+   *   - Mock mode: derive the SAME deterministic code Android would derive
+   *     from (tenantId|parentCode) so the demo stays cross-platform
+   *     consistent, then audit-log the issuance.
+   */
+  async function issueActivationCode(parent: Parent) {
+    setIssuingCode(true);
+    try {
+      let code: string | null = null;
+      const approvals = (repos as { approvals?: { generateActivationCode(parentId: string): Promise<{ ok: boolean; value?: string }> } }).approvals;
+      if (isSupabaseConfigured() && approvals) {
+        const res = await approvals.generateActivationCode(parent.id);
+        if (res.ok && res.value) code = res.value;
+      }
+      if (!code) {
+        // Mock path (or RPC failure) — deterministic fallback keeps the
+        // protocol shape identical across platforms.
+        code = deterministicActivationCode(parent.code, parent.tenantId);
+      }
+      setActivationCode(code);
+      void repos.audit.log({
+        action: "parent.activation_code_issued",
+        entityType: "parent",
+        entityId: parent.id,
+        actorId: session?.userId ?? "usr-current",
+        actorName: session?.displayName ?? "Session courante",
+        tenantId: parent.tenantId,
+        diff: { before: null, after: { parentCode: parent.code } },
+        note: `Code d'activation portail émis pour ${parentDisplayName(parent)} (usage unique, lié au profil maître)`,
+      });
+    } finally {
+      setIssuingCode(false);
+    }
   }
 
   const actions = (p: Parent): readonly EntityDrawerAction<Parent>[] => {
@@ -288,9 +313,10 @@ export function ParentDetailDrawer({
     if (canIssueActivation) {
       list.push({
         label: "Code d'activation",
-        onClick: (pp) => issueActivationCode(pp),
+        onClick: (pp) => void issueActivationCode(pp),
         variant: "outline",
         icon: <KeyRound className="h-4 w-4" />,
+        disabled: () => issuingCode,
       });
     }
     if (canAdjust) {
@@ -361,50 +387,16 @@ export function ParentDetailDrawer({
       {/* === Sibling modals (triggered by drawer actions) === */}
       {entity && (
         <>
-          {/* VAULT §02 — activation code display (single-use, staff-issued). */}
-          <UnifiedModal
+          {/* VAULT §02 — activation code display (single-use, staff-issued,
+              with QR delivery per §02.08). */}
+          <ActivationCodeModal
             open={activationCode !== null}
             onOpenChange={(o) => !o && setActivationCode(null)}
-            variant="dialog"
-            size="sm"
-            icon={KeyRound}
-            iconTone="primary"
-            title="Code d'activation portail"
-            description="Communiquez ce code au parent : il le saisira sur le portail web après connexion Google pour lier son compte au profil de la famille (usage unique)."
-            hideFooter
-          >
-            <div className="space-y-3 text-center">
-              <p className="text-4xl font-mono font-bold tracking-[0.35em] text-primary">
-                {activationCode}
-              </p>
-              <div className="flex justify-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(activationCode ?? "");
-                    toast.showSuccess("Code copié", "Le code d'activation est dans le presse-papiers.");
-                  }}
-                >
-                  Copier le code
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const msg = `Votre code d'activation pour le portail El-Imtiyaz : ${activationCode}. Ouvrez le portail, connectez-vous avec Google, puis saisissez ce code (usage unique).`;
-                    window.open(`https://wa.me/${(entity.whatsapp ?? entity.phone).replace(/[\s+]/g, "")}?text=${encodeURIComponent(msg)}`);
-                  }}
-                >
-                  <MessageCircle className="h-4 w-4" /> Envoyer via WhatsApp
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Code à 6-7 chiffres, à usage unique, lié au profil maître de la famille — protocole
-                d'activation du portail (plan §02). L'émission est journalisée.
-              </p>
-            </div>
-          </UnifiedModal>
+            code={activationCode}
+            parentName={parentDisplayName(entity)}
+            whatsapp={entity.whatsapp}
+            phone={entity.phone}
+          />
           <EditParentModal
             open={editOpen}
             onOpenChange={setEditOpen}

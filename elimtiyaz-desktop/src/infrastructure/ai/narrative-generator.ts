@@ -78,6 +78,8 @@ export async function generateReportCardNarrative(input: {
     maxTokens: 800,
     temperature: 0.7,
     createdAt: new Date().toISOString(),
+    // VAULT §02.06 — routed to the narrative feature server-side.
+    feature: "narrative",
   };
 
   const llmResult = await defaultLLMAdapter.generate(aiRequest);

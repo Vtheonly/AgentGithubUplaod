@@ -32,7 +32,10 @@ import {
 } from "../_shared/supabase.ts";
 
 interface BindCodeRequest {
-  activation_code: string;
+  /** Desktop/Android clients send `activation_code`. */
+  activation_code?: string;
+  /** The Next.js Web Portal sends `code` (activation-code-screen.tsx). */
+  code?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -57,12 +60,17 @@ Deno.serve(async (req: Request) => {
     return jsonError(req, 400, "invalid_body", "Request body must be valid JSON");
   }
 
-  if (!body.activation_code) {
-    return jsonError(req, 400, "missing_code", "activation_code is required");
+  // CROSS-PLATFORM COMPATIBILITY (vault §02.08): the same deployed function
+  // serves both the Web Portal (body key `code`) and the desktop/Android
+  // clients (body key `activation_code`). Accept either key — no behavioral
+  // difference, the value follows the exact same validation + binding path.
+  const rawCode = body.activation_code ?? body.code;
+  if (!rawCode) {
+    return jsonError(req, 400, "missing_code", "activation_code (or code) is required");
   }
 
   // Validate code format (6-7 digits)
-  const code = body.activation_code.trim();
+  const code = rawCode.trim();
   if (!/^\d{6,7}$/.test(code)) {
     return jsonError(req, 400, "invalid_code_format", "Activation code must be 6-7 digits");
   }

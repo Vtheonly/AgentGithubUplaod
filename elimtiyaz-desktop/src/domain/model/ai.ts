@@ -33,6 +33,13 @@ export interface AIRequest {
   readonly maxTokens: number;
   readonly temperature: number;
   readonly createdAt: string;
+  /**
+   * Feature discriminator used by the `ai-proxy` Edge Function and the BYOK
+   * adapter to pick the server-side system prompt + token budget
+   * (plan §11.05–11.07). Optional — when absent the adapter infers it from
+   * the prompt (same heuristic as the mock adapter).
+   */
+  readonly feature?: "narrative" | "drafting" | "anomaly";
 }
 
 export interface AIResponse {

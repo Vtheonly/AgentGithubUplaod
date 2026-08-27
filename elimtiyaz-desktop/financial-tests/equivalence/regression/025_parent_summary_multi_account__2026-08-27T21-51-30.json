@@ -1,0 +1,21 @@
+{
+  "scenarioId": "025_parent_summary_multi_account",
+  "category": "parent_summary",
+  "operationType": "computeParentSummary",
+  "discoveredAt": "2026-08-27T21-51-30",
+  "discrepancies": [
+    {
+      "path": "result.accounts[2].studentId",
+      "desktopValue": null,
+      "androidValue": ""
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "pass",
+  "canonicalExpectedMet": true,
+  "durationMs": {
+    "desktop": 0,
+    "android": 1
+  },
+  "status": "DISCOVERED"
+}

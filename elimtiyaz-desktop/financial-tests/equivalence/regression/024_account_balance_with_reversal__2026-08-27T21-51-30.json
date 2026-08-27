@@ -1,0 +1,28 @@
+{
+  "scenarioId": "024_account_balance_with_reversal",
+  "category": "balance",
+  "operationType": "computeAccountBalance",
+  "discoveredAt": "2026-08-27T21-51-30",
+  "discrepancies": [
+    {
+      "path": "result.totalRefunded",
+      "desktopValue": 0
+    },
+    {
+      "path": "result.totalCleared",
+      "desktopValue": 0
+    },
+    {
+      "path": "result.totalPending",
+      "desktopValue": 0
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "pass",
+  "canonicalExpectedMet": true,
+  "durationMs": {
+    "desktop": 0,
+    "android": 1
+  },
+  "status": "DISCOVERED"
+}

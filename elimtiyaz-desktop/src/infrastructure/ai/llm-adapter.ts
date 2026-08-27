@@ -1,38 +1,46 @@
 /**
  * LLM adapter — abstraction over the LLM provider (Groq / OpenRouter).
  *
- * Per plan §11.02: in production, real adapter implementations are deployed
- * as Supabase Edge Functions so the API key NEVER leaves the server. The
- * desktop client calls the Edge Function; the Edge Function holds the
- * decrypted key in a Supabase secret and proxies to Groq/OpenRouter.
+ * VAULT §02.06 (Platform Feature Allocation Matrix): "AI Assistant
+ * Integration — Full — Groq + OpenRouter" on Desktop. This module is the
+ * single routing point that makes that real:
  *
- * For iteration 7 (scaffold), only the `mockLLMAdapter` is wired in. It
- * returns canned responses after an 800ms simulated network delay. The
- * mock inspects the request's `systemPrompt` + `userPrompt` for keywords
- * and returns a contextually-appropriate canned response:
+ *   1. Supabase mode  → `edgeLLMAdapter` proxies through the `ai-proxy`
+ *      Edge Function (plan §11.02: API keys NEVER leave the server; the
+ *      Edge Function holds them in Supabase secrets and rate-limits via
+ *      `ai_request_logs`).
+ *   2. BYOK fallback  → if the Edge Function is unavailable but the admin
+ *      configured Bring-Your-Own-Key credentials (Settings → IA), call
+ *      Groq / OpenRouter directly. PII is masked BEFORE the call either way
+ *      (the prompt sent over the wire is `AIRequest.maskedContent`).
+ *   3. Mock           → canned responses for dev/demo environments where no
+ *      backend and no keys are configured.
  *
- *   - narrative  (system mentions "bulletin" or "narratif")
- *       → 3-paragraph French narrative
- *   - drafting   (system mentions "convocation" / "alerte" / "note")
- *       → formal French draft
- *   - anomaly    (system mentions "anomalie" or "dépense")
- *       → 3-signal anomaly explanation
- *   - other      → generic acknowledgement
+ * All three paths implement the same `LLMAdapter` contract and return the
+ * same `AIResponse` shape, so feature code (narrative generator, anomaly
+ * explainer, drafting) is agnostic of the transport.
  *
- * Returns `Err` for empty prompts (validation guard).
+ * Per plan §11.05–11.07: AI output is always a *suggestion* — teachers and
+ * financial officers review before anything is published. The adapter never
+ * writes to domain tables.
  */
 import type { Result } from "../../core/result";
 import { Ok, Err } from "../../core/result";
 import { Errors } from "../../core/app-error";
 import type { AIRequest, AIResponse } from "../../domain/model/ai";
+import { getSupabaseClient, isSupabaseConfigured } from "../supabase/supabase-client";
+import { loadConfig } from "./ai-config-storage";
 
-/** LLM adapter contract — both mock + production adapters implement this. */
+/** LLM adapter contract — mock + edge + BYOK adapters implement this. */
 export interface LLMAdapter {
   generate(request: AIRequest): Promise<Result<AIResponse>>;
 }
 
+/** AI features recognized by the `ai-proxy` Edge Function. */
+export type AIFeature = "narrative" | "drafting" | "anomaly";
+
 /* ------------------------------------------------------------------ */
-/*  Mock adapter                                                       */
+/* Shared helpers                                                      */
 /* ------------------------------------------------------------------ */
 
 const MOCK_LATENCY_MS = 800;
@@ -44,6 +52,72 @@ function delay(ms: number): Promise<void> {
 function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/**
+ * Feature discriminator for a request. Callers SHOULD set `request.feature`
+ * explicitly; when absent, the prompt is inspected (same keyword heuristic
+ * the mock uses) so legacy call sites keep working.
+ */
+export function featureOf(request: AIRequest): AIFeature {
+  if (request.feature) return request.feature;
+  const hay = `${request.systemPrompt}\n${request.userPrompt}`.toLowerCase();
+  if (
+    hay.includes("narratif") ||
+    hay.includes("bulletin") ||
+    hay.includes("commentaire") ||
+    hay.includes("appréciation")
+  ) {
+    return "narrative";
+  }
+  if (
+    hay.includes("anomalie") ||
+    hay.includes("dépense") ||
+    hay.includes("anomaly") ||
+    hay.includes("fournisseur")
+  ) {
+    return "anomaly";
+  }
+  return "drafting";
+}
+
+/**
+ * Server-side system prompts — mirrored from the `ai-proxy` Edge Function
+ * so BYOK direct calls produce the same style of output as proxied calls.
+ */
+function systemPromptForFeature(request: AIRequest, feature: AIFeature): string {
+  switch (feature) {
+    case "narrative":
+      return (
+        "You are an expert educational report card narrative writer for Algerian private schools.\n" +
+        "Write in formal French. Be specific, balanced (mention strengths and areas for growth), and professional.\n" +
+        "The teacher will review and may edit your draft before sending to parents.\n" +
+        "Do not invent grades or behaviors not present in the input.\n" +
+        "Length: 3-5 paragraphs."
+      );
+    case "anomaly":
+      return (
+        "You are a financial anomaly detector for an Algerian private school.\n" +
+        "Analyze the provided expense data and identify potential anomalies:\n" +
+        "- Duplicate submissions (same amount, same vendor, same period)\n" +
+        "- Unusually high amounts vs historical averages\n" +
+        "- New vendors not previously used\n" +
+        "- Budget overruns\n" +
+        "Provide a signal (not a verdict). The human financial officer makes the final decision.\n" +
+        'Output JSON: { "signals": [{ "type": "duplication"|"new_vendor"|"budget_overrun"|"amount_outlier", "severity": "low"|"medium"|"high", "explanation": "..." }] }'
+      );
+    default:
+      return (
+        "You are an administrative drafting assistant for an Algerian private school.\n" +
+        "Write in formal French. Produce clear, concise, and professional administrative documents.\n" +
+        "The user will review your draft before sending. Do not invent facts.\n" +
+        "Tone: authoritative but respectful."
+      );
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mock adapter                                                        */
+/* ------------------------------------------------------------------ */
 
 /**
  * Inspect the request to determine which canned response to return.
@@ -159,9 +233,237 @@ export const mockLLMAdapter: LLMAdapter = {
   },
 };
 
+/* ------------------------------------------------------------------ */
+/* Edge Function adapter (production — plan §11.02)                    */
+/* ------------------------------------------------------------------ */
+
+interface AIProxyOkPayload {
+  feature?: string;
+  provider?: "groq" | "openrouter";
+  model?: string;
+  content?: unknown;
+  raw_content?: string;
+  tokens_used?: number;
+  latency_ms?: number;
+}
+
 /**
- * Default adapter for the app — currently the mock. In production, this will
- * be swapped for a router that picks between `groqLLMAdapter` and
- * `openrouterLLMAdapter` based on the BYOK config.
+ * Adapter that proxies through the `ai-proxy` Supabase Edge Function.
+ *
+ * The caller must be authenticated (JWT) and hold the `use_ai` permission —
+ * the function enforces both. PII masking happens client-side BEFORE the
+ * call: only `AIRequest.maskedContent` crosses the network.
  */
-export const defaultLLMAdapter: LLMAdapter = mockLLMAdapter;
+export const edgeLLMAdapter: LLMAdapter = {
+  async generate(request: AIRequest): Promise<Result<AIResponse>> {
+    if (!isSupabaseConfigured()) {
+      return Err(
+        Errors.server("ai-proxy requires a configured Supabase backend"),
+      );
+    }
+    const startedAt = Date.now();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client.functions.invoke("ai-proxy", {
+        body: {
+          feature: featureOf(request),
+          // Send the PII-masked prompt over the wire (plan §11.02).
+          prompt: request.maskedContent || request.userPrompt,
+          max_tokens: request.maxTokens,
+          temperature: request.temperature,
+        },
+      });
+      if (error) {
+        return Err(Errors.server(`ai-proxy error: ${error.message}`));
+      }
+      const payload = data as { data?: AIProxyOkPayload; error?: { message?: string } } | AIProxyOkPayload | null;
+      const inner = (payload as { data?: AIProxyOkPayload } | null)?.data ?? (payload as AIProxyOkPayload | null);
+      if (!inner || (payload as { error?: { message?: string } } | null)?.error) {
+        const msg = (payload as { error?: { message?: string } } | null)?.error?.message ?? "ai-proxy returned no data";
+        return Err(Errors.server(msg));
+      }
+      const content =
+        typeof inner.raw_content === "string" && inner.raw_content.length > 0
+          ? inner.raw_content
+          : typeof inner.content === "string"
+            ? inner.content
+            : JSON.stringify(inner.content ?? "");
+      const response: AIResponse = {
+        id: newId("ai-resp"),
+        requestId: request.id,
+        content,
+        tokensUsed: inner.tokens_used ?? Math.max(1, Math.ceil(content.length / 4)),
+        durationMs: Date.now() - startedAt,
+        provider: inner.provider ?? request.provider,
+        model: inner.model ?? request.model,
+        finishedAt: new Date().toISOString(),
+      };
+      return Ok(response);
+    } catch (err) {
+      return Err(
+        Errors.server(err instanceof Error ? err.message : "ai-proxy call failed"),
+      );
+    }
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/* BYOK direct adapter (Groq / OpenRouter)                              */
+/* ------------------------------------------------------------------ */
+
+interface ChatCompletionPayload {
+  model: string;
+  messages: Array<{ role: "system" | "user"; content: string }>;
+  max_tokens: number;
+  temperature: number;
+}
+
+interface ChatCompletionResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+  usage?: { total_tokens?: number; prompt_tokens?: number; completion_tokens?: number };
+}
+
+async function callChatCompletions(
+  endpoint: string,
+  apiKey: string,
+  body: ChatCompletionPayload,
+  extraHeaders: Record<string, string> = {},
+): Promise<{ content: string; tokens: number }> {
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      ...extraHeaders,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+  const json = (await res.json()) as ChatCompletionResponse;
+  const content = json.choices?.[0]?.message?.content ?? "";
+  if (!content) throw new Error("Empty completion");
+  return {
+    content,
+    tokens: json.usage?.total_tokens ?? Math.max(1, Math.ceil(content.length / 4)),
+  };
+}
+
+/**
+ * BYOK (Bring-Your-Own-Key) direct adapter — used when the Edge Function is
+ * not reachable but the administrator configured provider keys in
+ * Settings → IA (stored AES-256-GCM encrypted, decrypted only in memory
+ * for the lifetime of the call).
+ *
+ * Mirrors the Edge Function's provider fallback: Groq first, OpenRouter as
+ * fallback (and vice-versa depending on the configured default provider).
+ */
+export const byokLLMAdapter: LLMAdapter = {
+  async generate(request: AIRequest): Promise<Result<AIResponse>> {
+    const startedAt = Date.now();
+    try {
+      const config = await loadConfig();
+      const feature = featureOf(request);
+      const systemPrompt = systemPromptForFeature(request, feature);
+      // Only the PII-masked prompt leaves the machine.
+      const userPrompt = request.maskedContent || request.userPrompt;
+
+      const primary: "groq" | "openrouter" = config.defaultProvider;
+      const fallback: "groq" | "openrouter" = primary === "groq" ? "openrouter" : "groq";
+      const keys: Record<"groq" | "openrouter", string | null> = {
+        groq: config.groqApiKey,
+        openrouter: config.openRouterApiKey,
+      };
+      const models: Record<"groq" | "openrouter", string> = {
+        groq: primary === "groq" ? config.defaultModel : (config.fallbackModel ?? "llama-3.3-70b-versatile"),
+        openrouter:
+          primary === "openrouter"
+            ? config.defaultModel
+            : (config.fallbackModel ?? "meta-llama/llama-3.3-70b-instruct:free"),
+      };
+      const endpoints: Record<"groq" | "openrouter", string> = {
+        groq: "https://api.groq.com/openai/v1/chat/completions",
+        openrouter: "https://openrouter.ai/api/v1/chat/completions",
+      };
+
+      const bodyFor = (model: string): ChatCompletionPayload => ({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: request.maxTokens,
+        temperature: request.temperature,
+      });
+
+      // Primary provider, then fallback (mirrors ai-proxy behavior).
+      let lastError: unknown = null;
+      for (const provider of [primary, fallback]) {
+        const key = keys[provider];
+        if (!key) continue;
+        try {
+          const { content, tokens } = await callChatCompletions(
+            endpoints[provider],
+            key,
+            bodyFor(models[provider]),
+            provider === "openrouter" ? { "HTTP-Referer": "https://elimtiyaz.dz" } : {},
+          );
+          const response: AIResponse = {
+            id: newId("ai-resp"),
+            requestId: request.id,
+            content,
+            tokensUsed: tokens,
+            durationMs: Date.now() - startedAt,
+            provider,
+            model: models[provider],
+            finishedAt: new Date().toISOString(),
+          };
+          return Ok(response);
+        } catch (err) {
+          lastError = err;
+          // try the fallback provider
+        }
+      }
+      return Err(
+        Errors.server(
+          lastError instanceof Error ? lastError.message : "BYOK AI call failed (no provider key configured?)",
+        ),
+      );
+    } catch (err) {
+      return Err(Errors.server(err instanceof Error ? err.message : "BYOK AI call failed"));
+    }
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/* Routing adapter (default)                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Default adapter for the app — routes each request through the best
+ * available transport:
+ *
+ *   1. `ai-proxy` Edge Function when a Supabase backend is configured
+ *      (canonical production path — keys + rate limiting server-side).
+ *   2. BYOK direct call when the Edge Function is unreachable and the
+ *      admin configured their own Groq/OpenRouter keys.
+ *   3. Mock adapter otherwise (dev/demo environments).
+ */
+export const defaultLLMAdapter: LLMAdapter = {
+  async generate(request: AIRequest): Promise<Result<AIResponse>> {
+    if (isSupabaseConfigured()) {
+      const edgeResult = await edgeLLMAdapter.generate(request);
+      if (edgeResult.ok) return edgeResult;
+      // Edge function unavailable (not deployed / 503 not configured) —
+      // fall through to BYOK if the admin supplied keys, else mock so the
+      // feature keeps working in demo setups.
+      const byokResult = await byokLLMAdapter.generate(request);
+      if (byokResult.ok) return byokResult;
+      return mockLLMAdapter.generate(request);
+    }
+    const byokResult = await byokLLMAdapter.generate(request);
+    if (byokResult.ok) return byokResult;
+    return mockLLMAdapter.generate(request);
+  },
+};

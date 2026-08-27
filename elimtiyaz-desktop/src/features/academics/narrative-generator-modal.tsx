@@ -191,6 +191,8 @@ export function NarrativeGeneratorModal({
         maxTokens: 800,
         temperature: 0.7,
         createdAt: new Date().toISOString(),
+        // VAULT §02.06 — routed to the narrative feature server-side.
+        feature: "narrative",
       };
 
       const result = await defaultLLMAdapter.generate(aiRequest);

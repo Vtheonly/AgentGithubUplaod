@@ -84,6 +84,7 @@ async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
   // We use the dynamic import so the renderer doesn't crash when
   // Supabase isn't configured (the import would throw).
   const { getSupabaseClient } = await import("../../infrastructure/supabase/supabase-client");
+  const { deterministicActivationCode } = await import("../../core/format/id");
   const client = getSupabaseClient();
   const p = entry.payload ?? {};
 
@@ -105,9 +106,13 @@ async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
   try {
     switch (entry.entity) {
       case "parent": {
+        const parentCode =
+          (p.code as string) ??
+          (p.parent_code as string) ??
+          `PAR-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
         const { error } = await client.rpc("upsert_parent_from_import", {
           p_tenant_id: entry.tenantId,
-          p_parent_code: (p.code as string) ?? (p.parent_code as string) ?? `PAR-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+          p_parent_code: parentCode,
           p_first_name: (p.firstName as string) ?? (p.first_name as string) ?? "",
           p_last_name: (p.lastName as string) ?? (p.last_name as string) ?? "",
           p_display_name: (p.displayName as string) ?? (p.display_name as string) ?? null,
@@ -123,6 +128,10 @@ async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           // queue safety-net path persists the same fields as the importer.
           p_transport_destination: (p.transportDestination as string) ?? (p.transport_destination as string) ?? null,
           p_city_tier: (p.cityTier as string) ?? (p.city_tier as string) ?? null,
+          // Migration 0037 / vault §02.08 — deterministic activation code
+          // (mirrors the Android SyncQueueDispatcher, which always sends
+          // p_activation_code when pushing parents).
+          p_activation_code: deterministicActivationCode(parentCode, entry.tenantId),
         });
         if (error) throw error;
         break;

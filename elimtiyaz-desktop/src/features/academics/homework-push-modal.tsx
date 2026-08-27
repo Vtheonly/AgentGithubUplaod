@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Send, Upload, X, BookOpen } from "lucide-react";
+import { Send, Upload, X, BookOpen, Loader2 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { uploadPrivateMedia } from "../../infrastructure/storage/media-vault";
 import {
   UnifiedModal,
   type UnifiedModalProps,
@@ -43,7 +44,13 @@ export function HomeworkPushModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
-  const [attachments, setAttachments] = useState<string[]>([]);
+  // VAULT §02.06 — "Homework Push Engine … With photo/PDF attachments".
+  // Pending files are held until submit, then uploaded to the PRIVATE
+  // `homework-attachments` bucket (migration 0018) via the signed-URL media
+  // vault — the same flow as payment proofs. The persisted `attachments`
+  // array carries the vault paths (never public URLs).
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; name: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [alert, setAlert] = useState<Alert | null>(null);
 
   function reset() {
@@ -51,7 +58,7 @@ export function HomeworkPushModal({
     setTitle("");
     setDescription("");
     setDueDate(new Date().toISOString().slice(0, 10));
-    setAttachments([]);
+    setPendingFiles([]);
     setAlert(null);
   }
 
@@ -68,6 +75,38 @@ export function HomeworkPushModal({
 
     const selectedSubject = subjects.find((s) => s.id === subjectId);
 
+    // VAULT §02.06 — upload the real files to the private media vault so
+    // students/parents can download them via signed URLs from the portal.
+    // A failed upload aborts the push (a homework referencing a missing
+    // file would be worse than a clear error now).
+    const attachmentPaths: string[] = [];
+    if (pendingFiles.length > 0) {
+      setUploading(true);
+      try {
+        for (const { file } of pendingFiles) {
+          const uploaded = await uploadPrivateMedia({
+            bucket: "homework-attachments",
+            entityId: classId,
+            tenantId: session.tenantId,
+            file,
+          });
+          attachmentPaths.push(uploaded.path);
+        }
+      } catch (err) {
+        setAlert({
+          tone: "error",
+          title: "Échec du téléversement",
+          description:
+            err instanceof Error
+              ? err.message
+              : "Impossible de téléverser les pièces jointes. Réessayez.",
+        });
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
     const result = await repos.homework.push({
       classId,
       subjectId,
@@ -76,7 +115,7 @@ export function HomeworkPushModal({
       title: title.trim(),
       description: description.trim(),
       dueDate,
-      attachments,
+      attachments: attachmentPaths,
     });
 
     if (result.ok) {
@@ -105,8 +144,9 @@ export function HomeworkPushModal({
       iconTone="primary"
       title="Diffuser un devoir"
       description="Le devoir sera publié sur le portail web des élèves et notifié aux parents."
-      submitLabel="Diffuser au portail"
-      submitIcon={Send}
+      submitLabel={uploading ? "Téléversement des pièces jointes…" : "Diffuser au portail"}
+      submitIcon={uploading ? Loader2 : Send}
+      submitLoading={uploading}
       onSubmit={submit}
       alert={alert}
       onDismissAlert={() => setAlert(null)}
@@ -181,27 +221,28 @@ export function HomeworkPushModal({
               className="hidden"
               onChange={(e) => {
                 const files = Array.from(e.target.files ?? []);
-                setAttachments((prev) => [
+                setPendingFiles((prev) => [
                   ...prev,
-                  ...files.map((f) => f.name),
+                  ...files.map((f) => ({ file: f, name: f.name })),
                 ]);
+                e.target.value = "";
               }}
             />
           </label>
-          {attachments.length > 0 && (
+          {pendingFiles.length > 0 && (
             <ul className="mt-2 space-y-1">
-              {attachments.map((fileName, idx) => (
+              {pendingFiles.map(({ name }, idx) => (
                 <li
                   key={idx}
                   className="flex items-center justify-between text-xs border border-border p-1.5 rounded"
                 >
-                  <span className="truncate">{fileName}</span>
+                  <span className="truncate">{name}</span>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5"
                     onClick={() =>
-                      setAttachments((prev) => prev.filter((_, i) => i !== idx))
+                      setPendingFiles((prev) => prev.filter((_, i) => i !== idx))
                     }
                   >
                     <X className="h-3 w-3" />
@@ -210,6 +251,10 @@ export function HomeworkPushModal({
               ))}
             </ul>
           )}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Les fichiers sont téléversés dans le coffre privé (buckets signés) —
+            jamais d'URL publique.
+          </p>
         </FormField>
       </div>
     </UnifiedModal>

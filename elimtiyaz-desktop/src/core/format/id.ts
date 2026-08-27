@@ -45,3 +45,30 @@ export function randomParentSuffix(): string {
 export function activationCode(): string {
   return String(Math.floor(100_000 + Math.random() * 9_000_000));
 }
+
+/**
+ * Deterministic activation code — VAULT §02.08 (Account Activation Protocol).
+ *
+ * Mirrors the Android app's `IdentityCodes.deterministicActivationCode`:
+ * FNV-1a over `"{tenantId}|{parentCode}"`, mapped into the 6-digit range
+ * [100000, 999999] (a valid subset of the vault's "6 or 7 digits" rule).
+ *
+ * Deterministic codes keep the protocol idempotent across platforms:
+ *   - Desktop passes the code to `upsert_parent_from_import(p_activation_code)`
+ *     (migration 0037) exactly like Android does, so re-imports and re-runs
+ *     converge on the SAME code instead of issuing a new one each time.
+ *   - The single-use guarantee is enforced server-side by
+ *     `activation_codes` (UNIQUE per tenant) + `bind_activation_code()` RPC.
+ */
+export function deterministicActivationCode(parentCode: string, tenantId: string = ""): string {
+  const identity = `${tenantId}|${parentCode}`.trim();
+  if (identity.length === 0) return "000000";
+  let h = 0x811c9dc5 | 0;
+  for (let i = 0; i < identity.length; i++) {
+    h = (h ^ identity.charCodeAt(i)) | 0;
+    h = Math.imul(h, 0x01000193) | 0;
+  }
+  const unsigned = h >>> 0;
+  const numeric = (unsigned % 900_000) + 100_000;
+  return numeric.toString();
+}

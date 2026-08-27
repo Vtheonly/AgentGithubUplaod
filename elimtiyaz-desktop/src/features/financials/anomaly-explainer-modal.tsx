@@ -151,6 +151,8 @@ export function AnomalyExplainerModal({
         maxTokens: 400,
         temperature: 0.3,
         createdAt: new Date().toISOString(),
+        // VAULT §02.06 — routed to the anomaly feature server-side.
+        feature: "anomaly",
       };
 
       const result = await defaultLLMAdapter.generate(aiRequest);

@@ -41,6 +41,8 @@ import { Step2 } from "./batch-registration/step2-students";
 import { Step3 } from "./batch-registration/step3-billing";
 import { Step4 } from "./batch-registration/step4-review";
 import { computeBilling } from "./batch-registration/compute-billing";
+import { ActivationCodeModal } from "./activation-code-modal";
+import { deterministicActivationCode } from "../../core/format/id";
 import type { Billing } from "./batch-registration/types";
 import {
   EMPTY_PARENT,
@@ -79,6 +81,16 @@ export function BatchRegistrationModal({
   const [includeRegistration, setIncludeRegistration] = useState(true);
   const [includeTransport, setIncludeTransport] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // VAULT §02.08 — the activation code issued at enrollment time (Step 1 of
+  // the Account Activation Protocol: "Office staff registers family AND
+  // issues 6-7 digit activation code or QR"). Rendered after a successful
+  // registration so staff hands the code to the parent before they leave.
+  const [issuedActivation, setIssuedActivation] = useState<{
+    code: string;
+    parentName: string;
+    whatsapp: string | null;
+    phone: string | null;
+  } | null>(null);
 
   // Reset on close
   useEffect(() => {
@@ -89,6 +101,7 @@ export function BatchRegistrationModal({
         setIncludeRegistration(true);
         setIncludeTransport(true);
         setErrors({});
+        setIssuedActivation(null);
       }, 200);
     }
   }, [open]);
@@ -224,6 +237,27 @@ export function BatchRegistrationModal({
         "Inscription réussie",
         `Parent ${result.value.parent.code} + ${result.value.students.length} élève(s) créé(s) atomiquement.`,
       );
+      // VAULT §02.08 — issue the activation code at enrollment time. The
+      // Supabase path already persisted the SAME deterministic code via
+      // `upsert_parent_from_import(p_activation_code)` (migration 0037), so
+      // here we surface it (code + QR) for hand-off to the parent.
+      const createdParent = result.value.parent;
+      setIssuedActivation({
+        code: deterministicActivationCode(createdParent.code, createdParent.tenantId),
+        parentName: `${createdParent.firstName} ${createdParent.lastName}`.trim(),
+        whatsapp: createdParent.whatsapp ?? null,
+        phone: createdParent.phone ?? null,
+      });
+      void repos.audit.log({
+        action: "parent.activation_code_issued",
+        entityType: "parent",
+        entityId: createdParent.id,
+        actorId: session.userId,
+        actorName: session.displayName,
+        tenantId: createdParent.tenantId,
+        diff: { before: null, after: { parentCode: createdParent.code } },
+        note: `Code d'activation portail émis à l'inscription de ${createdParent.firstName} ${createdParent.lastName} (usage unique, lié au profil maître)`,
+      });
       onSubmitted?.(result.value.parent.id);
       return;
     }
@@ -286,18 +320,29 @@ export function BatchRegistrationModal({
   ];
 
   return (
-    <Wizard
-      open={open}
-      onOpenChange={onOpenChange}
-      title={
-        presetParent
-          ? `Ajouter un enfant — ${presetParent.firstName} ${presetParent.lastName}`
-          : "Inscription groupée (Parent + Élèves)"
-      }
-      steps={steps}
-      onFinish={submit}
-      widthClass="max-w-3xl"
-    />
+    <>
+      <Wizard
+        open={open}
+        onOpenChange={onOpenChange}
+        title={
+          presetParent
+            ? `Ajouter un enfant — ${presetParent.firstName} ${presetParent.lastName}`
+            : "Inscription groupée (Parent + Élèves)"
+        }
+        steps={steps}
+        onFinish={submit}
+        widthClass="max-w-3xl"
+      />
+      {/* VAULT §02.08 — activation code + QR hand-off at enrollment time. */}
+      <ActivationCodeModal
+        open={issuedActivation !== null}
+        onOpenChange={(o) => !o && setIssuedActivation(null)}
+        code={issuedActivation?.code ?? null}
+        parentName={issuedActivation?.parentName ?? ""}
+        whatsapp={issuedActivation?.whatsapp}
+        phone={issuedActivation?.phone}
+      />
+    </>
   );
 }
 

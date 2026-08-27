@@ -1,0 +1,21 @@
+{
+  "scenarioId": "023_sync_round_trip_desktop_to_android",
+  "category": "sync_round_trip",
+  "operationType": "computeParentSummary",
+  "discoveredAt": "2026-08-27T21-51-30",
+  "discrepancies": [
+    {
+      "path": "result.accounts[0].studentId",
+      "desktopValue": null,
+      "androidValue": ""
+    }
+  ],
+  "desktopStatus": "pass",
+  "androidStatus": "pass",
+  "canonicalExpectedMet": true,
+  "durationMs": {
+    "desktop": 1,
+    "android": 1
+  },
+  "status": "DISCOVERED"
+}
