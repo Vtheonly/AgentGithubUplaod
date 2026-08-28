@@ -130,7 +130,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 CREATE TRIGGER trg_sync_payments_receipt_number
   BEFORE INSERT OR UPDATE ON public.payments
@@ -422,7 +422,7 @@ BEGIN
       v_unallocated,
       v_alloc;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ============================================================================
 -- STEP 6: Rewrite revert_payment_allocation with the originalWasPending branch.
@@ -624,7 +624,7 @@ BEGIN
   RETURN QUERY
     SELECT p_payment_id, 'refunded'::TEXT, v_reversal_id, v_count, v_total_reverted;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ============================================================================
 -- STEP 7: Create the canonical compute_parent_summary function.
@@ -769,7 +769,7 @@ BEGIN
       v_account_count,
       v_accounts;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ============================================================================
 -- STEP 8: Rewrite compute_account_balance to match the canonical engine.
@@ -813,7 +813,7 @@ BEGIN
     FROM ledger_entries le
     WHERE le.account_id = p_account_id;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ============================================================================
 -- STEP 9: Rewrite the materialized views to use canonical formulas.

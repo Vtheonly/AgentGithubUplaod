@@ -50,12 +50,16 @@ export function evaluateEarlyAnnualDiscount(
   const cutoff = new Date(Date.UTC(academicYearStartYear, 5, 30, 23, 59, 59));
   const when = typeof paymentDate === "string" ? new Date(paymentDate) : paymentDate;
   if (when.getTime() > cutoff.getTime()) return 0;
-  return Math.round(grossTuition * EARLY_ANNUAL_RATE);
+  // CENTIME-PRECISION ROUNDING (cross-platform equivalence fix disc-009):
+  // the wire format stores centimes; rounding at whole DZD diverged from the
+  // Android engine by up to 50 centimes on fractional gross amounts.
+  return Math.round(grossTuition * EARLY_ANNUAL_RATE * 100) / 100;
 }
 
 export function evaluateAcademicExcellenceDiscount(rank: number | null, grossTuition: number): number {
   if (rank === null || rank !== 1) return 0;
-  return Math.round(grossTuition * HIGHEST_AVERAGE_RATE);
+  // Centime-precision rounding — see evaluateEarlyAnnualDiscount.
+  return Math.round(grossTuition * HIGHEST_AVERAGE_RATE * 100) / 100;
 }
 
 export function evaluateSeniorityDiscount(
@@ -65,7 +69,8 @@ export function evaluateSeniorityDiscount(
   const yearStart = typeof academicYearStart === "string" ? new Date(academicYearStart) : academicYearStart;
   const thresholdMs = SENIORITY_YEARS * DAYS_PER_YEAR_AVG * MS_PER_DAY;
   if (yearStart.getTime() - enrolled.getTime() <= thresholdMs) return 0;
-  return Math.round(grossTuition * SENIORITY_RATE);
+  // Centime-precision rounding — see evaluateEarlyAnnualDiscount.
+  return Math.round(grossTuition * SENIORITY_RATE * 100) / 100;
 }
 
 export function isCycleTransition(previous: GradeLevel | null, current: GradeLevel): boolean {

@@ -194,7 +194,7 @@ BEGIN
   RETURN QUERY SELECT v_payment_id, v_receipt, v_status,
     p_amount - v_unallocated, v_unallocated, v_alloc;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ----------------------------------------------------------------------------
 -- 2. mark_payment_cleared — fix audit uuid casts (entity_id/actor_id are uuid).
@@ -300,7 +300,7 @@ BEGIN
   RETURN QUERY
     SELECT p_payment_id, 'paid'::TEXT, v_cleared_count, v_total_cleared;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ----------------------------------------------------------------------------
 -- 3. mark_payment_bounced — fix entry_type reference + ledger column names
@@ -443,4 +443,4 @@ BEGIN
   RETURN QUERY
     SELECT p_payment_id, 'unpaid'::TEXT, v_revert_count, v_total_reverted;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;

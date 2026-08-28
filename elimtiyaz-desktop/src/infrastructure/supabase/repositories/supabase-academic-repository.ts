@@ -20,6 +20,7 @@ import type {
   AcademicLevelModel,
   AcademicTerm,
 } from "../../../domain/model/academic";
+import { computeSubjectAverage } from "../../../domain/model/academic";
 import type {
   Student,
   AcademicLevel,
@@ -677,12 +678,23 @@ export class SupabaseGradeRepository implements GradeRepository {
           student_id: input.studentId,
           class_id: input.classId,
           subject_id: input.subjectId,
-          term: input.term,
+          // WIRE FIX (A-0041): the DB column is INTEGER 1|2|3 (migration
+          // 0004); the domain model uses "T1"|"T2"|"T3". The unmapped value
+          // previously broke every live upsert with a type error.
+          term: termToWire(input.term),
           academic_year: input.academicYear,
           devoir1: input.devoir1,
           devoir2: input.devoir2,
           examen: input.examen,
           coefficient: input.coefficient,
+          // CANONICAL (INV §13.03): persist the subject average computed by
+          // the canonical engine — identical to the backend trigger
+          // (migration 0041) and the Android Room write path.
+          subject_average: computeSubjectAverage(
+            input.devoir1 ?? null,
+            input.devoir2 ?? null,
+            input.examen ?? null,
+          ),
           entered_by: input.enteredBy,
           entered_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -717,12 +729,19 @@ export class SupabaseGradeRepository implements GradeRepository {
       student_id: input.studentId,
       class_id: input.classId,
       subject_id: input.subjectId,
-      term: input.term,
+      // WIRE FIX (A-0041): map "T1"|"T2"|"T3" → 1|2|3 for the INTEGER column.
+      term: termToWire(input.term),
       academic_year: input.academicYear,
       devoir1: input.devoir1,
       devoir2: input.devoir2,
       examen: input.examen,
       coefficient: input.coefficient,
+      // CANONICAL subject average (see single-row path).
+      subject_average: computeSubjectAverage(
+        input.devoir1 ?? null,
+        input.devoir2 ?? null,
+        input.examen ?? null,
+      ),
       entered_by: input.enteredBy,
       entered_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -1348,13 +1367,31 @@ function mapClassSubjectRow(row: Record<string, any>): ClassSubject {
   };
 }
 
+/**
+ * Term wire mappers — the DB column `assessments.term` is INTEGER (1|2|3,
+ * migration 0004) while the domain model uses "T1"|"T2"|"T3".
+ */
+function termToWire(term: string): number {
+  const n = /^T?(\d+)$/.exec(String(term ?? ""));
+  const v = n ? Number(n[1]) : NaN;
+  if (v === 1 || v === 2 || v === 3) return v;
+  return 1;
+}
+function termFromWire(term: number | string): AcademicTerm {
+  const n = /^T?(\d+)$/.exec(String(term ?? ""));
+  const v = n ? Number(n[1]) : 1;
+  return v === 2 ? "T2" : v === 3 ? "T3" : "T1";
+}
+
 function mapAssessmentRow(row: Record<string, any>): Assessment {
   return {
     id: row.id,
     studentId: row.student_id,
     classId: row.class_id,
     subjectId: row.subject_id,
-    term: row.term as AcademicTerm,
+    // WIRE FIX (A-0041): the DB stores INTEGER 1|2|3 — map back to the
+    // canonical domain enum "T1"|"T2"|"T3".
+    term: termFromWire(row.term),
     academicYear: row.academic_year,
     devoir1: row.devoir1 != null ? Number(row.devoir1) : null,
     devoir2: row.devoir2 != null ? Number(row.devoir2) : null,

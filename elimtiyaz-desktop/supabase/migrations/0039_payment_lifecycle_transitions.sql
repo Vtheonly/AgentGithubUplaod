@@ -241,7 +241,7 @@ BEGIN
       v_unallocated,
       v_alloc;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ----------------------------------------------------------------------------
 -- 2. mark_payment_cleared — PENDING → PAID (bank clearance verified).
@@ -353,7 +353,7 @@ BEGIN
   RETURN QUERY
     SELECT p_payment_id, 'paid'::TEXT, v_cleared_count, v_total_cleared;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;
 
 -- ----------------------------------------------------------------------------
 -- 3. mark_payment_bounced — PENDING → UNPAID (check bounces / transfer fails).
@@ -501,4 +501,4 @@ BEGIN
   RETURN QUERY
     SELECT p_payment_id, 'unpaid'::TEXT, v_revert_count, v_total_reverted;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions;

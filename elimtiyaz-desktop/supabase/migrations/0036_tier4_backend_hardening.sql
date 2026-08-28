@@ -106,6 +106,7 @@ CREATE OR REPLACE FUNCTION public.expire_pending_approvals()
 RETURNS TABLE(tenant_id uuid, expired_count integer)
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_tenant uuid;
@@ -140,6 +141,7 @@ CREATE OR REPLACE FUNCTION public.refresh_materialized_view(p_name text)
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, extensions
 AS $$
 BEGIN
     -- Refresh a single materialized view by name. Returns TRUE on success.

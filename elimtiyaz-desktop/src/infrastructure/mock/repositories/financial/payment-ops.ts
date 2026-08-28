@@ -167,7 +167,10 @@ export async function collectPayment(
   // === 3. Record overpayment as parent_credit (if any) ===
   if (allocationResult.ok) {
     const unallocated = allocationResult.value.unallocatedAmount;
-    if (unallocated > 0.5) {
+    // CANONICAL (INV-7 + 0034 SQL): EVERY positive unallocated amount becomes
+    // a parent_credit entry. The legacy > 0.5 DZD tolerance silently swallowed
+    // sub-half-dinar credits, diverging from the backend RPC (> 0).
+    if (unallocated > 0.005) {
       const creditEntry: LedgerEntry = {
         id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
         tenantId,
@@ -181,7 +184,9 @@ export async function collectPayment(
         sourceType: "adjustment",
         sourceId: `credit-${payment.id}`,
         method: null,
-        receiptNumber: payment.receiptNumber,
+        // CANONICAL (0034 SQL): the parent_credit entry carries NO receipt
+        // number — the source payment is referenced via metadata.sourcePaymentId.
+        receiptNumber: null,
         paymentStatus: null,
         reversesId: null,
         description: `Crédit parent (excédent de paiement reçu ${payment.receiptNumber})`,
@@ -281,9 +286,13 @@ export async function refundPayment(
       type: "reversal",
       sourceType: "payment",
       sourceId: id,
-      method: originalLedgerEntry.method,
+      // CANONICAL (0034 revert_payment_allocation): refund reversals carry
+      // method=NULL and paymentStatus=NULL — the reversal itself is the
+      // record; duplicating the original's method/status made the typed
+      // totals disagree with the backend RPC.
+      method: null,
       receiptNumber: originalLedgerEntry.receiptNumber,
-      paymentStatus: "refunded",
+      paymentStatus: null,
       reversesId: originalLedgerEntry.id,
       description: `Remboursement ${before.receiptNumber} — inversion de l'écriture de paiement`,
       actorId: "usr-current",
@@ -306,6 +315,10 @@ export async function refundPayment(
       before.amount,
       before.category,
       originalWasPending,
+      // CANONICAL: re-evaluate tranche statuses at the operation's clock,
+      // not the wall clock — matches the SQL RPC (as-of = transaction time)
+      // and keeps offline/backdated refunds deterministic.
+      new Date(nowIso()),
     );
 
     // === 3. Persist each revert ===
@@ -415,6 +428,9 @@ export async function markPaymentCleared(
     parentInstallments,
     before.amount,
     before.category,
+    // CANONICAL: status re-evaluation at the operation's clock (matches the
+    // SQL mark_payment_cleared RPC's transaction-time semantics).
+    new Date(nowIso()),
   );
   for (const clr of clearResult.clears) {
     const insIdx = store.installments.findIndex((i) => i.id === clr.installmentId);
@@ -546,6 +562,8 @@ export async function markPaymentBounced(
       before.amount,
       before.category,
       true, // original was pending — decrement amountPending
+      // CANONICAL: re-evaluate at the operation's clock (SQL parity).
+      new Date(nowIso()),
     );
     for (const rev of revertResult.reverts) {
       const insIdx = store.installments.findIndex((i) => i.id === rev.installmentId);

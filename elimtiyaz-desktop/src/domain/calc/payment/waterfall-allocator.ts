@@ -52,7 +52,19 @@ export function allocatePaymentToInstallments(
 
   for (const ins of eligible) {
     if (remaining <= 0) break;
-    const insRemaining = clampNonNegative(ins.amountDue - ins.amountPaid);
+    // EQUIVALENCE FIX (finding A-0042-PENDING-CAPACITY, scenario
+    // fin-024-double-pending-collection-capacity): the pending-funds
+    // waterfall must subtract the tranche's EXISTING uncleared allocation
+    // from its remaining capacity. Using amountDue - amountPaid for both
+    // branches let a second pending payment push amountPending BEYOND
+    // amountDue — when both checks later cleared, amountPaid exceeded
+    // amountDue and the excess money vanished (no parent credit). The
+    // backend RPC (collect_and_allocate_payment, canonical 0034) already
+    // computed capacity as amountDue - amountPaid - amountPending; the
+    // canonical engine now mirrors it (INV-6/INV-7).
+    const insRemaining = cleared
+      ? clampNonNegative(ins.amountDue - ins.amountPaid)
+      : clampNonNegative(ins.amountDue - ins.amountPaid - (ins.amountPending ?? 0));
     if (insRemaining <= 0) continue;
     const allocate = Math.min(remaining, insRemaining);
     let newAmountPaid = ins.amountPaid;
