@@ -26,7 +26,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | Medium | 59 | | DEFERRED | 5 |
 | Low | 19 | | VERIFIED | 1 |
 
-**Totals:** 145 consolidated problems from 185 audit findings · 120 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021, resolved by the documentation reset itself) · 3 TESTED (SEC-100, SEC-007, SEC-103 — fixed 2026-08-29, verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 2 PARTIAL (CROSS-100 desktop half fixed, DEAD-012 unblocked) · plus 1 new problem registered 2026-08-29 (DEAD-201, see change-log 2026-08-29).
+**Totals:** 145 consolidated problems from 185 audit findings · 119 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021, resolved by the documentation reset itself) · 5 TESTED (SEC-100, SEC-007, SEC-103, SEC-105, DEAD-201 — fixed 2026-08-29, verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 2 PARTIAL (CROSS-100 desktop half fixed, DEAD-012 unblocked) · plus 2 new problems registered 2026-08-29 (DEAD-201 — found during T-001, fixed by T-078 the same day; ARCH-006 — found during T-004, task T-080 created).
 
 ## Index (by ID)
 
@@ -44,7 +44,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-101 | Critical | OPEN | T-002 | Android LocalAuthRepository grants SUPER_ADMIN on ANY failed/empty Supabase login (offline fallback) |
 | SEC-102 | Critical | OPEN | T-002 | Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails |
 | SEC-103 | High | TESTED | T-003 | Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password |
-| SEC-105 | High | OPEN | T-004 | Anonymous invocation of 4 cron EFs (no auth check when no Authorization header) |
+| SEC-105 | High | TESTED | T-004 | Anonymous invocation of 4 cron EFs (no auth check when no Authorization header) — fixed 2026-08-29, live curl matrix pending |
 | SEC-106 | High | OPEN | T-006 | register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception) |
 | SEC-107 | High | OPEN | T-008 | approve-signup-request EF allows support_staff → super_admin role escalation |
 | SEC-108 | High | OPEN | T-007 | handle_new_auth_user trigger trusts raw_app_meta_data.tenant_id and raw_user_meta_data.requested_role (multi-tenant injection + role escalation at signup) |
@@ -130,6 +130,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ARCH-003 | High | BLOCKED | T-059 | `RepositoryModule` binds ALL repositories to `Local*Repository` (Room-first) — canonical Supabase RPCs (`collect_payment`, `refund-payment`, `bind-activation-code`, `run-overdue-scan`, `refresh-materialized-views`, `update-server-secret`) are NEVER called from Android |
 | ARCH-004 | High | OPEN | T-046 | `fallbackToDestructiveMigration(true)` on production Room database — user data silently wiped on any future schema bump |
 | ARCH-005 | Medium | OPEN | T-049 | `next.config.ts` has `typescript.ignoreBuildErrors: true` AND `reactStrictMode: false` — type errors silently shipped to production, React strict-mode bugs hidden |
+| ARCH-006 | Medium | OPEN | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
 | DRIFT-001 | High | OPEN | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
@@ -177,7 +178,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DEAD-016 | Critical | BLOCKED | T-067 | `collect-payment` and `refund-payment` Edge Functions are never invoked by any client |
 | DEAD-100 | Medium | OPEN | T-025 | Migration 0029 RLS policies use fn_current_tenant_id() (never-set session setting) — dead code that does nothing |
 | DEAD-200 | Medium | BLOCKED | T-070 | `parent_student_links` table is unused; multi-guardian family feature is structurally unimplemented |
-| DEAD-201 | Medium | OPEN | T-078 | Desktop `npm run lint` is UNRUNNABLE — repo has no ESLint config file at all (ESLint 9 requires `eslint.config.js`); documented verification gate in AGENTS.md §11 cannot execute |
+| DEAD-201 | Medium | TESTED | T-078 | Desktop `npm run lint` is UNRUNNABLE — repo has no ESLint config file at all (ESLint 9 requires `eslint.config.js`); documented verification gate in AGENTS.md §11 cannot execute — fixed 2026-08-29, 307-warning baseline documented |
 
 ---
 
@@ -420,7 +421,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-105 — Anonymous invocation of 4 cron EFs (no auth check when no Authorization header)
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED (2026-08-29)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-004 (docs/recovery/task-registry.md)
@@ -434,6 +435,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Require a shared CRON_SECRET bearer token (or verify Supabase's internal cron signature) in expire-pending-approvals, refresh-materialized-views, purge-expired-backups, run-overdue-scan before any service_role operation. Deny by default when the header is absent. Test: anonymous POST returns 401; valid secret executes.
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Status note (2026-08-29, T-004):** RESOLVED in code — new shared guard `supabase/functions/_shared/cron-auth.ts` (pure `isCronAuthorized` + Deno wrapper `isCronInvocation`): accepts `Authorization: Bearer <CRON_SECRET>` or the project's service_role key (managed scheduler), denies EVERYTHING else incl. a missing header; constant-time compare; generic 401 (no probing oracle). All four EFs wired; run-overdue-scan's manual user-JWT path preserved verbatim. Tests: `src/tests/security/cron-auth.test.ts` 19/19 (RED first — import failure before the guard existed); full suite 44 files / 2007 tests; typecheck clean; esbuild syntax-check OK on all 5 files. GAPS (why TESTED, not VERIFIED): live curl matrix (anonymous→401, wrong secret→401, valid secret→executes, per EF) needs a deployed Supabase project; operator must `supabase secrets set CRON_SECRET=…` and ensure each schedule sends the expected header (run-overdue-scan's verify_jwt=true means a CRON_SECRET header would be rejected by the gateway — use the managed scheduler or deliberately flip that setting). New discovery during this task: ARCH-006 (the EF's manual JWT path has no live desktop caller — overdueAlerts stayed on the mock layer).
 
 ---
 
@@ -3011,7 +3013,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 ---
 ### DEAD-201 — Desktop `npm run lint` is UNRUNNABLE — no ESLint config file exists in the repo (ESLint 9 requires `eslint.config.js`)
 
-- **Category:** DEAD  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Medium  |  **Status:** TESTED (2026-08-29)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-078 (docs/recovery/task-registry.md)
@@ -3025,3 +3027,23 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Author `elimtiyaz-desktop/eslint.config.js` (flat config: typescript-eslint recommended + react-hooks plugin, matching the website's ESLint 9 setup), fix or explicitly baseline the findings it reports, and only then treat "lint green" as a commit gate again. NOTE for the implementing agent: the first run after years without lint WILL surface findings — triage them, do not mass-disable rules to go green (AGENTS.md §15.6).
 - **Dependencies:** none recorded
 - **Verification:** `npm run lint` executes (no config error) and exits 0 after findings are triaged; evidence recorded in change-log.
+- **Status note (2026-08-29, T-078):** RESOLVED — `elimtiyaz-desktop/eslint.config.js` authored (flat config: typescript-eslint recommended over src/ + electron/ + scripts/, react-hooks plugin with rules-of-hooks = error, scoped ignores: supabase/** = Deno toolchain, financial-tests/** = dedicated suites). Dependencies actually installed (they were missing even with a config: eslint-plugin-react-hooks ^5.2.0, globals ^15.15.0, typescript-eslint 8.18.2 meta-package). First run: 312 problems — all 5 ERRORS fixed (1 REAL react-hooks/rules-of-hooks violation: useRepositories() inside the useObservable factory callback in permissions-step.tsx, hoisted to match sibling steps; 1 stale eslint-disable directive naming unconfigured jsx-a11y/img-redundant-alt; 3 prefer-const), the 307 warnings baselined with per-rule counts documented in the config itself (no-unused-vars 202, no-explicit-any 73, no-empty-function 21, exhaustive-deps 4, no-empty-object-type 2) — no rule silently disabled, website's turn-everything-off config explicitly NOT copied (ARCH-005 defect pattern). Gate now: `npm run lint` = 0 errors / exit 0; typecheck clean; full suite 2007/2007.
+
+---
+
+### ARCH-006 — Supabase mode keeps `overdueAlerts` on the mock layer — the manual overdue-scan path never reaches the backend
+
+- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Desktop
+- **Task:** T-080 (docs/recovery/task-registry.md)
+- **Consolidated from:** NEW — discovered during task T-004 (2026-08-29), not in either audit pass
+- **Description:** The Supabase repository assembly (`src/infrastructure/supabase/supabase-repositories.ts`) builds its `Repositories` object by spreading `mockRepositories` and overriding only the Supabase-backed slots; `overdueAlerts` is NOT overridden, so in production ("Supabase configured") mode the "Scan retards" button (`src/features/financials/installment-schedule-tab.tsx`) executes `MockOverdueAlertGenerator.run()`, which reads the IN-MEMORY mock store (`mockInstallmentRepository.findOverdue` over `store` seed data) and writes notifications into the same in-memory store. Real overdue installments living in Supabase are never scanned; any "alerts generated" toast refers to mock seed rows; no `notifications` rows and no audit trail reach the server. The backend half (the `run-overdue-scan` Edge Function, incl. its manual JWT path with `view_financials` permission — now properly guarded by T-004) has NO desktop caller.
+- **Location:** `elimtiyaz-desktop/src/infrastructure/supabase/supabase-repositories.ts` (repositories object spread, `overdueAlerts` absent from the override list); `elimtiyaz-desktop/src/features/financials/installment-schedule-tab.tsx` (`repos.overdueAlerts.run()`); `elimtiyaz-desktop/src/infrastructure/mock/repositories/notification-alerts-repository.ts` (the mock generator operating on `store`)
+- **Evidence:** Runtime evidence (2026-08-29, T-004 session): `rg overdueAlerts src/infrastructure/supabase/supabase-repositories.ts` → no match (never overridden); `rg "implements OverdueAlertGenerator" src/` → only `MockOverdueAlertGenerator`. The Supabase wiring comment block ("Other repositories remain on the mock layer for now. They will be ported incrementally.") documents the general class; this entry pins the concrete instance with user-visible effect.
+- **Root cause:** Incremental Supabase porting left the slot silently mock-backed; the component code is identical for both modes, so the gap is invisible from the UI code and only shows in the repository assembly. This is the exact class T-047 (ARCH-001) was created to inventory — registered separately because it is a concrete user-facing instance with a defined backend counterpart.
+- **Current behavior:** In Supabase mode the scan reports against mock seed data and persists nothing server-side.
+- **Expected behavior:** In Supabase mode the scan queries real installments (e.g. via `compute_parent_summary` RPCs mirroring the EF's canonical logic) and writes real `notifications` + audit entries — either a `SupabaseOverdueAlertGenerator` or an invocation of the `run-overdue-scan` EF with the signed-in user's JWT (manual path preserved by T-004).
+- **Proposed resolution:** Create `SupabaseOverdueAlertGenerator` (or EF invocation wrapper), override `overdueAlerts` in the Supabase assembly, add regression tests (mock vs supabase assembly contract), and check the remaining mock-backed slots for similar user-facing instances (feeds T-047).
+- **Dependencies:** none recorded
+- **Verification:** Regression test reproducing the defect (fails before fix, passes after); cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.

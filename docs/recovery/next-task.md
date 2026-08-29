@@ -14,7 +14,7 @@
 
 ## Currently in progress
 
-**T-004** (cron EF authentication, SEC-105) — started 2026-08-29, fourth repair session (headless: no Deno, no live Supabase, no Android SDK). Implementation = shared `_shared/cron-auth.ts` guard on the 4 cron EFs, anonymous denied 401; verification = new vitest suite (guard units + source scans); live curl matrix stays the recorded gap → expected outcome TESTED, not VERIFIED. **T-078** (desktop ESLint flat config, DEAD-201) queued next in the same session.
+*(none — the fourth repair session (2026-08-29) completed T-004 (TESTED) and T-078 (TESTED) and registered ARCH-006 → T-080; evidence in `change-log.md`.)*
 
 **T-079 close-out note:** the backend half (migration 0044 + create-user-account EF) needs a live environment to reach TESTED/VERIFIED: `supabase db push` + `supabase functions deploy create-user-account`, then a live round-trip (SuperAdmin creates an account in Settings → Comptes → the new user signs in → changes their password). This deployment step is the task's only remaining work.
 
@@ -22,7 +22,9 @@
 
 **T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — **requires an Android build host** (`./gradlew test`, JDK with javac, Android SDK).
 
-Rationale: with T-001, T-003 and T-009 done, T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) is the highest-severity dependency-free task left in Phase 0. It needs the Android toolchain (`./gradlew test`) and a documented manual sign-in matrix. **Verified infeasible in the 2026-08-29 headless sessions** (no ANDROID_HOME, no Android SDK, JRE-only Java so no javac, no root to install — `./gradlew help` fails at toolchain resolution): fall back to **T-004** (cron EF authentication, SEC-105) — verifiable at the code level without a live backend. A live Supabase environment is still needed for T-004's curl matrix, so without one, next in line is **T-078** (desktop ESLint config, DEAD-201 — fully headless-verifiable).
+Rationale: T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) remains the highest-severity Phase 0 task, but **verified infeasible headlessly again in the 2026-08-29 fourth session** (no ANDROID_HOME, no Android SDK, JRE-only Java — no javac, no root to install). **Headless fallback: T-005** (tenant-scoped RBAC resolver + admin policies, TENANT-100/101) — a new migration (0045+); SQL-level behaviour is fully specified in the problem entries; implementation + migration review are headless-feasible, with live two-tenant tests as the recorded gap (same pattern as T-004). If a live Supabase environment becomes available instead: T-079's backend deploy + T-004's curl matrix + T-005's two-tenant tests can share one deployment.
+
+Session outcome (2026-08-29, fourth session): T-004 TESTED — all four cron EFs deny anonymous invocation via the shared `_shared/cron-auth.ts` guard (CRON_SECRET + service_role accepted; RED→GREEN 19-test suite; full suite 2007/2007; live curl matrix pending). T-078 TESTED — desktop ESLint flat config authored; `npm run lint` gate restored (0 errors; 307 warnings baselined with per-rule counts; 5 first-run errors fixed incl. a real rules-of-hooks violation in permissions-step.tsx). New discoveries: ARCH-006 (Supabase mode keeps overdueAlerts on the mock layer → T-080) and a lint-burn-down candidate; the desktop lint gate DEAD-201 is now operational for all future tasks.
 
 Session outcome (2026-08-29, third session): T-079 completed — admin-created user accounts (owner feature request): Settings → Comptes tab, `UserAccountRepository` (domain + Mock + Supabase), `create-user-account` EF (super_admin only), `admin_create_user_account` RPC (migration 0044, EXECUTE service_role-only). Client stack TESTED (19-test suite incl. the create → sign-in round-trip; full suite 1988/1988; typecheck clean); EF + migration IMPLEMENTED (live deploy pending — no Deno/Postgres/Supabase in this environment).
 
@@ -38,7 +40,7 @@ Suggested order for the first sessions (all P0, dependency-free):
 4. ~~**T-003** — desktop changePassword no-op (SEC-103)~~ — DONE 2026-08-29 (TESTED, second session; was the T-002 fallback)
 5. **T-005** — tenant-scoped RBAC resolver + admin policies (TENANT-100/101)
 6. **T-006** — SECURITY DEFINER RPC caller verification (SEC-110/106/112/111)
-7. Then the rest of Phase 0 (T-004, T-007, T-008, T-071) before any Phase 1 financial work. ~~T-010~~ DONE 2026-08-29 (IMPLEMENTED — needs a sandboxed launch log to reach TESTED).
+7. Then the rest of Phase 0 (T-005, T-006, T-007, T-008, T-071) before any Phase 1 financial work. ~~T-010~~ DONE 2026-08-29 (IMPLEMENTED — needs a sandboxed launch log to reach TESTED). ~~T-004~~ DONE 2026-08-29 (TESTED — live curl matrix pending). ~~T-078~~ DONE 2026-08-29 (TESTED — lint gate restored, 307-warning baseline documented).
 
 ## What NOT to pick next (and why)
 

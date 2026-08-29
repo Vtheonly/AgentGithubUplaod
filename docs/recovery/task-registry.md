@@ -12,16 +12,16 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 1 | T-000 |
-| **Completed (TESTED)** | 4 | T-001, T-003, T-009, T-079 (regression-tested; live-environment verification pending — see change-log) |
+| **Completed (TESTED)** | 6 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** (understood, dependencies cleared) | 57 | T-002, T-004…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-078 (new — desktop ESLint config, DEAD-201) |
+| **Ready** (understood, dependencies cleared) | 56 | T-002, T-005…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-080 (new — Supabase overdue-scan port, ARCH-006) |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
 
-**Recommended next task:** T-004 for headless agents (T-002 still first choice with an Android build host — see `next-task.md`). **Dependency chains:** §Dependency graph at the end of this file.
+**Recommended next task:** T-005 for headless agents (T-002 still first choice with an Android build host — see `next-task.md`; T-004 and T-078 completed 2026-08-29 by the fourth repair session). **Dependency chains:** §Dependency graph at the end of this file.
 
 ---
 
@@ -75,10 +75,25 @@
 
 ---
 
+### T-004 — Require authentication on the four cron Edge Functions
+- **Problems:** SEC-105 · **Priority:** P0 · **Severity:** High
+- **Status:** TESTED (2026-08-29, fourth repair session)
+- **What was done:** NEW shared guard `supabase/functions/_shared/cron-auth.ts` — pure decision core `isCronAuthorized(req, secrets)` (Deno-free so the desktop vitest suite imports it directly; constant-time comparison; generic 401) + Deno wrapper `isCronInvocation(req)` reading `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY`. All four cron EFs wired: `expire-pending-approvals`, `refresh-materialized-views`, `purge-expired-backups` (deny-by-default 401, then GET/POST allowed) and `run-overdue-scan` (`isCron = isCronInvocation(req)` instead of `!authHeader`; the manual user-JWT path with `extractAuthContext` + `view_financials` + tenant filter preserved verbatim; anonymous → 401). Authorised callers: `Authorization: Bearer <CRON_SECRET>` (operator secret) or the project's service_role key (Supabase's managed config.toml scheduler injects it; possession already grants full DB access, so no new exposure). All four SECURITY header blocks rewritten with deployment notes. Deviation from the task text recorded: the task named "verify a CRON_SECRET bearer token (or Supabase cron signature)" — the service_role-key acceptance IS the internal-invocation branch and keeps the managed scheduler working without operator changes; a headerless-scheduler operator MUST add the CRON_SECRET header to its SQL cron call (documented in each EF header + change-log).
+- **Tests:** NEW `src/tests/security/cron-auth.test.ts` (19 tests) — RED first (commit 7c19bdb: import-resolution failure before the guard existed), 10 unit tests of the decision core (anonymous/empty Bearer/non-Bearer/wrong secret/unset CRON_SECRET denied; valid CRON_SECRET and service_role accepted; prefix-sharing and JWT-like tokens denied) + source scans asserting each EF imports/uses `isCronInvocation` and the vulnerable patterns (`const isCron = !authHeader`, "No JWT required (cron invocation)", "Allow only cron (no auth)") are gone.
+- **Verification:** `npx vitest run src/tests/security/cron-auth.test.ts` 19/19 PASS; `npm run typecheck` clean (also type-checks the new EF module via the test import); `npm test` 44 files / 2007 tests ALL PASS (was 43/1988); `npx esbuild` syntax check OK on all 5 touched files; full diff reviewed. GAPS (why TESTED, not VERIFIED): live curl matrix (anonymous→401, wrong secret→401, valid secret→executes per EF) needs a deployed Supabase project; operator actions: `supabase secrets set CRON_SECRET=…` + ensure schedules send the expected header (run-overdue-scan's `verify_jwt=true` gateway would reject a CRON_SECRET header — use the managed scheduler or flip that setting deliberately). NEW DISCOVERY: ARCH-006 → T-080.
+- **Commits:** 112e2de (registry checkout) · 7c19bdb (RED tests) · 9919b28 (fix, GREEN) — hub repo.
+
+### T-078 — Author the missing desktop ESLint flat config (make `npm run lint` runnable)
+- **Problems:** DEAD-201 · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-08-29, fourth repair session)
+- **What was done:** `elimtiyaz-desktop/eslint.config.js` authored (flat, ESLint 9): typescript-eslint recommended over the desktop's own TS (src/ + electron/ + scripts/), react-hooks plugin (rules-of-hooks = **error**, exhaustive-deps = warn), Node+DOM globals, scoped ignores (supabase/** = Deno toolchain, financial-tests/** = dedicated suites, build output). Per-rule warn downgrades documented IN the config with real first-run counts — no rule silently disabled; the website's turn-everything-off config explicitly NOT used as the model (ARCH-005 defect pattern). devDeps added (were missing even for a config): eslint-plugin-react-hooks ^5.2.0, globals ^15.15.0, typescript-eslint 8.18.2 (the meta-package — only plugin+parser were installed before). First-run error triage (all 5 FIXED, none suppressed): (1) REAL react-hooks/rules-of-hooks violation — `useRepositories()` called inside the `useObservable` factory callback in `permissions-step.tsx` (survives at runtime only via React's ContextOnlyDispatcher tolerance); hoisted to the component top, matching every sibling onboarding step. (2) stale `eslint-disable-next-line jsx-a11y/img-redundant-alt` directive naming a rule not configured in this repo (expense-detail-drawer.tsx) — removed, the alt text is descriptive. (3–5) prefer-const ×3 (workflow-repository.ts, sync-indicator.tsx, supabase-repositories.test.ts) — mechanical let→const.
+- **Tests:** gate-level, per the task's own definition: `npm run lint` executes with no config error. First run: 312 problems (5 errors, 307 warnings); after the 5 error fixes: 0 errors / 307 warnings, exit 0. The 307 warnings are the documented baseline (no-unused-vars 202, no-explicit-any 73, no-empty-function 21, react-hooks/exhaustive-deps 4, no-empty-object-type 2) — counts live in the config comments; a burn-down task is a candidate for the next session's registry work (the 4 exhaustive-deps findings are the most defect-like and deserve individual review).
+- **Verification:** `npm run lint` 0 errors / 307 warnings; `npm run typecheck` clean; `npm test` 44 files / 2007 tests ALL PASS; full diff reviewed; package-lock diff limited to the three added devDeps.
+- **Commits:** d4a0f19 (config + deps + 5 error fixes) — hub repo.
+
 ## In Progress
 
-### T-004 — Require authentication on the four cron Edge Functions — IN PROGRESS (2026-08-29, fourth repair session)
-- Headless session (no Deno/live Supabase): implementing the CRON_SECRET + service-role internal-invocation guard (`_shared/cron-auth.ts`) on `expire-pending-approvals`, `refresh-materialized-views`, `purge-expired-backups`, `run-overdue-scan`; anonymous requests denied 401. Verification: new vitest regression suite (`src/tests/security/cron-auth.test.ts`) — guard unit tests + source-pattern scans; live curl matrix remains the recorded gap. T-078 (desktop ESLint config) queued second in the same session.
+*(none — T-004 and T-078 completed 2026-08-29 by the fourth repair session; evidence in change-log.md.)*
 
 ## Ready
 
@@ -140,6 +155,14 @@
 - **Dependencies:** none (independent of the chat product decision) · **Affected:** D (migrations) · **Platforms:** Backend
 - **Tests:** policy-level tests: parent cannot create channels for arbitrary members, cannot post into non-member channels, cannot address notifications to other users.
 - **Verification:** tests green; existing official flows unaffected.
+- **ADRs:** —
+
+#### T-080 — Port the desktop overdue-scan to Supabase (kill the mock leak in Supabase mode)
+- **Problems:** ARCH-006 (new — discovered during T-004, 2026-08-29) · **Priority:** P2 · **Severity:** Medium
+- **Description:** In Supabase mode the `overdueAlerts` slot stays on `MockOverdueAlertGenerator` (the Supabase assembly spreads `mockRepositories` and never overrides `overdueAlerts`), so the "Scan retards" button scans in-memory seed data and persists nothing server-side; the guarded `run-overdue-scan` EF (T-004) has no live desktop caller. Implement `SupabaseOverdueAlertGenerator` (canonical `compute_parent_summary` drill-down mirroring the EF logic) OR an EF-invocation wrapper using the signed-in user's JWT (manual path, `view_financials`), override the slot in the Supabase assembly, and regression-test both assemblies' contracts.
+- **Dependencies:** none (backend path already secured by T-004) · **Affected:** D · **Platforms:** Desktop
+- **Tests:** mock vs supabase assembly contract tests; seeded Supabase ledger → scan creates real notifications (integration needs a live backend for VERIFIED).
+- **Verification:** regression tests + change-log evidence.
 - **ADRs:** —
 
 ### Phase 1 — Financial integrity (P1)
@@ -637,14 +660,6 @@
 - **Tests:** brute-force simulation blocked by rate limit.
 - **Verification:** security test.
 - **ADRs:** ADR-003 (determinism scope)
-
-#### T-078 — Author the missing desktop ESLint flat config (make `npm run lint` runnable)
-- **Problems:** DEAD-201 (new — discovered during T-001, 2026-08-29) · **Priority:** P2 · **Severity:** Medium
-- **Description:** `elimtiyaz-desktop` has ESLint 9 + the lint script + typescript-eslint packages but NO config file at all — `npm run lint` aborts with "couldn't find an eslint.config.js" (never existed in git history). Create `eslint.config.js` (flat config: typescript-eslint recommended + react-hooks, mirroring the website's ESLint 9 setup), run the first real lint over the desktop src tree, and triage findings honestly — do NOT mass-disable rules to go green (AGENTS.md §15.6). Until this lands, any "lint passes" claim for the desktop is unverifiable (AGENTS.md §11 gate is dead).
-- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
-- **Tests:** `npm run lint` executes without a config error; findings triaged or fixed.
-- **Verification:** lint run + result recorded in change-log.
-- **ADRs:** —
 
 #### T-079 — Admin-created user accounts (feature — owner request, 2026-08-29) — **Completed (TESTED client stack / IMPLEMENTED backend)**
 - **Problems:** — (feature gap, not a registered defect; recorded per AGENTS.md §13) · **Priority:** P1 · **Severity:** —
