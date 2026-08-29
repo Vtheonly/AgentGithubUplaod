@@ -16,14 +16,18 @@
 //      action='account_approval.expire_batch'.
 //   4. Returns a summary: total expired, tenants affected, message.
 //
-// SECURITY:
-//   - No JWT required (cron invocation). Identification is enforced by
-//     Supabase Cron's internal service role invocation only.
-//   - When called manually via GET, requires an internal CRON_SECRET header
-//     to prevent abuse.
+// SECURITY (SEC-105 fix, task T-004 — shared guard _shared/cron-auth.ts):
+//   - A request with NO Authorization header is DENIED (401). It used to be
+//     treated as a cron invocation, which made this EF publicly invokable.
+//   - Authorised callers: `Authorization: Bearer <CRON_SECRET>` (operator
+//     secret, `supabase secrets set CRON_SECRET=…`), or the project's
+//     service_role key (Supabase's managed scheduler injects it).
+//   - Deployment note: any SQL-level cron schedule (pg_cron + pg_net) MUST
+//     send `Authorization: Bearer <CRON_SECRET>` in its http_post headers.
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
+import { isCronInvocation } from "../_shared/cron-auth.ts";
 import {
   createServiceRoleClient,
   writeAuditLog,
@@ -39,23 +43,15 @@ Deno.serve(async (req: Request) => {
 
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
 
-  // Allow only cron (no auth) or guarded manual GET with CRON_SECRET
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = Deno.env.get("CRON_SECRET");
-
-  if (authHeader) {
-    // Manual invocation: require CRON_SECRET bearer
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return jsonError(req, 401, "unauthorized", "Invalid cron secret");
-    }
-    if (req.method !== "GET" && req.method !== "POST") {
-      return jsonError(req, 405, "method_not_allowed", "Use GET or POST");
-    }
-  } else {
-    // Pure cron invocation — only POST allowed by Supabase Cron
-    if (req.method !== "POST") {
-      return jsonError(req, 405, "method_not_allowed", "Use POST");
-    }
+  // SEC-105 (T-004): deny by default. Cron and manual invocations MUST
+  // present `Authorization: Bearer <CRON_SECRET>` (the managed scheduler's
+  // service_role key is also accepted — see _shared/cron-auth.ts).
+  // A MISSING Authorization header is no longer treated as a cron invocation.
+  if (!isCronInvocation(req)) {
+    return jsonError(req, 401, "unauthorized", "Cron secret required");
+  }
+  if (req.method !== "GET" && req.method !== "POST") {
+    return jsonError(req, 405, "method_not_allowed", "Use GET or POST");
   }
 
   const supabase = createServiceRoleClient();

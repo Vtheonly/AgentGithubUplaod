@@ -33,12 +33,24 @@
 //       (latestCharge.at < now) AND
 //       (overdueDueDate[accountId] < now)
 //
-// SECURITY:
-//   - When triggered by cron: no JWT (uses service_role key directly)
-//   - When triggered manually: requires JWT + view_financials permission
+// SECURITY (SEC-105 fix, task T-004 — shared guard _shared/cron-auth.ts):
+//   - Cron/internal invocation: `Authorization: Bearer <CRON_SECRET>`
+//     (operator secret) or the project's service_role key (Supabase's
+//     managed scheduler injects it). Full multi-tenant scan.
+//   - Manual invocation: a user JWT — requires an authenticated, active
+//     profile with the view_financials permission; scans ONLY the caller's
+//     tenant (path preserved — designed behaviour of this EF).
+//   - A request with NO Authorization header is DENIED (401). It used to be
+//     treated as a cron invocation, which made this EF publicly invokable.
+//   - Deployment note: with the current `verify_jwt = true` gateway setting,
+//     a SQL-level pg_cron schedule MUST NOT use the CRON_SECRET header
+//     (it is not a Supabase JWT and the gateway would reject it) — use the
+//     managed scheduler, or relax verify_jwt for this EF and rely on the
+//     code-level guard (documented operator decision).
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
+import { isCronInvocation } from "../_shared/cron-auth.ts";
 import {
   createServiceRoleClient,
   extractAuthContext,
@@ -52,9 +64,15 @@ Deno.serve(async (req: Request) => {
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
   const supabase = createServiceRoleClient();
 
-  // Determine if this is a cron invocation (no auth header) or manual call
-  const authHeader = req.headers.get("authorization");
-  const isCron = !authHeader;
+  // Determine the invocation kind (SEC-105 fix):
+  //   - cron/internal: Authorization matches CRON_SECRET or the service_role
+  //     key (see _shared/cron-auth.ts) → full multi-tenant scan.
+  //   - manual: any other Bearer token → treated as a user JWT below
+  //     (extractAuthContext + view_financials permission, tenant-filtered).
+  //   - NO Authorization header → isCronInvocation is false AND
+  //     extractAuthContext returns null → 401. Anonymous requests are no
+  //     longer executed as cron invocations.
+  const isCron = isCronInvocation(req);
 
   let tenantFilter: string | null = null;
   let asOfDate = new Date().toISOString().slice(0, 10);
