@@ -26,7 +26,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | Medium | 59 | | DEFERRED | 5 |
 | Low | 19 | | VERIFIED | 1 |
 
-**Totals:** 145 consolidated problems from 185 audit findings · 126 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021, resolved by the documentation reset itself).
+**Totals:** 145 consolidated problems from 185 audit findings · 121 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021, resolved by the documentation reset itself) · 2 TESTED (SEC-100, SEC-007 — fixed 2026-08-29, verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 2 PARTIAL (CROSS-100 desktop half fixed, DEAD-012 unblocked) · plus 1 new problem registered this session (DEAD-201, see change-log 2026-08-29).
 
 ## Index (by ID)
 
@@ -38,9 +38,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-004 | Medium | OPEN | T-064 | `SupabaseConfigDialog` displays the Supabase anon key in plain text + references "Google AI Studio" secrets panel in user-facing text |
 | SEC-005 | Medium | OPEN | T-064 | `SupabaseClientProvider.build()` falls back to `https://demo.supabase.co` with key `"demo-key"` when unconfigured — real network requests go out to that public endpoint |
 | SEC-006 | Medium | OPEN | T-050 | `OnlineDetector` probes `https://supabase.com/auth/v1/health` every 30 seconds when unconfigured — metadata leak + battery drain |
-| SEC-007 | Critical | OPEN | T-009 | Mock-auth hydration runs unconditionally on every mount; bypasses the `NEXT_PUBLIC_MOCK_AUTH_ENABLED` feature flag |
+| SEC-007 | Critical | TESTED | T-009 | Mock-auth hydration runs unconditionally on every mount; bypasses the `NEXT_PUBLIC_MOCK_AUTH_ENABLED` feature flag |
 | SEC-008 | Critical | OPEN | T-031 | `enforce_parent_self_update_columns` trigger has no `has_role('parent')` check — blocks ALL staff updates to parent identity fields |
-| SEC-100 | Critical | OPEN | T-001 | Desktop login screen ships 9 hardcoded staff credentials as quick-fill buttons (in git) |
+| SEC-100 | Critical | TESTED | T-001 | Desktop login screen ships 9 hardcoded staff credentials as quick-fill buttons (in git) |
 | SEC-101 | Critical | OPEN | T-002 | Android LocalAuthRepository grants SUPER_ADMIN on ANY failed/empty Supabase login (offline fallback) |
 | SEC-102 | Critical | OPEN | T-002 | Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails |
 | SEC-103 | High | OPEN | T-003 | Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password |
@@ -71,7 +71,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CROSS-004 | Low | OPEN | T-028 | `bind-activation-code` Edge Function had to be patched to accept both `code` and `activation_code` body keys |
 | CROSS-005 | Critical | BLOCKED | T-059 | Android `LocalPaymentRepository.collect()` bypasses the canonical `collect_payment` RPC |
 | CROSS-009 | High | BLOCKED | T-028 | Website's `bind-activation-code` Edge Function is a drifted duplicate of the desktop's canonical version (no shared helpers, no audit log, different body key handling) |
-| CROSS-100 | Medium | OPEN | T-001 | Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@) |
+| CROSS-100 | Medium | PARTIAL | T-001 | Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@) |
 | CROSS-101 | Critical | BLOCKED | T-066 | `receipts` table is orphaned; website's receipt download is permanently broken |
 | CROSS-102 | High | OPEN | T-017 | Android refund sync payload drops the user's refund reason; server audit log has no reason |
 | CROSS-103 | High | OPEN | T-017 | Android refund sync does NOT push installment state changes; server-side installments stay stale |
@@ -126,7 +126,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | PUSH-103 | Medium | OPEN | T-036 | Website's FCM token registration is OPT-IN only (Profile view manual toggle); no auto-registration on sign-in; most users never enable push |
 | PUSH-104 | High | OPEN | T-036 | Workflow `send_email` action is a STUB; only `approve-signup-request` EF actually sends email (conditional on RESEND_API_KEY secret); all workflow-driven transactional emails NEVER send |
 | ARCH-001 | Critical | OPEN | T-047 | Massive partial migration: 25+ repositories still mock-backed in "Supabase mode" |
-| ARCH-002 | Medium | OPEN | T-010 | Electron main process registered with `--no-sandbox` in the start script |
+| ARCH-002 | Medium | IMPLEMENTED | T-010 | Electron main process registered with `--no-sandbox` in the start script |
 | ARCH-003 | High | BLOCKED | T-059 | `RepositoryModule` binds ALL repositories to `Local*Repository` (Room-first) — canonical Supabase RPCs (`collect_payment`, `refund-payment`, `bind-activation-code`, `run-overdue-scan`, `refresh-materialized-views`, `update-server-secret`) are NEVER called from Android |
 | ARCH-004 | High | OPEN | T-046 | `fallbackToDestructiveMigration(true)` on production Room database — user data silently wiped on any future schema bump |
 | ARCH-005 | Medium | OPEN | T-049 | `next.config.ts` has `typescript.ignoreBuildErrors: true` AND `reactStrictMode: false` — type errors silently shipped to production, React strict-mode bugs hidden |
@@ -170,13 +170,14 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DEAD-007 | Low | OPEN | T-062 | `AuditActions.kt` contains many audit action constants that the Android app never invokes |
 | DEAD-008 | Low | OPEN | T-062 | `StubRepositories.kt` is a 2-line stub file with only a comment |
 | DEAD-009 | Low | OPEN | T-062 | `ElGalleryActivity` (833 lines across gallery files) is NOT declared in `AndroidManifest.xml` — unreachable in production |
-| DEAD-012 | High | OPEN | T-049 | `vitest.config.ts` references `./src/test/setup.ts` which DOES NOT EXIST; DONE.md and worklog.md both claim it was created |
+| DEAD-012 | High | PARTIAL | T-049 | `vitest.config.ts` references `./src/test/setup.ts` which DOES NOT EXIST; DONE.md and worklog.md both claim it was created |
 | DEAD-013 | Low | OPEN | T-049 | `package.json` `icons:generate` script hardcodes path `/home/z/my-project/scripts/generate-pwa-icons.py` (OUTSIDE the repo) — broken on any other machine/CI |
 | DEAD-014 | Low | OPEN | T-056 | `database-schema.ts` barrel is imported by only ONE file (`supabase/client.ts`); all other 14 files import directly from `@/lib/types/database` |
 | DEAD-015 | Critical | OPEN | T-014 | Desktop refund flow is completely dead UI; no refund button exists anywhere |
 | DEAD-016 | Critical | BLOCKED | T-067 | `collect-payment` and `refund-payment` Edge Functions are never invoked by any client |
 | DEAD-100 | Medium | OPEN | T-025 | Migration 0029 RLS policies use fn_current_tenant_id() (never-set session setting) — dead code that does nothing |
 | DEAD-200 | Medium | BLOCKED | T-070 | `parent_student_links` table is unused; multi-guardian family feature is structurally unimplemented |
+| DEAD-201 | Medium | OPEN | T-078 | Desktop `npm run lint` is UNRUNNABLE — repo has no ESLint config file at all (ESLint 9 requires `eslint.config.js`); documented verification gate in AGENTS.md §11 cannot execute |
 
 ---
 
@@ -301,7 +302,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-007 — Mock-auth hydration runs unconditionally on every mount; bypasses the `NEXT_PUBLIC_MOCK_AUTH_ENABLED` feature flag
 
-- **Category:** SEC  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Critical  |  **Status:** TESTED (fixed 2026-08-29, task T-009)
+- **Status note:** RESOLVED — entire mock-auth system deleted (mock-auth.ts 278 lines, signInWithMock, isMockSession, mount hydration, env flag, i18n keys). Regression tests: `src/app/providers/auth-provider.test.tsx` (planted `mock-auth-session` key → NO authenticated state; no mock API on the context) — failed before the fix (state 'active'), 3/3 pass after. Suite 90/90, build green. Google OAuth is the only auth path. Remaining gap (why TESTED not VERIFIED): real OAuth round-trip needs a live backend. Evidence: change-log 2026-08-29 / website commits 864eca6, a3062ee.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Backend/DB, Website
 - **Task:** T-009 (docs/recovery/task-registry.md)
@@ -340,7 +342,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-100 — Desktop login screen ships 9 hardcoded staff credentials as quick-fill buttons (in git)
 
-- **Category:** SEC  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Critical  |  **Status:** TESTED (fixed 2026-08-29, task T-001)
+- **Status note:** RESOLVED — DEMO_ACCOUNTS array + quick-fill UI deleted from login-screen.tsx; the SAME nine password literals in the mock layer's seedAccounts (seed-data.ts) also removed (mock sign-in now matches on email only — mock layer is bypassed when Supabase is configured); orphaned auth.demoAccounts/useAccount i18n keys removed. Regression test `src/tests/security/no-demo-credentials.test.ts` scans the whole src tree for the nine literals — failed before (both files flagged), passes after. Suite 1957/1957, typecheck clean. Remaining gap (why TESTED not VERIFIED): live login with real accounts needs a running environment; ALSO passwords must still be ROTATED in every deployed environment (deployment action, outside the repo). Evidence: change-log 2026-08-29 / hub commits aa823d4, 9c038eb.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-001 (docs/recovery/task-registry.md)
@@ -943,7 +946,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-100 — Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@)
 
-- **Category:** CROSS  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** CROSS  |  **Severity:** Medium  |  **Status:** PARTIAL (desktop half fixed 2026-08-29, task T-001)
+- **Status note:** The DESKTOP demo-account list was deleted entirely (T-001), removing the desktop side of the divergence. The ANDROID demo list (LoginViewModel.kt, single shared password) still exists — its removal is folded into T-002 (SEC-101/102) which reworks Android auth. This problem closes when T-002 lands. Evidence: change-log 2026-08-29 / hub commit 9c038eb.
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-001 (docs/recovery/task-registry.md)
@@ -2015,7 +2019,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-002 — Electron main process registered with `--no-sandbox` in the start script
 
-- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** IMPLEMENTED (2026-08-29, task T-010 — launch verification pending)
+- **Status note:** `--no-sandbox` removed from package.json start script; host requirement (chrome-sandbox SUID helper or kernel.unprivileged_userns_clone) documented in electron/main.ts with an explicit 'fix the host, not the flag' instruction. NOT yet TESTED/VERIFIED: launching the app with the sandbox enabled requires a desktop host (headless container cannot run Electron — AGENTS.md §11 forbids it). Advance to TESTED once a launch log exists. Evidence: change-log 2026-08-29 / hub commit af655b1.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-010 (docs/recovery/task-registry.md)
@@ -2868,7 +2873,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-012 — `vitest.config.ts` references `./src/test/setup.ts` which DOES NOT EXIST; DONE.md and worklog.md both claim it was created
 
-- **Category:** DEAD  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** High  |  **Status:** PARTIAL (unblocked 2026-08-29, task T-009 prerequisite — full cleanup remains T-049)
+- **Status note:** ROOT CAUSE CORRECTED (discovered 2026-08-29, important): the registry blamed a forgotten `git add` / documentation lie. The TRUE cause: the website's `.gitignore` carried a bare `test` rule that silently ignored ANY path named `test` — including `src/test/` — so the setup file could never be committed (the author likely had it on disk; git refused to track it). Fix applied: bare `test` rule removed from .gitignore (verified it hid nothing else outside node_modules), minimal `src/test/setup.ts` committed — the entire website suite (90 tests) runs again. T-049 still owns the full cleanup (RTL setup, polyfills audit, strict build / ARCH-005). Evidence: change-log 2026-08-29 / website commit 864eca6.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-049 (docs/recovery/task-registry.md)
@@ -3002,3 +3008,19 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); migration-level test against a fresh schema with the full canonical chain applied; cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 
 ---
+### DEAD-201 — Desktop `npm run lint` is UNRUNNABLE — no ESLint config file exists in the repo (ESLint 9 requires `eslint.config.js`)
+
+- **Category:** DEAD  |  **Severity:** Medium  |  **Status:** OPEN
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Desktop
+- **Task:** T-078 (docs/recovery/task-registry.md)
+- **Consolidated from:** NEW — discovered during task T-001 (2026-08-29), not in either audit pass
+- **Description:** `elimtiyaz-desktop/package.json` declares `eslint: ^9.17.0` and a `lint` script (`eslint . --ext ts,tsx`), and `@typescript-eslint/eslint-plugin` + `@typescript-eslint/parser` are devDependencies — but the repo contains NO ESLint configuration file whatsoever (no `eslint.config.js|mjs|cjs`, no `.eslintrc*`). ESLint 9 refuses to run without a flat config: `npm run lint` aborts with "ESLint couldn't find an eslint.config.(js|mjs|cjs) file." Consequence: the verification gate documented in hub `AGENTS.md` §11 ("Desktop: npm run typecheck && npm run lint") has apparently NEVER been executable on this repo — every commit that claims "lint passes" without naming the config is unverifiable.
+- **Location:** `elimtiyaz-desktop/package.json` (scripts.lint, devDependencies); missing: `elimtiyaz-desktop/eslint.config.*`
+- **Evidence:** Runtime evidence (2026-08-29, this session): `cd elimtiyaz-desktop && npm run lint` → "Oops! Something went wrong! … ESLint couldn't find an eslint.config.(js|mjs|cjs) file." `git log --all -- eslint.config.* .eslintrc*` → empty (never existed in history). The lint script and ESLint 9 dependency were introduced together; the config was simply never written.
+- **Root cause:** ESLint 9 (installed from the start) requires the new flat-config format; the author wired the script and plugins but never authored `eslint.config.js`. Nobody noticed because `npm test` (vitest) and `npm run typecheck` (tsc) gave enough signal to feel "green".
+- **Current behavior:** `npm run lint` fails immediately on every machine; linting has never gated desktop commits.
+- **Expected behavior:** `npm run lint` runs ESLint over the src tree with a TypeScript-aware flat config and passes (or reports real findings to be triaged).
+- **Proposed resolution:** Author `elimtiyaz-desktop/eslint.config.js` (flat config: typescript-eslint recommended + react-hooks plugin, matching the website's ESLint 9 setup), fix or explicitly baseline the findings it reports, and only then treat "lint green" as a commit gate again. NOTE for the implementing agent: the first run after years without lint WILL surface findings — triage them, do not mass-disable rules to go green (AGENTS.md §15.6).
+- **Dependencies:** none recorded
+- **Verification:** `npm run lint` executes (no config error) and exits 0 after findings are triaged; evidence recorded in change-log.

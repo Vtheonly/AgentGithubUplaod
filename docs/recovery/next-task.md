@@ -14,28 +14,24 @@
 
 ## Currently in progress
 
-**Batch session started 2026-08-29 — T-001, T-009, T-010** (two Critical security removals + one sandbox hardening; all dependency-free, client-side-only, verifiable without a live backend):
-
-1. **T-001** — desktop credentials removal (SEC-100)
-2. **T-009** — website mock-auth removal (SEC-007)
-3. **T-010** — desktop `--no-sandbox` removal (ARCH-002)
-
-These three are checked out by this session; do not pick them up until the session's outcome is recorded in `task-registry.md` / `change-log.md`.
+*(none — the 2026-08-29 batch session completed T-001 (TESTED), T-009 (TESTED) and T-010 (IMPLEMENTED); evidence in `change-log.md`.)*
 
 ## Current recommendation
 
-**T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — the next agent's first pick once the current batch is recorded, per the suggested order below.
+**T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies).
 
-Rationale for the current batch selection (recorded for traceability): the three in-progress tasks are the highest-value changes that are (a) dependency-free, (b) confined to client code (no migration chain, no canonical financial/academic logic, no equivalence-suite dependency), and (c) fully verifiable in a headless environment (typecheck/lint/unit tests/build). T-002 was deliberately deferred from this batch: it requires an Android build toolchain plus a manual sign-in matrix, and T-005/T-006 (SQL migrations) require a live Supabase instance for honest verification.
+Rationale: with T-001 and T-009 done, T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) is the highest-severity dependency-free task left in Phase 0. Note for the implementing agent: it needs the Android toolchain (`./gradlew test`) and a documented manual sign-in matrix; if no Android build environment is available, fall back to **T-003** (desktop changePassword no-op, SEC-103) or **T-004** (cron EF authentication, SEC-105) — both fully verifiable without a live backend at the code level.
+
+Batch outcome (2026-08-29): T-001 TESTED (SEC-100 resolved; passwords still need rotation in deployed environments), T-009 TESTED (SEC-007 resolved; Google OAuth is the only website auth path), T-010 IMPLEMENTED (ARCH-002; sandboxed launch log still needed on a desktop host). New discovery registered: DEAD-201 (desktop lint unrunnable) → T-078.
 
 Suggested order for the first sessions (all P0, dependency-free):
 
-1. **T-001** — desktop credentials (SEC-100) — *in progress*
+1. ~~**T-001** — desktop credentials (SEC-100)~~ — DONE 2026-08-29 (TESTED)
 2. **T-002** — Android SUPER_ADMIN fallback (SEC-101/102) — *next pick*
-3. **T-009** — website mock-auth removal (SEC-007) — *in progress*
+3. ~~**T-009** — website mock-auth removal (SEC-007)~~ — DONE 2026-08-29 (TESTED)
 4. **T-005** — tenant-scoped RBAC resolver + admin policies (TENANT-100/101)
 5. **T-006** — SECURITY DEFINER RPC caller verification (SEC-110/106/112/111)
-6. Then the rest of Phase 0 (T-003, T-004, T-007, T-008, T-071) before any Phase 1 financial work. T-010 is *in progress* in the current batch.
+6. Then the rest of Phase 0 (T-003, T-004, T-007, T-008, T-071) before any Phase 1 financial work. ~~T-010~~ DONE 2026-08-29 (IMPLEMENTED — needs a sandboxed launch log to reach TESTED).
 
 ## What NOT to pick next (and why)
 

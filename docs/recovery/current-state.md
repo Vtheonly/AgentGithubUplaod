@@ -7,13 +7,13 @@
 - Three repositories operate against **one Supabase backend** whose canonical schema is the desktop repo's migration chain 0001–0043 (ADR-001). No active migration work is in flight; all 40 migrations are committed and considered applied.
 - **Desktop** (Electron/React): functional as the staff operations app for CRM + financials + academics, with a partial Supabase migration — 26 of ~45 repository slots still run on mocks in "Supabase mode" (`ARCH-001`). Payment cache is seed-once with no refresh (`CROSS-104`). There is **no refund UI** (`DEAD-015`).
 - **Android** (Kotlin/Compose): offline-first, Room-backed, fully functional locally, but its server write path bypasses every canonical financial RPC (`ARCH-003`, `CROSS-005`) and swallows sync errors (`CROSS-200`). Authentication has two Critical bypasses (`SEC-101`, `SEC-102`).
-- **Website** (Next.js parent portal): read paths work (balances, installments, attendance, bulletins) with some non-canonical KPIs; chat is permanently empty (`CHAT-103`); push notifications are non-functional end-to-end (`PUSH-100` family); a mock-admin authentication bypass is still wired (`SEC-007`).
+- **Website** (Next.js parent portal): read paths work (balances, installments, attendance, bulletins) with some non-canonical KPIs; chat is permanently empty (`CHAT-103`); push notifications are non-functional end-to-end (`PUSH-100` family). The mock-admin authentication bypass was **removed 2026-08-29** (`SEC-007` fixed, T-009 — Google OAuth is the only auth path); the website test suite runs again (DEAD-012 unblocked).
 - **Homework and desktop roll-call are broken end-to-end** (`HOMEWORK-100/101`, `ATT-100`); **year-end promotion fails on every platform** (`TENANT-106`, `STUDENT-100`, `BUSINESS-004`).
 
 ## 2. Major known problems (top of the risk stack)
 
-- 24 Critical / 43 High problems are registered (145 total). The five most dangerous:
-  1. `SEC-100` — desktop ships 9 staff credentials in the client bundle.
+- 24 Critical / 43 High problems are registered (145 total + DEAD-201 registered 2026-08-29). The five most dangerous:
+  1. ~~`SEC-100` — desktop ships 9 staff credentials in the client bundle.~~ **FIXED 2026-08-29 (T-001, TESTED)** — literals removed; passwords still need rotation in deployed environments.
   2. `SEC-101`/`SEC-102` — any failed Android login yields a 24h SUPER_ADMIN session.
   3. `BUSINESS-002` — desktop payment collection silently degrades to a non-atomic path (no ledger/waterfall/audit) on any RPC failure.
   4. `CROSS-200` — Android sync marks server-rejected writes as "synced" (silent data loss).
@@ -32,7 +32,8 @@ None in flight. Historical note: migrations 0034–0043 were a 10-migration fix-
 - **2026-08-29 — Documentation reset & governance system (T-000, VERIFIED):** 56 legacy markdown files removed across the three repos; unified documentation + control system established (this tree); two audit passes consolidated into one 145-problem registry; task registry, unknowns, ADRs and workflows created. No application source code was modified.
 - **2026-08-29 — T-000 amendment (VERIFIED):** both audit reports archived **verbatim** under `docs/audits/` (read-only evidence, with an index explaining the ID mapping to the registry); mandatory commit-content rule (task completed / what is left / what was changed / what was verified / next task) added to `AGENTS.md` §14, `docs/agents/git-workflow.md` and `docs/agents/workflow.md`.
 - **Pre-existing (historical, from git history):** the 0034–0043 canonical-engine unification chain; migration 0042's overdue-rule alignment; migration 0043's absorption of the website's portal patches; the mock-auth default-on regression (REG-003, absorbed into SEC-007) was reverted in website commit `03f6365`.
-- Nothing else has been fixed or verified since the audits. All 144 other problems remain OPEN (126), BLOCKED (13) or DEFERRED (5).
+- **2026-08-29 — First repair batch (T-001, T-009 TESTED; T-010 IMPLEMENTED):** (1) T-001 — the nine leaked desktop staff credentials removed from BOTH the login screen and the mock seed data; regression test guards the whole src tree (hub commits aa823d4, 9c038eb). (2) T-009 — the website mock-auth system deleted entirely; Google OAuth is the only auth path; regression tests pin that a planted `mock-auth-session` key yields no session (website commits 864eca6, a3062ee). Prerequisite: the missing `src/test/setup.ts` committed and the bare `test` .gitignore rule (DEAD-012's true root cause) removed — the website suite (90 tests) runs again. (3) T-010 — `--no-sandbox` removed from the desktop start script; host requirement documented (hub commit af655b1); sandboxed launch log still pending. New discovery registered: DEAD-201 — the desktop `npm run lint` gate has never been runnable (no ESLint config exists) → task T-078.
+- Nothing else has been fixed or verified since the audits. The remaining problems are OPEN (121), BLOCKED (13), DEFERRED (5), PARTIAL (2: CROSS-100, DEAD-012) plus DEAD-201 OPEN.
 
 ## 6. Remaining high-risk work (recommended order)
 
@@ -46,7 +47,7 @@ Phase 0 security hotfixes (T-001…T-010) → financial integrity (T-011…T-018
 
 - Desktop: vitest suites incl. cross-platform equivalence (`npm test`), ~80 financial-test files, but four competing frameworks (DUP-001) and a stale Kotlin mirror (DUP-002).
 - Android: unit + Robolectric tests (`./gradlew test`); equivalence test requires the desktop repo as a sibling checkout.
-- Website: 87 vitest tests across 5 files — but `vitest.config.ts` references a missing setup file (`DEAD-012`), and the build ignores TypeScript errors (`ARCH-005`), so "green" is weaker than it looks.
+- Website: 90 vitest tests across 6 files (2026-08-29: suite RESTORED — the missing setup file was committed and the bare `test` .gitignore rule hiding it removed; DEAD-012 partially resolved, full cleanup = T-049). The build still ignores TypeScript errors (`ARCH-005`), so "green" is weaker than it looks. Two pre-existing lint errors remain in dashboard/financial views (react-hooks/preserve-manual-memoization).
 - No E2E, no API-contract tests, no migration-level fresh-schema tests, no cross-platform CI. Strategy defined in `docs/testing/strategy.md`.
 
 ## 9. Known cross-platform divergences (summary)

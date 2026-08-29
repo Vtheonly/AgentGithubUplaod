@@ -7,19 +7,21 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-29)
+## Progress summary (2026-08-29, updated after the first repair batch)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 1 | T-000 |
-| **In Progress** | 3 | T-001, T-009, T-010 (started 2026-08-29, batch session) |
-| **Ready** (understood, dependencies cleared) | 57 | T-002…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071 |
+| **Completed (TESTED)** | 2 | T-001, T-009 (regression-tested; live-environment verification pending — see change-log) |
+| **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
+| **In Progress** | 0 | — |
+| **Ready** (understood, dependencies cleared) | 58 | T-002…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-078 (new — desktop ESLint config, DEAD-201) |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
 
-**Recommended next task:** T-001 (see `next-task.md`). **Dependency chains:** §Dependency graph at the end of this file.
+**Recommended next task:** T-002 (see `next-task.md`). **Dependency chains:** §Dependency graph at the end of this file.
 
 ---
 
@@ -37,33 +39,37 @@
 
 ---
 
+## Completed (beyond VERIFIED — evidence in change-log.md)
+
+### T-001 — Remove hardcoded staff credentials from the desktop login screen
+- **Problems:** SEC-100, CROSS-100 · **Priority:** P0 · **Severity:** Critical
+- **Status:** TESTED (2026-08-29)
+- **What was done:** DEMO_ACCOUNTS array + quick-fill UI deleted from `login-screen.tsx`; the same nine password literals removed from the mock layer's `seedAccounts` (mock sign-in now matches on email only — it is bypassed entirely when Supabase is configured); orphaned `auth.demoAccounts`/`auth.useAccount` i18n keys removed. Deviation from the task text (which named only login-screen.tsx) recorded: the task's own verification criterion (rg over src/) required cleaning seed-data.ts too.
+- **Tests:** NEW `src/tests/security/no-demo-credentials.test.ts` — scans the whole src tree for the nine leaked literals; failed before the fix (login-screen.tsx + seed-data.ts flagged), passes after.
+- **Verification:** `npx vitest run src/tests/security/no-demo-credentials.test.ts` 1/1 pass; `npm run typecheck` clean; `npm test` 41 files / 1957 tests ALL PASS; rg scan clean (only the test's own detection list). Gaps (why TESTED, not VERIFIED): live login with real accounts untested (no running environment); the nine passwords must still be ROTATED in every deployed environment (deployment action). `npm run lint` could not run — pre-existing defect, now registered as DEAD-201 / T-078.
+- **Commits:** aa823d4 (failing test), 9c038eb (fix) — hub repo.
+
+### T-009 — Remove the website mock-auth system
+- **Problems:** SEC-007 (absorbs REG-003, DEAD-010) · **Priority:** P0 · **Severity:** Critical
+- **Status:** TESTED (2026-08-29)
+- **What was done:** `src/lib/auth/mock-auth.ts` deleted (278 lines); mock imports/hydration/signInWithMock/isMockSession/mock signOut branch removed from `auth-provider.tsx`; mock button + hint + 'or' divider removed from `login-screen.tsx`; `NEXT_PUBLIC_MOCK_AUTH_ENABLED` flag, `isMockAuthEnabled` export and stale comment block removed from `env.ts`; `auth.signin.mock/mockHint/or` keys removed from all three dictionary locales. Google OAuth is the only auth path. PREREQUISITE work included: missing `src/test/setup.ts` committed + the bare `test` .gitignore rule that silently hid it removed (DEAD-012 root cause corrected — see problem registry).
+- **Tests:** NEW `src/app/providers/auth-provider.test.tsx` — 3 tests incl. planted `mock-auth-session` key → NO authenticated state (failed before: state 'active'); passes after.
+- **Verification:** `npm run test` 6 files / 90 tests ALL PASS (was: total suite failure via DEAD-012); `npm run lint` — changed files clean (2 pre-existing errors in dashboard-view.tsx/financial-view.tsx remain, not introduced here); `npm run build` compiles successfully. Gap (why TESTED, not VERIFIED): real Google-OAuth round-trip needs a live backend.
+- **Commits:** 864eca6 (tests + test-infra fix + .gitignore fix), a3062ee (removal) — website repo.
+
+### T-010 — Remove --no-sandbox from the desktop start script
+- **Problems:** ARCH-002 · **Priority:** P0 · **Severity:** Medium
+- **Status:** IMPLEMENTED (2026-08-29 — launch verification pending)
+- **What was done:** `--no-sandbox` removed from the `package.json` `start` script; host requirement (chrome-sandbox SUID helper `chown root:root && chmod 4755`, or `kernel.unprivileged_userns_clone=1`) documented in `electron/main.ts` with an explicit 'fix the host, not the flag' instruction.
+- **Tests:** Launch on a clean host — NOT YET RUN (headless container cannot launch Electron; AGENTS.md §11 forbids it). Honest gap.
+- **Verification:** rg 'no-sandbox' → only the explanatory comment remains; package.json still valid JSON; `npx tsc -p electron/tsconfig.json --noEmit` compiles clean. Advance to TESTED once a sandboxed launch log is recorded on a desktop host.
+- **Commits:** af655b1 — hub repo.
+
+---
+
 ## In Progress
 
-*(Started 2026-08-29 — one balanced batch session: two Critical security removals + one sandbox hardening. All three are dependency-free, client-side-only tasks that need no live backend and no equivalence runs. Entries moved verbatim from the Ready list below; status returns there if the session aborts.)*
-
-#### T-001 — Remove hardcoded staff credentials from the desktop login screen
-- **Problems:** SEC-100, CROSS-100 · **Priority:** P0 · **Severity:** Critical
-- **Description:** Delete the `DEMO_ACCOUNTS` array (9 email/password pairs) from `login-screen.tsx`; if demo quick-fill is still wanted for dev, gate it behind `import.meta.env.DEV` with credentials injected from a git-ignored source. Final production demo-account policy: UNKNOWN-009 (does not block the security fix).
-- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
-- **Tests:** unit test asserting no credential literal exists in the production bundle; login still works with real accounts.
-- **Verification:** `rg "admin123|fin123|teach123" elimtiyaz-desktop/src` returns nothing; build-time check passes.
-- **ADRs:** —
-
-#### T-009 — Remove the website mock-auth system
-- **Problems:** SEC-007 (absorbs REG-003, DEAD-010) · **Priority:** P0 · **Severity:** Critical
-- **Description:** Delete `src/lib/auth/mock-auth.ts`, `signInWithMock`, the unconditional localStorage hydration, and the env flag; Google OAuth remains the only path.
-- **Dependencies:** none · **Affected:** W · **Platforms:** Website
-- **Tests:** a planted `mock-auth-session` key produces no authenticated state; real OAuth flow unaffected.
-- **Verification:** `rg "mock-auth|signInWithMock" src` clean; test green.
-- **ADRs:** —
-
-#### T-010 — Remove --no-sandbox from the desktop start script
-- **Problems:** ARCH-002 · **Priority:** P0 · **Severity:** Medium
-- **Description:** Remove the flag from `package.json` `start`; document the host requirement (Linux SUID helper / kernel flags) that motivated it.
-- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
-- **Tests:** app launches with sandbox enabled on a clean host.
-- **Verification:** launch log recorded.
-- **ADRs:** —
+*(none — the 2026-08-29 batch session completed: T-001 TESTED, T-009 TESTED, T-010 IMPLEMENTED; see Completed above and change-log.md.)*
 
 ---
 
@@ -71,7 +77,7 @@
 
 ### Phase 0 — Security hotfixes (P0)
 
-> T-001, T-009 and T-010 were moved to **In Progress** (2026-08-29) — see above. They are NOT available for pickup until this session records their outcome.
+> T-001, T-009 and T-010 were completed by the 2026-08-29 batch session (see Completed above; evidence in change-log.md).
 
 #### T-002 — Close Android authentication bypasses
 - **Problems:** SEC-101, SEC-102, WEAK-101 · **Priority:** P0 · **Severity:** Critical
@@ -632,6 +638,14 @@
 - **Tests:** brute-force simulation blocked by rate limit.
 - **Verification:** security test.
 - **ADRs:** ADR-003 (determinism scope)
+
+#### T-078 — Author the missing desktop ESLint flat config (make `npm run lint` runnable)
+- **Problems:** DEAD-201 (new — discovered during T-001, 2026-08-29) · **Priority:** P2 · **Severity:** Medium
+- **Description:** `elimtiyaz-desktop` has ESLint 9 + the lint script + typescript-eslint packages but NO config file at all — `npm run lint` aborts with "couldn't find an eslint.config.js" (never existed in git history). Create `eslint.config.js` (flat config: typescript-eslint recommended + react-hooks, mirroring the website's ESLint 9 setup), run the first real lint over the desktop src tree, and triage findings honestly — do NOT mass-disable rules to go green (AGENTS.md §15.6). Until this lands, any "lint passes" claim for the desktop is unverifiable (AGENTS.md §11 gate is dead).
+- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
+- **Tests:** `npm run lint` executes without a config error; findings triaged or fixed.
+- **Verification:** lint run + result recorded in change-log.
+- **ADRs:** —
 
 ---
 
