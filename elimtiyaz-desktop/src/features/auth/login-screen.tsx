@@ -1,37 +1,26 @@
 /**
- * Login screen — email/password form with role picker for demo accounts.
+ * Login screen — email/password form.
  *
- * Mirrors the Android app's pattern: 4 demo staff accounts (SuperAdmin /
- * FinOfficer / Teacher / Support) shown as quick-fill chips. Parent/Student
- * emails trigger a redirect message to the Web Portal (per plan §02.07).
+ * Staff authenticate against Supabase (or the mock layer in dev mode when
+ * Supabase is not configured). Parent/Student emails trigger a redirect
+ * message to the Web Portal (per plan §02.07).
+ *
+ * SECURITY (SEC-100, task T-001): this screen previously shipped a
+ * DEMO_ACCOUNTS array with nine staff email/password pairs as quick-fill
+ * buttons — the literals ended up in the production bundle. The array was
+ * removed; demo-account policy is tracked as UNKNOWN-009. Do NOT reintroduce
+ * credential literals here.
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LogIn, Shield, Wallet, GraduationCap, LifeBuoy, Users, ShoppingCart, Truck, Package, HardHat } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../shared/ui/card";
-import { cn } from "../../shared/ui/cn";
 import { ParticleCanvas } from "../../shared/ui/particle-canvas";
-
-
-
-
-// ggignore
-const DEMO_ACCOUNTS = [
-  { email: "admin@elimtiyaz.dz", password: "admin123", role: "Super Administrateur", icon: Shield, color: "text-primary" },
-  { email: "financial@elimtiyaz.dz", password: "fin123", role: "Agent Financier", icon: Wallet, color: "text-status-success" },
-  { email: "teacher@elimtiyaz.dz", password: "teach123", role: "Enseignant", icon: GraduationCap, color: "text-status-warning" },
-  { email: "support@elimtiyaz.dz", password: "support123", role: "Personnel de Soutien", icon: LifeBuoy, color: "text-status-info" },
-  { email: "manager@elimtiyaz.dz", password: "manager123", role: "Responsable", icon: Users, color: "text-primary" },
-  { email: "buyer@elimtiyaz.dz", password: "buyer123", role: "Acheteur", icon: ShoppingCart, color: "text-status-info" },
-  { email: "driver@elimtiyaz.dz", password: "driver123", role: "Chauffeur", icon: Truck, color: "text-brand-brown" },
-  { email: "warehouse@elimtiyaz.dz", password: "warehouse123", role: "Magasinier", icon: Package, color: "text-status-success" },
-  { email: "worker@elimtiyaz.dz", password: "worker123", role: "Ouvrier", icon: HardHat, color: "text-brand-slate" },
-];
 
 export function LoginScreen() {
   const { t } = useTranslation();
@@ -46,11 +35,6 @@ export function LoginScreen() {
     if (!result.ok) {
       toast.showError(t("auth.invalidCredentials"), result.error);
     }
-  }
-
-  function fillDemo(acc: (typeof DEMO_ACCOUNTS)[number]) {
-    setEmail(acc.email);
-    setPassword(acc.password);
   }
 
   return (
@@ -119,35 +103,6 @@ export function LoginScreen() {
                 {isLoading ? t("auth.signingIn") : t("auth.signIn")}
               </Button>
             </form>
-
-            <div className="mt-6 pt-4 border-t border-border">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
-                {t("auth.demoAccounts")}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {DEMO_ACCOUNTS.map((acc) => {
-                  const Icon = acc.icon;
-                  return (
-                    <button
-                      key={acc.email}
-                      type="button"
-                      onClick={() => fillDemo(acc)}
-                      className={cn(
-                        "flex flex-col items-start gap-1 rounded-md border border-border p-2 text-left transition-colors hover:border-primary hover:bg-primary/5",
-                      )}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Icon className={cn("h-3.5 w-3.5", acc.color)} />
-                        <span className="text-xs font-medium text-foreground">{acc.role}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-muted-foreground truncate w-full">
-                        {acc.email}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

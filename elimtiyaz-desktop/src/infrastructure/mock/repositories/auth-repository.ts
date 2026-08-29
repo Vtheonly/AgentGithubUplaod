@@ -2,7 +2,8 @@
  * Mock AuthRepository — in-memory authentication against seed accounts.
  *
  * Extracted from `mock-repositories.ts` in iteration 2 of the platform-wide
- * refactor. Behavior preserved verbatim.
+ * refactor. Behavior preserved verbatim, EXCEPT the password check (see
+ * signIn below — SEC-100, task T-001).
  */
 import type { AuthRepository, Observable } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
@@ -27,8 +28,15 @@ export class MockAuthRepository implements AuthRepository {
 
   async signIn(email: string, password: string): Promise<Result<Session>> {
     await delay(220);
-    const account = seedAccounts.find((a) => a.email === email && a.password === password);
-    if (!account) {
+    // SEC-100 (task T-001): seedAccounts no longer carries static password
+    // literals — shipping them leaked the nine staff passwords into the
+    // production bundle. Mock sign-in matches on email only; the password
+    // must merely be non-empty (the form enforces this). The mock layer is a
+    // dev/demo fallback that is bypassed entirely when Supabase is
+    // configured (see repository-provider.tsx), so no real credential check
+    // is lost.
+    const account = seedAccounts.find((a) => a.email === email);
+    if (!account || password.length === 0) {
       // VAULT §12.01 — authentication events are tracked, INCLUDING failed
       // attempts. The failed login is attributed to the attempted identity
       // (email prefix when it matches a known account) and audit-logged.

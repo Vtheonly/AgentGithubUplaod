@@ -1643,66 +1643,69 @@ export const seedCalendarEvents = [
   },
 ];
 
+/*
+ * Mock sign-in accounts (dev/mock mode only — never used when Supabase is
+ * configured; see repository-provider.tsx).
+ *
+ * SECURITY (SEC-100, task T-001): these entries previously carried the same
+ * nine staff password literals that the login screen shipped as quick-fill
+ * buttons. The password field was removed: mock sign-in matches on email
+ * only (any non-empty password), because shipping static password literals
+ * here leaks them into the production bundle. If the demo-account policy
+ * (UNKNOWN-009) decides dev quick-fill is wanted, credentials must come from
+ * a git-ignored source — never from literals in this tree.
+ */
 export const seedAccounts = [
   {
     email: "admin@elimtiyaz.dz",
-    password: "admin123",
     userId: "usr-adm-001",
     displayName: "Brahim Souilah",
     role: "super_admin" as const,
   },
   {
     email: "financial@elimtiyaz.dz",
-    password: "fin123",
     userId: "usr-fin-001",
     displayName: "Fatima Belkacem (Fin)",
     role: "financial_officer" as const,
   },
   {
     email: "teacher@elimtiyaz.dz",
-    password: "teach123",
     userId: "usr-tea-001",
     displayName: "Aïcha Bouhenni",
     role: "teacher" as const,
   },
   {
     email: "support@elimtiyaz.dz",
-    password: "support123",
     userId: "usr-sup-001",
     displayName: "Toufik Ammar",
     role: "support_staff" as const,
   },
   {
     email: "manager@elimtiyaz.dz",
-    password: "manager123",
     userId: "usr-mgr-001",
     displayName: "Leïla Cherif",
     role: "manager" as const,
   },
   {
     email: "buyer@elimtiyaz.dz",
-    password: "buyer123",
     userId: "usr-buy-001",
     displayName: "Yacine Mansouri",
     role: "buyer" as const,
   },
   {
     email: "driver@elimtiyaz.dz",
-    password: "driver123",
     userId: "usr-drv-001",
     displayName: "Messaoud Khalfaoui",
     role: "driver" as const,
   },
   {
     email: "warehouse@elimtiyaz.dz",
-    password: "warehouse123",
     userId: "usr-whw-001",
     displayName: "Rachid Hadj",
     role: "warehouse_worker" as const,
   },
   {
     email: "worker@elimtiyaz.dz",
-    password: "worker123",
     userId: "usr-wrk-001",
     displayName: "Said Bouzid",
     role: "worker" as const,

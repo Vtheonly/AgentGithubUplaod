@@ -15,8 +15,6 @@ export const fr = {
     signOut: "Se déconnecter",
     signingIn: "Connexion en cours…",
     invalidCredentials: "Identifiants invalides.",
-    demoAccounts: "Comptes de démonstration",
-    useAccount: "Utiliser",
   },
   nav: {
     dashboard: "Tableau de bord",

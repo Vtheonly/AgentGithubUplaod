@@ -18,8 +18,6 @@ export const ar = {
     signOut: "تسجيل الخروج",
     signingIn: "جاري الدخول…",
     invalidCredentials: "بيانات الدخول غير صحيحة.",
-    demoAccounts: "حسابات تجريبية",
-    useAccount: "استخدم",
   },
   nav: {
     dashboard: "لوحة التحكم",
