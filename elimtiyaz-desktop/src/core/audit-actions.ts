@@ -15,6 +15,12 @@ export const AuditActions = {
   /** Self-service password change (plan §12.04). Matches Android's AuditActions.AUTH_PASSWORD_CHANGE. */
   AuthPasswordChange: "auth.password_change",
   AuthSessionRevoked: "auth.session_revoked",
+  /**
+   * Admin provisioned a login account for another user (T-079). Written by
+   * the create-user-account Edge Function (live) and MockUserAccountRepository
+   * (dev/demo). The payload NEVER contains the initial password (SEC-100).
+   */
+  UserAccountCreate: "user_account.create",
   /** VAULT §12.01 — system exports (PDF / XLSX / CSV) are tracked events. */
   SystemExport: "system.export",
   /** VAULT §12.01 — sensitive record views (data access requests) are tracked. */

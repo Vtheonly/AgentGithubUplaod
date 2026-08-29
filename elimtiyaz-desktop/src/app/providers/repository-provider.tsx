@@ -6,6 +6,7 @@ import {
 } from "../../infrastructure/supabase/supabase-client";
 import type {
   AuthRepository,
+  UserAccountRepository,
   ParentRepository,
   StudentRepository,
   ClassRepository,
@@ -58,6 +59,7 @@ import type {
 
 import {
   mockAuthRepository,
+  mockUserAccountRepository,
   mockParentRepository,
   mockStudentRepository,
   mockClassRepository,
@@ -110,6 +112,7 @@ import {
 
 export interface Repositories {
   readonly auth: AuthRepository;
+  readonly userAccounts: UserAccountRepository;
   readonly parents: ParentRepository;
   readonly students: StudentRepository;
   readonly classes: ClassRepository;
@@ -161,6 +164,7 @@ export interface Repositories {
 
 export const mockRepositories: Repositories = {
   auth: mockAuthRepository,
+  userAccounts: mockUserAccountRepository,
   parents: mockParentRepository,
   students: mockStudentRepository,
   classes: mockClassRepository,

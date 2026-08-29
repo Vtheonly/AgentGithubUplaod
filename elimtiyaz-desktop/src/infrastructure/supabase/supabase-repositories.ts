@@ -41,6 +41,7 @@ import { mockRepositories } from "../../app/providers/repository-provider";
 import { getSupabaseClient } from "./supabase-client";
 import { SupabaseAuthRepository } from "./repositories/supabase-auth-repository";
 import { SupabaseApprovalRepository } from "./repositories/supabase-approval-repository";
+import { SupabaseUserAccountRepository } from "./repositories/supabase-user-account-repository";
 import {
   SupabaseParentRepository,
   SupabaseStudentRepository,
@@ -84,6 +85,11 @@ export function getSupabaseRepositories(): Repositories {
   const client = getSupabaseClient();
   const auth = new SupabaseAuthRepository(client);
   const approvals = new SupabaseApprovalRepository(client);
+  // T-079 — admin account provisioning goes through the create-user-account
+  // EF (super_admin only). Explicitly overrides the mock spread below: in
+  // Supabase mode, minting into the in-memory seedAccounts would create an
+  // account nobody can actually sign in with.
+  const userAccounts = new SupabaseUserAccountRepository(client);
 
   // Shared entities — backed by the migration 0027 RPCs.
   const parents = new SupabaseParentRepository(client);
@@ -137,6 +143,7 @@ export function getSupabaseRepositories(): Repositories {
   const repositories: Repositories = {
     ...mockRepositories,
     auth,
+    userAccounts,
     parents,
     students,
     payments,

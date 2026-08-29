@@ -91,7 +91,7 @@ describe("T-079 MockUserAccountRepository — input validation", () => {
     const repo = new MockUserAccountRepository();
     const result = await repo.createAccount(makeInput({ email: "not-an-email" }));
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.kind).toBe("validation");
+    if (!result.ok) expect(result.error.code).toBe("ERR_VALIDATION");
   });
 
   it("rejects an empty email", async () => {
@@ -121,7 +121,7 @@ describe("T-079 MockUserAccountRepository — input validation", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       // conflict — NOT a generic server error, so the UI can message it
-      expect(["conflict", "validation"]).toContain(result.error.kind);
+      expect(["ERR_CONFLICT", "ERR_VALIDATION"]).toContain(result.error.code);
     }
   });
 
@@ -253,10 +253,11 @@ describe("T-079 MockUserAccountRepository — audit trail", () => {
     if (created.ok) {
       expect(entry.entityId).toBe(created.value.email);
     }
-    expect(String(entry.diff?.after)).toContain(input.email);
-    expect(String(entry.diff?.after)).toContain(Role.Manager);
+    // diff is stored as a JSON string (AuditEntry.diff: string | null).
+    expect(String(entry.diff)).toContain(input.email);
+    expect(String(entry.diff)).toContain(Role.Manager);
     // The audit entry must NOT embed the initial password (SEC-100 lesson).
-    expect(String(entry.diff?.after)).not.toContain(
+    expect(String(entry.diff)).not.toContain(
       created.ok ? created.value.initialPassword : "__no_password__",
     );
   });

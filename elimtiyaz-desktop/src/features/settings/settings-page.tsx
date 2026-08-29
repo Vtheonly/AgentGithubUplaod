@@ -15,7 +15,7 @@
  *     feature module.
  *
  * Tabs: Général / Tarification / Journal d'audit / Matrice RBAC /
- *       Inscriptions / Configuration / Synchronisation / IA /
+ *       Inscriptions / Comptes / Configuration / Synchronisation / IA /
  *       Sauvegardes / Fonctionnalités verrouillées
  *
  * Deep-linking: the `?tab=<id>` query param auto-selects a tab. The
@@ -36,6 +36,7 @@ import {
   ScrollText,
   Tag,
   UserCheck,
+  UserPlus,
   SlidersHorizontal,
   RefreshCw,
 } from "lucide-react";
@@ -50,6 +51,7 @@ import { PricingTab } from "./pricing-tab";
 import { AuditLogTab, AccessDeniedCard } from "./audit-log-tab";
 import { RbacMatrixEditor } from "./rbac-matrix-editor";
 import { ApprovalsTab } from "./approvals-tab";
+import { AccountsTab } from "./accounts-tab";
 import { ConfigurationTab } from "./configuration-tab";
 import { SyncTab } from "./sync-tab";
 import { AIConfigTab } from "./ai-config-tab";
@@ -62,7 +64,7 @@ import { LockedFeaturesTab } from "./locked-features-tab";
 
 /** All valid Settings tab IDs. Used to validate the ?tab= query param. */
 const VALID_TABS = [
-  "general", "pricing", "audit", "rbac", "approvals",
+  "general", "pricing", "audit", "rbac", "approvals", "accounts",
   "config", "sync", "ai", "backup", "locked",
 ] as const;
 
@@ -117,6 +119,7 @@ export function SettingsPage() {
           <PageTab value="audit" label={t("settings.audit")} icon={ScrollText} disabled={!canViewAudit} />
           <PageTab value="rbac" label={t("settings.rbac")} icon={Shield} />
           <PageTab value="approvals" label="Inscriptions" icon={UserCheck} />
+          <PageTab value="accounts" label="Comptes" icon={UserPlus} />
           <PageTab value="config" label="Configuration" icon={SlidersHorizontal} />
           <PageTab value="sync" label="Synchronisation" icon={RefreshCw} />
           <PageTab value="ai" label={t("settings.ai")} icon={Bot} />
@@ -142,6 +145,10 @@ export function SettingsPage() {
 
         <PageTabContent value="approvals" scrollable>
           <ApprovalsTab />
+        </PageTabContent>
+
+        <PageTabContent value="accounts" scrollable>
+          <AccountsTab />
         </PageTabContent>
 
         <PageTabContent value="config" scrollable>

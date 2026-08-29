@@ -1655,59 +1655,70 @@ export const seedCalendarEvents = [
  * (UNKNOWN-009) decides dev quick-fill is wanted, credentials must come from
  * a git-ignored source — never from literals in this tree.
  */
-export const seedAccounts = [
+/**
+ * Login accounts for the mock auth layer (T-001 removed the password
+ * literals). Type widened from the inferred 9-literal union to the full
+ * Role enum (T-079): admin-minted accounts via MockUserAccountRepository
+ * may use ANY wire role, including parent/student. Runtime unchanged.
+ */
+export const seedAccounts: {
+  email: string;
+  userId: string;
+  displayName: string;
+  role: Role;
+}[] = [
   {
     email: "admin@elimtiyaz.dz",
     userId: "usr-adm-001",
     displayName: "Brahim Souilah",
-    role: "super_admin" as const,
+    role: Role.SuperAdmin,
   },
   {
     email: "financial@elimtiyaz.dz",
     userId: "usr-fin-001",
     displayName: "Fatima Belkacem (Fin)",
-    role: "financial_officer" as const,
+    role: Role.FinancialOfficer,
   },
   {
     email: "teacher@elimtiyaz.dz",
     userId: "usr-tea-001",
     displayName: "Aïcha Bouhenni",
-    role: "teacher" as const,
+    role: Role.Teacher,
   },
   {
     email: "support@elimtiyaz.dz",
     userId: "usr-sup-001",
     displayName: "Toufik Ammar",
-    role: "support_staff" as const,
+    role: Role.SupportStaff,
   },
   {
     email: "manager@elimtiyaz.dz",
     userId: "usr-mgr-001",
     displayName: "Leïla Cherif",
-    role: "manager" as const,
+    role: Role.Manager,
   },
   {
     email: "buyer@elimtiyaz.dz",
     userId: "usr-buy-001",
     displayName: "Yacine Mansouri",
-    role: "buyer" as const,
+    role: Role.Buyer,
   },
   {
     email: "driver@elimtiyaz.dz",
     userId: "usr-drv-001",
     displayName: "Messaoud Khalfaoui",
-    role: "driver" as const,
+    role: Role.Driver,
   },
   {
     email: "warehouse@elimtiyaz.dz",
     userId: "usr-whw-001",
     displayName: "Rachid Hadj",
-    role: "warehouse_worker" as const,
+    role: Role.WarehouseWorker,
   },
   {
     email: "worker@elimtiyaz.dz",
     userId: "usr-wrk-001",
     displayName: "Said Bouzid",
-    role: "worker" as const,
+    role: Role.Worker,
   },
 ];

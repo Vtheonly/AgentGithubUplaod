@@ -8,6 +8,7 @@
  */
 import type { Result } from "../../core/result";
 import type { Session } from "../../core/rbac/session";
+import type { Role } from "../../core/rbac/roles";
 import type {
   Parent,
   CreateParentInput,
@@ -82,6 +83,50 @@ export interface AuthRepository {
    * changed — callers may write an audit entry on that basis.
    */
   changePassword(currentPassword: string, newPassword: string): Promise<Result<void>>;
+}
+
+/** Input for an admin provisioning a login account for another user (T-079). */
+export interface CreateAccountInput {
+  /** Login email — must be unique across existing accounts. */
+  email: string;
+  /** Display name shown in the UI (stored as user_profiles.display_name). */
+  fullName?: string;
+  /** Optional contact phone. */
+  phone?: string;
+  /** Role assigned at creation — one of the 11 wire codes. */
+  role: Role;
+  /**
+   * Initial password. When omitted/empty, the IMPLEMENTATION generates a
+   * policy-compliant one (plan §12.04). The admin conveys it to the user
+   * out-of-band; the user changes it at first sign-in (SEC-103 fixed the
+   * changePassword path, so this loop is closed).
+   */
+  initialPassword?: string;
+}
+
+/** Result of a successful account creation. */
+export interface CreatedAccount {
+  email: string;
+  role: Role;
+  /**
+   * The initial password — returned EXACTLY ONCE so the admin can hand it
+   * over. It is never persisted client-side and never written to the audit
+   * log (SEC-100 lesson).
+   */
+  initialPassword: string;
+}
+
+/**
+ * Admin-side account administration (T-079). Kept SEPARATE from
+ * AuthRepository: AuthRepository is the *self* authentication surface
+ * (sign in/out, own password); this interface is the *admin* surface
+ * (provisioning accounts for OTHER users). Supabase implementation goes
+ * through the create-user-account Edge Function (super_admin only);
+ * mock implementation mints into seedAccounts so created users can sign
+ * in during dev/demo without a backend.
+ */
+export interface UserAccountRepository {
+  createAccount(input: CreateAccountInput): Promise<Result<CreatedAccount>>;
 }
 
 export interface ParentRepository {

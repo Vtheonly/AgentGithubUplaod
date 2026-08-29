@@ -8,6 +8,7 @@ import { setOperationsAuditSink } from "./operations";
 
 // Re-export all singleton repository instances.
 export { mockAuthRepository } from "./repositories/auth-repository";
+export { mockUserAccountRepository } from "./repositories/user-account-repository";
 export { mockParentRepository } from "./repositories/parent-repository";
 export { mockStudentRepository } from "./repositories/student-repository";
 export {

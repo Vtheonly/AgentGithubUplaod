@@ -39,6 +39,7 @@ import { mockAuditRepository } from "./personnel-audit-repository";
 // circular import at module load time (the backup repository is itself one
 // of the singletons that makes up `Repositories`).
 import { mockAuthRepository } from "./auth-repository";
+import { mockUserAccountRepository } from "./user-account-repository";
 import { mockParentRepository } from "./parent-repository";
 import { mockStudentRepository } from "./student-repository";
 import {
@@ -212,6 +213,7 @@ export class MockBackupRepository implements BackupRepository {
   private get repositoriesRef(): import("../../../app/providers/repository-provider").Repositories {
     return {
       auth: mockAuthRepository,
+      userAccounts: mockUserAccountRepository,
       parents: mockParentRepository,
       students: mockStudentRepository,
       classes: mockClassRepository,
