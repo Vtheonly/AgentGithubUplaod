@@ -19,7 +19,7 @@
     "test:watch": "vitest",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron .\"",
     "electron:build": "vite build && tsc -p electron/tsconfig.json && electron-builder",
-    "start": "vite build && tsc -p electron/tsconfig.preload.json && mv dist-electron/preload.js dist-electron/preload.cjs && tsc -p electron/tsconfig.json && electron . --no-sandbox"
+    "start": "vite build && tsc -p electron/tsconfig.preload.json && mv dist-electron/preload.js dist-electron/preload.cjs && tsc -p electron/tsconfig.json && electron ."
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

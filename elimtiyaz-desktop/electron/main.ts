@@ -15,6 +15,19 @@
  *     touches Node directly).
  *   - All privileged operations go through the explicitly-allowlisted
  *     `preload.ts` bridge.
+ *
+ * Chromium OS-level sandbox (ARCH-002, task T-010): `npm start` runs
+ * `electron .` WITHOUT `--no-sandbox`. The flag was removed because it
+ * disabled the Chromium sandbox — the mitigation that contains a renderer
+ * exploit. If `npm start` fails on Linux with "The SUID sandbox helper
+ * binary was found, but is not configured correctly", fix the HOST, do not
+ * re-add the flag:
+ *   - `sudo chown root:root <electron>/chrome-sandbox && sudo chmod 4755 <electron>/chrome-sandbox`
+ *     (the SUID helper), or
+ *   - enable unprivileged user namespaces: `sysctl -k kernel.unprivileged_userns_clone=1`
+ *     (Debian-based hosts), or
+ *   - run from a properly configured container/CI image that provides one of
+ *     the above.
  */
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import * as path from "node:path";
