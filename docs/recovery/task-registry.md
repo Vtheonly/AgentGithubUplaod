@@ -14,7 +14,7 @@
 | **Completed (VERIFIED)** | 1 | T-000 |
 | **Completed (TESTED)** | 3 | T-001, T-003, T-009 (regression-tested; live-environment verification pending — see change-log) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 0 | — |
+| **In Progress** | 1 | T-079 (admin-created user accounts — owner feature request, started 2026-08-29) |
 | **Ready** (understood, dependencies cleared) | 57 | T-002, T-004…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-078 (new — desktop ESLint config, DEAD-201) |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
@@ -643,6 +643,14 @@
 - **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
 - **Tests:** `npm run lint` executes without a config error; findings triaged or fixed.
 - **Verification:** lint run + result recorded in change-log.
+- **ADRs:** —
+
+#### T-079 — Admin-created user accounts (feature — owner request, 2026-08-29) — **In Progress**
+- **Problems:** — (feature gap, not a registered defect; recorded per AGENTS.md §13) · **Priority:** P1 · **Severity:** —
+- **Description:** Owner request: "Implement the functionality in the desktop app that allows an admin to create accounts for other users so they can log in with their own accounts." Today a login account can ONLY originate from a web self-signup (migration 0002 trigger + ApprovalsTab approval); an admin cannot provision accounts directly (e.g. a new staff member). Plan: new SQL RPC `admin_create_user_account` (migration 0044 — atomically activates the trigger-created profile, assigns the chosen role, resolves the auto-created approval request; EXECUTE revoked from anon/authenticated, granted to service_role only), new Edge Function `create-user-account` (super_admin ONLY — deliberately narrower than approve-signup-request to avoid repeating SEC-107's support_staff→super_admin escalation; uses auth.admin.createUser with email_confirm=true + app_metadata.tenant_id = the SEC-108 trusted admin path), desktop `UserAccountRepository` domain contract with Supabase + Mock implementations (mock inserts into seedAccounts so created users can sign in — headless e2e testable), `AccountsTab` in Settings (SuperAdmin-gated, French UI per existing tabs), `UserAccountCreate` audit action. Initial password: admin-provided (same policy as changePassword) or generated; returned ONCE to the admin (never stored, never emailed — SEC-100 lesson); user changes it at first login (works since T-003).
+- **Dependencies:** none · **Affected:** D (migration 0044, EF, src) · **Platforms:** Desktop, Backend
+- **Tests:** new suite `src/tests/security/admin-create-account.test.tsx` — mock e2e (create → sign in as the new user with the chosen role), validation failures (bad email, weak password, unknown role, duplicate), Supabase repository EF payload mapping via fake client; full `npm test` + `npm run typecheck`. EF + migration cannot run headlessly (no Deno, no Postgres) — their status is capped at IMPLEMENTED unless a live environment is provided.
+- **Verification:** test run + typecheck recorded in change-log; EF/migration code-reviewed against the approve-signup-request pattern.
 - **ADRs:** —
 
 ---

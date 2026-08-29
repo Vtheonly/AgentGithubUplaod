@@ -14,7 +14,7 @@
 
 ## Currently in progress
 
-*(none — T-003 completed TESTED 2026-08-29 by the second repair session; evidence in `change-log.md`.)*
+**T-079 — Admin-created user accounts** (feature request from the owner, 2026-08-29, third repair session): desktop AccountsTab + `UserAccountRepository` (Supabase + Mock) + `create-user-account` EF (super_admin only, avoids SEC-107's escalation pattern) + `admin_create_user_account` RPC (migration 0044, EXECUTE restricted to service_role). Status capped at TESTED for the client stack; EF + migration are IMPLEMENTED-only without a live backend (no Deno/Postgres in this environment).
 
 ## Current recommendation
 
