@@ -12,7 +12,7 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 1 | T-000 |
-| **Completed (TESTED)** | 10 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log), T-081, T-019, T-049 (fifth session 2026-08-29), T-002 (sixth session 2026-08-29 — live sign-in matrix pending) |
+| **Completed (TESTED)** | 11 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log), T-081, T-019, T-049 (fifth session 2026-08-29), T-002, T-065 (sixth session 2026-08-29 — T-002's live sign-in matrix pending) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
 | **Ready** (understood, dependencies cleared) | 56 | T-005…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-080, T-082 (new — Android lint-gate baseline, ARCH-008) |
@@ -133,6 +133,14 @@
 - **Tests:** NEW `LocalAuthRepositoryTest` — 12 tests: fail-closed on configured-build failure (drives the real provider under Robolectric — every outcome is Err, no session); no demo session on unconfigured release; demo sandbox FIXED role with NO email inference ("finance.admin@" / "teacher@" sign-ins no longer yield FINANCIAL_OFFICER/TEACHER); role-resolution matrix (empty → support_staff; first-valid wins; legacy aliases; unrecognisable never escalates); buildServerSession real-JWT passthrough + no-assignments → support_staff defaults only (no MANAGE_SETTINGS/MANAGE_TENANTS/MANAGE_PERSONNEL); AuthEnvironment policy matrix; source-level guard against re-introducing email inference (T-001 technique).
 - **Verification:** `./gradlew :app:testDebugUnitTest` BUILD SUCCESSFUL — **219 tests / 0 failures** (207 baseline + 12 new); `./gradlew :app:compileDebugKotlin` and `./gradlew :app:assembleDebug` green. GAP (why TESTED, not VERIFIED): live sign-in matrix (real wrong-password 401, role_assignments-backed session, server-side JWT validation) needs a live Supabase — same recorded-gap pattern as T-004/T-079. NEW DISCOVERY registered during verification: **ARCH-008** — `./gradlew :app:lintDebug` has never been green (315 pre-existing NewApi errors, no lint baseline ever existed) → T-082.
 - **Commits:** 1aa34a7 (auth rework + tests), 89eec61 (CROSS-100 demo chips) — android repo.
+
+### T-065 — Website copy and comment accuracy
+- **Problems:** WEAK-023, DRIFT-010 · **Priority:** P3 · **Severity:** Medium/Low
+- **Status:** TESTED (2026-08-29, sixth repair session)
+- **What was done:** both defects were source comments that contradicted the code under them. (1) WEAK-023 — `useUnreadChatCount`'s comment claimed "the latest 200 messages per channel" while the query fetches the latest 500 `chat_messages` rows TOTAL with no channel filter; the comment now states the true semantics (500 rows total via RLS-exposed channels; the count is a LOWER BOUND beyond that window) and records that exact counting (channel-scoped fetch or server-side counter) is deliberately deferred to T-032's chat rework while chat has no production writers (CHAT-103 / UNKNOWN-005) — the query itself is unchanged by design. (2) DRIFT-010 — the attendance-view header said "The portal CANNOT submit justifications — that's a desktop workflow" while the view imports, renders and wires AbsenceJustificationDialog; the header now states the portal both DISPLAYS the 4-state justification status AND SUBMITS (storage upload + `attendance_records` update). (3) Same accuracy class, recorded during the task: the website repo's own AGENTS.md still claimed mock-auth was wired (removed in T-009) and the build ignored type errors (fixed in T-049) — synced to reality.
+- **Tests:** NEW `src/lib/hooks/comment-accuracy.test.ts` (2 tests) — source-scan guards pinning the stale phrases out, the corrected notes in, and the dialog wiring the corrected comment describes kept present (T-001/T-002 technique; both tests fail against the pre-fix sources by construction).
+- **Verification:** `npm run test` → 92/92 (90 baseline + 2 new); `npm run build` → compiled successfully WITH TypeScript running (strict); `npm run lint` → exactly the 2 documented pre-existing `react-hooks/preserve-manual-memoization` errors, none added. Runtime behaviour byte-identical (comments + new test file only, plus the AGENTS.md doc sync).
+- **Commits:** 5654074 — website repo.
 
 ---
 

@@ -21,15 +21,15 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 24 | | OPEN | 115 |
+| Critical | 24 | | OPEN | 113 |
 | High | 45 | | BLOCKED | 13 |
 | Medium | 61 | | DEFERRED | 5 |
 | Low | 19 | | VERIFIED | 1 |
-| | | | TESTED | 13 |
+| | | | TESTED | 15 |
 | | | | IMPLEMENTED | 1 |
 | | | | PARTIAL | 1 |
 
-**Totals:** 149 registered problems (145 consolidated from 185 audit findings + 4 discovered during repair sessions: DEAD-201, ARCH-006, ARCH-007, ARCH-008) · 115 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021) · 13 TESTED (SEC-100, SEC-007, SEC-103, SEC-105, DEAD-201 — fixed 2026-08-29 sessions 1–4; SEC-101, SEC-102, WEAK-101, CROSS-100 — T-002 sixth session; ARCH-005, DEAD-013, CROSS-200, ARCH-007 — fifth session; verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 1 PARTIAL (DEAD-012 — unblocked, full cleanup remains T-049).
+**Totals:** 149 registered problems (145 consolidated from 185 audit findings + 4 discovered during repair sessions: DEAD-201, ARCH-006, ARCH-007, ARCH-008) · 113 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021) · 15 TESTED (SEC-100, SEC-007, SEC-103, SEC-105, DEAD-201 — sessions 1–4; SEC-101, SEC-102, WEAK-101, CROSS-100 — T-002 sixth session; ARCH-005, DEAD-013, CROSS-200, ARCH-007 — fifth session; WEAK-023, DRIFT-010 — T-065 sixth session; verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 1 PARTIAL (DEAD-012 — unblocked, full cleanup remains T-049).
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -144,7 +144,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DRIFT-006 | Medium | OPEN | T-026 | Multiple iterations of "canonical overdue" rule across desktop engine, SQL function, and equivalence framework |
 | DRIFT-007 | Low | OPEN | T-062 | `SupabaseModule.kt` comment is outdated — claims "future remote sync can push local Room writes to Supabase by swapping @Binds" but SyncSupport already does the push |
 | DRIFT-009 | Medium | OPEN | T-057 | Canonical engine port ships ~20 calc files but only ~6 functions are used; `canonical/index.ts` barrel is never imported |
-| DRIFT-010 | Low | OPEN | T-065 | `attendance-view.tsx` comment says "The portal CANNOT submit justifications — that's a desktop workflow" but the code imports, renders, and wires the AbsenceJustificationDialog |
+| DRIFT-010 | Low | TESTED | T-065 | `attendance-view.tsx` comment says "The portal CANNOT submit justifications — that's a desktop workflow" but the code imports, renders, and wires the AbsenceJustificationDialog |
 | DRIFT-011 | High | OPEN | T-015 | Receipt-number generation logic is duplicated across 5 code paths with 5 different algorithms |
 | DUP-001 | High | OPEN | T-043 | Four parallel cross-platform equivalence test frameworks |
 | DUP-002 | High | OPEN | T-043 | Duplicate `kotlin_mirror_engine.ts` in two locations with drifted logic |
@@ -170,7 +170,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | WEAK-020 | Low | OPEN | T-056 | `paymentStatusTone` doesn't handle `cancelled` or `pending_clearance` statuses — renders the raw status string instead of a translated label |
 | WEAK-021 | Low | VERIFIED | — | README claims "68 tests passing" and DONE.md claims "68/68" but the actual count is 87 (after commit 03f6365 added 19 new tests) |
 | WEAK-022 | Medium | OPEN | T-035 | `useLedgerEntries` fetches with `.limit(500)`; `portalFinancialSummary` replays ONLY 500 entries — balance computation is WRONG for parents with > 500 ledger entries |
-| WEAK-023 | Medium | OPEN | T-065 | `useUnreadChatCount` fetches 500 messages across ALL channels (no channel filter in query), counts client-side — comment claims "200 per channel" |
+| WEAK-023 | Medium | TESTED | T-065 | `useUnreadChatCount` fetches 500 messages across ALL channels (no channel filter in query), counts client-side — comment claims "200 per channel" |
 | WEAK-100 | Medium | OPEN | T-072 | Activation codes use Postgres random() (non-cryptographic); 7-digit space is brute-forceable; no rate limit on website activation endpoint |
 | WEAK-101 | Medium | TESTED | T-002 | Android LocalAuthRepository stores user UUID as accessToken (fake JWT that doesn't validate server-side) — real JWT stored 2026-08-29 (T-002) |
 | WEAK-200 | Medium | OPEN | T-061 | `enforce_payment_proof` trigger runs on EVERY payment INSERT/UPDATE; Android refund sync triggers re-validation of unchanged proof fields |
@@ -2206,6 +2206,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 
+- **Resolution (2026-08-29, T-065 — TESTED):** the misleading comment is corrected to the code's true semantics (latest 500 rows TOTAL via RLS-exposed channels; the count is a LOWER BOUND when volume exceeds the window; exact counting deliberately deferred to the chat rework T-032 while chat has no production writers — CHAT-103 / UNKNOWN-005). The QUERY itself is unchanged by design: a channel-scoped or server-side count belongs to T-032's scope. A source-scan regression test (`comment-accuracy.test.ts`) pins the stale phrase out and the accuracy note in. Evidence: website commit `5654074`; hub change-log sixth session.
+
 ---
 
 ### DRIFT-009 — Canonical engine port ships ~20 calc files but only ~6 functions are used; `canonical/index.ts` barrel is never imported
@@ -2230,7 +2232,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DRIFT-010 — `attendance-view.tsx` comment says "The portal CANNOT submit justifications — that's a desktop workflow" but the code imports, renders, and wires the AbsenceJustificationDialog
 
-- **Category:** DRIFT  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DRIFT  |  **Severity:** Low  |  **Status:** TESTED (2026-08-29, T-065)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-065 (docs/recovery/task-registry.md)
@@ -2244,6 +2246,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** N/A
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+
+- **Resolution (2026-08-29, T-065 — TESTED):** the header comment now states the truth: the portal both DISPLAYS the 4-state justification status (staff uploads included) AND SUBMITS via AbsenceJustificationDialog (storage upload to `attendance-justifications` + `attendance_records` justification-field update). The source-scan test also pins that the dialog wiring the corrected comment describes stays present. Evidence: website commit `5654074`; hub change-log sixth session.
 
 ---
 
@@ -2735,7 +2739,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-023 — `useUnreadChatCount` fetches 500 messages across ALL channels (no channel filter in query), counts client-side — comment claims "200 per channel"
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-08-29, T-065)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-065 (docs/recovery/task-registry.md)
