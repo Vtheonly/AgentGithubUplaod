@@ -93,7 +93,9 @@
 
 ## In Progress
 
-*(none — T-004 and T-078 completed 2026-08-29 by the fourth repair session; evidence in change-log.md.)*
+*Fifth repair session (2026-08-29):* **T-081** (Android build restoration, ARCH-007) and **T-019** (Android sync error surfacing, CROSS-200) are checked out for this session, plus **T-049** (website build hygiene, ARCH-005/DEAD-013) — headless verification now possible for Android: JDK 17 + Android SDK 35 bootstrapped outside the repo (see change-log for the toolchain recipe).
+
+*(Historical note: T-004 and T-078 completed 2026-08-29 by the fourth repair session; evidence in change-log.md.)*
 
 ## Ready
 
@@ -164,6 +166,15 @@
 - **Tests:** mock vs supabase assembly contract tests; seeded Supabase ledger → scan creates real notifications (integration needs a live backend for VERIFIED).
 - **Verification:** regression tests + change-log evidence.
 - **ADRs:** —
+
+#### T-081 — Restore the Android build at HEAD (re-open the `./gradlew` verification gate) — created 2026-08-29, fifth session
+- **Problems:** ARCH-007 (new — discovered 2026-08-29 while bootstrapping an Android build environment) · **Priority:** P0 · **Severity:** High
+- **Description:** `elimtiyaz-android` HEAD fails to compile (`./gradlew :app:compileDebugKotlin` → 2 unresolved references): `ClassesDirectoryViewModel.kt` constructor param `sessionManager` lacks the `private val` modifier (referenced by the `canPromote` getter); `AppNavHost.kt` references `PromotionReviewScreen` without importing it. Fix both minimally (no behaviour change) and re-run the full unit-test suite to establish the Android test baseline. Without this task NO Android task (T-002, T-019, T-026, …) can reach TESTED.
+- **Dependencies:** none · **Affected:** A · **Platforms:** Android
+- **Tests:** `./gradlew :app:compileDebugUnitTestKotlin` green; `./gradlew test` green with the passing-test count recorded as the baseline.
+- **Verification:** evidence in change-log.md.
+- **ADRs:** —
+- **Status:** IN PROGRESS (2026-08-29, fifth repair session)
 
 ### Phase 1 — Financial integrity (P1)
 

@@ -3047,3 +3047,22 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Create `SupabaseOverdueAlertGenerator` (or EF invocation wrapper), override `overdueAlerts` in the Supabase assembly, add regression tests (mock vs supabase assembly contract), and check the remaining mock-backed slots for similar user-facing instances (feeds T-047).
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+
+---
+
+### ARCH-007 — Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken
+
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** OPEN
+- **Repositories:** elimtiyaz-android
+- **Platforms affected:** Android
+- **Task:** T-081 (docs/recovery/task-registry.md — created 2026-08-29, fifth repair session)
+- **Consolidated from:** NEW — discovered while bootstrapping an Android build environment (JDK 17 + Android SDK 35) for the Android tasks T-002/T-019 (2026-08-29), not in either audit pass
+- **Description:** `elimtiyaz-android` HEAD (7159b53) fails to compile — `./gradlew :app:compileDebugKotlin` aborts with 2 unresolved references: (1) `app/src/main/java/com/example/ui/features/academics/ClassesDirectoryViewModel.kt:48` — the `canPromote` getter references `sessionManager`, but the constructor parameter (line 30) is declared WITHOUT the `private val` property modifier, so no property exists to reference; (2) `app/src/main/java/com/example/ui/navigation/AppNavHost.kt:344` — `PromotionReviewScreen(...)` is referenced but never imported (the composable exists at `app/src/main/java/com/example/ui/features/academics/PromotionReviewScreen.kt`, package `com.example.ui.features.academics`; AppNavHost imports five sibling academics screens but not this one). Consequence: NO Android verification command can run — `./gradlew test`, `./gradlew lint`, `./gradlew assembleDebug` all fail at compilation — so the per-repo `AGENTS.md` §6 gate has been inoperable since these files were last committed.
+- **Location:** `elimtiyaz-android/app/src/main/java/com/example/ui/features/academics/ClassesDirectoryViewModel.kt:30,48` ;; `elimtiyaz-android/app/src/main/java/com/example/ui/navigation/AppNavHost.kt:13-17,344`
+- **Evidence:** Runtime evidence (2026-08-29, fifth session): fresh clone of HEAD; toolchain = Temurin JDK 17.0.20.1+1 + Android SDK (platforms;android-35, build-tools;35.0.0, cmdline-tools) on a headless Linux container; `./gradlew :app:compileDebugUnitTestKotlin` → `e: ...ClassesDirectoryViewModel.kt:48:13 Unresolved reference 'sessionManager'` and `e: ...AppNavHost.kt:344:17 Unresolved reference 'PromotionReviewScreen'`; 17 actionable tasks executed, both errors reproduced on a second run. Last touches of both files belong to the "mid/kk/dd" commit batch.
+- **Root cause:** Kotlin changes were committed without ever compiling. The per-repo AGENTS.md verification gate (§6) was only established on 2026-08-29 (T-000) — no automated or documented gate existed when these files were last edited. This also means the earlier sessions' "T-002 infeasible headlessly" verdicts stopped at the missing toolchain and never reached the second, independent blocker: the build itself is broken.
+- **Current behavior:** Every `./gradlew` build/test/lint invocation fails with the two unresolved references; no Android test has demonstrably run since these commits.
+- **Expected behavior:** HEAD compiles; `./gradlew test` is runnable; the AGENTS.md §6 gate is operative for all future Android tasks.
+- **Proposed resolution:** Two minimal mechanical fixes, no behaviour change: (1) declare the constructor parameter as `private val sessionManager: SessionManager`; (2) add the missing `import com.example.ui.features.academics.PromotionReviewScreen` to AppNavHost.kt. Then run the full unit-test suite and record the count as the new Android baseline.
+- **Dependencies:** none recorded
+- **Verification:** `./gradlew :app:compileDebugKotlin` green; `./gradlew test` green with the passing-test count recorded in change-log; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.

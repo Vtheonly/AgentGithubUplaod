@@ -14,7 +14,7 @@
 
 ## Currently in progress
 
-*(none — the fourth repair session (2026-08-29) completed T-004 (TESTED) and T-078 (TESTED) and registered ARCH-006 → T-080; evidence in `change-log.md`.)*
+*Fifth repair session (2026-08-29):* **T-081** (Android build restoration at HEAD — new problem ARCH-007, discovered when a JDK 17 + Android SDK 35 toolchain was finally bootstrapped) → then **T-019** (Android sync RPC error surfacing, CROSS-200, P1). In parallel: **T-049** (website build hygiene: `ignoreBuildErrors:false` + the 86 surfaced TS errors + strict mode + DEAD-013 `icons:generate` path). The Android toolchain recipe lives in the change-log entry of this session.
 
 **T-079 close-out note:** the backend half (migration 0044 + create-user-account EF) needs a live environment to reach TESTED/VERIFIED: `supabase db push` + `supabase functions deploy create-user-account`, then a live round-trip (SuperAdmin creates an account in Settings → Comptes → the new user signs in → changes their password). This deployment step is the task's only remaining work.
 
