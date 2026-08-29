@@ -54,7 +54,7 @@ export function SyncIndicator() {
   // Choose icon + tone based on state.
   let Icon = Cloud;
   let tone = "text-muted-foreground";
-  let label = "Synchronisation";
+  const label = "Synchronisation";
   let description: string;
 
   if (!online) {

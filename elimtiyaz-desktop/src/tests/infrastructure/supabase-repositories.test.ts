@@ -139,7 +139,7 @@ class FakeQuery {
   }
 
   private applyOrder(rows: Row[]): Row[] {
-    let out = [...rows];
+    const out = [...rows];
     for (const { col, asc } of [...this.orders].reverse()) {
       out.sort((a, b) => {
         const av = a[col] ?? "";

@@ -6,7 +6,12 @@ import { Role, ROLE_LABELS_FR } from "../../../../core/rbac/roles";
 import { StepHeader } from "./step-header";
 
 export function PermissionsStep() {
-  const state = useObservable(() => useRepositories().onboarding.observe(), []);
+  // T-078 (rules-of-hooks fix): useRepositories() is a hook and must be
+  // called at the top level of the component, not inside the useObservable
+  // factory callback. Hoisted here — same pattern as the sibling steps
+  // (managers-step, review-step, …).
+  const repos = useRepositories();
+  const state = useObservable(() => repos.onboarding.observe(), []);
   return (
     <div className="space-y-4">
       <StepHeader

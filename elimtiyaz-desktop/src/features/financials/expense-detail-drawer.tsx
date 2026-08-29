@@ -384,7 +384,10 @@ export function ExpenseDetailDrawer({
               />
             </label>
             {proofDataUrl && proofFile && proofFile.type.startsWith("image/") && (
-              // eslint-disable-next-line jsx-a11y/img-redundant-alt -- proof preview
+              // T-078: removed the stale eslint-disable directive — it named
+              // jsx-a11y/img-redundant-alt, a rule that is not configured in
+              // this repo (ESLint reports unknown-rule directives as errors).
+              // The alt text below is descriptive anyway, not redundant.
               <img
                 src={proofDataUrl}
                 alt="Aperçu du justificatif"

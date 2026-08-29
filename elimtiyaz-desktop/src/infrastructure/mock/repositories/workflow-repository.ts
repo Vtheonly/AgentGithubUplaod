@@ -238,7 +238,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     let cursor = startedAtMs;
     let failed = false;
     let failedNodeId: string | null = null;
-    let timedOut = false;
+    const timedOut = false;
     let conditionFailed = false;
     for (const n of wf.nodes) {
       const nodeStart = new Date(cursor).toISOString();
