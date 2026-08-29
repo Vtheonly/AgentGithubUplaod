@@ -14,26 +14,27 @@
 
 ## Currently in progress
 
-**T-003 — Make desktop changePassword actually change the password** (started 2026-08-29, second repair session).
-
-Selection note: the primary recommendation T-002 was checked first but is **infeasible in this environment** — `./gradlew test` cannot run (no `ANDROID_HOME`, no Android SDK, only a JRE installed so no `javac`, and no root to install packages). Per the fallback rule below, T-003 is the pick. T-002 remains the top recommendation for any agent WITH an Android build host.
+*(none — T-003 completed TESTED 2026-08-29 by the second repair session; evidence in `change-log.md`.)*
 
 ## Current recommendation
 
 **T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — **requires an Android build host** (`./gradlew test`, JDK with javac, Android SDK).
 
-Rationale: with T-001, T-009 and now T-003 done, T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) is the highest-severity dependency-free task left in Phase 0. It needs the Android toolchain and a documented manual sign-in matrix. If no Android build environment is available (as in the 2026-08-29 headless sessions: no ANDROID_HOME, no JDK, no root), fall back to **T-004** (cron EF authentication, SEC-105) — verifiable at the code level without a live backend. A live Supabase environment is still needed for T-004's curl matrix, so without one, next in line is **T-078** (desktop ESLint config, DEAD-201 — fully headless-verifiable).
+Rationale: with T-001, T-003 and T-009 done, T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) is the highest-severity dependency-free task left in Phase 0. It needs the Android toolchain (`./gradlew test`) and a documented manual sign-in matrix. **Verified infeasible in the 2026-08-29 headless sessions** (no ANDROID_HOME, no Android SDK, JRE-only Java so no javac, no root to install — `./gradlew help` fails at toolchain resolution): fall back to **T-004** (cron EF authentication, SEC-105) — verifiable at the code level without a live backend. A live Supabase environment is still needed for T-004's curl matrix, so without one, next in line is **T-078** (desktop ESLint config, DEAD-201 — fully headless-verifiable).
+
+Session outcome (2026-08-29, second session): T-003 TESTED (SEC-103 resolved — changePassword now delegates to the repository; audit entry no longer forged; 12-test regression suite + full suite 1969/1969). T-002 checked and confirmed infeasible headlessly (toolchain evidence above).
 
 Batch outcome (2026-08-29): T-001 TESTED (SEC-100 resolved; passwords still need rotation in deployed environments), T-009 TESTED (SEC-007 resolved; Google OAuth is the only website auth path), T-010 IMPLEMENTED (ARCH-002; sandboxed launch log still needed on a desktop host). New discovery registered: DEAD-201 (desktop lint unrunnable) → T-078.
 
 Suggested order for the first sessions (all P0, dependency-free):
 
 1. ~~**T-001** — desktop credentials (SEC-100)~~ — DONE 2026-08-29 (TESTED)
-2. **T-002** — Android SUPER_ADMIN fallback (SEC-101/102) — *next pick*
+2. **T-002** — Android SUPER_ADMIN fallback (SEC-101/102) — *next pick, needs an Android build host*
 3. ~~**T-009** — website mock-auth removal (SEC-007)~~ — DONE 2026-08-29 (TESTED)
-4. **T-005** — tenant-scoped RBAC resolver + admin policies (TENANT-100/101)
-5. **T-006** — SECURITY DEFINER RPC caller verification (SEC-110/106/112/111)
-6. Then the rest of Phase 0 (T-003, T-004, T-007, T-008, T-071) before any Phase 1 financial work. ~~T-010~~ DONE 2026-08-29 (IMPLEMENTED — needs a sandboxed launch log to reach TESTED).
+4. ~~**T-003** — desktop changePassword no-op (SEC-103)~~ — DONE 2026-08-29 (TESTED, second session; was the T-002 fallback)
+5. **T-005** — tenant-scoped RBAC resolver + admin policies (TENANT-100/101)
+6. **T-006** — SECURITY DEFINER RPC caller verification (SEC-110/106/112/111)
+7. Then the rest of Phase 0 (T-004, T-007, T-008, T-071) before any Phase 1 financial work. ~~T-010~~ DONE 2026-08-29 (IMPLEMENTED — needs a sandboxed launch log to reach TESTED).
 
 ## What NOT to pick next (and why)
 

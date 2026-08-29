@@ -7,21 +7,21 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-29, updated after the first repair batch)
+## Progress summary (2026-08-29, updated after the second repair session — T-003)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 1 | T-000 |
-| **Completed (TESTED)** | 2 | T-001, T-009 (regression-tested; live-environment verification pending — see change-log) |
+| **Completed (TESTED)** | 3 | T-001, T-003, T-009 (regression-tested; live-environment verification pending — see change-log) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 1 | T-003 (desktop changePassword no-op — SEC-103) |
+| **In Progress** | 0 | — |
 | **Ready** (understood, dependencies cleared) | 57 | T-002, T-004…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-078 (new — desktop ESLint config, DEAD-201) |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
 
-**Recommended next task:** T-003 in progress (see `next-task.md` — T-002 remains recommended but needs an Android build host). **Dependency chains:** §Dependency graph at the end of this file.
+**Recommended next task:** T-004 for headless agents (T-002 still first choice with an Android build host — see `next-task.md`). **Dependency chains:** §Dependency graph at the end of this file.
 
 ---
 
@@ -65,20 +65,19 @@
 - **Verification:** rg 'no-sandbox' → only the explanatory comment remains; package.json still valid JSON; `npx tsc -p electron/tsconfig.json --noEmit` compiles clean. Advance to TESTED once a sandboxed launch log is recorded on a desktop host.
 - **Commits:** af655b1 — hub repo.
 
+### T-003 — Make desktop changePassword actually change the password
+- **Problems:** SEC-103 · **Priority:** P0 · **Severity:** High
+- **Status:** TESTED (2026-08-29)
+- **What was done:** `changePassword` added to the `AuthRepository` domain interface with a documented contract (re-authenticate, persist via backend, revoke sessions — Ok means the password REALLY changed), making typecheck enforce it on every implementation; `AuthProvider.changePassword` now delegates to `repos.auth.changePassword` — the pre-existing canonical implementation in `SupabaseAuthRepository` (reused verbatim per the Existing-Implementation-First rule; its inline re-auth + `auth.updateUser` + global signOut now actually run). The audit entry is written ONLY after the repository returns Ok (previously forged); on failure the session is preserved and no audit entry is written; ERR_UNAUTHORIZED maps to the existing French "Mot de passe actuel incorrect." message; `AuditActions.AuthPasswordChange` constant added (wire value `auth.password_change` unchanged, matches Android). `MockAuthRepository` implements the method per post-T-001 mock semantics (non-empty current password + strength rules; Ok is a documented dev/demo no-op). Deviation from the problem entry's phrasing ("after re-authentication") recorded: re-authentication is DELEGATED to the repository, which already owns it as its first step — the provider's duplicate inline re-auth was removed rather than kept.
+- **Tests:** NEW `src/tests/security/change-password.test.tsx` (12 tests) — includes the task's stated integration test (after a change the old password no longer signs in and the new one does), the delegation regression, audit-only-after-success with real-actor attribution, wrong-current-password error + session preserved, repository-failure surfacing, success clears local session, strength fast-fails, no-session refusal, and 4 mock compliance tests. RED state recorded: 8 failed | 4 passed before the fix (commit 9287595).
+- **Verification:** `npx vitest run src/tests/security/change-password.test.tsx` 12/12 pass after the fix; `npm run typecheck` clean (also proves both implementations satisfy the extended interface); `npm test` 42 files / 1969 tests ALL PASS (was 41/1957). Gap (why TESTED, not VERIFIED): live round-trip against a real Supabase project from a running desktop build — needs a desktop host + configured backend. `npm run lint` could not run — pre-existing defect DEAD-201 / T-078.
+- **Commits:** 9287595 (failing regression tests), 2e934ff (fix), 0700215 (registry checkout) — hub repo.
+
 ---
 
 ## In Progress
 
-### T-003 — Make desktop changePassword actually change the password
-- **Problems:** SEC-103 · **Priority:** P0 · **Severity:** High
-- **Description:** (1) Wire `AuthProvider.changePassword` to `repos.auth.changePassword` (which calls `auth.updateUser`); write the audit entry only after success; remove or implement the "revokes all sessions" claim.
-- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
-- **Tests:** integration test — after change, old password fails, new password works.
-- **Verification:** test green; audit entry reflects the real actor.
-- **ADRs:** —
-- **Status:** IN_PROGRESS (2026-08-29 — selected per `next-task.md` fallback rule: T-002 needs an Android build host, unavailable in this environment: no ANDROID_HOME, no JDK/javac, no root to install). Implementation plan: extend the `AuthRepository` interface with `changePassword` (the real implementation already exists in `SupabaseAuthRepository.changePassword`), implement the mock, wire the provider (re-auth delegated to the repository, which owns it), audit only after success.
-
----
+*(none — T-003 completed 2026-08-29 by the second repair session; evidence in change-log.md.)*
 
 ## Ready
 

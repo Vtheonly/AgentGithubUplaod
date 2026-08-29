@@ -26,7 +26,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | Medium | 59 | | DEFERRED | 5 |
 | Low | 19 | | VERIFIED | 1 |
 
-**Totals:** 145 consolidated problems from 185 audit findings · 121 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021, resolved by the documentation reset itself) · 2 TESTED (SEC-100, SEC-007 — fixed 2026-08-29, verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 2 PARTIAL (CROSS-100 desktop half fixed, DEAD-012 unblocked) · plus 1 new problem registered this session (DEAD-201, see change-log 2026-08-29).
+**Totals:** 145 consolidated problems from 185 audit findings · 120 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021, resolved by the documentation reset itself) · 3 TESTED (SEC-100, SEC-007, SEC-103 — fixed 2026-08-29, verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 2 PARTIAL (CROSS-100 desktop half fixed, DEAD-012 unblocked) · plus 1 new problem registered 2026-08-29 (DEAD-201, see change-log 2026-08-29).
 
 ## Index (by ID)
 
@@ -43,7 +43,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-100 | Critical | TESTED | T-001 | Desktop login screen ships 9 hardcoded staff credentials as quick-fill buttons (in git) |
 | SEC-101 | Critical | OPEN | T-002 | Android LocalAuthRepository grants SUPER_ADMIN on ANY failed/empty Supabase login (offline fallback) |
 | SEC-102 | Critical | OPEN | T-002 | Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails |
-| SEC-103 | High | OPEN | T-003 | Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password |
+| SEC-103 | High | TESTED | T-003 | Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password |
 | SEC-105 | High | OPEN | T-004 | Anonymous invocation of 4 cron EFs (no auth check when no Authorization header) |
 | SEC-106 | High | OPEN | T-006 | register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception) |
 | SEC-107 | High | OPEN | T-008 | approve-signup-request EF allows support_staff → super_admin role escalation |
@@ -400,7 +400,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-103 — Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED (fixed 2026-08-29, task T-003)
+- **Status note:** RESOLVED — `changePassword` added to the `AuthRepository` interface (documented contract: re-authenticate, persist via backend, revoke sessions — Ok means the password REALLY changed), so typecheck now enforces it on every implementation; `AuthProvider.changePassword` delegates to `repos.auth.changePassword` (the pre-existing canonical implementation — reused verbatim, not rewritten); the audit entry is written ONLY after the repository returns Ok (no longer forged); on failure the session is preserved and no audit entry is written; ERR_UNAUTHORIZED maps to the specific French "Mot de passe actuel incorrect." message; mock implements the method per post-T-001 semantics; `AuditActions.AuthPasswordChange` constant added matching Android's wire value. Regression suite `src/tests/security/change-password.test.tsx` (12 tests) — 8 failed before the fix (incl. the task's stated integration test: after a change the old password no longer signs in and the new one does), 12 pass after. Full suite 1969/1969, typecheck clean. Remaining gap (why TESTED not VERIFIED): live round-trip against a real Supabase project from a running desktop build — needs a desktop host + configured backend. Evidence: change-log 2026-08-29 / hub commits 9287595, 2e934ff.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-003 (docs/recovery/task-registry.md)
