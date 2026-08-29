@@ -12,8 +12,8 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 1 | T-000 |
-| **In Progress** | 0 | — |
-| **Ready** (understood, dependencies cleared) | 60 | T-001…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071 |
+| **In Progress** | 3 | T-001, T-009, T-010 (started 2026-08-29, batch session) |
+| **Ready** (understood, dependencies cleared) | 57 | T-002…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071 |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
@@ -39,13 +39,7 @@
 
 ## In Progress
 
-*(none — no repair work has begun)*
-
----
-
-## Ready
-
-### Phase 0 — Security hotfixes (P0)
+*(Started 2026-08-29 — one balanced batch session: two Critical security removals + one sandbox hardening. All three are dependency-free, client-side-only tasks that need no live backend and no equivalence runs. Entries moved verbatim from the Ready list below; status returns there if the session aborts.)*
 
 #### T-001 — Remove hardcoded staff credentials from the desktop login screen
 - **Problems:** SEC-100, CROSS-100 · **Priority:** P0 · **Severity:** Critical
@@ -54,6 +48,30 @@
 - **Tests:** unit test asserting no credential literal exists in the production bundle; login still works with real accounts.
 - **Verification:** `rg "admin123|fin123|teach123" elimtiyaz-desktop/src` returns nothing; build-time check passes.
 - **ADRs:** —
+
+#### T-009 — Remove the website mock-auth system
+- **Problems:** SEC-007 (absorbs REG-003, DEAD-010) · **Priority:** P0 · **Severity:** Critical
+- **Description:** Delete `src/lib/auth/mock-auth.ts`, `signInWithMock`, the unconditional localStorage hydration, and the env flag; Google OAuth remains the only path.
+- **Dependencies:** none · **Affected:** W · **Platforms:** Website
+- **Tests:** a planted `mock-auth-session` key produces no authenticated state; real OAuth flow unaffected.
+- **Verification:** `rg "mock-auth|signInWithMock" src` clean; test green.
+- **ADRs:** —
+
+#### T-010 — Remove --no-sandbox from the desktop start script
+- **Problems:** ARCH-002 · **Priority:** P0 · **Severity:** Medium
+- **Description:** Remove the flag from `package.json` `start`; document the host requirement (Linux SUID helper / kernel flags) that motivated it.
+- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
+- **Tests:** app launches with sandbox enabled on a clean host.
+- **Verification:** launch log recorded.
+- **ADRs:** —
+
+---
+
+## Ready
+
+### Phase 0 — Security hotfixes (P0)
+
+> T-001, T-009 and T-010 were moved to **In Progress** (2026-08-29) — see above. They are NOT available for pickup until this session records their outcome.
 
 #### T-002 — Close Android authentication bypasses
 - **Problems:** SEC-101, SEC-102, WEAK-101 · **Priority:** P0 · **Severity:** Critical
@@ -109,22 +127,6 @@
 - **Dependencies:** none · **Affected:** D (functions) · **Platforms:** Backend
 - **Tests:** support_staff→super_admin attempt returns 403; approval without target returns 400.
 - **Verification:** EF test matrix in change-log.
-- **ADRs:** —
-
-#### T-009 — Remove the website mock-auth system
-- **Problems:** SEC-007 (absorbs REG-003, DEAD-010) · **Priority:** P0 · **Severity:** Critical
-- **Description:** Delete `src/lib/auth/mock-auth.ts`, `signInWithMock`, the unconditional localStorage hydration, and the env flag; Google OAuth remains the only path.
-- **Dependencies:** none · **Affected:** W · **Platforms:** Website
-- **Tests:** a planted `mock-auth-session` key produces no authenticated state; real OAuth flow unaffected.
-- **Verification:** `rg "mock-auth|signInWithMock" src` clean; test green.
-- **ADRs:** —
-
-#### T-010 — Remove --no-sandbox from the desktop start script
-- **Problems:** ARCH-002 · **Priority:** P0 · **Severity:** Medium
-- **Description:** Remove the flag from `package.json` `start`; document the host requirement (Linux SUID helper / kernel flags) that motivated it.
-- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
-- **Tests:** app launches with sandbox enabled on a clean host.
-- **Verification:** launch log recorded.
 - **ADRs:** —
 
 #### T-071 — Tighten RLS INSERT policies for chat and notifications
