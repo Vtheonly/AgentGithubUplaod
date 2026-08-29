@@ -14,7 +14,7 @@
 
 ## Currently in progress
 
-*(none — T-079 completed 2026-08-29 by the third repair session; client stack TESTED, backend IMPLEMENTED — evidence in `change-log.md`.)*
+**T-004** (cron EF authentication, SEC-105) — started 2026-08-29, fourth repair session (headless: no Deno, no live Supabase, no Android SDK). Implementation = shared `_shared/cron-auth.ts` guard on the 4 cron EFs, anonymous denied 401; verification = new vitest suite (guard units + source scans); live curl matrix stays the recorded gap → expected outcome TESTED, not VERIFIED. **T-078** (desktop ESLint flat config, DEAD-201) queued next in the same session.
 
 **T-079 close-out note:** the backend half (migration 0044 + create-user-account EF) needs a live environment to reach TESTED/VERIFIED: `supabase db push` + `supabase functions deploy create-user-account`, then a live round-trip (SuperAdmin creates an account in Settings → Comptes → the new user signs in → changes their password). This deployment step is the task's only remaining work.
 

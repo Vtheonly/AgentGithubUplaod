@@ -77,7 +77,8 @@
 
 ## In Progress
 
-*(none — T-003 completed 2026-08-29 by the second repair session; evidence in change-log.md.)*
+### T-004 — Require authentication on the four cron Edge Functions — IN PROGRESS (2026-08-29, fourth repair session)
+- Headless session (no Deno/live Supabase): implementing the CRON_SECRET + service-role internal-invocation guard (`_shared/cron-auth.ts`) on `expire-pending-approvals`, `refresh-materialized-views`, `purge-expired-backups`, `run-overdue-scan`; anonymous requests denied 401. Verification: new vitest regression suite (`src/tests/security/cron-auth.test.ts`) — guard unit tests + source-pattern scans; live curl matrix remains the recorded gap. T-078 (desktop ESLint config) queued second in the same session.
 
 ## Ready
 
