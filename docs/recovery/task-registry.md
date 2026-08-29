@@ -14,14 +14,14 @@
 | **Completed (VERIFIED)** | 1 | T-000 |
 | **Completed (TESTED)** | 2 | T-001, T-009 (regression-tested; live-environment verification pending — see change-log) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 0 | — |
-| **Ready** (understood, dependencies cleared) | 58 | T-002…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-078 (new — desktop ESLint config, DEAD-201) |
+| **In Progress** | 1 | T-003 (desktop changePassword no-op — SEC-103) |
+| **Ready** (understood, dependencies cleared) | 57 | T-002, T-004…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-078 (new — desktop ESLint config, DEAD-201) |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
 
-**Recommended next task:** T-002 (see `next-task.md`). **Dependency chains:** §Dependency graph at the end of this file.
+**Recommended next task:** T-003 in progress (see `next-task.md` — T-002 remains recommended but needs an Android build host). **Dependency chains:** §Dependency graph at the end of this file.
 
 ---
 
@@ -69,7 +69,14 @@
 
 ## In Progress
 
-*(none — the 2026-08-29 batch session completed: T-001 TESTED, T-009 TESTED, T-010 IMPLEMENTED; see Completed above and change-log.md.)*
+### T-003 — Make desktop changePassword actually change the password
+- **Problems:** SEC-103 · **Priority:** P0 · **Severity:** High
+- **Description:** (1) Wire `AuthProvider.changePassword` to `repos.auth.changePassword` (which calls `auth.updateUser`); write the audit entry only after success; remove or implement the "revokes all sessions" claim.
+- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
+- **Tests:** integration test — after change, old password fails, new password works.
+- **Verification:** test green; audit entry reflects the real actor.
+- **ADRs:** —
+- **Status:** IN_PROGRESS (2026-08-29 — selected per `next-task.md` fallback rule: T-002 needs an Android build host, unavailable in this environment: no ANDROID_HOME, no JDK/javac, no root to install). Implementation plan: extend the `AuthRepository` interface with `changePassword` (the real implementation already exists in `SupabaseAuthRepository.changePassword`), implement the mock, wire the provider (re-auth delegated to the repository, which owns it), audit only after success.
 
 ---
 
@@ -85,14 +92,6 @@
 - **Dependencies:** none · **Affected:** A · **Platforms:** Android
 - **Tests:** wrong password → failure (no session); signed-in user without role assignments → no staff UI; token validates server-side.
 - **Verification:** all three behaviours covered by new unit tests; manual sign-in matrix documented in change-log.
-- **ADRs:** —
-
-#### T-003 — Make desktop changePassword actually change the password
-- **Problems:** SEC-103 · **Priority:** P0 · **Severity:** High
-- **Description:** Wire `AuthProvider.changePassword` to `repos.auth.changePassword` (which calls `auth.updateUser`); write the audit entry only after success; remove or implement the "revokes all sessions" claim.
-- **Dependencies:** none · **Affected:** D · **Platforms:** Desktop
-- **Tests:** integration test — after change, old password fails, new password works.
-- **Verification:** test green; audit entry reflects the real actor.
 - **ADRs:** —
 
 #### T-004 — Require authentication on the four cron Edge Functions

@@ -14,13 +14,15 @@
 
 ## Currently in progress
 
-*(none — the 2026-08-29 batch session completed T-001 (TESTED), T-009 (TESTED) and T-010 (IMPLEMENTED); evidence in `change-log.md`.)*
+**T-003 — Make desktop changePassword actually change the password** (started 2026-08-29, second repair session).
+
+Selection note: the primary recommendation T-002 was checked first but is **infeasible in this environment** — `./gradlew test` cannot run (no `ANDROID_HOME`, no Android SDK, only a JRE installed so no `javac`, and no root to install packages). Per the fallback rule below, T-003 is the pick. T-002 remains the top recommendation for any agent WITH an Android build host.
 
 ## Current recommendation
 
-**T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies).
+**T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — **requires an Android build host** (`./gradlew test`, JDK with javac, Android SDK).
 
-Rationale: with T-001 and T-009 done, T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) is the highest-severity dependency-free task left in Phase 0. Note for the implementing agent: it needs the Android toolchain (`./gradlew test`) and a documented manual sign-in matrix; if no Android build environment is available, fall back to **T-003** (desktop changePassword no-op, SEC-103) or **T-004** (cron EF authentication, SEC-105) — both fully verifiable without a live backend at the code level.
+Rationale: with T-001, T-009 and now T-003 done, T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) is the highest-severity dependency-free task left in Phase 0. It needs the Android toolchain and a documented manual sign-in matrix. If no Android build environment is available (as in the 2026-08-29 headless sessions: no ANDROID_HOME, no JDK, no root), fall back to **T-004** (cron EF authentication, SEC-105) — verifiable at the code level without a live backend. A live Supabase environment is still needed for T-004's curl matrix, so without one, next in line is **T-078** (desktop ESLint config, DEAD-201 — fully headless-verifiable).
 
 Batch outcome (2026-08-29): T-001 TESTED (SEC-100 resolved; passwords still need rotation in deployed environments), T-009 TESTED (SEC-007 resolved; Google OAuth is the only website auth path), T-010 IMPLEMENTED (ARCH-002; sandboxed launch log still needed on a desktop host). New discovery registered: DEAD-201 (desktop lint unrunnable) → T-078.
 
