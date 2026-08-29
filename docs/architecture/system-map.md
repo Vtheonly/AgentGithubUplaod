@@ -8,8 +8,8 @@
                        ┌────────────────────────────────────────────┐
                        │              SUPABASE (one project)         │
                        │  PostgreSQL + RLS + SQL RPCs (migrations   │
-                       │  0001–0043, canonical chain in THIS repo)  │
-                       │  Edge Functions (12 in desktop repo,       │
+                       │  0001–0044, canonical chain in THIS repo)  │
+                       │  Edge Functions (13 in desktop repo,       │
                        │  2 in website repo — one is a drifted      │
                        │  duplicate)  ·  Realtime  ·  Storage        │
                        └───────▲──────────────▲──────────────▲──────┘
@@ -32,13 +32,13 @@ Three repositories, one application, one shared database. The desktop repository
 
 ### 2.1 Backend / API / Database (authoritative layer)
 
-- **Database**: PostgreSQL via Supabase. Schema defined by the **canonical migration chain `elimtiyaz-desktop/supabase/migrations/0001…0043`** (40 files; 0015–0017 were never used). ADR-001 establishes this chain as the single source for provisioning. The website's `supabase/migrations/0025–0028` are portal patches **absorbed by desktop migration 0043** (their numbers collide with canonical 0025–0028 — problem `CROSS-001`); the Android repo carries 6 stale copies (0034–0036, 0040–0042) that are documentation only (`CROSS-003`).
+- **Database**: PostgreSQL via Supabase. Schema defined by the **canonical migration chain `elimtiyaz-desktop/supabase/migrations/0001…0044`** (41 files; 0015–0017 were never used). ADR-001 establishes this chain as the single source for provisioning. The website's `supabase/migrations/0025–0028` are portal patches **absorbed by desktop migration 0043** (their numbers collide with canonical 0025–0028 — problem `CROSS-001`); the Android repo carries 6 stale copies (0034–0036, 0040–0042) that are documentation only (`CROSS-003`).
 - **Tenancy & RBAC**: `tenants`, `user_profiles`, `role_assignments` (migrations 0002/0003). `current_tenant_id()` resolves via `auth.uid() → user_profiles.tenant_id`. **Known defect:** `current_user_roles()`/`current_user_permissions()` ignore `tenant_id` (`TENANT-100`), and several admin RLS policies lack tenant scoping (`TENANT-101`).
 - **Financial engine (server-side, canonical)**: `collect_and_allocate_payment` (0040 — atomic payment + ledger + waterfall + parent_credit + audit + server receipt number), `revert_payment_allocation` (0041 — LIFO refund; **missing tenant check**, `SEC-112`), `mark_payment_cleared` / `mark_payment_bounced` (0039/0040), `upsert_*_from_import` family (0027/0037 — non-atomic idempotent upserts designed for Excel import and sync push; `upsert_payment_from_import` is SECURITY DEFINER — `SEC-111`).
 - **Academic schema**: `academic_years`, `classes`, `subjects`, `class_subjects`, `homework` (canonical, 0029 — NOT legacy `homework_assignments` from 0004), `student_academic_histories` (0029; its only RLS policy is inert — `DEAD-100`/`TENANT-106`), `attendance_records` (0004 + 0041 canonical index + justification columns), `assessments`/`grades` (0029/0041).
-- **Edge Functions (desktop repo, canonical set)**: `ai-proxy`, `approve-signup-request`, `bind-activation-code`, `update-server-secret`, `workflow-execute`, `expire-pending-approvals`, `run-overdue-scan`, `refresh-materialized-views`, `purge-expired-backups`, plus **`collect-payment` and `refund-payment` which no client ever invokes** (`DEAD-016`). Four cron EFs accept anonymous calls (`SEC-105`).
+- **Edge Functions (desktop repo, canonical set)**: `ai-proxy`, `approve-signup-request`, `create-user-account` (T-079 — admin account provisioning, super_admin only), `bind-activation-code`, `update-server-secret`, `workflow-execute`, `expire-pending-approvals`, `run-overdue-scan`, `refresh-materialized-views`, `purge-expired-backups`, plus **`collect-payment` and `refund-payment` which no client ever invokes** (`DEAD-016`). Four cron EFs accept anonymous calls (`SEC-105`).
 - **Edge Functions (website repo)**: `bind-activation-code` (drifted duplicate of the desktop's, with extra user-activation logic — `CROSS-009`, blocked on `UNKNOWN-001`) and `send-push-notification` (broken twice internally and never invoked — `PUSH-100`).
-- **Auth**: Supabase Auth with Google OAuth (parents) + email/password (staff). `handle_new_auth_user` trigger auto-creates `user_profiles` + approval request (trusts client-supplied metadata — `SEC-108`).
+- **Auth**: Supabase Auth with Google OAuth (parents) + email/password (staff). `handle_new_auth_user` trigger auto-creates `user_profiles` + approval request (trusts client-supplied metadata — `SEC-108`). Admin-provisioned accounts (T-079) bypass the self-signup trust problem: the create-user-account EF sets `app_metadata.tenant_id` server-side and activates the profile via the 0044 RPC (EXECUTE restricted to service_role).
 
 ### 2.2 Desktop (`elimtiyaz-desktop/`, this repo)
 
@@ -96,6 +96,12 @@ Google OAuth signup → handle_new_auth_user trigger → user_profiles(pending) 
          (status='active' + parent role)  [divergent from desktop EF — CROSS-009, UNKNOWN-001]
   Path B (admin approval): staff → approve-signup-request EF → approve_account_request RPC
        → user_profiles(active) + role_assignments + parents.auth_user_id
+  Path C (admin-created, T-079): SuperAdmin → desktop Comptes tab → create-user-account EF
+       → auth.admin.createUser (email_confirm=true, app_metadata.tenant_id = TRUSTED admin path)
+       → handle_new_auth_user trigger (pending profile + request)
+       → admin_create_user_account RPC (0044, EXECUTE service_role-only)
+       → user_profiles(active) + role_assignments(chosen role) + request(approved)
+       [client stack TESTED headlessly; EF+RPC IMPLEMENTED — live deploy pending]
 ```
 
 ### 3.4 Homework / attendance (academic)

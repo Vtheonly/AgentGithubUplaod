@@ -14,13 +14,17 @@
 
 ## Currently in progress
 
-**T-079 — Admin-created user accounts** (feature request from the owner, 2026-08-29, third repair session): desktop AccountsTab + `UserAccountRepository` (Supabase + Mock) + `create-user-account` EF (super_admin only, avoids SEC-107's escalation pattern) + `admin_create_user_account` RPC (migration 0044, EXECUTE restricted to service_role). Status capped at TESTED for the client stack; EF + migration are IMPLEMENTED-only without a live backend (no Deno/Postgres in this environment).
+*(none — T-079 completed 2026-08-29 by the third repair session; client stack TESTED, backend IMPLEMENTED — evidence in `change-log.md`.)*
+
+**T-079 close-out note:** the backend half (migration 0044 + create-user-account EF) needs a live environment to reach TESTED/VERIFIED: `supabase db push` + `supabase functions deploy create-user-account`, then a live round-trip (SuperAdmin creates an account in Settings → Comptes → the new user signs in → changes their password). This deployment step is the task's only remaining work.
 
 ## Current recommendation
 
 **T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — **requires an Android build host** (`./gradlew test`, JDK with javac, Android SDK).
 
 Rationale: with T-001, T-003 and T-009 done, T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) is the highest-severity dependency-free task left in Phase 0. It needs the Android toolchain (`./gradlew test`) and a documented manual sign-in matrix. **Verified infeasible in the 2026-08-29 headless sessions** (no ANDROID_HOME, no Android SDK, JRE-only Java so no javac, no root to install — `./gradlew help` fails at toolchain resolution): fall back to **T-004** (cron EF authentication, SEC-105) — verifiable at the code level without a live backend. A live Supabase environment is still needed for T-004's curl matrix, so without one, next in line is **T-078** (desktop ESLint config, DEAD-201 — fully headless-verifiable).
+
+Session outcome (2026-08-29, third session): T-079 completed — admin-created user accounts (owner feature request): Settings → Comptes tab, `UserAccountRepository` (domain + Mock + Supabase), `create-user-account` EF (super_admin only), `admin_create_user_account` RPC (migration 0044, EXECUTE service_role-only). Client stack TESTED (19-test suite incl. the create → sign-in round-trip; full suite 1988/1988; typecheck clean); EF + migration IMPLEMENTED (live deploy pending — no Deno/Postgres/Supabase in this environment).
 
 Session outcome (2026-08-29, second session): T-003 TESTED (SEC-103 resolved — changePassword now delegates to the repository; audit entry no longer forged; 12-test regression suite + full suite 1969/1969). T-002 checked and confirmed infeasible headlessly (toolchain evidence above).
 

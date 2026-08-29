@@ -19,7 +19,7 @@ The system is **multi-platform**: three repositories form ONE application. They 
 
 | Repository | Role | Contents |
 |---|---|---|
-| `Vtheonly/AgentGithubUplaod` (**this repo**, the hub) | Desktop staff application **and the canonical backend** | `elimtiyaz-desktop/` (Electron + React + Vite app), `elimtiyaz-desktop/supabase/` (**the canonical migration chain 0001–0043 and the canonical Edge Functions**), `financial-tests/` (cross-platform equivalence suites), legacy Excel workbook, and **this documentation system** |
+| `Vtheonly/AgentGithubUplaod` (**this repo**, the hub) | Desktop staff application **and the canonical backend** | `elimtiyaz-desktop/` (Electron + React + Vite app), `elimtiyaz-desktop/supabase/` (**the canonical migration chain 0001–0044 and the canonical Edge Functions**), `financial-tests/` (cross-platform equivalence suites), legacy Excel workbook, and **this documentation system** |
 | `Vtheonly/elimtiyaz-android` | Android staff application (offline-first) | Kotlin + Jetpack Compose app (`app/`), Room database (primary local store), sync queue, partial `supabase/` copy (documentation-only) |
 | `Vtheonly/elimtiyaz-website` | Parent web portal (Next.js) | `src/` (Next.js 16 app), `supabase/` (4 portal-patch migrations + 2 Edge Functions — a drifted partial copy; canonical chain lives in this repo) |
 
@@ -27,7 +27,7 @@ Each client repository has its own `AGENTS.md` describing that codebase. This `A
 
 ## 3. How the repositories relate
 
-- **One backend, three clients.** All clients talk to the same Supabase project. The desktop repo owns the backend schema: its `elimtiyaz-desktop/supabase/migrations/` chain (0001–0043) is the only complete, canonical chain (ADR-001). The website and Android `supabase/` folders are partial copies — never treat them as authoritative.
+- **One backend, three clients.** All clients talk to the same Supabase project. The desktop repo owns the backend schema: its `elimtiyaz-desktop/supabase/migrations/` chain (0001–0044) is the only complete, canonical chain (ADR-001). The website and Android `supabase/` folders are partial copies — never treat them as authoritative.
 - **Canonical business logic lives server-side** in SQL RPCs (`collect_and_allocate_payment`, `revert_payment_allocation`, `mark_payment_cleared`, …) created by migrations 0034–0043. The desktop TypeScript engine (`src/domain/calc/`) is the reference client implementation; the Android Kotlin engine (`core/LedgerEngine.kt` etc.) is a mirror that must stay equivalent (ADR-002).
 - **CURRENT reality (important):** the three platforms do NOT yet write through one path. The desktop calls SQL RPCs directly (with a dangerous silent fallback — see `BUSINESS-002`); Android writes to Room first and pushes via non-canonical `upsert_*_from_import` RPCs; the website is read-mostly. This divergence is catalogued in `docs/recovery/problem-registry.md` and must be understood before any change to financial write paths.
 
