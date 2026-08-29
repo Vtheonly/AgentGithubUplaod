@@ -12,7 +12,7 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 1 | T-000 |
-| **Completed (TESTED)** | 6 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log) |
+| **Completed (TESTED)** | 9 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log), T-081, T-019, T-049 (fifth session 2026-08-29) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
 | **Ready** (understood, dependencies cleared) | 56 | T-002, T-005…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-080 (new — Supabase overdue-scan port, ARCH-006) |
@@ -21,7 +21,7 @@
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
 
-**Recommended next task:** T-005 for headless agents (T-002 still first choice with an Android build host — see `next-task.md`; T-004 and T-078 completed 2026-08-29 by the fourth repair session). **Dependency chains:** §Dependency graph at the end of this file.
+**Recommended next task:** T-002 for the first time in ANY environment — the fifth session (2026-08-29) bootstrapped an Android build toolchain headlessly AND restored the build gate (T-081): `./gradlew :app:testDebugUnitTest` = 207/207 baseline. T-005 remains the fallback for pure-SQL sessions. **Dependency chains:** §Dependency graph at the end of this file.
 
 ---
 
@@ -93,9 +93,36 @@
 
 ## In Progress
 
-*Fifth repair session (2026-08-29):* **T-081** (Android build restoration, ARCH-007) and **T-019** (Android sync error surfacing, CROSS-200) are checked out for this session, plus **T-049** (website build hygiene, ARCH-005/DEAD-013) — headless verification now possible for Android: JDK 17 + Android SDK 35 bootstrapped outside the repo (see change-log for the toolchain recipe).
+*(none — the fifth repair session (2026-08-29) completed T-081 (TESTED), T-019 (TESTED) and T-049 (TESTED); evidence in change-log.md.)*
 
-*(Historical note: T-004 and T-078 completed 2026-08-29 by the fourth repair session; evidence in change-log.md.)*
+## Completed (fifth repair session — 2026-08-29)
+
+### T-081 — Restore the Android build at HEAD (re-open the `./gradlew` verification gate)
+- **Problems:** ARCH-007 (new — discovered 2026-08-29 while bootstrapping an Android build environment) · **Priority:** P0 · **Severity:** High
+- **Status:** TESTED (2026-08-29, fifth repair session)
+- **What was done:** four distinct compile errors fixed plus the equivalence-harness path resolution: (1) `ClassesDirectoryViewModel.kt` — constructor param `sessionManager` promoted to `private val` (the `canPromote` getter referenced it); (2) `AppNavHost.kt` — missing `PromotionReviewScreen` import added; (3) `SyncQueueDispatcher.kt` pushGrade — `Double? ?: JsonNull` inferred `Any` (no `put` overload) → values wrapped in `JsonPrimitive` so the elvis branch yields `JsonElement` (JSON null when absent — original intent); (4) `PricingCalculationTest.kt` — `assertEquals(Double?, Double?, Double)` matched no JUnit overload → `explicit!!`/`default!!` non-null assertions. PLUS `AndroidEquivalenceTest.resolve()` now probes the sibling hub checkout (`../AgentGithubUplaod/elimtiyaz-desktop/financial-tests/equivalence/scenarios`) and a standalone desktop sibling — the previous probe list (module dir + repo root only) never matched the real three-repo layout, so the equivalence suite aborted in EVERY documented checkout. `.gitignore` now excludes the generated `app/financial-tests/` runner output. Deviation from the task text: the task named 2 errors; the compiler surfaced 4 (the 3rd/4th only reachable once the first stopped masking them) plus the equivalence-path defect — all are facets of "HEAD does not compile / the gate is broken" and are recorded in ARCH-007.
+- **Tests:** `./gradlew :app:compileDebugUnitTestKotlin` BUILD SUCCESSFUL; `./gradlew :app:testDebugUnitTest` BUILD SUCCESSFUL — **202 tests / 0 failures / 0 errors / 0 skipped** (new Android baseline), including the 45-scenario canonical equivalence suite running GREEN for the first time in this repo.
+- **Verification:** evidence in change-log (fifth session). The equivalence results JSON files were spot-checked (engine=android, canonical waterfall/allocation outputs).
+- **Commits:** e7937de — android repo.
+
+### T-019 — Surface Android sync RPC errors
+- **Problems:** CROSS-200 · **Priority:** P1 · **Severity:** Critical
+- **Status:** TESTED (2026-08-29, fifth repair session)
+- **What was done:** NEW `NetworkTimeouts.guardSyncPush` — the push-oriented counterpart of `guard` that PROPAGATES block exceptions (incl. the SDK's `PostgrestRestException`) and converts `TimeoutCancellationException` into a plain `SyncPushTimeoutException` (RuntimeException, so the drain loop records a retryable failure and coroutine-cancellation semantics stay untouched); `onlyIfConfigured` test seam mirrors `guard`'s existing parameter. All 8 dispatcher push paths (homework, parent, student, payment, ledger_entry, installment, grade, attendance) switched from the swallowing `guard<Unit>` to `guardSyncPush`. `SyncService.drainPending` UNCHANGED — its `catch (Exception)` already implements the desktop `defaultPushHandler` contract (attempts+1 → pending with lastError + backoff; audit + failed at maxAttempts) — it simply never saw failures before. ROOT CAUSE CORRECTED (recorded in the problem entry): supabase-kt 3.1.1 DOES throw `PostgrestRestException` on 4xx/5xx (verified in the pinned artifact's bytecode: `SupabaseApi.rawRequest` checks `!status.isSuccess() && parseErrorResponse != null`; Postgrest wires `parseErrorResponse`); the real swallowing layer was `guard`'s `catch (Throwable) → null`, not a missing SDK throw. The registry's original description ("the SDK returns an HttpResponse and doesn't throw") does not hold for the pinned version.
+- **Tests:** NEW `SyncErrorSurfacingTest` (5 tests): guardSyncPush success/propagation/timeout contracts + source-scan pins (no `NetworkTimeouts.guard` left in the dispatcher; all 8 pushes on guardSyncPush; no catch-Throwable inside guardSyncPush).
+- **Verification:** `./gradlew :app:testDebugUnitTest` — **207 tests / 0 failures** (202 baseline + 5 new); equivalence suite green. GAP (why TESTED, not VERIFIED): a live 400/500 round-trip against a deployed `upsert_*_from_import` RPC needs a real Supabase project (same recorded-gap pattern as T-004's curl matrix).
+- **Commits:** (T-019 commit) — android repo.
+- **NEW DISCOVERY registered:** `.env.example` placeholder values (`https://YOUR_PROJECT.supabase.co`, `your-anon-key-here`) PASS `NetworkTimeouts.isSupabaseConfigured` (the hyphen-based checks miss `YOUR_PROJECT`'s underscore and `your-anon-key-here` ≠ `your-anon-key`) — a unit-test build therefore reports "configured". Recorded as a note on SEC-005/T-064.
+
+### T-049 — Website build hygiene
+- **Problems:** ARCH-005, DEAD-013 (plus WEAK-017's homework-table registration) · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-08-29, fifth repair session)
+- **What was done:** `next.config.ts` — `ignoreBuildErrors: false`, `reactStrictMode: true`; `tsconfig.json` excludes `supabase/` (Deno EFs, 9 false positives); `package.json` icons:generate path repo-relative (DEAD-013). All 86 surfaced errors fixed: (1) **the deep one** — postgrest-js 2.x `GenericTable`/`GenericView` require `Relationships` on every table/view AND an index-signature-compatible `Row`; all 38 row shapes were `interface`s (no implicit index signatures), so `Database['public']` never satisfied `GenericSchema`, `Schema` resolved to `never`, and EVERY typed supabase query degraded to never payloads — fixed by converting the 38 interfaces to type aliases (matching what `supabase gen types` emits) and adding `Relationships: []` to the 34 tables + 4 views; (2) canonical `homework` table registered in the Tables map (WEAK-017's registration half — it was queried but untyped, and two REAL masked bugs fell out: `tone="muted"` not in KpiCard's Tone union, and `primary_phone` nullable-send at a NOT NULL column); (3) `StudentDocumentRow` nullability aligned with 0005_crm.sql; (4) `SubjectRow` extended with 0029's `passing_grade`/`is_extracurricular`; (5) 45 earlier duplicate keys removed from dictionary.ts (last-occurrence-wins runtime semantics preserved); (6) pricing barrel (`calc/pricing/index.ts`) ported verbatim from the desktop (charges.ts imported a non-existent module); (7) individual fixes: financial-view tone `muted`→`default`, academic-view term-filter state typed as the string union Radix actually delivers, messages-view dead `channel_type === "convocation"` comparison removed (canonical check constraint forbids the value; name-based detection kept) + `supabase` captured locally for closure narrowing, parent-contact-edit-card NOT NULL `primary_phone` no longer falls back to null, bulletin null-safe grade rendering, use-realtime channel ref typed `RealtimeChannel`, portal-derive imports/casts, portal-derive.test unknown-wire-code cast.
+- **Tests:** gate-level: `npx tsc --noEmit` → 0 errors in src/ (was 86 project-wide); `npm run build` → green WITH "Running TypeScript" — the first strict build in the repo's history; `npm run test` → 90/90; `npm run lint` → unchanged baseline (exactly the 2 pre-existing preserve-manual-memoization errors in dashboard-view.tsx + financial-view.tsx, verified identical at HEAD via git stash).
+- **Verification:** evidence in change-log (fifth session). Runtime behaviour preserved everywhere (dedupe keeps last-wins; tone/convocation/primary_phone changes remove only provably-dead or provably-invalid paths).
+- **Commits:** (T-049 commit) — website repo.
+
+---
 
 ## Ready
 
@@ -166,15 +193,6 @@
 - **Tests:** mock vs supabase assembly contract tests; seeded Supabase ledger → scan creates real notifications (integration needs a live backend for VERIFIED).
 - **Verification:** regression tests + change-log evidence.
 - **ADRs:** —
-
-#### T-081 — Restore the Android build at HEAD (re-open the `./gradlew` verification gate) — created 2026-08-29, fifth session
-- **Problems:** ARCH-007 (new — discovered 2026-08-29 while bootstrapping an Android build environment) · **Priority:** P0 · **Severity:** High
-- **Description:** `elimtiyaz-android` HEAD fails to compile (`./gradlew :app:compileDebugKotlin` → 2 unresolved references): `ClassesDirectoryViewModel.kt` constructor param `sessionManager` lacks the `private val` modifier (referenced by the `canPromote` getter); `AppNavHost.kt` references `PromotionReviewScreen` without importing it. Fix both minimally (no behaviour change) and re-run the full unit-test suite to establish the Android test baseline. Without this task NO Android task (T-002, T-019, T-026, …) can reach TESTED.
-- **Dependencies:** none · **Affected:** A · **Platforms:** Android
-- **Tests:** `./gradlew :app:compileDebugUnitTestKotlin` green; `./gradlew test` green with the passing-test count recorded as the baseline.
-- **Verification:** evidence in change-log.md.
-- **ADRs:** —
-- **Status:** IN PROGRESS (2026-08-29, fifth repair session)
 
 ### Phase 1 — Financial integrity (P1)
 

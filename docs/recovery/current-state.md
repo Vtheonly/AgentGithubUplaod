@@ -6,17 +6,17 @@
 
 - Three repositories operate against **one Supabase backend** whose canonical schema is the desktop repo's migration chain 0001–0044 (ADR-001). Migrations 0001–0043 are committed and considered applied everywhere; **0044 (admin-created accounts, T-079) is committed but NOT yet applied to the live project** — its deployment (`supabase db push` + `functions deploy create-user-account`) is the task's remaining step.
 - **Desktop** (Electron/React): functional as the staff operations app for CRM + financials + academics, with a partial Supabase migration — 26 of ~45 repository slots still run on mocks in "Supabase mode" (`ARCH-001`). Payment cache is seed-once with no refresh (`CROSS-104`). There is **no refund UI** (`DEAD-015`).
-- **Android** (Kotlin/Compose): offline-first, Room-backed, fully functional locally, but its server write path bypasses every canonical financial RPC (`ARCH-003`, `CROSS-005`) and swallows sync errors (`CROSS-200`). Authentication has two Critical bypasses (`SEC-101`, `SEC-102`).
-- **Website** (Next.js parent portal): read paths work (balances, installments, attendance, bulletins) with some non-canonical KPIs; chat is permanently empty (`CHAT-103`); push notifications are non-functional end-to-end (`PUSH-100` family). The mock-admin authentication bypass was **removed 2026-08-29** (`SEC-007` fixed, T-009 — Google OAuth is the only auth path); the website test suite runs again (DEAD-012 unblocked).
+- **Android** (Kotlin/Compose): offline-first, Room-backed, fully functional locally, but its server write path bypasses every canonical financial RPC (`ARCH-003`, `CROSS-005`). Sync errors now SURFACE (CROSS-200 fixed 2026-08-29 — server-rejected writes stay pending and retry); authentication still has two Critical bypasses (`SEC-101`, `SEC-102`). The build/test gate is OPERATIONAL since 2026-08-29 (ARCH-007 fixed; JDK 17 + Android SDK 35 bootstrapped headlessly — recipe in change-log): baseline 207/207 unit tests incl. 45/45 equivalence scenarios.
+- **Website** (Next.js parent portal): read paths work (balances, installments, attendance, bulletins) with some non-canonical KPIs; chat is permanently empty (`CHAT-103`); push notifications are non-functional end-to-end (`PUSH-100` family). The mock-admin authentication bypass was **removed 2026-08-29** (`SEC-007` fixed, T-009 — Google OAuth is the only auth path); the website test suite runs again (DEAD-012 unblocked). The build is now STRICT (`ARCH-005` fixed 2026-08-29, T-049): `ignoreBuildErrors:false` + `reactStrictMode:true`, tsc clean, and the typed Supabase client actually typechecks (the postgrest-js 2.x GenericSchema conformance defect that degraded every query to `never` was fixed — 38 row interfaces → type aliases + `Relationships: []` + the canonical `homework` table registered, WEAK-017's registration half).
 - **Homework and desktop roll-call are broken end-to-end** (`HOMEWORK-100/101`, `ATT-100`); **year-end promotion fails on every platform** (`TENANT-106`, `STUDENT-100`, `BUSINESS-004`).
 
 ## 2. Major known problems (top of the risk stack)
 
-- 24 Critical / 43 High problems are registered (145 total + DEAD-201 + ARCH-006 registered 2026-08-29). The five most dangerous:
+- 24 Critical / 43 High problems are registered (148 total after the 2026-08-29 fifth session — ARCH-007 added; ARCH-005/DEAD-013/ARCH-007/CROSS-200 resolved). The five most dangerous:
   1. ~~`SEC-100` — desktop ships 9 staff credentials in the client bundle.~~ **FIXED 2026-08-29 (T-001, TESTED)** — literals removed; passwords still need rotation in deployed environments.
   2. `SEC-101`/`SEC-102` — any failed Android login yields a 24h SUPER_ADMIN session.
   3. `BUSINESS-002` — desktop payment collection silently degrades to a non-atomic path (no ledger/waterfall/audit) on any RPC failure.
-  4. `CROSS-200` — Android sync marks server-rejected writes as "synced" (silent data loss).
+  4. ~~`CROSS-200` — Android sync marks server-rejected writes as "synced"~~ **FIXED 2026-08-29 (T-019, TESTED)** — pushes propagate 4xx/5xx; entries stay pending with lastError and retry (live-dispatch round-trip still owed).
   5. `TENANT-100`/`TENANT-101` — the RBAC role resolver ignores tenants, making every per-tenant super_admin a global super_admin in several policies.
 
 ## 3. Source-of-truth decisions in force

@@ -14,13 +14,13 @@
 
 ## Currently in progress
 
-*Fifth repair session (2026-08-29):* **T-081** (Android build restoration at HEAD — new problem ARCH-007, discovered when a JDK 17 + Android SDK 35 toolchain was finally bootstrapped) → then **T-019** (Android sync RPC error surfacing, CROSS-200, P1). In parallel: **T-049** (website build hygiene: `ignoreBuildErrors:false` + the 86 surfaced TS errors + strict mode + DEAD-013 `icons:generate` path). The Android toolchain recipe lives in the change-log entry of this session.
+*(none — the fifth repair session (2026-08-29) completed T-081 (TESTED), T-019 (TESTED) and T-049 (TESTED); evidence in change-log.md.)*
 
 **T-079 close-out note:** the backend half (migration 0044 + create-user-account EF) needs a live environment to reach TESTED/VERIFIED: `supabase db push` + `supabase functions deploy create-user-account`, then a live round-trip (SuperAdmin creates an account in Settings → Comptes → the new user signs in → changes their password). This deployment step is the task's only remaining work.
 
 ## Current recommendation
 
-**T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — **requires an Android build host** (`./gradlew test`, JDK with javac, Android SDK).
+**T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — **NOW FEASIBLE HEADLESSLY**: the fifth session bootstrapped JDK 17 + Android SDK 35 outside the repos (recipe in change-log) and restored the build gate (T-081); the suite runs (`./gradlew :app:testDebugUnitTest` = 207/207 baseline after T-019's 5 new tests).
 
 Rationale: T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) remains the highest-severity Phase 0 task, but **verified infeasible headlessly again in the 2026-08-29 fourth session** (no ANDROID_HOME, no Android SDK, JRE-only Java — no javac, no root to install). **Headless fallback: T-005** (tenant-scoped RBAC resolver + admin policies, TENANT-100/101) — a new migration (0045+); SQL-level behaviour is fully specified in the problem entries; implementation + migration review are headless-feasible, with live two-tenant tests as the recorded gap (same pattern as T-004). If a live Supabase environment becomes available instead: T-079's backend deploy + T-004's curl matrix + T-005's two-tenant tests can share one deployment.
 

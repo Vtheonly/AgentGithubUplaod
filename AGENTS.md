@@ -19,7 +19,7 @@ The system is **multi-platform**: three repositories form ONE application. They 
 
 | Repository | Role | Contents |
 |---|---|---|
-| `Vtheonly/AgentGithubUplaod` (**this repo**, the hub) | Desktop staff application **and the canonical backend** | `elimtiyaz-desktop/` (Electron + React + Vite app), `elimtiyaz-desktop/supabase/` (**the canonical migration chain 0001–0044 and the canonical Edge Functions**), `financial-tests/` (cross-platform equivalence suites), legacy Excel workbook, and **this documentation system** |
+| `Vtheonly/AgentGithubUplaod` (**this repo**, the hub) | Desktop staff application **and the canonical backend** | `elimtiyaz-desktop/` (Electron + React + Vite app), `elimtiyaz-desktop/supabase/` (**the canonical migration chain 0001–0044 and the canonical Edge Functions**), `elimtiyaz-desktop/financial-tests/` (cross-platform equivalence suites — INSIDE the desktop module, not at the repo root; corrected 2026-08-29 during T-081 after the Android equivalence harness documented the wrong path), legacy Excel workbook, and **this documentation system** |
 | `Vtheonly/elimtiyaz-android` | Android staff application (offline-first) | Kotlin + Jetpack Compose app (`app/`), Room database (primary local store), sync queue, partial `supabase/` copy (documentation-only) |
 | `Vtheonly/elimtiyaz-website` | Parent web portal (Next.js) | `src/` (Next.js 16 app), `supabase/` (4 portal-patch migrations + 2 Edge Functions — a drifted partial copy; canonical chain lives in this repo) |
 

@@ -282,6 +282,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ---
 
+- **Discovery note (2026-08-29, T-019 session):** the `.env.example` placeholder values PASS `NetworkTimeouts.isSupabaseConfigured` — `https://YOUR_PROJECT.supabase.co` contains `YOUR_PROJECT` with an UNDERSCORE, which defeats the `your-project` hyphen check, and `your-anon-key-here` is not caught by the `your-anon-key` equality check. An app left on example values therefore reports 'configured' and attempts real network calls. Folded into T-064's fix scope (fail-closed detection must catch the example values too).
+
 ### SEC-006 — `OnlineDetector` probes `https://supabase.com/auth/v1/health` every 30 seconds when unconfigured — metadata leak + battery drain
 
 - **Category:** SEC  |  **Severity:** Medium  |  **Status:** OPEN
@@ -1067,7 +1069,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-200 — Android sync dispatcher swallows RPC errors silently; desktop sync dispatcher throws and retries
 
-- **Category:** CROSS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** CROSS  |  **Severity:** Critical  |  **Status:** TESTED (2026-08-29)
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-019 (docs/recovery/task-registry.md)
@@ -1081,6 +1083,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Read the HttpResponse body/status in every SyncQueueDispatcher.push* method and throw on 4xx/5xx so the entry stays pending and retries - mirroring the desktop defaultPushHandler contract. Test: server 400 leaves the entry pending with lastError set.
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Status note (2026-08-29, T-019):** RESOLVED — with a CORRECTED root cause. The entry above claims "the SDK returns an HttpResponse and doesn't throw"; that does NOT hold for the pinned supabase-kt 3.1.1: bytecode verification of the actual artifact shows `SupabaseApi.rawRequest` checks `!status.isSuccess() && parseErrorResponse != null` and throws (PostgrestImpl wires `parseErrorResponse` = `PostgrestRestException`; `AuthenticatedSupabaseApi.rawRequest` delegates to `SupabaseApi.rawRequest`). The REAL swallowing layer is `NetworkTimeouts.guard`: its `catch (e: Throwable) → null` converted the SDK's exception into a null return the dispatcher discarded, so `pushEntry` returned normally and SyncService marked rejected writes "synced". FIX: new `NetworkTimeouts.guardSyncPush` (propagates block exceptions; converts timeouts into a plain `SyncPushTimeoutException`) + all 8 dispatcher push paths switched to it; `SyncService.drainPending` unchanged — its existing catch already implements the desktop contract (pending + lastError + backoff; audit + failed at maxAttempts). Regression suite `SyncErrorSurfacingTest` (5 tests: propagation, timeout→RuntimeException, success passthrough, source-scan pins on all 8 paths + no catch-Throwable in guardSyncPush). `./gradlew :app:testDebugUnitTest` = 207/207. LESSON for future agents: when an audit claims an SDK "doesn't throw", verify against the PINNED artifact's bytecode before designing the fix — the real defect was one layer higher than described. Gap for VERIFIED: live 400/500 round-trip vs a deployed backend.
 
 ---
 
@@ -2081,7 +2084,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-005 — `next.config.ts` has `typescript.ignoreBuildErrors: true` AND `reactStrictMode: false` — type errors silently shipped to production, React strict-mode bugs hidden
 
-- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** TESTED (2026-08-29)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-049 (docs/recovery/task-registry.md)
@@ -2095,6 +2098,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** N/A
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Status note (2026-08-29, T-049):** RESOLVED — `ignoreBuildErrors: false` + `reactStrictMode: true`; all 86 surfaced errors fixed. The deep root cause: postgrest-js 2.x `GenericTable`/`GenericView` require `Relationships` AND an index-signature-compatible Row; the hand-written Database used `interface` row types (no implicit index signatures) and omitted `Relationships`, so `Database['public']` never satisfied `GenericSchema`, `Schema` resolved to `never`, and EVERY typed supabase query silently degraded to never payloads — the entire typed-client layer was decorative. Fixed by converting the 38 row interfaces to type aliases (what `supabase gen types` emits) and adding `Relationships: []` to the 34 tables + 4 views; the canonical `homework` table was also missing from the Tables map (WEAK-017). First strict build: `next build` runs TypeScript and is GREEN; suite 90/90; lint baseline unchanged. LESSON: `ignoreBuildErrors: true` had hidden not just type errors but the fact that the whole typed-client layer did not typecheck — enabling strict checks first, THEN fixing, is the only order that exposes this class of defect.
 
 ---
 
@@ -2896,7 +2900,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-013 — `package.json` `icons:generate` script hardcodes path `/home/z/my-project/scripts/generate-pwa-icons.py` (OUTSIDE the repo) — broken on any other machine/CI
 
-- **Category:** DEAD  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Low  |  **Status:** TESTED (2026-08-29)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-049 (docs/recovery/task-registry.md)
@@ -2910,6 +2914,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** The actual script lives at `./scripts/generate-pwa-icons.py` (relative to repo root).
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Status note (2026-08-29, T-049):** RESOLVED — `package.json` icons:generate now points at `python3 ./scripts/generate-pwa-icons.py` (the script exists in the repo and the path resolves on any machine).
 
 ---
 
@@ -3052,7 +3057,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-007 — Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken
 
-- **Category:** ARCH  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** TESTED (2026-08-29)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-081 (docs/recovery/task-registry.md — created 2026-08-29, fifth repair session)
@@ -3066,3 +3071,4 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Two minimal mechanical fixes, no behaviour change: (1) declare the constructor parameter as `private val sessionManager: SessionManager`; (2) add the missing `import com.example.ui.features.academics.PromotionReviewScreen` to AppNavHost.kt. Then run the full unit-test suite and record the count as the new Android baseline.
 - **Dependencies:** none recorded
 - **Verification:** `./gradlew :app:compileDebugKotlin` green; `./gradlew test` green with the passing-test count recorded in change-log; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Status note (2026-08-29, T-081):** RESOLVED — and the problem was BIGGER than first recorded: the compiler surfaced FOUR errors, not two (each hidden until the previous one was fixed): (1) `ClassesDirectoryViewModel.kt` missing `private val` on `sessionManager`; (2) `AppNavHost.kt` missing `PromotionReviewScreen` import; (3) `SyncQueueDispatcher.kt` pushGrade — `Double? ?: JsonNull` infers `Any`, matching no `put` overload (fixed by wrapping in `JsonPrimitive`); (4) `PricingCalculationTest.kt` — `assertEquals(Double?, Double?, Double)` matches no JUnit overload (non-null assertions added). PLUS the equivalence harness could never find the canonical scenarios: `AndroidEquivalenceTest.resolve()` probed only `app/` and the repo root, while the scenarios live in the hub's `elimtiyaz-desktop/financial-tests/equivalence/scenarios` — the probe list now includes the sibling hub checkout, so the 45-scenario suite runs GREEN for the first time. The hub `AGENTS.md` §2 also misdocuments `financial-tests/` as being at the hub root (it is under `elimtiyaz-desktop/`). Baseline after the fix: `./gradlew :app:testDebugUnitTest` = 202/202, equivalence 45/45. NOTE for future agents: the Android build environment (Temurin JDK 17 + cmdline-tools + platforms;android-35 + build-tools;35.0.0) was bootstrapped OUTSIDE the repo at /home/z/my-project/tools — see change-log for the recipe; network access to dl.google.com/services.gradle.org/maven.google.com worked from this environment.
