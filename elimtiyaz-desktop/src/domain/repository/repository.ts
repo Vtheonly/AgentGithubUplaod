@@ -74,6 +74,14 @@ export interface AuthRepository {
   signIn(email: string, password: string): Promise<Result<Session>>;
   signOut(): Promise<Result<void>>;
   refreshSession(): Promise<Result<Session | null>>;
+  /**
+   * Change the signed-in user's password. Contract (SEC-103, task T-003):
+   * the implementation MUST re-authenticate with the current password,
+   * persist the new one via the backend (Supabase: auth.updateUser) and
+   * revoke the user's sessions. Returning Ok means the password REALLY
+   * changed — callers may write an audit entry on that basis.
+   */
+  changePassword(currentPassword: string, newPassword: string): Promise<Result<void>>;
 }
 
 export interface ParentRepository {

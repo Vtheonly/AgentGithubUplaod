@@ -108,6 +108,36 @@ export class MockAuthRepository implements AuthRepository {
   async refreshSession(): Promise<Result<Session | null>> {
     return Ok(null);
   }
+
+  /**
+   * SEC-103 (task T-003): the AuthRepository contract now requires
+   * changePassword. Consistent with mock signIn semantics after T-001
+   * (email + any NON-EMPTY password — the static literals were removed),
+   * the current password must merely be non-empty; strength rules match
+   * the Supabase repository (plan §12.04). Ok is a dev/demo no-op: mock
+   * sign-in accepts any non-empty password, so there is no stored secret
+   * to rotate. The provider still writes its audit entry and clears the
+   * local session on this Ok.
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<Result<void>> {
+    await delay(180);
+    if (currentPassword.length === 0) {
+      return Err(Errors.unauthorized("Current password is required"));
+    }
+    if (newPassword.length < 8) {
+      return Err(Errors.validation("Password must be at least 8 characters long"));
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      return Err(Errors.validation("Password must contain at least one lowercase letter"));
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      return Err(Errors.validation("Password must contain at least one uppercase letter"));
+    }
+    if (!/\d/.test(newPassword)) {
+      return Err(Errors.validation("Password must contain at least one digit"));
+    }
+    return Ok(undefined);
+  }
 }
 
 /** Singleton instance — exported for the barrel re-export in `mock-repositories.ts`. */

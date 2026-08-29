@@ -12,6 +12,8 @@ export const AuditActions = {
   AuthLogout: "auth.logout",
   AuthLoginFailed: "auth.login_failed",
   AuthPasswordReset: "auth.password_reset",
+  /** Self-service password change (plan §12.04). Matches Android's AuditActions.AUTH_PASSWORD_CHANGE. */
+  AuthPasswordChange: "auth.password_change",
   AuthSessionRevoked: "auth.session_revoked",
   /** VAULT §12.01 — system exports (PDF / XLSX / CSV) are tracked events. */
   SystemExport: "system.export",

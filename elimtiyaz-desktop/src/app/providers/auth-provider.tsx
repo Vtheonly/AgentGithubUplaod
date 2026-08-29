@@ -11,13 +11,16 @@
  *   - On success, the active session is revoked (per plan §12.04: "Modifying
  *     a password automatically revokes all active JWT tokens and terminates
  *     active sessions across all devices for that user account").
- *   - A high-priority audit event is written via the audit repository.
+ *   - A high-priority audit event is written via the audit repository —
+ *     only AFTER the repository confirms the password actually changed
+ *     (SEC-103, task T-003: the audit entry must never be forged).
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "../../core/rbac/session";
 import { isExpired } from "../../core/rbac/session";
 import type { Permission } from "../../core/rbac/permissions";
 import { useRepositories } from "./repository-provider";
+import { AuditActions } from "../../core/audit-actions";
 import { logger } from "../../core/logger";
 
 const STORAGE_KEY = "el-imtiyaz.session";
@@ -30,14 +33,20 @@ interface AuthContextValue {
   /**
    * Iteration 10 — change password (plan §12.04).
    *
-   * Requires the current password for re-authentication. On success:
-   *   1. Writes a high-priority audit event (`auth.password_change`).
-   *   2. Revokes the active session (signs the user out).
+   * Requires the current password for re-authentication. Delegates the
+   * actual change to `repos.auth.changePassword` (SEC-103, task T-003):
+   * the repository re-authenticates, persists the new password via
+   * Supabase `auth.updateUser` and revokes all sessions (global signOut).
+   * On success:
+   *   1. Writes a high-priority audit event (`auth.password_change`) —
+   *      only now is it truthful.
+   *   2. Clears the local session (the user must sign in again).
    *   3. Returns ok=true so the UI can navigate to the login screen.
    *
    * Returns `{ ok: false, error }` if the current password is wrong or
    * the new password fails the strength check (min 8 chars, mixed case,
-   * digit, symbol — per plan §12.04 "Strong Entropy").
+   * digit, symbol — per plan §12.04 "Strong Entropy"). On failure the
+   * session is preserved and NO audit entry is written.
    */
   changePassword(
     currentPassword: string,
@@ -89,12 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Iteration 10 — change password (plan §12.04).
    *
    * Per spec: "Allow password changes without re-authentication. The user
-   * must prove current credentials before setting a new password." → we
-   * require the current password and re-verify it via signIn.
+   * must prove current credentials before setting a new password." → the
+   * repository re-authenticates with the current password as its first
+   * step (see SupabaseAuthRepository.changePassword).
    *
    * Per spec: "Modifying a password automatically revokes all active JWT
    * tokens and terminates active sessions across all devices for that user
-   * account." → we clear the local session and write an audit entry.
+   * account." → the repository performs a global signOut; we additionally
+   * clear the local session.
+   *
+   * SEC-103 (task T-003): the actual update is delegated to
+   * repos.auth.changePassword — this provider must NEVER report success
+   * (or write the audit entry) unless the repository confirms the change.
    */
   async function changePassword(
     currentPassword: string,
@@ -103,8 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session) {
       return { ok: false, error: "Aucune session active." };
     }
-    // Strength check (plan §12.04 "Strong Entropy"):
-    // min 8 chars + at least one lowercase + one uppercase + one digit.
+    // Strength check (plan §12.04 "Strong Entropy"): fail fast with a
+    // specific French message before hitting the repository.
     if (newPassword.length < 8) {
       return { ok: false, error: "Le nouveau mot de passe doit contenir au moins 8 caractères." };
     }
@@ -121,30 +136,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: false, error: "Le nouveau mot de passe doit être différent de l'actuel." };
     }
 
-    // Re-authenticate with the current password before accepting the change.
-    const reauth = await repos.auth.signIn(session.email, currentPassword);
-    if (!reauth.ok) {
-      return { ok: false, error: "Mot de passe actuel incorrect." };
+    // SEC-103: delegate the real change (re-auth + auth.updateUser +
+    // global signOut) to the repository that owns it.
+    const result = await repos.auth.changePassword(currentPassword, newPassword);
+    if (!result.ok) {
+      // In this flow ERR_UNAUTHORIZED means the re-authentication with the
+      // current password failed — keep the specific French message this UI
+      // has always shown for that case.
+      const error =
+        result.error.code === "ERR_UNAUTHORIZED"
+          ? "Mot de passe actuel incorrect."
+          : result.error.userMessage;
+      return { ok: false, error };
     }
 
-    // Write a high-priority audit event for the password change.
+    // The password REALLY changed — the audit entry is now truthful.
     await repos.audit.log({
-      action: "auth.password_change",
+      action: AuditActions.AuthPasswordChange,
       entityType: "user",
       entityId: session.userId,
       actorId: session.userId,
       actorName: session.displayName,
       tenantId: session.tenantId,
       diff: { before: { password: "***" }, after: { password: "***" } },
-      note: "Self-service password change — session revoked per plan §12.04",
+      note: "Self-service password change — all sessions revoked (global signOut)",
     });
 
-    // Revoke the active session (force re-login on all devices in production
-    // via Supabase; in the mock we clear the local session).
+    // The repository already revoked every server-side session; clear the
+    // local session so the user is sent back to the login screen.
     clearSession();
     setSession(null);
 
-    logger.info("Password changed; session revoked", { userId: session.userId });
+    logger.info("Password changed; sessions revoked", { userId: session.userId });
     return { ok: true as const };
   }
 
