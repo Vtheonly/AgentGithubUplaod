@@ -7,21 +7,21 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-29, updated after the second repair session — T-003)
+## Progress summary (2026-08-29, updated after the sixth repair session — T-002)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 1 | T-000 |
-| **Completed (TESTED)** | 9 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log), T-081, T-019, T-049 (fifth session 2026-08-29) |
+| **Completed (TESTED)** | 10 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log), T-081, T-019, T-049 (fifth session 2026-08-29), T-002 (sixth session 2026-08-29 — live sign-in matrix pending) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** (understood, dependencies cleared) | 56 | T-002, T-005…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-080 (new — Supabase overdue-scan port, ARCH-006) |
+| **Ready** (understood, dependencies cleared) | 56 | T-005…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-080, T-082 (new — Android lint-gate baseline, ARCH-008) |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
 
-**Recommended next task:** T-002 for the first time in ANY environment — the fifth session (2026-08-29) bootstrapped an Android build toolchain headlessly AND restored the build gate (T-081): `./gradlew :app:testDebugUnitTest` = 207/207 baseline. T-005 remains the fallback for pure-SQL sessions. **Dependency chains:** §Dependency graph at the end of this file.
+**Recommended next task:** T-005 — tenant-scoped RBAC resolver + admin policies (TENANT-100/101, P0 Critical, dependency-free): a new migration (0045+); SQL-level behaviour is fully specified in the problem entries; implementation + migration review are headless-feasible, with live two-tenant tests as the recorded gap (same pattern as T-004). Alternatives: T-082 (Android lint-gate baseline — restores the last inoperable AGENTS.md §6 gate, same pattern as T-078) for a low-risk client-side session; T-079's backend deploy + T-004's curl matrix + T-005's two-tenant tests can share one deployment when a live Supabase environment appears.
 
 ---
 
@@ -93,7 +93,7 @@
 
 ## In Progress
 
-*(none — the fifth repair session (2026-08-29) completed T-081 (TESTED), T-019 (TESTED) and T-049 (TESTED); evidence in change-log.md.)*
+*(none — the sixth repair session (2026-08-29) completed T-002 (TESTED) and closed CROSS-100's Android half; evidence in change-log.md.)*
 
 ## Completed (fifth repair session — 2026-08-29)
 
@@ -121,6 +121,18 @@
 - **Tests:** gate-level: `npx tsc --noEmit` → 0 errors in src/ (was 86 project-wide); `npm run build` → green WITH "Running TypeScript" — the first strict build in the repo's history; `npm run test` → 90/90; `npm run lint` → unchanged baseline (exactly the 2 pre-existing preserve-manual-memoization errors in dashboard-view.tsx + financial-view.tsx, verified identical at HEAD via git stash).
 - **Verification:** evidence in change-log (fifth session). Runtime behaviour preserved everywhere (dedupe keeps last-wins; tone/convocation/primary_phone changes remove only provably-dead or provably-invalid paths).
 - **Commits:** (T-049 commit) — website repo.
+
+---
+
+## Completed (sixth repair session — 2026-08-29)
+
+### T-002 — Close Android authentication bypasses
+- **Problems:** SEC-101, SEC-102, WEAK-101 (plus CROSS-100's Android half) · **Priority:** P0 · **Severity:** Critical
+- **Status:** TESTED (2026-08-29, sixth repair session)
+- **What was done:** (1) **SEC-101** — `signIn` is FAIL-CLOSED: a configured build + failed/empty sign-in returns `Result.Err` (the LoginViewModel already renders it); no session is ever minted from a failure. The demo fallback now exists ONLY via `AuthEnvironment.isDemoFallbackAllowed()` = unconfigured AND debug build; release without configuration fails closed. (2) **SEC-102** — ALL email-substring role inference deleted (signIn Stage 1 + Stage 2 + refreshSession's direct SUPER_ADMIN fallback); roles resolve EXCLUSIVELY from `role_assignments` via the canonical `current_user_roles()` RPC (migration 0003) through the pure `resolveRoleFromAssignments()` — first recognisable code wins, empty/unrecognisable → least-privilege SUPPORT_STAFF (mirrors the desktop reference client). (3) **WEAK-101** — `signIn`/`refreshSession` restore the SDK's REAL `UserSession` (`currentSessionOrNull()`); `Session.accessToken` = the real JWT, `refreshToken` + `expiresAt` (epoch-ms) from the SDK session; the pure `buildServerSession()` assembles it and never expands unknown roles to "all permissions" (empty-set fallback). The demo sandbox role is the FIXED `DEMO_SANDBOX_ROLE` (documented; its token is not a JWT and authenticates nowhere). (4) **CROSS-100 Android half** — the login screen's 9 demo-account chips + `fillDemoAccount()` removed (roles no longer derive from emails; the shared demo password never worked against a configured server; the sandbox works with any typed credentials).
+- **Tests:** NEW `LocalAuthRepositoryTest` — 12 tests: fail-closed on configured-build failure (drives the real provider under Robolectric — every outcome is Err, no session); no demo session on unconfigured release; demo sandbox FIXED role with NO email inference ("finance.admin@" / "teacher@" sign-ins no longer yield FINANCIAL_OFFICER/TEACHER); role-resolution matrix (empty → support_staff; first-valid wins; legacy aliases; unrecognisable never escalates); buildServerSession real-JWT passthrough + no-assignments → support_staff defaults only (no MANAGE_SETTINGS/MANAGE_TENANTS/MANAGE_PERSONNEL); AuthEnvironment policy matrix; source-level guard against re-introducing email inference (T-001 technique).
+- **Verification:** `./gradlew :app:testDebugUnitTest` BUILD SUCCESSFUL — **219 tests / 0 failures** (207 baseline + 12 new); `./gradlew :app:compileDebugKotlin` and `./gradlew :app:assembleDebug` green. GAP (why TESTED, not VERIFIED): live sign-in matrix (real wrong-password 401, role_assignments-backed session, server-side JWT validation) needs a live Supabase — same recorded-gap pattern as T-004/T-079. NEW DISCOVERY registered during verification: **ARCH-008** — `./gradlew :app:lintDebug` has never been green (315 pre-existing NewApi errors, no lint baseline ever existed) → T-082.
+- **Commits:** 1aa34a7 (auth rework + tests), 89eec61 (CROSS-100 demo chips) — android repo.
 
 ---
 
@@ -192,6 +204,14 @@
 - **Dependencies:** none (backend path already secured by T-004) · **Affected:** D · **Platforms:** Desktop
 - **Tests:** mock vs supabase assembly contract tests; seeded Supabase ledger → scan creates real notifications (integration needs a live backend for VERIFIED).
 - **Verification:** regression tests + change-log evidence.
+- **ADRs:** —
+
+#### T-082 — Restore the Android lint gate (baseline or fix the NewApi backlog)
+- **Problems:** ARCH-008 (new — discovered during T-002, 2026-08-29) · **Priority:** P1 · **Severity:** High
+- **Description:** `./gradlew :app:lintDebug` aborts with 315 pre-existing errors / 112 warnings (dominant class: `NewApi` — java.time.* with minSdk 24 and no core-library desugaring; worst files LocalRepositories2.kt 216, DatabaseSeeder.kt 64, LocalRepositories.kt 60, LedgerEngine.kt 36, libs.versions.toml 120 via a different check). Follow the T-078 desktop precedent: (1) decide the desugaring question — enabling core-library desugaring genuinely fixes the NewApi class and is the correct long-term fix; (2) whichever path is chosen, create `app/lint-baseline.xml` pinning the remaining backlog to exact per-rule counts, documented in the build config like T-078 did; (3) fix any NEW findings the baseline surfaces (none should be suppressed silently).
+- **Dependencies:** none · **Affected:** A · **Platforms:** Android
+- **Tests:** `./gradlew :app:lintDebug` green with the baseline (or zero errors after desugaring); per-rule counts documented; the existing 219-test suite stays green.
+- **Verification:** evidence in change-log.
 - **ADRs:** —
 
 ### Phase 1 — Financial integrity (P1)

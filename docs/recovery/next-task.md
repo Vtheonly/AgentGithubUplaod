@@ -14,17 +14,17 @@
 
 ## Currently in progress
 
-*(none — the fifth repair session (2026-08-29) completed T-081 (TESTED), T-019 (TESTED) and T-049 (TESTED); evidence in change-log.md.)*
+*(none — the sixth repair session (2026-08-29) completed T-002 (TESTED, SEC-101/102/WEAK-101 resolved) and closed CROSS-100's Android half; evidence in change-log.md.)*
 
 **T-079 close-out note:** the backend half (migration 0044 + create-user-account EF) needs a live environment to reach TESTED/VERIFIED: `supabase db push` + `supabase functions deploy create-user-account`, then a live round-trip (SuperAdmin creates an account in Settings → Comptes → the new user signs in → changes their password). This deployment step is the task's only remaining work.
 
 ## Current recommendation
 
-**T-002 — Close Android authentication bypasses** (P0, Critical, no dependencies) — **NOW FEASIBLE HEADLESSLY**: the fifth session bootstrapped JDK 17 + Android SDK 35 outside the repos (recipe in change-log) and restored the build gate (T-081); the suite runs (`./gradlew :app:testDebugUnitTest` = 207/207 baseline after T-019's 5 new tests).
+**T-005 — tenant-scoped RBAC resolver + admin policies** (TENANT-100/101, P0 Critical, no dependencies): new migration 0045+; SQL-level behaviour fully specified in the problem entries; implementation + migration review are headless-feasible, with live two-tenant tests as the recorded gap (same pattern as T-004). Alternative client-side pick: **T-082** (Android lint-gate baseline — the last inoperable AGENTS.md §6 gate, same pattern as T-078). When a live Supabase environment appears: T-079's backend deploy + T-004's curl matrix + T-002's live sign-in matrix + T-005's two-tenant tests can share ONE deployment.
 
-Rationale: T-002 (SEC-101/102: Stage-2 offline fallback granting SUPER_ADMIN on ANY failed login; email-substring role inference) remains the highest-severity Phase 0 task, but **verified infeasible headlessly again in the 2026-08-29 fourth session** (no ANDROID_HOME, no Android SDK, JRE-only Java — no javac, no root to install). **Headless fallback: T-005** (tenant-scoped RBAC resolver + admin policies, TENANT-100/101) — a new migration (0045+); SQL-level behaviour is fully specified in the problem entries; implementation + migration review are headless-feasible, with live two-tenant tests as the recorded gap (same pattern as T-004). If a live Supabase environment becomes available instead: T-079's backend deploy + T-004's curl matrix + T-005's two-tenant tests can share one deployment.
+Session outcome (2026-08-29, sixth session): T-002 TESTED — Android auth fail-closed (SEC-101), email-substring role inference deleted, roles via `current_user_roles()` RPC with support_staff fallback (SEC-102), real SDK JWT in Session.accessToken (WEAK-101), demo sandbox restricted to unconfigured+debug; CROSS-100's Android half closed (demo chips removed). Suite 219/219 (+12 regression tests). NEW discovery: ARCH-008 — the Android lint gate has never been green (315 pre-existing NewApi errors, no baseline ever) → T-082. Live sign-in matrix owed (needs a real Supabase).
 
-Session outcome (2026-08-29, fourth session): T-004 TESTED — all four cron EFs deny anonymous invocation via the shared `_shared/cron-auth.ts` guard (CRON_SECRET + service_role accepted; RED→GREEN 19-test suite; full suite 2007/2007; live curl matrix pending). T-078 TESTED — desktop ESLint flat config authored; `npm run lint` gate restored (0 errors; 307 warnings baselined with per-rule counts; 5 first-run errors fixed incl. a real rules-of-hooks violation in permissions-step.tsx). New discoveries: ARCH-006 (Supabase mode keeps overdueAlerts on the mock layer → T-080) and a lint-burn-down candidate; the desktop lint gate DEAD-201 is now operational for all future tasks.
+Session outcome (2026-08-29, fifth session): T-081 TESTED (Android build gate restored: 4 compile errors + the equivalence-harness path defect; 202/202 baseline + 45/45 equivalence green for the first time), T-019 TESTED (sync pushes propagate 4xx/5xx; root-cause correction recorded: the swallowing layer was guard's catch-Throwable, not the SDK), T-049 TESTED (website strict build + the GenericSchema/never defect fixed; 90/90). Android toolchain bootstrapped at /home/z/my-project/tools (recipe in change-log).
 
 Session outcome (2026-08-29, third session): T-079 completed — admin-created user accounts (owner feature request): Settings → Comptes tab, `UserAccountRepository` (domain + Mock + Supabase), `create-user-account` EF (super_admin only), `admin_create_user_account` RPC (migration 0044, EXECUTE service_role-only). Client stack TESTED (19-test suite incl. the create → sign-in round-trip; full suite 1988/1988; typecheck clean); EF + migration IMPLEMENTED (live deploy pending — no Deno/Postgres/Supabase in this environment).
 
@@ -35,7 +35,7 @@ Batch outcome (2026-08-29): T-001 TESTED (SEC-100 resolved; passwords still need
 Suggested order for the first sessions (all P0, dependency-free):
 
 1. ~~**T-001** — desktop credentials (SEC-100)~~ — DONE 2026-08-29 (TESTED)
-2. **T-002** — Android SUPER_ADMIN fallback (SEC-101/102) — *next pick, needs an Android build host*
+2. ~~**T-002** — Android SUPER_ADMIN fallback (SEC-101/102)~~ — DONE 2026-08-29 (TESTED, sixth session — live sign-in matrix pending)
 3. ~~**T-009** — website mock-auth removal (SEC-007)~~ — DONE 2026-08-29 (TESTED)
 4. ~~**T-003** — desktop changePassword no-op (SEC-103)~~ — DONE 2026-08-29 (TESTED, second session; was the T-002 fallback)
 5. **T-005** — tenant-scoped RBAC resolver + admin policies (TENANT-100/101)

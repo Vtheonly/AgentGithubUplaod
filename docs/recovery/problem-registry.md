@@ -21,12 +21,17 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 24 | | OPEN | 126 |
-| High | 43 | | BLOCKED | 13 |
-| Medium | 59 | | DEFERRED | 5 |
+| Critical | 24 | | OPEN | 115 |
+| High | 45 | | BLOCKED | 13 |
+| Medium | 61 | | DEFERRED | 5 |
 | Low | 19 | | VERIFIED | 1 |
+| | | | TESTED | 13 |
+| | | | IMPLEMENTED | 1 |
+| | | | PARTIAL | 1 |
 
-**Totals:** 145 consolidated problems from 185 audit findings · 119 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021, resolved by the documentation reset itself) · 5 TESTED (SEC-100, SEC-007, SEC-103, SEC-105, DEAD-201 — fixed 2026-08-29, verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 2 PARTIAL (CROSS-100 desktop half fixed, DEAD-012 unblocked) · plus 2 new problems registered 2026-08-29 (DEAD-201 — found during T-001, fixed by T-078 the same day; ARCH-006 — found during T-004, task T-080 created).
+**Totals:** 149 registered problems (145 consolidated from 185 audit findings + 4 discovered during repair sessions: DEAD-201, ARCH-006, ARCH-007, ARCH-008) · 115 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021) · 13 TESTED (SEC-100, SEC-007, SEC-103, SEC-105, DEAD-201 — fixed 2026-08-29 sessions 1–4; SEC-101, SEC-102, WEAK-101, CROSS-100 — T-002 sixth session; ARCH-005, DEAD-013, CROSS-200, ARCH-007 — fifth session; verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 1 PARTIAL (DEAD-012 — unblocked, full cleanup remains T-049).
+
+> NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
 ## Index (by ID)
 
@@ -41,8 +46,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-007 | Critical | TESTED | T-009 | Mock-auth hydration runs unconditionally on every mount; bypasses the `NEXT_PUBLIC_MOCK_AUTH_ENABLED` feature flag |
 | SEC-008 | Critical | OPEN | T-031 | `enforce_parent_self_update_columns` trigger has no `has_role('parent')` check — blocks ALL staff updates to parent identity fields |
 | SEC-100 | Critical | TESTED | T-001 | Desktop login screen ships 9 hardcoded staff credentials as quick-fill buttons (in git) |
-| SEC-101 | Critical | OPEN | T-002 | Android LocalAuthRepository grants SUPER_ADMIN on ANY failed/empty Supabase login (offline fallback) |
-| SEC-102 | Critical | OPEN | T-002 | Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails |
+| SEC-101 | Critical | TESTED | T-002 | Android LocalAuthRepository grants SUPER_ADMIN on ANY failed/empty Supabase login (offline fallback) — FAIL-CLOSED 2026-08-29 (T-002) |
+| SEC-102 | Critical | TESTED | T-002 | Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails — server-side role resolution 2026-08-29 (T-002) |
 | SEC-103 | High | TESTED | T-003 | Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password |
 | SEC-105 | High | TESTED | T-004 | Anonymous invocation of 4 cron EFs (no auth check when no Authorization header) — fixed 2026-08-29, live curl matrix pending |
 | SEC-106 | High | OPEN | T-006 | register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception) |
@@ -71,7 +76,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CROSS-004 | Low | OPEN | T-028 | `bind-activation-code` Edge Function had to be patched to accept both `code` and `activation_code` body keys |
 | CROSS-005 | Critical | BLOCKED | T-059 | Android `LocalPaymentRepository.collect()` bypasses the canonical `collect_payment` RPC |
 | CROSS-009 | High | BLOCKED | T-028 | Website's `bind-activation-code` Edge Function is a drifted duplicate of the desktop's canonical version (no shared helpers, no audit log, different body key handling) |
-| CROSS-100 | Medium | PARTIAL | T-001 | Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@) |
+| CROSS-100 | Medium | TESTED | T-001/T-002 | Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@) — both demo lists removed 2026-08-29 |
 | CROSS-101 | Critical | BLOCKED | T-066 | `receipts` table is orphaned; website's receipt download is permanently broken |
 | CROSS-102 | High | OPEN | T-017 | Android refund sync payload drops the user's refund reason; server audit log has no reason |
 | CROSS-103 | High | OPEN | T-017 | Android refund sync does NOT push installment state changes; server-side installments stay stale |
@@ -129,8 +134,10 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ARCH-002 | Medium | IMPLEMENTED | T-010 | Electron main process registered with `--no-sandbox` in the start script |
 | ARCH-003 | High | BLOCKED | T-059 | `RepositoryModule` binds ALL repositories to `Local*Repository` (Room-first) — canonical Supabase RPCs (`collect_payment`, `refund-payment`, `bind-activation-code`, `run-overdue-scan`, `refresh-materialized-views`, `update-server-secret`) are NEVER called from Android |
 | ARCH-004 | High | OPEN | T-046 | `fallbackToDestructiveMigration(true)` on production Room database — user data silently wiped on any future schema bump |
-| ARCH-005 | Medium | OPEN | T-049 | `next.config.ts` has `typescript.ignoreBuildErrors: true` AND `reactStrictMode: false` — type errors silently shipped to production, React strict-mode bugs hidden |
+| ARCH-005 | Medium | TESTED | T-049 | `next.config.ts` has `typescript.ignoreBuildErrors: true` AND `reactStrictMode: false` — type errors silently shipped to production, React strict-mode bugs hidden — strict builds green 2026-08-29 (T-049) |
 | ARCH-006 | Medium | OPEN | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
+| ARCH-007 | High | TESTED | T-081 | NEW (2026-08-29): Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken — gate restored 2026-08-29 (T-081) |
+| ARCH-008 | High | OPEN | T-082 | NEW (2026-08-29): the Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing NewApi errors; no lint baseline has ever existed |
 | DRIFT-001 | High | OPEN | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
@@ -165,7 +172,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | WEAK-022 | Medium | OPEN | T-035 | `useLedgerEntries` fetches with `.limit(500)`; `portalFinancialSummary` replays ONLY 500 entries — balance computation is WRONG for parents with > 500 ledger entries |
 | WEAK-023 | Medium | OPEN | T-065 | `useUnreadChatCount` fetches 500 messages across ALL channels (no channel filter in query), counts client-side — comment claims "200 per channel" |
 | WEAK-100 | Medium | OPEN | T-072 | Activation codes use Postgres random() (non-cryptographic); 7-digit space is brute-forceable; no rate limit on website activation endpoint |
-| WEAK-101 | Medium | OPEN | T-002 | Android LocalAuthRepository stores user UUID as accessToken (fake JWT that doesn't validate server-side) |
+| WEAK-101 | Medium | TESTED | T-002 | Android LocalAuthRepository stores user UUID as accessToken (fake JWT that doesn't validate server-side) — real JWT stored 2026-08-29 (T-002) |
 | WEAK-200 | Medium | OPEN | T-061 | `enforce_payment_proof` trigger runs on EVERY payment INSERT/UPDATE; Android refund sync triggers re-validation of unchanged proof fields |
 | DEAD-002 | Medium | OPEN | T-056 | `update-server-secret` Edge Function exports a `handleDelete` that is never wired |
 | DEAD-007 | Low | OPEN | T-062 | `AuditActions.kt` contains many audit action constants that the Android app never invokes |
@@ -365,7 +372,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-101 — Android LocalAuthRepository grants SUPER_ADMIN on ANY failed/empty Supabase login (offline fallback)
 
-- **Category:** SEC  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Critical  |  **Status:** TESTED (2026-08-29, T-002)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-002 (docs/recovery/task-registry.md)
@@ -379,12 +386,13 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Remove the Stage-2 offline fallback in LocalAuthRepository.signIn, or restrict it to the case where Supabase is genuinely unconfigured AND the build is a debug build. Fail closed on credential errors. Role must come from role_assignments via RPC, never from email substrings. Add tests: wrong password yields failure; unconfigured+release yields failure.
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Resolution (2026-08-29, T-002 — TESTED):** `signIn` is fail-closed: a configured build + failed/empty sign-in returns `Result.Err` (no session minted). The demo fallback is gated by `AuthEnvironment.isDemoFallbackAllowed()` — unconfigured AND debug build ONLY; release without configuration fails closed. 12-test `LocalAuthRepositoryTest` regression suite (fail-closed on configured failure; no demo session on unconfigured release; fixed demo role with no email inference; source-level guard). Evidence: android commits `1aa34a7` (auth rework) + `89eec61` (demo chips); hub change-log sixth session. Owed for VERIFIED: live sign-in matrix (real wrong-password 401 round-trip + role_assignments-backed session).
 
 ---
 
 ### SEC-102 — Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails
 
-- **Category:** SEC  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Critical  |  **Status:** TESTED (2026-08-29, T-002)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-002 (docs/recovery/task-registry.md)
@@ -398,6 +406,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Delete the email-substring role inference. Resolve role exclusively from role_assignments (current_user_roles RPC) with least-privilege fallback (e.g. parent / support_staff), never SUPER_ADMIN. Regression test: a signed-in user with no role assignments receives no staff UI.
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Resolution (2026-08-29, T-002 — TESTED):** ALL email-substring role inference deleted (signIn Stage 1, Stage 2, refreshSession). Roles resolve via the canonical `current_user_roles()` RPC (migration 0003 — role_assignments) through the pure `resolveRoleFromAssignments()`: first recognisable code wins, empty/unrecognisable → LEAST-PRIVILEGE support_staff (mirrors the desktop reference client's `Role.SupportStaff` fallback); refreshSession's direct SUPER_ADMIN fallback also removed. Tests pin: no assignments → support_staff + its default permissions only (no MANAGE_SETTINGS/MANAGE_TENANTS/MANAGE_PERSONNEL); a source-level scan forbids re-introducing `contains("…")` role inference (T-001 technique). Evidence: android commit `1aa34a7`; hub change-log sixth session. Owed for VERIFIED: live role_assignments-backed sign-in.
 
 ---
 
@@ -951,8 +960,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-100 — Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@)
 
-- **Category:** CROSS  |  **Severity:** Medium  |  **Status:** PARTIAL (desktop half fixed 2026-08-29, task T-001)
-- **Status note:** The DESKTOP demo-account list was deleted entirely (T-001), removing the desktop side of the divergence. The ANDROID demo list (LoginViewModel.kt, single shared password) still exists — its removal is folded into T-002 (SEC-101/102) which reworks Android auth. This problem closes when T-002 lands. Evidence: change-log 2026-08-29 / hub commit 9c038eb.
+- **Category:** CROSS  |  **Severity:** Medium  |  **Status:** TESTED (2026-08-29 — desktop half T-001, Android half T-002)
+- **Status note:** The DESKTOP demo-account list was deleted entirely (T-001), removing the desktop side of the divergence. The ANDROID demo list (LoginViewModel.kt, single shared password) was deleted 2026-08-29 (T-002 session, android commit `89eec61`): with roles no longer derived from emails (SEC-102) and the shared "demo1234" password never valid against a configured server, the chips were misleading UI; the debug demo sandbox (unconfigured + debug builds only) still signs in with any typed credentials. No demo credentials ship in either client any more.
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-001 (docs/recovery/task-registry.md)
@@ -2764,7 +2773,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-101 — Android LocalAuthRepository stores user UUID as accessToken (fake JWT that doesn't validate server-side)
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-08-29, T-002)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-002 (docs/recovery/task-registry.md)
@@ -2778,6 +2787,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** The Supabase Kotlin SDK's `auth.currentAccessTokenOrNull()` returns the real JWT. The Session should store that.
 - **Dependencies:** none recorded
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Resolution (2026-08-29, T-002 — TESTED):** `signIn` and `refreshSession` now restore the SDK's real `UserSession` (`currentSessionOrNull()`); `Session.accessToken` = `UserSession.accessToken` (the real JWT), `refreshToken` = the SDK refresh token, `expiresAt` = `UserSession.expiresAt` converted to epoch-ms. The pure `buildServerSession()` passes these through verbatim — pinned by tests. Evidence: android commit `1aa34a7`; hub change-log sixth session. Owed for VERIFIED: a server-side validated call using the stored token.
 
 ---
 
@@ -3072,3 +3082,22 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Dependencies:** none recorded
 - **Verification:** `./gradlew :app:compileDebugKotlin` green; `./gradlew test` green with the passing-test count recorded in change-log; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 - **Status note (2026-08-29, T-081):** RESOLVED — and the problem was BIGGER than first recorded: the compiler surfaced FOUR errors, not two (each hidden until the previous one was fixed): (1) `ClassesDirectoryViewModel.kt` missing `private val` on `sessionManager`; (2) `AppNavHost.kt` missing `PromotionReviewScreen` import; (3) `SyncQueueDispatcher.kt` pushGrade — `Double? ?: JsonNull` infers `Any`, matching no `put` overload (fixed by wrapping in `JsonPrimitive`); (4) `PricingCalculationTest.kt` — `assertEquals(Double?, Double?, Double)` matches no JUnit overload (non-null assertions added). PLUS the equivalence harness could never find the canonical scenarios: `AndroidEquivalenceTest.resolve()` probed only `app/` and the repo root, while the scenarios live in the hub's `elimtiyaz-desktop/financial-tests/equivalence/scenarios` — the probe list now includes the sibling hub checkout, so the 45-scenario suite runs GREEN for the first time. The hub `AGENTS.md` §2 also misdocuments `financial-tests/` as being at the hub root (it is under `elimtiyaz-desktop/`). Baseline after the fix: `./gradlew :app:testDebugUnitTest` = 202/202, equivalence 45/45. NOTE for future agents: the Android build environment (Temurin JDK 17 + cmdline-tools + platforms;android-35 + build-tools;35.0.0) was bootstrapped OUTSIDE the repo at /home/z/my-project/tools — see change-log for the recipe; network access to dl.google.com/services.gradle.org/maven.google.com worked from this environment.
+
+---
+
+### ARCH-008 — The Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing errors (no lint baseline has ever existed)
+
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** OPEN
+- **Repositories:** elimtiyaz-android
+- **Platforms affected:** Android
+- **Task:** T-082 (docs/recovery/task-registry.md — created 2026-08-29, sixth repair session)
+- **Consolidated from:** NEW — discovered 2026-08-29 (sixth session) while running the AGENTS.md §6 verification gate for T-002; not in either audit pass
+- **Description:** The per-repo `AGENTS.md` §6 gate lists `./gradlew lint` as REQUIRED before finishing, but `./gradlew :app:lintDebug` has never been green: at the post-T-002 HEAD it aborts with **315 errors / 112 warnings**. The dominant class is `NewApi` (java.time.* calls with `minSdk 24` and no core-library desugaring configured) — 216 findings in `LocalRepositories2.kt` alone, plus `DatabaseSeeder.kt` (64), `LocalRepositories.kt` (60), `LedgerEngine.kt` (36), `AndroidPdfRepository.kt`/`PdfGenerator.kt` (28+28), `libs.versions.toml` (120 — a different check), and more. There is no `lint-baseline.xml` anywhere in the repo's history, so these errors pre-date every session and lint has NEVER gated an Android commit.
+- **Location:** repo-wide; worst files: `app/src/main/java/com/example/infrastructure/local/LocalRepositories2.kt`, `app/src/main/java/com/example/infrastructure/room/DatabaseSeeder.kt`, `app/src/main/java/com/example/core/LedgerEngine.kt`, `gradle/libs.versions.toml`
+- **Evidence:** Runtime evidence (2026-08-29, sixth session): `./gradlew :app:lintDebug` on the post-T-002 HEAD → "Lint found 315 errors, 112 warnings. First failure: LocalRepositories2.kt:143 Error: Call requires API level 26, or core library desugaring (current min is 24): java.time.Instant#now [NewApi]". None of the 315 findings are introduced by T-002 (the 6 findings inside the reworked `LocalRepositories.kt` auth region are the pre-existing `Instant.now()` audit-timestamp pattern that the replaced code already used).
+- **Root cause:** Same class as ARCH-007 — gates were documented (T-000, 2026-08-29) but never actually run to green. Lint was restored on the desktop (T-078) but the Android lint gate was never triaged: the error backlog predates the governance system and no baseline was ever created.
+- **Current behavior:** `./gradlew :app:lintDebug` (and `./gradlew lint`) abort with 315 errors; the AGENTS.md §6 lint requirement cannot be satisfied by any agent.
+- **Expected behavior:** Either (a) the error backlog is triaged and fixed to zero, or (b) a `lint-baseline.xml` pins the pre-existing debt to exact per-rule counts (the desktop T-078 pattern: baseline + documented per-rule justification) so the gate is green and only NEW findings fail.
+- **Proposed resolution:** Follow the T-078 precedent: create `app/lint-baseline.xml` from the current 315-error backlog, document the per-rule counts and the desugaring decision in the build config, and decide separately (T-082) whether to enable core-library desugaring to genuinely fix the NewApi class (it is the correct long-term fix — java.time is already used pervasively).
+- **Dependencies:** none recorded
+- **Verification:** `./gradlew :app:lintDebug` green with the baseline (or zero errors after the desugaring fix); per-rule counts documented; evidence in change-log before status moves past TESTED.
