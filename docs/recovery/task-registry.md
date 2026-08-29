@@ -2,6 +2,9 @@
 
 > **This is the authoritative todo list for all remaining work.** Agents must not create separate task lists, TODO files, or progress notes anywhere. Status transitions follow `definition-of-done.md`; completion evidence goes to `change-log.md`.
 >
+> **Evidence base:** every task below was derived from the problem registry, which consolidates the two archived audit reports in [`docs/audits/`](../audits/README.md) (86 + 99 findings). When a task's problem entry is not detailed enough, read the raw finding in the audit files — full end-to-end traces and git forensics live there.
+> **Commit rule (AGENTS.md §14):** every commit must state the task completed, what is left, what was changed, what was verified, and the next task.
+>
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
 ## Progress summary (2026-08-29)
@@ -24,7 +27,7 @@
 
 ### T-000 — Documentation reset & unified governance system
 - **Problem IDs:** — (system-level; resolves WEAK-021)
-- **Description:** Remove all 56 legacy `.md` files across the three repos; consolidate two audit passes (185 findings) into a 145-problem registry; establish this documentation/control system (AGENTS.md ×3, architecture, domain, ADR-001…007, recovery, testing, agents).
+- **Description:** Remove all 56 legacy `.md` files across the three repos; consolidate two audit passes (185 findings) into a 145-problem registry; establish this documentation/control system (AGENTS.md ×3, architecture, domain, ADR-001…007, recovery, testing, agents). Amendment (same day): archived both audit reports verbatim under `docs/audits/` and added the mandatory commit-content rule (Task/Left/Change/Verified/Next) to `AGENTS.md` §14 and `docs/agents/git-workflow.md`.
 - **Priority:** P0 · **Severity:** — · **Dependencies:** none
 - **Affected:** all three repos (documentation only)
 - **Status:** VERIFIED (2026-08-29)

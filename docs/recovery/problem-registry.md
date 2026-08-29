@@ -1,12 +1,12 @@
 # Problem Registry — Consolidated & Authoritative
 
 > **Purpose:** single authoritative registry of every known defect, drift and risk in the El-Imtiyaz system (desktop, Android, website, backend).
-> **Source material:** first-pass audit (86 findings) + second-pass audit (99 findings) = 185 raw findings, consolidated into 145 unique problems. Duplicates and overlaps were merged; contradictions were resolved against repository evidence; unresolvable questions moved to `docs/recovery/unknowns.md`.
-> **Do not** create problem lists anywhere else. New problems get a new ID here (next free number in the category prefix).
+> **Source material:** [first-pass audit](../audits/first-pass-audit.md) (86 findings) + [second-pass audit](../audits/second-pass-audit.md) (99 findings) = 185 raw findings — both archived verbatim in [`docs/audits/`](../audits/README.md) — consolidated into 145 unique problems. Duplicates and overlaps were merged; contradictions were resolved against repository evidence; unresolvable questions moved to `docs/recovery/unknowns.md`.
+> **Do not** create problem lists anywhere else. New problems get a new ID here (next free number in the category prefix). Do not write new findings into the audit files — they are read-only evidence.
 
 ## Consolidation rules applied
 
-1. **ID collisions resolved** — second-pass agent 3-A reused `SEC-100`/`SEC-101` (already taken by agent 3-B). The 3-A findings were renumbered `SEC-111` (upsert_payment_from_import SECURITY DEFINER) and `SEC-112` (revert_payment_allocation tenant check).
+1. **ID collisions resolved** — second-pass agent 3-A reused `SEC-100`/`SEC-101` (already taken by agent 3-B). The 3-A findings were renumbered `SEC-111` (upsert_payment_from_import SECURITY DEFINER) and `SEC-112` (revert_payment_allocation tenant check). See [`docs/audits/README.md`](../audits/README.md) for the full reading/mapping rules for audit IDs.
 2. **Extend-chains merged** — findings explicitly marked *extends* in the second pass were absorbed into their first-pass parent (e.g. `TENANT-105` → `DEAD-100`, `PARENT-100` → `DRIFT-001`). Absorbed IDs redirect to the surviving entry; they are listed under *Consolidated from* and *Absorbed findings*.
 3. **Same-root families merged** — e.g. the five receipt-numbering algorithms (`DRIFT-011`), the four equivalence test frameworks (`DUP-001`), the non-deterministic identity-code generators (`DRIFT-001`).
 4. **Nothing was dropped silently** — every absorbed ID appears in this file; every surviving ID keeps its original evidence.

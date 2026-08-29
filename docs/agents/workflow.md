@@ -23,7 +23,7 @@ Before touching anything, establish what exists:
 
 1. Read the canonical implementation and every consumer/caller (grep call sites across repos).
 2. Read the domain rules that govern the behaviour (`docs/domain/financial-rules.md`, `academic-rules.md`).
-3. Understand what the audit evidence says about this area (the problem entry's Evidence/Root cause).
+3. Understand what the audit evidence says about this area: the problem entry's Evidence/Root cause in `problem-registry.md`, and — when you need the full end-to-end trace or git forensics — the raw finding in `docs/audits/` (see `docs/audits/README.md` for ID-mapping rules).
 4. Determine which platforms are affected and how they currently behave (cross-platform rule, AGENTS.md §10).
 
 **Gate:** you can state the current behaviour, the expected behaviour, and the difference — with file/line references.
@@ -79,7 +79,7 @@ Before writing code:
 
 ## Stage 10 — COMMIT
 
-Per `git-workflow.md`: small, focused, conventional commits; detailed body for architectural changes; never mix unrelated fixes.
+Per `git-workflow.md`: small, focused, conventional commits; never mix unrelated fixes. **The commit body must answer the five mandatory questions (AGENTS.md §14):** `Task:` (which task was completed/advanced) · `Left:` (what is left) · `Change:` (what was changed) · `Verified:` (what was actually verified, with real commands and results) · `Next:` (the next task for the following agent) — plus `Problem:` / `Root Cause:` / `Preserved:` / `Affected:` / `Related:` for architectural, financial or security changes. The commit is a progress record for the next agent, not just a change record for git.
 
 ## Stage 11 — UPDATE TASK STATUS
 

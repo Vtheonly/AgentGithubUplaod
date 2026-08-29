@@ -15,9 +15,11 @@ Scattered, stale documentation is actively harmful: agents trusted DONE.md claim
 ## Decision
 
 1. **All legacy markdown documentation was removed on 2026-08-29** (56 files across the three repos).
-2. The **unified documentation and control system lives in this repository**: `AGENTS.md` (system manual), `docs/architecture/`, `docs/domain/`, `docs/decisions/`, `docs/recovery/` (problem registry, task registry, unknowns, change log, rules), `docs/testing/`, `docs/agents/`.
+2. The **unified documentation and control system lives in this repository**: `AGENTS.md` (system manual), `docs/architecture/`, `docs/domain/`, `docs/decisions/`, `docs/recovery/` (problem registry, task registry, unknowns, change log, rules), `docs/testing/`, `docs/agents/`, and `docs/audits/` (the raw audit reports, archived verbatim as read-only evidence — added by the T-000 amendment, same day).
 3. The Android and website repositories carry exactly one documentation file each — their own `AGENTS.md` — which describes that repo and points here. They do NOT duplicate system-level documentation.
 4. Authoritative locations are unique by topic (one registry for problems, one for tasks, one for unknowns, one change log). No README/DONE/TODO/progress files anywhere else.
+5. **The audit reports are preserved as archival evidence, not living documents**: `docs/audits/first-pass-audit.md` (86 findings) and `docs/audits/second-pass-audit.md` (99 findings) are frozen (verbatim below an archival banner). New findings go ONLY into the problem registry; the registry wins on any conflict; audit ID collisions/absorptions are mapped in `docs/audits/README.md`.
+6. **Every commit body must record project position, not just the change** (the commit-content rule, AGENTS.md §14): task completed · what is left · what was changed (incl. preserved) · what was verified (real commands + results) · next task. This makes every commit a self-contained handoff to the next agent.
 
 ## Alternatives
 
@@ -44,4 +46,4 @@ T-000 (completed — the documentation reset itself)
 
 ## Verification
 
-File inventory shows: no legacy `.md` remains; hub contains exactly the documented tree; each client repo contains exactly one `AGENTS.md`. Problem IDs, task IDs and cross-references validated by the consistency check recorded in the change log.
+File inventory shows: no legacy `.md` remains; hub contains exactly the documented tree; each client repo contains exactly one `AGENTS.md`. Problem IDs, task IDs and cross-references validated by the consistency check recorded in the change log. The T-000 amendment additionally verified that each archived audit file is a byte-identical superset of its original (verbatim-suffix check), with only the archival banner prepended.

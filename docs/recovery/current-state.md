@@ -30,6 +30,7 @@ None in flight. Historical note: migrations 0034–0043 were a 10-migration fix-
 ## 5. Completed recovery work
 
 - **2026-08-29 — Documentation reset & governance system (T-000, VERIFIED):** 56 legacy markdown files removed across the three repos; unified documentation + control system established (this tree); two audit passes consolidated into one 145-problem registry; task registry, unknowns, ADRs and workflows created. No application source code was modified.
+- **2026-08-29 — T-000 amendment (VERIFIED):** both audit reports archived **verbatim** under `docs/audits/` (read-only evidence, with an index explaining the ID mapping to the registry); mandatory commit-content rule (task completed / what is left / what was changed / what was verified / next task) added to `AGENTS.md` §14, `docs/agents/git-workflow.md` and `docs/agents/workflow.md`.
 - **Pre-existing (historical, from git history):** the 0034–0043 canonical-engine unification chain; migration 0042's overdue-rule alignment; migration 0043's absorption of the website's portal patches; the mock-auth default-on regression (REG-003, absorbed into SEC-007) was reverted in website commit `03f6365`.
 - Nothing else has been fixed or verified since the audits. All 144 other problems remain OPEN (126), BLOCKED (13) or DEFERRED (5).
 

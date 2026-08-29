@@ -45,12 +45,13 @@ Full detail: `docs/architecture/boundaries.md`. Source-of-truth registry: `docs/
 
 1. `docs/recovery/task-registry.md` — find your task and its dependencies; confirm nothing blocks it.
 2. `docs/recovery/problem-registry.md` — read every problem ID your task references (full evidence and constraints).
-3. `docs/architecture/source-of-truth.md` — identify the canonical implementation for the concept you are touching.
-4. `docs/architecture/system-map.md` and `docs/architecture/boundaries.md` — confirm the layer that owns the behaviour.
-5. `docs/domain/financial-rules.md` / `docs/domain/academic-rules.md` — the canonical business rules (deterministic codes, waterfall, overdue, refund, reconciliation, attendance rate, …).
-6. `docs/recovery/unknowns.md` — if your change depends on an open question, STOP; do not guess.
-7. `docs/decisions/` — ADRs that constrain the design.
-8. The code itself: search for existing implementations (see §8).
+3. `docs/audits/` — the raw audit reports behind your problem IDs (read-only archival evidence; full end-to-end traces and git forensics live here — see `docs/audits/README.md` for the ID mapping rules).
+4. `docs/architecture/source-of-truth.md` — identify the canonical implementation for the concept you are touching.
+5. `docs/architecture/system-map.md` and `docs/architecture/boundaries.md` — confirm the layer that owns the behaviour.
+6. `docs/domain/financial-rules.md` / `docs/domain/academic-rules.md` — the canonical business rules (deterministic codes, waterfall, overdue, refund, reconciliation, attendance rate, …).
+7. `docs/recovery/unknowns.md` — if your change depends on an open question, STOP; do not guess.
+8. `docs/decisions/` — ADRs that constrain the design.
+9. The code itself: search for existing implementations (see §6).
 
 ## 6. How to find existing implementations (Existing-Implementation-First rule)
 
@@ -118,9 +119,21 @@ Cross-platform financial equivalence: see `docs/testing/cross-platform.md`. Any 
 - When you start a task: set it `IN_PROGRESS` in the task registry and identify it in `docs/recovery/next-task.md`.
 - When you finish: update the task registry, the problem registry, and the change log, then commit.
 
-## 14. How to create commits
+## 14. How to create commits — the mandatory commit-content rule
 
-Follow `docs/agents/git-workflow.md`. Conventional-commit subjects (`fix(financial): …`, `refactor(android): …`, `test(financial): …`, `docs(architecture): …`, `chore(recovery): …`), small and focused, one task per commit, detailed body for architectural changes (Problem / Root Cause / Change / Affected / Preserved / Verification / Related). The repo's history already contains 87 near-useless commit messages ("kay", "mid", "gg") — do not add to that.
+Follow `docs/agents/git-workflow.md`. Conventional-commit subjects (`fix(financial): …`, `refactor(android): …`, `test(financial): …`, `docs(architecture): …`, `chore(recovery): …`), small and focused, one task per commit. The repo's history already contains 87 near-useless commit messages ("kay", "mid", "gg") — do not add to that.
+
+**Every commit body MUST answer five questions — no exceptions, for every agent, on every repository:**
+
+1. **Task completed** — which task ID (from `docs/recovery/task-registry.md`) this commit completes or advances, and the status it reached.
+2. **What is left** — what remains of the task (sub-steps not yet done, follow-ups it spawns), or an explicit `nothing — task complete`.
+3. **What was changed** — the concrete change (files/behaviour), and what was deliberately **preserved** (unchanged).
+4. **What was verified** — the checks you ACTUALLY ran and their results (commands, test suites, equivalence runs). Never claim verification you did not perform; never mark `TESTED`/`VERIFIED` without recorded evidence.
+5. **Next task** — the task ID the next agent should pick up (with a one-line reason), so the project never loses its place.
+
+The exact template (with `Task:` / `Problem:` / `Root Cause:` / `Change:` / `Left:` / `Verified:` / `Preserved:` / `Next:` / `Related:` fields) and model answers are in `docs/agents/git-workflow.md` §2–3. A commit without these five answers is incomplete — amend it (only if local-only and unpushed) before pushing.
+
+The commit is the last step of the workflow (`docs/agents/workflow.md`): it records progress for the NEXT agent, not just the change for git.
 
 ## 15. What agents are FORBIDDEN from doing
 
@@ -161,6 +174,9 @@ If evidence is insufficient — which implementation is correct, what a business
 | `docs/recovery/recovery-rules.md` | Rules of engagement for repairing this codebase |
 | `docs/recovery/unknowns.md` | Open questions that block decisions |
 | `docs/recovery/change-log.md` | Chronological record of completed recovery changes |
+| `docs/audits/README.md` | Index to the archival audit reports + ID-mapping rules |
+| `docs/audits/first-pass-audit.md` | First-pass audit — 86 findings (read-only archival evidence) |
+| `docs/audits/second-pass-audit.md` | Second-pass audit — 99 findings (read-only archival evidence) |
 | `docs/testing/strategy.md` | Testing strategy per platform and layer |
 | `docs/testing/cross-platform.md` | Canonical cross-platform equivalence verification |
 | `docs/agents/workflow.md` | The mandatory agent workflow (DISCOVER → … → UPDATE TASK STATUS) |
@@ -168,4 +184,4 @@ If evidence is insufficient — which implementation is correct, what a business
 
 ---
 
-*This manual, the registries, and the ADRs were established on 2026-08-29 by consolidating two full audit passes (185 raw findings → 145 consolidated problems). They are the permanent memory of the project: keep them current, and a future agent weeks from now will understand what exists, what is authoritative, what is broken, and what to do next.*
+*This manual, the registries, and the ADRs were established on 2026-08-29 by consolidating two full audit passes (185 raw findings → 145 consolidated problems; the raw reports are archived verbatim in `docs/audits/`). They are the permanent memory of the project: keep them current, and a future agent weeks from now will understand what exists, what is authoritative, what is broken, and what to do next.*
