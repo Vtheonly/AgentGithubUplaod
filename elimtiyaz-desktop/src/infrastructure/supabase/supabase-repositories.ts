@@ -51,6 +51,7 @@ import {
   SupabaseDebtRepository,
 } from "./repositories/supabase-shared-repositories";
 import { SupabaseDashboardRepository } from "./repositories/supabase-dashboard-repository";
+import { SupabaseOverdueAlertGenerator } from "./repositories/supabase-overdue-alert-generator";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -138,6 +139,15 @@ export function getSupabaseRepositories(): Repositories {
   const personnel = new SupabasePersonnelRepository(client, roleLookup);
   const departments = new SupabaseDepartmentRepository(client);
 
+  // T-080 (2026-08-30, ARCH-006 fix): wire the Supabase-backed overdue
+  // alert generator. BEFORE this, the `overdueAlerts` slot stayed on
+  // MockOverdueAlertGenerator even in Supabase mode — the dashboard's
+  // "Scan retards" button scanned in-memory seed data and persisted
+  // nothing server-side. The guarded `run-overdue-scan` EF (T-004)
+  // had no live desktop caller as a result. Now the desktop path
+  // scans real installments + writes real `notifications` rows.
+  const overdueAlerts = new SupabaseOverdueAlertGenerator(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -163,6 +173,7 @@ export function getSupabaseRepositories(): Repositories {
     notifications,
     personnel,
     departments,
+    overdueAlerts, // T-080 — kill the mock leak
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
@@ -207,4 +218,5 @@ export {
   SupabaseNotificationRepository,
   SupabasePersonnelRepository,
   SupabaseDepartmentRepository,
+  SupabaseOverdueAlertGenerator, // T-080 — Supabase-backed overdue scan
 };
