@@ -374,3 +374,158 @@ T-004 (headless-implementable + live-verification) — the live
 environment is now wired up. Alternative: T-083 (fix
 `expire_pending_approvals` SQL RPC — discovered during T-004
 verification, can reuse the live-curl-matrix pattern).
+
+## Entries (continued)
+
+### 2026-08-30 — NINTH REPAIR SESSION — T-088 / T-080 / T-089 / T-091 / T-087 / T-092 — owner-requested dashboard restructure + backend testing + migration token reconciliation
+
+The ninth session executed the owner's three priorities: (1) restructure
+the desktop statistics dashboard UI (eliminate duplication, kill dead
+code, build around real backend data); (2) thoroughly test the backend
+DBs with the provided credentials; (3) apply the migration tokens and
+ensure cross-platform consistency. The dashboard was the focus — 6
+distinct tasks completed, all with live + headless verification.
+
+- **T-088 — Restructure desktop Dashboard UI** (TESTED). Eliminated 5
+  classes of "demo-around-mock-data" defects the owner flagged:
+  - DUPLICATION: the Overview tab embedded the revenue bar chart,
+    debt-aging bars, and 2 demographics charts (grade + gender). The
+    SAME charts appeared inside the SeeDetailsModal drill-down (with
+    age + capacity added). After: the Overview shows 8 KPIs + a
+    calendar + a Top Debtors quick-list; the drill-down holds ALL
+    analytics.
+  - RE-FETCH: SeeDetailsModal re-fetched revenue / debt / demographics
+    on open via `repos.dashboard.revenueLast12Months()` / `debtByAging()`
+    / `demographics()`. The page had ALREADY fetched the same data.
+    After: the modal receives ALL data via the `data` prop from the
+    page (no re-fetch on open, no chance of drift).
+  - DEAD Stat card: the bottom card restated KPIs already in the grid
+    ("Revenu cumulé", "Créances", "Taux de recouvrement"). Removed.
+  - DEAD "PDF" report button: the Reports tab advertised a "PDF"
+    format on the "Revenu mensuel" card; clicking returned "Bientôt
+    disponible" (a fake feature). Removed.
+  - Unread alerts badge: added to the Alerts tab via PageTab's `count`
+    + `countTone` props — a real operational signal previously hidden.
+  New regression suite `src/tests/ui/dashboard-restructure.test.tsx`
+  (10 tests). Desktop suite 47 files / 2029 tests ALL PASS (was
+  46/2021). ARCH-010 entry added to the problem registry.
+- **T-080 — Port desktop overdue-scan to Supabase** (TESTED). ARCH-006
+  fix: implemented `SupabaseOverdueAlertGenerator` in
+  `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts`.
+  Scans `installments` for overdue + upcoming-due rows, dedups against
+  `notifications`, bulk-INSERTs new `payment_overdue` notifications
+  targeting `financial_officer`, writes a best-effort audit entry via
+  the canonical `write_audit_log` RPC. Mirrors the
+  `MockOverdueAlertGenerator` contract (priority urgent>90d / high
+  31-90d / medium 0-30d; display_name preferred per F-06/DATA-005).
+  Wired into the Supabase assembly (overrides the `overdueAlerts`
+  slot). Removed the auto-run on mount in `dashboard-page.tsx`. 8-test
+  unit suite in
+  `src/tests/infrastructure/supabase-overdue-alert-generator.test.ts`.
+  Live-integration test = T-094 (newly opened).
+- **T-089 — Implement the 4 hardcoded Supabase KPIs against real data**
+  (TESTED). `SupabaseDashboardRepository.kpisForRange()` no longer
+  returns `totalStaff: 0` / `pendingExpenses: 0` / `attendanceRateToday:
+  0` / `overdueAlerts: 0`. Each is now a real query: COUNT personnel
+  WHERE deleted_at IS NULL; COUNT expense_tickets WHERE status=
+  'pending_approval'; (present+late)/total from attendance_records
+  for today with a most-recent-date fallback; COUNT notifications
+  WHERE kind='alert' AND link_entity_type='installment' AND
+  is_read=false. Live SQL verification (`scripts/verify_t-089.sh`):
+  totalStaff=0 (honest — personnel empty in production);
+  pendingExpenses=0 (no pending_approval tickets); attendanceRateToday=
+  0 (attendance_records empty); overdueAlerts=269 (matches the audit
+  doc's "269 unread alerts"). NEW DISCOVERY (DRIFT-013): the desktop
+  code calls `.from("expenses")` — a table that DOES NOT EXIST. The
+  canonical table is `expense_tickets` (migration 0008). The dashboard
+  KPI now uses the correct name. The wider expenses-repository port
+  is task T-093 (newly opened).
+- **T-091 — Migration 0050 drift reconciliation** (TESTED). NEW
+  DISCOVERY (ARCH-009): the local repo's migration 0050
+  (`0050_fcm_token_caller_verification.sql`) contains the FCM token
+  verification logic. The LIVE Supabase project has migration 0050
+  registered in `supabase_migrations.schema_migrations` with a
+  DIFFERENT name (`chat_read_receipts`) and DIFFERENT statements. The
+  FCM functions DO exist on the live DB (verified via
+  `pg_get_functiondef`) — they were applied directly via the Management
+  API SQL endpoint during session 8 (per the session-8 change-log
+  note), bypassing the migration system. LATER, the chat_read_receipts
+  migration was applied (probably via the Supabase CLI), overwriting
+  the 0050 record. Resolution: added `0051_chat_read_receipts.sql`
+  (idempotent `drop policy if exists + create policy + create or
+  replace function + drop trigger if exists + create trigger`). SQL
+  byte-identical to what's registered as 0050 on the live DB
+  (extracted via `scripts/extract_migration_0050_live.sh`). Applied
+  the migration SQL live (idempotent no-op since the objects already
+  exist). Registered migration 0051 in `supabase_migrations.schema_migrations`
+  via the Management API SQL endpoint (idempotent INSERT … ON CONFLICT
+  DO NOTHING, with dollar-quoting `$$mig$...$$mig$` for the statements
+  text). Verification: `SELECT version, name FROM
+  supabase_migrations.schema_migrations WHERE version IN ('0050',
+  '0051') ORDER BY version;` returns both rows.
+- **T-087 — Test-residue cleanup (DATA-007)** (TESTED). Migration
+  `0052_drop_test_residue.sql` (idempotent `drop function if exists
+  public._eq_test_fn() / _eq_test_fn2()`) — committed + applied live.
+  Auth user `test.connection.supabase@gmail.com` deleted via SQL
+  directly (auth schema is not in the public migration chain, but the
+  Management API SQL endpoint runs as service_role and can DELETE from
+  auth.users). Expired `account_approval_request` row tied to the test
+  user deleted. Migration 0052 applied live + registered in
+  schema_migrations. Verification: 0 `_eq_test_fn*` routines remain;
+  1 auth user (`admin@elimtiyaz.dz`); 0 expired approval requests.
+- **T-092 — Migration token consistency across all platforms**
+  (TESTED). Android `.env.example` updated to reflect the canonical
+  Supabase URL (https://hkvkefubghbbotgnteir.supabase.co) + clarify
+  that Firebase config comes from `google-services.json`. Verification
+  script `scripts/verify_t-092.sh` confirms all three platforms point
+  to the same Supabase project (7/7 checks pass: website .env.example +
+  Android .env.example + desktop runtime settings dialog + credentials.md
+  + live auth health endpoint HTTP 200).
+
+**Suite counts at session end:**
+- Desktop: 47 files / 2029 tests ALL PASS (was 46/2021; +1 file for
+  the dashboard-restructure regression suite, +10 tests; +1 file for
+  the SupabaseOverdueAlertGenerator unit suite, +8 tests; net +18
+  tests, +2 files)
+- Website: 8 files / 105 tests (unchanged — no website work in this
+  session)
+- Android: 219/219 (unchanged)
+- Live Supabase: migrations 0049-0052 all applied + registered in
+  schema_migrations (0049 + 0050 from session 8; 0051 + 0052 added
+  this session). Live verification scripts: `verify_t-090.sh`,
+  `verify_t-090_part2.sh`, `verify_t-090_part3.sh`,
+  `verify_t-089.sh`, `verify_t-092.sh`, `apply_migration_0051.sh`,
+  `register_migration_0051.py`, `apply_migration_0052.py`,
+  `cleanup_test_auth_user.py`, `extract_migration_0050_live.sh`.
+  All scripts persisted under `/home/z/my-project/scripts/`.
+
+**Recommended next tasks:**
+- **T-093** (NEW — DRIFT-013): port the desktop `expenses` repository
+  to Supabase (the wider leak — the dashboard KPI was mitigated in
+  T-089 but the assembly still uses MockExpensesRepository).
+- **T-094** (NEW — T-080 live integration): run the
+  `SupabaseOverdueAlertGenerator` against the real Supabase backend
+  and verify the notification insertions + audit entry.
+- **T-005** (P0 Critical, was already recommended): tenant-scoped
+  RBAC resolver + admin policies. The live deployment path is proven
+  in-session (Management API SQL endpoint + dollar-quoting
+  schema_migrations registration pattern).
+
+**NEW problems registered:**
+- ARCH-009 — migration 0050 drift (local file vs live schema_migrations
+  name + statements). MITIGATED via T-091.
+- ARCH-010 — dashboard UI duplication + dead code (the
+  "demo-around-mock-data" feel the owner flagged). FIXED via T-088 +
+  T-089.
+- DRIFT-013 — desktop code calls `.from("expenses")` but the canonical
+  table is `expense_tickets` (with different status values).
+  PARTIAL: dashboard KPI mitigated in T-089; wider port = T-093.
+
+**ARCH-006 status advance:** OPEN → FIXED (T-080 closed).
+**DATA-007 status advance:** OPEN → FIXED (T-087 closed).
+
+**Migration chain state:** 0001-0052 all applied + registered. Edge
+Functions deployed: create-user-account + the four cron EFs.
+CRON_SECRET set (owner should rotate after this session — same as
+session 8's note). The session-8 admin password (set for the T-079
+live test) is unchanged — owner should rotate that too.

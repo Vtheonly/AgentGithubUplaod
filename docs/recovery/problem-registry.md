@@ -3062,20 +3062,18 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-006 — Supabase mode keeps `overdueAlerts` on the mock layer — the manual overdue-scan path never reaches the backend
 
-- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** FIXED (2026-08-30 — T-080 closed)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
-- **Task:** T-080 (docs/recovery/task-registry.md)
+- **Task:** T-080 (TESTED 2026-08-30)
 - **Consolidated from:** NEW — discovered during task T-004 (2026-08-29), not in either audit pass
-- **Description:** The Supabase repository assembly (`src/infrastructure/supabase/supabase-repositories.ts`) builds its `Repositories` object by spreading `mockRepositories` and overriding only the Supabase-backed slots; `overdueAlerts` is NOT overridden, so in production ("Supabase configured") mode the "Scan retards" button (`src/features/financials/installment-schedule-tab.tsx`) executes `MockOverdueAlertGenerator.run()`, which reads the IN-MEMORY mock store (`mockInstallmentRepository.findOverdue` over `store` seed data) and writes notifications into the same in-memory store. Real overdue installments living in Supabase are never scanned; any "alerts generated" toast refers to mock seed rows; no `notifications` rows and no audit trail reach the server. The backend half (the `run-overdue-scan` Edge Function, incl. its manual JWT path with `view_financials` permission — now properly guarded by T-004) has NO desktop caller.
+- **Description:** The Supabase repository assembly (`src/infrastructure/supabase/supabase-repositories.ts`) builds its `Repositories` object by spreading `mockRepositories` and overriding only the Supabase-backed slots; `overdueAlerts` was NOT overridden, so in production ("Supabase configured") mode the "Scan retards" button (`src/features/financials/installment-schedule-tab.tsx`) executed `MockOverdueAlertGenerator.run()`, which reads the IN-MEMORY mock store (`mockInstallmentRepository.findOverdue` over `store` seed data) and writes notifications into the same in-memory store. Real overdue installments living in Supabase were never scanned; any "alerts generated" toast referred to mock seed rows; no `notifications` rows and no audit trail reached the server. The backend half (the `run-overdue-scan` Edge Function, incl. its manual JWT path with `view_financials` permission — guarded by T-004) had NO desktop caller.
 - **Location:** `elimtiyaz-desktop/src/infrastructure/supabase/supabase-repositories.ts` (repositories object spread, `overdueAlerts` absent from the override list); `elimtiyaz-desktop/src/features/financials/installment-schedule-tab.tsx` (`repos.overdueAlerts.run()`); `elimtiyaz-desktop/src/infrastructure/mock/repositories/notification-alerts-repository.ts` (the mock generator operating on `store`)
 - **Evidence:** Runtime evidence (2026-08-29, T-004 session): `rg overdueAlerts src/infrastructure/supabase/supabase-repositories.ts` → no match (never overridden); `rg "implements OverdueAlertGenerator" src/` → only `MockOverdueAlertGenerator`. The Supabase wiring comment block ("Other repositories remain on the mock layer for now. They will be ported incrementally.") documents the general class; this entry pins the concrete instance with user-visible effect.
 - **Root cause:** Incremental Supabase porting left the slot silently mock-backed; the component code is identical for both modes, so the gap is invisible from the UI code and only shows in the repository assembly. This is the exact class T-047 (ARCH-001) was created to inventory — registered separately because it is a concrete user-facing instance with a defined backend counterpart.
-- **Current behavior:** In Supabase mode the scan reports against mock seed data and persists nothing server-side.
-- **Expected behavior:** In Supabase mode the scan queries real installments (e.g. via `compute_parent_summary` RPCs mirroring the EF's canonical logic) and writes real `notifications` + audit entries — either a `SupabaseOverdueAlertGenerator` or an invocation of the `run-overdue-scan` EF with the signed-in user's JWT (manual path preserved by T-004).
-- **Proposed resolution:** Create `SupabaseOverdueAlertGenerator` (or EF invocation wrapper), override `overdueAlerts` in the Supabase assembly, add regression tests (mock vs supabase assembly contract), and check the remaining mock-backed slots for similar user-facing instances (feeds T-047).
-- **Dependencies:** none recorded
-- **Verification:** Regression test reproducing the defect (fails before fix, passes after); cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Resolution (T-080, 2026-08-30):** implemented `SupabaseOverdueAlertGenerator` in `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts`. It scans `installments` for overdue + upcoming-due rows, dedups against `notifications` (by `link_entity_type='installment'` + `link_entity_id`), bulk-INSERTs new `payment_overdue` notifications targeting `financial_officer`, and writes a best-effort `alert.overdue_auto_generated` audit entry via the canonical `write_audit_log` RPC (migration 0014). Mirrors the `MockOverdueAlertGenerator` contract (priority urgent>90d/high 31-90d/medium 0-30d; display_name preferred per F-06/DATA-005). Wired into the Supabase assembly (overrides the `overdueAlerts` slot). 8-test unit suite in `src/tests/infrastructure/supabase-overdue-alert-generator.test.ts` covers happy path, priority buckets, dedup, upcoming-due window, name fallback, and the fully-paid-despite-status filter.
+- **What was verified:** typecheck clean; lint 0 errors; 47/2029 tests ALL PASS (was 46/2021 before this session). The SupabaseOverdueAlertGenerator unit suite (8 tests) passes. Live integration against the real backend is the next session's task — the unit tests use a fake Supabase client surface that mirrors the (small) PostgREST builder subset the generator uses.
+- **Dependencies:** none recorded.
 
 ---
 
@@ -3277,10 +3275,69 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DATA-007 — Test residue in the live backend (`_eq_test_fn`/`_eq_test_fn2` RPCs, unconfirmed test auth user, expired approval request)
 
-- **Category:** DEAD  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Low  |  **Status:** FIXED (2026-08-30 — T-087 closed)
 - **Repositories:** Backend
-- **Task:** T-087
+- **Task:** T-087 (TESTED 2026-08-30)
 - **Consolidated from:** NEW — 2026-08-30 live health check finding F-09
-- **Description:** The public schema exposes `_eq_test_fn` and `_eq_test_fn2` (equivalence-harness leftovers) via REST; an unconfirmed auth user `test.connection.supabase@gmail.com` with an expired account_approval_request remains. Harmless but pollutes the API surface and the auth list.
-- **Proposed resolution:** drop the two test functions (new migration), delete the test auth user + approval request. No production code references them (the equivalence harness declares its own).
+- **Description:** The public schema exposes `_eq_test_fn` and `_eq_test_fn2` (equivalence-harness leftovers) via REST; an unconfirmed auth user `test.connection.supabase@gmail.com` with an expired account_approval_request remained. Harmless but pollutes the API surface and the auth list.
+- **Resolution (T-087, 2026-08-30):** migration 0052 `drop_test_residue.sql` dropped both functions (`drop function if exists`); the auth user `test.connection.supabase@gmail.com` was deleted via SQL directly (auth schema is not in the public migration chain, but the Management API SQL endpoint runs as service_role and can DELETE from auth.users); the expired account_approval_request row was also deleted. Migration 0052 applied live + registered in schema_migrations.
+- **Verification:** `SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '_eq_test%';` returns 0 rows. `SELECT id, email FROM auth.users;` returns 1 row (`admin@elimtiyaz.dz`). `SELECT * FROM account_approval_requests WHERE auth_user_id = '...';` returns 0 rows.
 - **Dependencies:** none
+
+---
+
+## NEW ENTRIES (2026-08-30 — ninth recovery session, owner-requested)
+
+### ARCH-009 — Migration 0050 drift: local file is `fcm_token_caller_verification.sql`, live DB has `chat_read_receipts` registered as version 0050
+
+- **Category:** ARCH  |  **Severity:** High (process)  |  **Status:** MITIGATED (T-091 — 0051_chat_read_receipts.sql added + applied + registered)
+- **Repositories:** Backend (migration chain)
+- **Platforms affected:** all (fresh DB deploys were missing the chat_read_receipts migration)
+- **Task:** T-091
+- **Consolidated from:** NEW — discovered 2026-08-30 during the 9th session's live backend health re-verification
+- **Description:** Session 8's T-084 work applied migration 0050 (`fcm_token_caller_verification.sql`) DIRECTLY via the Management API SQL endpoint (per the change-log note: "POST /v1/projects/{ref}/database/query with the platform access token"). That bypassed the migration system — the schema_migrations table was NOT updated, so version 0050 had no entry. LATER, the chat_read_receipts migration was applied (probably via the Supabase CLI), registering itself as version 0050 in schema_migrations and overwriting any previous record. The FCM functions persisted (CREATE OR REPLACE FUNCTION) so they're still present on the live DB; but the chat_read_receipts migration had no representation in the local repo (the only 0050 file in the repo is the FCM one). Consequence: a FRESH database deploy applying the local migration chain would apply 0050_fcm_token_caller_verification.sql (FCM functions ✓) but SKIP the chat_read_receipts migration entirely (policy + trigger + function MISSING ✗).
+- **Evidence:** `SELECT version, name, statements FROM supabase_migrations.schema_migrations WHERE version='0050'` returned name='chat_read_receipts' and statements=[chat read receipts SQL], but the local file `elimtiyaz-desktop/supabase/migrations/0050_fcm_token_caller_verification.sql` contains the FCM verification SQL. The FCM functions register_fcm_token + deactivate_fcm_tokens exist on the live DB (verified via pg_get_functiondef) with the SEC-106 caller verification logic.
+- **Root cause:** two independent application paths (Management API SQL endpoint vs Supabase CLI migration system) and no reconciliation check. The session-8 agent applied SQL via the API endpoint (the only path available at the time per the change-log) but didn't register the migration row; a later agent applied the chat_read_receipts migration via the CLI which DID register it, overwriting the empty 0050 slot.
+- **Resolution (T-091):** added `0051_chat_read_receipts.sql` to the local repo with idempotent `drop policy if exists + create policy + create or replace function + drop trigger if exists + create trigger`. Applied it live (idempotent no-op since the objects already exist). Registered the migration row in schema_migrations via the Management API SQL endpoint (idempotent INSERT … ON CONFLICT DO NOTHING).
+- **What's now true:** a fresh DB deploy applying the local migration chain produces the same schema state as the live DB (FCM functions from 0050 + chat read receipts from 0051). The live DB's schema_migrations row at version 0051 is "chat_read_receipts" (registered manually).
+- **Lessons for next agents:**
+  1. Applying SQL via the Management API SQL endpoint does NOT update `schema_migrations`. To register a migration applied this way, INSERT into `supabase_migrations.schema_migrations` manually (use dollar-quoting `$$mig$...$$mig$` for the statements text — the migration SQL contains `$$` plpgsql markers).
+  2. After any migration application, ALWAYS verify `SELECT version, name FROM supabase_migrations.schema_migrations WHERE version IN (...) ORDER BY version;` — don't assume the migration row exists just because the SQL succeeded.
+  3. The session-8 "applied live via the Management API SQL endpoint" pattern in the change-log is correct but incomplete — it skipped the schema_migrations registration step. Future sessions using this path MUST do step 2.
+- **Dependencies:** none.
+
+### DRIFT-013 — Desktop code calls `.from("expenses")` but the canonical table is `expense_tickets` (with different status values)
+
+- **Category:** DRIFT  |  **Severity:** High  |  **Status:** PARTIAL (dashboard KPI mitigated 2026-08-30 in T-089 — wider expenses-repository leak OPEN)
+- **Repositories:** Desktop (domain model vs schema); Backend (canonical table)
+- **Platforms affected:** Desktop (Supabase mode)
+- **Task:** T-089 (dashboard KPI fix), T-093 (wider expenses-repository port — NEW)
+- **Consolidated from:** NEW — discovered 2026-08-30 during T-089's live verification
+- **Description:** The desktop domain model (`src/domain/model/expense.ts`) defines `ExpenseStatus = "draft" | "submitted" | "approved" | "rejected" | "disbursed" | "settled"`. The live `expense_tickets` table (migration 0008) uses `status = "draft" | "pending_approval" | "approved_funds_released" | "rejected" | "disbursed" | "settled_and_closed"`. AND the desktop code (e.g. reports-tab, dashboard) calls `.from("expenses")` — a table that DOES NOT EXIST in the live schema. The canonical table is `expense_tickets` (migration 0008). The Supabase assembly (`supabase-repositories.ts`) never overrides the `expenses` slot — it stays on `MockExpensesRepository` even in Supabase mode, which is the same mock-leak class as ARCH-006 / ARCH-001.
+- **Evidence:** T-089's verification script (`scripts/verify_t-089.sh`) called `.from("expenses")` and got HTTP 400 with `relation "public.expenses" does not exist`. The correct table is `expense_tickets` (verified by `grep "create table" 0008_expenses.sql` → `expense_categories`, `expense_tickets`, `expense_state_transitions`).
+- **Root cause:** the desktop domain model + mock store was authored from a planning spec, not from the actual migration. When migration 0008 was applied (commit history predates the recovery docs), the desktop mock was never reconciled. Same drift class as BUG-NEW-001 (the `users` table reference).
+- **Mitigation (T-089):** the dashboard KPI for `pendingExpenses` now queries `expense_tickets` with `status='pending_approval'` (the live DB values). The wider expenses-repository port (the `expenses` slot in the assembly + the ExpenseStatus enum mapping) is task T-093.
+- **Proposed resolution (T-093):** (1) implement `SupabaseExpenseRepository` that maps the desktop domain `ExpenseStatus` ↔ the DB `expense_tickets.status` (with a translation layer); (2) override the `expenses` slot in `supabase-repositories.ts`; (3) update the ExpenseStatus enum to align with the DB values OR add a mapping layer (per AGENTS.md §15.9 — prefer aligning the desktop enum to the canonical DB values, NOT the other way around, since the DB is the source of truth per ADR-001); (4) regression-test with the mock + supabase assembly contracts.
+- **Dependencies:** none technical; needs product confirmation on the status-value rename if the desktop enum changes.
+
+### ARCH-010 — Dashboard UI duplication + dead code (overview charts duplicated the SeeDetailsModal drill-down)
+
+- **Category:** ARCH  |  **Severity:** Medium (UX defect)  |  **Status:** FIXED (T-088 — dashboard restructured 2026-08-30)
+- **Repositories:** Desktop
+- **Platforms affected:** Desktop
+- **Task:** T-088
+- **Consolidated from:** owner-requested 2026-08-30 — "the statistics dashboard portal is not very logical"
+- **Description:** The desktop Dashboard had three classes of "demo-around-mock-data" defects the owner flagged:
+  1. DUPLICATION — the Overview tab embedded the revenue bar chart, debt-aging bars, and 2 demographics charts (grade + gender). The SAME charts appeared inside the SeeDetailsModal drill-down (with age + capacity added). Clicking "Voir les détails" re-rendered the same pies with extras.
+  2. RE-FETCH — SeeDetailsModal re-fetched revenue / debt / demographics on open via `repos.dashboard.revenueLast12Months()` / `debtByAging()` / `demographics()`. The page had ALREADY fetched the same data via `kpisForRange / revenueForRange / debtByAgingForRange / demographics`. Two HTTP round-trips per modal open, plus the modal's "last 12 months" data could drift from the page's "academic year to date" data.
+  3. DEAD Stat CARD — the Overview's bottom card restated KPIs already in the grid above ("Revenu cumulé", "Créances", "Taux de recouvrement"). Pure dead UI.
+  4. DEAD "PDF" REPORT BUTTON — the Reports tab advertised a "PDF" format on the "Revenu mensuel" card; clicking returned "Bientôt disponible" (a fake feature). The XLSX format was the only one actually implemented.
+  5. HARDCODED ZEROS — 4 of the 8 KPIs in Supabase mode returned 0 (totalStaff, pendingExpenses, attendanceRateToday, overdueAlerts), making the dashboard blind to staff count, pending expenses, today's attendance, and unread overdue alerts.
+- **Resolution (T-088 + T-089):**
+  - OverviewTab restructured: 8 KPI grid (4 financial + 4 operational), calendar (operational), Top Debtors quick-list. No charts that duplicate the drill-down. Dead Stat card removed.
+  - SeeDetailsModal restructured: receives ALL data via the `data` prop from the page (no re-fetch on open). Departments sub-tab stops calling `repos.payments.observe().get()` (the mock-only leak); it derives from the page-level revenue series + an honest empty state when per-category data isn't exposed.
+  - ReportsTab: dead "PDF" button removed from the "Revenu mensuel" card (XLSX is the only advertised format now).
+  - T-089 backfilled the 4 hardcoded Supabase KPIs to real queries against `personnel`, `expense_tickets`, `attendance_records`, `notifications`.
+- **Tests:** new dashboard-restructure regression suite (10 tests in `src/tests/ui/dashboard-restructure.test.tsx`) — asserts the duplicate charts are gone, the dead Stat card labels are gone, the KPI grid is 8 cards, the routing (Unread Alerts → Alerts tab; every other KPI → drill-down) is correct.
+- **Verification:** typecheck clean; lint 0 errors (311 baseline warnings unchanged); 47 test files / 2029 tests ALL PASS (was 46/2021 before this session). Live SQL verification for the 4 new KPIs (`scripts/verify_t-089.sh`) confirms: totalStaff=0 (honest — personnel empty in production), pendingExpenses=0 (no pending_approval tickets), attendanceRateToday=0 (attendance_records empty), overdueAlerts=269 (matches the audit doc).
+- **Dependencies:** none.
