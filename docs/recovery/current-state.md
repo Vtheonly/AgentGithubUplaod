@@ -1,18 +1,18 @@
-# Current State — Project Snapshot (2026-08-30, end of ninth session)
+# Current State — Project Snapshot (2026-08-31, end of tenth session)
 
 > Answers: "What is the state of the project RIGHT NOW?" Update this file whenever the recovery state materially changes. CURRENT facts only; targets live in `docs/architecture/system-map.md` §5 and in ADRs marked Proposed.
 
 ## 1. Architecture status
 
-- Three repositories operate against **one Supabase backend** whose canonical schema is the desktop repo's migration chain 0001–0052 (ADR-001). Migrations 0001–0052 are committed AND applied to the live Supabase project (hkvkefubghbbotgnteir) AND registered in `supabase_migrations.schema_migrations` — verified live via the Management API SQL endpoint (T-090, T-091, T-087). The migrations 0049-0052 are: T-083/0049 (`expire_pending_approvals` rewrite + mv_dashboard_kpis fan-out fix + MV unique indexes), T-084/0050 (FCM token caller verification + canonical `deactivate_fcm_tokens` RPC), T-091/0051 (chat_read_receipts reconciliation — local file added to match what's already on the live DB), T-087/0052 (`_eq_test_fn`/`_eq_test_fn2` test-residue functions dropped).
-- **Desktop** (Electron/React): functional as the staff operations app for CRM + financials + academics, with a partial Supabase migration — `overdueAlerts` is now Supabase-backed (T-080, ARCH-006 closed 2026-08-30); ~25 of ~45 repository slots still run on mocks in "Supabase mode" (`ARCH-001`; the `expenses` slot is the next P2 target — DRIFT-013, T-093). The Dashboard UI is now restructured around the real backend data model (T-088 — 5 duplication/dead-code defects fixed). All 8 KPIs read real Supabase data (T-089 — was 4 hardcoded zeros before). Payment cache is seed-once with no refresh (`CROSS-104`). There is **no refund UI** (`DEAD-015`).
-- **Android** (Kotlin/Compose): offline-first, Room-backed, fully functional locally, but its server write path bypasses every canonical financial RPC (`ARCH-003`, `CROSS-005`). Sync errors SURFACE (CROSS-200 fixed 2026-08-29); authentication is fail-closed (2026-08-29, T-002); build/test gate OPERATIONAL (ARCH-007 fixed): baseline 219/219 unit tests incl. 45/45 equivalence scenarios; lint gate NOT green (ARCH-008/T-082 — 315 pre-existing errors).
-- **Website** (Next.js parent portal): read paths work with canonical KPIs (T-084 session 8); chat is permanently empty (`CHAT-103`); push notifications non-functional end-to-end (`PUSH-100` family). Mock-admin auth removed 2026-08-29 (T-009). Strict build (ARCH-005 fixed 2026-08-29, T-049). The Financial view was restructured around the real data model in session 8 (ledger replay, real payment statuses, display_name greeting, fr/ar/en i18n).
-- **Homework and desktop roll-call are broken end-to-end** (`HOMEWORK-100/101`, `ATT-100`); **year-end promotion fails on every platform** (`TENANT-106`, `STUDENT-100`, `BUSINESS-004`).
+- Three repositories operate against **one Supabase backend** whose canonical schema is the desktop repo's migration chain 0001–0056 (ADR-001). Migrations 0001–0056 are committed AND applied to the live project AND registered in schema_migrations (verified 2026-08-31). Sessions 10 added: 0053/0054 reconciliation files (ARCH-011 — they were applied live by a previous actor but missing from the repo), 0055 (SEC-110/111/112 RPC hardening, live-verified 9/9), 0056 (expense_tickets.payee for the T-093 port).
+- **Desktop** (Electron/React): the `expenses` repository is now Supabase-backed (T-093 — DRIFT-013 closed; ~24 of ~45 repository slots still run on mocks in "Supabase mode", ARCH-001). The overdue-scan is live-VERIFIED (T-094). 49 files / 2053 tests ALL PASS; lint 0 errors.
+- **Android** (Kotlin/Compose): unchanged this session (219/219 from session 5). The SDK bootstrap is IMPOSSIBLE in this container (dl.google.com 404s commandlinetools) — Android tasks need an SDK-equipped host.
+- **Website** (Next.js parent portal): realtime layer repaired (T-032 — invalidation key, read-receipt error surfacing, role-broadcast delivery, all-channel unread subscription, canonical homework subscription); ledger replay now pages the FULL ledger (T-035 — WEAK-022); hygiene statuses translated (T-056). Suite 119/119; strict build green.
+- **Homework and desktop roll-call remain broken end-to-end** (HOMEWORK-100/101, ATT-100); year-end promotion still fails on every platform (TENANT-106, STUDENT-100, BUSINESS-004).
 
 ## 2. Major known problems (top of the risk stack)
 
-153 total problems after the 2026-08-30 ninth session (ARCH-009, ARCH-010, DRIFT-013 added; ARCH-006 + DATA-007 fixed). The most dangerous remaining:
+166 total problems after the 2026-08-31 tenth session (ARCH-011 + WEAK-030 added; 22 problems flipped to TESTED, ARCH-006 to VERIFIED) (ARCH-009, ARCH-010, DRIFT-013 added; ARCH-006 + DATA-007 fixed). The most dangerous remaining:
 1. ~~`SEC-100`~~ **FIXED 2026-08-29 (T-001)** — desktop credentials removed.
 2. ~~`SEC-101`/`SEC-102`~~ **FIXED 2026-08-29 (T-002)** — Android auth fail-closed.
 3. `BUSINESS-002` — desktop payment collection silently degrades to a non-atomic path on RPC failure.
@@ -30,16 +30,17 @@ Canonical writers = SQL RPCs; desktop TS engine = reference; deterministic ident
 
 ## 4. Active migrations
 
-**0044-0048** — committed + applied (sessions 5-7) + EFs deployed (create-user-account + 4 cron EFs). CRON_SECRET set.
-**0049_dashboard_kpis_fanout_expire_fix.sql (T-084/T-083)** — committed + applied + registered (session 8).
-**0050_fcm_token_caller_verification.sql (T-084)** — committed in local repo; FCM functions applied live via the Management API SQL endpoint (session 8). NOT registered under the FCM name (live schema_migrations has version 0050 = `chat_read_receipts` from a later separate application — see ARCH-009).
-**0051_chat_read_receipts.sql (T-091, NEW this session)** — committed + applied + registered (session 9). Reconciles the ARCH-009 drift: the chat_read_receipts migration that's applied to the live DB but was missing from the local repo. Idempotent.
-**0052_drop_test_residue.sql (T-087, NEW this session)** — committed + applied + registered (session 9). Drops `_eq_test_fn` / `_eq_test_fn2`. Test auth user + expired approval request deleted via SQL directly (auth schema not in public migration chain).
+**0001–0056 — ALL applied + registered (verified 2026-08-31).** Session-10 additions:
+- **0053_tenant_scoped_rbac.sql** — RECONCILIATION (ARCH-011): captures the T-005 SQL that was applied live but never committed (is_global_admin, tenant-scoped resolvers, tenants_*/user_profiles_admin_update re-scoping).
+- **0054_auth_trigger_no_client_metadata.sql** — RECONCILIATION (ARCH-011): captures the T-007 handle_new_auth_user rewrite.
+- **0055_sec_definer_rpc_hardening.sql (T-006)** — applied live + registered; verified by scripts/verify_t-006.sql (9/9).
+- **0056_expense_tickets_payee.sql (T-093)** — applied live + registered; payee column confirmed via information_schema.
 
 Historical note: migrations 0034–0043 were a 10-migration fix-up chain after the "unification" of 0026–0028 (REG-001) — treat the chain as append-only from here.
 
 ## 5. Completed recovery work (most recent first)
 
+- **2026-08-31 — Tenth repair session (MIG-TOKENS, T-006, T-008, T-093, T-094, T-032, T-035, T-056):** owner-requested ~10-task batch with live Supabase credentials. (1) 0053/0054 live-drift reconciled (ARCH-011). (2) Migration 0055 applied live + registered — SEC-110/111/112 closed with a 9/9 live verification. (3) approve-signup-request redeployed (SEC-107). (4) Migration 0056 + SupabaseExpenseRepository (DRIFT-013 closed; WEAK-030 registered as the open follow-up). (5) T-094 live integration → ARCH-006 VERIFIED. (6) Website realtime + ledger paging + hygiene (suite 105→119). (7) Desktop hygiene batch 6/6. T-020 not attempted (SDK un-downloadable — documented).
 - **2026-08-30 — Ninth repair session (T-088, T-080, T-089, T-091, T-087, T-092 all TESTED):** owner-requested dashboard restructure + backend testing + migration token reconciliation. (1) Desktop Dashboard UI restructured (ARCH-010 — 5 duplication/dead-code defects fixed). (2) `SupabaseOverdueAlertGenerator` ported (ARCH-006 closed — 8-test unit suite). (3) Migration 0050 drift reconciled (ARCH-009 — `0051_chat_read_receipts.sql` added + applied live + registered). (4) Test-residue cleanup (DATA-007 closed — `0052_drop_test_residue.sql` applied live + test auth user deleted). (5) Cross-platform migration token consistency verified (7/7 checks pass). (6) 4 hardcoded Supabase KPIs backfilled against real data (T-089 — verified live: totalStaff=0/pendingExpenses=0/attendanceRateToday=0/overdueAlerts=269). 3 new problems registered (ARCH-009, ARCH-010, DRIFT-013); 2 new tasks opened (T-093 — port desktop `expenses` repository to Supabase; T-094 — live integration test for `SupabaseOverdueAlertGenerator`).
 - **2026-08-30 — Eighth repair session (T-083, T-084 TESTED):** live backend health check (11 findings → DATA-001…007, BUG-NEW-002/003); migration 0049 applied live; migration 0050 applied live (FCM verification); website portal restructured around the real data model; FCM token lifecycle hardened cross-platform; credentials sheet written.
 - **2026-08-30 — Seventh repair session (T-016, T-027, T-061, T-031, T-029, T-071 all TESTED; T-079, T-004 promoted to VERIFIED):** balanced batch of 8 tasks across desktop + website + backend.
@@ -60,10 +61,10 @@ Phase 0 security hotfixes (T-001…T-010) → financial integrity (T-011…T-018
 
 ## 8. Current test coverage
 
-- Desktop: 47 files / 2029 tests ALL PASS (was 46/2021 before session 9; +2 files, +18 tests). Includes the new dashboard-restructure regression suite (10 tests) and the SupabaseOverdueAlertGenerator unit suite (8 tests). Lint 0 errors (311 baseline warnings).
+- Desktop: 49 files / 2053 tests ALL PASS (+2 files, +24 tests vs session 9). Lint 0 errors.
 - Android: 219/219 (unchanged).
-- Website: 8 files / 105 tests ALL PASS (unchanged).
-- Live Supabase: migrations 0049-0052 all applied + registered in `supabase_migrations.schema_migrations`. RLS blocks anon reads on all 6 core tables. 1 auth user (`admin@elimtiyaz.dz`). 58 RPCs exposed. Verification scripts persisted under `/home/z/my-project/scripts/`.
+- Website: 10 files / 119 tests ALL PASS (+14). Strict build green; lint clean.
+- Live Supabase: migrations 0001-0056 all applied + registered; EFs approve-signup-request + update-server-secret redeployed with security gates; overdue-scan live-verified (T-094). RLS blocks anon reads on all 6 core tables. 1 auth user (`admin@elimtiyaz.dz`). 58 RPCs exposed. Verification scripts persisted under `/home/z/my-project/scripts/`.
 
 ## 9. Known cross-platform divergences (summary)
 

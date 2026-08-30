@@ -193,8 +193,10 @@ The commit is the last step of the workflow (`docs/agents/workflow.md`): it reco
 7. **Never** mark anything `TESTED`/`VERIFIED` without recorded evidence.
 8. **Never** fix multiple unrelated problems in one task/commit.
 9. **Never** edit the canonical migration files that have already been applied; schema changes are NEW migrations (next free number).
-10. **Never** commit secrets or credentials (the repo already shipped 9 staff passwords — problem `SEC-100` — do not repeat this class of error).
-11. **Never** create parallel documentation, task lists, or "status" files outside this documentation system.
+10. **Never** apply SQL to the live database without committing the migration file AND its `schema_migrations` registration in the SAME change (ARCH-011 lesson, 2026-08-31: 0053/0054 were applied live by a previous actor and never committed — a fresh deployment would have silently missed the tenant-RBAC and auth-trigger hardening). Direct Management-API applications MUST follow the T-091/MIG-TOKENS pattern: file + `BEGIN; <sql> + registration; COMMIT;` in one atomic call.
+11. **Always** open a backend session by diffing `supabase_migrations.schema_migrations` (live) against the local `supabase/migrations/` chain BEFORE picking work — drift compounds silently (ARCH-009 → ARCH-011 in two sessions).
+12. **Never** commit secrets or credentials (the repo already shipped 9 staff passwords — problem `SEC-100` — do not repeat this class of error).
+13. **Never** create parallel documentation, task lists, or "status" files outside this documentation system.
 
 ## 16. How to handle uncertainty
 

@@ -21,15 +21,16 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 26 | | OPEN | 114 |
-| High | 47 | | BLOCKED | 13 |
-| Medium | 63 | | DEFERRED | 5 |
-| Low | 20 | | VERIFIED | 1 |
-| | | | TESTED | 20 |
-| | | | IMPLEMENTED | 2 |
-| | | | PARTIAL | 3 |
+| Critical | 27 | | OPEN | 100 |
+| High | 52 | | BLOCKED | 13 |
+| Medium | 67 | | DEFERRED | 5 |
+| Low | 20 | | VERIFIED | 2 |
+| | | | TESTED | 40 |
+| | | | IMPLEMENTED | 1 |
+| | | | PARTIAL | 2 |
+| | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 158 registered problems (145 consolidated from 185 audit findings + 13 discovered during repair sessions: DEAD-201, ARCH-006, ARCH-007, ARCH-008, BUG-NEW-001, BUG-NEW-002, BUG-NEW-003, DATA-001…DATA-007) · 114 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021) · 20 TESTED (sessions 1–7: see change-log; session 8 (2026-08-30): SEC-106, BUG-NEW-001, BUG-NEW-002, BUG-NEW-003 — migrations 0049/0050 applied live + SQL-verified; SYNC-105 — build green 105/105) · 2 IMPLEMENTED (ARCH-002 — launch verification pending; SYNC-104 — Android compile check pending) · 3 PARTIAL (DEAD-012; PUSH-102 — inverse RPC shipped, register-overwrite blocked, full PUSH-100 rework open; DATA-005 — portal mitigated, data repair open). Evidence: docs/audits/backend-health-check-2026-08-30.md + change-log session 8.
+**Totals:** 166 registered problems (145 consolidated from 185 audit findings + 21 discovered during repair sessions) · 100 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 2 VERIFIED (WEAK-021; ARCH-006 — live integration T-094) · 40 TESTED (sessions 1–9 + the 10th session 2026-08-31: TENANT-100/101/102 via reconciled 0053, SEC-108 via 0054, SEC-110/111/112 via migration 0055 live-verified 9/9, SEC-107 via the redeployed EF, DRIFT-013 via T-093 + migration 0056, REALTIME-100/101/102/103 + WEAK-016 via T-032, WEAK-022 + WEAK-018 via T-035, WEAK-003/004 + DEAD-002 + DRIFT-005 + WEAK-020 + DEAD-014 via T-056) · NEW this session: ARCH-011 (live/local migration drift — reconciled), WEAK-030 (client-side-only expense approval rules — open). Evidence: change-log session 10.
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -481,7 +482,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-107 — approve-signup-request EF allows support_staff → super_admin role escalation
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-008): approve-signup-request EF gates assign_role via the shared decision core _shared/role-assignment.ts (staff roles require super_admin; parent/student overridable by support_staff); unknown role codes -> 400 invalid_role (previously the override was SILENTLY SKIPPED); denied attempts audited as account_approval.role_override_denied; the revoke/insert writes are error-checked. Deployed live via the Management API multipart deploy (v10) — 401 smoke matrix green. 12/12 unit+source-scan tests. GAP: live 403 needs a real support_staff JWT.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-008 (docs/recovery/task-registry.md)
@@ -500,7 +502,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-108 — handle_new_auth_user trigger trusts raw_app_meta_data.tenant_id and raw_user_meta_data.requested_role (multi-tenant injection + role escalation at signup)
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved by migration 0054 (auth_trigger_no_client_metadata) — applied live AND registered; reconciled into the local chain 2026-08-31 (see ARCH-011). handle_new_auth_user() now distinguishes admin-invite (app_metadata.created_by_admin, set server-side by the create-user-account EF) from self-signup; self-signup hardcodes requested_role='parent', uses the canonical default tenant, and NULLs client-supplied personal fields. Verified live via pg_get_functiondef (matches the reconciled file).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-007 (docs/recovery/task-registry.md)
@@ -538,7 +541,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-110 — bind_activation_code RPC is SECURITY DEFINER + accepts p_auth_user_id parameter without verifying caller (direct RPC account takeover)
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved by migration 0055 (sec_definer_rpc_hardening), applied live + registered 2026-08-31. bind_activation_code now rejects any direct PostgREST caller whose p_auth_user_id != auth.uid() (service_role EF path exempt — it passes the verified JWT's userId; anonymous rejected). Live verification scripts/verify_t-006.sql 9/9 PASS incl. S3 (foreign bind rejected with SEC-110) and S4 (anonymous rejected).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-006 (docs/recovery/task-registry.md)
@@ -558,7 +562,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-111 — `upsert_payment_from_import` is SECURITY DEFINER (RLS-bypassed); canonical payment RPCs are not
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved by migration 0055: upsert_payment_from_import (kept SECURITY DEFINER deliberately — retirement is UNKNOWN-002/ADR-005 territory) now rejects non-service_role, non-global-admin callers whose p_tenant_id != current_tenant_id(). Live verification verify_t-006.sql S6 (service_role ok) + S7 (foreign-tenant injection rejected with SEC-111). Run-discovery documented in the script: p_student_id has NO default in the (unchanged) signature.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-006 (docs/recovery/task-registry.md)
@@ -577,7 +582,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-112 — `revert_payment_allocation` SQL RPC has no tenant_id verification; cross-tenant refund possible
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved by migration 0055: revert_payment_allocation's payment lookup is now tenant-scoped (AND tenant_id = p_tenant_id) and the audit/reversal entries are stamped with the PAYMENT's tenant. Live verification verify_t-006.sql S8 (same-tenant refund ok, audit tenant = payment tenant) + S9 (cross-tenant attempt -> 'Payment not found').
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-006 (docs/recovery/task-registry.md)
@@ -596,7 +602,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### TENANT-100 — `current_user_roles()` ignores tenant_id → cross-tenant role inheritance
 
-- **Category:** TENANT  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** TENANT  |  **Severity:** Critical  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved by migration 0053 (tenant_scoped_rbac) — applied live AND registered in schema_migrations; reconciled into the local chain 2026-08-31 (see ARCH-011). current_user_roles()/current_user_permissions() now filter role_assignments by current_tenant_id() with the is_global_admin() path. Verified live: function definitions dumped via pg_get_functiondef match the reconciled 0053 file; the 0053+0054 files dry-run clean inside BEGIN..ROLLBACK against the live DB (scripts/verify_mig-tokens_0053_0054.sh, HTTP 201).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-005 (docs/recovery/task-registry.md)
@@ -615,7 +622,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### TENANT-101 — `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification
 
-- **Category:** TENANT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** TENANT  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved by migration 0053: user_profiles_admin_update now requires is_global_admin() OR (row tenant = current_tenant_id() AND super_admin); tenants_update/insert/delete now require is_global_admin() (closing TENANT-102's cascade-delete exploit). Verified live via pg_policies (definitions match the reconciled 0053 file exactly).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-005 (docs/recovery/task-registry.md)
@@ -1321,7 +1329,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### REALTIME-100 — Website messages-view invalidates wrong queryKey prefix; unread badge stays stale forever
 
-- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-032, website commit 7b8983e): messages-view invalidates ['chat-unread-count']; the executable proof via TanStack's own partialMatchKey pins the root cause (['chat-unread'] provably does not match ['chat-unread-count', id]). Source scans in realtime-wiring.test.ts (7/7).
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-032 (docs/recovery/task-registry.md)
@@ -1340,7 +1349,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### REALTIME-101 — Website markRead UPDATE on chat_messages is RLS-denied for incoming messages; read receipts NEVER persist server-side; errors silently swallowed
 
-- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Backend half: migration 0051 (already applied live, T-091) authorizes channel members to append their own read_by via chat_messages_update_read_by + the append-only guard trigger. Website half (T-032): markRead now checks the update results and console.errors any server rejection. GAP: live two-browser read-receipt round-trip.
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-032 (docs/recovery/task-registry.md)
@@ -1360,7 +1370,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### REALTIME-102 — Website useNotificationsRealtime filter `target_user_id=eq.${user.id}` misses role-broadcast notifications
 
-- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-032): useNotificationsRealtime dropped the direct-target-only filter — postgres_changes events are RLS-scoped by the caller's JWT, so the user receives exactly the rows they can SELECT (direct + role + tenant broadcasts). Source scan pins the fix.
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-032 (docs/recovery/task-registry.md)
@@ -1379,7 +1390,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### REALTIME-103 — Website useChatMessagesRealtime(activeChannelId) only subscribes to the open channel; messages in OTHER channels don't trigger unread badge update
 
-- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** REALTIME  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-032): NEW useChatUnreadRealtime() subscribes to chat_messages across ALL channels (RLS-scoped) and invalidates ['chat-unread-count']; mounted once in AppShell. GAP: live websocket assertion with two sessions.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-032 (docs/recovery/task-registry.md)
@@ -2163,7 +2175,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DRIFT-005 — `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry
 
-- **Category:** DRIFT  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DRIFT  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-056.3, hub commit e412e44): ServerSecretUpdate/ServerSecretDelete registered in the canonical AuditActions; the EF imports the registry (relative import verified in the esbuild bundle) — no ad-hoc literal survives (source scan).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-056 (docs/recovery/task-registry.md)
@@ -2422,7 +2435,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-003 — `mapLedgerRow` falls back from `entry_type` to `actor_id` for the entry type
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-056.1, hub commit 6e24cd3): mapLedgerRow's type fallback is (entry_type ?? 'charge') — actor_id is never consulted. Source-scan guard in t-056-hygiene.test.ts (4/4).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-056 (docs/recovery/task-registry.md)
@@ -2441,7 +2455,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-004 — `ledger-seed.ts` computes `dueDate` then discards it (`void dueDate;`)
 
-- **Category:** WEAK  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-056.2, hub commit e63ae97): tuition seed tranches stamp at = their canonical due date (Sept/Dec/Mar); `void dueDate` removed. NOTE (registered follow-up): the transport-tranche loop in the same seed uses the same daysAgo(60) stamp without a discarded variable — same class, deliberately left out of T-056's scope.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-056 (docs/recovery/task-registry.md)
@@ -2613,7 +2628,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-016 — `useHomeworkRealtime` subscribes to the LEGACY `homework_assignments` table with a `target_class_id` filter; the canonical table is `homework` (migration 0029) using `class_id` — realtime is silently broken
 
-- **Category:** WEAK  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** High  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-032): useHomeworkRealtime subscribes to the CANONICAL `homework` table (0029) with class_id=eq.<id> instead of the unwritten legacy homework_assignments/target_class_id. Source scan pins it; the portal's useHomework query already read `homework`. GAP: live end-to-end with a desktop homework push.
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-032 (docs/recovery/task-registry.md)
@@ -2652,7 +2668,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-018 — Dashboard "next installment" KPI uses non-canonical `amount_due - amount_paid` (cleared-only); financial-view uses canonical `installmentRemainingAmount` (due - paid - pending) — cross-view inconsistency
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Found ALREADY FIXED in the sources during T-035 (2026-08-31): dashboard-view calls the canonical installmentRemainingAmount (the inline cleared-only formula from the audit no longer exists) — the fix landed with the session-8 portal restructure but this entry was never closed. Registry correction + pinning test added (ledger-paging.test.ts WEAK-018 case); no code change required.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Desktop, Website
 - **Task:** T-035 (docs/recovery/task-registry.md)
@@ -2691,7 +2708,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-020 — `paymentStatusTone` doesn't handle `cancelled` or `pending_clearance` statuses — renders the raw status string instead of a translated label
 
-- **Category:** WEAK  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-056.5, website commit 3c1b430): paymentStatusTone maps cancelled (muted) + pending_clearance (warning); fr/ar/en dictionary keys added. 119/119 website tests (2 new cases) + strict build green.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-056 (docs/recovery/task-registry.md)
@@ -2730,7 +2748,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-022 — `useLedgerEntries` fetches with `.limit(500)`; `portalFinancialSummary` replays ONLY 500 entries — balance computation is WRONG for parents with > 500 ledger entries
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-035, website commit e9587e0): fetchAllLedgerEntries pages ledger_entries with .range() (1000/page) until a short page; useLedgerEntries delegates; both call sites dropped their { limit: 500 } cap. 5/5 tests incl. a 1500-row two-request fake-client case. GAP: live check with a real 500+-entry parent.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-035 (docs/recovery/task-registry.md)
@@ -2828,7 +2847,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-002 — `update-server-secret` Edge Function exports a `handleDelete` that is never wired
 
-- **Category:** DEAD  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-056.4, hub commit e412e44): Deno.serve routes DELETE to handleDelete; 405 message updated. EF redeployed live via the Management API (update-server-secret vNEXT deploy 201, 401 smoke green). Source-scan guard in t-056-hygiene.test.ts.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-056 (docs/recovery/task-registry.md)
@@ -2944,7 +2964,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-014 — `database-schema.ts` barrel is imported by only ONE file (`supabase/client.ts`); all other 14 files import directly from `@/lib/types/database`
 
-- **Category:** DEAD  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-056.6, website commit 3c1b430): the unused database-schema.ts barrel deleted; supabase/client.ts imports '@/lib/types/database' directly like the other 14 files.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Backend/DB, Website
 - **Task:** T-056 (docs/recovery/task-registry.md)
@@ -3062,7 +3083,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-006 — Supabase mode keeps `overdueAlerts` on the mock layer — the manual overdue-scan path never reaches the backend
 
-- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** FIXED (2026-08-30 — T-080 closed)
+- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** VERIFIED
+- **Status note (2026-08-31, tenth session):** Live integration verified 2026-08-31 (T-094, hub commit ed901b3): env-gated live suite (src/tests/integration/t-094-overdue-live.test.ts) 5/5 against the real project — run() scans 819 overdue installments, the dedup set provably covers every overdue row (0 new), the notification INSERT path accepts the generator's payload (self-cleaning sentinel) and write_audit_log accepts its audit shape.(2026-08-30 — T-080 closed)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-080 (TESTED 2026-08-30)
@@ -3308,7 +3330,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DRIFT-013 — Desktop code calls `.from("expenses")` but the canonical table is `expense_tickets` (with different status values)
 
-- **Category:** DRIFT  |  **Severity:** High  |  **Status:** PARTIAL (dashboard KPI mitigated 2026-08-30 in T-089 — wider expenses-repository leak OPEN)
+- **Category:** DRIFT  |  **Severity:** High  |  **Status:** TESTED
+- **Status note (2026-08-31, tenth session):** Resolved 2026-08-31 (T-093, hub commit 1e91ebf): SupabaseExpenseRepository backs the `expenses` slot on the canonical expense_tickets table with a centralised status/category translation layer; migration 0056 added the missing payee column (applied live + registered); no .from('expenses') call sites remain (rg-verified). Remaining divergence (enum alignment, server-side self-approval = WEAK-030, server-side ticket numbers) recorded in the task entry.(dashboard KPI mitigated 2026-08-30 in T-089 — wider expenses-repository leak OPEN)
 - **Repositories:** Desktop (domain model vs schema); Backend (canonical table)
 - **Platforms affected:** Desktop (Supabase mode)
 - **Task:** T-089 (dashboard KPI fix), T-093 (wider expenses-repository port — NEW)
@@ -3341,3 +3364,57 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Tests:** new dashboard-restructure regression suite (10 tests in `src/tests/ui/dashboard-restructure.test.tsx`) — asserts the duplicate charts are gone, the dead Stat card labels are gone, the KPI grid is 8 cards, the routing (Unread Alerts → Alerts tab; every other KPI → drill-down) is correct.
 - **Verification:** typecheck clean; lint 0 errors (311 baseline warnings unchanged); 47 test files / 2029 tests ALL PASS (was 46/2021 before this session). Live SQL verification for the 4 new KPIs (`scripts/verify_t-089.sh`) confirms: totalStaff=0 (honest — personnel empty in production), pendingExpenses=0 (no pending_approval tickets), attendanceRateToday=0 (attendance_records empty), overdueAlerts=269 (matches the audit doc).
 - **Dependencies:** none.
+
+### ARCH-011 — Live/local migration drift recurrence: 0053 + 0054 applied live but never committed to the repo
+
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** TESTED
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Backend/DB
+- **Task:** MIG-TOKENS (10th session, 2026-08-31)
+- **Discovered:** opening live-DB inspection of the 10th session (schema_migrations head = 0054 while the local chain ended at 0052).
+- **Description:** Migrations 0053 (`tenant_scoped_rbac`, = T-005/TENANT-100/101/102) and 0054 (`auth_trigger_no_client_metadata`, = T-007/SEC-108) were applied to the live project AND registered in `supabase_migrations.schema_migrations`, but the corresponding files did not exist in the local canonical chain — a fresh deployment would have MISSED both the tenant-scoped RBAC resolver/policies and the auth-trigger hardening. Same drift class as ARCH-009 (T-091's 0051 reconciliation): SQL applied directly via the Management API SQL endpoint by a previous actor, files never committed.
+- **Root cause:** the Management-API application path bypasses the migration system unless the file is committed in the same step; no process rule forced the reconciliation until a later agent re-inspected the live chain.
+- **Resolution:** reconciliation files `0053_tenant_scoped_rbac.sql` + `0054_auth_trigger_no_client_metadata.sql` added (definitions extracted verbatim from live `pg_get_functiondef`/`pg_policies`), both dry-run verified inside BEGIN..ROLLBACK against the live DB (`scripts/verify_mig-tokens_0053_0054.sh`, HTTP 201) — validity + idempotency on the real schema without mutation.
+- **Rule (see AGENTS.md amendment):** every live SQL application MUST ship its migration file + registration in the SAME commit; a session opening backend work MUST diff `schema_migrations` against the local chain FIRST.
+
+---
+
+### WEAK-030 — Expense-approval state machine enforced client-side only (RLS has no self-approval or transition guard)
+
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Backend/DB, Desktop
+- **Task:** follow-up to T-093 (needs a new migration)
+- **Discovered:** during T-093's SupabaseExpenseRepository port (2026-08-31).
+- **Description:** the expense_tickets RLS policies (0008) scope writes by tenant + role/submitter but do NOT enforce (a) the no-self-approval rule (a submitter can approve their own ticket via direct PostgREST) nor (b) the status state machine (any allowed-role caller can jump the ticket to any status value). The desktop adapter and mock both enforce these rules client-side; a direct API caller bypasses them.
+- **Proposed resolution:** a trigger (or 0057 migration) enforcing transitions + rejecting approver = submitter, mirroring enforce_payment_proof's style.
+- **Verification:** migration-level test with the full canonical chain; regression test reproducing both bypasses.
+
+---
+
+### ARCH-011 — Live/local migration drift recurrence: 0053 + 0054 applied live but never committed to the repo
+
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** TESTED
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Backend/DB
+- **Task:** MIG-TOKENS (10th session, 2026-08-31)
+- **Discovered:** opening live-DB inspection of the 10th session (schema_migrations head = 0054 while the local chain ended at 0052).
+- **Description:** Migrations 0053 (`tenant_scoped_rbac`, = T-005/TENANT-100/101/102) and 0054 (`auth_trigger_no_client_metadata`, = T-007/SEC-108) were applied to the live project AND registered in `supabase_migrations.schema_migrations`, but the corresponding files did not exist in the local canonical chain — a fresh deployment would have MISSED both the tenant-scoped RBAC resolver/policies and the auth-trigger hardening. Same drift class as ARCH-009 (T-091's 0051 reconciliation): SQL applied directly via the Management API SQL endpoint by a previous actor, files never committed.
+- **Root cause:** the Management-API application path bypasses the migration system unless the file is committed in the same step; no process rule forced the reconciliation until a later agent re-inspected the live chain.
+- **Resolution:** reconciliation files `0053_tenant_scoped_rbac.sql` + `0054_auth_trigger_no_client_metadata.sql` added (definitions extracted verbatim from live `pg_get_functiondef`/`pg_policies`), both dry-run verified inside BEGIN..ROLLBACK against the live DB (`scripts/verify_mig-tokens_0053_0054.sh`, HTTP 201) — validity + idempotency on the real schema without mutation.
+- **Rule (see AGENTS.md amendment):** every live SQL application MUST ship its migration file + registration in the SAME commit; a session opening backend work MUST diff `schema_migrations` against the local chain FIRST.
+
+---
+
+### WEAK-030 — Expense-approval state machine enforced client-side only (RLS has no self-approval or transition guard)
+
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Backend/DB, Desktop
+- **Task:** follow-up to T-093 (needs a new migration)
+- **Discovered:** during T-093's SupabaseExpenseRepository port (2026-08-31).
+- **Description:** the expense_tickets RLS policies (0008) scope writes by tenant + role/submitter but do NOT enforce (a) the no-self-approval rule (a submitter can approve their own ticket via direct PostgREST) nor (b) the status state machine (any allowed-role caller can jump the ticket to any status value). The desktop adapter and mock both enforce these rules client-side; a direct API caller bypasses them.
+- **Proposed resolution:** a trigger (or 0057 migration) enforcing transitions + rejecting approver = submitter, mirroring enforce_payment_proof's style.
+- **Verification:** migration-level test with the full canonical chain; regression test reproducing both bypasses.
+
+---

@@ -7,26 +7,23 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-30, updated after the seventh repair session — T-016/T-027/T-061/T-031/T-029/T-071 + T-079/T-004 live verification)
+## Progress summary (2026-08-31, updated after the tenth repair session — MIG-TOKENS/T-006/T-008/T-093/T-094/T-032/T-035/T-056)
 
 | Status | Count | Tasks |
 |---|---|---|
-| **Completed (VERIFIED)** | 3 | T-000, T-079 (live round-trip 2026-08-30), T-004 (live curl matrix 2026-08-30) |
-| **Completed (TESTED)** | 19 | T-001, T-003, T-009, T-078, T-081, T-019, T-049 (fifth session 2026-08-29), T-002, T-065 (sixth session 2026-08-29), T-016, T-027, T-061, T-031, T-029, T-071 (seventh session 2026-08-30), T-083, T-084 (eighth session 2026-08-30) |
-| **Completed (IMPLEMENTED)** | 2 | T-010 (launch verification needs a desktop host), T-084-Android-half (SYNC-104 code landed; gradle compile check needs an SDK host) |
+| **Completed (VERIFIED)** | 4 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31) |
+| **Completed (TESTED)** | 26 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + **T-006 (0055 live-verified 9/9), T-008 (EF redeployed), T-093 (0056 + adapter), T-032 (112→119 site tests)** (10th session) |
+| **Completed (TESTED, partial sessions)** | 2 | **T-035** (ledger paging; WEAK-018 confirmed already fixed), **T-056** (6/6 items) — both 10th session |
+| **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** (understood, dependencies cleared) | 49 | T-005…T-008, T-011…T-015, T-017, T-018, T-020…T-027 (except T-027 — done), T-030, T-032…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-064, T-068, T-069, T-080, T-082 |
-| **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
-| **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
+| **Ready** | 44 | T-011…T-018, T-020…T-026, T-030, T-033, T-034, T-039…T-041, T-043, T-044, T-046, T-048, T-050…T-058, T-060, T-062…T-064, T-068, T-069 |
+| **Partially blocked** | 1 | T-036 |
+| **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
-| **Needs owner decision** | 3 | T-085 (live-data reconciliation — DATA-001…005), T-086 (parent-portal onboarding — DATA-006), T-087 (test-residue cleanup — DATA-007) — all registered from the session-8 live backend health check |
+| **Needs owner decision** | 3 | T-085, T-086, T-087(done 9th) — see registry entries |
+| **Not started (Android, toolchain-gated)** | 2 | T-020, T-082 — the 10th session re-confirmed the Android SDK is un-downloadable here (dl.google.com 404s commandlinetools) |
 
-**Recommended next task:** T-005 — tenant-scoped RBAC resolver + admin policies (TENANT-100/101, P0 Critical, dependency-free): a new migration (0051+); SQL-level behaviour is fully specified in the problem entries; the live-environment deployment path is now proven (session 8 applied 0049+0050 live via the Management API SQL endpoint), so live two-tenant tests are achievable in-session. Alternatives: T-085 needs the OWNER's reconciliation decisions before any code session (see docs/audits/backend-health-check-2026-08-30.md); T-082 (Android lint-gate baseline) remains the low-risk client-side pick.
-
----
-
-## Completed
 
 ### T-000 — Documentation reset & unified governance system
 - **Problem IDs:** — (system-level; resolves WEAK-021)
@@ -918,3 +915,46 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Description:** T-080 closed the mock-leak defect with unit tests (8 tests, fake Supabase client). The live-integration verification — run the generator against the real Supabase backend, verify that the 269 existing notifications + new insertions work as expected — is this task. Plan: (1) sign in as admin; (2) trigger the "Scan retards" button or invoke `repos.overdueAlerts.run()` directly; (3) verify new notifications are inserted (or the dedup path returns 0 new if all installments already have alerts); (4) verify the audit entry appears in `audit_logs`.
 - **Dependencies:** none.
 - **Affected:** Desktop · **Platforms:** Desktop, Backend
+
+
+### T-006 — Verify callers and tenants in SECURITY DEFINER RPCs — **Completed (TESTED)**
+
+- **Problems:** SEC-110 (+STUDENT-101, PARENT-103), SEC-111, SEC-112 · **Priority:** P0 · **Severity:** High
+- **Status:** TESTED (2026-08-31, tenth session) — migration 0055 applied LIVE + registered (`sec_definer_rpc_hardening`); `scripts/verify_t-006.sql` 9/9 PASS against the live DB (JWT contexts emulated via request.jwt.claims): S1 EF-path bind ok; S2 direct self-bind ok + PARENT-103 audit row; S3 foreign bind rejected (SEC-110); S4 anonymous rejected; S5 silent re-bind rejected; S6 service_role upsert ok; S7 foreign-tenant upsert rejected (SEC-111); S8 same-tenant refund ok + audit stamped with the payment's tenant; S9 cross-tenant refund rejected. Commit 8d317e2.
+- **Deviation recorded:** bind_activation_code exempts service_role callers (the canonical EF path passes the verified JWT's userId via a service_role client — a hard auth.uid() equality check would break the product's activation flow).
+- **Run-discovery:** upsert_payment_from_import's p_student_id has NO default (unchanged signature) — callers must pass it; documented in the verify script.
+
+### T-008 — Constrain role assignment in approve-signup-request — **Completed (TESTED)**
+
+- **Problems:** SEC-107 · **Priority:** P0 · **Severity:** High
+- **Status:** TESTED (2026-08-31, tenth session) — shared decision core `_shared/role-assignment.ts` (staff roles require super_admin); unknown codes -> 400 invalid_role (was: silent skip); 403 + `account_approval.role_override_denied` audit on staff-role attempts; revoke/insert writes error-checked. 12/12 tests; deployed live (v10, Management API multipart deploy — the multi-file deploy path now proven twice); 401 smoke matrix green. Commit e575540. GAP: live 403 needs a real support_staff JWT.
+- **Deviation recorded:** the entry's "safe subset (parent)" generalised to "non-staff roles" (parent/student, the roles.is_staff_role=false set) — same zero-privilege risk class; the flag is read from the roles TABLE, no hardcoded lists.
+
+### T-093 — Port desktop expenses repository to Supabase — **Completed (TESTED)**
+
+- **Problems:** DRIFT-013 (+NEW WEAK-030 registered) · **Priority:** P2 · **Severity:** High
+- **Status:** TESTED (2026-08-31, tenth session) — `SupabaseExpenseRepository` with a centralised status/category translation layer; migration 0056 added the missing `payee` column (applied live + registered); `expenses` slot overridden in the Supabase assembly; no `.from("expenses")` call sites remain. 12/12 adapter tests; typecheck clean; full desktop suite 49 files / 2053 tests PASS. Commit 1e91ebf. LEFT (deliberate): domain enum alignment to DB values; WEAK-030 (server-side approval rules); server-authoritative ticket numbers.
+
+### T-094 — Live integration test for SupabaseOverdueAlertGenerator — **Completed (VERIFIED)**
+
+- **Status:** VERIFIED (2026-08-31, tenth session) — env-gated live suite `src/tests/integration/t-094-overdue-live.test.ts` 5/5 against the real project: run() scans 819 overdue installments and returns 0 new (dedup fully covers — independently cross-checked); INSERT path accepts the generator payload (self-cleaning sentinel); write_audit_log accepts the audit shape (append-only verification entry left intentionally). Commit ed901b3. GAP: desktop UI invocation needs a desktop host.
+
+### T-032 — Repair the website realtime layer — **Completed (TESTED)**
+
+- **Problems:** REALTIME-100/101/102/103, WEAK-016 (REALTIME-101 backend = 0051, already live) · **Priority:** P2 · **Severity:** High
+- **Status:** TESTED (2026-08-31, tenth session, website commit 7b8983e) — invalidation key fixed (with an executable partialMatchKey proof of the root cause), markRead errors surfaced, notifications subscription unfiltered (RLS-scoped events cover role/tenant broadcasts), NEW useChatUnreadRealtime mounted once in AppShell, homework realtime on the canonical `homework`/class_id. Website suite 117/117; lint clean; strict build green. GAP: live two-session websocket test; NOTIF read-state remains UNKNOWN-007/T-038.
+
+### T-035 — Website financial KPI correctness — **Completed (TESTED)**
+
+- **Problems:** WEAK-022, WEAK-018 · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-08-31, tenth session, website commit e9587e0) — fetchAllLedgerEntries pages the full ledger (1000/row pages) replacing the 500 cap at both call sites (5/5 tests incl. a 1500-row two-request case); WEAK-018 found ALREADY FIXED in the session-8 restructure (registry corrected + pinning test; no code change).
+
+### T-056 — Desktop low-risk hygiene batch — **Completed (TESTED)**
+
+- **Problems:** WEAK-003, WEAK-004, DEAD-002, DRIFT-005, WEAK-020, DEAD-014 · **Priority:** P3 · **Severity:** Low
+- **Status:** TESTED (2026-08-31, tenth session) — 6/6 items, one commit per item (6e24cd3, e63ae97, e412e44 + website 3c1b430): mapLedgerRow actor_id fallback removed; ledger seed uses canonical tranche due dates; handleDelete routed; server_secret.* in AuditActions + EF redeployed; paymentStatusTone covers the 2 missing statuses with fr/ar/en keys; database-schema barrel removed. Desktop t-056-hygiene suite + website suite green.
+
+### MIG-TOKENS — Migration-token + live-chain consistency (session-10 opening) — **Completed (TESTED)**
+
+- **Problems:** ARCH-011 (new) · **Priority:** P0
+- **Status:** TESTED (2026-08-31) — discovered 0053/0054 applied live but absent from the repo (ARCH-011); reconciled both files from live definitions (commits 4bf5ff1); dry-run verified in BEGIN..ROLLBACK (HTTP 201); migrations 0055 + 0056 then followed the corrected discipline: file + live application + registration in the SAME commit. Live chain head now 0056 with the local chain matching one-to-one.

@@ -614,3 +614,28 @@ path for T-092.
   (that is the scope of `verify_t-089.sh` / `verify_t-090.sh` / etc.
   SQL scripts, which require the Supabase CLI to be linked). T-092's
   scope is credential consistency only, not migration state.
+
+
+---
+
+## 2026-08-31 — Tenth repair session (owner-requested batch of ~10 tasks; live Supabase credentials provided)
+
+**Scope:** MIG-TOKENS (0053/0054 drift reconciliation + corrected migration discipline), T-006 (SEC-110/111/112 via migration 0055, live-verified 9/9), T-008 (SEC-107 EF gate + redeploy), T-093 (DRIFT-013 via migration 0056 + SupabaseExpenseRepository), T-094 (VERIFIED — live integration of the overdue generator), T-032 (website realtime, 4 REALTIME problems + WEAK-016), T-035 (WEAK-022 + WEAK-018-confirmation), T-056 (6/6 hygiene items across desktop + website). T-020 NOT attempted: the Android SDK command-line tools are un-downloadable from this environment (dl.google.com returns 404 for every commandlinetools artifact — re-verified this session), so the gradle test gate cannot run; task left Ready with the constraint re-documented.
+
+**Live backend changes (project hkvkefubghbbotgnteir):**
+1. MIG-TOKENS: schema_migrations head was 0054 with NO local files (ARCH-011 — same class as ARCH-009). Reconciled `0053_tenant_scoped_rbac.sql` (is_global_admin(), tenant-scoped current_user_roles()/current_user_permissions(), tenants_*/user_profiles_admin_update re-scoping) and `0054_auth_trigger_no_client_metadata.sql` (self-signup hardcodes 'parent', canonical default tenant, server-side admin-invite signal) verbatim from live definitions; both dry-run in BEGIN..ROLLBACK (scripts/verify_mig-tokens_0053_0054.sh, 201). Commits: 4bf5ff1.
+2. Migration 0055 `sec_definer_rpc_hardening` — applied live + registered; SEC-110 caller verification + re-bind guard + direct-path audit on bind_activation_code; SEC-112 tenant filter + payment-tenant audit stamping on revert_payment_allocation; SEC-111 caller-tenant verification on upsert_payment_from_import (kept SECURITY DEFINER). scripts/verify_t-006.sql: 9/9 PASS live (JWT contexts emulated via request.jwt.claims; JWT-emulation technique now reusable). Commit 8d317e2.
+3. approve-signup-request EF redeployed (v10) with the SEC-107 gate (_shared/role-assignment.ts; unknown-role 400; 403 + audit; error-checked writes). Live smoke: 401s correct. Commit e575540.
+4. Migration 0056 `expense_tickets_payee` — applied live + registered; payee column verified present; all 9 expense_categories rows confirmed for the production tenant. Commit 1e91ebf.
+5. update-server-secret EF redeployed (DRIFT-005 registry import + DEAD-002 DELETE routing). Commit e412e44.
+6. T-094 live run: the overdue-scan read/dedup path verified against 819 overdue installments (0 new — dedup complete); notification INSERT + audit shapes verified with a self-cleaning sentinel. Commit ed901b3.
+
+**Client changes:**
+- Desktop (hub repo): SupabaseExpenseRepository (translation layer; 12/12 tests; suite 49 files / 2053 PASS); WEAK-003/004 fixes; t-056-hygiene suite; dashboard comment updated.
+- Website: T-032 realtime repairs + T-035 paging + T-056.5/6 (suite 105 → 119 tests, +14; lint clean; strict build green).
+
+**New problems:** ARCH-011 (live/local migration drift recurrence — reconciled + discipline rule proposed for AGENTS.md), WEAK-030 (expense approval rules enforced client-side only — open).
+
+**Test evidence:** desktop `npm run typecheck` clean, `npm run lint` 0 errors, suite 49 files / 2053 tests ALL PASS; website suite 10 files / 119 tests ALL PASS; Android unchanged (no toolchain). Live Supabase chain 0001–0056 applied + registered; Management API SQL endpoint + multipart EF deploy paths both exercised.
+
+**Verification scripts persisted:** scripts/verify_mig-tokens_0053_0054.sh, scripts/verify_t-006.sql (in-repo: elimtiyaz-desktop/scripts/), scripts/apply_migration.sh, scripts/run_verify_sql.sh.
