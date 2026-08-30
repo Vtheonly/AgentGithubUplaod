@@ -464,11 +464,10 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         // the same drift class as BUG-NEW-001 (the `users` table
         // reference). Documented in the problem registry as DRIFT-013.
         //
-        // The desktop code also calls `.from("expenses")` elsewhere —
-        // that table does NOT exist; the canonical table is
-        // `expense_tickets`. The dashboard KPI uses the correct name
-        // here. The wider expenses-repository leak (the assembly still
-        // uses MockExpensesRepository) is task T-093 (newly opened).
+        // T-093 UPDATE (2026-08-31): the wider expenses-repository leak is
+        // CLOSED — `SupabaseExpenseRepository` now backs the `expenses`
+        // slot against `expense_tickets` (with migration 0056's payee
+        // column), so this KPI and the tickets list read the same rows.
         const { count, error } = await this.client
           .from("expense_tickets")
           .select("id", { count: "exact", head: true })

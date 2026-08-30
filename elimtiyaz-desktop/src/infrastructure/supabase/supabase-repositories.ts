@@ -52,6 +52,7 @@ import {
 } from "./repositories/supabase-shared-repositories";
 import { SupabaseDashboardRepository } from "./repositories/supabase-dashboard-repository";
 import { SupabaseOverdueAlertGenerator } from "./repositories/supabase-overdue-alert-generator";
+import { SupabaseExpenseRepository } from "./repositories/supabase-expense-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -148,6 +149,14 @@ export function getSupabaseRepositories(): Repositories {
   // scans real installments + writes real `notifications` rows.
   const overdueAlerts = new SupabaseOverdueAlertGenerator(client);
 
+  // T-093 (2026-08-31, DRIFT-013 fix): wire the Supabase-backed expenses
+  // repository onto the canonical `expense_tickets` table (migration 0008,
+  // status/category translation layer inside the adapter). BEFORE this,
+  // the `expenses` slot stayed on MockExpenseRepository even in Supabase
+  // mode — submitted expense requests were never persisted server-side and
+  // the tickets list showed seed data.
+  const expenses = new SupabaseExpenseRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -174,6 +183,7 @@ export function getSupabaseRepositories(): Repositories {
     personnel,
     departments,
     overdueAlerts, // T-080 — kill the mock leak
+    expenses, // T-093 — expense tickets on the canonical expense_tickets table
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
@@ -219,4 +229,5 @@ export {
   SupabasePersonnelRepository,
   SupabaseDepartmentRepository,
   SupabaseOverdueAlertGenerator, // T-080 — Supabase-backed overdue scan
+  SupabaseExpenseRepository, // T-093 — expense tickets on expense_tickets
 };

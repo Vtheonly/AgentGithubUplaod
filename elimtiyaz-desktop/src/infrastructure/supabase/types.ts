@@ -371,6 +371,8 @@ export interface ExpenseTicketRow {
   status: "draft" | "pending_approval" | "approved_funds_released" | "rejected" | "disbursed" | "settled_and_closed";
   submitted_by: string;
   submitted_at: string;
+  /** T-093 (DRIFT-013): the beneficiary/supplier — added by migration 0056 (nullable for pre-0056 rows). */
+  payee: string | null;
   approved_by: string | null;
   approved_at: string | null;
   approval_note: string | null;
