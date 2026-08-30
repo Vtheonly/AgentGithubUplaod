@@ -230,7 +230,14 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     if (this.pendingPayments.length > 0 && this.deps.payments) {
       try {
         if (typeof this.deps.payments.bulkCollect === "function") {
-          await this.deps.payments.bulkCollect(this.pendingPayments);
+          const bulk = await this.deps.payments.bulkCollect(this.pendingPayments);
+          // T-012 (BUSINESS-100): bulkCollect now fails fast and returns Err
+          // instead of Ok(partial). Honour the Result so the import transaction
+          // is canceled — a swallowed Err here would resurrect the exact
+          // silent-partial-application defect this contract forbids.
+          if (bulk && bulk.ok === false) {
+            failures.push(`paiements (${this.pendingPayments.length}): ${bulk.error?.message ?? "erreur inconnue"}`);
+          }
         } else {
           for (const { input, collectedBy } of this.pendingPayments) {
             await this.deps.payments.collect(input, collectedBy);

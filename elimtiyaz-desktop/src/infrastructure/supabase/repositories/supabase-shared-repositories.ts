@@ -1278,6 +1278,17 @@ export class SupabasePaymentRepository implements PaymentRepository {
    * Does NOT call the `upsert_payment_from_import` RPC — uses a direct
    * INSERT. The caller (importer) is responsible for deduping via
    * deterministic receipt numbers.
+   *
+   * T-012 (BUSINESS-100): the previous implementation logged a failed chunk
+   * and CONTINUED with the next one, then returned Ok(partially-inserted) —
+   * silently violating the importer's "aucune donnée financière n'a été
+   * partiellement appliquée en silence" contract. It now FAILS FAST: the
+   * first chunk error aborts the whole batch and returns Err identifying
+   * the failing row range, so `flushPendingBatches` cancels the import
+   * transaction completely. The previous catch→loop-collect() fallback is
+   * also gone: retrying rows individually after a chunk failure would
+   * re-apply a partial subset — exactly the silent partial state the
+   * importer promises never to produce.
    */
   async bulkCollect(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>> {
     if (inputs.length === 0) return Ok([]);
@@ -1303,7 +1314,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
         excess_amount: (input as { excessAmount?: number }).excessAmount ?? 0,
         excess_remark: (input as { excessRemark?: string | null }).excessRemark ?? null,
       }));
-      // Insert in chunks of 500.
+      // Insert in chunks of 500. FAIL FAST on the first chunk error.
       const CHUNK_SIZE = 500;
       const inserted: Payment[] = [];
       for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
@@ -1313,8 +1324,13 @@ export class SupabasePaymentRepository implements PaymentRepository {
           .insert(chunk as never)
           .select("id, tenant_id, payment_number, receipt_number, parent_id, student_id, amount, method, status, category, installment_id, proof_path, notes, collected_by, collected_at, created_at, updated_at");
         if (error) {
-          console.warn(`[SupabasePayment] bulk insert chunk ${i} failed:`, error.message);
-          continue;
+          // T-012: abort the whole batch — report the failing row range so
+          // the Excel importer can point at the offending rows and cancel
+          // the transaction ("no partial data applied").
+          return Err(Errors.server(
+            `bulkCollect: insert of payment rows ${i + 1}–${i + chunk.length} failed: ${error.message}` +
+              " — le lot a été annulé (aucune écriture partielle).",
+          ));
         }
         for (const row of (data ?? []) as PaymentRow[]) {
           inserted.push(mapPaymentRow(row));
@@ -1323,14 +1339,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
       this.cache.update((list) => [...inserted, ...list]);
       return Ok(inserted);
     } catch (e) {
-      console.warn("[SupabasePayment] bulkCollect error:", e);
-      // Fall back to loop.
-      const results: Payment[] = [];
-      for (const { input, collectedBy } of inputs) {
-        const r = await this.collect(input, collectedBy);
-        if (r.ok) results.push(r.value);
-      }
-      return Ok(results);
+      return Err(Errors.unknown(e as Error));
     }
   }
 
