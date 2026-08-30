@@ -158,6 +158,118 @@
 
 ## Entries
 
+### 2026-08-30 — EIGHTH REPAIR SESSION — T-084 (owner-requested): live backend health check + portal UI restructure + FCM token hardening (+ T-083 folded in)
+
+The eighth session executed the owner's three priorities: (1) web-portal UI
+redesign around the real database, (2) a thorough live backend health check,
+(3) cross-platform token/credential consistency. Migrations 0049 + 0050 were
+applied LIVE to hkvkefubghbbotgnteir via the Management API SQL endpoint
+(`POST /v1/projects/{ref}/database/query` with the platform access token —
+first session to use this path; recorded for future sessions).
+
+- **Live backend health check (T-084 part 1, TESTED):** full inventory of
+  the production backend — 98 tables/views/RPCs exposed; row counts for 34
+  core tables; per-parent three-way financial reconciliation (installments
+  vs payments vs ledger); orphan detection (0 real orphans — referential
+  integrity is clean); RLS probes with the anon key (all 9 core tables
+  return 0 rows — no leaks); MV freshness; 58-RPC inventory; auth-user
+  census (2 users, 1 active). 11 findings (F-01…F-11) → 9 new problem
+  registrations: DATA-001…DATA-007 + BUG-NEW-002/003. Report archived:
+  `docs/audits/backend-health-check-2026-08-30.md`. Headline findings:
+  payment_allocations EMPTY (canonical waterfall never executed on
+  production data); three-way payment-total disagreement for parent
+  e3e90f1f (Δ+1,750 / Δ+10,000 DZD); ledger charges ≠ installment dues for
+  197/258 parents (Δ7.62M); mv_dashboard_kpis showed 21.38 BILLION DZD
+  monthly revenue (exactly 54.96M × 389 students — a join fan-out); 59
+  overpaying parents; parents.first_name empty on ALL 258 rows; portal has
+  zero eligible parent users (1/258 with email, 0 activation codes).
+- **Migration 0049 (T-084 part 2 + T-083, TESTED — applied live):**
+  (a) mv_dashboard_kpis rebuilt with scalar subqueries — live values now
+  byte-identical to the payments cross-check (monthly_revenue
+  54,962,100.00; was 21,380,256,900.00). (b) Unique indexes on all four
+  MVs — `REFRESH MATERIALIZED VIEW CONCURRENTLY` verified working live
+  (was failing silently since 0036: Postgres requires a unique index).
+  (c) expire_pending_approvals rewritten over account_approval_requests
+  (BUG-NEW-001: the 0036 version referenced a non-existent `users` table —
+  the daily cron failed silently every day). Live call returns cleanly;
+  approval statuses verified (2 approved, 1 expired, 0 stuck).
+- **Migration 0050 (T-084 part 3, TESTED — applied live):** register_fcm_token
+  now verifies the caller (SEC-106): client JWT must own p_user_id
+  (user_profiles.auth_user_id = auth.uid()), SQLSTATE 42501 on mismatch,
+  service-role exempt. NEW canonical deactivate_fcm_tokens(p_user_id,
+  p_platform) RPC — the shared sign-out path for Android + web. Verified
+  live: prosrc contains the verification + 42501; EXECUTE granted to
+  authenticated for both RPCs. Gap: cross-user denial with two real JWTs
+  not provable (only one active auth user exists).
+- **Website portal UI restructure (T-084 part 4, TESTED):** FinancialView
+  rebuilt around the real data model — tabs Tranches | Paiements | Relevé
+  (NEW: ledger statement timeline, chronological + running balance +
+  month grouping + category badges, backed by new pure derivations
+  ledgerTimeline/ledgerAdjustmentEntries in the canonical layer) |
+  Ajustements (now derived from ledger_entries — 318 live rows — instead
+  of the permanently-empty account_adjustments table). Dead
+  invoices/receipts standalone tabs removed (0 rows / orphaned table —
+  CROSS-101; per-payment receipt download retained for when the backend
+  populates it). 4 canonical KPIs with correct labels
+  (outstanding/overdue/paid/credit — the old "Adjustments" KPI showed
+  unallocatedCredit under a mislabeled title, with hardcoded French).
+  Payment rows show the REAL status + payment_number + category (was
+  hardcoded "paid"); installment rows show label + category + plan.
+  All hardcoded French moved to i18n with fr/ar/en translations.
+  Dashboard: greeting uses display_name (formatParentName — first_name
+  is empty on all 258 production rows; the old join rendered a leading
+  space); KPI grid financial-first (the previous attendance/GPA tiles
+  were permanently dead "—" because academic tables are empty).
+  Notifications query now includes parent-role broadcasts (query-side
+  half of REALTIME-102). Honest empty states everywhere with business
+  explanations. ALSO fixed the 2 long-standing React-Compiler lint
+  errors (preserve-manual-memoization) — npm run lint is CLEAN for the
+  first time in the repo's history.
+- **Website tokens (SYNC-105, TESTED):** signOut deactivates the device
+  token via the canonical RPC (RLS-scoped direct-update fallback) BEFORE
+  revoking the session, and uses scope:'local' (was 'global' — signing
+  out on one device killed the family's sessions everywhere).
+- **Android tokens (SYNC-104, IMPLEMENTED):** LocalAuthRepository.signOut
+  deactivates Android tokens via deactivate_fcm_tokens BEFORE revoking
+  the JWT — called directly on the injected provider (NOT via
+  FcmTokenRegistrar: LocalAuthRepository → FcmTokenRegistrar →
+  SessionManager → AuthRepository is a Hilt cycle; design documented
+  in-code). FcmTokenRegistrar gained the symmetric deactivate() for
+  future callers. GAP: no Android SDK in this session's environment —
+  gradle compile check pending on a toolchain host (same recorded-gap
+  pattern as prior sessions; the new code uses the exact established
+  patterns from the same files: NetworkTimeouts.guard + buildJsonObject
+  + postgrest.rpc).
+- **Credentials sheet (T-084 part 5, NEW DOC):**
+  `docs/operations/credentials.md` — the canonical backend identity
+  (project ref, tenant, applied-chain state), per-platform credential
+  sources (website env / Android secrets-plugin + BuildConfig / desktop
+  runtime dialog), key registry with scope rules (public client keys vs
+  server-only keys), the full FCM token lifecycle table (register/
+  refresh/sign-out per platform), session-token rules, rotation
+  procedure, and a verification checklist. Website `.env.example`
+  committed with the real public Supabase URL (gitignore `!.env.example`
+  exception).
+- **Tests:** website — `npm run build` STRICT green; `npm run lint` 0
+  errors (first time); `npm run test` 8 files / 105 tests ALL PASS
+  (+9 new: ledgerTimeline ordering/balances/month-buckets/tie-breaking,
+  ledgerAdjustmentEntries filtering/ordering, formatParentName
+  display_name rule). Live SQL verification for migrations 0049/0050
+  (values, indexes, prosrc, grants, concurrent refresh, clean RPC call).
+- **Commits:** hub — migrations 0049/0050 + docs (this entry, problem
+  registry +9 entries & 5 status advances, task registry T-083/T-084
+  completed + T-085/086/087 created, audits README, operations/
+  credentials.md); website — portal restructure + token fixes + i18n +
+  tests; android — signOut FCM deactivation.
+- **Notes:** the invoices/receipts tab removal is a UI-structure
+  decision backed by live evidence (both tables empty; receipts orphaned
+  per CROSS-101/T-066 BLOCKED) — reversal is trivial if the backend
+  starts producing those rows. DATA-001…DATA-005 deliberately NOT
+  auto-repaired: they rewrite financial history and need owner sign-off
+  (T-085). The Management API SQL endpoint + User-Agent header
+  requirement is documented in the credentials sheet's verification
+  checklist.
+
 ### 2026-08-30 — SEVENTH REPAIR SESSION — T-016/T-027/T-061/T-031/T-029/T-071 + T-079/T-004 live verification
 
 The seventh repair session focused on a balanced batch of 8 tasks

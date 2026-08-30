@@ -21,15 +21,15 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 24 | | OPEN | 113 |
-| High | 45 | | BLOCKED | 13 |
-| Medium | 61 | | DEFERRED | 5 |
-| Low | 19 | | VERIFIED | 1 |
-| | | | TESTED | 15 |
-| | | | IMPLEMENTED | 1 |
-| | | | PARTIAL | 1 |
+| Critical | 26 | | OPEN | 114 |
+| High | 47 | | BLOCKED | 13 |
+| Medium | 63 | | DEFERRED | 5 |
+| Low | 20 | | VERIFIED | 1 |
+| | | | TESTED | 20 |
+| | | | IMPLEMENTED | 2 |
+| | | | PARTIAL | 3 |
 
-**Totals:** 149 registered problems (145 consolidated from 185 audit findings + 4 discovered during repair sessions: DEAD-201, ARCH-006, ARCH-007, ARCH-008) · 113 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021) · 15 TESTED (SEC-100, SEC-007, SEC-103, SEC-105, DEAD-201 — sessions 1–4; SEC-101, SEC-102, WEAK-101, CROSS-100 — T-002 sixth session; ARCH-005, DEAD-013, CROSS-200, ARCH-007 — fifth session; WEAK-023, DRIFT-010 — T-065 sixth session; verification evidence in change-log) · 1 IMPLEMENTED (ARCH-002 — launch verification pending) · 1 PARTIAL (DEAD-012 — unblocked, full cleanup remains T-049).
+**Totals:** 158 registered problems (145 consolidated from 185 audit findings + 13 discovered during repair sessions: DEAD-201, ARCH-006, ARCH-007, ARCH-008, BUG-NEW-001, BUG-NEW-002, BUG-NEW-003, DATA-001…DATA-007) · 114 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 1 VERIFIED (WEAK-021) · 20 TESTED (sessions 1–7: see change-log; session 8 (2026-08-30): SEC-106, BUG-NEW-001, BUG-NEW-002, BUG-NEW-003 — migrations 0049/0050 applied live + SQL-verified; SYNC-105 — build green 105/105) · 2 IMPLEMENTED (ARCH-002 — launch verification pending; SYNC-104 — Android compile check pending) · 3 PARTIAL (DEAD-012; PUSH-102 — inverse RPC shipped, register-overwrite blocked, full PUSH-100 rework open; DATA-005 — portal mitigated, data repair open). Evidence: docs/audits/backend-health-check-2026-08-30.md + change-log session 8.
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -50,7 +50,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-102 | Critical | TESTED | T-002 | Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails — server-side role resolution 2026-08-29 (T-002) |
 | SEC-103 | High | TESTED | T-003 | Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password |
 | SEC-105 | High | TESTED | T-004 | Anonymous invocation of 4 cron EFs (no auth check when no Authorization header) — fixed 2026-08-29, live curl matrix pending |
-| SEC-106 | High | OPEN | T-006 | register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception) |
+| SEC-106 | High | TESTED | T-084 | register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception) — caller verification added by migration 0050 (applied live 2026-08-30); cross-user denial with real JWTs still to be proven (single auth user exists) |
 | SEC-107 | High | OPEN | T-008 | approve-signup-request EF allows support_staff → super_admin role escalation |
 | SEC-108 | High | OPEN | T-007 | handle_new_auth_user trigger trusts raw_app_meta_data.tenant_id and raw_user_meta_data.requested_role (multi-tenant injection + role escalation at signup) |
 | SEC-109 | High | OPEN | T-068 | extractAuthContext calls current_user_permissions() via service_role — permissions array is always empty in EFs (RBAC broken for non-super_admin) |
@@ -87,8 +87,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SYNC-101 | Medium | OPEN | T-022 | Desktop defaultPushHandler overwrites sync_queue row status="pending" on every drain, clobbering audit history |
 | SYNC-102 | Medium | OPEN | T-022 | Desktop sync queue persists across logout/login; user A's pending entries stuck as "failed" under user B's session |
 | SYNC-103 | High | OPEN | T-020 | Android tryThenEnqueue only enqueues on network/offline/timeout errors; server 500s and validation errors lose the mutation |
-| SYNC-104 | Medium | OPEN | T-030 | Android FCM token never unregistered on signOut; device_tokens row stays active for the old user → notifications delivered to "signed-out" device |
-| SYNC-105 | Medium | OPEN | T-030 | Website signOut uses scope:"global" (revokes ALL sessions across ALL devices) AND does not unregister FCM tokens — orphaned token + cross-device session kill |
+| SYNC-104 | Medium | IMPLEMENTED | T-084 | Android FCM token never unregistered on signOut; device_tokens row stays active for the old user → notifications delivered to "signed-out" device — LocalAuthRepository.signOut now calls deactivate_fcm_tokens BEFORE revoking the JWT (2026-08-30); Android compile check pending (no SDK in session env) |
+| SYNC-105 | Medium | TESTED | T-084 | Website signOut uses scope:"global" (revokes ALL sessions across ALL devices) AND does not unregister FCM tokens — fixed 2026-08-30: unregisterDeviceToken() (canonical RPC) + scope:'local'; build green, 105/105 tests; live browser round-trip pending |
 | SYNC-106 | Medium | OPEN | T-021 | Android SyncWorker always returns Result.success() regardless of drainPending/pullAll failures; WorkManager retry escalation bypassed |
 | SYNC-107 | Medium | OPEN | T-021 | Android SyncService.syncNow is fire-and-forget; UI thinks sync completed immediately |
 | CACHE-100 | Medium | OPEN | T-033 | Website TanStack Query config (staleTime 30s + refetchOnWindowFocus false + retry 1) leaves data stale indefinitely when realtime is broken |
@@ -127,7 +127,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | NOTIF-105 | Medium | OPEN | T-039 | Android `pullNotifications` pulls ALL server-visible notifications (limit:200) with no per-user filter; stale role-broadcasts persist in Room across role changes |
 | PUSH-100 | Critical | OPEN | T-036 | NO production code anywhere invokes the `send-push-notification` Edge Function (extends WEAK-014/WEAK-015 to a 3rd compounding bug) |
 | PUSH-101 | Medium | OPEN | T-036 | Android `ElImtiyazMessagingService.onMessageReceived` reads `data["type"]` and `data["priority"]` from the wrong field; AndroidManifest has NO deep-link intent filter for `click_action` URLs |
-| PUSH-102 | Medium | OPEN | T-030 | `register_fcm_token` SQL RPC has no inverse `unregister_fcm_token` RPC; the `ON CONFLICT (tenant_id, token) DO UPDATE` clause overwrites `user_id` on shared devices (extends SEC-106 + SYNC-104) |
+| PUSH-102 | Medium | PARTIAL | T-084 | `register_fcm_token` SQL RPC has no inverse `unregister_fcm_token` RPC; the `ON CONFLICT (tenant_id, token) DO UPDATE` clause overwrites `user_id` on shared devices (extends SEC-106 + SYNC-104) — inverse `deactivate_fcm_tokens` RPC added by migration 0050 (2026-08-30); the shared-device user_id overwrite on conflicting REGISTER is now blocked for non-service-role callers by the same migration |
 | PUSH-103 | Medium | OPEN | T-036 | Website's FCM token registration is OPT-IN only (Profile view manual toggle); no auto-registration on sign-in; most users never enable push |
 | PUSH-104 | High | OPEN | T-036 | Workflow `send_email` action is a STUB; only `approve-signup-request` EF actually sends email (conditional on RESEND_API_KEY secret); all workflow-driven transactional emails NEVER send |
 | ARCH-001 | Critical | OPEN | T-047 | Massive partial migration: 25+ repositories still mock-backed in "Supabase mode" |
@@ -138,7 +138,16 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ARCH-006 | Medium | OPEN | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
 | ARCH-007 | High | TESTED | T-081 | NEW (2026-08-29): Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken — gate restored 2026-08-29 (T-081) |
 | ARCH-008 | High | OPEN | T-082 | NEW (2026-08-29): the Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing NewApi errors; no lint baseline has ever existed |
-| BUG-NEW-001 | High | OPEN | T-083 | NEW (2026-08-30): the `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table; the daily cron EF has been silently failing every day since the RPC was deployed |
+| BUG-NEW-001 | High | TESTED | T-083 | NEW (2026-08-30): the `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table; the daily cron EF has been silently failing every day since the RPC was deployed — rewritten by migration 0049 (applied live 2026-08-30, verified: correct table + clean call); EF round-trip with CRON_SECRET pending |
+| BUG-NEW-002 | Critical | TESTED | T-084 | NEW (2026-08-30): `mv_dashboard_kpis` join fan-out multiplied every payment by the student count — monthly_revenue showed 21.38 BILLION DZD (true: 54.96M); rebuilt with scalar subqueries by migration 0049 (applied live, values verified) |
+| BUG-NEW-003 | High | TESTED | T-084 | NEW (2026-08-30): zero indexes on all four MVs — every scheduled `REFRESH MATERIALIZED VIEW CONCURRENTLY` failed; unique indexes added by migration 0049 (applied live, concurrent refresh verified) |
+| DATA-001 | Critical | OPEN | T-085 | NEW (2026-08-30): `payment_allocations` EMPTY — the canonical waterfall (ADR-002) has never executed in production; all 888 payments written via legacy import RPCs with NULL installment_id |
+| DATA-002 | Critical | OPEN | T-085 | NEW (2026-08-30): three-way payment total disagreement for parent e3e90f1f (installments Δ+1,750 / ledger Δ+10,000 vs payments) — one parent's balance is wrong everywhere |
+| DATA-003 | High | OPEN | T-085 | NEW (2026-08-30): ledger charges ≠ installment dues for 197/258 parents (Δ7.62M DZD charges with no installment row) |
+| DATA-004 | Medium | OPEN | T-085 | NEW (2026-08-30): 59 overpaying parents (credit up to 244,000 DZD) with NULL expected/excess payment fields |
+| DATA-005 | Medium | PARTIAL | T-085 | NEW (2026-08-30): parents.first_name empty string on ALL 258 rows (names only in display_name/last_name) — portal mitigated via formatParentName; data repair open |
+| DATA-006 | Medium | OPEN | T-086 | NEW (2026-08-30): parent portal has zero eligible real users (1/258 parents with email, 0 activation codes, 0 auth bindings) — onboarding campaign needed |
+| DATA-007 | Low | OPEN | T-087 | NEW (2026-08-30): test residue live — `_eq_test_fn`/`_eq_test_fn2` RPCs exposed, unconfirmed test auth user, expired approval request |
 | DRIFT-001 | High | OPEN | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
@@ -3154,3 +3163,124 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
   Plus: a regression test that creates a 7-day-old pending request, runs the RPC, and verifies the status transition. Plus: the EF's error path should write an `account_approval.expire_batch_failed` audit entry when the RPC errors, so silent failures are at least auditable.
 - **Dependencies:** none recorded
 - **Verification:** (1) live curl matrix against `expire-pending-approvals` EF → 200 with `expired_count >= 0` (no longer 500); (2) SQL-level test on a fresh schema: a 7-day-old pending request is expired; a 6-day-old one is not; (3) `supabase db query --linked "SELECT pg_get_functiondef(...) FROM pg_proc WHERE proname='expire_pending_approvals'"` shows the rewritten body referencing `account_approval_requests`.
+
+---
+
+### BUG-NEW-002 — `mv_dashboard_kpis` multiplies every payment by the tenant student count (54.96M reported as 21.38 BILLION)
+
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** TESTED (fixed live by migration 0049, 2026-08-30)
+- **Repositories:** AgentGithubUplaod (desktop — supabase migration chain)
+- **Platforms affected:** Backend, Desktop (dashboard KPIs), any MV consumer
+- **Task:** T-084
+- **Consolidated from:** NEW — discovered 2026-08-30 (eighth session) during the live backend health check (docs/audits/backend-health-check-2026-08-30.md, finding F-04)
+- **Description:** The materialized view joins `tenants × parents × students × payments` and aggregates `SUM(pay.amount)` over the fanned-out row set. Every payment row is duplicated once per (parent × student) combination. Live evidence: `monthly_revenue = 21,380,256,900 DZD` — exactly the true monthly payments (54,962,100) × 389 (the tenant's student count). Additionally `overdue_debt` (55,089,700) EXCEEDED `outstanding_debt` (48,582,000) in the same row — mathematically impossible for a subset — because `total_outstanding` nets negative account balances (credits) into the total while `total_overdue` only sums positive overdue accounts (that second behaviour is the documented canonical engine semantics, INV-3; the first is the fan-out bug).
+- **Location:** `elimtiyaz-desktop/supabase/migrations/0034_canonical_engine_unification.sql` (recreated verbatim in 0041 and 0042) — `CREATE MATERIALIZED VIEW public.mv_dashboard_kpis`
+- **Evidence:** Live REST query of `mv_dashboard_kpis` (2026-08-30, service_role): `{"monthly_revenue": 21380256900.0, "outstanding_debt": 48582000.0, "overdue_debt": 55089700.0, ...}`; cross-check `SELECT SUM(amount) FROM payments WHERE status='paid' AND collected_at >= date_trunc('month', NOW())` = 54,962,100.00; 21,380,256,900 / 54,962,100 = 389.0 exactly = live student count.
+- **Root cause:** Classic join-fan-out aggregation — the view's FROM clause joins parents and students for the COUNT columns but also SUMs the payment column on the same row set instead of using scalar subqueries.
+- **Resolution (migration 0049, applied live 2026-08-30):** rebuilt the MV with scalar subqueries (each aggregate reads its base table exactly once); the per-parent outstanding/overdue columns keep the existing `compute_parent_summary` LATERAL pattern. Verified live: `monthly_revenue` now 54,962,100.00 (byte-identical to the cross-check), `today_revenue` 0 (correct — no payments collected today), counts 258/389.
+- **Dependencies:** none
+- **Verification:** live REST query of the rebuilt MV (values above) + `REFRESH MATERIALIZED VIEW CONCURRENTLY` succeeds (see BUG-NEW-003). Remaining gap: desktop dashboard consumption not re-screenshotted (no desktop host) — the values it reads are now correct at the source.
+
+### BUG-NEW-003 — Zero indexes on all four MVs — every scheduled `REFRESH MATERIALIZED VIEW CONCURRENTLY` has been failing
+
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** TESTED (fixed live by migration 0049, 2026-08-30)
+- **Repositories:** AgentGithubUplaod (desktop — supabase migration chain)
+- **Platforms affected:** Backend (scheduled refresh EF), Desktop (stale KPIs)
+- **Task:** T-084
+- **Consolidated from:** NEW — discovered 2026-08-30 (eighth session) during the live backend health check
+- **Description:** `refresh_materialized_view(p_name)` (migration 0036) executes `REFRESH MATERIALIZED VIEW CONCURRENTLY public.%I`. PostgreSQL REQUIRES a unique index on the matview for CONCURRENTLY mode. Live check `pg_indexes WHERE tablename LIKE 'mv_%'` returned ZERO rows — so every per-view refresh call errored ("cannot refresh materialized view ... concurrently without a unique index" → the RPC returns FALSE), and the MVs only ever updated via plain (non-concurrent) refreshes or not at all.
+- **Location:** `elimtiyaz-desktop/supabase/migrations/0036_tier4_backend_hardening.sql` (refresh RPC) + the four MV definitions (0021/0034/0041/0042)
+- **Evidence:** live pg_indexes query returned `[]`; live execution of `REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_dashboard_kpis` pre-fix would fail; post-fix returns OK.
+- **Resolution (migration 0049, applied live 2026-08-30):** added unique indexes on natural keys — `uq_mv_dashboard_kpis_tenant(tenant_id)`, `uq_mv_debt_aging_tenant_parent(tenant_id, parent_id)`, `uq_mv_top_debtors_tenant_parent(tenant_id, parent_id)`, `uq_mv_revenue_by_month_tenant_month(tenant_id, month)`. Verified live: all four indexes present + `REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_dashboard_kpis` → `refresh-ok`.
+- **Dependencies:** none
+- **Verification:** live SQL (index list + concurrent refresh execution). Gap: the refresh EF's scheduled invocation not re-triggered (needs CRON_SECRET) — but the SQL primitive it calls is now verified working.
+
+### DATA-001 — `payment_allocations` is EMPTY: the canonical waterfall has never executed in production
+
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Repositories:** Backend (data state, not code)
+- **Platforms affected:** all (canonical financial path ADR-002)
+- **Task:** T-085 (data reconciliation — requires business authority)
+- **Consolidated from:** NEW — discovered 2026-08-30 (eighth session) during the live backend health check (finding F-01)
+- **Description:** All 888 production payments were written through the legacy `upsert_*_from_import` RPCs (Excel import path, migrations 0027+). `payments.installment_id` is NULL on every row and `payment_allocations` holds 0 rows. Consequences: no payment→installment traceability exists; `revert_payment_allocation` / `mark_payment_cleared` are inoperable on the existing corpus; the canonical `collect_and_allocate_payment` waterfall (migrations 0034–0043, the centerpiece of ADR-002) has never actually executed against production data.
+- **Evidence:** live counts — payments 888 (all status='paid', all method='cash'), payment_allocations 0, `SELECT COUNT(*) FROM payments WHERE installment_id IS NOT NULL` = 0.
+- **Expected behavior:** every cleared payment is linked to the installments it settles via payment_allocations rows produced by the canonical waterfall, so per-tranche "what did this payment pay for?" is answerable and refunds/reversions can be computed.
+- **Proposed resolution:** one-time backfill — replay the existing payments through the canonical waterfall (or a purpose-built reconciliation migration) in chronological order per parent, generating payment_allocations + linking payments.installment_id. MUST be run under four-eyes supervision: it rewrites financial history. This is a DATA operation, not a code change — needs the owner's explicit sign-off (see DATA-002 first).
+- **Dependencies:** DATA-002 (discrepancies must be resolved BEFORE the backfill, or the waterfall will bake them in)
+- **Verification:** post-backfill — `payment_allocations` count ≥ payments count; Σ allocation amounts per payment = payment amount; Σ allocations per installment ≤ amount_due.
+
+### DATA-002 — Three-way payment total disagreement (parent e3e90f1f: Δ+1,750 installments vs payments, Δ+10,000 ledger vs payments)
+
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Repositories:** Backend (data state)
+- **Platforms affected:** all (any balance shown anywhere)
+- **Task:** T-085 (data reconciliation)
+- **Consolidated from:** NEW — discovered 2026-08-30 (eighth session), live health check finding F-02
+- **Description:** Three independent sources disagree on total collected:
+  - Σ installments.amount_paid = **54,960,350 DZD**
+  - Σ payments.amount = **54,962,100 DZD** (Δ +1,750 — one payment of 1,750 DZD by parent e3e90f1f never applied to any installment)
+  - Σ ledger payment entries = **54,972,100 DZD** (Δ +10,000 vs payments — the same parent's ledger holds 10,000 DZD of payment entries that do not exist in the payments table)
+
+  Only 1 of 258 parents is affected, but that parent's balance is wrong in every system that computes it.
+- **Evidence:** live per-parent reconciliation (health-check §I): `parent e3e90f1f: installments.amount_paid=481,750 vs payments=483,500 (Δ+1,750)` and `ledger payments=493,500 vs payments table=483,500 (Δ+10,000)`.
+- **Expected behavior:** the three sources agree for every parent (ledger is authoritative per INV-1; payments table is the operational record; installments.amount_paid is a denormalized cache).
+- **Proposed resolution:** forensic pass on parent e3e90f1f's rows (identify the 1,750 DZD unapplied payment and the orphaned ledger entries), decide with the school which is truth, repair the minority source, THEN run the DATA-001 backfill.
+- **Dependencies:** none (blocks DATA-001)
+- **Verification:** re-run the health-check per-parent reconciliation → 0 disagreements in all three pairs.
+
+### DATA-003 — Ledger charges ≠ installment dues for 197/258 parents (Δ 7.62M DZD tenant-wide)
+
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN (mitigated for the portal — it computes from the ledger per INV-1)
+- **Repositories:** Backend (data state)
+- **Platforms affected:** all
+- **Task:** T-085 (data reconciliation)
+- **Consolidated from:** NEW — 2026-08-30 live health check finding F-03
+- **Description:** Σ ledger charges = 113,263,800 DZD (391 entries) vs Σ installments.amount_due = 105,639,600 DZD (1,273 rows) — 7,624,200 DZD of charges exist in the ledger with NO installment row. For 76% of parents the installment schedule cannot explain the ledger balance. Consequence: any UI that computes "what's left" from installments disagrees with the canonical balance — exactly why the portal (and desktop) must replay the ledger.
+- **Evidence:** live health-check §E/§I totals + per-parent charge comparison (197/258 mismatch).
+- **Expected behavior:** every charge entry corresponds to an installment row (source_type='installment', source_id = installment id) or is an explicitly-typed non-installment charge.
+- **Proposed resolution:** classify the 391 charge entries by source_type/source_id; generate installment rows for un-linked charges or annotate them as direct ledger charges; document the business rule. Requires the owner's input on what the 7.62M represents (likely annual-supply/registration/transport charges the Excel import booked straight to the ledger).
+- **Dependencies:** none
+- **Verification:** per-parent ledger-vs-installment charge comparison → 0 unexplained rows.
+
+### DATA-004 — 59 overpaying parents (credit up to 244,000 DZD) with NULL expected/excess payment fields
+
+- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** OPEN (portal now surfaces credit via the canonical ledger replay)
+- **Repositories:** Backend (data state)
+- **Task:** T-085
+- **Consolidated from:** NEW — 2026-08-30 live health check finding F-05
+- **Description:** 59 parents paid more than their total dues (top overpayer: +244,000 DZD). The schema anticipated this (`payments.expected_amount` / `excess_amount`, migration 0033) but both columns are NULL on every row. The canonical tracking is the parent_credit ledger account (INV-7) — which the portal's new credit KPI surfaces — but the payment-level hint fields the desktop UI was built to show are unusable on the existing corpus.
+- **Evidence:** live health-check §I overpayer ranking.
+- **Proposed resolution:** during the DATA-001 backfill, populate expected_amount/excess_amount per payment from the waterfall result; keep the ledger account as the canonical source.
+- **Dependencies:** DATA-001
+- **Verification:** every payment where ledger balance goes negative post-payment has excess_amount > 0.
+
+### DATA-005 — `parents.first_name` is an empty string on ALL 258 production rows (names live only in display_name/last_name)
+
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** PARTIAL (portal mitigated 2026-08-30 — formatParentName prefers display_name; data repair OPEN)
+- **Repositories:** Backend (data state); website (mitigation)
+- **Task:** T-085 (data repair), T-084 (portal mitigation — done)
+- **Consolidated from:** NEW — 2026-08-30 live health check finding F-06
+- **Description:** The Excel import populated `display_name` ("ZIREG LEA") + `last_name` and left `first_name` = ''. Any UI joining first_name + last_name renders a leading space and half-missing names (the portal's greeting did exactly that before session 8).
+- **Resolution so far:** website `formatParentName()` prefers display_name with first/middle/last fallback (regression-tested); desktop/Android name rendering still to be audited.
+- **Proposed resolution (data):** split display_name into first/last for rows where first_name is empty (one UPDATE with owner sign-off), keeping display_name untouched.
+- **Verification:** `SELECT COUNT(*) FROM parents WHERE first_name = ''` → 0.
+
+### DATA-006 — Parent portal has zero eligible real users (1/258 parents with email, 0 activation codes, 0 auth bindings)
+
+- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** OPEN (operational onboarding, not a code defect)
+- **Repositories:** Backend (data state / operations)
+- **Task:** T-086
+- **Consolidated from:** NEW — 2026-08-30 live health check finding F-07
+- **Description:** The portal's Google-OAuth activation flow is structurally ready but empty: 0 activation_codes rows, 0 parents.auth_user_id bindings, and only 1 of 258 parents has an email at all. The 269 live notifications all target financial_officer; parents receive none. The portal is effectively unlaunched for its intended audience.
+- **Proposed resolution:** operational onboarding campaign — collect parent emails (via the school), generate activation codes from the desktop (the feature exists), distribute, approve the account_approval_requests. Academic tables (attendance/grades/homework: all 0 rows) need staff to start recording before those portal views carry content.
+- **Dependencies:** none technical; requires school-side action.
+
+### DATA-007 — Test residue in the live backend (`_eq_test_fn`/`_eq_test_fn2` RPCs, unconfirmed test auth user, expired approval request)
+
+- **Category:** DEAD  |  **Severity:** Low  |  **Status:** OPEN
+- **Repositories:** Backend
+- **Task:** T-087
+- **Consolidated from:** NEW — 2026-08-30 live health check finding F-09
+- **Description:** The public schema exposes `_eq_test_fn` and `_eq_test_fn2` (equivalence-harness leftovers) via REST; an unconfirmed auth user `test.connection.supabase@gmail.com` with an expired account_approval_request remains. Harmless but pollutes the API surface and the auth list.
+- **Proposed resolution:** drop the two test functions (new migration), delete the test auth user + approval request. No production code references them (the equivalence harness declares its own).
+- **Dependencies:** none

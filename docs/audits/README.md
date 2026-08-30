@@ -8,6 +8,7 @@
 |---|---|---|
 | [`first-pass-audit.md`](first-pass-audit.md) | First pass: per-repo deep scans by agents 2-a (desktop), 2-b (Android), 2-c (website) + cross-repo analysis (shared multi-agent worklog format) | 86 |
 | [`second-pass-audit.md`](second-pass-audit.md) | Second pass: six forensic auditors 3-A…3-F tracing each cross-cutting concern end-to-end (auth/activation/RLS · payment/refund/receipt · sync/offline/realtime/cache · parent/student/tenancy · chat/notifications/push · academic) | 99 |
+| [`backend-health-check-2026-08-30.md`](backend-health-check-2026-08-30.md) | Session 8 LIVE backend health check: row counts, financial integrity, orphan detection, RLS probes, MV freshness, RPC inventory, auth-user census — executed against the production Supabase via REST (service_role) + Auth Admin API + EF probes | 11 findings (F-01…F-11) |
 
 **Total raw findings: 185 → consolidated into 145 unique problems** in [`docs/recovery/problem-registry.md`](../recovery/problem-registry.md).
 

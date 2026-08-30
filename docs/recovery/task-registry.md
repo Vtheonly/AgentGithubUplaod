@@ -12,16 +12,17 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 3 | T-000, T-079 (live round-trip 2026-08-30), T-004 (live curl matrix 2026-08-30) |
-| **Completed (TESTED)** | 17 | T-001, T-003, T-009, T-078, T-081, T-019, T-049 (fifth session 2026-08-29), T-002, T-065 (sixth session 2026-08-29), T-016, T-027, T-061, T-031, T-029, T-071 (seventh session 2026-08-30) |
-| **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
+| **Completed (TESTED)** | 19 | T-001, T-003, T-009, T-078, T-081, T-019, T-049 (fifth session 2026-08-29), T-002, T-065 (sixth session 2026-08-29), T-016, T-027, T-061, T-031, T-029, T-071 (seventh session 2026-08-30), T-083, T-084 (eighth session 2026-08-30) |
+| **Completed (IMPLEMENTED)** | 2 | T-010 (launch verification needs a desktop host), T-084-Android-half (SYNC-104 code landed; gradle compile check needs an SDK host) |
 | **In Progress** | 0 | — |
-| **Ready** (understood, dependencies cleared) | 49 | T-005…T-008, T-011…T-015, T-017, T-018, T-020…T-027 (except T-027 — done), T-030, T-032…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-064, T-068, T-069, T-080, T-082, T-083 (new — fix expire_pending_approvals SQL RPC, BUG-NEW-001) |
+| **Ready** (understood, dependencies cleared) | 49 | T-005…T-008, T-011…T-015, T-017, T-018, T-020…T-027 (except T-027 — done), T-030, T-032…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-064, T-068, T-069, T-080, T-082 |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
+| **Needs owner decision** | 3 | T-085 (live-data reconciliation — DATA-001…005), T-086 (parent-portal onboarding — DATA-006), T-087 (test-residue cleanup — DATA-007) — all registered from the session-8 live backend health check |
 
-**Recommended next task:** T-005 — tenant-scoped RBAC resolver + admin policies (TENANT-100/101, P0 Critical, dependency-free): a new migration (0045+); SQL-level behaviour is fully specified in the problem entries; implementation + migration review are headless-feasible, with live two-tenant tests as the recorded gap (same pattern as T-004). Alternatives: T-082 (Android lint-gate baseline — restores the last inoperable AGENTS.md §6 gate, same pattern as T-078) for a low-risk client-side session; T-079's backend deploy + T-004's curl matrix + T-005's two-tenant tests can share one deployment when a live Supabase environment appears.
+**Recommended next task:** T-005 — tenant-scoped RBAC resolver + admin policies (TENANT-100/101, P0 Critical, dependency-free): a new migration (0051+); SQL-level behaviour is fully specified in the problem entries; the live-environment deployment path is now proven (session 8 applied 0049+0050 live via the Management API SQL endpoint), so live two-tenant tests are achievable in-session. Alternatives: T-085 needs the OWNER's reconciliation decisions before any code session (see docs/audits/backend-health-check-2026-08-30.md); T-082 (Android lint-gate baseline) remains the low-risk client-side pick.
 
 ---
 
@@ -733,11 +734,43 @@
 
 ### T-083 — Fix the `expire_pending_approvals()` SQL RPC (BUG-NEW-001, discovered during T-004 verification)
 - **Problems:** BUG-NEW-001 · **Priority:** P1 · **Severity:** High
-- **Description:** New migration 0049+ rewrites `public.expire_pending_approvals()` to operate on the correct table (`public.account_approval_requests`, NOT the non-existent `public.users`) with the correct column (`status`, NOT `approval_status`) and the correct 7-day threshold (per the EF's documentation, NOT 30 days). Plus: extend the EF's error path to write an `account_approval.expire_batch_failed` audit entry when the RPC errors, so silent failures are at least auditable. Plus: regression test that creates a 7-day-old pending request, runs the RPC, and verifies the status transition; a 6-day-old one stays pending.
-- **Dependencies:** none · **Affected:** D (migration 0049, EF error-path audit) · **Platforms:** Backend, Desktop
-- **Tests:** SQL-level test on a fresh schema; live curl matrix re-run for the `expire-pending-approvals` EF (currently returns 500; should return 200 with `expired_count >= 0`).
-- **Verification:** live curl matrix recorded in change-log; SQL function body re-queried to confirm `account_approval_requests` reference.
-- **ADRs:** —
+- **Status:** TESTED (2026-08-30, eighth session — folded into T-084's migration 0049)
+- **What was done:** migration `0049_dashboard_kpis_fanout_expire_fix.sql` rewrote `expire_pending_approvals()` as a single data-modifying CTE over `account_approval_requests` (status='pending' AND expires_at < now() → 'expired'), returning per-tenant counts. Applied LIVE to hkvkefubghbbotgnteir via the Management API SQL endpoint; verified live: function body references the correct table (prosrc check), `SELECT * FROM expire_pending_approvals()` executes cleanly, approval-request status counts correct (2 approved, 1 expired, 0 stuck pending).
+- **Left:** the EF round-trip with a valid CRON_SECRET (value not available in-session); the EF's own error-path audit entry (unmodified in this session).
+- **Commits:** see change-log session 8.
+
+### T-084 — Live backend health check + KPI matview repair + FCM token hardening + portal UI restructure (session 8, owner-requested)
+- **Problems:** BUG-NEW-002, BUG-NEW-003, SEC-106, SYNC-104, SYNC-105, PUSH-102 (partial), DATA-005 (mitigation), WEAK-018/019 family (residuals) · **Priority:** P0 · **Severity:** Critical
+- **Status:** TESTED (2026-08-30) — Android half IMPLEMENTED (compile check pending)
+- **What was done:**
+  1. **Live backend health check** (owner priority 2): full inventory + integrity + RLS + MV + RPC + auth census — archived as `docs/audits/backend-health-check-2026-08-30.md` (11 findings F-01…F-11 → DATA-001…007 + BUG-NEW-002/003 registered).
+  2. **Migration 0049** (applied live): mv_dashboard_kpis fan-out fixed (21.38B → true 54.96M, verified byte-identical to the payments cross-check); unique indexes on all 4 MVs (REFRESH CONCURRENTLY now works — verified live); expire_pending_approvals rewrite (T-083).
+  3. **Migration 0050** (applied live): register_fcm_token caller verification (SEC-106 — auth.uid() must own p_user_id, service_role exempt, SQLSTATE 42501 on mismatch) + new canonical deactivate_fcm_tokens RPC (SYNC-104/105 path). Verified live: verification logic present in prosrc, EXECUTE granted to authenticated.
+  4. **Website portal UI restructure** (owner priority 1): FinancialView restructured around the real data model — tabs now Tranches | Paiements | **Relevé** (NEW ledger statement timeline with running balance, month grouping, category badges) | Ajustements (derived from ledger_entries — 318 live rows — instead of the empty account_adjustments table); dead invoices/receipts standalone tabs removed (0 rows / orphaned table, CROSS-101); 4 canonical KPIs (outstanding/overdue/paid/credit) with correct labels; payment rows show REAL status + payment_number + category (was hardcoded "paid"); installment rows show label + category + plan; all hardcoded French strings moved to i18n (fr/ar/en + all new keys); honest empty states everywhere. Dashboard: greeting uses display_name (formatParentName — first_name empty on all 258 production rows), KPI grid financial-first (the old attendance/GPA tiles were permanently dead "—" on empty academic tables). New pure derivations ledgerTimeline/ledgerAdjustmentEntries in portal-derive (canonical layer) with 9 new unit tests. notifications query now includes parent-role broadcasts (query-side half of REALTIME-102). Fixed the 2 long-standing React-Compiler lint errors (preserve-manual-memoization) — `npm run lint` is CLEAN for the first time.
+  5. **Website tokens** (SYNC-105): signOut now unregisters the device token (canonical RPC, RLS-scoped fallback) BEFORE revoking, and uses scope:'local' instead of 'global'.
+  6. **Android tokens** (SYNC-104): LocalAuthRepository.signOut deactivates Android tokens via the canonical RPC before revoking the JWT (Hilt-cycle-free design — direct provider call, documented); FcmTokenRegistrar gained the matching deactivate() for symmetry.
+  7. **Credentials sheet** (owner priority 3): `docs/operations/credentials.md` — canonical backend identity, per-platform credential sources, key registry with scope rules, FCM lifecycle table, rotation + verification procedures. Website `.env.example` committed (real public URL, gitignore exception added).
+- **Tests:** website `npm run build` STRICT green; `npm run lint` 0 errors; `npm run test` 8 files / 105 tests ALL PASS (+9 new); live SQL verification suite for migrations 0049/0050 (values, indexes, prosrc, grants, refresh). Gap: Android compile (no SDK in session env — code follows the exact established patterns in the same files); live browser round-trip; EF round-trip with CRON_SECRET.
+- **Commits:** see change-log session 8.
+
+---
+
+### T-085 — Live-data reconciliation (owner decision required) — DATA-001…DATA-005
+- **Problems:** DATA-001 (payment_allocations empty / waterfall never run), DATA-002 (three-way totals disagree for parent e3e90f1f), DATA-003 (ledger charges ≠ installment dues, 197/258 parents, Δ7.62M), DATA-004 (59 overpayers, NULL excess fields), DATA-005 (first_name empty on all rows)
+- **Priority:** P0 (financial correctness) · **Severity:** Critical
+- **Description:** NOT a code task — a supervised data-repair campaign. Sequence: (1) forensic pass on parent e3e90f1f's 1,750/10,000 DZD discrepancies → owner decides which source is truth; (2) classify the 7.62M of ledger-only charges (what do they represent — registration? supplies? transport annual?); (3) one-time backfill replaying all 888 payments through the canonical waterfall to generate payment_allocations + link payments.installment_id (+ populate expected/excess per DATA-004); (4) first_name split from display_name. Every step needs owner sign-off because it rewrites financial history.
+- **Dependencies:** owner decisions · **Affected:** B (data only) · **Platforms:** all
+- **Verification:** re-run the session-8 health check → zero three-way disagreements; payment_allocations populated and internally consistent; first_name non-empty.
+
+### T-086 — Parent-portal onboarding campaign — DATA-006
+- **Problems:** DATA-006 · **Priority:** P1 (operational) · **Severity:** Medium
+- **Description:** The portal is code-complete but has zero eligible users (1/258 parents with email, 0 activation codes, 0 auth bindings, 0 parent-targeted notifications, empty academic tables). Work with the school: collect parent emails, generate + distribute activation codes via the desktop feature, approve the requests, have staff start recording attendance/grades/homework. Not engineering-blocked.
+- **Dependencies:** school-side action · **Verification:** first real parent signed in; first parent-targeted notification delivered.
+
+### T-087 — Test-residue cleanup — DATA-007
+- **Problems:** DATA-007 · **Priority:** P3 · **Severity:** Low
+- **Description:** Drop `_eq_test_fn`/`_eq_test_fn2` RPCs (equivalence-harness leftovers exposed via REST), delete the unconfirmed `test.connection.supabase@gmail.com` auth user and its expired account_approval_request. One small migration + auth admin call; no production code references them.
+- **Dependencies:** none · **Verification:** REST RPC inventory no longer lists the test functions; auth user list shows only real users.
 
 ---
 
