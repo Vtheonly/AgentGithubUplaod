@@ -28,6 +28,27 @@ export function createAnonClient(): SupabaseClient {
   });
 }
 
+/**
+ * T-068 (SEC-109) — a client scoped to the CALLER's JWT.
+ *
+ * PostgREST derives auth.uid() from the Authorization header. The RBAC
+ * resolvers (`current_user_roles`, `current_user_permissions`) are SECURITY
+ * INVOKER functions built on auth.uid() — they only produce meaningful
+ * results when invoked WITH the caller's JWT. Use this factory whenever an
+ * Edge Function must evaluate the caller's own roles/permissions.
+ */
+export function createUserScopedClient(jwt: string): SupabaseClient {
+  const url = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!url || !anonKey) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY env var");
+  }
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
+}
+
 export interface AuthContext {
   userId: string;
   userProfileId: string;
@@ -65,7 +86,22 @@ export async function extractAuthContext(req: Request): Promise<AuthContext | nu
 
   const roles = (roleAssignments ?? []).map((ra: any) => ra.role?.code).filter(Boolean);
 
-  const { data: perms } = await profileClient.rpc("current_user_permissions");
+  // T-068 (SEC-109): permissions MUST be resolved through a caller-scoped
+  // client. The previous call ran `current_user_permissions()` via the
+  // service_role client — service_role has no auth.uid(), so
+  // current_user_profile_id() resolved to NULL and the RPC returned '{}'
+  // for EVERY caller, making requirePermission() deny all non-super_admin
+  // users (workflow-execute / run-overdue-scan were super_admin-only).
+  // With the caller's JWT attached, the RPC resolves the same effective
+  // permission set the desktop RBAC resolver sees for that user.
+  const userClient = createUserScopedClient(token);
+  const { data: perms, error: permsErr } = await userClient.rpc("current_user_permissions");
+  if (permsErr) {
+    // Fail CLOSED: on any resolver error the caller gets NO permissions —
+    // requirePermission() then denies non-super_admin users (super_admin
+    // still passes via the role check). Never default to open.
+    console.error("[auth] current_user_permissions failed:", permsErr.message);
+  }
   const permissions = perms ?? [];
 
   return {
