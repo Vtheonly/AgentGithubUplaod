@@ -193,7 +193,7 @@ describe("Integration: Check Bounce / Refund Reversal", () => {
     const satisfied = afterCollect.find((i) => i.id === target.id);
     expect(satisfied?.amountPaid).toBe(target.amountDue);
 
-    const refundResult = await mockPaymentRepository.refund(paymentId);
+    const refundResult = await mockPaymentRepository.refund(paymentId, "Erreur de saisie — test", "usr-test", "Test User");
     expect(refundResult.ok).toBe(true);
     if (!refundResult.ok) return;
     expect(refundResult.value.status).toBe("refunded");
@@ -228,7 +228,7 @@ describe("Integration: Check Bounce / Refund Reversal", () => {
     );
     expect(originalEntry).toBeDefined();
 
-    await mockPaymentRepository.refund(paymentId);
+    await mockPaymentRepository.refund(paymentId, "Erreur de saisie — test", "usr-test", "Test User");
 
     const ledgerAfter = current<LedgerEntry[]>(mockLedgerRepository.observe());
     const reversalEntry = ledgerAfter.find(

@@ -249,7 +249,17 @@ export interface PaymentRepository {
    * bulk collect.
    */
   bulkCollect?(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>>;
-  refund(id: string): Promise<Result<Payment>>;
+  /**
+   * Refund a payment (T-014 / BUSINESS-003 — canonical §7.2 contract).
+   *
+   * `reason` is MANDATORY (≥3 chars, user-provided — mirrored from the
+   * refund-payment Edge Function contract) and `actorId`/`actorName` carry
+   * the signed-in user's real identity so the audit trail attributes the
+   * refund correctly. Implementations delegate to the canonical
+   * `revert_payment_allocation` RPC (Supabase) or its TS mirror (mock) and
+   * MUST reject a second refund of an already-refunded payment.
+   */
+  refund(id: string, reason: string, actorId: string, actorName?: string): Promise<Result<Payment>>;
   /**
    * PENDING → PAID transition (vault §07.02 — "bank clearance verified").
    *

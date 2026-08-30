@@ -1108,15 +1108,31 @@ export class SupabasePaymentRepository implements PaymentRepository {
     }
   }
 
-  async refund(id: string): Promise<Result<Payment>> {
+  /**
+   * T-014 (BUSINESS-003): propagates the caller's REAL reason and actor
+   * identity to the canonical `revert_payment_allocation` RPC. The previous
+   * implementation hardcoded `p_reason: "Manual refund"` and read the actor
+   * from localStorage fallbacks ("excel-import"), so a refund performed by a
+   * named financial officer was audited as "Excel Import / Manual refund".
+   * The reason is mandatory (≥3 chars) per the canonical §7.2 contract —
+   * same rule the refund-payment Edge Function enforces.
+   */
+  async refund(id: string, reason: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
     try {
+      const trimmed = reason.trim();
+      if (trimmed.length < 3) {
+        return Err(Errors.validation(
+          "Un motif d'au moins 3 caractères est obligatoire pour rembourser un paiement",
+        ));
+      }
+      if (!id) return Err(Errors.validation("Paiement introuvable"));
       const tenantId = getTenantId();
       const { error } = await this.client.rpc("revert_payment_allocation", {
         p_tenant_id: tenantId,
         p_payment_id: id,
-        p_actor_id: getActorId(),
-        p_actor_name: getActorName(),
-        p_reason: "Manual refund",
+        p_actor_id: actorId,
+        p_actor_name: actorName ?? actorId,
+        p_reason: trimmed,
       });
       if (error) throw error;
       const { data, error: fetchErr } = await this.client
@@ -1125,7 +1141,8 @@ export class SupabasePaymentRepository implements PaymentRepository {
         .eq("id", id)
         .maybeSingle();
       if (fetchErr) throw fetchErr;
-      const payment = mapPaymentRow(fetchErr ? ({} as PaymentRow) : (data as PaymentRow));
+      if (!data) throw new Error(`Payment ${id} not found after refund`);
+      const payment = mapPaymentRow(data as PaymentRow);
       this.cache.update((list) => list.map((p) => (p.id === id ? payment : p)));
       return Ok(payment);
     } catch (e) {

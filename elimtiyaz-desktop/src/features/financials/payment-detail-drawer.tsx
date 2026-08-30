@@ -6,14 +6,17 @@
  * financials page had no way to inspect a payment at all (the Android app
  * has a full PaymentDetailScreen; the desktop had none).
  *
- * VAULT §07.02 — the drawer now hosts the PENDING payment lifecycle
- * transitions:
+ * VAULT §07.02 — the drawer now hosts the payment lifecycle transitions:
  *   - "Confirmer compensation bancaire" (PENDING → PAID, bank clearance
  *     verified) — moves uncleared installment funds into cleared funds.
  *   - "Marquer comme échoué" (PENDING → UNPAID, check bounces / transfer
  *     fails) — LIFO-reverses the uncleared allocation and writes a
  *     reversal ledger entry. Requires a mandatory reason.
- * Both actions are confirmation-gated and audit-logged by the repository.
+ *   - "Rembourser" (PAID/PENDING → REFUNDED, T-014 / DEAD-015) — full
+ *     reversal via the canonical `revert_payment_allocation` RPC. Gated on
+ *     Permission.RefundPayment, requires a mandatory reason (≥3 chars) and
+ *     propagates the signed-in user's identity so the audit trail is real.
+ * All actions are confirmation-gated and audit-logged by the repository.
  */
 import { useState } from "react";
 import {
@@ -24,6 +27,7 @@ import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { EntityDetailDrawer, type EntityDrawerTab, type EntityDrawerMetaItem } from "../../shared/ui/entity-drawer";
 import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
+import { Permission } from "../../core/rbac/permissions";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
@@ -50,6 +54,8 @@ export function PaymentDetailDrawer({
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmBounce, setConfirmBounce] = useState(false);
   const [bounceReason, setBounceReason] = useState("");
+  const [confirmRefund, setConfirmRefund] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
   const payment = useObservable(
@@ -117,6 +123,44 @@ export function PaymentDetailDrawer({
       setTransitioning(false);
     }
   }
+
+  /**
+   * T-014 — full refund (PAID/PENDING → REFUNDED) through the canonical
+   * `revert_payment_allocation` RPC. Reason is mandatory (≥3 chars, the
+   * refund-payment EF contract); the signed-in user's identity is passed so
+   * the audit entry attributes the refund to a real actor, never "Excel Import".
+   */
+  async function handleRefund() {
+    if (!entity || !session) return;
+    if (refundReason.trim().length < 3) {
+      toast.showWarning("Motif obligatoire", "Précisez le motif du remboursement (3 caractères minimum).");
+      return;
+    }
+    setTransitioning(true);
+    try {
+      const res = await repos.payments.refund(
+        entity.id,
+        refundReason.trim(),
+        session.userId,
+        session.displayName ?? "Session courante",
+      );
+      if (res.ok) {
+        toast.showWarning(
+          "Paiement remboursé",
+          `${entity.receiptNumber} est remboursé. Allocation inversée (LIFO), écriture de contrepassation et écritures de tranches mises à jour.`,
+        );
+        setConfirmRefund(false);
+        setRefundReason("");
+      } else {
+        toast.showError("Échec du remboursement", res.error.userMessage);
+      }
+    } finally {
+      setTransitioning(false);
+    }
+  }
+
+  const canRefund =
+    !!session && session.permissions.has(Permission.RefundPayment);
 
   const metadata = (p: Payment): readonly EntityDrawerMetaItem[] => [
     { label: "Reçu", value: p.receiptNumber },
@@ -199,6 +243,25 @@ export function PaymentDetailDrawer({
               </div>
             </div>
           )}
+          {/* T-014 — refund action (DEAD-015): gated on Permission.RefundPayment,
+              reachable for every revertible payment (paid or pending). */}
+          {entity && (entity.status === "paid" || entity.status === "pending") && canRefund && (
+            <div className="rounded-md border border-border bg-surface-elevated/40 p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Remboursement : l'allocation du paiement sera inversée (LIFO), les
+                tranches seront rouvertes et une écriture de contrepassation sera
+                enregistrée. Le motif est obligatoire et journalisé.
+              </p>
+              <button
+                type="button"
+                disabled={transitioning}
+                onClick={() => setConfirmRefund(true)}
+                className="rounded-md border border-status-danger/50 bg-status-danger/10 px-3 py-1.5 text-xs font-medium text-status-danger hover:bg-status-danger/20 disabled:opacity-50"
+              >
+                ↩ Rembourser ce paiement
+              </button>
+            </div>
+          )}
           {entity?.status === "unpaid" && (
             <div className="rounded-md border border-status-danger/40 bg-status-danger/5 p-3 text-xs text-status-danger">
               Paiement échoué (rejeté par la banque). La tranche concernée a été
@@ -272,6 +335,33 @@ export function PaymentDetailDrawer({
         }
         confirmLabel="Marquer échoué"
         onConfirm={handleMarkBounced}
+      />
+      <ConfirmModal
+        open={confirmRefund}
+        onOpenChange={setConfirmRefund}
+        destructive
+        title="Rembourser le paiement"
+        description={
+          <div className="space-y-2">
+            <p>
+              Le paiement {entity?.receiptNumber} ({entity ? formatDzdPlain(entity.amount) : ""}) sera
+              remboursé. L'allocation sera inversée (LIFO), une écriture de contrepassation sera
+              enregistrée au ledger et les tranches concernées seront rouvertes. Cette action est
+              journalisée avec votre identité et le motif saisi.
+            </p>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium">Motif du remboursement (obligatoire, 3 caractères minimum) :</span>
+              <input
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="ex. Erreur de saisie — doublon annulé par la direction"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+        }
+        confirmLabel="Confirmer le remboursement"
+        onConfirm={handleRefund}
       />
     </>
   );

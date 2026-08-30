@@ -101,8 +101,8 @@ export class MockPaymentRepository implements PaymentRepository {
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
     return collectPayment(ctx, input, collectedBy);
   }
-  refund(id: string): Promise<Result<Payment>> {
-    return refundPayment(ctx, id);
+  refund(id: string, reason: string, actorId?: string, actorName?: string): Promise<Result<Payment>> {
+    return refundPayment(ctx, id, reason, actorId, actorName);
   }
   markCleared(id: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
     return markPaymentCleared(ctx, id, actorId, actorName);

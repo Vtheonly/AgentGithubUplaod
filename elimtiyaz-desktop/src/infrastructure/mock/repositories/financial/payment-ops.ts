@@ -254,16 +254,41 @@ export async function collectPayment(
  *
  * This implements Invariant 5 (Reversal Balance) and ensures tranches
  * are correctly re-opened when a check bounces or a payment is canceled.
+ *
+ * T-014 (BUSINESS-003): the caller's REAL reason and actor identity are now
+ * propagated into the ledger reversal entry + audit entries (previously
+ * hardcoded "Remboursement manuel" / "usr-current" / "Session courante").
+ * The reason is mandatory (≥3 chars) and a second refund of an
+ * already-reverted payment is rejected — mirroring the canonical
+ * `revert_payment_allocation` RPC guard (migration 0041:493-495).
  */
 export async function refundPayment(
   ctx: FinancialOpsCtx,
   id: string,
+  reason: string,
+  actorId?: string,
+  actorName?: string,
 ): Promise<Result<Payment>> {
   const { store, appendAudit, nowIso, delay, tenantId } = ctx;
+  const trimmed = reason.trim();
+  if (trimmed.length < 3) {
+    return Err(Errors.validation(
+      "Un motif d'au moins 3 caractères est obligatoire pour rembourser un paiement",
+    ));
+  }
   await delay(200);
   const idx = store.payments.findIndex((p) => p.id === id);
   if (idx < 0) return Err(Errors.notFound("Payment", id));
   const before = store.payments[idx];
+  // CANONICAL (revert_payment_allocation): only 'paid' | 'pending' payments
+  // can be reverted — a second refund attempt is rejected, not idempotent.
+  if (before.status !== "paid" && before.status !== "pending") {
+    return Err(Errors.validation(
+      `Le paiement ${before.receiptNumber} ne peut pas être remboursé (statut actuel : ${before.status})`,
+    ));
+  }
+  const effectiveActorId = actorId ?? "usr-current";
+  const effectiveActorName = actorName ?? "Session courante";
   const after: Payment = { ...before, status: "refunded", updatedAt: nowIso() };
   store.payments[idx] = after;
   store.notifyPayments();
@@ -294,12 +319,12 @@ export async function refundPayment(
       receiptNumber: originalLedgerEntry.receiptNumber,
       paymentStatus: null,
       reversesId: originalLedgerEntry.id,
-      description: `Remboursement ${before.receiptNumber} — inversion de l'écriture de paiement`,
-      actorId: "usr-current",
-      actorName: "Session courante",
+      description: `Remboursement ${before.receiptNumber} — ${trimmed} — inversion de l'écriture de paiement`,
+      actorId: effectiveActorId,
+      actorName: effectiveActorName,
       at: nowIso(),
       metadata: Object.freeze({
-        refundReason: "Remboursement manuel",
+        refundReason: trimmed,
         originalPaymentId: id,
       }),
     };
@@ -338,8 +363,8 @@ export async function refundPayment(
         action: "installment.revert_allocation",
         entityType: "installment",
         entityId: rev.installmentId,
-        actorId: "usr-current",
-        actorName: "Session courante",
+        actorId: effectiveActorId,
+        actorName: effectiveActorName,
         diff: {
           before: {
             amountPaid: insBefore.amountPaid,
@@ -364,8 +389,8 @@ export async function refundPayment(
       action: AuditActions.PaymentRefund,
       entityType: "payment",
       entityId: id,
-      actorId: "usr-current",
-      actorName: "Session courante",
+      actorId: effectiveActorId,
+      actorName: effectiveActorName,
       diff: {
         before: { status: before.status, ledgerEntryId: originalLedgerEntry.id },
         after: {
@@ -384,8 +409,8 @@ export async function refundPayment(
       action: AuditActions.PaymentRefund,
       entityType: "payment",
       entityId: id,
-      actorId: "usr-current",
-      actorName: "Session courante",
+      actorId: effectiveActorId,
+      actorName: effectiveActorName,
       diff: { before: { status: before.status }, after: { status: "refunded" } },
       note: "ATTENTION: aucune écriture de ledger correspondante trouvée pour le remboursement",
     });
