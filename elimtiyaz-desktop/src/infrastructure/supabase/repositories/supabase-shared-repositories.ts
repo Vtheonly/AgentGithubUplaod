@@ -1138,8 +1138,18 @@ export class SupabasePaymentRepository implements PaymentRepository {
    *
    * Delegates to the atomic `mark_payment_cleared` RPC (migration 0039):
    * payment status + installment amount_pending → amount_paid move +
-   * audit_log all happen server-side. Falls back to direct row updates
-   * when the RPC is not yet deployed.
+   * audit_log all happen server-side.
+   *
+   * T-013 (BUSINESS-101 + BUSINESS-104): the previous implementation fell
+   * back to a row-update shim (`markClearedFallback`) when the RPC failed —
+   * that shim wrote NO audit entries, discarded the actor identity
+   * (`void actorId`), swallowed per-installment update errors and kept
+   * decrementing the `remaining` budget as if they had succeeded, causing
+   * cascading over-allocation. The canonical migration chain (ADR-001) is
+   * always applied to the live project, so the shim served no supported
+   * deployment: the fallback is REMOVED and an RPC failure now surfaces the
+   * error with the financial state untouched (single atomic path, same
+   * pattern as T-011).
    */
   async markCleared(id: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
     try {
@@ -1150,14 +1160,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
         p_actor_id: actorId,
         p_actor_name: actorName ?? actorId,
       });
-      if (rpcErr) {
-        // Fallback for deployments without migration 0039: direct updates.
-        console.warn(
-          "[SupabasePayment] mark_payment_cleared RPC unavailable, falling back to row updates:",
-          rpcErr.message,
-        );
-        await this.markClearedFallback(id, actorId, actorName);
-      }
+      if (rpcErr) throw rpcErr;
       const { data, error: fetchErr } = await this.client
         .from("payments")
         .select("*")
@@ -1170,70 +1173,6 @@ export class SupabasePaymentRepository implements PaymentRepository {
     } catch (e) {
       return Err(Errors.unknown(e as Error));
     }
-  }
-
-  /**
-   * Row-update fallback for PENDING → PAID clearance when the RPC is not
-   * deployed. Moves `amount_pending` into `amount_paid` oldest-first for the
-   * parent's tranches holding uncleared funds (canonical waterfall order).
-   */
-  private async markClearedFallback(id: string, actorId: string, actorName?: string): Promise<void> {
-    const { data: payRow, error: payErr } = await this.client
-      .from("payments")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    if (payErr || !payRow) throw payErr ?? new Error("payment not found");
-    const payment = mapPaymentRow(payRow as PaymentRow);
-    if (payment.status !== "pending") {
-      throw new Error(`Payment ${id} is not pending (status: ${payment.status})`);
-    }
-    // Update payment status.
-    const { error: updErr } = await this.client
-      .from("payments")
-      .update({ status: "paid", updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (updErr) throw updErr;
-    // Move uncleared funds into cleared funds, oldest first.
-    const { data: insRows, error: insErr } = await this.client
-      .from("installments")
-      .select("*")
-      .eq("parent_id", payment.parentId)
-      .eq("status", "pending_clearance")
-      .order("due_date", { ascending: true });
-    if (insErr) throw insErr;
-    let remaining = payment.amount;
-    const nowIso = new Date().toISOString();
-    for (const raw of (insRows ?? []) as {
-      id: string;
-      amount_due: number;
-      amount_paid: number;
-      amount_pending: number;
-      category?: string | null;
-    }[]) {
-      if (remaining <= 0) break;
-      const pending = Number(raw.amount_pending ?? 0);
-      if (pending <= 0) continue;
-      if (payment.category !== "other" && raw.category && raw.category !== payment.category) continue;
-      const moved = Math.min(remaining, pending);
-      const newPaid = Number(raw.amount_paid ?? 0) + moved;
-      const newPending = Math.max(0, pending - moved);
-      const newStatus = newPaid >= Number(raw.amount_due) ? "paid" : newPaid > 0 ? "partial" : "unpaid";
-      const { error: uErr } = await this.client
-        .from("installments")
-        .update({
-          amount_paid: newPaid,
-          amount_pending: newPending,
-          status: newStatus,
-          paid_date: newStatus === "paid" ? nowIso : null,
-          updated_at: nowIso,
-        })
-        .eq("id", raw.id);
-      if (uErr) console.warn("[SupabasePayment] clearance installment update failed:", uErr.message);
-      remaining -= moved;
-    }
-    void actorId;
-    void actorName;
   }
 
   /**
