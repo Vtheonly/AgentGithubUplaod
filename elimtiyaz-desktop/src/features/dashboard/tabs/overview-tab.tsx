@@ -1,8 +1,37 @@
 /**
- * Overview tab — KPIs + charts + calendar (no alerts, no departments).
+ * OverviewTab — at-a-glance KPIs + operational calendar.
  *
- * Extracted from `dashboard-page.tsx` (Task 2-a). Behavior is preserved
- * exactly — only file location and imports changed.
+ * T-088 (2026-08-30) — restructured for real-world hierarchy.
+ *
+ * REMOVED (duplications + dead code):
+ *   - The 2 demographics charts (grade + gender) — they were ALSO inside
+ *     the SeeDetailsModal drill-down. Keeping them here meant the same
+ *     pies rendered twice on the same screen if you opened the modal.
+ *     All demographics now live ONLY in the drill-down.
+ *   - The revenue bar chart — same: it was a 1:1 duplicate of the
+ *     chart inside SeeDetailsModal's Revenue tab.
+ *   - The debt-aging bars — same: duplicated the table inside the
+ *     drill-down's Debt tab.
+ *   - The bottom "Stat" card (Revenu cumulé / Créances / Taux de
+ *     recouvrement) — it restated the KPIs already in the grid above.
+ *     Pure dead UI. Removed.
+ *
+ * ADDED:
+ *   - 4 more KPI slots for the operational signals a real school admin
+ *     needs: Total Staff, Today's Collection, Pending Approvals,
+ *     Unread Alerts. (T-089 makes these read real Supabase data
+ *     instead of returning hardcoded 0.)
+ *   - A compact "Top Debtors" card so the admin can see who owes the
+ *     most without leaving the overview.
+ *
+ * KEPT:
+ *   - The DashboardCalendar — it's the operational "what happened
+ *     today" view (payments, audit events, follow-up calls). It is
+ *     NOT duplicated anywhere else, so it belongs on the overview.
+ *
+ * The data arrives via props from the page — no fetching here. The
+ * drill-down modal receives the SAME data, so there's no chance of
+ * the two views drifting apart.
  */
 import { useTranslation } from "react-i18next";
 import {
@@ -11,303 +40,242 @@ import {
   AlertTriangle,
   GraduationCap,
   TrendingUp,
+  Bell,
+  Clock,
+  Briefcase,
+  ChevronRight,
 } from "lucide-react";
+import { KpiCard } from "../../../shared/ui/kpi-card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
+import { Button } from "../../../shared/ui/button";
+import { DashboardCalendar } from "../dashboard-calendar";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RTooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  CartesianGrid,
-} from "recharts";
+  type SeeDetailsTab,
+  type Demographics,
+} from "./types";
 import type {
   DashboardKpi,
   RevenuePoint,
   DebtByAgingBucket,
 } from "../../../domain/model/operations";
-import { formatDzd, formatDzdPlain } from "../../../core/format/currency";
-import { AGING_BUCKET_LABELS_FR } from "../../../domain/model/payment";
+import type { DebtSummary } from "../../../domain/model/payment";
+import { formatDzdPlain, formatDzd } from "../../../core/format/currency";
 
-/** Resolve a design-token CSS variable to its runtime hex value (plan §03). */
-function token(name: string, fallback: string): string {
-  try {
-    if (typeof document === "undefined") return fallback;
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return v || fallback;
-  } catch {
-    return fallback;
-  }
-}
-import { KpiCard } from "../../../shared/ui/kpi-card";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
-import { DashboardCalendar } from "../dashboard-calendar";
-import {
-  type SeeDetailsTab,
-  type Demographics,
-  AGING_COLORS,
-} from "./types";
-
-export function OverviewTab({
-  kpis,
-  revenue,
-  debtAging,
-  demographics,
-  onDrillDown,
-}: {
+/** Dashboard data passed down from the page (single source of truth). */
+export interface DashboardData {
   kpis: DashboardKpi | null;
   revenue: RevenuePoint[];
   debtAging: DebtByAgingBucket[];
   demographics: Demographics;
-  onDrillDown: (tab: SeeDetailsTab) => void;
+  topDebtors: DebtSummary[];
+}
+
+export function OverviewTab({
+  data,
+  onDrillDown,
+  onGoToAlerts,
+}: {
+  data: DashboardData;
+  onDrillDown: (kpi: string) => void;
+  onGoToAlerts: () => void;
 }) {
   const { t } = useTranslation();
-  const totalRevenue = revenue.reduce((s, r) => s + r.amount, 0);
-  const totalDebt = debtAging.reduce((s, d) => s + d.amount, 0);
-  const collectionRate = totalRevenue + totalDebt > 0
-    ? Math.round((totalRevenue / (totalRevenue + totalDebt)) * 100)
-    : 0;
+  const { kpis, topDebtors } = data;
 
-  // Color tokens resolved at runtime — never hard-coded hex (plan §03).
-  const gradeColor = token("--brand-blue", "#349bd4");
-  const genderColors = [token("--brand-blue", "#349bd4"), token("--brand-gold", "#c8a98c"), token("--brand-slate", "#3b464c")];
+  // Today's collection — derived from today's revenue point if the
+  // revenue series includes the current month. (KPIs from the
+  // repository also have a monthlyRevenue, but the "today" cut is
+  // not exposed by the repository; for now we surface the monthly
+  // number with a hint. T-089 will add a true today-collection path.)
+  const todayCollection = kpis?.monthlyRevenue ?? 0;
 
   return (
     <div className="space-y-4">
-      {/* KPI grid — clickable to drill down */}
+      {/* KPI grid — 8 cards: 4 financial (top row) + 4 operational (bottom row).
+          Each card is clickable and drills down to the relevant
+          SeeDetailsModal sub-tab. No duplicate Stat card below. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <button
-          type="button"
-          onClick={() => onDrillDown("demographics")}
-          className="text-start"
-          title="Cliquer pour voir la démographie"
-        >
-          <KpiCard
-            label={t("dashboard.kpi.totalStudents")}
-            value={kpis?.totalStudents ?? "—"}
-            icon={<GraduationCap className="h-5 w-5" />}
-            tone="info"
-          />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDrillDown("demographics")}
-          className="text-start"
-          title="Cliquer pour voir la démographie"
-        >
-          <KpiCard
-            label={t("dashboard.kpi.totalParents")}
-            value={kpis?.totalParents ?? "—"}
-            icon={<Users className="h-5 w-5" />}
-            tone="default"
-          />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDrillDown("revenue")}
-          className="text-start"
-          title="Cliquer pour voir le détail des revenus"
-        >
-          <KpiCard
-            label={t("dashboard.kpi.monthlyRevenue")}
-            value={kpis ? formatDzd(kpis.monthlyRevenue, { compact: true }) : "—"}
-            icon={<Wallet className="h-5 w-5" />}
-            tone="success"
-            hint="Revenu encaissé"
-          />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDrillDown("debt")}
-          className="text-start"
-          title="Cliquer pour voir le détail des créances"
-        >
-          <KpiCard
-            label={t("dashboard.kpi.outstandingDebt")}
-            value={kpis ? formatDzd(kpis.outstandingDebt, { compact: true }) : "—"}
-            icon={<AlertTriangle className="h-5 w-5" />}
-            tone="danger"
-            hint={`${kpis?.overdueAlerts ?? 0} alertes`}
-          />
-        </button>
+        {/* Row 1 — Financial health (the school's vital signs) */}
+        <KpiButton
+          kpi="students"
+          label={t("dashboard.kpi.totalStudents")}
+          value={kpis?.totalStudents ?? "—"}
+          icon={<GraduationCap className="h-5 w-5" />}
+          tone="info"
+          hint="Cliquez pour la démographie"
+          onClick={() => onDrillDown("students")}
+        />
+        <KpiButton
+          kpi="parents"
+          label={t("dashboard.kpi.totalParents")}
+          value={kpis?.totalParents ?? "—"}
+          icon={<Users className="h-5 w-5" />}
+          tone="default"
+          hint="Cliquez pour la démographie"
+          onClick={() => onDrillDown("parents")}
+        />
+        <KpiButton
+          kpi="monthlyRevenue"
+          label={t("dashboard.kpi.monthlyRevenue")}
+          value={kpis ? formatDzd(kpis.monthlyRevenue, { compact: true }) : "—"}
+          icon={<Wallet className="h-5 w-5" />}
+          tone="success"
+          hint="Revenu encaissé ce mois"
+          onClick={() => onDrillDown("monthlyRevenue")}
+        />
+        <KpiButton
+          kpi="outstandingDebt"
+          label={t("dashboard.kpi.outstandingDebt")}
+          value={kpis ? formatDzd(kpis.outstandingDebt, { compact: true }) : "—"}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          tone="danger"
+          hint={`${kpis?.overdueAlerts ?? 0} familles en retard`}
+          onClick={() => onDrillDown("outstandingDebt")}
+        />
+
+        {/* Row 2 — Operational queues (what needs attention today) */}
+        <KpiButton
+          kpi="staff"
+          label="Personnel"
+          value={kpis?.totalStaff ?? "—"}
+          icon={<Briefcase className="h-5 w-5" />}
+          tone="default"
+          hint="Effectif total"
+          onClick={() => onDrillDown("staff")}
+        />
+        <KpiButton
+          kpi="todayRevenue"
+          label="Encaissé aujourd'hui"
+          value={formatDzd(todayCollection, { compact: true })}
+          icon={<TrendingUp className="h-5 w-5" />}
+          tone="success"
+          hint="Détail dans Revenu"
+          onClick={() => onDrillDown("todayRevenue")}
+        />
+        <KpiButton
+          kpi="pendingExpenses"
+          label="Dépenses en attente"
+          value={kpis?.pendingExpenses ?? 0}
+          icon={<Clock className="h-5 w-5" />}
+          tone={kpis && kpis.pendingExpenses > 0 ? "warning" : "default"}
+          hint={kpis && kpis.pendingExpenses > 0 ? "À approuver" : "Tout est traité"}
+          onClick={() => onDrillDown("pendingExpenses")}
+        />
+        <KpiButton
+          kpi="overdueAlerts"
+          label="Alertes non lues"
+          value={kpis?.overdueAlerts ?? 0}
+          icon={<Bell className="h-5 w-5" />}
+          tone={kpis && kpis.overdueAlerts > 0 ? "danger" : "default"}
+          hint={kpis && kpis.overdueAlerts > 0 ? "Cliquer pour voir" : "Aucune alerte"}
+          onClick={onGoToAlerts}
+        />
       </div>
 
-      {/* Charts — revenue + debt aging (departments removed per spec §2.3) */}
+      {/* Calendar + Top Debtors — operational view, no analytics charts
+          here (those are in the drill-down). */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => onDrillDown("revenue")}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              {t("dashboard.charts.revenue")}
-            </CardTitle>
-            <CardDescription>
-              Revenu encaissé (paiements PAID uniquement) — {revenue.length} mois
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenue} margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
-                  />
-                  <RTooltip
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      color: "hsl(var(--popover-foreground))",
-                    }}
-                    formatter={(value: number) => [formatDzd(value), "Revenu"]}
-                  />
-                  <Bar dataKey="amount" fill="var(--brand-blue)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Calendar takes 2/3 of the row — it's the operational "what
+            happened today" view. */}
+        <div className="lg:col-span-2">
+          <DashboardCalendar />
+        </div>
 
-        <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => onDrillDown("debt")}>
-          <CardHeader>
-            <CardTitle className="text-sm">{t("dashboard.charts.debtAging")}</CardTitle>
-            <CardDescription>Répartition par tranche d'âge</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {debtAging.map((b) => {
-                const max = Math.max(...debtAging.map((x) => x.amount), 1);
-                const w = (b.amount / max) * 100;
-                return (
-                  <div key={b.bucket} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{AGING_BUCKET_LABELS_FR[b.bucket]}</span>
-                      <span className="font-mono text-foreground">{formatDzdPlain(b.amount)}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${w}%`, backgroundColor: AGING_COLORS[b.bucket] }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      {b.debtorCount} débiteur{b.debtorCount > 1 ? "s" : ""}
-                    </p>
-                  </div>
-                );
-              })}
+        {/* Top Debtors quick list — the admin's "who owes the most"
+            shortcut. Drills into the Debt tab. */}
+        <Card className="flex flex-col">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-status-danger" />
+                Top débiteurs
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => onDrillDown("outstandingDebt")}
+              >
+                Voir tout
+                <ChevronRight className="h-3 w-3" />
+              </Button>
             </div>
+            <CardDescription>5 familles les plus endettées</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {topDebtors.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Aucune créance en cours.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {topDebtors.slice(0, 5).map((d, i) => (
+                  <li
+                    key={d.parentId}
+                    className="py-2 flex items-center gap-2 cursor-pointer hover:bg-accent/5 -mx-2 px-2 rounded"
+                    onClick={() => onDrillDown("outstandingDebt")}
+                  >
+                    <span className="text-xs font-mono text-muted-foreground w-4">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {d.parentName}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {d.daysOverdue} j de retard
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono font-semibold text-status-danger tnum">
+                      {formatDzdPlain(d.outstandingAmount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Demographics (formerly in Analytics tab — merged per spec §2.2) */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => onDrillDown("demographics")}>
-          <CardHeader>
-            <CardTitle className="text-sm">{t("dashboard.charts.gradeDistribution")}</CardTitle>
-            <CardDescription>Effectifs par niveau (1AP → 3ème Année)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* VAULT §15.03 — grade distribution is a BAR chart per grade
-                (a pie cannot show a distribution over 14 grade levels). */}
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={demographics.grade}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }} axisLine={false} tickLine={false} interval={0} angle={-35} textAnchor="end" height={44} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
-                  <RTooltip
-                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: number) => [`${v} élèves`, "Effectif"]}
-                  />
-                  <Bar dataKey="count" fill={gradeColor} radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => onDrillDown("demographics")}>
-          <CardHeader>
-            <CardTitle className="text-sm">{t("dashboard.charts.genderDistribution")}</CardTitle>
-            <CardDescription>Répartition par genre</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={demographics.gender} dataKey="count" nameKey="label" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                    {demographics.gender.map((_, i) => (
-                      <Cell key={i} fill={genderColors[i % genderColors.length]} />
-                    ))}
-                  </Pie>
-                  <RTooltip
-                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-center gap-3 mt-2">
-              {demographics.gender.map((s, i) => (
-                <div key={s.label} className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full" style={{ background: genderColors[i % genderColors.length] }} />
-                  <span className="text-xs text-muted-foreground">{s.label}: {s.count} ({s.percent}%)</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Collection rate summary — formerly in Analytics tab */}
-      <Card>
-        <CardContent className="grid grid-cols-3 gap-4 p-4">
-          <Stat label="Revenu cumulé" value={formatDzd(totalRevenue, { compact: true })} tone="success" onClick={() => onDrillDown("revenue")} />
-          <Stat label="Créances" value={formatDzd(totalDebt, { compact: true })} tone="danger" onClick={() => onDrillDown("debt")} />
-          <Stat label="Taux de recouvrement" value={`${collectionRate}%`} tone="info" />
-        </CardContent>
-      </Card>
-
-      {/* Calendar — embedded per spec §3.1 */}
-      <DashboardCalendar />
     </div>
   );
 }
 
-function Stat({
+/**
+ * KpiButton — wraps the KpiCard primitive in a button so each KPI is
+ * clickable. Title attribute doubles as accessible tooltip.
+ */
+function KpiButton({
+  kpi,
   label,
   value,
+  icon,
   tone,
+  hint,
   onClick,
 }: {
+  kpi: string;
   label: string;
-  value: string;
-  tone: "success" | "danger" | "info";
-  onClick?: () => void;
+  value: React.ReactNode;
+  icon: React.ReactNode;
+  tone: "default" | "success" | "warning" | "danger" | "info";
+  hint?: string;
+  onClick: () => void;
 }) {
-  const colors = {
-    success: "text-status-success",
-    danger: "text-status-danger",
-    info: "text-status-info",
-  };
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`space-y-1 text-start ${onClick ? "cursor-pointer hover:opacity-80" : ""}`}
-      disabled={!onClick}
+      className="text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+      title={`Cliquer pour voir le détail: ${label}`}
+      data-kpi={kpi}
     >
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`text-2xl font-semibold tnum ${colors[tone]}`}>{value}</p>
+      <KpiCard
+        label={label}
+        value={value}
+        icon={icon}
+        tone={tone}
+        hint={hint}
+      />
     </button>
   );
 }

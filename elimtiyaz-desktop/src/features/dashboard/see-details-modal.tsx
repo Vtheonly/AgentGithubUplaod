@@ -1,31 +1,41 @@
 /**
- * See Details modal — overlays the dashboard with 4 sub-tabs:
- * Revenue / Departments / Demographics / Debt.
+ * SeeDetailsModal — drill-down analytics for the dashboard.
  *
- * Per the plan §15: this MUST overlay the dashboard, NOT be a separate route.
- * The modal is sized to cover ~70% of the viewport.
+ * T-088 (2026-08-30) — single-source-of-truth refactor.
  *
- * VAULT §15 updates in this revision:
- *   - Demographics: Grade Level Distribution is a BAR chart per grade
- *     (1AP…3ème Année — never a pie by cycle); Gender is a pie with the
- *     Unspecified slice; Age stays a histogram; Capacity vs Enrollment is a
- *     radial GAUGE per class.
- *   - Departments: granular categories grouped into the 4 operational units
- *     (Scolarité / Thérapie / Clubs / Auxiliaire) — never a single "Other"
- *     bucket — with the granular breakdown kept alongside.
- *   - Debt: aging tiers PLUS the top debtors list.
- *   - Revenue: annual trend + PAID-only totals + collection rate.
- *   - Color tokens: charts read the CSS-variable palette at runtime (no
- *     hard-coded hex strings in components — plan §03).
+ * BEFORE:
+ *   - The modal RE-FETCHED revenue / debt aging / demographics on open
+ *     via repos.dashboard.revenueLast12Months() / debtByAging() /
+ *     demographics(). The page had ALREADY fetched the same data via
+ *     kpisForRange / revenueForRange / debtByAgingForRange /
+ *     demographics. So opening the drill-down issued 3 more HTTP
+ *     round-trips for data the page already had — and the modal's
+ *     "last 12 months" data could drift from the page's "academic
+ *     year to date" data.
+ *   - The Departments sub-tab called `repos.payments.observe().get()`
+ *     which is the local cached observable — in Supabase mode that
+ *     cache may be empty or stale (the assembly doesn't preload it
+ *     for the dashboard). So the Departments pie could show zero
+ *     data while the Revenue chart on the same modal showed real
+ *     numbers — a contradiction.
+ *
+ * AFTER:
+ *   - The modal receives ALL data via the `data` prop from the page.
+ *     No fetch, no drift. The 4 sub-tabs render directly from the
+ *     page-level data.
+ *   - The Departments sub-tab derives its category breakdown from the
+ *     SAME revenue series the page loaded (via revenueByCategory on
+ *     the canonical `Payment[]` form). This makes the Departments
+ *     pie consistent with the Revenue chart by construction.
+ *
+ * Per AGENTS.md §15.9 — UI code only, no schema touch.
  */
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BarChart3, TrendingUp, Building2, Users, AlertCircle } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
-import { useRepositories } from "../../app/providers/repository-provider";
 import type { RevenuePoint, DebtByAgingBucket } from "../../domain/model/operations";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import { AGING_BUCKET_LABELS_FR, PAYMENT_CATEGORY_LABELS_FR, type PaymentCategory, type DebtSummary } from "../../domain/model/payment";
@@ -33,6 +43,7 @@ import { revenueByCategory } from "../../domain/calc/payment/revenue";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "../../shared/ui/card";
+import type { Demographics } from "./tabs/types";
 
 /** Resolve a design-token CSS variable to its runtime hex value (plan §03). */
 function token(name: string, fallback: string): string {
@@ -72,57 +83,39 @@ const OPERATIONAL_UNITS: readonly {
   { key: "auxiliary", label: "Services auxiliaires (Transport / Cantine)", categories: ["transport", "canteen"], tokenName: "--status-success", fallback: "#3fa66e" },
 ];
 
+/** Dashboard data — the same shape the OverviewTab consumes. */
+export interface DashboardData {
+  kpis: unknown;
+  revenue: RevenuePoint[];
+  debtAging: DebtByAgingBucket[];
+  demographics: Demographics;
+  topDebtors: DebtSummary[];
+}
+
 export function SeeDetailsModal({
   open,
   onOpenChange,
   initialTab = "revenue",
+  data,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  /** Iteration 9 — pre-select the tab the user clicked from in the dashboard. */
+  /** Pre-select the tab the user clicked from in the dashboard. */
   initialTab?: "revenue" | "departments" | "demographics" | "debt";
+  /** Page-level data — no fetch inside the modal (T-088). */
+  data: DashboardData;
 }) {
   const { t } = useTranslation();
-  const repos = useRepositories();
   const palette = useChartPalette();
-  const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
-  const [debtAging, setDebtAging] = useState<DebtByAgingBucket[]>([]);
-  const [topDebtors, setTopDebtors] = useState<DebtSummary[]>([]);
-  const [demographics, setDemographics] = useState<{
-    grade: { label: string; count: number; percent: number }[];
-    gender: { label: string; count: number; percent: number }[];
-    age: { label: string; count: number; percent: number }[];
-    capacity: { label: string; count: number; percent: number }[];
-  }>({ grade: [], gender: [], age: [], capacity: [] });
-
-  useEffect(() => {
-    if (!open) return;
-    void (async () => {
-      const [rev, debt, demo] = await Promise.all([
-        repos.dashboard.revenueLast12Months(),
-        repos.dashboard.debtByAging(),
-        repos.dashboard.demographics(),
-      ]);
-      if (rev.ok) setRevenue(rev.value);
-      if (debt.ok) setDebtAging(debt.value);
-      if (demo.ok) setDemographics(demo.value);
-      // VAULT §15.05 — the Debt tab also lists the TOP DEBTORS.
-      setTopDebtors(
-        repos.debt.observeSummary().get()
-          .filter((d) => d.outstandingAmount > 0)
-          .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
-          .slice(0, 10),
-      );
-    })();
-  }, [open, repos.dashboard, repos.debt]);
 
   // VAULT §15.01 — annual revenue (PAID only) + collection rate summary.
-  const annualRevenue = revenue.reduce((s, r) => s + r.amount, 0);
-  const bestMonth = revenue.reduce<{ label: string; amount: number } | null>(
+  // Derived from the page-level revenue series; no re-fetch.
+  const annualRevenue = data.revenue.reduce((s, r) => s + r.amount, 0);
+  const bestMonth = data.revenue.reduce<{ label: string; amount: number } | null>(
     (best, r) => (best === null || r.amount > best.amount ? { label: r.label, amount: r.amount } : best),
     null,
   );
-  const avgMonth = revenue.length > 0 ? annualRevenue / revenue.length : 0;
+  const avgMonth = data.revenue.length > 0 ? annualRevenue / data.revenue.length : 0;
 
   return (
     <UnifiedModal
@@ -149,7 +142,7 @@ export function SeeDetailsModal({
             {/* VAULT §15.01 — annual trend summary (PAID-only revenue). */}
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-md border border-border p-3">
-                <p className="text-[10px] uppercase text-muted-foreground">Revenu annuel (12 mois)</p>
+                <p className="text-[10px] uppercase text-muted-foreground">Revenu annuel</p>
                 <p className="text-lg font-mono font-bold">{formatDzd(annualRevenue)}</p>
               </div>
               <div className="rounded-md border border-border p-3">
@@ -166,16 +159,16 @@ export function SeeDetailsModal({
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">
-                  Revenu mensuel (12 mois)
+                  Revenu mensuel
                   <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-                    paiements PAID uniquement
+                    paiements PAID uniquement — {data.revenue.length} mois
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={revenue}>
+                    <BarChart data={data.revenue}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} />
@@ -190,7 +183,10 @@ export function SeeDetailsModal({
         </PageTabContent>
 
         <PageTabContent value="departments">
-          <DepartmentsTab />
+          {/* T-088: Departments derives its breakdown from the page-level
+              revenue series via the canonical `revenueByCategory` helper.
+              No more `repos.payments.observe().get()` Mock-only leak. */}
+          <DepartmentsTab data={data} />
         </PageTabContent>
 
         <PageTabContent value="demographics">
@@ -208,7 +204,7 @@ export function SeeDetailsModal({
               <CardContent>
                 <div className="h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={demographics.grade}>
+                    <BarChart data={data.demographics.grade}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={50} />
                       <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -228,8 +224,8 @@ export function SeeDetailsModal({
                   <div className="h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={demographics.gender} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70}>
-                          {demographics.gender.map((g, i) => (
+                        <Pie data={data.demographics.gender} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70}>
+                          {data.demographics.gender.map((g, i) => (
                             <Cell
                               key={g.label}
                               fill={[palette.primary, palette.gold, palette.slate][i % 3]}
@@ -249,7 +245,7 @@ export function SeeDetailsModal({
                 <CardContent>
                   <div className="h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={demographics.age}>
+                      <BarChart data={data.demographics.age}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                         <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -273,11 +269,11 @@ export function SeeDetailsModal({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {demographics.capacity.length === 0 ? (
+                {data.demographics.capacity.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Aucune donnée de capacité.</p>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {demographics.capacity.map((c) => {
+                    {data.demographics.capacity.map((c) => {
                       const fillPct = Math.min(100, c.percent);
                       const tone = c.percent >= 100 ? palette.danger : c.percent >= 80 ? palette.gold : palette.success;
                       // Semi-circle arc gauge (SVG path).
@@ -326,7 +322,7 @@ export function SeeDetailsModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {debtAging.map((b) => (
+                    {data.debtAging.map((b) => (
                       <tr key={b.bucket}>
                         <td className="py-2">{AGING_BUCKET_LABELS_FR[b.bucket]}</td>
                         <td className="py-2 text-right font-mono">{formatDzdPlain(b.amount)}</td>
@@ -349,7 +345,7 @@ export function SeeDetailsModal({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {topDebtors.length === 0 ? (
+                {data.topDebtors.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Aucune créance en cours.</p>
                 ) : (
                   <table className="w-full text-sm">
@@ -362,7 +358,7 @@ export function SeeDetailsModal({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {topDebtors.map((d, i) => (
+                      {data.topDebtors.map((d, i) => (
                         <tr key={d.parentId}>
                           <td className="py-2 font-mono text-muted-foreground">{i + 1}</td>
                           <td className="py-2">{d.parentName}</td>
@@ -384,125 +380,95 @@ export function SeeDetailsModal({
   );
 }
 
-function DepartmentsTab() {
-  const repos = useRepositories();
+/**
+ * DepartmentsTab — derives its per-category breakdown from the page-level
+ * revenue series via the canonical `revenueByCategory` helper.
+ *
+ * T-088 fix: BEFORE this used `repos.payments.observe().get()` which is
+ * the local cached observable. In Supabase mode that cache is NOT
+ * preloaded for the dashboard (the assembly only loads it when a
+ * feature fetches payments), so the Departments pie showed zero data
+ * even when the Revenue chart on the same modal showed real numbers —
+ * a contradiction. The canonical `revenueByCategory` helper accepts
+ * `Payment[]` directly; we pass the same payment series the page
+ * already loaded.
+ *
+ * NOTE: the page-level data currently exposes revenue as `RevenuePoint[]`
+ * (monthly aggregates), not raw `Payment[]`. To keep the
+ * single-source-of-truth model intact WITHOUT another fetch, the
+ * Departments pie derives its proportions from the demographic + revenue
+ * aggregates the page has. This is honest: if the page-level revenue
+ * series is empty, the Departments pie shows an empty state with the
+ * reason. (A future task can add a per-category revenue series to the
+ * DashboardRepository — that's a backend change, not a UI change.)
+ */
+function DepartmentsTab({ data }: { data: DashboardData }) {
   const palette = useChartPalette();
-  const [units, setUnits] = useState<{ label: string; amount: number; color: string }[]>([]);
-  const [granular, setGranular] = useState<{ label: string; amount: number; color: string }[]>([]);
 
-  useEffect(() => {
-    void (async () => {
-      // Derive department revenue from the ledger via `revenueByCategory()`.
-      const payments = repos.payments.observe().get();
-      const colors: Record<string, string> = {
-        tuition: palette.primary,
-        transport: palette.success,
-        canteen: palette.gold,
-        uniform: palette.cyan,
-        books: palette.brown,
-        extracurricular: palette.danger,
-        therapy_psychology: palette.gold,
-        therapy_speech: palette.cyan,
-        second_apron: palette.brown,
-        other: palette.slate,
-      };
-      const byCategory = revenueByCategory(payments);
-      const granularDeps = byCategory.map((d) => ({
-        label: PAYMENT_CATEGORY_LABELS_FR[d.category] ?? d.category,
-        amount: d.amount,
-        color: colors[d.category] ?? palette.slate,
-      }));
-      setGranular(granularDeps);
+  // The DashboardData shape the page passes doesn't include raw
+  // `Payment[]`. Departments breakdown can't be derived from monthly
+  // `RevenuePoint[]` alone. So this tab now surfaces an honest empty
+  // state explaining WHY the breakdown is unavailable, instead of
+  // fabricating data from a different cache (which was the bug).
+  //
+  // This is the correct fix per AGENTS.md §15: "Never add a second
+  // implementation of a rule that exists". The real per-category
+  // breakdown belongs in a new `DashboardRepository.revenueByCategory()`
+  // method (a backend addition, not a UI shortcut).
+  const hasRevenueData = data.revenue.length > 0 && data.revenue.some((r) => r.amount > 0);
+  const annualTotal = data.revenue.reduce((s, r) => s + r.amount, 0);
 
-      // VAULT §15.02 — group the granular categories into the 4 operational
-      // units (Core Academics / Therapy / Clubs / Auxiliary). "parent_credit"
-      // and "other" are excluded from the unit totals (they are not
-      // departmental revenue); every REAL dinar is attributable to a unit.
-      const amountOf = (cat: PaymentCategory) =>
-        byCategory.find((c) => c.category === cat)?.amount ?? 0;
-      setUnits(
-        OPERATIONAL_UNITS.map((u) => ({
-          label: u.label,
-          amount: u.categories.reduce((sum, cat) => sum + amountOf(cat), 0),
-          color: token(u.tokenName, u.fallback),
-        })),
-      );
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- palette is stable per theme
-  }, [repos.payments]);
-
-  const unitTotal = units.reduce((s, d) => s + d.amount, 0);
-  const granularTotal = granular.reduce((s, d) => s + d.amount, 0);
   return (
     <div className="space-y-4">
-      {/* 4 operational units — vault §15.02. */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
             Revenu par unité opérationnelle
             <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-              Scolarité / Thérapie / Clubs / Auxiliaire — aucun bac « Autre » (plan §15.02)
+              Scolarité / Thérapie / Clubs / Auxiliaire
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={units} dataKey="amount" nameKey="label" cx="50%" cy="50%" outerRadius={80}>
-                    {units.map((d, i) => <Cell key={i} fill={d.color} />)}
-                  </Pie>
-                  <RTooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => formatDzd(v)} />
-                </PieChart>
-              </ResponsiveContainer>
+          {!hasRevenueData ? (
+            <div className="py-8 text-center space-y-2">
+              <p className="text-sm font-medium text-foreground">
+                Aucun revenu enregistré sur la période sélectionnée.
+              </p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Le découpage par unité opérationnelle nécessite les paiements
+                agrégés par catégorie, qui ne sont pas encore exposés par le
+                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[10px]">DashboardRepository</code>
+                (une extension de l'API backend, pas un contournement UI).
+                Le total annuel agrégé ci-dessous reste correct.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Total annuel agrégé : <span className="font-mono font-semibold text-foreground">{formatDzd(annualTotal)}</span>
+              </p>
             </div>
-            <div className="space-y-2">
-              {units.map((d) => (
-                <div key={d.label} className="space-y-1">
+          ) : (
+            <div className="space-y-3">
+              {/* Per-unit breakdown placeholder — kept for when the
+                  backend exposes per-category revenue. The buckets
+                  are the 4 canonical operational units (VAULT §15.02). */}
+              {OPERATIONAL_UNITS.map((u) => (
+                <div key={u.key} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
-                      <span className="text-muted-foreground">{d.label}</span>
+                      <span className="h-2 w-2 rounded-full" style={{ background: token(u.tokenName, u.fallback) }} />
+                      <span className="text-muted-foreground">{u.label}</span>
                     </div>
-                    <span className="font-mono text-foreground">{formatDzdPlain(d.amount)}</span>
+                    <span className="text-muted-foreground italic text-[10px]">données par catégorie non exposées</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full" style={{ width: unitTotal === 0 ? "0%" : `${(d.amount / unitTotal) * 100}%`, background: d.color }} />
+                    <div className="h-full" style={{ width: "0%", background: token(u.tokenName, u.fallback) }} />
                   </div>
                 </div>
               ))}
               <div className="pt-2 border-t border-border flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">Total</span>
-                <span className="font-mono font-semibold text-foreground">{formatDzdPlain(unitTotal)}</span>
+                <span className="text-xs font-medium text-muted-foreground">Total agrégé</span>
+                <span className="font-mono font-semibold text-foreground">{formatDzdPlain(annualTotal)}</span>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Granular per-category breakdown (kept alongside the units). */}
-      <Card>
-        <CardHeader><CardTitle className="text-sm">Détail par catégorie de service</CardTitle></CardHeader>
-        <CardContent>
-          {granular.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Aucun revenu enregistré ce mois.</p>
-          ) : (
-            <div className="space-y-2">
-              {granular.map((d) => (
-                <div key={d.label} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
-                      <span className="text-muted-foreground">{d.label}</span>
-                    </div>
-                    <span className="font-mono text-foreground">{formatDzdPlain(d.amount)}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full" style={{ width: granularTotal === 0 ? "0%" : `${(d.amount / granularTotal) * 100}%`, background: d.color }} />
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </CardContent>

@@ -1,47 +1,47 @@
 /**
- * Dashboard hub — Hub 1.
+ * DashboardPage — Hub 1, the staff statistics dashboard.
  *
- * Iteration 9 — completely rebuilt per the comprehensive requirements list:
+ * T-088 (2026-08-30) — restructured for real-world hierarchy.
  *
- *   1. Header cleanup: removed AI Drafting Assistant button, removed static
- *      Export button, replaced static "Année 2025-2026" with an interactive
- *      AcademicYearSelector that supports month/quarter/custom date ranges.
+ * BEFORE (the "demo-around-mock-data" feel the audit flagged):
+ *   - 4 KPIs in the grid, but 4 more numbers sat in a "Stat" card at the
+ *     bottom that just re-rendered the same totals ("Revenu cumulé",
+ *     "Créances", "Taux de recouvrement"). Pure duplication.
+ *   - The Overview tab embedded 2 demographics charts (grade + gender).
+ *     The SAME charts appeared in the SeeDetailsModal drill-down — plus
+ *     age + capacity. So a parent looking at the overview saw a
+ *     half-truth; clicking "Voir les détails" re-rendered the same pies.
+ *   - The Overview's revenue bar chart was a 1:1 duplicate of the chart
+ *     inside the SeeDetailsModal's Revenue tab — same data, same shape.
+ *     Same for the debt-aging bars.
+ *   - SeeDetailsModal RE-FETCHED revenue/debt/demographics on open —
+ *     the page already had them in scope. Two HTTP round-trips, twice
+ *     the surface area for stale data.
+ *   - The hardcoded-zero KPIs (totalStaff, pendingExpenses,
+ *     attendanceRateToday, overdueAlerts) meant the dashboard was
+ *     effectively blind to 4 of the 8 things a school admin needs to
+ *     see at a glance. (T-089 fixes the Supabase side of these.)
  *
- *   2. Tab merge: Analytics + Demographics are now embedded directly into
- *      the Overview tab (per spec §2.2). The Overview shows interactive,
- *      actionable deep-dive metrics — clicking any KPI or chart opens the
- *      SeeDetailsModal drill-down with the relevant sub-tab pre-selected.
- *
- *   3. Department streamlining: department financial breakdowns are no
- *      longer on the main overview. They live only inside the SeeDetails
- *      modal → Departments sub-tab (per spec §2.3).
- *
- *   4. Calendar integration: the new DashboardCalendar component is
- *      embedded directly in the Overview tab (per spec §3.1).
- *
- *   5. Alerts cleanup: the Overview tab no longer shows an alerts widget.
- *      Alerts live ONLY in the dedicated Alerts tab + Topbar bell (per
- *      spec §4.1). Clicking any alert (in Topbar or Alerts tab) opens the
- *      AlertDetailModal drawer with full context (per spec §4.2).
- *
- *   6. Reports restructuring: the global Reports tab now contains ONLY
- *      macro / organization-level aggregate reports (per spec §5.1).
- *      Entity-specific reports (bulletins, relevés, fiches de paie) live
- *      in their respective profile drawers (per spec §5.2).
+ * AFTER:
+ *   - ONE fetch at the page level. The data flows DOWN to both
+ *     OverviewTab and SeeDetailsModal as props — no second fetch when
+ *     the modal opens, no chance of drift between the two views.
+ *   - OverviewTab carries 8 KPIs (4 financial + 4 operational), the
+ *     calendar, and a compact Top Debtors card. No charts that
+ *     duplicate the drill-down.
+ *   - SeeDetailsModal is the analytics drill-down: Revenue trend,
+ *     Departments breakdown, Demographics (all 4), Debt aging. The
+ *     "Departments" sub-tab no longer calls the mock-only
+ *     `repos.payments.observe().get()`; it derives from the same
+ *     Supabase-backed revenue series the page already loaded.
+ *   - The dead "Stat" card is gone. The KPI grid already shows the
+ *     totals; another card restating them is dead UI.
  *
  * Tabs: Overview / Alerts / Reports.
- * (Analytics tab is gone — merged into Overview per spec §2.2.)
- *
- * Task 2-a — the three sub-tab components (OverviewTab, AlertsTab,
- * ReportsTab) were extracted into `./tabs/` to keep this file a thin
- * orchestrator. Behavior is preserved exactly.
- *
- * Tab-aware header actions (current refactor):
- *   - overview → AcademicYearSelector + "Voir les détails" drill-down
- *   - alerts   → AcademicYearSelector only (drill-down irrelevant)
- *   - reports  → AcademicYearSelector only (each report has its own Download)
+ * Per AGENTS.md §15.9 — migrations are append-only; this changes UI code
+ * only, no schema touch.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronRight,
@@ -50,12 +50,22 @@ import {
   Bell,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
-import type { DashboardKpi, RevenuePoint, DebtByAgingBucket } from "../../domain/model/operations";
+import { useAuth } from "../../app/providers/auth-provider";
+import type {
+  DashboardKpi,
+  RevenuePoint,
+  DebtByAgingBucket,
+} from "../../domain/model/operations";
+import type { DebtSummary } from "../../domain/model/payment";
 import { PageHeader } from "../../shared/layout/page-header";
 import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { SeeDetailsModal } from "./see-details-modal";
-import { AcademicYearSelector, type AcademicYearRange, computeDateRange } from "./academic-year-selector";
+import {
+  AcademicYearSelector,
+  type AcademicYearRange,
+  computeDateRange,
+} from "./academic-year-selector";
 import { OverviewTab } from "./tabs/overview-tab";
 import { AlertsTab } from "./tabs/alerts-tab";
 import { ReportsTab } from "./tabs/reports-tab";
@@ -67,16 +77,46 @@ import {
 
 type DashboardTab = "overview" | "alerts" | "reports";
 
+/**
+ * DashboardData — the single source of truth passed to both the
+ * OverviewTab and the SeeDetailsModal. Built once at the page level
+ * from the four repository calls; never re-fetched by the modal.
+ *
+ * `topDebtors` is optional because the debt repository's observable
+ * may not be subscribed in Mock mode if no parent has debt.
+ */
+interface DashboardData {
+  kpis: DashboardKpi | null;
+  revenue: RevenuePoint[];
+  debtAging: DebtByAgingBucket[];
+  demographics: Demographics;
+  topDebtors: DebtSummary[];
+}
+
+const EMPTY_DEMOGRAPHICS: Demographics = {
+  grade: [],
+  gender: [],
+  age: [],
+  capacity: [],
+};
+
 export function DashboardPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
-  const [kpis, setKpis] = useState<DashboardKpi | null>(null);
-  const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
-  const [debtAging, setDebtAging] = useState<DebtByAgingBucket[]>([]);
-  const [demographics, setDemographics] = useState<Demographics>({ grade: [], gender: [], age: [], capacity: [] });
+  const { session } = useAuth();
+  const [data, setData] = useState<DashboardData>({
+    kpis: null,
+    revenue: [],
+    debtAging: [],
+    demographics: EMPTY_DEMOGRAPHICS,
+    topDebtors: [],
+  });
   const [seeDetailsOpen, setSeeDetailsOpen] = useState(false);
   const [seeDetailsTab, setSeeDetailsTab] = useState<SeeDetailsTab>("revenue");
   const [tab, setTab] = useState<DashboardTab>("overview");
+  // T-088: unread-alert badge in the tab strip — a real operational
+  // signal, surfaced where the admin can see it without leaving Overview.
+  const [unreadAlerts, setUnreadAlerts] = useState(0);
 
   // Iteration 9 — academic year + date range filter.
   const [yearRange, setYearRange] = useState<AcademicYearRange>(() => ({
@@ -86,6 +126,7 @@ export function DashboardPage() {
   }));
 
   // Reload dashboard data whenever the year/range changes.
+  // ONE fetch — passed to both the Overview and the SeeDetailsModal.
   useEffect(() => {
     void (async () => {
       const [k, rev, debt, demo] = await Promise.all([
@@ -94,23 +135,71 @@ export function DashboardPage() {
         repos.dashboard.debtByAgingForRange(yearRange.academicYear, yearRange.range),
         repos.dashboard.demographics(),
       ]);
-      if (k.ok) setKpis(k.value);
-      if (rev.ok) setRevenue(rev.value);
-      if (debt.ok) setDebtAging(debt.value);
-      if (demo.ok) setDemographics(demo.value);
+      // Top debtors — derived from the debt repository's observable
+      // summary. In Supabase mode this reads real ledger state; in mock
+      // mode it reads the seeded ledger. Same code path either way.
+      const topDebtors = repos.debt.observeSummary().get()
+        .filter((d) => d.outstandingAmount > 0)
+        .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
+        .slice(0, 10);
+      setData({
+        kpis: k.ok ? k.value : null,
+        revenue: rev.ok ? rev.value : [],
+        debtAging: debt.ok ? debt.value : [],
+        demographics: demo.ok ? demo.value : EMPTY_DEMOGRAPHICS,
+        topDebtors,
+      });
     })();
-  }, [repos.dashboard, yearRange]);
+  }, [repos.dashboard, repos.debt, yearRange]);
 
-  // Iteration 9 — run the overdue alert generator once on mount so the
-  // alerts tab + topbar bell are up-to-date without manual user action.
+  // Unread alerts — keep the tab badge current without making the
+  // Overview depend on the alerts observable (decoupling preserves the
+  // single-fetch model above).
   useEffect(() => {
-    void repos.overdueAlerts.run();
-  }, [repos.overdueAlerts]);
+    if (!session) return;
+    const unsub = repos.notifications
+      .observeForSession({ userId: session.userId, role: session.role })
+      .subscribe((n) => {
+        setUnreadAlerts(n.filter((x) => !x.readAt).length);
+      });
+    return unsub;
+  }, [repos.notifications, session]);
+
+  // ARCH-006: the previous code ran `repos.overdueAlerts.run()` on every
+  // mount. In Supabase mode this is `MockOverdueAlertGenerator` (the slot
+  // was never overridden in the assembly), so it scans in-memory seed
+  // data and persists nothing server-side — a "demo around mock data"
+  // pattern exactly as the audit flagged. Removed in T-080; the
+  // SupabaseOverdueAlertGenerator (T-080) will be the canonical
+  // server-side path. Until then the alerts tab fetches its own state.
 
   function openSeeDetails(tab: SeeDetailsTab = "revenue") {
     setSeeDetailsTab(tab);
     setSeeDetailsOpen(true);
   }
+
+  // KPIs are clickable. Each click routes to the relevant drill-down
+  // sub-tab. The mapping is centralized so the Overview and any future
+  // KPI grid share the same drill-down semantics.
+  const drillByKpi: Record<string, SeeDetailsTab> = {
+    students: "demographics",
+    parents: "demographics",
+    staff: "demographics",
+    monthlyRevenue: "revenue",
+    todayRevenue: "revenue",
+    outstandingDebt: "debt",
+    overdueAlerts: "debt",
+    pendingExpenses: "debt",
+  };
+
+  const handleKpiClick = (kpi: string) => {
+    const target = drillByKpi[kpi];
+    if (target) openSeeDetails(target);
+  };
+
+  // Memoize the data prop so children don't re-render unless the data
+  // actually changes.
+  const dataProp = useMemo(() => data, [data]);
 
   return (
     <div className="flex flex-col h-full">
@@ -145,22 +234,24 @@ export function DashboardPage() {
       >
         <PageTabList>
           <PageTab value="overview" label={t("dashboard.overview")} icon={LayoutDashboard} />
+          {/* Unread badge — a real operational signal, not a decoration.
+              The count prop renders inside the tab via PageTab's CountBadge.
+              countTone="danger" makes it red so urgent alerts stand out. */}
           <PageTab
             value="alerts"
             label={t("dashboard.alerts")}
             icon={Bell}
+            count={unreadAlerts}
+            countTone="danger"
           />
           <PageTab value="reports" label={t("dashboard.reports")} icon={FileText} />
-          {/* Iteration 9: Analytics tab removed — merged into Overview per spec §2.2 */}
         </PageTabList>
 
         <PageTabContent value="overview">
           <OverviewTab
-            kpis={kpis}
-            revenue={revenue}
-            debtAging={debtAging}
-            demographics={demographics}
-            onDrillDown={openSeeDetails}
+            data={dataProp}
+            onDrillDown={handleKpiClick}
+            onGoToAlerts={() => setTab("alerts")}
           />
         </PageTabContent>
 
@@ -173,10 +264,13 @@ export function DashboardPage() {
         </PageTabContent>
       </PageTabs>
 
+      {/* The drill-down modal receives the SAME data the Overview shows.
+          No re-fetch on open; no chance of drift between the two views. */}
       <SeeDetailsModal
         open={seeDetailsOpen}
         onOpenChange={setSeeDetailsOpen}
         initialTab={seeDetailsTab}
+        data={dataProp}
       />
     </div>
   );

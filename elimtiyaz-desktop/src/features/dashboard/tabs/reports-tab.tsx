@@ -5,6 +5,15 @@
  *
  * Extracted from `dashboard-page.tsx` (Task 2-a). Behavior is preserved
  * exactly — only file location and imports changed.
+ *
+ * T-088 (2026-08-30) — dead-feature cleanup:
+ *   - Removed the misleading "PDF" format badge from the "Revenu mensuel"
+ *     report card. The handler returned a "Bientôt disponible" toast
+ *     when clicked — that's a fake feature pretending to be supported.
+ *     Per AGENTS.md §15 rule 7 ("Never mark anything TESTED/VERIFIED
+ *     without recorded evidence"), advertising an unimplemented format
+ *     in the UI is the same class of dishonesty. The XLSX format remains
+ *     (it's the only one actually implemented for this report).
  */
 import { useState } from "react";
 import {
@@ -37,13 +46,16 @@ export function ReportsTab() {
   // Iteration 9: ONLY macro / organization-level aggregate reports.
   // Entity-specific reports (relevé-enseignant, releve-notes, bulletins,
   // paiements-jour) have been relocated to their respective profile drawers.
+  // T-088: "PDF" format removed from "Revenu mensuel" — the handler was
+  // a "Bientôt disponible" toast (a fake feature). XLSX is the only
+  // actually-implemented format for this report.
   const reports = [
     {
       code: "revenu-mensuel",
       title: "Revenu mensuel",
       desc: "Excel multi-feuilles: synthèse, par méthode, par catégorie, transactions.",
       icon: TrendingUp,
-      formats: ["XLSX", "PDF"] as const,
+      formats: ["XLSX"] as const,
     },
     {
       code: "creances-agees",
@@ -82,7 +94,12 @@ export function ReportsTab() {
     },
   ];
 
-  async function handleExport(code: string, format: "XLSX" | "PDF") {
+  async function handleExport(code: string, format: "XLSX" | "PDF" | "Voir Settings") {
+    if (format === "Voir Settings") {
+      // Handled inline in the button renderer (opens Settings). The
+      // handler should not be called for this format.
+      return;
+    }
     setExporting(`${code}-${format}`);
     try {
       let exportedRows: number | null = null;
@@ -96,11 +113,6 @@ export function ReportsTab() {
           to: today.toISOString().slice(0, 10),
         });
         exportedRows = payments.length;
-      } else if (code === "revenu-mensuel" && format === "PDF") {
-        // For now, generate a PDF version of the same data via the receipts engine.
-        // (Iteration 9: minimal PDF report — just a styled summary.)
-        toast.showInfo("PDF en préparation", "Le PDF du revenu mensuel sera disponible prochainement.");
-        return;
       } else if (code === "creances-agees") {
         const summary = repos.debt.observeSummary().get();
         const parents = repos.parents.observe().get();
@@ -186,7 +198,12 @@ export function ReportsTab() {
         toast.showSuccess("Export XLSX", `${byCategory.size} catégories exportées.`);
         return;
       } else {
-        toast.showInfo("Bientôt disponible", `Le rapport "${code}" sera disponible prochainement.`);
+        // T-088: the old "Bientôt disponible" toast for unimplemented
+        // reports was dead-feature dishonesty. Each report card now
+        // advertises ONLY the formats it actually implements. If a
+        // new format is added, it gets a real handler; until then,
+        // the badge stays out of the UI.
+        toast.showError("Export non implémenté", `Le rapport "${code}" en format ${format} n'est pas encore implémenté.`);
         return;
       }
       toast.showSuccess("Export généré", `Le rapport ${code} a été téléchargé.`);
