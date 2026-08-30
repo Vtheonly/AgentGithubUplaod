@@ -380,7 +380,12 @@ function mapLedgerRow(r: LedgerEntryRow): LedgerEntry {
     studentId: r.student_id,
     category: r.category as LedgerEntry["category"],
     amount: Number(r.amount),
-    type: (r.entry_type ?? r.actor_id ?? "charge") as LedgerEntry["type"],
+    // T-056 / WEAK-003: the old fallback chain ended in `r.actor_id` — a
+    // USER ID — which was then cast to the entry-type union and would
+    // misclassify the entry in the reconciler/balance replay. `entry_type`
+    // is NOT NULL in the schema (0027); the only fallback is the neutral
+    // "charge" bucket, never another column.
+    type: (r.entry_type ?? "charge") as LedgerEntry["type"],
     sourceType: (r.source_type ?? "manual_entry") as LedgerEntry["sourceType"],
     sourceId: r.source_id ?? r.id,
     method: (r.method ?? null) as LedgerEntry["method"],
