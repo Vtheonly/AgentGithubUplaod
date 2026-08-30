@@ -856,8 +856,20 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
     const payload = Array.from(input.statuses.entries())
       .filter(([studentId]) => isUuid(studentId))
       .map(([studentId, status]) => ({
+        // T-023 (ATT-100): tenant_id is NOT NULL (migration 0004) and the
+        // RLS INSERT policy `attendance_teacher_write` is tenant-scoped —
+        // the payload previously omitted it so every roll call failed with
+        // a NOT NULL violation and NOTHING ever persisted.
+        tenant_id: getTenantId(),
         student_id: studentId,
         class_id: input.classId,
+        // T-023 (ATT-100): the legacy `date` column is still NOT NULL
+        // (0004; never relaxed by 0029, which added the nullable
+        // `record_date` beside it). Both columns are written with the same
+        // value so the legacy index and the canonical
+        // `uq_attendance_canonical (tenant_id, student_id, record_date,
+        // session)` index both stay satisfied.
+        date: input.date,
         record_date: input.date,
         session: input.session,
         status,
@@ -876,7 +888,12 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
 
     const { data, error } = await this.client
       .from("attendance_records")
-      .upsert(payload, { onConflict: "student_id,record_date,session" })
+      // T-023 (ATT-100): the onConflict target MUST match a real unique
+      // index. The canonical index (migration 0041) is on (tenant_id,
+      // student_id, record_date, session) — the old 3-column target matched
+      // neither it nor the legacy 5-column index, so PostgREST rejected the
+      // upsert with "there is no unique or exclusion constraint matching".
+      .upsert(payload, { onConflict: "tenant_id,student_id,record_date,session" })
       .select();
 
     if (error) return Err(supabaseErrorToAppError(error));
@@ -1039,6 +1056,12 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
     const { data, error } = await this.client
       .from("homework")
       .insert({
+        // T-023 (HOMEWORK-100): tenant_id is NOT NULL on the canonical
+        // `homework` table (migration 0029) and the RLS write policy
+        // `homework_canonical_write` is tenant-scoped — the payload
+        // previously omitted it, so every desktop homework push failed
+        // with a NOT NULL violation and zero rows were ever persisted.
+        tenant_id: getTenantId(),
         class_id: input.classId,
         subject_id: input.subjectId,
         subject_name: subjectName,
@@ -1056,16 +1079,12 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
 
     if (error) return Err(supabaseErrorToAppError(error));
 
-    // Best-effort portal push notification. The `push-homework-notification`
-    // Edge Function is optional (not currently deployed in supabase/functions)
-    // — functions.invoke resolves with { error } instead of throwing, and the
-    // result is intentionally ignored so the homework insert stays the source
-    // of truth.
-    void this.client
-      .functions.invoke("push-homework-notification", {
-        body: { homework_id: data.id },
-      })
-      .catch(() => undefined);
+    // T-023 (HOMEWORK-100): the dead `push-homework-notification` Edge
+    // Function invocation was REMOVED. The EF has never existed in
+    // supabase/functions/, so the call failed on every push and the
+    // `.catch(() => undefined)` swallowed it — a fake side-effect. The
+    // homework row itself is the source of truth; the parent-notification
+    // decision is deferred to the push-pipeline task T-036.
 
     return Ok(mapHomeworkRow(data));
   }
