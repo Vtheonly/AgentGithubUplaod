@@ -112,6 +112,10 @@ export const AuditActions = {
   // Settings / System
   SettingsUpdate: "settings.update",
   RbacMatrixUpdate: "rbac.matrix_update",
+  // T-056 / DRIFT-005 — server secrets (update-server-secret Edge Function);
+  // previously ad-hoc string literals the audit-log filter UI could not group.
+  ServerSecretUpdate: "server_secret.update",
+  ServerSecretDelete: "server_secret.delete",
   BackupCreated: "backup.created",
   BackupRestored: "backup.restored",
   WorkflowPublished: "workflow.published",

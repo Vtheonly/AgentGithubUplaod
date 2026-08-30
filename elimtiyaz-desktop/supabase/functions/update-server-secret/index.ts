@@ -35,6 +35,7 @@
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
+import { AuditActions } from "../../../src/core/audit-actions.ts";
 import {
   createServiceRoleClient,
   extractAuthContext,
@@ -66,8 +67,12 @@ const ALLOWED_SECRET_KEYS = new Set([
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
+  // DEAD-002 (T-056): the DELETE handler existed but was never routed —
+  // the exported handleDelete was unreachable through the HTTP path, so
+  // clearing a server secret was impossible. DELETE now routes to it.
+  if (req.method === "DELETE") return handleDelete(req);
   if (req.method !== "POST") {
-    return jsonError(req, 405, "method_not_allowed", "Use POST");
+    return jsonError(req, 405, "method_not_allowed", "Use POST or DELETE");
   }
 
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
@@ -166,10 +171,11 @@ Deno.serve(async (req: Request) => {
     p_actor_profile_id: ctx.userProfileId,
   });
 
-  // 8. Audit log (does NOT include the value)
+  // 8. Audit log (does NOT include the value) — action from the canonical
+  // registry (T-056 / DRIFT-005).
   await writeAuditLog(
     ctx.tenantId,
-    "server_secret.update",
+    AuditActions.ServerSecretUpdate,
     "system_setting",
     null,
     ctx.userProfileId,
@@ -232,7 +238,7 @@ export async function handleDelete(req: Request): Promise<Response> {
 
   await writeAuditLog(
     ctx.tenantId,
-    "server_secret.delete",
+    AuditActions.ServerSecretDelete,
     "system_setting",
     null,
     ctx.userProfileId,
