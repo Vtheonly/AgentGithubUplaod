@@ -149,7 +149,11 @@ export function buildSeedLedger(): LedgerEntry[] {
           description: `Scolarité ${ACADEMIC_YEAR} — ${trancheLabels[i]} (${student.firstName} ${student.lastName}, ${student.gradeLevel})`,
           actorId: "usr-adm-001",
           actorName: "Brahim Souilah",
-          at: daysAgo(60),
+          // T-056 / WEAK-004: the seed previously stamped every tranche with
+          // daysAgo(60) and discarded the computed due date (`void dueDate;`).
+          // Ledger `at` now follows the canonical Sept/Dec/Mar tranche
+          // schedule (fixed intra-day time so seed order stays stable).
+          at: iso(new Date(`${dueDate}T09:00:00Z`)),
           metadata: {
             tranche: i + 1,
             gradeLevel: student.gradeLevel,
@@ -167,7 +171,6 @@ export function buildSeedLedger(): LedgerEntry[] {
             tuitionDiscount,
           },
         }));
-        void dueDate;
       });
 
       // Transport fee — uses per-destination 3-tranche schedule if the parent
