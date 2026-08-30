@@ -427,15 +427,131 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         console.warn("[SupabaseDashboard] ledger query error:", e);
       }
 
+      // T-089 (2026-08-30): the 4 hardcoded-zero KPIs made the dashboard
+      // blind to staff count, pending expenses, today's attendance, and
+      // unread overdue alerts. All 4 are now real Supabase queries:
+      //   - totalStaff: COUNT personnel WHERE deleted_at IS NULL
+      //     (migration 0010 — the personnel table is canonical)
+      //   - pendingExpenses: COUNT expenses WHERE status='submitted'
+      //     (migration 0008 — expenses table)
+      //   - attendanceRateToday: present+late / total for today (or most
+      //     recent date with records; mirrors the mock's fallback)
+      //     (migration 0009 — attendance_records)
+      //   - overdueAlerts: COUNT notifications WHERE kind='alert' AND
+      //     link_entity_type='installment' AND is_read=false
+      //     (migration 0013 — notifications)
+      let totalStaff = 0;
+      try {
+        const { count, error } = await this.client
+          .from("personnel")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .is("deleted_at", null);
+        if (error) {
+          console.warn("[SupabaseDashboard] personnel count failed:", error.message);
+        } else {
+          totalStaff = count ?? 0;
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] personnel count error:", e);
+      }
+
+      let pendingExpenses = 0;
+      try {
+        // DISCOVERY (T-089, 2026-08-30): the desktop domain model uses
+        // status='submitted', but the live `expense_tickets` table
+        // (migration 0008) uses status='pending_approval'. This is
+        // the same drift class as BUG-NEW-001 (the `users` table
+        // reference). Documented in the problem registry as DRIFT-013.
+        //
+        // The desktop code also calls `.from("expenses")` elsewhere —
+        // that table does NOT exist; the canonical table is
+        // `expense_tickets`. The dashboard KPI uses the correct name
+        // here. The wider expenses-repository leak (the assembly still
+        // uses MockExpensesRepository) is task T-093 (newly opened).
+        const { count, error } = await this.client
+          .from("expense_tickets")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("status", "pending_approval");
+        if (error) {
+          console.warn("[SupabaseDashboard] expense_tickets count failed:", error.message);
+        } else {
+          pendingExpenses = count ?? 0;
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] expense_tickets count error:", e);
+      }
+
+      let attendanceRateToday = 0;
+      try {
+        // Today's records — fall back to the most recent date with records
+        // (same fallback the mock uses).
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: todayRows, error: todayErr } = await this.client
+          .from("attendance_records")
+          .select("status")
+          .eq("tenant_id", tenantId)
+          .eq("date", today);
+        let rows: Array<{ status: string | null }> = (todayRows ?? []) as Array<{ status: string | null }>;
+        if (todayErr || rows.length === 0) {
+          // Find the most recent date with records.
+          const { data: recentRows, error: recentErr } = await this.client
+            .from("attendance_records")
+            .select("date, status")
+            .eq("tenant_id", tenantId)
+            .order("date", { ascending: false })
+            .limit(500);
+          if (!recentErr && recentRows && recentRows.length > 0) {
+            const recent = recentRows as Array<{ date: string; status: string | null }>;
+            const latestDate = recent[0].date;
+            rows = recent.filter((r) => r.date === latestDate);
+          } else {
+            rows = [];
+          }
+        }
+        if (rows.length > 0) {
+          // Per ADR-002 / WEAK-019 fix: canonical attendance rate is
+          // (present + late) / total. A "present" or "late" record
+          // counts the student as attending; "absent" or "excused"
+          // does not.
+          const attending = rows.filter((r) => r.status === "present" || r.status === "late").length;
+          attendanceRateToday = attending / rows.length;
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] attendance rate error:", e);
+      }
+
+      let overdueAlerts = 0;
+      try {
+        // T-080's SupabaseOverdueAlertGenerator writes notifications with
+        // kind='alert' and link_entity_type='installment'. Count unread
+        // ones so the KPI grid surfaces the operational queue.
+        const { count, error } = await this.client
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("kind", "alert")
+          .eq("link_entity_type", "installment")
+          .eq("is_read", false);
+        if (error) {
+          console.warn("[SupabaseDashboard] overdue alerts count failed:", error.message);
+        } else {
+          overdueAlerts = count ?? 0;
+        }
+      } catch (e) {
+        console.warn("[SupabaseDashboard] overdue alerts count error:", e);
+      }
+
       return Ok({
         totalStudents,
         totalParents,
-        totalStaff: 0,
+        totalStaff,
         monthlyRevenue,
         outstandingDebt,
-        pendingExpenses: 0,
-        attendanceRateToday: 0,
-        overdueAlerts: 0,
+        pendingExpenses,
+        attendanceRateToday,
+        overdueAlerts,
       });
     } catch (e) {
       return Err(Errors.unknown(e as Error));
