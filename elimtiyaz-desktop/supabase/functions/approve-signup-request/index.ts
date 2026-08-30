@@ -29,6 +29,7 @@
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
+import { canAssignRole } from "../_shared/role-assignment.ts";
 import {
   createServiceRoleClient,
   extractAuthContext,
@@ -209,31 +210,76 @@ Deno.serve(async (req: Request) => {
     return jsonError(req, 500, "approve_failed", "Failed to approve request", approveError.message);
   }
 
-  // 6c. Optionally override the assigned role
+  // 6c. Optionally override the assigned role (SEC-107 constrained)
   if (body.assign_role && body.assign_role !== approvalRequest.requested_role) {
-    const { data: newRole } = await supabase
+    // SEC-107 (T-008): the override used to accept ANY role code —
+    // including super_admin — for a support_staff caller. Three guards now:
+    //   (1) the code must resolve to a canonical `roles` row (unknown → 400);
+    //   (2) staff/admin roles require a super_admin caller (→ 403, audited);
+    //   (3) the revoke/insert writes are error-checked (a failed revoke
+    //       followed by a successful insert would mint DUPLICATE roles).
+    const { data: newRole, error: roleLookupError } = await supabase
       .from("roles")
-      .select("id")
+      .select("id, code, is_staff_role")
       .eq("code", body.assign_role)
       .single();
 
-    if (newRole) {
-      // Revoke the auto-assigned role and assign the new one
-      await supabase
-        .from("role_assignments")
-        .update({ revoked_at: new Date().toISOString() })
-        .eq("user_profile_id", (await supabase.from("user_profiles").select("id").eq("auth_user_id", approvalRequest.auth_user_id).single()).data?.id)
-        .eq("role_id", assignedRoleId)
-        .is("revoked_at", null);
+    if (roleLookupError || !newRole) {
+      return jsonError(req, 400, "invalid_role", `Unknown role code: ${body.assign_role}`);
+    }
 
-      await supabase
-        .from("role_assignments")
-        .insert({
-          user_profile_id: (await supabase.from("user_profiles").select("id").eq("auth_user_id", approvalRequest.auth_user_id).single()).data?.id,
-          tenant_id: ctx.tenantId,
-          role_id: newRole.id,
-          assigned_by: ctx.userProfileId,
-        });
+    if (canAssignRole(ctx.roles, newRole) !== "allowed") {
+      await writeAuditLog(
+        ctx.tenantId,
+        "account_approval.role_override_denied",
+        "account_approval_request",
+        body.request_id,
+        ctx.userProfileId,
+        ctx.email,
+        { requested_role: approvalRequest.requested_role },
+        { attempted_role: body.assign_role, denied_by: "SEC-107 staff-role gate" },
+        `SEC-107: non-super_admin caller attempted to assign staff role '${body.assign_role}' during approval of ${approvalRequest.email}`,
+        requestId
+      );
+      return jsonError(req, 403, "role_assignment_forbidden", "Only super_admin can assign staff roles");
+    }
+
+    const { data: targetProfile, error: profileLookupError } = await supabase
+      .from("user_profiles")
+      .select("id")
+      .eq("auth_user_id", approvalRequest.auth_user_id)
+      .single();
+
+    if (profileLookupError || !targetProfile) {
+      console.error("[approve-signup] profile lookup failed:", profileLookupError);
+      return jsonError(req, 500, "profile_not_found", "Approved user profile not found", profileLookupError?.message);
+    }
+
+    // Revoke the auto-assigned role and assign the new one
+    const { error: revokeError } = await supabase
+      .from("role_assignments")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("user_profile_id", targetProfile.id)
+      .eq("role_id", assignedRoleId)
+      .is("revoked_at", null);
+
+    if (revokeError) {
+      console.error("[approve-signup] role revoke failed:", revokeError);
+      return jsonError(req, 500, "role_revoke_failed", "Failed to revoke the auto-assigned role", revokeError.message);
+    }
+
+    const { error: assignError } = await supabase
+      .from("role_assignments")
+      .insert({
+        user_profile_id: targetProfile.id,
+        tenant_id: ctx.tenantId,
+        role_id: newRole.id,
+        assigned_by: ctx.userProfileId,
+      });
+
+    if (assignError) {
+      console.error("[approve-signup] role assign failed:", assignError);
+      return jsonError(req, 500, "role_assign_failed", "Failed to assign the requested role", assignError.message);
     }
   }
 
