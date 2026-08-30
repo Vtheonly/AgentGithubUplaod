@@ -23,9 +23,21 @@
 |---|---|---|---|
 | **Website** (parent portal) | Next.js `NEXT_PUBLIC_*` env vars, validated in `src/lib/env.ts` (zod, placeholder detection) | `.env.local` (gitignored); template committed as `.env.example` (URL pre-filled with the real project URL) | URL + anon key + Firebase web config + VAPID key |
 | **Android** (staff app) | Secrets Gradle Plugin → `BuildConfig.SUPABASE_URL` / `SUPABASE_ANON_KEY` (publishable-key fallback); runtime override via encrypted SharedPreferences (SupabaseConfigDialog) | `.env` (gitignored) / `.env.example` placeholders; `SupabaseClientProvider.kt`; `NetworkTimeouts.isSupabaseConfigured` gates every call on non-placeholder values | URL + anon key (or publishable key) + `google-services.json` (Firebase) |
-| **Desktop** (staff app) | Runtime settings dialog → stored per install; placeholder detection identical in spirit (`demo.supabase.co` blocked, SEC-005 covers the fallback hole) | `SupabaseClientProvider.build()` | URL + anon key |
+| **Desktop** (staff app) | Runtime settings dialog → stored per install in ElectronUserData/config.json; reads via `supabase-client.ts` singleton. Fail-closed: throws if `useSupabase=true` and no URL/key configured (no silent demo fallback). | `elimtiyaz-desktop/src/infrastructure/supabase/supabase-client.ts` + `src/features/settings/configuration/connection-card.tsx` | URL + anon key |
 
 **Consistency rule (ADR-001 family):** all three clients MUST resolve to the SAME project ref. The URL is the identity; keys are per-platform-type but derive from the same project. When the project is ever migrated, update this sheet first, then every `.env.example`, then the runtime dialogs.
+
+## 2.1. JWKS URL (canonical)
+
+The Supabase JWT verification key set lives at:
+
+```
+https://hkvkefubghbbotgnteir.supabase.co/auth/v1/.well-known/jwks.json
+```
+
+- **Android** needs this URL explicitly because it verifies JWTs locally (Ktor client auth) — see `SUPABASE_JWKS_URL` in the Android `.env.example`.
+- **Website + Desktop** do NOT need an explicit JWKS URL — the Supabase JS SDK handles JWKS fetching internally; they only need the project URL + anon key.
+- The JWKS URL is constructed deterministically from the project URL, so when the project URL changes, the JWKS URL changes too (update Android `.env.example` accordingly).
 
 ## 3. Key registry
 

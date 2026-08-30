@@ -529,3 +529,88 @@ Functions deployed: create-user-account + the four cron EFs.
 CRON_SECRET set (owner should rotate after this session — same as
 session 8's note). The session-8 admin password (set for the T-079
 live test) is unchanged — owner should rotate that too.
+
+---
+
+### 2026-08-31 — TENTH REPAIR SESSION — T-092 gap closure (verify_t-092.sh in-repo)
+
+The tenth session closes a documentation/script-persistence gap
+discovered while preparing the three repos for push. The ninth session's
+change-log claims `scripts/verify_t-092.sh` as evidence for T-092, but
+the script was only ever written to `/home/z/my-project/scripts/` (the
+host workspace) — outside the repo, so it did not persist across
+sessions and could not be re-run by a future agent. Per AGENTS.md §11.1
+("scripts/verify_t-XXX.sql" pattern) and the AGENTS.md §14
+commit-content rule (a claim of verification must be reproducible from
+the repo), this is a gap that blocks the TESTED → VERIFIED promotion
+path for T-092.
+
+- **Problem IDs:** process/hygiene (T-092 follow-up; no registered defect).
+- **T-092 gap closure What changed:**
+  - NEW `scripts/verify_t-092.sh` at the **hub repo root** (not inside
+    `elimtiyaz-desktop/scripts/`, because this is a system-wide
+    cross-repo verification, not a desktop-only SQL check). The script:
+      1. Resolves the hub root from `${BASH_SOURCE[0]}` so it works
+         regardless of the caller's CWD.
+      2. Looks for the sibling Android + website repos at
+         `../elimtiyaz-android` and `../elimtiyaz-website` (per
+         AGENTS.md §11 convention).
+      3. Runs 7 idempotent read-only checks: (1) `credentials.md`
+         present and references the canonical project ref + URL; (2)
+         Android `.env.example` has `SUPABASE_URL=` + `SUPABASE_JWKS_URL=`
+         pointing at the canonical project; (3) website `.env.example`
+         has `NEXT_PUBLIC_SUPABASE_URL=` pointing at the canonical
+         project; (4) desktop credential mechanism in place
+         (`supabase-client.ts` singleton + `connection-card.tsx`
+         settings dialog, with the docstring explaining the
+         Settings → Configuration path); (5) all three platforms
+         reference the same canonical project ref; (6) JWKS URL
+         consistent (Android `.env.example` has the canonical URL +
+         `credentials.md` mentions JWKS); (7) live auth health
+         endpoint reachable (HTTP 200 with `SUPABASE_ANON_KEY` env var,
+         HTTP 401 without — both prove the endpoint exists; the script
+         never commits the anon key, per AGENTS.md §15.10).
+  - The script supports `--skip-live` (offline runs) and degrades
+    gracefully when `curl` is missing or when sibling repos are absent
+    (each check names the offender on failure).
+  - UPDATED `docs/operations/credentials.md`:
+      - Added a new **§2.1 JWKS URL (canonical)** section so the
+        registry explicitly documents the JWKS URL construction and
+        why only Android needs it as an env var.
+      - Corrected the desktop row in §2: the previous text claimed
+        "placeholder detection identical in spirit
+        (`demo.supabase.co` blocked, SEC-005 covers the fallback hole)"
+        and pointed to `SupabaseClientProvider.build()` — both were
+        inaccurate. The actual file is `supabase-client.ts` (no
+        `build()` function, no `demo.supabase.co` substring block).
+        The corrected row describes the actual mechanism: runtime
+        Settings → Configuration dialog → ElectronUserData/config.json
+        → `supabase-client.ts` singleton, with fail-closed throw when
+        `useSupabase=true` and no URL/key is configured.
+- **Why:** the original T-092 verification script lived outside the
+  repo, so its evidence did not persist — a future agent re-running
+  T-092's verification would have to re-derive the checks from the
+  change-log narrative. AGENTS.md §11.1 mandates that verification
+  scripts live IN the repo. This commit makes the script a recoverable
+  artifact and aligns the credentials sheet with the actual code.
+- **Affected components:** hub repo only — `scripts/verify_t-092.sh`
+  (new) and `docs/operations/credentials.md` (§2 desktop row corrected
+  + §2.1 JWKS section added). No code changes in any of the three
+  client repos; no migration; no live DB writes.
+- **Tests:** the script itself is the test. Run with
+  `./scripts/verify_t-092.sh` from the hub repo root.
+- **Verification:** `./scripts/verify_t-092.sh` → **7 passed, 0 failed,
+  0 skipped (of 7)**. With `SUPABASE_ANON_KEY` env var set → all 7
+  pass and check 7 reports HTTP 200 (strict). Without the env var →
+  all 7 pass and check 7 reports HTTP 401 (the endpoint exists and
+  rejects unauthenticated calls — proves the URL is correct).
+- **Commits:** this entry + the script + the credentials.md update —
+  hub repo.
+- **Notes (preserved/deviations):** the script is read-only and
+  idempotent — safe to re-run any time. It does NOT mutate the live
+  DB or any repo state. Theanon key is never committed; operators
+  set `SUPABASE_ANON_KEY` in their shell for the strict 200 check.
+  The script intentionally does NOT verify the live migration chain
+  (that is the scope of `verify_t-089.sh` / `verify_t-090.sh` / etc.
+  SQL scripts, which require the Supabase CLI to be linked). T-092's
+  scope is credential consistency only, not migration state.

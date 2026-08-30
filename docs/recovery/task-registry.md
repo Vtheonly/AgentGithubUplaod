@@ -894,11 +894,12 @@ UNKNOWN-011 ──→ T-042 (timetable)
 
 ### T-092 — Migration token consistency across all platforms (DRIFT family + credentials sheet)
 - **Problems:** — (process/hygiene; not a registered defect)  · **Priority:** P3 · **Severity:** Low
-- **Status:** TESTED (2026-08-30)
+- **Status:** TESTED (2026-08-30) — gap closure 2026-08-31 (verify_t-092.sh promoted to in-repo)
 - **What was done:**
   - Android `.env.example` updated to reflect the canonical Supabase URL (https://hkvkefubghbbotgnteir.supabase.co) + clarify that Firebase config comes from `google-services.json` (not env vars).
   - Verification script `scripts/verify_t-092.sh` confirms all three platforms point to the same Supabase project (website .env.example + Android .env.example + desktop runtime settings dialog + credentials.md). 7/7 checks pass.
   - Live auth health endpoint verified (HTTP 200).
+  - **2026-08-31 gap closure:** the verify_t-092.sh script was originally written to `/home/z/my-project/scripts/` (outside the repo) and did not persist across sessions. Re-created as `scripts/verify_t-092.sh` at the hub repo root (in-repo, recoverable). Also corrected the credentials.md §2 desktop row (was pointing at a non-existent `SupabaseClientProvider.build()` file) and added §2.1 JWKS URL canonical section. See change-log entry "TENTH REPAIR SESSION".
 - **Tests:** verification script.
 - **Verification:** 7/7 checks pass.
 - **Commits:** see change-log session 9.
