@@ -41,6 +41,7 @@ import { maskPII, unmaskPII } from "../../domain/pii-mask";
 import { defaultLLMAdapter } from "../../infrastructure/ai/llm-adapter";
 import type { AIRequest, NarrativeRequest } from "../../domain/model/ai";
 import type { Assessment, AttendanceRecord } from "../../domain/model/academic";
+import { calculateAttendanceRate } from "../../domain/model/academic";
 import type { Student } from "../../domain/model/student";
 
 /* ------------------------------------------------------------------ */
@@ -138,9 +139,12 @@ export function NarrativeGeneratorModal({
       return { subject: subj?.name ?? a.subjectId, average: a.subjectAverage as number };
     });
 
-  const attendanceRate = attendance.length === 0
-    ? 1.0
-    : attendance.filter((r) => r.status === "present").length / attendance.length;
+  // T-027 / ATT-102: use the canonical `calculateAttendanceRate` (present +
+  // late count as attended). The previous inline `present / total`
+  // under-reported by counting late arrivals as absent, then sent the
+  // wrong rate to the AI narrative generator AND persisted it in
+  // `student_academic_histories.narrative` for the year-end promotion flow.
+  const attendanceRate = calculateAttendanceRate(attendance);
 
   const overallAvg = grades.length === 0
     ? null
