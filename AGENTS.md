@@ -102,6 +102,53 @@ Before modifying behaviour that exists on more than one platform:
 
 Cross-platform financial equivalence: see `docs/testing/cross-platform.md`. Any change to financial or academic rules MUST run the equivalence suites and record the result in `docs/recovery/change-log.md`.
 
+### 11.1 Live-Supabase verification (when credentials are available)
+
+For backend / SQL / Edge-Function tasks, **live verification is required** to claim VERIFIED status (per §13 status flow). Since 2026-08-30 (seventh session), the live Supabase environment is wired up:
+
+- The CLI binary is at `/home/z/my-project/bin/supabase` (v2.116.0). Add to `PATH` or invoke directly.
+- Link the project: `cd elimtiyaz-desktop && SUPABASE_ACCESS_TOKEN=<token> /home/z/my-project/bin/supabase link --project-ref hkvkefubghbbotgnteir`.
+- Push migrations: `supabase db push --linked --include-all` (note: this command can take 2-5 minutes; use a generous timeout).
+- Deploy an Edge Function: `supabase functions deploy <name> --project-ref hkvkefubghbbotgnteir --no-verify-jwt`.
+- Run SQL queries against the live DB: `supabase db query --linked "<SQL>"` or `supabase db query --linked < scripts/verify_<task>.sql` (for multi-statement scripts).
+- Set a secret: `supabase secrets set <NAME>=<value> --project-ref hkvkefubghbbotgnteir` (note: this command can take 1-3 minutes; the secret IS set even if the command times out — verify via `supabase secrets list --project-ref hkvkefubghbbotgnteir`).
+
+**Live verification script convention** (since the seventh session):
+
+For each backend migration (T-061, T-031, T-029, T-071, T-079), a
+`scripts/verify_t-XXX.sql` file was added under `elimtiyaz-desktop/scripts/`.
+These scripts:
+
+1. Are wrapped in `BEGIN; … ROLLBACK;` so they can be re-run any time
+   without mutating the live DB.
+2. Store results in a temp table (`t061_results`, `t031_results`, …)
+   so the results can be SELECTed at the end (Supabase CLI doesn't
+   surface `RAISE NOTICE` output).
+3. Cover BOTH the happy path (the fix works) AND the regression-paths
+   (the original broken behavior is still rejected / preserved).
+
+Any future backend task touching SQL / triggers / RPCs / RLS MUST
+add a `scripts/verify_t-XXX.sql` following the same pattern. The
+evidence goes into `docs/recovery/change-log.md` AND a per-task
+`docs/recovery/t-XXX-live-verification.md` for the high-stakes
+migrations / EFs.
+
+**Live Edge-Function curl matrix** (for T-004-style tasks):
+
+For tasks touching Edge Functions, run a curl matrix:
+
+```bash
+# For each EF, test:
+# 1. NO Authorization header → expect 401
+# 2. INVALID Bearer → expect 401
+# 3. ANON key as Bearer → expect 401
+# 4. Valid CRON_SECRET / service_role / user JWT → expect 200
+
+curl -s -o /tmp/body -w "%{http_code}" -X POST "$BASE/$EF" ...
+```
+
+Record the full matrix in `docs/recovery/t-XXX-live-verification.md`.
+
 ## 12. How to update project documentation
 
 - The problem you fix → update its entry in `docs/recovery/problem-registry.md` (status + evidence).

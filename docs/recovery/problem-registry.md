@@ -138,6 +138,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ARCH-006 | Medium | OPEN | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
 | ARCH-007 | High | TESTED | T-081 | NEW (2026-08-29): Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken — gate restored 2026-08-29 (T-081) |
 | ARCH-008 | High | OPEN | T-082 | NEW (2026-08-29): the Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing NewApi errors; no lint baseline has ever existed |
+| BUG-NEW-001 | High | OPEN | T-083 | NEW (2026-08-30): the `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table; the daily cron EF has been silently failing every day since the RPC was deployed |
 | DRIFT-001 | High | OPEN | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
@@ -3105,3 +3106,51 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Follow the T-078 precedent: create `app/lint-baseline.xml` from the current 315-error backlog, document the per-rule counts and the desugaring decision in the build config, and decide separately (T-082) whether to enable core-library desugaring to genuinely fix the NewApi class (it is the correct long-term fix — java.time is already used pervasively).
 - **Dependencies:** none recorded
 - **Verification:** `./gradlew :app:lintDebug` green with the baseline (or zero errors after the desugaring fix); per-rule counts documented; evidence in change-log before status moves past TESTED.
+
+---
+
+### BUG-NEW-001 — `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table
+
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN
+- **Repositories:** AgentGithubUplaod (desktop — supabase migration chain)
+- **Platforms affected:** Backend, Desktop
+- **Task:** T-083 (docs/recovery/task-registry.md — created 2026-08-30)
+- **Consolidated from:** NEW — discovered 2026-08-30 (seventh session) during T-004's live curl matrix; not in either audit pass
+- **Description:** The `public.expire_pending_approvals()` SQL RPC (defined in migration 0011) references a `public.users` table that does not exist. The function body:
+
+  ```sql
+  FOR v_tenant IN SELECT DISTINCT tenant_id FROM users WHERE approval_status = 'pending' LOOP
+      UPDATE users
+         SET approval_status = 'expired', updated_at = now()
+       WHERE tenant_id = v_tenant
+         AND approval_status = 'pending'
+         AND created_at < now() - INTERVAL '30 days';
+  ```
+
+  The intended table is `public.account_approval_requests` (which has `status='pending'`, NOT `approval_status='pending'`). The 30-day threshold is also divergent from the EF's documentation comment that says "7 days" — so even if the table reference were corrected, the threshold would be wrong.
+
+- **Location:** `elimtiyaz-desktop/supabase/migrations/0011_audit.sql` (function `public.expire_pending_approvals`); the EF that calls it is `elimtiyaz-desktop/supabase/functions/expire-pending-approvals/index.ts`
+- **Evidence:** Runtime evidence (2026-08-30): T-004 live curl matrix on the live Supabase project (hkvkefubghbbotgnteir):
+  ```
+  POST .../functions/v1/expire-pending-approvals
+  Authorization: Bearer <CRON_SECRET>
+  → HTTP 500: {"error":{"code":"expire_failed","message":"Failed to expire pending approvals","details":"relation \"users\" does not exist"}}
+  ```
+  The auth gate (T-004 / SEC-105) ACCEPTED the bearer (no 401) — the failure is purely in the SQL RPC's broken table reference. The same RPC query via `supabase db query --linked "SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname='expire_pending_approvals';"` confirms the function body references `users` (no schema qualifier; even if it had one, no `users` table exists in `public` or `auth` schemas with an `approval_status` column).
+- **Root cause:** The RPC was likely written before the schema stabilized around `account_approval_requests` (migration 0005) and was never reconciled. The function body has been silently failing every day since the daily cron schedule was first deployed — there is no audit log entry for failed runs because the RPC errors before any row is updated, and the EF's error path doesn't write an audit entry either.
+- **Current behavior:** Every daily scheduled invocation of `expire-pending-approvals` EF fails silently: the EF accepts the cron bearer, calls the RPC, the RPC errors with "relation users does not exist", the EF returns 500. No pending approvals are expired; no audit entry is written. Pending approval requests older than 30 days (the EF's documented threshold is 7 days) accumulate forever.
+- **Expected behavior:** The RPC operates on `account_approval_requests` with the correct `status` column ('pending' → 'expired') and the correct 7-day threshold (per the EF's documentation). The EF writes an audit entry per affected tenant.
+- **Proposed resolution:** New migration 0049+ rewrites `public.expire_pending_approvals()` to:
+  ```sql
+  FOR v_tenant IN SELECT DISTINCT tenant_id FROM public.account_approval_requests
+                  WHERE status = 'pending' LOOP
+      UPDATE public.account_approval_requests
+         SET status = 'expired', updated_at = now()
+       WHERE tenant_id = v_tenant
+         AND status = 'pending'
+         AND created_at < now() - INTERVAL '7 days';
+      ...
+  ```
+  Plus: a regression test that creates a 7-day-old pending request, runs the RPC, and verifies the status transition. Plus: the EF's error path should write an `account_approval.expire_batch_failed` audit entry when the RPC errors, so silent failures are at least auditable.
+- **Dependencies:** none recorded
+- **Verification:** (1) live curl matrix against `expire-pending-approvals` EF → 200 with `expired_count >= 0` (no longer 500); (2) SQL-level test on a fresh schema: a 7-day-old pending request is expired; a 6-day-old one is not; (3) `supabase db query --linked "SELECT pg_get_functiondef(...) FROM pg_proc WHERE proname='expire_pending_approvals'"` shows the rewritten body referencing `account_approval_requests`.

@@ -7,15 +7,15 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-29, updated after the sixth repair session — T-002)
+## Progress summary (2026-08-30, updated after the seventh repair session — T-016/T-027/T-061/T-031/T-029/T-071 + T-079/T-004 live verification)
 
 | Status | Count | Tasks |
 |---|---|---|
-| **Completed (VERIFIED)** | 1 | T-000 |
-| **Completed (TESTED)** | 11 | T-001, T-003, T-004, T-009, T-078, T-079 (regression-tested; live-environment verification pending — see change-log), T-081, T-019, T-049 (fifth session 2026-08-29), T-002, T-065 (sixth session 2026-08-29 — T-002's live sign-in matrix pending) |
+| **Completed (VERIFIED)** | 3 | T-000, T-079 (live round-trip 2026-08-30), T-004 (live curl matrix 2026-08-30) |
+| **Completed (TESTED)** | 17 | T-001, T-003, T-009, T-078, T-081, T-019, T-049 (fifth session 2026-08-29), T-002, T-065 (sixth session 2026-08-29), T-016, T-027, T-061, T-031, T-029, T-071 (seventh session 2026-08-30) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** (understood, dependencies cleared) | 56 | T-005…T-008, T-011…T-027, T-029…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-065, T-068, T-069, T-071, T-080, T-082 (new — Android lint-gate baseline, ARCH-008) |
+| **Ready** (understood, dependencies cleared) | 49 | T-005…T-008, T-011…T-015, T-017, T-018, T-020…T-027 (except T-027 — done), T-030, T-032…T-035, T-039…T-041, T-043, T-044, T-046, T-048…T-058, T-060…T-064, T-068, T-069, T-080, T-082, T-083 (new — fix expire_pending_approvals SQL RPC, BUG-NEW-001) |
 | **Partially blocked** | 1 | T-036 (EF-internal fixes unblocked; wiring pending provider/scope decisions) |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 — see `unknowns.md` |
 | **Needs Investigation** | 1 | T-047 |
@@ -728,6 +728,16 @@
 - **Verification:** see change-log entry (T-079) — headless evidence complete; live round-trip (deploy 0044 + EF, create account, sign in, change password) still pending → backend stays IMPLEMENTED.
 - **ADRs:** —
 - **Commits:** d85d65a (registry checkout) · 19ac460 (RED tests) · 314a74e (desktop implementation) · aa841ee (migration 0044 + EF) · docs commit (this change).
+
+---
+
+### T-083 — Fix the `expire_pending_approvals()` SQL RPC (BUG-NEW-001, discovered during T-004 verification)
+- **Problems:** BUG-NEW-001 · **Priority:** P1 · **Severity:** High
+- **Description:** New migration 0049+ rewrites `public.expire_pending_approvals()` to operate on the correct table (`public.account_approval_requests`, NOT the non-existent `public.users`) with the correct column (`status`, NOT `approval_status`) and the correct 7-day threshold (per the EF's documentation, NOT 30 days). Plus: extend the EF's error path to write an `account_approval.expire_batch_failed` audit entry when the RPC errors, so silent failures are at least auditable. Plus: regression test that creates a 7-day-old pending request, runs the RPC, and verifies the status transition; a 6-day-old one stays pending.
+- **Dependencies:** none · **Affected:** D (migration 0049, EF error-path audit) · **Platforms:** Backend, Desktop
+- **Tests:** SQL-level test on a fresh schema; live curl matrix re-run for the `expire-pending-approvals` EF (currently returns 500; should return 200 with `expired_count >= 0`).
+- **Verification:** live curl matrix recorded in change-log; SQL function body re-queried to confirm `account_approval_requests` reference.
+- **ADRs:** —
 
 ---
 

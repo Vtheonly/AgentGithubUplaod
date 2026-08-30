@@ -155,3 +155,110 @@
 - **ARCH-006 (NEW, → T-080):** Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs `MockOverdueAlertGenerator` against in-memory seed data and persists nothing server-side; the guarded `run-overdue-scan` EF has no live desktop caller. Found during T-004 while mapping the manual JWT path's callers (`rg overdueAlerts src/infrastructure/supabase/supabase-repositories.ts` → absent from the override list; `rg "implements OverdueAlertGenerator" src/` → mock only). Full entry in the problem registry; concrete instance of the ARCH-001/T-047 class with user-visible effect.
 - **useObservable factory-callback pattern (folded into T-078's fix):** `useObservable` calls its factory inside `useState`'s lazy initializer and `useEffect`, so any hook call inside the factory is a rules-of-hooks violation that React's ContextOnlyDispatcher silently tolerates — the linter is the ONLY guard here. permissions-step.tsx was the sole offender found; future components must hoist repository access to the component top (sibling-step pattern).
 - **Environment constraint (unchanged, re-verified):** no Android SDK/ANDROID_HOME, JRE-only Java (no javac), no Deno, no live Supabase — T-002/T-005-class live verification and EF deployment remain impossible headlessly; recorded gaps follow the same pattern as prior sessions.
+
+## Entries
+
+### 2026-08-30 — SEVENTH REPAIR SESSION — T-016/T-027/T-061/T-031/T-029/T-071 + T-079/T-004 live verification
+
+The seventh repair session focused on a balanced batch of 8 tasks
+across desktop + website + backend, all with thorough live + headless
+verification:
+
+- **T-016 — Complete the reconciler** (TESTED). Wired
+  `crossCheckBalanceSum` (BALANCE_SUM_MISMATCH, INV-9) +
+  `crossCheckParentCredit` (UNBACKED_PARENT_CREDIT) into the
+  `reconcileFinancials()` orchestrator (the public entry point).
+  4-test regression suite added. Desktop suite 45/2011 tests
+  ALL PASS. Commit: 9316325.
+- **T-027 — Canonical attendance rate everywhere** (TESTED).
+  Desktop narrative-generator-modal: replaced inline
+  `present/total` with `calculateAttendanceRate` (present+late).
+  Website attendance-view: replaced inline `present/total` with
+  `attendanceRatePercent`. Website bulletin: added a "Taux de
+  présence" KPI card using the canonical rate, alongside the
+  raw-count breakdown (preserved as detail). 4-test website
+  regression suite added. Website suite 8/96 tests ALL PASS;
+  desktop suite 45/2011 ALL PASS. Desktop commit: 695a2d2;
+  website commit: fa349f1.
+- **T-061 — Scope payment-proof trigger to INSERT + method/proof
+  changes** (TESTED, live Supabase). Migration 0045 redefines
+  `enforce_payment_proof()` to branch on TG_OP: INSERT keeps
+  strict behavior; UPDATE only re-validates when method changes
+  or proof fields are explicitly cleared. Status-only updates of
+  legacy NULL-proof check/transfer rows are grandfathered. 7-scenario
+  live verification script runs ALL 7 PASS. Commit: 982e891.
+- **T-031 — Role gate for parent self-update trigger** (TESTED,
+  live Supabase). Migration 0046 wraps the existing restriction in
+  `if public.has_role('parent') then … end if;` so staff can
+  update identity fields; the parent-role restriction still fires
+  for parent callers. 5-scenario live verification script ALL 5
+  PASS. Commit: a08421d.
+- **T-029 — Guard approve_account_request re-binding** (TESTED,
+  live Supabase). Migration 0047 redefines `approve_account_request`
+  to reject re-binding a parent already bound to a different
+  user (with HINT to unbind first). The student binding branch
+  gets the same guard. Both branches now write `parent.bind`/
+  `student.bind` audit entries capturing the OLD auth_user_id in
+  before_json. 4-scenario live verification script ALL 4 PASS.
+  Commit: 6b801d7.
+- **T-071 — Tighten RLS INSERT policies for chat/notifications**
+  (TESTED, live Supabase). Migration 0048 redefines three RLS
+  INSERT policies: `chat_channels_insert` requires creator ∈
+  member_ids + role-gates 'announcement' to staff;
+  `chat_messages_insert` requires channel membership (EXISTS
+  check on chat_channels.member_ids); `notifications_insert`
+  requires staff OR self-targeting OR caller-holds-target_role.
+  5-scenario live verification script ALL 5 PASS. Commit: b16f337.
+- **T-079 — Admin-created login accounts (live round-trip)**:
+  **VERIFIED**. Migration 0044 applied to live Supabase; create-user-account
+  EF deployed. Full live round-trip: admin signed in as super_admin →
+  invoked EF → new user created with `manager` role + active profile →
+  audit entry `user_account.create` written → new user signed in with
+  returned initial password → new user changed password → new user
+  signed in with new password. Test data cleaned up. Full evidence in
+  `docs/recovery/t-079-live-verification.md`. Commit: c64db57.
+- **T-004 — Require authentication on the four cron Edge Functions
+  (live curl matrix)**: **VERIFIED**. The four cron EFs deployed
+  (expire-pending-approvals, refresh-materialized-views,
+  purge-expired-backups, run-overdue-scan). CRON_SECRET set on the
+  live project. Live curl matrix: all 4 EFs return 401 for
+  no-auth/invalid-bearer/anon-key (T-004/SEC-105 fix verified);
+  valid CRON_SECRET accepted by all 4 (no 401). Full evidence in
+  `docs/recovery/t-004-live-verification.md`. Commit (this session):
+  docs/recovery/t-004-live-verification.md.
+
+**NEW discovery:** BUG-NEW-001 — during T-004's live curl matrix,
+the `expire-pending-approvals` EF returned HTTP 500 with
+`relation "users" does not exist`. The `expire_pending_approvals()`
+SQL RPC (migration 0011) references a non-existent `public.users`
+table — should be `public.account_approval_requests` with
+`status='pending'` (not `approval_status='pending'`) and a 7-day
+threshold (not 30 days). The daily cron has been silently failing
+every day since the RPC was deployed. Recorded in
+`problem-registry.md` (BUG-NEW-001) + assigned to T-083 in
+`task-registry.md`. The auth gate (T-004 / SEC-105) is verified;
+the SQL RPC bug is a separate concern.
+
+**Migration chain state:** 0001-0048 all applied to live Supabase.
+Edge Functions deployed: create-user-account + the four cron EFs.
+CRON_SECRET set (owner should rotate after this session). Admin
+password was set to a known value to enable the T-079 live test
+(documented in `t-079-live-verification.md`; owner should rotate).
+
+**Suite counts at session end:**
+- Desktop: 45 files / 2011 tests ALL PASS (was 44/2007; +1 file,
+  +4 tests for T-016; narrative-modal change for T-027 is a 1-line
+  direct call to the already-tested canonical function)
+- Website: 8 files / 96 tests ALL PASS (was 7/92; +1 file, +4
+  tests for T-027's bulletin test)
+- Android: unchanged at 219/219 (no Android work in this session)
+- Live Supabase: migrations 0044-0048 applied; 4 cron EFs + 1
+  create-user-account EF deployed; CRON_SECRET set; 5 SQL
+  verification scripts run live with all scenarios PASS
+
+**Recommended next task:** T-005 — tenant-scoped RBAC resolver +
+admin policies (TENANT-100/101, P0 Critical). Same pattern as
+T-004 (headless-implementable + live-verification) — the live
+environment is now wired up. Alternative: T-083 (fix
+`expire_pending_approvals` SQL RPC — discovered during T-004
+verification, can reuse the live-curl-matrix pattern).
