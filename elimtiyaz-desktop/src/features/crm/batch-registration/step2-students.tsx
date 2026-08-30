@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../shared/ui/select";
-import { LEVEL_YEARS, type AcademicLevel, type Gender } from "../../../domain/model/student";
+import { LEVEL_YEARS, GRADE_LEVEL_LABELS_FR, type AcademicLevel, type Gender, type GradeLevel } from "../../../domain/model/student";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import {
@@ -34,6 +34,9 @@ const NO_TRANSPORT = "__none__";
 
 /** Sentinel for "no class assigned" — Radix Select forbids empty-string values. */
 const NO_CLASS = "__none__";
+
+/** Sentinel for "previous grade not provided" — same Radix empty-value rule. */
+const NO_PREVIOUS_GRADE = "__none__";
 
 export function Step2({
   students,
@@ -186,6 +189,34 @@ export function Step2({
                   <SelectItem value="full_annual">Année complète (−10%)</SelectItem>
                 </SelectContent>
               </Select>
+            </FormField>
+            {/* T-060 (WEAK-005) — previous-year grade level feeds the
+                deterministic `passage_palier` rule; optional. */}
+            <FormField label="Niveau l'année dernière" hint="Pour le rabais passage de palier (−10 000 DZD, 5AP→1AM / 4AM→1ère)">
+              <Select
+                value={s.previousGradeLevel || NO_PREVIOUS_GRADE}
+                onValueChange={(v) =>
+                  update(i, { previousGradeLevel: v === NO_PREVIOUS_GRADE ? "" : (v as GradeLevel) })
+                }
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PREVIOUS_GRADE}>Non renseigné</SelectItem>
+                  {(Object.keys(GRADE_LEVEL_LABELS_FR) as GradeLevel[]).map((g) => (
+                    <SelectItem key={g} value={g}>{GRADE_LEVEL_LABELS_FR[g]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {/* T-060 (WEAK-005) — previous-year rank feeds the
+                `highest_average` rule (−10% pour le 1er de la classe). */}
+            <FormField label="Rang l'année dernière" hint="1er de la classe : −10% (plus forte moyenne)">
+              <Input
+                value={s.previousRank}
+                onChange={(e) => update(i, { previousRank: e.target.value.replace(/[^0-9]/g, "") })}
+                placeholder="ex. 1"
+                inputMode="numeric"
+              />
             </FormField>
             <FormField label="Notes médicales" hint="Allergies, conditions particulières">
               <Input

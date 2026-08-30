@@ -191,6 +191,12 @@ export function BatchRegistrationModal({
       // Student.transportTier is a bare string — we store the canonical destination key in it.
       transportTier: (s.transportDestination || null) as string | null,
       paymentPlan: s.paymentPlan,
+      // T-060 (WEAK-005) — discount-engine inputs captured in step 2 so the
+      // persisted billing (mock buildRegistrationBilling) matches the
+      // step-3 preview exactly (passage_palier + highest_average).
+      previousGradeLevel: s.previousGradeLevel === "" ? null : s.previousGradeLevel,
+      previousRank:
+        s.previousRank.trim() === "" ? null : Number(s.previousRank) || null,
     }));
 
     // FIX (add-child duplication): attach children to the EXISTING parent

@@ -5,7 +5,7 @@
  * Re-exported by the orchestrator and each step component to keep behavior
  * identical — only file location changed.
  */
-import type { AcademicLevel, Gender } from "../../../domain/model/student";
+import type { AcademicLevel, Gender, GradeLevel } from "../../../domain/model/student";
 import type { TransportDestination } from "../../../domain/model/parent";
 import type { PricingConfig } from "../../../domain/model/pricing";
 import type { PaymentPlan } from "../../../domain/model/payment";
@@ -43,6 +43,18 @@ export interface Step2Student {
   medicalNotes: string;
   /** Payment plan for this student's annual tuition (defaults to "tranches"). */
   paymentPlan: PaymentPlan;
+  /**
+   * T-060 (WEAK-005) — the student's grade level LAST year. Feeds the
+   * deterministic `passage_palier` rule (−10,000 DZD when the cycle
+   * boundary 5ap→1am / 4am→1ere_annee is crossed). `""` = not provided →
+   * the rule correctly evaluates to 0 (never silently disabled).
+   */
+  previousGradeLevel: GradeLevel | "";
+  /**
+   * T-060 (WEAK-005) — the student's rank last year (1 = first of class).
+   * Feeds the `highest_average` rule (−10%). Empty string = not provided.
+   */
+  previousRank: string;
 }
 
 export const EMPTY_PARENT: Step1Parent = {
@@ -70,6 +82,8 @@ export const EMPTY_STUDENT: Step2Student = {
   transportDestination: "",
   medicalNotes: "",
   paymentPlan: "tranches",
+  previousGradeLevel: "",
+  previousRank: "",
 };
 
 export const PHONE_RE = /^[+]?[0-9\s]{8,15}$/;

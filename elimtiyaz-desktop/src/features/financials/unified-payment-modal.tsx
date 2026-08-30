@@ -234,11 +234,14 @@ export function UnifiedPaymentModal({
       return context.lineItems.map(lineItemToTrancheSpec);
     }
     // Fallback: derive from installments, filtered by category.
+    // T-060 (BUSINESS-005): the modal ALWAYS sends a concrete category to
+    // collect() (the server filters `category = p_category` exactly), so the
+    // derived tranche list must use the same exact filter for every
+    // category — the old "other categories = no filter" ternary made the
+    // slider show tranches the collection would never touch.
     const eligible = installments
       .filter((i) => i.status !== "paid")
-      .filter((i) =>
-        category === "tuition" || category === "transport" ? i.category === category : true,
-      )
+      .filter((i) => i.category === category)
       .slice()
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, 6);
@@ -267,32 +270,29 @@ export function UnifiedPaymentModal({
   );
 
   // === Live waterfall allocation preview ===
+  // T-060 (BUSINESS-005): preview ≡ actual. The collection sends
+  // p_category = category (exact match server-side per migration 0040), so
+  // the preview applies the SAME exact filter and hands the allocator the
+  // SAME concrete categoryFilter — for EVERY category, not only
+  // tuition/transport. The old "other categories = unfiltered preview"
+  // ternary showed a waterfall across all categories while the actual
+  // collection filtered to the chosen one.
   const allocationPreview = useMemo(() => {
     if (!effectiveParentId) return null;
     const eligible = installments
       .filter((i) => i.status !== "paid")
-      .filter((i) =>
-        category === "tuition" || category === "transport" ? i.category === category : true,
-      );
-    return allocatePaymentToInstallments(
-      eligible,
-      amount,
-      category === "tuition" || category === "transport" ? category : undefined,
-    );
+      .filter((i) => i.category === category);
+    return allocatePaymentToInstallments(eligible, amount, category);
   }, [installments, amount, category, effectiveParentId]);
 
   const overpayingNow = allocationPreview ? allocationPreview.unallocatedAmount > 0.5 : false;
   const focusedTrancheLabel = useMemo(() => {
     if (!effectiveParentId) return null;
+    // T-060 (BUSINESS-005): same exact-category filter as the actual collection.
     const eligible = installments
       .filter((i) => i.status !== "paid")
-      .filter((i) =>
-        category === "tuition" || category === "transport" ? i.category === category : true,
-      );
-    return currentTrancheLabel(
-      eligible,
-      category === "tuition" || category === "transport" ? category : undefined,
-    );
+      .filter((i) => i.category === category);
+    return currentTrancheLabel(eligible, category);
   }, [installments, category, effectiveParentId]);
 
   const selectedParent = parents.find((p) => p.id === effectiveParentId);

@@ -297,6 +297,18 @@ export interface CreateStudentInput {
   readonly transportTier?: string | null;
   /** Payment plan — defaults to `"tranches"` when omitted. */
   readonly paymentPlan?: PaymentPlan;
+  /**
+   * T-060 (WEAK-005) — the student's grade level LAST year (wizard step 2).
+   * Discount-ENGINE input only (feeds `passage_palier`); not a persisted
+   * column. Null/omitted → the rule evaluates to 0.
+   */
+  readonly previousGradeLevel?: GradeLevel | null;
+  /**
+   * T-060 (WEAK-005) — the student's rank last year (1 = first of class).
+   * Discount-ENGINE input only (feeds `highest_average`); not a persisted
+   * column. Null/omitted → the rule evaluates to 0.
+   */
+  readonly previousRank?: number | null;
 }
 
 /**

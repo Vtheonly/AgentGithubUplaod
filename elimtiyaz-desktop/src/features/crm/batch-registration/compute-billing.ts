@@ -61,9 +61,13 @@ export function computeBilling(input: BillingInput): Billing {
     const grossTuition = tuitionForGradeLevel(pricing, gradeLevel).annualAmount;
 
     // === Single-pass discount evaluation on the GROSS annual tuition ===
+    // T-060 (WEAK-005): the wizard now CAPTURES previousGradeLevel +
+    // previousRank, so the passage_palier and highest_average rules can
+    // actually fire instead of being silently disabled by null inputs.
+    const previousRank = s.previousRank.trim() === "" ? null : Number(s.previousRank);
     const discountEvals: readonly DiscountEvaluation[] = evaluateAllSystemDiscounts({
       grossTuition,
-      previousGradeLevel: null, // Not tracked in the batch form yet; pass null.
+      previousGradeLevel: s.previousGradeLevel === "" ? null : s.previousGradeLevel,
       currentGradeLevel: gradeLevel,
       childIndex: i + 1,
       paymentPlan: s.paymentPlan,
@@ -71,7 +75,7 @@ export function computeBilling(input: BillingInput): Billing {
       academicYearStartYear,
       academicYearStart: new Date(Date.UTC(academicYearStartYear, 8, 1)).toISOString(),
       enrollmentDate: new Date().toISOString(), // New enrollment — no seniority.
-      previousRank: null, // Not tracked in the batch form yet.
+      previousRank: previousRank !== null && Number.isFinite(previousRank) && previousRank > 0 ? previousRank : null,
     });
     const tuitionDiscount = sumDiscounts(discountEvals); // negative
     const netTuition = Math.max(0, grossTuition + tuitionDiscount);

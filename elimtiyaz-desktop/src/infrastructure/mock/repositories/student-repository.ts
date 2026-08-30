@@ -370,9 +370,14 @@ function buildRegistrationBilling(
     // === Tuition: evaluate ALL 5 discount rules once on the gross, then split ===
     const grossTuition = tuitionForGradeLevel(config, student.gradeLevel).annualAmount;
     if (grossTuition > 0) {
+      // T-060 (WEAK-005): `input.students` is index-aligned with `students`
+      // (both built from the same wizard payload) — read the captured
+      // previous-year grade/rank so the persisted billing matches the
+      // step-3 preview (passage_palier + highest_average can now fire).
+      const wizardStudent: CreateStudentInput | undefined = input.students[index];
       const discountEvals = evaluateAllSystemDiscounts({
         grossTuition,
-        previousGradeLevel: null,
+        previousGradeLevel: wizardStudent?.previousGradeLevel ?? null,
         currentGradeLevel: student.gradeLevel,
         childIndex: index + 1,
         paymentPlan: student.paymentPlan,
@@ -380,7 +385,7 @@ function buildRegistrationBilling(
         academicYearStartYear: year,
         academicYearStart: new Date(Date.UTC(year, 8, 1)).toISOString(),
         enrollmentDate: student.enrollmentDate,
-        previousRank: null,
+        previousRank: wizardStudent?.previousRank ?? null,
       });
       const tuitionDiscount = sumDiscounts(discountEvals); // negative
       const netTuition = Math.max(0, grossTuition + tuitionDiscount);
