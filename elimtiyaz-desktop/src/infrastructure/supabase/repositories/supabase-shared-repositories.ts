@@ -1040,27 +1040,19 @@ export class SupabasePaymentRepository implements PaymentRepository {
   async collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
     // CANONICAL-FINANCIAL-LOGIC.md §4 INV-6 + INV-7 + §8.6 — the Supabase
     // `collect` workflow MUST use the atomic `collect_and_allocate_payment`
-    // RPC (migration 0026) so the waterfall + parent_credit adjustment + audit
-    // transaction happen server-side in one go. The previous implementation
-    // called `upsert_payment_from_import` (a simple insert helper), so the
-    // waterfall never ran at the RPC layer — payments inserted but no
-    // installments moved toward `paid`, and overpayments never became
-    // parent_credit adjustments.
+    // RPC (migration 0026, extended by 0039/0040) so the waterfall + parent_credit
+    // adjustment + audit transaction happen server-side in one go.
+    //
+    // T-011 (BUSINESS-002): the previous implementation silently fell back to
+    // `upsert_payment_from_import` (a simple INSERT helper) when the atomic RPC
+    // failed for ANY reason — network glitch, RLS denial, schema drift. That
+    // fallback wrote ONLY the payment row: no ledger entry, no waterfall, no
+    // parent_credit, no audit — while the UI reported success. Since the
+    // canonical migration chain (ADR-001) is always applied to the live
+    // project, there is no supported "older deployment" to serve: a failed
+    // atomic collection now surfaces the error and writes NOTHING.
     try {
       const tenantId = getTenantId();
-      const year = new Date().getFullYear();
-      // BULK IMPORT FIX: when the caller provides a deterministic receipt
-      // number (the Excel importer does, derived from `${studentId}:${field}`),
-      // use it verbatim — re-importing the same Excel row hits the same
-      // payment_number identity key and the upsert RPC performs an UPDATE
-      // instead of INSERTing a duplicate payment. When omitted (the normal
-      // interactive collect flow), generate a random one as before.
-      const paymentNumber = input.receiptNumber
-        ?? `PAY-${year}-${String(Math.floor(Math.random() * 1_000_000) + 1).padStart(6, "0")}`;
-
-      // Try the atomic RPC first (migration 0026). Falls back to the simple
-      // upsert RPC if the function doesn't exist (older Supabase deployments
-      // that haven't run migration 0026 yet).
       const atomicParams = {
         p_tenant_id: tenantId,
         p_parent_id: input.parentId,
@@ -1087,55 +1079,21 @@ export class SupabasePaymentRepository implements PaymentRepository {
         "collect_and_allocate_payment",
         atomicParams,
       );
-      let paymentId: string;
-      if (atomicErr) {
-        // Fall back to the legacy upsert RPC (no atomic waterfall).
-        console.warn(
-          "[SupabasePayment] collect_and_allocate_payment failed, falling back to upsert_payment_from_import:",
-          atomicErr.message,
-        );
-        const { data: fallbackData, error: fallbackErr } = await this.client.rpc(
-          "upsert_payment_from_import",
-          {
-            p_tenant_id: tenantId,
-            p_payment_number: paymentNumber,
-            p_parent_id: input.parentId,
-            p_student_id: input.studentId ?? null,
-            p_amount: input.amount,
-            p_method: input.method,
-            p_category: input.category ?? "tuition",
-            p_status: null,
-            p_proof_path: input.proofUrl ?? null,
-            p_collected_at: input.collectedAt ?? new Date().toISOString(),
-            p_collected_by: collectedBy,
-            p_notes: input.notes ?? null,
-          },
-        );
-        if (fallbackErr) throw fallbackErr;
-        const fallbackRow = (fallbackData as {
-          out_payment_id: string;
-          out_payment_number: string;
-          out_was_inserted: boolean;
-        }[])[0];
-        if (!fallbackRow || !fallbackRow.out_payment_id) {
-          throw new Error("upsert_payment_from_import returned no rows");
-        }
-        paymentId = fallbackRow.out_payment_id;
-      } else {
-        // Atomic RPC succeeded — its return type matches the migration 0026 schema.
-        const atomicRow = (atomicData as {
-          payment_id: string;
-          receipt_number: string;
-          payment_status: string;
-          total_allocated: number | string;
-          unallocated_credit: number | string;
-          allocations: unknown;
-        }[])[0];
-        if (!atomicRow || !atomicRow.payment_id) {
-          throw new Error("collect_and_allocate_payment returned no rows");
-        }
-        paymentId = atomicRow.payment_id;
+      if (atomicErr) throw atomicErr;
+      // Atomic RPC succeeded — its return type matches the migration 0026 schema.
+      // The receipt number (`REC-YYYY-NNNNNN`) is generated server-side (ADR-004).
+      const atomicRow = (atomicData as {
+        payment_id: string;
+        receipt_number: string;
+        payment_status: string;
+        total_allocated: number | string;
+        unallocated_credit: number | string;
+        allocations: unknown;
+      }[])[0];
+      if (!atomicRow || !atomicRow.payment_id) {
+        throw new Error("collect_and_allocate_payment returned no rows");
       }
+      const paymentId = atomicRow.payment_id;
       const { data: fullRow, error: fetchErr } = await this.client
         .from("payments")
         .select("*")
