@@ -129,7 +129,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | PUSH-100 | Critical | OPEN | T-036 | NO production code anywhere invokes the `send-push-notification` Edge Function (extends WEAK-014/WEAK-015 to a 3rd compounding bug) |
 | PUSH-101 | Medium | OPEN | T-036 | Android `ElImtiyazMessagingService.onMessageReceived` reads `data["type"]` and `data["priority"]` from the wrong field; AndroidManifest has NO deep-link intent filter for `click_action` URLs |
 | PUSH-102 | Medium | TESTED | T-030 | `register_fcm_token` RPC had no inverse and silently overwrote `user_id` on shared devices — FIXED 2026-08-31 (T-030, 13th session): migration 0060 conflict-guard (ACTIVE-conflict → 42501; INACTIVE-conflict → explicit audited transfer) + `unregister_fcm_token(p_token)` RPC (live 9/9). The 0050 note claiming the overwrite was already blocked was INACCURATE (register's ON CONFLICT branch was untouched until 0060) |
-| PUSH-103 | Medium | OPEN | T-036 | Website's FCM token registration is OPT-IN only (Profile view manual toggle); no auto-registration on sign-in; most users never enable push |
+| PUSH-103 | Medium | TESTED | T-036 | Website's FCM token registration was OPT-IN only — FIXED 2026-08-31 (T-036, 13th session, the unblocked portion): auto-registration after the FIRST user gesture (pointerdown/keydown) — granted → immediate register; default → prompt from the gesture; denied → never; ONE attempt per browser profile (no nagging); the Profile toggle remains the explicit control. Website suite 144/144 (+9). LIVE push delivery still requires the owner's FCM web config + PUSH-100's EF invocation path |
 | PUSH-104 | High | OPEN | T-036 | Workflow `send_email` action is a STUB; only `approve-signup-request` EF actually sends email (conditional on RESEND_API_KEY secret); all workflow-driven transactional emails NEVER send |
 | ARCH-001 | Critical | OPEN | T-047 | Massive partial migration: 25+ repositories still mock-backed in "Supabase mode" |
 | ARCH-002 | Medium | IMPLEMENTED | T-010 | Electron main process registered with `--no-sandbox` in the start script |
@@ -2030,7 +2030,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### PUSH-103 — Website's FCM token registration is OPT-IN only (Profile view manual toggle); no auto-registration on sign-in; most users never enable push
 
-- **Category:** PUSH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** PUSH  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-036, 13th session — the unblocked portion of the task): `autoRegisterFcmAfterFirstGesture` (fcm-registration.ts) waits for the FIRST pointerdown/keydown after the profile is available — permission already granted → register immediately (no prompt; covers returning users whose row was deactivated on sign-out); default → `requestPermission()` FROM the gesture handler (browser-legal) and register only if granted; denied → never. ONE attempt per browser profile (localStorage `el-imtiyaz.fcm-autoreg` — a dismissed prompt must not nag; Chrome auto-blocks repeat prompts anyway). The auth-provider re-wires the listener on profile change. The Profile toggle remains the explicit re-enable path, unaffected. 9 new tests (t-036-fcm-auto-register.test.ts). Gap: live push delivery still needs the owner's FCM web config (env gap in credentials.md) AND a real invocation path for the send-push-notification EF (PUSH-100 — still open).
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-036 (docs/recovery/task-registry.md)

@@ -7,16 +7,16 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030/T-058/T-050 done; T-036 next)
+## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030/T-058/T-050/T-036(PUSH-103) done; Android set next)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 48 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) + **T-050 (OnlineDetector fail-closed + own-backend probe + pullAll dedup; desktop 13/13 new tests, Android 15/15 new tests)** (13th session) |
+| **Completed (TESTED)** | 48 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) + **T-050 (OnlineDetector fail-closed + own-backend probe + pullAll dedup; desktop 13/13 new tests, Android 15/15 new tests)** (13th session) + **T-036 PUSH-103 portion (website FCM auto-registration after first user gesture; 9/9 new tests, suite 144/144)** (13th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 6 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining:** T-036 (unblocked PUSH-103 portion), T-026, T-054, T-062, T-063, T-064 (Android tasks re-opened: dl.google.com is REACHABLE from this container again — toolchain re-bootstrapped at /home/z/my-project/tools; gradle memory-tuned). Done from this batch: T-041, T-030, T-058, T-050 |
+| **In Progress** | 5 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining (Android set):** T-026, T-054, T-062, T-063, T-064 (toolchain re-bootstrapped at /home/z/my-project/tools; gradle memory-tuned — use `./gradlew testDebugUnitTest --offline`). Done from this batch: T-041, T-030, T-058, T-050, T-036 (PUSH-103 portion) |
 | **Ready** | 16 | T-017, T-020, T-021, T-024, T-034, T-039, T-043, T-044, T-046, T-051, T-069 (T-041 moved out — completed 13th session; count adjusted in-place) |
-| **Partially blocked** | 1 | T-036 |
+| **Partially blocked** | 1 | T-036 — PUSH-103 portion DONE (13th session); PUSH-100 (EF invocation path) + PUSH-104 (email provider) remain, owner-scoped |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
@@ -629,7 +629,7 @@
 
 ### Phase 4 — Feature pipelines & cleanup (P2/P3)
 
-#### T-036 — Rebuild the push notification pipeline — **partially blocked**
+#### T-036 — Rebuild the push notification pipeline — **partially blocked** *(PUSH-103 portion COMPLETED 2026-08-31, 13th session — see the Completed section; PUSH-100/101/104 remain)*
 - **Problems:** PUSH-100 (absorbs WEAK-014, WEAK-015), PUSH-101, PUSH-103, PUSH-104 · **Priority:** P2 · **Severity:** Critical (feature dead)
 - **Description:** Fix the EF internals (correct `user_id` column; PEM parsing via a proper library or correct BEGIN/END handling); wire one real invocation path (workflow `push_notification` action, notifications trigger, or staff action); Android reads `notification` payload fields + adds deep-link intent filter; website auto-registers FCM after first user gesture; decide email provider integration for workflow `send_email` (currently a stub).
 - **Dependencies:** T-030 (token lifecycle) for the registration side; provider decision for send_email is a scoping question, not an unknown · **Affected:** D, A, W, DB · **Platforms:** All
