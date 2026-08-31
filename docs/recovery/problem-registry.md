@@ -30,7 +30,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | | | | PARTIAL | 2 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 166 registered problems (145 consolidated from 185 audit findings + 21 discovered during repair sessions) · 100 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 2 VERIFIED (WEAK-021; ARCH-006 — live integration T-094) · 40 TESTED (sessions 1–9 + the 10th session 2026-08-31: TENANT-100/101/102 via reconciled 0053, SEC-108 via 0054, SEC-110/111/112 via migration 0055 live-verified 9/9, SEC-107 via the redeployed EF, DRIFT-013 via T-093 + migration 0056, REALTIME-100/101/102/103 + WEAK-016 via T-032, WEAK-022 + WEAK-018 via T-035, WEAK-003/004 + DEAD-002 + DRIFT-005 + WEAK-020 + DEAD-014 via T-056) · NEW this session: ARCH-011 (live/local migration drift — reconciled), WEAK-030 (client-side-only expense approval rules — open). Evidence: change-log session 10.
+**Totals:** 167 registered problems (145 consolidated from 185 audit findings + 22 discovered during repair sessions) · 85 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 3 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068) · 56 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–11.
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -54,26 +54,26 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-106 | High | TESTED | T-084 | register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception) — caller verification added by migration 0050 (applied live 2026-08-30); cross-user denial with real JWTs still to be proven (single auth user exists) |
 | SEC-107 | High | OPEN | T-008 | approve-signup-request EF allows support_staff → super_admin role escalation |
 | SEC-108 | High | OPEN | T-007 | handle_new_auth_user trigger trusts raw_app_meta_data.tenant_id and raw_user_meta_data.requested_role (multi-tenant injection + role escalation at signup) |
-| SEC-109 | High | OPEN | T-068 | extractAuthContext calls current_user_permissions() via service_role — permissions array is always empty in EFs (RBAC broken for non-super_admin) |
+| SEC-109 | High | VERIFIED | T-068 | extractAuthContext calls current_user_permissions() via service_role — permissions array is always empty in EFs (RBAC broken for non-super_admin) |
 | SEC-110 | High | OPEN | T-006 | bind_activation_code RPC is SECURITY DEFINER + accepts p_auth_user_id parameter without verifying caller (direct RPC account takeover) |
 | SEC-111 | High | OPEN | T-006 | `upsert_payment_from_import` is SECURITY DEFINER (RLS-bypassed); canonical payment RPCs are not |
 | SEC-112 | High | OPEN | T-006 | `revert_payment_allocation` SQL RPC has no tenant_id verification; cross-tenant refund possible |
 | TENANT-100 | Critical | OPEN | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
 | TENANT-101 | Medium | OPEN | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
 | TENANT-103 | Medium | OPEN | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
-| TENANT-106 | Critical | OPEN | T-025 | `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage) |
+| TENANT-106 | Critical | TESTED | T-025 | `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage) |
 | BUSINESS-001 | Critical | OPEN | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
-| BUSINESS-002 | Critical | OPEN | T-011 | `SupabasePaymentRepository.collect()` silently falls back to non-atomic upsert on RPC failure |
-| BUSINESS-003 | High | OPEN | T-014 | `SupabasePaymentRepository.refund()` hardcodes `"Manual refund"` as the reason, drops user's reason + actor identity |
+| BUSINESS-002 | Critical | TESTED | T-011 | `SupabasePaymentRepository.collect()` silently falls back to non-atomic upsert on RPC failure |
+| BUSINESS-003 | High | TESTED | T-014 | `SupabasePaymentRepository.refund()` hardcodes `"Manual refund"` as the reason, drops user's reason + actor identity |
 | BUSINESS-004 | High | OPEN | T-041 | `SupabaseStudentRepository.promote()` returns "not implemented" error in production |
-| BUSINESS-005 | Medium | OPEN | T-060 | `UnifiedPaymentModal` defaults `category` to "tuition" for the waterfall preview when input is null |
+| BUSINESS-005 | Medium | TESTED | T-060 | `UnifiedPaymentModal` defaults `category` to "tuition" for the waterfall preview when input is null |
 | BUSINESS-007 | Medium | OPEN | T-026 | `LedgerEngine.maxDaysOverdueFromLedger` uses charge's `at` (creation date) instead of due date — inconsistent with canonical overdue rule |
-| BUSINESS-100 | Critical | OPEN | T-012 | `bulkCollect` silently drops failed chunks; Excel importer thinks everything succeeded |
-| BUSINESS-101 | High | OPEN | T-013 | `markClearedFallback` produces NO audit log entries and discards actor identity |
+| BUSINESS-100 | Critical | TESTED | T-012 | `bulkCollect` silently drops failed chunks; Excel importer thinks everything succeeded |
+| BUSINESS-101 | High | TESTED | T-013 | `markClearedFallback` produces NO audit log entries and discards actor identity |
 | BUSINESS-102 | High | OPEN | T-017 | Android refund has no idempotency check; re-refunding an already-refunded payment creates duplicate reversal entries and double-reverts installments |
-| BUSINESS-104 | Medium | OPEN | T-013 | `markClearedFallback` uses sequential `await` per installment; swallows per-installment errors causing cascading over-allocation |
-| CROSS-001 | Critical | OPEN | T-048 | Migration numbering conflict between desktop and website Supabase folders |
-| CROSS-003 | High | OPEN | T-048 | Android repo's supabase/migrations folder is a partial copy missing the base schema |
+| BUSINESS-104 | Medium | TESTED | T-013 | `markClearedFallback` uses sequential `await` per installment; swallows per-installment errors causing cascading over-allocation |
+| CROSS-001 | Critical | TESTED | T-048 | Migration numbering conflict between desktop and website Supabase folders |
+| CROSS-003 | High | TESTED | T-048 | Android repo's supabase/migrations folder is a partial copy missing the base schema |
 | CROSS-004 | Low | OPEN | T-028 | `bind-activation-code` Edge Function had to be patched to accept both `code` and `activation_code` body keys |
 | CROSS-005 | Critical | BLOCKED | T-059 | Android `LocalPaymentRepository.collect()` bypasses the canonical `collect_payment` RPC |
 | CROSS-009 | High | BLOCKED | T-028 | Website's `bind-activation-code` Edge Function is a drifted duplicate of the desktop's canonical version (no shared helpers, no audit log, different body key handling) |
@@ -92,7 +92,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SYNC-105 | Medium | TESTED | T-084 | Website signOut uses scope:"global" (revokes ALL sessions across ALL devices) AND does not unregister FCM tokens — fixed 2026-08-30: unregisterDeviceToken() (canonical RPC) + scope:'local'; build green, 105/105 tests; live browser round-trip pending |
 | SYNC-106 | Medium | OPEN | T-021 | Android SyncWorker always returns Result.success() regardless of drainPending/pullAll failures; WorkManager retry escalation bypassed |
 | SYNC-107 | Medium | OPEN | T-021 | Android SyncService.syncNow is fire-and-forget; UI thinks sync completed immediately |
-| CACHE-100 | Medium | OPEN | T-033 | Website TanStack Query config (staleTime 30s + refetchOnWindowFocus false + retry 1) leaves data stale indefinitely when realtime is broken |
+| CACHE-100 | Medium | TESTED | T-033 | Website TanStack Query config (staleTime 30s + refetchOnWindowFocus false + retry 1) leaves data stale indefinitely when realtime is broken |
 | CACHE-101 | Medium | OPEN | T-050 | Desktop OnlineDetector probes Google (`https://www.google.com/generate_204`) with `mode: "no-cors"` every 30s — privacy leak + captive portal detection broken |
 | CACHE-102 | Medium | OPEN | T-022 | Desktop IndexedDB sync queue store silently falls back to in-memory when IndexedDB is unavailable; "sync queued" UI lies to user |
 | REALTIME-100 | Medium | OPEN | T-032 | Website messages-view invalidates wrong queryKey prefix; unread badge stays stale forever |
@@ -106,11 +106,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ACAD-101 | Medium | OPEN | T-041 | Academic-year `setCurrentYear` is a non-atomic two-step UPDATE; failure leaves the tenant with no current year |
 | ACAD-102 | Medium | DEFERRED | T-073 | `class_subjects.teacher_id` is single-UUID; co-teaching (multiple teachers per subject per class) is structurally unsupported |
 | ACAD-103 | Medium | DEFERRED | T-074 | Mid-term section moves have no audit trail; `students.class_id` is updated in place, no `class_transfers` or `enrollment_history` table |
-| ATT-100 | Critical | OPEN | T-023 | Desktop roll call upsert is triple-broken (missing tenant_id, missing date, wrong onConflict) |
+| ATT-100 | Critical | TESTED | T-023 | Desktop roll call upsert is triple-broken (missing tenant_id, missing date, wrong onConflict) |
 | ATT-101 | High | OPEN | T-040 | Absence-justification 4-state workflow is structurally broken: no desktop code to review justifications (extends DRIFT-010) |
 | ATT-103 | Low | OPEN | T-063 | Android `alertAbsences` has no threshold; alerts for every student in the input (divergence from desktop's 3-absence threshold) |
 | GRADE-100 | Low | DEFERRED | T-075 | `homework.acknowledged_count` column is permanently 0; no code increments it |
-| HOMEWORK-100 | Critical | OPEN | T-023 | Desktop homework push omits `tenant_id`; INSERT always fails NOT NULL (extends WEAK-017) |
+| HOMEWORK-100 | Critical | TESTED | T-023 | Desktop homework push omits `tenant_id`; INSERT always fails NOT NULL (extends WEAK-017) |
 | HOMEWORK-101 | Critical | OPEN | T-024 | Android homework sync push uses invalid UUID `"hwk-{uuid}"` as `homework.id` |
 | HOMEWORK-103 | High | OPEN | T-039 | Android `pullAll` doesn't pull homework/attendance/assessments; cross-platform visibility is one-way only |
 | SCHED-100 | Medium | BLOCKED | T-042 | Timetable (Emploi du Temps) feature is structurally unimplemented: domain model + UI KPI exist but no DB table, no Supabase repository, no migration |
@@ -142,6 +142,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | BUG-NEW-001 | High | TESTED | T-083 | NEW (2026-08-30): the `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table; the daily cron EF has been silently failing every day since the RPC was deployed — rewritten by migration 0049 (applied live 2026-08-30, verified: correct table + clean call); EF round-trip with CRON_SECRET pending |
 | BUG-NEW-002 | Critical | TESTED | T-084 | NEW (2026-08-30): `mv_dashboard_kpis` join fan-out multiplied every payment by the student count — monthly_revenue showed 21.38 BILLION DZD (true: 54.96M); rebuilt with scalar subqueries by migration 0049 (applied live, values verified) |
 | BUG-NEW-003 | High | TESTED | T-084 | NEW (2026-08-30): zero indexes on all four MVs — every scheduled `REFRESH MATERIALIZED VIEW CONCURRENTLY` failed; unique indexes added by migration 0049 (applied live, concurrent refresh verified) |
+| BUG-NEW-004 | High | OPEN | T-095 | run-overdue-scan EF hits WORKER_RESOURCE_LIMIT after the auth gate — N+1 per-parent compute_parent_summary + per-installment dedup queries (258+ round trips) exceed the edge worker budget; the daily overdue scan cannot complete |
 | DATA-001 | Critical | OPEN | T-085 | NEW (2026-08-30): `payment_allocations` EMPTY — the canonical waterfall (ADR-002) has never executed in production; all 888 payments written via legacy import RPCs with NULL installment_id |
 | DATA-002 | Critical | OPEN | T-085 | NEW (2026-08-30): three-way payment total disagreement for parent e3e90f1f (installments Δ+1,750 / ledger Δ+10,000 vs payments) — one parent's balance is wrong everywhere |
 | DATA-003 | High | OPEN | T-085 | NEW (2026-08-30): ledger charges ≠ installment dues for 197/258 parents (Δ7.62M DZD charges with no installment row) |
@@ -166,7 +167,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | REG-002 | High | OPEN | T-046 | 8 Room migrations are fix-up migrations for previous regressions — same iterative bug-fix pattern as desktop's REG-001 |
 | WEAK-003 | Medium | OPEN | T-056 | `mapLedgerRow` falls back from `entry_type` to `actor_id` for the entry type |
 | WEAK-004 | Low | OPEN | T-056 | `ledger-seed.ts` computes `dueDate` then discards it (`void dueDate;`) |
-| WEAK-005 | Medium | OPEN | T-060 | Mock `student-repository.batchRegister` uses the deterministic discount engine but ignores `previousGradeLevel` and `previousRank` |
+| WEAK-005 | Medium | TESTED | T-060 | Mock `student-repository.batchRegister` uses the deterministic discount engine but ignores `previousGradeLevel` and `previousRank` |
 | WEAK-006 | Critical | OPEN | T-054 | `LocalInstallmentRepository.regenerateForCycle()` is hollow — only writes audit log, doesn't actually regenerate installments |
 | WEAK-007 | Critical | OPEN | T-026 | Dashboard "Créances en Retard" KPI + Debt Dashboard overdue amount are PERMANENTLY 0 (missing `overdueCategoryDueDates` map) |
 | WEAK-008 | Medium | OPEN | T-054 | `LocalWorkflowRepository.toDomain()` hardcodes `trigger = WorkflowTrigger.fromCode("manual")` for every run |
@@ -192,9 +193,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DEAD-012 | High | PARTIAL | T-049 | `vitest.config.ts` references `./src/test/setup.ts` which DOES NOT EXIST; DONE.md and worklog.md both claim it was created |
 | DEAD-013 | Low | OPEN | T-049 | `package.json` `icons:generate` script hardcodes path `/home/z/my-project/scripts/generate-pwa-icons.py` (OUTSIDE the repo) — broken on any other machine/CI |
 | DEAD-014 | Low | OPEN | T-056 | `database-schema.ts` barrel is imported by only ONE file (`supabase/client.ts`); all other 14 files import directly from `@/lib/types/database` |
-| DEAD-015 | Critical | OPEN | T-014 | Desktop refund flow is completely dead UI; no refund button exists anywhere |
+| DEAD-015 | Critical | TESTED | T-014 | Desktop refund flow is completely dead UI; no refund button exists anywhere |
 | DEAD-016 | Critical | BLOCKED | T-067 | `collect-payment` and `refund-payment` Edge Functions are never invoked by any client |
-| DEAD-100 | Medium | OPEN | T-025 | Migration 0029 RLS policies use fn_current_tenant_id() (never-set session setting) — dead code that does nothing |
+| DEAD-100 | Medium | TESTED | T-025 | Migration 0029 RLS policies use fn_current_tenant_id() (never-set session setting) — dead code that does nothing |
 | DEAD-200 | Medium | BLOCKED | T-070 | `parent_student_links` table is unused; multi-guardian family feature is structurally unimplemented |
 | DEAD-201 | Medium | TESTED | T-078 | Desktop `npm run lint` is UNRUNNABLE — repo has no ESLint config file at all (ESLint 9 requires `eslint.config.js`); documented verification gate in AGENTS.md §11 cannot execute — fixed 2026-08-29, 307-warning baseline documented |
 
@@ -522,10 +523,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-109 — extractAuthContext calls current_user_permissions() via service_role — permissions array is always empty in EFs (RBAC broken for non-super_admin)
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** VERIFIED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-068 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-068, 11th session): extractAuthContext now resolves permissions via createUserScopedClient(jwt) — anon key + caller Authorization header so PostgREST derives auth.uid(); resolver errors fail CLOSED. Live-verified: curl matrix (no-auth/invalid/anon → 401), positive probe (support_staff + execute_workflow override → requirePermission PASSED), negative control (without override → 403). workflow-execute + run-overdue-scan redeployed.
 - **Consolidated from:** second-pass SEC-109
 - **Description:** The shared `extractAuthContext` helper used by all EFs calls `current_user_permissions()` RPC via the `profileClient` (service_role client). Since `current_user_permissions()` uses `auth.uid()` to look up the caller's profile, and service_role has no `auth.uid()`, the RPC returns an empty array. The `requirePermission(ctx, ...)` helper then returns `false` for ALL non-super_admin users — even those with the actual permission in the database.
 - **Location:** `elimtiyaz-desktop/supabase/functions/_shared/supabase.ts`, lines 41-89
@@ -662,10 +664,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### TENANT-106 — `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage)
 
-- **Category:** TENANT  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** TENANT  |  **Severity:** Critical  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-025 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-025, 11th session, migration 0057): dead policy replaced with student_academic_histories_staff (tenant_id = current_tenant_id() AND staff roles). Live verify_t-025.sql 6/6 — staff SELECT/INSERT own-tenant ok; cross-tenant INSERT rejected. Promotion flow (T-041) unblocked.
 - **Consolidated from:** second-pass TENANT-106
 - **Description:** Migration 0029 (line 117-133) creates `public.student_academic_histories` with `tenant_id UUID NOT NULL` and NO trigger to auto-populate tenant_id. Migration 0029 (line 204-206) creates the ONLY RLS policy on this table: `rls_student_academic_histories_tenant FOR ALL USING (tenant_id = public.fn_current_tenant_id())`. Since `fn_current_tenant_id()` always returns NULL (DEAD-100), the policy's USING clause evaluates to NULL → DENY for every operation (SELECT, INSERT, UPDATE, DELETE). Authenticated users (the desktop's signed-in admin) CANNOT read or write this table at all. The desktop's batch promotion (`SupabasePromotionRepository.executeBatchPromotion`) tries to upsert into this table, gets the RLS denial, and aborts the entire promotion flow.
 - **Location:** Schema: `elimtiyaz-desktop/supabase/migrations/0029_academics_module.sql:117-133` (table), `:163` (RLS enable), `:204-206` (broken policy). Consumer: `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1172-1178` (`SupabasePromotionRepository.executeBatchPromotion` upserts into this table — and aborts the entire promotion on error).
@@ -702,10 +705,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-002 — `SupabasePaymentRepository.collect()` silently falls back to non-atomic upsert on RPC failure
 
-- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-011 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-011, 11th session): silent fallback REMOVED — collect() calls the atomic RPC only; error → Err, zero rows written; client-side PAY- number generator deleted (receipt from the RPC, ADR-004). t-011-payment-atomicity.test.ts 2/2. Live E2E on a desktop host remains the residual gap.
 - **Consolidated from:** first-pass BUSINESS-002, second-pass BUSINESS-103, second-pass CROSS-105
 - **Description:** When the canonical `collect_and_allocate_payment` RPC fails for any reason (network glitch, RLS policy, schema drift, migration not yet applied), the desktop's `SupabasePaymentRepository.collect()` silently falls back to calling `upsert_payment_from_import` — a simple INSERT helper that does NOT run the waterfall, does NOT create the `parent_credit` adjustment for overpayments, and does NOT pass the structured check/transfer fields (p_check_number, p_check_bank_name, etc.). The fallback also uses the random `paymentNumber` (`PAY-YYYY-{random}`) instead of the canonical `REC-YYYY-{6-digit-seq}` format that the atomic RPC generates. The user sees "Payment collected" success toast while the financial state is silently broken (installments never move toward paid, overpayment never becomes parent_credit).
 - **Location:** `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1086-1118` ;; [BUSINESS-103] - `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1086-1118` (fallback branch) - `elimtiyaz-desktop/supabase/migrations/0040_cross_platform_rpc_unification.sql:46-197` (canonical RPC — 5 writes) - `elimtiyaz-desktop/supabase/migrations/0027_shared_unification.sql:601-691` (fallback RPC — 1 write) ;; [CROSS-105] - `elimtiyaz-desktop/src/features/financials/unified-payment-modal.tsx:414-424` (success toast — shows "Paiement encaissé" even when ledger was skipped) - `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1086-1118` (fallback) - `elimtiyaz-desktop/src/domain/calc/ledger/balance.ts` (computes balance from ledger_entries)
@@ -722,10 +726,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-003 — `SupabasePaymentRepository.refund()` hardcodes `"Manual refund"` as the reason, drops user's reason + actor identity
 
-- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-014 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-014, 11th session): refund(id, reason, actorId, actorName?) — reason mandatory ≥3 chars, REAL actor + reason propagate to revert_payment_allocation; mock mirrors with double-refund guard. t-014-refund-flow.test.tsx 10/10.
 - **Consolidated from:** first-pass BUSINESS-003
 - **Description:** The desktop's `SupabasePaymentRepository.refund(id)` calls the canonical `revert_payment_allocation` RPC with `p_reason: "Manual refund"` — a hardcoded string. The user's actual refund reason from the UI (which the canonical spec §7.2 + the edge function both require to be ≥3 chars and meaningful) is never propagated. Worse: the actor identity is `getActorId()` / `getActorName()` which read from `localStorage` and fall back to `"excel-import"` / `"Excel Import"` when no session is loaded. So a manual refund performed by a financial officer named "Brahim Souilah" is recorded in the audit log as performed by "Excel Import" with reason "Manual refund" — completely useless for audit trail.
 - **Location:** `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1148-1157`
@@ -760,10 +765,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-005 — `UnifiedPaymentModal` defaults `category` to "tuition" for the waterfall preview when input is null
 
-- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-060 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-060, 11th session): all 3 preview sites use the exact category match mirroring the SQL semantics — preview ≡ actual collection for every category. t-060-payment-ux.test.ts 7/7.
 - **Consolidated from:** first-pass BUSINESS-005
 - **Description:** The `UnifiedPaymentModal`'s allocation preview at `unified-payment-modal.tsx:269-282` filters installments by `category === "tuition" || category === "transport" ? i.category === category : true`. When the user picks a category other than tuition/transport (e.g., canteen, uniform, books, therapy_psychology), the filter is `true` (no filter) — meaning the preview shows the waterfall across ALL outstanding installments, not just the chosen category. But when the modal calls `repos.payments.collect()` (line 387-403), it passes `category` directly (which could be `"canteen"`). The Supabase `collect()` then passes `p_category: input.category ?? "tuition"` (BUSINESS-002 / DRIFT-004) — so if `category` is "canteen", the waterfall is filtered by canteen; if `category` is null, it defaults to "tuition". So the preview shows ALL categories, but the actual collection uses tuition-only or the specified category. The preview lies to the user.
 - **Location:** `elimtiyaz-desktop/src/features/financials/unified-payment-modal.tsx:269-296`
@@ -798,10 +804,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-100 — `bulkCollect` silently drops failed chunks; Excel importer thinks everything succeeded
 
-- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-012 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-012, 11th session): bulkCollect returns Err on the first chunk error naming the row range; adapter routes Err into failures and cancels the import transaction. t-012-bulkcollect-failfast.test.ts 4/4.
 - **Consolidated from:** second-pass BUSINESS-100
 - **Description:** `SupabasePaymentRepository.bulkCollect()` inserts payments in chunks of 500. If a chunk fails (FK violation, NOT NULL, trigger rejection), it `console.warn`s the error and `continue`s to the next chunk. After all chunks, it returns `Ok(inserted)` containing only the successfully-inserted rows. The Excel importer's `commitTransaction` calls `bulkCollect` inside a try/catch — but `bulkCollect` never throws (it returns Ok), so the catch never fires. The adapter then proceeds to flush ledger entries + installments. The final "no partial data was applied silently" guard (line 266) is BYPASSED because `bulkCollect` returned Ok.
 - **Location:** - `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1346-1361` (bulkCollect chunk loop) - `elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/repository-adapter.ts:230-244` (commitTransaction payments flush — only catches thrown errors)
@@ -817,10 +824,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-101 — `markClearedFallback` produces NO audit log entries and discards actor identity
 
-- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-013 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-013, 11th session): markClearedFallback DELETED — canonical mark_payment_cleared RPC is the only path (audit + atomic). t-013-markcleared-atomic.test.ts 2/2.
 - **Consolidated from:** second-pass BUSINESS-101
 - **Description:** When the canonical `mark_payment_cleared` SQL RPC is unavailable (older Supabase deployment that hasn't run migration 0039/0040), `SupabasePaymentRepository.markCleared()` falls back to `markClearedFallback()` (lines 1217-1274). The fallback updates `payments.status` directly, then loops installments updating `amount_paid`/`amount_pending`/`status`/`paid_date`. It writes NO audit log entries — neither a `payment.mark_cleared` audit entry nor per-installment `installment.clear_funds` audit entries. The canonical RPC writes BOTH (migration 0040 lines 267-298). The fallback also explicitly discards the actor identity via `void actorId; void actorName;` (line 1272-1273) — even if it wanted to write audit entries, it couldn't attribute them.
 - **Location:** `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1217-1274`
@@ -855,10 +863,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-104 — `markClearedFallback` uses sequential `await` per installment; swallows per-installment errors causing cascading over-allocation
 
-- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-013 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-013, 11th session): resolved by the same removal — no client-side installment cascade exists anymore; the RPC aborts atomically on the first error.
 - **Consolidated from:** second-pass BUSINESS-104
 - **Description:** `SupabasePaymentRepository.markClearedFallback()` (lines 1217-1274) loops installments in a `for...of` with sequential `await` calls: `await this.client.from("installments").update({...}).eq("id", raw.id)`. If installment A's update fails (RLS denial, network blip, CHECK constraint), the error is caught at line 1269 with `if (uErr) console.warn(...)` and the loop CONTINUES to installment B. Critically, the `remaining` variable is decremented at line 1270 (`remaining -= moved`) based on the ASSUMPTION that A's update succeeded. When the loop reaches B, `remaining` still includes A's amount → B gets over-allocated (the engine allocates `min(remaining, B.amount_pending)` which is now too large). The canonical `mark_payment_cleared` SQL RPC (migration 0040:202-303) uses `FOR v_ins IN ... FOR UPDATE` (PostgreSQL row locks) within a single transaction — if any installment update fails, the entire transaction rolls back; no cascading over-allocation is possible.
 - **Location:** - `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1244-1271` (sequential loop with swallowed errors) - `elimtiyaz-desktop/supabase/migrations/0040_cross_platform_rpc_unification.sql:238-284` (canonical RPC with FOR UPDATE + transaction)
@@ -876,10 +885,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-001 — Migration numbering conflict between desktop and website Supabase folders
 
-- **Category:** CROSS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** CROSS  |  **Severity:** Critical  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Android, Backend/DB, Desktop, Website
 - **Task:** T-048 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-048, 11th session): the website 4 portal-patch migrations REMOVED (commit 4faf007); hub AGENTS.md records the desktop chain 0001–0057 as the only chain (ADR-001). Session-12 live diff: versions match one-to-one, zero drift.
 - **Consolidated from:** first-pass CROSS-001, first-pass CROSS-010
 - **Description:** The desktop repo's `supabase/migrations/` uses a sequence starting at 0001 and going to 0043. The website repo's `supabase/migrations/` uses the SAME numbering scheme but for DIFFERENT content: desktop 0025 = `waterfall_allocation`, website 0025 = `device_tokens`; desktop 0027 = `shared_unification`, website 0027 = `portal_parent_rls_policies`; desktop 0028 = `shared_schema_extensions`, website 0028 = `notification_preferences`. Supabase migration filenames are globally unique per project — if both sets are applied to the same Supabase project, the second `supabase migration apply` would either skip them (treating them as already-applied) or fail.
 - **Location:** Desktop: `elimtiyaz-desktop/supabase/migrations/0025..0028_*.sql`. Website: `elimtiyaz-website/supabase/migrations/0025..0028_*.sql` ;; [CROSS-010] `elimtiyaz-website/supabase/migrations/0025_device_tokens.sql:1-33` (rewrite note) + `0026-0028` (the other three patches)
@@ -896,10 +906,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-003 — Android repo's supabase/migrations folder is a partial copy missing the base schema
 
-- **Category:** CROSS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** CROSS  |  **Severity:** High  |  **Status:** TESTED
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop, Website
 - **Task:** T-048 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-048, 11th session): the Android repo 6 stale migration copies REMOVED (commit 1bd0d9d); pointer notes in the client AGENTS.md files.
 - **Consolidated from:** first-pass CROSS-003, first-pass CROSS-007, second-pass ACAD-104
 - **Description:** The Android repo (`/home/z/my-project/repos/elimtiyaz-android/supabase/migrations/`) contains only 6 migration files: `0034_canonical_engine_unification.sql`, `0035_tier3_drop_signature_fixes.sql`, `0036_tier4_backend_hardening.sql`, `0040_cross_platform_rpc_unification.sql`, `0041_canonical_academic_flow.sql`, `0042_canonical_overdue_asof_equivalence.sql`. These are the "canonical fix-up" migrations (0034-0042) that DROP and RECREATE SQL functions. They depend on the base schema (0001-0028) and the original RPC definitions (0022 `collect_payment`, 0025 `allocate_payment_waterfall`, etc.) to drop. If the Android repo's migrations are applied to a fresh database, the DROP statements would no-op (functions don't exist) and the CREATE statements would create the canonical functions in an empty schema (no `payments`, `ledger_entries`, etc. tables) → runtime errors.
 - **Location:** `elimtiyaz-android/supabase/migrations/` (6 files) vs `elimtiyaz-desktop/supabase/migrations/` (43 files) ;; [CROSS-007] `elimtiyaz-android/supabase/migrations/0034_canonical_engine_unification.sql` (5 functions affected) + `0036_tier4_backend_hardening.sql` (2 functions) + `0040_cross_platform_rpc_unification.sql` (3 functions) + `0041_canonical_academic_flow.sql` (2 functions) ;; [ACAD-104] - `elimtiyaz-android/supabase/migrations/` (6 migration files) - `elimtiyaz-desktop/supabase/migrations/` (44 migration files including the base 0001-0033)
@@ -1272,10 +1283,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CACHE-100 — Website TanStack Query config (staleTime 30s + refetchOnWindowFocus false + retry 1) leaves data stale indefinitely when realtime is broken
 
-- **Category:** CACHE  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** CACHE  |  **Severity:** Medium  |  **Status:** TESTED
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-033 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-033, 11th session): refetchOnWindowFocus:true + 5-min refetchInterval via the single queryClientDefaultOptions export — realtime failure now degrades to stale-bounded data. t-033-freshness-fallback.test.tsx 3/3; site suite 122/122.
 - **Consolidated from:** second-pass CACHE-100
 - **Description:** The website's TanStack Query config (app/providers/index.tsx:22-30) sets `staleTime: 30_000` (30s), `refetchOnWindowFocus: false`, `retry: 1` as global defaults. This config is fine WHEN realtime subscriptions work — TanStack Query marks data as stale after 30s, and the realtime invalidation triggers an immediate refetch. But when realtime is broken (which it is — per WEAK-016 `useHomeworkRealtime` subscribes to the wrong table; per REALTIME-100 the chat unread invalidation key is wrong; per REALTIME-101 the chat read receipts never persist; per REALTIME-102 role-broadcast notifications are missed; per REALTIME-103 unread badge for other channels is missed), the website has NO fallback path to freshness. After the initial fetch, data is cached. After 30s, it's marked "stale" but not refetched (no trigger). The user sees stale data indefinitely within a single session — until they navigate away and back (remount triggers refetch via refetchOnMount which defaults to true).
 - **Location:** - `elimtiyaz-website/src/app/providers/index.tsx:22-30` (global QueryClient config) - `elimtiyaz-website/src/lib/hooks/use-realtime.ts` (4 hooks, of which 2 are broken: WEAK-016 + REALTIME-100/101/102/103)
@@ -1549,10 +1561,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ATT-100 — Desktop roll call upsert is triple-broken (missing tenant_id, missing date, wrong onConflict)
 
-- **Category:** ATT  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** ATT  |  **Severity:** Critical  |  **Status:** TESTED
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-023 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-023, 11th session): roll-call payload carries tenant_id + date + record_date and onConflict targets uq_attendance_canonical. Live verify_t-023.sql 7/7 (old payload reproduces the NOT NULL violations; duplicate hits unique_violation).
 - **Consolidated from:** second-pass ATT-100
 - **Description:** `SupabaseAttendanceRepository.recordRollCall()` issues an upsert to `attendance_records` with three compounding bugs: (a) the payload omits `tenant_id` (NOT NULL per migration 0004 line 163); (b) the payload writes to `record_date` (0029-added nullable column) but omits the legacy `date` column (NOT NULL per migration 0004 line 167, never made nullable); (c) `onConflict: "student_id,record_date,session"` (3 columns) doesn't match either unique index — the legacy `attendance_records_unique_session_uidx` is on 5 cols `(tenant_id, student_id, class_id, date, coalesce(class_subject_id, ...))` and the canonical `uq_attendance_canonical` is on 4 cols `(tenant_id, student_id, record_date, session)`. PostgREST rejects the upsert with multiple compounding errors; the first to surface is the NOT NULL violation on `tenant_id` (since column evaluation order matches the table definition order).
 - **Location:** - `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-academic-repository.ts:840-884` (recordRollCall method) - `elimtiyaz-desktop/supabase/migrations/0004_academic_structure.sql:161-180` (attendance_records schema + unique index) - `elimtiyaz-desktop/supabase/migrations/0029_academics_module.sql:84-90` (record_date column added — nullable, NOT NULL on `date` untouched) - `elimtiyaz-android/supabase/migrations/0041_canonical_academic_flow.sql:163-164` (canonical unique index `uq_attendance_canonical` on 4 cols including `tenant_id`)
@@ -1626,10 +1639,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### HOMEWORK-100 — Desktop homework push omits `tenant_id`; INSERT always fails NOT NULL (extends WEAK-017)
 
-- **Category:** HOMEWORK  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** HOMEWORK  |  **Severity:** Critical  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-023 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-023, 11th session): homework push carries tenant_id; dead push-homework-notification EF invocation removed (decision deferred to T-036). t-023-academic-persistence.test.ts 4/4 + live verify 7/7.
 - **Consolidated from:** second-pass HOMEWORK-100
 - **Description:** `SupabaseHomeworkRepository.push()` constructs the homework INSERT payload without a `tenant_id` field, but the canonical `homework` table (migration 0029 line 95-111) requires `tenant_id UUID NOT NULL` (no DEFAULT, no `set_homework_tenant()` trigger to backfill). The PostgREST INSERT is sent to the server and Postgres returns 400 with `null value in column "tenant_id" of relation "homework" violates not-null constraint`. The desktop also invokes a non-existent Edge Function `push-homework-notification` (line 1064-1068) with `.catch(() => undefined)` — silently swallowed, so even when the homework INSERT is fixed, the parent-notification side-effect never fires.
 - **Location:** - `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1039-1071` (INSERT payload omits `tenant_id` + invokes non-existent EF) - `elimtiyaz-desktop/supabase/migrations/0029_academics_module.sql:95-111` (table requires `tenant_id UUID NOT NULL`) - `elimtiyaz-desktop/supabase/functions/` — directory listing has no `push-homework-notification` subdirectory (only `_shared`, `ai-proxy`, `approve-signup-request`, `bind-activation-code`, `collect-payment`, `expire-pending-approvals`, `purge-expired-backups`, `refresh-materialized-views`, `refund-payment`, `run-overdue-scan`, `update-server-secret`, `workflow-execute`)
@@ -2475,10 +2489,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-005 — Mock `student-repository.batchRegister` uses the deterministic discount engine but ignores `previousGradeLevel` and `previousRank`
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-060 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-060, 11th session): batch-registration captures previousGradeLevel + previousRank; computeBilling + mock buildRegistrationBilling pass both — passage_palier/highest_average fire when qualified. t-060-payment-ux.test.ts 7/7.
 - **Consolidated from:** first-pass WEAK-005
 - **Description:** The mock `student-repository.batchRegister` billing builder (`buildRegistrationBilling`, line 353+) and the UI's `computeBilling` both call `evaluateAllSystemDiscounts` with `previousGradeLevel: null` and `previousRank: null`. The canonical discount engine has 5 rules; 2 of them (`passage_palier` and `highest_average`) depend on `previousGradeLevel` and `previousRank` respectively. By passing null, those 2 rules always return 0 — silently disabled. The billing summary the user sees during batch registration never shows the `passage_palier` (−10,000 DZD) or `highest_average` (−10%) discount, even if the student qualifies. The comment says "Not tracked in the batch form yet" — meaning the UI doesn't capture these fields, so the engine can't apply them.
 - **Location:** `elimtiyaz-desktop/src/features/crm/batch-registration/compute-billing.ts:64-75` and `elimtiyaz-desktop/src/infrastructure/mock/repositories/student-repository.ts:373-384`
@@ -2984,10 +2999,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-015 — Desktop refund flow is completely dead UI; no refund button exists anywhere
 
-- **Category:** DEAD  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Critical  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-014 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-014, 11th session): "Rembourser ce paiement" action in PaymentDetailDrawer, Permission.RefundPayment-gated, destructive ConfirmModal with ≥3-char reason, wired to the session identity.
 - **Consolidated from:** second-pass DEAD-015
 - **Description:** The desktop's `SupabasePaymentRepository.refund()` method (and the mock's `refundPayment()`) are NEVER called from any production UI component. The `payment-detail-drawer.tsx` only renders `handleMarkCleared` (pending→paid) and `handleMarkBounced` (pending→unpaid) buttons — there is NO refund button. The `Permission.RefundPayment` RBAC permission is defined and shown in the RBAC matrix editor, but no component checks it or wires a refund action to it. The `refund-payment` Edge Function's docstring claims "The Desktop app's Payment History tab or the Finance Officer's reversal modal calls this function" — but no such call site exists.
 - **Location:** - `elimtiyaz-desktop/src/features/financials/payment-detail-drawer.tsx` (only markCleared + markBounced handlers, lines 69-119) - `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts` (refund method line 1148, never called from UI) - `elimtiyaz-desktop/supabase/functions/refund-payment/index.ts` (docstring line 10-11 claims desktop calls it; false)
@@ -3024,10 +3040,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-100 — Migration 0029 RLS policies use fn_current_tenant_id() (never-set session setting) — dead code that does nothing
 
-- **Category:** DEAD  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Medium  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-025 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-025, 11th session, migration 0057): fn_current_tenant_id() DROPPED; 6 inert policies removed (working role-gated policies preserved — no RLS weakening); set_assessments_tenant orphan fallback → RAISE. Live 6/6; zero references across all three repos.
 - **Consolidated from:** second-pass DEAD-100, second-pass TENANT-105
 - **Description:** Migration 0029 installs RLS policies on `academic_years`, `academic_levels`, `classes`, `subjects`, `class_subjects`, `student_academic_histories` using `public.fn_current_tenant_id()` which reads `current_setting('app.current_tenant_id', true)`. This Postgres session setting is NEVER SET anywhere in the codebase (no EF, no client, no trigger sets it). So `fn_current_tenant_id()` always returns NULL, and the policy `tenant_id = NULL` always evaluates to NULL (deny). These policies are dead code — they never grant access. The 0019 policies (which use `current_tenant_id()` that resolves via `auth.uid()`) still dominate via OR semantics, so the tables work correctly today.
 - **Location:** `elimtiyaz-desktop/supabase/migrations/0029_academics_module.sql`, lines 165-206 ;; [TENANT-105] `elimtiyaz-desktop/supabase/migrations/0041_canonical_academic_flow.sql:88-110` (function + trigger).
@@ -3305,6 +3322,23 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Resolution (T-087, 2026-08-30):** migration 0052 `drop_test_residue.sql` dropped both functions (`drop function if exists`); the auth user `test.connection.supabase@gmail.com` was deleted via SQL directly (auth schema is not in the public migration chain, but the Management API SQL endpoint runs as service_role and can DELETE from auth.users); the expired account_approval_request row was also deleted. Migration 0052 applied live + registered in schema_migrations.
 - **Verification:** `SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '_eq_test%';` returns 0 rows. `SELECT id, email FROM auth.users;` returns 1 row (`admin@elimtiyaz.dz`). `SELECT * FROM account_approval_requests WHERE auth_user_id = '...';` returns 0 rows.
 - **Dependencies:** none
+
+---
+
+### BUG-NEW-004 — run-overdue-scan EF exceeds the edge-worker resource budget (WORKER_RESOURCE_LIMIT); the daily overdue scan cannot complete
+
+- **Category:** BUG  |  **Severity:** High  |  **Status:** OPEN
+- **Repositories:** AgentGithubUplaod (desktop — supabase/functions)
+- **Platforms affected:** Backend
+- **Task:** T-095 (docs/recovery/task-registry.md)
+- **Discovered:** 2026-08-31, eleventh session, during T-068's live curl matrix (run-overdue-scan with a valid CRON_SECRET PASSED the auth gate, then died with WORKER_RESOURCE_LIMIT). Named in the T-068 commit message; registered here by the twelfth session's closeout (the 11th session ran out of context before registering it).
+- **Description:** the EF iterates EVERY parent in the tenant (258 in production) and calls the `compute_parent_summary` SQL RPC sequentially (each call replays that parent's whole ledger), then per overdue parent fetches installments, then per overdue installment runs a dedup SELECT before a single-row INSERT. That is 258+ sequential round trips plus hundreds of small queries — far beyond the edge worker's CPU/wall-time budget. The function is killed with WORKER_RESOURCE_LIMIT before writing the per-tenant audit entry, so the daily overdue scan (cron 08:00 UTC) and the manual "Scan retards" path through the EF are both dead in production.
+- **Location:** `elimtiyaz-desktop/supabase/functions/run-overdue-scan/index.ts:119-265` (the per-tenant / per-parent / per-installment loop nest)
+- **Root cause:** the Tier-3 rewrite (migration 0034 era) ported the per-parent drill-down pattern without a set-based/batched equivalent; no load test against production row counts (258 parents, 318 ledger rows… but the ledger replay per RPC is heavy).
+- **Expected behavior:** the scan completes within the worker budget and produces the same overdue installment set + idempotent notifications as the DESKTOP reference implementation (`SupabaseOverdueAlertGenerator`, T-080/T-094 live-verified) — which already uses the batched pattern: ONE installments query + ONE batched parents fetch + ONE batched dedup-key fetch + ONE bulk INSERT.
+- **Proposed resolution:** T-095 — rewrite the EF's scan body to the batched pattern of the T-094-verified desktop reference (reuse, not a parallel implementation): per tenant, one overdue-installments query (status ≠ paid/cancelled, due_date < as_of, amount_due − amount_paid > 0.001), one upcoming-due (7 days) query, chunked parents fetch, chunked dedup-key fetch, bulk INSERT, per-tenant audit entry. Redeploy + live curl verification with a fresh CRON_SECRET (rotation documented).
+- **Dependencies:** none
+- **Verification:** live curl matrix (401s + valid-secret 200 with a real summary payload); notification idempotency re-checked (second run creates 0 duplicates); the desktop T-094 suite stays green.
 
 ---
 

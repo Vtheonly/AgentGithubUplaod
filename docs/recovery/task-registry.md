@@ -7,16 +7,15 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-31, updated after the tenth repair session — MIG-TOKENS/T-006/T-008/T-093/T-094/T-032/T-035/T-056)
+## Progress summary (2026-08-31, updated after the eleventh repair session — T-011/T-012/T-013/T-014/T-023/T-025/T-068/T-033/T-048/T-060)
 
 | Status | Count | Tasks |
 |---|---|---|
-| **Completed (VERIFIED)** | 4 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31) |
-| **Completed (TESTED)** | 26 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + **T-006 (0055 live-verified 9/9), T-008 (EF redeployed), T-093 (0056 + adapter), T-032 (112→119 site tests)** (10th session) |
-| **Completed (TESTED, partial sessions)** | 2 | **T-035** (ledger paging; WEAK-018 confirmed already fixed), **T-056** (6/6 items) — both 10th session |
+| **Completed (VERIFIED)** | 5 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session) |
+| **Completed (TESTED)** | 36 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** | 44 | T-011…T-018, T-020…T-026, T-030, T-033, T-034, T-039…T-041, T-043, T-044, T-046, T-048, T-050…T-058, T-060, T-062…T-064, T-068, T-069 |
+| **Ready** | 35 | T-015, T-017, T-018, T-020…T-022, T-024, T-026, T-030, T-034, T-036, T-039…T-041, T-043, T-044, T-046, T-050…T-055, T-057, T-058, T-062…T-064, T-069, **T-095 (NEW)** |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -91,7 +90,96 @@
 
 ## In Progress
 
-*(none — the sixth repair session (2026-08-29) completed T-002 (TESTED) and closed CROSS-100's Android half; evidence in change-log.md.)*
+*(none — the eleventh repair session (2026-08-31) completed its full 10-task batch: T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 applied live 6/6), T-068 (VERIFIED live), T-033, T-048, T-060. Registry closeout + full-suite evidence recorded by the twelfth session's opening commit.)*
+
+## Completed (eleventh repair session — 2026-08-31, owner-requested ~10-task batch)
+
+### T-011 — Eliminate the silent collect() fallback
+- **Problems:** BUSINESS-002 (absorbs BUSINESS-103, CROSS-105) · **Priority:** P1 · **Severity:** Critical
+- **Status:** TESTED (2026-08-31, eleventh session)
+- **What was done:** `SupabasePaymentRepository.collect()` no longer falls back to `upsert_payment_from_import` on RPC failure — the error propagates as `Err` with the financial state untouched (single atomic path only, ADR-002). The fallback branch and the client-side `PAY-` random payment-number generator (only used by the fallback) were removed; the receipt number comes from the RPC (ADR-004). Success path preserved byte-for-byte.
+- **Tests:** NEW `src/tests/infrastructure/t-011-payment-atomicity.test.ts` 2/2 — RPC failure → Err + upsert NEVER called + zero rows; success path returns the fetched mapped payment.
+- **Verification:** `npx tsc --noEmit` clean; full desktop suite 57 files / 2091 tests (session-close re-run). Gap: live E2E through the UI needs a desktop host.
+- **Commits:** 3da7228 — hub repo.
+
+### T-012 — Make bulkCollect fail-fast
+- **Problems:** BUSINESS-100 · **Priority:** P1 · **Severity:** Critical
+- **Status:** TESTED (2026-08-31, eleventh session)
+- **What was done:** `bulkCollect()` returns `Err` on the FIRST chunk error (naming the failing row range); the `Ok(partial)` return and the catch→per-row-collect retry loop removed. The consumer `RepositoryStorageAdapter.flushPendingBatches` checks the Result and routes an `Err` into its failures list, cancelling the Excel-import transaction (restoring the "no partial data applied in silence" contract).
+- **Tests:** NEW `src/tests/infrastructure/t-012-bulkcollect-failfast.test.ts` 4/4 — chunk FK failure → Err "rows 1–N" + zero rows kept; happy path inserts; adapter throws on Err, resolves on Ok.
+- **Verification:** typecheck clean; full-suite evidence as above.
+- **Commits:** 429a132 — hub repo.
+
+### T-013 — Fix markClearedFallback audit and allocation cascade
+- **Problems:** BUSINESS-101, BUSINESS-104 · **Priority:** P1 · **Severity:** High
+- **Status:** TESTED (2026-08-31, eleventh session — resolution = removal, per the task's stated preference)
+- **What was done:** the 60-line client-side `markClearedFallback()` (no audit entries, actor discarded, per-installment errors swallowed → cascading over-allocation) is DELETED; `markCleared()` throws on RPC error → `Err`, financial state untouched. The canonical `mark_payment_cleared` RPC (migration 0040: FOR UPDATE locks + audit) is the only path.
+- **Tests:** NEW `src/tests/infrastructure/t-013-markcleared-atomic.test.ts` 2/2 — RPC failure → Err + no installment rows touched; success path re-fetches.
+- **Verification:** typecheck clean; full-suite evidence as above.
+- **Commits:** 6a25a40 — hub repo.
+
+### T-014 — Implement the desktop refund flow
+- **Problems:** DEAD-015, BUSINESS-003 · **Priority:** P1 · **Severity:** Critical
+- **Status:** TESTED (2026-08-31, eleventh session)
+- **What was done:** `PaymentRepository.refund(id, reason, actorId, actorName?)` — reason mandatory (≥3 chars per the refund-payment EF contract §7.2); `SupabasePaymentRepository.refund()` validates and propagates the REAL actor + reason to `revert_payment_allocation` (and errors on a missing fetch-after-refund row instead of mapping `{}`); Mock refund mirrors with the canonical double-refund guard (only paid|pending revertible, migration 0041:493-495). `PaymentDetailDrawer` gains "Rembourser ce paiement" (Permission.RefundPayment-gated, destructive ConfirmModal, ≥3-char reason) wired to the signed-in session identity.
+- **Tests:** NEW `src/tests/infrastructure/t-014-refund-flow.test.tsx` 10/10 — mock actor+reason in reversal entries + tranche re-opened + double-refund rejected + short reason rejected; supabase real reason+actor reach RPC args; UI gating matrix. `full-payment-flow` integration 18/18.
+- **Verification:** typecheck clean; full-suite evidence as above. Gap: live drawer E2E needs a desktop host; EF gateway question stays with UNKNOWN-003/T-067.
+- **Commits:** 766db94 — hub repo.
+
+### T-023 — Fix desktop homework and roll-call persistence
+- **Problems:** HOMEWORK-100, ATT-100 · **Priority:** P1 · **Severity:** Critical
+- **Status:** TESTED (2026-08-31, eleventh session + live schema verification 7/7)
+- **What was done:** `SupabaseHomeworkRepository.push()` now carries `tenant_id` (getTenantId()) and the non-existent `push-homework-notification` EF invocation is REMOVED (parent-notification decision deferred to T-036). `SupabaseAttendanceRepository.recordRollCall()` payload carries tenant_id + BOTH `date` and `record_date` (legacy NOT NULL + canonical) and `onConflict` targets the canonical `uq_attendance_canonical` 4-column unique index.
+- **Tests:** NEW `src/tests/infrastructure/t-023-academic-persistence.test.ts` 4/4 (payload shape, canonical onConflict target, dead EF gone). Live `scripts/verify_t-023.sql` 7/7 PASS against production (BEGIN…ROLLBACK): fixed payloads insert; old payloads reproduce the NOT NULL violations; duplicate (tenant,student,record_date,session) hits unique_violation.
+- **Verification:** typecheck clean; full-suite evidence as above. Gap: desktop→website cross-client E2E needs a desktop host; Android homework UUID defect remains T-024.
+- **Commits:** 7883030 — hub repo.
+
+### T-025 — Replace fn_current_tenant_id with the canonical resolver
+- **Problems:** DEAD-100 (absorbs TENANT-105), TENANT-106 · **Priority:** P1 · **Severity:** Critical
+- **Status:** TESTED (2026-08-31, eleventh session + live verification 6/6; migration 0057 applied live + registered atomically)
+- **What was done:** migration `0057_canonical_tenant_resolver.sql` (idempotent): drops the 6 inert `rls_*_tenant` policies (the tables keep their working role-gated policies — no RLS weakening); replaces the dead policy on `student_academic_histories` with `student_academic_histories_staff` (tenant_id = current_tenant_id() AND staff roles — promotion flow can write histories); `set_assessments_tenant()` orphan fallback now RAISES (no DEMO stamping); `fn_current_tenant_id()` dropped (zero references verified across all three repos).
+- **Tests:** live `scripts/verify_t-025.sql` 6/6 PASS (JWT emulation via set_config): staff SELECT/INSERT own-tenant histories ok; cross-tenant INSERT rejected; orphan assessment rejected; legit insert ok; dead resolver fully gone.
+- **Verification:** applied live + registered in `schema_migrations` in the same atomic transaction (ARCH-011 discipline); post-apply catalog checks clean.
+- **Commits:** 1731755 — hub repo.
+
+### T-068 — Fix EF permission resolution
+- **Problems:** SEC-109 · **Priority:** P1 · **Severity:** High
+- **Status:** VERIFIED (2026-08-31, eleventh session — live deploy + curl matrix + positive/negative permission probes)
+- **What was done:** NEW `createUserScopedClient(jwt)` in `_shared/supabase.ts` (anon key + caller's Authorization header — PostgREST derives auth.uid() from it); `extractAuthContext` resolves permissions through it, exercising the same canonical resolver + RLS as the desktop RBAC path. Resolver errors fail CLOSED. `workflow-execute` + `run-overdue-scan` (the two requirePermission consumers) redeployed live.
+- **Tests:** live curl matrix: no-auth/invalid/anon → 401 each; CRON_SECRET → auth gate passed. Positive probe: fresh support_staff user with an `execute_workflow` tenant_role_override called workflow-execute → 404 workflow_not_found (requirePermission PASSED; pre-fix this was 403 for every non-super_admin). Negative control: same user without the override → 403. Probe residue fully cleaned (DATA-007 discipline).
+- **New problem registered:** BUG-NEW-004 (run-overdue-scan hits WORKER_RESOURCE_LIMIT after the auth gate — the EF's own sizing problem, not a T-068 regression).
+- **Commits:** 003d301 — hub repo.
+
+### T-033 — Website freshness fallback
+- **Problems:** CACHE-100 · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-08-31, eleventh session; T-032 dependency TESTED in the 10th)
+- **What was done:** `app/providers/index.tsx` exports `queryClientDefaultOptions` (the single object the QueryClient mounts) with `refetchOnWindowFocus: true` + a conservative 5-minute `refetchInterval`; staleTime 30s and retry:1 preserved. A silent realtime failure now degrades to stale-BOUNDED data instead of stale-forever.
+- **Tests:** NEW `src/test/t-033-freshness-fallback.test.tsx` 3/3 — config enables both fallbacks preserving staleTime/retry; mounted QueryClient resolves the same options; behavioral refocus-refetch test.
+- **Verification:** website suite 122/122 (119+3); lint clean; strict build green.
+- **Commits:** ef205a3 — website repo.
+
+### T-048 — Unify the migration chain
+- **Problems:** CROSS-001 (absorbs CROSS-010), CROSS-003 (absorbs CROSS-007, ACAD-104) · **Priority:** P2 · **Severity:** Critical
+- **Status:** TESTED (2026-08-31, eleventh session — all three repos)
+- **What was done:** the website's 4 drifted portal-patch migrations removed (website commit 4faf007); the Android repo's 6 stale migration copies removed (android commit 1bd0d9d); hub `AGENTS.md` §2/§3 updated: client repos no longer carry migration copies at all, chain extent corrected to 0001–0057 (ADR-001 — the desktop repo owns the only chain). The 2 drifted website Edge Functions remain DELIBERATELY (bind-activation-code waits on UNKNOWN-001/T-028; send-push-notification is T-036 scope).
+- **Tests:** website suite 122/122 + strict build green; desktop suite unaffected by the doc-only hub change; live chain diff (session 12 opening) confirms 0001–0057 one-to-one with zero drift.
+- **Commits:** 4faf007 (website), 1bd0d9d (android), 707ef1e (hub).
+
+### T-060 — Payment collection UX correctness
+- **Problems:** BUSINESS-005, WEAK-005 · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-08-31, eleventh session)
+- **What was done:** `unified-payment-modal.tsx` — all 3 category-filter sites (slider tranches, allocation preview, focused tranche) use the exact `i.category === category` filter and pass the CONCRETE category to the allocator, mirroring the SQL semantics (`p_category IS NULL OR category = p_category`) for EVERY category — preview ≡ actual collection. Batch-registration step 2 captures "Niveau l'année dernière" + "Rang l'année dernière"; `computeBilling` passes both so `passage_palier` (−10,000 DZD) and `highest_average` (−10%) can actually fire; the mock's `buildRegistrationBilling` reads them index-aligned so persisted billing matches the preview.
+- **Tests:** NEW `src/tests/infrastructure/t-060-payment-ux.test.ts` 7/7 — allocator category semantics vs SQL; source-scan guard (divergent ternary gone); 5AP→1AM fires passage_palier; rank-1 fires highest_average; both stack; absent inputs keep zero.
+- **Verification:** typecheck clean; full desktop suite 2086 passed / 5 skipped.
+- **Commits:** 68c7d30 — hub repo.
+
+### T-095 — (NEW — opened) Fix run-overdue-scan EF resource exhaustion (BUG-NEW-004)
+- **Problems:** BUG-NEW-004 · **Priority:** P1 · **Severity:** High (daily cron + manual scan dead in production)
+- **Description:** Rewrite the EF's scan body from the N+1 loop (per-parent compute_parent_summary + per-installment dedup SELECT + single-row INSERTs — 258+ round trips) to the batched pattern of the live-verified desktop reference `SupabaseOverdueAlertGenerator` (T-080/T-094): per tenant ONE overdue-installments query, ONE upcoming-due (7-day) query, chunked parents fetch, chunked dedup-key fetch, ONE bulk INSERT, per-tenant audit entry. Also aligns EF semantics with the reference (upcoming-due alerts included; installment-level classification identical to T-094's verified behavior). Redeploy live + curl matrix with a fresh CRON_SECRET (rotation documented) + idempotency re-check.
+- **Dependencies:** none · **Affected:** D (functions) · **Platforms:** Backend
+- **Tests:** live curl matrix; second run creates 0 duplicate notifications; desktop T-094 suite stays green.
+- **Verification:** evidence in change-log + t-XXX-live-verification doc.
+
 
 ## Completed (fifth repair session — 2026-08-29)
 

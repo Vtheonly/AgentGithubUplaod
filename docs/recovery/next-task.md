@@ -14,27 +14,28 @@
 
 ## Currently in progress
 
-**Eleventh repair session (2026-08-31, owner-requested ~10-task batch).** Batch declared In Progress (see task-registry.md "In Progress" section):
+**Twelfth repair session (2026-08-31, owner-requested ~10-task batch).** Batch declared In Progress (see task-registry.md). Session opening DONE: live chain diffed vs local — 0001–0057 match one-to-one, zero drift (ARCH-011 check clean, scripts/verify_s12_chain_consistency.sql 12/12); the session-11 registry/change-log closeout landed (the 11th session's `Left:` duty); BUG-NEW-004 registered → T-095.
 
-- **T-011** — eliminate the silent collect() fallback (BUSINESS-002, P1 Critical) — session top pick
-- **T-012** — bulkCollect fail-fast (BUSINESS-100, P1 Critical)
-- **T-013** — markClearedFallback audit/cascade (BUSINESS-101/104, P1 High)
-- **T-014** — desktop refund flow (DEAD-015/BUSINESS-003, P1 Critical)
-- **T-023** — desktop homework + roll-call persistence (HOMEWORK-100/ATT-100, P1 Critical)
-- **T-025** — replace fn_current_tenant_id with the canonical resolver (DEAD-100/TENANT-106, P1 Critical, new migration)
-- **T-068** — EF permission resolution (SEC-109, P1 High)
-- **T-033** — website freshness fallback (CACHE-100, P2; T-032 dependency TESTED)
-- **T-048** — unify the migration chain (CROSS-001/003, P2 Critical — removes the drifted partial copies from the website + Android repos)
-- **T-060** — payment collection UX correctness (BUSINESS-005/WEAK-005, P2)
-- **Android stretch** — T-020 (SYNC-103) or T-026 (DRIFT-006) IF the container's Android SDK bootstraps (JDK-17 + android-sdk present at /home/z/my-project/tools; feasibility being probed — sessions 9/10 recorded dl.google.com 404s).
+Batch (owner: "do a lot of tasks like 10 or so" + "ensure the migration is properly applied and remains consistent everywhere"):
 
-Environment opening: live chain diffed vs local — 0001–0056 match one-to-one, no drift (ARCH-011 check clean). Any new migration follows the file + live-apply + registration-in-one-commit discipline.
+- **T-015** — receipt numbering consolidation to the server algorithm (DRIFT-011; T-011 dependency done)
+- **T-053** — desktop global-admin support (TENANT-103; T-005 VERIFIED via 0053)
+- **T-022** — desktop sync queue correctness (SYNC-100/101/102, CACHE-102)
+- **T-040** — staff-side justification review workflow (ATT-101; T-023 dependency done)
+- **T-052** — notification badge correctness (NOTIF-102/103)
+- **T-057** — website canonical port honesty (DRIFT-009/WEAK-017)
+- **T-055** — audit robustness + PII masking (SEC-001/SEC-002)
+- **T-018** — deterministic identity codes everywhere (DRIFT-001 — desktop/backend portion; Android side toolchain-gated)
+- **T-095** — run-overdue-scan EF batched rewrite (BUG-NEW-004 — daily cron dead in production)
+- **T-041** — year-end promotion flow (ACAD-100/101, BUSINESS-004; T-025 dependency done) — the biggest item, last
 
-*(Previous: the tenth repair session (2026-08-31) closed MIG-TOKENS + T-006 + T-008 + T-093 + T-094 + T-032 + T-035 + T-056. Evidence in change-log.md.)*
+Environment: Supabase CLI reinstalled at /home/z/my-project/bin/supabase (v2.116.0); project linked; CRON_SECRET present (will be rotated for T-095's live matrix, rotation documented). Any new migration follows the file + live-apply + registration-in-one-commit discipline.
+
+*(Previous: the eleventh repair session (2026-08-31) closed T-011 + T-012 + T-013 + T-014 + T-023 + T-025 (0057 live 6/6) + T-068 (VERIFIED) + T-033 + T-048 + T-060. Registry sweep recorded in change-log.md by this session.)*
 
 ## Current recommendation
 
-After this batch: **T-015 (receipt consolidation, desktop side)** — it depends on T-011 which this session completes — and **T-021/T-050 (Android)** once the Android toolchain question is settled. **T-005 follow-up T-053 (desktop global-admin support)** is now unblocked (T-005 VERIFIED via 0053 reconciliation).
+If the batch completes: **T-015 follow-ups on Android once the toolchain question is settled (T-017/T-026)**, **T-034 (desktop cache refresh strategy — needs a documented realtime-vs-poll design choice)**, and **T-036's unblocked EF-internal half** (correct user_id column + PEM parsing in send-push-notification). T-041's live batch-promotion E2E will still need a desktop host.
 
 
 Session outcome (2026-08-30, ninth session — owner-requested): live backend health re-verification executed (migrations 0049-0052 confirmed applied + registered; MV values byte-identical to the payments cross-check; FCM functions register_fcm_token + deactivate_fcm_tokens verified present with SEC-106 caller logic; chat_read_receipts policy + trigger + function verified present; RLS blocks anon reads on all 6 core tables; auth census down to 1 real user) → 3 new problems registered (ARCH-009, ARCH-010, DRIFT-013), 6 tasks completed (T-088, T-080, T-089, T-091, T-087, T-092 — all TESTED), 2 new tasks opened (T-093, T-094). Desktop suite 47 files / 2029 tests ALL PASS (+18 tests, +2 files vs session 8); website suite 8/105 (unchanged); Android suite 219/219 (unchanged); live Supabase migrations 0049-0052 all applied + registered. All verification scripts persisted under `/home/z/my-project/scripts/`.
