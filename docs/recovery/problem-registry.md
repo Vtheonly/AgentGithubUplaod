@@ -122,8 +122,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CHAT-104 | Low | BLOCKED | T-037 | `chat_channels.updated_at` never updates when a new chat_message is INSERTed; channel list is sorted by CREATION time, not last-message time |
 | NOTIF-100 | Medium | BLOCKED | T-038 | `notifications_update` RLS blocks recipients from marking role-broadcast notifications as read; bulk mark-read silently no-ops (extends REALTIME-101 from chat_messages to notifications) |
 | NOTIF-101 | Medium | OPEN | T-071 | `notifications_insert` RLS allows any authenticated user to INSERT a notification addressed to ANY user_id (notification spam / injection) |
-| NOTIF-102 | Low | OPEN | T-052 | Desktop topbar bell `unreadCount` is computed AFTER slicing to 8 items; badge caps at 8 even when actual unread is 50 |
-| NOTIF-103 | Low | OPEN | T-052 | Website bottom-nav fetches 1 unread notification but never renders it (dead query); top-app-bar bell caps unread at 50 |
+| NOTIF-102 | Low | TESTED | T-052 | Desktop topbar bell `unreadCount` is computed AFTER slicing to 8 items; badge caps at 8 even when actual unread is 50 |
+| NOTIF-103 | Low | TESTED | T-052 | Website bottom-nav fetches 1 unread notification but never renders it (dead query); top-app-bar bell caps unread at 50 |
 | NOTIF-104 | Medium | BLOCKED | T-038 | Android `NotificationDao.markRead/markAllRead/dismiss` only update LOCAL Room; server's `notifications.is_read` / `dismissed_at` stays at original values forever (silent desync) |
 | NOTIF-105 | Medium | OPEN | T-039 | Android `pullNotifications` pulls ALL server-visible notifications (limit:200) with no per-user filter; stale role-broadcasts persist in Room across role changes |
 | PUSH-100 | Critical | OPEN | T-036 | NO production code anywhere invokes the `send-push-notification` Edge Function (extends WEAK-014/WEAK-015 to a 3rd compounding bug) |
@@ -1886,6 +1886,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-052 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-052, 12th session): the desktop topbar computes unreadCount from the FULL visible list (allVisibleNotifications) — the 8-item slice is a dropdown display limit only. Source-guard test pins the pattern.
 - **Consolidated from:** second-pass NOTIF-102
 - **Description:** The desktop's topbar (topbar.tsx:107-118) computes `visibleNotifications = sortAlertsByPriority(visible).slice(0, 8)` — i.e., the top 8 alerts by priority. THEN computes `unreadCount = visibleNotifications.filter((n) => !n.readAt).length` — i.e., count of unread IN THE FIRST 8. If a user has 50 unread alerts, only the top 8 (by priority) are considered — the badge shows at most 8. The dropdown (line 236-241) shows "8 non lues" even though there are 50. The "Tout marquer comme lu" button (which appears in the AlertsTab, not the dropdown) DOES call markAllRead which would mark ALL 50 as read — but the bell badge never reflects the true count.
 - **Location:** `elimtiyaz-desktop/src/shared/layout/topbar.tsx:107-118`
@@ -1905,6 +1906,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Desktop, Website
 - **Task:** T-052 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-052, 12th session): NEW useUnreadNotificationCount COUNT-only hook (head:true + count exact — zero rows transferred); the top-app-bar uses it (no 50-cap); the dead 1-row unread queries removed from BottomNav + DesktopRail (3 concurrent notification queries → 1).
 - **Consolidated from:** second-pass NOTIF-103
 - **Description:** Two compounding UI bugs in the website's notification badge plumbing: (1) `bottom-nav.tsx:60-64` runs `useNotifications(user?.id, { unreadOnly: true, limit: 1 })` and computes `hasUnreadNotifications = Boolean(unreadNotifications && unreadNotifications.length > 0)` — but `hasUnreadNotifications` is NEVER referenced in the JSX that follows. The query fires on every render of BottomNav + DesktopRail (both components duplicate the query), loading 1 row from the server, but the boolean is never used. This is a dead query — wasted bandwidth + TanStack cache pollution. (2) `top-app-bar.tsx:50-54` runs `useNotifications(user?.id, { unreadOnly: true, limit: 50 })` and displays `unread?.length ?? 0` — so the bell badge caps at 50. A user with 200 unread notifications sees "50" in the bell. (3) The bottom-nav and top-app-bar run INDEPENDENT queries with different limits (1 vs 50) — TanStack treats them as different cache keys (because the limit is in the key) and stores them separately. So there are 3 concurrent notification queries on every page render (bottom-nav + desktop-rail + top-app-bar).
 - **Location:** - `elimtiyaz-website/src/features/shared/bottom-nav.tsx:60-64, 124-128` (dead query duplicated in both BottomNav and DesktopRail) - `elimtiyaz-website/src/features/shared/top-app-bar.tsx:50-54` (caps at 50)

@@ -143,7 +143,7 @@ describe("T-040 — the justification workflow is closed (ATT-101)", () => {
     const repo = new SupabaseAttendanceRepository(client);
     const sub = repo.observeJustifications();
     await new Promise((r) => setTimeout(r, 10));
-    sub.unsubscribe?.();
+    void sub;
     const sel = calls.find((c) => c.op === "select" && c.table === "attendance_records");
     expect(sel).toBeDefined();
     const tenant = sel!.filters.find((f) => f.col === "tenant_id");

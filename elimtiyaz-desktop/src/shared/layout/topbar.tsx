@@ -105,17 +105,25 @@ export function Topbar() {
 
   // Iteration 9: topbar bell shows only alerts visible to this session.
   // The list is sorted by priority (urgent first), then by recency.
-  const visibleNotifications = useMemo(() => {
+  // T-052 (NOTIF-102): the badge counts unread across ALL visible alerts —
+  // the 8-item slice is a DROPDOWN display limit only. Previously the count
+  // was computed AFTER slicing, capping the badge at 8 even with 50 unread.
+  const allVisibleNotifications = useMemo(() => {
     if (!session) return [];
     const visible = notifications.filter((n) =>
       isAlertVisibleTo(n, { userId: session.userId, role: session.role }),
     );
-    return sortAlertsByPriority(visible).slice(0, 8);
+    return sortAlertsByPriority(visible);
   }, [notifications, session]);
 
+  const visibleNotifications = useMemo(
+    () => allVisibleNotifications.slice(0, 8),
+    [allVisibleNotifications],
+  );
+
   const unreadCount = useMemo(
-    () => visibleNotifications.filter((n) => !n.readAt).length,
-    [visibleNotifications],
+    () => allVisibleNotifications.filter((n) => !n.readAt).length,
+    [allVisibleNotifications],
   );
 
   // Subscribe to notifications (raw stream — filtering happens in visibleNotifications).

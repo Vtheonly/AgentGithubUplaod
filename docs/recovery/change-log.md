@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-08-31 — T-052 — Notification badge correctness (NOTIF-102/103)
+- **Problem IDs:** NOTIF-102 (TESTED), NOTIF-103 (TESTED).
+- **What changed:** desktop — badge counts ALL unread (count before the 8-item display slice); website — useUnreadNotificationCount COUNT-only hook, top bar uses it, dead 1-row queries removed from bottom-nav ×2.
+- **Why:** the badge lied in both directions (desktop capped at 8, website at 50) and the website fired 3 concurrent notification queries with one dead.
+- **Affected components:** desktop topbar; website portal-queries + top-app-bar + bottom-nav.
+- **Tests:** website t-052-notification-badge.test.ts 3/3 (both platforms covered via source guards); website 126/126; desktop 2127 green.
+- **Verification:** desktop tsc + suite; website strict build + lint + suite.
+- **Commits:** (this session) — hub + website repos.
+
+---
+
 ### 2026-08-31 — T-095 — run-overdue-scan EF batched rewrite (BUG-NEW-004 → VERIFIED)
 - **Problem IDs:** BUG-NEW-004 (VERIFIED — live).
 - **What changed:** the EF's N+1 scan body replaced with the batched pattern of the T-094-verified desktop reference (1 overdue query + 1 upcoming-due query + chunked parents/dedup + 1 bulk INSERT per tenant); compute_parent_summary account gate dropped (installment-level classification ≡ desktop); redeployed live v14.

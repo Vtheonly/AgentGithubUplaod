@@ -12,10 +12,10 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 40 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040** (12th session) |
+| **Completed (TESTED)** | 41 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052** (12th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** | 30 | T-017, T-018, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050…T-052, T-054, T-055, T-057, T-058, T-062…T-064, T-069 |
+| **Ready** | 29 | T-017, T-018, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050, T-051, T-054, T-055, T-057, T-058, T-062…T-064, T-069 |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -217,6 +217,13 @@
 - **Live verification:** `docs/recovery/t-095-live-verification.md` — curl matrix 401×3 (no-auth / invalid / anon); valid CRON_SECRET (rotated + hash-verified) → **200 in 8.6–10.9 s** (previously WORKER_RESOURCE_LIMIT); 819 overdue / 68.13M DZD / 819 urgent; second run identical with 0 new alerts; notifications count stays 819 across THREE runs (zero duplicates — dedup key ≡ desktop). CRON_SECRET rotation documented safe (no pg_cron schedule uses it).
 - **Registered micro-divergence:** the EF excludes `cancelled` installments; the desktop generator filters status ≠ 'paid' only — the EF is stricter/correct; desktop filter alignment is an optional one-line follow-up.
 - **Commits:** (this session) — hub repo.
+
+### T-052 — Notification badge correctness — **TESTED**
+- **Problems:** NOTIF-102, NOTIF-103 · **Priority:** P3 · **Severity:** Low
+- **Status:** TESTED (2026-08-31, twelfth session — desktop + website)
+- **What was done:** NOTIF-102 (desktop): the topbar's unreadCount is computed from the FULL visible list — the 8-item slice is a dropdown display limit only (was: count-after-slice, badge capped at 8 with 50 unread). NOTIF-103 (website): NEW `useUnreadNotificationCount` hook (COUNT-only query: `head: true` + `count: "exact"` — zero rows transferred; same direct + parent-broadcast delivery paths as useNotifications); the top-app-bar uses it (no 50-cap); the DEAD unread queries removed from BottomNav AND DesktopRail (they fetched 1 row, computed a boolean no JSX rendered — 3 concurrent notification queries → 1).
+- **Tests:** NEW website `src/test/t-052-notification-badge.test.ts` 3/3 — desktop count-before-slice source guard; the COUNT-only hook's shape; the top bar's usage (no length pattern); the dead queries gone. Website suite 126/126 (122+4 incl. re-verification); desktop suite 2127 unaffected.
+- **Verification:** desktop tsc clean + suite green; website strict build green + lint clean. Gap: live badge with >50 unread (needs a real parent account with broadcast notifications).
 
 
 ## Completed (fifth repair session — 2026-08-29)
