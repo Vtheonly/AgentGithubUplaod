@@ -17,6 +17,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "../../core/rbac/session";
+import { getSyncQueueStore } from "../../infrastructure/sync/sync-queue-store";
 import { isExpired } from "../../core/rbac/session";
 import type { Permission } from "../../core/rbac/permissions";
 import { useRepositories } from "./repository-provider";
@@ -97,6 +98,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await repos.auth.signOut();
+    // SYNC-102: the sync queue is session-scoped. User A's pending entries
+    // must NOT leak into user B's session on a shared desktop (their
+    // sync_queue upserts would fail RLS under B's tenant, and their entity
+    // pushes would run under B's JWT — a confused audit trail). Clear the
+    // local queue on sign-out; anything not yet synced must be re-imported
+    // by its owner.
+    try {
+      await getSyncQueueStore().clear();
+    } catch (err) {
+      logger.warn("Failed to clear the sync queue on sign-out", { err });
+    }
     clearSession();
     setSession(null);
   }

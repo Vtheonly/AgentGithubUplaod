@@ -192,8 +192,10 @@ describe("T-015 — source-scan guards (no client-side receipt fabrication left)
     expect(offenders).toEqual([]);
   });
 
-  it("sync-provider passes NULL for missing payment numbers (server-side generation)", () => {
-    const text = readFileSync(join(SRC, "app/providers/sync-provider.tsx"), "utf8");
+  it("the sync push passes NULL for missing payment numbers (server-side generation)", () => {
+    // T-022 extracted defaultPushHandler into its own module — the payment
+    // push now lives there.
+    const text = readFileSync(join(SRC, "infrastructure/sync/default-push-handler.ts"), "utf8");
     expect(text).toContain("p_payment_number: (p.receiptNumber as string) ?? (p.payment_number as string) ?? null");
     expect(text).not.toMatch(/p_payment_number:[^\n]*PAY-/);
   });

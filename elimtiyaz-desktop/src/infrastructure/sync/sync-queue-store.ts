@@ -166,6 +166,16 @@ class IndexedDBQueueStore {
     this._initialized = false;
   }
 
+  /**
+   * CACHE-102: whether the queue is running on the IN-MEMORY fallback
+   * (IndexedDB unavailable). The UI surfaces this so the user knows
+   * pending changes will be lost on app close — instead of a silent
+   * console.warn and a lying "synced" indicator.
+   */
+  isUsingFallback(): boolean {
+    return this.usingFallback;
+  }
+
   private txn(mode: IDBTransactionMode, fn: (os: IDBObjectStore) => IDBRequest): Promise<void> {
     return new Promise((resolve, reject) => {
       const txn = this.db!.transaction(STORE_NAME, mode);

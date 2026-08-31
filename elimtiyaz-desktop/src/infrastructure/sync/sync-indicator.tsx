@@ -35,6 +35,7 @@ export function SyncIndicator() {
   const {
     online, supabaseConfigured, syncing: isServiceSyncing,
     pendingCount, failedCount, skippedMockCount, lastSyncAt,
+    queueUsingFallback,
   } = status;
 
   const handleSyncNow = async (e: React.MouseEvent) => {
@@ -61,6 +62,14 @@ export function SyncIndicator() {
     Icon = CloudOff;
     tone = "text-muted-foreground";
     description = "Hors ligne — les changements seront synchronisés au retour du réseau.";
+  } else if (queueUsingFallback) {
+    // CACHE-102: the queue is in-memory (IndexedDB unavailable) — surface it
+    // instead of letting the indicator lie ("synced") while pending changes
+    // silently die with the process.
+    Icon = AlertCircle;
+    tone = "text-status-warning";
+    description =
+      "File d'attente EN MÉMOIRE (IndexedDB indisponible) — les changements en attente seront PERDUS à la fermeture de l'application.";
   } else if (!supabaseConfigured) {
     Icon = Cloud;
     tone = "text-muted-foreground";

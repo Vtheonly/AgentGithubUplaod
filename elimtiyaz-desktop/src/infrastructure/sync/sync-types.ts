@@ -91,6 +91,8 @@ export interface SyncStatusSnapshot {
   failedCount: number;
   /** Number of mock entries that were skipped. */
   skippedMockCount: number;
+  /** CACHE-102: the queue is running on the in-memory fallback (IndexedDB unavailable) — pending changes will be lost on app close. */
+  queueUsingFallback: boolean;
   /** ISO timestamp of the last successful sync, or null. */
   lastSyncAt: string | null;
   /** ISO timestamp of the last sync attempt, or null. */

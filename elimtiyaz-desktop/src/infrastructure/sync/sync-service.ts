@@ -76,6 +76,7 @@ export class SyncService {
       syncedCount: 0,
       failedCount: 0,
       skippedMockCount: 0,
+      queueUsingFallback: false,
       lastSyncAt: null,
       lastAttemptAt: null,
       lastError: null,
@@ -294,6 +295,7 @@ export class SyncService {
       syncedCount: all.filter((e) => e.status === "synced").length,
       failedCount: all.filter((e) => e.status === "failed").length,
       skippedMockCount: all.filter((e) => e.status === "skipped_mock").length,
+      queueUsingFallback: this.store.isUsingFallback(),
       lastSyncAt: this.snapshot.lastSyncAt,
       lastAttemptAt: this.snapshot.lastAttemptAt,
       lastError: this.snapshot.lastError,
@@ -335,7 +337,21 @@ export class SyncService {
 
     try {
       const pending = await this.store.listByStatus("pending");
+      const currentActor = this.opts.actorId();
       for (const entry of pending) {
+        // SYNC-102 (defense in depth): never push another user's entries
+        // under the CURRENT session's JWT (confused-deputy writes with the
+        // wrong actor identity). Foreign entries stay pending for their
+        // owner. Sign-out additionally clears the whole queue (see the
+        // auth provider), so this only fires on process-lifetime leaks.
+        if (
+          currentActor !== "system" &&
+          entry.actorId &&
+          entry.actorId !== currentActor
+        ) {
+          continue;
+        }
+
         // DEFENSE IN DEPTH: never push mock data, even if it ended up
         // in pending status (e.g. due to a bug in enqueue).
         if (entry.isMock) {

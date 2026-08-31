@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-08-31 — T-022 — Desktop sync queue correctness (SYNC-100/101/102, CACHE-102)
+- **Problem IDs:** SYNC-100 (TESTED), SYNC-101 (TESTED), SYNC-102 (TESTED), CACHE-102 (TESTED).
+- **What changed:** defaultPushHandler extracted to its own module + 4 new canonical entity cases (installment/attendance/grade RPCs, homework table upsert per Android parity) + loud-fail default; sync_queue audit upsert ignoreDuplicates; sign-out clears the queue + drain actor guard; fallback state surfaced (store + snapshot + indicator warning).
+- **Why:** 11 of 15 entity kinds were silent no-ops marked "synced" (data loss); the audit trail was clobbered each drain; the queue leaked across users on shared desktops; the in-memory fallback lied to the user.
+- **Affected components:** desktop sync layer (handler module, service, store, indicator, auth-provider).
+- **Tests:** t-022-sync-queue-correctness.test.ts 12/12 (behavioral via the doMock seam + source-scan guards + behavioral fallback detection).
+- **Verification:** tsc clean; full suite 60 files / 2119 tests ALL PASS; lint 0 errors. Gap: live two-instance sync.
+- **Commit:** (this commit).
+
+---
+
 ### 2026-08-31 — T-053 — Desktop global-admin support (TENANT-103)
 - **Problem IDs:** TENANT-103 (TESTED).
 - **What changed:** getTenantId() string|null (no demo fallback) + requireTenantId() on write paths; Session gains working tenantId (nullable) + homeTenantId; auth repo stores honest null; TenantSwitcher in the Topbar + auth.switchTenant (persist + reload); homework-push upload guard.
