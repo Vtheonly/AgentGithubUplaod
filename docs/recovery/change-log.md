@@ -975,3 +975,18 @@ path for T-092.
 **Test evidence:** desktop `npm run typecheck` clean, `npm run lint` 0 errors, suite 49 files / 2053 tests ALL PASS; website suite 10 files / 119 tests ALL PASS; Android unchanged (no toolchain). Live Supabase chain 0001–0056 applied + registered; Management API SQL endpoint + multipart EF deploy paths both exercised.
 
 **Verification scripts persisted:** scripts/verify_mig-tokens_0053_0054.sh, scripts/verify_t-006.sql (in-repo: elimtiyaz-desktop/scripts/), scripts/apply_migration.sh, scripts/run_verify_sql.sh.
+
+---
+
+## 2026-09-01 — SEVENTEENTH REPAIR SESSION — Owner-mandated batch (login fix + key migration + Ready-set progress)
+
+- **Session-opening chain check (AGENTS.md §15.11):** live `schema_migrations` vs local chain = **60/60 (0001–0063), zero drift** (Management API query). Cosmetic quirk recorded: row version 0050's stored name label is `chat_read_receipts` (same label as 0051) — versions are 1:1 with the repo files and statements were diff-verified in earlier sessions; the label is NOT corrected to avoid touching live registration state. Toolchain note: the container reset wiped /home/z/my-project/bin + /home/z/my-project/tools (JDK 21 came back system-wide: 21.0.12; Android cmdline-tools re-provisioning re-run detached).
+
+### T-106 — DESK-LOGIN-200: desktop sign-in blocker (owner-reported) — VERIFIED
+
+- **Problem IDs:** AUTH-300 (new, VERIFIED-FIXED)
+- **What was wrong / why:** owner's desktop failed sign-in with `POST /auth/v1/token?grant_type=password → 400`. Live probes isolated the layer: client path clean (`signInWithPassword`, no transformation); both public key formats healthy server-side (health 200, REST processed with anon JWT AND publishable key); exactly one auth user (`admin@elimtiyaz.dz`, confirmed, unbanned, last sign-in 2026-08-30); a dummy-password grant reproduced the exact 400 `{"error_code":"invalid_credentials"}`. Root cause: the shared secret no longer matched (expected failure mode after the SEC-100 leak + rotation guidance, given the idle gap since 2026-08-30).
+- **What changed:** NOTHING in client code (nothing was wrong there). The admin password was reset via the auth admin API (`PUT /auth/v1/admin/users/{id}`, service_role authorization supplied by the owner for this purpose) to a 32-char random value delivered out-of-band. Recovery procedure for future agents documented in AUTH-300 (probe before reset; never record the value in git).
+- **What was verified (live):** password grant → HTTP 200 with the legacy anon JWT as apikey; HTTP 200 with the new publishable key; `current_user_roles()` with the fresh session → `["super_admin"]` (RLS path end-to-end). Script persisted: `scripts/desk_login_200.sh`.
+- **What remains:** nothing for T-106. Standing owner-side advice: if sign-in ever fails again, the 400 body's `error_code` now distinguishes credential vs key problems (matrix in AUTH-300).
+- **Next task:** T-107 (this same session) → then the Ready set per next-task.md.

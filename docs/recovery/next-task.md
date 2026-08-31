@@ -14,6 +14,8 @@
 
 ## Currently in progress
 
+**17th repair session (2026-09-01) — owner-mandated batch IN FLIGHT.** Chain check 60/60 zero drift. DONE so far: **T-106** (DESK-LOGIN-200 — desktop login fixed live: credential reset + dual-key sign-in 200 + super_admin role check; AUTH-300 registered), **T-107** (MIG-KEYS-201 — ADR-009 dual-acceptance key migration applied on all three platforms + live dual-key matrix; KEYMIG-300 registered). Continue with: **T-104** (DATA-009 ADR), **T-034** (desktop refresh strategy), then the Android batch **T-020/T-021/T-046/T-051** (toolchain: JDK 21 system-wide; cmdline-tools re-provisioning under /home/z/my-project/bin — re-run if the container resets).
+
 **Nothing in progress — the 16th repair session (2026-09-01) is CLOSED: T-105 COMPLETE (the owner-mandated Excel-corpus equivalence — the corpus now matches the source workbook EXACTLY on every platform: migration 0063 applied live + registered [chain 60/60 = 0001–0063, zero drift]; live verification 259/259 × 6 + write-path ops 14/14; cross-platform desktop 259/259, Android 259/259, website 262/262, triple comparator 304/304).** DATA-010 (double-remise) + DATA-011 (row-242 family never imported) registered VERIFIED; DATA-008 extended to corpus-level closure; DATA-003 classification corrected. Full evidence: docs/recovery/t-105-live-verification.md.
 
 ## Current recommendation

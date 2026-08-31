@@ -3671,3 +3671,30 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Root cause:** enabling the provider requires a Google Cloud OAuth client (client id + secret) that only the owner can create (school Google account, consent screen, callback `https://hkvkefubghbbotgnteir.supabase.co/auth/v1/callback`).
 - **Resolution (owner):** follow `docs/operations/portal-google-oauth.md` steps 1-3 (~10 min in the Google Console + one PATCH call). The 14th session already set `uri_allow_list = http://localhost:3000,http://localhost:3100` (comma-separated STRING — the Management API rejects arrays; discovery documented in the runbook) so the local dev round-trip works once enabled.
 - **Verification:** after the owner enables it: full browser sign-in round-trip on the portal + `external_google_enabled: true` via the API; then flip this entry to TESTED.
+
+### AUTH-300 — Desktop sign-in returns 400 (admin credential invalid after the long idle gap)
+
+- **Category:** AUTH  |  **Severity:** Critical  |  **Status:** VERIFIED-FIXED (2026-09-01, 17th session)
+- **Repositories:** backend (Supabase auth), AgentGithubUplaod (desktop client)
+- **Platforms affected:** Desktop (staff app sign-in)
+- **Task:** T-106 (owner-reported blocker, 17th session)
+- **Discovered:** 2026-09-01 — owner report: "the desktop doesn't want to login", renderer console showing repeated `POST /auth/v1/token?grant_type=password → 400`.
+- **Diagnosis (evidence-based, no guessing):**
+  1. The client path is clean — `SupabaseAuthRepository.signIn` calls `signInWithPassword` directly with no transformation.
+  2. Both public key formats are accepted server-side: `auth/v1/health` 200 and REST queries process with the legacy anon JWT AND the new `sb_publishable_…` key (so the 400 was NOT an API-key problem).
+  3. The auth user census (admin API, service_role): exactly one user — `admin@elimtiyaz.dz`, confirmed, not banned; `last_sign_in_at = 2026-08-30T01:28:59Z` (16th-session era).
+  4. Reproducing the grant with a dummy password returns exactly the owner's symptom: `HTTP 400 {"error_code":"invalid_credentials"}` — i.e. the credentials being used no longer match. Server-side state was healthy; the shared secret was the failing part (SEC-100's 2026-08-29 password leak + rotation guidance made this the expected failure mode after an idle gap).
+- **What was changed:** the admin password was RESET via the auth admin API (`PUT /auth/v1/admin/users/{id}` with the service_role key the owner supplied for this purpose) to a fresh 32-char random value, delivered out-of-band to the owner. NO client code was changed (there was nothing wrong client-side) and NO user rows / audit data were touched.
+- **Verification (live, 2026-09-01):** `grant_type=password` → HTTP 200 with the legacy anon JWT as apikey; HTTP 200 with the new publishable key as apikey; the resulting session JWT successfully calls `current_user_roles()` → `["super_admin"]` (RLS path proven end-to-end). Script: `scripts/desk_login_200.sh` (idempotent re-runnable; the password value itself stays out of git per AGENTS.md §15.12).
+- **Residual risk / owner guidance:** the desktop stores its URL+key locally (Settings → Configuration) — unchanged and still valid. If sign-in fails again after this reset, the error body (`error_code`) now distinguishes `invalid_credentials` (password) from `invalid_api_key` (config). T-106 also documents the recovery procedure below.
+- **Recovery procedure (for future agents):** never guess a credential state from the 400 alone — (a) admin-API census, (b) dummy-grant probe for the error_code, (c) health+REST probe for key validity, (d) only then reset the credential with the owner's service_role authorization. Document the rotation OUT-OF-BAND only (credentials sheet records the EVENT, never the value).
+
+### KEYMIG-300 — New-format Supabase API keys not yet adopted consistently across the three platforms
+
+- **Category:** CONFIG  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, 17th session — live dual-key verification)
+- **Repositories:** AgentGithubUplaod (desktop + docs), elimtiyaz-website, elimtiyaz-android
+- **Platforms affected:** All three clients + backend key policy
+- **Task:** T-107 (owner mandate, 17th session: "apply the migration tokens… consistent everywhere")
+- **Discovered:** 2026-09-01 — the owner supplied the project's new-format keys (`sb_publishable_…` / `sb_secret_…`); a per-platform audit showed the website committed only the legacy anon JWT as its public default, the desktop dialog documented only the legacy format, while Android (since session 8) already dual-accepted. No registered documentation covered the new keys at all.
+- **Resolution:** ADR-009 — dual acceptance, publishable-preferred; full state table + live evidence in `docs/operations/credentials.md` §8; per-platform changes under task T-107.
+- **Verification:** website 419/419 tests (+4 guards) + build green; desktop typecheck clean + lint 0 errors + 2196/2196 tests (+4 guards); live dual-key matrix (health/REST/password-grant × both formats) recorded in the credentials sheet. Residual: a deployed portal re-render against the new default (owner's next deploy) — recorded as T-107's gap.

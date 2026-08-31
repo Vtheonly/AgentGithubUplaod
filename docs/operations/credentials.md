@@ -12,8 +12,8 @@
 | Region | `eu-west-1` |
 | REST URL | `https://hkvkefubghbbotgnteir.supabase.co` |
 | Tenant | El-Imtiyaz Boumerdès (`00000000-0000-0000-0000-000000000001`), DZD, `fr`, Africa/Algiers |
-| Auth users (live, 2026-08-30) | 2 — `admin@elimtiyaz.dz` (active) + one test residue (unconfirmed) |
-| Migration chain applied | 0001–0050 (0049 + 0050 applied live in session 8) |
+| Auth users (live, 2026-09-01) | 1 — `admin@elimtiyaz.dz` (active, confirmed; password RESET 2026-09-01 by T-106/AUTH-300 after `invalid_credentials` 400s — new value delivered out-of-band, never in git) |
+| Migration chain applied | 0001–0063 (60/60, session-17 opening check: zero drift; live-label quirk on row 0050 — see task-registry) |
 
 **Verified live (session 8):** auth health OK · RLS blocks anon reads on all 9 core tables · 58 RPCs exposed · `expire-pending-approvals` EF denies anonymous calls (SEC-105 fix holding) · canonical financial RPCs present.
 
@@ -43,10 +43,10 @@ https://hkvkefubghbbotgnteir.supabase.co/auth/v1/.well-known/jwks.json
 
 | Key | Scope | Where it may live | Notes |
 |---|---|---|---|
-| Supabase **anon key** (JWT, `role:anon`) | public client | website `.env.local`, Android `.env`, desktop settings | RLS-protected; never call it a secret |
-| Supabase **publishable key** (`sb_publishable_…`) | public client | Android accepts it as an anon-key alternative (`BuildConfig.SUPABASE_ANON_KEY.ifBlank { SUPABASE_PUBLISHABLE_KEY }`) | newer-style public key for the same project |
+| Supabase **anon key** (JWT, `role:anon`) — LEGACY, still ACTIVE | public client | website (rollback value in `public-config.ts`), Android `.env`, desktop settings | RLS-protected; never call it a secret; accepted everywhere (ADR-009 dual acceptance). Live-verified 2026-09-01: health 200 / REST / password-grant 200 |
+| Supabase **publishable key** (`sb_publishable_…`) — PREFERRED public identifier | public client | website committed default (T-107/MIG-KEYS-201, `public-config.ts` + `.env.example`), Android `SUPABASE_PUBLISHABLE_KEY` slot, desktop Configuration tab (both formats named) | ADR-009: publishable-preferred. Live-verified 2026-09-01: health 200 / REST / password-grant 200 |
 | Supabase **service_role key** | SERVER ONLY | Edge Functions secrets, CI/deployment env — never in any client repo | bypasses RLS; treat as root |
-| Supabase **secret key** (`sb_secret_…`) | SERVER ONLY | Edge Functions secrets (`CRON_SECRET`-style), CI | server APIs |
+| Supabase **secret key** (`sb_secret_…`) | SERVER ONLY | Edge Functions secrets (`CRON_SECRET`-style), CI | server APIs; designated successor of the service_role JWT when Supabase retires legacy keys — EFs keep consuming the platform-injected `SUPABASE_SERVICE_ROLE_KEY` env name until then |
 | Supabase **access token** (`sbp_…`) | owner/CI only | local operator machine, CI env | Management API (SQL endpoint used in session 8 to apply 0049/0050) |
 | Firebase **web API key** | public client | website env, Android `google-services.json` | restricted by Google console config; see SEC-003 (committed google-services.json — deferred T-076) |
 
@@ -87,3 +87,18 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 #    (call register_fcm_token with a JWT belonging to user A, p_user_id = user B)
 # 4. Website build: npm run build (strict) — env validation must not flag placeholders
 ```
+
+## 8. New-format API key migration (T-107 / MIG-KEYS-201, 2026-09-01 — ADR-009)
+
+**Decision:** dual acceptance, publishable-preferred. The project's public identifier moves to `sb_publishable_…` where values are COMMITTED (website `public-config.ts`), while every client continues to accept the legacy anon JWT. No destructive switch, no client-side parsing of either format (both are opaque strings for supabase-js ^2.111 and supabase-kt 3.1.1).
+
+| Platform | State after T-107 | Where |
+|---|---|---|
+| Website | committed default = publishable key; legacy JWT kept in-document as rollback; placeholder detection format-agnostic | `src/lib/public-config.ts`, `.env.example`, `src/lib/env.ts` |
+| Desktop | Configuration tab names both formats; runtime key-agnostic (URL+key from userData config) | `connection-card.tsx`, `supabase-client.ts` |
+| Android | runtime dual-accepts since session 8 (`ifBlank` fallback); `.env` stays owner-supplied (T-064/SEC-005: no committed APK-path credentials) | `SupabaseClientProvider.kt`, `.env.example` |
+| Backend / Edge Functions | unchanged; `sb_secret_` documented as successor for the service_role JWT | hub `supabase/functions/*` |
+
+**Live dual-key matrix (2026-09-01, hkvkefubghbbotgnteir):** `auth/v1/health` 200 ×2 · REST `parents` query processed ×2 (42703 column-probe, i.e. RLS-processed not key-rejected) · `grant_type=password` 200 ×2 (with the post-T-106 password). Guards: website `t-107-api-key-migration.test.ts` 4/4; desktop `api-key-format-acceptance.test.ts` 4/4.
+
+**When Supabase announces legacy-JWT retirement (future session):** (1) switch Android `.env` to the publishable value; (2) website rollback comment may then be deleted (guard test update included); (3) desktop users re-enter the key in Settings → Configuration; (4) re-run the §7 checklist; (5) update this sheet first, then ADR-009's status.
