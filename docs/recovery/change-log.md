@@ -20,6 +20,16 @@
 
 ## Entries
 
+### 2026-08-31 — T-057 — Website canonical port honesty (DRIFT-009/DEAD-011)
+- **Problem IDs:** DRIFT-009 (TESTED; absorbs DEAD-011).
+- **What changed:** the canonical port pruned to the consumed surface (15 files deleted, 11 kept); model re-export blocks trimmed; headers rewritten honestly (source + sha + never-re-add note; the promised-but-nonexistent port-canonical.mjs reference removed).
+- **Why:** ~20 dead functions in a read-only portal = drift surface; headers instructed maintainers to run a script that never existed.
+- **Affected components:** website src/lib/canonical only.
+- **Tests:** t-057-port-honesty.test.ts 4/4; site suite 13 files / 130 tests; strict build green; lint clean.
+- **Commits:** d7eb52e (website) + this doc commit (hub).
+
+---
+
 ### 2026-08-31 — T-052 — Notification badge correctness (NOTIF-102/103)
 - **Problem IDs:** NOTIF-102 (TESTED), NOTIF-103 (TESTED).
 - **What changed:** desktop — badge counts ALL unread (count before the 8-item display slice); website — useUnreadNotificationCount COUNT-only hook, top bar uses it, dead 1-row queries removed from bottom-nav ×2.
