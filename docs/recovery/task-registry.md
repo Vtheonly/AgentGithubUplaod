@@ -7,14 +7,14 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030/T-058 done; T-050 next)
+## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030/T-058/T-050 done; T-036 next)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 47 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) |
+| **Completed (TESTED)** | 48 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) + **T-050 (OnlineDetector fail-closed + own-backend probe + pullAll dedup; desktop 13/13 new tests, Android 15/15 new tests)** (13th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 7 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining:** T-050, T-036 (unblocked PUSH-103 portion), T-026, T-054, T-062, T-063, T-064 (Android tasks re-opened: dl.google.com is REACHABLE from this container again — toolchain re-bootstrapped at /home/z/my-project/tools). Done from this batch: T-041, T-030, T-058 |
+| **In Progress** | 6 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining:** T-036 (unblocked PUSH-103 portion), T-026, T-054, T-062, T-063, T-064 (Android tasks re-opened: dl.google.com is REACHABLE from this container again — toolchain re-bootstrapped at /home/z/my-project/tools; gradle memory-tuned). Done from this batch: T-041, T-030, T-058, T-050 |
 | **Ready** | 16 | T-017, T-020, T-021, T-024, T-034, T-039, T-043, T-044, T-046, T-051, T-069 (T-041 moved out — completed 13th session; count adjusted in-place) |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
@@ -120,6 +120,15 @@
 - **Verification:** `npm run check:migrations` → OK (57 files, +2 added vs origin/main — 0059/0060); `npx tsc --noEmit` clean (including the 3 T-041 fixes); full desktop suite 64 files / 2152 passed / 5 skipped / 0 failures (+6 tests); `npm run lint` 0 errors / 369 warnings (unchanged baseline).
 - **Commits:** this commit — hub repo.
 - **Left:** nothing — the check is in place and wired. GitHub Actions CI does not exist in this repo (documented in change-log); the guard runs locally via npm test / check:migrations and in any future CI as a one-liner.
+
+### T-050 — Android connectivity & pull efficiency
+- **Problems:** WEAK-009, SEC-006, CACHE-101, WEAK-010 · **Priority:** P2 · **Severity:** High
+- **Status:** TESTED (2026-08-31, 13th session)
+- **What was done:** ANDROID (repo elimtiyaz-android, commit 3bc5cdd): OnlineDetector is fail-closed (offline initial state; `isOnline()` = combined connectivity AND probe; probe catch returns FALSE; verdict accepts only 200/401; OkHttp no longer follows redirects so a captive-portal 302 is rejected); the third-party fallback host (`supabase.com`) is DELETED — unconfigured builds probe NOTHING (connectivity-only); probes throttled (10s min interval + in-flight guard); placeholder detection survives the YOUR_PROJECT underscore variant (SEC-005/T-064 overlap noted). PullSyncRepository.pullAll gains an in-flight + 10s dedup window (the "single deduplicated pullAll per cycle"); SyncWorker's and syncNow's duplicate pulls removed (drainPending's trailing pull is the one per-tick pull). DESKTOP (hub repo, this commit): the probe targets the configured Supabase `/auth/v1/health` (apikey header, cors mode — status readable; only 200/401 online; live endpoint behaviour curl-verified: 200 with key, 401 without, `access-control-allow-origin: *`); unconfigured (mock/dev) makes ZERO requests; fail-closed initial state; singleton derives the probe target from supabase-client. Live endpoint behaviour curl-verified. gradle.properties memory tuning committed (2-CPU/4GB container needs it for every future Android test run).
+- **Tests:** desktop NEW `src/tests/infrastructure/t-050-online-detector.test.ts` 13/13 (URL resolution, verdict matrix, fail-closed state machine incl. captive-portal 302 + network-failure + apikey-header + unconfigured-no-fetch); Android NEW `OnlineDetectorT050Test.kt` 15/15 (resolution matrix incl. underscore placeholder, verdict matrix, combine rule, source-scan wiring pins).
+- **Verification:** desktop suite 65 files / 2165 tests ALL PASS (+13); typecheck clean; lint 0 errors. Android `testDebugUnitTest` 234/234 ALL PASS (+15; was 219). Gap: live airplane-mode/captive-portal behaviour needs real hardware (recorded, not claimed); live device FCM/sync round-trip still blocked on owner config. NEW FINDING registered: ARCH-012 — `testReleaseUnitTest` fails on GreetingScreenshotTest (pre-existing, PROVEN by pristine-tree re-run; debug variant is the green gate).
+- **Commits:** 3bc5cdd — android repo; (this commit) — hub repo (desktop half + docs).
+- **Left:** T-064 keeps the remaining placeholder-detection scope (NetworkTimeouts.isSupabaseConfigured still hyphen-only); ARCH-012 release-variant test triage open.
 
 ## Completed (eleventh repair session — 2026-08-31, owner-requested ~10-task batch)
 
@@ -708,7 +717,7 @@
 - **Verification:** CI run.
 - **ADRs:** —
 
-#### T-050 — Android connectivity & pull efficiency
+#### T-050 — ~~Android connectivity & pull efficiency~~ *(moved to Completed — 13th session)*
 - **Problems:** WEAK-009, SEC-006, CACHE-101, WEAK-010 · **Priority:** P2 · **Severity:** High
 - **Description:** `OnlineDetector.isOnline()` incorporates probe results (fail closed on probe failure); probe targets the configured Supabase URL (not supabase.com/Google); single deduplicated `pullAll` trigger per cycle.
 - **Dependencies:** none · **Affected:** A, D (desktop OnlineDetector probe target) · **Platforms:** Android, Desktop

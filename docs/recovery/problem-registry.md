@@ -43,7 +43,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-003 | Low | DEFERRED | T-076 | Committed `google-services.json` contains a real Firebase API key + project number |
 | SEC-004 | Medium | OPEN | T-064 | `SupabaseConfigDialog` displays the Supabase anon key in plain text + references "Google AI Studio" secrets panel in user-facing text |
 | SEC-005 | Medium | OPEN | T-064 | `SupabaseClientProvider.build()` falls back to `https://demo.supabase.co` with key `"demo-key"` when unconfigured — real network requests go out to that public endpoint |
-| SEC-006 | Medium | OPEN | T-050 | `OnlineDetector` probes `https://supabase.com/auth/v1/health` every 30 seconds when unconfigured — metadata leak + battery drain |
+| SEC-006 | Medium | TESTED | T-050 | `OnlineDetector` probed `https://supabase.com/auth/v1/health` every 30 seconds when unconfigured — FIXED 2026-08-31 (T-050, 13th session): no third-party fallback exists anymore; unconfigured = NO probe at all (connectivity-only); probes throttled (10s min interval + in-flight guard); Android suite 234/234 |
 | SEC-007 | Critical | TESTED | T-009 | Mock-auth hydration runs unconditionally on every mount; bypasses the `NEXT_PUBLIC_MOCK_AUTH_ENABLED` feature flag |
 | SEC-008 | Critical | OPEN | T-031 | `enforce_parent_self_update_columns` trigger has no `has_role('parent')` check — blocks ALL staff updates to parent identity fields |
 | SEC-100 | Critical | TESTED | T-001 | Desktop login screen ships 9 hardcoded staff credentials as quick-fill buttons (in git) |
@@ -93,7 +93,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SYNC-106 | Medium | OPEN | T-021 | Android SyncWorker always returns Result.success() regardless of drainPending/pullAll failures; WorkManager retry escalation bypassed |
 | SYNC-107 | Medium | OPEN | T-021 | Android SyncService.syncNow is fire-and-forget; UI thinks sync completed immediately |
 | CACHE-100 | Medium | TESTED | T-033 | Website TanStack Query config (staleTime 30s + refetchOnWindowFocus false + retry 1) leaves data stale indefinitely when realtime is broken |
-| CACHE-101 | Medium | OPEN | T-050 | Desktop OnlineDetector probes Google (`https://www.google.com/generate_204`) with `mode: "no-cors"` every 30s — privacy leak + captive portal detection broken |
+| CACHE-101 | Medium | TESTED | T-050 | Desktop OnlineDetector probed Google with `mode: "no-cors"` every 30s — FIXED 2026-08-31 (T-050, 13th session): probe targets the configured Supabase `/auth/v1/health` (apikey header, cors mode, status readable); unconfigured = zero requests; only 200/401 count as online; desktop suite 2165 green (13/13 new T-050 tests) |
 | CACHE-102 | Medium | TESTED | T-022 | Desktop IndexedDB sync queue store silently falls back to in-memory when IndexedDB is unavailable; "sync queued" UI lies to user |
 | REALTIME-100 | Medium | OPEN | T-032 | Website messages-view invalidates wrong queryKey prefix; unread badge stays stale forever |
 | REALTIME-101 | Medium | OPEN | T-032 | Website markRead UPDATE on chat_messages is RLS-denied for incoming messages; read receipts NEVER persist server-side; errors silently swallowed |
@@ -139,6 +139,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ARCH-006 | Medium | OPEN | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
 | ARCH-007 | High | TESTED | T-081 | NEW (2026-08-29): Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken — gate restored 2026-08-29 (T-081) |
 | ARCH-008 | High | OPEN | T-082 | NEW (2026-08-29): the Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing NewApi errors; no lint baseline has ever existed |
+| ARCH-012 | Medium | OPEN | T-082-adjacent | NEW (2026-08-31, 13th session): `testReleaseUnitTest` fails on `GreetingScreenshotTest` ("Unable to resolve activity" — Robolectric cannot resolve the release-variant launcher activity, applicationId `com.aistudio.elimtiyazstaff.bxmzlx`). PROVEN pre-existing (pristine-tree re-run fails identically) and unrelated to any 13th-session change. The Android `./gradlew test` gate is green only via the DEBUG variant until this is fixed |
 | BUG-NEW-001 | High | TESTED | T-083 | NEW (2026-08-30): the `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table; the daily cron EF has been silently failing every day since the RPC was deployed — rewritten by migration 0049 (applied live 2026-08-30, verified: correct table + clean call); EF round-trip with CRON_SECRET pending |
 | BUG-NEW-002 | Critical | TESTED | T-084 | NEW (2026-08-30): `mv_dashboard_kpis` join fan-out multiplied every payment by the student count — monthly_revenue showed 21.38 BILLION DZD (true: 54.96M); rebuilt with scalar subqueries by migration 0049 (applied live, values verified) |
 | BUG-NEW-003 | High | TESTED | T-084 | NEW (2026-08-30): zero indexes on all four MVs — every scheduled `REFRESH MATERIALIZED VIEW CONCURRENTLY` failed; unique indexes added by migration 0049 (applied live, concurrent refresh verified) |
@@ -171,8 +172,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | WEAK-006 | Critical | OPEN | T-054 | `LocalInstallmentRepository.regenerateForCycle()` is hollow — only writes audit log, doesn't actually regenerate installments |
 | WEAK-007 | Critical | OPEN | T-026 | Dashboard "Créances en Retard" KPI + Debt Dashboard overdue amount are PERMANENTLY 0 (missing `overdueCategoryDueDates` map) |
 | WEAK-008 | Medium | OPEN | T-054 | `LocalWorkflowRepository.toDomain()` hardcodes `trigger = WorkflowTrigger.fromCode("manual")` for every run |
-| WEAK-009 | High | OPEN | T-050 | `OnlineDetector` always reports "online" — `isOnline()` ignores probe results, probe catches all exceptions and returns `true` |
-| WEAK-010 | Medium | OPEN | T-050 | `pullAll()` is called from 6 different call sites on startup / navigation / sync — wasteful duplication; SyncWorker calls it TWICE per tick |
+| WEAK-009 | High | TESTED | T-050 | `OnlineDetector` always reported "online" — FIXED 2026-08-31 (T-050, 13th session): fail-closed initial state; isOnline() = combined connectivity AND probe; probe catch returns false; verdict 200/401 only; redirects not followed (captive portal rejected) |
+| WEAK-010 | Medium | TESTED | T-050 | `pullAll()` fired from 6 call sites, SyncWorker TWICE per tick — FIXED 2026-08-31 (T-050, 13th session): in-flight + 10s dedup window gate in pullAll; SyncWorker/syncNow duplicate pulls removed (drainPending's trailing pull is the single per-tick pull) |
 | WEAK-011 | Medium | OPEN | T-051 | `audit()` helper hardcodes demo tenant ID + never captures actor role |
 | WEAK-012 | High | OPEN | T-051 | `PullSyncRepository.pullParents` / `pullStudents` fallback table select has NO tenant filter — multi-tenant data leak risk |
 | WEAK-016 | High | OPEN | T-032 | `useHomeworkRealtime` subscribes to the LEGACY `homework_assignments` table with a `target_class_id` filter; the canonical table is `homework` (migration 0029) using `class_id` — realtime is silently broken |
@@ -307,7 +308,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-006 — `OnlineDetector` probes `https://supabase.com/auth/v1/health` every 30 seconds when unconfigured — metadata leak + battery drain
 
-- **Category:** SEC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-050, 13th session): the third-party fallback host is DELETED. Unconfigured builds make ZERO network probes (connectivity-only mode); configured builds probe their OWN `/auth/v1/health` at most every 30s, throttled to 10s minimum spacing + an in-flight guard (ConnectivityManager callback storms can no longer multiply probes). Placeholder detection now survives the YOUR_PROJECT underscore variant (the SEC-005/T-064 weakness — verified by the new unit tests).
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-050 (docs/recovery/task-registry.md)
@@ -1312,7 +1314,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CACHE-101 — Desktop OnlineDetector probes Google (`https://www.google.com/generate_204`) with `mode: "no-cors"` every 30s — privacy leak + captive portal detection broken
 
-- **Category:** CACHE  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** CACHE  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-050, 13th session): the probe now targets the CONFIGURED Supabase project's `/auth/v1/health` (resolved from supabase-client; apikey header sent → healthy 200; without key 401 still proves reachability); `mode: "cors"` makes the STATUS readable — only 200/401 count as online, so a captive portal's redirect/login page (opaque or 302) is OFFLINE; unconfigured (mock/dev) makes ZERO network requests (navigator-only); the singleton's probe target is derived at construction; fail-closed initial state until the first probe. Live endpoint behaviour verified with curl (200 with apikey, 401 without, `access-control-allow-origin: *`). Desktop suite 65 files / 2165 tests green incl. 13/13 new t-050 tests.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-050 (docs/recovery/task-registry.md)
@@ -2586,7 +2589,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-009 — `OnlineDetector` always reports "online" — `isOnline()` ignores probe results, probe catches all exceptions and returns `true`
 
-- **Category:** WEAK  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** High  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-050, 13th session): initial state fail-closed (offline until evidence); `isOnline()` returns the COMBINED state (connectivityActive AND probeOk — `combineOnline`); `probe()`'s catch returns FALSE (DNS/timeout/refused → offline); verdict `probeAccepts` accepts only 200/401; the OkHttp client no longer follows redirects (captive-portal 302 → rejected). 15 new Android unit tests (OnlineDetectorT050Test) incl. source-scan pins; debug suite 234/234. Live airplane-mode/captive-portal behaviour is a hardware-note gap (not claimed).
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-050 (docs/recovery/task-registry.md)
@@ -2605,7 +2609,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-010 — `pullAll()` is called from 6 different call sites on startup / navigation / sync — wasteful duplication; SyncWorker calls it TWICE per tick
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-050, 13th session): `PullSyncRepository.pullAll` gains an atomic in-flight guard + a 10s dedup window (deduped calls return Ok(0) without touching the network — the "single deduplicated pullAll trigger per cycle" the task prescribes); SyncWorker's own duplicate pull REMOVED (drainPending's trailing pull is the one per-tick pull); syncNow's second pull REMOVED (same). Source-scan tests pin the wiring.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-050 (docs/recovery/task-registry.md)
@@ -3473,3 +3478,22 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Verification:** migration-level test with the full canonical chain; regression test reproducing both bypasses.
 
 ---
+
+---
+
+### ARCH-012 — `testReleaseUnitTest` fails: GreetingScreenshotTest cannot resolve the release-variant launcher activity
+
+- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Repositories:** elimtiyaz-android
+- **Platforms affected:** Android (test infrastructure)
+- **Task:** registered 2026-08-31 (13th session); needs triage — likely T-082-adjacent (test-gate hygiene)
+- **Discovered:** 2026-08-31, 13th session, during the T-050 full-suite verification run.
+- **Description:** `./gradlew test` (both variants) fails on the RELEASE unit-test variant: `GreetingScreenshotTest > greeting_screenshot` → `java.lang.RuntimeException: Unable to resolve activity for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.aistudio.elimtiyazstaff.bxmzlx/androidx.activity.ComponentActivity }` (Robolectric issue, see robolectric/robolectric#4736). The DEBUG variant of the exact same test passes (234/234). The release build's applicationId suffix (`.bxmzlx`) appears to defeat Robolectric's launcher-activity resolution.
+- **Evidence (pre-existing, NOT caused by T-050):** the failure was reproduced on a PRISTINE tree — the 13th session's sync changes were stashed (`git stash push -- app/src/main/.../sync/` + the new test file moved aside) and `./gradlew testReleaseUnitTest --tests com.example.GreetingScreenshotTest` failed identically (log preserved at /home/z/my-project/.t050-pristine.log). No activity/manifest change exists in the 13th-session diff.
+- **Root cause:** suspected: Robolectric + release applicationId suffix interaction; NOT yet investigated in depth (needs manifest merge inspection).
+- **Current behavior:** the full `./gradlew test` task is red on the release variant; the debug variant (the variant every historical "219/219" / "234/234" claim actually exercised) is green.
+- **Expected behavior:** both variants green, or the release screenshot test explicitly excluded with a documented reason.
+- **Proposed resolution:** triage in a future session — either configure Robolectric's release-variant manifest handling or scope GreetingScreenshotTest to the debug variant with a documented note. Register as a task when picked up.
+- **Dependencies:** none recorded
+- **Verification:** fix must show BOTH variants green (or the documented exclusion) before status moves past TESTED.
+

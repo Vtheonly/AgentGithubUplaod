@@ -4,11 +4,22 @@
  * Wraps `navigator.onLine` + the `online`/`offline` window events so
  * the rest of the app has a single typed API.
  *
- * The detector also performs an HTTP probe to confirm the network
- * is actually reachable (the `online` event only signals the
- * network interface is up — DNS may still be broken). The probe is
- * throttled to at most one per `probeIntervalMs`.
+ * The detector also performs an HTTP probe to confirm the network is
+ * actually reachable (the `online` event only signals the network
+ * interface is up — DNS may still be broken). The probe is throttled to
+ * at most one per `probeIntervalMs`.
+ *
+ * T-050 (CACHE-101): the probe targets OUR configured Supabase project's
+ * `/auth/v1/health` endpoint (never a third-party host — no metadata
+ * leak), runs in `cors` mode so the response STATUS
+ * is readable (a captive portal's redirect/login page no longer counts
+ * as "online"), and fails CLOSED: any throw, abort, or non-
+ * {200, 401} status means offline. When no Supabase URL is configured
+ * (mock/dev mode) the detector does not probe at all and follows
+ * `navigator.onLine` only.
  */
+
+import { supabaseUrl, supabaseAnonKey } from "../supabase/supabase-client";
 
 export interface OnlineState {
   /** Whether the browser reports `navigator.onLine`. */
@@ -21,12 +32,33 @@ export interface OnlineState {
   changedAt: string;
 }
 
-const DEFAULT_PROBE_URL = "https://www.google.com/generate_204";
 const DEFAULT_PROBE_INTERVAL_MS = 30_000;
+
+/**
+ * Resolve the probe endpoint from the CONFIGURED Supabase URL, or null when
+ * unconfigured (mock/dev mode — then the detector never makes a request).
+ */
+export function resolveProbeUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim().replace(/"/g, "");
+  if (!/^https?:\/\//.test(trimmed)) return null;
+  return trimmed.replace(/\/+$/, "") + "/auth/v1/health";
+}
+
+/**
+ * Probe verdict: 200 = healthy (with apikey) · 401 = reachable but
+ * unauthenticated — both prove the REAL auth service answered. A redirect
+ * (captive portal login) or 5xx does not.
+ */
+export function probeAccepts(status: number): boolean {
+  return status === 200 || status === 401;
+}
 
 export class OnlineDetector {
   protected state: OnlineState = {
     navigatorOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
+    // Fail-closed until the first probe completes — but when there is
+    // nothing to probe (unconfigured), trust navigator alone.
     probeOk: true,
     online: typeof navigator !== "undefined" ? navigator.onLine : true,
     changedAt: new Date().toISOString(),
@@ -36,14 +68,23 @@ export class OnlineDetector {
   private probeTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
-    protected readonly probeUrl: string = DEFAULT_PROBE_URL,
+    /** Probe endpoint; null/undefined = never probe (navigator-only). */
+    protected readonly probeUrl: string | null | undefined = null,
     protected readonly probeIntervalMs: number = DEFAULT_PROBE_INTERVAL_MS,
-  ) {}
+    /** Sent with the probe (apikey → healthy 200 instead of 401). */
+    protected readonly probeHeaders: Record<string, string> = {},
+  ) {
+    if (this.probeUrl) {
+      // Configured: fail-closed until the first probe result lands.
+      this.update({ probeOk: false });
+    }
+  }
 
   start(): void {
     if (typeof window === "undefined") return;
     window.addEventListener("online", this.handleNavigatorOnline);
     window.addEventListener("offline", this.handleNavigatorOffline);
+    if (!this.probeUrl) return; // unconfigured: navigator-only, zero requests
     // Probe immediately so we don't trust the initial navigator.onLine alone.
     void this.probe();
     this.probeTimer = setInterval(() => void this.probe(), this.probeIntervalMs);
@@ -69,6 +110,10 @@ export class OnlineDetector {
 
   /** Force a probe now — used by tests + after a failed sync attempt. */
   async probe(): Promise<boolean> {
+    if (!this.probeUrl) {
+      // Unconfigured: nothing to probe — keep navigator-only semantics.
+      return this.state.navigatorOnline;
+    }
     const now = Date.now();
     // Throttle.
     if (now - this.lastProbeAt < 5_000) return this.state.online;
@@ -79,17 +124,19 @@ export class OnlineDetector {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5_000);
       const res = await fetch(this.probeUrl, {
-        method: "HEAD",
-        mode: "no-cors",
+        method: "GET",
+        // cors (not no-cors): Supabase serves `access-control-allow-origin: *`
+        // on /auth/v1/health, so the STATUS is readable — a captive portal's
+        // opaque redirect no longer passes for "online" (CACHE-101).
+        mode: "cors",
         cache: "no-store",
+        headers: this.probeHeaders,
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      // In no-cors mode we can't read the status, but any non-throwing
-      // response means the network is reachable.
-      probeOk = true;
-      void res;
+      probeOk = probeAccepts(res.status);
     } catch {
+      // FAIL-CLOSED: DNS failure / timeout / refused / CORS rejection → offline.
       probeOk = false;
     }
     this.update({ probeOk });
@@ -124,7 +171,13 @@ export class OnlineDetector {
 /** Singleton detector — the entire app shares one. */
 let _detector: OnlineDetector | null = null;
 export function getOnlineDetector(): OnlineDetector {
-  if (!_detector) _detector = new OnlineDetector();
+  if (!_detector) {
+    // T-050 (CACHE-101): probe OUR backend, not a third-party host; no probe at all
+    // when the Supabase URL is unconfigured (mock/dev mode).
+    const probeUrl = resolveProbeUrl(supabaseUrl);
+    const headers: Record<string, string> = supabaseAnonKey ? { apikey: supabaseAnonKey } : {};
+    _detector = new OnlineDetector(probeUrl, DEFAULT_PROBE_INTERVAL_MS, headers);
+  }
   return _detector;
 }
 
