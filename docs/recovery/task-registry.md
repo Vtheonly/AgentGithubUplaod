@@ -12,10 +12,10 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 5 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session) |
-| **Completed (TESTED)** | 36 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) |
+| **Completed (TESTED)** | 37 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7)** (12th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** | 35 | T-015, T-017, T-018, T-020…T-022, T-024, T-026, T-030, T-034, T-036, T-039…T-041, T-043, T-044, T-046, T-050…T-055, T-057, T-058, T-062…T-064, T-069, **T-095 (NEW)** |
+| **Ready** | 34 | T-017, T-018, T-020…T-022, T-024, T-026, T-030, T-034, T-036, T-039…T-041, T-043, T-044, T-046, T-050…T-055, T-057, T-058, T-062…T-064, T-069, **T-095 (NEW)** |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -179,6 +179,15 @@
 - **Dependencies:** none · **Affected:** D (functions) · **Platforms:** Backend
 - **Tests:** live curl matrix; second run creates 0 duplicate notifications; desktop T-094 suite stays green.
 - **Verification:** evidence in change-log + t-XXX-live-verification doc.
+
+### T-015 — Consolidate receipt numbering to the server algorithm — **TESTED (desktop + backend; Android paths left, toolchain-gated)**
+- **Problems:** DRIFT-011 (absorbs BUSINESS-006, BUSINESS-105) · **Priority:** P1 · **Severity:** High
+- **Status:** TESTED (2026-08-31, twelfth session + live verification 7/7; migration 0058 applied live + registered atomically)
+- **What was done:** migration **0058_receipt_number_server_allocation.sql** — (1) `next_receipt_number(p_tenant_id)` canonical generator, algorithm VERBATIM from 0040:69-72; (2) `generate_receipt_numbers(p_tenant_id, p_count)` batch allocator for the importer (advisory-xact-locked against concurrent allocations; SEC-111-pattern caller verification); (3) `upsert_payment_from_import` (0055 body verbatim + the marked T-015 block) generates a canonical number when p_payment_number is NULL/blank. Desktop: `bulkCollect` allocates missing numbers via ONE generate_receipt_numbers RPC call (replacing `PAY-{ts}-{random}`); the sync-queue payment push passes NULL instead of a random `PAY-YYYY-NNNNNN`; `generateReceipt`'s `REC-${paymentId}` display fabrication replaced with an honest "—" placeholder. The mock's sequential REC- generator is the documented demo mirror (not one of DRIFT-011's five paths — preserved).
+- **Tests:** NEW `src/tests/infrastructure/t-015-receipt-server-numbers.test.ts` 7/7 — allocator called once with the exact missing count + allocated numbers stamped in order + explicit numbers kept; allocator NOT called when all inputs carry numbers; allocation failure → Err + zero inserts; count mismatch → Err; source-scan guards (no random PAY- generation left in app code; sync push passes NULL; no REC-${paymentId} fabrication). Full desktop suite 58 files / 2098 tests ALL PASS.
+- **Live verification:** `scripts/verify_t-015.sql` 7/7 PASS (BEGIN…ROLLBACK, admin-JWT emulation): 0058 registered; next_receipt_number canonical (REC-2026-000001 — the production year sequence starts fresh, no pre-existing REC-2026 numbers); batch allocation contiguous; cross-tenant allocation REJECTED (SEC-111 pattern); NULL-number upsert generates canonical + was_inserted; explicit-number dedup (insert-then-update) preserved; 0034 trigger syncs receipt_number on the generated row.
+- **Left:** the two ANDROID client-side generators (LocalPaymentRepository.collect per-device count+1; SyncQueueDispatcher random PAY- fallback) — toolchain-gated (SDK un-downloadable in this container) AND their proper fix is ADR-005's write-through-canonical-RPCs architecture (T-059, BLOCKED on UNKNOWN-002); a local-format patch now would be premature. Documented residual: allocation-vs-insertion race window with concurrent interactive collect() fails LOUD via payments_tenant_id_payment_number_key (documented in the migration header).
+- **Discovery recorded:** the unique constraint is on (tenant_id, payment_number) — receipt_number has NO unique constraint (BUSINESS-006's registry claim was wrong); the 0034 trigger syncs receipt_number := payment_number when NULL.
 
 
 ## Completed (fifth repair session — 2026-08-29)

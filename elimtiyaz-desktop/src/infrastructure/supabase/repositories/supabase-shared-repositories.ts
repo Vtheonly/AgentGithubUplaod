@@ -1251,9 +1251,42 @@ export class SupabasePaymentRepository implements PaymentRepository {
     try {
       const tenantId = getTenantId();
       const now = new Date().toISOString();
-      const rows = inputs.map(({ input, collectedBy }) => ({
+
+      // T-015 / DRIFT-011 — receipt numbers are SERVER-AUTHORITATIVE (ADR-004).
+      // Rows whose input carries an explicit receiptNumber keep it (Excel
+      // rows that already have one — dedup key for re-imports). Rows without
+      // one get a canonical REC-YYYY-NNNNNN allocated in a single
+      // `generate_receipt_numbers` RPC call (migration 0058, advisory-locked
+      // against concurrent import allocations) — replacing the old
+      // `PAY-{ts}-{random}` client-side generator. The 0034 trigger then
+      // syncs receipt_number := payment_number on INSERT, so imported rows
+      // land with both fields set, exactly like the canonical collect path.
+      const missingCount = inputs.filter(({ input }) => !input.receiptNumber).length;
+      let allocated: string[] = [];
+      if (missingCount > 0) {
+        const { data: allocatedRows, error: allocError } = await this.client.rpc(
+          "generate_receipt_numbers",
+          { p_tenant_id: tenantId, p_count: missingCount },
+        );
+        if (allocError) {
+          return Err(Errors.server(
+            `bulkCollect: server receipt-number allocation failed: ${allocError.message}`,
+          ));
+        }
+        allocated = ((allocatedRows ?? []) as unknown as string[]).slice();
+        if (allocated.length !== missingCount) {
+          return Err(Errors.server(
+            `bulkCollect: server allocated ${allocated.length} receipt numbers, expected ${missingCount}`,
+          ));
+        }
+      }
+      let allocIndex = 0;
+
+      const rows = inputs.map(({ input, collectedBy }) => {
+        const paymentNumber = input.receiptNumber ?? allocated[allocIndex++];
+        return {
         tenant_id: tenantId,
-        payment_number: input.receiptNumber ?? `PAY-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        payment_number: paymentNumber,
         receipt_number: input.receiptNumber ?? null,
         parent_id: input.parentId,
         student_id: input.studentId ?? null,
@@ -1269,7 +1302,8 @@ export class SupabasePaymentRepository implements PaymentRepository {
         expected_amount: (input as { expectedAmount?: number }).expectedAmount ?? 0,
         excess_amount: (input as { excessAmount?: number }).excessAmount ?? 0,
         excess_remark: (input as { excessRemark?: string | null }).excessRemark ?? null,
-      }));
+        };
+      });
       // Insert in chunks of 500. FAIL FAST on the first chunk error.
       const CHUNK_SIZE = 500;
       const inserted: Payment[] = [];
@@ -1401,7 +1435,9 @@ export class SupabasePaymentRepository implements PaymentRepository {
       const receipt: Receipt = {
         id: `rct-${paymentId}`,
         paymentId,
-        receiptNumber: row.receipt_number ?? row.payment_number ?? `REC-${paymentId}`,
+        // T-015: no client-side REC- fabrication — show the real number or an
+        // honest placeholder (every post-0058 payment carries one).
+        receiptNumber: row.receipt_number ?? row.payment_number ?? "—",
         pdfUrl: null, // PDF generation is a desktop-only concern (Electron print-to-PDF)
         generatedAt: new Date().toISOString(),
         generatedBy,

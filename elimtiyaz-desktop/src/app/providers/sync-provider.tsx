@@ -166,7 +166,13 @@ async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
       case "payment": {
         const { error } = await client.rpc("upsert_payment_from_import", {
           p_tenant_id: entry.tenantId,
-          p_payment_number: (p.receiptNumber as string) ?? (p.payment_number as string) ?? `PAY-${new Date().getFullYear()}-${Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0")}`,
+          // T-015 / DRIFT-011 — receipt numbers are SERVER-AUTHORITATIVE
+          // (ADR-004): when a queued payment carries no number we pass NULL
+          // and migration 0058's upsert_payment_from_import generates a
+          // canonical REC-YYYY-NNNNNN. The old client-side random
+          // `PAY-YYYY-NNNNNN` fallback was collision-prone and broke the
+          // sequential-receipt invariant.
+          p_payment_number: (p.receiptNumber as string) ?? (p.payment_number as string) ?? null,
           p_parent_id: (p.parentId as string) ?? (p.parent_id as string),
           p_student_id: (p.studentId as string) ?? (p.student_id as string) ?? null,
           p_amount: (p.amount as number) ?? 0,

@@ -20,6 +20,18 @@
 
 ## Entries
 
+### 2026-08-31 — T-015 — Server-authoritative receipt numbers (migration 0058) — desktop + backend
+- **Problem IDs:** DRIFT-011 → PARTIAL (desktop paths fixed; Android paths toolchain-gated/ADR-005).
+- **What changed:** migration 0058 — `next_receipt_number` (0040 algorithm verbatim), `generate_receipt_numbers` batch allocator (advisory-xact-lock, SEC-111-pattern caller verification), `upsert_payment_from_import` NULL-number server-side generation (0055 body verbatim + marked block). Desktop: bulkCollect allocates via ONE RPC call (random PAY-{ts} gone); sync push passes NULL; generateReceipt placeholder honest. Applied LIVE + registered atomically (ARCH-011 discipline).
+- **Why:** ADR-004 makes receipt numbers sequential + server-authoritative; three client-side random/per-device generators broke the invariant and were collision-prone.
+- **Affected components:** backend (0058), desktop bulkCollect/sync-provider/generateReceipt. Android generators deliberately untouched (T-059/ADR-005).
+- **Tests:** `t-015-receipt-server-numbers.test.ts` 7/7 (allocation call/count/assignment, no-alloc path, fail-fast ×2, 3 source-scan guards); full suite 58 files / 2098 ALL PASS.
+- **Verification:** LIVE `scripts/verify_t-015.sql` 7/7 (registration; canonical format REC-2026-000001; contiguous batch; cross-tenant REJECTED; NULL→canonical+inserted; explicit-number dedup; trigger syncs receipt_number). Gap: live desktop-UI import E2E needs a host.
+- **Commit:** (this commit).
+- **Notes:** DISCOVERY — the unique constraint is on (tenant_id, payment_number); receipt_number has NO unique constraint (BUSINESS-006's registry claim corrected). The allocation-vs-insertion race window fails LOUD via the unique index (documented in the migration header). The mock's sequential REC- generator preserved (demo mirror, not one of the five DRIFT-011 paths).
+
+---
+
 ### 2026-08-31 — ELEVENTH REPAIR SESSION — T-011, T-012, T-013, T-014, T-023, T-025, T-068 (VERIFIED), T-033, T-048, T-060 — 10-task owner-requested batch
 - **Problem IDs:** BUSINESS-002 (TESTED), BUSINESS-100 (TESTED), BUSINESS-101/104 (TESTED), DEAD-015 + BUSINESS-003 (TESTED), HOMEWORK-100 + ATT-100 (TESTED + live 7/7), DEAD-100 + TENANT-105/106 (TESTED + live 6/6, migration 0057), SEC-109 (VERIFIED — live deploy + probes), CACHE-100 (TESTED), CROSS-001/003 (TESTED), BUSINESS-005 + WEAK-005 (TESTED); NEW discovery BUG-NEW-004 (→ T-095, registered by session 12's closeout).
 - **Registry closeout note:** the 11th session's code + live work all landed and was PUSHED, but its session ended before the registry/change-log sweep; the 12th session performed that closeout (this entry + registry flips + full-suite re-run evidence below), per the session-11 close-out commit's own `Left:` note.
