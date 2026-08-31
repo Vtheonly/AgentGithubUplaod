@@ -1,0 +1,185 @@
+{
+ "id": "t105_4fcb0ac3",
+ "description": "T-105 corpus equivalence \u2014 ZIANI MED (phone 0770561279): REAL post-0063 ledger + tranche schedule of the reconciled Excel corpus (3 entries, 9 tranches).",
+ "category": "corpus",
+ "tags": [
+  "t-105",
+  "excel-corpus",
+  "computeParentSummary",
+  "real-data"
+ ],
+ "given": {
+  "tenantId": "t105",
+  "parent": {
+   "id": "par-4fcb0ac3",
+   "name": "ZIANI MED"
+  },
+  "students": [],
+  "ledgerEntries": [
+   {
+    "id": "led-0",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-c01fd036",
+    "category": "tuition",
+    "amount": 38500000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "c01fd036-91e2-4f2b-b2d2-823894bc3329:DEVIS_ANNUEL",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:17:19.678Z",
+    "description": "Devis annuel (import Excel run run_msp3foah_c254f9)"
+   },
+   {
+    "id": "led-1",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-4a786c14",
+    "category": "tuition",
+    "amount": 40000000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "4a786c14-36cb-40e6-be17-a1f4dbc87c02:DEVIS_ANNUEL",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:17:19.325Z",
+    "description": "Devis annuel (import Excel run run_msp3foah_c254f9)"
+   },
+   {
+    "id": "led-2",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-b525a391",
+    "category": "tuition",
+    "amount": 43000000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "b525a391-10aa-4b90-b8f9-3429b2c6feb8:DEVIS_ANNUEL",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:17:18.999Z",
+    "description": "Devis annuel (import Excel run run_msp3foah_c254f9)"
+   }
+  ],
+  "installments": [
+   {
+    "id": "ins-0",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-4a786c14",
+    "category": "tuition",
+    "label": "Tranche 1 \u2014 Scolarit\u00e9",
+    "amountDue": 16000000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-1",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-b525a391",
+    "category": "tuition",
+    "label": "Tranche 1 \u2014 Scolarit\u00e9",
+    "amountDue": 17200000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-2",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-c01fd036",
+    "category": "tuition",
+    "label": "Tranche 1 \u2014 Scolarit\u00e9",
+    "amountDue": 15400000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-3",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-4a786c14",
+    "category": "tuition",
+    "label": "Tranche 2 \u2014 Scolarit\u00e9",
+    "amountDue": 12000000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-12-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-4",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-b525a391",
+    "category": "tuition",
+    "label": "Tranche 2 \u2014 Scolarit\u00e9",
+    "amountDue": 12900000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-12-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-5",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-c01fd036",
+    "category": "tuition",
+    "label": "Tranche 2 \u2014 Scolarit\u00e9",
+    "amountDue": 11550000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-12-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-6",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-b525a391",
+    "category": "tuition",
+    "label": "Tranche 3 \u2014 Scolarit\u00e9",
+    "amountDue": 12900000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2026-03-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-7",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-c01fd036",
+    "category": "tuition",
+    "label": "Tranche 3 \u2014 Scolarit\u00e9",
+    "amountDue": 11550000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2026-03-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-8",
+    "parentId": "par-4fcb0ac3",
+    "studentId": "stu-4a786c14",
+    "category": "tuition",
+    "label": "Tranche 3 \u2014 Scolarit\u00e9",
+    "amountDue": 12000000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2026-03-15",
+    "status": "unpaid"
+   }
+  ],
+  "payments": [],
+  "academicYearStartYear": 2025
+ },
+ "when": {
+  "type": "computeParentSummary",
+  "parentId": "par-4fcb0ac3"
+ },
+ "then": {
+  "totalOutstanding": 121500000,
+  "totalPaid": 0,
+  "totalCharged": 121500000,
+  "totalUnallocatedCredit": 0
+ }
+}

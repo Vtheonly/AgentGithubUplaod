@@ -1,0 +1,99 @@
+{
+ "id": "t105_d69a5338",
+ "description": "T-105 corpus equivalence \u2014 HAIL IMANE (phone 0556331320): REAL post-0063 ledger + tranche schedule of the reconciled Excel corpus (2 entries, 3 tranches).",
+ "category": "corpus",
+ "tags": [
+  "t-105",
+  "excel-corpus",
+  "computeParentSummary",
+  "real-data"
+ ],
+ "given": {
+  "tenantId": "t105",
+  "parent": {
+   "id": "par-d69a5338",
+   "name": "HAIL IMANE"
+  },
+  "students": [],
+  "ledgerEntries": [
+   {
+    "id": "led-0",
+    "parentId": "par-d69a5338",
+    "studentId": "stu-00a6372e",
+    "category": "tuition",
+    "amount": -14700000,
+    "type": "payment",
+    "sourceType": "bulk_import",
+    "sourceId": "00a6372e-b493-4789-ac71-3b7701f552f5:V2",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:16:35.084Z",
+    "description": "Versement 2 (V2) \u2014 import Excel run run_msp3foah_c254f9"
+   },
+   {
+    "id": "led-1",
+    "parentId": "par-d69a5338",
+    "studentId": "stu-00a6372e",
+    "category": "tuition",
+    "amount": 33000000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "00a6372e-b493-4789-ac71-3b7701f552f5:DEVIS_ANNUEL",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:16:35.084Z",
+    "description": "Devis annuel (import Excel run run_msp3foah_c254f9)"
+   }
+  ],
+  "installments": [
+   {
+    "id": "ins-0",
+    "parentId": "par-d69a5338",
+    "studentId": "stu-00a6372e",
+    "category": "tuition",
+    "label": "Tranche 1 \u2014 Scolarit\u00e9",
+    "amountDue": 13200000,
+    "amountPaid": 13200000,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "paid"
+   },
+   {
+    "id": "ins-1",
+    "parentId": "par-d69a5338",
+    "studentId": "stu-00a6372e",
+    "category": "tuition",
+    "label": "Tranche 2 \u2014 Scolarit\u00e9",
+    "amountDue": 9900000,
+    "amountPaid": 1500000,
+    "amountPending": 0,
+    "dueDate": "2025-12-15",
+    "status": "partial"
+   },
+   {
+    "id": "ins-2",
+    "parentId": "par-d69a5338",
+    "studentId": "stu-00a6372e",
+    "category": "tuition",
+    "label": "Tranche 3 \u2014 Scolarit\u00e9",
+    "amountDue": 9900000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2026-03-15",
+    "status": "unpaid"
+   }
+  ],
+  "payments": [],
+  "academicYearStartYear": 2025
+ },
+ "when": {
+  "type": "computeParentSummary",
+  "parentId": "par-d69a5338"
+ },
+ "then": {
+  "totalOutstanding": 18300000,
+  "totalPaid": 14700000,
+  "totalCharged": 33000000,
+  "totalUnallocatedCredit": 0
+ }
+}

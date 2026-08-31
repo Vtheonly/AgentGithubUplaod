@@ -1,0 +1,247 @@
+{
+ "id": "t105_1ffc17d6",
+ "description": "T-105 corpus equivalence \u2014 BOUDALIA NIHAL (phone 0697940776): REAL post-0063 ledger + tranche schedule of the reconciled Excel corpus (10 entries, 6 tranches).",
+ "category": "corpus",
+ "tags": [
+  "t-105",
+  "excel-corpus",
+  "computeParentSummary",
+  "real-data"
+ ],
+ "given": {
+  "tenantId": "t105",
+  "parent": {
+   "id": "par-1ffc17d6",
+   "name": "BOUDALIA NIHAL"
+  },
+  "students": [],
+  "ledgerEntries": [
+   {
+    "id": "led-0",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "amount": 8500000,
+    "type": "adjustment",
+    "sourceType": "bulk_import",
+    "sourceId": "b1bdaf21-7bed-4df0-8689-b2b669745d3b:REMISE:RECON0063",
+    "actorId": "system",
+    "actorName": "R\u00e9conciliation 0063",
+    "at": "2026-08-31T18:42:26.936Z",
+    "description": "Annulation double-remise (r\u00e9conciliation 0063) \u2014 le devis import\u00e9 est d\u00e9j\u00e0 net de remise (formule Excel L = composantes \u2212 J)"
+   },
+   {
+    "id": "led-1",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "amount": 8000000,
+    "type": "adjustment",
+    "sourceType": "bulk_import",
+    "sourceId": "4f0b230e-8889-4166-86f2-1f3f6903e9aa:REMISE:RECON0063",
+    "actorId": "system",
+    "actorName": "R\u00e9conciliation 0063",
+    "at": "2026-08-31T18:42:26.936Z",
+    "description": "Annulation double-remise (r\u00e9conciliation 0063) \u2014 le devis import\u00e9 est d\u00e9j\u00e0 net de remise (formule Excel L = composantes \u2212 J)"
+   },
+   {
+    "id": "led-2",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "amount": -8000000,
+    "type": "adjustment",
+    "sourceType": "bulk_import",
+    "sourceId": "4f0b230e-8889-4166-86f2-1f3f6903e9aa:REMISE",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:27.049Z",
+    "description": "Remise sur devis (import Excel run run_msp3foah_c254f9)"
+   },
+   {
+    "id": "led-3",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "amount": -4500000,
+    "type": "payment",
+    "sourceType": "bulk_import",
+    "sourceId": "4f0b230e-8889-4166-86f2-1f3f6903e9aa:V2",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:27.049Z",
+    "description": "Versement 2 (V2) \u2014 import Excel run run_msp3foah_c254f9"
+   },
+   {
+    "id": "led-4",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "amount": 30000000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "4f0b230e-8889-4166-86f2-1f3f6903e9aa:DEVIS_ANNUEL",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:27.049Z",
+    "description": "Devis annuel (import Excel run run_msp3foah_c254f9)"
+   },
+   {
+    "id": "led-5",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "amount": -2500000,
+    "type": "payment",
+    "sourceType": "bulk_import",
+    "sourceId": "4f0b230e-8889-4166-86f2-1f3f6903e9aa:FI",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:27.049Z",
+    "description": "Frais d'inscription (FI) \u2014 import Excel run run_msp3foah_c254f9"
+   },
+   {
+    "id": "led-6",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "amount": -8500000,
+    "type": "adjustment",
+    "sourceType": "bulk_import",
+    "sourceId": "b1bdaf21-7bed-4df0-8689-b2b669745d3b:REMISE",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:26.342Z",
+    "description": "Remise sur devis (import Excel run run_msp3foah_c254f9)"
+   },
+   {
+    "id": "led-7",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "amount": -5000000,
+    "type": "payment",
+    "sourceType": "bulk_import",
+    "sourceId": "b1bdaf21-7bed-4df0-8689-b2b669745d3b:V2",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:26.342Z",
+    "description": "Versement 2 (V2) \u2014 import Excel run run_msp3foah_c254f9"
+   },
+   {
+    "id": "led-8",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "amount": 29500000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "b1bdaf21-7bed-4df0-8689-b2b669745d3b:DEVIS_ANNUEL",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:26.342Z",
+    "description": "Devis annuel (import Excel run run_msp3foah_c254f9)"
+   },
+   {
+    "id": "led-9",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "amount": -2500000,
+    "type": "payment",
+    "sourceType": "bulk_import",
+    "sourceId": "b1bdaf21-7bed-4df0-8689-b2b669745d3b:FI",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:11:26.342Z",
+    "description": "Frais d'inscription (FI) \u2014 import Excel run run_msp3foah_c254f9"
+   }
+  ],
+  "installments": [
+   {
+    "id": "ins-0",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "label": "Tranche 1 \u2014 Scolarit\u00e9",
+    "amountDue": 8800000,
+    "amountPaid": 8800000,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "paid"
+   },
+   {
+    "id": "ins-1",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "label": "Tranche 1 \u2014 Scolarit\u00e9",
+    "amountDue": 8400000,
+    "amountPaid": 5700000,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "partial"
+   },
+   {
+    "id": "ins-2",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "label": "Tranche 2 \u2014 Scolarit\u00e9",
+    "amountDue": 6600000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-12-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-3",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "label": "Tranche 2 \u2014 Scolarit\u00e9",
+    "amountDue": 6300000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-12-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-4",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-b1bdaf21",
+    "category": "tuition",
+    "label": "Tranche 3 \u2014 Scolarit\u00e9",
+    "amountDue": 14800000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2026-03-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-5",
+    "parentId": "par-1ffc17d6",
+    "studentId": "stu-4f0b230e",
+    "category": "tuition",
+    "label": "Tranche 3 \u2014 Scolarit\u00e9",
+    "amountDue": 14600000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2026-03-15",
+    "status": "unpaid"
+   }
+  ],
+  "payments": [],
+  "academicYearStartYear": 2025
+ },
+ "when": {
+  "type": "computeParentSummary",
+  "parentId": "par-1ffc17d6"
+ },
+ "then": {
+  "totalOutstanding": 45000000,
+  "totalPaid": 14500000,
+  "totalCharged": 59500000,
+  "totalUnallocatedCredit": 0
+ }
+}

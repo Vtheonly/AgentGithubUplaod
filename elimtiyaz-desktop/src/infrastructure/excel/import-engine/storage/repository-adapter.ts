@@ -942,25 +942,16 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       );
     }
 
-    // REMISE — discount applied to the annual quote (credit adjustment).
-    if (remise > 0) {
-      entries.push(
-        createAdjustmentEntry({
-          tenantId,
-          parentId,
-          studentId,
-          category: "tuition",
-          amount: -remise, // negative = credit (discount)
-          reason: `Remise sur devis (import Excel run ${runId})`,
-          sourceType: "bulk_import",
-          sourceId: sid("REMISE"),
-          actorId,
-          actorName,
-          at,
-          metadata: { field: "REMISE", importRunId: runId },
-        }),
-      );
-    }
+    // REMISE — NO ledger adjustment (T-105 / DATA-010 fix, 2026-09-01).
+    // The workbook's DEVIS ANNUEL (column L) is ALREADY net of the remise —
+    // its formula is "components − J" (e.g. row 2: '=25000+205000+35000-J2',
+    // verified across all 390 rows of Suivis clients  2026_2027.xlsx). Writing
+    // a separate "Remise sur devis" adjustment on top of the devis charge
+    // double-discounted every parent (223 parents, Σ −9,709,700 DZD live —
+    // repaired by migration 0063). The remise remains visible in the tranche
+    // proration (buildInstallmentRows) and in the import report only — no
+    // ledger entry is written for it.
+    void remise;
 
     // REMBOURSEMENT — refund issued to the parent.
     if (remboursement > 0) {
@@ -1598,7 +1589,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       numOrZero(record.t3),
     ];
 
-    const results: Installment[] = [];
+    let results: Installment[] = [];
 
     const buildInstallment = (
       category: PaymentCategory,
@@ -1658,6 +1649,77 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           amountDue, amountPaid, dueDates[i],
         ));
       }
+    }
+
+    // ── T-105 / C3 reconciliation (2026-09-01) ────────────────────────────
+    // The ledger writes the DEVIS ANNUEL charge as imported from column L
+    // (custom negotiated total, ALREADY net of remise), while the tranches
+    // above come from the Prices.md grids. Without this step the schedule
+    // disagrees with the ledger (the DATA-003 family — migration 0062/0063
+    // had to repair it live). Deterministic rule (0062 precedent): the LAST
+    // tuition tranche absorbs the delta; a negative delta cascades backwards
+    // across tranches, flooring each at 0. Installment is immutable — shifted
+    // tranches are REBUILT by index, never mutated.
+    const ledgerTarget =
+      numOrZero(record.devisAnnuel) + numOrZero(record.dettes) - numOrZero(record.remboursement);
+    const tranchesTotal = results.reduce((sum, t) => sum + t.amountDue, 0);
+    let alignDelta = Math.round(ledgerTarget - tranchesTotal);
+    const byDueDesc = (a: Installment, b: Installment) =>
+      new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime() ||
+      b.label.localeCompare(a.label);
+    if (Math.abs(alignDelta) >= 1) {
+      if (alignDelta > 0) {
+        const lastTuitionIdx = results
+          .map((t, i) => ({ t, i }))
+          .filter(({ t }) => t.category === "tuition")
+          .sort((a, b) => byDueDesc(a.t, b.t))[0]?.i;
+        if (lastTuitionIdx !== undefined) {
+          const t = results[lastTuitionIdx];
+          results[lastTuitionIdx] = {
+            ...t,
+            amountDue: t.amountDue + alignDelta,
+            customScheduleNote:
+              `Alignement devis Excel (T-105): +${alignDelta} DZD absorbés par la dernière tranche`,
+          };
+        } else {
+          results.push(buildInstallment(
+            "tuition", 1, "Tranche 1 — Scolarité", alignDelta, 0, dueDates[2],
+          ));
+        }
+      } else {
+        const ordered = results
+          .map((t, i) => ({ t, i }))
+          .sort((a, b) => byDueDesc(a.t, b.t));
+        for (const { t, i } of ordered) {
+          if (alignDelta >= 0) break;
+          const take = Math.min(t.amountDue, -alignDelta);
+          if (take > 0) {
+            results[i] = { ...t, amountDue: t.amountDue - take };
+            alignDelta += take;
+          }
+        }
+      }
+      // Recompute statuses + paidDate for the shifted tranches (a tranche
+      // marked "paid" under the old amountDue may now be partial, and vice
+      // versa a reduced tranche may now be fully covered by amountPaid).
+      results = results.map((t) => {
+        const newStatus: Installment["status"] =
+          t.amountDue > 0 && t.amountPaid >= t.amountDue
+            ? "paid"
+            : t.amountPaid > 0
+              ? "partial"
+              : t.amountDue > 0
+                ? "unpaid"
+                : "paid";
+        if (newStatus !== t.status) {
+          return {
+            ...t,
+            status: newStatus,
+            paidDate: newStatus === "paid" ? now.toISOString() : null,
+          };
+        }
+        return t;
+      });
     }
 
     return results;

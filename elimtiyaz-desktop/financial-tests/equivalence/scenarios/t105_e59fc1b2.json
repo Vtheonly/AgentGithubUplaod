@@ -1,0 +1,153 @@
+{
+ "id": "t105_e59fc1b2",
+ "description": "T-105 corpus equivalence \u2014 BENTRKIA MED (phone 0773201301): REAL post-0063 ledger + tranche schedule of the reconciled Excel corpus (5 entries, 4 tranches).",
+ "category": "corpus",
+ "tags": [
+  "t-105",
+  "excel-corpus",
+  "computeParentSummary",
+  "real-data"
+ ],
+ "given": {
+  "tenantId": "t105",
+  "parent": {
+   "id": "par-e59fc1b2",
+   "name": "BENTRKIA MED"
+  },
+  "students": [],
+  "ledgerEntries": [
+   {
+    "id": "led-0",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "tuition",
+    "amount": -2000000,
+    "type": "adjustment",
+    "sourceType": "bulk_import",
+    "sourceId": "b40a2c8b-50c3-447c-803d-00b4906360dc:DEVIS_ALIGN_0063",
+    "actorId": "system",
+    "actorName": "R\u00e9conciliation 0063",
+    "at": "2026-08-31T18:42:26.936Z",
+    "description": "Alignement devis Excel (r\u00e9conciliation 0063, ligne 365) \u2014 -20000 DZD"
+   },
+   {
+    "id": "led-1",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "transport",
+    "amount": 2000000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "b40a2c8b-50c3-447c-803d-00b4906360dc:TRANSPORT",
+    "actorId": "system",
+    "actorName": "R\u00e9conciliation 0062",
+    "at": "2026-08-31T17:23:59.598Z",
+    "description": "Transport annuel (r\u00e9conciliation 0062 \u2014 charge manquante de l'import Excel)"
+   },
+   {
+    "id": "led-2",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "tuition",
+    "amount": -9800000,
+    "type": "payment",
+    "sourceType": "bulk_import",
+    "sourceId": "b40a2c8b-50c3-447c-803d-00b4906360dc:V2",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:17:52.595Z",
+    "description": "Versement 2 (V2) \u2014 import Excel run run_msp3foah_c254f9"
+   },
+   {
+    "id": "led-3",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "tuition",
+    "amount": 28800000,
+    "type": "charge",
+    "sourceType": "bulk_import",
+    "sourceId": "b40a2c8b-50c3-447c-803d-00b4906360dc:DEVIS_ANNUEL",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:17:52.595Z",
+    "description": "Devis annuel (import Excel run run_msp3foah_c254f9)"
+   },
+   {
+    "id": "led-4",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "transport",
+    "amount": -2000000,
+    "type": "payment",
+    "sourceType": "bulk_import",
+    "sourceId": "b40a2c8b-50c3-447c-803d-00b4906360dc:T1",
+    "actorId": "dac9c821-22a3-4edb-857c-6c4414199d2e",
+    "actorName": "admin@elimtiyaz.dz",
+    "at": "2026-08-11T20:17:52.595Z",
+    "description": "Tranche 1 transport (1T) \u2014 import Excel run run_msp3foah_c254f9"
+   }
+  ],
+  "installments": [
+   {
+    "id": "ins-0",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "transport",
+    "label": "Tranche 1 \u2014 Transport",
+    "amountDue": 2000000,
+    "amountPaid": 2000000,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "paid"
+   },
+   {
+    "id": "ins-1",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "tuition",
+    "label": "Tranche 1 \u2014 Scolarit\u00e9",
+    "amountDue": 11520000,
+    "amountPaid": 9800000,
+    "amountPending": 0,
+    "dueDate": "2025-09-15",
+    "status": "partial"
+   },
+   {
+    "id": "ins-2",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "tuition",
+    "label": "Tranche 2 \u2014 Scolarit\u00e9",
+    "amountDue": 8640000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2025-12-15",
+    "status": "unpaid"
+   },
+   {
+    "id": "ins-3",
+    "parentId": "par-e59fc1b2",
+    "studentId": "stu-b40a2c8b",
+    "category": "tuition",
+    "label": "Tranche 3 \u2014 Scolarit\u00e9",
+    "amountDue": 6640000,
+    "amountPaid": 0,
+    "amountPending": 0,
+    "dueDate": "2026-03-15",
+    "status": "unpaid"
+   }
+  ],
+  "payments": [],
+  "academicYearStartYear": 2025
+ },
+ "when": {
+  "type": "computeParentSummary",
+  "parentId": "par-e59fc1b2"
+ },
+ "then": {
+  "totalOutstanding": 17000000,
+  "totalPaid": 11800000,
+  "totalCharged": 30800000,
+  "totalUnallocatedCredit": 0
+ }
+}

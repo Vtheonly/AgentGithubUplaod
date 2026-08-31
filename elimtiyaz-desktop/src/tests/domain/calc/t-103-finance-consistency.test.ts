@@ -183,7 +183,7 @@ describe("observeParentFinancialProfile — dossier totals match the ledger (T-1
       receiptNumber: null,
       paymentStatus: null,
       reversesId: null,
-      description: null,
+      description: "",
       actorId: "system",
       actorName: "System",
       at: "2026-08-11T20:16:00Z",
