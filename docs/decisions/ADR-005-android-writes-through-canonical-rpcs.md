@@ -46,3 +46,21 @@ T-059 (umbrella), T-017, T-019, T-020, T-045
 ## Verification
 
 Per phase: equivalence suites pass for Android-collected payments (ledger/waterfall/audit/receipt parity with desktop-collected ones); offline→online replay produces identical server state to online collection; no `upsert_payment_from_import` call sites remain in Android production code.
+
+## Amendment (2026-09-01, T-034/CROSS-104b) — shared sync_queue audit-trail semantics
+
+Status: DEFINED here so both platforms converge; the Android implementation itself stays with ADR-005's phased rollout (T-059 umbrella).
+
+When Android pushes a queued mutation online, it MUST persist a server-side `sync_queue` row with the same semantics the desktop's `defaultPushHandler` already exhibits (sync-provider.tsx:92-103, migration 0027's design):
+
+| Field | Semantics (both platforms) |
+|---|---|
+| `entity_kind` | the canonical entity family pushed (payment, parent, student, …) |
+| `payload` | the pushed payload AS SENT (JSONB) — the audit question is "what did the client claim", answered by the canonical ledger/RPC audit entries, not by duplicating them here |
+| `status` | `synced` on 2xx, `failed` on 4xx/5xx (never silently dropped — see SYNC-103/T-020's requeue policy for transient classes) |
+| `attempts` / `last_error` | increment per retry; last error message verbatim |
+| actor identity | the signed-in user's id resolved server-side from the JWT (never trusted from payload) |
+
+Non-goals: the `sync_queue` table is NOT a second ledger and MUST NOT be consumed as business data by any read surface (it is an audit/diagnostic trail only — mixing it with business data would recreate a DUP-class problem). Row retention follows the server's normal data policies; no client deletes another client's rows.
+
+This closes the DEFINITIONAL half of CROSS-104b; its Android implementation task remains inside T-059's phase plan.

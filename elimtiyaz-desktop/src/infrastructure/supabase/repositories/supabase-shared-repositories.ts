@@ -22,6 +22,7 @@
  * on every successful write. Realtime subscriptions can be layered on later.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { CacheFreshness } from "../cache-freshness";
 import type {
   ParentRepository,
   StudentRepository,
@@ -362,13 +363,14 @@ function mapLedgerRow(r: LedgerEntryRow): LedgerEntry {
 export class SupabaseParentRepository implements ParentRepository {
   private readonly cache = new SubjectBehavior<Parent[]>([]);
   private readonly byIdCache = new Map<string, SubjectBehavior<Parent | null>>();
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
   private async seed(): Promise<void> {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
       const { data, error } = await this.client
@@ -584,13 +586,14 @@ function getBillingRepos(client: SupabaseClient): {
 
 export class SupabaseStudentRepository implements StudentRepository {
   private readonly cache = new SubjectBehavior<Student[]>([]);
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
   private async seed(): Promise<void> {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
       const { data, error } = await this.client
@@ -1011,13 +1014,14 @@ export class SupabaseStudentRepository implements StudentRepository {
 
 export class SupabasePaymentRepository implements PaymentRepository {
   private readonly cache = new SubjectBehavior<Payment[]>([]);
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
   private async seed(): Promise<void> {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
       const { data, error } = await this.client
@@ -1535,13 +1539,14 @@ export class SupabasePaymentRepository implements PaymentRepository {
 
 export class SupabaseLedgerRepository implements LedgerRepository {
   private readonly cache = new SubjectBehavior<LedgerEntry[]>([]);
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
   private async seed(): Promise<void> {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
       const { data, error } = await this.client
@@ -1894,13 +1899,14 @@ export class SupabaseLedgerRepository implements LedgerRepository {
  */
 export class SupabaseInstallmentRepository implements InstallmentRepository {
   private readonly cache = new SubjectBehavior<Installment[]>([]);
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
   private async seed(): Promise<void> {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
       const { data, error } = await this.client

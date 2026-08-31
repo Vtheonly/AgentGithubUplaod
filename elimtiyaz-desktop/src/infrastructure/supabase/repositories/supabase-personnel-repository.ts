@@ -63,6 +63,7 @@ import type {
 import type { Department } from "../../../domain/model/workforce";
 import type { PersonnelRow, DepartmentRow, RoleRow } from "../types";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
 // Helpers
@@ -341,7 +342,8 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
   private readonly cache = new SubjectBehavior<Personnel[]>([]);
   private readonly byIdCache = new Map<string, SubjectBehavior<Personnel | null>>();
   private readonly roles: RoleLookup;
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(
     private readonly client: SupabaseClient,
@@ -376,8 +378,8 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
   }
 
   private seed(): void {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     void this.refresh();
   }
 
@@ -534,7 +536,8 @@ function mapDepartmentRow(row: Record<string, any>): Department {
 
 export class SupabaseDepartmentRepository implements DepartmentRepository {
   private readonly cache = new SubjectBehavior<Department[]>([]);
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -554,8 +557,8 @@ export class SupabaseDepartmentRepository implements DepartmentRepository {
   }
 
   private seed(): void {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     void this.refresh();
   }
 

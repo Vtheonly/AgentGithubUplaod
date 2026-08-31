@@ -49,6 +49,7 @@ import type {
 import { isAlertVisibleTo } from "../../../domain/model/operations";
 import type { NotificationRow } from "../types";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
 // Domain type ↔ DB kind mapping (lossy — see header note 1)
@@ -115,7 +116,8 @@ function mapNotificationRow(row: Record<string, any>): AppNotification {
 
 export class SupabaseNotificationRepository implements NotificationRepository {
   private readonly cache = new SubjectBehavior<AppNotification[]>([]);
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -142,8 +144,8 @@ export class SupabaseNotificationRepository implements NotificationRepository {
   }
 
   private seed(): void {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     void this.refresh();
   }
 

@@ -112,6 +112,14 @@
 - **Verification:** desktop suite 2204 passed (+8, equivalence suites pinning the unchanged writer still green), typecheck clean; website suite 425 passed (+6), build green. ADR-010 carries the population matrix + implementation map (incl. the Android port note and the dormant debt-meter prop).
 - **Commits:** hub repo + website repo.
 
+### T-034 — Desktop cache refresh strategy — **Completed (TESTED)**
+
+- **Problems:** CROSS-104 (TESTED), CROSS-104b (definition half — ADR-005 amendment) · **Priority:** P2 · **Severity:** High
+- **Status:** TESTED (2026-09-01, 17th session) — DESIGN CHOICE (documented per the task's own requirement): TTL + window-focus freshness policy, explicitly NOT realtime for this pass (one small testable mechanism across all 9 affected caches vs per-table channel/reconnect lifecycle; realtime stays layerable later — the website's useFinancialRealtime is the in-repo reference). NEW `src/infrastructure/supabase/cache-freshness.ts` (`CacheFreshness`: 30s TTL, focus-forced refresh, deterministic test seams); all NINE one-shot `seeded` boolean sites swapped (parents/students/ledger/installments/payments + expense + personnel ×2 + notifications) — cross-client writes now surface within the freshness budget without a restart, and a failed seed retries after the TTL instead of caching [] for the whole session. CROSS-104b: ADR-005 amendment defines the shared sync_queue audit-trail semantics (field table + the sync_queue-is-never-business-data non-goal); Android implementation remains T-059.
+- **Tests:** NEW `src/tests/infrastructure/t-034-cache-freshness.test.ts` 7/7 (defect reproduction against a counting fake client: stale-inside-TTL / fresh-after-TTL; focus-force; no server hammering; failed-seed recovery; boundary + one-shot-force + listener unit semantics).
+- **Verification:** `npm run typecheck` clean; `npm run lint` 0 errors; full desktop suite green (counts in change-log). Gap: the two-instance realtime E2E named in the original verification criterion needs a desktop host (headless container) — the counting-fake tests stand in for the freshness budget.
+- **Commits:** hub repo.
+
 ## Completed (thirteenth repair session — 2026-08-31, owner-requested ~10-task batch)
 
 ### T-041 — Complete the year-end promotion flow

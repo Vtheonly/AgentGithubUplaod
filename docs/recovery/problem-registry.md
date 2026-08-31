@@ -81,8 +81,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CROSS-101 | Critical | BLOCKED | T-066 | `receipts` table is orphaned; website's receipt download is permanently broken |
 | CROSS-102 | High | OPEN | T-017 | Android refund sync payload drops the user's refund reason; server audit log has no reason |
 | CROSS-103 | High | OPEN | T-017 | Android refund sync does NOT push installment state changes; server-side installments stay stale |
-| CROSS-104 | High | OPEN | T-034 | Desktop SupabasePaymentRepository cache never re-seeds from server; no realtime, no manual refresh |
-| CROSS-104b | Medium | OPEN | T-034 | Desktop defaultPushHandler persists `sync_queue` row in Supabase for audit trail; Android SyncQueueDispatcher does not |
+| CROSS-104 | High | TESTED (T-034, 17th session: TTL + window-focus freshness policy on all 9 Supabase-backed caches; design choice documented) | T-034 | Desktop SupabasePaymentRepository cache never re-seeds from server; no realtime, no manual refresh |
+| CROSS-104b | Medium | PARTIAL (definition DONE — ADR-005 amendment, T-034 17th session; Android implementation stays with T-059/ADR-005 rollout) | T-059 | Desktop defaultPushHandler persists `sync_queue` row in Supabase for audit trail; Android SyncQueueDispatcher does not |
 | CROSS-200 | Critical | OPEN | T-019 | Android sync dispatcher swallows RPC errors silently; desktop sync dispatcher throws and retries |
 | SYNC-100 | High | TESTED | T-022 | Desktop defaultPushHandler silently drops installment / homework / grade / attendance entity kinds |
 | SYNC-101 | Medium | OPEN | T-022 | Desktop defaultPushHandler overwrites sync_queue row status="pending" on every drain, clobbering audit history |
@@ -1080,7 +1080,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-104 — Desktop SupabasePaymentRepository cache never re-seeds from server; no realtime, no manual refresh
 
-- **Category:** CROSS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** CROSS  |  **Severity:** High  |  **Status:** TESTED (2026-09-01, 17th session — T-034)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-034 (docs/recovery/task-registry.md)
@@ -1094,7 +1094,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** Per the comment at line 21: "Realtime subscriptions can be layered on later." — the design called for realtime to keep the cache fresh. The "later" never happened.
 - **Dependencies:** none recorded
 - **Absorbed findings:** CACHE-103: The desktop's `SupabaseAcademicYearRepository` (supabase-academic-repository.ts:54-160) uses a `SubjectBehavior<AcademicYear[]>` cache (line 55), populated once in the constructor via `this.refresh()` (line 58). Local writes (`createAcademicYear`, `updateAcademicYear`, `setCurrentYear`) call `await this.refresh()` after the write to update the cache. But there is NO Supabase Realtime subscription. When another client (another desktop instance, the Android app, the website, or a server-side EF) modifies the `academic_years` table, this desktop's cache stays stale. This is the SAME pattern as the payment repository (CROSS-104) but for academic data — which has more conflict potential because the `is_current` flag is a singleton (only one academic year can be current per tenant). Two desktop admins concurrently setting different years as current → both call `setCurrentYear` → both unset the flag on others, both set the flag on theirs → the LAST WRITE WINS, the first admin's choice is silently overwritten. Neither admin sees the other's change until they restart their app.
-- **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+- **Resolution (2026-09-01, 17th session — T-034):** design choice = TTL + window-focus freshness policy, NOT realtime (rationale: one small uniformly-testable mechanism across all 9 affected caches vs per-table channel lifecycle; realtime remains layerable later with the website's useFinancialRealtime as the reference). NEW `src/infrastructure/supabase/cache-freshness.ts` (`CacheFreshness`: 30s TTL default + focus-forced refresh + failed-seed retry). All NINE one-shot `seeded` boolean sites were swapped to the policy: 5 in supabase-shared-repositories.ts (parents, students, ledger, installments, payments), expense, personnel ×2, notifications. A failed seed now retries after the TTL instead of poisoning the whole session (the old boolean made a transient failure permanent).
+- **Verification:** NEW `src/tests/infrastructure/t-034-cache-freshness.test.ts` 7/7 — defect reproduction (another client's write invisible inside the TTL, visible after it, no restart), focus-force refresh, no server hammering inside the TTL, failed-seed recovery, TTL boundary semantics (strictly-after), one-shot force consumption, focus-listener registration. Desktop suite + typecheck + lint green (counts in the change-log). Realtime two-instance E2E remains a documented gap (headless container).
 
 ---
 
@@ -1113,7 +1114,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Expected behavior:** Both platforms should leave a server-side audit trail of sync attempts (who pushed what, when, with what payload, success/failure).
 - **Proposed resolution:** Both platforms should leave a server-side audit trail of sync attempts (who pushed what, when, with what payload, success/failure).
 - **Dependencies:** none recorded
-- **Status note:** Server-side sync_queue audit trail divergence; folds into the sync architecture work under ADR-005.
+- **Status note:** Server-side sync_queue audit trail divergence; folds into the sync architecture work under ADR-005. UPDATE (2026-09-01, T-034): the DEFINITIONAL half is closed — ADR-005 gained a "shared sync_queue audit-trail semantics" amendment (field semantics table for both platforms, non-goal: sync_queue is never business data). The Android implementation task remains T-059 (phased rollout), so this entry stays PARTIAL by design.
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 
 ---

@@ -73,6 +73,7 @@ import type {
 } from "../../../domain/model/expense";
 import type { ExpenseTicketRow } from "../types";
 import { getTenantId, requireTenantId, isUuid } from "./supabase-shared-repositories";
+import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
 // Translation layer — status (see header note 1)
@@ -214,7 +215,8 @@ function mapTicketRow(row: ExpenseTicketRow, categoryCode: string | null): Expen
 
 export class SupabaseExpenseRepository implements ExpenseRepository {
   private readonly cache = new SubjectBehavior<Expense[]>([]);
-  private seeded = false;
+  // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
+  private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -244,8 +246,8 @@ export class SupabaseExpenseRepository implements ExpenseRepository {
   }
 
   private seed(): void {
-    if (this.seeded) return;
-    this.seeded = true;
+    if (!this.freshness.shouldReseed()) return;
+    this.freshness.markSeeded();
     void this.refresh();
   }
 
