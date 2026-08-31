@@ -30,8 +30,13 @@ import {
   type Installment,
   // TIER 4 FIX (bypass #2) — canonical installment sum helpers from
   // `domain/calc/payment` (re-exported via `domain/model/payment`).
+  // T-103: `installmentRemaining` added — the INV-4-family per-tranche
+  // remaining (due − paid − pending). The inline `amountDue - amountPaid`
+  // formula previously used here diverged from the canonical rule whenever
+  // uncleared funds sat on a tranche (DATA-008).
   sumInstallmentsDue,
   sumInstallmentsPaid,
+  installmentRemaining,
   totalOutstanding,
 } from "../../domain/model/payment";
 import { Card, CardContent } from "../../shared/ui/card";
@@ -232,8 +237,10 @@ export function InstallmentScheduleTab() {
     },
     {
       header: "Reste",
-      accessor: (i) => i.amountDue - i.amountPaid,
-      cell: (i) => <span className="font-mono font-semibold">{formatDzd(i.amountDue - i.amountPaid)}</span>,
+      // T-103 — canonical INV-4-family remaining (due − paid − pending),
+      // not the cleared-only inline formula.
+      accessor: (i) => installmentRemaining(i),
+      cell: (i) => <span className="font-mono font-semibold">{formatDzd(installmentRemaining(i))}</span>,
     },
     {
       header: "Échéance",
@@ -257,7 +264,7 @@ export function InstallmentScheduleTab() {
       label: "Encaisser",
       variant: "outline",
       icon: <Wallet className="size-3.5" />,
-      disabled: (i) => i.status === "paid" || (i.amountDue - i.amountPaid) <= 0,
+      disabled: (i) => i.status === "paid" || installmentRemaining(i) <= 0,
       onClick: (i) => setCollectFor(i),
     },
     {
@@ -273,7 +280,8 @@ export function InstallmentScheduleTab() {
   const collectContext: PaymentNavigationContext | null = useMemo(() => {
     if (!collectFor) return null;
     const parent = parents.find((p) => p.id === collectFor.parentId);
-    const remaining = Math.max(0, collectFor.amountDue - collectFor.amountPaid);
+    // T-103 — canonical INV-4-family remaining (due − paid − pending).
+    const remaining = installmentRemaining(collectFor);
     const isOverdue = collectFor.status === "overdue";
     const overdueDays = isOverdue
       ? Math.max(0, Math.floor((Date.now() - new Date(collectFor.dueDate).getTime()) / 86_400_000))
@@ -417,7 +425,7 @@ export function InstallmentScheduleTab() {
         open={editDueDateFor !== null}
         onOpenChange={(o) => !o && setEditDueDateFor(null)}
         title={editDueDateFor ? `Modifier l'échéance — ${editDueDateFor.label}` : "Modifier l'échéance"}
-        description={editDueDateFor ? `${editDueDateFor.parentName} · ${formatDzdPlain(editDueDateFor.amountDue - editDueDateFor.amountPaid)} DZD restant` : ""}
+        description={editDueDateFor ? `${editDueDateFor.parentName} · ${formatDzdPlain(installmentRemaining(editDueDateFor))} DZD restant` : ""}
         schema={DueDateSchema}
         fields={dueDateFields}
         initialValues={editDueDateFor ? {

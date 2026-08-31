@@ -289,7 +289,8 @@ function mapStudentRow(r: StudentRow): Student {
   };
 }
 
-function mapPaymentRow(r: PaymentRow): Payment {
+/** Exported for the T-103 read-side consistency suite (pure row mapper). */
+export function mapPaymentRow(r: PaymentRow): Payment {
   return {
     id: r.id,
     tenantId: r.tenant_id,
@@ -312,6 +313,12 @@ function mapPaymentRow(r: PaymentRow): Payment {
     checkClearanceDate: r.check_clearance_date ?? null,
     transferReference: r.transfer_reference ?? null,
     transferSourceBank: r.transfer_source_bank ?? null,
+    // T-103 — surface the 0033/0062 payment-breakdown hint columns so the
+    // PaymentBreakdownCard (expected vs excess per payment) works on the
+    // live corpus instead of silently rendering nothing (DATA-004).
+    expectedAmount: r.expected_amount != null ? Number(r.expected_amount) : undefined,
+    excessAmount: r.excess_amount != null ? Number(r.excess_amount) : undefined,
+    excessRemark: r.excess_remark ?? null,
     collectedBy: r.collected_by ?? "system",
     collectedAt: r.collected_at,
     createdAt: r.created_at,
@@ -2521,10 +2528,18 @@ export class SupabaseDebtRepository implements DebtRepository {
           approvedAt: e.at,
           receiptRef: e.receiptNumber ?? null,
         }));
+      // T-103 (DATA-008): `totalDue` is the NET obligation — charges plus
+      // adjustments (remises are negative adjustments on the ledger). The
+      // previous `totalCharged`-only mapping overstated "Total dû" for every
+      // parent with a discount and disagreed with the installment schedule
+      // (Σ installments.amount_due == charges + adjustments after the 0062
+      // reconciliation). "Payé" stays the ledger `totalPaid` (all money
+      // received) and "Reste" stays the ledger balance — for overpayers the
+      // Finances tab renders the negative balance as a "Crédit parent" card.
       const profile: ParentFinancialProfile = {
         parentId,
         parentName,
-        totalDue: summary.totalCharged,
+        totalDue: summary.totalCharged + summary.totalAdjusted,
         totalPaid: summary.totalPaid,
         totalOutstanding: summary.totalOutstanding,
         overdueAmount: summary.totalOverdue,

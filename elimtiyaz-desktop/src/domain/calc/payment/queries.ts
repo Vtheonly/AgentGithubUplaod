@@ -6,20 +6,40 @@
  *
  * Extracted from the deleted `installments.ts` shim so all installment
  * queries live in one place alongside the allocator + reversal engines.
+ *
+ * INV-4 family (T-103): `installmentRemaining` and `totalOutstanding` now
+ * subtract `amountPending` — uncleared (pending check/transfer) funds reduce
+ * what the parent still owes without marking the tranche paid. This aligns
+ * the desktop with the canonical rule (docs/domain/financial-rules.md §4:
+ * `clampNonNegative(amount_due − amount_paid − amount_pending)`), the
+ * backend waterfall (migration 0034/0040), the website port
+ * (`installmentRemainingAmount`) and the Android mirror
+ * (`Installment.remaining`). The previous cleared-only variant diverged from
+ * all three siblings — the exact defect class the owner reported as
+ * Finance-tab vs parent-dossier inconsistency (DATA-008).
  */
 import type { Installment, AgingBucket } from "@/domain/model/payment";
 import { clampNonNegative, sumOf } from "../shared/money";
 import { daysBetweenFloor, isStrictlyPast } from "../shared/dates";
-import { sumInstallmentsDue, sumInstallmentsPaid } from "./sums";
+import { sumInstallmentsDue, sumInstallmentsPaid, sumInstallmentsPending } from "./sums";
 
-/** Remaining amount on a single installment (>= 0). */
+/** Remaining amount on a single installment (>= 0), INV-4 family. */
 export function installmentRemaining(installment: Installment): number {
-  return clampNonNegative(installment.amountDue - installment.amountPaid);
+  return clampNonNegative(
+    installment.amountDue - installment.amountPaid - installment.amountPending,
+  );
 }
 
-/** Total outstanding across all given installments (>= 0). */
+/**
+ * Total outstanding across all given installments (>= 0), INV-4 family.
+ * Uncleared pending funds reduce the outstanding amount.
+ */
 export function totalOutstanding(installments: readonly Installment[]): number {
-  return clampNonNegative(sumInstallmentsDue(installments) - sumInstallmentsPaid(installments));
+  return clampNonNegative(
+    sumInstallmentsDue(installments) -
+      sumInstallmentsPaid(installments) -
+      sumInstallmentsPending(installments),
+  );
 }
 
 /** Sum of remaining amounts on installments whose `dueDate` has passed and are not paid. */

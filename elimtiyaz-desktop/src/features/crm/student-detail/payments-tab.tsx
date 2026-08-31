@@ -27,7 +27,11 @@ import {
   PAYMENT_CATEGORY_LABELS_FR,
   // TIER 4 FIX (bypass #1) — canonical helpers from `domain/calc/payment`
   // (re-exported via `domain/model/payment` for backward compat).
+  // T-103: `installmentRemaining` — INV-4-family per-tranche remaining
+  // (due − paid − pending); the inline `Math.max(0, amountDue - amountPaid)`
+  // diverged from the canonical rule (DATA-008).
   sumPaidPayments,
+  installmentRemaining,
   totalOutstanding,
   type PaymentNavigationContext,
 } from "../../../domain/model/payment";
@@ -98,7 +102,8 @@ export function PaymentsTab({
             discountAmount: 0,
             netAmount: i.amountDue,
             alreadyPaidAmount: i.amountPaid,
-            remainingAmount: Math.max(0, i.amountDue - i.amountPaid),
+            // T-103 — canonical INV-4-family remaining (due − paid − pending).
+            remainingAmount: installmentRemaining(i),
             dueDate: i.dueDate,
             isOverdue: i.status === "overdue",
           })),

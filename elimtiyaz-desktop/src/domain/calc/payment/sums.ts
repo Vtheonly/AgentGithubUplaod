@@ -41,6 +41,17 @@ export function sumInstallmentsDue(installments: readonly Installment[]): number
 }
 
 /**
+ * Sum of `amountPending` across installments — uncleared non-cash funds
+ * (pending checks / transfers) sitting on tranches. INV-4 family: pending
+ * funds reduce the remaining amount but never mark a tranche paid.
+ * Added by T-103 so `totalOutstanding` can honour the canonical
+ * `amount_due − amount_paid − amount_pending` rule.
+ */
+export function sumInstallmentsPending(installments: readonly Installment[]): number {
+  return sumOf(installments, (i) => i.amountPending);
+}
+
+/**
  * Sum of `amountPaid` across installments. This is the amount
  * allocated against installments — it INCLUDES uncleared checks because
  * `counter-payment` calls `installments.markPaid()` after `payments.collect()`

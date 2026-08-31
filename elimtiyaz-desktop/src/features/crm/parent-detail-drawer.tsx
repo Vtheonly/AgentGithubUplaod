@@ -498,10 +498,18 @@ function FinancesTab({
       <div className="grid grid-cols-3 gap-2">
         <BalanceCard label="Total dû" value={profile?.totalDue ?? 0} tone="default" />
         <BalanceCard label="Payé" value={profile?.totalPaid ?? 0} tone="success" />
-        <BalanceCard label="Reste" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
+        {outstanding < 0 ? (
+          // T-103 (DATA-008) — an overpaid parent holds a CREDIT: render the
+          // negative ledger balance as a positive "Crédit parent" instead of
+          // a confusing negative "Reste". Consistent with the portal's
+          // outstanding<0 → success-tone credit KPI.
+          <BalanceCard label="Crédit parent" value={-outstanding} tone="success" />
+        ) : (
+          <BalanceCard label="Reste" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
+        )}
       </div>
 
-      {overdue > 0 && (
+      {overdue > 0 && outstanding > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-status-danger/40 bg-status-danger/10 p-2 text-xs">
           <AlertTriangle className="h-3.5 w-3.5 text-status-danger" />
           <span className="text-status-danger font-medium">

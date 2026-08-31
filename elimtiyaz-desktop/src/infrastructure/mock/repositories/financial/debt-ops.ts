@@ -61,10 +61,14 @@ export function observeDebtSummary(
 
 /**
  * Iteration 5: parent financial profile is computed from the ledger.
- * `totalDue` = sum of charge entries.
- * `totalPaid` = sum of cleared payment entries (status === "paid").
- * `totalOutstanding` = totalDue - totalPaid.
- * `overdueAmount` = sum of unpaid past-due charges.
+ * `totalDue` = net obligation (charges + adjustments — remises are negative
+ *   adjustments). T-103: was `totalCharged`-only, which overstated "Total dû"
+ *   for discounted parents and diverged from the Supabase path.
+ * `totalPaid` = sum of ALL payment entries (money actually received — the
+ *   same definition the Supabase profile uses; `totalCleared` excluded
+ *   uncleared funds and diverged cross-mode).
+ * `totalOutstanding` = ledger balance (negative = parent credit).
+ * `overdueAmount` = INV-4 overdue subset.
  */
 export function observeParentFinancialProfile(
   ctx: FinancialOpsCtx,
@@ -107,8 +111,10 @@ export function observeParentFinancialProfile(
       return {
         parentId,
         parentName: `${parent.firstName} ${parent.lastName}`,
-        totalDue: summary.totalCharged,
-        totalPaid: summary.totalCleared,
+        // T-103 (DATA-008) — same definitions as the Supabase-backed profile:
+        // net totalDue, all-payments totalPaid, ledger-balance outstanding.
+        totalDue: summary.totalCharged + summary.totalAdjusted,
+        totalPaid: summary.totalPaid,
         totalOutstanding: summary.totalOutstanding,
         overdueAmount: summary.totalOverdue,
         installments,

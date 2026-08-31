@@ -536,6 +536,7 @@ export {
   sumPaidPayments,
   sumInstallmentsDue,
   sumInstallmentsPaid,
+  sumInstallmentsPending,
 } from "../calc/payment/sums";
 
 export {

@@ -282,6 +282,17 @@ export interface PaymentRow {
   collected_by: string | null;
   notes: string | null;
   reversal_of_payment_id: string | null;
+  /**
+   * Expected amount at collection time (what the payment was meant to
+   * cover). Populated by the 0062 reconciliation for the historical corpus
+   * and by the canonical writer for new payments. NULL on rows written
+   * before migration 0033's columns existed.
+   */
+  expected_amount: number | null;
+  /** Overpayment portion (amount − expected_amount), 0 when fully allocated. */
+  excess_amount: number | null;
+  /** Staff remark explaining an overpayment. */
+  excess_remark: string | null;
   created_at: string;
   updated_at: string;
 }
