@@ -20,7 +20,14 @@
 
 ## Entries
 
-### 2026-08-31 — T-026 — Align the overdue rule on Android (DRIFT-006, WEAK-007, BUSINESS-007)
+### 2026-08-31 — SEC-INCIDENT-001 — Supabase access token removed from unpushed commits before publication
+- **Problem IDs:** AGENTS.md §15 rule 12 class (secret committed to git); no pre-existing registry ID.
+- **What changed:** a live Supabase access token (`sbp_9e83…d78b`) was found hardcoded in `elimtiyaz-desktop/scripts/apply_0059_live.sh` and `apply_0060_live.sh`, introduced by unpushed commits `049c418` (T-041) and `e3b5fff` (T-030). Both commits were rewritten via interactive rebase (`edit` + amend): the scripts now require `SUPABASE_ACCESS_TOKEN` from the environment (`${SUPABASE_ACCESS_TOKEN:?…}`) instead of embedding it. The 8-commit unpushed range rebased cleanly (no later commit touched the files) and was pushed as a NORMAL fast-forward push (`310d019..a850b4e`) — no force-push, no pushed history touched.
+- **Why:** the token was about to be published to GitHub; removing it pre-publication prevents a live credential leak (the token was never pushed — verified against the `origin/main` tree before the rewrite).
+- **Affected components:** `elimtiyaz-desktop/scripts/apply_0059_live.sh`, `elimtiyaz-desktop/scripts/apply_0060_live.sh` (git history only; script behaviour unchanged — they already consumed the env var at use sites).
+- **Tests / Verification:** `git grep "sbp_9e835673" HEAD` → 0 matches; `git log 310d019..HEAD -S "sbp_9e835673"` → no commits add/remove the token; all 8 commits preserved with identical messages (rewritten hashes `02cd537`, `bc213e5`, … `a850b4e`); push `310d019..a850b4e main -> main` exit 0.
+- **Commit:** rewritten commits `02cd537` (T-041) and `bc213e5` (T-030); this docs entry in the follow-up commit.
+- **Notes:** the exposed token SHOULD STILL BE ROTATED in the Supabase dashboard (it existed in the local repo and terminal output). Old pre-rewrite commits remain in local reflog objects only — never pushed; `git gc` will reclaim them. Follow-up: `electron/tsconfig.preload.json` missing breaks `npm start` (separate pre-existing defect, not part of this incident).
 - **Problem IDs:** DRIFT-006, WEAK-007 (Critical, user-facing), BUSINESS-007.
 - **What changed:** `LedgerEngine.maxDaysOverdueFromLedger` re-derived per the canonical INV-4 rule: days-overdue is measured from the account's DUE DATE (via `buildOverdueDueDateMap`), counting only accounts with balance > 0 whose due date is past — NOT from the oldest charge's creation date (a charge created today for next year's tuition used to read as "~365 days overdue"). EVERY production `computeParentSummary` call site in `LocalRepositories2.kt` now builds and passes the due-date map — including the balance-only reads (the debt-dashboard `totalOutstanding` KPI loop and `sendReminder`) — so no future edit can silently reintroduce the empty-map default that kept "Créances en Retard" permanently 0 DZD (WEAK-007).
 - **Why:** the overdue KPI and the days-overdue number were wrong in opposite directions (0 vs ~1-year) and both diverged from the desktop's canonical rule; the empty-map default made the wrongness invisible.
