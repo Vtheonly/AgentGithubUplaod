@@ -20,6 +20,18 @@
 
 ## Entries
 
+### 2026-08-31 — T-095 — run-overdue-scan EF batched rewrite (BUG-NEW-004 → VERIFIED)
+- **Problem IDs:** BUG-NEW-004 (VERIFIED — live).
+- **What changed:** the EF's N+1 scan body replaced with the batched pattern of the T-094-verified desktop reference (1 overdue query + 1 upcoming-due query + chunked parents/dedup + 1 bulk INSERT per tenant); compute_parent_summary account gate dropped (installment-level classification ≡ desktop); redeployed live v14.
+- **Why:** 258+ sequential round trips exceeded the edge worker budget — the daily cron and the manual scan were dead in production.
+- **Affected components:** supabase/functions/run-overdue-scan (EF only; no migration, no client change).
+- **Tests:** esbuild bundle check; live curl matrix + idempotency (see t-095-live-verification.md); desktop suite 2127 unaffected.
+- **Verification:** LIVE — 401×3 deny matrix; valid CRON_SECRET → 200 in 8.6–10.9s (was WORKER_RESOURCE_LIMIT); 819 overdue / 68.13M DZD / 819 urgent; 3 runs → zero duplicate alerts (819 before and after).
+- **Commit:** (this commit).
+- **Notes:** CRON_SECRET rotated for the verification (hash-verified; no pg_cron consumer — safe). Micro-divergence registered: EF excludes cancelled installments, desktop filters status≠paid only.
+
+---
+
 ### 2026-08-31 — T-040 — Staff-side justification review workflow (ATT-101)
 - **Problem IDs:** ATT-101 (TESTED).
 - **What changed:** desktop justification read/write end-to-end (domain fields, mapAttendanceRow, observeJustifications + reviewJustification on Supabase + Mock, Justificatifs review tab in the Academics hub with Accept/Reject).

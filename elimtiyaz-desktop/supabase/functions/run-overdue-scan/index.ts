@@ -7,46 +7,47 @@
 // Also callable manually via POST from the Installment Schedule tab's
 // "Scan retards" button.
 //
-// CANONICAL ENGINE INVOCATION (Tier 3 fix, migration 0034 + 0035):
-//   Previously this edge function called `public.run_overdue_scan(tenant_id,
-//   as_of_date)` — a divergent SQL RPC that filtered installments by
-//   `status IN ('unpaid', 'partial')` (excluding the canonical 'overdue'
-//   status) and computed `amount_overdue = amount_due - amount_paid`
-//   without considering parent_credit auto-absorb.
+// T-095 / BUG-NEW-004 REWRITE (batched, 2026-08-31):
+//   The previous body looped EVERY parent (258 in production) calling the
+//   heavy per-parent compute_parent_summary SQL RPC, then per overdue
+//   installment ran a dedup SELECT before a single-row INSERT — 258+
+//   sequential round trips, far beyond the edge worker's budget. The daily
+//   cron and the manual scan both died with WORKER_RESOURCE_LIMIT before
+//   writing the per-tenant audit entry.
 //
-//   Migration 0034 dropped `run_overdue_scan` (correct signature) but
-//   forgot to update this edge function — it would have failed at runtime
-//   after 0034 was applied.
+//   This rewrite ports the BATCHED pattern of the desktop reference
+//   implementation (`SupabaseOverdueAlertGenerator`, T-080/T-094
+//   live-verified) — reuse, not a parallel implementation:
+//     1. ONE overdue-installments query per tenant
+//        (status ≠ paid/cancelled, due_date < as_of, amount_due −
+//        amount_paid > 0.001 — the canonical INV-4 threshold).
+//     2. ONE upcoming-due query (next 7 days) — the desktop reference's
+//        second pass, now EF≡desktop.
+//     3. ONE chunked parents fetch (display names).
+//     4. ONE chunked dedup-key fetch (existing installment alerts) → an
+//        in-memory Set — idempotent by link_entity_type='installment' +
+//        link_entity_id, same key as the desktop.
+//     5. ONE bulk INSERT of the new notifications.
+//     6. Per-tenant audit entry (unchanged).
 //
-//   Tier 3 fix: this edge function now:
-//     1. Fetches all parents in the tenant
-//     2. For each parent, calls the canonical `compute_parent_summary` RPC
-//     3. If `total_overdue > 0`, drills down to find the specific overdue
-//        installments by querying the installments table directly using
-//        the canonical overdue classification (balance > 0.001 DZD AND
-//        due_date < as_of_date)
-//     4. For each overdue installment, creates an idempotent notification
-//
-//   The canonical overdue rule (INV-4 in CANONICAL-FINANCIAL-LOGIC.md):
-//     account is overdue iff
-//       (balance > 0.001 DZD) AND
-//       (latestCharge.at < now) AND
-//       (overdueDueDate[accountId] < now)
+//   Semantic notes:
+//     - The per-parent compute_parent_summary account-level gate is GONE:
+//       the T-094-verified desktop reference classifies at the installment
+//       level (due_date + remaining balance), and the equivalence
+//       requirement is EF ≡ desktop reference.
+//     - The EF (like its previous version) excludes 'cancelled'
+//       installments; the desktop reference queries status ≠ 'paid' only —
+//       a registered micro-divergence (the EF's rule is the stricter,
+//       more correct one; see DRIFT note in change-log).
 //
 // SECURITY (SEC-105 fix, task T-004 — shared guard _shared/cron-auth.ts):
 //   - Cron/internal invocation: `Authorization: Bearer <CRON_SECRET>`
 //     (operator secret) or the project's service_role key (Supabase's
 //     managed scheduler injects it). Full multi-tenant scan.
 //   - Manual invocation: a user JWT — requires an authenticated, active
-//     profile with the view_financials permission; scans ONLY the caller's
-//     tenant (path preserved — designed behaviour of this EF).
-//   - A request with NO Authorization header is DENIED (401). It used to be
-//     treated as a cron invocation, which made this EF publicly invokable.
-//   - Deployment note: with the current `verify_jwt = true` gateway setting,
-//     a SQL-level pg_cron schedule MUST NOT use the CRON_SECRET header
-//     (it is not a Supabase JWT and the gateway would reject it) — use the
-//     managed scheduler, or relax verify_jwt for this EF and rely on the
-//     code-level guard (documented operator decision).
+//     profile with the view_financials permission (resolved through the
+//     caller-scoped client since T-068); scans ONLY the caller's tenant.
+//   - A request with NO Authorization header is DENIED (401).
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
@@ -57,6 +58,31 @@ import {
   requirePermission,
   writeAuditLog,
 } from "../_shared/supabase.ts";
+
+interface InstallmentRow {
+  id: string;
+  parent_id: string;
+  category: string | null;
+  label: string | null;
+  tranche_number: number | null;
+  amount_due: number | string | null;
+  amount_paid: number | string | null;
+  due_date: string;
+  status: string | null;
+}
+
+interface ParentRow {
+  id: string;
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+function formatParentName(p: ParentRow): string {
+  // Production artifact (F-06): first_name is empty on all 258 rows —
+  // display_name carries the real name (same fallback chain as the desktop).
+  return (p.display_name || p.last_name || p.id).trim();
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
@@ -69,9 +95,7 @@ Deno.serve(async (req: Request) => {
   //     key (see _shared/cron-auth.ts) → full multi-tenant scan.
   //   - manual: any other Bearer token → treated as a user JWT below
   //     (extractAuthContext + view_financials permission, tenant-filtered).
-  //   - NO Authorization header → isCronInvocation is false AND
-  //     extractAuthContext returns null → 401. Anonymous requests are no
-  //     longer executed as cron invocations.
+  //   - NO Authorization header → 401 (anonymous requests never execute).
   const isCron = isCronInvocation(req);
 
   let tenantFilter: string | null = null;
@@ -112,144 +136,177 @@ Deno.serve(async (req: Request) => {
     total_overdue_installments: 0,
     total_overdue_amount: 0,
     alerts_created: 0,
-    by_priority: { urgent: 0, high: 0, medium: 0 },
+    by_priority: { urgent: 0, high: 0, medium: 0 } as { urgent: number; high: number; medium: number },
+    upcoming_due_alerts: 0,
     as_of: asOfDate,
   };
+
+  const CHUNK = 100; // PostgREST IN-list safety (same chunk size as the desktop)
 
   for (const tenant of tenants ?? []) {
     summary.tenants_scanned++;
 
-    // ========================================================================
-    // CANONICAL OVERDUE DETECTION (Tier 3 fix)
-    // ========================================================================
-    // Instead of calling the dropped `run_overdue_scan` RPC, we:
-    //   1. Fetch all parents in this tenant
-    //   2. For each parent, call the canonical `compute_parent_summary` RPC
-    //   3. If `total_overdue > 0`, drill down to find the specific overdue
-    //      installments by querying the installments table directly.
-    //
-    // This is the canonical rule (INV-4): an account is overdue iff
-    //   (balance > 0.001 DZD) AND
-    //   (latestCharge.at < now) AND
-    //   (overdueDueDate[accountId] < now)
-    //
-    // `compute_parent_summary` already applies this rule and reports
-    // `total_overdue` per parent. We drill down to installments whose
-    // due_date < as_of_date AND amount_due > amount_paid — these are the
-    // specific tranches that contribute to the parent's total_overdue.
-    // ========================================================================
-
-    const { data: parents, error: parentsError } = await supabase
-      .from("parents")
-      .select("id, first_name, last_name")
+    // ── 1. ONE query: overdue installments (canonical INV-4 threshold) ──
+    const { data: overdueRows, error: overdueError } = await supabase
+      .from("installments")
+      .select("id, parent_id, category, label, tranche_number, amount_due, amount_paid, due_date, status")
       .eq("tenant_id", tenant.id)
-      .is("deleted_at", null);
+      .neq("status", "paid")
+      .neq("status", "cancelled")
+      .lt("due_date", asOfDate)
+      .order("due_date", { ascending: true })
+      .limit(2000);
 
-    if (parentsError) {
-      console.error(`[run-overdue-scan] Failed to fetch parents for tenant ${tenant.id}:`, parentsError);
+    if (overdueError) {
+      console.error(`[run-overdue-scan] overdue query failed for tenant ${tenant.id}:`, overdueError);
       continue;
     }
 
-    for (const parent of parents ?? []) {
-      // Call the canonical compute_parent_summary RPC
-      const { data: summaryRows, error: summaryError } = await supabase.rpc(
-        "compute_parent_summary",
-        { p_parent_id: parent.id, p_as_of: asOfDate },
-      );
+    // ── 2. ONE query: upcoming-due installments (next 7 days) ────────────
+    const soonDate = new Date(new Date(asOfDate).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+    const { data: upcomingRows, error: upcomingError } = await supabase
+      .from("installments")
+      .select("id, parent_id, category, label, tranche_number, amount_due, amount_paid, due_date, status")
+      .eq("tenant_id", tenant.id)
+      .neq("status", "paid")
+      .neq("status", "cancelled")
+      .gte("due_date", asOfDate)
+      .lte("due_date", soonDate)
+      .limit(2000);
 
-      if (summaryError) {
-        console.error(`[run-overdue-scan] compute_parent_summary failed for parent ${parent.id}:`, summaryError);
+    if (upcomingError) {
+      // Non-fatal — proceed with the overdue-only scan (same as the desktop).
+      console.error(`[run-overdue-scan] upcoming query failed for tenant ${tenant.id}:`, upcomingError);
+    }
+
+    const overdue = (overdueRows ?? []) as unknown as InstallmentRow[];
+    const upcoming = (upcomingRows ?? []) as unknown as InstallmentRow[];
+
+    const asOfMs = new Date(asOfDate).getTime();
+
+    // Filter to rows with a real remaining balance (> 0.001 DZD, INV-4).
+    const overdueWithBalance = overdue.filter((r) => {
+      const remaining = Number(r.amount_due ?? 0) - Number(r.amount_paid ?? 0);
+      return remaining > 0.001;
+    });
+    const upcomingWithBalance = upcoming.filter((r) => {
+      const remaining = Number(r.amount_due ?? 0) - Number(r.amount_paid ?? 0);
+      return remaining > 0.001;
+    });
+
+    for (const r of overdueWithBalance) {
+      summary.total_overdue_installments++;
+      summary.total_overdue_amount += Number(r.amount_due ?? 0) - Number(r.amount_paid ?? 0);
+      // by_priority counts ALL overdue installments (the original summary
+      // semantic), regardless of whether an alert already exists for them.
+      const days = Math.floor((asOfMs - new Date(r.due_date).getTime()) / 86_400_000);
+      if (days > 90) summary.by_priority.urgent++;
+      else if (days > 30) summary.by_priority.high++;
+      else summary.by_priority.medium++;
+    }
+
+    // ── 3. ONE chunked fetch: parent display names ────────────────────────
+    const parentIds = [...new Set([...overdueWithBalance, ...upcomingWithBalance].map((r) => r.parent_id).filter(Boolean))];
+    const parentMap = new Map<string, ParentRow>();
+    for (let i = 0; i < parentIds.length; i += CHUNK) {
+      const chunk = parentIds.slice(i, i + CHUNK);
+      const { data: parents, error: parentsError } = await supabase
+        .from("parents")
+        .select("id, display_name, first_name, last_name")
+        .eq("tenant_id", tenant.id)
+        .in("id", chunk);
+      if (parentsError) {
+        console.error(`[run-overdue-scan] parents fetch failed for tenant ${tenant.id}:`, parentsError);
         continue;
       }
+      for (const p of (parents ?? []) as unknown as ParentRow[]) parentMap.set(p.id, p);
+    }
 
-      const parentSummary = summaryRows && summaryRows.length > 0 ? summaryRows[0] : null;
-      if (!parentSummary) continue;
-
-      const totalOverdue = Number(parentSummary.total_overdue ?? 0);
-      if (totalOverdue <= 0.001) continue; // canonical threshold (INV-4)
-
-      // Drill down: find the specific overdue installments for this parent.
-      // Canonical rule: due_date < as_of_date AND amount_due > amount_paid
-      // (matches the canonical engine's installment-level overdue classification).
-      const { data: overdueInstallments, error: installmentsError } = await supabase
-        .from("installments")
-        .select("id, parent_id, due_date, amount_due, amount_paid, status, category")
-        .eq("parent_id", parent.id)
-        .lt("due_date", asOfDate)
-        .order("due_date", { ascending: true });
-
-      if (installmentsError) {
-        console.error(`[run-overdue-scan] Failed to fetch installments for parent ${parent.id}:`, installmentsError);
+    // ── 4. ONE chunked fetch: existing dedup keys ──────────────────────────
+    const installmentIds = [...overdueWithBalance, ...upcomingWithBalance].map((r) => r.id);
+    const existingKeys = new Set<string>();
+    for (let i = 0; i < installmentIds.length; i += CHUNK) {
+      const chunk = installmentIds.slice(i, i + CHUNK);
+      const { data: existing, error: existingError } = await supabase
+        .from("notifications")
+        .select("link_entity_id")
+        .eq("tenant_id", tenant.id)
+        .eq("link_entity_type", "installment")
+        .in("link_entity_id", chunk);
+      if (existingError) {
+        console.error(`[run-overdue-scan] dedup fetch failed for tenant ${tenant.id}:`, existingError);
         continue;
       }
-
-      for (const ins of overdueInstallments ?? []) {
-        const amountDue = Number(ins.amount_due ?? 0);
-        const amountPaid = Number(ins.amount_paid ?? 0);
-        const amountOverdue = amountDue - amountPaid;
-
-        // Canonical rule: only flag if amount_overdue > 0.001 DZD
-        if (amountOverdue <= 0.001) continue;
-
-        // Skip if installment is already fully paid or cancelled
-        if (ins.status === "paid" || ins.status === "cancelled") continue;
-
-        summary.total_overdue_installments++;
-        summary.total_overdue_amount += amountOverdue;
-
-        // Determine priority based on days overdue
-        const dueDate = new Date(ins.due_date);
-        const asOf = new Date(asOfDate);
-        const daysOverdue = Math.floor((asOf.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        let priority: "urgent" | "high" | "medium";
-        if (daysOverdue > 90) {
-          priority = "urgent";
-          summary.by_priority.urgent++;
-        } else if (daysOverdue > 30) {
-          priority = "high";
-          summary.by_priority.high++;
-        } else {
-          priority = "medium";
-          summary.by_priority.medium++;
-        }
-
-        // Idempotency check: skip if a notification already exists for this installment
-        const { data: existing } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("tenant_id", tenant.id)
-          .eq("link_entity_type", "installment")
-          .eq("link_entity_id", ins.id)
-          .eq("source", "system")
-          .limit(1);
-
-        if (existing && existing.length > 0) continue;
-
-        const parentName = `${parent.last_name} ${parent.first_name}`;
-
-        // Insert the notification
-        const { error: notifError } = await supabase.from("notifications").insert({
-          tenant_id: tenant.id,
-          kind: "alert",
-          title: `Retard de paiement — ${parentName}`,
-          body: `Tranche en retard de ${daysOverdue} jours. Montant dû: ${amountOverdue.toLocaleString("fr-DZ")} DZD`,
-          priority,
-          source: "system",
-          source_label: "Module Finances — Retards auto",
-          target_role: "financial_officer",
-          link_entity_type: "installment",
-          link_entity_id: ins.id,
-          triggered_at: new Date().toISOString(),
-        });
-
-        if (!notifError) {
-          summary.alerts_created++;
-        }
+      for (const row of (existing ?? []) as { link_entity_id: string | null }[]) {
+        if (row.link_entity_id) existingKeys.add(row.link_entity_id);
       }
     }
 
-    // Audit log per tenant
+    // ── 5. Build the notification rows (desktop-reference message shape) ──
+    const nowIso = new Date().toISOString();
+    const toCreate: Record<string, unknown>[] = [];
+
+    for (const ins of overdueWithBalance) {
+      if (existingKeys.has(ins.id)) continue;
+      const remaining = Number(ins.amount_due ?? 0) - Number(ins.amount_paid ?? 0);
+      const daysOverdue = Math.floor((asOfMs - new Date(ins.due_date).getTime()) / 86_400_000);
+      const priority: "urgent" | "high" | "medium" =
+        daysOverdue > 90 ? "urgent" : daysOverdue > 30 ? "high" : "medium";
+      const parent = parentMap.get(ins.parent_id);
+      const parentName = parent ? formatParentName(parent) : ins.parent_id;
+      toCreate.push({
+        tenant_id: tenant.id,
+        kind: "alert",
+        title: `Tranche en retard — ${parentName}`,
+        body: `${ins.label ?? "Tranche"} (${ins.category ?? "—"}) — ${remaining.toLocaleString("fr-FR")} DZD en retard depuis ${daysOverdue} jour${daysOverdue > 1 ? "s" : ""}.`,
+        priority,
+        source: "system",
+        source_label: "Module Finances — Retards auto",
+        target_user_id: null,
+        target_role: "financial_officer",
+        triggered_at: nowIso,
+        link_entity_type: "installment",
+        link_entity_id: ins.id,
+        created_by: null,
+      });
+    }
+
+    for (const ins of upcomingWithBalance) {
+      if (existingKeys.has(ins.id)) continue;
+      const remaining = Number(ins.amount_due ?? 0) - Number(ins.amount_paid ?? 0);
+      const daysUntil = Math.ceil((new Date(ins.due_date).getTime() - asOfMs) / 86_400_000);
+      const parent = parentMap.get(ins.parent_id);
+      const parentName = parent ? formatParentName(parent) : ins.parent_id;
+      toCreate.push({
+        tenant_id: tenant.id,
+        kind: "alert",
+        title: `Échéance proche — ${parentName}`,
+        body: `${ins.label ?? "Tranche"} (${ins.category ?? "—"}) — ${remaining.toLocaleString("fr-FR")} DZD à régler dans ${daysUntil} jour${daysUntil > 1 ? "s" : ""} (échéance ${ins.due_date}).`,
+        priority: "medium",
+        source: "system",
+        source_label: "Module Finances — Échéancier auto",
+        target_user_id: null,
+        target_role: "financial_officer",
+        triggered_at: nowIso,
+        link_entity_type: "installment",
+        link_entity_id: ins.id,
+        created_by: null,
+      });
+    }
+
+    // ── 6. ONE bulk INSERT ─────────────────────────────────────────────────
+    if (toCreate.length > 0) {
+      const { error: insertError } = await supabase.from("notifications").insert(toCreate);
+      if (insertError) {
+        console.error(`[run-overdue-scan] bulk insert failed for tenant ${tenant.id}:`, insertError);
+      } else {
+        const overdueCreated = toCreate.filter((n) => (n.title as string).startsWith("Tranche en retard")).length;
+        summary.alerts_created += overdueCreated;
+        summary.upcoming_due_alerts += toCreate.length - overdueCreated;
+      }
+    }
+
+    // ── 7. Per-tenant audit entry (unchanged contract) ─────────────────────
     await writeAuditLog(
       tenant.id,
       "overdue_scan.run",
@@ -258,8 +315,13 @@ Deno.serve(async (req: Request) => {
       null,
       "system",
       null,
-      { as_of: asOfDate, overdue_count: summary.total_overdue_installments, alerts_created: summary.alerts_created },
-      `Automated overdue scan completed (canonical compute_parent_summary)`,
+      {
+        as_of: asOfDate,
+        overdue_count: summary.total_overdue_installments,
+        alerts_created: summary.alerts_created,
+        upcoming_alerts: summary.upcoming_due_alerts,
+      },
+      `Automated overdue scan completed (batched, canonical installment classification)`,
       requestId,
     );
   }

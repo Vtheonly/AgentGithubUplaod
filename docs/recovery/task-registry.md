@@ -11,11 +11,11 @@
 
 | Status | Count | Tasks |
 |---|---|---|
-| **Completed (VERIFIED)** | 5 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session) |
+| **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
 | **Completed (TESTED)** | 40 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040** (12th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** | 31 | T-017, T-018, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050…T-052, T-054, T-055, T-057, T-058, T-062…T-064, T-069, **T-095 (NEW)** |
+| **Ready** | 30 | T-017, T-018, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050…T-052, T-054, T-055, T-057, T-058, T-062…T-064, T-069 |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -209,6 +209,14 @@
 - **What was done:** the 4-state workflow (none → submitted → accepted/rejected, migration 0043) is now a CLOSED loop. Desktop: `AttendanceRecord` gains the 6 justification fields (+ `JustificationStatus` type); `mapAttendanceRow` reads the columns; `AttendanceRepository` gains `observeJustifications(status?)` (tenant-scoped review queue, newest first) + `reviewJustification({recordId, decision, reviewedBy})` (UPDATE status + reviewer + timestamp, guarded `justification_status <> 'none'`; a previous decision may be overturned — documented correction path); both implemented in the Supabase AND Mock repositories (demo parity). NEW "Justificatifs" tab in the Academics hub (ViewAttendance/RollCall-gated, pending-count badge): the submitted queue with student name, date/session, the parent's note + Drive link + attachment indicator, and Accept/Reject actions wired to the signed-in session identity. The website needs NO change — its pill already renders all 4 states (verified); the states become REACHABLE now that staff can decide.
 - **Tests:** NEW `src/tests/infrastructure/t-040-justification-review.test.ts` 8/8 — mapAttendanceRow reads the justification columns; the UPDATE carries status+reviewer+timestamp with the `<> 'none'` guard; non-UUID validation; observeJustifications filters tenant+submitted; source-scan guards (tab wired + count, Accept/Reject wired with session identity, domain contract, mock parity).
 - **Verification:** `npx tsc --noEmit` clean; full desktop suite 61 files / 2127 tests ALL PASS; lint 0 errors. Gap: live portal→desktop→portal round-trip needs real parent submissions (attendance tables are empty in production — DATA-006 onboarding).
+
+### T-095 — run-overdue-scan EF batched rewrite — **VERIFIED (live)**
+- **Problems:** BUG-NEW-004 · **Priority:** P1 · **Severity:** High (daily cron + manual scan dead in production)
+- **Status:** VERIFIED (2026-08-31, twelfth session — live deploy + curl matrix + idempotency + zero-duplicate evidence)
+- **What was done:** the EF's N+1 scan body (per-parent compute_parent_summary + per-installment dedup SELECT + single-row INSERTs — 258+ round trips, WORKER_RESOURCE_LIMIT) rewritten to the BATCHED pattern of the T-094-verified desktop reference `SupabaseOverdueAlertGenerator`: per tenant ONE overdue query (status ≠ paid/cancelled, due_date < as_of, remaining > 0.001 = INV-4), ONE upcoming-due (7-day) query (the desktop's second pass — EF ≡ desktop now), ONE chunked parents fetch, ONE chunked dedup-key fetch, ONE bulk INSERT, unchanged per-tenant audit. The compute_parent_summary account gate dropped (the verified reference classifies at installment level). Redeployed live (v14).
+- **Live verification:** `docs/recovery/t-095-live-verification.md` — curl matrix 401×3 (no-auth / invalid / anon); valid CRON_SECRET (rotated + hash-verified) → **200 in 8.6–10.9 s** (previously WORKER_RESOURCE_LIMIT); 819 overdue / 68.13M DZD / 819 urgent; second run identical with 0 new alerts; notifications count stays 819 across THREE runs (zero duplicates — dedup key ≡ desktop). CRON_SECRET rotation documented safe (no pg_cron schedule uses it).
+- **Registered micro-divergence:** the EF excludes `cancelled` installments; the desktop generator filters status ≠ 'paid' only — the EF is stricter/correct; desktop filter alignment is an optional one-line follow-up.
+- **Commits:** (this session) — hub repo.
 
 
 ## Completed (fifth repair session — 2026-08-29)
