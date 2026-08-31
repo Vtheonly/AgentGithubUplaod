@@ -40,6 +40,13 @@ import { SupabaseStudentRepository } from "../../infrastructure/supabase/reposit
 import type { PromotionCandidate } from "../../domain/calc/academics/promotion";
 import type { Student, AcademicLevel, GradeLevel } from "../../domain/model/student";
 import { GRADE_LEVELS } from "../../domain/model/student";
+import type { Result } from "../../core/result";
+
+/** Type-safe unwrap for the happy-path assertions (expect() does not narrow). */
+function unwrap<T>(r: Result<T>): T {
+  if (!r.ok) throw new Error(`expected Ok, got Err: ${r.error.message}`);
+  return r.value;
+}
 
 // T-053 (TENANT-103): tests that exercise tenant-scoped repositories set an
 // explicit working tenant (the value the old fallback used to inject).
@@ -293,7 +300,7 @@ describe("T-041 — ACAD-100/BUSINESS-004: atomic batch promotion via RPC", () =
     // .upsert()) with no transaction.
     expect(updates).toHaveLength(0);
     expect(inserts).toHaveLength(0);
-    expect(result.value.updatedCount).toBe(2);
+    expect(unwrap(result).updatedCount).toBe(2);
 
     const rpc = rpcs.find((r) => r.fn === "execute_batch_promotion");
     expect(rpc).toBeDefined();
@@ -329,7 +336,7 @@ describe("T-041 — ACAD-100/BUSINESS-004: atomic batch promotion via RPC", () =
     });
 
     expect(result.ok).toBe(true);
-    expect(result.value.updatedCount).toBe(0);
+    expect(unwrap(result).updatedCount).toBe(0);
     expect(rpcs.filter((r) => r.fn === "execute_batch_promotion")).toHaveLength(0);
   });
 });
@@ -368,7 +375,7 @@ describe("T-041 — BUSINESS-004: SupabaseStudentRepository.promote() is impleme
     const result = await repo.promote(["stu-001", "stu-002"], "2025-2026");
 
     expect(result.ok).toBe(true);
-    expect(result.value).toHaveLength(0);
+    expect(unwrap(result)).toHaveLength(0);
     expect(rpcs).toHaveLength(0);
   });
 });

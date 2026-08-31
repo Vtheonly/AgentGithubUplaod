@@ -172,3 +172,10 @@ ADR-002
 5. `chore(recovery): update problem/task status` — if tracked separately from (4).
 
 Each commit message references the task + problem IDs so `change-log.md` entries can link to them. In a multi-commit task, `Task:` appears in every commit, `Left:` shrinks as the sequence progresses, and only the FINAL commit of the sequence sets `Next:` to a different task (intermediate commits point to the next step of the same task).
+
+## 7. Review checklist (before committing anything that touches the backend)
+
+- [ ] **Append-only migration guard** — `elimtiyaz-desktop/scripts/check-migrations-append-only.sh` (or `npm run check:migrations`): the diff on `supabase/migrations/` must show ADDITIONS ONLY. Editing or deleting an applied migration is forbidden (AGENTS.md §15.9; ADR-001; the ARCH-011 incident). The guard also runs inside `npm test` (`t-058-migration-append-only.test.ts`).
+- [ ] Every new migration carries a `--` header documenting what it changes and why, and is named `NNNN_name.sql` with the next free number.
+- [ ] A migration applied to the live project is committed WITH its `schema_migrations` registration in the same change (T-091/MIG-TOKENS pattern).
+- [ ] The commit body answers the five mandatory questions (§2).

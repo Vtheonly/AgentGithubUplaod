@@ -163,7 +163,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DUP-003 | High | OPEN | T-044 | Two parallel Compose design systems with 18 same-named duplicate component classes |
 | DUP-004 | Medium | OPEN | T-044 | Two `ElImtiyazTheme` composables with the same name in different packages |
 | DUP-005 | High | BLOCKED | T-045 | Two parallel Room entity / DAO / mapper layers coexist in the same database (partial migration) |
-| REG-001 | High | OPEN | T-058 | Chain of 9 "canonical engine unification" fix-up migrations after the "unification" was supposedly complete |
+| REG-001 | High | TESTED | T-058 | Chain of 9 "canonical engine unification" fix-up migrations — GUARD IN PLACE 2026-08-31 (T-058, 13th session): scripts/check-migrations-append-only.sh machine-enforces the append-only rule (working tree + baseline diff + header/naming discipline), wired into npm test + npm run check:migrations; matrix 9/9, suite 6/6 |
 | REG-002 | High | OPEN | T-046 | 8 Room migrations are fix-up migrations for previous regressions — same iterative bug-fix pattern as desktop's REG-001 |
 | WEAK-003 | Medium | OPEN | T-056 | `mapLedgerRow` falls back from `entry_type` to `actor_id` for the entry type |
 | WEAK-004 | Low | OPEN | T-056 | `ledger-seed.ts` computes `dueDate` then discards it (`void dueDate;`) |
@@ -2428,7 +2428,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### REG-001 — Chain of 9 "canonical engine unification" fix-up migrations after the "unification" was supposedly complete
 
-- **Category:** REG  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** REG  |  **Severity:** High  |  **Status:** TESTED
+- **Status note:** PROCESS GUARD LANDED 2026-08-31 (T-058, 13th session): the historical fix-up chain stays as-is (it IS the audit record — the live DB is built on it); RECURRENCE is now prevented by scripts/check-migrations-append-only.sh (fails on any edit/delete/rename of an existing migration, in the working tree AND vs the upstream base; header + NNNN_name.sql discipline enforced), wired into npm test and git-workflow.md §7 review checklist. Matrix 9/9 + vitest 6/6.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop, Website
 - **Task:** T-058 (docs/recovery/task-registry.md)

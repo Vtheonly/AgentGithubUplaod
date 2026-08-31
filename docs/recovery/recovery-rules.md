@@ -23,7 +23,7 @@
 11. **Capture existing behaviour before major consolidation** — write the regression test that pins current canonical behaviour BEFORE unifying implementations, so divergence is detectable.
 12. **Convert discovered bugs into regression tests.** Every defect you meet becomes a failing test before it becomes a fix.
 13. **Check all affected platforms** before modifying shared behaviour (RPC signatures, schema, payload shapes, canonical formulas). A change shipped to one platform only is a divergence.
-14. **Applied migrations are immutable.** Schema changes are new migrations with the next free number (see ADR-001, task T-058).
+14. **Applied migrations are immutable.** Schema changes are new migrations with the next free number (see ADR-001, task T-058). ENFORCED since 2026-08-31: run `elimtiyaz-desktop/scripts/check-migrations-append-only.sh` (or `npm run check:migrations` from the desktop module) — it fails on any modification/deletion/rename of an existing migration (working tree AND diff vs the upstream base), and demands a `--` header + `NNNN_name.sql` naming for every migration file. It is also wired into `npm test` via `src/tests/infrastructure/t-058-migration-append-only.test.ts`.
 
 ## Business & data safety
 

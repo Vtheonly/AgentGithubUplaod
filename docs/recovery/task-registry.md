@@ -7,14 +7,14 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030 done; T-058 next)
+## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030/T-058 done; T-050 next)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 46 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) |
+| **Completed (TESTED)** | 47 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 8 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining:** T-058, T-050, T-036 (unblocked PUSH-103 portion), T-026, T-054, T-062, T-063, T-064 (Android tasks re-opened: dl.google.com is REACHABLE from this container again — toolchain re-bootstrapped at /home/z/my-project/tools). Done from this batch: T-041, T-030 |
+| **In Progress** | 7 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining:** T-050, T-036 (unblocked PUSH-103 portion), T-026, T-054, T-062, T-063, T-064 (Android tasks re-opened: dl.google.com is REACHABLE from this container again — toolchain re-bootstrapped at /home/z/my-project/tools). Done from this batch: T-041, T-030, T-058 |
 | **Ready** | 16 | T-017, T-020, T-021, T-024, T-034, T-039, T-043, T-044, T-046, T-051, T-069 (T-041 moved out — completed 13th session; count adjusted in-place) |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
@@ -111,6 +111,15 @@
 - **Verification:** website suite 14 files / 135 tests ALL PASS; strict build green; lint clean. LIVE: migration 0060 applied atomically WITH registration; `scripts/verify_t-030.sql` 9/9 PASS (SEC-106 caller-verification intact; ACTIVE-conflict transfer REJECTED 42501; INACTIVE-conflict transfer ALLOWED + audited; same-user reactivation + register audit; unregister retires caller's own row; idempotent NULL for unknown tokens; 2+ audit rows). Gap: live browser FCM round-trip blocked on the owner's FCM web config (env gap documented in credentials.md).
 - **Commits:** e3b5fff — hub repo; 99f6ef0 — website repo.
 - **Left:** Android `FcmTokenRegistrar` needs no change (calls the same RPC — server guard covers it); PUSH-100 (dead send-push-notification EF) and PUSH-104 (send_email stub) remain T-036.
+
+### T-058 — Adopt append-only migration discipline
+- **Problems:** REG-001 · **Priority:** P2 · **Severity:** High (process)
+- **Status:** TESTED (2026-08-31, 13th session)
+- **What was done:** The discipline that AGENTS.md §15.9 / recovery-rule 14 / ADR-001 prescribe is now MACHINE-ENFORCED: NEW `elimtiyaz-desktop/scripts/check-migrations-append-only.sh` fails (exit 1) on any modification/deletion/rename of an existing migration — checked BOTH in the working tree/index (git status porcelain) AND against a baseline ref (default: upstream/origin/main — the PR case the task prescribes; falls back to HEAD). It also enforces header discipline (`--` first line) and `NNNN_name.sql` naming on every migration file (all 57 pass today). Handles the deleted-directory edge (git prunes empty dirs after `git rm`). Wired in: (a) `npm run check:migrations` (package.json script); (b) `npm test` via NEW `src/tests/infrastructure/t-058-migration-append-only.test.ts` (real-chain pass + 5 planted-violation cases in throwaway git repos — parallel-safe, never dirties the real tree); (c) NEW `scripts/t-058-guard-matrix.sh` (9-case shell matrix). Review-checklist section added to `docs/agents/git-workflow.md` §7; recovery-rule 14 updated to point at the guard. ALSO FIXED: 3 pre-existing TS2339 errors in the T-041 test file (`.value` access without narrowing — the T-041 commit had claimed a clean typecheck; corrected with a local `unwrap()` helper).
+- **Tests:** guard matrix 9/9 (clean, unstaged edit, staged delete, rename, new-with-header, headerless new, misnamed new, committed edit vs base, restored); vitest 6/6.
+- **Verification:** `npm run check:migrations` → OK (57 files, +2 added vs origin/main — 0059/0060); `npx tsc --noEmit` clean (including the 3 T-041 fixes); full desktop suite 64 files / 2152 passed / 5 skipped / 0 failures (+6 tests); `npm run lint` 0 errors / 369 warnings (unchanged baseline).
+- **Commits:** this commit — hub repo.
+- **Left:** nothing — the check is in place and wired. GitHub Actions CI does not exist in this repo (documented in change-log); the guard runs locally via npm test / check:migrations and in any future CI as a one-liner.
 
 ## Completed (eleventh repair session — 2026-08-31, owner-requested ~10-task batch)
 
@@ -763,7 +772,7 @@
 - **Verification:** build + tests.
 - **ADRs:** ADR-002
 
-#### T-058 — Adopt append-only migration discipline
+#### T-058 — ~~Adopt append-only migration discipline~~ *(moved to Completed — 13th session)*
 - **Problems:** REG-001 · **Priority:** P2 · **Severity:** High (process)
 - **Description:** Process change (already encoded in AGENTS.md + recovery rules): schema changes are new migrations only; each migration's header documents what it changes and why; a review checklist item verifies no applied migration is edited (git diff on `supabase/migrations/` shows additions only).
 - **Dependencies:** none · **Affected:** D · **Platforms:** Backend
