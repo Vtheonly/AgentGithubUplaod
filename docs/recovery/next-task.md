@@ -14,7 +14,7 @@
 
 ## Currently in progress
 
-*(none — the twelfth repair session (2026-08-31) closed its owner-requested batch: the session-11 registry closeout, the live chain-consistency verification (12/12) the owner requested, and T-015 (0058 live 7/7), T-053, T-022, T-040, T-095 (VERIFIED live), T-052, T-057, T-055, T-018 (desktop+sync, DRIFT-001 → PARTIAL). Evidence in change-log.md + t-095-live-verification.md.)*
+**13th repair session (2026-08-31, in progress)** — owner-requested batch of ~10 tasks: **T-041** (year-end promotion flow — the registry's standing recommendation, unblocked since T-025/0057), **T-030** (unregister_fcm_token RPC residue), **T-058** (append-only migration discipline guard), **T-050** (OnlineDetector fail-closed + Supabase probe target, both platforms), **T-036** (unblocked PUSH-103 portion: website FCM auto-registration after first user gesture), and — newly un-gated because dl.google.com is reachable from this container again — the Android set **T-026, T-054, T-062, T-063, T-064**. Session opening also completed the owner's two standing asks: the portal `.env.local` (real Supabase URL + anon key — the "Missing configuration" banner is gone) and the live migration-token consistency check (chain 0001–0058 = local 55/55, 12 EFs ACTIVE, 11 secrets present). NEW discovery registered this session: **AUTH-200** — Google OAuth is NOT enabled on the live project (provider disabled, no client id/secret) — the portal's ONLY auth path is dead until the owner configures it (runbook in docs/operations/portal-google-oauth.md).
 
 ## Current recommendation
 
