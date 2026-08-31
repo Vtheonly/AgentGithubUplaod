@@ -65,7 +65,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | BUSINESS-001 | Critical | OPEN | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
 | BUSINESS-002 | Critical | TESTED | T-011 | `SupabasePaymentRepository.collect()` silently falls back to non-atomic upsert on RPC failure |
 | BUSINESS-003 | High | TESTED | T-014 | `SupabasePaymentRepository.refund()` hardcodes `"Manual refund"` as the reason, drops user's reason + actor identity |
-| BUSINESS-004 | High | OPEN | T-041 | `SupabaseStudentRepository.promote()` returns "not implemented" error in production |
+| BUSINESS-004 | High | TESTED | T-041 | `SupabaseStudentRepository.promote()` returns "not implemented" error in production — FIXED 2026-08-31 (T-041, 13th session): promote() implemented on the canonical `execute_batch_promotion` RPC path (migration 0059, live 10/10); desktop suite 2146 green |
 | BUSINESS-005 | Medium | TESTED | T-060 | `UnifiedPaymentModal` defaults `category` to "tuition" for the waterfall preview when input is null |
 | BUSINESS-007 | Medium | OPEN | T-026 | `LedgerEngine.maxDaysOverdueFromLedger` uses charge's `at` (creation date) instead of due date — inconsistent with canonical overdue rule |
 | BUSINESS-100 | Critical | TESTED | T-012 | `bulkCollect` silently drops failed chunks; Excel importer thinks everything succeeded |
@@ -88,7 +88,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SYNC-101 | Medium | OPEN | T-022 | Desktop defaultPushHandler overwrites sync_queue row status="pending" on every drain, clobbering audit history |
 | SYNC-102 | Medium | OPEN | T-022 | Desktop sync queue persists across logout/login; user A's pending entries stuck as "failed" under user B's session |
 | SYNC-103 | High | OPEN | T-020 | Android tryThenEnqueue only enqueues on network/offline/timeout errors; server 500s and validation errors lose the mutation |
-| SYNC-104 | Medium | IMPLEMENTED | T-084 | Android FCM token never unregistered on signOut; device_tokens row stays active for the old user → notifications delivered to "signed-out" device — LocalAuthRepository.signOut now calls deactivate_fcm_tokens BEFORE revoking the JWT (2026-08-30); Android compile check pending (no SDK in session env) |
+| SYNC-104 | Medium | TESTED | T-030 | Android FCM token never unregistered on signOut; device_tokens row stays active for the old user — Android half fixed 2026-08-30 (T-084: deactivate_fcm_tokens on signOut); server residue closed 2026-08-31 (T-030, 13th session): canonical `unregister_fcm_token(p_token)` RPC + rotation-retire on the website (migration 0060, live 9/9) |
 | SYNC-105 | Medium | TESTED | T-084 | Website signOut uses scope:"global" (revokes ALL sessions across ALL devices) AND does not unregister FCM tokens — fixed 2026-08-30: unregisterDeviceToken() (canonical RPC) + scope:'local'; build green, 105/105 tests; live browser round-trip pending |
 | SYNC-106 | Medium | OPEN | T-021 | Android SyncWorker always returns Result.success() regardless of drainPending/pullAll failures; WorkManager retry escalation bypassed |
 | SYNC-107 | Medium | OPEN | T-021 | Android SyncService.syncNow is fire-and-forget; UI thinks sync completed immediately |
@@ -102,8 +102,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | REALTIME-104 | High | OPEN | T-069 | Android has ZERO Supabase realtime subscriptions; relies entirely on 15-min pullAll cycle for freshness |
 | PARENT-101 | High | OPEN | T-029 | `approve_account_request` SQL function silently OVERWRITES `parents.auth_user_id` on re-bind (no orphan check, no audit trail) |
 | PARENT-102 | Medium | OPEN | T-008 | Approval-without-target-parent creates "active but unbound" user with no escape path |
-| ACAD-100 | High | OPEN | T-041 | Two parallel promotion paths: dead SQL `promote_students` RPC writes to legacy `academic_history`, desktop writes to canonical `student_academic_histories` |
-| ACAD-101 | Medium | OPEN | T-041 | Academic-year `setCurrentYear` is a non-atomic two-step UPDATE; failure leaves the tenant with no current year |
+| ACAD-100 | High | TESTED | T-041 | Two parallel promotion paths: dead SQL `promote_students` RPC writes to legacy `academic_history` — FIXED 2026-08-31 (T-041, 13th session): dead RPC DROPPED by migration 0059; single canonical atomic `execute_batch_promotion` path (live 10/10) |
+| ACAD-101 | Medium | TESTED | T-041 | Academic-year `setCurrentYear` is a non-atomic two-step UPDATE — FIXED 2026-08-31 (T-041, 13th session): atomic `set_current_academic_year` RPC (ONE UPDATE + audit entry, migration 0059, live 10/10); createAcademicYear inserts `is_current=false` then flips |
 | ACAD-102 | Medium | DEFERRED | T-073 | `class_subjects.teacher_id` is single-UUID; co-teaching (multiple teachers per subject per class) is structurally unsupported |
 | ACAD-103 | Medium | DEFERRED | T-074 | Mid-term section moves have no audit trail; `students.class_id` is updated in place, no `class_transfers` or `enrollment_history` table |
 | ATT-100 | Critical | TESTED | T-023 | Desktop roll call upsert is triple-broken (missing tenant_id, missing date, wrong onConflict) |
@@ -128,7 +128,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | NOTIF-105 | Medium | OPEN | T-039 | Android `pullNotifications` pulls ALL server-visible notifications (limit:200) with no per-user filter; stale role-broadcasts persist in Room across role changes |
 | PUSH-100 | Critical | OPEN | T-036 | NO production code anywhere invokes the `send-push-notification` Edge Function (extends WEAK-014/WEAK-015 to a 3rd compounding bug) |
 | PUSH-101 | Medium | OPEN | T-036 | Android `ElImtiyazMessagingService.onMessageReceived` reads `data["type"]` and `data["priority"]` from the wrong field; AndroidManifest has NO deep-link intent filter for `click_action` URLs |
-| PUSH-102 | Medium | PARTIAL | T-084 | `register_fcm_token` SQL RPC has no inverse `unregister_fcm_token` RPC; the `ON CONFLICT (tenant_id, token) DO UPDATE` clause overwrites `user_id` on shared devices (extends SEC-106 + SYNC-104) — inverse `deactivate_fcm_tokens` RPC added by migration 0050 (2026-08-30); the shared-device user_id overwrite on conflicting REGISTER is now blocked for non-service-role callers by the same migration |
+| PUSH-102 | Medium | TESTED | T-030 | `register_fcm_token` RPC had no inverse and silently overwrote `user_id` on shared devices — FIXED 2026-08-31 (T-030, 13th session): migration 0060 conflict-guard (ACTIVE-conflict → 42501; INACTIVE-conflict → explicit audited transfer) + `unregister_fcm_token(p_token)` RPC (live 9/9). The 0050 note claiming the overwrite was already blocked was INACCURATE (register's ON CONFLICT branch was untouched until 0060) |
 | PUSH-103 | Medium | OPEN | T-036 | Website's FCM token registration is OPT-IN only (Profile view manual toggle); no auto-registration on sign-in; most users never enable push |
 | PUSH-104 | High | OPEN | T-036 | Workflow `send_email` action is a STUB; only `approve-signup-request` EF actually sends email (conditional on RESEND_API_KEY secret); all workflow-driven transactional emails NEVER send |
 | ARCH-001 | Critical | OPEN | T-047 | Massive partial migration: 25+ repositories still mock-backed in "Supabase mode" |
@@ -749,7 +749,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-004 — `SupabaseStudentRepository.promote()` returns "not implemented" error in production
 
-- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-041, 13th session): promote() implemented on the canonical `execute_batch_promotion` RPC path (migration 0059, applied live + registered; verify_t-041.sql 10/10). Desktop suite 64 files / 2146 tests green. Full evidence: change-log 2026-08-31 T-041.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-041 (docs/recovery/task-registry.md)
@@ -1211,7 +1212,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-104 — Android FCM token never unregistered on signOut; device_tokens row stays active for the old user → notifications delivered to "signed-out" device
 
-- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** Android half FIXED 2026-08-30 (T-084: signOut calls deactivate_fcm_tokens before revoking the JWT). Server residue CLOSED 2026-08-31 (T-030, 13th session): canonical `unregister_fcm_token(p_token)` RPC (migration 0060, live, verify_t-030.sql 9/9) + website rotation-retire of stale tokens. Live browser/device round-trip pending the owner's FCM web config.
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-030 (docs/recovery/task-registry.md)
@@ -1230,7 +1232,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-105 — Website signOut uses scope:"global" (revokes ALL sessions across ALL devices) AND does not unregister FCM tokens — orphaned token + cross-device session kill
 
-- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-30 (T-084: signOut uses scope:'local' + unregisterDeviceToken; 105/105 tests). Rotation residue CLOSED 2026-08-31 (T-030, 13th session): last-known token persisted; FCM_TOKEN_REFRESH re-registers AND retires the stale token via the new `unregister_fcm_token` RPC (migration 0060, live 9/9); website suite 135/135. Live browser round-trip pending the owner's FCM web config.
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website
 - **Task:** T-030 (docs/recovery/task-registry.md)
@@ -1490,7 +1493,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ACAD-100 — Two parallel promotion paths: dead SQL `promote_students` RPC writes to legacy `academic_history`, desktop writes to canonical `student_academic_histories`
 
-- **Category:** ACAD  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** ACAD  |  **Severity:** High  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-041, 13th session): migration 0059 DROPS the dead promote_students RPC and installs the single canonical atomic `execute_batch_promotion` path (history upsert + grade advance + graduation + audit in one transaction; live, verify_t-041.sql 10/10 — dead-RPC-gone check included). Desktop repositories now call the RPC; direct table writes removed. The legacy `academic_history` TABLE is kept (separate reachability decision).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-041 (docs/recovery/task-registry.md)
@@ -1509,7 +1513,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ACAD-101 — Academic-year `setCurrentYear` is a non-atomic two-step UPDATE; failure leaves the tenant with no current year
 
-- **Category:** ACAD  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** ACAD  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-041, 13th session): atomic `set_current_academic_year` RPC (ONE UPDATE flips the whole tenant + audit entry; migration 0059, live 10/10). createAcademicYear now inserts `is_current=false` then flips via the RPC — failure leaves the previous current year intact. Desktop suite 2146 green.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-041 (docs/recovery/task-registry.md)
@@ -2002,7 +2007,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### PUSH-102 — `register_fcm_token` SQL RPC has no inverse `unregister_fcm_token` RPC; the `ON CONFLICT (tenant_id, token) DO UPDATE` clause overwrites `user_id` on shared devices (extends SEC-106 + SYNC-104)
 
-- **Category:** PUSH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** PUSH  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-030, 13th session; verified live — the earlier 0050 note claiming the overwrite was already blocked was INACCURATE: 0050 verified the CALLER's p_user_id but never touched register's ON CONFLICT branch): migration 0060 conflict-guard — same-user conflict reactivates; another user's ACTIVE row → RAISE 42501 (hijack dead); another user's INACTIVE row → explicit audited transfer. NEW `unregister_fcm_token(p_token)` (caller-verified, idempotent, audited). verify_t-030.sql 9/9 live. Website rotation-retire wired; Android covered server-side.
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-030 (docs/recovery/task-registry.md)

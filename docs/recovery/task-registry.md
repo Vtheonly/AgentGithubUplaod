@@ -7,15 +7,15 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-31, updated after the eleventh repair session — T-011/T-012/T-013/T-014/T-023/T-025/T-068/T-033/T-048/T-060)
+## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030 done; T-058 next)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 44 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) |
+| **Completed (TESTED)** | 46 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 10 | **13th session batch (2026-08-31, owner-requested ~10 tasks):** T-041, T-030, T-058, T-050, T-036 (unblocked PUSH-103 portion), T-026, T-054, T-062, T-063, T-064 (Android tasks re-opened: dl.google.com is REACHABLE from this container again — toolchain re-bootstrapped at /home/z/my-project/tools) |
-| **Ready** | 16 | T-017, T-020, T-021, T-024, T-034, T-039, T-041→in-progress, T-043, T-044, T-046, T-051, T-069 |
+| **In Progress** | 8 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining:** T-058, T-050, T-036 (unblocked PUSH-103 portion), T-026, T-054, T-062, T-063, T-064 (Android tasks re-opened: dl.google.com is REACHABLE from this container again — toolchain re-bootstrapped at /home/z/my-project/tools). Done from this batch: T-041, T-030 |
+| **Ready** | 16 | T-017, T-020, T-021, T-024, T-034, T-039, T-043, T-044, T-046, T-051, T-069 (T-041 moved out — completed 13th session; count adjusted in-place) |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -90,7 +90,27 @@
 
 ## In Progress
 
-*(none — the eleventh repair session (2026-08-31) completed its full 10-task batch: T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 applied live 6/6), T-068 (VERIFIED live), T-033, T-048, T-060. Registry closeout + full-suite evidence recorded by the twelfth session's opening commit.)*
+**13th repair session (2026-08-31, in progress)** — remaining batch: **T-058** (append-only migration discipline guard — NEXT), **T-050** (OnlineDetector fail-closed + Supabase probe target, both platforms), **T-036** (unblocked PUSH-103 portion: website FCM auto-registration after first user gesture), and the Android set **T-026, T-054, T-062, T-063, T-064** (toolchain re-bootstrapped at /home/z/my-project/tools; gradle memory-tuned for the 2-CPU container). Session opening completed the owner's standing asks: portal `.env.local` (Missing-configuration banner gone — live headless render verified) and the mandatory live-chain check (57/57 rows = 0001–0060 after this session's two migrations). NEW problem registered: **AUTH-200** — Google OAuth provider NOT enabled on the live project (portal's only auth path dead until the owner configures it — runbook in docs/operations/portal-google-oauth.md).
+
+## Completed (thirteenth repair session — 2026-08-31, owner-requested ~10-task batch)
+
+### T-041 — Complete the year-end promotion flow
+- **Problems:** ACAD-100, ACAD-101, BUSINESS-004 · **Priority:** P1 · **Severity:** Critical
+- **Status:** TESTED (2026-08-31, 13th session; live backend VERIFIED 10/10 via verify_t-041.sql)
+- **What was done:** NEW migration `0059_canonical_promotion_flow.sql`: the dead `promote_students` RPC (wrote the legacy table, referenced a non-existent column) is DROPPED; `set_current_academic_year` flips the whole tenant's `is_current` in ONE UPDATE + audit entry (ACAD-101); `execute_batch_promotion` is the atomic batch executor (history upsert + grade advance + graduation + one audit entry in a single transaction, caller-verified per the 0055 SEC-111 pattern). `SupabaseAcademicYearRepository.setCurrentYear/createAcademicYear` → the atomic RPC (insert with `is_current=false`, then flip — failure leaves the previous year intact). `SupabasePromotionRepository.executeBatchPromotion` → ONE RPC call with the decisions array computed by the canonical TS engine; direct student/history table writes removed. `SupabaseStudentRepository.promote()` → implemented on the same RPC path (BUSINESS-004 — the hard "not implemented" error is gone).
+- **Tests:** NEW `src/tests/infrastructure/t-041-promotion-flow.test.ts` 8/8; `supabase-repositories.test.ts` promotion tests updated to the RPC contract.
+- **Verification:** desktop full suite 64 files / 2146 passed / 5 skipped / 0 failures; `npx tsc --noEmit` clean; `npm run lint` 0 errors. LIVE: migration 0059 applied atomically with its schema_migrations registration (T-091/MIG-TOKENS pattern, `scripts/apply_0059_live.sh`); `scripts/verify_t-041.sql` 10/10 PASS (registration present; dead RPC gone; both RPCs present; non-array payload rejected 22023; unknown student rejected 42501 under simulated staff JWT; missing year rejected 23503; anonymous fail-closed; staff policy + RLS intact). Gap: UI E2E needs a desktop host; real promotion run needs the owner's data.
+- **Commits:** 049c418 — hub repo.
+- **Left:** mock `StudentRepository.promote()` still does not advance grades (dev-only divergence, noted); Android promotion propagation remains T-024 (toolchain-gated).
+
+### T-030 — Fix sign-out and FCM token lifecycle
+- **Problems:** SYNC-104, SYNC-105, PUSH-102 · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-08-31, 13th session; live backend VERIFIED 9/9 via verify_t-030.sql)
+- **What was done:** NEW migration `0060_fcm_token_transfer_guard.sql`: `register_fcm_token` conflict semantics — same-user conflict reactivates (unchanged); conflict with another user's ACTIVE row RAISES 42501 (the shared-device hijack PUSH-102 is dead — the owner must sign out first, and canonical sign-out deactivates); conflict with another user's INACTIVE row transfers EXPLICITLY with a `device_token.transfer` audit entry. New `unregister_fcm_token(p_token)`: retires ONE row by token string, caller-verified (row owner or service_role), idempotent, audited. Website half (repo elimtiyaz-website): `registerDeviceToken` persists the last-known token (localStorage); NEW `unregisterFcmToken` calls the canonical RPC; `subscribeToFcmTokenRefresh` re-registers AND retires the stale token on rotation; typed in `database.ts` (WEAK-017 rule); signOut uses `scope:"local"` + unregisters (SYNC-105).
+- **Tests:** NEW `src/lib/hooks/t-030-fcm-token-lifecycle.test.ts` 5/5 (website).
+- **Verification:** website suite 14 files / 135 tests ALL PASS; strict build green; lint clean. LIVE: migration 0060 applied atomically WITH registration; `scripts/verify_t-030.sql` 9/9 PASS (SEC-106 caller-verification intact; ACTIVE-conflict transfer REJECTED 42501; INACTIVE-conflict transfer ALLOWED + audited; same-user reactivation + register audit; unregister retires caller's own row; idempotent NULL for unknown tokens; 2+ audit rows). Gap: live browser FCM round-trip blocked on the owner's FCM web config (env gap documented in credentials.md).
+- **Commits:** e3b5fff — hub repo; 99f6ef0 — website repo.
+- **Left:** Android `FcmTokenRegistrar` needs no change (calls the same RPC — server guard covers it); PUSH-100 (dead send-push-notification EF) and PUSH-104 (send_email stub) remain T-036.
 
 ## Completed (eleventh repair session — 2026-08-31, owner-requested ~10-task batch)
 
@@ -533,14 +553,6 @@
 - **Verification:** SQL-level test.
 - **ADRs:** —
 
-#### T-030 — Fix sign-out and FCM token lifecycle
-- **Problems:** SYNC-104, SYNC-105, PUSH-102 · **Priority:** P2 · **Severity:** Medium
-- **Description:** Add `unregister_fcm_token(p_token)` RPC; Android signOut deactivates its token; website signOut uses `scope:"local"` and unregisters its token; `register_fcm_token` no longer silently reassigns shared-device tokens (audit + explicit transfer).
-- **Dependencies:** none · **Affected:** A, W, DB · **Platforms:** Android, Website, Backend
-- **Tests:** sign-out on each platform deactivates the device row; website sign-out does not kill the phone session.
-- **Verification:** integration tests.
-- **ADRs:** —
-
 #### T-031 — Add the role gate to the parent self-update trigger
 - **Problems:** SEC-008 · **Priority:** P1 · **Severity:** Critical
 - **Description:** New migration: `enforce_parent_self_update_columns` fires its restriction only for `has_role('parent')` callers, so staff updates to parent identity fields work again.
@@ -595,14 +607,6 @@
 - **Dependencies:** T-023 (roll call must persist first) · **Affected:** D, W · **Platforms:** Desktop, Website
 - **Tests:** parent submits → staff accepts → parent sees accepted.
 - **Verification:** E2E flow test.
-- **ADRs:** —
-
-#### T-041 — Complete the year-end promotion flow
-- **Problems:** ACAD-100, ACAD-101, BUSINESS-004 · **Priority:** P1 · **Severity:** Critical
-- **Description:** Drop the dead SQL `promote_students` RPC (writes legacy table); make `setCurrentYear` an atomic RPC; implement `SupabaseStudentRepository.promote()` (currently "not implemented"); full batch promotion through `student_academic_histories`.
-- **Dependencies:** T-025 (history table accessible) · **Affected:** D, DB · **Platforms:** Desktop, Backend
-- **Tests:** full batch promotion on a fresh schema: grades advance, histories written, atomic; failure leaves no partial state.
-- **Verification:** integration test + audit entries present.
 - **ADRs:** —
 
 ### Phase 4 — Feature pipelines & cleanup (P2/P3)

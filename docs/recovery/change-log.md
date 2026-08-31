@@ -20,6 +20,26 @@
 
 ## Entries
 
+### 2026-08-31 — T-030 — FCM token lifecycle: transfer guard + single-token unregister (PUSH-102, SYNC-104, SYNC-105)
+- **Problem IDs:** PUSH-102 (shared-device token hijack), SYNC-104 (no unregister RPC / stale rotated tokens), SYNC-105 (website global signOut + orphaned token).
+- **What changed:** NEW migration `0060_fcm_token_transfer_guard.sql` (live, registered): `register_fcm_token` conflict semantics — same-user conflict reactivates; conflict with another user's ACTIVE row RAISES 42501 (hijack dead); conflict with another user's INACTIVE row transfers explicitly with a `device_token.transfer` audit entry; registrations audit `device_token.register`. NEW `unregister_fcm_token(p_token)` RPC — retires ONE row by token string, caller-verified (owner or service_role), idempotent, audited. Website (`elimtiyaz-website`): last-known token persisted (localStorage `el-imtiyaz.fcm-token`); `unregisterFcmToken` calls the canonical RPC; `subscribeToFcmTokenRefresh` re-registers AND retires the stale token on rotation; typed in `database.ts`.
+- **Why:** the 0027 upsert assumed a single-owner device model; the 0050 caller verification never revisited the conflict branch; no inverse RPC ever existed, so rotated tokens stayed permanently active.
+- **Affected components:** backend `device_tokens` lifecycle (migration 0060), website `fcm-registration.ts` + typed schema, Android covered server-side (no change needed).
+- **Tests:** website NEW `src/lib/hooks/t-030-fcm-token-lifecycle.test.ts` 5/5.
+- **Verification:** website suite 14 files / 135 tests ALL PASS; strict build green; lint clean. LIVE: 0060 applied atomically WITH registration; `scripts/verify_t-030.sql` 9/9 PASS (SEC-106 intact; ACTIVE-conflict rejected 42501; INACTIVE-conflict transfer allowed + audited; same-user reactivation audited; unregister retires own row; idempotent NULL; 2+ audit rows). Gap: live browser FCM round-trip blocked on the owner's FCM web config.
+- **Commit:** e3b5fff (hub — backend), 99f6ef0 (website — client half).
+- **Notes:** `deactivate_fcm_tokens` (0050) unchanged — still the sign-out path. PUSH-100/PUSH-104 remain with T-036. Registry note claiming the overwrite was "blocked" was INACCURATE — corrected (verified live).
+
+### 2026-08-31 — T-041 — Canonical atomic year-end promotion flow (ACAD-100, ACAD-101, BUSINESS-004)
+- **Problem IDs:** ACAD-100 (dead `promote_students` RPC writing the legacy table + non-existent column), ACAD-101 (non-atomic two-step `setCurrentYear`), BUSINESS-004 (`promote()` "not implemented" in production).
+- **What changed:** NEW migration `0059_canonical_promotion_flow.sql` (live, registered): dead `promote_students` RPC DROPPED; `set_current_academic_year` — ONE UPDATE flips the whole tenant's `is_current` + audit entry; `execute_batch_promotion` — atomic batch executor (history upsert + grade advance + graduation + one audit entry in a single transaction, caller-verified per the 0055 SEC-111 pattern, runs under caller RLS). Desktop: `setCurrentYear`/`createAcademicYear` → the atomic RPC (insert `is_current=false`, then flip — failure leaves the previous year intact); `executeBatchPromotion` → ONE RPC call with the canonical TS-engine decisions array (direct table writes removed); `SupabaseStudentRepository.promote()` implemented on the same RPC path.
+- **Why:** the canonical 0029 history table arrived after the 0022 RPC; the repository was rewritten but the dead RPC was never dropped and no atomic server-side executor was ever built.
+- **Affected components:** backend (migration 0059), desktop academic/student/promotion repositories. Website: none (read-side unaffected).
+- **Tests:** NEW `src/tests/infrastructure/t-041-promotion-flow.test.ts` 8/8; `supabase-repositories.test.ts` promotion tests updated to the RPC contract.
+- **Verification:** desktop full suite 64 files / 2146 passed / 5 skipped / 0 failures; `npx tsc --noEmit` clean; lint 0 errors. LIVE: 0059 applied atomically WITH registration (`scripts/apply_0059_live.sh`); `scripts/verify_t-041.sql` 10/10 PASS. Gap: UI E2E needs a desktop host.
+- **Commit:** 049c418 (hub).
+- **Notes:** decision computation stays client-side (canonical TS engine — no SQL duplicate of the progression map); `repeated`/`transferred` decisions archive history only; legacy `academic_history` TABLE kept (separate reachability decision); mock promote divergence noted; Android propagation remains T-024.
+
 ### 2026-08-31 — T-018 — Deterministic identity codes (DRIFT-001 → PARTIAL; desktop + sync)
 - **Problem IDs:** DRIFT-001 (PARTIAL — desktop + sync layer).
 - **What changed:** the canonical generators moved to core/format/id.ts (ADR-003 home, re-exported); empty-identity fallback seeded + stable (never random); the sync push handler's random PAR-/ELV- fallbacks replaced with the seeded canonical generators.
