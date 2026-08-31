@@ -58,6 +58,7 @@ import {
   academicLevelFromGradeLevel,
   gradeYearFromGradeLevel,
 } from "../../../domain/model/student";
+import { getNextGradeProgression } from "../../../domain/calc/academics/promotion";
 import type {
   Payment,
   Installment,
@@ -931,8 +932,69 @@ export class SupabaseStudentRepository implements StudentRepository {
     }
   }
 
-  async promote(): Promise<Result<Student[]>> {
-    return Err(Errors.server("promote not implemented for Supabase repository"));
+  async promote(studentIds: string[], academicYear: string): Promise<Result<Student[]>> {
+    // T-041 (BUSINESS-004): previously a hard "not implemented" error in
+    // production. Implemented on the SAME canonical path as the batch flow:
+    // each student advances one grade via the canonical progression
+    // (getNextGradeProgression — the TS reference), the final decisions go
+    // through the atomic `execute_batch_promotion` RPC (migration 0059),
+    // which archives an append-only history entry per student, advances the
+    // grade, graduates 3eme_annee and writes the audit entry — all in one
+    // transaction. `academicYear` is the year the students just COMPLETED
+    // (the history label).
+    const realIds = studentIds.filter((id) => isUuid(id));
+    if (realIds.length === 0) {
+      return Ok([]);
+    }
+
+    const { data: rows, error: fetchErr } = await this.client
+      .from("students")
+      .select("*")
+      .in("id", realIds);
+    if (fetchErr) return Err(supabaseErrorToAppError(fetchErr));
+
+    const decisions: Record<string, unknown>[] = [];
+    const updatedIds: string[] = [];
+    for (const row of rows ?? []) {
+      const student = mapStudentRow(row);
+      const progression = getNextGradeProgression(student.gradeLevel);
+      const finalDecision: "promoted" | "graduated" = progression.isGraduation
+        ? "graduated"
+        : "promoted";
+      decisions.push({
+        student_id: student.id,
+        decision: finalDecision,
+        next_grade_code: progression.nextGradeCode,
+        academic_year: academicYear,
+        cycle: student.level,
+        grade_code: student.gradeLevel,
+        grade_year: student.gradeYear,
+        class_id: isUuid(student.classId) ? student.classId : null,
+        class_name: null,
+        gpa: 0, // quick-promotion carries no evaluated GPA (no assessment context)
+        rank: null,
+        narrative: "Promotion directe (sans revue d'évaluations)",
+      });
+      updatedIds.push(student.id);
+    }
+
+    if (decisions.length === 0) return Ok([]);
+
+    const { error: rpcErr } = await this.client.rpc("execute_batch_promotion", {
+      p_decisions: decisions,
+      p_actor_profile_id: null,
+      p_actor_name: "Promotion rapide",
+      p_tenant_id: getTenantId(),
+    });
+    if (rpcErr) return Err(supabaseErrorToAppError(rpcErr));
+
+    const { data: updatedRows, error: refetchErr } = await this.client
+      .from("students")
+      .select("*")
+      .in("id", updatedIds);
+    if (refetchErr) return Err(supabaseErrorToAppError(refetchErr));
+
+    return Ok((updatedRows ?? []).map(mapStudentRow));
   }
 }
 

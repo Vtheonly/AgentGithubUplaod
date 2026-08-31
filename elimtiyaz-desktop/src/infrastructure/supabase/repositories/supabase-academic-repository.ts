@@ -103,25 +103,22 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     return Ok(data ? mapAcademicYearRow(data) : null);
   }
 
-  async setCurrentYear(id: string, _actorId: string, _actorName: string): Promise<Result<AcademicYear>> {
-    // Unset current for all other years of the tenant (explicit tenant scope —
-    // see createAcademicYear).
-    await this.client
-      .from("academic_years")
-      .update({ is_current: false })
-      .eq("tenant_id", getTenantId())
-      .filter("id", "neq", id);
-
-    const { data, error } = await this.client
-      .from("academic_years")
-      .update({ is_current: true, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
+  async setCurrentYear(id: string, actorId: string, actorName: string): Promise<Result<AcademicYear>> {
+    // T-041 (ACAD-101): single atomic RPC (migration 0059) — ONE UPDATE
+    // statement flips is_current for every year of the tenant, so there is
+    // no failure window leaving the tenant with zero current years (the old
+    // two-step client UPDATE could unset every year then fail on the second
+    // call). The RPC also writes the audit entry the old path never wrote.
+    const { data, error } = await this.client.rpc("set_current_academic_year", {
+      p_academic_year_id: id,
+      p_actor_profile_id: isUuid(actorId) ? actorId : null,
+      p_actor_name: actorName || null,
+      p_tenant_id: getTenantId(),
+    });
 
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
-    return Ok(mapAcademicYearRow(data));
+    return Ok(mapAcademicYearRow(data as Record<string, any>));
   }
 
   async createAcademicYear(
@@ -129,17 +126,13 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     _actorId: string,
     _actorName: string,
   ): Promise<Result<AcademicYear>> {
-    // Only one current year at a time — unset the flag on every other year
-    // of the tenant first (same semantics as the mock implementation). The
-    // explicit tenant filter keeps the UPDATE scoped (PostgREST PATCH without
-    // a filter would touch every tenant's rows).
-    if (input.isCurrent) {
-      await this.client
-        .from("academic_years")
-        .update({ is_current: false })
-        .eq("tenant_id", getTenantId());
-    }
-
+    // T-041 (ACAD-101): INSERT with is_current = false, then (when the new
+    // year must be current) flip via the ATOMIC set_current_academic_year
+    // RPC — one UPDATE statement, no zero-current-year window. Failure
+    // modes are safe: if the INSERT fails nothing changed; if the RPC fails
+    // the new year exists but is NOT current (the previous current year
+    // keeps its flag — strictly better than the old unset-first pattern,
+    // which un-set the previous year BEFORE the INSERT could fail).
     const { data, error } = await this.client
       .from("academic_years")
       .insert({
@@ -148,15 +141,28 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
         start_date: input.startDate,
         end_date: input.endDate,
         term_structure: input.termStructure,
-        is_current: input.isCurrent ?? false,
+        is_current: false,
         is_archived: false,
       })
       .select()
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
+    const created = mapAcademicYearRow(data);
+
+    if (input.isCurrent) {
+      const flip = await this.setCurrentYear(
+        created.id,
+        _actorId,
+        _actorName,
+      );
+      if (!flip.ok) return flip;
+      await this.refresh();
+      return flip;
+    }
+
     await this.refresh();
-    return Ok(mapAcademicYearRow(data));
+    return Ok(created);
   }
 
   async updateAcademicYear(
@@ -1176,21 +1182,26 @@ export class SupabasePromotionRepository implements PromotionRepository {
   constructor(private readonly client: SupabaseClient) {}
 
   /**
-   * Batch promotion — direct table operations:
+   * Batch promotion — ATOMIC via the `execute_batch_promotion` RPC
+   * (migration 0059, T-041 / ACAD-100 / BUSINESS-004):
    *
-   *   1. Upsert the permanent academic history entries into
-   *      `student_academic_histories` (migration 0029) for the year the
-   *      student just COMPLETED.
-   *   2. Advance promoted students: `students.grade_level_code` ← next grade
-   *      level (level / gradeYear are derived from the code via the canonical
-   *      helpers, exactly like the shared student repository), and clear
-   *      `class_id` — the old class assignment no longer applies.
-   *   3. Graduated students (3ème année) get `enrollment_status = 'graduated'`.
-   *   4. Best-effort audit entry via the `write_audit_log` RPC (0014).
+   *   1. The DECISION COMPUTATION stays here (the canonical TS engine
+   *      `src/domain/calc/academics/promotion.ts` is the reference — GPA,
+   *      ranking, suggestion, override); the FINAL decisions are shipped to
+   *      the RPC as one JSON array.
+   *   2. Server-side (single transaction): append-only history upsert into
+   *      `student_academic_histories`, `grade_level_code` advance + class
+   *      clear for 'promoted', `enrollment_status='graduated'` for
+   *      'graduated', ONE `student.promote` audit entry. Any invalid or
+   *      foreign-tenant decision RAISES and rolls back the WHOLE batch —
+   *      the previous direct-table loop could advance students 1..N then
+   *      fail on N+1, leaving partial state.
    *
-   * NOTE: the original implementation called an `execute_batch_promotion` RPC
-   * that does NOT exist in any migration — it would have failed with
-   * PGRST202 at runtime. The student updates are therefore issued directly.
+   * HISTORY: the original implementation called an `execute_batch_promotion`
+   * RPC that did NOT exist in any migration and would have failed with
+   * PGRST202 — so it was rewritten to direct table operations (the comment
+   * below said so). Migration 0059 now provides the real RPC; the
+   * client-side fallback loop is retired.
    */
   async executeBatchPromotion(input: {
     candidates: readonly {
@@ -1202,12 +1213,8 @@ export class SupabasePromotionRepository implements PromotionRepository {
     performedByName: string;
   }): Promise<Result<{ promotedStudents: Student[]; updatedCount: number }>> {
     const completedYear = derivePreviousAcademicYear(input.targetAcademicYear);
-    const historyPayloads: Record<string, unknown>[] = [];
-    const studentUpdates: {
-      id: string;
-      gradeLevel: GradeLevel;
-    }[] = [];
-    const graduatedIds: string[] = [];
+    const decisions: Record<string, unknown>[] = [];
+    const updatedIds: string[] = [];
 
     for (const item of input.candidates) {
       const { candidate, finalDecision } = item;
@@ -1218,8 +1225,20 @@ export class SupabasePromotionRepository implements PromotionRepository {
         finalDecision,
       );
 
-      historyPayloads.push({
-        student_id: history.studentId,
+      const isRealId = isUuid(candidate.student.id);
+      const nextGradeLevel =
+        finalDecision === "promoted" ? candidate.nextGradeLevel : null;
+
+      // Decisions for mock-era ids cannot be executed server-side (the
+      // students do not exist in Supabase); the RPC would reject the whole
+      // batch on them, so they are filtered here (same contract as the
+      // previous implementation).
+      if (!isRealId) continue;
+
+      decisions.push({
+        student_id: candidate.student.id,
+        decision: finalDecision,
+        next_grade_code: nextGradeLevel,
         academic_year: history.academicYear,
         cycle: history.cycle,
         grade_code: history.gradeCode,
@@ -1227,96 +1246,29 @@ export class SupabasePromotionRepository implements PromotionRepository {
         class_id: isUuid(history.classId) ? history.classId : null,
         class_name: history.className,
         gpa: history.gpa,
-        decision: history.decision,
+        rank: history.rank,
         narrative: history.narrative,
-        recorded_at: new Date().toISOString(),
       });
 
-      if (!isUuid(candidate.student.id)) continue; // mock-era id — not in Supabase
-
-      if (
-        finalDecision === "promoted" &&
-        candidate.nextGradeLevel
-      ) {
-        studentUpdates.push({
-          id: candidate.student.id,
-          gradeLevel: candidate.nextGradeLevel,
-        });
-      } else if (finalDecision === "graduated") {
-        graduatedIds.push(candidate.student.id);
+      if (finalDecision === "promoted" || finalDecision === "graduated") {
+        updatedIds.push(candidate.student.id);
       }
     }
 
-    // 1. Permanent academic history (append-only, idempotent per student+year).
-    // Only rows with Supabase uuid student ids can be persisted.
-    const persistableHistory = historyPayloads.filter((p) =>
-      isUuid(p.student_id as string),
-    );
-    if (persistableHistory.length > 0) {
-      const { error: historyErr } = await this.client
-        .from("student_academic_histories")
-        .upsert(persistableHistory, {
-          onConflict: "student_id,academic_year",
-        });
-      if (historyErr) return Err(supabaseErrorToAppError(historyErr));
-    }
-
-    // 2. Advance promoted students to the next grade level + clear class.
-    const now = new Date().toISOString();
-    for (const upd of studentUpdates) {
-      const { error } = await this.client
-        .from("students")
-        .update({
-          grade_level_code: upd.gradeLevel,
-          class_id: null,
-          updated_at: now,
-        })
-        .eq("id", upd.id);
-      if (error) return Err(supabaseErrorToAppError(error));
-    }
-
-    // 3. Graduations.
-    for (const id of graduatedIds) {
-      const { error } = await this.client
-        .from("students")
-        .update({
-          enrollment_status: "graduated",
-          class_id: null,
-          updated_at: now,
-        })
-        .eq("id", id);
-      if (error) return Err(supabaseErrorToAppError(error));
-    }
-
-    const updatedIds = [
-      ...studentUpdates.map((u) => u.id),
-      ...graduatedIds,
-    ];
-
-    // 4. Best-effort audit entry (canonical write_audit_log RPC, migration 0014).
-    try {
-      await this.client.rpc("write_audit_log", {
-        p_tenant_id: getTenantId(),
-        p_action: "student.promote",
-        p_entity_type: "student",
-        p_entity_id: null,
-        p_actor_id: isUuid(input.performedBy) ? input.performedBy : null,
-        p_actor_name: input.performedByName,
-        p_before_json: null,
-        p_after_json: {
-          count: updatedIds.length,
-          targetYear: input.targetAcademicYear,
-        },
-        p_note: `Promotion de classe exécutée vers l'année ${input.targetAcademicYear}`,
-      });
-    } catch {
-      // Audit is best-effort — the promotion itself already succeeded.
-    }
-
-    // 5. Re-read the updated students for the return payload.
-    if (updatedIds.length === 0) {
+    if (decisions.length === 0) {
       return Ok({ promotedStudents: [], updatedCount: 0 });
     }
+
+    // ONE RPC call — the whole batch commits or rolls back together.
+    const { error: rpcErr } = await this.client.rpc("execute_batch_promotion", {
+      p_decisions: decisions,
+      p_actor_profile_id: isUuid(input.performedBy) ? input.performedBy : null,
+      p_actor_name: input.performedByName || null,
+      p_tenant_id: getTenantId(),
+    });
+    if (rpcErr) return Err(supabaseErrorToAppError(rpcErr));
+
+    // Re-read the updated students for the return payload.
     const { data: rows, error: fetchErr } = await this.client
       .from("students")
       .select("*")

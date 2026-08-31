@@ -966,7 +966,7 @@ describe("SupabasePromotionRepository", () => {
     };
   }
 
-  it("advances students via direct table updates (no execute_batch_promotion RPC)", async () => {
+  it("executes the batch through the execute_batch_promotion RPC (migration 0059 — atomic server-side)", async () => {
     const client = createFakeClient({
       students: [
         {
@@ -994,6 +994,48 @@ describe("SupabasePromotionRepository", () => {
       auditCalled = true;
       return "aud-promo";
     };
+    // T-041: the batch now executes server-side via the 0059 RPC. The fake
+    // handler simulates the server contract: validate + archive history +
+    // advance the student row + return the processed count.
+    let batchRpcArgs: Row | null = null;
+    client.__rpcHandlers["execute_batch_promotion"] = (args) => {
+      batchRpcArgs = args;
+      const decisions = (args.p_decisions ?? []) as Row[];
+      for (const d of decisions) {
+        if (d.decision === "promoted") {
+          const row = client.__tables["students"].rows.find(
+            (r) => r.id === d.student_id,
+          );
+          if (row) {
+            row.grade_level_code = d.next_grade_code;
+            row.class_id = null;
+          }
+        } else if (d.decision === "graduated") {
+          const row = client.__tables["students"].rows.find(
+            (r) => r.id === d.student_id,
+          );
+          if (row) {
+            row.enrollment_status = "graduated";
+            row.class_id = null;
+          }
+        }
+        client.__tables["student_academic_histories"].rows.push({
+          tenant_id: TENANT,
+          student_id: d.student_id,
+          academic_year: d.academic_year,
+          decision: d.decision,
+          gpa: d.gpa,
+          cycle: d.cycle,
+          grade_code: d.grade_code,
+        });
+      }
+      // 0059 writes the batch audit entry INSIDE the same RPC transaction.
+      client.__rpcHandlers["write_audit_log"]?.({
+        p_action: "student.promote",
+        p_after_json: { count: decisions.length },
+      });
+      return { processed_count: decisions.length, updated_student_ids: [] };
+    };
 
     const repo = new SupabasePromotionRepository(client);
     const result = await repo.executeBatchPromotion({
@@ -1009,6 +1051,13 @@ describe("SupabasePromotionRepository", () => {
       expect(result.value.promotedStudents[0].gradeLevel).toBe("1am");
       expect(result.value.promotedStudents[0].level).toBe("cem");
     }
+
+    // The whole batch went through ONE RPC call (atomic server-side).
+    expect(batchRpcArgs).not.toBeNull();
+    const decisions = (batchRpcArgs!.p_decisions ?? []) as Row[];
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0].next_grade_code).toBe("1am");
+    expect(decisions[0].academic_year).toBe("2025-2026");
 
     const student = client.__tables["students"].rows[0];
     expect(student.grade_level_code).toBe("1am");
@@ -1047,6 +1096,21 @@ describe("SupabasePromotionRepository", () => {
       student_academic_histories: [],
     });
     client.__rpcHandlers["write_audit_log"] = () => "aud-grad";
+    client.__rpcHandlers["execute_batch_promotion"] = (args) => {
+      const decisions = (args.p_decisions ?? []) as Row[];
+      for (const d of decisions) {
+        if (d.decision === "graduated") {
+          const row = client.__tables["students"].rows.find(
+            (r) => r.id === d.student_id,
+          );
+          if (row) {
+            row.enrollment_status = "graduated";
+            row.class_id = null;
+          }
+        }
+      }
+      return { processed_count: decisions.length, updated_student_ids: [] };
+    };
 
     const repo = new SupabasePromotionRepository(client);
     const result = await repo.executeBatchPromotion({
