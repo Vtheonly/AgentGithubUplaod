@@ -1,6 +1,20 @@
 /**
  * El-Imtiyaz Desktop Terminal — Electron main process.
  *
+ * MODULE-FORMAT NOTE (T-097, 2026-08-31): this file is named `main.cts`
+ * (and the bridge `preload.cts`) ON PURPOSE. package.json has
+ * `"type": "module"`, so Node/Electron treat every `.js` file under this
+ * package as an ES module — but this tsconfig compiles with CommonJS-style
+ * output. Emitting to a `.js` path made Electron load
+ * `dist-electron/main.js` as ESM and crash at startup with
+ * `ReferenceError: exports is not defined in ES module scope` (the exact
+ * error the owner hit on 2026-08-31 — archived in the message of commit
+ * 3f7ec01). TypeScript maps the `.cts` extension to a `.cjs` output
+ * (`main.cts` → `dist-electron/main.cjs`), which Node/Electron always treat
+ * as CommonJS regardless of package.json's `type` field. Do NOT rename these
+ * files back to plain `.ts` without also removing `"type": "module"` from
+ * package.json.
+ *
  * VAULT §02.01 — "The Desktop Terminal is built with Electron 33 + Vite 6 +
  * React 18 + TypeScript 5.7 … The only node that runs backup routines,
  * parses raw `.xlsx` files, and hosts the visual DAG workflow canvas editor."
@@ -39,7 +53,13 @@ const RENDERER_DIST = path.join(__dirname, "..", "dist");
 /** Development server (vite dev). */
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173";
 
-const isDev = !app.isPackaged;
+// T-097: `npm start` builds the renderer then launches `electron .`
+// UNPACKAGED — `!app.isPackaged` alone would classify that as dev mode and
+// load the vite dev server URL (ERR_CONNECTION_REFUSED when no dev server
+// is running — the app opened an empty window on `npm start`). Production
+// launches (npm start) set NODE_ENV=production; real dev sessions
+// (electron:dev / dev:electron) leave NODE_ENV unset and keep dev mode.
+const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -53,7 +73,7 @@ function createWindow(): void {
     backgroundColor: "#242526",
     title: "El-Imtiyaz — Terminal Desktop",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false, // preload needs limited Node (path/fs via IPC only)

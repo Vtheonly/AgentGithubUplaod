@@ -5,13 +5,13 @@
   "author": "El-Imtiyaz",
   "license": "UNLICENSED",
   "private": true,
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "vite build && tsc -p electron/tsconfig.json && mv dist-electron/preload.js dist-electron/preload.cjs && electron .",
+    "dev:electron": "vite build && tsc -p electron/tsconfig.json && electron .",
     "build": "tsc -b && vite build",
-    "build:electron": "tsc -p electron/tsconfig.json && mv dist-electron/preload.js dist-electron/preload.cjs",
+    "build:electron": "tsc -p electron/tsconfig.json",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx",
@@ -20,7 +20,7 @@
     "check:migrations": "bash scripts/check-migrations-append-only.sh",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron .\"",
     "electron:build": "vite build && tsc -p electron/tsconfig.json && electron-builder",
-    "start": "vite build && tsc -p electron/tsconfig.preload.json && mv dist-electron/preload.js dist-electron/preload.cjs && tsc -p electron/tsconfig.json && electron ."
+    "start": "vite build && tsc -p electron/tsconfig.json && cross-env NODE_ENV=production electron ."
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
