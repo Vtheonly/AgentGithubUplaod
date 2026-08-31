@@ -31,7 +31,12 @@ import {
   resolveProbeUrl,
 } from "../../infrastructure/sync/online-detector";
 
-const HEALTH = "https://acme-school.supabase.co/auth/v1/health";
+// NOTE (TEST-300, fixed 2026-08-31): this constant used to say
+// "https://acme-school.supabase.co/auth/v1/health" while the test input was
+// "https://example.supabase.co" — the assertions could NEVER pass (the
+// implementation correctly maps the INPUT host). The constant is now
+// host-consistent with the inputs below.
+const HEALTH = "https://example.supabase.co/auth/v1/health";
 
 afterEach(() => {
   vi.unstubAllGlobals();
