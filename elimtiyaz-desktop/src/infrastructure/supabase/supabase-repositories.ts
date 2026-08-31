@@ -53,6 +53,7 @@ import {
 import { SupabaseDashboardRepository } from "./repositories/supabase-dashboard-repository";
 import { SupabaseOverdueAlertGenerator } from "./repositories/supabase-overdue-alert-generator";
 import { SupabaseExpenseRepository } from "./repositories/supabase-expense-repository";
+import { SupabaseChatRepository } from "./repositories/supabase-chat-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -157,6 +158,15 @@ export function getSupabaseRepositories(): Repositories {
   // the tickets list showed seed data.
   const expenses = new SupabaseExpenseRepository(client);
 
+  // T-099 (2026-08-31, CHAT-103/105 fix): wire the Supabase-backed chat
+  // repository onto chat_channels/chat_messages (migration 0010 + 0051 +
+  // 0061). BEFORE this, the `chat` slot stayed on mockRepositories —
+  // staff-to-staff chat was in-memory only (wiped on every restart) and the
+  // parent portal could never see any conversation (CHAT-103: no production
+  // writer). The 0061 create_direct_channel RPC is the canonical,
+  // idempotent DM-creation path used by this repository.
+  const chat = new SupabaseChatRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -184,6 +194,7 @@ export function getSupabaseRepositories(): Repositories {
     departments,
     overdueAlerts, // T-080 — kill the mock leak
     expenses, // T-093 — expense tickets on the canonical expense_tickets table
+    chat, // T-099 — chat on chat_channels/chat_messages (CHAT-105 dead)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
@@ -209,6 +220,7 @@ export interface RepositoriesWithApprovals extends Repositories {
 
 export {
   SupabaseAuthRepository,
+  SupabaseChatRepository,
   SupabaseApprovalRepository,
   SupabaseParentRepository,
   SupabaseStudentRepository,

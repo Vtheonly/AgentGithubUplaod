@@ -173,6 +173,16 @@ export interface ChatRepository {
   editMessage(id: string, body: string): Promise<Result<ChatMessage>>;
   deleteMessage(id: string): Promise<Result<void>>;
   markRead(channelId: string, personnelId: string): Promise<Result<void>>;
+  /**
+   * T-100 (2026-08-31, CHAT-103): open (or re-open) the staff↔parent direct
+   * channel for a PARENT — the entry point that makes the parent portal's
+   * MessagesView non-empty. Resolves the parent's user_profiles.id from the
+   * parents.auth_user_id link, then creates the idempotent DM (canonical
+   * create_direct_channel RPC in Supabase mode). Parents without a linked
+   * account (no activation yet) return a validation error — staff must
+   * issue an activation code first.
+   */
+  openParentChannel(parentId: string, displayName: string): Promise<Result<ChatChannel>>;
 }
 
 /* ------------------------------------------------------------------ */

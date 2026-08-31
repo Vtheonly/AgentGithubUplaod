@@ -16,6 +16,7 @@ import { useState } from "react";
 import {
   Phone,
   MessageCircle,
+  MessagesSquare,
   Mail,
   FileText,
   Plus,
@@ -300,6 +301,32 @@ export function ParentDetailDrawer({
     }
   }
 
+  // T-100 (CHAT-103): staff opens the direct channel with THIS parent —
+  // the channel-creation path that makes the parent portal's MessagesView
+  // non-empty (the portal is read+reply by design).
+  const [openingChannel, setOpeningChannel] = useState(false);
+
+  async function openParentConversation(parent: Parent) {
+    if (!session) return;
+    setOpeningChannel(true);
+    try {
+      const r = await repos.chat.openParentChannel(
+        parent.id,
+        parentDisplayName(parent),
+      );
+      if (r.ok) {
+        toast.showSuccess(
+          "Conversation prête",
+          `« ${r.value.name} » — le parent la voit dans son portail (Messagerie).`,
+        );
+      } else {
+        toast.showError("Conversation impossible", r.error.userMessage);
+      }
+    } finally {
+      setOpeningChannel(false);
+    }
+  }
+
   const actions = (p: Parent): readonly EntityDrawerAction<Parent>[] => {
     const list: EntityDrawerAction<Parent>[] = [];
     // FIX (editing): expose the parent edit modal from the drawer footer.
@@ -348,6 +375,15 @@ export function ParentDetailDrawer({
         icon: <MessageCircle className="h-4 w-4" />,
       });
     }
+    // T-100 (CHAT-103): in-app chat with the parent (persisted to the shared
+    // backend — visible in the parent portal's Messages view).
+    list.push({
+      label: "Messager",
+      onClick: (pp) => void openParentConversation(pp),
+      variant: "outline",
+      icon: <MessagesSquare className="h-4 w-4" />,
+      disabled: () => openingChannel,
+    });
     if (p.email) {
       list.push({
         label: "E-mail",

@@ -969,6 +969,34 @@ class MockChatRepository implements ChatRepository {
     this.notifyMessages();
     return Ok(undefined);
   }
+
+  async openParentChannel(parentId: string, displayName: string): Promise<Result<ChatChannel>> {
+    // T-100 mock parity: create (or return) an in-memory direct channel with
+    // the parent. Mock parents have no real user_profiles link — the parentId
+    // doubles as the "member" id so the demo flow stays shape-identical.
+    const existing = this.channels.find(
+      (c) => c.type === "direct" && c.memberIds.includes(parentId) && c.archivedAt === null,
+    );
+    if (existing) return Ok(existing);
+    const ch: ChatChannel = {
+      id: genId("ch"),
+      tenantId: TENANT_ID,
+      type: "direct",
+      name: `Parent — ${displayName || parentId}`,
+      description: null,
+      memberIds: [parentId],
+      departmentId: null,
+      createdBy: parentId,
+      createdAt: nowIso(),
+      archivedAt: null,
+      lastMessageAt: null,
+      lastMessagePreview: null,
+    };
+    this.channels = [...this.channels, ch];
+    this.notifyChannels();
+    audit({ action: "chat.channel_create", entityType: "chat_channel", entityId: ch.id, diff: { after: ch } });
+    return Ok(ch);
+  }
 }
 
 /* ------------------------------------------------------------------ */
