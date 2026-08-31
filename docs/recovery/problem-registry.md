@@ -60,7 +60,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-112 | High | OPEN | T-006 | `revert_payment_allocation` SQL RPC has no tenant_id verification; cross-tenant refund possible |
 | TENANT-100 | Critical | OPEN | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
 | TENANT-101 | Medium | OPEN | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
-| TENANT-103 | Medium | OPEN | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
+| TENANT-103 | Medium | TESTED | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
 | TENANT-106 | Critical | TESTED | T-025 | `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage) |
 | BUSINESS-001 | Critical | OPEN | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
 | BUSINESS-002 | Critical | TESTED | T-011 | `SupabasePaymentRepository.collect()` silently falls back to non-atomic upsert on RPC failure |
@@ -649,6 +649,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-053 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-053, 12th session): the DEMO-UUID fallback is GONE — getTenantId() returns the working tenant or null (reads empty, writes throw via requireTenantId with a French message); the Session model gained tenantId (working, nullable) + homeTenantId (profile home); the auth repository stores the honest null; global admins pick a working tenant via the new Topbar TenantSwitcher (auth.switchTenant persists + reloads). 9-test suite + 7 suites migrated off the implicit fallback; full suite 2107 green. Live E2E gap: no global-admin account exists yet (only the tenant-bound admin@elimtiyaz.dz).
 - **Consolidated from:** second-pass TENANT-103
 - **Description:** The desktop's `getTenantId()` (supabase-shared-repositories.ts line 132-140) returns `TENANT_FALLBACK = "00000000-0000-0000-0000-000000000001"` whenever localStorage has no session OR the session has no `tenantId`. The fallback fires for two cases: (1) pre-login (no session yet) — every desktop query targets the demo tenant; (2) a global admin whose `user_profiles.tenant_id IS NULL` — `session.tenantId` is null, so `getTenantId()` returns the demo UUID. The desktop cannot support global admins.
 - **Location:** `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:120-140` (constant + function); 22 call sites in the same file (lines 413, 483, 635, 686, 882, 922, 955, 1001, 1045, 1150, 1183, 1288, 1322, 1403, 1504, 1566, 1600, 1658, 1925, 2216, 2272, 2396, 2489, 2581).

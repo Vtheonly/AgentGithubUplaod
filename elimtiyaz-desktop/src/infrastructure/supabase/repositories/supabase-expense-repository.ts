@@ -72,7 +72,7 @@ import type {
   SubmitExpenseInput,
 } from "../../../domain/model/expense";
 import type { ExpenseTicketRow } from "../types";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { getTenantId, requireTenantId, isUuid } from "./supabase-shared-repositories";
 
 // ============================================================================
 // Translation layer — status (see header note 1)
@@ -280,7 +280,7 @@ export class SupabaseExpenseRepository implements ExpenseRepository {
     input: SubmitExpenseInput,
     submittedBy: string,
   ): Promise<Result<Expense>> {
-    const tenantId = getTenantId();
+    const tenantId = requireTenantId();
     let ticketNumber: string;
     let categoryId: string;
     let profileId: string | null = null;

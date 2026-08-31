@@ -523,7 +523,8 @@ export interface AuditRepository {
     entityId: string;
     actorId: string;
     actorName: string;
-    tenantId: string;
+    /** T-053: null = resolve the working tenant (throws for a global admin with no tenant picked). */
+    tenantId: string | null;
     diff?: { before?: unknown; after?: unknown } | null;
     note?: string | null;
   }): Promise<Result<AuditEntry>>;

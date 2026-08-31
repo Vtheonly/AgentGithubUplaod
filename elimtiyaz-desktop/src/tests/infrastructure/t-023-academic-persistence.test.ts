@@ -18,13 +18,27 @@
  * The fake client captures INSERT/UPSERT payloads and options so the tests
  * assert the exact wire contract PostgREST receives.
  */
-import { describe, it, expect } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SupabaseHomeworkRepository,
   SupabaseAttendanceRepository,
 } from "../../infrastructure/supabase/repositories/supabase-academic-repository";
 import type { AttendanceSession, AttendanceStatus } from "../../domain/model/academic";
+
+// T-053 (TENANT-103): getTenantId() no longer falls back to the demo tenant —
+// tests that exercise tenant-scoped repositories set an explicit working
+// tenant (the value the old fallback used to inject implicitly).
+beforeAll(() => {
+  localStorage.setItem(
+    "el-imtiyaz.session",
+    JSON.stringify({ tenantId: "00000000-0000-0000-0000-000000000001", userId: "staff-1" }),
+  );
+});
+afterAll(() => {
+  localStorage.removeItem("el-imtiyaz.session");
+});
+
 
 type Row = Record<string, any>;
 

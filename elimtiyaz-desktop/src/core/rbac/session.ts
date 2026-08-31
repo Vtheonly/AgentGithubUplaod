@@ -10,7 +10,18 @@ import { Role } from "./roles";
 
 export interface Session {
   readonly userId: string;
-  readonly tenantId: string;
+  /**
+   * T-053 (TENANT-103): the WORKING tenant — every query/audit/write runs in
+   * this context. Null ONLY for a global admin (profile tenant_id NULL per
+   * migration 0002) who has not picked a tenant yet: reads return empty and
+   * writes fail loud (requireTenantId) until they choose one.
+   */
+  readonly tenantId: string | null;
+  /**
+   * T-053: the profile's HOME tenant (null = global admin). Only the tenant
+   * switcher reads this — it is shown exactly when homeTenantId is null.
+   */
+  readonly homeTenantId?: string | null;
   readonly email: string;
   readonly displayName: string;
   readonly avatarUrl: string | null;

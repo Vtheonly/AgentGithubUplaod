@@ -17,7 +17,7 @@
  * repository (fake client capturing the RPC args), and the drawer UI
  * (permission gating + reason requirement) with mocked providers.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -29,6 +29,20 @@ import { SupabasePaymentRepository } from "../../infrastructure/supabase/reposit
 import { Permission } from "../../core/rbac/permissions";
 import type { Payment, CollectPaymentInput, Installment } from "../../domain/model/payment";
 import type { LedgerEntry } from "../../domain/model/ledger";
+
+// T-053 (TENANT-103): getTenantId() no longer falls back to the demo tenant —
+// tests that exercise tenant-scoped repositories set an explicit working
+// tenant (the value the old fallback used to inject implicitly).
+beforeAll(() => {
+  localStorage.setItem(
+    "el-imtiyaz.session",
+    JSON.stringify({ tenantId: "00000000-0000-0000-0000-000000000001", userId: "staff-1" }),
+  );
+});
+afterAll(() => {
+  localStorage.removeItem("el-imtiyaz.session");
+});
+
 
 type Row = Record<string, any>;
 

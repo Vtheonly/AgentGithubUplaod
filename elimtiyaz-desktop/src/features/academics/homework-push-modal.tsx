@@ -75,6 +75,17 @@ export function HomeworkPushModal({
 
     const selectedSubject = subjects.find((s) => s.id === subjectId);
 
+    // T-053 (TENANT-103): a global admin without a picked tenant cannot
+    // upload (the vault path is tenant-scoped) — fail with the same clear
+    // French message requireTenantId uses, before any network call.
+    const workingTenantId = session.tenantId;
+    if (!workingTenantId) {
+      toast.showError(
+        "Aucun établissement actif — sélectionnez un établissement dans la barre supérieure (compte admin global) ou reconnectez-vous.",
+      );
+      return;
+    }
+
     // VAULT §02.06 — upload the real files to the private media vault so
     // students/parents can download them via signed URLs from the portal.
     // A failed upload aborts the push (a homework referencing a missing
@@ -87,7 +98,7 @@ export function HomeworkPushModal({
           const uploaded = await uploadPrivateMedia({
             bucket: "homework-attachments",
             entityId: classId,
-            tenantId: session.tenantId,
+            tenantId: workingTenantId,
             file,
           });
           attachmentPaths.push(uploaded.path);

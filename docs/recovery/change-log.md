@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-08-31 — T-053 — Desktop global-admin support (TENANT-103)
+- **Problem IDs:** TENANT-103 (TESTED).
+- **What changed:** getTenantId() string|null (no demo fallback) + requireTenantId() on write paths; Session gains working tenantId (nullable) + homeTenantId; auth repo stores honest null; TenantSwitcher in the Topbar + auth.switchTenant (persist + reload); homework-push upload guard.
+- **Why:** global admins got the demo tenant silently + RLS denials — the desktop was unusable for them; pre-login code also targeted the demo tenant.
+- **Affected components:** desktop session model, auth provider, supabase repositories (write guards), topbar/switcher, homework modal.
+- **Tests:** t-053-global-admin-tenant.test.ts 9/9; 7 existing suites updated to set an explicit session (new contract).
+- **Verification:** tsc clean; full suite 59 files / 2107 tests ALL PASS; lint 0 errors. Gap: live global-admin E2E (no such account exists).
+- **Commit:** (this commit).
+
+---
+
 ### 2026-08-31 — T-015 — Server-authoritative receipt numbers (migration 0058) — desktop + backend
 - **Problem IDs:** DRIFT-011 → PARTIAL (desktop paths fixed; Android paths toolchain-gated/ADR-005).
 - **What changed:** migration 0058 — `next_receipt_number` (0040 algorithm verbatim), `generate_receipt_numbers` batch allocator (advisory-xact-lock, SEC-111-pattern caller verification), `upsert_payment_from_import` NULL-number server-side generation (0055 body verbatim + marked block). Desktop: bulkCollect allocates via ONE RPC call (random PAY-{ts} gone); sync push passes NULL; generateReceipt placeholder honest. Applied LIVE + registered atomically (ARCH-011 discipline).

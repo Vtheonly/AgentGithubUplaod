@@ -101,7 +101,12 @@ export class SupabaseAuthRepository implements AuthRepository {
 
     const session: Session = {
       userId: profile.id,
-      tenantId: profile.tenant_id ?? "",
+      // T-053 (TENANT-103): a global admin's profile has tenant_id NULL — store
+      // the honest null (the tenant switcher provides the working context)
+      // instead of "" (which getTenantId() previously turned into the DEMO
+      // tenant UUID — the TENANT-103 defect).
+      tenantId: profile.tenant_id ?? null,
+      homeTenantId: profile.tenant_id ?? null,
       email: profile.email,
       displayName: profile.display_name ?? profile.email,
       avatarUrl: profile.avatar_url ?? null,

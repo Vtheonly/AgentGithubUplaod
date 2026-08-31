@@ -119,7 +119,7 @@ import {
 
 const TENANT_FALLBACK = "00000000-0000-0000-0000-000000000001";
 
-function getSessionFromStorage(): { tenantId?: string; userId?: string; displayName?: string } | null {
+function getSessionFromStorage(): { tenantId?: string | null; homeTenantId?: string | null; userId?: string; displayName?: string } | null {
   try {
     const raw = localStorage.getItem("el-imtiyaz.session");
     if (!raw) return null;
@@ -129,14 +129,24 @@ function getSessionFromStorage(): { tenantId?: string; userId?: string; displayN
   }
 }
 
-export function getTenantId(): string {
-  // The tenant id is stored on the session by the auth provider.
-  // Fall back to the seed tenant when the session isn't loaded yet.
-  try {
-    const sess = getSessionFromStorage();
-    if (sess?.tenantId) return sess.tenantId;
-  } catch { /* ignore */ }
-  return TENANT_FALLBACK;
+export function getTenantId(): string | null {
+  // T-053 (TENANT-103): NO demo-tenant fallback. The tenant context is the
+  // session's WORKING tenant (the user's own, or a global admin's switcher
+  // choice). null = no tenant context (pre-login, or a global admin who has
+  // not picked a tenant yet): reads return empty, writes fail loud
+  // (requireTenantId).
+  const sess = getSessionFromStorage();
+  return sess?.tenantId || null;
+}
+
+export function requireTenantId(): string {
+  const id = getTenantId();
+  if (!id) {
+    throw new Error(
+      "Aucun établissement actif — sélectionnez un établissement (compte admin global) ou reconnectez-vous.",
+    );
+  }
+  return id;
 }
 
 export function getActorId(): string {
@@ -415,7 +425,7 @@ export class SupabaseParentRepository implements ParentRepository {
     if (this.seeded) return;
     this.seeded = true;
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("parents")
         .select("*")
@@ -485,7 +495,7 @@ export class SupabaseParentRepository implements ParentRepository {
 
   async createParent(input: CreateParentInput): Promise<Result<Parent>> {
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const year = new Date().getFullYear();
       // DETERMINISTIC CODE: derive from identity fields so re-imports hit
       // the primary identity match `(tenant_id, parent_code)` and the RPC
@@ -637,7 +647,7 @@ export class SupabaseStudentRepository implements StudentRepository {
     if (this.seeded) return;
     this.seeded = true;
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("students")
         .select("*")
@@ -688,7 +698,7 @@ export class SupabaseStudentRepository implements StudentRepository {
 
   async createStudent(parentId: string, input: CreateStudentInput): Promise<Result<Student>> {
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const year = new Date().getFullYear();
       // DETERMINISTIC CODE: derive from (parentId, displayName) so re-imports
       // hit the primary identity match `(tenant_id, student_code)` and the
@@ -884,7 +894,7 @@ export class SupabaseStudentRepository implements StudentRepository {
             for (let t = 0; t < amounts.length; t++) {
               await ledgerRepo.append(
                 createChargeEntry({
-                  tenantId: getTenantId(),
+                  tenantId: requireTenantId(),
                   parentId: parent.id,
                   studentId: student.id,
                   category: "tuition",
@@ -924,7 +934,7 @@ export class SupabaseStudentRepository implements StudentRepository {
               for (let t = 0; t < tranches.length; t++) {
                 await ledgerRepo.append(
                   createChargeEntry({
-                    tenantId: getTenantId(),
+                    tenantId: requireTenantId(),
                     parentId: parent.id,
                     studentId: student.id,
                     category: "transport",
@@ -957,7 +967,7 @@ export class SupabaseStudentRepository implements StudentRepository {
         if (includeRegistration && defaultPricingConfig.registrationFee > 0 && created.length > 0) {
           await ledgerRepo.append(
             createChargeEntry({
-              tenantId: getTenantId(),
+              tenantId: requireTenantId(),
               parentId: parent.id,
               studentId: null,
               category: "other",
@@ -1003,7 +1013,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
     if (this.seeded) return;
     this.seeded = true;
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("payments")
         .select("*")
@@ -1052,7 +1062,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
     // project, there is no supported "older deployment" to serve: a failed
     // atomic collection now surfaces the error and writes NOTHING.
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const atomicParams = {
         p_tenant_id: tenantId,
         p_parent_id: input.parentId,
@@ -1126,7 +1136,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
         ));
       }
       if (!id) return Err(Errors.validation("Paiement introuvable"));
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { error } = await this.client.rpc("revert_payment_allocation", {
         p_tenant_id: tenantId,
         p_payment_id: id,
@@ -1170,7 +1180,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
    */
   async markCleared(id: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { error: rpcErr } = await this.client.rpc("mark_payment_cleared", {
         p_tenant_id: tenantId,
         p_payment_id: id,
@@ -1204,7 +1214,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
       if (!reason.trim()) {
         return Err(Errors.validation("Un motif est obligatoire pour marquer un paiement comme échoué"));
       }
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { error: rpcErr } = await this.client.rpc("mark_payment_bounced", {
         p_tenant_id: tenantId,
         p_payment_id: id,
@@ -1249,7 +1259,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
   async bulkCollect(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>> {
     if (inputs.length === 0) return Ok([]);
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const now = new Date().toISOString();
 
       // T-015 / DRIFT-011 — receipt numbers are SERVER-AUTHORITATIVE (ADR-004).
@@ -1362,7 +1372,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
     //   surcharge). When omitted, defaults to `tuition` for debits and
     //   `parent_credit` for credits.
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const nowIso = new Date().toISOString();
       const adjustmentId = `led-${nowIso}-${Math.random().toString(36).slice(2, 10)}`;
       // Overpayment credits use category=parent_credit + studentId=null + a
@@ -1465,7 +1475,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
       const { buildAdditionalServiceCharge } = await import(
         "../../../domain/calc/ledger/non-tuition-charges"
       );
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       // FIX (signature): `buildAdditionalServiceCharge` takes
       // `(input: NonTuitionChargeInput, serviceQualifier, customDescription?)`
       // — the previous call passed a single merged object with a bogus `as`
@@ -1527,7 +1537,7 @@ export class SupabaseLedgerRepository implements LedgerRepository {
     if (this.seeded) return;
     this.seeded = true;
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("ledger_entries")
         .select("*")
@@ -1619,7 +1629,7 @@ export class SupabaseLedgerRepository implements LedgerRepository {
   async bulkAppend(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>> {
     if (entries.length === 0) return Ok([]);
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       // Build the rows array for bulk insert. Map each LedgerEntry to the
       // DB row shape. Use the entry's `id` as `entry_number` for traceability.
       const rows = entries.map((e) => ({
@@ -1886,7 +1896,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
     if (this.seeded) return;
     this.seeded = true;
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("installments")
         .select("*")
@@ -2177,7 +2187,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   async bulkImportInstallments(inputs: readonly ImportInstallmentInput[]): Promise<Result<readonly Installment[]>> {
     if (inputs.length === 0) return Ok([]);
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const now = new Date().toISOString();
       const rows = inputs.map((input) => ({
         tenant_id: tenantId,
@@ -2233,7 +2243,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   }
   async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       // Match by (tenant, parent, student, category, tranche_number).
       const { data: existing, error: findErr } = await this.client
         .from("installments")
@@ -2357,7 +2367,7 @@ export class SupabaseDebtRepository implements DebtRepository {
     if (this.summarySeeded) return;
     this.summarySeeded = true;
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("installments")
         .select("parent_id, amount_due, amount_paid, amount_pending, due_date")
@@ -2450,7 +2460,7 @@ export class SupabaseDebtRepository implements DebtRepository {
 
   private async refreshProfile(parentId: string): Promise<void> {
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       // Select only base columns that exist in migration 0007 to avoid 400
       // errors when migration 0027 hasn't been applied.
       const { data, error } = await this.client
@@ -2542,7 +2552,7 @@ export class SupabaseDebtRepository implements DebtRepository {
    */
   async broadcastReminders(minDaysOverdue = 0, actorId = "system"): Promise<Result<number>> {
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const debtors = await this.collectDebtors(minDaysOverdue);
       let dispatched = 0;
       const nowIso = new Date().toISOString();
@@ -2590,7 +2600,7 @@ export class SupabaseDebtRepository implements DebtRepository {
    */
   async lockDelinquentAccounts(minDaysOverdue = 90, actorId = "system"): Promise<Result<number>> {
     try {
-      const tenantId = getTenantId();
+      const tenantId = requireTenantId();
       const debtors = await this.collectDebtors(minDaysOverdue);
       let restricted = 0;
       for (const d of debtors) {

@@ -42,7 +42,7 @@ import type {
   AuditLogQueryResult,
 } from "../../../domain/model/audit";
 import type { AuditLogRow } from "../types";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { requireTenantId, getTenantId, isUuid } from "./supabase-shared-repositories";
 
 // ============================================================================
 // Row → domain mapper
@@ -211,13 +211,14 @@ export class SupabaseAuditLogRepository implements AuditRepository {
     entityId: string;
     actorId: string;
     actorName: string;
-    tenantId: string;
+    /** T-053: null = resolve the working tenant (requireTenantId). */
+    tenantId: string | null;
     diff?: { before?: unknown; after?: unknown } | null;
     note?: string | null;
   }): Promise<Result<AuditEntry>> {
     const entityId = isUuid(input.entityId) ? input.entityId : null;
     const actorId = isUuid(input.actorId) ? input.actorId : null;
-    const tenantId = isUuid(input.tenantId) ? input.tenantId : getTenantId();
+    const tenantId = isUuid(input.tenantId) ? input.tenantId : requireTenantId();
     // Preserve mock-era (non-UUID) entity ids inside the note so the entry
     // stays traceable even though the uuid column cannot hold them.
     const note =
@@ -252,8 +253,9 @@ export class SupabaseAuditLogRepository implements AuditRepository {
       if (!fetchError && row) return Ok(mapAuditRow(row));
 
       // Row not readable (RLS on SELECT is admin-only) — synthesize the entry
-      // from the input instead of failing the write.
-      return Ok(synthesizeEntry({ ...input, tenantId }, entityId));
+      // from the input instead of failing the write. (tenantId is non-null
+      // here: it came from isUuid(input.tenantId) or requireTenantId().)
+      return Ok(synthesizeEntry({ ...input, tenantId: tenantId as string }, entityId));
     }
 
     // ---- Path 2: direct table insert (fallback) --------------------------------

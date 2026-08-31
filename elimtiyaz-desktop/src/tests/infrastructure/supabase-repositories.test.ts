@@ -9,7 +9,7 @@
  * mirror PostgREST: filters compose with AND, updates/deletes apply to all
  * matching rows, insert().select() echoes the inserted row back.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseAuditLogRepository } from "../../infrastructure/supabase/repositories/supabase-audit-log-repository";
 import { SupabaseNotificationRepository } from "../../infrastructure/supabase/repositories/supabase-notification-repository";
@@ -19,6 +19,20 @@ import {
 } from "../../infrastructure/supabase/repositories/supabase-personnel-repository";
 import { SupabasePromotionRepository } from "../../infrastructure/supabase/repositories/supabase-academic-repository";
 import { Role } from "../../core/rbac/roles";
+
+// T-053 (TENANT-103): getTenantId() no longer falls back to the demo tenant —
+// tests that exercise tenant-scoped repositories set an explicit working
+// tenant (the value the old fallback used to inject implicitly).
+beforeAll(() => {
+  localStorage.setItem(
+    "el-imtiyaz.session",
+    JSON.stringify({ tenantId: "00000000-0000-0000-0000-000000000001", userId: "staff-1" }),
+  );
+});
+afterAll(() => {
+  localStorage.removeItem("el-imtiyaz.session");
+});
+
 
 // ============================================================================
 // Fake Supabase client
@@ -269,6 +283,12 @@ const TENANT = "00000000-0000-0000-0000-000000000001";
 describe("SupabaseAuditLogRepository", () => {
   beforeEach(() => {
     localStorage.clear();
+    // T-053: repositories read the working tenant from the session — keep an
+    // explicit tenant set after clearing (no demo fallback anymore).
+    localStorage.setItem(
+      "el-imtiyaz.session",
+      JSON.stringify({ tenantId: TENANT, userId: "staff-1" }),
+    );
   });
 
   it("log() appends via the write_audit_log RPC and re-reads the row", async () => {
@@ -448,6 +468,12 @@ describe("SupabaseAuditLogRepository", () => {
 describe("SupabaseNotificationRepository", () => {
   beforeEach(() => {
     localStorage.clear();
+    // T-053: repositories read the working tenant from the session — keep an
+    // explicit tenant set after clearing (no demo fallback anymore).
+    localStorage.setItem(
+      "el-imtiyaz.session",
+      JSON.stringify({ tenantId: TENANT, userId: "staff-1" }),
+    );
   });
 
   function seedNotifications(): Row[] {
@@ -721,6 +747,12 @@ function personnelRow(overrides: Row = {}): Row {
 describe("SupabasePersonnelRepository", () => {
   beforeEach(() => {
     localStorage.clear();
+    // T-053: repositories read the working tenant from the session — keep an
+    // explicit tenant set after clearing (no demo fallback anymore).
+    localStorage.setItem(
+      "el-imtiyaz.session",
+      JSON.stringify({ tenantId: TENANT, userId: "staff-1" }),
+    );
   });
 
   it("maps a personnel row to the domain (category teacher, role code, emergency contact)", async () => {
@@ -826,6 +858,12 @@ describe("SupabasePersonnelRepository", () => {
 describe("SupabaseDepartmentRepository", () => {
   beforeEach(() => {
     localStorage.clear();
+    // T-053: repositories read the working tenant from the session — keep an
+    // explicit tenant set after clearing (no demo fallback anymore).
+    localStorage.setItem(
+      "el-imtiyaz.session",
+      JSON.stringify({ tenantId: TENANT, userId: "staff-1" }),
+    );
   });
 
   it("maps color tokens to hex on write and back on read", async () => {
@@ -899,6 +937,12 @@ describe("SupabaseDepartmentRepository", () => {
 describe("SupabasePromotionRepository", () => {
   beforeEach(() => {
     localStorage.clear();
+    // T-053: repositories read the working tenant from the session — keep an
+    // explicit tenant set after clearing (no demo fallback anymore).
+    localStorage.setItem(
+      "el-imtiyaz.session",
+      JSON.stringify({ tenantId: TENANT, userId: "staff-1" }),
+    );
   });
 
   const STUDENT_ID = "11111111-1111-1111-1111-111111111111";

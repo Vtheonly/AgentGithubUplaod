@@ -12,10 +12,10 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 5 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session) |
-| **Completed (TESTED)** | 37 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7)** (12th session) |
+| **Completed (TESTED)** | 38 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053** (12th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** | 34 | T-017, T-018, T-020…T-022, T-024, T-026, T-030, T-034, T-036, T-039…T-041, T-043, T-044, T-046, T-050…T-055, T-057, T-058, T-062…T-064, T-069, **T-095 (NEW)** |
+| **Ready** | 33 | T-017, T-018, T-020…T-022, T-024, T-026, T-030, T-034, T-036, T-039…T-041, T-043, T-044, T-046, T-050…T-052, T-054, T-055, T-057, T-058, T-062…T-064, T-069, **T-095 (NEW)** |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -188,6 +188,13 @@
 - **Live verification:** `scripts/verify_t-015.sql` 7/7 PASS (BEGIN…ROLLBACK, admin-JWT emulation): 0058 registered; next_receipt_number canonical (REC-2026-000001 — the production year sequence starts fresh, no pre-existing REC-2026 numbers); batch allocation contiguous; cross-tenant allocation REJECTED (SEC-111 pattern); NULL-number upsert generates canonical + was_inserted; explicit-number dedup (insert-then-update) preserved; 0034 trigger syncs receipt_number on the generated row.
 - **Left:** the two ANDROID client-side generators (LocalPaymentRepository.collect per-device count+1; SyncQueueDispatcher random PAY- fallback) — toolchain-gated (SDK un-downloadable in this container) AND their proper fix is ADR-005's write-through-canonical-RPCs architecture (T-059, BLOCKED on UNKNOWN-002); a local-format patch now would be premature. Documented residual: allocation-vs-insertion race window with concurrent interactive collect() fails LOUD via payments_tenant_id_payment_number_key (documented in the migration header).
 - **Discovery recorded:** the unique constraint is on (tenant_id, payment_number) — receipt_number has NO unique constraint (BUSINESS-006's registry claim was wrong); the 0034 trigger syncs receipt_number := payment_number when NULL.
+
+### T-053 — Desktop global-admin support — **TESTED (unit + typecheck; live E2E gap documented)**
+- **Problems:** TENANT-103 · **Priority:** P3 · **Severity:** Medium
+- **Status:** TESTED (2026-08-31, twelfth session)
+- **What was done:** `getTenantId()` returns the session's WORKING tenant or NULL — the DEMO-UUID fallback is gone (reads with no context return empty; the demo tenant is never silently targeted). NEW `requireTenantId()` throws an explicit French error ("Aucun établissement actif…") — wired into every WRITE path the compiler flagged (audit log, expenses, batch-register ledger charges, manual charges, activation codes). Session model: `tenantId: string | null` (working) + `homeTenantId` (profile home; null = global admin); the auth repository stores the honest null instead of `""`. NEW `TenantSwitcher` in the Topbar (rendered exactly for global admins) — lists active tenants via the canonical `tenants` table (0053 RLS lets global admins enumerate) and calls the NEW `auth.switchTenant(id)` (persist + reload = full cache invalidation). The homework-push modal guards uploads with the same explicit message.
+- **Tests:** NEW `src/tests/infrastructure/t-053-global-admin-tenant.test.ts` 9/9 — getTenantId null/no-session/working/global-admin (never the demo UUID); requireTenantId French error; source-scan guards (no demo UUID in getTenantId, honest null in the auth repo, switcher wired, switchTenant persists + reloads); a null-tenant repository read never filters by the demo UUID. 7 existing suites updated to set an explicit session (they relied on the removed fallback — the new contract).
+- **Verification:** `npx tsc --noEmit` clean; full desktop suite 59 files / 2107 tests (2102 passed + 5 skipped) ALL PASS; lint 0 errors. Gap (TESTED→VERIFIED): live E2E needs a real global-admin account (only the tenant-bound admin@elimtiyaz.dz exists) — sign in as a global admin, pick a tenant, verify data appears.
 
 
 ## Completed (fifth repair session — 2026-08-29)

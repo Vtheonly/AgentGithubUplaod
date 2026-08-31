@@ -63,6 +63,7 @@ import { Badge } from "../ui/badge";
 import { StatusChip } from "../ui/status-chip";
 import { UnifiedModal } from "../ui/unified-modal";
 import { LanguageSwitcher } from "../../i18n/language-switcher";
+import { TenantSwitcher } from "./tenant-switcher";
 import { AlertDetailModal } from "../../features/dashboard/alert-detail-modal";
 import { SyncIndicator } from "../../infrastructure/sync/sync-indicator";
 import { cn } from "../ui/cn";
@@ -282,6 +283,10 @@ export function Topbar() {
         </DropdownMenu>
 
         {/* Language switcher — iteration 7 (P3-O) */}
+        {/* T-053 (TENANT-103): global admins pick their working tenant here
+            instead of silently falling back to the demo tenant. */}
+        <TenantSwitcher />
+
         <LanguageSwitcher />
 
         {/* Quick backup (links to Settings → Backup tab) */}

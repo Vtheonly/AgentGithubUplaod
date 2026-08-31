@@ -31,6 +31,13 @@ interface AuthContextValue {
   signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }>;
   signOut(): Promise<void>;
   /**
+   * T-053 (TENANT-103): switch the WORKING tenant (global admins only —
+   * the switcher is rendered exactly for them). Persists the choice and
+   * reloads so every repository cache (they hold per-tenant lists) is
+   * rebuilt against the new context.
+   */
+  switchTenant(tenantId: string): void;
+  /**
    * Iteration 10 — change password (plan §12.04).
    *
    * Requires the current password for re-authentication. Delegates the
@@ -92,6 +99,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await repos.auth.signOut();
     clearSession();
     setSession(null);
+  }
+
+  // T-053 (TENANT-103) — see the interface doc comment.
+  function switchTenant(tenantId: string) {
+    if (!session || !tenantId) return;
+    const next: Session = { ...session, tenantId };
+    setSession(next);
+    persistSession(next);
+    // Repository caches hold per-tenant lists; a reload is the honest full
+    // invalidation (the alternative — a per-repository invalidation fan-out
+    // — is T-034's cache-refresh design work).
+    window.location.reload();
   }
 
   /**
@@ -172,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo<AuthContextValue>(
-    () => ({ session, isLoading, signIn, signOut, changePassword }),
+    () => ({ session, isLoading, signIn, signOut, switchTenant, changePassword }),
     [session, isLoading],
   );
 
