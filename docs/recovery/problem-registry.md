@@ -21,16 +21,16 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 28 | | OPEN | 62 |
+| Critical | 30 | | OPEN | 62 |
 | High | 54 | | BLOCKED | 11 |
 | Medium | 70 | | DEFERRED | 5 |
-| Low | 20 | | VERIFIED | 3 |
+| Low | 20 | | VERIFIED | 5 |
 | | | | TESTED | 86 |
 | | | | IMPLEMENTED | 1 |
 | | | | PARTIAL | 2 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 172 registered problems (145 consolidated from 185 audit findings + 27 discovered during repair sessions) · 62 OPEN · 11 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 3 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068) · 79 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13. Counts synced to the detailed entries (authoritative) this session.
+**Totals:** 174 registered problems (145 consolidated from 185 audit findings + 29 discovered during repair sessions) · 62 OPEN · 11 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 5 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068; DATA-010; DATA-011) · 86 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005; 16th session 2026-09-01: DATA-008 extended to corpus-level VERIFIED) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13 + 15–16. Counts synced to the detailed entries (authoritative) this session.
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -151,8 +151,10 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DATA-005 | Medium | PARTIAL | T-085 | NEW (2026-08-30): parents.first_name empty string on ALL 258 rows (names only in display_name/last_name) — portal mitigated via formatParentName; data repair open |
 | DATA-006 | Medium | OPEN | T-086 | NEW (2026-08-30): parent portal has zero eligible real users (1/258 parents with email, 0 activation codes, 0 auth bindings) — onboarding campaign needed |
 | DATA-007 | Low | OPEN | T-087 | NEW (2026-08-30): test residue live — `_eq_test_fn`/`_eq_test_fn2` RPCs exposed, unconfirmed test auth user, expired approval request |
-| DATA-008 | High | VERIFIED | T-103 | NEW (2026-09-01, owner-reported): Finance tab vs parent dossier financial divergence (owner report: "paid 100k" vs "30k paid / 40k remaining / 30k créance") — read surfaces used divergent sources + installments data corrupt; FIXED by 0062 reconciliation + canonical INV-4-family helpers |
-| DATA-009 | Medium | OPEN | T-104 | NEW (2026-09-01, T-103 discovery): canonical writer double-counts parent_credit in the raw ledger balance (charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment); historical corpus deliberately NOT back-filled with credit entries |
+| DATA-008 | High | VERIFIED | T-103/T-105 | NEW (2026-09-01, owner-reported): Finance tab vs parent dossier financial divergence (owner report: "paid 100k" vs "30k paid / 40k remaining / 30k créance") — read surfaces used divergent sources + installments data corrupt; FIXED by 0062 reconciliation + canonical INV-4-family helpers; EXTENDED (T-105, 2026-09-01): corpus-level equivalence proven against the source workbook — 259/259 parents × 6 checks (`scripts/verify_t-105.sql`) after migration 0063 closed the residual DATA-010/011 data-layer defects |
+| DATA-009 | Medium | OPEN | T-104 | NEW (2026-09-01, T-103 discovery): canonical writer double-counts parent_credit in the raw ledger balance (charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment); historical corpus deliberately NOT back-filled with credit entries; NOTE (T-105): the corpus is now aligned to the workbook, where only 2 parents hold a genuine credit (−30,000 / −22,000) — the shape question remains open for NEW overpayments only |
+| DATA-010 | Critical | VERIFIED | T-105 | NEW (2026-09-01, T-105 discovery): DOUBLE-REMISE — the Excel import wrote the DEVIS charge from column L (ALREADY net of remise: L's formula is `components − J`, verified 390/390) and THEN a separate "Remise sur devis" −J adjustment — 223 parents double-discounted, Σ −9,709,700 DZD; parents who paid their exact devis showed fake credits. FIXED by migration 0063 (compensating adjustments) + the importer fix (no REMISE ledger entry + tranche-to-ledger reconciliation); live 259/259 |
+| DATA-011 | Critical | VERIFIED | T-105 | NEW (2026-09-01, T-105 discovery): workbook row 242 (SIDI MAMER SAMYI, phone 0554288142, devis 255,000, versements 255,000, créance 0) was NEVER imported — same-name identity collision with row 235's student under parent 0550067500; the family (parent + student + tranches + charge + 3 payments) is created by migration 0063 exactly per the workbook; live balance 0 ✓ |
 | DRIFT-001 | High | PARTIAL | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
@@ -3339,6 +3341,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
   2. **+2,064,000 DZD** = transport installments (34 parents, 106 tranches, fully paid) whose transport CHARGES were never written to the ledger — the import wrote transport payments but no transport charges. Fixed by 0062: one transport charge per student (54 charges, same account shape as the tuition import charges).
   3. **+21,500 DZD** = 3 parents' schedule-vs-devis gaps — METAH NADA (7,000 "Dettes antérieures" charge with no tranche) + DAHMANI FARES (8,000 same) + SIDI MAMER SAMYI (tranches generated from the price tables at 210,000 instead of the Excel devis net 173,500 = +36,500). Fixed by 0062: dettes folded into Tranche 1 with traceability notes; the overstated last tranche reduced to the devis net.
   Post-fix live verification: 0/258 parents with (Σ installments due) ≠ (Σ charges + Σ adjustments) — verify_t-103.sql C3 = true. The Excel's own "TOTAL*CREANCE" column is gross-of-remise by design; the system's canonical net semantics (INV-1 ledger) is the authority.
+- **Status note (2026-09-01, T-105 — CORRECTION):** classification item 1 above was WRONG. The 318 "Remise sur devis" adjustments were NOT correct canonical form: the Excel devis (column L) is already net of the remise (L = components − J, formula-verified 390/390), so those adjustments double-discounted 223 parents — this is DATA-010, repaired by migration 0063. Classification item 3's SIDI MAMER correction was also computed against the wrong base (210,000 → 173,500 assumed devis GROSS; the workbook's L for row 235 is 236,750 NET) — 0063 re-aligned that student's tranches to 236,750 (+63,500 vs the 0062 state). The "TOTAL*CREANCE gross-of-remise" claim is likewise corrected: Q = L − P where L is NET — the workbook and the corpus now agree exactly (M2/M3 259/259, verify_t-105.sql).
 
 ### DATA-004 — 59 overpaying parents (credit up to 244,000 DZD) with NULL expected/excess payment fields
 
@@ -3423,8 +3426,44 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Evidence:** live test (rollback transaction) 2026-09-01: `SELECT * FROM collect_and_allocate_payment(…150000…)` against a 100k tranche; post-state `compute_parent_summary` → total_outstanding −100,000.00, total_unallocated_credit −50,000.00. Recorded in the 0062 migration header + t-103-live-verification.md.
 - **Expected behavior:** UNRESOLVED — either (a) the payment entry should be written at the allocated amount only (breaking change to the canonical writer, needs ADR + equivalence re-run), or (b) read surfaces must always derive "credit" from `totalUnallocatedCredit` (display-level convention). The pinned equivalence suites currently accept the shape.
 - **Resolution (T-103 decision, documented):** the 0062 backfill deliberately does NOT materialize parent_credit entries for the 59 historical overpayers: replaying the canonical shape would double their displayed credit (balance −2×excess) and worsen the divergence this task fixed. Historical overpayers keep balance = −excess (clean semantics: "the school owes exactly the overpayment"). New payments through the canonical RPC continue to produce the historical shape (credit entries exist; balance −2× for the fresh excess only). crossCheckParentCredit will surface UNBACKED_PARENT_CREDIT warnings for the 59 historical rows — known and accepted.
+- **Status note (2026-09-01, T-105):** the corpus alignment to the workbook (migration 0063) eliminated the 57 fake historical "overpayers" that were artefacts of the double-remise (DATA-010) — the 0062-era 59 overpayers are now 2 (SIDI MAMER SAMYI parent A: −30,000 per the workbook's own Q column; one more genuine credit). The design question stays OPEN for NEW overpayments created through the canonical writer.
 - **Dependencies:** none
 - **Verification:** N/A (registered decision + discovery; no behaviour changed live).
+
+---
+
+### DATA-010 — Excel import DOUBLE-DISCOUNTS every remise: the DEVIS charge (column L, already net) + a separate "Remise sur devis" −J adjustment
+
+- **Category:** DATA  |  **Severity:** Critical  |  **Status:** VERIFIED (2026-09-01, T-105)
+- **Repositories:** backend (live corpus); desktop (import-engine writer — `repository-adapter.ts` `buildFinancialEntries`)
+- **Platforms affected:** all (every read surface consumed the understated corpus)
+- **Task:** T-105
+- **Consolidated from:** NEW — 2026-09-01, T-105 Excel-corpus equivalence run (owner mandate: "test the problem against the real Excel spreadsheet and make sure there is equivalence across all platforms")
+- **Description:** the workbook's `DEVIS ANNUEL` (column L) is **already net of the remise** — its formula is `components − J` (e.g. row 2: `=25000+205000+35000-J2`; row 235: `=300000-J235`), verified by reading the raw formulas and by the workbook's own consistency (P = R+S+T+U+W+X+Y for 390/390 rows; Q = L − P for 390/390 rows). The bulk import wrote the DEVIS charge **from L** (net) and **then** a separate "Remise sur devis" adjustment of **−J** — discounting every discounted parent TWICE. Live impact: 223 parents double-discounted, Σ −9,709,700 DZD; parents who paid their exact devis showed fake "credits" (e.g. ZIREG LEA: devis 239,500 paid 239,500, workbook créance 0 — corpus balance −25,500). This was the residual data-layer half of the owner's DATA-008 divergence: T-103 had aligned the read surfaces and the internal corpus invariants (payments == ledger, installments == charges+adj), but the corpus itself was still wrong versus the source of truth.
+- **Evidence:** formula reads (openpyxl, `read_excel_formulas.py`); live three-way diagnostic (`diag_t-105-definitive.sql`): hB double-remise hypothesis matched 223/258 parents, Σ adjustments −9,709,700 vs Σ workbook remise 9,754,700; ZIREG LEA ledger (charge 239,500 + adjustment −25,500 + payments −239,500 → balance −25,500).
+- **Expected behavior:** the corpus must satisfy, per parent: netdue (charges + adjustments) == Σ(DEVIS + DETTES − REGLEMENTS) and balance == the workbook's TOTAL*CREANCE semantics.
+- **Resolution (T-105):**
+  1. Migration `0063_excel_corpus_alignment.sql` STEP 1 — one compensating +|J| adjustment per imported REMISE entry (append-only: originals kept as forensic history; unique source_ids make the step idempotent).
+  2. Importer fix (`repository-adapter.ts`) — NO ledger entry for the remise (comment explains the workbook formula evidence); `buildInstallmentRows` now reconciles Σ tranches due to the ledger target (devis + dettes − remboursement) with the 0062 last-tranche absorption rule, so a FRESH import cannot reintroduce the DATA-003-family schedule-vs-ledger gap.
+  3. Regression suite `src/tests/integration/t-105-import-shape.test.ts` — real-workbook import asserting: zero "Remise sur devis" adjustments, no REMISE-sourced entries, Σ tranches == Σ(devis + dettes − remboursement), ledger net == Σ(devis + dettes), no negative tranches.
+- **Verification:** live `scripts/verify_t-105.sql` — M2 netdue 259/259, M3 balance 259/259 (was 61/258 before 0063); cross-platform: desktop TS 259/259, Android Kotlin 259/259, website port 259/259 (262 tests) — all equal to the backend canonical `compute_parent_summary`; desktop suite 69 files / 2,192 tests green; t-103-live-verification + t-105-live-verification docs.
+- **Dependencies:** DATA-003 (the "−9.71M remise adjustments (correct)" classification of the 12th session was WRONG — this entry corrects it: those adjustments were the double-discount).
+
+---
+
+### DATA-011 — Workbook row 242 (SIDI MAMER SAMYI, 0554288142) was never imported — a whole family missing from the corpus
+
+- **Category:** DATA  |  **Severity:** Critical  |  **Status:** VERIFIED (2026-09-01, T-105)
+- **Repositories:** backend (live corpus)
+- **Platforms affected:** all
+- **Task:** T-105
+- **Consolidated from:** NEW — 2026-09-01, T-105 corpus equivalence run (the M1 payments check found exactly one parent with xl_paid 748,500 vs db_paid 493,500)
+- **Description:** workbook row 242 — student SIDI MAMER SAMYI (5AP, phone 0554288142, devis 255,000 = `=300000-J242` with remise 45,000; versements 255,000 = V2 75,000 + 2V 90,000 + v3 90,000; créance 0) — was **never imported**: no parent with that phone exists (not even soft-deleted), and only 2 of the family's 3 students exist under parent A (0550067500). Root cause: the same-named student under parent A (row 235) satisfied the (NEM, NOM) identity lookup so row 242's family was silently dropped by the 2026-08-11 bulk import — the same name-collision class as DATA-002. The school was owed nothing (créance 0) but the parent's 255,000 of versements were missing from every financial aggregate.
+- **Evidence:** `SELECT * FROM parents WHERE primary_phone LIKE '%54288142%'` → 0 rows; parent e3e90f1f's students' payments 226,750 + 266,750 = 493,500 vs the workbook's 748,500 (the 255,000 delta is exactly row 242's versements); corpus duplicate-name analysis: 'SIDI MAMER SAMYI' is the ONLY duplicated student name in the workbook.
+- **Expected behavior:** every workbook row must exist in the corpus (390 students, 259 parents including this one).
+- **Resolution (T-105):** migration 0063 STEP 2 creates the family exactly per the workbook — parent (PAR-2026-<md5>, phone 0554288142), student (5ap, mirrors the import's name split), 3 tuition tranches from the 5ap grid net of remise (102,000 / 76,500 / 76,500 = 255,000 exactly), the devis charge (NET — no remise adjustment), 3 payment rows + their ledger entries, all replayed by STEP 4's waterfall.
+- **Verification:** live spot-check: parent 0554288142 → netdue 255,000, paid 255,000, balance 0 (workbook créance 0 ✓); M1 payments 259/259 after the fix (was 258/259).
+- **Dependencies:** none.
 
 
 ### BUG-NEW-004 — run-overdue-scan EF exceeds the edge-worker resource budget (WORKER_RESOURCE_LIMIT); the daily overdue scan cannot complete

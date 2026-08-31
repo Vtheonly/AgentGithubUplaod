@@ -65,6 +65,8 @@
 
 - System discount engine has 5 rules; two (`passage_palier` −10,000 DZD, `highest_average` −10%) require `previousGradeLevel`/`previousRank` inputs; `sibling_fixed` depends on sibling linkage. Discounts apply **once, on gross**.
 - Pricing tables (migration 0006) + fee schedule drive tranche amounts; installment due dates come from the official tranche schedule (Sep 15 / Dec 15 / Mar 15 pattern) unless a custom schedule is set.
+- **REMISE from the Excel workbook is ALREADY NET in the DEVIS (T-105 / DATA-010, 2026-09-01):** the workbook's `DEVIS ANNUEL` (column L) formula is `components − J` (raw formulas verified 390/390: e.g. row 2 `=25000+205000+35000-J2`, row 235 `=300000-J235`) — the devis charge imported from L is the net obligation and MUST NOT be accompanied by a second "Remise sur devis" −J ledger adjustment (that double-discounted 223 parents, Σ −9,709,700 DZD — repaired by migration 0063). The remise informs only the tranche proration (`OFFICIAL_TUITION_SCHEDULE × (1 − J/annual)`), never the ledger twice.
+- **Corpus-to-workbook invariant (T-105):** for every parent of the source workbook — `netdue (charges+adjustments) == Σ(DEVIS + DETTES − REGLEMENTS)`, `paid == TOTAL VERSEMENTS (P = FI+V2+2V+v3+1T+T2+t3)`, `balance == TOTAL*CREANCE (Q = L − P)`; and for every student — `Σ installments amount_due == the student's ledger net obligation` (C3). Verified live 259/259 × 6 (`scripts/verify_t-105.sql`); the importer enforces the same shapes on fresh imports (`buildInstallmentRows` C3 reconciliation).
 
 ## 11. Audit trail (§7.6)
 
