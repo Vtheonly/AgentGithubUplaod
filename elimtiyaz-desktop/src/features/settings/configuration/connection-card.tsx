@@ -52,7 +52,7 @@ export function ConnectionCard({
           Connexion Supabase
         </CardTitle>
         <CardDescription>
-          URL + clé anonyme stockées localement (Electron userData). Nécessite un redémarrage pour appliquer.
+          URL + clé publique (anon OU sb_publishable_) stockées localement (Electron userData). Nécessite un redémarrage pour appliquer.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -70,16 +70,16 @@ export function ConnectionCard({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="supabase-anon-key">Clé anonyme (anon public)</Label>
+          <Label htmlFor="supabase-anon-key">Clé publique (anon public ou publishable)</Label>
           <Input
             id="supabase-anon-key"
             type="password"
-            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... ou sb_publishable_..."
             value={localConfig.supabase_anon_key ?? ""}
             onChange={(e) => onConfigChange({ ...localConfig, supabase_anon_key: e.target.value })}
           />
           <p className="text-[11px] text-muted-foreground">
-            La clé anon est safe côté client (protégée par RLS). Ne JAMAIS utiliser la clé service_role côté client.
+            Les deux formats sont acceptés (T-107/MIG-KEYS-201) : l'ancienne clé anon (JWT) et la nouvelle clé publishable (sb_publishable_…) — toutes deux protégées par RLS. Ne JAMAIS utiliser la clé service_role (ou sb_secret_) côté client.
           </p>
         </div>
 
@@ -123,7 +123,7 @@ function ConnectionHelpBox() {
     <div className="rounded-lg border border-status-info/30 bg-status-info/10 p-3 text-xs">
       <p className="font-medium text-status-info mb-1">Où trouver ces valeurs?</p>
       <p className="text-muted-foreground">
-        Supabase Dashboard → Project Settings → API → Project URL + Project API keys (anon public)
+        Supabase Dashboard → Project Settings → API → Project URL + Project API keys (anon public, ou la nouvelle clé publishable)
       </p>
       <a
         href="https://supabase.com/dashboard"

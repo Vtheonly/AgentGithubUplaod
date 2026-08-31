@@ -1,14 +1,20 @@
 /**
  * Supabase client singleton.
  *
- * Reads URL + anon key in this priority order:
+ * Reads URL + public API key in this priority order:
  *   1. Electron userData/config.json (set via Settings → Configuration tab)
  *   2. localStorage fallback (browser dev mode)
  *   3. Vite env vars (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) — legacy
  *
- * The anon key is safe to publish in client-side code because RLS enforces
- * all data access server-side. The service_role key (which bypasses RLS) is
- * NEVER used in the renderer process — only in Supabase Edge Functions.
+ * The key field accepts BOTH public formats (T-107 / MIG-KEYS-201, ADR-009):
+ * the legacy anon JWT and the new `sb_publishable_…` key. supabase-js treats
+ * either as an opaque string for the `apikey` header; the backend accepts
+ * both (live-verified 2026-09-01, see docs/operations/credentials.md).
+ *
+ * The public key is safe to publish in client-side code because RLS enforces
+ * all data access server-side. The service_role key / sb_secret_ key (which
+ * bypass RLS) are NEVER used in the renderer process — only in Supabase Edge
+ * Functions.
  *
  * Plan §12.05: "service_role key in client is FORBIDDEN — use anon key only."
  */
