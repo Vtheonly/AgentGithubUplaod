@@ -25,7 +25,9 @@
 - A payment allocates to outstanding installments **oldest-due-date first**, within the payment's category filter.
 - Category filter semantics: `NULL` / absent = **all categories** (canonical). A specific category (tuition, transport, canteen, …) restricts allocation to that category's installments.
 - Remaining installment amount (INV-4 family): `clampNonNegative(amount_due − amount_paid − amount_pending)` — uncleared pending funds reduce what the parent owes.
+- **Every read surface MUST use the canonical helper for this formula** (desktop `installmentRemaining` / website `installmentRemainingAmount` / Android `Installment.remaining` / SQL `GREATEST(0, amount_due − amount_paid − amount_pending)`). Inline `due − paid` formulas in UI code are a registered defect class (DATA-008, fixed 2026-09-01) — do not reintroduce them.
 - Overpayment → `parent_credit` adjustment (never negative installment amounts).
+- ⚠ **parent_credit display semantics (DATA-009, open decision T-104):** the canonical writer books the FULL payment entry (−amount) plus a parent_credit adjustment (−unallocated) when a payment over-satisfies the schedule, so the raw ledger balance double-counts the credit (verified live 2026-09-01: 100k charge + −150k payment + −50k credit → balance −100k for a 50k overpayment). Read surfaces must derive the displayed "credit" from `totalUnallocatedCredit` (the true value), NOT from the raw negative balance, for parents overpaid through the canonical path. The 0062-reconciled historical corpus intentionally has no parent_credit entries (balance = −excess is already exact).
 
 ## 5. Overdue rule (INV-4)
 

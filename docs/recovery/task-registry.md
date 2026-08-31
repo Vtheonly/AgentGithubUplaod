@@ -7,20 +7,20 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-31, updated during the fourteenth repair session — batch COMPLETE: T-096, T-097, T-098, T-099, T-100, T-101, T-102 + the mandated live chain check — 7 tasks + verification, owner-requested batch)
+## Progress summary (2026-09-01, updated during the fifteenth repair session — T-103 COMPLETE (owner-reported finance divergence fixed: data reconciliation 0062 + canonical read paths); chain check 59/59 = 0001–0062, zero drift)
 
 | Status | Count | Tasks |
 |---|---|---|
-| **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
+| **Completed (VERIFIED)** | 7 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session), **T-103** (15th session — finance reconciliation + read consistency, live 8/8) |
 | **Completed (TESTED)** | 60 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) + **T-050 (OnlineDetector fail-closed + own-backend probe + pullAll dedup; desktop 13/13 new tests, Android 15/15 new tests)** (13th session) + **T-036 PUSH-103 portion (website FCM auto-registration after first user gesture; 9/9 new tests, suite 144/144)** (13th session) + **T-026 (overdue rule aligned: 10/10 new tests, Android suite 275/275)** (13th session) + **T-054 (hollow implementations real: 7/7 new tests)** (13th session) + **T-062 (dead code removed: 5/5 new tests; debug APK 29.8 MB)** (13th session) + **T-063 (absence-alert threshold ≥3/current-term: 10/10 new tests)** (13th session) + **T-064 (config-dialog security + placeholder detection: 9/9 new tests)** (13th session) + **14th session: T-096 (portal out-of-the-box config, website 153/153 + live render), T-097 (Electron ESM start fix, launch-verified under Xvfb), T-098 (migration 0061 live 15/15), T-099 (SupabaseChatRepository 12/12), T-100 (staff↔parent channel entry), T-101 (website chat readiness 4/4), T-102 (Android chat gap registered)** |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | The 13th-session batch is COMPLETE (10/10). See "Current recommendation" in next-task.md for the next batch. |
-| **Ready** | 16 | T-017, T-020, T-021, T-024, T-034, T-039, T-043, T-044, T-046, T-051, T-069 (T-041 moved out — completed 13th session; count adjusted in-place) |
+| **Ready** | 17 | T-017, T-020, T-021, T-024, T-034, T-039, T-043, T-044, T-046, T-051, T-069, **T-104 (new 15th session — DATA-009 parent_credit ADR)** |
 | **Partially blocked** | 1 | T-036 — PUSH-103 portion DONE (13th session); PUSH-100 (EF invocation path) + PUSH-104 (email provider) remain, owner-scoped |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
-| **Needs owner decision** | 3 | T-085, T-086, T-087(done 9th) — see registry entries |
+| **Needs owner decision** | 2 | T-086, T-087(done 9th) — T-085's financial-reconciliation core EXECUTED by T-103 (15th session, owner-authorized); only DATA-005 (first_name split) remains of T-085 |
 | **Not started (Android, toolchain-gated)** | 2 | T-020, T-082 — the 10th session re-confirmed the Android SDK is un-downloadable here (dl.google.com 404s commandlinetools) |
 
 
@@ -221,6 +221,26 @@
 - **Problems:** ANDR-CHAT-200 (new) · **Priority:** P3 · **Severity:** Medium (scope gap, not a regression)
 - **Status:** TESTED (2026-08-31 — documentation task complete; the implementation decision is the follow-up)
 - **What was done:** repo-wide search confirmed Android has ZERO chat code (only USE_CHAT/MANAGE_CHAT_CHANNELS permission constants in core/Rbac.kt). Registered ANDR-CHAT-200 + this task: next agent either builds the Android chat screen on the canonical tables (read-side + online sends feasible now; offline queueing depends on ADR-005) or prunes the dead permission codes. ADR-008 records the cross-platform decision. This keeps "fix the chat in all platforms" honest: desktop + website + backend are done and verified; Android chat is a NEW feature request, not a fix.
+
+---
+
+### T-103 — Financial data reconciliation + cross-view read consistency (owner-reported Finance-tab vs dossier divergence)
+- **Problems:** DATA-008 (new, the owner report), DATA-001, DATA-002, DATA-003, DATA-004, DATA-009 (new discovery) · **Priority:** P0 (owner-mandated) · **Severity:** Critical
+- **Status:** VERIFIED (2026-09-01, 15th session — live 8/8 + desktop 2187/2187)
+- **What was done (data layer — migration 0062, applied live atomically with registration, MIG-TOKENS):**
+  1. DATA-002 fix: payments-table row `IMP-2a049159…-V2_ALT` corrected 90,000 → 100,000 DZD (ledger + source Excel row 235 both say 100,000; the second import run mis-read the 2V column — same-name row 242 has 2V=90,000).
+  2. DATA-003 fix: 54 missing transport charges inserted (34 parents, +2,064,000 — the import wrote transport payments but never the charges); 2 "Dettes antérieures" charges folded into Tranche 1 with traceability notes (METAH NADA 7,000 / DAHMANI FARES 8,000); SIDI MAMER's overstated schedule reduced to the Excel devis net (T3 63,000 → 26,500, −36,500).
+  3. DATA-001/004 fix: installments reset and ALL 888 payments replayed through the canonical waterfall (parent + category, chronological, oldest-due-first) → 1,310 payment_allocations; payments.installment_id linked for single-target payments; expected/excess/remark populated on every payment. No parent_credit entries materialized for the 59 historical overpayers (deliberate — see DATA-009).
+- **What was done (code layer — desktop read paths):**
+  1. `installmentRemaining`/`totalOutstanding` now subtract `amountPending` (INV-4 family; new `sumInstallmentsPending`) — desktop aligned with backend/website/Android.
+  2. Finance "Tranches" tab: "Reste" column, collect preset, disabled predicate, due-date modal → all via `installmentRemaining` (inline formula removed).
+  3. Student payments tab lineItems → `installmentRemaining`.
+  4. Parent profile (Supabase + mock): `totalDue` = charges + adjustments (net), `totalPaid` = all payment entries (both modes identical); dossier renders negative balance as a positive "Crédit parent" card.
+  5. `mapPaymentRow` surfaces expected/excess/remark (PaymentBreakdownCard now works live); `PaymentRow` typed for the 0033 columns.
+- **Tests:** NEW `src/tests/domain/calc/t-103-finance-consistency.test.ts` 10/10 (INV-4 formula ×3, totalOutstanding ×3, pending-sum helper, hint-field mapping ×2, net-profile derivation).
+- **Verification:** full desktop suite **67 files / 2187 tests ALL PASS**; typecheck clean; lint 0 errors; append-only migration guard green (59 files, +1 = 0062); live chain 59/59 (local files == live registrations, JSON-diffed); LIVE reconciliation verification 8/8 via `scripts/verify_t-103.sql` (C1 allocations consistent, C2 payments==ledger, C3 due==charges+adj, C4 no over-applied tranche, C5 debtors remaining==balance, C6 overpayers 0 remaining, C7 expected/excess populated, C8 transport charges present) with 0/258 residual mismatches on every pair; owner's parent spot-check (e3e90f1f: due 337,000 / paid 493,500 / remaining 0 / credit 156,500). Full matrix: `docs/recovery/t-103-live-verification.md`.
+- **Left:** DATA-005 (first_name split) remains open under T-085; DATA-009 (parent_credit double-count) registered as T-104 decision task; the reconciliation's dry-run/full-run scripts persisted under `elimtiyaz-desktop/scripts/` + `/home/z/my-project/scripts/`.
+- **Commits:** see change-log entry (15th session).
 
 ---
 
@@ -428,6 +448,12 @@
 ---
 
 ## Ready
+
+### T-104 — parent_credit balance semantics decision (ADR)
+- **Problems:** DATA-009 (new — discovered by T-103, live-verified empirically) · **Priority:** P2 · **Severity:** Medium (design decision; no current data corruption)
+- **Description:** the canonical writer `collect_and_allocate_payment` books the FULL payment entry (−amount) AND a parent_credit adjustment (−unallocated) on overpayment, so `compute_parent_summary.totalOutstanding` double-counts the credit for parents overpaid through the canonical path (live evidence: charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment; totalUnallocatedCredit −50k is the true value). Decide + write an ADR: (a) change the canonical writer to book only the allocated portion of the payment entry (breaking change — the equivalence suites pin the current shape, so this needs a full equivalence re-run + migration + Android/website alignment), or (b) keep the writer and standardize a display-level convention (read surfaces derive "credit" from `totalUnallocatedCredit` when balance < 0; the desktop dossier's "Crédit parent" card already does this via the raw negative balance — reconcile the two derivations). The 0062 backfill deliberately did NOT materialize parent_credit entries for the 59 historical overpayers (balance = −excess is exact there); crossCheckParentCredit will emit UNBACKED_PARENT_CREDIT warnings for them — accepted, documented in the 0062 header.
+- **Dependencies:** none (ADR-002 context; do not implement without the ADR)
+- **Verification:** ADR written + whichever convention chosen is equivalence-tested across desktop/SQL/Android/website.
 
 ### Phase 0 — Security hotfixes (P0)
 

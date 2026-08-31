@@ -144,13 +144,15 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | BUG-NEW-002 | Critical | TESTED | T-084 | NEW (2026-08-30): `mv_dashboard_kpis` join fan-out multiplied every payment by the student count — monthly_revenue showed 21.38 BILLION DZD (true: 54.96M); rebuilt with scalar subqueries by migration 0049 (applied live, values verified) |
 | BUG-NEW-003 | High | TESTED | T-084 | NEW (2026-08-30): zero indexes on all four MVs — every scheduled `REFRESH MATERIALIZED VIEW CONCURRENTLY` failed; unique indexes added by migration 0049 (applied live, concurrent refresh verified) |
 | BUG-NEW-004 | High | VERIFIED | T-095 | run-overdue-scan EF hits WORKER_RESOURCE_LIMIT after the auth gate — N+1 per-parent compute_parent_summary + per-installment dedup queries (258+ round trips) exceed the edge worker budget; the daily overdue scan cannot complete |
-| DATA-001 | Critical | OPEN | T-085 | NEW (2026-08-30): `payment_allocations` EMPTY — the canonical waterfall (ADR-002) has never executed in production; all 888 payments written via legacy import RPCs with NULL installment_id |
-| DATA-002 | Critical | OPEN | T-085 | NEW (2026-08-30): three-way payment total disagreement for parent e3e90f1f (installments Δ+1,750 / ledger Δ+10,000 vs payments) — one parent's balance is wrong everywhere |
-| DATA-003 | High | OPEN | T-085 | NEW (2026-08-30): ledger charges ≠ installment dues for 197/258 parents (Δ7.62M DZD charges with no installment row) |
-| DATA-004 | Medium | OPEN | T-085 | NEW (2026-08-30): 59 overpaying parents (credit up to 244,000 DZD) with NULL expected/excess payment fields |
+| DATA-001 | Critical | VERIFIED | T-085/T-103 | FIXED 2026-09-01 (T-103, migration 0062): waterfall backfill replayed all 888 payments → 1,310 payment_allocations, 860 payments linked; live verify 8/8 (`scripts/verify_t-103.sql`) |
+| DATA-002 | Critical | VERIFIED | T-085/T-103 | FIXED 2026-09-01 (T-103): payments-table V2_ALT row corrected 90,000→100,000 to match the ledger + source Excel (row 235, col 2V); 0 residual disagreements |
+| DATA-003 | High | VERIFIED | T-085/T-103 | FIXED 2026-09-01 (T-103): root cause fully classified — missing transport charges (34 parents, +2.06M), dettes charges without tranches (2 parents), one overstated schedule (36,500) + −9.71M remise adjustments; all repaired; 0/258 residual mismatch |
+| DATA-004 | Medium | VERIFIED | T-085/T-103 | FIXED 2026-09-01 (T-103): expected_amount/excess_amount/excess_remark populated on all 888 payments from the waterfall replay; desktop mapPaymentRow surfaces them (10-test suite) |
 | DATA-005 | Medium | PARTIAL | T-085 | NEW (2026-08-30): parents.first_name empty string on ALL 258 rows (names only in display_name/last_name) — portal mitigated via formatParentName; data repair open |
 | DATA-006 | Medium | OPEN | T-086 | NEW (2026-08-30): parent portal has zero eligible real users (1/258 parents with email, 0 activation codes, 0 auth bindings) — onboarding campaign needed |
 | DATA-007 | Low | OPEN | T-087 | NEW (2026-08-30): test residue live — `_eq_test_fn`/`_eq_test_fn2` RPCs exposed, unconfirmed test auth user, expired approval request |
+| DATA-008 | High | VERIFIED | T-103 | NEW (2026-09-01, owner-reported): Finance tab vs parent dossier financial divergence (owner report: "paid 100k" vs "30k paid / 40k remaining / 30k créance") — read surfaces used divergent sources + installments data corrupt; FIXED by 0062 reconciliation + canonical INV-4-family helpers |
+| DATA-009 | Medium | OPEN | T-104 | NEW (2026-09-01, T-103 discovery): canonical writer double-counts parent_credit in the raw ledger balance (charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment); historical corpus deliberately NOT back-filled with credit entries |
 | DRIFT-001 | High | PARTIAL | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
@@ -3286,10 +3288,10 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DATA-001 — `payment_allocations` is EMPTY: the canonical waterfall has never executed in production
 
-- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** VERIFIED (2026-09-01, T-103)
 - **Repositories:** Backend (data state, not code)
 - **Platforms affected:** all (canonical financial path ADR-002)
-- **Task:** T-085 (data reconciliation — requires business authority)
+- **Task:** T-085/T-103 (data reconciliation — owner-authorized 2026-09-01)
 - **Consolidated from:** NEW — discovered 2026-08-30 (eighth session) during the live backend health check (finding F-01)
 - **Description:** All 888 production payments were written through the legacy `upsert_*_from_import` RPCs (Excel import path, migrations 0027+). `payments.installment_id` is NULL on every row and `payment_allocations` holds 0 rows. Consequences: no payment→installment traceability exists; `revert_payment_allocation` / `mark_payment_cleared` are inoperable on the existing corpus; the canonical `collect_and_allocate_payment` waterfall (migrations 0034–0043, the centerpiece of ADR-002) has never actually executed against production data.
 - **Evidence:** live counts — payments 888 (all status='paid', all method='cash'), payment_allocations 0, `SELECT COUNT(*) FROM payments WHERE installment_id IS NOT NULL` = 0.
@@ -3297,13 +3299,14 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** one-time backfill — replay the existing payments through the canonical waterfall (or a purpose-built reconciliation migration) in chronological order per parent, generating payment_allocations + linking payments.installment_id. MUST be run under four-eyes supervision: it rewrites financial history. This is a DATA operation, not a code change — needs the owner's explicit sign-off (see DATA-002 first).
 - **Dependencies:** DATA-002 (discrepancies must be resolved BEFORE the backfill, or the waterfall will bake them in)
 - **Verification:** post-backfill — `payment_allocations` count ≥ payments count; Σ allocation amounts per payment = payment amount; Σ allocations per installment ≤ amount_due.
+- **Status note (2026-09-01, T-103):** FIXED + VERIFIED. The owner explicitly authorized the full reconciliation ("Fix this issue completely… verify that the information is consistent everywhere"). Migration `0062_finance_reconciliation.sql` (applied live atomically with registration per MIG-TOKENS; `scripts/apply_0062_live.sh`) reset installments and replayed all 888 payments through the canonical waterfall order (per parent + category, payments chronological, tranches oldest-due-first). Live evidence: 1,310 payment_allocations rows covering 860 payments (the other 28 payments are pure-excess — zero allocations by design); Σ allocations per payment == amount − excess (verify_t-103.sql check C1 = true); no tranche has amount_paid > amount_due (C4 = true). The desktop Finance tab and parent dossier now agree for every parent (C5/C6 = true). Full matrix: `docs/recovery/t-103-live-verification.md`.
 
 ### DATA-002 — Three-way payment total disagreement (parent e3e90f1f: Δ+1,750 installments vs payments, Δ+10,000 ledger vs payments)
 
-- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** VERIFIED (2026-09-01, T-103)
 - **Repositories:** Backend (data state)
 - **Platforms affected:** all (any balance shown anywhere)
-- **Task:** T-085 (data reconciliation)
+- **Task:** T-085/T-103 (data reconciliation)
 - **Consolidated from:** NEW — discovered 2026-08-30 (eighth session), live health check finding F-02
 - **Description:** Three independent sources disagree on total collected:
   - Σ installments.amount_paid = **54,960,350 DZD**
@@ -3316,13 +3319,14 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** forensic pass on parent e3e90f1f's rows (identify the 1,750 DZD unapplied payment and the orphaned ledger entries), decide with the school which is truth, repair the minority source, THEN run the DATA-001 backfill.
 - **Dependencies:** none (blocks DATA-001)
 - **Verification:** re-run the health-check per-parent reconciliation → 0 disagreements in all three pairs.
+- **Status note (2026-09-01, T-103):** FIXED + VERIFIED. Forensics against the source workbook (`Suivis clients  2026_2027.xlsx`, sheet ETAT 20262027, rows 235/236) resolved the ambiguity: the LEDGER was right all along. The payments-table row `IMP-2a049159-ce2c-4f74-814d-2a133dd85334-V2_ALT` was imported as 90,000 DZD, but the Excel cell (row 235, column "2V") and the ledger entry both say 100,000 DZD — the payments-import run (run_msp7fbgz) mis-read the 2V column for this student (Excel row 242, a DIFFERENT parent's student with the identical name "SIDI MAMER SAMYI", carries 2V=90,000 — the confusion source). Migration 0062 corrected the payments row to 100,000 with a `payment.reconcile_fix` audit entry. The "Δ+1,750" leg was never a data row — it was the import's non-waterfall installment allocation (whole versements dumped onto single tranches); the 0062 waterfall replay re-derived installments.amount_paid correctly. Live verification: 0/258 parents with payments-vs-ledger disagreement (verify_t-103.sql C2 = true; spot-check e3e90f1f: ledger paid == payments == 493,500).
 
 ### DATA-003 — Ledger charges ≠ installment dues for 197/258 parents (Δ 7.62M DZD tenant-wide)
 
-- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN (mitigated for the portal — it computes from the ledger per INV-1)
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** VERIFIED (2026-09-01, T-103)
 - **Repositories:** Backend (data state)
 - **Platforms affected:** all
-- **Task:** T-085 (data reconciliation)
+- **Task:** T-085/T-103 (data reconciliation — owner-authorized)
 - **Consolidated from:** NEW — 2026-08-30 live health check finding F-03
 - **Description:** Σ ledger charges = 113,263,800 DZD (391 entries) vs Σ installments.amount_due = 105,639,600 DZD (1,273 rows) — 7,624,200 DZD of charges exist in the ledger with NO installment row. For 76% of parents the installment schedule cannot explain the ledger balance. Consequence: any UI that computes "what's left" from installments disagrees with the canonical balance — exactly why the portal (and desktop) must replay the ledger.
 - **Evidence:** live health-check §E/§I totals + per-parent charge comparison (197/258 mismatch).
@@ -3330,18 +3334,24 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** classify the 391 charge entries by source_type/source_id; generate installment rows for un-linked charges or annotate them as direct ledger charges; document the business rule. Requires the owner's input on what the 7.62M represents (likely annual-supply/registration/transport charges the Excel import booked straight to the ledger).
 - **Dependencies:** none
 - **Verification:** per-parent ledger-vs-installment charge comparison → 0 unexplained rows.
+- **Status note (2026-09-01, T-103):** FIXED + VERIFIED — the 7.62M is now fully classified (the original framing missed that Σ installments due must be compared to charges NET of the remise adjustments):
+  1. **−9,709,700 DZD** = 318 `Remise sur devis` adjustments (Excel "REMISE" column) — CORRECT canonical form; discounts live as negative adjustments on the ledger and reduce the installment dues.
+  2. **+2,064,000 DZD** = transport installments (34 parents, 106 tranches, fully paid) whose transport CHARGES were never written to the ledger — the import wrote transport payments but no transport charges. Fixed by 0062: one transport charge per student (54 charges, same account shape as the tuition import charges).
+  3. **+21,500 DZD** = 3 parents' schedule-vs-devis gaps — METAH NADA (7,000 "Dettes antérieures" charge with no tranche) + DAHMANI FARES (8,000 same) + SIDI MAMER SAMYI (tranches generated from the price tables at 210,000 instead of the Excel devis net 173,500 = +36,500). Fixed by 0062: dettes folded into Tranche 1 with traceability notes; the overstated last tranche reduced to the devis net.
+  Post-fix live verification: 0/258 parents with (Σ installments due) ≠ (Σ charges + Σ adjustments) — verify_t-103.sql C3 = true. The Excel's own "TOTAL*CREANCE" column is gross-of-remise by design; the system's canonical net semantics (INV-1 ledger) is the authority.
 
 ### DATA-004 — 59 overpaying parents (credit up to 244,000 DZD) with NULL expected/excess payment fields
 
-- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** OPEN (portal now surfaces credit via the canonical ledger replay)
+- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** VERIFIED (2026-09-01, T-103)
 - **Repositories:** Backend (data state)
-- **Task:** T-085
+- **Task:** T-085/T-103
 - **Consolidated from:** NEW — 2026-08-30 live health check finding F-05
 - **Description:** 59 parents paid more than their total dues (top overpayer: +244,000 DZD). The schema anticipated this (`payments.expected_amount` / `excess_amount`, migration 0033) but both columns are NULL on every row. The canonical tracking is the parent_credit ledger account (INV-7) — which the portal's new credit KPI surfaces — but the payment-level hint fields the desktop UI was built to show are unusable on the existing corpus.
 - **Evidence:** live health-check §I overpayer ranking.
 - **Proposed resolution:** during the DATA-001 backfill, populate expected_amount/excess_amount per payment from the waterfall result; keep the ledger account as the canonical source.
 - **Dependencies:** DATA-001
 - **Verification:** every payment where ledger balance goes negative post-payment has excess_amount > 0.
+- **Status note (2026-09-01, T-103):** FIXED + VERIFIED. The 0062 waterfall replay populated expected_amount (allocated portion), excess_amount (unallocated portion) and excess_remark ('Réconciliation 0062 — excédent (crédit parent)') on all 888 payments (C7 = true). The desktop `mapPaymentRow` now maps the three columns into the domain `Payment` so the PaymentBreakdownCard renders on live data (regression-tested). The 59 overpayers keep balance = −excess (clean credit semantics); see DATA-009 for why parent_credit entries were deliberately NOT materialized for the historical corpus.
 
 ### DATA-005 — `parents.first_name` is an empty string on ALL 258 production rows (names live only in display_name/last_name)
 
@@ -3376,6 +3386,46 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Dependencies:** none
 
 ---
+
+### DATA-008 — Cross-view financial divergence: Finance tab, parent dossier and student payments read divergent sources with divergent formulas (owner-reported)
+
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** VERIFIED (2026-09-01, T-103)
+- **Repositories:** desktop (read paths + helpers); backend (data state feeding them)
+- **Platforms affected:** desktop primarily (Android/website were already canonical on the formula but consumed the same corrupt corpus)
+- **Task:** T-103
+- **Consolidated from:** NEW — 2026-09-01, owner report (15th session): "In the Finance tab, when I click on a person, it says that the person paid, for example, 100k. But when I open their dossier and look at their kids, I can see that they paid 30k, still have 40k remaining, and another 30k is in créance."
+- **Description:** Two independent defect layers produced the divergence the owner saw:
+  1. **Formula layer (code):** the desktop's canonical helpers `installmentRemaining` / `totalOutstanding` used the cleared-only formula `clampNonNegative(amount_due − amount_paid)`, violating the INV-4-family rule (`…− amount_pending`) that the backend waterfall (migrations 0034/0040), the website port (`installmentRemainingAmount`) and the Android mirror (`Installment.remaining`) all implement. The Finance "Tranches" tab additionally used an INLINE `amountDue - amountPaid` (bypassing even the helper), as did the student payments tab's line items and the parent-drawer profile's `totalDue` (`totalCharged` gross — ignoring remise adjustments, so "Total dû" overstated for every discounted parent and disagreed with Σ installments due).
+  2. **Data layer:** installments.amount_paid was imported non-waterfall (whole versements dumped onto single tranches → over-applied tranches while earlier tranches sat unpaid — e.g. parent e3e90f1f: Tranche 2 shows 165,000 paid on a 63,000 tranche, Tranche 1 unpaid), and the three sources disagreed (DATA-001…004).
+  Combined effect: the Finance tab (installments view), the payments tab (payments table) and the dossier (ledger replay) showed three different stories for the same parent.
+- **Evidence:** owner report (above); live forensics 2026-09-01 (three-way diagnostic: 197/258 due mismatches, 181/258 remaining mismatches, 1 paid mismatch); desktop source inspection (queries.ts:16-23, installment-schedule-tab.tsx "Reste" accessor, payments-tab.tsx lineItems, supabase-shared-repositories.ts refreshProfile).
+- **Expected behavior:** all read surfaces derive per-tranche remaining via the canonical INV-4-family formula, the parent profile's totalDue is the net obligation, and the underlying corpus satisfies the three-way equalities (payments == ledger; Σ due == charges + adjustments; waterfall-shaped allocations) so every view tells the same story.
+- **Resolution (T-103, 2026-09-01):**
+  1. Migration 0062 (data): see DATA-001/002/003/004 — the corpus now satisfies the equalities (live 8/8 checks).
+  2. `installmentRemaining` + `totalOutstanding` now subtract `amountPending` (new `sumInstallmentsPending` helper) — desktop aligned with backend/website/Android.
+  3. `installment-schedule-tab.tsx`: "Reste" column, "Encaisser" disabled predicate, collect preset and due-date modal all use `installmentRemaining` (no more inline formula).
+  4. `student-detail/payments-tab.tsx`: lineItems `remainingAmount` uses `installmentRemaining`.
+  5. Parent profile (Supabase + mock paths): `totalDue` = charges + adjustments (net), `totalPaid` = all payment entries (both modes identical); the drawer's Finances tab renders negative balance as a positive "Crédit parent" card instead of a confusing negative "Reste".
+  6. `mapPaymentRow` surfaces expected/excess/remark (see DATA-004).
+- **Verification:** 10-test regression suite `src/tests/domain/calc/t-103-finance-consistency.test.ts` (INV-4 formula, sum helper, hint-field mapping, net-profile derivation); full desktop suite 67 files / 2187 tests ALL PASS; typecheck clean; lint 0 errors; live three-way verification 8/8 (verify_t-103.sql) with the owner's exact parent (e3e90f1f) spot-checked: due 337,000 == charged+adj, paid 493,500 == payments == ledger, allocated 337,000, remaining 0, balance −156,500 == −excess.
+- **Dependencies:** DATA-001…004 (data layer), none for the formula layer.
+
+---
+
+### DATA-009 — Canonical writer double-counts parent_credit in the raw ledger balance (design quirk; historical corpus deliberately not back-filled)
+
+- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** OPEN (registered; live path unchanged by design)
+- **Repositories:** backend (canonical RPC semantics); all read surfaces
+- **Platforms affected:** all
+- **Task:** T-104 (decision task — needs an ADR before any change)
+- **Consolidated from:** NEW — 2026-09-01, T-103 empirical discovery (live rollback test)
+- **Description:** `collect_and_allocate_payment` writes the FULL payment entry (−amount) on the category account AND a parent_credit adjustment (−unallocated) on the parent_credit account when a payment over-satisfies the schedule. Verified live in a rolled-back transaction: charge +100k, payment −150k, credit −50k → `compute_parent_summary` returns totalOutstanding −100k for a 50k overpayment. The raw balance therefore double-counts the credit (once as the unallocated portion of the payment entry, once as the credit adjustment). `totalUnallocatedCredit` (−50k) carries the true credit value. Read surfaces that display `totalOutstanding` raw will show −2× the real credit for parents overpaid THROUGH THE CANONICAL PATH.
+- **Evidence:** live test (rollback transaction) 2026-09-01: `SELECT * FROM collect_and_allocate_payment(…150000…)` against a 100k tranche; post-state `compute_parent_summary` → total_outstanding −100,000.00, total_unallocated_credit −50,000.00. Recorded in the 0062 migration header + t-103-live-verification.md.
+- **Expected behavior:** UNRESOLVED — either (a) the payment entry should be written at the allocated amount only (breaking change to the canonical writer, needs ADR + equivalence re-run), or (b) read surfaces must always derive "credit" from `totalUnallocatedCredit` (display-level convention). The pinned equivalence suites currently accept the shape.
+- **Resolution (T-103 decision, documented):** the 0062 backfill deliberately does NOT materialize parent_credit entries for the 59 historical overpayers: replaying the canonical shape would double their displayed credit (balance −2×excess) and worsen the divergence this task fixed. Historical overpayers keep balance = −excess (clean semantics: "the school owes exactly the overpayment"). New payments through the canonical RPC continue to produce the historical shape (credit entries exist; balance −2× for the fresh excess only). crossCheckParentCredit will surface UNBACKED_PARENT_CREDIT warnings for the 59 historical rows — known and accepted.
+- **Dependencies:** none
+- **Verification:** N/A (registered decision + discovery; no behaviour changed live).
+
 
 ### BUG-NEW-004 — run-overdue-scan EF exceeds the edge-worker resource budget (WORKER_RESOURCE_LIMIT); the daily overdue scan cannot complete
 
