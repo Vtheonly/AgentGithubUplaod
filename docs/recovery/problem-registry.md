@@ -21,16 +21,16 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 27 | | OPEN | 62 |
-| High | 53 | | BLOCKED | 13 |
-| Medium | 68 | | DEFERRED | 5 |
+| Critical | 28 | | OPEN | 62 |
+| High | 54 | | BLOCKED | 11 |
+| Medium | 70 | | DEFERRED | 5 |
 | Low | 20 | | VERIFIED | 3 |
-| | | | TESTED | 79 |
+| | | | TESTED | 86 |
 | | | | IMPLEMENTED | 1 |
 | | | | PARTIAL | 2 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 168 registered problems (145 consolidated from 185 audit findings + 23 discovered during repair sessions) · 62 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 3 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068) · 79 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13. Counts synced to the detailed entries (authoritative) this session.
+**Totals:** 172 registered problems (145 consolidated from 185 audit findings + 27 discovered during repair sessions) · 62 OPEN · 11 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 3 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068) · 79 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13. Counts synced to the detailed entries (authoritative) this session.
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -116,10 +116,10 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SCHED-100 | Medium | BLOCKED | T-042 | Timetable (Emploi du Temps) feature is structurally unimplemented: domain model + UI KPI exist but no DB table, no Supabase repository, no migration |
 | SCHED-101 | Low | BLOCKED | T-042 | `detectTimetableConflict` checks teacher/class overlaps but NOT room conflicts (different teachers, different classes, same room, same time) |
 | STUDENT-100 | Critical | OPEN | T-024 | Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter) |
-| CHAT-100 | Medium | OPEN | T-071 | `chat_channels_insert` RLS allows any authenticated user to create a channel with arbitrary `member_ids` (no membership validation on insert) |
-| CHAT-101 | Medium | OPEN | T-071 | `chat_messages_insert` RLS has no channel-membership check; any user can spam any channel_id they know |
-| CHAT-103 | High | BLOCKED | T-037 | No production code anywhere creates `chat_channels` rows; the website's MessagesView is permanently empty for parents |
-| CHAT-104 | Low | BLOCKED | T-037 | `chat_channels.updated_at` never updates when a new chat_message is INSERTed; channel list is sorted by CREATION time, not last-message time |
+| CHAT-100 | Medium | TESTED | T-071 | `chat_channels_insert` RLS allows any authenticated user to create a channel with arbitrary `member_ids` (no membership validation on insert) |
+| CHAT-101 | Medium | TESTED | T-071 | `chat_messages_insert` RLS has no channel-membership check; any user can spam any channel_id they know |
+| CHAT-103 | High | TESTED | T-037 | No production code anywhere creates `chat_channels` rows; the website's MessagesView is permanently empty for parents |
+| CHAT-104 | Low | TESTED | T-037 | `chat_channels.updated_at` never updates when a new chat_message is INSERTed; channel list is sorted by CREATION time, not last-message time |
 | NOTIF-100 | Medium | BLOCKED | T-038 | `notifications_update` RLS blocks recipients from marking role-broadcast notifications as read; bulk mark-read silently no-ops (extends REALTIME-101 from chat_messages to notifications) |
 | NOTIF-101 | Medium | OPEN | T-071 | `notifications_insert` RLS allows any authenticated user to INSERT a notification addressed to ANY user_id (notification spam / injection) |
 | NOTIF-102 | Low | TESTED | T-052 | Desktop topbar bell `unreadCount` is computed AFTER slicing to 8 items; badge caps at 8 even when actual unread is 50 |
@@ -1778,7 +1778,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CHAT-100 — `chat_channels_insert` RLS allows any authenticated user to create a channel with arbitrary `member_ids` (no membership validation on insert)
 
-- **Category:** CHAT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** CHAT  |  **Severity:** Medium  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-071 (docs/recovery/task-registry.md)
@@ -1797,7 +1797,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CHAT-101 — `chat_messages_insert` RLS has no channel-membership check; any user can spam any channel_id they know
 
-- **Category:** CHAT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** CHAT  |  **Severity:** Medium  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-071 (docs/recovery/task-registry.md)
@@ -1816,7 +1816,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CHAT-103 — No production code anywhere creates `chat_channels` rows; the website's MessagesView is permanently empty for parents
 
-- **Category:** CHAT  |  **Severity:** High  |  **Status:** BLOCKED
+- **Category:** CHAT  |  **Severity:** High  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Desktop, Website
 - **Task:** T-037 (docs/recovery/task-registry.md)
@@ -1829,7 +1829,16 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Expected behavior:** Some code path should create a chat_channels row when (a) a staff member creates an announcement channel for a class, (b) a parent is linked to a staff member for 1:1 messaging, (c) an admin creates a department channel. None of these paths exist in production code.
 - **Proposed resolution:** Some code path should create a chat_channels row when (a) a staff member creates an announcement channel for a class, (b) a parent is linked to a staff member for 1:1 messaging, (c) an admin creates a department channel. None of these paths exist in production code.
 - **Dependencies:** none recorded
-- **Status note:** Blocked by UNKNOWN-005 (chat product scope).
+- **Status note (2026-08-31, 14th session):** RESOLVED. The owner decided chat IS a committed
+  feature (UNKNOWN-005 resolved — ADR-008). Backend: migration 0061 (applied live + registered,
+  atomic MIG-TOKENS apply) adds the canonical idempotent `create_direct_channel` RPC + completion
+  columns + staff/creator UPDATE policy; live verification scripts/verify_t-098.sql 15/15
+  (happy path, idempotency, staff gate, self/foreign rejection, RLS regressions, audit). Desktop:
+  `SupabaseChatRepository` replaces the mock in the Supabase assembly (T-099 — CHAT-105 dead) +
+  staff↔parent entry point on the parent-detail drawer (T-100) + ChatPanel persists staff↔staff.
+  Website: read+reply side already correct; T-101 pinned ordering/previews/archived filter
+  (4/4). Remaining gap: Android has NO chat UI (never existed — new problem ANDR-CHAT-200,
+  task T-102). Full E2E device round-trip still needs AUTH-200 (Google OAuth enabled).
 - **Absorbed findings:** CHAT-105: The desktop's `getSupabaseRepositories()` factory (`supabase-repositories.ts:79-172`) builds a `Repositories` object that OVERRIDES most mock repositories with Supabase-backed implementations — but the `chat` key is NOT in the override list. It falls through to `...mockRepositories` (line 138 spread). The mock chat repository (`mock/workforce/index.ts:820-972`) maintains in-memory `channels: ChatChannel[]` and `messages: ChatMessage[]` arrays. When the desktop app process exits (close window), all chat data is wiped. The desktop's ChatPanel UI (`features/personnel/management/chat-panel.tsx`) calls `repos.chat.observeChannels(currentUserId)`, `repos.chat.sendMessage(...)`, `repos.chat.editMessage(...)`, `repos.chat.deleteMessage(...)`, `repos.chat.markRead(...)` — all of which hit the mock, never Supabase. Result: staff-to-staff chat in the desktop is a sandboxed mock that no other platform can see, and parents (via the website) have no path to receive messages from staff.
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 
@@ -1837,7 +1846,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CHAT-104 — `chat_channels.updated_at` never updates when a new chat_message is INSERTed; channel list is sorted by CREATION time, not last-message time
 
-- **Category:** CHAT  |  **Severity:** Low  |  **Status:** BLOCKED
+- **Category:** CHAT  |  **Severity:** Low  |  **Status:** TESTED
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-037 (docs/recovery/task-registry.md)
@@ -1850,7 +1859,12 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Expected behavior:** The channel list should be sorted by "last message time" — i.e., the `max(sent_at)` of the channel's chat_messages. Either via (a) a DB trigger that updates `chat_channels.updated_at` on chat_message INSERT, or (b) a separate `last_message_at` column maintained by the trigger, or (c) a JOIN/subquery in the SELECT that fetches the max sent_at.
 - **Proposed resolution:** The channel list should be sorted by "last message time" — i.e., the `max(sent_at)` of the channel's chat_messages. Either via (a) a DB trigger that updates `chat_channels.updated_at` on chat_message INSERT, or (b) a separate `last_message_at` column maintained by the trigger, or (c) a JOIN/subquery in the SELECT that fetches the max sent_at.
 - **Dependencies:** none recorded
-- **Status note:** Blocked by UNKNOWN-005 (chat product scope); only meaningful once channels are created.
+- **Status note (2026-08-31, 14th session):** RESOLVED via migration 0061, resolution option (b):
+  `chat_channels.last_message_at` + `last_message_preview` columns maintained by the
+  `chat_messages_touch_channel` AFTER INSERT trigger (also bumps updated_at). The website now
+  orders by `last_message_at desc nulls last` and hides archived channels; the desktop orders by
+  `lastMessageAt ?? createdAt` desc. Live evidence: verify_t-098.sql C10 (trigger fires —
+  last_message_at set, preview = body prefix, updated_at advanced).
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); migration-level test against a fresh schema with the full canonical chain applied; cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 
 ---
@@ -3510,3 +3524,61 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Dependencies:** none recorded
 - **Verification:** fix must show BOTH variants green (or the documented exclusion) before status moves past TESTED.
 
+
+---
+
+### ENV-300 — Unset NEXT_PUBLIC_DEFAULT_LOCALE made the ENTIRE env parse fail, resetting every env value to ""
+
+- **Category:** ENV  |  **Severity:** Medium  |  **Status:** TESTED
+- **Repositories:** elimtiyaz-website
+- **Platforms affected:** Website (configuration)
+- **Task:** T-096 (fixed as part of the out-of-the-box config task, 14th session)
+- **Discovered:** 2026-08-31, 14th session, while writing the T-096 regression tests (the module-level env parse produced empty strings even when public defaults were present).
+- **Description:** `src/lib/env.ts` fed `process.env.NEXT_PUBLIC_DEFAULT_LOCALE ?? ""` into `z.enum(["fr","ar","en"])`. An UNSET locale therefore arrived as `""` — which is NOT `undefined`, so the zod `.default("fr")` never applied; the enum rejected `""`, `safeParse` FAILED for the whole object, and the fallback `envSchema.parse({})` reset EVERY value to the zod default `""` — including a correctly-set URL + anon key. The portal then showed "Missing configuration" even when the env vars were present.
+- **Root cause:** the empty-string sentinel for "unset" collided with the enum validator; the failure mode (one invalid field nukes all fields) was never tested.
+- **Resolution:** locales that are empty/unknown now resolve to `undefined` (so `.default("fr")` applies) and the parse succeeds; APP_NAME uses `||` with its default. Regression tests: `src/lib/t-096-portal-default-config.test.ts` (5/5).
+- **Verification:** vitest 5/5 incl. the fresh-clone (no env vars) case; full suite 153/153; live headless render with no .env.local shows the Google button (no banner).
+
+---
+
+### TEST-300 — T-050 desktop test asserted the WRONG host (could never pass; session-13 "all pass" claim not reproducible)
+
+- **Category:** TEST  |  **Severity:** Low  |  **Status:** TESTED
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Desktop (test infrastructure / verification integrity)
+- **Task:** fixed in the 14th session (2026-08-31)
+- **Discovered:** 2026-08-31, 14th session, during the session-opening full-suite run (2 failures in `t-050-online-detector.test.ts` on a pristine tree with zero desktop src changes).
+- **Description:** `t-050-online-detector.test.ts` compared `resolveProbeUrl("https://example.supabase.co")` against a constant `HEALTH = "https://acme-school.supabase.co/auth/v1/health"` — different host from the input. The implementation is CORRECT (it maps the INPUT host, per T-050's own semantics: probe YOUR backend); the test's constant was wrong, so the two assertions could never pass.
+- **Root cause:** test-authoring slip in the 13th session (commit 0b37d13). IMPORTANT verification-integrity note: the 13th session's closeout claimed "desktop 65 files / 2165 tests ALL PASS" — that claim is NOT reproducible at HEAD as pushed; the next agent must treat per-file evidence (not only summary claims) as the verification record.
+- **Resolution:** the constant is now host-consistent (`https://example.supabase.co/auth/v1/health`); 13/13 pass.
+- **Verification:** `npx vitest run src/tests/infrastructure/t-050-online-detector.test.ts` — 13/13; full suite re-run this session.
+
+---
+
+### ANDR-CHAT-200 — Android has NO chat UI at all (scope gap exposed by the chat completion)
+
+- **Category:** FEAT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Repositories:** elimtiyaz-android
+- **Platforms affected:** Android
+- **Task:** T-102 (registered 2026-08-31, 14th session)
+- **Discovered:** 2026-08-31, 14th session, while executing the owner's "fix and test the chat in all platforms" instruction (repo-wide chat search on Android returned only `USE_CHAT` / `MANAGE_CHAT_CHANNELS` permission constants in `core/Rbac.kt:66`).
+- **Description:** chat is now real end-to-end on desktop + website + backend (ADR-008), but the Android staff app has never had any chat screen, repository, or Room cache — "all platforms" cannot include Android chat until it is built. This is a scope gap (the feature was never started there), not a regression.
+- **Expected behavior:** decision needed: build a chat screen (channels list + messages + read-receipts) against the same tables, or explicitly declare Android chat out of scope and prune the `USE_CHAT` permission constants.
+- **Proposed resolution:** T-102 — implement the Android chat screen on the canonical tables (RLS already authorises staff), or prune the dead permission codes. Depends on ADR-005 (write architecture) only if chat writes must queue offline; read-only chat + online sends are feasible now.
+- **Dependencies:** ADR-005 (offline write queueing) — read-side and online sends are unblocked.
+- **Verification:** when built: same contract as desktop (channels where member, messages ordered by sent_at, read_by append-only) + `./gradlew test` green.
+
+
+---
+
+### AUTH-200 — Google OAuth provider not enabled on the live Supabase project (portal sign-in dead)
+
+- **Category:** AUTH  |  **Severity:** Critical  |  **Status:** OPEN (owner action required)
+- **Repositories:** backend (Supabase project config), elimtiyaz-website
+- **Platforms affected:** Website (parent portal login)
+- **Task:** owner runbook `docs/operations/portal-google-oauth.md`
+- **Discovered:** 2026-08-31, 13th session (portal configured but sign-in failed); re-verified live 2026-08-31, 14th session via the Management API: `external_google_enabled: false`, `external_google_client_id: EMPTY`, `external_google_secret: EMPTY`.
+- **Description:** the portal's ONLY auth path is Google OAuth (T-009 removed mock auth; SEC-100-class passwords are not a portal path). The provider is disabled server-side, so the Google button renders (and is enabled client-side since T-096) but the OAuth round-trip cannot start. NOTE: this entry was referenced by the 13th session's closeout (next-task, current-state) but was never actually registered here — fixed in the 14th session.
+- **Root cause:** enabling the provider requires a Google Cloud OAuth client (client id + secret) that only the owner can create (school Google account, consent screen, callback `https://hkvkefubghbbotgnteir.supabase.co/auth/v1/callback`).
+- **Resolution (owner):** follow `docs/operations/portal-google-oauth.md` steps 1-3 (~10 min in the Google Console + one PATCH call). The 14th session already set `uri_allow_list = http://localhost:3000,http://localhost:3100` (comma-separated STRING — the Management API rejects arrays; discovery documented in the runbook) so the local dev round-trip works once enabled.
+- **Verification:** after the owner enables it: full browser sign-in round-trip on the portal + `external_google_enabled: true` via the API; then flip this entry to TESTED.

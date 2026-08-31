@@ -214,7 +214,7 @@ If evidence is insufficient — which implementation is correct, what a business
 | `docs/architecture/boundaries.md` | What each layer/platform is (and is NOT) responsible for |
 | `docs/domain/financial-rules.md` | Canonical financial invariants and rules |
 | `docs/domain/academic-rules.md` | Canonical academic/attendance rules |
-| `docs/decisions/ADR-0*.md` | Architecture Decision Records |
+| `docs/decisions/ADR-0*.md` | Architecture Decision Records (ADR-008 = chat is committed, staff-initiated) |
 | `docs/recovery/current-state.md` | "What is the state of the project right now?" |
 | `docs/recovery/problem-registry.md` | **The** consolidated problem registry (145 problems) |
 | `docs/recovery/task-registry.md` | **The** authoritative task list / todo list |
@@ -226,6 +226,8 @@ If evidence is insufficient — which implementation is correct, what a business
 | `docs/audits/README.md` | Index to the archival audit reports + ID-mapping rules |
 | `docs/audits/first-pass-audit.md` | First-pass audit — 86 findings (read-only archival evidence) |
 | `docs/audits/second-pass-audit.md` | Second-pass audit — 99 findings (read-only archival evidence) |
+| `docs/operations/credentials.md` | Credential & token consistency sheet (all platforms) |
+| `docs/operations/portal-google-oauth.md` | AUTH-200 owner runbook — enabling the Google OAuth provider (incl. the Management API `uri_allow_list` string quirk) |
 | `docs/testing/strategy.md` | Testing strategy per platform and layer |
 | `docs/testing/cross-platform.md` | Canonical cross-platform equivalence verification |
 | `docs/agents/workflow.md` | The mandatory agent workflow (DISCOVER → … → UPDATE TASK STATUS) |

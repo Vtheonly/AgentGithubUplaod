@@ -38,14 +38,17 @@
 - **Blocked:** T-066.
 - **Required to resolve:** product decision (support/audit requirements for receipt re-download).
 
-## UNKNOWN-005 — What is the chat product scope?
+## ~~UNKNOWN-005 — What is the chat product scope?~~ RESOLVED 2026-08-31
 
 - **Question:** Is staff↔parent/staff↔staff chat a committed feature? No production code creates `chat_channels`; the desktop chat is an in-memory mock; the website MessagesView is permanently empty.
 - **Evidence:** CHAT-103 (zero channel writers), CHAT-105 (mock chat), CHAT-104 (no last-message sorting).
-- **Why it matters:** building it requires channel-creation flows + a real desktop chat repository + notification integration; not building it means removing dead UI.
-- **Affected components:** chat tables/RLS, desktop ChatPanel, website MessagesView.
-- **Blocked:** T-037, CHAT-104.
-- **Required to resolve:** product decision.
+- **Resolution (14th session):** the owner instructed "fix and test the chat in all platforms" —
+  chat IS a committed feature. Channel creation is staff-only; the parent portal is read+reply.
+  Recorded as **ADR-008** (accepted). Implementation: migration 0061 (backend completion +
+  canonical `create_direct_channel` RPC), T-099 (desktop SupabaseChatRepository), T-100
+  (staff↔parent entry point), T-101 (portal readiness). T-037's "if built" branch is operative.
+- **Unblocked:** T-037 (implementation portion), CHAT-104. NEW scope gap documented: Android has
+  no chat UI at all (task T-102 tracks it).
 
 ## UNKNOWN-006 — Is multi-tenancy a real production requirement?
 
@@ -105,4 +108,7 @@
 
 ## Resolved unknowns
 
-*(none yet — record resolution date, decision, ADR link, and the unblocked tasks here)*
+- **UNKNOWN-005 (chat product scope)** — resolved 2026-08-31, 14th session: chat is a committed
+  cross-platform feature (owner instruction). Decision recorded in ADR-008; backend migration
+  0061 applied live (verify_t-098 15/15); desktop T-099/T-100 and website T-101 landed.
+  Unblocked T-037; spawned T-102 (Android chat UI scope gap).
