@@ -14,12 +14,27 @@
 
 ## Currently in progress
 
-*(none — the tenth repair session (2026-08-31, owner-requested) closed MIG-TOKENS + T-006 + T-008 + T-093 + T-094 + T-032 + T-035 + T-056: the 0053/0054 live-drift was reconciled (ARCH-011), migrations 0055 (SEC-110/111/112) and 0056 (expense payee) were applied live + registered with per-task live verification (9/9), the approve-signup-request and update-server-secret EFs were redeployed with their security gates, the desktop expenses repository was ported to expense_tickets, the overdue generator was verified live (T-094 → VERIFIED), and the website realtime + ledger-paging + hygiene fixes landed (suite 119/119). Evidence in change-log.md.)*
+**Eleventh repair session (2026-08-31, owner-requested ~10-task batch).** Batch declared In Progress (see task-registry.md "In Progress" section):
+
+- **T-011** — eliminate the silent collect() fallback (BUSINESS-002, P1 Critical) — session top pick
+- **T-012** — bulkCollect fail-fast (BUSINESS-100, P1 Critical)
+- **T-013** — markClearedFallback audit/cascade (BUSINESS-101/104, P1 High)
+- **T-014** — desktop refund flow (DEAD-015/BUSINESS-003, P1 Critical)
+- **T-023** — desktop homework + roll-call persistence (HOMEWORK-100/ATT-100, P1 Critical)
+- **T-025** — replace fn_current_tenant_id with the canonical resolver (DEAD-100/TENANT-106, P1 Critical, new migration)
+- **T-068** — EF permission resolution (SEC-109, P1 High)
+- **T-033** — website freshness fallback (CACHE-100, P2; T-032 dependency TESTED)
+- **T-048** — unify the migration chain (CROSS-001/003, P2 Critical — removes the drifted partial copies from the website + Android repos)
+- **T-060** — payment collection UX correctness (BUSINESS-005/WEAK-005, P2)
+- **Android stretch** — T-020 (SYNC-103) or T-026 (DRIFT-006) IF the container's Android SDK bootstraps (JDK-17 + android-sdk present at /home/z/my-project/tools; feasibility being probed — sessions 9/10 recorded dl.google.com 404s).
+
+Environment opening: live chain diffed vs local — 0001–0056 match one-to-one, no drift (ARCH-011 check clean). Any new migration follows the file + live-apply + registration-in-one-commit discipline.
+
+*(Previous: the tenth repair session (2026-08-31) closed MIG-TOKENS + T-006 + T-008 + T-093 + T-094 + T-032 + T-035 + T-056. Evidence in change-log.md.)*
+
 ## Current recommendation
 
-**T-011 — Eliminate the silent collect() fallback (BUSINESS-002, P1 Critical)** is the top-priority next pick: the desktop's SupabasePaymentRepository.collect() still silently degrades to the non-atomic upsert path on RPC failure; with SEC-111 now hardened (upsert_payment_from_import rejects cross-tenant callers) the fallback's remaining risk is the non-atomicity itself. The fix + live-verification pattern (JWT-context emulation via request.jwt.claims) is proven in-session (T-006).
-
-**T-020 (Android, SYNC-103)** stays the Android-side pick BUT the environment constraint re-confirmed 2026-08-31: dl.google.com 404s every commandlinetools artifact in this container, so the gradle test gate cannot run here — the task needs an SDK-equipped host (or the owner runs the suite locally after a code drop).
+After this batch: **T-015 (receipt consolidation, desktop side)** — it depends on T-011 which this session completes — and **T-021/T-050 (Android)** once the Android toolchain question is settled. **T-005 follow-up T-053 (desktop global-admin support)** is now unblocked (T-005 VERIFIED via 0053 reconciliation).
 
 
 Session outcome (2026-08-30, ninth session — owner-requested): live backend health re-verification executed (migrations 0049-0052 confirmed applied + registered; MV values byte-identical to the payments cross-check; FCM functions register_fcm_token + deactivate_fcm_tokens verified present with SEC-106 caller logic; chat_read_receipts policy + trigger + function verified present; RLS blocks anon reads on all 6 core tables; auth census down to 1 real user) → 3 new problems registered (ARCH-009, ARCH-010, DRIFT-013), 6 tasks completed (T-088, T-080, T-089, T-091, T-087, T-092 — all TESTED), 2 new tasks opened (T-093, T-094). Desktop suite 47 files / 2029 tests ALL PASS (+18 tests, +2 files vs session 8); website suite 8/105 (unchanged); Android suite 219/219 (unchanged); live Supabase migrations 0049-0052 all applied + registered. All verification scripts persisted under `/home/z/my-project/scripts/`.
