@@ -7,14 +7,14 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-08-31, updated during the thirteenth repair session — T-041/T-030/T-058/T-050/T-036(PUSH-103) done; Android set next)
+## Progress summary (2026-08-31, updated during the thirteenth repair session — batch COMPLETE: T-041, T-030, T-058, T-050, T-036(PUSH-103), T-026, T-054, T-062, T-063, T-064 — 10/10 tasks of the owner-requested batch)
 
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 48 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) + **T-050 (OnlineDetector fail-closed + own-backend probe + pullAll dedup; desktop 13/13 new tests, Android 15/15 new tests)** (13th session) + **T-036 PUSH-103 portion (website FCM auto-registration after first user gesture; 9/9 new tests, suite 144/144)** (13th session) |
+| **Completed (TESTED)** | 53 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) + **T-041 (migration 0059 live 10/10; desktop 2146 tests), T-030 (migration 0060 live 9/9; website 135/135)** (13th session) + **T-058 (append-only migration guard: 9/9 matrix + 6/6 suite tests)** (13th session) + **T-050 (OnlineDetector fail-closed + own-backend probe + pullAll dedup; desktop 13/13 new tests, Android 15/15 new tests)** (13th session) + **T-036 PUSH-103 portion (website FCM auto-registration after first user gesture; 9/9 new tests, suite 144/144)** (13th session) + **T-026 (overdue rule aligned: 10/10 new tests, Android suite 275/275)** (13th session) + **T-054 (hollow implementations real: 7/7 new tests)** (13th session) + **T-062 (dead code removed: 5/5 new tests; debug APK 29.8 MB)** (13th session) + **T-063 (absence-alert threshold ≥3/current-term: 10/10 new tests)** (13th session) + **T-064 (config-dialog security + placeholder detection: 9/9 new tests)** (13th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
-| **In Progress** | 5 | **13th session batch (2026-08-31, owner-requested ~10 tasks) — remaining (Android set):** T-026, T-054, T-062, T-063, T-064 (toolchain re-bootstrapped at /home/z/my-project/tools; gradle memory-tuned — use `./gradlew testDebugUnitTest --offline`). Done from this batch: T-041, T-030, T-058, T-050, T-036 (PUSH-103 portion) |
+| **In Progress** | 0 | The 13th-session batch is COMPLETE (10/10). See "Current recommendation" in next-task.md for the next batch. |
 | **Ready** | 16 | T-017, T-020, T-021, T-024, T-034, T-039, T-043, T-044, T-046, T-051, T-069 (T-041 moved out — completed 13th session; count adjusted in-place) |
 | **Partially blocked** | 1 | T-036 — PUSH-103 portion DONE (13th session); PUSH-100 (EF invocation path) + PUSH-104 (email provider) remain, owner-scoped |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
@@ -90,7 +90,7 @@
 
 ## In Progress
 
-**13th repair session (2026-08-31, in progress)** — remaining batch: **T-058** (append-only migration discipline guard — NEXT), **T-050** (OnlineDetector fail-closed + Supabase probe target, both platforms), **T-036** (unblocked PUSH-103 portion: website FCM auto-registration after first user gesture), and the Android set **T-026, T-054, T-062, T-063, T-064** (toolchain re-bootstrapped at /home/z/my-project/tools; gradle memory-tuned for the 2-CPU container). Session opening completed the owner's standing asks: portal `.env.local` (Missing-configuration banner gone — live headless render verified) and the mandatory live-chain check (57/57 rows = 0001–0060 after this session's two migrations). NEW problem registered: **AUTH-200** — Google OAuth provider NOT enabled on the live project (portal's only auth path dead until the owner configures it — runbook in docs/operations/portal-google-oauth.md).
+**Nothing in progress.** The thirteenth session's owner-requested ~10-task batch is COMPLETE (10/10: T-041, T-030, T-058, T-050, T-036 PUSH-103 portion, T-026, T-054, T-062, T-063, T-064 — Android suite now 275/275, debug APK assembles at 29.8 MB). Standing notes: the Android toolchain lives at /home/z/my-project/tools (gradle memory-tuned — use `./gradlew testDebugUnitTest --offline`); AUTH-200 (Google OAuth provider not enabled) is owner-actioned from docs/operations/portal-google-oauth.md.
 
 ## Completed (thirteenth repair session — 2026-08-31, owner-requested ~10-task batch)
 
@@ -129,6 +129,51 @@
 - **Verification:** desktop suite 65 files / 2165 tests ALL PASS (+13); typecheck clean; lint 0 errors. Android `testDebugUnitTest` 234/234 ALL PASS (+15; was 219). Gap: live airplane-mode/captive-portal behaviour needs real hardware (recorded, not claimed); live device FCM/sync round-trip still blocked on owner config. NEW FINDING registered: ARCH-012 — `testReleaseUnitTest` fails on GreetingScreenshotTest (pre-existing, PROVEN by pristine-tree re-run; debug variant is the green gate).
 - **Commits:** 3bc5cdd — android repo; (this commit) — hub repo (desktop half + docs).
 - **Left:** T-064 keeps the remaining placeholder-detection scope (NetworkTimeouts.isSupabaseConfigured still hyphen-only); ARCH-012 release-variant test triage open.
+
+### T-026 — Align the overdue rule on Android
+- **Problems:** DRIFT-006, WEAK-007, BUSINESS-007 · **Priority:** P1 · **Severity:** Critical (WEAK-007 user-facing)
+- **Status:** TESTED (2026-08-31, 13th session)
+- **What was done:** `LedgerEngine.maxDaysOverdueFromLedger` re-derived per the canonical INV-4 rule: days-overdue is measured from the account's DUE DATE (latest charge `at` per account via `buildOverdueDueDateMap`), only for accounts with balance > 0 whose due date is past — NOT from the oldest charge's creation date (the old code read a charge created today for next year's tuition as "~365 days overdue"). EVERY production `computeParentSummary` call site in `LocalRepositories2.kt` now builds and passes the due-date map (including balance-only reads — the debt-dashboard `totalOutstanding` KPI loop and `sendReminder` — so no future edit can silently reintroduce the empty-map default that kept "Créances en Retard" permanently 0 DZD). A source-scan pin test enforces this permanently.
+- **Tests:** NEW `app/src/test/java/com/example/core/OverdueRuleT026Test.kt` 10/10 (due-date map builder, INV-4 overdue classification, creation-vs-due-date distinction, days-overdue flooring, settled-account exclusion, max-across-accounts, INV-4 consistency totalOverdue ≡ maxDaysOverdueFromLedger, call-site map pins).
+- **Verification:** Android `testDebugUnitTest` 275/275 (0 failures / 0 errors / 0 skipped across 29 files; +41 tests this batch, 10 of them this task); full compile of main + test sources; `assembleDebug` green (APK 29.8 MB). Cross-platform equivalence is pinned by the shared INV-4 semantics + desktop-side equivalence cases already in the desktop suite.
+- **Commits:** 3462a38 — android repo.
+- **Left:** nothing for T-026; the 0.001 DZD threshold alignment note (BUSINESS-007) is closed by the same canonical-rule adoption.
+
+### T-054 — Android hollow implementations
+- **Problems:** WEAK-006, WEAK-008 · **Priority:** P2 · **Severity:** Critical (WEAK-006 user-facing lie)
+- **Status:** TESTED (2026-08-31, 13th session)
+- **What was done:** WEAK-006: `LocalInstallmentRepository.regenerateForCycle` now REALLY re-derives due dates (mirrors the desktop `SupabaseInstallmentRepository.regenerateForCycle`): non-paid tranches get the official schedule (Sept 15 / Dec 15 / Mar 15 via `officialTuitionDueDates(year)`, tranche number from the label's first digit), custom-schedule flags reset, `academic_cycle` stamped, each patched row enqueued to the sync queue (idempotent `upsert_installment_from_import` path), paid tranches preserved, audit row records the REAL rederived count — the old implementation wrote an audit row and returned the installments UNCHANGED. WEAK-008: `WorkflowRunEntity` gains the `trigger` column (`MIGRATION_11_12`, v11→v12, `DEFAULT 'manual'` preserving historical rows' meaning), `WorkflowRunDto.toEntity()` keeps the server's real trigger, `toDomain()` maps it via `WorkflowTrigger.fromCode(trigger)` — the hardcoded "manual" is gone (every pulled run used to display "Manuel" regardless of how it started).
+- **Tests:** NEW `app/src/test/java/com/example/infrastructure/local/HollowImplementationsT054Test.kt` 7/7 (trigger survives DTO→entity mapping; null trigger defaults to manual; entity constructor default matches migration default; wire-code enum resolution incl. unknown fallback; source-scan pins for the toDomain mapping, the migration, and the regenerate contract: official schedule, paid-skip, flag reset, cycle stamp, sync enqueue, hollow-pattern-gone).
+- **Verification:** Android `testDebugUnitTest` 275/275; `MIGRATION_11_12` registered in `DatabaseModule`'s migration list; full compile; debug APK assembles.
+- **Commits:** 3462a38 — android repo.
+- **Left:** on-device Room migration smoke test (12→12) needs real hardware (recorded, not claimed).
+
+### T-062 — Android dead-code removal
+- **Problems:** DEAD-007, DEAD-008, DEAD-009, DRIFT-007 · **Priority:** P3 · **Severity:** Low
+- **Status:** TESTED (2026-08-31, 13th session)
+- **What was done:** DEAD-008: `infrastructure/stub/StubRepositories.kt` (2-line comment-only stub) DELETED. DEAD-009: the 833-line design-system gallery showcase DELETED (ElGalleryActivity + ElGalleryScreen + GallerySection + 5 tab files — unreachable from production, never registered in the manifest; deletion chosen over dev-only registration per the reachability rule). DEAD-007: `AuditActions.kt` trimmed from 80+ constants to the 12 the app ACTUALLY writes (76 never-referenced constants removed after a per-constant reachability scan; the file now documents the rule: declare new constants here at write time, full registry lives in the desktop). DRIFT-007: the `SupabaseModule` KDoc corrected — remote sync is ALREADY wired via `SyncSupport.enqueueOnly` + `SyncQueueDispatcher`'s canonical RPCs (the old comment promised a `@Binds` swap that was never needed). Bonus: unused private `SyncService.isSupabaseConfigured()` (hyphen-only duplicate of the NetworkTimeouts gate) removed.
+- **Tests:** NEW `app/src/test/java/com/example/core/DeadCodeT062Test.kt` 5/5 (StubRepositories absent, gallery directory absent, AuditActions contains only referenced constants + no removed family, SupabaseModule KDoc describes the real wiring).
+- **Verification:** Android `testDebugUnitTest` 275/275; grep over main+test sources shows zero references to any deleted symbol (the only mentions are the T-062 test's own absence pins); manifest has no gallery entry; `assembleDebug` green — APK size note: **29.8 MB debug APK** after removing ~973 lines (no baseline APK exists from before; the debug build is unshrunk so the line-count reduction dominates).
+- **Commits:** 3462a38 — android repo.
+- **Left:** nothing — all four problem entries closed.
+
+### T-063 — Android absence-alert threshold
+- **Problems:** ATT-103 · **Priority:** P3 · **Severity:** Low
+- **Status:** TESTED (2026-08-31, 13th session)
+- **What was done:** NEW `core/Terms.kt` — Kotlin mirror of the desktop's `src/domain/calc/academics/terms.ts` (T1 Sep 1–Dec 15 / T2 Dec 16–Mar 15 / T3 Mar 16–Jun 30, Jan–Aug reads as the previous school year's T3 tail; label format byte-identical to the desktop so notification text matches cross-platform). `alertAbsences` adopts the desktop rule: only students with ≥3 absences (absent_unexcused + absent_excused, LATE excluded) within the CURRENT TERM are flagged (previously Android alerted for EVERY student in the input — effective threshold 1, alert fatigue + cross-platform divergence); the notification body now carries the count + term label mirroring the desktop message.
+- **Tests:** NEW `app/src/test/java/com/example/core/TermsT063Test.kt` 10/10 (term-window boundaries for every month, year-boundary spans, Jan–Aug previous-year rule, label format, threshold boundary at 2 vs 3, late-exclusion, out-of-term exclusion, input-order preservation).
+- **Verification:** Android `testDebugUnitTest` 275/275; wired in production via `LocalRepositories2.kt` `alertAbsences` (currentTermWindow + absenceAlertThreshold call the pure functions, scan-verified).
+- **Commits:** 3462a38 — android repo.
+- **Left:** nothing.
+
+### T-064 — Android config dialog security
+- **Problems:** SEC-004, SEC-005 · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-08-31, 13th session)
+- **What was done:** SEC-004: the SupabaseConfigDialog anon-key field is masked by default (`PasswordVisualTransformation` + show/hide `IconButton`) — the JWT was previously rendered in plain text; the helper text no longer leaks the internal toolchain ("Google AI Studio" → .env guidance only). SEC-005: `SupabaseClientProvider` no longer falls back to the PUBLIC `https://demo.supabase.co` + `demo-key` in ANY path (URL normalization AND the exception handler) — the inert fallback is `https://supabase.unconfigured.invalid` (RFC-2606 reserved TLD, can never resolve) + `inert-unconfigured-key`, so unconfigured builds make ZERO network calls to any real host. RESIDUAL SCOPE CLOSED (noted as left by T-050): `NetworkTimeouts.isSupabaseConfigured`'s placeholder detection was hyphen-only — now extracted into a pure, unit-testable `looksLikePlaceholderConfig(url, key)` catching the `.env.example` values (`YOUR_PROJECT` underscore, `your-anon-key-here` suffix), hyphen/underscore variants, demo/inert literals, quoted env values, and blank/non-https pairs. The unconfigured check therefore fails closed on every known template shape.
+- **Tests:** NEW `app/src/test/java/com/example/infrastructure/supabase/SupabaseConfigSecurityT064Test.kt` 9/9 (inert host RFC-2606 + no real supabase.co reference, inert key is not a real credential, demo endpoint gone from provider incl. exception path, dialog masks key + has toggle, no toolchain leak, .env guidance present, env-example placeholder pair detected, real credentials pass, blank/non-https/demo/inert pairs unconfigured, quoted values unwrapped).
+- **Verification:** Android `testDebugUnitTest` 275/275; compile clean; the T-050 OnlineDetector placeholder handling and this detection now agree on the YOUR_PROJECT variant.
+- **Commits:** 3462a38 — android repo.
+- **Left:** nothing for the dialog/provider; NetworkTimeouts detection is now complete (the T-050 "left" note is superseded by this entry).
 
 ## Completed (eleventh repair session — 2026-08-31, owner-requested ~10-task batch)
 
@@ -537,7 +582,7 @@
 - **Verification:** migration-level tests on a fresh schema.
 - **ADRs:** —
 
-#### T-026 — Align the overdue rule on Android
+#### T-026 — ~~Align the overdue rule on Android~~ *(moved to Completed — 13th session)*
 - **Problems:** DRIFT-006, WEAK-007, BUSINESS-007 · **Priority:** P1 · **Severity:** Critical (WEAK-007 user-facing)
 - **Description:** Android `computeParentSummary` uses the 0.001 DZD threshold + the due-date map (built via `buildOverdueDueDateMap` at every call site); `maxDaysOverdueFromLedger` measures from due dates, not creation dates.
 - **Dependencies:** none · **Affected:** A · **Platforms:** Android
@@ -749,7 +794,7 @@
 - **Verification:** unit test.
 - **ADRs:** —
 
-#### T-054 — Android hollow implementations
+#### T-054 — ~~Android hollow implementations~~ *(moved to Completed — 13th session)*
 - **Problems:** WEAK-006, WEAK-008 · **Priority:** P2 · **Severity:** Critical (WEAK-006 user-facing lie)
 - **Description:** `regenerateForCycle` actually re-derives due dates (mirror the desktop implementation); `WorkflowRunEntity` gains a trigger column + mapping (no hardcoded "manual").
 - **Dependencies:** none · **Affected:** A · **Platforms:** Android
@@ -813,7 +858,7 @@
 - **Verification:** trigger test.
 - **ADRs:** —
 
-#### T-062 — Android dead-code removal
+#### T-062 — ~~Android dead-code removal~~ *(moved to Completed — 13th session)*
 - **Problems:** DEAD-007, DEAD-008, DEAD-009, DRIFT-007 · **Priority:** P3 · **Severity:** Low
 - **Description:** Remove `StubRepositories.kt`; either register `ElGalleryActivity` in the manifest (dev-only) or delete the gallery; correct the misleading `SupabaseModule` KDoc; trim unused `AuditActions` constants (keep wire-protocol comment pointing to the desktop registry).
 - **Dependencies:** reachability check per recovery rules · **Affected:** A · **Platforms:** Android
@@ -821,7 +866,7 @@
 - **Verification:** grep clean.
 - **ADRs:** —
 
-#### T-063 — Android absence-alert threshold
+#### T-063 — ~~Android absence-alert threshold~~ *(moved to Completed — 13th session)*
 - **Problems:** ATT-103 · **Priority:** P3 · **Severity:** Low
 - **Description:** `alertAbsences` adopts the desktop rule (≥3 absences, current term).
 - **Dependencies:** none · **Affected:** A · **Platforms:** Android
@@ -829,7 +874,7 @@
 - **Verification:** unit test.
 - **ADRs:** —
 
-#### T-064 — Android config dialog security
+#### T-064 — ~~Android config dialog security~~ *(moved to Completed — 13th session)*
 - **Problems:** SEC-004, SEC-005 · **Priority:** P2 · **Severity:** Medium
 - **Description:** Anon key masked (`PasswordVisualTransformation`); remove the "Google AI Studio" toolchain mention; unconfigured Supabase fails closed instead of hitting `demo.supabase.co`.
 - **Dependencies:** none · **Affected:** A · **Platforms:** Android

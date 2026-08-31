@@ -21,16 +21,16 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 27 | | OPEN | 100 |
-| High | 52 | | BLOCKED | 13 |
-| Medium | 67 | | DEFERRED | 5 |
-| Low | 20 | | VERIFIED | 2 |
-| | | | TESTED | 40 |
+| Critical | 27 | | OPEN | 62 |
+| High | 53 | | BLOCKED | 13 |
+| Medium | 68 | | DEFERRED | 5 |
+| Low | 20 | | VERIFIED | 3 |
+| | | | TESTED | 79 |
 | | | | IMPLEMENTED | 1 |
 | | | | PARTIAL | 2 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 167 registered problems (145 consolidated from 185 audit findings + 22 discovered during repair sessions) · 85 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 3 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068) · 56 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–11.
+**Totals:** 168 registered problems (145 consolidated from 185 audit findings + 23 discovered during repair sessions) · 62 OPEN · 13 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 3 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068) · 79 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13. Counts synced to the detailed entries (authoritative) this session.
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -41,8 +41,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-001 | High | TESTED | T-055 | Edge Functions swallow audit-log write failures silently |
 | SEC-002 | High | TESTED | T-055 | `defaultLLMAdapter` falls back from edge function → BYOK → mock, silently leaking user prompts to Groq/OpenRouter if Edge Function is down |
 | SEC-003 | Low | DEFERRED | T-076 | Committed `google-services.json` contains a real Firebase API key + project number |
-| SEC-004 | Medium | OPEN | T-064 | `SupabaseConfigDialog` displays the Supabase anon key in plain text + references "Google AI Studio" secrets panel in user-facing text |
-| SEC-005 | Medium | OPEN | T-064 | `SupabaseClientProvider.build()` falls back to `https://demo.supabase.co` with key `"demo-key"` when unconfigured — real network requests go out to that public endpoint |
+| SEC-004 | Medium | TESTED | T-064 | `SupabaseConfigDialog` displays the Supabase anon key in plain text + references "Google AI Studio" secrets panel in user-facing text — FIXED 2026-08-31 (T-064): key masked + no toolchain leak |
+| SEC-005 | Medium | TESTED | T-064 | `SupabaseClientProvider.build()` falls back to `https://demo.supabase.co` with key `"demo-key"` when unconfigured — real network requests go out to that public endpoint — FIXED 2026-08-31 (T-064): inert .invalid fallback, zero real-host calls; placeholder detection complete |
 | SEC-006 | Medium | TESTED | T-050 | `OnlineDetector` probed `https://supabase.com/auth/v1/health` every 30 seconds when unconfigured — FIXED 2026-08-31 (T-050, 13th session): no third-party fallback exists anymore; unconfigured = NO probe at all (connectivity-only); probes throttled (10s min interval + in-flight guard); Android suite 234/234 |
 | SEC-007 | Critical | TESTED | T-009 | Mock-auth hydration runs unconditionally on every mount; bypasses the `NEXT_PUBLIC_MOCK_AUTH_ENABLED` feature flag |
 | SEC-008 | Critical | OPEN | T-031 | `enforce_parent_self_update_columns` trigger has no `has_role('parent')` check — blocks ALL staff updates to parent identity fields |
@@ -67,7 +67,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | BUSINESS-003 | High | TESTED | T-014 | `SupabasePaymentRepository.refund()` hardcodes `"Manual refund"` as the reason, drops user's reason + actor identity |
 | BUSINESS-004 | High | TESTED | T-041 | `SupabaseStudentRepository.promote()` returns "not implemented" error in production — FIXED 2026-08-31 (T-041, 13th session): promote() implemented on the canonical `execute_batch_promotion` RPC path (migration 0059, live 10/10); desktop suite 2146 green |
 | BUSINESS-005 | Medium | TESTED | T-060 | `UnifiedPaymentModal` defaults `category` to "tuition" for the waterfall preview when input is null |
-| BUSINESS-007 | Medium | OPEN | T-026 | `LedgerEngine.maxDaysOverdueFromLedger` uses charge's `at` (creation date) instead of due date — inconsistent with canonical overdue rule |
+| BUSINESS-007 | Medium | TESTED | T-026 | `LedgerEngine.maxDaysOverdueFromLedger` uses charge's `at` (creation date) instead of due date — inconsistent with canonical overdue rule — FIXED 2026-08-31 (T-026): due-date based |
 | BUSINESS-100 | Critical | TESTED | T-012 | `bulkCollect` silently drops failed chunks; Excel importer thinks everything succeeded |
 | BUSINESS-101 | High | TESTED | T-013 | `markClearedFallback` produces NO audit log entries and discards actor identity |
 | BUSINESS-102 | High | OPEN | T-017 | Android refund has no idempotency check; re-refunding an already-refunded payment creates duplicate reversal entries and double-reverts installments |
@@ -108,7 +108,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ACAD-103 | Medium | DEFERRED | T-074 | Mid-term section moves have no audit trail; `students.class_id` is updated in place, no `class_transfers` or `enrollment_history` table |
 | ATT-100 | Critical | TESTED | T-023 | Desktop roll call upsert is triple-broken (missing tenant_id, missing date, wrong onConflict) |
 | ATT-101 | High | TESTED | T-040 | Absence-justification 4-state workflow is structurally broken: no desktop code to review justifications (extends DRIFT-010) |
-| ATT-103 | Low | OPEN | T-063 | Android `alertAbsences` has no threshold; alerts for every student in the input (divergence from desktop's 3-absence threshold) |
+| ATT-103 | Low | TESTED | T-063 | Android `alertAbsences` has no threshold; alerts for every student in the input (divergence from desktop's 3-absence threshold) — FIXED 2026-08-31 (T-063): ≥3 absences, current term |
 | GRADE-100 | Low | DEFERRED | T-075 | `homework.acknowledged_count` column is permanently 0; no code increments it |
 | HOMEWORK-100 | Critical | TESTED | T-023 | Desktop homework push omits `tenant_id`; INSERT always fails NOT NULL (extends WEAK-017) |
 | HOMEWORK-101 | Critical | OPEN | T-024 | Android homework sync push uses invalid UUID `"hwk-{uuid}"` as `homework.id` |
@@ -154,8 +154,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DRIFT-001 | High | PARTIAL | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
-| DRIFT-006 | Medium | OPEN | T-026 | Multiple iterations of "canonical overdue" rule across desktop engine, SQL function, and equivalence framework |
-| DRIFT-007 | Low | OPEN | T-062 | `SupabaseModule.kt` comment is outdated — claims "future remote sync can push local Room writes to Supabase by swapping @Binds" but SyncSupport already does the push |
+| DRIFT-006 | Medium | TESTED | T-026 | Multiple iterations of "canonical overdue" rule across desktop engine, SQL function, and equivalence framework — RESOLVED 2026-08-31 (T-026): canonical INV-4 rule on Android |
+| DRIFT-007 | Low | TESTED | T-062 | `SupabaseModule.kt` comment is outdated — claims "future remote sync can push local Room writes to Supabase by swapping @Binds" but SyncSupport already does the push — FIXED 2026-08-31 (T-062): KDoc describes real wiring |
 | DRIFT-009 | Medium | TESTED | T-057 | Canonical engine port ships ~20 calc files but only ~6 functions are used; `canonical/index.ts` barrel is never imported |
 | DRIFT-010 | Low | TESTED | T-065 | `attendance-view.tsx` comment says "The portal CANNOT submit justifications — that's a desktop workflow" but the code imports, renders, and wires the AbsenceJustificationDialog |
 | DRIFT-011 | High | PARTIAL | T-015 | Receipt-number generation logic is duplicated across 5 code paths with 5 different algorithms |
@@ -169,9 +169,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | WEAK-003 | Medium | OPEN | T-056 | `mapLedgerRow` falls back from `entry_type` to `actor_id` for the entry type |
 | WEAK-004 | Low | OPEN | T-056 | `ledger-seed.ts` computes `dueDate` then discards it (`void dueDate;`) |
 | WEAK-005 | Medium | TESTED | T-060 | Mock `student-repository.batchRegister` uses the deterministic discount engine but ignores `previousGradeLevel` and `previousRank` |
-| WEAK-006 | Critical | OPEN | T-054 | `LocalInstallmentRepository.regenerateForCycle()` is hollow — only writes audit log, doesn't actually regenerate installments |
-| WEAK-007 | Critical | OPEN | T-026 | Dashboard "Créances en Retard" KPI + Debt Dashboard overdue amount are PERMANENTLY 0 (missing `overdueCategoryDueDates` map) |
-| WEAK-008 | Medium | OPEN | T-054 | `LocalWorkflowRepository.toDomain()` hardcodes `trigger = WorkflowTrigger.fromCode("manual")` for every run |
+| WEAK-006 | Critical | TESTED | T-054 | `LocalInstallmentRepository.regenerateForCycle()` is hollow — only writes audit log, doesn't actually regenerate installments — FIXED 2026-08-31 (T-054): real re-derivation |
+| WEAK-007 | Critical | TESTED | T-026 | Dashboard "Créances en Retard" KPI + Debt Dashboard overdue amount are PERMANENTLY 0 (missing `overdueCategoryDueDates` map) — FIXED 2026-08-31 (T-026): map passed at every call site |
+| WEAK-008 | Medium | TESTED | T-054 | `LocalWorkflowRepository.toDomain()` hardcodes `trigger = WorkflowTrigger.fromCode("manual")` for every run — FIXED 2026-08-31 (T-054): real trigger column |
 | WEAK-009 | High | TESTED | T-050 | `OnlineDetector` always reported "online" — FIXED 2026-08-31 (T-050, 13th session): fail-closed initial state; isOnline() = combined connectivity AND probe; probe catch returns false; verdict 200/401 only; redirects not followed (captive portal rejected) |
 | WEAK-010 | Medium | TESTED | T-050 | `pullAll()` fired from 6 call sites, SyncWorker TWICE per tick — FIXED 2026-08-31 (T-050, 13th session): in-flight + 10s dedup window gate in pullAll; SyncWorker/syncNow duplicate pulls removed (drainPending's trailing pull is the single per-tick pull) |
 | WEAK-011 | Medium | OPEN | T-051 | `audit()` helper hardcodes demo tenant ID + never captures actor role |
@@ -188,9 +188,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | WEAK-101 | Medium | TESTED | T-002 | Android LocalAuthRepository stores user UUID as accessToken (fake JWT that doesn't validate server-side) — real JWT stored 2026-08-29 (T-002) |
 | WEAK-200 | Medium | OPEN | T-061 | `enforce_payment_proof` trigger runs on EVERY payment INSERT/UPDATE; Android refund sync triggers re-validation of unchanged proof fields |
 | DEAD-002 | Medium | OPEN | T-056 | `update-server-secret` Edge Function exports a `handleDelete` that is never wired |
-| DEAD-007 | Low | OPEN | T-062 | `AuditActions.kt` contains many audit action constants that the Android app never invokes |
-| DEAD-008 | Low | OPEN | T-062 | `StubRepositories.kt` is a 2-line stub file with only a comment |
-| DEAD-009 | Low | OPEN | T-062 | `ElGalleryActivity` (833 lines across gallery files) is NOT declared in `AndroidManifest.xml` — unreachable in production |
+| DEAD-007 | Low | TESTED | T-062 | `AuditActions.kt` contains many audit action constants that the Android app never invokes — FIXED 2026-08-31 (T-062): 76 constants removed |
+| DEAD-008 | Low | TESTED | T-062 | `StubRepositories.kt` is a 2-line stub file with only a comment — FIXED 2026-08-31 (T-062): file deleted |
+| DEAD-009 | Low | TESTED | T-062 | `ElGalleryActivity` (833 lines across gallery files) is NOT declared in `AndroidManifest.xml` — unreachable in production — FIXED 2026-08-31 (T-062): gallery deleted, APK 29.8 MB |
 | DEAD-012 | High | PARTIAL | T-049 | `vitest.config.ts` references `./src/test/setup.ts` which DOES NOT EXIST; DONE.md and worklog.md both claim it was created |
 | DEAD-013 | Low | OPEN | T-049 | `package.json` `icons:generate` script hardcodes path `/home/z/my-project/scripts/generate-pwa-icons.py` (OUTSIDE the repo) — broken on any other machine/CI |
 | DEAD-014 | Low | OPEN | T-056 | `database-schema.ts` barrel is imported by only ONE file (`supabase/client.ts`); all other 14 files import directly from `@/lib/types/database` |
@@ -266,7 +266,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-004 — `SupabaseConfigDialog` displays the Supabase anon key in plain text + references "Google AI Studio" secrets panel in user-facing text
 
-- **Category:** SEC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-064, 13th session): the anon-key field is masked by default (PasswordVisualTransformation + show/hide IconButton); the helper text no longer mentions "Google AI Studio" (.env guidance only). Pinned by SupabaseConfigSecurityT064Test source-scan pins.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-064 (docs/recovery/task-registry.md)
@@ -286,7 +287,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-005 — `SupabaseClientProvider.build()` falls back to `https://demo.supabase.co` with key `"demo-key"` when unconfigured — real network requests go out to that public endpoint
 
-- **Category:** SEC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-064, 13th session): NO code path builds a client against demo.supabase.co anymore (URL normalization AND the exception handler) — the inert fallback is https://supabase.unconfigured.invalid (RFC-2606 reserved TLD, can never resolve) + inert-unconfigured-key, so unconfigured builds make ZERO network calls to any real host. Residual scope from T-050 also closed: NetworkTimeouts.isSupabaseConfigured's placeholder detection extracted into the pure, unit-tested looksLikePlaceholderConfig() (hyphen AND underscore variants, "-here" suffixes, quoted values, demo/inert literals). 9/9 tests.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-064 (docs/recovery/task-registry.md)
@@ -791,7 +793,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-007 — `LedgerEngine.maxDaysOverdueFromLedger` uses charge's `at` (creation date) instead of due date — inconsistent with canonical overdue rule
 
-- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-026, 13th session): maxDaysOverdueFromLedger measures from the account's DUE DATE (buildOverdueDueDateMap; balance > 0 AND due date past), not the oldest charge creation date. 10/10 new tests (OverdueRuleT026Test).
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-026 (docs/recovery/task-registry.md)
@@ -1616,7 +1619,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ATT-103 — Android `alertAbsences` has no threshold; alerts for every student in the input (divergence from desktop's 3-absence threshold)
 
-- **Category:** ATT  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** ATT  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-063, 13th session): alertAbsences flags only students with >=3 absences (absent_excused + absent_unexcused, LATE excluded) within the CURRENT TERM — new core/Terms.kt mirrors the desktop terms.ts (label byte-identical cross-platform). 10/10 new tests (TermsT063Test).
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-063 (docs/recovery/task-registry.md)
@@ -2230,7 +2234,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DRIFT-006 — Multiple iterations of "canonical overdue" rule across desktop engine, SQL function, and equivalence framework
 
-- **Category:** DRIFT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** DRIFT  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** RESOLVED 2026-08-31 (T-026, 13th session): Android now runs the SAME canonical INV-4 overdue rule as the desktop (due-date map + per-account balance replay); the remaining SQL-function iteration is the documented server-side equivalent, not a divergence. Pinned by the OverdueRuleT026Test INV-4-consistency case.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-026 (docs/recovery/task-registry.md)
@@ -2249,7 +2254,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DRIFT-007 — `SupabaseModule.kt` comment is outdated — claims "future remote sync can push local Room writes to Supabase by swapping @Binds" but SyncSupport already does the push
 
-- **Category:** DRIFT  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DRIFT  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-062, 13th session): the SupabaseModule KDoc now describes the REAL wiring (SyncSupport.enqueueOnly + SyncQueueDispatcher's canonical RPCs; PullSyncRepository pulls back); the "swap @Binds" promise removed. Pinned by DeadCodeT062Test.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-062 (docs/recovery/task-registry.md)
@@ -2533,7 +2539,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-006 — `LocalInstallmentRepository.regenerateForCycle()` is hollow — only writes audit log, doesn't actually regenerate installments
 
-- **Category:** WEAK  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Critical  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-054, 13th session): regenerateForCycle REALLY re-derives due dates from officialTuitionDueDates(year) for non-paid tranches (Sept 15 / Dec 15 / Mar 15), resets custom-schedule flags, stamps academic_cycle, and enqueues the sync pushes; the audit row records the REAL rederived count. 7/7 tests (HollowImplementationsT054Test, incl. source-scan pins).
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android, Desktop
 - **Task:** T-054 (docs/recovery/task-registry.md)
@@ -2552,7 +2559,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-007 — Dashboard "Créances en Retard" KPI + Debt Dashboard overdue amount are PERMANENTLY 0 (missing `overdueCategoryDueDates` map)
 
-- **Category:** WEAK  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Critical  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-026, 13th session): EVERY production computeParentSummary call site now builds and passes the due-date map (including balance-only reads — the debt-dashboard totalOutstanding loop and sendReminder), so "Créances en Retard" computes the real overdue total. A source-scan pin test prevents the empty-map default from ever returning. 10/10 new tests.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android, Desktop
 - **Task:** T-026 (docs/recovery/task-registry.md)
@@ -2571,7 +2579,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-008 — `LocalWorkflowRepository.toDomain()` hardcodes `trigger = WorkflowTrigger.fromCode("manual")` for every run
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-054, 13th session): WorkflowRunEntity gains the trigger column (MIGRATION_11_12, v11->v12, DEFAULT 'manual' preserving historical rows), the DTO mapping keeps the server's real value, and toDomain() maps it — the hardcoded "manual" is gone. 7/7 tests.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-054 (docs/recovery/task-registry.md)
@@ -2908,7 +2917,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-007 — `AuditActions.kt` contains many audit action constants that the Android app never invokes
 
-- **Category:** DEAD  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-062, 13th session): 76 never-referenced constants removed after a per-constant reachability scan; AuditActions now declares only the 12 actions the app actually writes, with the declare-at-write-time rule documented and the desktop registry referenced. Pinned by DeadCodeT062Test.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-062 (docs/recovery/task-registry.md)
@@ -2927,7 +2937,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-008 — `StubRepositories.kt` is a 2-line stub file with only a comment
 
-- **Category:** DEAD  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-062, 13th session): StubRepositories.kt deleted — its absence is pinned by DeadCodeT062Test.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-062 (docs/recovery/task-registry.md)
@@ -2946,7 +2957,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-009 — `ElGalleryActivity` (833 lines across gallery files) is NOT declared in `AndroidManifest.xml` — unreachable in production
 
-- **Category:** DEAD  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DEAD  |  **Severity:** Low  |  **Status:** TESTED
+- **Status note:** FIXED 2026-08-31 (T-062, 13th session): the 833-line gallery showcase deleted (deletion chosen over dev-only manifest registration per the reachability rule); zero dangling references; manifest clean; debug APK assembles at 29.8 MB.
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-062 (docs/recovery/task-registry.md)
