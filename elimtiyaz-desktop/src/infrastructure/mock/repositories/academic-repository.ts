@@ -599,6 +599,56 @@ export class MockAttendanceRepository implements AttendanceRepository {
     });
     return Ok(undefined);
   }
+
+  /**
+   * T-040 (ATT-101): the staff review queue — records whose justification is
+   * in the given state (default 'submitted'), newest first. Mirrors the
+   * Supabase implementation against the in-memory store (demo mode).
+   */
+  observeJustifications(
+    status: "submitted" | "accepted" | "rejected" = "submitted",
+  ): Observable<AttendanceRecord[]> {
+    return derived(
+      [store.attendance$],
+      () =>
+        store.attendance
+          .filter((r) => (r.justificationStatus ?? "none") === status)
+          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+          .slice(0, 200),
+    );
+  }
+
+  /**
+   * T-040 (ATT-101): staff decision — flips justificationStatus and records
+   * the reviewer + timestamp. Records with no justification ('none') cannot
+   * be reviewed; a previous decision may be overturned (correction path).
+   */
+  async reviewJustification(input: {
+    recordId: string;
+    decision: "accepted" | "rejected";
+    reviewedBy: string;
+  }): Promise<Result<AttendanceRecord>> {
+    await delay(120);
+    const record = store.attendance.find((r) => r.id === input.recordId);
+    if (!record || (record.justificationStatus ?? "none") === "none") {
+      return Err(
+        Errors.notFound(
+          "AttendanceRecord (justification 'none' ou introuvable)",
+          input.recordId,
+        ),
+      );
+    }
+    const reviewed: AttendanceRecord = {
+      ...record,
+      justificationStatus: input.decision,
+      justificationReviewedBy: input.reviewedBy,
+      justificationReviewedAt: new Date().toISOString(),
+    };
+    store.attendance = store.attendance.map((r) =>
+      r.id === input.recordId ? reviewed : r,
+    );
+    return Ok(reviewed);
+  }
 }
 
 // ============================================================================

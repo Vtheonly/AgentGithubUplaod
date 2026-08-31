@@ -837,6 +837,71 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
     return sub;
   }
 
+  /**
+   * T-040 (ATT-101): the staff review queue — attendance records with a
+   * justification in the given state, newest first. Tenant-scoped (RLS
+   * enforces read access; the explicit tenant filter keeps the payload
+   * minimal).
+   */
+  observeJustifications(
+    status: "submitted" | "accepted" | "rejected" = "submitted",
+  ): Observable<AttendanceRecord[]> {
+    const sub = new SubjectBehavior<AttendanceRecord[]>([]);
+    const fetchJustifications = async () => {
+      const { data } = await this.client
+        .from("attendance_records")
+        .select("*")
+        .eq("tenant_id", getTenantId() ?? "")
+        .eq("justification_status", status)
+        .order("record_date", { ascending: false })
+        .limit(200);
+      if (data) sub.set(data.map(mapAttendanceRow));
+    };
+    fetchJustifications();
+    return sub;
+  }
+
+  /**
+   * T-040 (ATT-101): staff decision on a justification — UPDATEs
+   * justification_status + reviewer + timestamp atomically, guarded by
+   * `justification_status <> 'none'` (a record with NO justification cannot
+   * be reviewed). A previous decision may be overturned (correction path).
+   */
+  async reviewJustification(input: {
+    recordId: string;
+    decision: "accepted" | "rejected";
+    reviewedBy: string;
+  }): Promise<Result<AttendanceRecord>> {
+    if (!isUuid(input.recordId)) {
+      return Err(Errors.validation("Identifiant de pointage invalide."));
+    }
+    try {
+      const { data, error } = await this.client
+        .from("attendance_records")
+        .update({
+          justification_status: input.decision,
+          justification_reviewed_by: input.reviewedBy,
+          justification_reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", input.recordId)
+        .neq("justification_status", "none")
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        return Err(
+          Errors.notFound(
+            "AttendanceRecord (justification 'none' ou introuvable)",
+            input.recordId,
+          ),
+        );
+      }
+      return Ok(mapAttendanceRow(data));
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
   async recordRollCall(input: {
     classId: string;
     date: string;
@@ -1437,6 +1502,13 @@ function mapAttendanceRow(row: Record<string, any>): AttendanceRecord {
     recordedBy: row.recorded_by,
     recordedAt: row.recorded_at,
     syncedAt: row.synced_at,
+    // T-040 (ATT-101): the justification workflow columns (migration 0043).
+    justificationStatus: row.justification_status ?? "none",
+    justificationNote: row.justification_note ?? null,
+    justificationPath: row.justification_path ?? null,
+    justificationDriveLink: row.justification_drive_link ?? null,
+    justificationReviewedBy: row.justification_reviewed_by ?? null,
+    justificationReviewedAt: row.justification_reviewed_at ?? null,
   };
 }
 

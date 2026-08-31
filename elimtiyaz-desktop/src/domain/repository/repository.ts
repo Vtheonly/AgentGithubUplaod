@@ -217,6 +217,21 @@ export interface AttendanceRepository {
    * alerting.
    */
   alertAbsences(studentIds: string[]): Promise<Result<void>>;
+  /**
+   * T-040 (ATT-101): observe records whose justification is in the given
+   * workflow state (default 'submitted' — the staff review queue).
+   */
+  observeJustifications(status?: "submitted" | "accepted" | "rejected"): Observable<AttendanceRecord[]>;
+  /**
+   * T-040 (ATT-101): staff decision on a submitted justification — writes
+   * justification_status + reviewer + timestamp. 'none' records cannot be
+   * reviewed; a previous decision may be overturned.
+   */
+  reviewJustification(input: {
+    recordId: string;
+    decision: "accepted" | "rejected";
+    reviewedBy: string;
+  }): Promise<Result<AttendanceRecord>>;
 }
 
 export interface HomeworkRepository {

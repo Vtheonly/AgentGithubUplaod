@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-08-31 — T-040 — Staff-side justification review workflow (ATT-101)
+- **Problem IDs:** ATT-101 (TESTED).
+- **What changed:** desktop justification read/write end-to-end (domain fields, mapAttendanceRow, observeJustifications + reviewJustification on Supabase + Mock, Justificatifs review tab in the Academics hub with Accept/Reject).
+- **Why:** the 4-state workflow was a one-way valve — parents submitted, staff could never review, accepted/rejected unreachable.
+- **Affected components:** desktop domain model + academic repositories (supabase + mock) + academics UI.
+- **Tests:** t-040-justification-review.test.ts 8/8.
+- **Verification:** tsc clean; full suite 61 files / 2127 tests ALL PASS; lint 0 errors. Gap: live portal round-trip (empty attendance tables).
+- **Commit:** (this commit).
+
+---
+
 ### 2026-08-31 — T-022 — Desktop sync queue correctness (SYNC-100/101/102, CACHE-102)
 - **Problem IDs:** SYNC-100 (TESTED), SYNC-101 (TESTED), SYNC-102 (TESTED), CACHE-102 (TESTED).
 - **What changed:** defaultPushHandler extracted to its own module + 4 new canonical entity cases (installment/attendance/grade RPCs, homework table upsert per Android parity) + loud-fail default; sync_queue audit upsert ignoreDuplicates; sign-out clears the queue + drain actor guard; fallback state surfaced (store + snapshot + indicator warning).

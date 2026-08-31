@@ -101,6 +101,24 @@ export interface AttendanceRepository {
     recordedBy: string;
   }): Promise<Result<AttendanceRecord[]>>;
   alertAbsences(studentIds: string[]): Promise<Result<void>>;
+  /**
+   * T-040 (ATT-101): observe records whose justification is in the given
+   * workflow state (default: 'submitted' — the staff review queue). The
+   * closed feedback loop: parent submits (portal) → staff reviews here →
+   * parent sees the outcome.
+   */
+  observeJustifications(status?: "submitted" | "accepted" | "rejected"): Observable<AttendanceRecord[]>;
+  /**
+   * T-040 (ATT-101): staff decision on a submitted justification — writes
+   * justification_status + justification_reviewed_by/at. Records with NO
+   * justification ('none') cannot be reviewed (Err). A previous decision may
+   * be overturned (correction path — reviewed_by/at are updated).
+   */
+  reviewJustification(input: {
+    recordId: string;
+    decision: "accepted" | "rejected";
+    reviewedBy: string;
+  }): Promise<Result<AttendanceRecord>>;
 }
 
 export interface HomeworkRepository {

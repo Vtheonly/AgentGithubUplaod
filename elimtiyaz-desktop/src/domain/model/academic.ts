@@ -135,7 +135,23 @@ export interface AttendanceRecord {
   readonly recordedBy: string;
   readonly recordedAt: string;
   readonly syncedAt: string | null;
+  /**
+   * T-040 (ATT-101): the parent-submitted absence-justification workflow
+   * (columns added by migration 0043). The 4-state loop is
+   * none → submitted → accepted/rejected — parents submit from the web
+   * portal, staff review from THIS desktop app (observeJustifications +
+   * reviewJustification on AttendanceRepository).
+   */
+  readonly justificationStatus?: JustificationStatus;
+  readonly justificationNote?: string | null;
+  readonly justificationPath?: string | null;
+  readonly justificationDriveLink?: string | null;
+  readonly justificationReviewedBy?: string | null;
+  readonly justificationReviewedAt?: string | null;
 }
+
+/** T-040: the 4-state justification workflow (migration 0043 check constraint). */
+export type JustificationStatus = "none" | "submitted" | "accepted" | "rejected";
 
 export interface Homework {
   readonly id: string;

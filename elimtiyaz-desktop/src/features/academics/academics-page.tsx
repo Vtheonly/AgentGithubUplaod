@@ -6,9 +6,11 @@
  *   2. Niveaux & Classes — grade levels + class catalog (existing)
  *   3. Matières          — subject directory (existing)
  *   4. Devoirs           — homework history (existing)
- *   5. Clubs             — extracurricular clubs catalog + memberships + activities
- *   6. Psychologie       — psychological follow-ups + sessions + reports (restricted)
- *   7. Orthophonie       — speech therapy follow-ups + evaluations + sessions (restricted)
+ *   5. Justificatifs     — absence-justification review queue (T-040 / ATT-101:
+ *                          parents submit from the portal, staff accept/reject here)
+ *   6. Clubs             — extracurricular clubs catalog + memberships + activities
+ *   7. Psychologie       — psychological follow-ups + sessions + reports (restricted)
+ *   8. Orthophonie       — speech therapy follow-ups + evaluations + sessions (restricted)
  *
  * Each tab renders its OWN action buttons in the PageHeader — they are
  * purpose-bound to the active tab (no more "useless or unrelated" buttons
@@ -28,6 +30,7 @@ import {
   Trophy,
   Brain,
   Stethoscope,
+  FileCheck,
 } from "lucide-react";
 import { PageHeader } from "../../shared/layout/page-header";
 import {
@@ -47,6 +50,7 @@ import { OrthophonieTab } from "./therapy/orthophonie-tab";
 import { GradeLevelsClassView } from "./grade-levels-class-view";
 import { SubjectsDirectoryTab } from "./subjects-directory-tab";
 import { HomeworkHistoryTab } from "./homework-history-tab";
+import { JustificationsTab } from "./justifications-tab";
 import { HomeworkPushModal } from "./homework-push-modal";
 
 type AcademicsTab =
@@ -54,6 +58,7 @@ type AcademicsTab =
   | "classes"
   | "subjects"
   | "homework"
+  | "justifications"
   | "clubs"
   | "psychology"
   | "orthophonie";
@@ -76,6 +81,11 @@ export function AcademicsPage() {
     () => repos.orthophonie.observeFollowUps(),
     [],
   );
+  // T-040: the pending-justification count drives the tab's badge.
+  const pendingJustifications = useObservable(
+    () => repos.attendance.observeJustifications("submitted"),
+    [],
+  );
 
   const can = useMemo(() => {
     if (!session) {
@@ -90,6 +100,7 @@ export function AcademicsPage() {
         managePsychology: false,
         viewOrthophonie: false,
         manageOrthophonie: false,
+        viewAttendance: false,
       };
     }
     const p = session.permissions;
@@ -104,6 +115,7 @@ export function AcademicsPage() {
       managePsychology: p.has(Permission.ManagePsychology),
       viewOrthophonie: p.has(Permission.ViewOrthophonie) || p.has(Permission.ManageOrthophonie),
       manageOrthophonie: p.has(Permission.ManageOrthophonie),
+      viewAttendance: p.has(Permission.ViewAttendance) || p.has(Permission.RollCall),
     };
   }, [session]);
 
@@ -143,6 +155,14 @@ export function AcademicsPage() {
         visible: can.assignHomework,
       },
       {
+        // T-040 (ATT-101): the staff-side justification review queue.
+        value: "justifications",
+        label: "Justificatifs",
+        icon: FileCheck,
+        count: pendingJustifications.filter((r) => (r.justificationStatus ?? "none") === "submitted").length,
+        visible: can.viewAttendance,
+      },
+      {
         value: "clubs",
         label: "Clubs",
         icon: Trophy,
@@ -165,7 +185,7 @@ export function AcademicsPage() {
       },
     ];
     return list.filter((x) => x.visible);
-  }, [can, classes.length, subjects.length, clubs, psychFollowUps, orthoFollowUps]);
+  }, [can, classes.length, subjects.length, clubs, psychFollowUps, orthoFollowUps, pendingJustifications]);
 
   // Compute the active tab description (shown in the header)
   const descriptionFor = (active: AcademicsTab): string => {
@@ -178,6 +198,8 @@ export function AcademicsPage() {
         return "Catalogue des matières avec coefficients par cycle et niveau.";
       case "homework":
         return "Historique des devoirs diffusés aux classes.";
+      case "justifications":
+        return "Justificatifs d'absence soumis par les parents — examinez et décidez (T-040 : boucle fermée du portail vers le bureau).";
       case "clubs":
         return "Clubs extrascolaires : catalogue, adhésions, activités, encadrement.";
       case "psychology":
@@ -239,6 +261,12 @@ export function AcademicsPage() {
         {tabs.some((t) => t.value === "homework") && (
           <PageTabContent value="homework">
             <HomeworkHistoryTab />
+          </PageTabContent>
+        )}
+
+        {tabs.some((t) => t.value === "justifications") && (
+          <PageTabContent value="justifications">
+            <JustificationsTab />
           </PageTabContent>
         )}
 
