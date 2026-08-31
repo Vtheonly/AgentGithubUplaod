@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-08-31 — T-055 — Audit robustness + PII masking (SEC-001, SEC-002)
+- **Problem IDs:** SEC-001 (TESTED), SEC-002 (TESTED).
+- **What changed:** hasMaskedContent guards on both network LLM transports (empty mask → Err, raw prompt never leaves the machine); writeAuditLog retry + typed AuditWriteError throw + withAuditSurfacing (structured 500 audit_write_failed) on all 8 EFs; run-overdue-scan counts audit_failures.
+- **Why:** audit failures were silently swallowed (canonical §7.6 violated invisibly); an empty PII mask silently leaked raw prompts to Groq/OpenRouter.
+- **Affected components:** desktop llm-adapter; EF _shared/supabase.ts + 8 EFs (all redeployed live).
+- **Tests:** t-055-audit-pii.test.ts 9/9; full suite 62 files / 2136 tests ALL PASS.
+- **Verification:** esbuild bundles green; live redeploy of all 8 EFs; post-deploy sanity on run-overdue-scan (401 deny + 200 valid with audit_failures present).
+- **Commit:** (this commit).
+
+---
+
 ### 2026-08-31 — T-057 — Website canonical port honesty (DRIFT-009/DEAD-011)
 - **Problem IDs:** DRIFT-009 (TESTED; absorbs DEAD-011).
 - **What changed:** the canonical port pruned to the consumed surface (15 files deleted, 11 kept); model re-export blocks trimmed; headers rewritten honestly (source + sha + never-re-add note; the promised-but-nonexistent port-canonical.mjs reference removed).

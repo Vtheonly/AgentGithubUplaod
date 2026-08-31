@@ -36,12 +36,7 @@
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
 import { AuditActions } from "../../../src/core/audit-actions.ts";
-import {
-  createServiceRoleClient,
-  extractAuthContext,
-  requireRole,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, extractAuthContext, requireRole, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface UpdateSecretBody {
   key: string;          // e.g. 'GROQ_API_KEY', 'RESEND_API_KEY'
@@ -65,7 +60,7 @@ const ALLOWED_SECRET_KEYS = new Set([
   "LOG_LEVEL",
 ]);
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
   // DEAD-002 (T-056): the DELETE handler existed but was never routed —
   // the exported handleDelete was unreachable through the HTTP path, so
@@ -192,7 +187,7 @@ Deno.serve(async (req: Request) => {
     updated: true,
     message: `Secret '${body.key}' updated successfully. The new value will be available to Edge Functions within ~60 seconds.`,
   });
-});
+}));
 
 // ============================================================================
 // Also support DELETE (to clear a secret)

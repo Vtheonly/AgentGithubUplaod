@@ -12,10 +12,10 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 42 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057** (12th session) |
+| **Completed (TESTED)** | 43 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055** (12th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** | 28 | T-017, T-018, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050, T-051, T-054, T-055, T-058, T-062…T-064, T-069 |
+| **Ready** | 27 | T-017, T-018, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050, T-051, T-054, T-058, T-062…T-064, T-069 |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -231,6 +231,14 @@
 - **What was done:** the canonical port PRUNED to the consumed surface — 15 files deleted (calc/payment/* ×6, calc/pricing/* ×5, calc/ledger/{entries,charges}.ts, model/pricing.ts, the never-imported index.ts barrel); 11 source files kept (balance/overdue/money/dates + account-id [portal-derive.test exercises deriveAccountId — a consumer the audit missed] + the 5 model files + portal-derive). The ledger/payment model re-export blocks trimmed to the kept surface. Every kept header rewritten honestly: verbatim port + desktop source path + sha256 + an explicit never-re-add note — replacing the DEAD-011 lie ("re-run scripts/port-canonical.mjs" — never existed). The alternative (implementing the script) deliberately NOT taken: a full-tree copier would resurrect the dead code.
 - **Tests:** NEW website `src/lib/canonical/t-057-port-honesty.test.ts` 4/4 — dead subtrees stay gone; the exact kept-surface inventory; no lying header; honest header shape. Website suite 13 files / 130 tests ALL PASS; strict build green; lint clean.
 - **Commits:** d7eb52e — website repo (+ this doc commit — hub).
+
+### T-055 — Audit robustness and PII masking — **TESTED (desktop client + EFs deployed live)**
+- **Problems:** SEC-001, SEC-002 · **Priority:** P1 · **Severity:** High
+- **Status:** TESTED (2026-08-31, twelfth session; all 8 EFs redeployed live + post-deploy sanity 401/200)
+- **What was done:** SEC-002: NEW `hasMaskedContent()` guard — BOTH network LLM transports (edge ai-proxy + BYOK Groq/OpenRouter) REFUSE (Err) when `maskedContent` is empty/whitespace (the old `|| userPrompt` fallback shipped the raw prompt — PII — over the network); the check precedes the configuration check; the local mock keeps working with the raw prompt (it never leaves the machine). SEC-001: `writeAuditLog` RETRIES once (250 ms) then THROWS the NEW typed `AuditWriteError` (loud `[AUDIT-MISS]` marker) — no more silent null returns; NEW `withAuditSurfacing()` wrapper converts the throw into a structured 500 `audit_write_failed` response; ALL 8 EFs that call writeAuditLog are wrapped; run-overdue-scan instead CATCHES per-tenant and counts `audit_failures` in its summary (surfaced, scan survives — notifications already created).
+- **Tests:** NEW `src/tests/security/t-055-audit-pii.test.ts` 9/9 — BYOK refuses empty + whitespace masks; edge refuses empty (before any invoke); the default routing degrades to the LOCAL mock with no leak; code-level source-scan (no `maskedContent || userPrompt`); writeAuditLog retry+throw shape; withAuditSurfacing's 500; all 8 EFs wrapped; run-overdue-scan's audit_failures counter. Full desktop suite 62 files / 2136 tests ALL PASS.
+- **Live verification:** all 8 EFs redeployed (esbuild bundle checks green); post-deploy sanity on run-overdue-scan: anonymous → 401; valid CRON_SECRET → 200 with the NEW `audit_failures: 0` field present (the audit entry wrote cleanly).
+- **Left:** a live forced-audit-failure probe (e.g. revoking the RPC grant temporarily) — deliberately not performed on the production DB.
 
 
 ## Completed (fifth repair session — 2026-08-29)

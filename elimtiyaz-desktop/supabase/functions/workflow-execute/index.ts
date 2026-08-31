@@ -48,12 +48,7 @@
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
-import {
-  createServiceRoleClient,
-  extractAuthContext,
-  requirePermission,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, extractAuthContext, requirePermission, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ---------------------------------------------------------------------------
@@ -382,7 +377,7 @@ async function executeActionNode(
 // Main handler
 // ---------------------------------------------------------------------------
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
   if (req.method !== "POST") {
     return jsonError(req, 405, "method_not_allowed", "Use POST");
@@ -748,4 +743,4 @@ Deno.serve(async (req: Request) => {
     error: runFailed ? failureMessage : null,
     node_results: nodeResults,
   });
-});
+}));

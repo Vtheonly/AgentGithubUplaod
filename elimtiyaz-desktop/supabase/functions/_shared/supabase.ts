@@ -123,6 +123,64 @@ export function requireRole(ctx: AuthContext, role: string): boolean {
   return ctx.roles.includes(role) || ctx.roles.includes("super_admin");
 }
 
+/**
+ * T-055 (SEC-001): audit-log write failures are NO LONGER silently
+ * swallowed. Policy (canonical §7.6 — "Every mutation MUST emit at least
+ * one audit entry"):
+ *   1. RETRY once (250 ms backoff) — transient network/RPC hiccups are the
+ *      common failure mode.
+ *   2. On final failure THROW `AuditWriteError` so the calling Edge
+ *      Function surfaces the failure in its HTTP response (500
+ *      `audit_write_failed`) instead of returning success with a hole in
+ *      the audit trail. The already-committed mutation is NOT rolled back
+ *      (impossible from the EF), but the operator SEES the missing entry.
+ *      Note: the canonical financial RPCs write their audit entries INSIDE
+ *      the transaction (atomic); this helper covers the EF-level
+ *      belt-and-suspenders entries and the EF-only mutations.
+ *
+ * Callers that legitimately want best-effort semantics (e.g. run-overdue-
+ * scan's per-tenant summary entry, where failing the whole scan AFTER the
+ * notifications were created would be worse) catch the error and surface
+ * it in their response payload instead.
+ */
+export class AuditWriteError extends Error {
+  constructor(public readonly cause: unknown) {
+    super(
+      `audit_write_failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+    this.name = "AuditWriteError";
+  }
+}
+
+/**
+ * T-055 (SEC-001): wraps an Edge Function handler so an AuditWriteError
+ * surfaces as a STRUCTURED 500 `audit_write_failed` response (instead of
+ * Deno's opaque default) — the mutation is not rolled back, but the
+ * operator sees the audit hole. All other errors propagate unchanged.
+ */
+export function withAuditSurfacing(
+  handler: (req: Request) => Promise<Response>,
+): (req: Request) => Promise<Response> {
+  return async (req: Request): Promise<Response> => {
+    try {
+      return await handler(req);
+    } catch (err) {
+      if (err instanceof AuditWriteError) {
+        console.error("[AUDIT-MISS] surfacing audit_write_failed:", err.cause);
+        const { jsonError } = await import("./cors.ts");
+        return jsonError(
+          req,
+          500,
+          "audit_write_failed",
+          "The operation completed but its audit entry could not be written (SEC-001 surfacing).",
+          err.message,
+        );
+      }
+      throw err;
+    }
+  };
+}
+
 export async function writeAuditLog(
   tenantId: string,
   action: string,
@@ -136,22 +194,33 @@ export async function writeAuditLog(
   requestId: string | null = null
 ): Promise<string | null> {
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase.rpc("write_audit_log", {
-    p_tenant_id: tenantId,
-    p_action: action,
-    p_entity_type: entityType,
-    p_entity_id: entityId,
-    p_actor_id: actorId,
-    p_actor_name: actorName,
-    p_before_json: before === null ? null : JSON.stringify(before),
-    p_after_json: after === null ? null : JSON.stringify(after),
-    p_note: note,
-    p_request_id: requestId,
-  });
 
+  const attempt = async (): Promise<{ data: string | null; error: unknown }> => {
+    const { data, error } = await supabase.rpc("write_audit_log", {
+      p_tenant_id: tenantId,
+      p_action: action,
+      p_entity_type: entityType,
+      p_entity_id: entityId,
+      p_actor_id: actorId,
+      p_actor_name: actorName,
+      p_before_json: before === null ? null : JSON.stringify(before),
+      p_after_json: after === null ? null : JSON.stringify(after),
+      p_note: note,
+      p_request_id: requestId,
+    });
+    return { data: (data as string | null) ?? null, error };
+  };
+
+  let { data, error } = await attempt();
   if (error) {
-    console.error("[audit] Failed to write audit log:", error);
-    return null;
+    console.error("[audit] write_audit_log failed (attempt 1), retrying:", error);
+    await new Promise((r) => setTimeout(r, 250));
+    ({ data, error } = await attempt());
+  }
+  if (error) {
+    // Loud marker + typed throw — grep-able in the EF logs.
+    console.error("[AUDIT-MISS] write_audit_log failed after retry:", error);
+    throw new AuditWriteError(error);
   }
   return data;
 }

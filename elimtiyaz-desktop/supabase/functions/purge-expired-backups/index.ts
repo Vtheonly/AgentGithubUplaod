@@ -42,17 +42,14 @@
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
 import { isCronInvocation } from "../_shared/cron-auth.ts";
-import {
-  createServiceRoleClient,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface PurgeResult {
   tenant_id: string;
   archive_ids: string[];
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
 
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
@@ -156,4 +153,4 @@ Deno.serve(async (req: Request) => {
         ? `Marked ${archivesPurged} expired backup archive(s) as 'purged' across ${tenantsWithPurges} tenant(s). Desktop apps should sync their IndexedDB vaults.`
         : "No expired backup archives found this run.",
   });
-});
+}));

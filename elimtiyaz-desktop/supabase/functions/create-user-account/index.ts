@@ -42,12 +42,7 @@
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
-import {
-  createServiceRoleClient,
-  extractAuthContext,
-  requireRole,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, extractAuthContext, requireRole, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface CreateUserAccountBody {
   email: string;
@@ -113,7 +108,7 @@ function generatePassword(): string {
   return chars.join("");
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
   if (req.method !== "POST") {
     return jsonError(req, 405, "method_not_allowed", "Use POST");
@@ -282,4 +277,4 @@ Deno.serve(async (req: Request) => {
     initial_password: password,
     message: `Account created for ${email} — the user can now sign in.`,
   });
-});
+}));

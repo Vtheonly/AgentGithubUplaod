@@ -25,11 +25,7 @@
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
-import {
-  createServiceRoleClient,
-  extractAuthContext,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, extractAuthContext, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface BindCodeRequest {
   /** Desktop/Android clients send `activation_code`. */
@@ -38,7 +34,7 @@ interface BindCodeRequest {
   code?: string;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
   if (req.method !== "POST") {
     return jsonError(req, 405, "method_not_allowed", "Use POST");
@@ -130,4 +126,4 @@ Deno.serve(async (req: Request) => {
     student_count: result.student_count,
     message: `Account successfully linked to family: ${result.parent_full_name}`,
   });
-});
+}));

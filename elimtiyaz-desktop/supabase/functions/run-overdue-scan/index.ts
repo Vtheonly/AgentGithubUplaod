@@ -52,12 +52,7 @@
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
 import { isCronInvocation } from "../_shared/cron-auth.ts";
-import {
-  createServiceRoleClient,
-  extractAuthContext,
-  requirePermission,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, extractAuthContext, requirePermission, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface InstallmentRow {
   id: string;
@@ -84,7 +79,7 @@ function formatParentName(p: ParentRow): string {
   return (p.display_name || p.last_name || p.id).trim();
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
 
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
@@ -138,6 +133,7 @@ Deno.serve(async (req: Request) => {
     alerts_created: 0,
     by_priority: { urgent: 0, high: 0, medium: 0 } as { urgent: number; high: number; medium: number },
     upcoming_due_alerts: 0,
+    audit_failures: 0,
     as_of: asOfDate,
   };
 
@@ -307,24 +303,33 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── 7. Per-tenant audit entry (unchanged contract) ─────────────────────
-    await writeAuditLog(
-      tenant.id,
-      "overdue_scan.run",
-      "tenant",
-      tenant.id,
-      null,
-      "system",
-      null,
-      {
-        as_of: asOfDate,
-        overdue_count: summary.total_overdue_installments,
-        alerts_created: summary.alerts_created,
-        upcoming_alerts: summary.upcoming_due_alerts,
-      },
-      `Automated overdue scan completed (batched, canonical installment classification)`,
-      requestId,
-    );
+    // T-055 (SEC-001): writeAuditLog now retries once and THROWS on final
+    // failure. Here the failure is CAUGHT and COUNTED (audit_failures in the
+    // response) instead of failing the whole scan AFTER the notifications
+    // were created — surfaced, not swallowed, and the scan summary survives.
+    try {
+      await writeAuditLog(
+        tenant.id,
+        "overdue_scan.run",
+        "tenant",
+        tenant.id,
+        null,
+        "system",
+        null,
+        {
+          as_of: asOfDate,
+          overdue_count: summary.total_overdue_installments,
+          alerts_created: summary.alerts_created,
+          upcoming_alerts: summary.upcoming_due_alerts,
+        },
+        `Automated overdue scan completed (batched, canonical installment classification)`,
+        requestId,
+      );
+    } catch (auditErr) {
+      summary.audit_failures++;
+      console.error(`[AUDIT-MISS] run-overdue-scan tenant ${tenant.id}:`, auditErr);
+    }
   }
 
   return jsonOk(req, summary);
-});
+}));

@@ -30,12 +30,7 @@
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
 import { canAssignRole } from "../_shared/role-assignment.ts";
-import {
-  createServiceRoleClient,
-  extractAuthContext,
-  requireRole,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, extractAuthContext, requireRole, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface ApproveRequestBody {
   request_id: string;
@@ -57,7 +52,7 @@ interface ApproveRequestBody {
   assign_role?: string;               // override role (default: 'parent' or 'student' based on request)
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
   if (req.method !== "POST") {
     return jsonError(req, 405, "method_not_allowed", "Use POST");
@@ -348,4 +343,4 @@ Deno.serve(async (req: Request) => {
     assigned_role: body.assign_role ?? approvalRequest.requested_role,
     message: `Registration approved. User ${approvalRequest.email} can now sign in.`,
   });
-});
+}));

@@ -38,8 +38,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | ID | Sev | Status | Task | Title |
 |---|---|---|---|---|
-| SEC-001 | High | OPEN | T-055 | Edge Functions swallow audit-log write failures silently |
-| SEC-002 | High | OPEN | T-055 | `defaultLLMAdapter` falls back from edge function → BYOK → mock, silently leaking user prompts to Groq/OpenRouter if Edge Function is down |
+| SEC-001 | High | TESTED | T-055 | Edge Functions swallow audit-log write failures silently |
+| SEC-002 | High | TESTED | T-055 | `defaultLLMAdapter` falls back from edge function → BYOK → mock, silently leaking user prompts to Groq/OpenRouter if Edge Function is down |
 | SEC-003 | Low | DEFERRED | T-076 | Committed `google-services.json` contains a real Firebase API key + project number |
 | SEC-004 | Medium | OPEN | T-064 | `SupabaseConfigDialog` displays the Supabase anon key in plain text + references "Google AI Studio" secrets panel in user-facing text |
 | SEC-005 | Medium | OPEN | T-064 | `SupabaseClientProvider.build()` falls back to `https://demo.supabase.co` with key `"demo-key"` when unconfigured — real network requests go out to that public endpoint |
@@ -209,6 +209,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop, Website
 - **Task:** T-055 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-055, 12th session): writeAuditLog retries once then throws the typed AuditWriteError (loud [AUDIT-MISS] marker) — no silent nulls; withAuditSurfacing converts the throw into a structured 500 audit_write_failed; all 8 EFs calling writeAuditLog are wrapped; run-overdue-scan catches per-tenant and counts audit_failures in its response. EFs redeployed live; post-deploy sanity green.
 - **Consolidated from:** first-pass SEC-001
 - **Description:** The shared helper `writeAuditLog()` in `_shared/supabase.ts:90-121` calls the `write_audit_log` RPC. If the RPC fails, it `console.error`s the error and returns `null` — it does NOT throw. Every caller (collect-payment, refund-payment, bind-activation-code, update-server-secret, etc.) `await`s `writeAuditLog()` but never checks the return value. The canonical spec §7.6 mandates "Every mutation MUST emit at least one audit entry." If the audit write fails, the mutation still succeeds — the audit entry is silently missing. This breaks the canonical audit-trail invariant.
 - **Location:** `elimtiyaz-desktop/supabase/functions/_shared/supabase.ts:90-121`
@@ -228,6 +229,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-055 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-08-31 (T-055, 12th session): hasMaskedContent guard — both network transports (edge ai-proxy + BYOK) REFUSE empty/whitespace maskedContent (Err before any network call); the local mock may still use the raw prompt (never leaves the machine). 9-test suite incl. the routing-degrades-to-mock case.
 - **Consolidated from:** first-pass SEC-002
 - **Description:** The `defaultLLMAdapter.generate()` routing logic (`llm-adapter.ts:453-468`) tries the `ai-proxy` Edge Function first; on failure, falls back to `byokLLMAdapter` (direct call to Groq/OpenRouter with the admin's API keys); on failure, falls back to `mockLLMAdapter`. The canonical spec §11.02 says "PII is masked BEFORE the call: only `AIRequest.maskedContent` crosses the network". The BYOK adapter does use `request.maskedContent || request.userPrompt` (line 370) — but if `maskedContent` is empty/null (e.g., the caller didn't set it), the raw `userPrompt` (which may contain PII) is sent directly to Groq/OpenRouter. The edge function path also has the same fallback (`edgeLLMAdapter` line 271). So if the masking step is skipped by the caller, the raw prompt leaks.
 - **Location:** `elimtiyaz-desktop/src/infrastructure/ai/llm-adapter.ts:453-468` (routing) + `:362-437` (BYOK adapter)

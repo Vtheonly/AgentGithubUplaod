@@ -28,12 +28,7 @@
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
-import {
-  createServiceRoleClient,
-  extractAuthContext,
-  requirePermission,
-  writeAuditLog,
-} from "../_shared/supabase.ts";
+import { createServiceRoleClient, extractAuthContext, requirePermission, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface AIProxyRequest {
   feature: "narrative" | "drafting" | "anomaly";
@@ -55,7 +50,7 @@ const DEFAULT_MODELS = {
   openrouter: "meta-llama/llama-3.3-70b-instruct:free",
 };
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (req.method === "OPTIONS") return handleOptions(req);
   if (req.method !== "POST") {
     return jsonError(req, 405, "method_not_allowed", "Use POST");
@@ -324,4 +319,4 @@ Output JSON: { "signals": [{ "type": "duplication"|"new_vendor"|"budget_overrun"
     tokens_used: promptTokens + completionTokens,
     latency_ms: latencyMs,
   });
-});
+}));

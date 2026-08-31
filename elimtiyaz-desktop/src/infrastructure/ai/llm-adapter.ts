@@ -254,8 +254,32 @@ interface AIProxyOkPayload {
  * the function enforces both. PII masking happens client-side BEFORE the
  * call: only `AIRequest.maskedContent` crosses the network.
  */
+/**
+ * T-055 (SEC-002): a NON-EMPTY masked prompt must exist before ANY network
+ * transport (edge function or BYOK) is used. The old
+ * `request.maskedContent || request.userPrompt` fallback silently shipped the
+ * RAW prompt (potentially student names, parent phones, financial details)
+ * to Groq/OpenRouter whenever the masking step produced an empty string.
+ * The network paths now REFUSE; the local mock may still use the raw prompt
+ * (it never leaves the machine).
+ */
+function hasMaskedContent(request: AIRequest): boolean {
+  return typeof request.maskedContent === "string" && request.maskedContent.trim().length > 0;
+}
+
 export const edgeLLMAdapter: LLMAdapter = {
   async generate(request: AIRequest): Promise<Result<AIResponse>> {
+    // T-055 (SEC-002): refuse to ship the RAW prompt when masking produced
+    // nothing — the edge function path is a NETWORK transport. Checked
+    // BEFORE the configuration check (a policy violation is a policy
+    // violation even when Supabase isn't configured).
+    if (!hasMaskedContent(request)) {
+      return Err(
+        Errors.validation(
+          "SEC-002: maskedContent is empty — the ai-proxy path refuses to send the raw prompt.",
+        ),
+      );
+    }
     if (!isSupabaseConfigured()) {
       return Err(
         Errors.server("ai-proxy requires a configured Supabase backend"),
@@ -268,7 +292,7 @@ export const edgeLLMAdapter: LLMAdapter = {
         body: {
           feature: featureOf(request),
           // Send the PII-masked prompt over the wire (plan §11.02).
-          prompt: request.maskedContent || request.userPrompt,
+          prompt: request.maskedContent,
           max_tokens: request.maxTokens,
           temperature: request.temperature,
         },
@@ -366,8 +390,17 @@ export const byokLLMAdapter: LLMAdapter = {
       const config = await loadConfig();
       const feature = featureOf(request);
       const systemPrompt = systemPromptForFeature(request, feature);
-      // Only the PII-masked prompt leaves the machine.
-      const userPrompt = request.maskedContent || request.userPrompt;
+      // T-055 (SEC-002): only the PII-masked prompt leaves the machine — an
+      // EMPTY maskedContent BLOCKS this path (it used to silently fall back
+      // to the raw prompt, leaking PII to Groq/OpenRouter).
+      if (!hasMaskedContent(request)) {
+        return Err(
+          Errors.validation(
+            "SEC-002: maskedContent is empty — the BYOK path refuses to send the raw prompt.",
+          ),
+        );
+      }
+      const userPrompt = request.maskedContent;
 
       const primary: "groq" | "openrouter" = config.defaultProvider;
       const fallback: "groq" | "openrouter" = primary === "groq" ? "openrouter" : "groq";
