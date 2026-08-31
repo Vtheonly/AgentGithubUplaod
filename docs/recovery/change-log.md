@@ -1009,3 +1009,12 @@ path for T-092.
 - **What was verified:** NEW `t-034-cache-freshness.test.ts` 7/7 — reproduction of the defect (Android-style write invisible inside the TTL, visible after it without restart; counting fake client + fake timers), focus-force refresh, single-read inside TTL, failed-seed recovery, TTL strict-boundary, one-shot force, listener registration. `npm run typecheck` clean; `npm run lint` 0 errors; full desktop suite 70 files / 2211 tests ALL PASS (+7).
 - **What remains:** the two-instance realtime E2E (original verification criterion) needs a desktop host; CROSS-104b's Android implementation stays with T-059.
 - **Commits:** hub repo.
+
+### T-108 — DESK-CSP-202: Electron renderer Content-Security-Policy — TESTED
+
+- **Problem IDs:** SEC-113 (new, TESTED)
+- **What was wrong / why:** the owner pasted the desktop dev console showing the Electron "Insecure Content-Security-Policy" security warning; `index.html` had shipped with NO CSP since its first commit, leaving the renderer without XSS mitigation (session storage holds the Supabase JWT).
+- **What changed:** CSP meta in `index.html` — `script-src 'self'` (no unsafe-eval/unsafe-inline), `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com` (inline style ATTRIBUTES are pervasive in the design system — documented, not an XSS vector), Google Fonts in font-src, `img-src 'self' data: blob: https:`, `connect-src 'self' https: wss: ws://localhost:* http://localhost:*` (user-configured Supabase project = arbitrary TLS host; dev HMR), `worker-src 'self' blob:`, `object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`. NEW `src/tests/security/csp-policy.test.ts` (4 pinning tests).
+- **What was verified (launch evidence, T-097 recipe):** production launch under Xvfb :99 (25s alive) — zero security warnings / zero CSP violations / only the documented container dbus+GPU noise; dev-mode launch against the Vite dev server (30s, devtools opened = dev URL loaded) — zero warnings / zero violations / no failed resource loads. `csp-policy.test.ts` 4/4; `npm run typecheck` clean; `npm run lint` 0 errors (385 baseline warnings); full desktop suite 71 files / 2215 tests ALL PASS (+4).
+- **What remains:** `connect-src https:` breadth is a functional requirement of the runtime-config dialog (documented residual). No further work for T-108.
+- **Commits:** hub repo.

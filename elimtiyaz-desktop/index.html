@@ -4,6 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#242526" />
+    <!--
+      DESK-CSP-202 (T-108, 17th session): Content-Security-Policy for the
+      Electron renderer. Removes the "Insecure Content-Security-Policy"
+      Electron security warning and, more importantly, closes XSS injection
+      classes in the renderer.
+
+      Policy rationale (kept MINIMAL but functional):
+      - script-src 'self' — the bundle only; NO unsafe-eval/unsafe-inline
+        (the whole point; Vite dev HMR needs ws:// localhost which lives in
+        connect-src, not script-src).
+      - style-src 'unsafe-inline' — React/Tailwind inline style ATTRIBUTES
+        are used pervasively by the design system; blocking them breaks the
+        UI. style-src is not an XSS injection vector on its own.
+      - font-src / style-src include Google Fonts (Inter, JetBrains Mono,
+        Noto Sans Arabic — loaded via <link> above).
+      - connect-src https: wss: — the app connects to a USER-CONFIGURED
+        Supabase project URL (Settings → Configuration; arbitrary project),
+        plus localhost ws: for the Vite dev server. Outbound TLS-only.
+      - img-src blob: data: https: — media vault previews + Supabase
+        storage avatars/payment proofs.
+      - media-src/blob:, worker-src blob: (particle engine image loader,
+        excel/pdf export downloads), object-src 'none' (no <object>/<embed>
+        anywhere), frame-ancestors 'none', base-uri 'self'.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: wss: ws://localhost:* http://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    />
     <title>El-Imtiyaz — Plateforme de gestion scolaire</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

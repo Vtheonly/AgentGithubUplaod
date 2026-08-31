@@ -120,6 +120,12 @@
 - **Verification:** `npm run typecheck` clean; `npm run lint` 0 errors; full desktop suite green (counts in change-log). Gap: the two-instance realtime E2E named in the original verification criterion needs a desktop host (headless container) — the counting-fake tests stand in for the freshness budget.
 - **Commits:** hub repo.
 
+### T-108 — Electron renderer CSP hardening (DESK-CSP-202, owner-pasted evidence) — **Completed (TESTED)**
+
+- **Problems:** SEC-113 (new) · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-09-01, 17th session) — CSP meta added to `index.html` (dev + packaged): `script-src 'self'` (no unsafe-eval/inline), hardened object/frame-ancestors/base-uri/form-action, with documented functional allowances (Google Fonts, inline style attributes for the design system, blob: worker/img for the media vault + exports, user-configured Supabase connect-src TLS-only). NEW `src/tests/security/csp-policy.test.ts` 4/4 pins the security-critical properties. Launch-verified: production under Xvfb (25s alive) and dev against the Vite server (30s) — ZERO "Insecure Content-Security-Policy" warnings and zero CSP violations in both modes (the owner's pasted warning class). Typecheck clean, lint 0 errors, full suite green.
+- **Commits:** hub repo.
+
 ## Completed (thirteenth repair session — 2026-08-31, owner-requested ~10-task batch)
 
 ### T-041 — Complete the year-end promotion flow
