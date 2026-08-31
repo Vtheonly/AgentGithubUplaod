@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-08-31 — T-018 — Deterministic identity codes (DRIFT-001 → PARTIAL; desktop + sync)
+- **Problem IDs:** DRIFT-001 (PARTIAL — desktop + sync layer).
+- **What changed:** the canonical generators moved to core/format/id.ts (ADR-003 home, re-exported); empty-identity fallback seeded + stable (never random); the sync push handler's random PAR-/ELV- fallbacks replaced with the seeded canonical generators.
+- **Why:** a random retry suffix created DUPLICATE parents/students server-side (the dedup match IS the code); the generators lived in the infrastructure layer instead of the canonical core.
+- **Affected components:** desktop core/format/id.ts, supabase-shared-repositories (re-export), default-push-handler.
+- **Tests:** t-018-identity-codes.test.ts 7/7; full suite 63 files / 2143 tests ALL PASS.
+- **Left:** backend generators (approve EF, batch_register_family RPC) + Android paths.
+- **Commit:** (this commit).
+
+---
+
 ### 2026-08-31 — T-055 — Audit robustness + PII masking (SEC-001, SEC-002)
 - **Problem IDs:** SEC-001 (TESTED), SEC-002 (TESTED).
 - **What changed:** hasMaskedContent guards on both network LLM transports (empty mask → Err, raw prompt never leaves the machine); writeAuditLog retry + typed AuditWriteError throw + withAuditSurfacing (structured 500 audit_write_failed) on all 8 EFs; run-overdue-scan counts audit_failures.

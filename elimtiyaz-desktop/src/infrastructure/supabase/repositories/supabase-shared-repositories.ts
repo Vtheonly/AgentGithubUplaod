@@ -104,6 +104,12 @@ import {
 } from "../../../domain/calc/pricing";
 import { createChargeEntry } from "../../../domain/calc/ledger/entries";
 import { defaultPricingConfig } from "../../mock/pricing-seed";
+// T-018 (DRIFT-001): the deterministic identity-code generators moved to
+// their canonical home (core/format/id.ts, ADR-003). Re-exported here for
+// the existing import-path consumers.
+export { stableHash, deterministicParentCode, deterministicStudentCode } from "../../../core/format/id";
+import { deterministicParentCode, deterministicStudentCode } from "../../../core/format/id";
+
 import {
   crossCheckBalanceSum,
   crossCheckPayments,
@@ -173,77 +179,8 @@ function studentCode(year: number, seq: number): string {
   return `ELV-${year}-${String(seq).padStart(6, "0")}`;
 }
 
-/**
- * Compute a short stable hash (6 hex chars) from an arbitrary string.
- * Used to derive deterministic parent/student codes from identity fields
- * (phone, display name) so that re-importing the same Excel row produces
- * the SAME code, letting the `upsert_*_from_import` RPCs hit their primary
- * identity match (tenant_id, parent_code) / (tenant_id, student_code)
- * instead of falling through to weaker fallbacks.
- *
- * Implementation: FNV-1a 32-bit, hex-encoded, truncated to 6 chars.
- * Not cryptographic — the goal is determinism + low collision rate across
- * a few thousand parents/students, which FNV-1a easily achieves.
- */
-function stableHash(input: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  // Force unsigned 32-bit and encode as 8-char hex, take first 6.
-  return (h >>> 0).toString(16).padStart(8, "0").slice(0, 6).toUpperCase();
-}
 
-/**
- * Derive a deterministic parent code from the parent's identity fields.
- * The code is `PAR-{year}-{6-hex}` where the hex is a stable hash of
- * (primary_phone || display_name || first_name+last_name).
- *
- * Re-importing the same Excel row produces the same code → the
- * `upsert_parent_from_import` RPC's primary identity match
- * `(tenant_id, parent_code)` succeeds → idempotent upsert, no duplicates.
- */
-function deterministicParentCode(year: number, input: CreateParentInput): string {
-  // CANONICAL (cross-platform equivalence fix): filter out BOTH null and EMPTY
-  // identity fields (after per-field trim) before joining. Previously empty
-  // strings were joined while Android's listOfNotNull skipped them, so the
-  // same parent produced different parent_codes on each platform — breaking
-  // the idempotent (tenant_id, parent_code) upsert match.
-  const identity = [
-    input.phone ?? "",
-    input.displayName ?? "",
-    input.firstName ?? "",
-    input.lastName ?? "",
-  ]
-    .map((f) => f.trim())
-    .filter((f) => f.length > 0)
-    .join("|");
-  // If we have no identity at all, fall back to random — but this should
-  // never happen because the importer always sets at least one field.
-  const suffix = identity.length > 0 ? stableHash(identity) : randomParentSuffix();
-  return `PAR-${year}-${suffix}`;
-}
 
-/**
- * Derive a deterministic student code from (parentId, student display name).
- * Re-importing the same Excel row produces the same code → primary identity
- * match `(tenant_id, student_code)` succeeds → idempotent upsert.
- */
-function deterministicStudentCode(
-  year: number,
-  parentId: string,
-  input: CreateStudentInput,
-): string {
-  const identity = [
-    parentId ?? "",
-    input.displayName ?? "",
-    input.firstName ?? "",
-    input.lastName ?? "",
-  ].join("|").trim();
-  const suffix = identity.length > 0 ? stableHash(identity) : String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
-  return `ELV-${year}-${suffix}`;
-}
 
 function toIsoDate(d: string | Date | null | undefined): string | null {
   if (!d) return null;

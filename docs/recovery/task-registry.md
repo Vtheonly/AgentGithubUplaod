@@ -12,10 +12,10 @@
 | Status | Count | Tasks |
 |---|---|---|
 | **Completed (VERIFIED)** | 6 | T-000, T-079, T-004, T-094 (live integration suite 5/5, 2026-08-31), **T-068** (live deploy + curl matrix + permission probes, 11th session), **T-095** (live 200 + idempotency, 12th session) |
-| **Completed (TESTED)** | 43 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055** (12th session) |
+| **Completed (TESTED)** | 44 | T-001, T-003, T-009, T-078, T-081, T-019, T-049, T-002, T-065, T-016, T-027, T-061, T-031, T-029, T-071, T-083, T-084, T-088, T-080, T-089, T-091, T-087, T-092 (sessions 1–9) + T-006, T-008, T-093, T-032, T-035, T-056 (10th session) + **T-011, T-012, T-013, T-014, T-023, T-025 (migration 0057 live 6/6), T-033, T-048, T-060** (11th session) + **T-015 (0058 live 7/7), T-053, T-022, T-040, T-052, T-057, T-055, T-018 (desktop+sync)** (12th session) |
 | **Completed (IMPLEMENTED)** | 1 | T-010 (launch verification needs a desktop host) |
 | **In Progress** | 0 | — |
-| **Ready** | 27 | T-017, T-018, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050, T-051, T-054, T-058, T-062…T-064, T-069 |
+| **Ready** | 26 | T-017, T-020, T-021, T-024, T-026, T-030, T-034, T-036, T-039, T-041, T-043, T-044, T-046, T-050, T-051, T-054, T-058, T-062…T-064, T-069 |
 | **Partially blocked** | 1 | T-036 |
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
@@ -239,6 +239,13 @@
 - **Tests:** NEW `src/tests/security/t-055-audit-pii.test.ts` 9/9 — BYOK refuses empty + whitespace masks; edge refuses empty (before any invoke); the default routing degrades to the LOCAL mock with no leak; code-level source-scan (no `maskedContent || userPrompt`); writeAuditLog retry+throw shape; withAuditSurfacing's 500; all 8 EFs wrapped; run-overdue-scan's audit_failures counter. Full desktop suite 62 files / 2136 tests ALL PASS.
 - **Live verification:** all 8 EFs redeployed (esbuild bundle checks green); post-deploy sanity on run-overdue-scan: anonymous → 401; valid CRON_SECRET → 200 with the NEW `audit_failures: 0` field present (the audit entry wrote cleanly).
 - **Left:** a live forced-audit-failure probe (e.g. revoking the RPC grant temporarily) — deliberately not performed on the production DB.
+
+### T-018 — Enforce deterministic identity codes — **TESTED (desktop + sync portion; PARTIAL)**
+- **Problems:** DRIFT-001 (absorbs DEAD-001, DEAD-003, DEAD-005, DEAD-006, PARENT-100) · **Priority:** P1 · **Severity:** High
+- **Status:** TESTED (2026-08-31, twelfth session — desktop + sync layer; the backend + Android halves left, see below)
+- **What was done:** the canonical generators (stableHash + deterministicParentCode + deterministicStudentCode) MOVED from supabase-shared-repositories.ts to their ADR-003 canonical home `core/format/id.ts` (re-exported for the import-path consumers); the generators' empty-identity fallback is NO LONGER RANDOM — a stable seed (the caller's queue-entry id) keeps RETRIES converging on the same code (a random retry suffix created a DUPLICATE parent/student server-side since the dedup match IS the code). The sync push handler's two random fallbacks (`PAR-YYYY-{random4}`, `ELV-YYYY-{random6}`) replaced with the canonical generators seeded by `entry.id`.
+- **Tests:** NEW `src/tests/infrastructure/t-018-identity-codes.test.ts` 7/7 — stability + format; identity-field-order invariance; empty-identity seed stability (retry-stable); whitespace-field exclusion (the cross-platform rule); the canonical home + re-export; no random PAR-/ELV- code lines in the push handler; no Math.random in the generator section. Full desktop suite 63 files / 2143 tests ALL PASS.
+- **Left (honest scope):** the backend generators (approve-signup-request EF's parent-code creation; batch_register_family RPC — needs a migration) and the Android create/batch/dispatcher paths (toolchain-gated) remain on DRIFT-001; the mock layer's create() random suffix intentionally preserved (it mirrors the canonical server CREATE path — migration 0022's gen_random_bytes — not the import path's determinism rule).
 
 
 ## Completed (fifth repair session — 2026-08-29)

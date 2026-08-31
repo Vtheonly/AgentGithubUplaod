@@ -20,6 +20,10 @@
  *                   "synced").
  */
 import type { SyncQueueEntry } from "./sync-types";
+import {
+  deterministicParentCode,
+  deterministicStudentCode,
+} from "../supabase/repositories/supabase-shared-repositories";
 
 /**
  * Default push handler — calls the appropriate Supabase upsert RPC for the
@@ -73,10 +77,20 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
   try {
     switch (entry.entity) {
       case "parent": {
+        // T-018 (DRIFT-001): a missing parent code is derived DETERMINISTICALLY
+        // from the payload's identity fields (seeded by the queue entry id) —
+        // the old random fallback produced a NEW code on every retry, so a
+        // lost response + retry created a DUPLICATE parent server-side (the
+        // dedup match IS the code).
         const parentCode =
           (p.code as string) ??
           (p.parent_code as string) ??
-          `PAR-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+          deterministicParentCode(new Date().getFullYear(), {
+            phone: (p.phone as string) ?? null,
+            displayName: (p.displayName as string) ?? (p.display_name as string) ?? null,
+            firstName: (p.firstName as string) ?? (p.first_name as string) ?? null,
+            lastName: (p.lastName as string) ?? (p.last_name as string) ?? null,
+          }, entry.id);
         const { error } = await client.rpc("upsert_parent_from_import", {
           p_tenant_id: entry.tenantId,
           p_parent_code: parentCode,
@@ -106,7 +120,20 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
       case "student": {
         const { error } = await client.rpc("upsert_student_from_import", {
           p_tenant_id: entry.tenantId,
-          p_student_code: (p.code as string) ?? (p.student_code as string) ?? `ELV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0")}`,
+          // T-018 (DRIFT-001): deterministic + retry-stable (see the parent case).
+          p_student_code:
+            (p.code as string) ??
+            (p.student_code as string) ??
+            deterministicStudentCode(
+              new Date().getFullYear(),
+              (p.parentId as string) ?? (p.parent_id as string) ?? "",
+              {
+                displayName: (p.displayName as string) ?? (p.display_name as string) ?? null,
+                firstName: (p.firstName as string) ?? (p.first_name as string) ?? null,
+                lastName: (p.lastName as string) ?? (p.last_name as string) ?? null,
+              },
+              entry.id,
+            ),
           p_parent_id: (p.parentId as string) ?? (p.parent_id as string),
           p_first_name: (p.firstName as string) ?? (p.first_name as string) ?? "",
           p_last_name: (p.lastName as string) ?? (p.last_name as string) ?? "",
