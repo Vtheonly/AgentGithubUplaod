@@ -1018,3 +1018,36 @@ path for T-092.
 - **What was verified (launch evidence, T-097 recipe):** production launch under Xvfb :99 (25s alive) — zero security warnings / zero CSP violations / only the documented container dbus+GPU noise; dev-mode launch against the Vite dev server (30s, devtools opened = dev URL loaded) — zero warnings / zero violations / no failed resource loads. `csp-policy.test.ts` 4/4; `npm run typecheck` clean; `npm run lint` 0 errors (385 baseline warnings); full desktop suite 71 files / 2215 tests ALL PASS (+4).
 - **What remains:** `connect-src https:` breadth is a functional requirement of the runtime-config dialog (documented residual). No further work for T-108.
 - **Commits:** hub repo.
+
+### T-020 — Android transient 5xx requeue (SYNC-103) — TESTED
+- **Problem IDs:** SYNC-103 (OPEN → TESTED) · **Commits:** android repo.
+- **What changed:** NEW `SyncErrorClassifier` (offline→requeue; DNS/connect/timeout/SyncPushTimeoutException→requeue; SDK HttpRequestException→requeue; RestException 5xx→requeue; RestException 4xx→fail fast; unknown-online→fail fast); `SyncSupport.tryThenEnqueue` delegates to it. Preserved: offline enqueue semantics + the OFFLINE "queued for sync" message + the fail-fast path for permanent rejections.
+- **What was verified:** NEW `SyncRequeueT020Test` 6/6 (status mapping, transport classes, offline requeue, unknown fail-fast, RestException wiring scan, tryThenEnqueue delegation scan with the old condition pinned out). Android suite 285→288/0 at this task's point (counts finalized below). Gap: live 5xx round-trip (bytecode-verified SDK throw; SyncErrorSurfacingTest pattern).
+
+### T-021 — Honest Android sync completion (SYNC-106/107) — TESTED
+- **Problem IDs:** SYNC-106, SYNC-107 (OPEN → TESTED) · **Commits:** android repo.
+- **What changed:** `syncNow` is a suspend call awaiting `drainPending()` and returning an honest Result (the internal fire-and-forget CoroutineScope is removed); `DrainResult` gains `remainingPending` (entries still pending after the pass); `SyncWorker.doWork` maps crash→retry(), permanent failures→failure(), transient remainder→retry(), clean→success() (the old unconditional success is pinned out); SettingsViewModel launches the suspend call in viewModelScope (both call sites). The T-050 no-double-pull source scan keeps matching (block-body form preserved).
+- **What was verified:** NEW `SyncCompletionT021Test` 5/5. Gap: instrumented-device WorkManager E2E.
+
+### T-046 — Android migration discipline (ARCH-004) — TESTED
+- **Problem IDs:** ARCH-004 (OPEN → TESTED) · **Commits:** android repo.
+- **What changed:** the destructive-migration fallback is REMOVED from DatabaseModule (explicit chain 3→12 stays registered); missing migrations now throw loudly; module KDoc states the policy ("the fix is an explicit migration — never re-add the fallback").
+- **What was verified:** NEW `DatabaseMigrationDisciplineT046Test` 3/3 (Robolectric, real SQLite file): open@v12→write→close→reopen preserves the row; hand-set user_version 13 with no registered path throws IllegalStateException (migration/downgrade complaint) — the loud failure the fallback used to swallow; scans pin the no-fallback posture + the nine-migration chain. Gap: MigrationTestHelper v11→v12 data-preservation needs exported schema history (exportSchema=true + schemas/ committed — follow-up; T-045 recommended first).
+
+### T-051 — Android tenant stamping + audit identity (WEAK-011, TENANT-104, WEAK-012) — TESTED
+- **Problem IDs:** WEAK-011, TENANT-104, WEAK-012 (OPEN → TESTED) · **Commits:** android repo.
+- **What changed:** NEW `AuditContext` (@Singleton; `dagger.Lazy<SessionManager>` breaks the LocalAuthRepository→AuditContext→SessionManager→AuthRepository construction cycle) — tenantId() (real session tenant; demo fallback ONLY for the signed-out/seed state) + actorRole() (session role code) + audit()/auditLog() builders keeping the replaced helpers' call shape. All 17 affected repository classes inject it; the two file-private helpers are deleted; ZERO demo-tenant literals remain in either LocalRepositories file (29 sites → session-aware); `inst()` takes the tenant param; PullSyncRepository's 4 pull paths pull NOTHING when no session tenant exists (`?: return@withContext Result.Ok(0)`) instead of demanding the demo tenant. LocalAuthRepositoryTest updated for the new constructor.
+- **What was verified:** NEW `TenantStampingT051Test` 7/7 (real-tenant rows; role captured; seeding fallback; call-shape parity; zero-literal scans; constructor-injection scans; pull-fallback scan). Out-of-scope note recorded: SharedDtoMappers' null-tenant PULL-side default stays demo (mapping boundary, not a local write — revisit under ADR-005).
+
+### T-017 — Android refund idempotency (BUSINESS-102, CROSS-102 — interim) — TESTED
+- **Problem IDs:** BUSINESS-102, CROSS-102 (OPEN → TESTED, interim fix) · **Commits:** android repo.
+- **What changed:** `refund()` guards the already-refunded TERMINAL state before ANY side effect (second call returns the unchanged row — no queue entry, no second reversal, no audit row); the refund sync payload carries `reason` (CROSS-102).
+- **What was verified:** NEW `RefundCorrectnessT017Test` 3/3 (guard precedes write+push and returns unchanged; payload carries reason; local audit keeps the reason). Gap: live double-refund round-trip needs a deployed backend + device.
+- **Left:** the installment-state convergence enqueue stays ADR-005-gated (T-059 umbrella).
+
+### SESSION-17 FULL-SUITE EVIDENCE
+- **Android (final):** `./gradlew :app:testDebugUnitTest` BUILD SUCCESSFUL — **34 files / 298 tests / 0 failures** (275 baseline + 23 new: T-020 6, T-021 5, T-046 3, T-051 7, T-017 3 — minus the superseded combined file's split).
+- **Desktop (final):** `npm test` **71 files / 2215 tests ALL PASS** (+23 vs the 16th session: T-107 4, T-104 8, T-034 7, T-108 4); `npm run typecheck` clean; `npm run lint` 0 errors / 385 warnings (baseline + new-file warnings, documented per-rule in eslint.config.js).
+- **Website (final):** `bun run test` **19 files / 425 tests ALL PASS** (+10: T-107 4, T-104 6); `bun run build` compiled successfully (twice).
+- **Live verification:** chain check 60/60 zero drift (opening); T-106 dual-key password-grant 200 ×2 + `current_user_roles()`=["super_admin"]; T-107 dual-key matrix (health/REST/grant ×2). Scripts persisted under `/home/z/my-project/scripts/` (chain_check_s17.sh, desk_login_200.sh).
+- **Toolchain note:** the container reset wiped /home/z/my-project/bin + tools; re-provisioned IN-SESSION: Temurin JDK 21 (javac 21.0.12.1) + cmdline-tools + platforms;android-35 + build-tools;35.0.0, `android-env.sh` exports JAVA_HOME/ANDROID_HOME; `.env` placeholder-key values for the secrets plugin (gitignored). The Baseline suite ran 275/275 BEFORE any Android change.
