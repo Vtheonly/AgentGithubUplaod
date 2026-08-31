@@ -281,6 +281,14 @@ export interface ParentFinancialProfile {
   readonly totalDue: number;
   readonly totalPaid: number;
   readonly totalOutstanding: number;
+  /**
+   * Σ of `adjustment`/`parent_credit` ledger entries (≤ 0) — the canonical
+   * `computeParentSummary.totalUnallocatedCredit`. T-104/ADR-010: the
+   * "Crédit parent" display derives from this + `totalOutstanding` via
+   * `displayParentCredit` (the raw balance double-counts credit for
+   * canonical-path overpayments — DATA-009).
+   */
+  readonly totalUnallocatedCredit: number;
   readonly overdueAmount: number;
   readonly installments: readonly Installment[];
   readonly recentPayments: readonly Payment[];

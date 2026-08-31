@@ -990,3 +990,13 @@ path for T-092.
 - **What was verified (live):** password grant → HTTP 200 with the legacy anon JWT as apikey; HTTP 200 with the new publishable key; `current_user_roles()` with the fresh session → `["super_admin"]` (RLS path end-to-end). Script persisted: `scripts/desk_login_200.sh`.
 - **What remains:** nothing for T-106. Standing owner-side advice: if sign-in ever fails again, the 400 body's `error_code` now distinguishes credential vs key problems (matrix in AUTH-300).
 - **Next task:** T-107 (this same session) → then the Ready set per next-task.md.
+
+### T-104 — parent_credit balance semantics (DATA-009) — TESTED
+
+- **Problem IDs:** DATA-009 (OPEN → TESTED) · **ADR:** ADR-010
+- **Decision:** option (b) — the canonical writer and its equivalence-pinned shape are preserved; a display-level convention is standardized: `credit = outstanding < 0 ? (unallocatedCredit < 0 ? -unallocatedCredit : -outstanding) : 0` (booked unallocated credit wins; else the raw negative balance is the credit; 0 for debtors). Handles the canonical double-count (DATA-009), the unmaterialized historical population (0062), and standalone goodwill credits. Full population matrix in ADR-010.
+- **What changed (desktop):** NEW `displayParentCredit(totalOutstanding, totalUnallocatedCredit)` in `src/domain/calc/ledger/balance.ts` (the canonical module); `ParentFinancialProfile` extended with `totalUnallocatedCredit` (fed by BOTH the Supabase and Mock profile builders from the canonical summary); the dossier FinancesTab "Crédit parent" card renders the derived value instead of `-outstanding`.
+- **What changed (website):** NEW `displayCredit(outstanding, unallocatedCredit)` in `src/lib/canonical/portal-derive.ts` (verbatim port, source cited per AGENTS.md §9); the Finance tab credit KPI renders the derived value (was `Math.abs(unallocatedCredit)`) — tone/hint conditions updated to `> 0`.
+- **What was verified:** desktop `t-104-display-credit.test.ts` 8/8 (DATA-009 vector, historical vector, goodwill vector, mixed, clamps, card + builder source-scan guards) + `npm test` 2204 passed / 5 skipped (+8) + `tsc --noEmit` clean; website `t-104-display-credit.test.ts` 6/6 + suite 425 passed (+6) + `next build` green. The equivalence suites pinning the UNCHANGED writer remain green inside the full desktop run.
+- **What remains:** Android credit KPI (none exists — port note registered in ADR-010 + DATA-009); option (a) remains available to the owner as a future ADR if the ledger balance itself should ever carry credit single-source.
+- **Commits:** hub repo (desktop code + ADR-010 + registries) + website repo (portal-derive + KPI + suite).

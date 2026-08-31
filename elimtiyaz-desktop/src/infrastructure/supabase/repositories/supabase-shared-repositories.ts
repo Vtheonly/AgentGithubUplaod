@@ -2542,6 +2542,8 @@ export class SupabaseDebtRepository implements DebtRepository {
         totalDue: summary.totalCharged + summary.totalAdjusted,
         totalPaid: summary.totalPaid,
         totalOutstanding: summary.totalOutstanding,
+        // T-104/ADR-010: feed the display-level credit derivation (DATA-009).
+        totalUnallocatedCredit: summary.totalUnallocatedCredit,
         overdueAmount: summary.totalOverdue,
         installments,
         recentPayments,

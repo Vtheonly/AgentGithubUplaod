@@ -105,6 +105,13 @@
 - **Verification:** website `bun run test` 19 files / 419 tests ALL PASS (+4) and `bun run build` compiled successfully; desktop `npm run typecheck` clean, `npm run lint` 0 errors, `npm test` 69 files / 2196 ALL PASS (+4); LIVE dual-key matrix on hkvkefubghbbotgnteir: auth/health 200 ×2, REST query processed ×2, password-grant 200 ×2 (T-106's verification reused as the auth leg). Gap (why TESTED, not VERIFIED): no deployed portal instance was re-rendered against the new default after the build (headless environment); the owner's next `npm run build` + portal load closes it.
 - **Commits:** website commit (public-config + env.example + suites), desktop/hub commit (connection-card + supabase-client + suite + ADR-009 + credentials sheet + registries), android commit (.env.example guidance).
 
+### T-104 — parent_credit balance semantics decision (ADR-010) — **Completed (TESTED)**
+
+- **Problems:** DATA-009 (OPEN → TESTED) · **Priority:** P2 · **Severity:** Medium
+- **Status:** TESTED (2026-09-01, 17th session) — ADR-010 written choosing option (b) (writer preserved; display convention standardized). Desktop: `displayParentCredit` helper in the canonical balance module + `ParentFinancialProfile.totalUnallocatedCredit` fed by both profile builders + dossier "Crédit parent" card renders the derived value. Website: `displayCredit` verbatim port + Finance-tab credit KPI. 8 desktop tests + 6 website tests pin every population (canonical double-count, unmaterialized historical, goodwill, mixed, clamps) and guard the call sites.
+- **Verification:** desktop suite 2204 passed (+8, equivalence suites pinning the unchanged writer still green), typecheck clean; website suite 425 passed (+6), build green. ADR-010 carries the population matrix + implementation map (incl. the Android port note and the dormant debt-meter prop).
+- **Commits:** hub repo + website repo.
+
 ## Completed (thirteenth repair session — 2026-08-31, owner-requested ~10-task batch)
 
 ### T-041 — Complete the year-end promotion flow

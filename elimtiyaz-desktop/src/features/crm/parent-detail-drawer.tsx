@@ -54,6 +54,7 @@ import {
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import { deterministicActivationCode } from "../../core/format/id";
+import { displayParentCredit } from "../../domain/calc/ledger/balance";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { ActivationCodeModal } from "./activation-code-modal";
 import { EditParentModal } from "./edit-parent-modal";
@@ -499,11 +500,18 @@ function FinancesTab({
         <BalanceCard label="Total dû" value={profile?.totalDue ?? 0} tone="default" />
         <BalanceCard label="Payé" value={profile?.totalPaid ?? 0} tone="success" />
         {outstanding < 0 ? (
-          // T-103 (DATA-008) — an overpaid parent holds a CREDIT: render the
-          // negative ledger balance as a positive "Crédit parent" instead of
-          // a confusing negative "Reste". Consistent with the portal's
-          // outstanding<0 → success-tone credit KPI.
-          <BalanceCard label="Crédit parent" value={-outstanding} tone="success" />
+          // T-104 (DATA-009/ADR-010) — an overpaid parent holds a CREDIT, but
+          // the RAW ledger balance double-counts it for canonical-path
+          // overpayments (the writer books the payment excess AND a
+          // parent_credit adjustment). The card now renders the ADR-010
+          // derived credit (booked unallocated credit wins; else the raw
+          // negative balance) instead of `-outstanding`. Consistent with the
+          // portal's credit KPI and the debt-meter's unallocated-credit row.
+          <BalanceCard
+            label="Crédit parent"
+            value={displayParentCredit(outstanding, profile?.totalUnallocatedCredit ?? 0)}
+            tone="success"
+          />
         ) : (
           <BalanceCard label="Reste" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
         )}

@@ -204,6 +204,41 @@ export function computeParentSummary(
   };
 }
 
+/**
+ * DISPLAY-level credit derivation for a parent (ADR-010 / T-104, DATA-009).
+ *
+ * The canonical writer `collect_and_allocate_payment` books the FULL payment
+ * entry (−amount) AND a `parent_credit` adjustment (−unallocated) on
+ * overpayment, so the raw ledger balance double-counts the credit for
+ * canonical-path overpayments (DATA-009): charge 100k + payment −150k +
+ * credit −50k → totalOutstanding −100k while the TRUE credit is 50k
+ * (= |totalUnallocatedCredit|). Conversely, the 0062 reconciliation
+ * deliberately did NOT materialize `parent_credit` entries for historical
+ * overpayers ("balance = −excess is exact there"), so for them the raw
+ * negative balance IS the credit.
+ *
+ * Convention (ADR-010): when the parent's net position is a credit
+ * (balance < 0), BOOKED unallocated credit wins when present; otherwise the
+ * raw negative balance is the credit:
+ *
+ *   credit = balance < 0 ? (unallocatedCredit < 0 ? -unallocatedCredit
+ *                                                 : -balance)
+ *                        : 0
+ *
+ * Both inputs are the canonical aggregates (`totalOutstanding` INV-1 raw
+ * replay; `totalUnallocatedCredit` Σ `adjustment`/`parent_credit` entries) —
+ * this helper NEVER mutates them and is display-only. It must stay in sync
+ * with the website port (`src/lib/canonical/portal-derive.ts`) — pinned by
+ * the desktop unit suite and the website t-104 tests respectively.
+ */
+export function displayParentCredit(
+  totalOutstanding: number,
+  totalUnallocatedCredit: number,
+): number {
+  if (totalOutstanding >= 0) return 0;
+  return totalUnallocatedCredit < 0 ? -totalUnallocatedCredit : -totalOutstanding;
+}
+
 // ─── Convenience aliases (moved from the deleted `ledger-balance.ts` shim) ────
 
 /**
