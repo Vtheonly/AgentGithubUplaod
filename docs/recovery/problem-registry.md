@@ -113,7 +113,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | GRADE-100 | Low | DEFERRED | T-075 | `homework.acknowledged_count` column is permanently 0; no code increments it |
 | HOMEWORK-100 | Critical | TESTED | T-023 | Desktop homework push omits `tenant_id`; INSERT always fails NOT NULL (extends WEAK-017) |
 | HOMEWORK-101 | Critical | OPEN | T-024 | Android homework sync push uses invalid UUID `"hwk-{uuid}"` as `homework.id` |
-| HOMEWORK-103 | High | OPEN | T-039 | Android `pullAll` doesn't pull homework/attendance/assessments; cross-platform visibility is one-way only |
+| HOMEWORK-103 | High | TESTED (T-039, 18th session) | T-039 | Android `pullAll` doesn't pull homework/attendance/assessments; cross-platform visibility is one-way only — FIXED: academic cluster pulled with canonical mappers; live cross-device round-trip still owed |
 | SCHED-100 | Medium | BLOCKED | T-042 | Timetable (Emploi du Temps) feature is structurally unimplemented: domain model + UI KPI exist but no DB table, no Supabase repository, no migration |
 | SCHED-101 | Low | BLOCKED | T-042 | `detectTimetableConflict` checks teacher/class overlaps but NOT room conflicts (different teachers, different classes, same room, same time) |
 | STUDENT-100 | Critical | OPEN | T-024 | Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter) |
@@ -126,7 +126,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | NOTIF-102 | Low | TESTED | T-052 | Desktop topbar bell `unreadCount` is computed AFTER slicing to 8 items; badge caps at 8 even when actual unread is 50 |
 | NOTIF-103 | Low | TESTED | T-052 | Website bottom-nav fetches 1 unread notification but never renders it (dead query); top-app-bar bell caps unread at 50 |
 | NOTIF-104 | Medium | BLOCKED | T-038 | Android `NotificationDao.markRead/markAllRead/dismiss` only update LOCAL Room; server's `notifications.is_read` / `dismissed_at` stays at original values forever (silent desync) |
-| NOTIF-105 | Medium | OPEN | T-039 | Android `pullNotifications` pulls ALL server-visible notifications (limit:200) with no per-user filter; stale role-broadcasts persist in Room across role changes |
+| NOTIF-105 | Medium | TESTED (T-039, 18th session) | T-039 | Android `pullNotifications` pulls ALL server-visible notifications (limit:200) with no per-user filter; stale role-broadcasts persist in Room across role changes — FIXED: RLS-mirrored filter + eviction (Room v13 targetRole) |
 | PUSH-100 | Critical | OPEN | T-036 | NO production code anywhere invokes the `send-push-notification` Edge Function (extends WEAK-014/WEAK-015 to a 3rd compounding bug) |
 | PUSH-101 | Medium | OPEN | T-036 | Android `ElImtiyazMessagingService.onMessageReceived` reads `data["type"]` and `data["priority"]` from the wrong field; AndroidManifest has NO deep-link intent filter for `click_action` URLs |
 | PUSH-102 | Medium | TESTED | T-030 | `register_fcm_token` RPC had no inverse and silently overwrote `user_id` on shared devices — FIXED 2026-08-31 (T-030, 13th session): migration 0060 conflict-guard (ACTIVE-conflict → 42501; INACTIVE-conflict → explicit audited transfer) + `unregister_fcm_token(p_token)` RPC (live 9/9). The 0050 note claiming the overwrite was already blocked was INACCURATE (register's ON CONFLICT branch was untouched until 0060) |
@@ -139,7 +139,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ARCH-005 | Medium | TESTED | T-049 | `next.config.ts` has `typescript.ignoreBuildErrors: true` AND `reactStrictMode: false` — type errors silently shipped to production, React strict-mode bugs hidden — strict builds green 2026-08-29 (T-049) |
 | ARCH-006 | Medium | OPEN | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
 | ARCH-007 | High | TESTED | T-081 | NEW (2026-08-29): Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken — gate restored 2026-08-29 (T-081) |
-| ARCH-008 | High | OPEN | T-082 | NEW (2026-08-29): the Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing NewApi errors; no lint baseline has ever existed |
+| ARCH-008 | High | TESTED (T-082, 18th session: desugaring enabled, NewApi 337→0, 2 errors fixed in code, 117-warning baseline committed, gate GREEN) | T-082 | NEW (2026-08-29): the Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing NewApi errors; no lint baseline has ever existed |
 | ARCH-012 | Medium | OPEN | T-082-adjacent | NEW (2026-08-31, 13th session): `testReleaseUnitTest` fails on `GreetingScreenshotTest` ("Unable to resolve activity" — Robolectric cannot resolve the release-variant launcher activity, applicationId `com.aistudio.elimtiyazstaff.bxmzlx`). PROVEN pre-existing (pristine-tree re-run fails identically) and unrelated to any 13th-session change. The Android `./gradlew test` gate is green only via the DEBUG variant until this is fixed |
 | BUG-NEW-001 | High | TESTED | T-083 | NEW (2026-08-30): the `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table; the daily cron EF has been silently failing every day since the RPC was deployed — rewritten by migration 0049 (applied live 2026-08-30, verified: correct table + clean call); EF round-trip with CRON_SECRET pending |
 | BUG-NEW-002 | Critical | TESTED | T-084 | NEW (2026-08-30): `mv_dashboard_kpis` join fan-out multiplied every payment by the student count — monthly_revenue showed 21.38 BILLION DZD (true: 54.96M); rebuilt with scalar subqueries by migration 0049 (applied live, values verified) |
@@ -3560,16 +3560,17 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ---
 
-### WEAK-030 — Expense-approval state machine enforced client-side only (RLS has no self-approval or transition guard)
+### WEAK-030 — Expense-approval state machine enforced client-side only (RLS has no self-approval or transition guard) — RESOLVED
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, 18th session: migration 0064 applied LIVE atomically with registration — chain 61/61; verify_t-weak030.sql 11/11 reproducing BOTH bypasses blocked + all legal paths accepted)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
-- **Task:** follow-up to T-093 (needs a new migration)
+- **Task:** follow-up to T-093 (DONE as migration 0064_expense_transition_guard)
 - **Discovered:** during T-093's SupabaseExpenseRepository port (2026-08-31).
 - **Description:** the expense_tickets RLS policies (0008) scope writes by tenant + role/submitter but do NOT enforce (a) the no-self-approval rule (a submitter can approve their own ticket via direct PostgREST) nor (b) the status state machine (any allowed-role caller can jump the ticket to any status value). The desktop adapter and mock both enforce these rules client-side; a direct API caller bypasses them.
 - **Proposed resolution:** a trigger (or 0057 migration) enforcing transitions + rejecting approver = submitter, mirroring enforce_payment_proof's style.
 - **Verification:** migration-level test with the full canonical chain; regression test reproducing both bypasses.
+- **Resolution (2026-09-01, 18th session):** migration **0064_expense_transition_guard** (append-only; applied live atomically with registration — MIG-TOKENS pattern, chain 61/61 = 0001–0064) replaces 0008's spot-check trigger with the canonical transition graph (draft→pending_approval; pending→approved|rejected; approved→disbursed|settled [settle_expense settles from EITHER]; disbursed→settled; rejected/settled terminal; INSERT only born draft|pending) + the HARD no-self-approval block (entering approved requires approved_by SET and ≠ submitter — closes the NULL-approver bypass where a submitter's RLS-permitted own-ticket update passed 0008 by leaving approved_by null). All 0008 invariants preserved verbatim. Live evidence: scripts/verify_t-weak030.sql 11/11 inside BEGIN/ROLLBACK (B1 jump/B1b reopen/B1c rejected→disbursed/B1d born-approved blocked; B2 null-approver + B2b explicit self-approval blocked; L1–L4 legal paths accepted; L5 the 0008 rejection-reason invariant kept). Desktop: t-weak030-expense-transition-guard.test.ts 8/8 (graph pinned, adapter machine proven a SUBSET of the DB graph); suite 73 files / 2223 tests. Hub commit 39962bc.
 
 ---
 
@@ -3587,16 +3588,17 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ---
 
-### WEAK-030 — Expense-approval state machine enforced client-side only (RLS has no self-approval or transition guard)
+### WEAK-030 — Expense-approval state machine enforced client-side only (RLS has no self-approval or transition guard) — RESOLVED
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, 18th session: migration 0064 applied LIVE atomically with registration — chain 61/61; verify_t-weak030.sql 11/11 reproducing BOTH bypasses blocked + all legal paths accepted)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
-- **Task:** follow-up to T-093 (needs a new migration)
+- **Task:** follow-up to T-093 (DONE as migration 0064_expense_transition_guard)
 - **Discovered:** during T-093's SupabaseExpenseRepository port (2026-08-31).
 - **Description:** the expense_tickets RLS policies (0008) scope writes by tenant + role/submitter but do NOT enforce (a) the no-self-approval rule (a submitter can approve their own ticket via direct PostgREST) nor (b) the status state machine (any allowed-role caller can jump the ticket to any status value). The desktop adapter and mock both enforce these rules client-side; a direct API caller bypasses them.
 - **Proposed resolution:** a trigger (or 0057 migration) enforcing transitions + rejecting approver = submitter, mirroring enforce_payment_proof's style.
 - **Verification:** migration-level test with the full canonical chain; regression test reproducing both bypasses.
+- **Resolution (2026-09-01, 18th session):** migration **0064_expense_transition_guard** (append-only; applied live atomically with registration — MIG-TOKENS pattern, chain 61/61 = 0001–0064) replaces 0008's spot-check trigger with the canonical transition graph (draft→pending_approval; pending→approved|rejected; approved→disbursed|settled [settle_expense settles from EITHER]; disbursed→settled; rejected/settled terminal; INSERT only born draft|pending) + the HARD no-self-approval block (entering approved requires approved_by SET and ≠ submitter — closes the NULL-approver bypass where a submitter's RLS-permitted own-ticket update passed 0008 by leaving approved_by null). All 0008 invariants preserved verbatim. Live evidence: scripts/verify_t-weak030.sql 11/11 inside BEGIN/ROLLBACK (B1 jump/B1b reopen/B1c rejected→disbursed/B1d born-approved blocked; B2 null-approver + B2b explicit self-approval blocked; L1–L4 legal paths accepted; L5 the 0008 rejection-reason invariant kept). Desktop: t-weak030-expense-transition-guard.test.ts 8/8 (graph pinned, adapter machine proven a SUBSET of the DB graph); suite 73 files / 2223 tests. Hub commit 39962bc.
 
 ---
 
@@ -3722,7 +3724,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 - **SYNC-103 (T-020, TESTED):** NEW `SyncErrorClassifier` — one transient/permanent classification point used by `tryThenEnqueue`: offline → always requeue (preserved); transport errors (DNS/connection/socket-timeout/`SyncPushTimeoutException`) → requeue; SDK `HttpRequestException` → requeue; `RestException` 5xx → requeue; `RestException` 4xx → fail fast; unknown online → fail fast. Suite: `SyncRequeueT020Test` (6) — full suite 298/0. Gap: live 5xx round-trip needs a deployed backend (bytecode-verified throw-on-non-2xx, T-019 notes).
 - **SYNC-106/107 (T-021, TESTED):** `syncNow` is suspend + awaits `drainPending()` (the fire-and-forget service scope is deleted); `DrainResult.remainingPending` feeds the worker's honest mapping: crash → retry(), permanent failures → failure(), transient remainder → retry(), clean → success(). Suite: `SyncCompletionT021Test` (5). Gap: WorkManager end-to-end needs an instrumented device.
-- **ARCH-004 (T-046, TESTED):** the destructive-migration fallback is REMOVED from DatabaseModule (chain 3→12 stays). A missing migration now throws loudly. `DatabaseMigrationDisciplineT046Test` (3, Robolectric): open/write/reopen preserves data; an unresolvable transition (user_version 13) throws IllegalStateException; scans pin no-fallback + the full chain. Gap: a true v11→v12 data-preservation run needs Room's MigrationTestHelper ⇒ exportSchema=true + schemas/ history (follow-up registered in the task entry; T-045 recommended first).
+- **ARCH-004 (T-046, TESTED):** the destructive-migration fallback is REMOVED from DatabaseModule (chain 3→12 stays). A missing migration now throws loudly. `DatabaseMigrationDisciplineT046Test` (3, Robolectric): open/write/reopen preserves data; an unresolvable transition (user_version 13) throws IllegalStateException; scans pin no-fallback + the full chain. Gap: a true v11→v12 data-preservation run needs Room's MigrationTestHelper ⇒ exportSchema=true + schemas/ history (follow-up registered in the task entry; T-045 recommended first). **Gap CLOSED 2026-09-01 (18th session):** exportSchema=true + schemas/12.json+13.json committed + RoomSchemaUpgradeT046GapTest 4/4 (MigrationTestHelper v12→v13 on real SQLite — data preserved, targetRole nullable TEXT, post-migration schema validated against the committed 13.json). Android commit 9712b02.
 - **WEAK-011 + TENANT-104 (T-051, TESTED):** NEW `AuditContext` (@Singleton, `dagger.Lazy<SessionManager>` breaking the LocalAuthRepository→AuditContext→SessionManager→AuthRepository cycle) — the session-aware source for tenantId()/actorRole(); all 17 affected repository classes inject it; the two file-private helpers are deleted; ZERO demo-tenant literals remain in LocalRepositories.kt / LocalRepositories2.kt; `inst()` takes the tenant from the session. `TenantStampingT051Test` (7). Out-of-scope note: `SharedDtoMappers` still defaults null-tenant DTOs to the demo UUID on the PULL side — that is a mapping boundary, not a local write; revisit under ADR-005's pull design.
 - **WEAK-012 (T-051, TESTED):** PullSyncRepository's 4 pull paths return `Ok(0)` (pull nothing) when no session tenant exists — the demo-tenant fallback is gone.
 - **BUSINESS-102 + CROSS-102 (T-017, TESTED — interim):** `refund()` guards the already-refunded terminal state BEFORE any side effect (second call returns the row unchanged: no queue entry, no second reversal, no audit row) and the refund sync payload carries `reason`. `RefundCorrectnessT017Test` (3). The installment-state convergence enqueue stays ADR-005-gated (T-059).
