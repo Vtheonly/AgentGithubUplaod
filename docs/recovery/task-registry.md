@@ -710,13 +710,14 @@
 - **Verification:** cross-client integration test.
 - **ADRs:** —
 
-#### T-024 — Fix Android homework id and promotion propagation
+#### T-024 — Fix Android homework id and promotion propagation — **Completed (TESTED, 18th session)**
 - **Problems:** HOMEWORK-101, STUDENT-100 · **Priority:** P1 · **Severity:** Critical
 - **Description:** Android homework entities use real UUIDs (drop the `hwk-` prefix before upsert); promotion sync propagates `grade_level_code` (extend the RPC or use the direct update path).
 - **Dependencies:** T-025 for the promotion server path · **Affected:** A · **Platforms:** Android, Backend
 - **Tests:** homework push persists; promoted student's server-side grade advances and survives a pull sync.
 - **Verification:** integration tests.
 - **ADRs:** —
+- **Result (2026-09-01, 18th session):** homework entities now created with a bare UUID; dispatcher strips the legacy `hwk-` prefix defensively (queued legacy rows reach the server on the same server id — idempotent). `pushStudent` sends `p_grade_level_code` (the RPC has had the param since 0037 — audit text corrected; verified live via pg_get_functiondef). HomeworkPromotionT024Test 6/6; full Android suite 35 files / 304 / 0 failures; live `scripts/verify_t-024.sql` 5/5 (H1 bare-UUID insert ok, H2 `hwk-` still rejected, S1–S3 grade propagation + pull roundtrip — rolled back, no data mutated). Android commit 7bd43e1.
 
 #### T-025 — Replace fn_current_tenant_id with the canonical resolver
 - **Problems:** DEAD-100 (absorbs TENANT-105), TENANT-106 · **Priority:** P1 · **Severity:** Critical

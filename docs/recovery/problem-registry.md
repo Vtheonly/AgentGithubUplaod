@@ -1685,7 +1685,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### HOMEWORK-101 — Android homework sync push uses invalid UUID `"hwk-{uuid}"` as `homework.id`
 
-- **Category:** HOMEWORK  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** HOMEWORK  |  **Severity:** Critical  |  **Status:** TESTED (2026-09-01, 18th session — T-024)
+- **Status note:** FIXED 2026-09-01 (T-024): homework entities are now created with a bare UUID, and the dispatcher strips the legacy `hwk-` prefix defensively so already-queued/Room rows reach the server on the same server id. Regression suite `HomeworkPromotionT024Test` 6/6; full Android suite 304/304; live server-path verification `scripts/verify_t-024.sql` 5/5 (H1 bare-UUID insert ok, H2 `hwk-` id still rejected = root cause pinned, S1–S3 promotion propagation). E2E on-device drain still pending a real device session (the dispatcher path is proven live against the exact row shape).
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-024 (docs/recovery/task-registry.md)
@@ -1763,7 +1764,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### STUDENT-100 — Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter)
 
-- **Category:** STUDENT  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** STUDENT  |  **Severity:** Critical  |  **Status:** TESTED (2026-09-01, 18th session — T-024)
+- **Status note:** FIXED 2026-09-01 (T-024): `pushStudent` now sends `p_grade_level_code` from the promotion payload (blank-safe; the RPC's COALESCE preserves the server value when omitted). CORRECTION to the original audit text: the RPC has accepted `p_grade_level_code` since migration 0037 (verified live 2026-09-01 via `pg_get_functiondef`) — only the client-side gap remained. Live: S1 grade advances, S2 omitted-param preserves, S3 pull-shape roundtrip (verify_t-024.sql, rolled back). Unit: HomeworkPromotionT024Test 3/6 cover STUDENT-100; full suite 304/304.
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-024 (docs/recovery/task-registry.md)
