@@ -138,11 +138,11 @@
 - **Status:** TESTED (2026-09-03, 22nd session)
 - **What was done:** fresh `npm install` (400 packages) then the full verification battery on the HEAD tree (a77e40e): `npm run lint` → 0 errors, 0 warnings output; `npm run test` (vitest) → **24 files / 440 tests / 0 failures** (20th-session baseline 23/436 + the 21st session's t-126-hub-owned-edge-functions guard suite 1 file / 4 tests — arithmetic checks out); strict `npm run build` → compiled successfully (static prerender + middleware); live production-render smoke test (`next start -p 3100` + curl) → HTTP 200, `<title>El-Imtiyaz Portal — Espace Parent & Élève</title>`, NO "Missing configuration" banner (the T-096 committed public defaults working). No regressions found — nothing to fix.
 
-### T-137 — Desktop platform baseline verification — **Planned (22nd session)**
+### T-137 — Desktop platform baseline verification — **Completed (TESTED — typecheck clean, lint 0 errors/warning-delta-0, 79 files × 2271 tests ALL PASS)**
 
 - **Problems:** (session verification) · **Priority:** P1 · **Severity:** —
-- **Status:** Planned (2026-09-03, 22nd session)
-- **What (planned):** `npm run typecheck` + `npm run lint` + full `npm test` (vitest, expect ~75 files / 2236 tests + new suites from this session); record per-file evidence; fix regressions if found.
+- **Status:** TESTED (2026-09-03, 22nd session)
+- **What was done:** the full desktop battery on the tree WITH this session's changes (T-131/T-132/T-134 suites + the parentDisplayName canonicalization): `npm run typecheck` → clean; `npm run lint` → 0 errors with **warning-delta vs HEAD = 0** (stash round-trip: 384 → 384 — the documented 307-warning T-078 baseline is simply old; the delta proves this session's code adds nothing); `npm test` (vitest) → **79 files / 2271 tests / 0 failures** (20th-session baseline 75/2236 + this session's three new suites: t-131-email-ef 12, t-132-approve-binding-guard 7, t-134-parent-name-rendering 8 = +27; +4 files). No regressions found. A final pristine-tree re-run happens at T-138 closeout (TEST-300 discipline).
 
 ### T-138 — Session closeout: pristine-tree full re-run + zip packaging — **Planned (22nd session)**
 

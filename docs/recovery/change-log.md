@@ -1330,3 +1330,9 @@ path for T-092.
 - **Verification:** `./gradlew test --no-daemon` → BUILD SUCCESSFUL: **debug 44 files / 372 tests / 0 failures / 0 errors; release 42 files / 367 / 0** (release = debug − 5 = ARCH-012's documented exclusions exactly; +2 files = the two excluded classes). `./gradlew lintDebug --no-daemon` → BUILD SUCCESSFUL (T-082's committed baseline holding). No Android code changes this session — HEAD (85b9f3f) is green as-is.
 - **Notes:** the baseline reconciles with the 21st-session additions (T-127 +14, T-128 +4, T-129 +21 tests; RealtimeSyncT069Test extended). Gradle ran with the documented 2 GB heap / 1 worker profile, both variants in one `test` invocation (9 min).
 - **Commit:** (hub repo — this docs commit; the Android repo has NO changes).
+
+### 2026-09-03 — T-137 — Desktop platform baseline verification
+- **Problem IDs:** (session verification — the owner's all-platforms mandate)
+- **What was verified (on the tree carrying this session's changes):** `npm run typecheck` clean; `npm run lint` 0 errors, warning-delta vs HEAD = 0 (stash round-trip 384→384); `npm test` → **79 files / 2271 tests / 0 failures** (baseline 75/2236 + t-131 12 + t-132 7 + t-134 8 = +27 tests / +4 files — arithmetic reconciles). A pristine-tree re-run at closeout (T-138) per the TEST-300 discipline.
+- **Affected components:** none (verification; the code changes belong to T-131/T-132/T-134).
+- **Commit:** (hub repo — docs-only).
