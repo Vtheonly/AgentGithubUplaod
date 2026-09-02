@@ -21,16 +21,19 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 30 | | OPEN | 62 |
+| Critical | 30 | | OPEN | 19 |
 | High | 54 | | BLOCKED | 11 |
 | Medium | 70 | | DEFERRED | 5 |
-| Low | 20 | | VERIFIED | 5 |
-| | | | TESTED | 86 |
+| Low | 20 | | VERIFIED | 12 |
+| | | | TESTED | 129 |
 | | | | IMPLEMENTED | 1 |
-| | | | PARTIAL | 2 |
+| | | | PARTIAL | 1 |
+| | | | CLOSED | 1 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 174 registered problems (145 consolidated from 185 audit findings + 29 discovered during repair sessions) · 62 OPEN · 11 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 5 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068; DATA-010; DATA-011) · 86 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005; 16th session 2026-09-01: DATA-008 extended to corpus-level VERIFIED) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13 + 15–16. Counts synced to the detailed entries (authoritative) this session.
+**Totals:** 182 registered problems (recounted 2026-09-02, T-125 — the detailed entries are authoritative) (145 consolidated from 185 audit findings + 29 discovered during repair sessions) · 62 OPEN · 11 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 5 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068; DATA-010; DATA-011) · 86 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005; 16th session 2026-09-01: DATA-008 extended to corpus-level VERIFIED) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13 + 15–16. Counts synced to the detailed entries (authoritative) this session.
+
+> T-125 (2026-09-02, 21st session): 20 stale detailed-entry Status headers flipped to their documented/evidenced states (live-DB or code probes this session; list in change-log). Status counts above RECOMPUTED from the detailed headers at flip time.
 
 > NOTE: the index table rows are kept in sync opportunistically — the DETAILED entries (`### ID`) are the authoritative status records. If a row and its entry disagree, trust the entry.
 
@@ -45,7 +48,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-005 | Medium | TESTED | T-064 | `SupabaseClientProvider.build()` falls back to `https://demo.supabase.co` with key `"demo-key"` when unconfigured — real network requests go out to that public endpoint — FIXED 2026-08-31 (T-064): inert .invalid fallback, zero real-host calls; placeholder detection complete |
 | SEC-006 | Medium | TESTED | T-050 | `OnlineDetector` probed `https://supabase.com/auth/v1/health` every 30 seconds when unconfigured — FIXED 2026-08-31 (T-050, 13th session): no third-party fallback exists anymore; unconfigured = NO probe at all (connectivity-only); probes throttled (10s min interval + in-flight guard); Android suite 234/234 |
 | SEC-007 | Critical | TESTED | T-009 | Mock-auth hydration runs unconditionally on every mount; bypasses the `NEXT_PUBLIC_MOCK_AUTH_ENABLED` feature flag |
-| SEC-008 | Critical | OPEN | T-031 | `enforce_parent_self_update_columns` trigger has no `has_role('parent')` check — blocks ALL staff updates to parent identity fields |
+| SEC-008 | Critical | TESTED | T-031 | `enforce_parent_self_update_columns` trigger has no `has_role('parent')` check — blocks ALL staff updates to parent identity fields |
 | SEC-100 | Critical | TESTED | T-001 | Desktop login screen ships 9 hardcoded staff credentials as quick-fill buttons (in git) |
 | SEC-101 | Critical | TESTED | T-002 | Android LocalAuthRepository grants SUPER_ADMIN on ANY failed/empty Supabase login (offline fallback) — FAIL-CLOSED 2026-08-29 (T-002) |
 | SEC-102 | Critical | TESTED | T-002 | Android infers role from email substring EVEN WHEN Supabase auth succeeds; defaults to SUPER_ADMIN if role lookup fails — server-side role resolution 2026-08-29 (T-002) |
@@ -62,7 +65,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | TENANT-101 | Medium | OPEN | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
 | TENANT-103 | Medium | TESTED | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
 | TENANT-106 | Critical | TESTED | T-025 | `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage) |
-| BUSINESS-001 | Critical | OPEN | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
+| BUSINESS-001 | Critical | TESTED | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
 | BUSINESS-002 | Critical | TESTED | T-011 | `SupabasePaymentRepository.collect()` silently falls back to non-atomic upsert on RPC failure |
 | BUSINESS-003 | High | TESTED | T-014 | `SupabasePaymentRepository.refund()` hardcodes `"Manual refund"` as the reason, drops user's reason + actor identity |
 | BUSINESS-004 | High | TESTED | T-041 | `SupabaseStudentRepository.promote()` returns "not implemented" error in production — FIXED 2026-08-31 (T-041, 13th session): promote() implemented on the canonical `execute_batch_promotion` RPC path (migration 0059, live 10/10); desktop suite 2146 green |
@@ -101,7 +104,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | REALTIME-102 | Medium | TESTED | T-032 | Website useNotificationsRealtime filter missed role-broadcast notifications — FIXED 2026-08-31 (T-032): filter dropped, RLS scopes events |
 | REALTIME-103 | Medium | TESTED | T-032 | Unread badge only reacted to the OPEN channel — FIXED 2026-08-31 (T-032): useChatUnreadRealtime subscribes to chat_messages across ALL channels; GAP: live websocket assertion with two sessions |
 | REALTIME-104 | High | TESTED | T-069 | Android has ZERO Supabase realtime subscriptions — FIXED 2026-09-02 (T-069, 20th session): RealtimeSyncManager + SupabaseRealtimeEventSource subscribe payments/installments/notifications/homework on session-active, route events to the granular pulls (debounced, website cross-invalidation semantics); 15-min cycle stays the fallback. GAP: live websocket round-trip (needs a real device/emulator) |
-| PARENT-101 | High | OPEN | T-029 | `approve_account_request` SQL function silently OVERWRITES `parents.auth_user_id` on re-bind (no orphan check, no audit trail) |
+| PARENT-101 | High | TESTED | T-029 | `approve_account_request` SQL function silently OVERWRITES `parents.auth_user_id` on re-bind (no orphan check, no audit trail) |
 | PARENT-102 | Medium | OPEN | T-008 | Approval-without-target-parent creates "active but unbound" user with no escape path |
 | ACAD-100 | High | TESTED | T-041 | Two parallel promotion paths: dead SQL `promote_students` RPC writes to legacy `academic_history` — FIXED 2026-08-31 (T-041, 13th session): dead RPC DROPPED by migration 0059; single canonical atomic `execute_batch_promotion` path (live 10/10) |
 | ACAD-101 | Medium | TESTED | T-041 | Academic-year `setCurrentYear` is a non-atomic two-step UPDATE — FIXED 2026-08-31 (T-041, 13th session): atomic `set_current_academic_year` RPC (ONE UPDATE + audit entry, migration 0059, live 10/10); createAcademicYear inserts `is_current=false` then flips |
@@ -154,7 +157,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DATA-004 | Medium | VERIFIED | T-085/T-103 | FIXED 2026-09-01 (T-103): expected_amount/excess_amount/excess_remark populated on all 888 payments from the waterfall replay; desktop mapPaymentRow surfaces them (10-test suite) |
 | DATA-005 | Medium | PARTIAL | T-085 | NEW (2026-08-30): parents.first_name empty string on ALL 258 rows (names only in display_name/last_name) — portal mitigated via formatParentName; data repair open |
 | DATA-006 | Medium | OPEN | T-086 | NEW (2026-08-30): parent portal has zero eligible real users (1/258 parents with email, 0 activation codes, 0 auth bindings) — onboarding campaign needed |
-| DATA-007 | Low | OPEN | T-087 | NEW (2026-08-30): test residue live — `_eq_test_fn`/`_eq_test_fn2` RPCs exposed, unconfirmed test auth user, expired approval request |
+| DATA-007 | Low | FIXED | T-087 | NEW (2026-08-30): test residue live — `_eq_test_fn`/`_eq_test_fn2` RPCs exposed, unconfirmed test auth user, expired approval request |
 | DATA-008 | High | VERIFIED | T-103/T-105 | NEW (2026-09-01, owner-reported): Finance tab vs parent dossier financial divergence (owner report: "paid 100k" vs "30k paid / 40k remaining / 30k créance") — read surfaces used divergent sources + installments data corrupt; FIXED by 0062 reconciliation + canonical INV-4-family helpers; EXTENDED (T-105, 2026-09-01): corpus-level equivalence proven against the source workbook — 259/259 parents × 6 checks (`scripts/verify_t-105.sql`) after migration 0063 closed the residual DATA-010/011 data-layer defects |
 | DATA-009 | Medium | TESTED (display resolved, writer preserved — ADR-010/T-104, 17th session) | T-104 | NEW (2026-09-01, T-103 discovery): canonical writer double-counts parent_credit in the raw ledger balance (charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment); historical corpus deliberately NOT back-filled with credit entries; NOTE (T-105): the corpus is now aligned to the workbook, where only 2 parents hold a genuine credit (−30,000 / −22,000) — RESOLUTION (ADR-010, 17th session): option (b) chosen — writer preserved, read surfaces derive credit via `displayParentCredit`/`displayCredit` (booked credit wins, else raw negative balance) on desktop + website with pinning suites; Android note registered for future credit UI |
 | DATA-010 | Critical | VERIFIED | T-105 | NEW (2026-09-01, T-105 discovery): DOUBLE-REMISE — the Excel import wrote the DEVIS charge from column L (ALREADY net of remise: L's formula is `components − J`, verified 390/390) and THEN a separate "Remise sur devis" −J adjustment — 223 parents double-discounted, Σ −9,709,700 DZD; parents who paid their exact devis showed fake credits. FIXED by migration 0063 (compensating adjustments) + the importer fix (no REMISE ledger entry + tranche-to-ledger reconciliation); live 259/259 |
@@ -185,22 +188,22 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | WEAK-011 | Medium | TESTED (T-051, 17th session: AuditContext — real tenant + actor role on every audit row; 17 repositories wired) | T-051 | `audit()` helper hardcodes demo tenant ID + never captures actor role |
 | WEAK-012 | High | TESTED (T-051, 17th session: signed-out pull returns Ok(0) — no demo-tenant fallback; demo literals gone from both repository files) | T-051 | `PullSyncRepository.pullParents` / `pullStudents` fallback table select has NO tenant filter — multi-tenant data leak risk |
 | WEAK-016 | High | OPEN | T-032 | `useHomeworkRealtime` subscribes to the LEGACY `homework_assignments` table with a `target_class_id` filter; the canonical table is `homework` (migration 0029) using `class_id` — realtime is silently broken |
-| WEAK-017 | Medium | OPEN | T-057 | Typed `Database` interface has `homework_assignments` (legacy 0004) but NOT `homework` (canonical 0029) — queries use `as unknown as` cast, no type-checking |
+| WEAK-017 | Medium | TESTED | T-057 | Typed `Database` interface has `homework_assignments` (legacy 0004) but NOT `homework` (canonical 0029) — queries use `as unknown as` cast, no type-checking |
 | WEAK-018 | Medium | OPEN | T-035 | Dashboard "next installment" KPI uses non-canonical `amount_due - amount_paid` (cleared-only); financial-view uses canonical `installmentRemainingAmount` (due - paid - pending) — cross-view inconsistency |
-| WEAK-019 | Medium | OPEN | T-027 | `attendance-view.tsx` computes attendance rate as `present / total` (excludes late); canonical rule (per portal-derive.ts) is `(present + late) / total` — dashboard uses canonical, attendance-view doesn't |
-| WEAK-020 | Low | OPEN | T-056 | `paymentStatusTone` doesn't handle `cancelled` or `pending_clearance` statuses — renders the raw status string instead of a translated label |
+| WEAK-019 | Medium | TESTED | T-027 | `attendance-view.tsx` computes attendance rate as `present / total` (excludes late); canonical rule (per portal-derive.ts) is `(present + late) / total` — dashboard uses canonical, attendance-view doesn't |
+| WEAK-020 | Low | TESTED | T-056 | `paymentStatusTone` doesn't handle `cancelled` or `pending_clearance` statuses — renders the raw status string instead of a translated label |
 | WEAK-021 | Low | VERIFIED | — | README claims "68 tests passing" and DONE.md claims "68/68" but the actual count is 87 (after commit 03f6365 added 19 new tests) |
 | WEAK-022 | Medium | OPEN | T-035 | `useLedgerEntries` fetches with `.limit(500)`; `portalFinancialSummary` replays ONLY 500 entries — balance computation is WRONG for parents with > 500 ledger entries |
 | WEAK-023 | Medium | TESTED | T-065 | `useUnreadChatCount` fetches 500 messages across ALL channels (no channel filter in query), counts client-side — comment claims "200 per channel" |
 | WEAK-100 | Medium | OPEN | T-072 | Activation codes use Postgres random() (non-cryptographic); 7-digit space is brute-forceable; no rate limit on website activation endpoint |
 | WEAK-101 | Medium | TESTED | T-002 | Android LocalAuthRepository stores user UUID as accessToken (fake JWT that doesn't validate server-side) — real JWT stored 2026-08-29 (T-002) |
-| WEAK-200 | Medium | OPEN | T-061 | `enforce_payment_proof` trigger runs on EVERY payment INSERT/UPDATE; Android refund sync triggers re-validation of unchanged proof fields |
-| DEAD-002 | Medium | OPEN | T-056 | `update-server-secret` Edge Function exports a `handleDelete` that is never wired |
+| WEAK-200 | Medium | TESTED | T-061 | `enforce_payment_proof` trigger runs on EVERY payment INSERT/UPDATE; Android refund sync triggers re-validation of unchanged proof fields |
+| DEAD-002 | Medium | TESTED | T-056 | `update-server-secret` Edge Function exports a `handleDelete` that is never wired |
 | DEAD-007 | Low | TESTED | T-062 | `AuditActions.kt` contains many audit action constants that the Android app never invokes — FIXED 2026-08-31 (T-062): 76 constants removed |
 | DEAD-008 | Low | TESTED | T-062 | `StubRepositories.kt` is a 2-line stub file with only a comment — FIXED 2026-08-31 (T-062): file deleted |
 | DEAD-009 | Low | TESTED | T-062 | `ElGalleryActivity` (833 lines across gallery files) is NOT declared in `AndroidManifest.xml` — unreachable in production — FIXED 2026-08-31 (T-062): gallery deleted, APK 29.8 MB |
 | DEAD-012 | High | TESTED | T-049 | `vitest.config.ts` referenced a missing `src/test/setup.ts` — RESOLVED 2026-08-29 (root cause: a bare `test` .gitignore rule silently ignored `src/test/`; rule removed, setup.ts committed); T-049 completed the cleanup (strict build + RTL); CLOSED 2026-09-02 (20th session) with full-suite evidence 429+ tests |
-| DEAD-013 | Low | OPEN | T-049 | `package.json` `icons:generate` script hardcodes path `/home/z/my-project/scripts/generate-pwa-icons.py` (OUTSIDE the repo) — broken on any other machine/CI |
+| DEAD-013 | Low | TESTED | T-049 | `package.json` `icons:generate` script hardcodes path `/home/z/my-project/scripts/generate-pwa-icons.py` (OUTSIDE the repo) — broken on any other machine/CI |
 | DEAD-014 | Low | OPEN | T-056 | `database-schema.ts` barrel is imported by only ONE file (`supabase/client.ts`); all other 14 files import directly from `@/lib/types/database` |
 | DEAD-015 | Critical | TESTED | T-014 | Desktop refund flow is completely dead UI; no refund button exists anywhere |
 | DEAD-016 | Critical | BLOCKED | T-067 | `collect-payment` and `refund-payment` Edge Functions are never invoked by any client |
@@ -359,7 +362,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-008 — `enforce_parent_self_update_columns` trigger has no `has_role('parent')` check — blocks ALL staff updates to parent identity fields
 
-- **Category:** SEC  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** Critical  |  **Status:** TESTED (2026-08-30, T-031/migration 0046 — verified live 2026-09-02: trigger body gates on public.has_role('parent')) 
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-031 (docs/recovery/task-registry.md)
@@ -478,7 +481,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-106 — register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception)
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED (2026-08-30, migration 0050 — verified live 2026-09-02: caller check present in register_fcm_token) 
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-006 (docs/recovery/task-registry.md)
@@ -701,7 +704,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-001 — `reconcileFinancials()` runs only 4 of 6 canonical cross-checks
 
-- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** Critical  |  **Status:** TESTED (2026-08-30, T-016 — verified in code 2026-09-02: crossCheckBalanceSum + crossCheckParentCredit invoked in reconcileFinancials) 
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-016 (docs/recovery/task-registry.md)
@@ -861,7 +864,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUSINESS-102 — Android refund has no idempotency check; re-refunding an already-refunded payment creates duplicate reversal entries and double-reverts installments
 
-- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** TESTED (2026-09-01, T-017 — verified in code 2026-09-02: ALREADY-REFUNDED terminal-state guard in LocalPaymentRepository.refund) 
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-017 (docs/recovery/task-registry.md)
@@ -1046,7 +1049,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-102 — Android refund sync payload drops the user's refund reason; server audit log has no reason
 
-- **Category:** CROSS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** CROSS  |  **Severity:** High  |  **Status:** TESTED (2026-09-01, T-017 — verified in code 2026-09-02: refund reason travels in the sync payload) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-017 (docs/recovery/task-registry.md)
@@ -1065,7 +1068,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-103 — Android refund sync does NOT push installment state changes; server-side installments stay stale
 
-- **Category:** CROSS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** CROSS  |  **Severity:** High  |  **Status:** OPEN (Android refund installment propagation — THIS session's task; see T-128) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-017 (docs/recovery/task-registry.md)
@@ -1207,7 +1210,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-103 — Android tryThenEnqueue only enqueues on network/offline/timeout errors; server 500s and validation errors lose the mutation
 
-- **Category:** SYNC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** High  |  **Status:** TESTED (2026-08-31 — verified in code 2026-09-02: SyncErrorClassifier enqueues transient 5xx, not only network errors) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-020 (docs/recovery/task-registry.md)
@@ -1266,7 +1269,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-106 — Android SyncWorker always returns Result.success() regardless of drainPending/pullAll failures; WorkManager retry escalation bypassed
 
-- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, T-021 — verified in code 2026-09-02: SyncWorker maps drain outcomes to retry/failure) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-021 (docs/recovery/task-registry.md)
@@ -1285,7 +1288,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-107 — Android SyncService.syncNow is fire-and-forget; UI thinks sync completed immediately
 
-- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, T-021 — verified in code 2026-09-02: syncNow is suspend, awaits drain) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-021 (docs/recovery/task-registry.md)
@@ -1469,7 +1472,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### PARENT-101 — `approve_account_request` SQL function silently OVERWRITES `parents.auth_user_id` on re-bind (no orphan check, no audit trail)
 
-- **Category:** PARENT  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** PARENT  |  **Severity:** High  |  **Status:** TESTED (2026-08-30, T-029/migration 0047 — verified live 2026-09-02: re-bind guards present in approve_account_request) 
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-029 (docs/recovery/task-registry.md)
@@ -1709,7 +1712,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### HOMEWORK-103 — Android `pullAll` doesn't pull homework/attendance/assessments; cross-platform visibility is one-way only
 
-- **Category:** HOMEWORK  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** HOMEWORK  |  **Severity:** High  |  **Status:** TESTED (2026-09-01, T-039 — verified in code 2026-09-02: pullHomework/pullAttendance/pullAssessments wired into pullAll) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-039 (docs/recovery/task-registry.md)
@@ -1982,7 +1985,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### NOTIF-105 — Android `pullNotifications` pulls ALL server-visible notifications (limit:200) with no per-user filter; stale role-broadcasts persist in Room across role changes
 
-- **Category:** NOTIF  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** NOTIF  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, T-039 — verified in code 2026-09-02: role-filtered pull + evictNotVisibleTo eviction) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-039 (docs/recovery/task-registry.md)
@@ -2160,7 +2163,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-004 — `fallbackToDestructiveMigration(true)` on production Room database — user data silently wiped on any future schema bump
 
-- **Category:** ARCH  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** TESTED (2026-09-01, T-046 — verified in code 2026-09-02: fallbackToDestructiveMigration removed) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android, Backend/DB
 - **Task:** T-046 (docs/recovery/task-registry.md)
@@ -2665,7 +2668,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-011 — `audit()` helper hardcodes demo tenant ID + never captures actor role
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, T-051 — verified in code 2026-09-02: audit() stamps session tenant + actorRole) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-051 (docs/recovery/task-registry.md)
@@ -2685,7 +2688,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-012 — `PullSyncRepository.pullParents` / `pullStudents` fallback table select has NO tenant filter — multi-tenant data leak risk
 
-- **Category:** WEAK  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** High  |  **Status:** TESTED (2026-09-01, T-051 — verified in code 2026-09-02: no-session-tenant pulls return Ok(0), no demo fallback) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-051 (docs/recovery/task-registry.md)
@@ -2725,7 +2728,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-017 — Typed `Database` interface has `homework_assignments` (legacy 0004) but NOT `homework` (canonical 0029) — queries use `as unknown as` cast, no type-checking
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (verified in code 2026-09-02: homework Row/Insert/Update typed in src/lib/types/database.ts) 
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Backend/DB, Website
 - **Task:** T-057 (docs/recovery/task-registry.md)
@@ -2764,7 +2767,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-019 — `attendance-view.tsx` computes attendance rate as `present / total` (excludes late); canonical rule (per portal-derive.ts) is `(present + late) / total` — dashboard uses canonical, attendance-view doesn't
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-08-30, T-027 — verified in code 2026-09-02: attendance-view uses canonical attendanceRatePercent) 
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Desktop, Website
 - **Task:** T-027 (docs/recovery/task-registry.md)
@@ -2902,7 +2905,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WEAK-200 — `enforce_payment_proof` trigger runs on EVERY payment INSERT/UPDATE; Android refund sync triggers re-validation of unchanged proof fields
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-08-30, T-061/migration 0045 — verified live 2026-09-02: UPDATE branch re-validates only proof-weakening changes) 
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-061 (docs/recovery/task-registry.md)
@@ -3203,7 +3206,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-008 — The Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing errors (no lint baseline has ever existed)
 
-- **Category:** ARCH  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** TESTED (2026-09-01, T-082 — desugaring + committed lint baseline, 0 errors) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-082 (docs/recovery/task-registry.md — created 2026-08-29, sixth repair session)
@@ -3222,7 +3225,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUG-NEW-001 — `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table
 
-- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** BUSINESS  |  **Severity:** High  |  **Status:** TESTED (2026-08-30, T-083 — verified live 2026-09-02: no public.users reference in expire_pending_approvals) 
 - **Repositories:** AgentGithubUplaod (desktop — supabase migration chain)
 - **Platforms affected:** Backend, Desktop
 - **Task:** T-083 (docs/recovery/task-registry.md — created 2026-08-30)
