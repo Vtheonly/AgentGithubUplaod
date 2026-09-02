@@ -90,6 +90,63 @@
 
 ## In Progress
 
+**22nd repair session (2026-09-03) — owner mandate: re-apply the migration tokens with the fresh access token, verify everything works correctly across all platforms, keep the migration applied + consistent everywhere; ~10-task balanced batch; zip all repos for push at close.** Session-opening ritual (DONE): live chain check with the fresh `sbp_…` access token via the Management API SQL endpoint — **62/62 = 0001–0065, ZERO drift** (known cosmetic name quirks 0049/0050 only); live EF census: **13/13 functions ACTIVE** (hub sources ↔ deployed set one-to-one). Container was reset → Supabase CLI v2.116.0 re-provisioned at `/home/z/my-project/bin/supabase`, desktop+website `npm install` re-run. Batch selected (balanced importance/risk/feasibility, all one-pass-safe): **T-130** (MIG-TOKENS full re-verification with the fresh token — the owner's mandate verbatim), **T-131** (PUSH-104 close: real Resend send for workflow `send_email` via a shared `_shared/send-email.ts`, harden approve-signup-request's email path incl. a NEW DISCOVERY: it links a dead `portal.elimtiyaz.dz` URL and never checks `resp.ok`), **T-132** (PARENT-102 close: EF rejects approve-without-target-parent), **T-133** (registry truth-sync + doc-structure repair: NOTIF-101 stale OPEN header [0048 already fixed it — verify live], problem-registry duplicate entries ARCH-011/WEAK-030, next-task.md duplicated-block corruption), **T-134** (DATA-005 desktop residual: parent-name render sites canonicalized to `parentDisplayName`; Android audited CLEAN — uses `fullName`), **T-135** (Android toolchain re-provision + full-suite baseline), **T-136** (website baseline: lint + vitest + strict build), **T-137** (desktop baseline: typecheck + lint + full vitest), **T-138** (session closeout: pristine-tree re-run + zips + next-session pointer). 10th slot: reserved for live discoveries during verification.
+
+### T-130 — MIG-TOKENS session verification with the fresh access token ("apply the migration tokens, consistent everywhere") — **In Progress (22nd session)**
+
+- **Problems:** (verification ritual — ARCH-009/ARCH-011/ARCH-013 prevention; KEYMIG-300 re-check) · **Priority:** P0 (owner mandate) · **Severity:** —
+- **Status:** In Progress (2026-09-03, 22nd session)
+- **What (planned):** re-run the T-122 verification matrix with the owner's freshly supplied `sbp_…` access token: (1) live chain vs local files — DONE at session open: 62/62, zero drift; (2) EF census — DONE: 13/13 ACTIVE; (3) dual-key matrix (legacy anon JWT + `sb_publishable_…`) on auth health + REST; (4) RLS anon/publishable → empty arrays on core tables; (5) JWKS 200; (6) key-consistency vs committed values (website public-config, Android .env.example, desktop dialog doc); (7) auth-user census; (8) anonymous-deny curl sweep on all 13 EFs; (9) live secrets census (RESEND_API_KEY / FIREBASE_SERVICE_ACCOUNT_JSON absence documented for T-131 honesty). Script OUTSIDE the repo (carries the token): `/home/z/my-project/scripts/verify_t-130_mig_tokens.sh`.
+- **Evidence destination:** change-log entry + credentials sheet §7 re-run note.
+
+### T-131 — PUSH-104 close: real Resend send for workflow `send_email` + hardened shared email helper — **Planned (22nd session)**
+
+- **Problems:** PUSH-104 (High, OPEN — the send_email half of T-036) · **Priority:** P1 · **Severity:** High
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** (a) NEW shared `_shared/send-email.ts` (extracted from approve-signup-request's existing Resend integration per the Existing-Implementation-First rule, hardened): checks `resp.ok`, structured non-throwing result, `EMAIL_FROM_ADDRESS` default, honest "not configured" reason when `RESEND_API_KEY` absent. (b) workflow-execute `send_email` action → real send via the helper, honest per-recipient failure recording (the T-126 push_notification pattern). (c) approve-signup-request → use the helper + fix the NEW DISCOVERY (email hardcodes dead `https://portal.elimtiyaz.dz`; production origin is `https://elimtiyaz-website.vercel.app` per credentials §2.2). (d) Source-scan tests in the desktop suite (t-126 pattern). (e) Live deploy both EFs + curl matrix. Owner residual: actual emails need `RESEND_API_KEY` secret (owner action).
+
+### T-132 — PARENT-102 close: reject approve-without-target-parent — **Planned (22nd session)**
+
+- **Problems:** PARENT-102 (Medium, OPEN) · **Priority:** P2 · **Severity:** Medium
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** approve-signup-request EF validation: an `approve` action with NEITHER `target_parent_id` NOR `create_new_parent` → 400 `missing_target_parent` (+ audit entry), so an approved user can never land in the "active but unbound" limbo the problem entry documents. Staff-role nuance to verify during implementation: a staff approval (non-parent requested role) legitimately needs no parent binding — the guard must be scoped to parent-role approvals (evidence: role codes in migration 0019/roles table). Source-scan tests + live redeploy + 401 sanity curl.
+
+### T-133 — Registry truth-sync + doc-structure repair — **Planned (22nd session)**
+
+- **Problems:** NOTIF-101 (stale header), registry duplication (ARCH-011 ×2, WEAK-030 ×2), next-task.md corruption · **Priority:** P2 · **Severity:** Medium (registry trust)
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** (a) NOTIF-101: live `pg_policies` probe to confirm migration 0048's tightened `notifications_insert` policy is deployed, then flip the stale OPEN header to TESTED with that evidence (the T-125 flip missed it); (b) remove the duplicated problem-registry entries (ARCH-011 and WEAK-030 each appear twice verbatim in the "NEW ENTRIES" region); (c) repair next-task.md's duplicated block (lines ~72–121 repeat the session-outcome history verbatim — a corruption artifact); (d) recompute summary counts. Verification: every flip cross-checked against the detailed entry's own status note + live probe.
+
+### T-134 — DATA-005 desktop residual: parent-name render sites canonicalized — **Planned (22nd session)**
+
+- **Problems:** DATA-005 (PARTIAL — agent-side residual) · **Priority:** P3 · **Severity:** Medium (UX, 258 live rows affected)
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** audit found the desktop renders parents via `${firstName} ${lastName}` at `student-detail/info-tab.tsx:164`, `student-detail/payments-tab.tsx:88` and `shared/search-index.ts` (parent labels) — bypassing the canonical `parentDisplayName()` helper (domain/model/parent.ts, prefers displayName). With ALL 258 live rows carrying `first_name = ''`, these sites render leading-space half-names. Fix: use the helper at parent render sites; search-index parent labels + match keys also prefer displayName. Android audited CLEAN (all render sites use `fullName` which prefers displayName). Guard: source-scan test pinning no parent first+last composition outside the edit modal / helper / tests. Data-repair (splitting display_name into first/last) remains owner-gated (T-085).
+
+### T-135 — Android toolchain re-provision + full-suite baseline — **Planned (22nd session)**
+
+- **Problems:** (session infrastructure — AGENTS.md §11 Android recipe) · **Priority:** P1 · **Severity:** —
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** re-provision Temurin JDK 21 + Android SDK 35 (container reset), re-create `/home/z/my-project/scripts/android-env.sh`, fill `.env` with the publishable key (the documented `.env` secrets-plugin quirk: empty values fail compilation), run `./gradlew lint` + `test` (+ release variant if budget allows). Evidence → change-log.
+
+### T-136 — Website platform baseline verification — **Planned (22nd session)**
+
+- **Problems:** (session verification — owner's "everything works across all platforms") · **Priority:** P1 · **Severity:** —
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** `npm run lint` + `npm run test` (vitest) + strict `npm run build` on a fresh install; record per-file counts; fix regressions if found (scope: verification).
+
+### T-137 — Desktop platform baseline verification — **Planned (22nd session)**
+
+- **Problems:** (session verification) · **Priority:** P1 · **Severity:** —
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** `npm run typecheck` + `npm run lint` + full `npm test` (vitest, expect ~75 files / 2236 tests + new suites from this session); record per-file evidence; fix regressions if found.
+
+### T-138 — Session closeout: pristine-tree full re-run + zip packaging — **Planned (22nd session)**
+
+- **Problems:** (session close — TEST-300 lesson) · **Priority:** P1 · **Severity:** —
+- **Status:** Planned (2026-09-03, 22nd session)
+- **What (planned):** re-run the FULL three-platform suites on the committed tree (post-all-commits), update next-task.md + current-state.md + registries, zip all three repos for the owner to push.
+
 **21st repair session (2026-09-02) — owner mandate: apply fixes to the existing checkouts (no re-clone), balanced batch.** Session-opening ritual: live chain check **62/62 = 0001–0065, ZERO DRIFT**; MIG-TOKENS condensed re-verification **11/11** (auth health both key formats, RLS anon→0, JWKS, key-consistency vs committed values, census 1). Evidence pass found **20 stale detailed-entry Status headers** (fixes documented in status notes but headers never flipped) → T-125. Batch selected (balanced importance/risk/feasibility): **T-125** (registry truth-sync), **T-126** (PUSH-100 substantial close: fix WEAK-014 `user_profile_id` column bug + WEAK-015 PEM parser bug in the EF source, consolidate the EF source into the hub — NEW FINDING: the live-deployed EF's only source lives in the website repo while credentials.md claims the hub owns it — wire the workflow-execute `push_notification` stub to actually invoke it, redeploy live), **T-127** (PUSH-101 Android half: FCM receiver field reads + click_action intent filter), **T-128** (CROSS-103: Android refund enqueues installment sync pushes after the local waterfall revert), **T-102-follow-up** (Android chat read-side + online sends — 5th attempt, this session commits to it), **T-044** (Android design-system consolidation, if context budget allows). Owner residual recorded: FIREBASE service-account secret is NOT set live (secrets list lacks it) — even with the code fixed, real FCM sends need the owner to set it; AUTH-200 unchanged (Google OAuth client is owner-only).
 
 ### T-125 — Registry truth-sync (21st session) — **Completed (TESTED — commit b78fc3b)**
