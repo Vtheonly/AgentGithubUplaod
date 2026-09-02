@@ -132,11 +132,11 @@
 - **Status:** Planned (2026-09-03, 22nd session)
 - **What (planned):** re-provision Temurin JDK 21 + Android SDK 35 (container reset), re-create `/home/z/my-project/scripts/android-env.sh`, fill `.env` with the publishable key (the documented `.env` secrets-plugin quirk: empty values fail compilation), run `./gradlew lint` + `test` (+ release variant if budget allows). Evidence → change-log.
 
-### T-136 — Website platform baseline verification — **Planned (22nd session)**
+### T-136 — Website platform baseline verification — **Completed (TESTED — lint 0 / 24 files × 440 tests / strict build green / live render 200)**
 
 - **Problems:** (session verification — owner's "everything works across all platforms") · **Priority:** P1 · **Severity:** —
-- **Status:** Planned (2026-09-03, 22nd session)
-- **What (planned):** `npm run lint` + `npm run test` (vitest) + strict `npm run build` on a fresh install; record per-file counts; fix regressions if found (scope: verification).
+- **Status:** TESTED (2026-09-03, 22nd session)
+- **What was done:** fresh `npm install` (400 packages) then the full verification battery on the HEAD tree (a77e40e): `npm run lint` → 0 errors, 0 warnings output; `npm run test` (vitest) → **24 files / 440 tests / 0 failures** (20th-session baseline 23/436 + the 21st session's t-126-hub-owned-edge-functions guard suite 1 file / 4 tests — arithmetic checks out); strict `npm run build` → compiled successfully (static prerender + middleware); live production-render smoke test (`next start -p 3100` + curl) → HTTP 200, `<title>El-Imtiyaz Portal — Espace Parent & Élève</title>`, NO "Missing configuration" banner (the T-096 committed public defaults working). No regressions found — nothing to fix.
 
 ### T-137 — Desktop platform baseline verification — **Planned (22nd session)**
 

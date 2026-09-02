@@ -1314,3 +1314,11 @@ path for T-092.
 - **Verification:** `npm run typecheck` clean; `npm run lint` 0 errors — **warning delta vs HEAD = 0** (stash round-trip: 384→384, my lines add nothing); FULL desktop suite **79 files / 2271 tests / 0 failures** (baseline 75/2236 + this session's 3 new suites).
 - **Notes:** SCOPE DECISION: the tree guard pins the `parent.`-variable convention only — `p.`-named loop variables are usually students/personnel (correct to compose); the genuine parent `p.`-sites are individually pinned. The data repair (splitting display_name → first/last on 258 rows) needs owner sign-off (T-085) and is now the ONLY remaining DATA-005 half.
 - **Commit:** 8219dcf (RED tests) + (this commit, hub repo).
+
+### 2026-09-03 — T-136 — Website platform baseline verification
+- **Problem IDs:** (session verification — the owner's "everything works correctly across all platforms" mandate)
+- **What was verified:** the portal at HEAD (a77e40e) on a fresh install: `npm run lint` → 0 errors; `npm run test` → **24 files / 440 tests / 0 failures**; strict `npm run build` → compiled successfully; live production-render smoke test (`next start` + curl) → HTTP 200 with the correct title and NO missing-configuration banner (T-096's committed public defaults holding).
+- **Why:** the 22nd session's owner mandate requires per-platform evidence, not claims; the website platform had no changes this session but the container reset wiped the previous baselines.
+- **Affected components:** none (verification only; no code changes).
+- **Notes:** file/test arithmetic reconciles with the 20th-session baseline (23/436 + the 21st session's website guard suite 4 tests = 24/440).
+- **Commit:** (hub repo — this docs-only commit).
