@@ -1322,3 +1322,11 @@ path for T-092.
 - **Affected components:** none (verification only; no code changes).
 - **Notes:** file/test arithmetic reconciles with the 20th-session baseline (23/436 + the 21st session's website guard suite 4 tests = 24/440).
 - **Commit:** (hub repo — this docs-only commit).
+
+### 2026-09-03 — T-135 — Android toolchain re-provision + full-suite baseline
+- **Problem IDs:** (session infrastructure — AGENTS.md §11 recipe; the owner's all-platforms mandate)
+- **What was done:** after the container reset, the full Android toolchain re-provisioned OUTSIDE the repos (Temurin JDK 21, cmdline-tools, platform-tools, platforms;android-35, build-tools;35.0.0, local.properties, `.env` — all gitignored, `git check-ignore` verified). The re-runnable recipe is persisted at `/home/z/my-project/scripts/android-env.sh`.
+- **NEW discoveries (persisted in AGENTS.md §11 + the script):** (1) bare `commandlinetools-linux-<V>.zip` URLs 404 from this container's network — the **`_latest` suffix variant** (`commandlinetools-linux-11076708_latest.zip`) resolves 200; the current build number is readable from `dl.google.com/android/repository/repository2-3.xml`. (2) The `.env` secrets-plugin quirk's exact mechanism: the plugin merges `.env.example` as the DEFAULTS — a key listed there with an EMPTY value (`SUPABASE_ANON_KEY=` / `SUPABASE_PUBLISHABLE_KEY=`) becomes a BLANK Java literal unless the `.env` overrides it non-empty; the working `.env` defines ALL FOUR keys (URL, anon JWT, publishable, JWKS).
+- **Verification:** `./gradlew test --no-daemon` → BUILD SUCCESSFUL: **debug 44 files / 372 tests / 0 failures / 0 errors; release 42 files / 367 / 0** (release = debug − 5 = ARCH-012's documented exclusions exactly; +2 files = the two excluded classes). `./gradlew lintDebug --no-daemon` → BUILD SUCCESSFUL (T-082's committed baseline holding). No Android code changes this session — HEAD (85b9f3f) is green as-is.
+- **Notes:** the baseline reconciles with the 21st-session additions (T-127 +14, T-128 +4, T-129 +21 tests; RealtimeSyncT069Test extended). Gradle ran with the documented 2 GB heap / 1 worker profile, both variants in one `test` invocation (9 min).
+- **Commit:** (hub repo — this docs commit; the Android repo has NO changes).
