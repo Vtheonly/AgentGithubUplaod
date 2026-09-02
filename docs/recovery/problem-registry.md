@@ -1491,7 +1491,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### PARENT-102 — Approval-without-target-parent creates "active but unbound" user with no escape path
 
-- **Category:** PARENT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** PARENT  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-03, 22nd session — T-132 EF guard; SQL RPC unchanged by design)
+- **Status note (2026-09-03, T-132):** FIXED at the EF chokepoint: the approve path of `approve-signup-request` now rejects a PARENT-role approve with NEITHER `target_parent_id` NOR `create_new_parent` → 400 `missing_target_parent` + an `account_approval.missing_target_parent_denied` audit entry. Escape hatch: an explicit `assign_role` override to a STAFF role (verified against `roles.is_staff_role`) legitimately produces a staff account with no binding; staff-role requests never need one. The guard sits BEFORE any state change (parent creation + RPC call). Regression safety: the EF's ONLY client is the desktop (`supabase-approval-repository.ts` — approveWithExistingParent/approveWithNewParent ALWAYS carry a binding; website + Android have zero callers — rg-verified). The SQL RPC itself was deliberately NOT hardened (a new migration rejecting p_target_parent_id=null would break the legitimate staff-approval semantics the RPC also serves; the EF owns the caller-facing contract — deviation from the problem entry's "migration-level test" verification note, recorded in the task entry). Verified: t-132-approve-binding-guard.test.ts 7/7 (RED first); esbuild OK; EF deployed live (verify_jwt=False preserved) + anonymous-deny 401 ×2. Gap to VERIFIED: a live staff-JWT round-trip exercising the 400 branch (needs the owner's admin password — out-of-band).
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-008 (docs/recovery/task-registry.md)
