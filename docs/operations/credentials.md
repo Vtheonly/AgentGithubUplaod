@@ -39,6 +39,34 @@ https://hkvkefubghbbotgnteir.supabase.co/auth/v1/.well-known/jwks.json
 - **Website + Desktop** do NOT need an explicit JWKS URL — the Supabase JS SDK handles JWKS fetching internally; they only need the project URL + anon key.
 - The JWKS URL is constructed deterministically from the project URL, so when the project URL changes, the JWKS URL changes too (update Android `.env.example` accordingly).
 
+## 2.2. Production deployment (portal — Vercel, 2026-09-02 / T-119)
+
+The portal is deployed in production at **`https://elimtiyaz-website.vercel.app`** (owner
+evidence: the AUTH-200 authorize error URL in the 20th-session mandate). Live auth config
+UPDATED + verified (Management API GET after PATCH; apply script — kept outside the repos
+because it carries the access token — was `/home/z/my-project/scripts/apply_t-119_auth_production_config.sh`):
+
+| Auth config field | Value (live, verified 2026-09-02) |
+|---|---|
+| `site_url` | `https://elimtiyaz-website.vercel.app` |
+| `uri_allow_list` | `http://localhost:3000,http://localhost:3100,https://elimtiyaz-website.vercel.app` |
+| `external_google_enabled` | `false` — **still owner-blocked** (AUTH-200 runbook step 1: the Google OAuth client) |
+
+Vercel env vars REQUIRED for auth: **NONE** — the T-096 committed public defaults
+(`src/lib/public-config.ts`) carry the Supabase URL + publishable key. Vercel env vars for
+web PUSH (optional, owner): `NEXT_PUBLIC_FIREBASE_APP_ID` (the WEB app id, not the Android
+one) + `NEXT_PUBLIC_FIREBASE_VAPID_KEY` — see the runbook's production-push section.
+
+**When the production domain changes** (custom domain etc.): update `site_url` AND
+`uri_allow_list` via the same Management API PATCH (comma-separated string — see the
+AUTH-200 runbook), then this sheet.
+
+**Android identity discovery (20th session):** the owner-supplied
+`ANDROID_PACKAGE_NAME=com.example` is the Kotlin NAMESPACE, not the shipped application id —
+`app/build.gradle.kts` sets `applicationId = "com.aistudio.elimtiyazstaff.bxmzlx"` (which is
+what `google-services.json` package_name matches). When registering OAuth clients /
+allow-lists for the ANDROID app, use the `com.aistudio.elimtiyazstaff.bxmzlx` id.
+
 ## 3. Key registry
 
 | Key | Scope | Where it may live | Notes |

@@ -97,8 +97,8 @@ Before modifying behaviour that exists on more than one platform:
 | Repo | Type-check / lint | Unit & integration tests | Notes |
 |---|---|---|---|
 | Desktop (this repo) | `cd elimtiyaz-desktop && npm run typecheck && npm run lint` | `npm test` (vitest; includes cross-platform suites under `src/test/cross-platform/`) | Do not run `npm start` headlessly; it launches Electron |
-| Android | `./gradlew lint` | `./gradlew test` (Robolectric + unit) | Equivalence test requires the desktop repo checked out as a sibling (`financial-tests/equivalence/scenarios`) |
-| Website | `cd elimtiyaz-website && npm run lint` | `bun run test` / `npm run test` (vitest; note: `vitest.config.ts` references a missing `src/test/setup.ts` — problem `DEAD-012`) | `npm run build` must stay green |
+| Android | `./gradlew lint` | `./gradlew test` (Robolectric + unit) | Equivalence test requires the desktop repo checked out as a sibling (`financial-tests/equivalence/scenarios`). **Toolchain in the container (20th session):** the system java is a JRE (no javac) — provision Temurin JDK 21 at `/home/z/my-project/jdk`; SDK 35 at `/home/z/my-project/android-sdk`; full recipe in `/home/z/my-project/scripts/android-env.sh` (re-runnable). **Secrets-plugin `.env` quirk: EMPTY values (`KEY=` with nothing after) — in `.env` OR in the `.env.example` defaults — are injected as BLANK Java literals (`SUPABASE_ANON_KEY = ;`) and FAIL compilation. Every key must be non-empty: fill `SUPABASE_ANON_KEY` with the publishable key (public identifier, ADR-009 dual acceptance). Never place service_role/sb_secret/sbp_ tokens in `.env`.** |
+| Website | `cd elimtiyaz-website && npm run lint` | `bun run test` / `npm run test` (vitest) | `npm run build` must stay green |
 
 Cross-platform financial equivalence: see `docs/testing/cross-platform.md`. Any change to financial or academic rules MUST run the equivalence suites and record the result in `docs/recovery/change-log.md`.
 
@@ -126,6 +126,12 @@ For backend / SQL / Edge-Function tasks, **live verification is required** to cl
    (names first, then per-batch definitions) and retry on empty responses.
 3. **Multi-statement payloads run in ONE session** — temp tables + `BEGIN;…ROLLBACK;`
    wrappers work as expected (this is what the verify-script convention relies on).
+4. **`/v1/projects/<ref>/users` does not exist as a REST path** (returns
+   `{"message":"Cannot GET …"}` — 20th session, 2026-09-02). The auth-user
+   census must go through the SQL endpoint:
+   `SELECT email, … FROM auth.users` (see `scripts/verify_t-122_mig_tokens.sh`
+   for the working pattern). Do not "fix" a census script by retrying the REST
+   path — it is simply not part of the Management API.
 
 **Live verification script convention** (since the seventh session):
 
