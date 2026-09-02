@@ -211,7 +211,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-001 — Edge Functions swallow audit-log write failures silently
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop, Website
 - **Task:** T-055 (docs/recovery/task-registry.md)
@@ -231,7 +231,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SEC-002 — `defaultLLMAdapter` falls back from edge function → BYOK → mock, silently leaking user prompts to Groq/OpenRouter if Edge Function is down
 
-- **Category:** SEC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SEC  |  **Severity:** High  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-055 (docs/recovery/task-registry.md)
@@ -656,7 +656,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### TENANT-103 — Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin
 
-- **Category:** TENANT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** TENANT  |  **Severity:** Medium  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-053 (docs/recovery/task-registry.md)
@@ -1144,7 +1144,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-100 — Desktop defaultPushHandler silently drops installment / homework / grade / attendance entity kinds
 
-- **Category:** SYNC  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** High  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-022 (docs/recovery/task-registry.md)
@@ -1164,7 +1164,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-101 — Desktop defaultPushHandler overwrites sync_queue row status="pending" on every drain, clobbering audit history
 
-- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-022 (docs/recovery/task-registry.md)
@@ -1184,7 +1184,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SYNC-102 — Desktop sync queue persists across logout/login; user A's pending entries stuck as "failed" under user B's session
 
-- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** SYNC  |  **Severity:** Medium  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-022 (docs/recovery/task-registry.md)
@@ -1343,7 +1343,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CACHE-102 — Desktop IndexedDB sync queue store silently falls back to in-memory when IndexedDB is unavailable; "sync queued" UI lies to user
 
-- **Category:** CACHE  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** CACHE  |  **Severity:** Medium  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-022 (docs/recovery/task-registry.md)
@@ -1605,7 +1605,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ATT-101 — Absence-justification 4-state workflow is structurally broken: no desktop code to review justifications (extends DRIFT-010)
 
-- **Category:** ATT  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** ATT  |  **Severity:** High  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Android, Desktop, Website
 - **Task:** T-040 (docs/recovery/task-registry.md)
@@ -1918,7 +1918,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### NOTIF-102 — Desktop topbar bell `unreadCount` is computed AFTER slicing to 8 items; badge caps at 8 even when actual unread is 50
 
-- **Category:** NOTIF  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** NOTIF  |  **Severity:** Low  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-052 (docs/recovery/task-registry.md)
@@ -1938,7 +1938,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### NOTIF-103 — Website bottom-nav fetches 1 unread notification but never renders it (dead query); top-app-bar bell caps unread at 50
 
-- **Category:** NOTIF  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** NOTIF  |  **Severity:** Low  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Desktop, Website
 - **Task:** T-052 (docs/recovery/task-registry.md)
@@ -2195,11 +2195,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DRIFT-001 — Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1
 
-- **Category:** DRIFT  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** DRIFT  |  **Severity:** High  |  **Status:** TESTED
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Backend/DB, Desktop
 - **Task:** T-018 (docs/recovery/task-registry.md)
-- **Status note:** PARTIAL 2026-08-31 (T-018, 12th session — desktop + sync): the canonical generators moved to core/format/id.ts (ADR-003 home) with the empty-identity fallback made retry-STABLE (seeded, never random — a random retry suffix created server-side duplicates since the dedup match IS the code); the sync push handler's random PAR-/ELV- fallbacks replaced with the seeded canonical generators. 7-test suite. REMAINING on DRIFT-001: the backend generators (approve EF, batch_register_family RPC — needs a migration) + the Android paths (toolchain-gated); the mock's create() random suffix intentionally preserved (mirrors the canonical server CREATE path, migration 0022 gen_random_bytes).
+- **Status note:** CLOSED-TESTED 2026-09-02 (T-115, 19th session — all three remaining halves resolved): (a) the BACKEND half shipped as migration 0065 (applied to live by an outside actor, reconstructed + committed + live-verified 19/19 this session — see ARCH-013 and docs/recovery/t-115-live-verification.md): fn_deterministic_parent_code / fn_deterministic_activation_code / fn_stable_hash / fn_fnv1a + batch_register_family rewritten to the deterministic contract (empty identity REJECTED; unique (tenant_id, parent_code) is the idempotency gate); (b) the approve-signup-request EF's Math.random() parent-code creation replaced with a call to the fn_deterministic_parent_code RPC (EF redeployed live 2026-09-02, anonymous POST -> 401 sanity); (c) the mock layer's create() randomSuffix switched to the canonical deterministicParentCode + duplicate-identity refusal mirroring the server's unique constraint (the 12th session had preserved it as a mirror of 0022's gen_random_bytes — DEAD server behavior since 0065). Earlier: PARTIAL 2026-08-31 (T-018, 12th session — desktop + sync): the canonical generators moved to core/format/id.ts (ADR-003 home) with the empty-identity fallback made retry-STABLE (seeded, never random); the sync push handler's random PAR-/ELV- fallbacks replaced with the seeded canonical generators. Android paths were already deterministic (TIER 2 R15 + the 13th-session alignment). Pinned by t-115-sql-identity-equivalence.test.ts (9) + t-018-mock-canonical-create.test.ts (4) + the T-018 suite (7).
 - **Consolidated from:** first-pass DRIFT-001, first-pass DEAD-001, first-pass DEAD-003, first-pass DEAD-005, first-pass DEAD-006, second-pass PARENT-100
 - **Description:** `CANONICAL-FINANCIAL-LOGIC.md §7.1` mandates that `parent_code` MUST be deterministic — derived from a FNV-1a hash of `(firstName, lastName, primaryPhone, year)`, formatted `PAR-{year}-{4-char-hash}`. The Supabase-backed parent repository correctly calls `deterministicParentCode()`. The MOCK parent repository still calls `randomParentSuffix()` which uses `Math.random()` to produce a 4-char suffix. This means the same parent input produces DIFFERENT parent codes on each create call in mock mode — breaking idempotency in dev/test. The two repositories (mock + Supabase) diverge on a canonical rule.
 - **Location:** `elimtiyaz-desktop/src/infrastructure/mock/repositories/parent-repository.ts:61` (consumer) and `elimtiyaz-desktop/src/core/format/id.ts:34-42` (definition) ;; [DEAD-001] `elimtiyaz-desktop/src/core/format/id.ts:45-47` ;; [DEAD-003] `elimtiyaz-desktop/supabase/migrations/0036_tier4_backend_hardening.sql:18-23` (comment) + the `batch_register_family` function in 0022_functions.sql ;; [DEAD-005] `elimtiyaz-android/app/src/main/java/com/example/core/IdentityCodes.kt:107-125` (definition) + `elimtiyaz-android/app/src/main/java/com/example/infrastructure/local/LocalRepositories.kt:497-498, 604-605` (call sites that should use it but don't) ;; [DEAD-006] `elimtiyaz-android/app/src/main/java/com/example/infrastructure/sync/SyncQueueDispatcher.kt:393-410` (helpers) + lines 147, 175, 209 (call sites) ;; [PARENT-100] `elimtiyaz-desktop/supabase/functions/approve-signup-request/index.ts:157`. Canonical reference: `elimtiyaz-desktop/src/core/format/id.ts:24-42` (`deterministicParentCode`); `elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:489` (uses deterministicParentCode).
@@ -2298,7 +2298,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DRIFT-009 — Canonical engine port ships ~20 calc files but only ~6 functions are used; `canonical/index.ts` barrel is never imported
 
-- **Category:** DRIFT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** DRIFT  |  **Severity:** Medium  |  **Status:** TESTED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Desktop, Website
 - **Task:** T-057 (docs/recovery/task-registry.md)
@@ -3473,7 +3473,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### BUG-NEW-004 — run-overdue-scan EF exceeds the edge-worker resource budget (WORKER_RESOURCE_LIMIT); the daily overdue scan cannot complete
 
-- **Category:** BUG  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** BUG  |  **Severity:** High  |  **Status:** VERIFIED (hygiene fix 2026-09-02, 19th session: header contradicted the in-body Status note)
 - **Repositories:** AgentGithubUplaod (desktop — supabase/functions)
 - **Platforms affected:** Backend
 - **Task:** T-095 (docs/recovery/task-registry.md)
@@ -3606,7 +3606,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ARCH-012 — `testReleaseUnitTest` fails: GreetingScreenshotTest cannot resolve the release-variant launcher activity
 
-- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** ARCH  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-02, 19th session — both variants green with 2 documented exclusions)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android (test infrastructure)
 - **Task:** registered 2026-08-31 (13th session); needs triage — likely T-082-adjacent (test-gate hygiene)
@@ -3617,6 +3617,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Current behavior:** the full `./gradlew test` task is red on the release variant; the debug variant (the variant every historical "219/219" / "234/234" claim actually exercised) is green.
 - **Expected behavior:** both variants green, or the release screenshot test explicitly excluded with a documented reason.
 - **Proposed resolution:** triage in a future session — either configure Robolectric's release-variant manifest handling or scope GreetingScreenshotTest to the debug variant with a documented note. Register as a task when picked up.
+- **Status note:** RESOLVED 2026-09-02 (19th session, ARCH-012): the documented-exclusion route (the problem's own sanctioned option 2) — `app/build.gradle.kts` now excludes TWO test classes from `testReleaseUnitTest` with in-file reasons: (a) GreetingScreenshotTest (the applicationId-suffix/Robolectric#4736 launcher-resolution failure — the debug variant runs it 1/1), and (b) RoomSchemaUpgradeT046GapTest (NEW discovery while fixing: the 18th session scoped app/schemas/*.json to the DEBUG sourceSet deliberately — release APK purity — and Robolectric's release variant resolves assets from main+release only, so the MigrationTestHelper history is unreachable there by design; debug runs it 4/4). Evidence: `testReleaseUnitTest` BUILD SUCCESSFUL — 36 files / 326 tests / 0 failures (debug 331 − 5 excluded = 326, arithmetic verified); `testDebugUnitTest` 38 files / 331 / 0 unchanged; `lintDebug` green. BOTH variants green for the first time in the repo's history. Removing an exclusion requires fixing the underlying Robolectric release-variant asset/manifest resolution.
 - **Dependencies:** none recorded
 - **Verification:** fix must show BOTH variants green (or the documented exclusion) before status moves past TESTED.
 
@@ -3669,11 +3670,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### AUTH-200 — Google OAuth provider not enabled on the live Supabase project (portal sign-in dead)
 
-- **Category:** AUTH  |  **Severity:** Critical  |  **Status:** OPEN (owner action required)
+- **Category:** AUTH  |  **Severity:** Critical  |  **Status:** OPEN (owner action required; client-side UX mitigated 2026-09-02)
 - **Repositories:** backend (Supabase project config), elimtiyaz-website
 - **Platforms affected:** Website (parent portal login)
 - **Task:** owner runbook `docs/operations/portal-google-oauth.md`
-- **Discovered:** 2026-08-31, 13th session (portal configured but sign-in failed); re-verified live 2026-08-31, 14th session via the Management API: `external_google_enabled: false`, `external_google_client_id: EMPTY`, `external_google_secret: EMPTY`.
+- **Discovered:** 2026-08-31, 13th session (portal configured but sign-in failed); re-verified live 2026-08-31, 14th session via the Management API: `external_google_enabled: false`, `external_google_client_id: EMPTY`, `external_google_secret: EMPTY`. RE-VERIFIED live 2026-09-02 (19th session opening check, Management API + access token): STILL `external_google_enabled: false`, client_id/secret EMPTY; the authorize endpoint answers `HTTP 400 {"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}` — the exact failure a parent sees when clicking the portal's Google button. MITIGATED (client-side, 19th session): the raw English server error is no longer shown — the auth-provider maps it to the stable code `provider_disabled` and the login screen renders a localized, actionable message in fr/ar/en (`auth.signin.providerDisabled`); regression suite `src/test/t-auth200-provider-disabled-ux.test.ts` (4/4). The BLOCKER itself remains owner-action-required (the Google OAuth client belongs to the school's Google account).
 - **Description:** the portal's ONLY auth path is Google OAuth (T-009 removed mock auth; SEC-100-class passwords are not a portal path). The provider is disabled server-side, so the Google button renders (and is enabled client-side since T-096) but the OAuth round-trip cannot start. NOTE: this entry was referenced by the 13th session's closeout (next-task, current-state) but was never actually registered here — fixed in the 14th session.
 - **Root cause:** enabling the provider requires a Google Cloud OAuth client (client id + secret) that only the owner can create (school Google account, consent screen, callback `https://hkvkefubghbbotgnteir.supabase.co/auth/v1/callback`).
 - **Resolution (owner):** follow `docs/operations/portal-google-oauth.md` steps 1-3 (~10 min in the Google Console + one PATCH call). The 14th session already set `uri_allow_list = http://localhost:3000,http://localhost:3100` (comma-separated STRING — the Management API rejects arrays; discovery documented in the runbook) so the local dev round-trip works once enabled.
@@ -3728,3 +3729,16 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **WEAK-011 + TENANT-104 (T-051, TESTED):** NEW `AuditContext` (@Singleton, `dagger.Lazy<SessionManager>` breaking the LocalAuthRepository→AuditContext→SessionManager→AuthRepository cycle) — the session-aware source for tenantId()/actorRole(); all 17 affected repository classes inject it; the two file-private helpers are deleted; ZERO demo-tenant literals remain in LocalRepositories.kt / LocalRepositories2.kt; `inst()` takes the tenant from the session. `TenantStampingT051Test` (7). Out-of-scope note: `SharedDtoMappers` still defaults null-tenant DTOs to the demo UUID on the PULL side — that is a mapping boundary, not a local write; revisit under ADR-005's pull design.
 - **WEAK-012 (T-051, TESTED):** PullSyncRepository's 4 pull paths return `Ok(0)` (pull nothing) when no session tenant exists — the demo-tenant fallback is gone.
 - **BUSINESS-102 + CROSS-102 (T-017, TESTED — interim):** `refund()` guards the already-refunded terminal state BEFORE any side effect (second call returns the row unchanged: no queue entry, no second reversal, no audit row) and the refund sync payload carries `reason`. `RefundCorrectnessT017Test` (3). The installment-state convergence enqueue stays ADR-005-gated (T-059).
+
+### ARCH-013 — Migration 0065 applied to the live DB by an actor outside the repos (2nd ARCH-011-class event: live SQL with no committed file, no task, no problem entry)
+
+- **Category:** ARCH  |  **Severity:** High  |  **Status:** TESTED (2026-09-02, 19th session — drift closed by reconstruction + verification; the PROCESS gap itself remains owner-side)
+- **Repositories:** AgentGithubUplaod (hub, backend chain owner)
+- **Platforms affected:** Backend/DB, all three clients (typed RPC surface)
+- **Task:** T-115 (docs/recovery/task-registry.md) · full evidence: docs/recovery/t-115-live-verification.md
+- **Discovered:** 2026-09-02, 19th-session opening check (the mandated live-chain diff): live `supabase_migrations.schema_migrations` returned 62 rows — the committed chain's 61 (0001–0064) PLUS `0065 / canonical_identity_codes`, registered after the 18th-session close (2026-09-01 ~04:31 UTC). No `0065_*.sql` file, no task entry, no problem entry, no commit existed in ANY of the three repositories; the live function bodies self-cite a task ID ("T-115") that was never registered in the task registry.
+- **Root cause:** an actor (previous agent session or owner-side tool) applied DDL to the live project via the Management API WITHOUT following the MIG-TOKENS discipline's documentation half (commit the file, register the task, update the registries). This is the same class as ARCH-011 (0053/0054, 2026-08-31) — the class recurs because applying live SQL is technically one curl call while the repo-side bookkeeping is where the discipline lives.
+- **Risk:** a fresh deployment (`db push`) from the repos would have silently MISSED the four canonical identity-code functions + the batch_register_family rewrite — the live system and any rebuilt system would diverge at the identity-code layer (the exact layer the (tenant_id, parent_code) idempotency contract depends on). Additionally the unregistered "T-115" citation in live SQL was drift bait: the next agent would find a task ID that resolves to nothing.
+- **What was done (19th session):** the migration was reconstructed VERBATIM from the live catalog (pg_get_functiondef; one-time file-vs-live comparison: 5/5 definitions byte-identical), committed as `elimtiyaz-desktop/supabase/migrations/0065_canonical_identity_codes.sql`, applied live atomically via the standard MIG-TOKENS script (idempotent CREATE OR REPLACE + registration ON CONFLICT DO NOTHING — the pre-existing row preserved), live-verified 19/19 (`scripts/verify_t-115.sql`), task T-115 registered, this entry written, and the cross-platform surface aligned (typed RPCs registered in desktop types.ts + website database.ts; desktop TS ↔ SQL equivalence pinned by a 9-test suite; the mock layer + the approve-signup-request EF aligned to the now-deterministic server contract).
+- **Residual (owner-side):** identify the actor/process that applied 0065 without committing it — if it was an agent session, its session artifacts (wherever they live) should be reconciled or discarded; if it was a dashboard/tool action, the owner should route future schema changes through the hub repo (ADR-001: the hub chain is the ONLY schema source of truth). The live-vs-file cosmetic comment gap (Management API drops COMMENT ON — see the live-verification doc §5) is documented and accepted.
+- **Verification:** docs/recovery/t-115-live-verification.md (file==live 5/5; verify_t-115.sql 19/19; desktop 75 files / 2236 tests; leak checks 0/259/0).

@@ -113,6 +113,6 @@ untouched by design).
 
 - `npx vitest run src/tests/infrastructure/t-115-sql-identity-equivalence.test.ts` — **8/8**.
 - `npx vitest run src/tests/infrastructure/t-018-mock-canonical-create.test.ts` — **4/4**.
-- Full desktop suite: **75 files / 2235 tests ALL PASS** (+12 vs the 18th-session baseline
+- Full desktop suite: **75 files / 2236 tests ALL PASS** (+13 vs the 18th-session baseline
   2223). `tsc --noEmit` clean; `eslint` 0 errors / 384 warnings (baseline 385 — one warning
   left with the deleted dead code).

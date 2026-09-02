@@ -20,6 +20,58 @@
 
 ## Entries
 
+### 2026-09-02 — NINETEENTH REPAIR SESSION (CLOSE) — Owner mandate: "fix this auth thing" + "apply the migration tokens, consistent everywhere" — 5 tasks COMPLETE + live drift closed
+
+- **Session-opening chain check (the §15 rule 11 ritual) found LIVE DRIFT:** 62 live `schema_migrations` rows vs 61 committed files — live-only **`0065 / canonical_identity_codes`** (applied after the 18th-session close by an actor outside the repos; its SQL self-cites "T-115", an ID never registered). Registered as **ARCH-013** (2nd ARCH-011-class event). The owner's "there is the needed part to apply the migration tokens" + supplied access token is what made the live inspection possible.
+- **Completed:** T-115 (VERIFIED — migration reconstructed byte-identical from the live catalog, committed, applied atomically, live-verified 19/19), T-118 (TESTED — DRIFT-001 closed: mock layer + approve-signup-request EF aligned to the deterministic server contract, EF deployed live), T-116 (TESTED — AUTH-200 portal UX mitigated with localized messaging; the Google provider itself remains owner-action-required), T-117 (TESTED — registry hygiene 12 stale headers + t-052 portability), ARCH-012 (TESTED — both Android test variants green for the first time: debug 331/0, release 326/0 with 2 documented exclusions), T-107-follow-through (credentials sheet + §7 checklist re-run — both key formats healthy, committed values match the owner-supplied keys, no rotation).
+- **Deferred with reasons:** T-069 + T-102-follow-up (unchanged from the 18th session — full feature builds; the session's context budget went to the mandate). The Android toolchain was re-provisioned and is green (JDK 21 + SDK 35 — recipe in `/home/z/my-project/scripts/android-env.sh`).
+- **Suites at close:** desktop 75 files / 2236 tests / 0 failures (+13 vs 18th) + typecheck clean + lint 0 errors; website 21 files / 429 tests (+4) + strict build green; Android debug 38 files / 331 / 0, release 36 files / 326 / 0, lint green. Chain 62/62 = 0001–0065, zero drift.
+- **Live state at close:** EF `approve-signup-request` redeployed (anonymous POST → 401 sanity); auth health 200 × both key formats; RLS anon-block verified on 5 core tables × both formats; Google OAuth provider still DISABLED (AUTH-200 — owner runbook unchanged).
+
+### 2026-09-02 — T-115 — Migration 0065 reconstruction + live verification (ARCH-013, DRIFT-001 backend half)
+
+- **Problem IDs:** ARCH-013 (new, OPEN → TESTED) · DRIFT-001 (backend half) · full evidence: `docs/recovery/t-115-live-verification.md`
+- **What was wrong / why:** migration 0065 (canonical deterministic identity codes: `fn_fnv1a`, `fn_stable_hash`, `fn_deterministic_parent_code`, `fn_deterministic_activation_code` + the `batch_register_family` rewrite) existed ONLY on the live DB — no file, no task, no problem entry. A fresh deployment would silently miss it; the unregistered "T-115" citation in live SQL was drift bait.
+- **What was changed:** `elimtiyaz-desktop/supabase/migrations/0065_canonical_identity_codes.sql` reconstructed VERBATIM from the live catalog (one-time file-vs-live check: 5/5 definitions byte-identical) + `scripts/apply_0065_live.sh` (MIG-TOKENS: BEGIN + file + registration ON CONFLICT DO NOTHING + COMMIT — executed, pre-existing row preserved) + `scripts/verify_t-115.sql` (19 checks) + typed RPC registrations in desktop `types.ts` + website `database.ts` + NEW `src/tests/infrastructure/t-115-sql-identity-equivalence.test.ts` (9 tests: pinned live-SQL vectors == TS generator output, migration-file structure guards, DOB-contract pin, EF source pin).
+- **What was verified (live, 2026-09-02):** verify_t-115.sql **19/19 TRUE** — presence (5 functions + registration + unique constraint), 10 deterministic-generator vectors matching the desktop TS engine (computed via Node type stripping from `core/format/id.ts`), the full RPC contract (empty-identity REJECTED; deterministic parent code `PAR-2026-C1BC71` == expected; explicit activation code honored; duplicate registration REFUSED via `parents_tenant_id_parent_code_key`; deterministic default activation code `668214` == expected; audit entries tagged `deterministic_fnv1a_0065`). Leak checks: 0 test parents / 259 total unchanged / 0 persisted audit rows. Desktop suite 2236 ALL PASS.
+- **New discoveries persisted:** the Management API SQL endpoint silently DROPS `COMMENT ON` statements (AGENTS.md §11.1 quirk #1); `batch_register_family` REQUIRES `date_of_birth` per student JSON (NOT NULL column, no RPC default); `pg_get_functiondef` is the only reliable reconstruction source.
+- **Preserved:** the 259 production parent codes (0065 is DDL-only; import-path products untouched); the pre-existing registration row (name/statements byte-verified, not overwritten).
+- **Next:** T-069 (Android realtime — the toolchain is green again).
+- **Commits:** hub repo.
+
+### 2026-09-02 — T-118 — DRIFT-001 closed: mock layer + approve EF aligned (deterministic server contract)
+
+- **Problem IDs:** DRIFT-001 (OPEN → TESTED/CLOSED — all halves now resolved)
+- **What was wrong / why:** with 0065 the server CREATE path became deterministic, leaving TWO mirrors of the now-DEAD random behavior: the desktop mock's `randomParentSuffix()` (preserved by T-018 as a faithful mirror of 0022's `gen_random_bytes`) and the `approve-signup-request` EF's `Math.random()` parent code (T-018's flagged remainder — a retried approval could duplicate the parent).
+- **What was changed:** `MockParentRepository.createParent` → canonical `deterministicParentCode` + duplicate-identity refusal (`ERR_CONFLICT`) mirroring the server's unique constraint; dead `randomParentSuffix` copies deleted (`core/format/id.ts`, `supabase-shared-repositories.ts`); `approve-signup-request/index.ts` → `fn_deterministic_parent_code` RPC call with fail-closed `parent_code_failed` error path; EF deployed live.
+- **What was verified:** NEW `t-018-mock-canonical-create.test.ts` 4/4; NEW EF pin inside `t-115-sql-identity-equivalence.test.ts` (9/9); full desktop suite 75 files / 2236 ALL PASS; `tsc --noEmit` clean; `eslint` 0 errors/384 warnings (one dead-code warning left with the deleted function). EF deploy sanity: anonymous POST → 401 `{"code":"unauthorized"}`.
+- **Commits:** hub repo.
+
+### 2026-09-02 — T-116 — AUTH-200 portal UX mitigation + fresh live evidence (the owner's "fix this auth thing")
+
+- **Problem IDs:** AUTH-200 (header note updated; still OPEN owner-action-required)
+- **What was wrong / why:** the portal's ONLY auth path (Google OAuth) is dead server-side (`external_google_enabled: false` — re-verified live 2026-09-02 via the Management API; the authorize endpoint answers `400 validation_failed / "Unsupported provider: provider is not enabled"`), and a parent clicking the button saw that RAW English server string.
+- **What was changed (website):** `signInWithGoogle` maps the disabled-provider error class to the stable code `provider_disabled`; the login screen renders a localized, actionable message (fr/ar/en `auth.signin.providerDisabled`); other errors pass through verbatim. The problem entry + runbook carry the fresh live evidence and the exact owner steps (Google OAuth client ~10 min + the Management-API PATCH; the uri_allow_list comma-string quirk is documented in the runbook).
+- **What was verified:** NEW `src/test/t-auth200-provider-disabled-ux.test.ts` 4/4 (detection pattern == the live server message; code mapping; dictionary keys in every locale incl. the French "administration" ask; single assignment site). Full website suite 21 files / 429 ALL PASS; strict build green.
+- **What remains (owner):** enable the provider per `docs/operations/portal-google-oauth.md` steps 1–3 — this is the single remaining portal-login blocker and cannot be done by an agent (the Google OAuth client belongs to the school's Google account).
+- **Commits:** website repo + hub repo (problem entry).
+
+### 2026-09-02 — T-117 — Registry hygiene + t-052 test portability
+
+- **Problem IDs:** (documentation-consistency class + a new test-portability defect)
+- **What was wrong / why:** (a) 12 problem-registry headers said OPEN while their own in-body Status notes said FIXED/TESTED/VERIFIED — misleading every problem-selection pass; (b) the committed `t-052-notification-badge.test.ts` hard-coded `/home/z/my-project/repos/…` for the desktop source scan — it failed with ENOENT on any other machine (the owner's clone, CI).
+- **What was changed:** the 12 headers flipped to match their notes (SEC-001, SEC-002, TENANT-103, SYNC-100, SYNC-101, SYNC-102, CACHE-102, ATT-101, NOTIF-102, NOTIF-103, DRIFT-009 → TESTED; BUG-NEW-004 → VERIFIED; hygiene note on each line); t-052 now probes the sibling hub checkout (Android-equivalence-runner convention) and `describe.skip`s the desktop leg when absent.
+- **What was verified:** hygiene re-scan: 0 stale headers; t-052 suite 4/4 on the standard layout + the skip path simulated (missing sibling → skip, no ENOENT); full website suite green.
+- **Commits:** website repo (t-052) + hub repo (registry).
+
+### 2026-09-02 — ARCH-012 — Both Android test-variant gates green (first time)
+
+- **Problem IDs:** ARCH-012 (OPEN → TESTED)
+- **What was wrong / why:** `testReleaseUnitTest` failed on GreetingScreenshotTest (applicationId suffix `.bxmzlx` defeats Robolectric's launcher-activity resolution — robolectric#4736); fixing that exposed a SECOND release-only failure: RoomSchemaUpgradeT046GapTest (the 18th session scoped `app/schemas/*.json` to the DEBUG sourceSet deliberately — release-APK purity — and Robolectric's release variant resolves assets from main+release only).
+- **What was changed:** `app/build.gradle.kts` — `testReleaseUnitTest` excludes the two classes with in-file documented reasons (the problem's own sanctioned "documented exclusion" option). Both tests remain the DEBUG variant's canonical gates (GreetingScreenshotTest 1/1, RoomSchemaUpgradeT046GapTest 4/4 there).
+- **What was verified:** `testReleaseUnitTest` BUILD SUCCESSFUL — 36 files / 326 / 0 (debug 331 − 5 excluded = 326, arithmetic checks); `testDebugUnitTest` 38 files / 331 / 0 (baseline unchanged); `lintDebug` green. First time `./gradlew test` (both variants) is fully green.
+- **Commits:** android repo.
+
 ### 2026-09-01 — T-024 — Android homework UUID + promotion propagation (HOMEWORK-101, STUDENT-100)
 - **Problem IDs:** HOMEWORK-101 (Critical → TESTED), STUDENT-100 (Critical → TESTED).
 - **What changed (Android repo):** (1) `LocalRepositories2.kt` — homework entities created with a bare `UUID.randomUUID().toString()` (was `"hwk-…"`); (2) `SyncQueueDispatcher.pushHomework` — strips the legacy `hwk-` prefix before the UUID-column upsert so already-queued/Room rows reach the server on the SAME server id (idempotency preserved, no duplicates on retry); (3) `SyncQueueDispatcher.pushStudent` — now sends `p_grade_level_code` (payload keys gradeLevel/grade_level/gradeLevelCode, blank-safe) and `p_transport_tier` when present; (4) NEW `HomeworkPromotionT024Test.kt` (6 tests). Commit `7bd43e1`.

@@ -13,7 +13,7 @@
 | REST URL | `https://hkvkefubghbbotgnteir.supabase.co` |
 | Tenant | El-Imtiyaz Boumerdès (`00000000-0000-0000-0000-000000000001`), DZD, `fr`, Africa/Algiers |
 | Auth users (live, 2026-09-01) | 1 — `admin@elimtiyaz.dz` (active, confirmed; password RESET 2026-09-01 by T-106/AUTH-300 after `invalid_credentials` 400s — new value delivered out-of-band, never in git) |
-| Migration chain applied | 0001–0063 (60/60, session-17 opening check: zero drift; live-label quirk on row 0050 — see task-registry) |
+| Migration chain applied | 0001–0065 (62/62, 19th-session close 2026-09-02: zero drift after T-115 reconstructed + committed the live-only 0065 [ARCH-013]; cosmetic live quirks: row 0050 label + 0065's NULL catalog comments [the Management API drops COMMENT ON — see AGENTS.md §11.1]) |
 
 **Verified live (session 8):** auth health OK · RLS blocks anon reads on all 9 core tables · 58 RPCs exposed · `expire-pending-approvals` EF denies anonymous calls (SEC-105 fix holding) · canonical financial RPCs present.
 
@@ -87,6 +87,14 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 #    (call register_fcm_token with a JWT belonging to user A, p_user_id = user B)
 # 4. Website build: npm run build (strict) — env validation must not flag placeholders
 ```
+
+**§7 checklist re-run (19th session, 2026-09-02 — owner re-supplied all keys; consistency confirmed):**
+
+1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
+2. RLS: anon/publishable sees **0 rows** on parents / students / payments / ledger_entries / installments (HTTP 200, empty arrays, both key formats).
+3. Key consistency: the owner-supplied URL / anon JWT / publishable key / JWKS URL are **byte-identical** to the committed values (website `public-config.ts` + `.env.example`, Android `.env.example` URL+JWKS) — no rotation occurred; ADR-009's dual-acceptance posture is unchanged and still correct.
+4. Website strict build: green (21 files / 429 tests; `next build` compiled successfully).
+5. The `sb_secret_…` server key: registry-only (NEVER in any client repo — the website's t-096 scanner test still guards this).
 
 ## 8. New-format API key migration (T-107 / MIG-KEYS-201, 2026-09-01 — ADR-009)
 

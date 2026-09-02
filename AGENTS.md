@@ -106,12 +106,26 @@ Cross-platform financial equivalence: see `docs/testing/cross-platform.md`. Any 
 
 For backend / SQL / Edge-Function tasks, **live verification is required** to claim VERIFIED status (per §13 status flow). Since 2026-08-30 (seventh session), the live Supabase environment is wired up:
 
-- The CLI binary is at `/home/z/my-project/bin/supabase` (v2.116.0). Add to `PATH` or invoke directly.
+- The CLI binary is at `/home/z/my-project/bin/supabase` (v2.116.0). Add to `PATH` or invoke directly. (The container resets wipe it — re-download from the GitHub release if missing.)
 - Link the project: `cd elimtiyaz-desktop && SUPABASE_ACCESS_TOKEN=<token> /home/z/my-project/bin/supabase link --project-ref hkvkefubghbbotgnteir`.
 - Push migrations: `supabase db push --linked --include-all` (note: this command can take 2-5 minutes; use a generous timeout).
 - Deploy an Edge Function: `supabase functions deploy <name> --project-ref hkvkefubghbbotgnteir --no-verify-jwt`.
-- Run SQL queries against the live DB: `supabase db query --linked "<SQL>"` or `supabase db query --linked < scripts/verify_<task>.sql` (for multi-statement scripts).
+- Run SQL queries against the live DB: `supabase db query --linked "<SQL>"` or `supabase db query --linked < scripts/verify_<task>.sql` (for multi-statement scripts). The **Management API SQL endpoint** (`POST https://api.supabase.com/v1/projects/<ref>/database/query` with the access token) is the curl-only alternative used by the `apply_XXXX_live.sh` scripts.
 - Set a secret: `supabase secrets set <NAME>=<value> --project-ref hkvkefubghbbotgnteir` (note: this command can take 1-3 minutes; the secret IS set even if the command times out — verify via `supabase secrets list --project-ref hkvkefubghbbotgnteir`).
+
+**Management-API SQL-endpoint quirks (live evidence, 19th session 2026-09-02):**
+
+1. **`COMMENT ON` statements are silently DROPPED** — the endpoint returns success but
+   `obj_description()` stays NULL (tested alone, inside `BEGIN;…COMMIT;`, and inside
+   multi-statement payloads). DDL/DML in the same payload persists normally. Consequence:
+   migration files' COMMENT statements never land on the live catalog when applied via
+   this endpoint — they apply on fresh CLI deployments only. Do not "fix" this by
+   re-running; treat catalog NULL comments as the documented live state (0065 is the
+   first migration to record this explicitly).
+2. **Single big queries can return empty** — fetch large result sets in small batches
+   (names first, then per-batch definitions) and retry on empty responses.
+3. **Multi-statement payloads run in ONE session** — temp tables + `BEGIN;…ROLLBACK;`
+   wrappers work as expected (this is what the verify-script convention relies on).
 
 **Live verification script convention** (since the seventh session):
 
