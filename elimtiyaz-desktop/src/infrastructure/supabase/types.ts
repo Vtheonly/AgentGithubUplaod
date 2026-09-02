@@ -601,6 +601,21 @@ export interface Database {
       compute_parent_outstanding: { Args: { p_parent_id: string }; Returns: number };
       compute_overdue_amount: { Args: { p_parent_id: string; p_as_of?: string }; Returns: number };
       generate_activation_code: { Args: { p_tenant_id: string }; Returns: string };
+      // T-115 (migration 0065) — canonical deterministic identity-code RPCs.
+      fn_fnv1a: { Args: { s: string }; Returns: number };
+      fn_stable_hash: { Args: { s: string }; Returns: string };
+      fn_deterministic_parent_code: {
+        Args: {
+          p_year: number;
+          p_phone?: string | null;
+          p_display_name?: string | null;
+          p_first_name?: string | null;
+          p_last_name?: string | null;
+          p_fallback_seed?: string | null;
+        };
+        Returns: string;
+      };
+      fn_deterministic_activation_code: { Args: { p_parent_code: string; p_tenant_id: string }; Returns: string };
       bind_activation_code: { Args: { p_tenant_id: string; p_code: string; p_auth_user_id: string }; Returns: unknown };
       approve_account_request: {
         Args: {
