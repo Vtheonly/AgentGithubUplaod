@@ -300,13 +300,121 @@ async function executeActionNode(
     }
 
     case "push_notification": {
-      // TODO: Integrate FCM (Firebase Cloud Messaging) via service account.
-      // const fcmToken = ...; await fetch("https://fcm.googleapis.com/fcm/send", { ... })
-      const targetRole = String(config.target_role ?? "financial_officer");
+      // T-126 / PUSH-100 (2026-09-02): this action is NO LONGER a stub. It
+      // resolves its recipients (an explicit config.target_user_id, or every
+      // active holder of config.target_role within the tenant) and invokes
+      // the canonical send-push-notification Edge Function (hub-owned, FCM
+      // HTTP v1) with the service_role key.
       const title = String(config.title ?? "Notification");
+      const body = config.body != null ? String(config.body) : undefined;
+      const category = config.category != null ? String(config.category) : undefined;
+      const data = (config.data ?? undefined) as Record<string, string> | undefined;
+      const priority = (config.priority ?? undefined) as "normal" | "high" | undefined;
+      const explicitTarget = config.target_user_id != null ? String(config.target_user_id) : null;
+      const targetRole = explicitTarget ? null : String(config.target_role ?? "financial_officer");
+
+      // 1. Resolve recipients (user_profiles ids — device_tokens.user_id).
+      let recipientIds: string[] = [];
+      if (explicitTarget) {
+        recipientIds = [explicitTarget];
+      } else {
+        const { data: roleRow, error: roleErr } = await supabase
+          .from("roles")
+          .select("id")
+          .eq("code", targetRole!)
+          .limit(1);
+        if (roleErr) {
+          throw new Error(`push_notification role lookup failed: ${roleErr.message}`);
+        }
+        if (!roleRow || roleRow.length === 0) {
+          return {
+            output: { sent: 0, failed: 0, recipients: 0, note: `no role '${targetRole}' exists` },
+            auditNote: `push_notification role=${targetRole} title="${title}" — role not found, 0 recipients`,
+          };
+        }
+        const { data: assignments, error: asgErr } = await supabase
+          .from("role_assignments")
+          .select("user_profile_id")
+          .eq("role_id", (roleRow[0] as { id: string }).id)
+          .eq("tenant_id", tenantId)
+          .is("revoked_at", null);
+        if (asgErr) {
+          throw new Error(`push_notification role-assignment lookup failed: ${asgErr.message}`);
+        }
+        recipientIds = (assignments ?? []).map(
+          (a: { user_profile_id: string }) => a.user_profile_id,
+        );
+      }
+
+      if (recipientIds.length === 0) {
+        return {
+          output: { sent: 0, failed: 0, recipients: 0 },
+          auditNote: `push_notification role=${targetRole ?? "(direct)"} title="${title}" — 0 recipients`,
+        };
+      }
+
+      // 2. Invoke the canonical EF once per recipient (service-role auth).
+      const baseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      if (!baseUrl || !serviceKey) {
+        throw new Error("push_notification requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env");
+      }
+      const efUrl = `${baseUrl}/functions/v1/send-push-notification`;
+      const perRecipient: { user_id: string; sent: number; error?: string }[] = [];
+      let sent = 0;
+      let failed = 0;
+      for (const userId of recipientIds) {
+        try {
+          const resp = await fetch(efUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              target_user_id: userId,
+              title,
+              body,
+              data,
+              category,
+              priority,
+            }),
+          });
+          const json = (await resp.json().catch(() => ({}))) as { sent?: number; error?: string };
+          if (resp.ok) {
+            sent += json.sent ?? 0;
+            perRecipient.push({ user_id: userId, sent: json.sent ?? 0 });
+          } else {
+            failed += 1;
+            perRecipient.push({ user_id: userId, sent: 0, error: json.error ?? `HTTP ${resp.status}` });
+          }
+        } catch (err) {
+          failed += 1;
+          perRecipient.push({ user_id: userId, sent: 0, error: String(err) });
+        }
+      }
+
+      // 3. Honest output — per-recipient failures are RECORDED, not thrown:
+      // a missing FIREBASE_SERVICE_ACCOUNT_JSON secret must not cascade the
+      // whole workflow run to failed; the failure is visible in the node
+      // output + audit trail (the EF itself returns 500 naming the missing
+      // secret, which lands in `failures` below).
       return {
-        output: { stub: true, target_role: targetRole, title, provider: "fcm" },
-        auditNote: `STUB push_notification role=${targetRole} title="${title}"`,
+        output: {
+          sent,
+          failed,
+          recipients: recipientIds.length,
+          provider: "fcm",
+          ...(failed > 0
+            ? {
+                partial_failure: true,
+                failures: perRecipient.filter((p) => p.error).slice(0, 5),
+              }
+            : {}),
+        },
+        auditNote:
+          `push_notification role=${targetRole ?? "(direct)"} title="${title}" — ` +
+          `${sent} sent, ${failed} failed of ${recipientIds.length} recipients`,
       };
     }
 
