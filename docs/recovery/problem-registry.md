@@ -31,7 +31,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | | | | CLOSED | 1 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 182 registered problems (recounted 2026-09-02, T-125 — the detailed entries are authoritative) (145 consolidated from 185 audit findings + 29 discovered during repair sessions) · 62 OPEN · 11 BLOCKED on unresolved decisions (see `unknowns.md`) · 5 DEFERRED · 5 VERIFIED (WEAK-021; ARCH-006 — live integration T-094; SEC-109 — live probes T-068; DATA-010; DATA-011) · 86 TESTED (sessions 1–10 + the 11th session 2026-08-31: BUSINESS-002/003/005/100/101/104, DEAD-015, HOMEWORK-100, ATT-100, DEAD-100 + TENANT-105/106 via migration 0057 live 6/6, CACHE-100, CROSS-001/003, WEAK-005; 12th session: see change-log; 13th session: ACAD-100, ACAD-101, BUSINESS-004, PUSH-102, SYNC-104, SYNC-105, REG-001, WEAK-009, SEC-006, CACHE-101, WEAK-010, PUSH-103, DRIFT-006, WEAK-007, BUSINESS-007, WEAK-006, WEAK-008, DEAD-007, DEAD-008, DEAD-009, DRIFT-007, ATT-103, SEC-004, SEC-005; 16th session 2026-09-01: DATA-008 extended to corpus-level VERIFIED) · NEW session 11: BUG-NEW-004 (run-overdue-scan EF hits WORKER_RESOURCE_LIMIT — registered by session 12's closeout from the T-068 commit evidence; the 11th session's commit named it but never registered it). Evidence: change-log sessions 10–13 + 15–16. Counts synced to the detailed entries (authoritative) this session.
+**Totals:** 180 detailed entries (recounted 2026-09-03, T-133 — the detailed entries are authoritative) (145 consolidated from 185 audit findings + the rest discovered during repair sessions) · **12 OPEN** (CROSS-004, CROSS-104b, ARCH-001, DRIFT-011, DUP-001/002/003/004, REG-002, WEAK-100, DATA-006, AUTH-200 — of which 8 are blocked-on-decisions/owner-gated and 4 are the big consolidation tasks T-043/T-044) · 134 TESTED (incl. this session's flips: PUSH-104→T-131, PARENT-102→T-132, NOTIF-101→0048-live-verified) · 12 VERIFIED · 11 BLOCKED · 5 DEFERRED · 3 other (FIXED/PARTIAL/MITIGATED/IMPLEMENTED/CLOSED micro-states). Evidence: change-log sessions 1–22.
 
 > T-125 (2026-09-02, 21st session): 20 stale detailed-entry Status headers flipped to their documented/evidenced states (live-DB or code probes this session; list in change-log). Status counts above RECOMPUTED from the detailed headers at flip time.
 
@@ -55,14 +55,14 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-103 | High | TESTED | T-003 | Desktop auth-provider.changePassword is a NO-OP — never calls Supabase to update the password |
 | SEC-105 | High | TESTED | T-004 | Anonymous invocation of 4 cron EFs (no auth check when no Authorization header) — fixed 2026-08-29, live curl matrix pending |
 | SEC-106 | High | TESTED | T-084 | register_fcm_token RPC accepts p_user_id parameter without verifying caller identity (push notification interception) — caller verification added by migration 0050 (applied live 2026-08-30); cross-user denial with real JWTs still to be proven (single auth user exists) |
-| SEC-107 | High | OPEN | T-008 | approve-signup-request EF allows support_staff → super_admin role escalation |
-| SEC-108 | High | OPEN | T-007 | handle_new_auth_user trigger trusts raw_app_meta_data.tenant_id and raw_user_meta_data.requested_role (multi-tenant injection + role escalation at signup) |
+| SEC-107 | High | TESTED | T-008 | approve-signup-request EF allows support_staff → super_admin role escalation |
+| SEC-108 | High | TESTED | T-007 | handle_new_auth_user trigger trusts raw_app_meta_data.tenant_id and raw_user_meta_data.requested_role (multi-tenant injection + role escalation at signup) |
 | SEC-109 | High | VERIFIED | T-068 | extractAuthContext calls current_user_permissions() via service_role — permissions array is always empty in EFs (RBAC broken for non-super_admin) |
-| SEC-110 | High | OPEN | T-006 | bind_activation_code RPC is SECURITY DEFINER + accepts p_auth_user_id parameter without verifying caller (direct RPC account takeover) |
-| SEC-111 | High | OPEN | T-006 | `upsert_payment_from_import` is SECURITY DEFINER (RLS-bypassed); canonical payment RPCs are not |
-| SEC-112 | High | OPEN | T-006 | `revert_payment_allocation` SQL RPC has no tenant_id verification; cross-tenant refund possible |
-| TENANT-100 | Critical | OPEN | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
-| TENANT-101 | Medium | OPEN | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
+| SEC-110 | High | TESTED | T-006 | bind_activation_code RPC is SECURITY DEFINER + accepts p_auth_user_id parameter without verifying caller (direct RPC account takeover) |
+| SEC-111 | High | TESTED | T-006 | `upsert_payment_from_import` is SECURITY DEFINER (RLS-bypassed); canonical payment RPCs are not |
+| SEC-112 | High | TESTED | T-006 | `revert_payment_allocation` SQL RPC has no tenant_id verification; cross-tenant refund possible |
+| TENANT-100 | Critical | TESTED | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
+| TENANT-101 | Medium | TESTED | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
 | TENANT-103 | Medium | TESTED | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
 | TENANT-106 | Critical | TESTED | T-025 | `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage) |
 | BUSINESS-001 | Critical | TESTED | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
@@ -83,14 +83,14 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CROSS-100 | Medium | TESTED | T-001/T-002 | Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@) — both demo lists removed 2026-08-29 |
 | CROSS-101 | Critical | BLOCKED | T-066 | `receipts` table is orphaned; website's receipt download is permanently broken |
 | CROSS-102 | High | TESTED (T-017, 17th session: refund reason rides the sync payload) | T-017 | Android refund sync payload drops the user's refund reason; server audit log has no reason |
-| CROSS-103 | High | OPEN | T-017 | Android refund sync does NOT push installment state changes; server-side installments stay stale |
+| CROSS-103 | High | TESTED | T-017 | Android refund sync does NOT push installment state changes; server-side installments stay stale |
 | CROSS-104 | High | TESTED (T-034, 17th session: TTL + window-focus freshness policy on all 9 Supabase-backed caches; design choice documented) | T-034 | Desktop SupabasePaymentRepository cache never re-seeds from server; no realtime, no manual refresh |
 | CROSS-104b | Medium | PARTIAL (definition DONE — ADR-005 amendment, T-034 17th session; Android implementation stays with T-059/ADR-005 rollout) | T-059 | Desktop defaultPushHandler persists `sync_queue` row in Supabase for audit trail; Android SyncQueueDispatcher does not |
 | SEC-113 | Medium | TESTED (T-108/DESK-CSP-202, 17th session: CSP meta added + verified under Xvfb dev+prod; 4 pinning tests) | T-108 | Electron renderer ran with NO Content-Security-Policy (owner-pasted Electron security warning) |
-| CROSS-200 | Critical | OPEN | T-019 | Android sync dispatcher swallows RPC errors silently; desktop sync dispatcher throws and retries |
+| CROSS-200 | Critical | TESTED | T-019 | Android sync dispatcher swallows RPC errors silently; desktop sync dispatcher throws and retries |
 | SYNC-100 | High | TESTED | T-022 | Desktop defaultPushHandler silently drops installment / homework / grade / attendance entity kinds |
-| SYNC-101 | Medium | OPEN | T-022 | Desktop defaultPushHandler overwrites sync_queue row status="pending" on every drain, clobbering audit history |
-| SYNC-102 | Medium | OPEN | T-022 | Desktop sync queue persists across logout/login; user A's pending entries stuck as "failed" under user B's session |
+| SYNC-101 | Medium | TESTED | T-022 | Desktop defaultPushHandler overwrites sync_queue row status="pending" on every drain, clobbering audit history |
+| SYNC-102 | Medium | TESTED | T-022 | Desktop sync queue persists across logout/login; user A's pending entries stuck as "failed" under user B's session |
 | SYNC-103 | High | TESTED (T-020, 17th session: SyncErrorClassifier — 5xx/transport requeued, 4xx fail-fast) | T-020 | Android tryThenEnqueue only enqueues on network/offline/timeout errors; server 500s and validation errors lose the mutation |
 | SYNC-104 | Medium | TESTED | T-030 | Android FCM token never unregistered on signOut; device_tokens row stays active for the old user — Android half fixed 2026-08-30 (T-084: deactivate_fcm_tokens on signOut); server residue closed 2026-08-31 (T-030, 13th session): canonical `unregister_fcm_token(p_token)` RPC + rotation-retire on the website (migration 0060, live 9/9) |
 | SYNC-105 | Medium | TESTED | T-084 | Website signOut uses scope:"global" (revokes ALL sessions across ALL devices) AND does not unregister FCM tokens — fixed 2026-08-30: unregisterDeviceToken() (canonical RPC) + scope:'local'; build green, 105/105 tests; live browser round-trip pending |
@@ -99,13 +99,13 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CACHE-100 | Medium | TESTED | T-033 | Website TanStack Query config (staleTime 30s + refetchOnWindowFocus false + retry 1) leaves data stale indefinitely when realtime is broken |
 | CACHE-101 | Medium | TESTED | T-050 | Desktop OnlineDetector probed Google with `mode: "no-cors"` every 30s — FIXED 2026-08-31 (T-050, 13th session): probe targets the configured Supabase `/auth/v1/health` (apikey header, cors mode, status readable); unconfigured = zero requests; only 200/401 count as online; desktop suite 2165 green (13/13 new T-050 tests) |
 | CACHE-102 | Medium | TESTED | T-022 | Desktop IndexedDB sync queue store silently falls back to in-memory when IndexedDB is unavailable; "sync queued" UI lies to user |
-| REALTIME-100 | Medium | OPEN | T-032 | Website messages-view invalidates wrong queryKey prefix; unread badge stays stale forever |
+| REALTIME-100 | Medium | TESTED (T-032, 2026-08-31) | T-032 | Website messages-view invalidates wrong queryKey prefix; unread badge stays stale forever |
 | REALTIME-101 | Medium | TESTED | T-032 | Website markRead UPDATE on chat_messages is RLS-denied for incoming messages — FIXED 2026-08-31 (T-032 + migration 0051): members append own read_by, failures surface; GAP: live two-browser round-trip |
 | REALTIME-102 | Medium | TESTED | T-032 | Website useNotificationsRealtime filter missed role-broadcast notifications — FIXED 2026-08-31 (T-032): filter dropped, RLS scopes events |
 | REALTIME-103 | Medium | TESTED | T-032 | Unread badge only reacted to the OPEN channel — FIXED 2026-08-31 (T-032): useChatUnreadRealtime subscribes to chat_messages across ALL channels; GAP: live websocket assertion with two sessions |
 | REALTIME-104 | High | TESTED | T-069 | Android has ZERO Supabase realtime subscriptions — FIXED 2026-09-02 (T-069, 20th session): RealtimeSyncManager + SupabaseRealtimeEventSource subscribe payments/installments/notifications/homework on session-active, route events to the granular pulls (debounced, website cross-invalidation semantics); 15-min cycle stays the fallback. GAP: live websocket round-trip (needs a real device/emulator) |
 | PARENT-101 | High | TESTED | T-029 | `approve_account_request` SQL function silently OVERWRITES `parents.auth_user_id` on re-bind (no orphan check, no audit trail) |
-| PARENT-102 | Medium | OPEN | T-008 | Approval-without-target-parent creates "active but unbound" user with no escape path |
+| PARENT-102 | Medium | TESTED (2026-09-03, T-132) | T-008 | Approval-without-target-parent creates "active but unbound" user with no escape path |
 | ACAD-100 | High | TESTED | T-041 | Two parallel promotion paths: dead SQL `promote_students` RPC writes to legacy `academic_history` — FIXED 2026-08-31 (T-041, 13th session): dead RPC DROPPED by migration 0059; single canonical atomic `execute_batch_promotion` path (live 10/10) |
 | ACAD-101 | Medium | TESTED | T-041 | Academic-year `setCurrentYear` is a non-atomic two-step UPDATE — FIXED 2026-08-31 (T-041, 13th session): atomic `set_current_academic_year` RPC (ONE UPDATE + audit entry, migration 0059, live 10/10); createAcademicYear inserts `is_current=false` then flips |
 | ACAD-102 | Medium | DEFERRED | T-073 | `class_subjects.teacher_id` is single-UUID; co-teaching (multiple teachers per subject per class) is structurally unsupported |
@@ -115,26 +115,26 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ATT-103 | Low | TESTED | T-063 | Android `alertAbsences` has no threshold; alerts for every student in the input (divergence from desktop's 3-absence threshold) — FIXED 2026-08-31 (T-063): ≥3 absences, current term |
 | GRADE-100 | Low | DEFERRED | T-075 | `homework.acknowledged_count` column is permanently 0; no code increments it |
 | HOMEWORK-100 | Critical | TESTED | T-023 | Desktop homework push omits `tenant_id`; INSERT always fails NOT NULL (extends WEAK-017) |
-| HOMEWORK-101 | Critical | OPEN | T-024 | Android homework sync push uses invalid UUID `"hwk-{uuid}"` as `homework.id` |
+| HOMEWORK-101 | Critical | TESTED | T-024 | Android homework sync push uses invalid UUID `"hwk-{uuid}"` as `homework.id` |
 | HOMEWORK-103 | High | TESTED (T-039, 18th session) | T-039 | Android `pullAll` doesn't pull homework/attendance/assessments; cross-platform visibility is one-way only — FIXED: academic cluster pulled with canonical mappers; live cross-device round-trip still owed |
 | SCHED-100 | Medium | BLOCKED | T-042 | Timetable (Emploi du Temps) feature is structurally unimplemented: domain model + UI KPI exist but no DB table, no Supabase repository, no migration |
 | SCHED-101 | Low | BLOCKED | T-042 | `detectTimetableConflict` checks teacher/class overlaps but NOT room conflicts (different teachers, different classes, same room, same time) |
-| STUDENT-100 | Critical | OPEN | T-024 | Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter) |
+| STUDENT-100 | Critical | TESTED | T-024 | Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter) |
 | CHAT-100 | Medium | TESTED | T-071 | `chat_channels_insert` RLS allows any authenticated user to create a channel with arbitrary `member_ids` (no membership validation on insert) |
 | CHAT-101 | Medium | TESTED | T-071 | `chat_messages_insert` RLS has no channel-membership check; any user can spam any channel_id they know |
 | CHAT-103 | High | TESTED | T-037 | No production code anywhere creates `chat_channels` rows; the website's MessagesView is permanently empty for parents |
 | CHAT-104 | Low | TESTED | T-037 | `chat_channels.updated_at` never updates when a new chat_message is INSERTed; channel list is sorted by CREATION time, not last-message time |
 | NOTIF-100 | Medium | BLOCKED | T-038 | `notifications_update` RLS blocks recipients from marking role-broadcast notifications as read; bulk mark-read silently no-ops (extends REALTIME-101 from chat_messages to notifications) |
-| NOTIF-101 | Medium | OPEN | T-071 | `notifications_insert` RLS allows any authenticated user to INSERT a notification addressed to ANY user_id (notification spam / injection) |
+| NOTIF-101 | Medium | TESTED (0048 live-verified 2026-09-03) | T-071 | `notifications_insert` RLS allows any authenticated user to INSERT a notification addressed to ANY user_id (notification spam / injection) |
 | NOTIF-102 | Low | TESTED | T-052 | Desktop topbar bell `unreadCount` is computed AFTER slicing to 8 items; badge caps at 8 even when actual unread is 50 |
 | NOTIF-103 | Low | TESTED | T-052 | Website bottom-nav fetches 1 unread notification but never renders it (dead query); top-app-bar bell caps unread at 50 |
 | NOTIF-104 | Medium | BLOCKED | T-038 | Android `NotificationDao.markRead/markAllRead/dismiss` only update LOCAL Room; server's `notifications.is_read` / `dismissed_at` stays at original values forever (silent desync) |
 | NOTIF-105 | Medium | TESTED (T-039, 18th session) | T-039 | Android `pullNotifications` pulls ALL server-visible notifications (limit:200) with no per-user filter; stale role-broadcasts persist in Room across role changes — FIXED: RLS-mirrored filter + eviction (Room v13 targetRole) |
-| PUSH-100 | Critical | OPEN | T-036 | NO production code anywhere invokes the `send-push-notification` Edge Function (extends WEAK-014/WEAK-015 to a 3rd compounding bug) |
-| PUSH-101 | Medium | OPEN | T-036 | Android `ElImtiyazMessagingService.onMessageReceived` reads `data["type"]` and `data["priority"]` from the wrong field; AndroidManifest has NO deep-link intent filter for `click_action` URLs |
+| PUSH-100 | Critical | TESTED | T-036 | NO production code anywhere invokes the `send-push-notification` Edge Function (extends WEAK-014/WEAK-015 to a 3rd compounding bug) |
+| PUSH-101 | Medium | TESTED | T-036 | Android `ElImtiyazMessagingService.onMessageReceived` reads `data["type"]` and `data["priority"]` from the wrong field; AndroidManifest has NO deep-link intent filter for `click_action` URLs |
 | PUSH-102 | Medium | TESTED | T-030 | `register_fcm_token` RPC had no inverse and silently overwrote `user_id` on shared devices — FIXED 2026-08-31 (T-030, 13th session): migration 0060 conflict-guard (ACTIVE-conflict → 42501; INACTIVE-conflict → explicit audited transfer) + `unregister_fcm_token(p_token)` RPC (live 9/9). The 0050 note claiming the overwrite was already blocked was INACCURATE (register's ON CONFLICT branch was untouched until 0060) |
 | PUSH-103 | Medium | TESTED | T-036 | Website's FCM token registration was OPT-IN only — FIXED 2026-08-31 (T-036, 13th session, the unblocked portion): auto-registration after the FIRST user gesture (pointerdown/keydown) — granted → immediate register; default → prompt from the gesture; denied → never; ONE attempt per browser profile (no nagging); the Profile toggle remains the explicit control. Website suite 144/144 (+9). LIVE push delivery still requires the owner's FCM web config + PUSH-100's EF invocation path |
-| PUSH-104 | High | OPEN | T-036 | Workflow `send_email` action is a STUB; only `approve-signup-request` EF actually sends email (conditional on RESEND_API_KEY secret); all workflow-driven transactional emails NEVER send |
+| PUSH-104 | High | TESTED (2026-09-03, T-131) | T-036 | Workflow `send_email` action is a STUB; only `approve-signup-request` EF actually sends email (conditional on RESEND_API_KEY secret); all workflow-driven transactional emails NEVER send |
 | AUTH-200 | Critical | OPEN (owner-only step left) | T-116/T-119 | Google OAuth provider not enabled on the live project (portal sign-in dead) — client-side UX mitigated (T-116); agent-side redirect config DONE + live-verified (T-119: site_url + uri_allow_list carry the production Vercel origin). REMAINING: the owner creates the Google OAuth client (runbook `docs/operations/portal-google-oauth.md` step 1) + PATCH step 3 |
 | AUTH-201 | Medium | TESTED | T-120 | Pre-sign-in "Auth session missing!" error alert + console.error on every fresh portal visit — FIXED 2026-09-02 (T-120): getSession-first; signed-out state is silent; 4/4 regression suite |
 | AUTH-202 | Low | TESTED | T-121 | FCM env warning was non-actionable — FIXED 2026-09-02 (T-121): names the exact missing vars (Firebase WEB app id + VAPID) + where to set them; 3/3 regression suite |
@@ -143,10 +143,10 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ARCH-003 | High | BLOCKED | T-059 | `RepositoryModule` binds ALL repositories to `Local*Repository` (Room-first) — canonical Supabase RPCs (`collect_payment`, `refund-payment`, `bind-activation-code`, `run-overdue-scan`, `refresh-materialized-views`, `update-server-secret`) are NEVER called from Android |
 | ARCH-004 | High | TESTED (T-046, 17th session: destructive fallback removed; loud failure pinned by Robolectric + scans; MigrationTestHelper follow-up registered) | T-046 | `fallbackToDestructiveMigration(true)` on production Room database — user data silently wiped on any future schema bump |
 | ARCH-005 | Medium | TESTED | T-049 | `next.config.ts` has `typescript.ignoreBuildErrors: true` AND `reactStrictMode: false` — type errors silently shipped to production, React strict-mode bugs hidden — strict builds green 2026-08-29 (T-049) |
-| ARCH-006 | Medium | OPEN | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
+| ARCH-006 | Medium | VERIFIED | T-080 | NEW (2026-08-29): Supabase mode keeps `overdueAlerts` on the mock layer — the "Scan retards" button runs the mock generator against in-memory seed data; the guarded run-overdue-scan EF has no live caller |
 | ARCH-007 | High | TESTED | T-081 | NEW (2026-08-29): Android repo does not compile at HEAD — the `./gradlew test` verification gate is broken — gate restored 2026-08-29 (T-081) |
 | ARCH-008 | High | TESTED (T-082, 18th session: desugaring enabled, NewApi 337→0, 2 errors fixed in code, 117-warning baseline committed, gate GREEN) | T-082 | NEW (2026-08-29): the Android lint gate is inoperable — `./gradlew :app:lintDebug` fails with 315 pre-existing NewApi errors; no lint baseline has ever existed |
-| ARCH-012 | Medium | OPEN | T-082-adjacent | NEW (2026-08-31, 13th session): `testReleaseUnitTest` fails on `GreetingScreenshotTest` ("Unable to resolve activity" — Robolectric cannot resolve the release-variant launcher activity, applicationId `com.aistudio.elimtiyazstaff.bxmzlx`). PROVEN pre-existing (pristine-tree re-run fails identically) and unrelated to any 13th-session change. The Android `./gradlew test` gate is green only via the DEBUG variant until this is fixed |
+| ARCH-012 | Medium | TESTED | T-082-adjacent | NEW (2026-08-31, 13th session): `testReleaseUnitTest` fails on `GreetingScreenshotTest` ("Unable to resolve activity" — Robolectric cannot resolve the release-variant launcher activity, applicationId `com.aistudio.elimtiyazstaff.bxmzlx`). PROVEN pre-existing (pristine-tree re-run fails identically) and unrelated to any 13th-session change. The Android `./gradlew test` gate is green only via the DEBUG variant until this is fixed |
 | BUG-NEW-001 | High | TESTED | T-083 | NEW (2026-08-30): the `expire_pending_approvals()` SQL RPC references a non-existent `public.users` table; the daily cron EF has been silently failing every day since the RPC was deployed — rewritten by migration 0049 (applied live 2026-08-30, verified: correct table + clean call); EF round-trip with CRON_SECRET pending |
 | BUG-NEW-002 | Critical | TESTED | T-084 | NEW (2026-08-30): `mv_dashboard_kpis` join fan-out multiplied every payment by the student count — monthly_revenue showed 21.38 BILLION DZD (true: 54.96M); rebuilt with scalar subqueries by migration 0049 (applied live, values verified) |
 | BUG-NEW-003 | High | TESTED | T-084 | NEW (2026-08-30): zero indexes on all four MVs — every scheduled `REFRESH MATERIALIZED VIEW CONCURRENTLY` failed; unique indexes added by migration 0049 (applied live, concurrent refresh verified) |
@@ -162,9 +162,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DATA-009 | Medium | TESTED (display resolved, writer preserved — ADR-010/T-104, 17th session) | T-104 | NEW (2026-09-01, T-103 discovery): canonical writer double-counts parent_credit in the raw ledger balance (charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment); historical corpus deliberately NOT back-filled with credit entries; NOTE (T-105): the corpus is now aligned to the workbook, where only 2 parents hold a genuine credit (−30,000 / −22,000) — RESOLUTION (ADR-010, 17th session): option (b) chosen — writer preserved, read surfaces derive credit via `displayParentCredit`/`displayCredit` (booked credit wins, else raw negative balance) on desktop + website with pinning suites; Android note registered for future credit UI |
 | DATA-010 | Critical | VERIFIED | T-105 | NEW (2026-09-01, T-105 discovery): DOUBLE-REMISE — the Excel import wrote the DEVIS charge from column L (ALREADY net of remise: L's formula is `components − J`, verified 390/390) and THEN a separate "Remise sur devis" −J adjustment — 223 parents double-discounted, Σ −9,709,700 DZD; parents who paid their exact devis showed fake credits. FIXED by migration 0063 (compensating adjustments) + the importer fix (no REMISE ledger entry + tranche-to-ledger reconciliation); live 259/259 |
 | DATA-011 | Critical | VERIFIED | T-105 | NEW (2026-09-01, T-105 discovery): workbook row 242 (SIDI MAMER SAMYI, phone 0554288142, devis 255,000, versements 255,000, créance 0) was NEVER imported — same-name identity collision with row 235's student under parent 0550067500; the family (parent + student + tranches + charge + 3 payments) is created by migration 0063 exactly per the workbook; live balance 0 ✓ |
-| DRIFT-001 | High | PARTIAL | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
+| DRIFT-001 | High | TESTED | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
-| DRIFT-005 | Low | OPEN | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
+| DRIFT-005 | Low | TESTED | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
 | DRIFT-006 | Medium | TESTED | T-026 | Multiple iterations of "canonical overdue" rule across desktop engine, SQL function, and equivalence framework — RESOLVED 2026-08-31 (T-026): canonical INV-4 rule on Android |
 | DRIFT-007 | Low | TESTED | T-062 | `SupabaseModule.kt` comment is outdated — claims "future remote sync can push local Room writes to Supabase by swapping @Binds" but SyncSupport already does the push — FIXED 2026-08-31 (T-062): KDoc describes real wiring |
 | DRIFT-009 | Medium | TESTED | T-057 | Canonical engine port ships ~20 calc files but only ~6 functions are used; `canonical/index.ts` barrel is never imported |
@@ -177,8 +177,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DUP-005 | High | BLOCKED | T-045 | Two parallel Room entity / DAO / mapper layers coexist in the same database (partial migration) |
 | REG-001 | High | TESTED | T-058 | Chain of 9 "canonical engine unification" fix-up migrations — GUARD IN PLACE 2026-08-31 (T-058, 13th session): scripts/check-migrations-append-only.sh machine-enforces the append-only rule (working tree + baseline diff + header/naming discipline), wired into npm test + npm run check:migrations; matrix 9/9, suite 6/6 |
 | REG-002 | High | OPEN | T-046 | 8 Room migrations are fix-up migrations for previous regressions — same iterative bug-fix pattern as desktop's REG-001 |
-| WEAK-003 | Medium | OPEN | T-056 | `mapLedgerRow` falls back from `entry_type` to `actor_id` for the entry type |
-| WEAK-004 | Low | OPEN | T-056 | `ledger-seed.ts` computes `dueDate` then discards it (`void dueDate;`) |
+| WEAK-003 | Medium | TESTED | T-056 | `mapLedgerRow` falls back from `entry_type` to `actor_id` for the entry type |
+| WEAK-004 | Low | TESTED | T-056 | `ledger-seed.ts` computes `dueDate` then discards it (`void dueDate;`) |
 | WEAK-005 | Medium | TESTED | T-060 | Mock `student-repository.batchRegister` uses the deterministic discount engine but ignores `previousGradeLevel` and `previousRank` |
 | WEAK-006 | Critical | TESTED | T-054 | `LocalInstallmentRepository.regenerateForCycle()` is hollow — only writes audit log, doesn't actually regenerate installments — FIXED 2026-08-31 (T-054): real re-derivation |
 | WEAK-007 | Critical | TESTED | T-026 | Dashboard "Créances en Retard" KPI + Debt Dashboard overdue amount are PERMANENTLY 0 (missing `overdueCategoryDueDates` map) — FIXED 2026-08-31 (T-026): map passed at every call site |
@@ -187,13 +187,13 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | WEAK-010 | Medium | TESTED | T-050 | `pullAll()` fired from 6 call sites, SyncWorker TWICE per tick — FIXED 2026-08-31 (T-050, 13th session): in-flight + 10s dedup window gate in pullAll; SyncWorker/syncNow duplicate pulls removed (drainPending's trailing pull is the single per-tick pull) |
 | WEAK-011 | Medium | TESTED (T-051, 17th session: AuditContext — real tenant + actor role on every audit row; 17 repositories wired) | T-051 | `audit()` helper hardcodes demo tenant ID + never captures actor role |
 | WEAK-012 | High | TESTED (T-051, 17th session: signed-out pull returns Ok(0) — no demo-tenant fallback; demo literals gone from both repository files) | T-051 | `PullSyncRepository.pullParents` / `pullStudents` fallback table select has NO tenant filter — multi-tenant data leak risk |
-| WEAK-016 | High | OPEN | T-032 | `useHomeworkRealtime` subscribes to the LEGACY `homework_assignments` table with a `target_class_id` filter; the canonical table is `homework` (migration 0029) using `class_id` — realtime is silently broken |
+| WEAK-016 | High | TESTED | T-032 | `useHomeworkRealtime` subscribes to the LEGACY `homework_assignments` table with a `target_class_id` filter; the canonical table is `homework` (migration 0029) using `class_id` — realtime is silently broken |
 | WEAK-017 | Medium | TESTED | T-057 | Typed `Database` interface has `homework_assignments` (legacy 0004) but NOT `homework` (canonical 0029) — queries use `as unknown as` cast, no type-checking |
-| WEAK-018 | Medium | OPEN | T-035 | Dashboard "next installment" KPI uses non-canonical `amount_due - amount_paid` (cleared-only); financial-view uses canonical `installmentRemainingAmount` (due - paid - pending) — cross-view inconsistency |
+| WEAK-018 | Medium | TESTED | T-035 | Dashboard "next installment" KPI uses non-canonical `amount_due - amount_paid` (cleared-only); financial-view uses canonical `installmentRemainingAmount` (due - paid - pending) — cross-view inconsistency |
 | WEAK-019 | Medium | TESTED | T-027 | `attendance-view.tsx` computes attendance rate as `present / total` (excludes late); canonical rule (per portal-derive.ts) is `(present + late) / total` — dashboard uses canonical, attendance-view doesn't |
 | WEAK-020 | Low | TESTED | T-056 | `paymentStatusTone` doesn't handle `cancelled` or `pending_clearance` statuses — renders the raw status string instead of a translated label |
 | WEAK-021 | Low | VERIFIED | — | README claims "68 tests passing" and DONE.md claims "68/68" but the actual count is 87 (after commit 03f6365 added 19 new tests) |
-| WEAK-022 | Medium | OPEN | T-035 | `useLedgerEntries` fetches with `.limit(500)`; `portalFinancialSummary` replays ONLY 500 entries — balance computation is WRONG for parents with > 500 ledger entries |
+| WEAK-022 | Medium | TESTED | T-035 | `useLedgerEntries` fetches with `.limit(500)`; `portalFinancialSummary` replays ONLY 500 entries — balance computation is WRONG for parents with > 500 ledger entries |
 | WEAK-023 | Medium | TESTED | T-065 | `useUnreadChatCount` fetches 500 messages across ALL channels (no channel filter in query), counts client-side — comment claims "200 per channel" |
 | WEAK-100 | Medium | OPEN | T-072 | Activation codes use Postgres random() (non-cryptographic); 7-digit space is brute-forceable; no rate limit on website activation endpoint |
 | WEAK-101 | Medium | TESTED | T-002 | Android LocalAuthRepository stores user UUID as accessToken (fake JWT that doesn't validate server-side) — real JWT stored 2026-08-29 (T-002) |
@@ -204,7 +204,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DEAD-009 | Low | TESTED | T-062 | `ElGalleryActivity` (833 lines across gallery files) is NOT declared in `AndroidManifest.xml` — unreachable in production — FIXED 2026-08-31 (T-062): gallery deleted, APK 29.8 MB |
 | DEAD-012 | High | TESTED | T-049 | `vitest.config.ts` referenced a missing `src/test/setup.ts` — RESOLVED 2026-08-29 (root cause: a bare `test` .gitignore rule silently ignored `src/test/`; rule removed, setup.ts committed); T-049 completed the cleanup (strict build + RTL); CLOSED 2026-09-02 (20th session) with full-suite evidence 429+ tests |
 | DEAD-013 | Low | TESTED | T-049 | `package.json` `icons:generate` script hardcodes path `/home/z/my-project/scripts/generate-pwa-icons.py` (OUTSIDE the repo) — broken on any other machine/CI |
-| DEAD-014 | Low | OPEN | T-056 | `database-schema.ts` barrel is imported by only ONE file (`supabase/client.ts`); all other 14 files import directly from `@/lib/types/database` |
+| DEAD-014 | Low | TESTED | T-056 | `database-schema.ts` barrel is imported by only ONE file (`supabase/client.ts`); all other 14 files import directly from `@/lib/types/database` |
 | DEAD-015 | Critical | TESTED | T-014 | Desktop refund flow is completely dead UI; no refund button exists anywhere |
 | DEAD-016 | Critical | BLOCKED | T-067 | `collect-payment` and `refund-payment` Edge Functions are never invoked by any client |
 | DEAD-100 | Medium | TESTED | T-025 | Migration 0029 RLS policies use fn_current_tenant_id() (never-set session setting) — dead code that does nothing |
@@ -1907,7 +1907,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### NOTIF-101 — `notifications_insert` RLS allows any authenticated user to INSERT a notification addressed to ANY user_id (notification spam / injection)
 
-- **Category:** NOTIF  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** NOTIF  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-03, 22nd session — T-133: live pg_policies probe confirms migration 0048's fix is deployed; header was stale-OPEN, the T-125 flip missed it)
+- **Status note (2026-09-03, T-133):** FIXED by migration 0048 (T-071, 2026-08-30) and VERIFIED DEPLOYED LIVE (T-130's probe, 2026-09-03): the live `notifications_insert` policy's with_check is `tenant_id = current_tenant_id() AND (has_any_role(super_admin, manager, support_staff, financial_officer, teacher) OR target_user_id = current_user_profile_id() OR (target_role IS NOT NULL AND target_role = ANY(current_user_roles())))` — exactly 0048's staff-or-self-or-own-role-broadcast tightening; the 0019 policy (tenant-only check) is replaced. Writers unaffected (EFs/triggers use service_role which bypasses RLS by design). The detailed entry below documents the ORIGINAL 0019 defect (kept as historical evidence).
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-071 (docs/recovery/task-registry.md)
@@ -3582,36 +3583,6 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** a trigger (or 0057 migration) enforcing transitions + rejecting approver = submitter, mirroring enforce_payment_proof's style.
 - **Verification:** migration-level test with the full canonical chain; regression test reproducing both bypasses.
 - **Resolution (2026-09-01, 18th session):** migration **0064_expense_transition_guard** (append-only; applied live atomically with registration — MIG-TOKENS pattern, chain 61/61 = 0001–0064) replaces 0008's spot-check trigger with the canonical transition graph (draft→pending_approval; pending→approved|rejected; approved→disbursed|settled [settle_expense settles from EITHER]; disbursed→settled; rejected/settled terminal; INSERT only born draft|pending) + the HARD no-self-approval block (entering approved requires approved_by SET and ≠ submitter — closes the NULL-approver bypass where a submitter's RLS-permitted own-ticket update passed 0008 by leaving approved_by null). All 0008 invariants preserved verbatim. Live evidence: scripts/verify_t-weak030.sql 11/11 inside BEGIN/ROLLBACK (B1 jump/B1b reopen/B1c rejected→disbursed/B1d born-approved blocked; B2 null-approver + B2b explicit self-approval blocked; L1–L4 legal paths accepted; L5 the 0008 rejection-reason invariant kept). Desktop: t-weak030-expense-transition-guard.test.ts 8/8 (graph pinned, adapter machine proven a SUBSET of the DB graph); suite 73 files / 2223 tests. Hub commit 39962bc.
-
----
-
-### ARCH-011 — Live/local migration drift recurrence: 0053 + 0054 applied live but never committed to the repo
-
-- **Category:** ARCH  |  **Severity:** High  |  **Status:** TESTED
-- **Repositories:** AgentGithubUplaod (desktop)
-- **Platforms affected:** Backend/DB
-- **Task:** MIG-TOKENS (10th session, 2026-08-31)
-- **Discovered:** opening live-DB inspection of the 10th session (schema_migrations head = 0054 while the local chain ended at 0052).
-- **Description:** Migrations 0053 (`tenant_scoped_rbac`, = T-005/TENANT-100/101/102) and 0054 (`auth_trigger_no_client_metadata`, = T-007/SEC-108) were applied to the live project AND registered in `supabase_migrations.schema_migrations`, but the corresponding files did not exist in the local canonical chain — a fresh deployment would have MISSED both the tenant-scoped RBAC resolver/policies and the auth-trigger hardening. Same drift class as ARCH-009 (T-091's 0051 reconciliation): SQL applied directly via the Management API SQL endpoint by a previous actor, files never committed.
-- **Root cause:** the Management-API application path bypasses the migration system unless the file is committed in the same step; no process rule forced the reconciliation until a later agent re-inspected the live chain.
-- **Resolution:** reconciliation files `0053_tenant_scoped_rbac.sql` + `0054_auth_trigger_no_client_metadata.sql` added (definitions extracted verbatim from live `pg_get_functiondef`/`pg_policies`), both dry-run verified inside BEGIN..ROLLBACK against the live DB (`scripts/verify_mig-tokens_0053_0054.sh`, HTTP 201) — validity + idempotency on the real schema without mutation.
-- **Rule (see AGENTS.md amendment):** every live SQL application MUST ship its migration file + registration in the SAME commit; a session opening backend work MUST diff `schema_migrations` against the local chain FIRST.
-
----
-
-### WEAK-030 — Expense-approval state machine enforced client-side only (RLS has no self-approval or transition guard) — RESOLVED
-
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-01, 18th session: migration 0064 applied LIVE atomically with registration — chain 61/61; verify_t-weak030.sql 11/11 reproducing BOTH bypasses blocked + all legal paths accepted)
-- **Repositories:** AgentGithubUplaod (desktop)
-- **Platforms affected:** Backend/DB, Desktop
-- **Task:** follow-up to T-093 (DONE as migration 0064_expense_transition_guard)
-- **Discovered:** during T-093's SupabaseExpenseRepository port (2026-08-31).
-- **Description:** the expense_tickets RLS policies (0008) scope writes by tenant + role/submitter but do NOT enforce (a) the no-self-approval rule (a submitter can approve their own ticket via direct PostgREST) nor (b) the status state machine (any allowed-role caller can jump the ticket to any status value). The desktop adapter and mock both enforce these rules client-side; a direct API caller bypasses them.
-- **Proposed resolution:** a trigger (or 0057 migration) enforcing transitions + rejecting approver = submitter, mirroring enforce_payment_proof's style.
-- **Verification:** migration-level test with the full canonical chain; regression test reproducing both bypasses.
-- **Resolution (2026-09-01, 18th session):** migration **0064_expense_transition_guard** (append-only; applied live atomically with registration — MIG-TOKENS pattern, chain 61/61 = 0001–0064) replaces 0008's spot-check trigger with the canonical transition graph (draft→pending_approval; pending→approved|rejected; approved→disbursed|settled [settle_expense settles from EITHER]; disbursed→settled; rejected/settled terminal; INSERT only born draft|pending) + the HARD no-self-approval block (entering approved requires approved_by SET and ≠ submitter — closes the NULL-approver bypass where a submitter's RLS-permitted own-ticket update passed 0008 by leaving approved_by null). All 0008 invariants preserved verbatim. Live evidence: scripts/verify_t-weak030.sql 11/11 inside BEGIN/ROLLBACK (B1 jump/B1b reopen/B1c rejected→disbursed/B1d born-approved blocked; B2 null-approver + B2b explicit self-approval blocked; L1–L4 legal paths accepted; L5 the 0008 rejection-reason invariant kept). Desktop: t-weak030-expense-transition-guard.test.ts 8/8 (graph pinned, adapter machine proven a SUBSET of the DB graph); suite 73 files / 2223 tests. Hub commit 39962bc.
-
----
 
 ---
 
