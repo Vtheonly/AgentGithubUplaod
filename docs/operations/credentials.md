@@ -116,6 +116,14 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 # 4. Website build: npm run build (strict) — env validation must not flag placeholders
 ```
 
+**§7 checklist re-run (22nd session, 2026-09-03 — fresh sbp_ access token re-supplied by the owner; consistency confirmed, 34/34):**
+
+1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
+2. RLS: anon/publishable sees **0 rows** on parents / students / payments / ledger_entries / installments (HTTP 200, empty arrays, both key formats).
+3. Key consistency: the owner-supplied URL / publishable key / JWKS URL are **byte-identical** to the committed values (website `public-config.ts`, Android `.env.example` URL+JWKS) — no rotation occurred; ADR-009's dual-acceptance posture unchanged.
+4. Live chain: 62/62 = 0001–0065, **zero drift**; EF census 13/13 ACTIVE; anonymous-deny sweep on all 13 EFs (13×401).
+5. Live secrets census (22nd session): 11 secrets present (CRON_SECRET, the SUPABASE_* family incl. both new-format key sets, ALLOWED_ORIGINS, LOG_LEVEL, PROJECT_REF) — **RESEND_API_KEY and FIREBASE_SERVICE_ACCOUNT_JSON are NOT set** (owner residuals: real workflow emails / real FCM sends). Full script: `/home/z/my-project/scripts/verify_t-130_mig_tokens.sh` (outside the repos — carries the access token).
+
 **§7 checklist re-run (19th session, 2026-09-02 — owner re-supplied all keys; consistency confirmed):**
 
 1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
