@@ -150,7 +150,26 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       return jsonError(req, 400, "missing_parent_fields", "first_name, last_name, primary_phone are required");
     }
 
-    const parentCode = `PAR-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    // T-115 / DRIFT-001 (19th session, migration 0065): the parent code is the
+    // CANONICAL deterministic derivation — the same fn_deterministic_parent_code
+    // SQL RPC every other platform uses (FNV-1a of the identity fields, so
+    // re-approving the same identity converges on the same code and the
+    // unique (tenant_id, parent_code) constraint refuses duplicates). This
+    // replaces the old Math.random() 4-char suffix, which created a NEW code
+    // on every attempt — a retried approval could duplicate the parent.
+    const { data: parentCode, error: codeError } = await supabase.rpc(
+      "fn_deterministic_parent_code",
+      {
+        p_year: new Date().getFullYear(),
+        p_phone: np.primary_phone,
+        p_first_name: np.first_name,
+        p_last_name: np.last_name,
+      },
+    );
+    if (codeError || !parentCode) {
+      console.error("[approve-signup] parent code generation failed:", codeError);
+      return jsonError(req, 500, "parent_code_failed", "Failed to derive the canonical parent code", codeError?.message);
+    }
 
     const { data: newParent, error: parentError } = await supabase
       .from("parents")

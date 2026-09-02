@@ -31,16 +31,6 @@ export function backupFileName(now: Date = new Date()): string {
   );
 }
 
-/** Generate a 4-char random suffix for parent codes. */
-export function randomParentSuffix(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 4; i++) {
-    s += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return s;
-}
-
 /** Generate a 6-7 digit numeric activation code (plan §02). */
 export function activationCode(): string {
   return String(Math.floor(100_000 + Math.random() * 9_000_000));

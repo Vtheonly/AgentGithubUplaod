@@ -14,7 +14,7 @@ import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
-import { randomParentSuffix } from "../../../core/format/id";
+import { deterministicParentCode } from "../../../core/format/id";
 import { derived } from "../subject-behavior";
 import type {
   Parent,
@@ -55,10 +55,31 @@ export class MockParentRepository implements ParentRepository {
     // Iteration 6: derive transportDestination from cityTier if not explicitly provided.
     const transportDestination: TransportDestination | null =
       input.transportDestination ?? cityTierToDestination(input.cityTier) ?? null;
+    // T-018 mock alignment (19th session, migration 0065): the server CREATE
+    // path (batch_register_family) is now DETERMINISTIC — the mock used to
+    // mirror 0022's gen_random_bytes via randomParentSuffix(), a DEAD server
+    // behavior since 0065. The mock now derives the SAME canonical code the
+    // server would (identity fields, trimmed, empty-dropped, joined '|'), and
+    // REFUSES duplicate identities exactly like the server's unique
+    // (tenant_id, parent_code) constraint (the idempotency gate).
+    const displayName = input.displayName ?? `${input.firstName} ${input.lastName}`.trim();
+    const code = deterministicParentCode(year, {
+      phone: input.phone,
+      displayName,
+      firstName: input.firstName,
+      lastName: input.lastName,
+    });
+    if (store.parents.some((p) => p.code === code)) {
+      return Err(
+        Errors.conflict(
+          `Un parent avec la même identité existe déjà (code ${code}) — le code canonique est déterministe (migration 0065)`,
+        ),
+      );
+    }
     const parent: Parent = {
       id: `par-${String(seq).padStart(3, "0")}`,
       tenantId: TENANT_ID,
-      code: `PAR-${year}-${randomParentSuffix()}`,
+      code,
       firstName: input.firstName,
       lastName: input.lastName,
       displayName: input.displayName ?? `${input.firstName} ${input.lastName}`.trim(),

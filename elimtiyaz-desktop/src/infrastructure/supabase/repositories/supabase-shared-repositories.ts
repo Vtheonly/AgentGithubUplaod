@@ -173,10 +173,6 @@ export function getActorName(): string {
   return "Excel Import";
 }
 
-function randomParentSuffix(): string {
-  return Math.random().toString(36).slice(2, 6).toUpperCase();
-}
-
 function studentCode(year: number, seq: number): string {
   return `ELV-${year}-${String(seq).padStart(6, "0")}`;
 }
