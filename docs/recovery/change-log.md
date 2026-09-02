@@ -1346,3 +1346,10 @@ path for T-092.
 - **Tests / Verification:** the 6/6 live script (above); `npm run check:migrations` → "append-only guard OK: 63 migration file(s), +0 added vs origin/main, +1 new in worktree"; `t-058-migration-append-only.test.ts` 6/6; the desktop full suite re-ran green at closeout (79 files / 2271 tests — the mock corpus is unaffected by a live-DB DML).
 - **Notes:** LESSON (persisted in ARCH-014 + the next-session guidance): the live project has ANOTHER ACTIVE ACTOR (the owner applies SQL directly) — every session must re-run the chain check at CLOSEOUT, not only at open. The 12 rows with legacy DOUBLE SPACES inside display_name are pre-existing cosmetics left untouched by design.
 - **Commit:** (hub repo — this commit).
+
+### 2026-09-03 — T-138 — 22nd-session closeout (pristine re-runs, state docs, zips)
+- **Problem IDs:** (session close — TEST-300 discipline)
+- **What was done:** the pristine-tree re-runs on the FINAL committed tree: desktop `typecheck` clean + `npm test` **79 files / 2271 tests / 0 failures**; website lint clean + **24 files / 440 tests / 0 failures**; the closing MIG-TOKENS matrix re-run (34/34) — which is what **caught the live-only 0066** (T-139/ARCH-014) and confirmed **63/63 = 0001–0066 ZERO DRIFT** after the reconstruction commit; current-state.md (22nd-session banner + chain 0001–0066), next-task.md (session CLOSED + 23rd-session recommendation), task-registry (session block + T-138 entry) updated; the worklog maintained; the three repos zipped for the owner to push.
+- **Verification:** all commands above with their recorded outputs; the closeout chain check is the session's final live evidence.
+- **Notes:** the 23rd session's pick: **T-043** (equivalence consolidation — full session) or **T-044** (Android design system); the actionable OPEN set is exhausted (owner-gated / device-gated / blocked-on-decisions — see next-task.md).
+- **Commit:** (hub repo — this commit).
