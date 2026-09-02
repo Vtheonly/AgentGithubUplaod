@@ -21,6 +21,7 @@ import type {
   CalendarEventBase,
 } from "../../../domain/model/calendar";
 import { store, appendAudit, nowIso, delay } from "./mock-store";
+import { parentDisplayName } from "../../../domain/model/parent";
 
 export class MockCalendarRepository implements CalendarRepository {
   observeForDate(date: string): Observable<CalendarEvent[]> {
@@ -163,7 +164,7 @@ export class MockCalendarRepository implements CalendarRepository {
       if (p.collectedAt.slice(0, 10) !== date) continue;
       if (p.status !== "paid" && p.status !== "partial") continue;
       const parent = store.parents.find((par) => par.id === p.parentId);
-      const parentName = parent ? `${parent.firstName} ${parent.lastName}` : p.parentId;
+      const parentName = parent ? parentDisplayName(parent) : p.parentId;
       events.push({
         id: `cal-pay-${p.id}`,
         kind: "payment_received",

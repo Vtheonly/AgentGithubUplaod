@@ -3374,7 +3374,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DATA-005 — `parents.first_name` is an empty string on ALL 258 production rows (names live only in display_name/last_name)
 
-- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** PARTIAL (portal mitigated 2026-08-30 — formatParentName prefers display_name; data repair OPEN)
+- **Category:** WEAK  |  **Severity:** Medium  |  **Status:** PARTIAL (portal mitigated 2026-08-30; DESKTOP fully canonicalized 2026-09-03 — T-134, 18 sites; Android verified clean; data repair remains owner-gated)
 - **Repositories:** Backend (data state); website (mitigation)
 - **Task:** T-085 (data repair), T-084 (portal mitigation — done)
 - **Consolidated from:** NEW — 2026-08-30 live health check finding F-06

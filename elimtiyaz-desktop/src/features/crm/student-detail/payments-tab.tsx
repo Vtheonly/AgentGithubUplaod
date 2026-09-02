@@ -35,6 +35,7 @@ import {
   totalOutstanding,
   type PaymentNavigationContext,
 } from "../../../domain/model/payment";
+import { parentDisplayName } from "../../../domain/model/parent";
 import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
 import { PaymentBreakdownCard } from "../../financials/payment-breakdown-card";
 
@@ -85,7 +86,7 @@ export function PaymentsTab({
   const collectContext: PaymentNavigationContext | null = unpaidInstallments.length > 0
     ? {
         parentId: student.parentId,
-        parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
+        parentName: parent ? parentDisplayName(parent) : undefined,
         parentCode: parent?.code,
         studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,

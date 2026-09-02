@@ -55,6 +55,7 @@ import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
 import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
+import { parentDisplayName } from "../../domain/model/parent";
 
 interface Row extends Installment {
   parentName: string;
@@ -98,7 +99,7 @@ export function InstallmentScheduleTab() {
     for (const p of parents) {
       const items = repos.installments.observeByParent(p.id).get();
       for (const i of items) {
-        merged.push({ ...i, parentName: `${p.firstName} ${p.lastName}` });
+        merged.push({ ...i, parentName: parentDisplayName(p) });
       }
     }
     setRows(merged);
@@ -110,7 +111,7 @@ export function InstallmentScheduleTab() {
         obs.subscribe((items) => {
           setRows((curr) => {
             const others = curr.filter((r) => r.parentId !== p.id);
-            const newRows: Row[] = items.map((i) => ({ ...i, parentName: `${p.firstName} ${p.lastName}` }));
+            const newRows: Row[] = items.map((i) => ({ ...i, parentName: parentDisplayName(p) }));
             return [...others, ...newRows];
           });
         }),
@@ -288,7 +289,7 @@ export function InstallmentScheduleTab() {
       : undefined;
     return {
       parentId: collectFor.parentId,
-      parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
+      parentName: parent ? parentDisplayName(parent) : undefined,
       parentCode: parent?.code,
       studentId: collectFor.studentId ?? null,
       mode: "installment_tranche",

@@ -33,6 +33,7 @@ import {
 } from "../../../domain/calc/reconcile";
 import type { ReconciliationReport } from "../../../domain/reconcile-types";
 import { store, appendAudit, delay } from "./mock-store";
+import { parentDisplayName } from "../../../domain/model/parent";
 
 export class MockLedgerRepository implements LedgerRepository {
   observe(): Observable<LedgerEntry[]> {
@@ -103,7 +104,7 @@ export class MockLedgerRepository implements LedgerRepository {
   async summary(parentId: string): Promise<Result<ParentLedgerSummary>> {
     await delay(80);
     const parent = store.parents.find((p) => p.id === parentId);
-    const parentName = parent ? `${parent.firstName} ${parent.lastName}` : "";
+    const parentName = parent ? parentDisplayName(parent) : "";
     const entries = store.ledger.filter((e) => e.parentId === parentId);
     return Ok(computeParentSummary(entries, parentId, parentName));
   }

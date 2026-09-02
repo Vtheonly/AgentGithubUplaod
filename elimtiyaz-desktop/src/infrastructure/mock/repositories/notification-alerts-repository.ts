@@ -22,6 +22,7 @@ import type {
 } from "../../../domain/model/operations";
 import { store, appendAudit, nowIso, delay } from "./mock-store";
 import { mockInstallmentRepository } from "./financial-repository";
+import { parentDisplayName } from "../../../domain/model/parent";
 
 export class MockNotificationRepository implements NotificationRepository {
   observe(): Observable<AppNotification[]> {
@@ -166,7 +167,7 @@ export class MockOverdueAlertGenerator implements OverdueAlertGenerator {
       const daysOverdue = Math.floor((nowMs - new Date(ins.dueDate).getTime()) / 86_400_000);
       const priority: AlertPriority = daysOverdue > 90 ? "urgent" : daysOverdue > 30 ? "high" : "medium";
       const parent = store.parents.find((p) => p.id === ins.parentId);
-      const parentName = parent ? `${parent.firstName} ${parent.lastName}` : ins.parentId;
+      const parentName = parent ? parentDisplayName(parent) : ins.parentId;
       const remaining = Math.max(0, ins.amountDue - ins.amountPaid);
       const notification: AppNotification = {
         id: `ntf-overdue-${ins.id}-${Date.now()}`,
@@ -210,7 +211,7 @@ export class MockOverdueAlertGenerator implements OverdueAlertGenerator {
       if (existingUpcomingKeys.has(ins.id)) continue;
       const daysUntil = Math.ceil((new Date(ins.dueDate).getTime() - nowMs) / 86_400_000);
       const parent = store.parents.find((p) => p.id === ins.parentId);
-      const parentName = parent ? `${parent.firstName} ${parent.lastName}` : ins.parentId;
+      const parentName = parent ? parentDisplayName(parent) : ins.parentId;
       const remaining = Math.max(0, ins.amountDue - ins.amountPaid);
       const notification: AppNotification = {
         id: `ntf-upcoming-${ins.id}-${Date.now()}`,

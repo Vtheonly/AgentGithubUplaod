@@ -42,12 +42,17 @@
 //   - Action:   send_email, apply_discount, create_invoice, push_notification,
 //               log_audit, wait_duration, database_query, extract_field
 //
-// NOTE: Action node implementations here are STUBS. Each one logs the intent
+// NOTE (T-126 + T-131): `push_notification` and `send_email` are REAL
+// integrations (the canonical send-push-notification EF via service-role
+// auth; the shared Resend module _shared/send-email.ts — both with honest
+// per-recipient/per-send failure recording). The remaining actions
+// (apply_discount, create_invoice, …) are still stubs; each logs the intent
 // and writes to the audit log. Real integrations are marked as TODO comments
 // and should be implemented incrementally per Plan §14.
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
+import { resolveEmailConfig, sendEmailWithResend } from "../_shared/send-email.ts";
 import { createServiceRoleClient, extractAuthContext, requirePermission, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -255,7 +260,8 @@ async function evaluateCondition(
 }
 
 // ---------------------------------------------------------------------------
-// Action execution (STUBS — TODO: wire real integrations per Plan §14)
+// Action execution (push_notification + send_email REAL [T-126, T-131];
+// the rest STUBS — TODO: wire real integrations per Plan §14)
 // ---------------------------------------------------------------------------
 
 async function executeActionNode(
@@ -268,14 +274,58 @@ async function executeActionNode(
 
   switch (node.type) {
     case "send_email": {
-      // TODO: Integrate Resend API.
-      // const resendKey = Deno.env.get("RESEND_API_KEY");
-      // await fetch("https://api.resend.com/emails", { ... })
-      const to = String(config.to ?? "(unspecified)");
-      const subject = String(config.subject ?? "(no subject)");
+      // T-131 / PUSH-104 (2026-09-03): this action is NO LONGER a stub. It
+      // sends real transactional email through the ONE shared Resend
+      // integration (_shared/send-email.ts — the same module
+      // approve-signup-request uses; no parallel implementation).
+      //
+      // Honest-outcome contract (mirrors the T-126 push_notification fix):
+      // a missing RESEND_API_KEY secret or a provider-side failure is
+      // RECORDED in the node output + audit note — it never throws and
+      // never cascades the whole run to failed. Template-based configs
+      // (e.g. template: "relance_impayes_v2") are honestly skipped: there
+      // is no server-side template registry yet (business content is an
+      // owner decision — see the T-131 task entry).
+      const to = String(config.to ?? "").trim();
+      const subject = String(config.subject ?? "").trim();
+      const html = String(config.html ?? config.body ?? "").trim();
+
+      if (!to || !subject || !html) {
+        const missing = [
+          !to ? "to" : null,
+          !subject ? "subject" : null,
+          !html ? "html/body" : null,
+          config.template && !config.to ? "template (no server-side template registry — provide explicit to/subject/html)" : null,
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return {
+          output: { sent: 0, skipped: 1, provider: "resend", reason: "missing_fields", missing },
+          auditNote: `send_email SKIPPED — missing config fields: ${missing}`,
+        };
+      }
+
+      const emailConfig = resolveEmailConfig(Deno.env);
+      const outcome = await sendEmailWithResend({ to, subject, html }, emailConfig);
+      if (!outcome.sent) {
+        return {
+          output: {
+            sent: 0,
+            skipped: outcome.reason === "not_configured" ? 1 : 0,
+            failed: outcome.reason === "not_configured" ? 0 : 1,
+            provider: "resend",
+            reason: outcome.reason,
+            ...(outcome.status != null ? { status: outcome.status } : {}),
+            error: outcome.error,
+          },
+          auditNote:
+            `send_email to=${to} subject="${subject}" FAILED (${outcome.reason})` +
+            (outcome.error ? ` — ${outcome.error}` : ""),
+        };
+      }
       return {
-        output: { stub: true, to, subject, provider: "resend" },
-        auditNote: `STUB send_email to=${to} subject="${subject}"`,
+        output: { sent: 1, skipped: 0, failed: 0, provider: "resend", to },
+        auditNote: `send_email to=${to} subject="${subject}" sent via resend`,
       };
     }
 

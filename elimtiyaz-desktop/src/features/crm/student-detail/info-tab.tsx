@@ -25,6 +25,7 @@ import { Button } from "../../../shared/ui/button";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { formatDate } from "../../../core/format/date";
 import { formatDzdPlain } from "../../../core/format/currency";
+import { parentDisplayName } from "../../../domain/model/parent";
 import {
   LEVEL_LABELS_FR,
   STUDENT_STATUS_LABELS_FR,
@@ -161,7 +162,7 @@ export function InfoTab({
               <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Parent / Tuteur</p>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">{parent.firstName} {parent.lastName}</p>
+                  <p className="text-sm font-medium">{parentDisplayName(parent)}</p>
                   <p className="text-xs text-muted-foreground font-mono">{parent.code}</p>
                 </div>
                 <div className="text-right text-xs text-muted-foreground">

@@ -31,6 +31,7 @@
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
 import { canAssignRole } from "../_shared/role-assignment.ts";
 import { createServiceRoleClient, extractAuthContext, requireRole, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
+import { PORTAL_URL, sendEmailFromEnv } from "../_shared/send-email.ts";
 
 interface ApproveRequestBody {
   request_id: string;
@@ -140,6 +141,56 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
   }
 
   // 6. Handle APPROVE
+  // PARENT-102 guard (T-132, 22nd session): a parent-role approve with
+  // NEITHER `target_parent_id` NOR `create_new_parent=true` would activate
+  // the user and assign the parent role WITHOUT ever setting
+  // parents.auth_user_id — the "active but unbound" limbo (the SQL RPC
+  // skips the binding when p_target_parent_id is NULL, the website's
+  // auth-provider then finds no parent row and shows "not activated"
+  // forever, bind-activation-code rejects active users with 409, and the
+  // request is no longer pending so this RPC can never be re-called — no
+  // recovery path). One legitimate escape: an explicit assign_role override
+  // to a STAFF role (roles.is_staff_role) produces a staff account, which
+  // needs no parent binding. Staff-role requests never need a binding.
+  if (
+    String(approvalRequest.requested_role) === "parent" &&
+    !body.create_new_parent &&
+    !body.target_parent_id
+  ) {
+    let staffOverride = false;
+    if (body.assign_role && body.assign_role !== approvalRequest.requested_role) {
+      const { data: overrideRole, error: overrideRoleError } = await supabase
+        .from("roles")
+        .select("is_staff_role")
+        .eq("code", body.assign_role)
+        .single();
+      if (overrideRoleError || !overrideRole) {
+        return jsonError(req, 400, "invalid_role", `Unknown role code: ${body.assign_role}`);
+      }
+      staffOverride = overrideRole.is_staff_role === true;
+    }
+    if (!staffOverride) {
+      await writeAuditLog(
+        ctx.tenantId,
+        "account_approval.missing_target_parent_denied",
+        "account_approval_request",
+        body.request_id,
+        ctx.userProfileId,
+        ctx.email,
+        { email: approvalRequest.email, requested_role: approvalRequest.requested_role },
+        { denied_by: "PARENT-102 binding guard", requested_binding: "target_parent_id or create_new_parent" },
+        `PARENT-102: refused to approve ${approvalRequest.email} without a parent binding (would create an active-but-unbound user)`,
+        requestId
+      );
+      return jsonError(
+        req,
+        400,
+        "missing_target_parent",
+        "A parent-role approval requires target_parent_id or create_new_parent=true (otherwise the user would be active but unbound to any parent profile)",
+      );
+    }
+  }
+
   // 6a. If create_new_parent=true, create the parent profile first
   let targetParentId = body.target_parent_id;
   let targetStudentId = body.target_student_id;
@@ -325,31 +376,33 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     requestId
   );
 
-  // 6f. Send confirmation email (optional — only if RESEND_API_KEY is set)
-  const resendKey = Deno.env.get("RESEND_API_KEY");
-  if (resendKey && userProfile) {
-    try {
-      const emailFrom = Deno.env.get("EMAIL_FROM_ADDRESS") ?? "noreply@elimtiyaz.dz";
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: emailFrom,
-          to: userProfile.email,
-          subject: "Votre compte El-Imtiyaz est approuvé",
-          html: `
+  // 6f. Send confirmation email — T-131 / PUSH-104 (2026-09-03): now through
+  // the ONE shared Resend integration (_shared/send-email.ts). The old inline
+  // fetch never checked resp.ok (a Resend 4xx "succeeded" silently), swallowed
+  // all errors, and linked a DEAD legacy portal origin — this now links
+  // the production origin from the credentials sheet §2.2 (PORTAL_URL). The email
+  // remains a best-effort POST-approval step (the approval itself is already
+  // committed in step 6b): its structured outcome is surfaced in the response
+  // payload and logged on failure, never silently swallowed, and never fails
+  // the already-committed approval.
+  let emailOutcome: { sent: boolean; reason?: string; error?: string } | null = null;
+  if (userProfile?.email) {
+    emailOutcome = await sendEmailFromEnv({
+      to: userProfile.email,
+      subject: "Votre compte El-Imtiyaz est approuvé",
+      html: `
             <h1>Bienvenue chez El-Imtiyaz</h1>
             <p>Bonjour ${userProfile.display_name ?? ""},</p>
             <p>Votre compte a été approuvé. Vous pouvez maintenant vous connecter au portail.</p>
-            <p><a href="https://portal.elimtiyaz.dz">Accéder au portail</a></p>
+            <p><a href="${PORTAL_URL}">Accéder au portail</a></p>
           `,
-        }),
-      });
-    } catch (emailError) {
-      console.warn("[approve-signup] Failed to send confirmation email:", emailError);
+    });
+    if (!emailOutcome.sent) {
+      console.warn(
+        `[approve-signup] Confirmation email NOT sent to ${userProfile.email}:`,
+        emailOutcome.reason,
+        emailOutcome.error ?? "",
+      );
     }
   }
 
@@ -360,6 +413,7 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     target_parent_id: targetParentId ?? null,
     target_student_id: targetStudentId ?? null,
     assigned_role: body.assign_role ?? approvalRequest.requested_role,
+    email: emailOutcome,
     message: `Registration approved. User ${approvalRequest.email} can now sign in.`,
   });
 }));

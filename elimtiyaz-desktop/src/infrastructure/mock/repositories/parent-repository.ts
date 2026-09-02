@@ -24,6 +24,7 @@ import type {
 } from "../../../domain/model/parent";
 import { cityTierToDestination } from "../../../domain/model/parent";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import { parentDisplayName } from "../../../domain/model/parent";
 
 export class MockParentRepository implements ParentRepository {
   observe(): Observable<Parent[]> {
@@ -42,7 +43,7 @@ export class MockParentRepository implements ParentRepository {
     if (!q) return Ok([...store.parents]);
     return Ok(
       store.parents.filter((p) =>
-        `${p.firstName} ${p.lastName} ${p.phone} ${p.code}`.toLowerCase().includes(q),
+        `${p.firstName} ${p.lastName} ${p.displayName ?? ""} ${p.phone} ${p.code}`.toLowerCase().includes(q),
       ),
     );
   }
@@ -106,7 +107,7 @@ export class MockParentRepository implements ParentRepository {
       actorName: "Session courante",
       diff: {
         before: null,
-        after: { code: parent.code, name: `${parent.firstName} ${parent.lastName}` },
+        after: { code: parent.code, name: parentDisplayName(parent) },
       },
     });
     return Ok(parent);

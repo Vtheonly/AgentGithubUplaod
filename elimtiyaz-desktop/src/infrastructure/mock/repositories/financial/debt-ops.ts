@@ -24,6 +24,7 @@ import {
 import { agingBucketFromDays } from "../../../../domain/calc/payment";
 import type { Observable } from "../../../../domain/repository/repository";
 import type { FinancialOpsCtx } from "./types";
+import { parentDisplayName } from "../../../../domain/model/parent";
 
 /**
  * Iteration 5: debt summary is now computed from the ledger via replay.
@@ -41,12 +42,12 @@ export function observeDebtSummary(
     const summaries: DebtSummary[] = store.parents.map((p) => {
       const parentEntries = store.ledger.filter((e) => e.parentId === p.id);
       const dueDateMap = buildOverdueDueDateMap(parentEntries);
-      const summary = computeParentSummary(parentEntries, p.id, `${p.firstName} ${p.lastName}`, dueDateMap);
+      const summary = computeParentSummary(parentEntries, p.id, parentDisplayName(p), dueDateMap);
       const days = maxDaysOverdueFromLedger(parentEntries);
       return {
         id: `debt-${p.id}`,
         parentId: p.id,
-        parentName: `${p.firstName} ${p.lastName}`,
+        parentName: parentDisplayName(p),
         parentPhone: p.phone,
         studentCount: store.students.filter((s) => s.parentId === p.id).length,
         outstandingAmount: summary.totalOutstanding,
@@ -85,7 +86,7 @@ export function observeParentFinancialProfile(
       if (!parent) return null;
       const parentEntries = store.ledger.filter((e) => e.parentId === parentId);
       const dueDateMap = buildOverdueDueDateMap(parentEntries);
-      const summary = computeParentSummary(parentEntries, parentId, `${parent.firstName} ${parent.lastName}`, dueDateMap);
+      const summary = computeParentSummary(parentEntries, parentId, parentDisplayName(parent), dueDateMap);
       const installments = store.installments.filter((i) => i.parentId === parentId);
       const payments = store.payments
         .filter((p) => p.parentId === parentId)
@@ -110,7 +111,7 @@ export function observeParentFinancialProfile(
         }));
       return {
         parentId,
-        parentName: `${parent.firstName} ${parent.lastName}`,
+        parentName: parentDisplayName(parent),
         // T-103 (DATA-008) — same definitions as the Supabase-backed profile:
         // net totalDue, all-payments totalPaid, ledger-balance outstanding.
         totalDue: summary.totalCharged + summary.totalAdjusted,
@@ -166,7 +167,7 @@ export async function broadcastDebtReminders(
   for (const parent of store.parents) {
     const entries = store.ledger.filter((e) => e.parentId === parent.id);
     const dueDateMap = buildOverdueDueDateMap(entries);
-    const summary = computeParentSummary(entries, parent.id, `${parent.firstName} ${parent.lastName}`, dueDateMap);
+    const summary = computeParentSummary(entries, parent.id, parentDisplayName(parent), dueDateMap);
     const days = maxDaysOverdueFromLedger(entries);
     if (summary.totalOutstanding <= 0.001 || days < minDaysOverdue) continue;
 

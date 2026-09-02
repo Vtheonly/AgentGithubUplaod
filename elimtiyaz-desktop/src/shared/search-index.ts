@@ -16,6 +16,7 @@
  * Recent searches are persisted to localStorage (max 8 items, FIFO).
  */
 import type { Repositories } from "../app/providers/repository-provider";
+import { parentDisplayName } from "../domain/model/parent";
 
 export type SearchResultType =
   | "parent"
@@ -72,7 +73,7 @@ export function makeSearchIndex(repos: Repositories): SearchIndex {
           results.push({
             type: "parent",
             id: p.id,
-            label: `${p.firstName} ${p.lastName}`,
+            label: parentDisplayName(p),
             subtitle: p.code,
             route: `/crm?parentId=${p.id}`,
           });

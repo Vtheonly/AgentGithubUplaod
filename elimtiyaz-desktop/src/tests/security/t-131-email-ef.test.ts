@@ -209,8 +209,14 @@ describe("PUSH-104 — source scans", () => {
 
   it("approve-signup-request: the confirmation email links the PRODUCTION portal, not the dead origin", () => {
     const ef = source(APPROVE_EF);
-    expect(ef).toContain(PRODUCTION_PORTAL);
+    const shared = source(SHARED);
+    // The EF imports the URL constant from the shared module (single source
+    // of truth); the shared module carries the production origin.
+    expect(ef).toContain("PORTAL_URL");
+    expect(shared).toContain(PRODUCTION_PORTAL);
+    expect(shared).not.toContain(DEAD_PORTAL);
     expect(ef).not.toContain(DEAD_PORTAL);
+    expect(shared).toMatch(/PORTAL_URL = "https:\/\/elimtiyaz-website\.vercel\.app"/);
   });
 
   it("approve-signup-request: the email outcome is surfaced (response payload or log), not silently swallowed", () => {

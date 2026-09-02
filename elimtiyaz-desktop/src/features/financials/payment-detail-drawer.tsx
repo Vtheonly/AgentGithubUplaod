@@ -36,6 +36,7 @@ import {
 } from "../../domain/model/payment";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import { formatDate, formatRelative } from "../../core/format/date";
+import { parentDisplayName } from "../../domain/model/parent";
 
 export function PaymentDetailDrawer({
   paymentId,
@@ -204,7 +205,7 @@ export function PaymentDetailDrawer({
           )}
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            <Detail label="Parent" value={parent ? `${parent.firstName} ${parent.lastName}` : entity?.parentId ?? "—"} />
+            <Detail label="Parent" value={parent ? parentDisplayName(parent) : entity?.parentId ?? "—"} />
             <Detail label="Élève" value={student ? `${student.firstName} ${student.lastName}` : "—"} />
             <Detail label="Tranche liée" value={entity?.installmentId ?? "—"} mono />
             <Detail label="Encaissé par" value={entity?.collectedBy ?? "—"} mono />

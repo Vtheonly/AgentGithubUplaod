@@ -87,9 +87,17 @@ describe("DATA-005 — desktop render sites canonicalized (source scans)", () =>
   });
 
   it("NO parent first+last composition remains in the UI tree outside the canonical helper / edit modal / tests", () => {
-    // Walk src/ and flag PARENT-symbol compositions (parent./p. + firstName
-    // + lastName in one template literal). The edit-parent modal legitimately
-    // seeds form fields from parent.firstName (editing, not display).
+    // Walk src/ and flag PARENT-variable compositions. The convention across
+    // this codebase: a variable named `parent` is a Parent domain object
+    // (verified by the T-134 audit — every genuine parent site used either
+    // `parent.` or a loop variable over a `parents` collection; all of the
+    // latter were fixed and are pinned individually above). Short loop
+    // variables named `p` are usually PERSONNEL or STUDENTS (they have real
+    // first/last names — first+last composition is CORRECT for them), so the
+    // tree-wide guard pins the `parent.`-convention only. The edit-parent
+    // modal legitimately seeds form fields from parent.firstName (editing,
+    // not display); the canonical helper and the mock seed's displayName
+    // derivation live outside src/features + src/shared.
     const offenders: string[] = [];
     const walk = (dir: string): void => {
       for (const entry of readdirSyncSync(join(DESKTOP_ROOT, "src", dir))) {
@@ -100,9 +108,7 @@ describe("DATA-005 — desktop render sites canonicalized (source scans)", () =>
           walk(join(dir, entry));
         } else if (entry.endsWith(".tsx") || entry.endsWith(".ts")) {
           const text = readFileSync(abs, "utf8");
-          const parentComposition = /\$\{(?:parent|p)\.firstName\}\s*\$\{(?:parent|p)\.lastName\}/.exec(
-            text,
-          );
+          const parentComposition = /\$\{parent\.firstName\}\s*\$\{parent\.lastName\}/.exec(text);
           if (parentComposition) offenders.push(rel);
         }
       }
@@ -135,7 +141,9 @@ describe("DATA-005 — mock parent search matches displayName (parity with supab
     expect(created.ok).toBe(true);
     const found = await repo.search("amine");
     expect(found.ok).toBe(true);
-    expect(found.value.some((p) => p.displayName === "KADER AMINE")).toBe(true);
+    if (found.ok) {
+      expect(found.value.some((p) => p.displayName === "KADER AMINE")).toBe(true);
+    }
   });
 });
 

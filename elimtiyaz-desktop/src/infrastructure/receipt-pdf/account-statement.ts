@@ -9,7 +9,7 @@
  */
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { Payment } from "../../domain/model/payment";
-import type { Parent } from "../../domain/model/parent";
+import { parentDisplayName, type Parent } from "../../domain/model/parent";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
@@ -35,7 +35,7 @@ import {
 
 export async function generateAccountStatementPdf(
   payments: readonly Payment[],
-  parent: Pick<Parent, "firstName" | "lastName" | "code" | "phone" | "email">,
+  parent: Pick<Parent, "firstName" | "lastName" | "displayName" | "code" | "phone" | "email">,
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -48,7 +48,7 @@ export async function generateAccountStatementPdf(
 
   // Statement meta
   drawBox(page, MARGIN, y - 60, CONTENT_W, 60, undefined, BORDER);
-  drawKeyValue(page, font, MARGIN + 15, y - 18, "Parent:", `${parent.firstName} ${parent.lastName}`);
+  drawKeyValue(page, font, MARGIN + 15, y - 18, "Parent:", parentDisplayName(parent));
   drawKeyValue(page, font, MARGIN + 15, y - 36, "Code:", parent.code);
   drawKeyValue(page, font, MARGIN + 280, y - 18, "Téléphone:", parent.phone);
   drawKeyValue(page, font, MARGIN + 280, y - 36, "E-mail:", parent.email ?? "—");

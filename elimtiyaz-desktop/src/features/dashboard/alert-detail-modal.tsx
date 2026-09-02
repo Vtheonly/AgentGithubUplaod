@@ -48,6 +48,7 @@ import {
 import { ROLE_LABELS_FR } from "../../core/rbac/roles";
 import { UnifiedPaymentModal } from "../../features/financials/unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
+import { parentDisplayName } from "../../domain/model/parent";
 
 export interface AlertDetailModalProps {
   alert: AppNotification | null;
@@ -69,7 +70,7 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
         return p
           ? {
               kind: "parent" as const,
-              label: `${p.firstName} ${p.lastName}`,
+              label: parentDisplayName(p),
               subtitle: p.code,
               route: `/crm?parent=${p.id}`,
             }
@@ -132,7 +133,7 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
           : undefined;
         return {
           parentId: inst.parentId,
-          parentName: parent ? `${parent.firstName} ${parent.lastName}` : undefined,
+          parentName: parent ? parentDisplayName(parent) : undefined,
           parentCode: parent?.code,
           studentId: inst.studentId ?? null,
           mode: "installment_tranche" as const,

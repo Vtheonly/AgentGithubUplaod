@@ -38,6 +38,7 @@ import {
   downloadPdf,
 } from "../../infrastructure/receipt-pdf";
 import type { Parent } from "../../domain/model";
+import { parentDisplayName } from "../../domain/model/parent";
 
 const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   paid: "success",
@@ -98,7 +99,7 @@ export function ReceiptsTab() {
 
   const parentNameOf = (p: Payment): string => {
     const parent = parents.find((par) => par.id === p.parentId);
-    return parent ? `${parent.firstName} ${parent.lastName}` : "—";
+    return parent ? parentDisplayName(parent) : "—";
   };
 
   const columns: readonly DataTableColumn<Payment>[] = [
