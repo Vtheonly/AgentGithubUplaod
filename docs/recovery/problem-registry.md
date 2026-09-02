@@ -25,7 +25,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | High | 54 | | BLOCKED | 11 |
 | Medium | 70 | | DEFERRED | 5 |
 | Low | 20 | | VERIFIED | 12 |
-| | | | TESTED | 129 |
+| | | | TESTED | 133 |
 | | | | IMPLEMENTED | 1 |
 | | | | PARTIAL | 1 |
 | | | | CLOSED | 1 |
@@ -1068,7 +1068,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-103 — Android refund sync does NOT push installment state changes; server-side installments stay stale
 
-- **Category:** CROSS  |  **Severity:** High  |  **Status:** OPEN (Android refund installment propagation — THIS session's task; see T-128) 
+- **Category:** CROSS  |  **Severity:** High  |  **Status:** TESTED (2026-09-02, 21st session — T-128: the refund revert loop enqueues the reverted installments; pushed via the idempotent upsert_installment_from_import RPC; live E2E needs a device) 
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-017 (docs/recovery/task-registry.md)
@@ -2025,7 +2025,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### PUSH-101 — Android `ElImtiyazMessagingService.onMessageReceived` reads `data["type"]` and `data["priority"]` from the wrong field; AndroidManifest has NO deep-link intent filter for `click_action` URLs
 
-- **Category:** PUSH  |  **Severity:** Medium  |  **Status:** PARTIAL (EF half DONE 2026-09-02, T-126 — priority/type now in the data field + click_action is an intent action name; Android receiver half = T-127, in flight this session)
+- **Category:** PUSH  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-02 — T-126 EF half + T-127 Android half: priority/type propagate into data, click_action is the NOTIFICATION_CLICK intent action, manifest filter + MainActivity deep-link plumbing + hub-tab routing; 14 new Android tests + 8 hub source scans; the live FCM round-trip needs the owner's Firebase secret + a device)
 - **Repositories:** elimtiyaz-android, elimtiyaz-website
 - **Platforms affected:** Android, Website
 - **Task:** T-036 (docs/recovery/task-registry.md)
@@ -3663,7 +3663,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ANDR-CHAT-200 — Android has NO chat UI at all (scope gap exposed by the chat completion)
 
-- **Category:** FEAT  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** FEAT  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-02, 21st session — T-102-follow-up: Android chat read-side + online sends LIVE in v1; 21 new tests; live websocket/device round-trip pending)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-102 (registered 2026-08-31, 14th session)
