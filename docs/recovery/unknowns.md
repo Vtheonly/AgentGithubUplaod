@@ -2,7 +2,9 @@
 
 > Questions that cannot currently be answered with sufficient evidence. **No agent may silently turn an unknown into an assumption** — that is how this codebase accumulated much of its drift. Each unknown lists what is needed to resolve it and what it blocks. When an unknown is resolved, record the decision (as an ADR if architectural) and update the blocked problems/tasks.
 
-## UNKNOWN-001 — Does binding an activation code activate the user account?
+## ~~UNKNOWN-001 — Does binding an activation code activate the user account?~~ RESOLVED 2026-09-03
+
+- **Resolution (24th session, ADR-011 / T-146):** the owner's issue report ("entering an activation code … preventing users from **activating and accessing** their accounts") is the product decision: **binding an activation code ACTIVATES the account** (pending → active + parent role + approval link cleared; suspended/deleted hard-rejected). The semantics live in the ONE canonical hub EF; the website's drifted copy is deleted. Live round-trip 19/19: docs/recovery/t-147-live-verification.md. T-028's blocker is cleared (the consolidation is done).
 
 - **Question:** The website's `bind-activation-code` EF sets `user_profiles.status='active'` + grants the parent role after binding; the desktop's canonical version does neither (activation is a separate admin step). Which is the intended contract?
 - **Evidence:** Website EF `index.ts:174-205` activates; desktop EF `index.ts:78-133` does not; SQL RPC `bind_activation_code` (0005) only binds `parents.auth_user_id`. They cannot both be right. (Problems CROSS-009, BUSINESS-008, SEC-104.)

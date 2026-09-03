@@ -21,17 +21,17 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | Severity | Count | | Status | Count |
 |---|---|---|---|---|
-| Critical | 30 | | OPEN | 19 |
-| High | 54 | | BLOCKED | 11 |
-| Medium | 70 | | DEFERRED | 5 |
+| Critical | 31 | | OPEN | 6 |
+| High | 55 | | BLOCKED | 10 |
+| Medium | 71 | | DEFERRED | 5 |
 | Low | 20 | | VERIFIED | 12 |
-| | | | TESTED | 133 |
+| | | | TESTED | 143 |
 | | | | IMPLEMENTED | 1 |
 | | | | PARTIAL | 1 |
 | | | | CLOSED | 1 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 180 detailed entries (recounted 2026-09-03, T-133 — the detailed entries are authoritative) (145 consolidated from 185 audit findings + the rest discovered during repair sessions) · **7 OPEN** (CROSS-004, CROSS-104b, ARCH-001, DRIFT-011 [PARTIAL in its row], REG-002, WEAK-100, DATA-006 — all blocked-on-decisions/owner-gated) · **138 TESTED** (2026-09-03 23rd-session flips: AUTH-200→T-141, DUP-001→T-043, DUP-002→T-043 pass 1, DUP-004→T-044 pass 1) · 12 VERIFIED · 11 BLOCKED · 5 DEFERRED · 4 other (PARTIAL micro-states incl. DUP-003 after T-044 pass 2). Evidence: change-log sessions 1–23.
+**Totals:** 183 detailed entries (recounted 2026-09-03; the detailed entries are authoritative) (145 consolidated from 185 audit findings + the rest discovered during repair sessions) · **6 OPEN** (CROSS-104b, ARCH-001, DRIFT-011 [PARTIAL in its row], REG-002, WEAK-100, DATA-006 — all blocked-on-decisions/owner-gated) · **143 TESTED** (24th-session flips 2026-09-03: CROSS-004→T-146, CROSS-009→T-146 + NEW TESTED entries ACT-200, CHAT-200, DATA-012) · 12 VERIFIED · 10 BLOCKED · 5 DEFERRED · 4 other (PARTIAL micro-states incl. DUP-003 after T-044 pass 2). Evidence: change-log sessions 1–24.
 
 > T-125 (2026-09-02, 21st session): 20 stale detailed-entry Status headers flipped to their documented/evidenced states (live-DB or code probes this session; list in change-log). Status counts above RECOMPUTED from the detailed headers at flip time.
 
@@ -61,6 +61,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | SEC-110 | High | TESTED | T-006 | bind_activation_code RPC is SECURITY DEFINER + accepts p_auth_user_id parameter without verifying caller (direct RPC account takeover) |
 | SEC-111 | High | TESTED | T-006 | `upsert_payment_from_import` is SECURITY DEFINER (RLS-bypassed); canonical payment RPCs are not |
 | SEC-112 | High | TESTED | T-006 | `revert_payment_allocation` SQL RPC has no tenant_id verification; cross-tenant refund possible |
+| ACT-200 | Critical | TESTED (2026-09-03, T-145/146/147/153) | T-147 | NEW (24th session, owner-reported): account activation rejects every code as "already used" — codes never persisted (missing tenant_id), phantom fallback, EF 401'd pending users, generic error string; live round-trip 19/19 |
 | TENANT-100 | Critical | TESTED | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
 | TENANT-101 | Medium | TESTED | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
 | TENANT-103 | Medium | TESTED | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
@@ -77,9 +78,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | BUSINESS-104 | Medium | TESTED | T-013 | `markClearedFallback` uses sequential `await` per installment; swallows per-installment errors causing cascading over-allocation |
 | CROSS-001 | Critical | TESTED | T-048 | Migration numbering conflict between desktop and website Supabase folders |
 | CROSS-003 | High | TESTED | T-048 | Android repo's supabase/migrations folder is a partial copy missing the base schema |
-| CROSS-004 | Low | OPEN | T-028 | `bind-activation-code` Edge Function had to be patched to accept both `code` and `activation_code` body keys |
+| CROSS-004 | Low | TESTED (2026-09-03, T-146 — the consolidated EF keeps both body keys; dual-key contract pinned by the t-146 source suite) | T-028 | `bind-activation-code` Edge Function had to be patched to accept both `code` and `activation_code` body keys |
 | CROSS-005 | Critical | BLOCKED | T-059 | Android `LocalPaymentRepository.collect()` bypasses the canonical `collect_payment` RPC |
-| CROSS-009 | High | BLOCKED | T-028 | Website's `bind-activation-code` Edge Function is a drifted duplicate of the desktop's canonical version (no shared helpers, no audit log, different body key handling) |
+| CROSS-009 | High | TESTED (2026-09-03, T-146 — website copy deleted; ONE canonical EF in the hub with ADR-011 semantics; website t-126 guard pins zero local EFs) | T-028 | Website's `bind-activation-code` Edge Function is a drifted duplicate of the desktop's canonical version (no shared helpers, no audit log, different body key handling) |
 | CROSS-100 | Medium | TESTED | T-001/T-002 | Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@) — both demo lists removed 2026-08-29 |
 | CROSS-101 | Critical | BLOCKED | T-066 | `receipts` table is orphaned; website's receipt download is permanently broken |
 | CROSS-102 | High | TESTED (T-017, 17th session: refund reason rides the sync payload) | T-017 | Android refund sync payload drops the user's refund reason; server audit log has no reason |
@@ -123,6 +124,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CHAT-100 | Medium | TESTED | T-071 | `chat_channels_insert` RLS allows any authenticated user to create a channel with arbitrary `member_ids` (no membership validation on insert) |
 | CHAT-101 | Medium | TESTED | T-071 | `chat_messages_insert` RLS has no channel-membership check; any user can spam any channel_id they know |
 | CHAT-103 | High | TESTED | T-037 | No production code anywhere creates `chat_channels` rows; the website's MessagesView is permanently empty for parents |
+| CHAT-200 | High | TESTED (2026-09-03, T-148/149/150) | T-150 | NEW (24th session, owner mandate): messenger must connect parents to the Administrator only, parent↔parent forbidden — open_parent_admin_channel RPC + both chat insert policies tightened (migration 0067, live 14/14) |
 | CHAT-104 | Low | TESTED | T-037 | `chat_channels.updated_at` never updates when a new chat_message is INSERTed; channel list is sorted by CREATION time, not last-message time |
 | NOTIF-100 | Medium | BLOCKED | T-038 | `notifications_update` RLS blocks recipients from marking role-broadcast notifications as read; bulk mark-read silently no-ops (extends REALTIME-101 from chat_messages to notifications) |
 | NOTIF-101 | Medium | TESTED (0048 live-verified 2026-09-03) | T-071 | `notifications_insert` RLS allows any authenticated user to INSERT a notification addressed to ANY user_id (notification spam / injection) |
@@ -162,6 +164,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DATA-009 | Medium | TESTED (display resolved, writer preserved — ADR-010/T-104, 17th session) | T-104 | NEW (2026-09-01, T-103 discovery): canonical writer double-counts parent_credit in the raw ledger balance (charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment); historical corpus deliberately NOT back-filled with credit entries; NOTE (T-105): the corpus is now aligned to the workbook, where only 2 parents hold a genuine credit (−30,000 / −22,000) — RESOLUTION (ADR-010, 17th session): option (b) chosen — writer preserved, read surfaces derive credit via `displayParentCredit`/`displayCredit` (booked credit wins, else raw negative balance) on desktop + website with pinning suites; Android note registered for future credit UI |
 | DATA-010 | Critical | VERIFIED | T-105 | NEW (2026-09-01, T-105 discovery): DOUBLE-REMISE — the Excel import wrote the DEVIS charge from column L (ALREADY net of remise: L's formula is `components − J`, verified 390/390) and THEN a separate "Remise sur devis" −J adjustment — 223 parents double-discounted, Σ −9,709,700 DZD; parents who paid their exact devis showed fake credits. FIXED by migration 0063 (compensating adjustments) + the importer fix (no REMISE ledger entry + tranche-to-ledger reconciliation); live 259/259 |
 | DATA-011 | Critical | VERIFIED | T-105 | NEW (2026-09-01, T-105 discovery): workbook row 242 (SIDI MAMER SAMYI, phone 0554288142, devis 255,000, versements 255,000, créance 0) was NEVER imported — same-name identity collision with row 235's student under parent 0550067500; the family (parent + student + tranches + charge + 3 payments) is created by migration 0063 exactly per the workbook; live balance 0 ✓ |
+| DATA-012 | Medium | TESTED (2026-09-03, T-151/152) | T-152 | NEW (24th session, owner-reported): 259/260 parents display their first child's name (corpus predates the Famille convention) — migration 0068 data repair, live 11/11 |
 | DRIFT-001 | High | TESTED | T-018 | Mock parent repository uses `Math.random()` for `parent_code`, violating canonical §7.1 |
 | DRIFT-003 | Medium | DEFERRED | T-077 | Repository selection happens at module load; config changes require app restart |
 | DRIFT-005 | Low | TESTED | T-056 | `update-server-secret` uses audit action `server_secret.update`/`.delete` not in canonical `AuditActions` registry |
@@ -947,6 +950,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-004 — `bind-activation-code` Edge Function had to be patched to accept both `code` and `activation_code` body keys
 
+- **Status note (2026-09-03, 24th session — T-146):** CLOSED-TESTED. The consolidated canonical EF keeps the dual body-key contract (`body.activation_code ?? body.code`) — pinned by the hub's t-146 source-scan suite and live-verified in the T-147 round-trip (the portal's `code` key path returned 200). The entry's original "simplify to one key when T-028 consolidates the EF" follow-up is now resolved by that same consolidation: the contract is documented in the EF header and tested, no longer an after-the-fact patch.
+
 - **Category:** CROSS  |  **Severity:** Low  |  **Status:** OPEN
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Desktop, Website
@@ -987,6 +992,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 ---
 
 ### CROSS-009 — Website's `bind-activation-code` Edge Function is a drifted duplicate of the desktop's canonical version (no shared helpers, no audit log, different body key handling)
+
+- **Status note (2026-09-03, 24th session — T-146, ADR-011):** CLOSED-TESTED. UNKNOWN-001 is resolved by the owner's mandate (binding a code ACTIVATES the account — ADR-011); the activation semantics were ported INTO the hub's canonical EF (shared helpers, dual body keys, TWO audit entries, hardened status gates absorbing SEC-104: only pending→active, suspended/deleted 403), and the website's 216-line drifted copy is DELETED (the T-126 pattern — the website's t-126 guard suite now pins ZERO local Edge Functions). Live round-trip 19/19: docs/recovery/t-147-live-verification.md. T-028's consolidation is thereby complete.
 
 - **Category:** CROSS  |  **Severity:** High  |  **Status:** BLOCKED
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
@@ -3759,3 +3766,43 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Task:** T-139 (22nd session)
 - **Discovered:** 2026-09-03, 22nd session closeout (the final MIG-TOKENS re-run).
 
+
+### ACT-200 — Account activation rejects every code as "already used" (owner-reported; four stacked defects)
+
+- **Category:** AUTH  |  **Severity:** Critical  |  **Status:** TESTED (2026-09-03, 24th session — T-145 + T-146 + T-147 + T-153; live round-trip 19/19)
+- **Repositories:** AgentGithubUplaod (desktop + hub EF), elimtiyaz-website
+- **Platforms affected:** Website (activation screen), desktop (issuance), backend EF
+- **Task:** T-145, T-146, T-147, T-153
+- **Consolidated from:** owner report 2026-09-03 ("entering/copying an activation code for a new account … the system rejects it (displaying errors such as 'already been used')")
+- **Description:** Live forensics (24th-session opening): the desktop issued 5 activation codes on 2026-09-03 (audit_logs: YOUCEFI AYA ×3, ABADA YAHIA ×2) yet `activation_codes` held **0 rows**. Four stacked defects produced the owner's symptom:
+  1. `SupabaseApprovalRepository.generateActivationCode` INSERTed into `activation_codes` WITHOUT `tenant_id` (NOT NULL, no default) → guaranteed 23502 violation on every issuance (T-145).
+  2. `issueActivationCode` (parent-detail-drawer) then SILENTLY fell back to `deterministicActivationCode` — a phantom code that never existed server-side (T-145).
+  3. The deployed hub EF authenticated via `extractAuthContext`, which returns null for every profile whose `status !== 'active'` — the endpoint 401'd the very `pending` users it exists for; and it never flipped the status nor granted the role (BUSINESS-008/UNKNOWN-001) (T-146).
+  4. The website screen regex-tested `data.error` — an OBJECT under the EF's `{error:{code,message}}` shape → every failure collapsed into "Code d'activation invalide ou déjà utilisé." — the owner's exact symptom string (T-153).
+- **Resolution:** T-145 (issuance: tenant_id + failure surfacing, no phantom fallback in Supabase mode); T-146 (the consolidated canonical EF — ADR-011 activation semantics, direct caller verification, hardened status gates); T-147 (live deploy + real round-trip: pending user → 200 + bind + active + parent role + 2 audit rows; consumed code → 404 code_not_found; anonymous → 401; active → 409; malformed → 400); T-153 (precise localized error mapping by EF code).
+- **Verification:** `docs/recovery/t-147-live-verification.md` (19/19 live checks); desktop suites (5/5 + 8/8 + full 81 files / 2284 tests); website 25 files / 457 tests.
+- **Left:** the owner's first real issuance from the running desktop app (one staff click) is the end-of-chain confirmation — the entire server path is live-verified without it.
+
+### CHAT-200 — The web messenger must connect parents to the Administrator ONLY; parent↔parent communication forbidden (owner mandate)
+
+- **Category:** CHAT  |  **Severity:** High  |  **Status:** TESTED (2026-09-03, 24th session — T-148 + T-149 + T-150; migration 0067 live-verified 14/14)
+- **Repositories:** AgentGithubUplaod (backend), elimtiyaz-website (portal)
+- **Platforms affected:** Website (messenger), backend RLS, all platforms' chat write paths
+- **Task:** T-148, T-149, T-150
+- **Consolidated from:** owner report 2026-09-03 ("the messenger on the web client should only connect users (parents) directly to the Administrator … Communication between parents must not be allowed; the chat feature is strictly meant for educational reports and inquiries directed to the admin")
+- **Description:** Two halves: (a) CHAT-200a — the portal messenger was read+reply only with ZERO channel-creation capability, and staff never open channels proactively (live: 0 rows in `chat_channels`) → "Aucune conversation" forever; (b) CHAT-200b — 0048's policies only enforce creator∈members / author∈members, so parent↔parent channels and messages were structurally possible.
+- **Resolution:** ADR-012 (amends ADR-008; owner mandate as decision evidence) + migration 0067 (live, atomic MIG-TOKENS apply, chain 64/64): `profile_has_staff_role()` SECURITY DEFINER resolver; `chat_channels_insert` tightened (non-staff creators require every other member to be staff); `chat_messages_insert` tightened (non-staff authors only in direct channels with a staff counterpart — the message-level guard holds even against a staff-forced member swap, verified); `open_parent_admin_channel()` parent-side idempotent RPC (parent-role gate, admin resolution super_admin→support_staff, deterministic pair DM code, audit row). Website T-149: the "Contacter l'administration" action.
+- **Verification:** `scripts/verify_t-148.sql` 14/14 (happy path, idempotency, both caller gates, parent CAN post to admin, parent CANNOT post to parent-only channel, parent CANNOT create p2p channel, staff unaffected, policies deployed); website `t-149-contact-admin.test.ts` 6/6.
+- **Left:** device-gated: a real parent's first live click (the backend path is live-verified).
+
+### DATA-012 — Parents display their first child's name (the corpus predates the importer's Famille convention)
+
+- **Category:** DATA  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-03, 24th session — T-151 + T-152; migration 0068 live-verified 11/11)
+- **Repositories:** AgentGithubUplaod (backend data)
+- **Platforms affected:** all (parent name display)
+- **Task:** T-151, T-152
+- **Consolidated from:** owner report 2026-09-03 ("the children's names are mistakenly showing up as the parent's name (e.g., if the parent is 'John Doe', the listed children also appear as 'John Doe') … likely due to how data is parsed or mapped from the Excel payment/registration records")
+- **Description:** The STUDENT rows are correct (live-verified: student names differ from parent names on multi-child families). The defect is on the PARENT side: 259/260 live parents carry their FIRST CHILD's full name as `display_name` (e.g. family KEHILI: children LINA/AGHILES/SALIHA, parent display_name "KEHILI LINA") because the historic import derived the parent's name from the first child's NOM — the Excel has no parent-name column (TUTEUR is empty or the "NV" flag on 390/390 rows, scanned against the workbook). The Parent/Child management (Enfants list) then shows a child named identically to the parent.
+- **Resolution:** migration 0068 (live, atomic, chain 65/65): guarded idempotent UPDATE aligning the corpus with the importer's CURRENT canonical convention (the PARENT-AS-STUDENT FIX in repository-adapter.ts): `display_name = 'Famille {last_name}' (+ ' — ' || primary_phone)` — the importer's exact disambiguation suffix (HALIMI/ELAOUAR/REZAK each name 3 live families); `first_name = ''` (the real given name is UNKNOWN — a child's name must not masquerade); `last_name` unchanged (already the family name). Companion: the website profile-view's 2 raw first/last joins canonicalized to `formatParentName` (the T-084 pattern).
+- **Verification:** `scripts/verify_t-151.sql` 11/11 — zero parents still display a child's name (C2); all repaired rows render 'Famille …' (C3); last names preserved (C4); child given names cleared (C5); STUDENTS untouched (390 rows, name checksum identical — C6); childless parents untouched + count stable (C7); idempotent (C8); sample family "Famille KEHILI — 0558888180" with children intact (C9).
+- **Left:** nothing agent-side; a future Excel re-import creates parents with the same convention (the importer already does).
