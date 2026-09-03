@@ -263,21 +263,51 @@ export class SupabaseApprovalRepository {
 
   /**
    * Generate a new activation code for a parent (admin operation).
+   *
+   * T-145 / ACT-200 (2026-09-03): the INSERT previously omitted
+   * `tenant_id` — a NOT NULL column with NO default — so the insert
+   * ALWAYS failed with a NOT NULL violation, and the caller
+   * (`issueActivationCode` in parent-detail-drawer.tsx) silently fell
+   * back to the deterministic offline code: the parent received a
+   * phantom code that could never validate on the portal (live evidence:
+   * 5 audit-logged issuances on 2026-09-03, 0 rows in activation_codes).
+   *
+   * The fix resolves tenant_id and issued_by ONCE, includes tenant_id in
+   * the INSERT payload, and propagates the real error message up so the
+   * staff sees the failure instead of handing out a code that does not
+   * exist server-side.
    */
   async generateActivationCode(parentId: string): Promise<Result<string>> {
+    // Resolve tenant + issuing profile in one round-trip each (both are
+    // SECURITY-definer-free resolvers evaluated under the caller's RLS).
+    const { data: tenantId, error: tenantErr } = await this.client.rpc("current_tenant_id");
+    if (tenantErr || !tenantId) {
+      return Err(
+        supabaseErrorToAppError(
+          tenantErr ??
+            new Error("generateActivationCode: current_tenant_id() returned no tenant (is the session bound to a tenant?)")
+        )
+      );
+    }
+
     const { data, error } = await this.client.rpc("generate_activation_code", {
-      p_tenant_id: (await this.client.rpc("current_tenant_id")).data,
+      p_tenant_id: tenantId as string,
     });
 
     if (error) {
       return Err(supabaseErrorToAppError(error));
     }
 
-    // Insert the code linked to the parent
+    const { data: issuerProfileId } = await this.client.rpc("current_user_profile_id");
+
+    // Insert the code linked to the parent — tenant_id is NOT NULL with no
+    // default (activation_codes schema, migration 0005): omitting it made
+    // every issuance fail (ACT-200).
     const { error: insertError } = await this.client.from("activation_codes").insert({
+      tenant_id: tenantId as string,
       parent_id: parentId,
       code: data,
-      issued_by: (await this.client.rpc("current_user_profile_id")).data,
+      issued_by: (issuerProfileId as string | null) ?? null,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     });
 

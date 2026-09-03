@@ -271,6 +271,15 @@ export function ParentDetailDrawer({
    *   - Mock mode: derive the SAME deterministic code Android would derive
    *     from (tenantId|parentCode) so the demo stays cross-platform
    *     consistent, then audit-log the issuance.
+   *
+   * T-145 / ACT-200 (2026-09-03): the previous version fell back to the
+   * deterministic code even when the SUPABASE path FAILED (the RPC error or
+   * the insert error was swallowed) — the staff then handed the parent a
+   * phantom code that never existed server-side and the portal answered
+   * "Invalid or already-used activation code". In Supabase mode a failure
+   * now STOPS the issuance and surfaces the real error; the deterministic
+   * fallback is reserved for mock mode (where there is no server to
+   * validate against).
    */
   async function issueActivationCode(parent: Parent) {
     setIssuingCode(true);
@@ -279,11 +288,36 @@ export function ParentDetailDrawer({
       const approvals = (repos as { approvals?: { generateActivationCode(parentId: string): Promise<{ ok: boolean; value?: string }> } }).approvals;
       if (isSupabaseConfigured() && approvals) {
         const res = await approvals.generateActivationCode(parent.id);
-        if (res.ok && res.value) code = res.value;
+        if (res.ok && res.value) {
+          code = res.value;
+        } else {
+          // Supabase mode FAILED (RPC or insert error — see ACT-200: the
+          // pre-T-145 insert always failed on the missing tenant_id). Do
+          // NOT fall through to the deterministic phantom code: surface
+          // the failure so staff can retry instead of handing the parent
+          // a code the portal will reject.
+          const detail = res && "error" in res && res.error ? (res.error as { message?: string; userMessage?: string }) : null;
+          const why = detail?.userMessage ?? detail?.message ?? "erreur inconnue";
+          toast.showError(
+            "Émission impossible",
+            `Le code n'a PAS été enregistré sur le serveur — n'utilisez pas le code affiché. Détail : ${why}`,
+          );
+          void repos.audit.log({
+            action: "parent.activation_code_issuance_failed",
+            entityType: "parent",
+            entityId: parent.id,
+            actorId: session?.userId ?? "usr-current",
+            actorName: session?.displayName ?? "Session courante",
+            tenantId: parent.tenantId,
+            diff: { before: null, after: null },
+            note: `Émission du code d'activation ÉCHOUÉE pour ${parentDisplayName(parent)} (le serveur n'a pas de code — ACT-200)`,
+          });
+          return;
+        }
       }
       if (!code) {
-        // Mock path (or RPC failure) — deterministic fallback keeps the
-        // protocol shape identical across platforms.
+        // Mock path only — deterministic fallback keeps the protocol shape
+        // identical across platforms in the offline/demo sandbox.
         code = deterministicActivationCode(parent.code, parent.tenantId);
       }
       setActivationCode(code);
