@@ -1,22 +1,22 @@
 /**
  * Cross-platform financial consistency runner — TypeScript side.
  *
- * CANONICAL-FINANCIAL-LOGIC.md §9 + financial-tests/README.md — both
- * apps MUST produce the same domain state for the same operation.
- * This runner hardcodes the scenarios from
- * `financial-tests/scenarios/*.yml` and runs them through the canonical
- * TypeScript calc engine (`computeParentSummary`, `reconcileLedger`,
- * `evaluateAllSystemDiscounts`, `allocatePaymentToInstallments`).
+ * CANONICAL-FINANCIAL-LOGIC.md §9 — both apps MUST produce the same domain
+ * state for the same operation. This runner hardcodes its scenario set and
+ * runs them through the canonical TypeScript calc engine (`computeParentSummary`,
+ * `reconcileLedger`, `evaluateAllSystemDiscounts`, `allocatePaymentToInstallments`).
+ * The original 8 YAML scenario files (`financial-tests/scenarios/*.yml`) were
+ * RETIRED 2026-09-03 (T-043 pass 2, ADR-006): every scenario's semantics live
+ * on in BOTH surviving places — the JSON corpus
+ * (`financial-tests/equivalence/scenarios/`: 001..012 mirror these cases) and
+ * this runner's hardcoded set. The .yml tree was documentation-only drift-bait
+ * (DEAD-004): neither this runner nor the Kotlin runner ever READ the files.
  *
  * The Kotlin runner in
  * `app/src/test/java/com/example/core/CrossPlatformScenarioRunner.kt`
  * runs the same scenarios through the Kotlin calc engine. Both runners
  * produce the same pass/fail results when the implementations are
  * semantically equivalent.
- *
- * Future work: replace the hardcoded scenarios with a YAML parser so the
- * .yml files in `financial-tests/scenarios/` are the single source of
- * truth. For now, hardcoding keeps the test dependency-free.
  */
 import { describe, test, expect } from "vitest";
 import {
