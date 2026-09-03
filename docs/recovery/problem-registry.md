@@ -31,7 +31,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | | | | CLOSED | 1 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 180 detailed entries (recounted 2026-09-03, T-133 — the detailed entries are authoritative) (145 consolidated from 185 audit findings + the rest discovered during repair sessions) · **11 OPEN** (CROSS-004, CROSS-104b, ARCH-001, DRIFT-011, DUP-001/002/003/004, REG-002, WEAK-100, DATA-006 — of which 7 are blocked-on-decisions/owner-gated and 4 are the big consolidation tasks T-043/T-044) · 135 TESTED (incl. 2026-09-03 23rd-session flips: AUTH-200→T-141) · 12 VERIFIED · 11 BLOCKED · 5 DEFERRED · 3 other (FIXED/PARTIAL/MITIGATED/IMPLEMENTED/CLOSED micro-states). Evidence: change-log sessions 1–23.
+**Totals:** 180 detailed entries (recounted 2026-09-03, T-133 — the detailed entries are authoritative) (145 consolidated from 185 audit findings + the rest discovered during repair sessions) · **7 OPEN** (CROSS-004, CROSS-104b, ARCH-001, DRIFT-011 [PARTIAL in its row], REG-002, WEAK-100, DATA-006 — all blocked-on-decisions/owner-gated) · **138 TESTED** (2026-09-03 23rd-session flips: AUTH-200→T-141, DUP-001→T-043, DUP-002→T-043 pass 1, DUP-004→T-044 pass 1) · 12 VERIFIED · 11 BLOCKED · 5 DEFERRED · 4 other (PARTIAL micro-states incl. DUP-003 after T-044 pass 2). Evidence: change-log sessions 1–23.
 
 > T-125 (2026-09-02, 21st session): 20 stale detailed-entry Status headers flipped to their documented/evidenced states (live-DB or code probes this session; list in change-log). Status counts above RECOMPUTED from the detailed headers at flip time.
 
@@ -170,10 +170,10 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | DRIFT-009 | Medium | TESTED | T-057 | Canonical engine port ships ~20 calc files but only ~6 functions are used; `canonical/index.ts` barrel is never imported |
 | DRIFT-010 | Low | TESTED | T-065 | `attendance-view.tsx` comment says "The portal CANNOT submit justifications — that's a desktop workflow" but the code imports, renders, and wires the AbsenceJustificationDialog |
 | DRIFT-011 | High | PARTIAL | T-015 | Receipt-number generation logic is duplicated across 5 code paths with 5 different algorithms |
-| DUP-001 | High | OPEN | T-043 | Four parallel cross-platform equivalence test frameworks |
-| DUP-002 | High | OPEN | T-043 | Duplicate `kotlin_mirror_engine.ts` in two locations with drifted logic |
-| DUP-003 | High | OPEN | T-044 | Two parallel Compose design systems with 18 same-named duplicate component classes |
-| DUP-004 | Medium | OPEN | T-044 | Two `ElImtiyazTheme` composables with the same name in different packages |
+| DUP-001 | High | TESTED (fixed 2026-09-03, T-043) | T-043 | Four parallel cross-platform equivalence test frameworks — CONSOLIDATED: the three retired trees (scenarios/*.yml, cross-platform-v2, equivalence-live) + the stale _tier4 mirror deleted; financial-tests/equivalence/ is the single framework (ADR-006 Implemented; decision-2 deviation recorded) |
+| DUP-002 | High | TESTED (fixed 2026-09-03, T-043 pass 1) | T-043 | Duplicate `kotlin_mirror_engine.ts` in two locations with drifted logic — the _tier4 copy deleted; all 7 consumers import the canonical mirror (810+34 tests green; the canonical engine is now in the typecheck graph — 2 latent type defects fixed) |
+| DUP-003 | High | PARTIAL (2026-09-03, T-044 pass 2) | T-044 | Two parallel Compose design systems — the settings module fully migrated (8 files, zero legacy imports; 37→29 legacy importers); hub screens blocked on a scrollable DS tab component + the route-model rewrite |
+| DUP-004 | Medium | TESTED (fixed 2026-09-03, T-044 pass 1) | T-044 | Two `ElImtiyazTheme` composables — the legacy composable + its private Type/ColorSchemes + dead ElShapes scale deleted; the screenshot test migrated to the production theme (WEAK-013 closed; roborazzi PNG-write discovery recorded) |
 | DUP-005 | High | BLOCKED | T-045 | Two parallel Room entity / DAO / mapper layers coexist in the same database (partial migration) |
 | REG-001 | High | TESTED | T-058 | Chain of 9 "canonical engine unification" fix-up migrations — GUARD IN PLACE 2026-08-31 (T-058, 13th session): scripts/check-migrations-append-only.sh machine-enforces the append-only rule (working tree + baseline diff + header/naming discipline), wired into npm test + npm run check:migrations; matrix 9/9, suite 6/6 |
 | REG-002 | High | OPEN | T-046 | 8 Room migrations are fix-up migrations for previous regressions — same iterative bug-fix pattern as desktop's REG-001 |
@@ -2372,7 +2372,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DUP-001 — Four parallel cross-platform equivalence test frameworks
 
-- **Category:** DUP  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** DUP  |  **Severity:** High  |  **Status:** TESTED (fixed 2026-09-03, 23rd session — T-043, 4 passes per ADR-006; the single framework is `financial-tests/equivalence/`)
 - **Repositories:** elimtiyaz-android, AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop, Website
 - **Task:** T-043 (docs/recovery/task-registry.md)
@@ -2392,7 +2392,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DUP-002 — Duplicate `kotlin_mirror_engine.ts` in two locations with drifted logic
 
-- **Category:** DUP  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** DUP  |  **Severity:** High  |  **Status:** TESTED (fixed 2026-09-03, 23rd session — T-043 pass 1: the `_tier4` copy deleted; all 7 consumers import the canonical `equivalence/android_mirror/` engine; 810+34 tests green)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Android, Desktop
 - **Task:** T-043 (docs/recovery/task-registry.md)
@@ -2411,7 +2411,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DUP-003 — Two parallel Compose design systems with 18 same-named duplicate component classes
 
-- **Category:** DUP  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** DUP  |  **Severity:** High  |  **Status:** PARTIAL (2026-09-03, 23rd session — T-044 pass 2: the settings module FULLY migrated (8 files, zero legacy imports); 29 legacy importers remain (37 → 29). The blockers for the hub screens are documented: ModernSecondaryTabRow is scrollable while the DS ElTabRow is a segmented control (6-tab FinancialsHub needs a scrollable DS component first); MainScreen's bottom bar is index-based vs the DS route-based ElBottomBar)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android, Desktop, Website
 - **Task:** T-044 (docs/recovery/task-registry.md)
@@ -2430,7 +2430,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DUP-004 — Two `ElImtiyazTheme` composables with the same name in different packages
 
-- **Category:** DUP  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** DUP  |  **Severity:** Medium  |  **Status:** TESTED (fixed 2026-09-03, 23rd session — T-044 pass 1: the legacy composable deleted together with its private Type.kt/ColorSchemes.kt and the dead ElShapes scale; the screenshot test migrated to the production theme — WEAK-013 closed. NEW DISCOVERY: roborazzi's captureRoboImage does NOT write the PNG in the repair container — the committed greeting.png is a historical artifact; see change-log)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-044 (docs/recovery/task-registry.md)
