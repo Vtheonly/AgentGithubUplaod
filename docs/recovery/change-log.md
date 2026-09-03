@@ -20,6 +20,31 @@
 
 ## Entries
 
+### 2026-09-03 — T-140 — 23rd-session opening live verification (MIG-TOKENS re-run with the fresh access token)
+
+- **Problem IDs:** — (process/health; ARCH-014 vigilance) · **Priority:** P0 (session ritual, AGENTS.md §15 rule 11)
+- **What changed:** NOTHING in code or the live project — verification only. Scripts: `/home/z/my-project/scripts/check_live_chain.sh`, `t140_ef_fleet.sh`, `t140_ef_matrix.sh`, `t140_health.sh` (container-local, not committed; they carry the access token).
+- **What was verified (live, 2026-09-03, fresh token sbp_9e83…):**
+  1. Migration chain: live `supabase_migrations.schema_migrations` **63/63 = 0001–0066, ZERO DRIFT** vs the local file chain (diff clean).
+  2. EF fleet: **13/13 ACTIVE** via Management API, names match the hub's `supabase/functions/` set exactly (approve-signup-request, bind-activation-code, collect-payment, create-user-account, expire-pending-approvals, purge-expired-backups, refresh-materialized-views, refund-payment, run-overdue-scan, send-push-notification, update-server-secret, workflow-execute, ai-proxy).
+  3. EF anonymous-deny matrix: **13/13 × both probes (no-auth + anon-key) = 401** — the full curl matrix, no exceptions.
+  4. Auth health: HTTP 200 on BOTH key formats (anon JWT + sb_publishable) · JWKS 200.
+  5. RLS anon-deny: 0 rows on parents/students/installments/payments/ledger_entries via REST with the anon key.
+  6. Portal production render: HTTP 200 (13,576 bytes, correct title).
+  7. Auth-user census: 1 user (admin@elimtiyaz.dz) — unchanged.
+  8. Secrets census: CRON_SECRET + SUPABASE_SERVICE_ROLE_KEY + SUPABASE_URL/ANON/SECRET/PUBLISHABLE keys + SUPABASE_JWKS + SUPABASE_DB_URL + ALLOWED_ORIGINS + PROJECT_REF + LOG_LEVEL present. **NOT set (owner residuals, unchanged): RESEND_API_KEY, FIREBASE_SERVICE_ACCOUNT_JSON.**
+  9. Google OAuth config state: see T-141 (same session) — the opening check DISCOVERED the owner had set client_id+secret between sessions.
+- **Conclusion:** the 22nd-session close state was preserved; the migration tokens are applied and consistent everywhere; the only live-project change during the opening ritual was T-141's enable PATCH.
+
+### 2026-09-03 — T-141 — AUTH-200 close: Google OAuth provider ENABLED (the #1 user-facing Critical blocker since 2026-08-31)
+
+- **Problem IDs:** AUTH-200 (Critical, OPEN→TESTED) · **Priority:** P0
+- **What was wrong / why it happened:** the portal's only auth path (Google OAuth) had a disabled provider since 2026-08-31 — the OAuth client belongs to the school's Google account and the owner had not (until now) created it. Every prior session re-verified `client_id: EMPTY`.
+- **Root-cause change between sessions (NEW DISCOVERY):** the OWNER completed runbook steps 1–2 between the 22nd and 23rd sessions — live config now carries `external_google_client_id` (72 chars, `259221439109-hp67…apps.googleusercontent.com`) and `external_google_secret` (64 chars). The enable toggle was still off. The ARCH-014 "owner is an active actor between sessions" lesson now extends to AUTH CONFIG, not just migrations — agents must re-read live auth config before claiming it is still broken.
+- **What was changed:** runbook **step 3** — the enable-only PATCH `{"external_google_enabled": true}` (HTTP 200; client_id/secret/site_url/uri_allow_list all PRESERVED — a partial-body PATCH is the safe shape; never send empty id/secret which would destroy the owner's credentials). No code changes; no migration.
+- **What was verified (live):** `external_google_enabled: true` by GET · `authorize?provider=google&redirect_to=<production>` → **HTTP 302 → accounts.google.com** with the owner's client, `redirect_uri=…/auth/v1/callback`, scope `email profile`, state nonce — the exact endpoint that answered `400 Unsupported provider` since 2026-08-31. Full evidence: `docs/recovery/t-141-live-verification.md`. Runbook status header + problem registry (detailed entry + index row + totals 12→11 OPEN) updated.
+- **Left (why TESTED, not VERIFIED):** the first real Google sign-in (owner or parent — one click on https://elimtiyaz-website.vercel.app/) closes the loop; while the Google consent screen stays in TESTING mode, parents must be added as test users (runbook step 1.2, 100-user cap). If the authorize endpoint ever 400s again, re-run the step-3 PATCH (dashboard interactions can flip the toggle off).
+
 ### 2026-09-02 — TWENTIETH REPAIR SESSION (CLOSE) — Owner mandate: "fix this auth thing or tell me what to do" + "apply the migration tokens, consistent everywhere" — 6 tasks COMPLETE + 1 lint-baseline prune + 2 documented deferrals
 
 - **Session-opening ritual (§15 rule 11):** live chain check **62/62 = 0001–0065, ZERO drift** (no repeat of the 19th session's ARCH-013). Toolchain RE-provisioned after the container reset: JDK 21 (Temurin — the system java is a JRE-only, no javac), Android SDK 35, and the **NEW secrets-plugin `.env` discovery**: EMPTY values (`KEY=`) — in `.env` OR the `.env.example` defaults — are injected as BLANK Java literals and FAIL compilation; every key must be non-empty (documented in AGENTS.md §11 + scripts/android-env.sh).

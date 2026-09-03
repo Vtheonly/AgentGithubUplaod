@@ -1,17 +1,22 @@
 # Runbook — Enable Google OAuth on the live Supabase project (AUTH-200)
 
-> **Status (2026-09-02, 20th session — T-119): agent-side production config DONE · owner action remains the ONLY blocker.**
-> Live-verified evidence (Management API, access token): `external_google_enabled: false`, `external_google_client_id: EMPTY`,
-> `external_google_secret: EMPTY` — the provider itself still needs the owner's Google Cloud OAuth client (step 1).
-> **The agent-side redirect configuration is DONE and live-verified (T-119, apply script
-> `scripts/apply_t-119_auth_production_config.sh` — NOT committed to the repo, it carries the access token):
+> **Status (2026-09-03, 23rd session — T-141): AUTH-200 CLOSED agent-side · provider ENABLED · only the first real Google sign-in remains.**
+> The owner completed steps 1–2 between the 22nd and 23rd sessions (client_id 72 chars + secret 64 chars
+> SET on the live config — discovered by the 23rd-session opening check); the 23rd session ran the
+> step-3 enable PATCH and live-verified step 4: `external_google_enabled: true`, credentials preserved,
+> `authorize?provider=google` → **HTTP 302 to accounts.google.com** with the owner's client
+> (was `400 Unsupported provider` since 2026-08-31). Evidence: `docs/recovery/t-141-live-verification.md`.
+> The portal's Google button now starts the real OAuth round-trip; flip AUTH-200 to VERIFIED after the
+> first successful browser sign-in (owner or parent — while the Google consent screen stays in TESTING
+> mode, remember the 100-test-user cap, step 1.2).
+>
+> **Historical (2026-09-02, 20th session — T-119): agent-side production config DONE.**
 > `site_url = https://elimtiyaz-website.vercel.app` and
 > `uri_allow_list = http://localhost:3000,http://localhost:3100,https://elimtiyaz-website.vercel.app`
-> (GET re-verified after PATCH: values persisted; localhost dev origins PRESERVED).**
+> (GET re-verified after PATCH: values persisted; localhost dev origins PRESERVED).
 > Without this the OAuth round-trip would have bounced off the portal even AFTER the
 > provider is enabled: the portal sends `redirect_to=<origin>/` and Supabase falls back to
 > `site_url` for non-allowed origins — the old `site_url` was `http://localhost:3000`.
-> **The provider enablement remains the single remaining blocker for portal login.**
 
 ## Why this is owner-only
 
