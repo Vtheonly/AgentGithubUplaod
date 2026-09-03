@@ -90,6 +90,57 @@
 
 ## In Progress
 
+**24th repair session (2026-09-03) — IN FLIGHT: owner mandate ("finish all the remaining tasks: fix the 3 owner-reported issues — account activation rejected as 'already used', messenger must be parent→Administrator only, children showing the parent's name — apply the migration tokens, verify everywhere, zip for push").** Session-opening ritual: chain check **63/63 = 0001–0066 ZERO DRIFT** (fresh sbp_ token; live census `activation_codes=0`, `parents=260`, `auth_users=3` — two NEW parent signups on 2026-09-03, evidence the owner is actively testing the portal). **LIVE-DATA DIAGNOSIS (the 3 issues are ALL verified against the live DB):** (1) **ACTIVATION** — the desktop issued 5 codes today (audit_logs: YOUCEFI AYA ×3, ABADA YAHIA ×2) yet `activation_codes` holds **0 rows**: `SupabaseApprovalRepository.generateActivationCode` INSERTs without `tenant_id` (NOT NULL, no default → guaranteed NOT NULL violation) and `issueActivationCode` then SILENTLY falls back to `deterministicActivationCode` — a phantom code that can never validate; the deployed hub EF additionally 401s every `pending` profile via `extractAuthContext` (status !== 'active' → null) and never flips status; the website maps the EF's `{error:{code,message}}` OBJECT with regex tests that never match → always the generic "Code d'activation invalide ou déjà utilisé." string (the owner's exact symptom). (2) **MESSENGER** — parents cannot start any conversation (create_direct_channel is staff-only per ADR-008), `chat_channels` = 0 rows live → the portal messenger is dead; nothing structurally forbids parent↔parent posting. (3) **PARENT/CHILD NAMES** — live students are correct, but **259/260 parents carry their FIRST CHILD's full name as display_name** (corpus predates the importer's "Famille {lastName}" PARENT-AS-STUDENT FIX) → the Enfants list shows a child named identically to the parent. Batch (10 tasks, balanced P0→P3): **T-145** (issuance persistence), **T-146** (EF consolidation + ADR-011 resolving UNKNOWN-001), **T-147** (live round-trip), **T-148** (0067 parent→admin RPC + post tightening + ADR-012), **T-149** (website "Contacter l'administration"), **T-150** (0067 live apply + verify), **T-151** (0068 parent display-name repair), **T-152** (0068 live apply + verify), **T-153** (activation-screen precise error mapping), **T-154** (registries + suites + zip closeout).
+
+### T-145 — Desktop activation-code issuance persistence (tenant_id + failure surfacing) — **Completed (TESTED — 5/5 unit suite + typecheck clean; live issuance confirmation owner-gated on the next staff click)**
+
+- **Problems:** NEW ACT-200 (activation codes never persist — root cause of the owner's "already been used" report; registered this session) · **Priority:** P0 · **Severity:** Critical (user-facing blocker)
+- **Scope:** `SupabaseApprovalRepository.generateActivationCode` (missing `tenant_id` on INSERT) + `issueActivationCode` in parent-detail-drawer.tsx (silent phantom-code fallback in Supabase mode).
+- **Plan:** capture tenant_id once (already fetched via `current_tenant_id`), include it in the INSERT, use `issued_by` from the same RPC batch, and return Err with the real message on failure; in the drawer, show the error toast and DO NOT hand out the deterministic fallback code when Supabase mode is configured (mock mode keeps the fallback — there is no server to validate against).
+
+### T-146 — Consolidate bind-activation-code EF: activation semantics into the canonical hub version — **Completed (TESTED — 8/8 source-scan suite + esbuild + website 5/5 guard; live deploy + round-trip via T-147)**
+
+- **Problems:** CROSS-004, CROSS-009, BUSINESS-008, SEC-104 (all close via this task + ADR-011); UNKNOWN-001 RESOLVED by owner mandate · **Priority:** P0 · **Severity:** Critical
+- **Scope:** `elimtiyaz-desktop/supabase/functions/bind-activation-code/index.ts` (canonical, deployed) + DELETE `elimtiyaz-website/supabase/functions/bind-activation-code/` (drifted duplicate — T-126 pattern).
+- **Plan:** ADR-011 records the owner decision (binding a code ACTIVATES the account). The hub EF: (a) authenticate the caller WITHOUT extractAuthContext's active-only gate (verify JWT → fetch profile directly; allow `pending`; REJECT `suspended`/`deleted`); (b) keep both body keys + audit log; (c) after a successful bind, grant the `parent` role + flip `user_profiles.status='active'` + clear `approval_request_id` (the website version's logic, ported to shared helpers, hardened per SEC-104: only `pending`→`active`, never suspended/deleted); (d) idempotent 409 `account_already_active` for already-active callers.
+
+### T-147 — Live deploy + live round-trip verification of the activation flow — **Completed (VERIFIED — 19/19 live checks, evidence: docs/recovery/t-147-live-verification.md)**
+
+- **Problems:** ACT-200 verification half · **Priority:** P0 · **Severity:** Critical
+- **Plan:** deploy the consolidated EF live (CLI v2.116.0, `--no-verify-jwt` like the current deploy), then a REAL end-to-end round-trip: create a test parent + activation code (service-role SQL), create a test auth user via the admin API, sign in via REST to get a real JWT, call the EF with the pending user's JWT → assert code bound, `parents.auth_user_id` set, profile active, `parent` role assigned, audit row written; re-call with the same code → 404 already-used; anonymous → 401. Clean up test rows. Evidence → `docs/recovery/t-147-live-verification.md`.
+
+### T-148 — Migration 0067: parent→Administrator channel RPC + parent-post RLS tightening — **In Progress**
+
+- **Problems:** NEW CHAT-200 (messenger dead for parents; nothing forbids parent↔parent) — registered this session; amends ADR-008 via ADR-012 · **Priority:** P1 · **Severity:** High
+- **Plan:** (a) `open_parent_admin_channel()` SECURITY DEFINER RPC with caller verification: caller must hold the `parent` role; resolves the tenant's `super_admin` profile (fallback `support_staff`) as the counterpart; idempotent deterministic DM code (same pair-algorithm as 0061); audit row. (b) tighten `chat_messages_insert`: non-staff authors may ONLY insert into `direct` channels whose OTHER member holds a staff role — parent↔parent posting becomes structurally impossible; staff authors unchanged (full member rule preserved).
+
+### T-149 — Website: "Contacter l'administration" (parent-initiated admin channel) — **In Progress**
+
+- **Problems:** CHAT-200 website half · **Priority:** P1 · **Severity:** High
+- **Plan:** MessagesView gains a contact-admin action (shown for parents; calls `open_parent_admin_channel` via `supabase.rpc`, invalidates the channels query, selects the channel). i18n fr/ar/en strings. Vitest coverage per the t-101 pattern. ADR-008's "no channel-creation UI" note is superseded by ADR-012 (owner mandate 2026-09-03) — website AGENTS.md section 3 note updated.
+
+### T-150 — Live apply 0067 + SQL verification matrix — **In Progress**
+
+- **Plan:** atomic MIG-TOKENS apply (file + `BEGIN; sql; registration; COMMIT;` one Management-API call), then `scripts/verify_t-148.sql` (BEGIN/ROLLBACK): parent can open/return the admin channel (idempotent ×2), non-parent caller rejected, parent insert into a parent-only channel REJECTED, parent insert into the admin DM ACCEPTED, staff insert unaffected, chain 64/64.
+
+### T-151 — Migration 0068: parents display-name data repair ("Famille {lastName}" convention) — **In Progress**
+
+- **Problems:** NEW DATA-012 (parents display_name = first child's name; the corpus predates the importer's PARENT-AS-STUDENT FIX) — registered this session · **Priority:** P1 · **Severity:** Medium (owner-visible)
+- **Plan:** idempotent UPDATE: for every parent with ≥1 non-deleted student whose `display_name` (whitespace-normalized, case-insensitive) equals one of their children's display names (or first+last join), set `display_name = 'Famille ' || <family last name>` (family name = the parent's current `last_name`, which equals the children's shared family name), `first_name = ''` (the real given name is UNKNOWN in the Excel — a child's name must not masquerade as the parent's), keep `last_name`. Parents without children / non-matching display names untouched (incl. approval-created rows). All renderers already prefer display_name (desktop `parentDisplayName`, website `formatParentName`, Android `fullName`).
+
+### T-152 — Live apply 0068 + SQL verification — **In Progress**
+
+- **Plan:** atomic MIG-TOKENS apply + `scripts/verify_t-151.sql`: after repair, zero parents display a child's name; children rows untouched (count + checksum before/after); 0066 split semantics intact for non-repaired rows; chain 65/65.
+
+### T-153 — Website activation-screen: precise EF error mapping — **In Progress**
+
+- **Problems:** ACT-200 UX half · **Priority:** P2 · **Severity:** Medium
+- **Plan:** the screen currently regex-tests `data?.error` — an OBJECT under the hub EF's `{error:{code,message}}` shape, so every failure shows the generic "invalide ou déjà utilisé" string. Map by `error.code` (string-shape tolerated for safety): `code_not_found` → invalid/used message, `code_expired` → expired, `account_already_active` → success refresh path, `account_suspended`/`account_rejected` → actionable localized message, `auth_failed` → session message. Dictionary entries fr/ar/en. Vitest unit tests for the mapping.
+
+### T-154 — Session closeout: registries + full suites + zip packaging — **In Progress**
+
+- **Plan:** problem-registry entries (ACT-200, CHAT-200, DATA-012) with resolution evidence; task-registry statuses + summary; change-log append; next-task.md rewrite; current-state.md refresh; ADR-011/012; website AGENTS.md sync; unknowns.md UNKNOWN-001 closed. Full verification: desktop typecheck+lint+suite, website lint+suite+strict build, EF curl matrix, chain 65/65. Zip the three repos for the owner.
+
 **22nd repair session (2026-09-03) — CLOSED: owner mandate COMPLETE (fresh-token MIG-TOKENS + all-platforms verification + chain consistency; 10 tasks: T-130..T-139).** Opening: chain 62/62 ZERO DRIFT + EF census 13/13. Closeout: **chain 63/63 = 0001–0066 ZERO DRIFT** (0066 = the owner's live-applied backfill, reconstructed + committed by T-139/ARCH-014 — caught ONLY because the closeout re-ran the matrix). Suites at close: desktop 79/2271/0 (+3 suites: t-131 12, t-132 7, t-134 8) + typecheck + lint-delta-0; website 24/440/0 + strict build + live render 200; Android debug 44/372/0 + release 42/367/0 + lintDebug green. Live: 3 EF deploys (workflow-execute, approve-signup-request ×2 rounds), 34/34 MIG-TOKENS matrix, 13/13 anonymous-deny. Registry: OPEN 62→12, stale rows synced, duplicates removed, next-task corruption repaired. Owner residuals unchanged: RESEND_API_KEY + from-domain (emails), FIREBASE_SERVICE_ACCOUNT_JSON (pushes), Google OAuth client (AUTH-200).
 
 ### T-130 — MIG-TOKENS session verification with the fresh access token ("apply the migration tokens, consistent everywhere") — **Completed (TESTED — script matrix 34/34 PASS + secrets census + NOTIF-101 policy probe)**
