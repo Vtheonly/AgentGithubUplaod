@@ -32,7 +32,7 @@ import {
   type ParentSummaryCrossCheck,
   type PaymentCrossCheck,
   type InstallmentCrossCheck,
-} from "./_tier4/kotlin_mirror_engine";
+} from "../../../financial-tests/equivalence/android_mirror/kotlin_mirror_engine";
 import { computeAccountBalance as computeAccountBalanceDesktop,
   computeParentSummary as computeParentSummaryDesktop,
 } from "../../domain/calc/ledger/balance";

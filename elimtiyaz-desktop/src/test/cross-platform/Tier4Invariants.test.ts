@@ -30,7 +30,7 @@ import {
   PaymentCategory_fromCode,
   PaymentStatus_fromCode,
   PaymentPlan_fromCode,
-} from "./_tier4/kotlin_mirror_engine";
+} from "../../../financial-tests/equivalence/android_mirror/kotlin_mirror_engine";
 import {
   computeAccountBalance as computeAccountBalanceDesktop,
   computeParentSummary as computeParentSummaryDesktop,
@@ -273,7 +273,7 @@ describe("INV-9: Reconciliation emits canonical violation codes", () => {
       "UNBACKED_PARENT_CREDIT",
     ];
     for (const code of expected) {
-      expect(RECONCILE_CODES[code]).toBe(code);
+      expect(RECONCILE_CODES[code as keyof typeof RECONCILE_CODES]).toBe(code);
     }
   });
 });

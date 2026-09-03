@@ -28,7 +28,7 @@ import {
   deterministicActivationCode,
   activationCode as randomActivationCode,
 } from "../../core/format/id";
-import { deterministicActivationCode as androidMirrorActivationCode } from "../../test/cross-platform/_tier4/kotlin_mirror_engine";
+import { deterministicActivationCode as androidMirrorActivationCode } from "../../../financial-tests/equivalence/android_mirror/kotlin_mirror_engine";
 import { QrCode } from "../../shared/ui/qr-code";
 import {
   defaultLLMAdapter,
@@ -89,7 +89,7 @@ describe("§02.08 — deterministic activation codes (Android parity)", () => {
   });
 
   it("matches the Kotlin mirror engine byte-for-byte (cross-platform idempotency)", () => {
-    // The mirror engine in src/test/cross-platform/_tier4 mirrors the
+    // The mirror engine in financial-tests/equivalence/android_mirror mirrors the
     // Android implementation — the production function must agree with it
     // so desktop-created parents expose the SAME activation code Android
     // would derive for the identical parent_code + tenant.

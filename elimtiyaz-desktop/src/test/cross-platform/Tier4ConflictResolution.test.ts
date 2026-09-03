@@ -31,7 +31,7 @@ import {
   deterministicParentCode,
   type LedgerEntry,
   type WaterfallInstallment,
-} from "./_tier4/kotlin_mirror_engine";
+} from "../../../financial-tests/equivalence/android_mirror/kotlin_mirror_engine";
 
 const NOW = new Date("2028-01-01T00:00:00Z").getTime();
 

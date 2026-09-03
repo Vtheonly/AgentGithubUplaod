@@ -34,7 +34,7 @@ import {
   splitNetTuitionByOfficialSchedule,
   type LedgerEntry,
   type WaterfallInstallment,
-} from "./_tier4/kotlin_mirror_engine";
+} from "../../../financial-tests/equivalence/android_mirror/kotlin_mirror_engine";
 import {
   computeAccountBalance as computeAccountBalanceDesktop,
   computeParentSummary as computeParentSummaryDesktop,

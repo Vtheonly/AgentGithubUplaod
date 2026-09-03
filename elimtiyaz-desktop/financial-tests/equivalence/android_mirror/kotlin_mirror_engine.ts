@@ -294,8 +294,9 @@ export function computeAccountBalance(
   };
 }
 
-function maxOf(a: string | null, b: string): string {
+function maxOf(a: string | null, b: string | null): string | null {
   if (a === null) return b;
+  if (b === null) return a;
   return a >= b ? a : b;
 }
 
