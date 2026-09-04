@@ -3810,3 +3810,37 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Resolution:** migration 0068 (live, atomic, chain 65/65): guarded idempotent UPDATE aligning the corpus with the importer's CURRENT canonical convention (the PARENT-AS-STUDENT FIX in repository-adapter.ts): `display_name = 'Famille {last_name}' (+ ' — ' || primary_phone)` — the importer's exact disambiguation suffix (HALIMI/ELAOUAR/REZAK each name 3 live families); `first_name = ''` (the real given name is UNKNOWN — a child's name must not masquerade); `last_name` unchanged (already the family name). Companion: the website profile-view's 2 raw first/last joins canonicalized to `formatParentName` (the T-084 pattern).
 - **Verification:** `scripts/verify_t-151.sql` 11/11 — zero parents still display a child's name (C2); all repaired rows render 'Famille …' (C3); last names preserved (C4); child given names cleared (C5); STUDENTS untouched (390 rows, name checksum identical — C6); childless parents untouched + count stable (C7); idempotent (C8); sample family "Famille KEHILI — 0558888180" with children intact (C9).
 - **Left:** nothing agent-side; a future Excel re-import creates parents with the same convention (the importer already does).
+
+### DATA-013 — SupabaseDebtRepository shipped a hollow profile contract: empty installments + column-stripped ledger entries (the REAL "Aucune tranche" / blank-reasons root cause)
+
+- **Category:** DATA  |  **Severity:** High  |  **Status:** TESTED (2026-09-05, 26th session — T-164)
+- **Repositories:** AgentGithubUplaod (desktop infrastructure layer)
+- **Platforms affected:** desktop (Supabase mode) — every consumer of `ParentFinancialProfile`
+- **Task:** T-164
+- **Consolidated from:** owner report 2026-09-04 ("Aucune tranche d'échéance générée", unexplained +50 000/−71 000 adjustments, "Auteur: system") — previously mis-diagnosed as "the database lacks tranches for imported families" by the unregistered patch's own analysis, which proposed a backfill migration. LIVE READ-ONLY AUDIT (2026-09-05) DISPROVED THAT: `installments` holds 1 276 rows covering 259/259 charged parents (443 T1 / 417 T2 / 416 T3, statuses paid 585 / unpaid 497 / partial 194), 100% student-attributed, ledger↔installment reconciling to the dinar (the only divergences are negative-balance overpayers where remaining is correctly 0); all 690 adjustment rows carry documented descriptions.
+- **Description:** two defects inside `SupabaseDebtRepository.refreshProfile`, both invisible to the mock mode: (1) the ledger query selected only `id, parent_id, entry_type, amount, category, entry_date`, so `mapLedgerRow` filled every other field with fallbacks — `description: ""` (adjustment reasons blank on screen), `actorId: "system"` (the mysterious author), `studentId: undefined` (per-child attribution lost), `metadata: {}`; (2) the profile hardcoded `installments: []` even though the table has the rows — the mock repository populated them all along (cross-mode parity break). The consequence: every Supabase-mode surface reading `profile.installments` showed "Aucune tranche", and the AI patch then "fixed" the symptom by re-deriving tranches in the React component instead of fixing the repository.
+- **Resolution:** T-164 — full-column select (mirrors the ledger repo seed) + real `installments` query mapped with `mapInstallmentRow`; the drawer additionally consumes `repos.installments.observeByParent` directly (the same canonical stream the payment modal reads — TTL/focus freshness policy).
+- **Verification:** full desktop suite 2302/0 after the fix; the drawer now renders the physical rows verbatim (T1 114 000 with 100 000 paid / partial — exactly the DB state of the owner's example family LADOUL, parent 288fbaf3).
+- **Left:** nothing — no backfill migration was ever needed; the proposed 0037-era backfill RPC path stays available for genuinely future import gaps.
+
+### DATA-014 — Silent system adjustments: writers could persist NULL/blank adjustment descriptions (prevented at the DB level)
+
+- **Category:** DATA  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-05, 26th session — T-165, migration 0069 live)
+- **Repositories:** AgentGithubUplaod (backend schema)
+- **Platforms affected:** all (any writer of `ledger_entries` adjustment/reversal rows)
+- **Task:** T-165
+- **Description:** the "No-Mystery-Numbers" rule (every adjustment must state its reason, author, timestamp) was a convention only — nothing stopped an automated writer (Excel re-import, migration script, refund compensation) from inserting `adjustment` rows with a NULL or blank description, producing the "+50 000 / −71 000 with no reason" class of owner-visible mystery rows. The 26th session found 0 such rows live (690/690 documented) but the door was open.
+- **Resolution:** migration 0069 — CHECK constraint `ledger_entries_adjustment_description_guard` (description IS NOT NULL AND length(btrim(description)) >= 3 for adjustment/reversal types), added NOT VALID then VALIDATED online; applied live atomically with its file.
+- **Verification:** BEGIN…ROLLBACK probes (blank insert → 23514 rejected; documented insert → accepted); live `convalidated = true`, 0 violating rows; post-migration chain 66 files / append-only guard OK.
+- **Left:** legacy readers render blank-reason rows with the shared diagnostic label via `describeAdjustment` (all three platforms) — no historical row needs rewriting.
+
+### REG-003 — An unregistered AI patch (junk-named commits) shipped 8 broken tests, a weakened CSP and an architecture violation onto main
+
+- **Category:** REG (process regression)  |  **Severity:** High  |  **Status:** TESTED (2026-09-05, 26th session — T-164 repairs)
+- **Repositories:** AgentGithubUplaod
+- **Platforms affected:** desktop
+- **Task:** T-164
+- **Description:** the 5-commit run `ef86b09..8644719` ("it jsut happen", "mid", "k", "o", "jjj" + a final essay-message commit) rewrote `parent-detail-drawer.tsx` (+981 lines), `supabase-notification-repository.ts` (full rewrite), `index.html` (CSP reformat DROPPING `frame-ancestors 'none'`), `auth-provider.tsx` and others with NO task ID, NO registry entry, NO change-log row and NO test updates. Consequences measured at the 26th-session open: 8 failing tests (7 notification-contract + 1 DESK-CSP-202 hardening), the T-145 activation-failure audit branch deleted, financial business logic (40/30/30 split + waterfall ignoring `amountPending`) embedded in a React presentation component — the exact DATA-008/DUP-001 defect class the architecture forbids.
+- **Resolution:** T-164 — notification repository + index.html restored verbatim from the 99bd956 baseline (both files re-verified green on a pre-patch worktree BEFORE attribution was claimed); the T-145 audit branch restored; the drawer logic extracted to `domain/calc/payment/billing-breakdown.ts`. The patch's legitimate UX (itemized breakdown, dual toggle, adjustment badges, academic-year context) was preserved and re-derived from canonical numbers.
+- **Verification:** 2302/2300-green full suite; csp-policy 4/4; supabase-repositories 22/22; lint 0 errors / 378 warnings (≤ baseline).
+- **Left:** AGENTS.md §15 already forbids every element of this class (no behavior change without tests, no unregistered work, one task per commit) — the lesson is now ALSO recorded here so the next session-opening ritual catches a red suite BEFORE building on top of it (this session found it only because the ritual ran the full suite first).

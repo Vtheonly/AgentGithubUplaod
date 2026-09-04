@@ -1432,3 +1432,41 @@ path for T-092.
 - **Verification:** zip integrity tested (`unzip -t` clean) + content spot-checks: `.git/` present in each repo zip, `node_modules`/`.gradle`/`build`/`.next`/Android real `.env` all absent (grep on the zip listings); the hub zip contains this commit (15 commits ahead of origin at packaging time).
 - **Notes:** Android `.env` (real keys) deliberately excluded from the zip — recreate from `.env.example` or the `scripts/android-env.sh` recipe before building. The systems zip carries the owner's own access token — keep private. Android and website repos are unchanged this session (their 22nd-session tasks were verification-only) — their zips are pristine snapshots for local rebuild, not pushes.
 - **Commit:** (hub repo — this commit).
+
+### 2026-09-05 — T-164 — Desktop canonical parent billing breakdown + patch hardening
+
+- **Problems:** DATA-013 (new), REG-003 (new), DESK-CSP-202 regression, DATA-008 class
+- **What changed:** `SupabaseDebtRepository.refreshProfile` fixed at the root (full-column ledger select + REAL installments query — the hollow-profile contract that produced "Aucune tranche", blank adjustment reasons and "Auteur: system" in Supabase mode); new canonical module `domain/calc/payment/billing-breakdown.ts` (pure: itemized per-child charges, per-service totals, real-tranche coverage, INV-4 remaining, display-only 40/30/30 synthesis with residual-pool double-count guard, adjustment diagnostics); `parent-detail-drawer.tsx` FinancesTab refactored to consume it + `repos.installments.observeByParent` (same stream as the payment modal); `index.html` CSP `frame-ancestors 'none'` restored; `supabase-notification-repository.ts` restored to the 99bd956 implementation; T-145 activation-failure audit branch restored.
+- **Why:** the owner asked for a full safety review of an unregistered AI patch. Live audit proved the patch's "missing DB tranches" diagnosis false (1 276 rows exist; the repository layer never shipped them) and the patch itself carried 8 test failures + a weakened CSP + architecture violations.
+- **Affected:** desktop drawer/payment surfaces, debt-profile contract consumers.
+- **Tests:** FULL suite 83 files / 2302 passed + 5 skipped / 0 failures (session open: 8 failures — all attributed to the patch via a pre-patch baseline worktree); NEW `billing-breakdown.test.ts` 16/16 (owner vector: 285 000 → 114 000/85 500/85 500, 125 000 paid → T1 paid, T2 74 500 remaining, Σ 160 000); typecheck clean; lint 0 errors / 378 warnings (baseline 379).
+- **Verification:** baseline-worktree attribution (99bd956 green on both previously-failing files → regressions proven pre-existing from the patch); live DB read-only audit queries archived in `scripts/db-audit*.sh` (hkvkefubghbbotgnteir).
+- **Commit:** (this session's hub commit hash)
+- **Notes:** the patch's UX direction (itemization, dual toggle, badges) was PRESERVED and re-derived canonically — this was a re-integration, not a revert.
+
+### 2026-09-05 — T-165 — Migration 0069: adjustment description guard (live)
+
+- **Problems:** DATA-014 (new)
+- **What changed:** `supabase/migrations/0069_adjustment_description_guard.sql` — CHECK constraint on `ledger_entries` (adjustment/reversal must carry a description ≥ 3 chars), NOT VALID → VALIDATE online pattern, name-guarded idempotent.
+- **Why:** the No-Mystery-Numbers rule was convention-only; silent system adjustments were possible from any automated writer.
+- **Tests:** BEGIN…ROLLBACK probes (blank → 23514 rejected; documented → accepted); append-only chain guard OK (66 files).
+- **Verification:** applied live with the owner's token: `convalidated = true`, 0 violating rows before and after; pre-audit proved 690/690 adjustment rows already documented (no backfill needed — the patch's backfill plan was based on a false diagnosis).
+- **Commit:** (this session's hub commit hash)
+
+### 2026-09-05 — T-166 — Website Facturation tab (parity)
+
+- **Problems:** cross-platform parity gap
+- **What changed:** `src/lib/canonical/billing-breakdown.ts` (read-side port: per-child itemization, per-service totals, real-tranche coverage, INV-4, `describeAdjustment`, canonical FR labels); FinancialView 5th tab "Facturation" with Par enfant / Par service toggle; AdjustmentsTab diagnostics; i18n FR/AR/EN; T-057 port-honesty registry declares the 2 new canonical files.
+- **Why:** parents must see the same breakdown staff sees (single source of truth), without porting the pricing/waterfall engine (ADR-002).
+- **Tests:** 27 files / 468 passed (was 26/457); +11 parity vectors (incl. "portal never synthesizes" pin).
+- **Verification:** eslint clean on changed files; tsc clean on changed files.
+- **Commit:** (website commit hash)
+
+### 2026-09-05 — T-167 — Android billing breakdown mirror
+
+- **Problems:** cross-platform parity gap
+- **What changed:** `core/BillingBreakdown.kt` (canonical mirror, centimes, same invariants incl. residual-pool guard); `ParentDetailViewModel` derives `billingBreakdown` from the ledger/children/installments/payments streams; `ParentDetailScreen` "Prestations facturées" card with per-child items + tranche coverage + synthetic warning.
+- **Why:** cashier/manager terminal must show the same numbers as the desktop drawer and the parent portal.
+- **Tests:** `BillingBreakdownTest` 11/11 (same vectors); FULL unit suite 46 classes / 388 tests / 0 failures.
+- **Verification:** `:app:compileDebugKotlin` BUILD SUCCESSFUL (JDK 21.0.12.1 + SDK 35 re-provisioned per the T-159 recipe).
+- **Commit:** (Android commit hash)
