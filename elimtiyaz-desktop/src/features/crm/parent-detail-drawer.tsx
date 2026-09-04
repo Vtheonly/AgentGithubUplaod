@@ -4,9 +4,11 @@
  * Plan §04.05: 3 sections — Identity / Children / Finances.
  * The Finances section embeds:
  *   1. Balance Cards (Total Dû, Payé, Reste / Crédit parent).
- *   2. Itemized Shopping List / Prestations Facturées:
- *      Full breakdown of what the Total Dû covers, with a toggle
- *      between "Vue par Enfant" and "Vue Consolidée par Service".
+ *   2. Itemized Shopping List & Allocation ("Ce que couvre le montant dû" & "Où sont allés les paiements"):
+ *      - Academic Year & Class placement per child
+ *      - Sticker Price / Prestation breakdown
+ *      - Waterfall tranche allocation (shows exactly which tranches the payments covered)
+ *      - Toggle between "Par Enfant" and "Par Service / Total"
  *   3. Installment schedule (Tranches).
  *   4. Recent payments list with breakdown.
  *   5. Explicit Adjustments History with clear context, badges, and diagnostic notes.
@@ -30,6 +32,10 @@ import {
   Layers,
   HelpCircle,
   Sparkles,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  BookOpen,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -65,6 +71,7 @@ import {
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import { deterministicActivationCode } from "../../core/format/id";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
+import { splitNetTuitionByOfficialSchedule } from "../../domain/calc/pricing";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { ActivationCodeModal } from "./activation-code-modal";
 import { EditParentModal } from "./edit-parent-modal";
@@ -75,7 +82,7 @@ import {
   type Parent,
   type TransportDestination,
 } from "../../domain/model/parent";
-import type { Student } from "../../domain/model/student";
+import { GRADE_LEVEL_LABELS_FR, type Student } from "../../domain/model/student";
 import type { LedgerEntry } from "../../domain/model/ledger";
 import { Permission } from "../../core/rbac/permissions";
 import { cn } from "../../shared/ui/cn";
@@ -97,6 +104,7 @@ export function ParentDetailDrawer({
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
+
   const parent = useObservable(
     () => repos.parents.observeById(parentId ?? ""),
     [parentId],
@@ -118,6 +126,7 @@ export function ParentDetailDrawer({
     [parentId],
   );
   const classes = useObservable(() => repos.classes.observe(), []);
+  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
 
   const [collectOpen, setCollectOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -212,7 +221,6 @@ export function ParentDetailDrawer({
       label: "Identité",
       content: () => (
         <div className="space-y-4 text-sm">
-          {/* Contact & Personal Info Card */}
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <SectionTitle icon={<UserIcon className="h-3.5 w-3.5" />}>
@@ -237,7 +245,6 @@ export function ParentDetailDrawer({
               <Detail label="Adresse" value={p.address ?? "—"} className="col-span-2" />
             </div>
 
-            {/* Direct Communication Actions */}
             <div className="pt-2 border-t border-border/60 flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -273,7 +280,6 @@ export function ParentDetailDrawer({
             </div>
           </div>
 
-          {/* Portal Access & Security Card */}
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <SectionTitle icon={<KeyRound className="h-3.5 w-3.5" />}>
               Portail Parents & Sécurité
@@ -358,7 +364,7 @@ export function ParentDetailDrawer({
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <Badge variant="outline" className="text-[10px]">
-                        {levelLabel(s.level)} · An. {s.gradeYear}
+                        {s.gradeLevel ? (GRADE_LEVEL_LABELS_FR[s.gradeLevel] ?? s.gradeLevel) : levelLabel(s.level)}
                       </Badge>
                       {klass && (
                         <span className="text-[10px] text-muted-foreground">
@@ -390,6 +396,8 @@ export function ParentDetailDrawer({
           payments={payments}
           students={students}
           ledgerEntries={ledgerEntries}
+          classes={classes}
+          academicYears={academicYears}
           canAdjust={canAdjust}
           onAdjust={() => setAdjustOpen(true)}
           onDownloadStatement={() => void handleDownloadStatement(p)}
@@ -398,7 +406,6 @@ export function ParentDetailDrawer({
     },
   ];
 
-  // === Footer Actions ===
   const actions = (): readonly EntityDrawerAction<Parent>[] => {
     const list: EntityDrawerAction<Parent>[] = [];
 
@@ -502,7 +509,7 @@ export function ParentDetailDrawer({
 }
 
 // ============================================================
-// FinancesTab — Balance cards + Itemized Shopping List + Tranches + Adjustments
+// FinancesTab — Balance cards + Itemized Shopping List + Settlement Waterfall
 // ============================================================
 
 function FinancesTab({
@@ -513,6 +520,8 @@ function FinancesTab({
   payments,
   students,
   ledgerEntries,
+  classes,
+  academicYears,
   canAdjust,
   onAdjust,
   onDownloadStatement,
@@ -524,6 +533,8 @@ function FinancesTab({
   payments: readonly Payment[];
   students: readonly Student[];
   ledgerEntries: readonly LedgerEntry[];
+  classes: readonly import("../../domain/model/academic").AcademicClass[];
+  academicYears: readonly import("../../domain/model/academic").AcademicYear[];
   canAdjust: boolean;
   onAdjust: () => void;
   onDownloadStatement: () => void;
@@ -536,60 +547,111 @@ function FinancesTab({
     [ledgerEntries],
   );
 
-  // Group charges by child
-  const chargesByChild = useMemo(() => {
-    const map = new Map<string, { student: Student; charges: LedgerEntry[]; total: number }>();
-    for (const s of students) {
-      map.set(s.id, { student: s, charges: [], total: 0 });
-    }
-
-    const unassigned: LedgerEntry[] = [];
-    let unassignedTotal = 0;
-
-    for (const c of chargeEntries) {
-      if (c.studentId && map.has(c.studentId)) {
-        const item = map.get(c.studentId)!;
-        item.charges.push(c);
-        item.total += c.amount;
-      } else {
-        unassigned.push(c);
-        unassignedTotal += c.amount;
-      }
-    }
-
-    return {
-      children: Array.from(map.values()),
-      unassigned,
-      unassignedTotal,
-    };
-  }, [students, chargeEntries]);
-
-  // Group charges by service category
-  const chargesByCategory = useMemo(() => {
-    const map = new Map<string, { category: PaymentCategory; label: string; total: number; count: number }>();
-    for (const c of chargeEntries) {
-      const cat = c.category;
-      const existing = map.get(cat);
-      if (existing) {
-        existing.total += c.amount;
-        existing.count += 1;
-      } else {
-        map.set(cat, {
-          category: cat,
-          label: PAYMENT_CATEGORY_LABELS_FR[cat] ?? cat,
-          total: c.amount,
-          count: 1,
-        });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [chargeEntries]);
-
-  // Sum of all charge entries
-  const totalBilledCharges = useMemo(
-    () => chargeEntries.reduce((acc, c) => acc + c.amount, 0),
-    [chargeEntries],
+  // Total paid by this family
+  const totalPaidAmount = useMemo(
+    () => payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0),
+    [payments],
   );
+
+  // Total billed charges
+  const totalBilled = useMemo(() => {
+    const raw = chargeEntries.reduce((acc, c) => acc + c.amount, 0);
+    return raw > 0 ? raw : (profile?.totalDue ?? 0);
+  }, [chargeEntries, profile]);
+
+  // Current or relevant academic year
+  const resolvedAcademicYear = useMemo(() => {
+    // 1. From first charge metadata or description
+    for (const c of chargeEntries) {
+      if (c.metadata?.academicYear) return String(c.metadata.academicYear);
+      const match = c.description?.match(/20\d{2}[-/]20\d{2}/);
+      if (match) return match[0];
+    }
+    // 2. From assigned student class
+    for (const s of students) {
+      if (s.classId) {
+        const cls = classes.find((c) => c.id === s.classId);
+        if (cls?.academicYear) return cls.academicYear;
+      }
+    }
+    // 3. From current system year
+    const curr = academicYears.find((y) => y.isCurrent && !y.isArchived);
+    return curr?.code ?? "2025-2026";
+  }, [chargeEntries, students, classes, academicYears]);
+
+  // Group charges & analyze per child
+  const childBreakdowns = useMemo(() => {
+    let poolOfPaid = totalPaidAmount;
+
+    return students.map((student) => {
+      // Find charges specifically for this child
+      let childCharges = chargeEntries.filter((c) => c.studentId === student.id);
+      
+      // If no explicit studentId on charges, but only 1 child exists in family, attribute family charges
+      if (childCharges.length === 0 && students.length === 1 && chargeEntries.length > 0) {
+        childCharges = chargeEntries;
+      }
+
+      const assignedClass = classes.find((c) => c.id === student.classId);
+      const gradeLabel = student.gradeLevel ? (GRADE_LEVEL_LABELS_FR[student.gradeLevel] ?? student.gradeLevel) : levelLabel(student.level);
+      
+      // Total amount for this child
+      const childTotal = childCharges.length > 0
+        ? childCharges.reduce((s, c) => s + c.amount, 0)
+        : (students.length === 1 ? totalBilled : Math.round(totalBilled / Math.max(1, students.length)));
+
+      // 3 Tranches calculation (40% / 30% / 30% official split)
+      const trancheSplits = splitNetTuitionByOfficialSchedule(childTotal);
+      const tranches = [
+        { label: "Tranche 1 (Rentrée — 40%)", amount: trancheSplits[0], dueWindow: "Septembre" },
+        { label: "Tranche 2 (Hiver — 30%)", amount: trancheSplits[1], dueWindow: "Décembre" },
+        { label: "Tranche 3 (Printemps — 30%)", amount: trancheSplits[2], dueWindow: "Mars" },
+      ];
+
+      // Waterfall allocation: how much of poolOfPaid goes to this child's tranches?
+      const tranchesWithCoverage = tranches.map((t) => {
+        const allocated = Math.min(poolOfPaid, t.amount);
+        poolOfPaid = Math.max(0, poolOfPaid - allocated);
+        const remaining = Math.max(0, t.amount - allocated);
+        const isFullyPaid = remaining === 0;
+        return {
+          ...t,
+          paid: allocated,
+          remaining,
+          isFullyPaid,
+          coveragePct: Math.round((allocated / t.amount) * 100),
+        };
+      });
+
+      return {
+        student,
+        gradeLabel,
+        className: assignedClass?.name ?? "Non assignée",
+        childTotal,
+        charges: childCharges,
+        tranches: tranchesWithCoverage,
+      };
+    });
+  }, [students, chargeEntries, totalBilled, classes, totalPaidAmount]);
+
+  // Consolidated service categories
+  const servicesSummary = useMemo(() => {
+    const map = new Map<string, { label: string; amount: number; count: number }>();
+
+    if (chargeEntries.length > 0) {
+      for (const c of chargeEntries) {
+        const label = PAYMENT_CATEGORY_LABELS_FR[c.category] ?? "Scolarité";
+        const ex = map.get(label) ?? { label, amount: 0, count: 0 };
+        ex.amount += c.amount;
+        ex.count += 1;
+        map.set(label, ex);
+      }
+    } else {
+      map.set("Scolarité", { label: "Scolarité Annuelle", amount: totalBilled, count: students.length });
+    }
+
+    return Array.from(map.values());
+  }, [chargeEntries, totalBilled, students.length]);
 
   return (
     <div className="space-y-4 text-sm">
@@ -621,8 +683,8 @@ function FinancesTab({
 
       {/* Balance Cards */}
       <div className="grid grid-cols-3 gap-2">
-        <BalanceCard label="Total Dû" value={profile?.totalDue ?? totalBilledCharges} tone="default" />
-        <BalanceCard label="Payé" value={profile?.totalPaid ?? 0} tone="success" />
+        <BalanceCard label="Total Dû" value={totalBilled} tone="default" />
+        <BalanceCard label="Payé" value={profile?.totalPaid ?? totalPaidAmount} tone="success" />
         {outstanding < 0 ? (
           <BalanceCard
             label="Crédit parent"
@@ -644,15 +706,25 @@ function FinancesTab({
       )}
 
       {/* ============================================================ */}
-      {/* SECTION: Itemized Shopping List / Ce que couvre le Total Dû */}
+      {/* SECTION: Itemized Shopping List, Sticker Price & Allocation */}
       {/* ============================================================ */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <div className="border-b border-border px-3 py-2.5 bg-muted/30 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-4 w-4 text-primary" />
-            <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
-              Détail des Prestations Facturées
-            </p>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                Décomposition du Prix & Affectation des Paiements
+              </p>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                <span className="flex items-center gap-1 text-primary font-medium">
+                  <Calendar className="h-3 w-3" />
+                  Année Scolaire {resolvedAcademicYear}
+                </span>
+                <span>·</span>
+                <span>{students.length} enfant(s) inscrit(s)</span>
+              </div>
+            </div>
           </div>
           {/* Dual Toggle View */}
           <div className="flex items-center rounded-md border border-border bg-background p-0.5 text-xs">
@@ -683,101 +755,114 @@ function FinancesTab({
           </div>
         </div>
 
-        <div className="p-3">
-          {chargeEntries.length === 0 ? (
-            <div className="text-center py-4 space-y-1.5 text-xs text-muted-foreground">
-              <p>Aucune ligne de facturation détaillée trouvée dans le journal.</p>
-              <p className="italic text-[11px]">
-                Le montant total dû ({formatDzd(profile?.totalDue ?? 0)}) est calculé sur la base de la fiche d'inscription initiale ou de dettes antérieures.
-              </p>
-            </div>
-          ) : breakdownMode === "by_child" ? (
-            /* VIEW 1: Per Child Breakdown */
-            <div className="space-y-3">
-              {chargesByChild.children.map(({ student, charges, total }) => (
-                <div key={student.id} className="rounded-md border border-border/80 bg-surface-panel/30 p-2.5 space-y-2">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground text-xs">
+        <div className="p-3 space-y-4">
+          {breakdownMode === "by_child" ? (
+            /* VIEW 1: Per Child Breakdown with Tranche Coverage */
+            <div className="space-y-4">
+              {childBreakdowns.map(({ student, gradeLabel, className, childTotal, charges, tranches }) => (
+                <div key={student.id} className="rounded-lg border border-border bg-surface-panel/30 p-3 space-y-3">
+                  {/* Child Header */}
+                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 font-bold text-foreground text-sm">
+                        <BookOpen className="h-4 w-4 text-primary" />
                         {student.firstName} {student.lastName}
-                      </span>
-                      <Badge variant="outline" className="text-[10px] font-mono">
-                        {student.gradeLevel?.toUpperCase() ?? levelLabel(student.level)}
+                      </div>
+                      <Badge variant="outline" className="text-[10px] font-medium bg-primary/5 text-primary border-primary/20">
+                        {gradeLabel}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px] font-normal">
+                        Classe : {className}
                       </Badge>
                     </div>
-                    <span className="font-mono font-bold text-xs text-primary">
-                      {formatDzdPlain(total)}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase text-muted-foreground block">Prix Total Engagé</span>
+                      <span className="font-mono font-bold text-sm text-foreground">
+                        {formatDzd(childTotal)}
+                      </span>
+                    </div>
                   </div>
-                  {charges.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground italic pl-2">Aucune prestation individualisée.</p>
-                  ) : (
-                    <ul className="divide-y divide-border/40 text-xs">
-                      {charges.map((c) => (
-                        <li key={c.id} className="py-1.5 flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-foreground text-[11px] font-medium">
-                              {c.description}
-                            </p>
-                            <span className="text-[10px] text-muted-foreground">
-                              {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}
+
+                  {/* Sticker Price / Purchased items */}
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                      Articles & Prestations Souscrites
+                    </p>
+                    {charges.length > 0 ? (
+                      <ul className="divide-y divide-border/40 text-xs bg-muted/20 rounded p-2 border border-border/40">
+                        {charges.map((c) => (
+                          <li key={c.id} className="py-1 flex items-center justify-between gap-2">
+                            <span className="text-foreground">{c.description}</span>
+                            <span className="font-mono font-medium">{formatDzdPlain(c.amount)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-xs bg-muted/20 rounded p-2 border border-border/40 flex items-center justify-between">
+                        <span>Scolarité annuelle complète ({gradeLabel})</span>
+                        <span className="font-mono font-medium">{formatDzdPlain(childTotal)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* WHERE THE MONEY WENT: Tranche Waterfall Allocation */}
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1">
+                      <span>Échéancier & Affectation des {formatDzd(totalPaidAmount)} payés :</span>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {tranches.map((t, idx) => (
+                        <div
+                          key={idx}
+                          className={cn(
+                            "rounded-md border p-2 text-xs space-y-1 transition-all",
+                            t.isFullyPaid
+                              ? "border-status-success/40 bg-status-success/5"
+                              : t.paid > 0
+                                ? "border-status-warning/40 bg-status-warning/5"
+                                : "border-border bg-card"
+                          )}
+                        >
+                          <div className="flex items-center justify-between font-medium">
+                            <span className="truncate">{t.label}</span>
+                            {t.isFullyPaid ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-status-success shrink-0" />
+                            ) : t.paid > 0 ? (
+                              <Clock className="h-3.5 w-3.5 text-status-warning shrink-0" />
+                            ) : (
+                              <span className="text-[10px] text-status-danger font-bold">Dû</span>
+                            )}
+                          </div>
+                          <div className="text-muted-foreground text-[10px]">
+                            Montant prévu : <strong className="text-foreground font-mono">{formatDzdPlain(t.amount)}</strong>
+                          </div>
+                          <div className="text-[10px] flex justify-between pt-0.5 border-t border-border/40">
+                            <span className="text-status-success">Payé : {formatDzdPlain(t.paid)}</span>
+                            <span className={t.remaining > 0 ? "text-status-danger font-bold font-mono" : "text-muted-foreground font-mono"}>
+                              Reste : {formatDzdPlain(t.remaining)}
                             </span>
                           </div>
-                          <span className="font-mono font-medium text-xs shrink-0">
-                            {formatDzdPlain(c.amount)}
-                          </span>
-                        </li>
+                        </div>
                       ))}
-                    </ul>
-                  )}
+                    </div>
+                  </div>
                 </div>
               ))}
-
-              {/* Shared or Unassigned family charges */}
-              {chargesByChild.unassigned.length > 0 && (
-                <div className="rounded-md border border-border/80 bg-surface-panel/30 p-2.5 space-y-2">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
-                    <span className="font-semibold text-foreground text-xs">
-                      Frais Communs & Dossier Famille
-                    </span>
-                    <span className="font-mono font-bold text-xs text-primary">
-                      {formatDzdPlain(chargesByChild.unassignedTotal)}
-                    </span>
-                  </div>
-                  <ul className="divide-y divide-border/40 text-xs">
-                    {chargesByChild.unassigned.map((c) => (
-                      <li key={c.id} className="py-1.5 flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-foreground text-[11px] font-medium">
-                            {c.description}
-                          </p>
-                          <span className="text-[10px] text-muted-foreground">
-                            {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}
-                          </span>
-                        </div>
-                        <span className="font-mono font-medium text-xs shrink-0">
-                          {formatDzdPlain(c.amount)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
           ) : (
-            /* VIEW 2: Consolidated By Service Category */
-            <div className="space-y-2">
-              <ul className="divide-y divide-border text-xs">
-                {chargesByCategory.map((cat) => (
-                  <li key={cat.category} className="py-2 flex items-center justify-between">
+            /* VIEW 2: Consolidated by Service */
+            <div className="space-y-3">
+              <ul className="divide-y divide-border text-xs bg-muted/20 rounded border border-border p-2">
+                {servicesSummary.map((s) => (
+                  <li key={s.label} className="py-2 flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-foreground">{cat.label}</p>
+                      <p className="font-semibold text-foreground text-sm">{s.label}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {cat.count} prestation{cat.count > 1 ? "s" : ""} inscrite{cat.count > 1 ? "s" : ""}
+                        {s.count} élément(s) rattaché(s) pour l'année {resolvedAcademicYear}
                       </p>
                     </div>
-                    <span className="font-mono font-bold text-sm">
-                      {formatDzdPlain(cat.total)}
+                    <span className="font-mono font-bold text-sm text-primary">
+                      {formatDzdPlain(s.amount)}
                     </span>
                   </li>
                 ))}
@@ -785,56 +870,22 @@ function FinancesTab({
             </div>
           )}
 
-          {/* Shopping list footer total */}
-          {chargeEntries.length > 0 && (
-            <div className="border-t border-border mt-3 pt-2 flex items-center justify-between text-xs font-semibold">
-              <span className="text-muted-foreground uppercase">Sous-total des prestations facturées :</span>
-              <span className="font-mono text-foreground font-bold">{formatDzd(totalBilledCharges)}</span>
+          {/* Mathematical Reconciliation Summary */}
+          <div className="border-t border-border pt-2.5 flex items-center justify-between text-xs flex-wrap gap-2 bg-muted/30 -mx-3 -mb-3 p-3 rounded-b-lg">
+            <div className="flex items-center gap-3 text-muted-foreground flex-wrap">
+              <span>Total Prévu : <strong className="text-foreground font-mono">{formatDzdPlain(totalBilled)}</strong></span>
+              <span>−</span>
+              <span>Total Encaissé : <strong className="text-status-success font-mono">− {formatDzdPlain(totalPaidAmount)}</strong></span>
             </div>
-          )}
+            <div className="flex items-center gap-1 font-bold">
+              <span className="text-muted-foreground uppercase text-[11px]">Reste Net :</span>
+              <span className="font-mono text-status-danger text-sm">{formatDzd(outstanding)}</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <Separator />
-
-      {/* Installments (Tranches) */}
-      <div className="rounded-md border border-border bg-card">
-        <div className="border-b border-border px-3 py-2 bg-muted/30">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Échéances / Tranches de Règlement
-          </p>
-        </div>
-        {profile && profile.installments.length > 0 ? (
-          <ul className="divide-y divide-border text-xs">
-            {profile.installments.map((i) => (
-              <li key={i.id} className="flex items-center gap-2 px-3 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium text-foreground">{i.label}</span>
-                  <span className="text-muted-foreground ml-2">
-                    {PAYMENT_CATEGORY_LABELS_FR[i.category]}
-                  </span>
-                </div>
-                <span className="font-mono">{formatDzdPlain(i.amountDue)}</span>
-                <span className="text-muted-foreground text-[11px]">→ {formatDate(i.dueDate)}</span>
-                <StatusChip
-                  label={PAYMENT_STATUS_LABELS_FR[i.status]}
-                  tone={
-                    i.status === "paid"
-                      ? "success"
-                      : i.status === "partial"
-                        ? "warning"
-                        : i.status === "overdue"
-                          ? "danger"
-                          : "neutral"
-                  }
-                />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="px-3 py-3 text-xs text-muted-foreground">Aucune tranche d'échéance générée.</p>
-        )}
-      </div>
 
       {/* Recent Payments */}
       <div className="rounded-md border border-border bg-card">
@@ -843,9 +894,9 @@ function FinancesTab({
             Paiements récents
           </p>
         </div>
-        {profile && profile.recentPayments.length > 0 ? (
+        {payments.length > 0 ? (
           <ul className="divide-y divide-border text-xs">
-            {profile.recentPayments.slice(0, 5).map((p) => (
+            {payments.slice(0, 5).map((p) => (
               <li key={p.id} className="flex items-center gap-2 px-3 py-2.5">
                 <code className="font-mono text-[10px] text-muted-foreground">{p.receiptNumber}</code>
                 <span className="text-muted-foreground">{PAYMENT_METHOD_LABELS_FR[p.method]}</span>
@@ -863,9 +914,7 @@ function FinancesTab({
         )}
       </div>
 
-      {/* ============================================================ */}
-      {/* SECTION: Explicit Adjustments History (Transparency)         */}
-      {/* ============================================================ */}
+      {/* Adjustments Section */}
       <div className="rounded-md border border-border bg-card">
         <div className="border-b border-border px-3 py-2 bg-muted/30 flex items-center justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
@@ -878,17 +927,16 @@ function FinancesTab({
           </div>
         </div>
 
-        {/* Diagnostic Explanation Banner */}
         <div className="p-3 bg-muted/15 border-b border-border/60 text-[11px] text-muted-foreground space-y-1">
           <p className="flex items-center gap-1.5 font-medium text-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             Comprendre ces montants :
           </p>
           <p>
-            • <strong className="text-status-success font-mono">− En vert (Négatif) :</strong> Remise, déduction ou crédit parent qui <u>diminue</u> ce que doit la famille.
+            • <strong className="text-status-success font-mono">− En vert (Négatif) :</strong> Remise ou déduction qui <u>diminue</u> ce que doit la famille.
           </p>
           <p>
-            • <strong className="text-status-danger font-mono">+ En rouge (Positif) :</strong> Majoration, pénalité, ou <u>annulation/contrepassation</u> d'une remise précédente (ce qui <u>rajoute</u> de la dette).
+            • <strong className="text-status-danger font-mono">+ En rouge (Positif) :</strong> Majoration, ou <u>annulation d'une remise précédente</u> (qui <u>rajoute</u> de la dette).
           </p>
         </div>
 
@@ -897,8 +945,6 @@ function FinancesTab({
             {profile.adjustments.map((a) => {
               const isCredit = a.amount < 0;
               const cleanReason = a.reason && a.reason.trim().length > 0 ? a.reason : null;
-
-              // Fallback diagnostic explanation when system created an empty-reason adjustment
               const diagnosticReason = cleanReason ?? (
                 isCredit
                   ? "Déduction / Remise enregistrée automatiquement par le système"
