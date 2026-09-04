@@ -30,13 +30,13 @@ export class SupabaseNotificationRepository implements NotificationRepository {
   private isSeeding = false;
 
   constructor(private readonly client: SupabaseClient) {
-    // If previous queries timed out in this session, stay on local cache to prevent server hangs
+    
     try {
       if (sessionStorage.getItem(SESSION_DISABLED_KEY) === "true") {
         this.remoteDisabled = true;
       }
     } catch {
-      /* ignore */
+     
     }
   }
 
@@ -48,7 +48,7 @@ export class SupabaseNotificationRepository implements NotificationRepository {
         if (s.tenantId) return s.tenantId;
       }
     } catch {
-      /* ignore */
+     
     }
     return "00000000-0000-0000-0000-000000000001";
   }
@@ -69,7 +69,7 @@ export class SupabaseNotificationRepository implements NotificationRepository {
 
     const tenantId = this.getTenantId();
     try {
-      // Abort controller with 2.5s timeout prevents hanging on Postgres statement timeouts
+      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2500);
 
@@ -123,7 +123,7 @@ export class SupabaseNotificationRepository implements NotificationRepository {
     try {
       sessionStorage.setItem(SESSION_DISABLED_KEY, "true");
     } catch {
-      /* ignore */
+     
     }
   }
 
@@ -170,7 +170,7 @@ export class SupabaseNotificationRepository implements NotificationRepository {
           .update({ is_read: true, read_at: now, updated_at: now })
           .eq("id", id);
       } catch {
-        /* ignore */
+       
       }
     }
     return Ok(undefined);
@@ -190,7 +190,7 @@ export class SupabaseNotificationRepository implements NotificationRepository {
           .eq("tenant_id", tenantId)
           .eq("is_read", false);
       } catch {
-        /* ignore */
+       
       }
     }
     return Ok(undefined);
@@ -210,7 +210,7 @@ export class SupabaseNotificationRepository implements NotificationRepository {
       try {
         await this.client.from("notifications").delete().eq("id", id);
       } catch {
-        /* ignore */
+       
       }
     }
     return Ok(undefined);
