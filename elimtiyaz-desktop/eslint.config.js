@@ -65,32 +65,44 @@ export default tseslint.config(
 
       // --------------------------------------------------------------
       // Documented baselines (T-078 triage — full evidence in
-      // docs/recovery/change-log.md, 2026-08-29 T-078 entry).
+      // docs/recovery/change-log.md, 2026-08-29 T-078 entry;
+      // T-158 update 2026-09-04 — see the 25th-session change-log).
       // First run over src/ + electron/ + scripts/: 312 problems
       // (5 errors — FIXED in T-078 — and 307 warnings), distributed:
       //   no-unused-vars 202 · no-explicit-any 73 · no-empty-function 21
       //   react-hooks/exhaustive-deps 4 · no-empty-object-type 2
       //
+      // T-158 (2026-09-04): the 4 exhaustive-deps findings were reviewed
+      // and resolved in code (auth-provider useCallback refactor,
+      // sync-provider stale directive removed, worker-dashboard
+      // intentional clockTick trigger documented via `void`,
+      // page-tabs complex dep extracted). DISCOVERY: the total warning
+      // count had drifted 307 → 384 between the T-078 baseline and this
+      // session (no per-session lint-delta discipline existed); after
+      // T-158's fixes + adjacent dead-code removals the count stands at
+      // 379. The exhaustive-deps class is now ZERO — any new finding is
+      // a regression and must be fixed, not baselined.
+      //
       // @typescript-eslint/no-unused-vars → warn
-      //   202 pre-existing unused imports/vars (tsconfig deliberately
+      //   ~198 pre-existing unused imports/vars (tsconfig deliberately
       //   sets noUnusedLocals/noUnusedParameters false, so tsc never
-      //   caught them). Pure clean-up volume; not T-078 scope.
+      //   caught them). Pure clean-up volume; not T-158 scope.
       //
       // @typescript-eslint/no-explicit-any → warn
-      //   73 pre-existing `any`s across repository glue and test
+      //   ~73 pre-existing `any`s across repository glue and test
       //   doubles. Fixing them is type-engineering work with
-      //   regression risk far beyond T-078's scope; suppressed with
+      //   regression risk far beyond this scope; suppressed with
       //   eslint-disable it would be mass noise. Downgraded to warn so
       //   new code gets flagged and the gate stays honest.
       //
       // @typescript-eslint/no-empty-function / no-empty-object-type → warn
-      //   21 + 2 pre-existing UI/event-handler stubs and typed empty
+      //   ~21 + 2 pre-existing UI/event-handler stubs and typed empty
       //   interfaces (DTOs). Idiomatic here; no defect signal.
       //
       // react-hooks/exhaustive-deps → warn (rule-level, above)
-      //   4 pre-existing findings, incl. an unnecessary 'clockTick'
-      //   dependency in a dashboard useMemo — listed as follow-ups in
-      //   the T-078 change-log entry.
+      //   0 remaining since T-158 — the 4 pre-existing findings are
+      //   fixed in code. Keep the rule at warn only until the next
+      //   clean window; promoting to error is the intended follow-up.
       // --------------------------------------------------------------
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": "warn",

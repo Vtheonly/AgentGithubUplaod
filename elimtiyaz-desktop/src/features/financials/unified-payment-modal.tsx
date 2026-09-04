@@ -56,6 +56,7 @@ import {
 import type { Parent } from "../../domain/model/parent";
 import { allocatePaymentToInstallments } from "../../domain/calc/payment/waterfall-allocator";
 import { currentTrancheLabel } from "../../domain/calc/payment/queries";
+import { displayParentCredit } from "../../domain/calc/ledger/balance";
 import { PaymentSlider, type PaymentTrancheSpec, type PaymentSliderMode } from "./payment-slider";
 import { DebtMeter } from "./debt-meter";
 import { generatePaymentReceiptPdf } from "../../infrastructure/receipt-pdf/payment-receipt";
@@ -155,6 +156,25 @@ export function UnifiedPaymentModal({
   const installments = useObservable(
     () => repos.installments.observeByParent(effectiveParentId ?? ""),
     [effectiveParentId],
+  );
+  // T-157 (ADR-010 residual): the debt meter's "Crédit parent disponible" row
+  // was dormant — the `unallocatedCredit` prop was never passed at this call
+  // site (ADR-010's implementation-map note). Wire it through the canonical
+  // DISPLAY derivation: the raw ledger balance double-counts the credit for
+  // canonical-path overpayments (DATA-009), so the value handed to the meter
+  // MUST be `displayParentCredit(totalOutstanding, totalUnallocatedCredit)` —
+  // never `-balance` or the raw unallocated Σ.
+  const debtProfile = useObservable(
+    () => repos.debt.observeParentProfile(effectiveParentId ?? ""),
+    [effectiveParentId],
+  );
+  const bankedCredit = useMemo(
+    () =>
+      displayParentCredit(
+        debtProfile?.totalOutstanding ?? 0,
+        debtProfile?.totalUnallocatedCredit ?? 0,
+      ),
+    [debtProfile],
   );
 
   // === Reset on close ===
@@ -743,6 +763,7 @@ export function UnifiedPaymentModal({
               alreadyPaid={alreadyPaid}
               payingNow={amount}
               currentTrancheLabel={focusedTrancheLabel}
+              unallocatedCredit={bankedCredit}
               statusNote={
                 allocationPreview && allocationPreview.allocations.length > 0
                   ? `Sera alloué à ${allocationPreview.allocations.length} tranche(s) — waterfall chronologique.`

@@ -79,4 +79,32 @@ describe("displayParentCredit — ADR-010 display derivation (T-104)", () => {
       expect(src).toContain("totalUnallocatedCredit: summary.totalUnallocatedCredit");
     }
   });
+
+  // T-157 — ADR-010's implementation-map noted the debt-meter's
+  // `unallocatedCredit` prop was dormant (never passed) at the unified
+  // payment modal. The wiring landed with the ADR-010 derivation — this
+  // guard pins it so a future edit cannot silently revert to a raw
+  // balance/unallocated value.
+  it("unified payment modal wires the debt meter through the ADR-010 derivation (source-scan guard)", () => {
+    const modal = readFileSync(
+      join(__dirname, "../../../features/financials/unified-payment-modal.tsx"),
+      "utf8",
+    );
+    expect(modal).toContain('import { displayParentCredit } from "../../domain/calc/ledger/balance"');
+    expect(modal).toContain("unallocatedCredit={bankedCredit}");
+    expect(modal).toContain("debtProfile?.totalOutstanding ?? 0");
+    expect(modal).toContain("debtProfile?.totalUnallocatedCredit ?? 0");
+    // The dormant-era default (prop absent) must not come back: the meter
+    // call site must carry the derived prop explicitly.
+    expect(modal).toMatch(/<DebtMeter\s[\s\S]*?unallocatedCredit=\{bankedCredit\}/);
+  });
+
+  it("debt-meter documents the ADR-010 magnitude contract (source-scan guard)", () => {
+    const meter = readFileSync(
+      join(__dirname, "../../../features/financials/debt-meter.tsx"),
+      "utf8",
+    );
+    expect(meter).toContain("ADR-010 display derivation");
+    expect(meter).toContain("MAGNITUDE (always >= 0; 0 hides the row)");
+  });
 });

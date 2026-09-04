@@ -40,10 +40,6 @@ import {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-const REQUEST_TONE = {
-  pending: "warning", approved: "success", rejected: "danger", cancelled: "neutral",
-} as const;
-
 const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
   pending: "neutral",
   assigned: "info",
@@ -119,7 +115,14 @@ export function WorkerDashboard() {
 
   const today = todayIso();
   const latestEvent = useMemo(
-    () => repos.workforceAttendance.latestFor(personnelId, today),
+    () => {
+      // `clockTick` is an intentional recompute trigger, not a data
+      // dependency: it increments after every clock punch so this read
+      // re-runs even though its inputs (repos/personnelId/today) are
+      // unchanged. `void` keeps the reference lint-visible.
+      void clockTick;
+      return repos.workforceAttendance.latestFor(personnelId, today);
+    },
     [repos.workforceAttendance, personnelId, today, clockTick],
   );
   const clockState = clockStateFromEvent(latestEvent?.eventType ?? null);

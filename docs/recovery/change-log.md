@@ -20,6 +20,16 @@
 
 ## Entries
 
+### 2026-09-04 — T-160 — T-047 scoping investigation (agent-side half) — scoping doc delivered
+- **Problem IDs:** ARCH-001 (status note added; entry remains OPEN until ports land)
+- **What changed:** NEW `docs/architecture/t-047-repository-migration-scoping.md`. Fresh code-verified inventory of `getSupabaseRepositories()`: 24 slots Supabase-backed, **23 of 45 remain mock-backed** (audit's "26" is stale — T-080/T-093/T-099 closed three). KEY FINDING: the canonical chain already declares tables for **19 of the 23** (releve, pricing, workflows, workflowRuns, aiConfig, backups, shifts, schedules, tasks, workforceAttendance, leaveRequests, performanceReviews, onboarding, suppliers, purchaseRequests, deliveries, inventory, warehouseTasks→`pending_receipts`/`pending_dispatches`, calendar) → adapter work only, no schema. **teachers** needs a modeling ADR (personnel-role view vs table); **clubs/psychology/orthophonie** have no schema and are the only real product decisions. Verified cross-platform drift: the website reads `calendar_events` while desktop's calendar slot is mock; Android pull-syncs `workflow_runs` while desktop's workflow slots are mock. Port order recommended: calendar → workflows(+runs) → tasks/workforceAttendance/leaveRequests → pricing → rest.
+- **Why:** T-047 was blocked on "needs product scoping per module"; this reduces the owner decision to exactly 3 tabs + 1 ADR and unblocks the 19 adapter ports without owner input.
+- **Affected components:** docs only (no code). Registries: task-registry T-047 entry re-based (Needs Investigation → scoping delivered), problem-registry ARCH-001 status note.
+- **Tests:** not applicable (investigation task). Evidence method: slot-by-slot `rg` over desktop `src/` (call sites), `CREATE TABLE` extraction over `supabase/migrations/0001–0068`, Android `PullSyncRepository.kt` table list, website `rg` for server-table reads.
+- **Verification:** counts re-derived from HEAD (hub 61fe19b tree), not from the audit snapshot; every classification carries its file-level evidence in the doc.
+- **Commit:** (this commit)
+- **Notes:** no repository code touched — the ports themselves remain open work for a future session/agent; recommend starting with calendar (smallest adapter, only slot with a live cross-platform consumer pair verified today).
+
 ### 2026-09-03 — TWENTY-FOURTH REPAIR SESSION (CLOSE) — Owner mandate: "fix the 3 owner-reported issues (activation / parent-admin messenger / parent-child names) + apply the migration tokens + verify everywhere + zip for push" — 10 tasks COMPLETE (T-145..T-154)
 
 - **Session-opening ritual:** live chain check **63/63 = 0001–0066, ZERO DRIFT** (fresh token) + live census: `activation_codes = 0`, `parents = 260`, `chat_channels = 0`, `auth_users = 3` (TWO new parent signups on 2026-09-03 — merselfaresw@gmail.com active+bound via approval, digitalforgedv@gmail.com pending; the owner is actively testing the portal). The three owner-reported issues were then diagnosed against the live DB + workbook BEFORE any fix was written (all root causes live-verified first).

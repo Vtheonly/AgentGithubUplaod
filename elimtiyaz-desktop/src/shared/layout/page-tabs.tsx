@@ -219,10 +219,16 @@ export const PageTabList = React.forwardRef<
   PageTabListProps
 >(({ className, variant, size, fullWidth = false, scrollable = false, ...props }, ref) => {
   const ctxVariant = React.useContext(VariantContext);
-  const ctxSize = React.useContext(SizeContext);
   const v = variant ?? ctxVariant;
-  const s = size ?? ctxSize;
+  // T-158: `size ?? ctxSize` was computed into `s` and never used (dead
+  // since the sliding-indicator rewrite). The dead `ctxSize` context read
+  // went with it. The `size` prop stays destructured so it keeps leaking
+  // into `...props` consumers rather than the DOM.
   const listRef = React.useRef<HTMLDivElement | null>(null);
+  // T-158: extracted from the effect's dependency array — the inline
+  // indexed access was a "complex expression" the hook rule could not
+  // statically verify.
+  const dataValue = props["data-value" as keyof typeof props];
 
   // Sliding indicator state — position + width of the active tab trigger.
   // Measured via useLayoutEffect whenever the active value changes.
@@ -262,7 +268,7 @@ export const PageTabList = React.forwardRef<
     Array.from(list.children).forEach((child) => ro.observe(child as HTMLElement));
 
     return () => ro.disconnect();
-  }, [v, props["data-value" as keyof typeof props]]);
+  }, [v, dataValue]);
 
   // Also re-measure whenever children change (controlled value changes).
   // We attach a MutationObserver as a safety net for late-mounted content.

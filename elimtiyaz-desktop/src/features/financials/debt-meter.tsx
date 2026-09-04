@@ -40,10 +40,15 @@ export interface DebtMeterProps {
   /** Optional note about which tranche will be completed/cleared. */
   statusNote?: string | null;
   /**
-   * Optional parent credit balance (always <= 0). When provided, displays
-   * a row showing the banked credit that will be auto-absorbed by future
-   * invoices. Positive numbers represent the magnitude (e.g. 5000 = 5,000 DA
-   * credit). Defaults to 0 (no credit).
+   * Optional parent's banked credit MAGNITUDE (always >= 0; 0 hides the row).
+   * T-157 (ADR-010 residual wiring): the value passed here MUST be the
+   * ADR-010 display derivation `displayParentCredit(totalOutstanding,
+   * totalUnallocatedCredit)` — the raw ledger balance double-counts the
+   * credit for canonical-path overpayments (DATA-009), and the raw
+   * unallocated Σ is wrong for 0062-era historical overpayers (no credit
+   * entries exist; the raw negative balance is exact there). Positive
+   * numbers represent the magnitude (e.g. 5000 = 5,000 DA credit).
+   * Defaults to 0 (no credit).
    */
   unallocatedCredit?: number;
 }

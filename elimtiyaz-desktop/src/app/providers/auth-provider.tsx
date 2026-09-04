@@ -15,7 +15,7 @@
  *     only AFTER the repository confirms the password actually changed
  *     (SEC-103, task T-003: the audit entry must never be forged).
  */
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "../../core/rbac/session";
 import { getSyncQueueStore } from "../../infrastructure/sync/sync-queue-store";
 import { isExpired } from "../../core/rbac/session";
@@ -81,22 +81,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session]);
 
-  async function signIn(email: string, password: string) {
-    setIsLoading(true);
-    try {
-      const result = await repos.auth.signIn(email, password);
-      if (result.ok) {
-        setSession(result.value);
-        persistSession(result.value);
-        return { ok: true as const };
+  // T-158: the four actions are wrapped in useCallback so the context value
+  // memo can list them as real dependencies (react-hooks/exhaustive-deps).
+  // `repos` is a module-stable context value in production, so the callback
+  // identities — and therefore the memo identity — still change exactly when
+  // `session`/`isLoading` change; the previous hand-written dep array
+  // ([session, isLoading]) silently captured stale `repos` if the provider
+  // value ever changed identity without a session change.
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      setIsLoading(true);
+      try {
+        const result = await repos.auth.signIn(email, password);
+        if (result.ok) {
+          setSession(result.value);
+          persistSession(result.value);
+          return { ok: true as const };
+        }
+        return { ok: false as const, error: result.error.userMessage };
+      } finally {
+        setIsLoading(false);
       }
-      return { ok: false as const, error: result.error.userMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    },
+    [repos],
+  );
 
-  async function signOut() {
+  const signOut = useCallback(async () => {
     await repos.auth.signOut();
     // SYNC-102: the sync queue is session-scoped. User A's pending entries
     // must NOT leak into user B's session on a shared desktop (their
@@ -111,19 +121,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     clearSession();
     setSession(null);
-  }
+  }, [repos]);
 
   // T-053 (TENANT-103) — see the interface doc comment.
-  function switchTenant(tenantId: string) {
-    if (!session || !tenantId) return;
-    const next: Session = { ...session, tenantId };
-    setSession(next);
-    persistSession(next);
-    // Repository caches hold per-tenant lists; a reload is the honest full
-    // invalidation (the alternative — a per-repository invalidation fan-out
-    // — is T-034's cache-refresh design work).
-    window.location.reload();
-  }
+  const switchTenant = useCallback(
+    (tenantId: string) => {
+      if (!session || !tenantId) return;
+      const next: Session = { ...session, tenantId };
+      setSession(next);
+      persistSession(next);
+      // Repository caches hold per-tenant lists; a reload is the honest full
+      // invalidation (the alternative — a per-repository invalidation fan-out
+      // — is T-034's cache-refresh design work).
+      window.location.reload();
+    },
+    [session],
+  );
 
   /**
    * Iteration 10 — change password (plan §12.04).
@@ -142,69 +155,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * repos.auth.changePassword — this provider must NEVER report success
    * (or write the audit entry) unless the repository confirms the change.
    */
-  async function changePassword(
-    currentPassword: string,
-    newPassword: string,
-  ): Promise<{ ok: true } | { ok: false; error: string }> {
-    if (!session) {
-      return { ok: false, error: "Aucune session active." };
-    }
-    // Strength check (plan §12.04 "Strong Entropy"): fail fast with a
-    // specific French message before hitting the repository.
-    if (newPassword.length < 8) {
-      return { ok: false, error: "Le nouveau mot de passe doit contenir au moins 8 caractères." };
-    }
-    if (!/[a-z]/.test(newPassword)) {
-      return { ok: false, error: "Le nouveau mot de passe doit contenir au moins une lettre minuscule." };
-    }
-    if (!/[A-Z]/.test(newPassword)) {
-      return { ok: false, error: "Le nouveau mot de passe doit contenir au moins une lettre majuscule." };
-    }
-    if (!/[0-9]/.test(newPassword)) {
-      return { ok: false, error: "Le nouveau mot de passe doit contenir au moins un chiffre." };
-    }
-    if (newPassword === currentPassword) {
-      return { ok: false, error: "Le nouveau mot de passe doit être différent de l'actuel." };
-    }
+  const changePassword = useCallback(
+    async (
+      currentPassword: string,
+      newPassword: string,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!session) {
+        return { ok: false, error: "Aucune session active." };
+      }
+      // Strength check (plan §12.04 "Strong Entropy"): fail fast with a
+      // specific French message before hitting the repository.
+      if (newPassword.length < 8) {
+        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins 8 caractères." };
+      }
+      if (!/[a-z]/.test(newPassword)) {
+        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins une lettre minuscule." };
+      }
+      if (!/[A-Z]/.test(newPassword)) {
+        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins une lettre majuscule." };
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins un chiffre." };
+      }
+      if (newPassword === currentPassword) {
+        return { ok: false, error: "Le nouveau mot de passe doit être différent de l'actuel." };
+      }
 
-    // SEC-103: delegate the real change (re-auth + auth.updateUser +
-    // global signOut) to the repository that owns it.
-    const result = await repos.auth.changePassword(currentPassword, newPassword);
-    if (!result.ok) {
-      // In this flow ERR_UNAUTHORIZED means the re-authentication with the
-      // current password failed — keep the specific French message this UI
-      // has always shown for that case.
-      const error =
-        result.error.code === "ERR_UNAUTHORIZED"
-          ? "Mot de passe actuel incorrect."
-          : result.error.userMessage;
-      return { ok: false, error };
-    }
+      // SEC-103: delegate the real change (re-auth + auth.updateUser +
+      // global signOut) to the repository that owns it.
+      const result = await repos.auth.changePassword(currentPassword, newPassword);
+      if (!result.ok) {
+        // In this flow ERR_UNAUTHORIZED means the re-authentication with the
+        // current password failed — keep the specific French message this UI
+        // has always shown for that case.
+        const error =
+          result.error.code === "ERR_UNAUTHORIZED"
+            ? "Mot de passe actuel incorrect."
+            : result.error.userMessage;
+        return { ok: false, error };
+      }
 
-    // The password REALLY changed — the audit entry is now truthful.
-    await repos.audit.log({
-      action: AuditActions.AuthPasswordChange,
-      entityType: "user",
-      entityId: session.userId,
-      actorId: session.userId,
-      actorName: session.displayName,
-      tenantId: session.tenantId,
-      diff: { before: { password: "***" }, after: { password: "***" } },
-      note: "Self-service password change — all sessions revoked (global signOut)",
-    });
+      // The password REALLY changed — the audit entry is now truthful.
+      await repos.audit.log({
+        action: AuditActions.AuthPasswordChange,
+        entityType: "user",
+        entityId: session.userId,
+        actorId: session.userId,
+        actorName: session.displayName,
+        tenantId: session.tenantId,
+        diff: { before: { password: "***" }, after: { password: "***" } },
+        note: "Self-service password change — all sessions revoked (global signOut)",
+      });
 
-    // The repository already revoked every server-side session; clear the
-    // local session so the user is sent back to the login screen.
-    clearSession();
-    setSession(null);
+      // The repository already revoked every server-side session; clear the
+      // local session so the user is sent back to the login screen.
+      clearSession();
+      setSession(null);
 
-    logger.info("Password changed; sessions revoked", { userId: session.userId });
-    return { ok: true as const };
-  }
+      logger.info("Password changed; sessions revoked", { userId: session.userId });
+      return { ok: true as const };
+    },
+    [repos, session],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({ session, isLoading, signIn, signOut, switchTenant, changePassword }),
-    [session, isLoading],
+    [session, isLoading, signIn, signOut, switchTenant, changePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -7,7 +7,9 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
-## Progress summary (2026-09-03, updated at the 24th repair session CLOSE — owner mandate "fix the 3 owner-reported issues (activation rejected as already-used / parent→admin-only messenger / children showing the parent's name) + apply the migration tokens + verify everywhere + zip": T-145..T-154 COMPLETE — activation round-trip live 19/19 (ADR-011, EF consolidated, phantom codes dead), migration 0067 parent→admin chat live 14/14 (ADR-012), migration 0068 parent-name repair live 11/11 (zero parents display a child's name); chain now 65/65 = 0001–0068 zero drift; suites: desktop 82 files / 2284, website 25 files / 457, EF fleet 14/14 ACTIVE — all green)
+## Progress summary (2026-09-04, updated at the 25th repair session CLOSE — mandate "keep going": continuation session run as one of ~10 concurrent agents on the shared repos; selected + executed the coordination-safe set T-155..T-163 — T-157 debt-meter ADR-010 wiring, T-158 exhaustive-deps 4→0 (lint baseline re-pinned 384→379), T-159 Android toolchain re-provision (+ the secrets-plugin ROOT-.env discovery), T-044 pass 3a the DS ElScrollableTabRow (additive prerequisite, 5 semantic tests, suite 45/377/0), T-160 the T-047 scoping doc (23 mock-backed slots; 19 need adapters only — canonical tables already exist; verified cross-platform drift: website reads calendar_events vs desktop mock calendar, Android pull-syncs workflow_runs vs desktop mock workflows), T-161 website full verification (26/457 + lint + strict build, zero drift), T-162/T-163 closeout; suites at close: desktop 82 files / 2286 +5s + typecheck + lint 0 err/379 warn, Android debug 45 files / 377 tests / 0 failures + lintDebug, website 26 files / 457 tests + lint + strict build — all green. No Supabase credentials this session → live chain check owner-token-gated; LOCAL chain integrity verified (65 files 0001–0068, no gaps/dups, append-only guard OK). No push credentials → commits on branch `session25-agent-work` in each repo; the zip-for-push handoff applies.)
+
+## Progress summary (2026-09-03, at the 24th repair session CLOSE — owner mandate "fix the 3 owner-reported issues (activation rejected as already-used / parent→admin-only messenger / children showing the parent's name) + apply the migration tokens + verify everywhere + zip": T-145..T-154 COMPLETE — activation round-trip live 19/19 (ADR-011, EF consolidated, phantom codes dead), migration 0067 parent→admin chat live 14/14 (ADR-012), migration 0068 parent-name repair live 11/11 (zero parents display a child's name); chain now 65/65 = 0001–0068 zero drift; suites: desktop 82 files / 2284, website 25 files / 457, EF fleet 14/14 ACTIVE — all green)
 
 | Status | Count | Tasks |
 |---|---|---|
@@ -20,8 +22,8 @@
 | **Blocked** | 10 | T-028, T-037, T-038, T-042, T-045, T-059, T-066, T-067, T-070, T-072 |
 | **Needs Investigation** | 1 | T-047 |
 | **Deferred** | 5 | T-073…T-077 |
-| **Needs owner decision** | 2 | T-086, T-087(done 9th) — T-085's financial-reconciliation core EXECUTED by T-103 (15th session, owner-authorized); only DATA-005 (first_name split) remains of T-085 |
-| **Not started (Android, toolchain-gated)** | 2 | T-020, T-082 — the 10th session re-confirmed the Android SDK is un-downloadable here (dl.google.com 404s commandlinetools) |
+| **Needs owner decision** | ~~2~~ **1** | T-086 — ~~"only DATA-005 (first_name split) remains of T-085"~~ **stale: DATA-005's backfill was EXECUTED** as migration 0066 (T-139, 22nd session — live-verified 6/6; 258/259 parents carry a populated first_name). T-087(done 9th) stays done. The only owner decision left in this row is the DATA-006 onboarding campaign itself (operational, not code). |
+| **Not started (Android, toolchain-gated)** | ~~2~~ **0** | ~~T-020, T-082~~ — **both COMPLETED** (T-020 TESTED 17th session — SyncErrorClassifier, requeue-transient/fail-fast-4xx; T-082 TESTED 18th session — desugaring enabled, lint gate restored, baseline committed). Row kept as a tombstone because the 24th session's summary still carried it stale; the toolchain-gating note applies to the *verification* of device-gated residuals only (T-159, 25th session, re-provisions the toolchain + recipe). |
 
 
 ### T-000 — Documentation reset & unified governance system
@@ -769,11 +771,13 @@
 
 ## Ready
 
-### T-104 — parent_credit balance semantics decision (ADR)
+### T-104 — parent_credit balance semantics decision (ADR) — **Completed (TESTED, 17th session — ADR-010 Accepted + implemented + pinned; the Ready listing was stale, corrected by T-156, 25th session)**
 - **Problems:** DATA-009 (new — discovered by T-103, live-verified empirically) · **Priority:** P2 · **Severity:** Medium (design decision; no current data corruption)
-- **Description:** the canonical writer `collect_and_allocate_payment` books the FULL payment entry (−amount) AND a parent_credit adjustment (−unallocated) on overpayment, so `compute_parent_summary.totalOutstanding` double-counts the credit for parents overpaid through the canonical path (live evidence: charge 100k + payment −150k + credit −50k → totalOutstanding −100k for a 50k overpayment; totalUnallocatedCredit −50k is the true value). Decide + write an ADR: (a) change the canonical writer to book only the allocated portion of the payment entry (breaking change — the equivalence suites pin the current shape, so this needs a full equivalence re-run + migration + Android/website alignment), or (b) keep the writer and standardize a display-level convention (read surfaces derive "credit" from `totalUnallocatedCredit` when balance < 0; the desktop dossier's "Crédit parent" card already does this via the raw negative balance — reconcile the two derivations). The 0062 backfill deliberately did NOT materialize parent_credit entries for the 59 historical overpayers (balance = −excess is exact there); crossCheckParentCredit will emit UNBACKED_PARENT_CREDIT warnings for them — accepted, documented in the 0062 header. NOTE (T-105): after the corpus alignment, only 2 of the 59 were genuine credits (the other 57 were DATA-010 artefacts) — the warning surface shrinks accordingly.
-- **Dependencies:** none (ADR-002 context; do not implement without the ADR)
-- **Verification:** ADR written + whichever convention chosen is equivalence-tested across desktop/SQL/Android/website.
+- **Status:** TESTED (2026-09-01, 17th session) — ADR-010 (option b: keep the canonical writer, standardize the display-level derivation `displayParentCredit`) implemented on desktop (dossier card) AND website (`displayCredit` port), pinned by `t-104-display-credit.test.ts` (desktop 8 tests + website 6). The 25th session (T-157) wired ADR-010's last noted residual — the unified-payment-modal debt-meter's dormant `unallocatedCredit` prop — through the same derivation, +2 more guards.
+- ~~Description: the canonical writer `collect_and_allocate_payment` books the FULL payment entry (−amount) AND a parent_credit adjustment (−unallocated) on overpayment... Decide + write an ADR~~ → DECIDED: **ADR-010, docs/decisions/ADR-010-parent-credit-display-convention.md** (read it for the derivation, the population table, and the consequences).
+- ~~Dependencies: none (ADR-002 context; do not implement without the ADR)~~ → none remain.
+- ~~Verification: ADR written + whichever convention chosen is equivalence-tested across desktop/SQL/Android/website.~~ → ADR-010 written; desktop + website suites pin the derivation; the canonical writer is untouched so the equivalence suites stayed green.
+- **Task T-156 correction note (2026-09-04, 25th session):** this entry sat in "Ready" across three session closeouts (23rd/24th summaries kept listing it) although ADR-010 shipped it in the 17th session. LESSON: a session completing a task whose entry lives in a section header (Ready/Blocked) must REMOVE the entry from that section in the same session — a status note inside the entry is not enough.
 
 ---
 
@@ -1164,13 +1168,14 @@
 - **Verification:** migration test with Room's MigrationTestHelper.
 - **ADRs:** —
 
-#### T-047 — Scope and complete the desktop Supabase repository migration — **Needs Investigation**
+#### T-047 — Scope and complete the desktop Supabase repository migration — **In Progress (scoping delivered — owner decision reduced to 3 tabs + 1 ADR)**
 - **Problems:** ARCH-001 · **Priority:** P2 · **Severity:** Critical
 - **Description:** Inventory the 26 mock-backed repository slots; classify each as (a) port to Supabase (used in production flows), (b) label as demo-only in the UI, or (c) remove. Port the (a) set module by module (chat handled by T-037).
-- **Dependencies:** needs product scoping (which workforce/operations modules are actually used by the school) · **Affected:** D · **Platforms:** Desktop
+- **2026-09-04 (25th session) — agent-side scoping DELIVERED:** see `docs/architecture/t-047-repository-migration-scoping.md`. Fresh code-verified inventory: 23 slots remain mock-backed (not 26 — T-080/T-093/T-099 closed three). KEY: the canonical chain already has tables for 19 of the 23 → those need only adapter work, no schema; port order recommended: calendar (website reads `calendar_events` while desktop writes mock) → workflows/workflowRuns (Android pull-syncs `workflow_runs`) → tasks/workforceAttendance/leaveRequests → pricing → rest. Product decision now scoped to exactly: clubs/psychology/orthophonie (no table — port/demote/remove?) + teachers (modeling ADR: personnel-role view vs table).
+- **Dependencies:** owner input ONLY for the 3 therapy/club tabs + teachers ADR; the 19 adapter ports can start without it · **Affected:** D · **Platforms:** Desktop
 - **Tests:** per ported module: persistence across restart + equivalence where financial.
 - **Verification:** per module; statuses tracked here.
-- **ADRs:** —
+- **ADRs:** — (teachers port will need one)
 
 #### T-048 — Unify the migration chain
 - **Problems:** CROSS-001 (absorbs CROSS-010), CROSS-003 (absorbs CROSS-007, ACAD-104) · **Priority:** P2 · **Severity:** Critical
@@ -1606,3 +1611,50 @@ UNKNOWN-011 ──→ T-042 (timetable)
 
 - **Problems:** ARCH-011 (new) · **Priority:** P0
 - **Status:** TESTED (2026-08-31) — discovered 0053/0054 applied live but absent from the repo (ARCH-011); reconciled both files from live definitions (commits 4bf5ff1); dry-run verified in BEGIN..ROLLBACK (HTTP 201); migrations 0055 + 0056 then followed the corrected discipline: file + live application + registration in the SAME commit. Live chain head now 0056 with the local chain matching one-to-one.
+
+## 25th session (2026-09-04, concurrent multi-agent batch — branch `session25-agent-work`, ALL REPOS)
+
+> Session context: ran as one of ~10 agents working the same repos concurrently. No Supabase credentials were provided this session → the opening ritual's LIVE chain check was NOT possible; the chain check was performed LOCALLY (append-only guard + numbering + registration-in-file checks) and the live check remains owner-token-gated. No push credentials either → commits live on branch `session25-agent-work` in each repo; the established zip-for-push handoff applies. Coordination claim: this session took T-044's ADDITIVE pass 3a prerequisite ONLY (the DS scrollable tab-row component) and explicitly leaves the hub-screen migration passes + the MainScreen route-model rewrite + the legacy-tree deletion to other concurrent agents (they are the contested recommendations; two agents editing the same hub screens simultaneously would collide).
+
+### T-155 — Session-opening verification, credential-less adaptation — **Completed (TESTED)**
+- **Problems:** — (process; the opening ritual under no-credentials conditions) · **Priority:** P0
+- **Status:** TESTED (2026-09-04)
+- **What was done:** desktop `npm ci` + `npm run typecheck` (clean) + `npm run lint` (0 errors / 384 warnings at open) + full suite (82 files / 2286 passed + 5 skipped); website `npm ci` + `npm run lint` (clean) + suite (26 files / 457 passed) + strict build (green, "Compiled successfully"); LOCAL migration-chain integrity: 65 files = 0001–0068 contiguous, no duplicate numbers, `scripts/check-migrations-append-only.sh` OK (+0 vs origin/main), registration statements present inside 0066/0067/0068 files per the MIG-TOKENS atomic-apply convention.
+- **NOT done (honestly):** the LIVE `schema_migrations` diff (needs the owner's sbp_ token — not provided this session). The 24th session closed at 65/65 zero drift; any live drift since then is invisible here. Next session WITH a token must re-run the live chain check FIRST (ARCH-014 lesson).
+- **Baseline note:** desktop suite grew 2284 → 2286 (T-157's +2 guards); website 25 → 26 files (t-149 follow-up file present at HEAD; verified green).
+
+### T-156 — Registry truth-sync (stale rows from sessions 17–24) — **Completed (TESTED)**
+- **Problems:** — (process hygiene; the T-117/T-125 discipline) · **Priority:** P1
+- **Status:** TESTED (2026-09-04)
+- **What was fixed (each flip cites its evidence):**
+  1. **T-104 sat in "Ready" although ADR-010 shipped it in the 17th session** (three session closeouts kept the listing). Entry corrected; LESSON recorded: a completing session must REMOVE the entry from the section header, not just note it inside.
+  2. **"Not started (Android, toolchain-gated): T-020, T-082" row** — both completed (T-020 TESTED 17th; T-082 TESTED 18th); row flipped to a tombstone.
+  3. **"only DATA-005 (first_name split) remains of T-085"** — stale: DATA-005's backfill was EXECUTED as migration 0066 (T-139, 22nd session, live-verified 6/6).
+  4. **CROSS-004 problem header OPEN** → TESTED (its own T-146 status note already recorded the closure; header was left stale).
+  5. **REG-002 problem header OPEN** → TESTED (mirrors REG-001's "process guard landed" treatment: T-046 removed the destructive fallback + Robolectric-pinned; T-046-gap landed exportSchema + committed history + MigrationTestHelper upgrade test).
+  6. **DATA-009** — added the T-157 status note (debt-meter wiring complete; every desktop credit display now on the ADR-010 derivation).
+- **Verified:** every flip cross-checked against the detailed entry's own status note + commits (T-117/T-125 discipline); no entry flipped without a cited closure record.
+
+### T-157 — Wire the debt-meter's dormant Crédit parent row (ADR-010 residual) — **Completed (TESTED)**
+- **Problems:** DATA-009 display surface · **Priority:** P2
+- **Status:** TESTED (2026-09-04) — hub commit a02edd7.
+- **What was done:** `unified-payment-modal.tsx` observes `repos.debt.observeParentProfile` and passes `displayParentCredit(totalOutstanding, totalUnallocatedCredit)` to the DebtMeter (the raw balance double-counts canonical overpayments; the raw unallocated Σ is wrong for 0062-era overpayers); `debt-meter.tsx` prop doc corrected to the ADR-010 magnitude contract (the old doc self-contradicted: "always <= 0" vs "positive = magnitude"); `t-104-display-credit.test.ts` +2 source-scan guards pinning the wiring and the contract (10/10).
+- **Verified:** typecheck clean; t-104 suite 10/10; navigation-context 7/7; full desktop suite 82 files / 2286 passed + 5 skipped; lint 0 errors.
+- **Preserved:** DebtMeter rendering logic; the dossier card wiring; the canonical writer; all equivalence-pinned shapes.
+
+### T-158 — Desktop lint exhaustive-deps review + baseline re-documentation — **Completed (TESTED)**
+- **Problems:** DEAD-201 follow-up class (the 4 findings T-078 flagged for individual review) · **Priority:** P3
+- **Status:** TESTED (2026-09-04) — hub commit 9e1c974.
+- **What was done:** (1) `auth-provider.tsx` — the 4 provider actions wrapped in useCallback with explicit deps; the context-value useMemo lists them (behavior-preserving: repos is a module-stable context value; the previous hand-written `[session, isLoading]` array silently captured stale repos if the provider value ever changed identity); (2) `sync-provider.tsx` — stale unused eslint-disable directive removed (empty deps genuinely correct — session read via ref; reasoning now a comment, not a suppression); (3) `worker-dashboard.tsx` — `clockTick` kept as the INTENTIONAL post-punch recompute trigger, made lint-visible via `void clockTick` + comment; dead `REQUEST_TONE` removed; (4) `page-tabs.tsx` — complex dependency expression extracted to `dataValue`; dead `s`/`ctxSize` removed (`size` stays destructured so it never leaks into the DOM).
+- **DISCOVERY (new):** the desktop lint warning baseline drifted 307 (T-078, 2026-08-29) → 384 (this session open) with no per-session lint-delta discipline — ~77 warnings accumulated silently across 20 sessions of new code. The config's documented baseline is now re-pinned (379 after T-158) and the exhaustive-deps class is at ZERO: any new finding is a regression to fix, not to baseline. RECOMMENDATION: record the lint warning count in every session closeout (as the suites are recorded) so drift is caught within one session.
+- **Verified:** typecheck clean; lint 0 errors / 379 warnings (exhaustive-deps 4 → 0); change-password suite 12/12; full desktop suite green.
+
+### T-159 — Android toolchain re-provisioning + android-env.sh recipe re-creation — **Completed (TESTED)**
+- AGENTS.md §11 points at `/home/z/my-project/scripts/android-env.sh`; the container reset wiped JDK 21 + SDK 35 + the recipe. This session re-provisioned both: JDK 21 (javac 21.0.12.1) + SDK 35, recipe re-created at `/home/z/my-project/scripts/android-env.sh` (now also auto-creates the ROOT `.env` — see §8.1 in AGENTS.md for the secrets-plugin rootProject resolution quirk that motivates it). Verification evidence: full Android unit suite 44 files / 372 tests ALL PASS + lintDebug GREEN (== 24th-session baseline) before any new work. Android commit 1d1e07d.
+
+### T-044 — Android design-system consolidation — pass 3a (additive prerequisite) — **Completed (TESTED)**
+- **Claimed scope (25th session):** ONLY the additive prerequisite — extend the design system with the scrollable tab-row component (+ tests), which the 23rd/24th sessions documented as the blocker for the 6-tab FinancialsHub. **NOT claimed (left for other agents / next session):** the hub-screen migration passes, the MainScreen bottom-nav route-model rewrite, the final legacy-tree deletion. Reason: ~10 concurrent agents were pointed at the same recommendations; the component addition is collision-safe (new file), screen migrations are not.
+- **Status:** TESTED (2026-09-04) — Android commit 49b83aa on `session25-agent-work`.
+- **What was done:** `ElScrollableTabRow` added to `ui/designsystem/components/tabs/ElTabs.kt` (+100 lines, purely additive — no legacy file touched, no call site migrated): LazyRow of `ElPillShape` pills on a `surfaceVariant` track, behaviour-parity with the legacy `ui.components.ModernSecondaryTabRow` (programmatic-selection auto-scroll via `LaunchedEffect` + `animateScrollToItem`, out-of-range guard, single-line labels) using only DS tokens. Items carry `Role.Tab` + semantics `Selected`; the row exposes stable `testTag("el_scrollable_tab_row")` for UI tests.
+- **Two live-discovered pitfalls (recorded for future DS work):** (1) inside `semantics { … }`, a parameter named `selected` collides with the receiver's extension var — `selected = selected` compiles as a val reassignment; fixed by naming the item parameter `isSelected`; (2) LazyRow composes ONLY visible pills — off-screen labels do not exist in the semantics tree, so every per-label ui-test assertion must `performScrollToNode` via the row's test tag first; also `setContent` is once-per-test (state flips via `mutableStateOf`, not re-setContent).
+- **Verified:** new `ElScrollableTabRowTest` (5 semantic tests, Robolectric sdk34 w411dp — no screenshots per ARCH-012): 5/5 PASS; full suite 45 files / 377 tests / 0 failures (baseline 44/372); lintDebug GREEN.

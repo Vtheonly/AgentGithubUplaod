@@ -73,6 +73,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<SyncStatusSnapshot | null>(null);
 
   // Construct the service once.
+  // (T-158: the session is read through `sessionRef` — a ref, not reactive
+  // state — so an empty dependency array is genuinely correct here; the
+  // stale eslint-disable directive the array used to need is gone.)
   const service = useMemo<SyncService>(() => {
     return initialiseSyncService({
       tenantId: () => sessionRef.current?.tenantId ?? "default",
@@ -82,7 +85,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       push: defaultPushHandler,
       autoStart: true,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
