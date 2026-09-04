@@ -12,6 +12,9 @@
  *   - `lifo-reversal`      — revertPaymentAllocation, reevaluateInstallmentStatus
  *   - `clearance`          — clearPendingAllocation (PENDING → PAID bank clearance)
  *   - `revenue`            — revenueByMonth, revenueByCategory, monthlyRevenue
+ *   - `billing-breakdown`  — computeParentBillingBreakdown, describeAdjustment
+ *                            (T-164: read-side derivation behind the parent
+ *                            drawer / portal "Prestations facturées" views)
  */
 export * from "./sums";
 export * from "./queries";
@@ -19,3 +22,4 @@ export * from "./waterfall-allocator";
 export * from "./lifo-reversal";
 export * from "./clearance";
 export * from "./revenue";
+export * from "./billing-breakdown";

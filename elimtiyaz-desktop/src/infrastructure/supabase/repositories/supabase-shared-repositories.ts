@@ -2469,11 +2469,16 @@ export class SupabaseDebtRepository implements DebtRepository {
   private async refreshProfile(parentId: string): Promise<void> {
     try {
       const tenantId = requireTenantId();
-      // Select only base columns that exist in migration 0007 to avoid 400
-      // errors when migration 0027 hasn't been applied.
+      // T-164 (DATA-008 family, root-cause fix): select the FULL row — the
+      // previous column list (id, parent_id, entry_type, amount, category,
+      // entry_date) silently stripped `description`, `actor_id`,
+      // `student_id` and `metadata`, so the derived profile showed blank
+      // adjustment reasons, "Auteur: system" placeholders and lost
+      // per-student attribution even though the database rows carry all of
+      // it. Mirrors the ledger repository's own seed (select "*").
       const { data, error } = await this.client
         .from("ledger_entries")
-        .select("id, parent_id, entry_type, amount, category, entry_date")
+        .select("*")
         .eq("tenant_id", tenantId)
         .eq("parent_id", parentId)
         .order("entry_date", { ascending: false })
@@ -2484,6 +2489,29 @@ export class SupabaseDebtRepository implements DebtRepository {
         return;
       }
       const entries = (data as LedgerEntryRow[]).map(mapLedgerRow);
+      // T-164 (the "Aucune tranche" root cause): load the family's REAL
+      // installment rows. The previous implementation hardcoded
+      // `installments: []`, so every Supabase-mode consumer of the profile
+      // contract saw an empty tranche schedule (the mock repository
+      // already populated this — cross-mode parity restored). The rows
+      // carry the server-side waterfall results (amount_paid /
+      // amount_pending from `collect_and_allocate_payment`), so consumers
+      // must NOT re-allocate client-side.
+      let installments: Installment[] = [];
+      const { data: installmentRows, error: installmentErr } = await this.client
+        .from("installments")
+        .select("id, tenant_id, parent_id, student_id, category, tranche_number, label, amount_due, amount_paid, amount_pending, due_date, paid_date, status, academic_cycle, payment_plan, is_custom_schedule, custom_schedule_note")
+        .eq("tenant_id", tenantId)
+        .eq("parent_id", parentId)
+        .order("due_date", { ascending: true });
+      if (installmentErr) {
+        // Non-fatal: the profile still ships with an empty schedule — the
+        // drawer's canonical breakdown falls back to the display-only
+        // 40/30/30 synthesis when no physical rows are available.
+        console.warn("[SupabaseDebt] installments query failed:", installmentErr.message);
+      } else {
+        installments = (installmentRows as InstallmentRow[]).map(mapInstallmentRow);
+      }
       // CANONICAL-FINANCIAL-LOGIC.md §4 INV-10 — delegate to the canonical
       // `computeParentSummary` so the Supabase-backed debt profile uses the
       // SAME totals as the mock + Android. The previous implementation
@@ -2493,7 +2521,6 @@ export class SupabaseDebtRepository implements DebtRepository {
       const parentName = ""; // Looked up separately if needed by UI.
       const summary = computeParentSummary(entries, parentId, parentName, overdueDueDates);
       // Build the derived profile from the canonical summary.
-      const installments: Installment[] = [];
       // FIX (type): map ledger payment entries to the `Payment` shape the
       // profile contract requires (was previously assigning raw LedgerEntry
       // objects, which broke the build and mis-typed the drawer UI).

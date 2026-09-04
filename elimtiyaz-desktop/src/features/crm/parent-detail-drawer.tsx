@@ -15,7 +15,6 @@
  */
 import { useState, useMemo } from "react";
 import {
-  Phone,
   MessageCircle,
   MessagesSquare,
   Mail,
@@ -60,18 +59,20 @@ import { formatRelative, formatDate } from "../../core/format/date";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
-  PAYMENT_CATEGORY_LABELS_FR,
   ADJUSTMENT_REASON_CODES,
   ADJUSTMENT_REASON_LABELS_FR,
   type AdjustmentReasonCode,
+  type Installment,
   type ParentFinancialProfile,
   type Payment,
-  type PaymentCategory,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import { deterministicActivationCode } from "../../core/format/id";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
-import { splitNetTuitionByOfficialSchedule } from "../../domain/calc/pricing";
+import {
+  computeParentBillingBreakdown,
+  describeAdjustment,
+} from "../../domain/calc/payment/billing-breakdown";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { ActivationCodeModal } from "./activation-code-modal";
 import { EditParentModal } from "./edit-parent-modal";
@@ -125,6 +126,16 @@ export function ParentDetailDrawer({
     () => repos.ledger.observeByParent(parentId ?? ""),
     [parentId],
   );
+  // T-164: REAL tranche rows — the Finances tab previously synthesized the
+  // 40/30/30 schedule from charge entries even when physical `installments`
+  // rows existed (the debt-profile contract shipped an empty list — see the
+  // SupabaseDebtRepository fix). Reading the canonical installment stream
+  // keeps this tab consistent with the UnifiedPaymentModal + Installments
+  // tab, which already consume `repos.installments`.
+  const installments = useObservable(
+    () => repos.installments.observeByParent(parentId ?? ""),
+    [parentId],
+  );
   const classes = useObservable(() => repos.classes.observe(), []);
   const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
 
@@ -162,12 +173,28 @@ export function ParentDetailDrawer({
         if (res.ok && res.value) {
           code = res.value;
         } else {
+          // T-145 / ACT-200: Supabase mode FAILED (RPC or insert error). Do
+          // NOT fall through to the deterministic phantom code — surface the
+          // failure so staff can retry instead of handing the parent a code
+          // the portal will reject, and audit-log the failed issuance so the
+          // failure is traceable (this audit branch was lost in the
+          // pre-T-164 patch squash and is restored verbatim).
           const detail = res && "error" in res && res.error ? (res.error as { message?: string; userMessage?: string }) : null;
           const why = detail?.userMessage ?? detail?.message ?? "erreur inconnue";
           toast.showError(
             "Émission impossible",
-            `Le code n'a PAS été enregistré sur le serveur — Détail : ${why}`,
+            `Le code n'a PAS été enregistré sur le serveur — n'utilisez pas le code affiché. Détail : ${why}`,
           );
+          void repos.audit.log({
+            action: "parent.activation_code_issuance_failed",
+            entityType: "parent",
+            entityId: p.id,
+            actorId: session?.userId ?? "usr-current",
+            actorName: session?.displayName ?? "Session courante",
+            tenantId: p.tenantId,
+            diff: { before: null, after: null },
+            note: `Émission du code d'activation ÉCHOUÉE pour ${parentDisplayName(p)} (le serveur n'a pas de code — ACT-200)`,
+          });
           return;
         }
       }
@@ -389,11 +416,11 @@ export function ParentDetailDrawer({
       label: "Finances",
       content: () => (
         <FinancesTab
-          parent={p}
           profile={financialProfile}
           outstanding={financialProfile?.totalOutstanding ?? 0}
           overdue={financialProfile?.overdueAmount ?? 0}
           payments={payments}
+          installments={installments}
           students={students}
           ledgerEntries={ledgerEntries}
           classes={classes}
@@ -513,11 +540,11 @@ export function ParentDetailDrawer({
 // ============================================================
 
 function FinancesTab({
-  parent,
   profile,
   outstanding,
   overdue,
   payments,
+  installments,
   students,
   ledgerEntries,
   classes,
@@ -526,11 +553,11 @@ function FinancesTab({
   onAdjust,
   onDownloadStatement,
 }: {
-  parent: Parent;
   profile: ParentFinancialProfile | null | undefined;
   outstanding: number;
   overdue: number;
   payments: readonly Payment[];
+  installments: readonly Installment[];
   students: readonly Student[];
   ledgerEntries: readonly LedgerEntry[];
   classes: readonly import("../../domain/model/academic").AcademicClass[];
@@ -541,117 +568,42 @@ function FinancesTab({
 }) {
   const [breakdownMode, setBreakdownMode] = useState<"by_child" | "by_service">("by_child");
 
-  // Filter charges (items billed / purchased)
-  const chargeEntries = useMemo(
-    () => (ledgerEntries ?? []).filter((e) => e.type === "charge"),
-    [ledgerEntries],
+  // T-164 — Zero-Logic Rule: the entire billing breakdown (itemized charges,
+  // per-child attribution, REAL tranche coverage with the server waterfall
+  // amounts, canonical 40/30/30 synthesis fallback, per-service totals,
+  // academic-year resolution) is derived by the canonical engine in
+  // `domain/calc/payment/billing-breakdown.ts`. The previous inline
+  // implementation (defect class DATA-008) re-implemented the split + a
+  // waterfall that ignored `amountPending` and re-derived tranches from
+  // charges even when real `installments` rows existed.
+  const breakdown = useMemo(
+    () =>
+      computeParentBillingBreakdown({
+        ledgerEntries,
+        installments,
+        payments,
+        students,
+        fallbackTotalDue: profile?.totalDue,
+        hints: {
+          classAcademicYearOf: (studentId) => {
+            const s = students.find((x) => x.id === studentId);
+            const cls = s?.classId ? classes.find((c) => c.id === s.classId) : null;
+            return cls?.academicYear ?? null;
+          },
+          currentYearCode:
+            academicYears.find((y) => y.isCurrent && !y.isArchived)?.code ?? null,
+        },
+        classLabelOf: (studentId) => {
+          const s = students.find((x) => x.id === studentId);
+          const cls = s?.classId ? classes.find((c) => c.id === s.classId) : null;
+          return cls?.name ?? null;
+        },
+      }),
+    [ledgerEntries, installments, payments, students, profile, classes, academicYears],
   );
 
-  // Total paid by this family
-  const totalPaidAmount = useMemo(
-    () => payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0),
-    [payments],
-  );
-
-  // Total billed charges
-  const totalBilled = useMemo(() => {
-    const raw = chargeEntries.reduce((acc, c) => acc + c.amount, 0);
-    return raw > 0 ? raw : (profile?.totalDue ?? 0);
-  }, [chargeEntries, profile]);
-
-  // Current or relevant academic year
-  const resolvedAcademicYear = useMemo(() => {
-    // 1. From first charge metadata or description
-    for (const c of chargeEntries) {
-      if (c.metadata?.academicYear) return String(c.metadata.academicYear);
-      const match = c.description?.match(/20\d{2}[-/]20\d{2}/);
-      if (match) return match[0];
-    }
-    // 2. From assigned student class
-    for (const s of students) {
-      if (s.classId) {
-        const cls = classes.find((c) => c.id === s.classId);
-        if (cls?.academicYear) return cls.academicYear;
-      }
-    }
-    // 3. From current system year
-    const curr = academicYears.find((y) => y.isCurrent && !y.isArchived);
-    return curr?.code ?? "2025-2026";
-  }, [chargeEntries, students, classes, academicYears]);
-
-  // Group charges & analyze per child
-  const childBreakdowns = useMemo(() => {
-    let poolOfPaid = totalPaidAmount;
-
-    return students.map((student) => {
-      // Find charges specifically for this child
-      let childCharges = chargeEntries.filter((c) => c.studentId === student.id);
-      
-      // If no explicit studentId on charges, but only 1 child exists in family, attribute family charges
-      if (childCharges.length === 0 && students.length === 1 && chargeEntries.length > 0) {
-        childCharges = chargeEntries;
-      }
-
-      const assignedClass = classes.find((c) => c.id === student.classId);
-      const gradeLabel = student.gradeLevel ? (GRADE_LEVEL_LABELS_FR[student.gradeLevel] ?? student.gradeLevel) : levelLabel(student.level);
-      
-      // Total amount for this child
-      const childTotal = childCharges.length > 0
-        ? childCharges.reduce((s, c) => s + c.amount, 0)
-        : (students.length === 1 ? totalBilled : Math.round(totalBilled / Math.max(1, students.length)));
-
-      // 3 Tranches calculation (40% / 30% / 30% official split)
-      const trancheSplits = splitNetTuitionByOfficialSchedule(childTotal);
-      const tranches = [
-        { label: "Tranche 1 (Rentrée — 40%)", amount: trancheSplits[0], dueWindow: "Septembre" },
-        { label: "Tranche 2 (Hiver — 30%)", amount: trancheSplits[1], dueWindow: "Décembre" },
-        { label: "Tranche 3 (Printemps — 30%)", amount: trancheSplits[2], dueWindow: "Mars" },
-      ];
-
-      // Waterfall allocation: how much of poolOfPaid goes to this child's tranches?
-      const tranchesWithCoverage = tranches.map((t) => {
-        const allocated = Math.min(poolOfPaid, t.amount);
-        poolOfPaid = Math.max(0, poolOfPaid - allocated);
-        const remaining = Math.max(0, t.amount - allocated);
-        const isFullyPaid = remaining === 0;
-        return {
-          ...t,
-          paid: allocated,
-          remaining,
-          isFullyPaid,
-          coveragePct: Math.round((allocated / t.amount) * 100),
-        };
-      });
-
-      return {
-        student,
-        gradeLabel,
-        className: assignedClass?.name ?? "Non assignée",
-        childTotal,
-        charges: childCharges,
-        tranches: tranchesWithCoverage,
-      };
-    });
-  }, [students, chargeEntries, totalBilled, classes, totalPaidAmount]);
-
-  // Consolidated service categories
-  const servicesSummary = useMemo(() => {
-    const map = new Map<string, { label: string; amount: number; count: number }>();
-
-    if (chargeEntries.length > 0) {
-      for (const c of chargeEntries) {
-        const label = PAYMENT_CATEGORY_LABELS_FR[c.category] ?? "Scolarité";
-        const ex = map.get(label) ?? { label, amount: 0, count: 0 };
-        ex.amount += c.amount;
-        ex.count += 1;
-        map.set(label, ex);
-      }
-    } else {
-      map.set("Scolarité", { label: "Scolarité Annuelle", amount: totalBilled, count: students.length });
-    }
-
-    return Array.from(map.values());
-  }, [chargeEntries, totalBilled, students.length]);
+  const totalBilled = breakdown.totalBilled;
+  const totalPaidAmount = breakdown.totalClearedPaid;
 
   return (
     <div className="space-y-4 text-sm">
@@ -719,7 +671,7 @@ function FinancesTab({
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
                 <span className="flex items-center gap-1 text-primary font-medium">
                   <Calendar className="h-3 w-3" />
-                  Année Scolaire {resolvedAcademicYear}
+                  Année Scolaire {breakdown.academicYear}
                 </span>
                 <span>·</span>
                 <span>{students.length} enfant(s) inscrit(s)</span>
@@ -756,29 +708,40 @@ function FinancesTab({
         </div>
 
         <div className="p-3 space-y-4">
+          {breakdown.hasSyntheticTranches && (
+            <div className="flex items-start gap-2 rounded-md border border-status-warning/40 bg-status-warning/10 p-2 text-[11px] text-status-warning">
+              <HelpCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <span>
+                Échéancier non matérialisé en base pour au moins un enfant — affichage
+                déduit du décompte canonique (40 % / 30 % / 30 %, échéances 15 sep /
+                15 déc / 15 mars) et de l'affectation chronologique des paiements
+                encaissés. Les montants restent exacts au dinar.
+              </span>
+            </div>
+          )}
           {breakdownMode === "by_child" ? (
             /* VIEW 1: Per Child Breakdown with Tranche Coverage */
             <div className="space-y-4">
-              {childBreakdowns.map(({ student, gradeLabel, className, childTotal, charges, tranches }) => (
-                <div key={student.id} className="rounded-lg border border-border bg-surface-panel/30 p-3 space-y-3">
+              {breakdown.byChild.map((child) => (
+                <div key={child.student.id} className="rounded-lg border border-border bg-surface-panel/30 p-3 space-y-3">
                   {/* Child Header */}
                   <div className="flex items-center justify-between border-b border-border/60 pb-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex items-center gap-1.5 font-bold text-foreground text-sm">
                         <BookOpen className="h-4 w-4 text-primary" />
-                        {student.firstName} {student.lastName}
+                        {child.student.firstName} {child.student.lastName}
                       </div>
                       <Badge variant="outline" className="text-[10px] font-medium bg-primary/5 text-primary border-primary/20">
-                        {gradeLabel}
+                        {child.gradeLabel}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] font-normal">
-                        Classe : {className}
+                        Classe : {child.classLabel ?? "Non assignée"}
                       </Badge>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] uppercase text-muted-foreground block">Prix Total Engagé</span>
                       <span className="font-mono font-bold text-sm text-foreground">
-                        {formatDzd(childTotal)}
+                        {formatDzd(child.billedTotal)}
                       </span>
                     </div>
                   </div>
@@ -788,60 +751,79 @@ function FinancesTab({
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
                       Articles & Prestations Souscrites
                     </p>
-                    {charges.length > 0 ? (
+                    {child.lineItems.length > 0 ? (
                       <ul className="divide-y divide-border/40 text-xs bg-muted/20 rounded p-2 border border-border/40">
-                        {charges.map((c) => (
-                          <li key={c.id} className="py-1 flex items-center justify-between gap-2">
-                            <span className="text-foreground">{c.description}</span>
-                            <span className="font-mono font-medium">{formatDzdPlain(c.amount)}</span>
+                        {child.lineItems.map((item) => (
+                          <li key={item.id} className="py-1 flex items-center justify-between gap-2">
+                            <span className="text-foreground">{item.label}</span>
+                            <span className="font-mono font-medium">{formatDzdPlain(item.amount)}</span>
                           </li>
                         ))}
                       </ul>
                     ) : (
                       <div className="text-xs bg-muted/20 rounded p-2 border border-border/40 flex items-center justify-between">
-                        <span>Scolarité annuelle complète ({gradeLabel})</span>
-                        <span className="font-mono font-medium">{formatDzdPlain(childTotal)}</span>
+                        <span>Scolarité annuelle complète ({child.gradeLabel})</span>
+                        <span className="font-mono font-medium">{formatDzdPlain(child.billedTotal)}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* WHERE THE MONEY WENT: Tranche Waterfall Allocation */}
+                  {/* WHERE THE MONEY WENT: Tranche Coverage (server waterfall) */}
                   <div className="space-y-1.5 pt-1">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1">
-                      <span>Échéancier & Affectation des {formatDzd(totalPaidAmount)} payés :</span>
+                      <span>Échéancier & Affectation des {formatDzd(totalPaidAmount)} encaissés :</span>
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      {tranches.map((t, idx) => (
+                      {child.tranches.map((t) => (
                         <div
-                          key={idx}
+                          key={t.key}
                           className={cn(
                             "rounded-md border p-2 text-xs space-y-1 transition-all",
-                            t.isFullyPaid
+                            t.status === "paid"
                               ? "border-status-success/40 bg-status-success/5"
-                              : t.paid > 0
+                              : t.amountPaid > 0 || t.amountPending > 0
                                 ? "border-status-warning/40 bg-status-warning/5"
                                 : "border-border bg-card"
                           )}
                         >
                           <div className="flex items-center justify-between font-medium">
-                            <span className="truncate">{t.label}</span>
-                            {t.isFullyPaid ? (
+                            <span className="truncate" title={t.dueDate ? formatDate(t.dueDate) : undefined}>
+                              {t.label}
+                            </span>
+                            {t.status === "paid" ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-status-success shrink-0" />
-                            ) : t.paid > 0 ? (
+                            ) : t.amountPaid > 0 || t.amountPending > 0 ? (
                               <Clock className="h-3.5 w-3.5 text-status-warning shrink-0" />
                             ) : (
                               <span className="text-[10px] text-status-danger font-bold">Dû</span>
                             )}
                           </div>
-                          <div className="text-muted-foreground text-[10px]">
-                            Montant prévu : <strong className="text-foreground font-mono">{formatDzdPlain(t.amount)}</strong>
+                          <div className="text-muted-foreground text-[10px] flex justify-between">
+                            <span>Échéance : {t.dueWindowLabel}</span>
+                            <span>Prévu : <strong className="text-foreground font-mono">{formatDzdPlain(t.amountDue)}</strong></span>
                           </div>
+                          {t.amountPending > 0 && (
+                            <div className="text-[10px] text-status-warning">
+                              En attente (chèque/virement) : {formatDzdPlain(t.amountPending)}
+                            </div>
+                          )}
                           <div className="text-[10px] flex justify-between pt-0.5 border-t border-border/40">
-                            <span className="text-status-success">Payé : {formatDzdPlain(t.paid)}</span>
+                            <span className="text-status-success">Payé : {formatDzdPlain(t.amountPaid)}</span>
                             <span className={t.remaining > 0 ? "text-status-danger font-bold font-mono" : "text-muted-foreground font-mono"}>
                               Reste : {formatDzdPlain(t.remaining)}
                             </span>
                           </div>
+                          {t.amountDue > 0 && (
+                            <div className="h-1 rounded bg-border overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full",
+                                  t.status === "paid" ? "bg-status-success" : "bg-status-warning",
+                                )}
+                                style={{ width: `${Math.min(100, t.coveragePct)}%` }}
+                              />
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -853,12 +835,12 @@ function FinancesTab({
             /* VIEW 2: Consolidated by Service */
             <div className="space-y-3">
               <ul className="divide-y divide-border text-xs bg-muted/20 rounded border border-border p-2">
-                {servicesSummary.map((s) => (
-                  <li key={s.label} className="py-2 flex items-center justify-between">
+                {breakdown.byService.map((s) => (
+                  <li key={s.category} className="py-2 flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-foreground text-sm">{s.label}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {s.count} élément(s) rattaché(s) pour l'année {resolvedAcademicYear}
+                        {s.count} élément(s) rattaché(s) pour l'année {breakdown.academicYear}
                       </p>
                     </div>
                     <span className="font-mono font-bold text-sm text-primary">
@@ -943,13 +925,11 @@ function FinancesTab({
         {profile && profile.adjustments.length > 0 ? (
           <ul className="divide-y divide-border text-xs">
             {profile.adjustments.map((a) => {
-              const isCredit = a.amount < 0;
-              const cleanReason = a.reason && a.reason.trim().length > 0 ? a.reason : null;
-              const diagnosticReason = cleanReason ?? (
-                isCredit
-                  ? "Déduction / Remise enregistrée automatiquement par le système"
-                  : "Régularisation / Rétablissement de dette (contrepassation automatique)"
-              );
+              // T-164: badge + reason diagnostics derived by the canonical
+              // engine (shared with the website portal + Android terminal so
+              // every platform labels the same adjustment identically).
+              const diag = describeAdjustment(a);
+              const isCredit = diag.kind === "credit";
 
               return (
                 <li key={a.id} className="px-3 py-2.5 space-y-1 hover:bg-accent/5 transition-colors">
@@ -971,7 +951,7 @@ function FinancesTab({
                           : "bg-status-danger/10 text-status-danger border-status-danger/30"
                       }`}
                     >
-                      {isCredit ? "Crédit / Déduction" : "Débit / Majoration"}
+                      {diag.badgeLabel}
                     </Badge>
 
                     <span className="text-muted-foreground text-[10px]">
@@ -983,8 +963,13 @@ function FinancesTab({
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-foreground font-medium">
-                    {diagnosticReason}
+                  <p
+                    className={cn(
+                      "text-[11px] text-foreground font-medium",
+                      diag.isDiagnosticFallback && "italic text-muted-foreground",
+                    )}
+                  >
+                    {diag.reasonLabel}
                   </p>
 
                   {a.receiptRef && (
