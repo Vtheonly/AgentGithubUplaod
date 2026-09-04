@@ -496,19 +496,16 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
     },
   ];
 
+
   const actions: readonly DataTableAction<Parent>[] = [
     {
-      label: "",
-      icon: <Phone className="h-4 w-4" />,
+      label: "WhatsApp",
+      icon: <MessageCircle className="h-4 w-4 text-status-success" />,
       variant: "ghost",
-      onClick: (p) => window.open(`tel:${p.phone}`),
-    },
-    {
-      label: "",
-      icon: <MessageCircle className="h-4 w-4" />,
-      variant: "ghost",
-      onClick: (p) => window.open(`https://wa.me/${(p.whatsapp ?? "").replace(/[\s+]/g, "")}`),
-      disabled: (p) => !p.whatsapp,
+      onClick: (p) => {
+        const clean = (p.whatsapp || p.phone || "").replace(/[\s+]/g, "");
+        if (clean) window.open(`https://wa.me/${clean}`);
+      },
     },
     {
       label: "",

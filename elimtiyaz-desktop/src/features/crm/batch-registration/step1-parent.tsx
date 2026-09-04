@@ -1,9 +1,3 @@
-/**
- * Step 1 — Parent info form (atomic registration wizard, Plan §04.03).
- *
- * Pure presentational component — state lives in the orchestrator and is
- * threaded via props.
- */
 import { Input } from "../../../shared/ui/input";
 import { FormField } from "../../../shared/ui/form-field";
 import {
@@ -20,7 +14,7 @@ import {
   type TransportDestination,
 } from "../../../domain/model/parent";
 import type { Step1Parent } from "./types";
-import type { Parent } from "../../../domain/model/parent";
+import { parentDisplayName, type Parent } from "../../../domain/model/parent";
 
 export function Step1({
   parent,
@@ -31,11 +25,6 @@ export function Step1({
   parent: Step1Parent;
   setParent: (p: Step1Parent) => void;
   errors: Record<string, string>;
-  /**
-   * FIX (add-child duplication): when set, the wizard is in "add children to
-   * an existing parent" mode — step 1 becomes a read-only summary of the
-   * locked parent instead of an editable form that would create a duplicate.
-   */
   lockedParent?: Parent | null;
 }) {
   if (lockedParent) {
@@ -50,7 +39,7 @@ export function Step1({
           </p>
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-border p-3 text-sm">
-          <ReadonlyField label="Nom" value={`${lockedParent.firstName} ${lockedParent.lastName}`} />
+          <ReadonlyField label="Nom" value={parentDisplayName(lockedParent)} />
           <ReadonlyField label="Code" value={lockedParent.code} mono />
           <ReadonlyField label="Téléphone" value={lockedParent.phone} mono />
           <ReadonlyField label="WhatsApp" value={lockedParent.whatsapp ?? "—"} mono />
@@ -69,9 +58,10 @@ export function Step1({
       </div>
     );
   }
+
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      <FormField label="Prénom" required error={errors.parent_firstName}>
+      <FormField label="Prénom" error={errors.parent_firstName}>
         <Input
           value={parent.firstName}
           onChange={(e) => setParent({ ...parent, firstName: e.target.value })}
@@ -178,7 +168,7 @@ function ReadonlyField({
   return (
     <div>
       <p className="text-[10px] uppercase text-muted-foreground">{label}</p>
-      <p className={`text-sm text-foreground ${mono ? "font-mono" : ""}`}>{value}</p>
+      <p className={`text-sm text-foreground ${mono ? "font-mono" : ""}`}>{value || "—"}</p>
     </div>
   );
 }

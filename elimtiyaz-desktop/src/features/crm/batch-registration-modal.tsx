@@ -141,14 +141,24 @@ export function BatchRegistrationModal({
     });
   }, [students, pricing, includeRegistration, includeTransport]);
 
+
   // === Step validation (returns a human-readable error string or null) ===
   function validateStep1(): string | null {
-    // FIX: validation copy bug — lastName error said "Prénom requis".
+    // When adding a child to an existing parent, the parent record is already validated and saved
+    if (presetParent) {
+      setErrors({});
+      return null;
+    }
+
     const e: Record<string, string> = {};
-    if (!parent.firstName.trim()) e.parent_firstName = "Prénom requis";
-    if (!parent.lastName.trim()) e.parent_lastName = "Nom requis";
-    if (!parent.phone.trim()) e.parent_phone = "Téléphone requis";
-    else if (!PHONE_RE.test(parent.phone)) e.parent_phone = "Format invalide (8-15 chiffres)";
+    if (!parent.firstName.trim() && !parent.lastName.trim()) {
+      e.parent_lastName = "Nom requis";
+    }
+    if (!parent.phone.trim()) {
+      e.parent_phone = "Téléphone requis";
+    } else if (!PHONE_RE.test(parent.phone)) {
+      e.parent_phone = "Format invalide (8-15 chiffres)";
+    }
     if (parent.email && !EMAIL_RE.test(parent.email)) e.parent_email = "E-mail invalide";
     if (parent.whatsapp && !PHONE_RE.test(parent.whatsapp)) e.parent_whatsapp = "Format invalide";
     setErrors(e);
