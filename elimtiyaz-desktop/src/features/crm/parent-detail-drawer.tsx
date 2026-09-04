@@ -2,18 +2,16 @@
  * ParentDetailDrawer — slide-over panel showing a parent's complete profile.
  *
  * Plan §04.05: 3 sections — Identity / Children / Finances.
- * The Finances section embeds ParentFinancialProfile (services, payments,
- * balance, tranches, due dates).
- *
- * UI Fixes:
- *   - Removed duplicate top metadata grid so identity info isn't rendered twice.
- *   - Cleaned footer actions down to the 3 primary drawer actions to prevent
- *     horizontal button overflow into the backdrop.
- *   - Added quick communication actions (Appeler, WhatsApp, Messager, Email)
- *     directly within the Identité card.
- *   - Relocated Relevé PDF and Ajuster to the Finances tab header.
+ * The Finances section embeds:
+ *   1. Balance Cards (Total Dû, Payé, Reste / Crédit parent).
+ *   2. Itemized Shopping List / Prestations Facturées:
+ *      Full breakdown of what the Total Dû covers, with a toggle
+ *      between "Vue par Enfant" and "Vue Consolidée par Service".
+ *   3. Installment schedule (Tranches).
+ *   4. Recent payments list with breakdown.
+ *   5. Explicit Adjustments History with clear context, badges, and diagnostic notes.
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Phone,
   MessageCircle,
@@ -27,6 +25,11 @@ import {
   Pencil,
   KeyRound,
   User as UserIcon,
+  ShoppingCart,
+  Users,
+  Layers,
+  HelpCircle,
+  Sparkles,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -57,6 +60,7 @@ import {
   type AdjustmentReasonCode,
   type ParentFinancialProfile,
   type Payment,
+  type PaymentCategory,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import { deterministicActivationCode } from "../../core/format/id";
@@ -71,6 +75,8 @@ import {
   type Parent,
   type TransportDestination,
 } from "../../domain/model/parent";
+import type { Student } from "../../domain/model/student";
+import type { LedgerEntry } from "../../domain/model/ledger";
 import { Permission } from "../../core/rbac/permissions";
 import { cn } from "../../shared/ui/cn";
 import { generateAccountStatementPdf, downloadPdf } from "../../infrastructure/receipt-pdf";
@@ -105,6 +111,10 @@ export function ParentDetailDrawer({
   );
   const payments = useObservable(
     () => repos.payments.observeByParent(parentId ?? ""),
+    [parentId],
+  );
+  const ledgerEntries = useObservable(
+    () => repos.ledger.observeByParent(parentId ?? ""),
     [parentId],
   );
   const classes = useObservable(() => repos.classes.observe(), []);
@@ -227,13 +237,7 @@ export function ParentDetailDrawer({
               <Detail label="Adresse" value={p.address ?? "—"} className="col-span-2" />
             </div>
 
-
-
-
-            {/* In-tab Quick Communication Buttons */}
-
-
-{/* Direct Communication Actions */}
+            {/* Direct Communication Actions */}
             <div className="pt-2 border-t border-border/60 flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -267,9 +271,6 @@ export function ParentDetailDrawer({
                 </Button>
               )}
             </div>
-
-
-
           </div>
 
           {/* Portal Access & Security Card */}
@@ -387,6 +388,8 @@ export function ParentDetailDrawer({
           outstanding={financialProfile?.totalOutstanding ?? 0}
           overdue={financialProfile?.overdueAmount ?? 0}
           payments={payments}
+          students={students}
+          ledgerEntries={ledgerEntries}
           canAdjust={canAdjust}
           onAdjust={() => setAdjustOpen(true)}
           onDownloadStatement={() => void handleDownloadStatement(p)}
@@ -395,8 +398,8 @@ export function ParentDetailDrawer({
     },
   ];
 
-  // === Footer Actions: Strictly 3 essential buttons to prevent overflow ===
-  const actions = (p: Parent): readonly EntityDrawerAction<Parent>[] => {
+  // === Footer Actions ===
+  const actions = (): readonly EntityDrawerAction<Parent>[] => {
     const list: EntityDrawerAction<Parent>[] = [];
 
     list.push({
@@ -433,7 +436,7 @@ export function ParentDetailDrawer({
         open={open}
         onOpenChange={onOpenChange}
         entity={entity}
-        widthClass="max-w-xl"
+        widthClass="max-w-2xl"
         title={(p) => parentDisplayName(p)}
         subtitle={(p) => p.code}
         avatar={(p) => ({
@@ -499,14 +502,17 @@ export function ParentDetailDrawer({
 }
 
 // ============================================================
-// FinancesTab — balance cards + installments + recent payments
+// FinancesTab — Balance cards + Itemized Shopping List + Tranches + Adjustments
 // ============================================================
 
 function FinancesTab({
+  parent,
   profile,
   outstanding,
   overdue,
   payments,
+  students,
+  ledgerEntries,
   canAdjust,
   onAdjust,
   onDownloadStatement,
@@ -516,15 +522,80 @@ function FinancesTab({
   outstanding: number;
   overdue: number;
   payments: readonly Payment[];
+  students: readonly Student[];
+  ledgerEntries: readonly LedgerEntry[];
   canAdjust: boolean;
   onAdjust: () => void;
   onDownloadStatement: () => void;
 }) {
+  const [breakdownMode, setBreakdownMode] = useState<"by_child" | "by_service">("by_child");
+
+  // Filter charges (items billed / purchased)
+  const chargeEntries = useMemo(
+    () => (ledgerEntries ?? []).filter((e) => e.type === "charge"),
+    [ledgerEntries],
+  );
+
+  // Group charges by child
+  const chargesByChild = useMemo(() => {
+    const map = new Map<string, { student: Student; charges: LedgerEntry[]; total: number }>();
+    for (const s of students) {
+      map.set(s.id, { student: s, charges: [], total: 0 });
+    }
+
+    const unassigned: LedgerEntry[] = [];
+    let unassignedTotal = 0;
+
+    for (const c of chargeEntries) {
+      if (c.studentId && map.has(c.studentId)) {
+        const item = map.get(c.studentId)!;
+        item.charges.push(c);
+        item.total += c.amount;
+      } else {
+        unassigned.push(c);
+        unassignedTotal += c.amount;
+      }
+    }
+
+    return {
+      children: Array.from(map.values()),
+      unassigned,
+      unassignedTotal,
+    };
+  }, [students, chargeEntries]);
+
+  // Group charges by service category
+  const chargesByCategory = useMemo(() => {
+    const map = new Map<string, { category: PaymentCategory; label: string; total: number; count: number }>();
+    for (const c of chargeEntries) {
+      const cat = c.category;
+      const existing = map.get(cat);
+      if (existing) {
+        existing.total += c.amount;
+        existing.count += 1;
+      } else {
+        map.set(cat, {
+          category: cat,
+          label: PAYMENT_CATEGORY_LABELS_FR[cat] ?? cat,
+          total: c.amount,
+          count: 1,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [chargeEntries]);
+
+  // Sum of all charge entries
+  const totalBilledCharges = useMemo(
+    () => chargeEntries.reduce((acc, c) => acc + c.amount, 0),
+    [chargeEntries],
+  );
+
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-4 text-sm">
       {/* Financial Actions Bar */}
       <div className="flex items-center justify-between">
-        <SectionTitle icon={<Wallet className="h-3.5 w-3.5" />}>Finances</SectionTitle>
+        <SectionTitle icon={<Wallet className="h-3.5 w-3.5" />}>Finances & Facturation</SectionTitle>
         <div className="flex items-center gap-1.5">
           {canAdjust && (
             <Button
@@ -550,7 +621,7 @@ function FinancesTab({
 
       {/* Balance Cards */}
       <div className="grid grid-cols-3 gap-2">
-        <BalanceCard label="Total dû" value={profile?.totalDue ?? 0} tone="default" />
+        <BalanceCard label="Total Dû" value={profile?.totalDue ?? totalBilledCharges} tone="default" />
         <BalanceCard label="Payé" value={profile?.totalPaid ?? 0} tone="success" />
         {outstanding < 0 ? (
           <BalanceCard
@@ -559,7 +630,7 @@ function FinancesTab({
             tone="success"
           />
         ) : (
-          <BalanceCard label="Reste" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
+          <BalanceCard label="Reste à payer" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
         )}
       </div>
 
@@ -572,13 +643,165 @@ function FinancesTab({
         </div>
       )}
 
+      {/* ============================================================ */}
+      {/* SECTION: Itemized Shopping List / Ce que couvre le Total Dû */}
+      {/* ============================================================ */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="border-b border-border px-3 py-2.5 bg-muted/30 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4 text-primary" />
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
+              Détail des Prestations Facturées
+            </p>
+          </div>
+          {/* Dual Toggle View */}
+          <div className="flex items-center rounded-md border border-border bg-background p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setBreakdownMode("by_child")}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
+                breakdownMode === "by_child"
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Users className="h-3 w-3" /> Par Enfant
+            </button>
+            <button
+              type="button"
+              onClick={() => setBreakdownMode("by_service")}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
+                breakdownMode === "by_service"
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Layers className="h-3 w-3" /> Par Service
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3">
+          {chargeEntries.length === 0 ? (
+            <div className="text-center py-4 space-y-1.5 text-xs text-muted-foreground">
+              <p>Aucune ligne de facturation détaillée trouvée dans le journal.</p>
+              <p className="italic text-[11px]">
+                Le montant total dû ({formatDzd(profile?.totalDue ?? 0)}) est calculé sur la base de la fiche d'inscription initiale ou de dettes antérieures.
+              </p>
+            </div>
+          ) : breakdownMode === "by_child" ? (
+            /* VIEW 1: Per Child Breakdown */
+            <div className="space-y-3">
+              {chargesByChild.children.map(({ student, charges, total }) => (
+                <div key={student.id} className="rounded-md border border-border/80 bg-surface-panel/30 p-2.5 space-y-2">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground text-xs">
+                        {student.firstName} {student.lastName}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        {student.gradeLevel?.toUpperCase() ?? levelLabel(student.level)}
+                      </Badge>
+                    </div>
+                    <span className="font-mono font-bold text-xs text-primary">
+                      {formatDzdPlain(total)}
+                    </span>
+                  </div>
+                  {charges.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground italic pl-2">Aucune prestation individualisée.</p>
+                  ) : (
+                    <ul className="divide-y divide-border/40 text-xs">
+                      {charges.map((c) => (
+                        <li key={c.id} className="py-1.5 flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-foreground text-[11px] font-medium">
+                              {c.description}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground">
+                              {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}
+                            </span>
+                          </div>
+                          <span className="font-mono font-medium text-xs shrink-0">
+                            {formatDzdPlain(c.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+
+              {/* Shared or Unassigned family charges */}
+              {chargesByChild.unassigned.length > 0 && (
+                <div className="rounded-md border border-border/80 bg-surface-panel/30 p-2.5 space-y-2">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
+                    <span className="font-semibold text-foreground text-xs">
+                      Frais Communs & Dossier Famille
+                    </span>
+                    <span className="font-mono font-bold text-xs text-primary">
+                      {formatDzdPlain(chargesByChild.unassignedTotal)}
+                    </span>
+                  </div>
+                  <ul className="divide-y divide-border/40 text-xs">
+                    {chargesByChild.unassigned.map((c) => (
+                      <li key={c.id} className="py-1.5 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-foreground text-[11px] font-medium">
+                            {c.description}
+                          </p>
+                          <span className="text-[10px] text-muted-foreground">
+                            {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}
+                          </span>
+                        </div>
+                        <span className="font-mono font-medium text-xs shrink-0">
+                          {formatDzdPlain(c.amount)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* VIEW 2: Consolidated By Service Category */
+            <div className="space-y-2">
+              <ul className="divide-y divide-border text-xs">
+                {chargesByCategory.map((cat) => (
+                  <li key={cat.category} className="py-2 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">{cat.label}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {cat.count} prestation{cat.count > 1 ? "s" : ""} inscrite{cat.count > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <span className="font-mono font-bold text-sm">
+                      {formatDzdPlain(cat.total)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Shopping list footer total */}
+          {chargeEntries.length > 0 && (
+            <div className="border-t border-border mt-3 pt-2 flex items-center justify-between text-xs font-semibold">
+              <span className="text-muted-foreground uppercase">Sous-total des prestations facturées :</span>
+              <span className="font-mono text-foreground font-bold">{formatDzd(totalBilledCharges)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       <Separator />
 
       {/* Installments (Tranches) */}
       <div className="rounded-md border border-border bg-card">
         <div className="border-b border-border px-3 py-2 bg-muted/30">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Échéances / Tranches
+            Échéances / Tranches de Règlement
           </p>
         </div>
         {profile && profile.installments.length > 0 ? (
@@ -609,7 +832,7 @@ function FinancesTab({
             ))}
           </ul>
         ) : (
-          <p className="px-3 py-3 text-xs text-muted-foreground">Aucune tranche.</p>
+          <p className="px-3 py-3 text-xs text-muted-foreground">Aucune tranche d'échéance générée.</p>
         )}
       </div>
 
@@ -640,32 +863,95 @@ function FinancesTab({
         )}
       </div>
 
-      {/* Adjustments */}
+      {/* ============================================================ */}
+      {/* SECTION: Explicit Adjustments History (Transparency)         */}
+      {/* ============================================================ */}
       <div className="rounded-md border border-border bg-card">
-        <div className="border-b border-border px-3 py-2 bg-muted/30">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="border-b border-border px-3 py-2 bg-muted/30 flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
             Historique des ajustements
+            <span className="text-[10px] font-normal lowercase">({profile?.adjustments.length ?? 0} entrée(s))</span>
+          </p>
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <HelpCircle className="h-3 w-3" />
+            <span>Remises & régularisations</span>
+          </div>
+        </div>
+
+        {/* Diagnostic Explanation Banner */}
+        <div className="p-3 bg-muted/15 border-b border-border/60 text-[11px] text-muted-foreground space-y-1">
+          <p className="flex items-center gap-1.5 font-medium text-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            Comprendre ces montants :
+          </p>
+          <p>
+            • <strong className="text-status-success font-mono">− En vert (Négatif) :</strong> Remise, déduction ou crédit parent qui <u>diminue</u> ce que doit la famille.
+          </p>
+          <p>
+            • <strong className="text-status-danger font-mono">+ En rouge (Positif) :</strong> Majoration, pénalité, ou <u>annulation/contrepassation</u> d'une remise précédente (ce qui <u>rajoute</u> de la dette).
           </p>
         </div>
+
         {profile && profile.adjustments.length > 0 ? (
           <ul className="divide-y divide-border text-xs">
-            {profile.adjustments.slice(0, 5).map((a) => (
-              <li key={a.id} className="px-3 py-2 space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`font-mono font-medium ${a.amount < 0 ? "text-status-success" : "text-status-danger"}`}
-                  >
-                    {a.amount < 0 ? "−" : "+"}{formatDzdPlain(Math.abs(a.amount))}
-                  </span>
-                  <span className="text-muted-foreground text-[11px]">{formatRelative(a.approvedAt)}</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground font-mono">{a.approvedBy}</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">{a.reason}</p>
-              </li>
-            ))}
+            {profile.adjustments.map((a) => {
+              const isCredit = a.amount < 0;
+              const cleanReason = a.reason && a.reason.trim().length > 0 ? a.reason : null;
+
+              // Fallback diagnostic explanation when system created an empty-reason adjustment
+              const diagnosticReason = cleanReason ?? (
+                isCredit
+                  ? "Déduction / Remise enregistrée automatiquement par le système"
+                  : "Régularisation / Rétablissement de dette (contrepassation automatique)"
+              );
+
+              return (
+                <li key={a.id} className="px-3 py-2.5 space-y-1 hover:bg-accent/5 transition-colors">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`font-mono font-bold text-sm ${
+                        isCredit ? "text-status-success" : "text-status-danger"
+                      }`}
+                    >
+                      {isCredit ? "− " : "+ "}
+                      {formatDzdPlain(Math.abs(a.amount))}
+                    </span>
+
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] ${
+                        isCredit
+                          ? "bg-status-success/10 text-status-success border-status-success/30"
+                          : "bg-status-danger/10 text-status-danger border-status-danger/30"
+                      }`}
+                    >
+                      {isCredit ? "Crédit / Déduction" : "Débit / Majoration"}
+                    </Badge>
+
+                    <span className="text-muted-foreground text-[10px]">
+                      {formatRelative(a.approvedAt)} ({formatDate(a.approvedAt)})
+                    </span>
+
+                    <span className="ml-auto text-[10px] text-muted-foreground font-mono bg-muted/40 px-1.5 py-0.5 rounded">
+                      Auteur : {a.approvedBy}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-foreground font-medium">
+                    {diagnosticReason}
+                  </p>
+
+                  {a.receiptRef && (
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      Réf. pièce : {a.receiptRef}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         ) : (
-          <p className="px-3 py-3 text-xs text-muted-foreground">Aucun ajustement.</p>
+          <p className="px-3 py-3 text-xs text-muted-foreground">Aucun ajustement enregistré sur ce compte.</p>
         )}
       </div>
     </div>
