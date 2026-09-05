@@ -19,6 +19,46 @@ import { Ok, Err, type Result } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { supabaseErrorToAppError } from "../supabase-client";
 
+/**
+ * Extract the hub Edge Functions' STRUCTURED error body from a
+ * functions-js error object.
+ *
+ * T-184 / ACT-202 (2026-09-05): `SupabaseClient.functions.invoke` (via
+ * @supabase/functions-js 2.112.3) returns `{ data: null, error }` for EVERY
+ * non-2xx status — the Response is wrapped in `FunctionsHttpError`, whose
+ * `context` property holds the raw Response and whose `message` is the
+ * generic "Function returned an error". The hub EFs respond with
+ * `{ error: { code, message, details } }` (the _shared/cors.ts jsonError
+ * shape — pinned by T-146/T-147's live round-trip), so the real reason must
+ * be parsed off `error.context`. Returns null when the context is missing,
+ * already consumed, or not the structured shape (callers then fall back to
+ * their generic mapping).
+ */
+async function structuredEdgeFunctionError(
+  error: unknown,
+): Promise<{ code?: string; message?: string } | null> {
+  const ctx = (error as { context?: unknown } | null | undefined)?.context;
+  if (!ctx || typeof (ctx as Response).json !== "function") {
+    return null;
+  }
+  try {
+    const body = (await (ctx as Response).json()) as {
+      error?: { code?: unknown; message?: unknown };
+    } | null;
+    const e = body?.error;
+    if (e && typeof e === "object") {
+      return {
+        code: typeof e.code === "string" ? e.code : undefined,
+        message: typeof e.message === "string" ? e.message : undefined,
+      };
+    }
+    return null;
+  } catch {
+    // Body already consumed or not JSON — the generic path applies.
+    return null;
+  }
+}
+
 export interface PendingApprovalWithDetails extends AccountApprovalRequestRow {
   parent_match?: {
     id: string;
@@ -238,6 +278,17 @@ export class SupabaseApprovalRepository {
    * activation code. This is the Web Portal side of the Account Activation
    * Protocol (plan §06). On the desktop side, this is used for testing
    * and for staff-assisted binding.
+   *
+   * T-184 / ACT-202 (2026-09-05): the error path used to collapse EVERY
+   * non-2xx response into the generic "Function returned an error" string —
+   * functions-js (2.112.3, live-verified in node_modules) returns
+   * `{ data: null, error: FunctionsHttpError }` for any non-2xx status and
+   * the hub EF's structured body `{ error: { code, message } }` (the
+   * _shared/cors.ts jsonError shape, pinned by T-146/T-147) never reached
+   * the `data` channel. The staff could not tell an invalid code from an
+   * expired one from an already-bound family. The structured body is now
+   * parsed off `error.context` (the raw Response) and mapped to a precise
+   * AppError — the desktop equivalent of the website's T-153 mapping.
    */
   async bindActivationCode(activationCode: string): Promise<Result<{
     parent_id: string;
@@ -253,6 +304,53 @@ export class SupabaseApprovalRepository {
     });
 
     if (error) {
+      const structured = await structuredEdgeFunctionError(error);
+      if (structured) {
+        switch (structured.code) {
+          case "account_already_active":
+            // Idempotent per ADR-011 — the account is already usable.
+            return Err(
+              Errors.conflict(
+                structured.message ?? "Account is already active",
+                "Le compte est déjà actif — aucune action nécessaire.",
+              ),
+            );
+          case "parent_already_bound":
+            return Err(
+              Errors.conflict(
+                structured.message ?? "Parent already bound to another account",
+                structured.message ?? "Cette famille est déjà liée à un autre compte.",
+              ),
+            );
+          case "code_not_found":
+            return Err(
+              Errors.validation(
+                structured.message ?? "Invalid or already-used activation code",
+                "Code d'activation invalide ou déjà utilisé.",
+              ),
+            );
+          case "code_expired":
+            return Err(
+              Errors.validation(
+                structured.message ?? "Activation code has expired",
+                "Code d'activation expiré — contactez l'administration.",
+              ),
+            );
+          case "account_suspended":
+          case "account_rejected":
+            // Errors.forbidden takes one argument; the EF's real message is
+            // the developer-facing detail (the fixed userMessage stays
+            // permission-flavoured — appropriate for a suspended account).
+            return Err(
+              Errors.forbidden(
+                structured.message ?? "Account suspended or rejected. Contact the school administration.",
+              ),
+            );
+          default:
+            // auth_failed / profile_not_found / server_misconfigured / …
+            return Err(Errors.server(structured.message ?? "Binding failed"));
+        }
+      }
       return Err(supabaseErrorToAppError(error));
     }
     if (data?.error) {
