@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-09-05 — T-181 — Android Room dismissedAt + server-dismissed eviction (T-173 part b, NOTIF-200 residual)
+
+- **Problem IDs:** NOTIF-200 residual (the T-173 "Left" note)
+- **What changed:** Android repo (commit 4589a19): Room migration v13→v14 (`notifications.dismissedAt` nullable TEXT); NotificationDto decodes `dismissed_at` + the mapper stores it; new DAO query `evictServerDismissed(ids)`; `pullNotifications()` evicts rows the server has since dismissed (stale candidates = local ids absent from the fresh active pull; ONE targeted server round-trip, chunked 50 ids/query for the PostgREST URL bound; only CONFIRMED-dismissed rows deleted — window-fallout rows untouched); DatabaseModule registers MIGRATION_13_14; the T-046 discipline pin bumped 13→14 consciously.
+- **Why:** pre-T-181, rows dismissed server-side (the run-overdue-scan lifecycle resolving overdue alerts once the installment is paid) lingered in Room FOREVER — the T-172 pull filter only stops NEW dismissed rows from entering; evictNotVisibleTo covers visibility, not dismissal. The Android feed kept showing alerts the server had already resolved. Desktop parity: its repository filters `dismissed_at IS NULL` on EVERY read; Room is a persistent cache, so the equivalent semantics need the column + eviction at pull time.
+- **Affected components:** Android Room schema + DTO/mapper + DAO + pull layer; NO server/EF/desktop/website changes (all server-side lifecycle work was T-172's).
+- **Tests:** NEW `ServerDismissedEvictionT181Test` **10/10** + `RoomSchemaUpgradeT181Test` **3/3** (MigrationTestHelper on a real SQLite file); FULL Android suite **48 files / 410 / 0** (was 397); lintDebug green; schema 14.json committed. (Toolchain re-provisioned after a container reset — JDK 21.0.12.1 + SDK 35 at the documented paths; the root .env recreated with public identifiers after the T-159 secrets-plugin quirk resurfaced.)
+- **Verification:** suites above; a live end-to-end eviction observation (server dismiss → Android pull) is device-gated like the other T-039/T-069-class round-trips.
+- **Commit:** android 4589a19
+- **Notes:** T-173 is now HALF-CLOSED: part b (the Room gap) done; part a (the alert VOLUME product decision — digest vs per-installment, UNKNOWN-020) remains owner-gated.
+
 ### 2026-09-05 — T-180 — tasks port (T-047 #5, migration 0074) — the dashboards' task boards go server-side
 
 - **Problem IDs:** ARCH-001 (T-047 port #5)
