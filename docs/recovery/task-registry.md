@@ -1757,3 +1757,20 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Description:** (a) With a 691-overdue corpus the feed holds 691 unread alerts — one per genuinely overdue installment (all truthful post-T-172). Whether the scan should instead emit ONE digest alert (+ top-N detail) is a PRODUCT decision needing an ADR (UNKNOWN-020) — implement on BOTH the EF and the desktop generator (equivalence) if accepted. (b) Android Room has no `dismissedAt` column — rows resolved server-side linger locally until role eviction; needs a Room migration (v14?) + pull-side eviction.
 - **Dependencies:** UNKNOWN-020 (digest shape + N cap decision); NOTIF-100/NOTIF-104 context.
 - **Verification:** EF≡desktop equivalence suite + a live re-run of the scan before/after; Android unit suite + migration test.
+
+## 28th session (2026-09-05 — owner mandate: "finish the remaining tasks; apply the migration tokens; everything works across all platforms; migration applied + consistent everywhere; zip + push", ALL REPOS)
+
+> Session context: fresh sbp_ access token supplied by the owner (MIG-TOKENS re-verification mandated). Opening ritual found the live chain at 65 rows (0001–0068) vs 66 committed files — migration 0069's DDL was live but its registration row was missing (ARCH-015, 4th ARCH-011-class event). Session batch: T-174 (token mandate + registration repair) + the T-047 desktop Supabase-repository ports (calendar → workflows/workflowRuns → leaveRequests/suppliers/tasks per the T-160 scoping's recommended execution order) + the T-173(b) Android Room dismissedAt migration + closeout/handoff.
+
+### T-174 — MIG-TOKENS 28th-session re-verification + 0069 live registration repair (ARCH-015) — **Completed (VERIFIED)**
+
+- **Problems:** ARCH-015 (new — registered this session) · **Priority:** P0 (owner token mandate)
+- **Status:** VERIFIED (2026-09-05, 28th session)
+- **What was done:**
+  1. Fresh sbp_ token: Supabase CLI 2.116.0 re-provisioned, project re-linked; opening chain check discovered the 0069 applied-without-registration drift (ARCH-015).
+  2. Registered the 0069 row live atomically (`scripts/apply_0069_registration_live.sh` — T-091/MIG-TOKENS pattern, env-token, ON CONFLICT DO NOTHING). The committed 0069 file NOT edited (append-only guard; fresh CLI deployments register automatically).
+  3. EF fleet census via Management API: 13/13 ACTIVE (all local function dirs; `_shared/` is a module, not a function — earlier "14/14" counts included it).
+  4. §7 credentials checklist re-run: 17/17 (auth health both key formats, RLS anon/publishable deny ×5 core tables, publishable key/URL/JWKS byte-identical to committed values, JWKS 200).
+  5. Baselines: desktop full suite + website full suite re-run on the pristine clone (results in the change-log entry); Android toolchain re-provisioned per AGENTS.md §11.
+- **Verified:** `scripts/verify_t-174.sql` live 5/5 (chain=66, 0069 row shape exact, constraint convalidated, unique index → idempotent, 690 adjustment rows untouched); chain check 66/66 = 0001–0069 ZERO DRIFT; §7 checklist 17/17.
+- **Left:** nothing — the registration repair is complete. Owner-gated residuals unchanged (AUTH-200 first sign-in, RESEND_API_KEY, FIREBASE_SERVICE_ACCOUNT_JSON, the T-171 "Supprimer les échecs" click).
