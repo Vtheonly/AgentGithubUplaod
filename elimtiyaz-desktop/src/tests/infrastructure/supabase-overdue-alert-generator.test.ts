@@ -35,6 +35,8 @@ class FakeQuery {
   private filters: ((row: Row) => boolean)[] = [];
   private payload: Row | Row[] | null = null;
   private isInsert = false;
+  private isUpdate = false;
+  private limitCount: number | null = null;
 
   constructor(
     private readonly table: FakeTable,
@@ -67,6 +69,20 @@ class FakeQuery {
     this.filters.push((r) => vals.includes(r[col]));
     return this;
   }
+  // T-172: `.is(col, null)` support (dismissed_at IS NULL).
+  is(col: string, val: unknown): this {
+    if (val === null) {
+      this.filters.push((r) => r[col] === null || r[col] === undefined);
+    } else {
+      this.filters.push((r) => r[col] === val);
+    }
+    return this;
+  }
+  // T-172: `.limit(n)` support (stale-alerts fetch caps at 2000).
+  limit(n: number): this {
+    this.limitCount = n;
+    return this;
+  }
 
   // Terminal: SELECT
   select(_cols?: string): this {
@@ -78,6 +94,14 @@ class FakeQuery {
   insert(rows: Row | Row[]): this {
     this.isInsert = true;
     this.payload = rows;
+    return this;
+  }
+
+  // T-172: UPDATE — mutates the matched rows in the fake table so
+  // follow-up assertions can read the persisted state. Applied at run().
+  update(patch: Row): this {
+    this.isUpdate = true;
+    this.payload = patch;
     return this;
   }
 
@@ -95,8 +119,18 @@ class FakeQuery {
       // Apply filters? Insert doesn't apply filters in PostgREST.
       return { data: withIds, error: null };
     }
-    // SELECT — apply filters
-    const filtered = this.table.rows.filter((r) => this.filters.every((f) => f(r)));
+    if (this.isUpdate) {
+      // SELECT-style filter match, then mutate the matched rows.
+      const filtered = this.table.rows.filter((r) => this.filters.every((f) => f(r)));
+      const patch = (Array.isArray(this.payload) ? this.payload[0] : this.payload) as Row;
+      for (const row of filtered) {
+        Object.assign(row, patch);
+      }
+      return { data: filtered.map((r) => ({ ...r })), error: null };
+    }
+    // SELECT — apply filters (+ limit if set)
+    let filtered = this.table.rows.filter((r) => this.filters.every((f) => f(r)));
+    if (this.limitCount !== null) filtered = filtered.slice(0, this.limitCount);
     return { data: filtered, error: null };
   }
 
@@ -421,5 +455,128 @@ describe("SupabaseOverdueAlertGenerator — T-080", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toEqual([]);
+  });
+});
+
+// ============================================================================
+// T-172 (NOTIF-200) — alert lifecycle: active-only dedup + stale resolution
+// ============================================================================
+
+describe("SupabaseOverdueAlertGenerator — T-172 alert lifecycle", () => {
+  let client: FakeClient;
+
+  const overdueInstallment = (id: string, amountDue = 10000, amountPaid = 0) => ({
+    id,
+    tenant_id: TENANT,
+    parent_id: PARENT_ID,
+    student_id: STUDENT_ID,
+    category: "tuition",
+    label: "Tranche",
+    tranche_number: 1,
+    amount_due: amountDue,
+    amount_paid: amountPaid,
+    amount_pending: 0,
+    due_date: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+    status: "pending",
+  });
+
+  const activeAlert = (id: string, linkId: string) => ({
+    id,
+    tenant_id: TENANT,
+    kind: "alert",
+    title: "Tranche en retard",
+    body: "…",
+    priority: "high",
+    source: "system",
+    source_label: "Module Finances — Retards auto",
+    target_user_id: null,
+    target_role: "financial_officer",
+    triggered_at: "2026-08-30T00:00:00.000Z",
+    link_entity_type: "installment",
+    link_entity_id: linkId,
+    is_read: false,
+    read_at: null,
+    dismissed_at: null,
+    created_by: null,
+    created_at: "2026-08-30T00:00:00.000Z",
+  });
+
+  beforeEach(() => {
+    client = new FakeClient();
+    setSessionTenantId(TENANT);
+    client.tables.parents.rows = [
+      { id: PARENT_ID, tenant_id: TENANT, display_name: "Famille Test", first_name: "", last_name: "Test" },
+    ];
+  });
+
+  it("resolves (dismisses) ACTIVE alerts whose installment left the tracked set — e.g. fully paid", async () => {
+    // The installment is paid off (amount_due == amount_paid) — not tracked.
+    client.tables.installments.rows = [overdueInstallment(INST_1, 10000, 10000)];
+    // An active alert exists for it from an earlier scan.
+    client.tables.notifications.rows = [activeAlert("ntf-old-1", INST_1)];
+
+    const gen = new SupabaseOverdueAlertGenerator(client as unknown as SupabaseClient);
+    const result = await gen.run();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // No new alerts (nothing overdue) and the stale one is now resolved.
+    expect(result.value).toEqual([]);
+    expect(client.tables.notifications.rows[0]!.dismissed_at).not.toBeNull();
+  });
+
+  it("resolves alerts for installments that disappeared entirely (deleted/cancelled)", async () => {
+    // No installments at all — the alert's installment is gone.
+    client.tables.installments.rows = [];
+    client.tables.notifications.rows = [activeAlert("ntf-gone", INST_DUP)];
+
+    const gen = new SupabaseOverdueAlertGenerator(client as unknown as SupabaseClient);
+    await gen.run();
+
+    expect(client.tables.notifications.rows[0]!.dismissed_at).not.toBeNull();
+  });
+
+  it("does NOT resolve alerts whose installment is still overdue (tracked set)", async () => {
+    client.tables.installments.rows = [overdueInstallment(INST_1)]; // still overdue
+    client.tables.notifications.rows = [activeAlert("ntf-keep", INST_1)];
+
+    const gen = new SupabaseOverdueAlertGenerator(client as unknown as SupabaseClient);
+    const result = await gen.run();
+    if (!result.ok) return;
+
+    // The alert stays active and is not duplicated (active dedup).
+    expect(result.value).toEqual([]);
+    expect(client.tables.notifications.rows[0]!.dismissed_at).toBeNull();
+    expect(client.tables.notifications.rows).toHaveLength(1);
+  });
+
+  it("does not touch already-dismissed alerts (idempotent resolution)", async () => {
+    client.tables.installments.rows = [overdueInstallment(INST_1, 10000, 10000)];
+    const dismissed = { ...activeAlert("ntf-done", INST_1), dismissed_at: "2026-09-01T00:00:00.000Z" };
+    client.tables.notifications.rows = [dismissed];
+
+    const gen = new SupabaseOverdueAlertGenerator(client as unknown as SupabaseClient);
+    await gen.run();
+
+    // dismissed_at untouched (still the ORIGINAL resolution timestamp).
+    expect(client.tables.notifications.rows[0]!.dismissed_at).toBe("2026-09-01T00:00:00.000Z");
+  });
+
+  it("a DISMISSED alert does NOT block re-creation when the installment becomes overdue again", async () => {
+    // Overdue again with a fresh balance.
+    client.tables.installments.rows = [overdueInstallment(INST_1)];
+    // The previous alert for the same installment was resolved (paid then reverted).
+    client.tables.notifications.rows = [
+      { ...activeAlert("ntf-resolved", INST_1), dismissed_at: "2026-09-01T00:00:00.000Z" },
+    ];
+
+    const gen = new SupabaseOverdueAlertGenerator(client as unknown as SupabaseClient);
+    const result = await gen.run();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // A NEW active alert was created (the dismissed one did not dedup-block).
+    expect(result.value).toHaveLength(1);
+    expect(result.value[0]!.entityId).toBe(INST_1);
   });
 });

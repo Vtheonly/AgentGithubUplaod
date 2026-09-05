@@ -14,6 +14,25 @@
  * via the same `notifications` INSERT path the Alert Creator modal
  * uses. Idempotent by the same dedup key as the mock.
  *
+ * T-172 (NOTIF-200) — ALERT LIFECYCLE (mirrored 1:1 in the
+ * `run-overdue-scan` Edge Function; equivalence is mandatory):
+ *   1. The dedup key now counts ACTIVE alerts only
+ *      (`dismissed_at IS NULL`) — a dismissed/resolved alert no longer
+ *      blocks re-alerting if the installment becomes overdue again
+ *      (e.g. a payment is reverted).
+ *   2. Active installment alerts whose installment is NO LONGER in the
+ *      tracked set (not overdue, not upcoming-with-balance — e.g. paid
+ *      or cancelled) are RESOLVED (dismissed_at = now) so the feed stays
+ *      truthful instead of accumulating permanently-unread rows (live
+ *      evidence 2026-09-05: 958 unread "Tranche en retard" alerts, none
+ *      ever resolved).
+ *   - The resolution UPDATE is best-effort here: the caller's session
+ *     may lack `notifications_update` rights for role-broadcast rows
+ *     (NOTIF-100 — financial_officer is blocked by RLS; super_admin
+ *     passes). The daily `run-overdue-scan` cron (service_role) is the
+ *     authoritative resolver; a client-side failure is logged, never
+ *     thrown.
+ *
  * Design notes:
  *   - The notification's `entityType` field on the domain model maps
  *     to `link_entity_type` in the `notifications` table (migration
@@ -135,14 +154,39 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
         // Non-fatal — proceed with overdue-only scan.
       }
 
+      // T-172: filter to rows with a REAL remaining balance (> 0.001, INV-4)
+      // up-front — the tracked set drives BOTH alert creation AND stale
+      // resolution (an installment with nothing left to collect must not
+      // keep its alert alive).
+      const trackedOverdue = (overdueRows ?? []).filter((r) => {
+        const row = r as unknown as OverdueInstallmentRow;
+        return Number(row.amount_due) - Number(row.amount_paid) > 0.001;
+      });
+      const trackedUpcoming = (upcomingRows ?? []).filter((r) => {
+        const row = r as unknown as OverdueInstallmentRow;
+        return Number(row.amount_due) - Number(row.amount_paid) > 0.001;
+      });
+      const trackedIds = new Set(
+        [...trackedOverdue, ...trackedUpcoming].map(
+          (r) => (r as unknown as OverdueInstallmentRow).id,
+        ),
+      );
+
       // ── 3. Fetch parents for display names (one query, IN list) ───
-      const allRows = [...(overdueRows ?? []), ...(upcomingRows ?? [])] as unknown as OverdueInstallmentRow[];
+      const allRows = [...trackedOverdue, ...trackedUpcoming] as unknown as OverdueInstallmentRow[];
       const parentIds = [...new Set(allRows.map((r) => r.parent_id).filter(Boolean))];
       const parentMap = await this.fetchParentMap(tenantId, parentIds);
 
-      // ── 4. Fetch existing installment alerts (dedup keys) ──────────
+      // ── 4. Fetch existing ACTIVE installment alerts (dedup keys) ──
+      // T-172 (NOTIF-200): dismissed/resolved alerts are EXCLUDED — a
+      // resolved alert must not block re-alerting when the installment
+      // becomes overdue again (payment reverted / balance restored).
       const installmentIds = allRows.map((r) => r.id).filter(isUuid);
       const existingKeys = await this.fetchExistingAlertKeys(tenantId, installmentIds);
+
+      // ── 4b. T-172: resolve ACTIVE alerts whose installment left the ──
+      // tracked set (paid / cancelled / no remaining balance).
+      await this.resolveStaleAlerts(tenantId, trackedIds, nowIso);
 
       // ── 5. Build notification rows ─────────────────────────────────
       const nowMs = now.getTime();
@@ -151,7 +195,7 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
         domain: AppNotification;
       }> = [];
 
-      for (const ins of overdueRows ?? []) {
+      for (const ins of trackedOverdue) {
         const row = ins as unknown as OverdueInstallmentRow;
         if (existingKeys.has(row.id)) continue;
         const daysOverdue = Math.floor((nowMs - new Date(row.due_date).getTime()) / 86_400_000);
@@ -198,7 +242,7 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
         });
       }
 
-      for (const ins of upcomingRows ?? []) {
+      for (const ins of trackedUpcoming) {
         const row = ins as unknown as OverdueInstallmentRow;
         if (existingKeys.has(row.id)) continue;
         const daysUntil = Math.ceil((new Date(row.due_date).getTime() - nowMs) / 86_400_000);
@@ -353,8 +397,10 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
   }
 
   /**
-   * Fetch the set of installment IDs that already have an overdue alert.
-   * Dedup by `link_entity_type='installment'` + `link_entity_id`.
+   * Fetch the set of installment IDs that already have an ACTIVE overdue
+   * alert. Dedup by `link_entity_type='installment'` + `link_entity_id`;
+   * T-172 (NOTIF-200): dismissed/resolved alerts are EXCLUDED so a
+   * resolved alert does not block re-alerting.
    */
   private async fetchExistingAlertKeys(
     tenantId: string,
@@ -371,6 +417,7 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
           .select("link_entity_id")
           .eq("tenant_id", tenantId)
           .eq("link_entity_type", "installment")
+          .is("dismissed_at", null)
           .in("link_entity_id", chunk);
         if (error) {
           console.warn("[SupabaseOverdueAlerts] existing alerts query failed:", error.message);
@@ -384,5 +431,59 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
       console.warn("[SupabaseOverdueAlerts] existing alerts query error:", e);
     }
     return keys;
+  }
+
+  /**
+   * T-172 (NOTIF-200): resolve (dismiss) ACTIVE installment alerts whose
+   * installment is no longer in the tracked set — paid, cancelled, or no
+   * remaining balance. Keeps the alert feed truthful instead of accruing
+   * permanently-unread rows. Mirrors the run-overdue-scan EF step 1:1.
+   *
+   * Best-effort: a session without `notifications_update` rights on
+   * role-broadcast rows (financial_officer — NOTIF-100) gets a warning,
+   * never a throw; the daily cron (service_role) resolves authoritatively.
+   */
+  private async resolveStaleAlerts(
+    tenantId: string,
+    trackedIds: Set<string>,
+    nowIso: string,
+  ): Promise<void> {
+    try {
+      // All ACTIVE installment alerts for this tenant (id + link).
+      const { data, error } = await this.client
+        .from("notifications")
+        .select("id, link_entity_id")
+        .eq("tenant_id", tenantId)
+        .eq("link_entity_type", "installment")
+        .is("dismissed_at", null)
+        .limit(2000);
+      if (error) {
+        console.warn("[SupabaseOverdueAlerts] stale-alerts fetch failed:", error.message);
+        return;
+      }
+      const staleIds = ((data ?? []) as { id: string; link_entity_id: string | null }[])
+        .filter((r) => r.link_entity_id && !trackedIds.has(r.link_entity_id))
+        .map((r) => r.id);
+      if (staleIds.length === 0) return;
+
+      const CHUNK = 100;
+      for (let i = 0; i < staleIds.length; i += CHUNK) {
+        const chunk = staleIds.slice(i, i + CHUNK);
+        const { error: updateError } = await this.client
+          .from("notifications")
+          .update({ dismissed_at: nowIso })
+          .in("id", chunk);
+        if (updateError) {
+          console.warn(
+            "[SupabaseOverdueAlerts] stale-alert resolution UPDATE failed (best-effort — the daily cron resolves authoritatively):",
+            updateError.message,
+          );
+          return;
+        }
+      }
+      console.info(`[SupabaseOverdueAlerts] resolved ${staleIds.length} stale installment alert(s).`);
+    } catch (e) {
+      console.warn("[SupabaseOverdueAlerts] stale-alert resolution error (best-effort):", e);
+    }
   }
 }

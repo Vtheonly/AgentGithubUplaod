@@ -24,11 +24,26 @@
 //     2. ONE upcoming-due query (next 7 days) — the desktop reference's
 //        second pass, now EF≡desktop.
 //     3. ONE chunked parents fetch (display names).
-//     4. ONE chunked dedup-key fetch (existing installment alerts) → an
-//        in-memory Set — idempotent by link_entity_type='installment' +
+//     4. ONE chunked dedup-key fetch (existing ACTIVE installment alerts) →
+//        an in-memory Set — idempotent by link_entity_type='installment' +
 //        link_entity_id, same key as the desktop.
 //     5. ONE bulk INSERT of the new notifications.
 //     6. Per-tenant audit entry (unchanged).
+//
+// T-172 (NOTIF-200) — ALERT LIFECYCLE (mirrored 1:1 in the desktop
+// reference `SupabaseOverdueAlertGenerator`; equivalence is mandatory):
+//     - The dedup key (step 4) counts ACTIVE alerts only
+//       (`dismissed_at IS NULL`) — a dismissed/resolved alert no longer
+//       blocks re-alerting if the installment becomes overdue again
+//       (e.g. a payment is reverted).
+//     - NEW step 5b: active installment alerts whose installment is NO
+//       LONGER in the tracked set (paid / cancelled / no remaining
+//       balance) are RESOLVED (dismissed_at = now) — the feed stays
+//       truthful instead of accumulating permanently-unread rows (live
+//       evidence 2026-09-05: 958 unread "Tranche en retard" alerts, none
+//       ever resolved). Runs under service_role here — the authoritative
+//       resolver; the desktop's client-side mirror is best-effort
+//       (NOTIF-100 RLS blocks financial_officer sessions).
 //
 //   Semantic notes:
 //     - The per-parent compute_parent_summary account-level gate is GONE:
@@ -131,6 +146,7 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     total_overdue_installments: 0,
     total_overdue_amount: 0,
     alerts_created: 0,
+    alerts_resolved: 0,
     by_priority: { urgent: 0, high: 0, medium: 0 } as { urgent: number; high: number; medium: number },
     upcoming_due_alerts: 0,
     audit_failures: 0,
@@ -218,7 +234,10 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       for (const p of (parents ?? []) as unknown as ParentRow[]) parentMap.set(p.id, p);
     }
 
-    // ── 4. ONE chunked fetch: existing dedup keys ──────────────────────────
+    // ── 4. ONE chunked fetch: existing ACTIVE dedup keys ────────────────────
+    // T-172 (NOTIF-200): dismissed/resolved alerts are EXCLUDED so a
+    // resolved alert does not block re-alerting when the installment
+    // becomes overdue again (payment reverted / balance restored).
     const installmentIds = [...overdueWithBalance, ...upcomingWithBalance].map((r) => r.id);
     const existingKeys = new Set<string>();
     for (let i = 0; i < installmentIds.length; i += CHUNK) {
@@ -228,6 +247,7 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
         .select("link_entity_id")
         .eq("tenant_id", tenant.id)
         .eq("link_entity_type", "installment")
+        .is("dismissed_at", null)
         .in("link_entity_id", chunk);
       if (existingError) {
         console.error(`[run-overdue-scan] dedup fetch failed for tenant ${tenant.id}:`, existingError);
@@ -236,6 +256,42 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       for (const row of (existing ?? []) as { link_entity_id: string | null }[]) {
         if (row.link_entity_id) existingKeys.add(row.link_entity_id);
       }
+    }
+
+    // ── 4b. T-172 (NOTIF-200): resolve ACTIVE alerts whose installment left ──
+    // the tracked set (paid / cancelled / no remaining balance). Mirrors the
+    // desktop reference's resolveStaleAlerts 1:1. Service-role context here →
+    // the authoritative resolver (RLS cannot block it).
+    const trackedIds = new Set<string>(installmentIds);
+    try {
+      const { data: activeAlerts, error: activeAlertsError } = await supabase
+        .from("notifications")
+        .select("id, link_entity_id")
+        .eq("tenant_id", tenant.id)
+        .eq("link_entity_type", "installment")
+        .is("dismissed_at", null)
+        .limit(2000);
+      if (activeAlertsError) {
+        console.error(`[run-overdue-scan] stale-alerts fetch failed for tenant ${tenant.id}:`, activeAlertsError);
+      } else {
+        const staleIds = ((activeAlerts ?? []) as { id: string; link_entity_id: string | null }[])
+          .filter((r) => r.link_entity_id && !trackedIds.has(r.link_entity_id))
+          .map((r) => r.id);
+        for (let i = 0; i < staleIds.length; i += CHUNK) {
+          const chunk = staleIds.slice(i, i + CHUNK);
+          const { error: dismissError } = await supabase
+            .from("notifications")
+            .update({ dismissed_at: new Date().toISOString() })
+            .in("id", chunk);
+          if (dismissError) {
+            console.error(`[run-overdue-scan] stale-alert resolution failed for tenant ${tenant.id}:`, dismissError);
+          } else {
+            summary.alerts_resolved += chunk.length;
+          }
+        }
+      }
+    } catch (resolveErr) {
+      console.error(`[run-overdue-scan] stale-alert resolution error for tenant ${tenant.id}:`, resolveErr);
     }
 
     // ── 5. Build the notification rows (desktop-reference message shape) ──
@@ -320,9 +376,10 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
           as_of: asOfDate,
           overdue_count: summary.total_overdue_installments,
           alerts_created: summary.alerts_created,
+          alerts_resolved: summary.alerts_resolved,
           upcoming_alerts: summary.upcoming_due_alerts,
         },
-        `Automated overdue scan completed (batched, canonical installment classification)`,
+        `Automated overdue scan completed (batched, canonical installment classification, stale-alert resolution)`,
         requestId,
       );
     } catch (auditErr) {
