@@ -20,6 +20,16 @@
 
 ## Entries
 
+### 2026-09-05 — T-182 — 28th-session closeout (registry truth-sync + session summaries)
+
+- **Problem IDs:** n/a (process closeout per ADR-007)
+- **What changed:** task-registry gains the 28th-session Progress summary (the T-184 queue-jump + the T-176..T-181 port batch + the suites/push record); current-state.md gains the 28th-session delta block (the activation root cause + owner redeploy action; the chain 0001–0074 with the owner-token-gated live applies; the owner residual list); next-task.md session state finalized.
+- **Why:** the hub docs are the cross-session memory (ADR-007) — the 28th session's discoveries and owner actions must survive the context handoff.
+- **Tests:** n/a (docs only). The session's suite evidence is recorded in each task's entry: desktop 89 files / 2404 / 0 + tsc + lint 0 errors; website 28 / 483 / 0 + lint + strict build; Android 48 / 410 / 0 + lintDebug + schema 14.json.
+- **Verification:** summaries cross-checked against the per-task change-log entries and the git log (hub 232ea0d..HEAD, website d5df9f5..f5dc55b, android bfe7411..4589a19).
+- **Commit:** (this commit)
+- **Notes:** the 28th session's outstanding owner-gated items: (1) portal redeploy on Vercel (T-184); (2) fresh sbp_ token → apply 0071–0074 live (scripts ready, 0-row tables, zero data risk); (3) T-173 part a (alert VOLUME / UNKNOWN-020); (4) the standing residuals (AUTH-200 first sign-in, RESEND_API_KEY, FIREBASE_SERVICE_ACCOUNT_JSON, the "Supprimer les échecs" click, the web-push Firebase env vars).
+
 ### 2026-09-05 — T-181 — Android Room dismissedAt + server-dismissed eviction (T-173 part b, NOTIF-200 residual)
 
 - **Problem IDs:** NOTIF-200 residual (the T-173 "Left" note)
