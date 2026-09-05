@@ -1155,7 +1155,10 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
     // supabase/functions/, so the call failed on every push and the
     // `.catch(() => undefined)` swallowed it — a fake side-effect. The
     // homework row itself is the source of truth; the parent-notification
-    // decision is deferred to the push-pipeline task T-036.
+    // fan-out now lives server-side — migration 0078 (T-193/MSG-201, 30th
+    // session) triggers one notification per distinct parent of the class
+    // roster on every homework INSERT, so the modal's "notifié aux parents"
+    // promise is delivered for ALL writers (desktop, Android, future).
 
     return Ok(mapHomeworkRow(data));
   }
