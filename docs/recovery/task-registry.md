@@ -1874,3 +1874,11 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **What was done:** the 28th-session Progress summary (task-registry), the 28th-session delta (current-state.md), the finalized next-task session state, this change-log entry, and the worklog append. All cross-checked against the per-task entries and the git log.
 - **Verified:** docs-only — the referenced suite evidence lives in each task's entry (desktop 89/2404/0 + tsc + lint 0 err; website 28/483/0 + lint + strict build; Android 48/410/0 + lintDebug).
 - **Left:** nothing agent-side; the owner-gated residuals are enumerated in the session summaries.
+
+### T-183 — 28th-session handoff: zips + GitHub push + final report — **Completed (VERIFIED — push receipts below)**
+
+- **Problems:** n/a (delivery task) · **Priority:** P0 (the owner's explicit "zip all the systems and the main 3 repos, push them to github with this pat, and give them to me")
+- **Status:** Completed (2026-09-05, 28th session)
+- **What was done:** all three repos pushed to GitHub with the owner's PAT (hub `9dc8a6d..5ee3ad9` = T-176..T-183's docs; website `d5df9f5..f5dc55b` = T-184, already pushed; android `bfe7411..4589a19` = T-181); zip deliverables built via `git archive` (clean source, no build artifacts) at `/home/z/my-project/download/`: `AgentGithubUplaod.zip` (3.5M), `elimtiyaz-android.zip` (1.6M), `elimtiyaz-website.zip` (552K), `elimtiyaz-all-systems.zip` (5.7M, all three + the android-env.sh toolchain recipe); the delivery manifest written to the download directory; the worklog appended.
+- **Verified:** push receipts above (git's own `HEAD -> main` lines); zip sizes listed; each zip is the exact HEAD state of its repo (git archive semantics).
+- **Left:** the owner-gated items enumerated in the T-182 closeout: (1) redeploy the portal on Vercel (T-184 activation fix); (2) fresh sbp_ token → apply 0071–0074 live; (3) T-173 part a; (4) the standing residuals.
