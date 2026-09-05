@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-09-05 — T-178 — leaveRequests port → leave_requests (T-047 #3, migration 0072) — worker-submitted requests go server-side
+
+- **Problem IDs:** ARCH-001 (T-047 port #3)
+- **What changed:** migration **0072** (leave_type CHECK widened to the desktop RequestType union alongside the legacy categories — pure superset, definition-matched drop; `reviewed_by_name` text added per the 0070 domain-contract-column precedent; registration row embedded; `apply_0072_live.sh` ready); NEW `SupabaseLeaveRequestRepository` (submit stores the domain type directly with UUID + date guards; decide writes the decision fields in ONE tenant-scoped update and enforces the 0010 rejection-note rule; cancel delegates to decide with the system actor — mock parity; personnelName resolved via the personnel embed with the deleted-personnel fallback; unknown status folds to pending); wired into `getSupabaseRepositories()`.
+- **Why:** pre-T-178 the worker/manager/administrator dashboards' leave/absence/overtime/shift-swap/remote requests lived in mock memory only (wiped on restart) while the canonical table sat empty — the workforce request workflow never persisted. The domain's 5-kind RequestType union was the blocker the 0010 6-category CHECK could not accept; 0072 resolves it without touching a single legacy value.
+- **Affected components:** desktop infrastructure layer + wiring; migration chain 68→69 files (0001–0072); RLS UNTOUCHED (the existing INSERT/manager-update policies match the domain's only UI call sites — documented, deliberately not widened); no EF/website/Android changes (no cross-platform consumer of leave_requests exists today).
+- **Tests:** NEW suite `supabase-leave-request-repository.test.ts` **11/11**; FULL suite **87 files / 2382 / 0**; `tsc --noEmit` clean; lint 0 errors; append-only chain guard OK (69 files, +2 vs origin incl. 0071).
+- **Verification:** local suites + chain guard above; live application of 0072 owner-token-gated (no sbp_ token this session) — `SUPABASE_ACCESS_TOKEN=… bash scripts/apply_0072_live.sh`, then re-run the chain check. The table is 0-row live: zero data risk.
+- **Commit:** (this commit)
+- **Notes:** RLS posture documented in the repository header: worker-side cancel() (no UI caller today) would surface an honest RLS forbidden error rather than silently bypassing the manager-only UPDATE policy — a deliberate non-widening.
+
 ### 2026-09-05 — T-176 + T-177 — workflows + workflowRuns ports (T-047 #2a/#2b, migration 0071) — desktop workflow state goes server-side
 
 - **Problem IDs:** ARCH-001 (two of the 23 mock-backed slots; closes the T-160-verified cross-platform drift "Android pull-syncs `workflow_runs` while desktop's workflow slots were mock")

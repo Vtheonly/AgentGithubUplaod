@@ -57,6 +57,7 @@ import { SupabaseChatRepository } from "./repositories/supabase-chat-repository"
 import { SupabaseCalendarRepository } from "./repositories/supabase-calendar-repository";
 import { SupabaseWorkflowRepository } from "./repositories/supabase-workflow-repository";
 import { SupabaseWorkflowRunRepository } from "./repositories/supabase-workflow-run-repository";
+import { SupabaseLeaveRequestRepository } from "./repositories/supabase-leave-request-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -193,6 +194,16 @@ export function getSupabaseRepositories(): Repositories {
   const workflows = new SupabaseWorkflowRepository(client);
   const workflowRuns = new SupabaseWorkflowRunRepository(client, workflows);
 
+  // T-178 (2026-09-05, T-047 port #3): wire the Supabase-backed leave-request
+  // repository onto leave_requests (migration 0010 + 0072 — the 0072 widening
+  // stores the domain RequestType union directly + reviewed_by_name). BEFORE
+  // this, the slot stayed on mockRepositories even in Supabase mode — worker-
+  // submitted leave/absence/overtime requests lived in memory only (wiped on
+  // restart) while the canonical table sat empty. RLS matches the domain's
+  // only UI call sites: INSERT for any tenant member (worker submit), UPDATE
+  // for manager/super_admin (decide).
+  const leaveRequests = new SupabaseLeaveRequestRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -224,6 +235,7 @@ export function getSupabaseRepositories(): Repositories {
     calendar, // T-175 — calendar on calendar_events (T-047 port #1)
     workflows, // T-176 — workflows on the workflows table (T-047 port #2a)
     workflowRuns, // T-177 — workflow_runs + canonical execute EF (T-047 port #2b)
+    leaveRequests, // T-178 — leave_requests (T-047 port #3, migration 0072)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
