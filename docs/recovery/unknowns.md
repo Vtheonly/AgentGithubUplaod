@@ -106,6 +106,15 @@
 - **Blocked:** T-042.
 - **Required to resolve:** product decision.
 
+## UNKNOWN-020 — Overdue-alert volume: per-installment alerts or a digest?
+
+- **Question:** After T-172 the overdue-alert feed is TRUTHFUL (alerts resolve when installments are paid), but a 691-overdue corpus still produces 691 concurrent unread `financial_officer` alerts — one per genuinely overdue installment. Should the scan instead emit ONE digest alert (e.g. "N tranches en retard — X DZD au total — Module Finances") plus a top-N detail, or keep per-installment alerts?
+- **Evidence:** NOTIF-200 (live: 958 unread pre-fix, 691 truthful post-fix; the owner's "why are there 1,000 notifications?" report).
+- **Why it matters:** the per-installment design is unbounded with the corpus size; the bell dropdown shows 8, the repo caps reads at 200 — the UX degrades long before the data does. A digest changes the alert→installment navigation contract consumed by the desktop alerts-tab / detail modal (link_entity_id) and Android.
+- **Affected components:** `run-overdue-scan` EF + desktop `SupabaseOverdueAlertGenerator` (equivalence mandatory), Android notification rendering.
+- **Blocked:** T-173 (also carries the Android Room `dismissedAt` migration).
+- **Required to resolve:** product decision (digest shape + N cap), then an ADR before implementation.
+
 ---
 
 ## Resolved unknowns
