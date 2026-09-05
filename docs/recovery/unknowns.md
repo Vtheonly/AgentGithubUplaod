@@ -117,6 +117,17 @@
 
 ---
 
+## UNKNOWN-021 — Should parents see (some) calendar_events on the portal?
+
+- **Question:** The website's CalendarView + dashboard query `calendar_events` (portal-queries.ts useUpcomingEvents/useEventsInRange), but the `calendar_events_select` RLS policy (migration 0019) lists STAFF roles only — every parent read silently returns an empty array. Now that the desktop writes real rows (T-175), which event kinds should parents see? (exams / meetings / school-wide events plausibly yes; follow-up calls about debt plausibly no.)
+- **Evidence:** T-175 session: policy text re-read + the live table census (0 rows — the desktop was the missing writer, so the empty result was invisible); the website kind map (calendar-view.tsx) already anticipates parent-relevant kinds.
+- **Why it matters:** the T-160 scoping called calendar "the only slot with a verified live cross-platform read" — but under RLS that read is staff-empty for every parent session. Fixing it requires a policy decision on audience per kind (a tightened policy or a parent-visible flag column), which is a product + security decision, not an agent guess.
+- **Affected components:** migration 0019 policy; website calendar-view + dashboard-view; desktop follow-up-call creation path (should staff be warned the event may be parent-visible?).
+- **Blocked:** nothing hard — but any parent-calendar task must resolve this first.
+- **Required to resolve:** product decision (which kinds are parent-visible), then a policy migration.
+
+---
+
 ## Resolved unknowns
 
 - **UNKNOWN-005 (chat product scope)** — resolved 2026-08-31, 14th session: chat is a committed

@@ -54,6 +54,7 @@ import { SupabaseDashboardRepository } from "./repositories/supabase-dashboard-r
 import { SupabaseOverdueAlertGenerator } from "./repositories/supabase-overdue-alert-generator";
 import { SupabaseExpenseRepository } from "./repositories/supabase-expense-repository";
 import { SupabaseChatRepository } from "./repositories/supabase-chat-repository";
+import { SupabaseCalendarRepository } from "./repositories/supabase-calendar-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -167,6 +168,17 @@ export function getSupabaseRepositories(): Repositories {
   // idempotent DM-creation path used by this repository.
   const chat = new SupabaseChatRepository(client);
 
+  // T-175 (2026-09-05, T-047 port #1): wire the Supabase-backed calendar
+  // repository onto `calendar_events` (migration 0013 + 0070). BEFORE this,
+  // the `calendar` slot stayed on mockRepositories even in Supabase mode —
+  // staff-scheduled events (follow-up calls, reminders, meetings) were
+  // in-memory only (wiped on restart, never persisted server-side) and the
+  // derived payment/audit/expense events were computed from the mock SEED
+  // data while real rows lived in Supabase. The T-160 scoping ranked this
+  // the #1 port: the website already reads calendar_events (the only slot
+  // with a verified live cross-platform read today).
+  const calendar = new SupabaseCalendarRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -195,6 +207,7 @@ export function getSupabaseRepositories(): Repositories {
     overdueAlerts, // T-080 — kill the mock leak
     expenses, // T-093 — expense tickets on the canonical expense_tickets table
     chat, // T-099 — chat on chat_channels/chat_messages (CHAT-105 dead)
+    calendar, // T-175 — calendar on calendar_events (T-047 port #1)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
