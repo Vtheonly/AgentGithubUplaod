@@ -12,9 +12,12 @@
  *   - `lifo-reversal`      — revertPaymentAllocation, reevaluateInstallmentStatus
  *   - `clearance`          — clearPendingAllocation (PENDING → PAID bank clearance)
  *   - `revenue`            — revenueByMonth, revenueByCategory, monthlyRevenue
- *   - `billing-breakdown`  — computeParentBillingBreakdown, describeAdjustment
- *                            (T-164: read-side derivation behind the parent
- *                            drawer / portal "Prestations facturées" views)
+ *   - `billing-breakdown`  — computeParentBillingBreakdown, describeAdjustment,
+ *                            classifyAdjustmentHistory (T-168 provenance),
+ *                            adjustment-aware reconciliation
+ *                            (T-164/T-168: read-side derivation behind the
+ *                            parent drawer / portal "Prestations facturées"
+ *                            views)
  */
 export * from "./sums";
 export * from "./queries";

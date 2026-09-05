@@ -1470,3 +1470,31 @@ path for T-092.
 - **Tests:** `BillingBreakdownTest` 11/11 (same vectors); FULL unit suite 46 classes / 388 tests / 0 failures.
 - **Verification:** `:app:compileDebugKotlin` BUILD SUCCESSFUL (JDK 21.0.12.1 + SDK 35 re-provisioned per the T-159 recipe).
 - **Commit:** (Android commit hash)
+
+### 2026-09-05 — T-168 — Desktop: complete itemized shopping list + adjustment provenance + reconciliation equation
+
+- **Problems:** DATA-015 (new — single-child family-level charges vanished from the itemization), owner ask: "what exactly does the total cover? by child AND by service; is each adjustment actual content, a trap, a mistake, or something revealing?"
+- **What changed:** `domain/calc/payment/billing-breakdown.ts` — `classifyAdjustmentHistory` (provenance: Documenté / Contrepassation (net-zero +X/−X pair) / Non documenté, with full meaning sentences and cross-pair links), `BillingReconciliation` (gross − remises + majorations = net; net − cleared − pending = reste; explicit bridge to the server balance), service `sharePct` + `childAttribution`, `unattributedItems` for multi-child family rows; DATA-015 fold fix (single-child owns family-level rows); `sumPendingPayments` in `sums.ts`. `parent-detail-drawer.tsx` — drawer widened to `max-w-4xl`, 4 balance cards with sub-labels, service icons on every line item, per-child subtotals, family blocks in both views, Par Service share bars + attribution, full ledger-style reconciliation footer, provenance chips + meaning + pair links in the adjustments history, upgraded legend.
+- **Why:** the owner asked for a complete, itemized "shopping list" of the total (e.g. what 700 000 DZD includes) with by-child AND by-service breakdown, explicit adjustment transparency, and a less simplistic, larger financial panel — with unit tests.
+- **Affected:** desktop drawer Finances tab only (engine contract extended additively; existing consumers unaffected).
+- **Tests:** FULL suite 83 files / 2314 passed + 5 skipped / 0 failures (+12 new: 700k corpus, share parity, single-child fold, reconciliation equation incl. bridge + overpayer credit, provenance classification incl. the owner's exact +71k/−71k/+50k/−50k shuffled flip-flop, same-sign never pairs, zero-skip, order preservation); typecheck clean; lint 0 errors / 378 warnings (baseline 378).
+- **Verification:** vitest evidence above; `git diff` reviewed for import hygiene (no unused symbols).
+- **Commit:** (this session's hub commit hash)
+
+### 2026-09-05 — T-169 — Website: Facturation provenance pills + reconciliation + i18n (FR/AR/EN)
+
+- **Problems:** cross-platform parity gap for the T-168 features.
+- **What changed:** `src/lib/canonical/billing-breakdown.ts` — `classifyAdjustmentRows` (identical algorithm + wording), `BillingReconciliationInput`, service `sharePct`/`childAttribution`, `unattributedItems`, DATA-015 fold fix; `financial-view.tsx` — billing memo feeds the reconciliation (cleared = paid − pending, server = outstanding), BillingTab service share bars + attribution + family blocks + full equation footer, AdjustmentsTab provenance pills + meaning + pair links; i18n `finance.billing.recon.*` + `share`/`subtotal`/`familyItems` in FR/AR/EN.
+- **Why:** parents must see exactly what staff sees — same itemization, same adjustment meaning, same reconciliation.
+- **Tests:** 27 files / 476 passed / 0 failures (+8 parity vectors: 700k list, share %, single-child fold, bridge, flip-flop pairs, documented vs undocumented, same-sign no-pair).
+- **Verification:** tsc on changed files clean (project-wide pre-existing error count unchanged vs stash baseline); eslint clean on changed files.
+- **Commit:** (website commit hash)
+
+### 2026-09-05 — T-170 — Android: provenance + reconciliation mirror + Prestations card upgrade
+
+- **Problems:** cross-platform parity gap for the T-168 features; PARITY-001 (rounding hazard, caught pre-merge).
+- **What changed:** `core/BillingBreakdown.kt` — `classifyAdjustmentHistory` + `BillingAdjustment`/`ClassifiedAdjustment`/`AdjustmentProvenance`, `BillingReconciliation` (new params: adjustments/pendingPaidTotal/serverOutstanding), `ServiceChildAttribution` + Math.round share parity, `unattributedItems`, DATA-015 fold; `ParentDetailViewModel` — ledger adjustment mapping (reversals excluded) + `classifiedAdjustments` StateFlow; `ParentDetailScreen` — family block, "Par service" recap, reconciliation footer (`ReconLine`), new "Ajustements" card with provenance tags + meaning.
+- **Why:** the cashier/manager terminal must show the same itemization, adjustment meaning and reconciliation as the desktop drawer and the parent portal.
+- **Tests:** FULL unit suite **396 tests / 0 failures** (+8 T-168 vectors incl. share parity 81/13/6 and the bridge case); `:app:compileDebugKotlin` BUILD SUCCESSFUL.
+- **Verification:** gradle test-results XML parsed (19/19 in BillingBreakdownTest, 396 total, 0 failures, 0 errors).
+- **Commit:** (Android commit hash)

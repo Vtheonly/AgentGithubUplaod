@@ -60,3 +60,19 @@ export function sumInstallmentsPending(installments: readonly Installment[]): nu
 export function sumInstallmentsPaid(installments: readonly Installment[]): number {
   return sumOf(installments, (i) => i.amountPaid);
 }
+
+/**
+ * Sum of `amount` for payments whose status is "pending" (T-168).
+ *
+ * Uncleared non-cash funds (cheques / transfers awaiting bank clearance).
+ * `collect_and_allocate_payment` books these on `installments.amount_pending`,
+ * so the derived reconciliation (`billing-breakdown.ts`) subtracts them
+ * after the cleared total to honour the server balance exactly. Mirrors
+ * `sumPaidPayments` semantics (status-strict, amount-positive).
+ */
+export function sumPendingPayments(payments: readonly Payment[]): number {
+  return sumOf(
+    payments.filter((p) => p.status === "pending"),
+    (p) => p.amount,
+  );
+}

@@ -3844,3 +3844,25 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Resolution:** T-164 — notification repository + index.html restored verbatim from the 99bd956 baseline (both files re-verified green on a pre-patch worktree BEFORE attribution was claimed); the T-145 audit branch restored; the drawer logic extracted to `domain/calc/payment/billing-breakdown.ts`. The patch's legitimate UX (itemized breakdown, dual toggle, adjustment badges, academic-year context) was preserved and re-derived from canonical numbers.
 - **Verification:** 2302/2300-green full suite; csp-policy 4/4; supabase-repositories 22/22; lint 0 errors / 378 warnings (≤ baseline).
 - **Left:** AGENTS.md §15 already forbids every element of this class (no behavior change without tests, no unregistered work, one task per commit) — the lesson is now ALSO recorded here so the next session-opening ritual catches a red suite BEFORE building on top of it (this session found it only because the ritual ran the full suite first).
+
+### DATA-015 — Itemization attribution gap: family-level charges could vanish from the "shopping list" (single-child fold bug)
+
+- **Category:** DATA  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-05, 27th session — T-168/T-169/T-170, all three platforms)
+- **Repositories:** AgentGithubUplaod (desktop engine), elimtiyaz-website (canonical port), elimtiyaz-android (core mirror)
+- **Platforms affected:** all three (the canonical engine + both mirrors shared the attribution rule)
+- **Task:** T-168 (desktop), T-169 (website), T-170 (Android)
+- **Description:** the per-child itemization only folded family-level (null `student_id`) charge rows into the child when the child had ZERO direct charges. A single-child family with direct charges PLUS family-level rows (e.g. 285 000 tuition attributed to the child + a 40 000 family-level registration fee) rendered `billedTotal = 285 000` while `totalBilled = 325 000` — the 40 000 appeared in NO itemized view (mystery money, the exact class the owner asked to eliminate). Multi-child families were already explicit (T-168 adds the "Famille — éléments non rattachés" block), so only the single-child partial-attribution case was affected.
+- **Resolution:** single-child families now ALWAYS own the family-level rows (direct charges + null-studentId rows merged, mirroring the installments attribution rule); the new conservation invariant is pinned by tests on all three platforms: Σ byChild.billedTotal + unattributedTotal === totalBilled.
+- **Verification:** the 700 000 DZD 2-child corpus (2×285 000 tuition + 2×45 000 transport + 40 000 family-level) and the single-child 325 000 fold case pass on desktop (28/28), website (19/19) and Android (19/19) suites.
+- **Left:** nothing — historical rows need no repair (the gap was read-side only; the ledger always balanced).
+
+### PARITY-001 — Cross-platform mirror rounding hazard: Kotlin integer division silently diverges from TS Math.round
+
+- **Category:** CROSS (parity hazard)  |  **Severity:** Low (caught pre-merge)  |  **Status:** TESTED (2026-09-05, 27th session — T-170)
+- **Repositories:** elimtiyaz-android (vs the two TS engines)
+- **Platforms affected:** Android mirrors of any TS ratio derivation
+- **Task:** T-170
+- **Description:** the first Kotlin draft of `ServiceTotalNode.sharePct` used integer division (`amount * 100L / totalBilled`): 90 000/700 000 → 12, while the TS engines' `Math.round((amount/total)*100)` → 13. Cross-platform byte-parity of DISPLAY percentages would have silently broken while all monetary amounts stayed identical — the hardest class of divergence to notice (tests on the DZD amounts pass; the % differs).
+- **Resolution:** the Kotlin mirror rounds with `Math.round(amount.toDouble() * 100.0 / totalBilled)` and carries an inline comment; the parity corpus pins shares 81/13/6 (Σ = 100) on all three platforms.
+- **Verification:** Android `BillingBreakdownTest` asserts sharePct 81 and 13 — the exact values the TS suites assert.
+- **Left:** AGENTS.md §15 rule #17 now forbids integer-division ratios in mirrors.

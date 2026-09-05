@@ -26,9 +26,10 @@ import { describe, it, expect } from "vitest";
 import {
   computeParentBillingBreakdown,
   describeAdjustment,
+  classifyAdjustmentHistory,
   resolveBillingAcademicYear,
 } from "../../../domain/calc/payment/billing-breakdown";
-import type { Installment, Payment, PaymentCategory } from "../../../domain/model/payment";
+import type { AccountAdjustment, Installment, Payment, PaymentCategory } from "../../../domain/model/payment";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { Student } from "../../../domain/model/student";
 
@@ -123,6 +124,19 @@ function makeInstallment(overrides: Partial<Installment> = {}): Installment {
     dueDate: overrides.dueDate ?? "2025-09-15",
     paidDate: overrides.paidDate ?? null,
     status: overrides.status ?? "unpaid",
+    ...overrides,
+  };
+}
+
+function makeAdjustment(overrides: Partial<AccountAdjustment> = {}): AccountAdjustment {
+  return {
+    id: overrides.id ?? "adj-1",
+    parentId: "p-1",
+    amount: overrides.amount ?? -50_000,
+    reason: overrides.reason ?? "Remise fratrie (3 enfants)",
+    approvedBy: overrides.approvedBy ?? "usr-admin",
+    approvedAt: overrides.approvedAt ?? "2025-09-02T10:00:00.000Z",
+    receiptRef: overrides.receiptRef ?? null,
     ...overrides,
   };
 }
@@ -393,8 +407,20 @@ describe("computeParentBillingBreakdown — totals & academic year", () => {
     });
     expect(breakdown.totalBilled).toBe(250_000);
     expect(breakdown.byService).toEqual([
-      { category: "tuition", label: "Scolarité Annuelle", amount: 250_000, count: 1 },
+      {
+        category: "tuition",
+        label: "Scolarité Annuelle",
+        amount: 250_000,
+        count: 1,
+        sharePct: 100,
+        childAttribution: [{ studentId: null, studentName: "Famille", amount: 250_000 }],
+      },
     ]);
+    // T-168: no charges + no adjustments → flat reconciliation.
+    expect(breakdown.reconciliation.grossBilled).toBe(250_000);
+    expect(breakdown.reconciliation.netDue).toBe(250_000);
+    expect(breakdown.reconciliation.derivedRemaining).toBe(250_000);
+    expect(breakdown.unattributedItems).toEqual([]);
   });
 
   it("resolves the academic year from charge metadata, then description, then class placement", () => {
@@ -460,5 +486,254 @@ describe("describeAdjustment", () => {
     const debit = describeAdjustment({ amount: 50_000, reason: "   " });
     expect(debit.isDiagnosticFallback).toBe(true);
     expect(debit.reasonLabel).toContain("Régularisation");
+  });
+});
+
+/* ============================================================ */
+/*  T-168 — the complete "shopping list" (700k, 2 children)      */
+/* ============================================================ */
+
+describe("computeParentBillingBreakdown — T-168 complete itemized shopping list", () => {
+  // The owner's question: "if I must pay 700 000 in total, what does that
+  // include?" — 2 children: tuition 285k each, transport 45k each, plus a
+  // 40k family-level registration fee. EVERY dinar must be accounted for.
+  const kids = [
+    makeStudent({ id: "stu-a", firstName: "Sara", lastName: "BENALI" }),
+    makeStudent({ id: "stu-b", firstName: "Yanis", lastName: "BENALI" }),
+  ];
+  const charges = [
+    makeCharge({ id: "c-t1", studentId: "stu-a", amount: 285_000, category: "tuition" }),
+    makeCharge({ id: "c-t2", studentId: "stu-b", amount: 285_000, category: "tuition" }),
+    makeCharge({ id: "c-tr1", studentId: "stu-a", amount: 45_000, category: "transport" }),
+    makeCharge({ id: "c-tr2", studentId: "stu-b", amount: 45_000, category: "transport" }),
+    makeCharge({
+      id: "c-ins",
+      studentId: null,
+      amount: 40_000,
+      category: "other",
+      description: "Frais d'inscription (family-level)",
+    }),
+  ];
+
+  it("accounts for every dinar: Σ byChild + unattributed === totalBilled (700 000)", () => {
+    const breakdown = computeParentBillingBreakdown({
+      ledgerEntries: charges,
+      installments: [],
+      payments: [],
+      students: kids,
+    });
+    expect(breakdown.totalBilled).toBe(700_000);
+    expect(breakdown.byChild.map((c) => c.billedTotal)).toEqual([330_000, 330_000]);
+    expect(breakdown.unattributedTotal).toBe(40_000);
+    expect(breakdown.unattributedItems.map((i) => i.amount)).toEqual([40_000]);
+    // The exhaustive shopping-list conservation invariant.
+    expect(
+      breakdown.byChild.reduce((s, c) => s + c.billedTotal, 0) + breakdown.unattributedTotal,
+    ).toBe(breakdown.totalBilled);
+  });
+
+  it("consolidates per service with share % and per-child attribution", () => {
+    const breakdown = computeParentBillingBreakdown({
+      ledgerEntries: charges,
+      installments: [],
+      payments: [],
+      students: kids,
+    });
+    const tuition = breakdown.byService.find((s) => s.category === "tuition")!;
+    const transport = breakdown.byService.find((s) => s.category === "transport")!;
+    const other = breakdown.byService.find((s) => s.category === "other")!;
+
+    expect(tuition.amount).toBe(570_000);
+    expect(tuition.count).toBe(2);
+    expect(tuition.sharePct).toBe(81); // 570/700 = 81.4 → 81
+    expect(tuition.childAttribution).toEqual([
+      { studentId: "stu-a", studentName: "Sara BENALI", amount: 285_000 },
+      { studentId: "stu-b", studentName: "Yanis BENALI", amount: 285_000 },
+    ]);
+    expect(transport.amount).toBe(90_000);
+    expect(transport.sharePct).toBe(13); // 90/700 = 12.9 → 13
+    expect(transport.childAttribution.reduce((s, c) => s + c.amount, 0)).toBe(90_000);
+    // Family-level row is attributed to "Famille", not to a child.
+    expect(other.amount).toBe(40_000);
+    expect(other.childAttribution).toEqual([
+      { studentId: null, studentName: "Famille", amount: 40_000 },
+    ]);
+    // Per-service attribution is exhaustive: Σ services === totalBilled.
+    expect(breakdown.byService.reduce((s, x) => s + x.amount, 0)).toBe(700_000);
+    expect(breakdown.byService.reduce((s, x) => s + x.sharePct, 0)).toBe(100);
+  });
+
+  it("folds family-level charges into the single child of a single-child family", () => {
+    const breakdown = computeParentBillingBreakdown({
+      ledgerEntries: [
+        makeCharge({ id: "c-t", studentId: "stu-a", amount: 285_000, category: "tuition" }),
+        makeCharge({ id: "c-ins", studentId: null, amount: 40_000, category: "other" }),
+      ],
+      installments: [],
+      payments: [],
+      students: [kids[0]],
+    });
+    expect(breakdown.byChild[0].billedTotal).toBe(325_000);
+    expect(breakdown.unattributedItems).toEqual([]);
+    expect(breakdown.unattributedTotal).toBe(0);
+  });
+});
+
+/* ============================================================ */
+/*  T-168 — adjustment-aware reconciliation                      */
+/* ============================================================ */
+
+describe("computeParentBillingBreakdown — T-168 adjustment-aware reconciliation", () => {
+  it("derives the full equation: gross − remise + majoration = net; net − cleared − pending = remaining", () => {
+    const breakdown = computeParentBillingBreakdown({
+      ledgerEntries: [makeCharge({ amount: 285_000 })],
+      installments: [],
+      payments: [
+        makePayment({ id: "pay-1", amount: 95_000, status: "paid" }),
+        makePayment({ id: "pay-2", amount: 30_000, status: "pending" }),
+      ],
+      students: [makeStudent()],
+      adjustments: [
+        makeAdjustment({ id: "adj-1", amount: -71_000, reason: "Remise fratrie" }),
+        makeAdjustment({ id: "adj-2", amount: 20_000, reason: "Majoration transport" }),
+      ],
+    });
+    const r = breakdown.reconciliation;
+    expect(r.grossBilled).toBe(285_000);
+    expect(r.adjustmentsCredit).toBe(71_000);
+    expect(r.adjustmentsDebit).toBe(20_000);
+    expect(r.adjustmentsCount).toBe(2);
+    expect(r.netDue).toBe(234_000); // 285 000 − 71 000 + 20 000
+    expect(r.clearedPaid).toBe(95_000);
+    expect(r.pendingPaid).toBe(30_000);
+    expect(r.derivedRemaining).toBe(109_000); // 234 000 − 95 000 − 30 000
+    expect(r.serverOutstanding).toBeNull();
+    expect(r.bridge).toBe(0);
+    expect(r.hasBridge).toBe(false);
+  });
+
+  it("balances to the server balance when supplied (bridge = 0 case)", () => {
+    const breakdown = computeParentBillingBreakdown({
+      ledgerEntries: [makeCharge({ amount: 285_000 })],
+      installments: [],
+      payments: [makePayment({ amount: 125_000 })],
+      students: [makeStudent()],
+      adjustments: [makeAdjustment({ id: "adj-1", amount: -71_000, reason: "Remise" })],
+      serverOutstanding: 89_000, // 285 000 − 71 000 − 125 000
+    });
+    const r = breakdown.reconciliation;
+    expect(r.netDue).toBe(214_000);
+    expect(r.derivedRemaining).toBe(89_000);
+    expect(r.serverOutstanding).toBe(89_000);
+    expect(r.bridge).toBe(0);
+    expect(r.hasBridge).toBe(false);
+  });
+
+  it("surfaces an explicit bridge when the server balance includes invisible items (refund)", () => {
+    const breakdown = computeParentBillingBreakdown({
+      ledgerEntries: [makeCharge({ amount: 285_000 })],
+      installments: [],
+      payments: [makePayment({ amount: 125_000 })],
+      students: [makeStudent()],
+      serverOutstanding: 79_000, // 10 000 refund booked server-side only
+    });
+    const r = breakdown.reconciliation;
+    expect(r.derivedRemaining).toBe(160_000);
+    expect(r.bridge).toBe(-81_000); // 79 000 − 160 000
+    expect(r.hasBridge).toBe(true);
+  });
+
+  it("keeps a negative derivedRemaining (overpayer credit) instead of clamping", () => {
+    const breakdown = computeParentBillingBreakdown({
+      ledgerEntries: [makeCharge({ amount: 100_000 })],
+      installments: [],
+      payments: [makePayment({ amount: 150_000 })],
+      students: [makeStudent()],
+    });
+    expect(breakdown.reconciliation.derivedRemaining).toBe(-50_000);
+  });
+});
+
+/* ============================================================ */
+/*  T-168 — adjustment provenance classification                 */
+/* ============================================================ */
+
+describe("classifyAdjustmentHistory — provenance classification", () => {
+  it("classifies a documented operator adjustment as actual content", () => {
+    const [c] = classifyAdjustmentHistory([
+      makeAdjustment({ id: "adj-1", amount: -71_000, reason: "Remise fratrie (3 enfants)" }),
+    ]);
+    expect(c.provenance).toBe("documented");
+    expect(c.provenanceLabel).toBe("Documenté");
+    expect(c.pairedWithId).toBeNull();
+    expect(c.meaningLabel).toContain("réduit le solde dû");
+    expect(c.reasonLabel).toBe("Remise fratrie (3 enfants)");
+  });
+
+  it("detects the owner's +X/−X re-import flip-flop as reversal pairs (order-independent)", () => {
+    // The exact historical pattern: -71k/+71k and -50k/+50k alternating with
+    // blank reasons (non-idempotent Excel re-import). Shuffled input proves
+    // the classification does not depend on list order.
+    const classified = classifyAdjustmentHistory([
+      makeAdjustment({ id: "adj-c1", amount: 50_000, reason: "", approvedAt: "2025-09-05T09:00:00.000Z" }),
+      makeAdjustment({ id: "adj-d2", amount: -71_000, reason: "", approvedAt: "2025-09-06T09:00:00.000Z" }),
+      makeAdjustment({ id: "adj-d1", amount: 71_000, reason: "", approvedAt: "2025-09-05T10:00:00.000Z" }),
+      makeAdjustment({ id: "adj-c2", amount: -50_000, reason: "", approvedAt: "2025-09-06T10:00:00.000Z" }),
+    ]);
+    const byId = new Map(classified.map((c) => [c.id, c]));
+    expect(byId.get("adj-d1")!.pairedWithId).toBe("adj-d2");
+    expect(byId.get("adj-d2")!.pairedWithId).toBe("adj-d1");
+    expect(byId.get("adj-c1")!.pairedWithId).toBe("adj-c2");
+    expect(byId.get("adj-c2")!.pairedWithId).toBe("adj-c1");
+    for (const c of classified) {
+      expect(c.provenance).toBe("reversal_pair");
+      expect(c.provenanceLabel).toBe("Contrepassation");
+      expect(c.meaningLabel).toContain("nul");
+    }
+    // Net effect of the four entries is zero — the pair detection matches.
+    expect(classified.reduce((s, c) => s + c.amount, 0)).toBe(0);
+  });
+
+  it("never pairs two same-sign entries (FIFO opposite-sign only)", () => {
+    const classified = classifyAdjustmentHistory([
+      makeAdjustment({ id: "adj-a", amount: 50_000, reason: "Note A", approvedAt: "2025-09-01T09:00:00.000Z" }),
+      makeAdjustment({ id: "adj-b", amount: 50_000, reason: "Note B", approvedAt: "2025-09-02T09:00:00.000Z" }),
+      makeAdjustment({ id: "adj-c", amount: -50_000, reason: "Remise", approvedAt: "2025-09-03T09:00:00.000Z" }),
+    ]);
+    const byId = new Map(classified.map((c) => [c.id, c]));
+    // The FIRST +50k (chronologically) is cancelled by the -50k.
+    expect(byId.get("adj-a")!.provenance).toBe("reversal_pair");
+    expect(byId.get("adj-a")!.pairedWithId).toBe("adj-c");
+    expect(byId.get("adj-c")!.pairedWithId).toBe("adj-a");
+    // The second +50k is NOT paired with anything (same sign as adj-a).
+    expect(byId.get("adj-b")!.provenance).toBe("documented");
+    expect(byId.get("adj-b")!.pairedWithId).toBeNull();
+  });
+
+  it("flags a legacy blank entry as undocumented with the audit hint", () => {
+    const [c] = classifyAdjustmentHistory([
+      makeAdjustment({ id: "adj-1", amount: -50_000, reason: "   " }),
+    ]);
+    expect(c.provenance).toBe("undocumented");
+    expect(c.provenanceLabel).toBe("Non documenté");
+    expect(c.meaningLabel).toContain("auditer");
+    expect(c.isDiagnosticFallback).toBe(true);
+  });
+
+  it("skips zero-amount entries from pairing and keeps the caller order", () => {
+    const input = [
+      makeAdjustment({ id: "adj-z", amount: 0, reason: "", approvedAt: "2025-09-03T09:00:00.000Z" }),
+      makeAdjustment({ id: "adj-2", amount: -30_000, reason: "", approvedAt: "2025-09-02T09:00:00.000Z" }),
+      makeAdjustment({ id: "adj-1", amount: 30_000, reason: "", approvedAt: "2025-09-01T09:00:00.000Z" }),
+    ];
+    const classified = classifyAdjustmentHistory(input);
+    // Caller order preserved.
+    expect(classified.map((c) => c.id)).toEqual(["adj-z", "adj-2", "adj-1"]);
+    // Zero entry never pairs.
+    expect(classified[0].pairedWithId).toBeNull();
+    expect(classified[0].provenance).toBe("undocumented");
+    // The ±30k pair is detected despite the input order.
+    expect(classified[1].pairedWithId).toBe("adj-1");
+    expect(classified[2].pairedWithId).toBe("adj-2");
   });
 });

@@ -16,6 +16,19 @@
  *      `isSynthetic: true` so no surface can mistake it for stored data.
  *   3. Adjustment diagnostics (`describeAdjustment`) — the credit/debit
  *      badge + human-readable reason fallback shared by every platform.
+ *   4. Adjustment provenance classification (`classifyAdjustmentHistory`,
+ *      T-168): every adjustment is labelled as one of
+ *        - "documented"    → actual content (operator decision, motive kept)
+ *        - "reversal_pair" → an offsetting +X/−X pair was detected (auto
+ *                            counter-pass from re-import / error correction —
+ *                            net effect on the balance: zero)
+ *        - "undocumented"  → legacy entry with no reason (audit required)
+ *      so the owner can tell CONTENT from TRAP/REVEALING (net-zero pair)
+ *      from MISTAKE (blank legacy import row) at a glance.
+ *   5. The adjustment-aware reconciliation (`BillingReconciliation`):
+ *      gross billed − credits + debits = net due; net due − cleared −
+ *      pending = derived remaining; an explicit bridge line reconciles to
+ *      the server balance so NO number on screen is unexplained.
  *
  * INVARIANTS honoured (docs/domain/financial-rules.md):
  *   - INV-4: remaining = clampNonNegative(amountDue − amountPaid − amountPending)
@@ -48,7 +61,7 @@ import { clampNonNegative } from "../shared/money";
 import { splitNetTuitionByOfficialSchedule, getOfficialTuitionDueDates } from "../pricing/tuition";
 import { allocatePaymentToInstallments } from "./waterfall-allocator";
 import { installmentRemaining } from "./queries";
-import { sumPaidPayments } from "./sums";
+import { sumPaidPayments, sumPendingPayments } from "./sums";
 
 /* ============================================================ */
 /*  Inputs                                                       */
@@ -81,6 +94,10 @@ export interface BillingBreakdownInput {
   readonly classLabelOf?: (studentId: string) => string | null | undefined;
   /** Profile-level `totalDue` used only when the ledger has no charge rows. */
   readonly fallbackTotalDue?: number;
+  /** T-168: the family's account adjustments feeding the reconciliation. */
+  readonly adjustments?: readonly AccountAdjustment[];
+  /** T-168: server balance (`profile.totalOutstanding`) for the bridge line. */
+  readonly serverOutstanding?: number | null;
 }
 
 /* ============================================================ */
@@ -134,11 +151,23 @@ export interface ChildBillingBreakdown {
   readonly isSyntheticSchedule: boolean;
 }
 
+export interface ServiceChildAttribution {
+  /** Owning student id, or null for a family-level (unattributed) charge. */
+  readonly studentId: string | null;
+  /** Student display name ("Famille" for family-level rows). */
+  readonly studentName: string;
+  readonly amount: number;
+}
+
 export interface ServiceTotalNode {
   readonly category: PaymentCategory;
   readonly label: string;
   readonly amount: number;
   readonly count: number;
+  /** Share of `totalBilled`, 0–100 rounded (display-only). */
+  readonly sharePct: number;
+  /** Per-child attribution inside this service (T-168 "shopping list"). */
+  readonly childAttribution: readonly ServiceChildAttribution[];
 }
 
 export interface ParentBillingBreakdown {
@@ -151,6 +180,49 @@ export interface ParentBillingBreakdown {
   readonly hasSyntheticTranches: boolean;
   readonly byChild: readonly ChildBillingBreakdown[];
   readonly byService: readonly ServiceTotalNode[];
+  /** T-168: family-level charges with no student attribution (multi-child). */
+  readonly unattributedItems: readonly BillingLineItem[];
+  readonly unattributedTotal: number;
+  /** T-168: adjustment-aware reconciliation (every balance explained). */
+  readonly reconciliation: BillingReconciliation;
+}
+
+/**
+ * T-168 — the adjustment-aware reconciliation of the family account.
+ *
+ * Equation (all terms explicit — the UI renders this verbatim):
+ *
+ *   grossBilled − adjustmentsCredit + adjustmentsDebit = netDue
+ *   netDue − clearedPaid − pendingPaid               = derivedRemaining
+ *   derivedRemaining + bridge                        = serverOutstanding
+ *
+ * `bridge` absorbs refunds, reversal chains and the DATA-009 overpayer
+ * credit convention so the footer ALWAYS balances to the server number.
+ * When `serverOutstanding` is not supplied, bridge is 0 and the surface
+ * shows the derived figure only.
+ */
+export interface BillingReconciliation {
+  /** Σ charge entries (the gross "sticker price" shopping list). */
+  readonly grossBilled: number;
+  /** Σ |negative adjustments| — remises / déductions (≥ 0). */
+  readonly adjustmentsCredit: number;
+  /** Σ positive adjustments — majorations / annulations de remise (≥ 0). */
+  readonly adjustmentsDebit: number;
+  readonly adjustmentsCount: number;
+  /** grossBilled + adjustmentsDebit − adjustmentsCredit. */
+  readonly netDue: number;
+  /** Cleared payments only (`sumPaidPayments`). */
+  readonly clearedPaid: number;
+  /** Uncleared cheques / transfers (`sumPendingPayments`). */
+  readonly pendingPaid: number;
+  /** netDue − clearedPaid − pendingPaid (may be negative = credit). */
+  readonly derivedRemaining: number;
+  /** Server balance when supplied, else null. */
+  readonly serverOutstanding: number | null;
+  /** serverOutstanding − derivedRemaining (0 when no server figure). */
+  readonly bridge: number;
+  /** True when |bridge| > 1 — surfaces as the "other items" line. */
+  readonly hasBridge: boolean;
 }
 
 /** Adjustment diagnostic shared by every platform's adjustments view. */
@@ -163,6 +235,55 @@ export interface AdjustmentDiagnostic {
   /** True when the stored reason was blank and a diagnostic was substituted. */
   readonly isDiagnosticFallback: boolean;
 }
+
+/* ============================================================ */
+/*  Adjustment provenance classification (T-168)                  */
+/* ============================================================ */
+
+/**
+ * What an adjustment entry actually IS — answers the owner's question
+ * "is this actual content, a trap, a mistake, or something revealing?":
+ *
+ *   - "documented"    → ACTUAL CONTENT: an operator deliberately applied it
+ *                       and left a motive (e.g. "Remise fratrie").
+ *   - "reversal_pair" → TRAP / REVEALING: an offsetting +X/−X pair was
+ *                       detected (net effect on the balance: ZERO). The pair
+ *                       itself is evidence — typically a non-idempotent
+ *                       Excel re-import that flipped a discount back and
+ *                       forth before idempotency keys (migration 0027).
+ *   - "undocumented"  → MISTAKE / LEGACY: no reason stored (pre-0069 import
+ *                       writer). Cannot be explained — flagged for audit.
+ */
+export type AdjustmentProvenance = "documented" | "reversal_pair" | "undocumented";
+
+/** One classified adjustment row (view model for the history list). */
+export interface ClassifiedAdjustment {
+  readonly id: string;
+  readonly amount: number;
+  readonly at: string;
+  readonly approvedBy: string;
+  readonly kind: "credit" | "debit";
+  readonly badgeLabel: string;
+  readonly reasonLabel: string;
+  readonly isDiagnosticFallback: boolean;
+  /** The provenance class (see `AdjustmentProvenance`). */
+  readonly provenance: AdjustmentProvenance;
+  /** Short badge text: "Documenté" | "Contrepassation" | "Non documenté". */
+  readonly provenanceLabel: string;
+  /** One full sentence explaining what this entry does to the balance. */
+  readonly meaningLabel: string;
+  /** Id of the offsetting sibling when `provenance === "reversal_pair"`. */
+  readonly pairedWithId: string | null;
+  /** Linked receipt reference, when the writer stored one. */
+  readonly receiptRef: string | null;
+}
+
+/** FR provenance badge labels (canonical wording across platforms). */
+export const ADJUSTMENT_PROVENANCE_LABELS_FR: Record<AdjustmentProvenance, string> = {
+  documented: "Documenté",
+  reversal_pair: "Contrepassation",
+  undocumented: "Non documenté",
+};
 
 /* ============================================================ */
 /*  Labels (FR — shared across the three platforms)              */
@@ -334,8 +455,17 @@ export function computeParentBillingBreakdown(
   const syntheticBatches: Array<{ studentId: string; batch: Installment[] }> = [];
   const children: MutableChildBreakdown[] = students.map((student) => {
     let childCharges = chargeEntries.filter((c) => c.studentId === student.id);
-    if (childCharges.length === 0 && students.length === 1 && chargeEntries.length > 0) {
-      childCharges = chargeEntries;
+    if (students.length === 1) {
+      // T-168: a single-child family OWNS the family-level (null studentId)
+      // rows as well — they join the child's shopping list so the itemized
+      // breakdown stays exhaustive (childBilledTotal === totalBilled; the
+      // pre-T-168 code dropped them, leaving 40k of "mystery money"). Mirrors
+      // the installments attribution rule directly below.
+      const familyLevel = chargeEntries.filter((c) => c.studentId == null);
+      childCharges = [...childCharges, ...familyLevel];
+      if (childCharges.length === 0 && chargeEntries.length > 0) {
+        childCharges = chargeEntries; // legacy rows with unknown attribution
+      }
     }
     const childBilledTotal =
       childCharges.length > 0
@@ -427,8 +557,54 @@ export function computeParentBillingBreakdown(
     }
   }
 
-  // -------- Per-service consolidation --------
-  const byService = summarizeByService(chargeEntries, totalBilled, students.length);
+  // -------- Per-service consolidation (T-168: share % + child attribution) --------
+  const studentNameOf = (studentId: string | null): string => {
+    if (studentId == null) return "Famille";
+    const s = students.find((x) => x.id === studentId);
+    return s ? `${s.firstName} ${s.lastName}`.trim() : "Famille";
+  };
+  const byService = summarizeByService(chargeEntries, totalBilled, students.length, studentNameOf);
+
+  // -------- T-168: family-level charges with no child attribution --------
+  // Multi-child families: rows with a null studentId belong to no child —
+  // surfaced as an explicit "Famille" block so the shopping list stays
+  // exhaustive (Σ byChild.billedTotal + unattributedTotal === totalBilled).
+  // Single-child families already fold these rows into the child above.
+  const unattributedItems: BillingLineItem[] =
+    students.length > 1
+      ? chargeEntries
+          .filter((c) => c.studentId == null || !students.some((s) => s.id === c.studentId))
+          .map((c) => ({
+            id: c.id,
+            label: c.description,
+            category: c.category,
+            amount: c.amount,
+          }))
+      : [];
+  const unattributedTotal = unattributedItems.reduce((s, i) => s + i.amount, 0);
+
+  // -------- T-168: adjustment-aware reconciliation --------
+  const adjustments = input.adjustments ?? [];
+  const adjustmentsCredit = adjustments.reduce((s, a) => s + (a.amount < 0 ? -a.amount : 0), 0);
+  const adjustmentsDebit = adjustments.reduce((s, a) => s + (a.amount > 0 ? a.amount : 0), 0);
+  const pendingPaid = sumPendingPayments(input.payments);
+  const netDue = totalBilled + adjustmentsDebit - adjustmentsCredit;
+  const derivedRemaining = netDue - totalClearedPaid - pendingPaid;
+  const serverOutstanding = input.serverOutstanding ?? null;
+  const bridge = serverOutstanding == null ? 0 : serverOutstanding - derivedRemaining;
+  const reconciliation: BillingReconciliation = {
+    grossBilled: totalBilled,
+    adjustmentsCredit,
+    adjustmentsDebit,
+    adjustmentsCount: adjustments.length,
+    netDue,
+    clearedPaid: totalClearedPaid,
+    pendingPaid,
+    derivedRemaining,
+    serverOutstanding,
+    bridge,
+    hasBridge: Math.abs(bridge) > 1,
+  };
 
   return {
     academicYear,
@@ -437,6 +613,9 @@ export function computeParentBillingBreakdown(
     hasSyntheticTranches: children.some((c) => c.isSyntheticSchedule),
     byChild: children,
     byService,
+    unattributedItems,
+    unattributedTotal,
+    reconciliation,
   };
 }
 
@@ -444,32 +623,51 @@ function summarizeByService(
   chargeEntries: readonly LedgerEntry[],
   totalBilled: number,
   studentCount: number,
+  studentNameOf: (studentId: string | null) => string,
 ): ServiceTotalNode[] {
-  const map = new Map<PaymentCategory, ServiceTotalNode>();
+  const map = new Map<PaymentCategory, { node: ServiceTotalNode; byChild: Map<string, ServiceChildAttribution> }>();
   for (const c of chargeEntries) {
     const label = SERVICE_LABELS_FR[c.category] ?? SERVICE_FALLBACK_LABEL;
-    const existing = map.get(c.category);
-    if (existing) {
-      map.set(c.category, {
-        ...existing,
-        amount: existing.amount + c.amount,
-        count: existing.count + 1,
-      });
-    } else {
-      map.set(c.category, { category: c.category, label, amount: c.amount, count: 1 });
-    }
+    const entry = map.get(c.category) ?? {
+      node: { category: c.category, label, amount: 0, count: 0, sharePct: 0, childAttribution: [] },
+      byChild: new Map<string, ServiceChildAttribution>(),
+    };
+    entry.node = {
+      ...entry.node,
+      amount: entry.node.amount + c.amount,
+      count: entry.node.count + 1,
+    };
+    // T-168: per-child attribution inside this service (keyed by studentId
+    // or "__family__" for null — merged amounts per child).
+    const key = c.studentId ?? "__family__";
+    const existing = entry.byChild.get(key);
+    entry.byChild.set(key, {
+      studentId: c.studentId ?? null,
+      studentName: studentNameOf(c.studentId ?? null),
+      amount: (existing?.amount ?? 0) + c.amount,
+    });
+    map.set(c.category, entry);
   }
-  if (map.size === 0 && totalBilled > 0) {
+  const nodes = [...map.values()].map(({ node, byChild }) => ({
+    ...node,
+    sharePct: totalBilled > 0 ? Math.round((node.amount / totalBilled) * 100) : 0,
+    childAttribution: [...byChild.values()].sort((a, b) => b.amount - a.amount),
+  }));
+  if (nodes.length === 0 && totalBilled > 0) {
     return [
       {
         category: "tuition",
         label: "Scolarité Annuelle",
         amount: totalBilled,
         count: studentCount,
+        sharePct: 100,
+        childAttribution: [
+          { studentId: null, studentName: "Famille", amount: totalBilled },
+        ],
       },
     ];
   }
-  return [...map.values()].sort((a, b) => b.amount - a.amount);
+  return nodes.sort((a, b) => b.amount - a.amount);
 }
 
 /** FR labels for service categories (domain-level, shared by platforms). */
@@ -526,4 +724,112 @@ export function describeAdjustment(
         : "Régularisation / rétablissement de dette (contrepassation automatique, motif non documenté)",
     isDiagnosticFallback: !hasReason,
   };
+}
+
+/* ============================================================ */
+/*  Adjustment provenance classification (T-168)                  */
+/* ============================================================ */
+
+/**
+ * Meaning sentence for a provenance class + direction (FR, canonical).
+ *
+ * Every sentence explicitly states (a) what the entry IS, (b) what it does
+ * to the family balance, and — for reversal pairs — (c) that the net effect
+ * is zero, so nothing on screen can be mistaken for unexplained money.
+ */
+function meaningLabelOf(
+  provenance: AdjustmentProvenance,
+  isCredit: boolean,
+): string {
+  switch (provenance) {
+    case "reversal_pair":
+      return "Écriture annulée par une écriture inverse du même montant (probable ré-import ou correction d'erreur). Effet net sur le solde : nul.";
+    case "undocumented":
+      return isCredit
+        ? "Entrée héritée sans motif (import système antérieur à la contrainte 0069) : déduction au motif inconnu — à auditer."
+        : "Entrée héritée sans motif (import système antérieur à la contrainte 0069) : rétablissement de dette au motif inconnu — à auditer.";
+    case "documented":
+      return isCredit
+        ? "Contenu réel : remise ou déduction appliquée par un opérateur, motif documenté — réduit le solde dû."
+        : "Contenu réel : majoration ou annulation de remise appliquée par un opérateur, motif documenté — augmente le solde dû.";
+  }
+}
+
+/**
+ * Classify the family's adjustment history (T-168).
+ *
+ * Reversal-pair detection — IDENTICAL algorithm on every platform
+ * (desktop TS / website TS / Android Kotlin):
+ *
+ *   1. Consider entries with amount ≠ 0, in chronological order
+ *      (`approvedAt`, then id for stability).
+ *   2. Keep a pool of unmatched entries per |amount|.
+ *   3. When an entry's |amount| already has an UNMATCHED entry of the
+ *      OPPOSITE sign in the pool, pair them (FIFO — earliest first) and
+ *      remove the sibling from the pool.
+ *   4. Paired entries → provenance "reversal_pair" (net effect zero).
+ *      Unpaired with a blank reason → "undocumented".
+ *      Everything else → "documented" (actual operator content).
+ *
+ * Pure function; the input order is irrelevant (sorted internally).
+ */
+export function classifyAdjustmentHistory(
+  adjustments: readonly AccountAdjustment[],
+): readonly ClassifiedAdjustment[] {
+  const chronological = [...adjustments]
+    .filter((a) => a.amount !== 0)
+    .sort((a, b) => {
+      const t = a.approvedAt.localeCompare(b.approvedAt);
+      return t !== 0 ? t : a.id.localeCompare(b.id);
+    });
+
+  // |amount| → FIFO queue of not-yet-paired entries (sign is part of the
+  // match key: only OPPOSITE-sign siblings may cancel each other — two
+  // debits of the same amount never pair).
+  const pool = new Map<number, Array<{ id: string; isCredit: boolean }>>();
+  const pairedWith = new Map<string, string>();
+  for (const entry of chronological) {
+    const magnitude = Math.abs(entry.amount);
+    const isCredit = entry.amount < 0;
+    const queue = pool.get(magnitude) ?? [];
+    const siblingIndex = queue.findIndex((q) => q.isCredit !== isCredit);
+    if (siblingIndex >= 0) {
+      const siblingId = queue[siblingIndex].id;
+      queue.splice(siblingIndex, 1);
+      pairedWith.set(entry.id, siblingId);
+      pairedWith.set(siblingId, entry.id);
+    } else {
+      queue.push({ id: entry.id, isCredit });
+    }
+    pool.set(magnitude, queue);
+  }
+
+  // Preserve the CALLER's original order in the returned list (UI lists are
+  // typically newest-first) — classification itself is order-independent.
+  return adjustments.map((a) => {
+    const diagnostic = describeAdjustment(a);
+    const storedReason = a.reason?.trim();
+    const hasReason = !!storedReason && storedReason.length > 0;
+    const pairedWithId = pairedWith.get(a.id) ?? null;
+    const provenance: AdjustmentProvenance = pairedWithId
+      ? "reversal_pair"
+      : hasReason
+        ? "documented"
+        : "undocumented";
+    return {
+      id: a.id,
+      amount: a.amount,
+      at: a.approvedAt,
+      approvedBy: a.approvedBy,
+      kind: diagnostic.kind,
+      badgeLabel: diagnostic.badgeLabel,
+      reasonLabel: diagnostic.reasonLabel,
+      isDiagnosticFallback: diagnostic.isDiagnosticFallback,
+      provenance,
+      provenanceLabel: ADJUSTMENT_PROVENANCE_LABELS_FR[provenance],
+      meaningLabel: meaningLabelOf(provenance, diagnostic.kind === "credit"),
+      pairedWithId,
+      receiptRef: a.receiptRef ?? null,
+    };
+  });
 }

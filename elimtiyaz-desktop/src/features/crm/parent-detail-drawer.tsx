@@ -3,15 +3,24 @@
  *
  * Plan §04.05: 3 sections — Identity / Children / Finances.
  * The Finances section embeds:
- *   1. Balance Cards (Total Dû, Payé, Reste / Crédit parent).
+ *   1. Balance Cards (Brut facturé, Net à payer, Payé, Reste / Crédit parent).
  *   2. Itemized Shopping List & Allocation ("Ce que couvre le montant dû" & "Où sont allés les paiements"):
  *      - Academic Year & Class placement per child
- *      - Sticker Price / Prestation breakdown
+ *      - Sticker Price / Prestation breakdown (service icons + subtotals,
+ *        T-168) + family-level unattributed block (multi-child families)
  *      - Waterfall tranche allocation (shows exactly which tranches the payments covered)
- *      - Toggle between "Par Enfant" and "Par Service / Total"
+ *      - Toggle between "Par Enfant" and "Par Service / Total" (share % +
+ *        per-child attribution per service, T-168)
  *   3. Installment schedule (Tranches).
  *   4. Recent payments list with breakdown.
  *   5. Explicit Adjustments History with clear context, badges, and diagnostic notes.
+ *      T-168: every adjustment carries a PROVENANCE classification
+ *      (Documenté = actual content / Contrepassation = net-zero reversal
+ *      pair / Non documenté = legacy import to audit) plus a full meaning
+ *      sentence — no entry can be mistaken for unexplained money.
+ *   6. Adjustment-aware reconciliation footer (T-168): gross − remises +
+ *      majorations = net; net − cleared − pending = reste; explicit bridge
+ *      to the server balance.
  */
 import { useState, useMemo } from "react";
 import {
@@ -35,6 +44,17 @@ import {
   CheckCircle2,
   Clock,
   BookOpen,
+  GraduationCap,
+  Bus,
+  Utensils,
+  Shirt,
+  Palette,
+  Brain,
+  Mic,
+  HandCoins,
+  Package,
+  ArrowLeftRight,
+  type LucideIcon,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -71,7 +91,8 @@ import { deterministicActivationCode } from "../../core/format/id";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
 import {
   computeParentBillingBreakdown,
-  describeAdjustment,
+  classifyAdjustmentHistory,
+  type AdjustmentProvenance,
 } from "../../domain/calc/payment/billing-breakdown";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { ActivationCodeModal } from "./activation-code-modal";
@@ -470,7 +491,7 @@ export function ParentDetailDrawer({
         open={open}
         onOpenChange={onOpenChange}
         entity={entity}
-        widthClass="max-w-2xl"
+        widthClass="max-w-4xl"
         title={(p) => parentDisplayName(p)}
         subtitle={(p) => p.code}
         avatar={(p) => ({
@@ -568,11 +589,13 @@ function FinancesTab({
 }) {
   const [breakdownMode, setBreakdownMode] = useState<"by_child" | "by_service">("by_child");
 
-  // T-164 — Zero-Logic Rule: the entire billing breakdown (itemized charges,
-  // per-child attribution, REAL tranche coverage with the server waterfall
-  // amounts, canonical 40/30/30 synthesis fallback, per-service totals,
-  // academic-year resolution) is derived by the canonical engine in
-  // `domain/calc/payment/billing-breakdown.ts`. The previous inline
+  // T-164/T-168 — Zero-Logic Rule: the entire billing breakdown (itemized
+  // charges, per-child attribution, REAL tranche coverage with the server
+  // waterfall amounts, canonical 40/30/30 synthesis fallback, per-service
+  // totals with share % + child attribution, family-level unattributed
+  // items, academic-year resolution AND the adjustment-aware reconciliation
+  // feeding the server-balance bridge) is derived by the canonical engine
+  // in `domain/calc/payment/billing-breakdown.ts`. The previous inline
   // implementation (defect class DATA-008) re-implemented the split + a
   // waterfall that ignored `amountPending` and re-derived tranches from
   // charges even when real `installments` rows existed.
@@ -584,6 +607,8 @@ function FinancesTab({
         payments,
         students,
         fallbackTotalDue: profile?.totalDue,
+        adjustments: profile?.adjustments,
+        serverOutstanding: profile?.totalOutstanding,
         hints: {
           classAcademicYearOf: (studentId) => {
             const s = students.find((x) => x.id === studentId);
@@ -602,7 +627,16 @@ function FinancesTab({
     [ledgerEntries, installments, payments, students, profile, classes, academicYears],
   );
 
-  const totalBilled = breakdown.totalBilled;
+  // T-168 — provenance classification of every adjustment (actual content /
+  // net-zero reversal pair / undocumented legacy), derived canonically so
+  // the drawer, the website portal and the Android terminal label the same
+  // row identically.
+  const classifiedAdjustments = useMemo(
+    () => (profile ? classifyAdjustmentHistory(profile.adjustments) : []),
+    [profile],
+  );
+
+  const recon = breakdown.reconciliation;
   const totalPaidAmount = breakdown.totalClearedPaid;
 
   return (
@@ -633,18 +667,44 @@ function FinancesTab({
         </div>
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid grid-cols-3 gap-2">
-        <BalanceCard label="Total Dû" value={totalBilled} tone="default" />
-        <BalanceCard label="Payé" value={profile?.totalPaid ?? totalPaidAmount} tone="success" />
+      {/* Balance Cards — T-168: the four visible terms of the account equation */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <BalanceCard
+          label="Brut facturé"
+          value={recon.grossBilled}
+          tone="default"
+          sub="articles souscrits"
+        />
+        <BalanceCard
+          label="Net à payer"
+          value={recon.netDue}
+          tone="default"
+          sub={
+            recon.adjustmentsCount > 0
+              ? `après ${recon.adjustmentsCount} ajustement(s)`
+              : "aucun ajustement"
+          }
+        />
+        <BalanceCard
+          label="Payé"
+          value={profile?.totalPaid ?? totalPaidAmount}
+          tone="success"
+          sub={recon.pendingPaid > 0 ? `dont en attente : ${formatDzdPlain(recon.pendingPaid)}` : "encaissé"}
+        />
         {outstanding < 0 ? (
           <BalanceCard
             label="Crédit parent"
             value={displayParentCredit(outstanding, profile?.totalUnallocatedCredit ?? 0)}
             tone="success"
+            sub="à déduire plus tard"
           />
         ) : (
-          <BalanceCard label="Reste à payer" value={outstanding} tone={outstanding > 0 ? "danger" : "neutral"} />
+          <BalanceCard
+            label="Reste à payer"
+            value={outstanding}
+            tone={outstanding > 0 ? "danger" : "neutral"}
+            sub={outstanding > 0 ? "solde du compte" : "compte soldé"}
+          />
         )}
       </div>
 
@@ -746,20 +806,38 @@ function FinancesTab({
                     </div>
                   </div>
 
-                  {/* Sticker Price / Purchased items */}
+                  {/* Sticker Price / Purchased items — T-168 with service icons + subtotal */}
                   <div className="space-y-1">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
                       Articles & Prestations Souscrites
                     </p>
                     {child.lineItems.length > 0 ? (
-                      <ul className="divide-y divide-border/40 text-xs bg-muted/20 rounded p-2 border border-border/40">
-                        {child.lineItems.map((item) => (
-                          <li key={item.id} className="py-1 flex items-center justify-between gap-2">
-                            <span className="text-foreground">{item.label}</span>
-                            <span className="font-mono font-medium">{formatDzdPlain(item.amount)}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="text-xs bg-muted/20 rounded p-2 border border-border/40">
+                        <ul className="divide-y divide-border/40">
+                          {child.lineItems.map((item) => {
+                            const SvcIcon = serviceIconOf(item.category);
+                            return (
+                              <li key={item.id} className="py-1.5 flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary shrink-0">
+                                  <SvcIcon className="h-3.5 w-3.5" />
+                                </span>
+                                <span className="text-foreground flex-1 min-w-0 truncate" title={item.label}>
+                                  {item.label}
+                                </span>
+                                <span className="font-mono font-medium">{formatDzdPlain(item.amount)}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <div className="pt-1.5 mt-1 border-t border-border/60 flex items-center justify-between">
+                          <span className="text-[10px] uppercase text-muted-foreground font-semibold">
+                            Sous-total {child.student.firstName}
+                          </span>
+                          <span className="font-mono font-bold text-foreground">
+                            {formatDzdPlain(child.billedTotal)}
+                          </span>
+                        </div>
+                      </div>
                     ) : (
                       <div className="text-xs bg-muted/20 rounded p-2 border border-border/40 flex items-center justify-between">
                         <span>Scolarité annuelle complète ({child.gradeLabel})</span>
@@ -832,37 +910,129 @@ function FinancesTab({
               ))}
             </div>
           ) : (
-            /* VIEW 2: Consolidated by Service */
-            <div className="space-y-3">
-              <ul className="divide-y divide-border text-xs bg-muted/20 rounded border border-border p-2">
-                {breakdown.byService.map((s) => (
-                  <li key={s.category} className="py-2 flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">{s.label}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {s.count} élément(s) rattaché(s) pour l'année {breakdown.academicYear}
-                      </p>
+            /* VIEW 2: Consolidated by Service — T-168 share % + child attribution */
+            <div className="space-y-2">
+              {breakdown.byService.map((s) => {
+                const SvcIcon = serviceIconOf(s.category);
+                return (
+                  <div key={s.category} className="rounded-md border border-border bg-muted/10 p-2.5 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded bg-primary/10 text-primary shrink-0">
+                        <SvcIcon className="h-4 w-4" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground text-sm leading-tight">{s.label}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {s.count} élément(s) rattaché(s) pour l'année {breakdown.academicYear}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-mono font-bold text-sm text-primary block">{formatDzdPlain(s.amount)}</span>
+                        <span className="text-[10px] text-muted-foreground">{s.sharePct} % du total</span>
+                      </div>
                     </div>
-                    <span className="font-mono font-bold text-sm text-primary">
-                      {formatDzdPlain(s.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                    {/* Share of total bar */}
+                    <div className="h-1.5 rounded bg-border overflow-hidden">
+                      <div
+                        className="h-full bg-primary/70 rounded"
+                        style={{ width: `${Math.min(100, s.sharePct)}%` }}
+                      />
+                    </div>
+                    {/* Per-child attribution inside this service */}
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-0.5">
+                      {s.childAttribution.map((a) => (
+                        <span key={`${s.category}-${a.studentId ?? "famille"}`} className="text-[10px] text-muted-foreground">
+                          {a.studentName} : <strong className="text-foreground font-mono">{formatDzdPlain(a.amount)}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {breakdown.unattributedItems.length > 0 && (
+                <div className="rounded-md border border-dashed border-border p-2.5 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
+                    <Users className="h-3 w-3" /> Éléments familiaux (non rattachés à un enfant)
+                  </p>
+                  <ul className="divide-y divide-border/40 text-xs">
+                    {breakdown.unattributedItems.map((item) => (
+                      <li key={item.id} className="py-1 flex items-center justify-between">
+                        <span className="text-foreground">{item.label}</span>
+                        <span className="font-mono font-medium">{formatDzdPlain(item.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Mathematical Reconciliation Summary */}
-          <div className="border-t border-border pt-2.5 flex items-center justify-between text-xs flex-wrap gap-2 bg-muted/30 -mx-3 -mb-3 p-3 rounded-b-lg">
-            <div className="flex items-center gap-3 text-muted-foreground flex-wrap">
-              <span>Total Prévu : <strong className="text-foreground font-mono">{formatDzdPlain(totalBilled)}</strong></span>
-              <span>−</span>
-              <span>Total Encaissé : <strong className="text-status-success font-mono">− {formatDzdPlain(totalPaidAmount)}</strong></span>
+          {/* Family-level block (Par Enfant view) — keeps the list exhaustive */}
+          {breakdownMode === "by_child" && breakdown.unattributedItems.length > 0 && (
+            <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 space-y-1.5">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
+                <Users className="h-3 w-3" /> Famille — éléments non rattachés à un enfant
+              </p>
+              <ul className="divide-y divide-border/40 text-xs">
+                {breakdown.unattributedItems.map((item) => (
+                  <li key={item.id} className="py-1 flex items-center justify-between">
+                    <span className="text-foreground">{item.label}</span>
+                    <span className="font-mono font-medium">{formatDzdPlain(item.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] text-muted-foreground text-right">
+                Sous-total familial : <strong className="font-mono text-foreground">{formatDzdPlain(breakdown.unattributedTotal)}</strong>
+              </p>
             </div>
-            <div className="flex items-center gap-1 font-bold">
-              <span className="text-muted-foreground uppercase text-[11px]">Reste Net :</span>
-              <span className="font-mono text-status-danger text-sm">{formatDzd(outstanding)}</span>
-            </div>
+          )}
+
+          {/* Mathematical Reconciliation — T-168: the FULL account equation,
+              every term visible and labelled (no mystery numbers). */}
+          <div className="border-t border-border bg-muted/30 -mx-3 -mb-3 p-3 rounded-b-lg space-y-1">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground flex items-center gap-1.5 pb-1">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Réconciliation du compte — chaque dinar expliqué
+            </p>
+            <ReconRow label="Brut facturé (articles ci-dessus)" amount={recon.grossBilled} tone="gross" />
+            {recon.adjustmentsCredit > 0 && (
+              <ReconRow label="− Remises / déductions" amount={-recon.adjustmentsCredit} tone="credit" />
+            )}
+            {recon.adjustmentsDebit > 0 && (
+              <ReconRow label="+ Majorations / annulations de remise" amount={recon.adjustmentsDebit} tone="debit" />
+            )}
+            <ReconRow label="= Net à payer" amount={recon.netDue} tone="net" />
+            <ReconRow label="− Encaissé confirmé" amount={-recon.clearedPaid} tone="paid" />
+            {recon.pendingPaid > 0 && (
+              <ReconRow label="− En attente (chèque / virement non débloqué)" amount={-recon.pendingPaid} tone="paid" />
+            )}
+            <ReconRow label="= Reste net (dérivation locale)" amount={recon.derivedRemaining} tone="net" />
+            {recon.hasBridge && (
+              <div className="flex items-center justify-between text-[11px] rounded border border-status-warning/40 bg-status-warning/10 px-2 py-1">
+                <span className="text-status-warning">
+                  ± Pont — autres écritures (remboursements, contrepassations, ajustements anciens)
+                </span>
+                <span className="font-mono font-bold text-status-warning">
+                  {recon.bridge > 0 ? "+" : "−"} {formatDzdPlain(Math.abs(recon.bridge))}
+                </span>
+              </div>
+            )}
+            {recon.serverOutstanding != null && (
+              <div className="flex items-center justify-between text-sm pt-1 border-t border-border/60">
+                <span className="text-muted-foreground uppercase text-[11px] font-semibold flex items-center gap-1">
+                  {!recon.hasBridge && <CheckCircle2 className="h-3.5 w-3.5 text-status-success" />}
+                  Solde du compte (source : serveur)
+                </span>
+                <span
+                  className={cn(
+                    "font-mono font-bold",
+                    recon.serverOutstanding > 0 ? "text-status-danger" : "text-status-success",
+                  )}
+                >
+                  {formatDzd(recon.serverOutstanding)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -920,19 +1090,29 @@ function FinancesTab({
           <p>
             • <strong className="text-status-danger font-mono">+ En rouge (Positif) :</strong> Majoration, ou <u>annulation d'une remise précédente</u> (qui <u>rajoute</u> de la dette).
           </p>
+          <p className="pt-1 border-t border-border/40 mt-1">
+            <span className="font-medium text-foreground">Origine de chaque écriture (badge) :</span>
+            <span className="ml-1 rounded bg-status-success/10 text-status-success px-1 py-0.5">Documenté</span> contenu réel (décision d'opérateur, motif conservé) ·
+            <span className="mx-1 rounded bg-status-warning/10 text-status-warning px-1 py-0.5">Contrepassation</span> paire +X/−X détectée — effet net nul (ré-import/révélateur) ·
+            <span className="rounded bg-status-danger/10 text-status-danger px-1 py-0.5">Non documenté</span> entrée héritée à auditer (erreur probable).
+          </p>
         </div>
 
-        {profile && profile.adjustments.length > 0 ? (
+        {classifiedAdjustments.length > 0 ? (
           <ul className="divide-y divide-border text-xs">
-            {profile.adjustments.map((a) => {
-              // T-164: badge + reason diagnostics derived by the canonical
+            {classifiedAdjustments.map((c) => {
+              // T-168: badge + reason + PROVENANCE derived by the canonical
               // engine (shared with the website portal + Android terminal so
-              // every platform labels the same adjustment identically).
-              const diag = describeAdjustment(a);
-              const isCredit = diag.kind === "credit";
+              // every platform labels the same adjustment identically):
+              //   Documenté = actual content · Contrepassation = net-zero
+              //   reversal pair · Non documenté = legacy import to audit.
+              const isCredit = c.kind === "credit";
+              const pair = c.pairedWithId
+                ? classifiedAdjustments.find((x) => x.id === c.pairedWithId)
+                : null;
 
               return (
-                <li key={a.id} className="px-3 py-2.5 space-y-1 hover:bg-accent/5 transition-colors">
+                <li key={c.id} className="px-3 py-2.5 space-y-1 hover:bg-accent/5 transition-colors">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
                       className={`font-mono font-bold text-sm ${
@@ -940,7 +1120,7 @@ function FinancesTab({
                       }`}
                     >
                       {isCredit ? "− " : "+ "}
-                      {formatDzdPlain(Math.abs(a.amount))}
+                      {formatDzdPlain(Math.abs(c.amount))}
                     </span>
 
                     <Badge
@@ -951,30 +1131,47 @@ function FinancesTab({
                           : "bg-status-danger/10 text-status-danger border-status-danger/30"
                       }`}
                     >
-                      {diag.badgeLabel}
+                      {c.badgeLabel}
                     </Badge>
 
+                    <ProvenanceChip provenance={c.provenance} />
+
                     <span className="text-muted-foreground text-[10px]">
-                      {formatRelative(a.approvedAt)} ({formatDate(a.approvedAt)})
+                      {formatRelative(c.at)} ({formatDate(c.at)})
                     </span>
 
                     <span className="ml-auto text-[10px] text-muted-foreground font-mono bg-muted/40 px-1.5 py-0.5 rounded">
-                      Auteur : {a.approvedBy}
+                      Auteur : {c.approvedBy}
                     </span>
                   </div>
 
                   <p
                     className={cn(
                       "text-[11px] text-foreground font-medium",
-                      diag.isDiagnosticFallback && "italic text-muted-foreground",
+                      c.isDiagnosticFallback && "italic text-muted-foreground",
                     )}
                   >
-                    {diag.reasonLabel}
+                    {c.reasonLabel}
                   </p>
 
-                  {a.receiptRef && (
+                  {/* T-168 — explicit meaning: what this entry IS and what it
+                      does to the balance (content vs trap vs mistake). */}
+                  <p className="text-[10px] text-muted-foreground flex items-start gap-1.5">
+                    <HelpCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                    <span>{c.meaningLabel}</span>
+                  </p>
+
+                  {pair && (
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 font-mono bg-muted/30 rounded px-1.5 py-0.5 w-fit">
+                      <ArrowLeftRight className="h-3 w-3 text-status-warning" />
+                      Contrepassée par l'écriture {isCredit ? "débit" : "crédit"} du {formatDate(pair.at)}
+                      {pair.receiptRef && pair.receiptRef.length > 0 ? ` (réf. ${pair.receiptRef})` : ""}
+                    </p>
+                  )}
+
+                  {c.receiptRef && (
                     <p className="text-[10px] text-muted-foreground font-mono">
-                      Réf. pièce : {a.receiptRef}
+                      Réf. pièce : {c.receiptRef}
                     </p>
                   )}
                 </li>
@@ -1116,10 +1313,12 @@ function BalanceCard({
   label,
   value,
   tone,
+  sub,
 }: {
   label: string;
   value: number;
   tone: "default" | "success" | "danger" | "neutral";
+  sub?: string;
 }) {
   const toneClass = {
     default: "text-foreground",
@@ -1130,7 +1329,90 @@ function BalanceCard({
   return (
     <div className="rounded-md border border-border p-2.5 text-center bg-card">
       <p className="text-[10px] uppercase text-muted-foreground">{label}</p>
-      <p className={`text-sm font-mono font-semibold mt-0.5 ${toneClass}`}>{formatDzdPlain(value)}</p>
+      <p className={`text-base font-mono font-semibold mt-0.5 ${toneClass}`}>{formatDzdPlain(value)}</p>
+      {sub && <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{sub}</p>}
+    </div>
+  );
+}
+
+/** T-168 — lucide icon per billing category (presentation-only mapping). */
+function serviceIconOf(category: string): LucideIcon {
+  switch (category) {
+    case "tuition":
+      return GraduationCap;
+    case "transport":
+      return Bus;
+    case "canteen":
+      return Utensils;
+    case "uniform":
+    case "second_apron":
+      return Shirt;
+    case "books":
+      return BookOpen;
+    case "extracurricular":
+      return Palette;
+    case "therapy_psychology":
+      return Brain;
+    case "therapy_speech":
+      return Mic;
+    case "parent_credit":
+      return HandCoins;
+    default:
+      return Package;
+  }
+}
+
+/** T-168 — provenance chip: Documenté / Contrepassation / Non documenté. */
+function ProvenanceChip({ provenance }: { provenance: AdjustmentProvenance }) {
+  const styles: Record<AdjustmentProvenance, string> = {
+    documented: "bg-status-success/10 text-status-success border-status-success/30",
+    reversal_pair: "bg-status-warning/10 text-status-warning border-status-warning/40",
+    undocumented: "bg-status-danger/10 text-status-danger border-status-danger/30",
+  };
+  const labels: Record<AdjustmentProvenance, string> = {
+    documented: "Documenté",
+    reversal_pair: "Contrepassation",
+    undocumented: "Non documenté",
+  };
+  return (
+    <span
+      className={`text-[9px] font-medium border rounded px-1.5 py-0.5 ${styles[provenance]}`}
+      title={
+        provenance === "documented"
+          ? "Contenu réel — décision d'opérateur, motif conservé"
+          : provenance === "reversal_pair"
+            ? "Paire annulée détectée — effet net nul sur le solde"
+            : "Entrée héritée sans motif — à auditer"
+      }
+    >
+      {labels[provenance]}
+    </span>
+  );
+}
+
+/** T-168 — one labelled line of the reconciliation equation. */
+function ReconRow({
+  label,
+  amount,
+  tone,
+}: {
+  label: string;
+  amount: number;
+  tone: "gross" | "credit" | "debit" | "net" | "paid";
+}) {
+  const amountClass = {
+    gross: "text-foreground font-semibold",
+    credit: "text-status-success",
+    debit: "text-status-danger",
+    net: "text-foreground font-bold",
+    paid: "text-status-success",
+  }[tone];
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-mono ${amountClass}`}>
+        {amount < 0 ? "−" : amount > 0 ? "+" : ""} {formatDzdPlain(Math.abs(amount))}
+      </span>
     </div>
   );
 }
