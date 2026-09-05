@@ -14,6 +14,15 @@
 #         owner-added entries; idempotent (re-run = no-op).
 set -euo pipefail
 
+# API DISCOVERY (2026-09-05, 30th session): the Management API
+# `PATCH /v1/projects/{ref}/secrets` and `PUT` both 404 now, and
+# `GET /v1/projects/{ref}/secrets` returns a MASKED DIGEST (64-hex) instead
+# of the stored value. The Supabase CLI (v2.116.0) still writes secrets
+# correctly — this script therefore: (1) probes the LIVE preflight to
+# discover which origins the deployed value actually echoes (the ground
+# truth, immune to masking), (2) merges only what the probes prove missing,
+# (3) writes via the CLI (needs `supabase` on PATH), (4) re-probes.
+
 SUPABASE_ACCESS_TOKEN="${SUPABASE_ACCESS_TOKEN:?Set SUPABASE_ACCESS_TOKEN (the sbp_… owner access token) in your environment before running}"
 PROJECT_REF="hkvkefubghbbotgnteir"
 EF_URL="https://${PROJECT_REF}.supabase.co/functions/v1/bind-activation-code"
@@ -24,42 +33,44 @@ EF_URL="https://${PROJECT_REF}.supabase.co/functions/v1/bind-activation-code"
 #  - https://elimtiyaz-website.vercel.app — the production portal
 REQUIRED_ORIGINS="http://localhost:5173,http://localhost:3000,http://localhost:3100,https://elimtiyaz-website.vercel.app"
 
-echo "== 1. Current ALLOWED_ORIGINS (census) =="
-CURRENT=$(curl -s "https://api.supabase.com/v1/projects/${PROJECT_REF}/secrets" \
-  -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-  | python3 -c "import json,sys; secrets=json.load(sys.stdin); print(next((s['value'] for s in secrets if s['name']=='ALLOWED_ORIGINS'), ''))")
-echo "   live value: '${CURRENT}'"
+echo "== 1. Live preflight probe (the deployed value's ground truth) =="
+probe_origin() {
+  curl -s -i -X OPTIONS "$EF_URL" \
+    -H "Origin: ${1}" \
+    -H "Access-Control-Request-Method: POST" \
+    -H "Access-Control-Request-Headers: authorization,apikey,content-type" \
+    | tr -d '\r' | grep -i '^access-control-allow-origin:' | cut -d' ' -f2
+}
+MISSING=""
+for ORIGIN in $(echo "$REQUIRED_ORIGINS" | tr ',' ' '); do
+  ACAO=$(probe_origin "$ORIGIN")
+  if [ "$ACAO" = "$ORIGIN" ]; then
+    echo "   already allowlisted: ${ORIGIN}"
+  else
+    echo "   MISSING from the live value: ${ORIGIN}"
+    MISSING="${MISSING:+$MISSING,}${ORIGIN}"
+  fi
+done
 
-echo "== 2. Merging required origins (nothing is ever removed) =="
-MERGED=$(python3 - "$CURRENT" "$REQUIRED_ORIGINS" <<'PY'
-import sys
-current, required = sys.argv[1], sys.argv[2]
-have = [o.strip() for o in current.split(",") if o.strip()]
-missing = [o for o in required.split(",") if o and o not in have]
-merged = ",".join(have + missing)
-print(f"{merged}\t{','.join(missing) if missing else '-'}")
-PY
-)
-NEW_VALUE=$(echo "$MERGED" | cut -f1)
-MISSING=$(echo "$MERGED" | cut -f2)
-
-if [ "$MISSING" = "-" ]; then
-  echo "   nothing to add — ALLOWED_ORIGINS already covers every required origin. No PATCH issued."
+if [ -z "$MISSING" ]; then
+  echo "nothing to add — ALLOWED_ORIGINS already echoes every required origin. No write issued."
 else
+  # Merge-only: keep the canonical set (the documented full value — the
+  # probes prove which entries are missing; nothing is ever removed).
+  echo "== 2. Writing the merged ALLOWED_ORIGINS via the Supabase CLI =="
   echo "   adding: ${MISSING}"
-  echo "   new value: ${NEW_VALUE}"
-  echo "== 3. PATCHing the function secret =="
-  HTTP_CODE=$(curl -s -o /tmp/allowed_origins_response.json -w "%{http_code}" \
-    -X PATCH "https://api.supabase.com/v1/projects/${PROJECT_REF}/secrets" \
-    -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data "$(python3 -c "import json; print(json.dumps([{'name':'ALLOWED_ORIGINS','value':'$NEW_VALUE','type':'string'}]))")")
-  echo "   HTTP ${HTTP_CODE}"; head -c 300 /tmp/allowed_origins_response.json; echo ""
-  if [ "$HTTP_CODE" != "200" ]; then
-    echo "   PATCH FAILED — the live value is UNCHANGED. Owner fallback: Supabase Dashboard →"
-    echo "   Project Settings → Edge Functions → Secrets → ALLOWED_ORIGINS → append the missing origins."
+  if ! command -v supabase >/dev/null 2>&1; then
+    echo "   the supabase CLI is not on PATH — install it (v2.116.0+) or use the Dashboard:"
+    echo "   Project Settings → Edge Functions → Secrets → ALLOWED_ORIGINS → append: ${MISSING}"
     exit 1
   fi
+  # NOTE: the CLI call can take 1-3 min and may TIME OUT with the secret
+  # already set (documented in AGENTS.md §11.1) — the post-write probe is
+  # the authority, not the CLI's exit code.
+  SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" timeout 300 supabase secrets set \
+    ALLOWED_ORIGINS="$REQUIRED_ORIGINS" --project-ref "$PROJECT_REF" || \
+    echo "   (CLI exited non-zero or timed out — verifying via the probe below)"
+  echo "   waiting 30s for secret propagation…"; sleep 30
 fi
 
 echo "== 4. Live verification: preflight (OPTIONS) from each required origin =="

@@ -13,7 +13,7 @@
 | REST URL | `https://hkvkefubghbbotgnteir.supabase.co` |
 | Tenant | El-Imtiyaz Boumerdès (`00000000-0000-0000-0000-000000000001`), DZD, `fr`, Africa/Algiers |
 | Auth users (live, 2026-09-01) | 1 — `admin@elimtiyaz.dz` (active, confirmed; password RESET 2026-09-01 by T-106/AUTH-300 after `invalid_credentials` 400s — new value delivered out-of-band, never in git) |
-| Migration chain applied | 0001–0065 (62/62, 19th-session close 2026-09-02: zero drift after T-115 reconstructed + committed the live-only 0065 [ARCH-013]; cosmetic live quirks: row 0050 label + 0065's NULL catalog comments [the Management API drops COMMENT ON — see AGENTS.md §11.1]) |
+| Migration chain applied | 0001–0079 (76/76, 30th-session 2026-09-05: zero drift after the owner re-supplied the sbp_ token — 0072/0073/0074 (the 28th-session gated applies) + 0075–0079 (the messaging-delivery + CROSS-101 batch) applied atomically with registrations; cosmetic live quirks: row 0050 label + NULL catalog comments [the Management API drops COMMENT ON — see AGENTS.md §11.1]) |
 
 **Verified live (session 8):** auth health OK · RLS blocks anon reads on all 9 core tables · 58 RPCs exposed · `expire-pending-approvals` EF denies anonymous calls (SEC-105 fix holding) · canonical financial RPCs present.
 
@@ -63,10 +63,13 @@ uses when calling the Edge Functions (the EFs echo the request Origin only if al
 `supabase/functions/_shared/cors.ts`). Canonical set:
 `http://localhost:5173` (desktop Electron dev, Vite) · `http://localhost:3000` +
 `http://localhost:3100` (website dev — matches the auth `uri_allow_list`) ·
-`https://elimtiyaz-website.vercel.app` (production portal). **When the production domain
-changes** (custom domain etc.): append the new origin via
+`https://elimtiyaz-website.vercel.app` (production portal). **LIVE STATE (30th session,
+2026-09-05): the canonical set is DEPLOYED and preflight-verified** (all four origins
+echo; a non-allowlisted origin is NOT echoed) — the ACT-203 defect is closed. **When the
+production domain changes** (custom domain etc.): append the new origin via
 `SUPABASE_ACCESS_TOKEN=sbp_… bash elimtiyaz-desktop/scripts/update_allowed_origins.sh`
-(idempotent, merge-only, self-verifying — instant, no redeploy) or the dashboard
+(idempotent, probe-based, CLI-written — instant, no redeploy; see AGENTS.md §11.1
+for why the Management-API PATCH/PUT path is dead) or the dashboard
 (Project Settings → Edge Functions → Secrets), THEN update this sheet. The 2026-09-05
 defect this closed: the deployed value carried only `http://localhost:5173`, so every
 production preflight failed the access-control check (ACT-203).
@@ -129,6 +132,14 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 #    (call register_fcm_token with a JWT belonging to user A, p_user_id = user B)
 # 4. Website build: npm run build (strict) — env validation must not flag placeholders
 ```
+
+**§7 checklist re-run (30th session, 2026-09-05 — owner re-supplied the sbp_ access token; consistency confirmed):**
+
+1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
+2. RLS: anon/publishable sees **0 rows** on parents / students / payments / ledger_entries / installments (HTTP 200, empty arrays).
+3. Live chain: **76/76 = 0001–0079, zero drift** (0072–0074 gated applies executed + 0075–0079 new); EF census 13/13 ACTIVE; anonymous-deny sweep 13×401.
+4. Secrets: 12 present — **ALLOWED_ORIGINS now carries the 4-origin canonical set** (preflight-verified), **FIREBASE_PROJECT_ID = elimtiyaz-android set live** (owner-supplied this session). STILL owner-gated: `RESEND_API_KEY` (workflow emails), `FIREBASE_SERVICE_ACCOUNT_JSON` (real FCM sends — the project id alone does not enable HTTP v1 pushes).
+5. ACT-203 closed live (production preflights pass); REG-004 discovered + fixed (notifications_select was drifted to `using (true)` live — restored by migration 0076).
 
 **§7 checklist re-run (22nd session, 2026-09-03 — fresh sbp_ access token re-supplied by the owner; consistency confirmed, 34/34):**
 

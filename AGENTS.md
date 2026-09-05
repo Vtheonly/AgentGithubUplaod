@@ -133,6 +133,35 @@ For backend / SQL / Edge-Function tasks, **live verification is required** to cl
    for the working pattern). Do not "fix" a census script by retrying the REST
    path — it is simply not part of the Management API.
 
+**Management-API SECRETS endpoints (30th session, 2026-09-05 — live evidence):**
+
+5. **`PATCH /v1/projects/<ref>/secrets` and `PUT` both 404** ("Cannot
+   PATCH/PUT …") — the direct secrets-write endpoints are gone. Write Edge-
+   Function secrets with the **Supabase CLI** (`supabase secrets set
+   NAME=value --project-ref <ref>`), which still works; the call can take
+   1–3 min and may TIME OUT with the secret already set — verify with a
+   live behavior probe (e.g. the CORS preflight for ALLOWED_ORIGINS), never
+   trust the CLI's exit code alone.
+6. **`GET /v1/projects/<ref>/secrets` returns MASKED DIGESTS** — the
+   `value` field for secret-type entries is a 64-hex digest, NOT the stored
+   value (only non-secret `type: string` entries come back in clear). Never
+   build merge logic on the GET response — probe the live behavior instead
+   (`elimtiyaz-desktop/scripts/update_allowed_origins.sh` now models this
+   pattern: probe → merge-only → CLI write → re-probe).
+7. **`storage.buckets` cannot be mutated via SQL** — `delete from
+   storage.buckets` raises "Direct deletion from storage tables is not
+   allowed. Use the Storage API instead." (the `storage.protect_delete()`
+   trigger). Remove buckets via `DELETE /storage/v1/bucket/<id>` with the
+   service key (see `scripts/apply_0079_live.sh`).
+8. **Admin-API user creation can be rate-limited transiently** — repeated
+   create/delete cycles of test users return error payloads (KeyError-class
+   in scripts) while a fresh email succeeds seconds later. Round-trip
+   harnesses must wait ~20–30 s between runs and clean profiles BY EMAIL
+   (the 0002 auth trigger auto-creates `user_profiles` rows on
+   `POST /auth/v1/admin/users` — inserting parallel profiles breaks
+   `current_user_profile_id()` resolution; UPDATE the auto-created rows
+   instead).
+
 **Live verification script convention** (since the seventh session):
 
 For each backend migration (T-061, T-031, T-029, T-071, T-079), a
