@@ -1676,7 +1676,7 @@ The session's core discovery: **the chat CONVERSATION layer was complete and liv
 #### Suites at close (all green)
 - Desktop: typecheck clean · lint 0 errors (401 warnings baseline) · **91 files / 2 420 tests / 0 failures** (was 89/2404; +2 files = t-192 suite ×16 tests… precisely: +1 file/10 tests + the round-trip evidence).
 - Website: lint clean · strict build green · **29 files / 496 tests / 0 failures** (was 28/488; +1 file/8 tests).
-- Android: **(count in the T-196 registry entry — recorded at close after the re-provisioned run finished)**.
+- Android: **48 files / 410 tests / 0 failures** (testDebugUnitTest BUILD SUCCESSFUL) + lintDebug SUCCESS — with the re-provisioned JDK 21 + SDK 35 toolchain.
 - Backend live: chain **76/76 = 0001–0079 ZERO DRIFT**; EF fleet 13/13 ACTIVE; RLS + anonymous-deny sweeps green.
 
 #### New problems registered (4, all TESTED with live evidence): MSG-101, MSG-200, MSG-201, REG-004 — totals 193 detailed entries.
