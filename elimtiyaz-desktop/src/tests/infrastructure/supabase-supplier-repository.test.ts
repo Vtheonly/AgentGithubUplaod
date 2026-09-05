@@ -159,7 +159,8 @@ class FakeClient {
     // The collision is armed ONCE for the WHOLE client — the repository's
     // retry issues a second from(); that query must succeed (the callback
     // disarms the client the moment the error fires).
-    const client = this;
+    // (T-188 lint-baseline repair: the arrow closure captures `this`
+    // lexically — no `const client = this` aliasing.)
     const collision = this.insertCollisionOnce
       ? { code: "23505", message: "duplicate key value violates unique constraint" }
       : undefined;
@@ -167,7 +168,7 @@ class FakeClient {
       this.tables[tableName],
       collision,
       { v: false },
-      collision ? () => { client.insertCollisionOnce = false; } : undefined,
+      collision ? () => { this.insertCollisionOnce = false; } : undefined,
     );
   }
 }

@@ -20,6 +20,23 @@
 
 ## Entries
 
+### 2026-09-05 — T-185..T-188 — 29th session — the activation report's second layer: CORS secret (ACT-203), desktop session-logout bug (AUTH-301), CSP warning (SEC-114), network message (ACT-204)
+
+- **Problem IDs:** AUTH-301, ACT-203, ACT-204, SEC-114 (all NEW this session; ACT-201 confirmed fixed LIVE by the owner's redeploy)
+- **What changed:**
+  - **Desktop (hub):** `SupabaseAuthRepository.refreshSession` no longer "rebuilds" via `signIn(email, "")` (an empty-password grant that 400'd on every refresh → session cleared → logged out on every expiry/app restart). The profile/roles/permissions fetch is extracted into `buildSession(user, authSession)`, shared by signIn and refreshSession — the SDK's refreshed session is used directly (T-185 / AUTH-301).
+  - **Desktop (hub):** `frame-ancestors 'none'` removed from the index.html meta CSP — the CSP spec ignores that directive in a `<meta>` policy (Chromium warned on every launch; the directive never enforced anything). `csp-policy.test.ts` hardening guard inverted to pin its ABSENCE (T-186 / SEC-114).
+  - **Hub:** `elimtiyaz-desktop/scripts/update_allowed_origins.sh` — the ACT-203 runbook: idempotent merge-only update of the live `ALLOWED_ORIGINS` Edge-Function secret (Management API), then live preflight echo verification. Canonical origin set recorded in credentials.md §2.2.
+  - **Website:** the activation screen's catch block maps `TypeError` (fetch-level failure — offline/CORS-block; no HTTP response) to the NEW `activation.code.error.network` message instead of the code-blaming generic one; dictionary key added (T-187 / ACT-204).
+  - **Hub docs:** problem-registry (+4 detailed entries, totals 189), task-registry (T-185..T-188), this entry, current-state delta, next-task session state, credentials.md §2.2. Lint-baseline repair: the pre-existing `no-this-alias` error in `supabase-supplier-repository.test.ts` (T-179's commit) fixed via lexical-this closure.
+- **Why:** the owner re-reported "it's still [not working]" minutes after redeploying the T-184 fix with fresh console evidence. The evidence showed a NEW layer: the `/undefined/` URL is fixed (ACT-201 live-confirmed) but the production preflight now fails the CORS access-control check — the deployed ALLOWED_ORIGINS secret only allowlists `http://localhost:5173`. The desktop paste additionally exposed the refreshSession empty-password 400 (every session expiry logged the user out) and the meta-CSP frame-ancestors warning. Diagnosis was live-probed (curl preflights: prod origin → 200 with ACAO `http://localhost:5173`; localhost:5173 → echoed) — the EF CODE is correct, only the live secret value is wrong.
+- **Affected components:** desktop auth (supabase-auth-repository), desktop renderer CSP (index.html + csp-policy test), hub EF ops (new script + credentials sheet), website activation UX (screen + dictionary), hub recovery docs.
+- **Tests:** `src/tests/infrastructure/t-185-refresh-session-rebuild.test.ts` (NEW, 6), `src/tests/security/csp-policy.test.ts` (updated, 4), website `src/test/t-187-activation-network-error.test.ts` (NEW, 5).
+- **Verification:** desktop FULL suite **90 files / 2410 / 0** (was 89/2404) + tsc clean + lint 0 errors (incl. the T-179 pre-existing error repaired); website FULL suite **29 files / 488 / 0** (was 28/483) + lint clean + strict `next build` green; `bash -n` script syntax OK; ACT-203 preflight probes recorded (before-state in the registry entry; after-state runs inside the script when the owner supplies the token).
+- **Commit:** PENDING-RECEIPTS (filled by the T-188 handoff commit).
+- **Notes:** THE activation unblock is one owner action away: `SUPABASE_ACCESS_TOKEN=sbp_… bash elimtiyaz-desktop/scripts/update_allowed_origins.sh` — instant, no redeploy (function secret, not code). Desktop needs the next app run to benefit from T-185/T-186 (packaged build owner-gated). The website T-187 change rides the next Vercel deploy (cosmetic-honesty, not blocking). ACT-201 is now LIVE-VERIFIED fixed (the owner's paste shows the correctly-resolved EF URL). The Firebase env-var warning in the paste remains the documented owner-optional item (web push only — see the ACT-201-related owner note in the problem-registry). Push receipts: hub/desktop `main`; website `main`; zips regenerated at the new HEADs in /home/z/my-project/download/.
+
+
 ### 2026-09-05 — T-182 — 28th-session closeout (registry truth-sync + session summaries)
 
 - **Problem IDs:** n/a (process closeout per ADR-007)

@@ -9,7 +9,7 @@
  *   - service_role key NEVER used in client
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Session as SupabaseAuthSession, SupabaseClient, User as SupabaseUser } from "@supabase/supabase-js";
 import type { AuthRepository } from "../../../domain/repository/repository";
 import type { Session } from "../../../core/rbac/session";
 import { Role } from "../../../core/rbac/roles";
@@ -71,11 +71,32 @@ export class SupabaseAuthRepository implements AuthRepository {
       return Err(Errors.unauthorized("No user returned from Supabase"));
     }
 
+    return this.buildSession(data.user, data.session);
+  }
+
+  /**
+   * Build the domain Session from a live Supabase auth session — the ONE
+   * shared path for signIn AND refreshSession (T-185 / AUTH-301).
+   *
+   * AUTH-301 history: refreshSession used to "rebuild" the session by
+   * delegating to `this.signIn(user.email, "")` — a password grant with an
+   * EMPTY password, which Supabase rejects with 400 on EVERY refresh. The
+   * auth-provider then logged "Session refresh failed, clearing expired
+   * session" and logged the user out, even though the SDK's refresh-token
+   * grant had just SUCCEEDED (the owner's 2026-09-05 console paste:
+   * `token?grant_type=password → 400` right after "Stored session expired,
+   * attempting token refresh..."). Both callers now build the Session here
+   * without any second credential grant.
+   */
+  private async buildSession(
+    user: SupabaseUser,
+    authSession: SupabaseAuthSession,
+  ): Promise<Result<Session>> {
     // Fetch the user profile to build the Session
     const { data: profile, error: profileError } = await this.client
       .from("user_profiles")
       .select("id, tenant_id, email, display_name, status, avatar_url")
-      .eq("auth_user_id", data.user.id)
+      .eq("auth_user_id", user.id)
       .single();
 
     if (profileError) {
@@ -112,9 +133,9 @@ export class SupabaseAuthRepository implements AuthRepository {
       avatarUrl: profile.avatar_url ?? null,
       role: primaryRole,
       permissions,
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token ?? null,
-      expiresAt: (data.session.expires_at ?? 0) * 1000,  // seconds → milliseconds
+      accessToken: authSession.access_token,
+      refreshToken: authSession.refresh_token ?? null,
+      expiresAt: (authSession.expires_at ?? 0) * 1000,  // seconds → milliseconds
       locale: "fr",
     };
 
@@ -138,8 +159,12 @@ export class SupabaseAuthRepository implements AuthRepository {
       return Err(Errors.unauthorized("No active session to refresh"));
     }
 
-    // Rebuild session via the same path as signIn
-    return this.signIn(data.user.email ?? "", "");
+    // T-185 (AUTH-301): rebuild the domain Session directly from the
+    // refreshed auth session — the previous delegation (signIn with an
+    // EMPTY password) issued a password grant that 400'd on every refresh →
+    // "Session refresh failed, clearing expired session". Never re-grant
+    // credentials to rebuild a session the SDK already refreshed.
+    return this.buildSession(data.user, data.session);
   }
 
   /**

@@ -1882,3 +1882,45 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **What was done:** all three repos pushed to GitHub with the owner's PAT (hub `9dc8a6d..5ee3ad9` = T-176..T-183's docs; website `d5df9f5..f5dc55b` = T-184, already pushed; android `bfe7411..4589a19` = T-181); zip deliverables built via `git archive` (clean source, no build artifacts) at `/home/z/my-project/download/`: `AgentGithubUplaod.zip` (3.5M), `elimtiyaz-android.zip` (1.6M), `elimtiyaz-website.zip` (552K), `elimtiyaz-all-systems.zip` (5.7M, all three + the android-env.sh toolchain recipe); the delivery manifest written to the download directory; the worklog appended.
 - **Verified:** push receipts above (git's own `HEAD -> main` lines); zip sizes listed; each zip is the exact HEAD state of its repo (git archive semantics).
 - **Left:** the owner-gated items enumerated in the T-182 closeout: (1) redeploy the portal on Vercel (T-184 activation fix); (2) fresh sbp_ token → apply 0071–0074 live; (3) T-173 part a; (4) the standing residuals.
+
+### T-185 — Desktop: refreshSession rebuilds without a second credential grant (AUTH-301) — **Completed (TESTED)**
+
+- **Problems:** AUTH-301 (NEW, 29th session — the owner's 2026-09-05 desktop console: "Stored session expired, attempting token refresh..." → `token?grant_type=password` 400 → "Session refresh failed, clearing expired session") · **Priority:** P0 (urgent owner queue-jump — second layer of the "activation code is not working" report)
+- **Status:** TESTED (2026-09-05, 29th session)
+- **What was done:**
+  1. `SupabaseAuthRepository`: extracted the profile/roles/permissions fetch into `private async buildSession(user, authSession)`; `signIn` and `refreshSession` both delegate to it. The refresh path NO LONGER "rebuilds" via `signIn(email, "")` — an empty-password grant that 400'd on every refresh and got the (valid, just-refreshed) session cleared. The SDK's refresh-token grant result is used directly.
+  2. NEW suite `src/tests/infrastructure/t-185-refresh-session-rebuild.test.ts` (6 tests): the regression pin (signInWithPassword SPIED — fires → fail), refreshed-token propagation into the domain Session, profile fetched by the refreshed auth user id, SDK-error surfacing, signIn single-grant parity, two source guards (refreshSession never delegates to signIn; no empty-password pattern anywhere in the file).
+- **Verified:** NEW suite 6/6; FULL desktop suite **90 files / 2410 passed / 0 failures** (was 89/2404); tsc clean; lint 0 errors.
+- **Left:** nothing agent-side.
+
+### T-186 — Hub: ACT-203 CORS runbook (live ALLOWED_ORIGINS secret) + desktop CSP meta repair (SEC-114) — **Completed (TESTED / runbook owner-token-gated)**
+
+- **Problems:** ACT-203 (NEW, Critical, BLOCKED — owner sbp_-token-gated) + SEC-114 (NEW, Low) · **Priority:** P0 (the CURRENT blocker on the owner's activation report — the follow-up layer after ACT-201 was fixed and redeployed)
+- **Status:** TESTED (2026-09-05, 29th session; the live secret update itself is owner-gated like the 0071–0074 applies)
+- **What was done:**
+  1. **Diagnosis (live-probed):** after the owner's redeploy, the `/undefined/` 404 is gone — the EF URL now resolves correctly (ACT-201 confirmed fixed live). The NEW failure: production preflight → 200 but `access-control-allow-origin: http://localhost:5173` (the allowlist fallback first entry) — the deployed `ALLOWED_ORIGINS` secret lacks `https://elimtiyaz-website.vercel.app`. The EF code (`_shared/cors.ts` echo logic) is correct and deployed; only the live secret value is wrong.
+  2. `elimtiyaz-desktop/scripts/update_allowed_origins.sh`: idempotent, merge-only (GET current value → append missing canonical origins → PATCH → live preflight echo verification for every required origin). Canonical set documented in credentials.md §2.2. Effect is instant (function env — NO redeploy). Includes the owner's dashboard fallback path in its failure output.
+  3. **SEC-114 half:** removed `frame-ancestors 'none'` from the index.html meta CSP (spec: header-only directive — Chromium IGNORES it in meta and warned on every launch; a packaged Electron window is top-level/not embeddable → zero protection lost); `csp-policy.test.ts` hardening guard inverted (asserts the directive's ABSENCE + the reason in the test docstring).
+- **Verified:** preflight probes recorded in ACT-203 (before-state; after-state runs inside the script); csp-policy 4/4; FULL desktop suite 90/2410/0; tsc clean; lint 0 errors; `bash -n` script syntax OK.
+- **Left:** ONE owner action to unblock website activation: `SUPABASE_ACCESS_TOKEN=sbp_… bash elimtiyaz-desktop/scripts/update_allowed_origins.sh` (or the dashboard: Edge Functions secrets → ALLOWED_ORIGINS → append the production origin). Until then the website's activation preflight stays blocked (desktop activation unaffected).
+
+### T-187 — Website: activation network-failure message (ACT-204) — **Completed (TESTED)**
+
+- **Problems:** ACT-204 (NEW, 29th session — surfaced by the owner's ACT-203 console paste: `submit failed: TypeError: Failed to fetch` with the generic "Impossible d'activer" message blaming the code) · **Priority:** P1
+- **Status:** TESTED (2026-09-05, 29th session)
+- **What was done:**
+  1. `activation-code-screen.tsx` catch block: `err instanceof TypeError` (fetch-level failure — offline, dropped connection, CORS block; no HTTP response exists so mapActivationError never runs) → the NEW `activation.code.error.network` key; other throws keep the generic key. T-153 (structured HTTP-error mapping) and T-184 (env-resolved URL) contracts untouched.
+  2. `dictionary.ts`: the actionable French message (check the connection; retry; contact the administration if persistent).
+  3. NEW suite `src/test/t-187-activation-network-error.test.ts` (5 tests): discriminator + key, ternary fallback intact, dictionary entry, T-184 URL contract pinned, T-153 call-scope preserved (the network mapping lives in the catch block only).
+- **Verified:** NEW suite 5/5; FULL website suite **29 files / 488 / 0 failures** (was 28/483); lint clean; strict build green.
+- **Left:** nothing agent-side (deploys with the portal's next Vercel build; not urgent — cosmetic-honesty UX).
+
+### T-188 — 29th-session registry truth-sync + lint-baseline repair + push + handoff — **Completed (VERIFIED — push receipts below)**
+
+- **Problems:** process closeout (ADR-007) + one pre-existing lint error · **Priority:** P2
+- **Status:** Completed (2026-09-05, 29th session)
+- **What was done:**
+  1. Lint-baseline repair: `supabase-supplier-repository.test.ts` `no-this-alias` error (pre-existing from T-179's commit — surfaced because `npm ci` on the fresh clone resolves the same eslint config the 28th session ran) fixed via lexical `this` capture in the arrow closure; supplier suite re-run 10/10; desktop lint back to 0 errors.
+  2. This task-registry update, the problem-registry additions (AUTH-301, SEC-114, ACT-203, ACT-204 + totals recount 189 entries), the change-log 29th-session entry, the current-state delta, the next-task session state, the credentials.md §2.2 ALLOWED_ORIGINS canonical row, the worklog append, the three-repo push, and the zip regeneration.
+- **Verified:** all suite evidence above (desktop 90/2410/0 + tsc + lint 0 err; website 29/488/0 + lint + strict build); push receipts recorded in the change-log entry; zips rebuilt via git archive at exact HEADs.
+- **Left:** the ONE owner-gated activation unblock (T-186's script run), the standing residuals (sbp_ token → 0071–0074 live applies; T-173 part a; Firebase web-push env vars — optional, not activation-blocking).

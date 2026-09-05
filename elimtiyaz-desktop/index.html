@@ -26,11 +26,18 @@
         storage avatars/payment proofs.
       - media-src/blob:, worker-src blob: (particle engine image loader,
         excel/pdf export downloads), object-src 'none' (no <object>/<embed>
-        anywhere), frame-ancestors 'none', base-uri 'self'.
+        anywhere), base-uri 'self'. NO frame-ancestors here (T-186/SEC-114):
+        the CSP spec IGNORES frame-ancestors in a <meta> policy — Chromium
+        logs the owner-visible warning "The Content-Security-Policy directive
+        'frame-ancestors' is ignored when delivered via a <meta> element" and
+        the directive never enforced anything. A meta CSP is the only channel
+        for the local index.html (file:// responses carry no headers), and a
+        packaged Electron window is a top-level frame that cannot be embedded
+        — so removing it loses zero protection and kills the warning.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: wss: ws://localhost:* http://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: wss: ws://localhost:* http://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <title>El-Imtiyaz — Plateforme de gestion scolaire</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

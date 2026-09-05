@@ -57,6 +57,20 @@ Vercel env vars REQUIRED for auth: **NONE** — the T-096 committed public defau
 web PUSH (optional, owner): `NEXT_PUBLIC_FIREBASE_APP_ID` (the WEB app id, not the Android
 one) + `NEXT_PUBLIC_FIREBASE_VAPID_KEY` — see the runbook's production-push section.
 
+**Edge-Function CORS allowlist (ACT-203, canonical since the 29th session, 2026-09-05):**
+the live `ALLOWED_ORIGINS` function secret MUST contain every origin a browser-based client
+uses when calling the Edge Functions (the EFs echo the request Origin only if allowlisted —
+`supabase/functions/_shared/cors.ts`). Canonical set:
+`http://localhost:5173` (desktop Electron dev, Vite) · `http://localhost:3000` +
+`http://localhost:3100` (website dev — matches the auth `uri_allow_list`) ·
+`https://elimtiyaz-website.vercel.app` (production portal). **When the production domain
+changes** (custom domain etc.): append the new origin via
+`SUPABASE_ACCESS_TOKEN=sbp_… bash elimtiyaz-desktop/scripts/update_allowed_origins.sh`
+(idempotent, merge-only, self-verifying — instant, no redeploy) or the dashboard
+(Project Settings → Edge Functions → Secrets), THEN update this sheet. The 2026-09-05
+defect this closed: the deployed value carried only `http://localhost:5173`, so every
+production preflight failed the access-control check (ACT-203).
+
 **When the production domain changes** (custom domain etc.): update `site_url` AND
 `uri_allow_list` via the same Management API PATCH (comma-separated string — see the
 AUTH-200 runbook), then this sheet.

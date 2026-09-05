@@ -11,6 +11,15 @@
  * policy's security-critical properties so a future edit cannot silently
  * reintroduce the warning or weaken the policy.
  *
+ * T-186 (SEC-114) update: frame-ancestors is REMOVED from the meta policy —
+ * the CSP spec ignores it there, so Chromium logged "The Content-Security-
+ * Policy directive 'frame-ancestors' is ignored when delivered via a <meta>
+ * element" on every launch (the owner's 2026-09-05 paste) while the
+ * directive enforced nothing. The guard below now pins its ABSENCE so the
+ * warning cannot regress. A meta CSP is the only channel for the local
+ * file:// document (no response headers to amend); a packaged Electron
+ * window is a top-level frame that cannot be embedded, so nothing is lost.
+ *
  * Verified live (17th session): production launch under Xvfb and dev-mode
  * launch — zero "Insecure Content-Security-Policy" warnings, zero CSP
  * violation errors, window loads and stays alive.
@@ -43,11 +52,13 @@ describe("DESK-CSP-202 — renderer CSP policy", () => {
     expect(scriptSrc).not.toContain("unsafe-inline");
   });
 
-  it("hardening directives present: object-src 'none', frame-ancestors 'none', base-uri 'self'", () => {
+  it("hardening directives present: object-src 'none', base-uri 'self' — and frame-ancestors ABSENT (T-186/SEC-114: the spec ignores it in a meta policy → Chromium warning, zero enforcement)", () => {
     const csp = metaContent();
     expect(csp).toContain("object-src 'none'");
-    expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'self'");
+    // frame-ancestors delivered via <meta> is IGNORED by the spec and logs
+    // a console warning on every launch — it must NOT come back.
+    expect(csp).not.toContain("frame-ancestors");
   });
 
   it("functional allowances kept: Google Fonts, inline style attributes, blob/img/connect needs", () => {
