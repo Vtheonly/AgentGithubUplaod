@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-09-05 — T-179 — suppliers port (T-047 #4, migration 0073) — the buyer dashboard reads the real supplier table
+
+- **Problem IDs:** ARCH-001 (T-047 port #4)
+- **What changed:** migration **0073** (suppliers.category text added; rating recast smallint → numeric(3,1) with the 0.0–5.0 fractional CHECK — the domain's decimal ratings were unrepresentable; empty table → safe; definition-matched CHECK drops; registration row embedded; `apply_0073_live.sh` ready); NEW `SupabaseSupplierRepository` (createSupplier with the deterministic SUP- code per ADR-003 + 23505 collision retry + rating clamping; updateSupplier partial mapping incl. archivedAt↔deleted_at; archiveSupplier = the 0011 soft-delete (archived rows vanish from reads — mock archivedAt semantics); deleteSupplier = hard delete, safe because every supplier FK is ON DELETE SET NULL; name-ordered reads with null-folding); wired into `getSupabaseRepositories()`.
+- **Why:** pre-T-179 the buyer dashboard's supplier list (purchase-request name lookups + the Fournisseurs KPI) rendered the mock SEED data while the canonical table sat empty — the same ARCH-006 mock-leak pattern as the calendar port.
+- **Affected components:** desktop infrastructure layer + wiring; migration chain 69→70 files (0001–0073); RLS untouched; no EF/website/Android changes (no cross-platform consumer of suppliers exists today).
+- **Tests:** NEW suite `supabase-supplier-repository.test.ts` **10/10**; FULL suite **88 files / 2392 / 0**; `tsc --noEmit` clean; append-only chain guard OK (70 files).
+- **Verification:** local suites + chain guard; live application of 0073 owner-token-gated (no sbp_ token this session) — `SUPABASE_ACCESS_TOKEN=… bash scripts/apply_0073_live.sh`. The table is 0-row live: zero data risk.
+- **Commit:** (this commit)
+- **Notes:** no UI writes suppliers today — the write paths implement the domain contract for the repository API surface; the read path is live for the buyer dashboard. is_active stays unmapped (the domain has no such field; documented).
+
 ### 2026-09-05 — T-178 — leaveRequests port → leave_requests (T-047 #3, migration 0072) — worker-submitted requests go server-side
 
 - **Problem IDs:** ARCH-001 (T-047 port #3)

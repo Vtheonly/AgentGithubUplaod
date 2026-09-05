@@ -58,6 +58,7 @@ import { SupabaseCalendarRepository } from "./repositories/supabase-calendar-rep
 import { SupabaseWorkflowRepository } from "./repositories/supabase-workflow-repository";
 import { SupabaseWorkflowRunRepository } from "./repositories/supabase-workflow-run-repository";
 import { SupabaseLeaveRequestRepository } from "./repositories/supabase-leave-request-repository";
+import { SupabaseSupplierRepository } from "./repositories/supabase-supplier-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -204,6 +205,13 @@ export function getSupabaseRepositories(): Repositories {
   // for manager/super_admin (decide).
   const leaveRequests = new SupabaseLeaveRequestRepository(client);
 
+  // T-179 (2026-09-05, T-047 port #4): wire the Supabase-backed supplier
+  // repository onto suppliers (migration 0011 + 0073 — category column +
+  // fractional rating). BEFORE this, the buyer dashboard's supplier list
+  // (name lookups for purchase requests + the KPI count) came from the mock
+  // SEED data while the canonical table sat empty.
+  const suppliers = new SupabaseSupplierRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -236,6 +244,7 @@ export function getSupabaseRepositories(): Repositories {
     workflows, // T-176 — workflows on the workflows table (T-047 port #2a)
     workflowRuns, // T-177 — workflow_runs + canonical execute EF (T-047 port #2b)
     leaveRequests, // T-178 — leave_requests (T-047 port #3, migration 0072)
+    suppliers, // T-179 — suppliers (T-047 port #4, migration 0073)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
