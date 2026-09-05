@@ -58,6 +58,17 @@ export interface SyncActions {
   }>) => Promise<string[]>;
   /** Manually trigger a sync drain. */
   syncNow: () => Promise<{ pushed: number; failed: number; skippedMock: number }>;
+  /**
+   * T-171 (SYNC-200): re-queue every terminal-failed entry for a fresh
+   * retry cycle. Returns the number of entries re-queued.
+   */
+  retryFailed: () => Promise<number>;
+  /**
+   * T-171 (SYNC-200): permanently remove every terminal-failed entry
+   * (stale residue). Destructive — callers must confirm with the user.
+   * Returns the number of entries removed.
+   */
+  discardFailed: () => Promise<number>;
   /** Clear all queue entries (admin only — wire to a confirmation modal). */
   clearQueue: () => Promise<void>;
   /** Force an online probe. */
@@ -103,6 +114,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       enqueue: (input) => service.enqueue(input),
       enqueueBatch: (inputs) => service.enqueueBatch(inputs),
       syncNow: () => service.syncNow(),
+      retryFailed: () => service.retryFailed(),
+      discardFailed: () => service.discardFailed(),
       clearQueue: () => service.clearQueue(),
       probeNow: () => getSyncServiceProbeNow(service),
     }),

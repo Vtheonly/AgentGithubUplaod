@@ -18,6 +18,11 @@
  *      in the UI.
  *   7. Emit status snapshots via `subscribe()` so the UI (topbar
  *      indicator, settings page) can render the current state.
+ *   8. T-171 (SYNC-200) recovery surface: `retryFailed()` re-queues
+ *      terminal-failed entries (attempts reset so they get a full fresh
+ *      backoff budget), `discardFailed()` removes residue whose data is
+ *      already server-side, and `lastSyncAt` is PERSISTED so "Dernière
+ *      synchro" survives app restarts and reflects a healthy no-op drain.
  *
  * CRITICAL INVARIANT: mock data is NEVER pushed to Supabase. The
  * `enqueue()` method checks the `isMock` flag at queue time AND the
@@ -36,6 +41,38 @@ import { getOnlineDetector, OnlineDetector, type OnlineState } from "./online-de
 
 const DEBOUNCE_MS = 2_000;
 const BACKOFF_BASE_MS = 1_000;
+
+/**
+ * T-171 (SYNC-200): persisted "last successful sync" timestamp.
+ *
+ * The pre-T-171 `lastSyncAt` lived ONLY in the in-memory snapshot: every
+ * app restart reset it to null, so the settings page showed "Dernière
+ * synchro: Jamais" even for a queue whose 3 544 entries were all synced
+ * server-side. localStorage survives Electron renderer restarts; the
+ * access is wrapped so environments without it degrade to the old
+ * in-memory behaviour.
+ */
+const LAST_SYNC_STORAGE_KEY = "el-imtiyaz.sync.lastSyncAt";
+
+function loadPersistedLastSyncAt(): string | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(LAST_SYNC_STORAGE_KEY);
+    return raw && !Number.isNaN(Date.parse(raw)) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistLastSyncAt(iso: string): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(LAST_SYNC_STORAGE_KEY, iso);
+    }
+  } catch {
+    // Quota/private-mode — the in-memory value still works this session.
+  }
+}
 
 export interface SyncServiceConstructorOptions extends SyncServiceOptions {
   /**
@@ -77,7 +114,8 @@ export class SyncService {
       failedCount: 0,
       skippedMockCount: 0,
       queueUsingFallback: false,
-      lastSyncAt: null,
+      // T-171: restore the persisted timestamp (was always null at boot).
+      lastSyncAt: loadPersistedLastSyncAt(),
       lastAttemptAt: null,
       lastError: null,
     };
@@ -230,6 +268,57 @@ export class SyncService {
     return this.drain({ force: true });
   }
 
+  /**
+   * T-171 (SYNC-200): re-queue every TERMINAL-failed entry for a fresh
+   * retry cycle.
+   *
+   * Why this exists: the pre-T-171 drain listed only `pending` entries, so
+   * an entry that exhausted `maxAttempts` (5) was dead forever — "Synchroniser
+   * maintenant" answered "Aucune entrée à synchroniser" while the topbar
+   * badge showed the failures (the owner's 1 170-badge report). Retry resets
+   * `attempts` (full fresh backoff budget) and clears `lastAttemptAt` (the
+   * backoff window re-opens immediately); `lastError` is kept as history
+   * until the next attempt outcome overwrites it.
+   *
+   * @returns the number of entries re-queued.
+   */
+  async retryFailed(): Promise<number> {
+    const failed = await this.store.listByStatus("failed");
+    if (failed.length === 0) return 0;
+    for (const entry of failed) {
+      const patched: SyncQueueEntry = {
+        ...entry,
+        status: "pending",
+        attempts: 0,
+        lastAttemptAt: null,
+      };
+      await this.store.update(patched);
+    }
+    await this.refreshSnapshot();
+    // The re-queued entries are immediately drainable (no backoff window).
+    this.scheduleDebouncedDrain();
+    return failed.length;
+  }
+
+  /**
+   * T-171 (SYNC-200): permanently REMOVE every terminal-failed entry.
+   *
+   * For STALE residue — e.g. the owner's 1 170 mock-era student entries whose
+   * data is already present server-side (live-verified: 390 students, no
+   * duplicate codes) — retrying can never succeed (mock-era payloads carry
+   * local-store IDs that fail server FK validation). Discarding is the
+   * honest remedy; the caller must confirm with the user (destructive).
+   *
+   * @returns the number of entries removed.
+   */
+  async discardFailed(): Promise<number> {
+    const failed = await this.store.listByStatus("failed");
+    if (failed.length === 0) return 0;
+    await this.store.deleteMany(failed.map((e) => e.id));
+    await this.refreshSnapshot();
+    return failed.length;
+  }
+
   /** Subscribe to snapshot changes (UI indicator, settings page). */
   subscribe(fn: (s: SyncStatusSnapshot) => void): () => void {
     this.listeners.add(fn);
@@ -338,7 +427,41 @@ export class SyncService {
     try {
       const pending = await this.store.listByStatus("pending");
       const currentActor = this.opts.actorId();
+      const currentTenant = this.opts.tenantId();
       for (const entry of pending) {
+        // T-171 (SYNC-200) — LEGACY TENANT RE-SCOPE: entries enqueued while
+        // the app ran in MOCK mode carry the placeholder tenantId "default"
+        // (the sync-provider's no-session fallback). Once Supabase is
+        // configured, the pre-push `sync_queue` audit upsert (RLS:
+        // tenant_id = current_tenant_id()) REJECTS them — the entry fails
+        // before any entity RPC runs, exhausts its 5 attempts and sticks as
+        // a terminal failure (the owner's 1 170-badge report). Re-scoping a
+        // NON-UUID placeholder to the CURRENT session's tenant is safe: the
+        // data was imported by THIS user on THIS machine; only the placeholder
+        // was baked in. Foreign UUID tenants are handled below (skipped,
+        // never re-scoped — multi-tenant isolation, SYNC-102 semantics).
+        let entryToPush = entry;
+        if (
+          entry.tenantId &&
+          !isUuidString(entry.tenantId) &&
+          isUuidString(currentTenant)
+        ) {
+          entryToPush = { ...entry, tenantId: currentTenant };
+          await this.store.update(entryToPush);
+        }
+
+        // Foreign REAL tenants are skipped, never re-scoped and never
+        // pushed under this session's JWT: the server's sync_queue RLS
+        // (tenant_id = current_tenant_id()) would reject them anyway —
+        // skipping locally saves the futile attempt-burn. They stay
+        // pending for an owner of that tenant.
+        if (
+          isUuidString(entryToPush.tenantId ?? "") &&
+          entryToPush.tenantId !== currentTenant
+        ) {
+          continue;
+        }
+
         // SYNC-102 (defense in depth): never push another user's entries
         // under the CURRENT session's JWT (confused-deputy writes with the
         // wrong actor identity). Foreign entries stay pending for their
@@ -346,32 +469,32 @@ export class SyncService {
         // auth provider), so this only fires on process-lifetime leaks.
         if (
           currentActor !== "system" &&
-          entry.actorId &&
-          entry.actorId !== currentActor
+          entryToPush.actorId &&
+          entryToPush.actorId !== currentActor
         ) {
           continue;
         }
 
         // DEFENSE IN DEPTH: never push mock data, even if it ended up
         // in pending status (e.g. due to a bug in enqueue).
-        if (entry.isMock) {
-          const patched: SyncQueueEntry = { ...entry, status: "skipped_mock" };
+        if (entryToPush.isMock) {
+          const patched: SyncQueueEntry = { ...entryToPush, status: "skipped_mock" };
           await this.store.update(patched);
           skippedMock++;
           continue;
         }
 
         // Skip entries that are still in backoff window.
-        if (entry.lastAttemptAt) {
-          const backoffMs = BACKOFF_BASE_MS * Math.pow(2, entry.attempts);
-          const nextAllowedAt = new Date(entry.lastAttemptAt).getTime() + backoffMs;
+        if (entryToPush.lastAttemptAt) {
+          const backoffMs = BACKOFF_BASE_MS * Math.pow(2, entryToPush.attempts);
+          const nextAllowedAt = new Date(entryToPush.lastAttemptAt).getTime() + backoffMs;
           if (Date.now() < nextAllowedAt) continue;
         }
 
         try {
-          await this.opts.push(entry);
+          await this.opts.push(entryToPush);
           const patched: SyncQueueEntry = {
-            ...entry,
+            ...entryToPush,
             status: "synced",
             lastAttemptAt: new Date().toISOString(),
             lastError: null,
@@ -379,10 +502,10 @@ export class SyncService {
           await this.store.update(patched);
           pushed++;
         } catch (err) {
-          const attempts = entry.attempts + 1;
+          const attempts = entryToPush.attempts + 1;
           const failed_permanently = attempts >= this.opts.maxAttempts;
           const patched: SyncQueueEntry = {
-            ...entry,
+            ...entryToPush,
             status: failed_permanently ? "failed" : "pending",
             attempts,
             lastAttemptAt: new Date().toISOString(),
@@ -392,10 +515,15 @@ export class SyncService {
           if (failed_permanently) failed++;
         }
       }
-      if (pushed > 0) {
-        this.snapshot.lastSyncAt = new Date().toISOString();
-      }
-      this.snapshot.lastAttemptAt = new Date().toISOString();
+      // T-171 (SYNC-200): a completed ONLINE drain is a successful sync even
+      // when it pushed 0 rows (the queue was already consistent — the daily
+      // no-op pass). The pre-T-171 code set lastSyncAt only when pushed > 0,
+      // so the settings page could show "Jamais" forever. Persisted so it
+      // survives restarts.
+      const completedAt = new Date().toISOString();
+      this.snapshot.lastSyncAt = completedAt;
+      persistLastSyncAt(completedAt);
+      this.snapshot.lastAttemptAt = completedAt;
       this.snapshot.lastError = null;
     } catch (err) {
       this.snapshot.lastError = err instanceof Error ? err.message : String(err);
@@ -410,6 +538,16 @@ export class SyncService {
 /** Generate a sortable unique ID for queue entries. */
 function generateId(): string {
   return `sync_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * T-171: minimal UUID shape check (8-4-4-4-12 hex). Used ONLY to detect the
+ * mock-era placeholder tenant ("default", "tenant-test", …) so the drain can
+ * re-scope legacy entries to the real session tenant. NOT a security check —
+ * RLS on the server remains the authority for tenant isolation.
+ */
+function isUuidString(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 /** Singleton instance — lazily constructed on first use. */

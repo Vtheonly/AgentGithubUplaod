@@ -158,6 +158,46 @@ class IndexedDBQueueStore {
     return this.txn("readwrite", (os) => os.clear());
   }
 
+  /**
+   * T-171 (SYNC-200): delete the given entries by ID in ONE transaction.
+   *
+   * Used by SyncService.discardFailed() to remove terminal-failed residue
+   * (e.g. mock-era entries whose data is already server-side) WITHOUT
+   * wiping the whole queue — `clear()` would also destroy the synced
+   * entries' local audit history.
+   */
+  async deleteMany(ids: readonly string[]): Promise<void> {
+    if (ids.length === 0) return;
+    if (this.usingFallback) {
+      for (const id of ids) this.memFallback.delete(id);
+      return;
+    }
+    return new Promise((resolve, reject) => {
+      const txn = this.db!.transaction(STORE_NAME, "readwrite");
+      const os = txn.objectStore(STORE_NAME);
+      let pending = ids.length;
+      let firstError: DOMException | null = null;
+      const settle = () => {
+        if (pending === 0) {
+          if (firstError) reject(firstError);
+          else resolve();
+        }
+      };
+      for (const id of ids) {
+        const req = os.delete(id);
+        req.onsuccess = () => {
+          pending--;
+          settle();
+        };
+        req.onerror = () => {
+          if (!firstError) firstError = req.error;
+          pending--;
+          settle();
+        };
+      }
+    });
+  }
+
   async close(): Promise<void> {
     if (this.db) {
       this.db.close();

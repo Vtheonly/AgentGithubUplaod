@@ -215,7 +215,10 @@ describe("T-022 — SYNC-102: queue is session-scoped", () => {
 
   it("source-scan: the drain skips entries owned by another actor", () => {
     const text = readFileSync(join(SRC, "infrastructure/sync/sync-service.ts"), "utf8");
-    expect(text).toContain("entry.actorId !== currentActor");
+    // T-171 renamed the loop variable to entryToPush (legacy tenant re-scope
+    // patch) — the SYNC-102 foreign-actor skip semantics are unchanged and
+    // additionally pinned behaviorally by t-171-sync-recovery.test.ts.
+    expect(text).toContain("entryToPush.actorId !== currentActor");
   });
 });
 

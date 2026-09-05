@@ -17,7 +17,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Cloud, CloudOff, CloudUpload, Check, AlertCircle, Loader2, RefreshCw,
+  Cloud, CloudOff, CloudUpload, Check, AlertCircle, Loader2, RefreshCw, RotateCcw,
 } from "lucide-react";
 import { useSyncStatus, useSyncActions } from "../../app/providers/sync-provider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../shared/ui/tooltip";
@@ -29,6 +29,7 @@ export function SyncIndicator() {
   const actions = useSyncActions();
   const navigate = useNavigate();
   const [syncing, setSyncing] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   if (!status) return null;
 
@@ -45,6 +46,18 @@ export function SyncIndicator() {
       await actions.syncNow();
     } finally {
       setSyncing(false);
+    }
+  };
+
+  // T-171 (SYNC-200): one-click rescue for terminal-failed entries — the
+  // badge previously showed the failure count forever with no action.
+  const handleRetryFailed = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRetrying(true);
+    try {
+      await actions.retryFailed();
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -152,6 +165,19 @@ export function SyncIndicator() {
             >
               <RefreshCw className={cn("h-3 w-3", (syncing || isServiceSyncing) && "animate-spin")} />
               Synchroniser maintenant
+            </Button>
+          )}
+          {/* T-171 (SYNC-200): retry action for terminal failures. */}
+          {supabaseConfigured && online && failedCount > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-7 text-xs"
+              onClick={handleRetryFailed}
+              disabled={retrying || syncing || isServiceSyncing}
+            >
+              <RotateCcw className={cn("h-3 w-3", retrying && "animate-spin")} />
+              Réessayer les {failedCount} échec(s)
             </Button>
           )}
         </div>

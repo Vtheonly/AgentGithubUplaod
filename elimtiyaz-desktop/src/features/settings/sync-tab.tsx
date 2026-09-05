@@ -7,13 +7,23 @@
  *   - Last sync timestamp + last error
  *   - Manual "Sync now" button
  *   - Manual "Check connection" probe button
- *   - Queue table (first 50 entries)
+ *   - Queue table (first 50 entries, with the last error as a row tooltip)
  *   - "Clear queue" admin action (with confirmation)
+ *
+ * T-171 (SYNC-200) additions:
+ *   - "Réessayer les échecs (N)" — re-queue terminal-failed entries for a
+ *     fresh retry cycle (the pre-T-171 UI had NO recovery path: failed
+ *     entries were dead forever and "Synchroniser maintenant" answered
+ *     "Aucune entrée à synchroniser" while the topbar badge showed them).
+ *   - "Supprimer les échecs (N)" — discard stale residue (destructive,
+ *     confirmed) for entries whose data is already server-side.
+ *   - Honest toasts: a no-op drain with failed entries says so instead of
+ *     the misleading "Aucune entrée à synchroniser".
  *
  * Built with the same shadcn-style primitives as every other tab.
  */
 import { useEffect, useState } from "react";
-import { RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock, CloudOff, Cloud } from "lucide-react";
+import { RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock, CloudOff, Cloud, RotateCcw } from "lucide-react";
 import { useSyncStatus, useSyncActions } from "../../app/providers/sync-provider";
 import { getSyncService } from "../../infrastructure/sync/sync-service";
 import type { SyncQueueEntry } from "../../infrastructure/sync/sync-types";
@@ -33,6 +43,8 @@ export function SyncTab() {
   const [syncing, setSyncing] = useState(false);
   const [probing, setProbing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   // Refresh the queue entries whenever the snapshot changes.
   useEffect(() => {
@@ -62,12 +74,53 @@ export function SyncTab() {
         toast.showSuccess("Synchronisation terminée", `${result.pushed} entrée(s) synchronisée(s).`);
       } else if (result.failed > 0) {
         toast.showError("Échecs de synchronisation", `${result.failed} entrée(s) en échec.`);
+      } else if (status.failedCount > 0) {
+        // T-171 (SYNC-200): the drain only processes PENDING entries —
+        // terminal failures are not retried by "Synchroniser maintenant".
+        // The pre-T-171 toast ("Aucune entrée à synchroniser") was a lie by
+        // omission when the queue held stuck failures.
+        toast.showWarning(
+          "Aucune entrée en attente",
+          `${status.failedCount} entrée(s) restent en échec — utilisez « Réessayer les échecs » ou supprimez-les si les données existent déjà côté serveur.`,
+        );
       } else {
-        toast.showInfo("Synchronisation", "Aucune entrée à synchroniser.");
+        toast.showInfo("Synchronisation", "Aucune entrée à synchroniser — la file est à jour.");
       }
     } finally {
       setSyncing(false);
     }
+  };
+
+  // T-171 (SYNC-200): re-queue every terminal-failed entry for a fresh
+  // retry cycle (attempts reset → full backoff budget).
+  const handleRetryFailed = async () => {
+    setRetrying(true);
+    try {
+      const count = await actions.retryFailed();
+      if (count > 0) {
+        toast.showSuccess(
+          "Réessai programmé",
+          `${count} entrée(s) en échec reprogrammée(s) — nouvelle tentative en cours.`,
+        );
+        // The retry already schedules a debounced drain; also run one now
+        // so the user sees the outcome immediately.
+        const result = await actions.syncNow().catch(() => null);
+        if (result && result.failed > 0) {
+          toast.showError("Échecs persistants", `${result.failed} entrée(s) échouent toujours — vérifiez l'erreur au survol d'une ligne. Si les données existent déjà côté serveur, supprimez ces entrées.`);
+        }
+      } else {
+        toast.showInfo("Réessai", "Aucune entrée en échec à relancer.");
+      }
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  // T-171 (SYNC-200): discard stale residue (destructive — confirmed).
+  const handleDiscardFailed = async () => {
+    setConfirmDiscard(false);
+    const count = await actions.discardFailed();
+    toast.showSuccess("Échecs supprimés", `${count} entrée(s) en échec supprimée(s) de la file locale.`);
   };
 
   const handleProbe = async () => {
@@ -176,6 +229,38 @@ export function SyncTab() {
             <QueueStat label="Exclues (mock)" value={status.skippedMockCount} tone="muted" icon={<Trash2 className="h-3.5 w-3.5" />} />
           </div>
 
+          {/* T-171 (SYNC-200): recovery actions for terminal-failed entries. */}
+          {status.failedCount > 0 && (
+            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 mb-4 space-y-2">
+              <p className="text-xs text-status-danger flex items-start gap-2">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  {status.failedCount} entrée(s) en échec définitif (5 tentatives épuisées). Survolez une ligne pour voir son erreur.
+                  Les entrées d'import mock-era (fichier Excel importé avant la configuration de Supabase) ne peuvent pas aboutir :
+                  leurs données sont déjà présentes côté serveur — supprimez-les, ou réessayez si l'erreur était transitoire.
+                </span>
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleRetryFailed}
+                  disabled={retrying || syncing || status.syncing || !status.online || !status.supabaseConfigured}
+                >
+                  <RotateCcw className={`h-3.5 w-3.5 ${retrying ? "animate-spin" : ""}`} />
+                  Réessayer les échecs ({status.failedCount})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmDiscard(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Supprimer les échecs
+                </Button>
+              </div>
+            </div>
+          )}
+
           {entries.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-6">
               File d'attente vide. Les nouvelles données importées depuis Excel apparaîtront ici.
@@ -196,7 +281,7 @@ export function SyncTab() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {entries.map((e) => (
-                    <tr key={e.id}>
+                    <tr key={e.id} title={e.lastError ? `Erreur : ${e.lastError}` : undefined}>
                       <td className="p-2">
                         <StatusChip
                           label={statusLabel(e.status)}
@@ -237,6 +322,18 @@ export function SyncTab() {
         confirmLabel="Vider"
         destructive
         onConfirm={handleClear}
+      />
+
+      {/* T-171 (SYNC-200): discard failed residue — separate, targeted,
+          non-destructive to the synced entries' audit history. */}
+      <ConfirmModal
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title="Supprimer les entrées en échec ?"
+        description={`${status.failedCount} entrée(s) en échec seront supprimées de la file locale (les entrées synchronisées sont conservées). Vérifiez d'abord que leurs données existent déjà côté serveur — cette action est irréversible.`}
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={handleDiscardFailed}
       />
     </div>
   );
