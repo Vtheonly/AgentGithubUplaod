@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-09-05 — T-180 — tasks port (T-047 #5, migration 0074) — the dashboards' task boards go server-side
+
+- **Problem IDs:** ARCH-001 (T-047 port #5)
+- **What changed:** migration **0074** (tasks.created_by_name + task_comments.author_name — the domain's display names, unresolvable via joins because created_by/author_id carry no FK per the 0010 convention; the 0070/0072 precedent; registration row embedded; `apply_0074_live.sh` ready); NEW `SupabaseTaskRepository` (reads map the `task_comments(*)`/`task_attachments(*)` PostgREST embeds into the domain aggregates; createTask with the assigned/pending fold + tags + jsonb assignees + UUID guards; updateTask partial mapping with the completed→completed_at+progress-100 semantics; updateTaskStatus/reassign mock-parity folds; addComment with the 0074 author_name; addAttachment metadata insert; deleteTask hard delete with server-side cascades); wired into `getSupabaseRepositories()`.
+- **Why:** pre-T-180 the worker/manager/buyer dashboards' task lists, the management screens (task-management, task-detail-drawer, employee-profile-drawer) and every status change lived in mock memory only — wiped on restart — while the canonical tables sat empty.
+- **Affected components:** desktop infrastructure layer + wiring; migration chain 70→71 files (0001–0074); RLS untouched; no EF/website/Android changes (no cross-platform consumer of tasks today).
+- **Tests:** NEW suite `supabase-task-repository.test.ts` **12/12** (the fake client gained a PostgREST embed simulation — comments/attachments join on read); FULL suite **89 files / 2404 / 0**; `tsc --noEmit` clean; append-only chain guard OK (71 files).
+- **Verification:** local suites + chain guard; live application of 0074 owner-token-gated (no sbp_ token this session) — `SUPABASE_ACCESS_TOKEN=… bash scripts/apply_0074_live.sh`. All three tables are 0-row live: zero data risk.
+- **Commit:** (this commit)
+- **Notes:** the 0010 status/priority CHECKs are the domain unions VERBATIM — the only schema gap was the two display names. With T-180, the T-160 priority list's ports 1–5 are all landed (calendar, workflows+runs, leaveRequests, suppliers, tasks); the trio's workforceAttendance member and the rest of Group A remain.
+
 ### 2026-09-05 — T-179 — suppliers port (T-047 #4, migration 0073) — the buyer dashboard reads the real supplier table
 
 - **Problem IDs:** ARCH-001 (T-047 port #4)

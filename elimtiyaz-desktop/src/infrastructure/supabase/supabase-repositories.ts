@@ -59,6 +59,7 @@ import { SupabaseWorkflowRepository } from "./repositories/supabase-workflow-rep
 import { SupabaseWorkflowRunRepository } from "./repositories/supabase-workflow-run-repository";
 import { SupabaseLeaveRequestRepository } from "./repositories/supabase-leave-request-repository";
 import { SupabaseSupplierRepository } from "./repositories/supabase-supplier-repository";
+import { SupabaseTaskRepository } from "./repositories/supabase-task-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -212,6 +213,14 @@ export function getSupabaseRepositories(): Repositories {
   // SEED data while the canonical table sat empty.
   const suppliers = new SupabaseSupplierRepository(client);
 
+  // T-180 (2026-09-05, T-047 port #5): wire the Supabase-backed task
+  // repository onto tasks / task_comments / task_attachments (migration
+  // 0010 + 0074 display-name columns). BEFORE this, the worker/manager/buyer
+  // dashboards' task lists, the management screens and every status change
+  // lived in mock memory only (wiped on restart) while the canonical tables
+  // sat empty.
+  const tasks = new SupabaseTaskRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -245,6 +254,7 @@ export function getSupabaseRepositories(): Repositories {
     workflowRuns, // T-177 — workflow_runs + canonical execute EF (T-047 port #2b)
     leaveRequests, // T-178 — leave_requests (T-047 port #3, migration 0072)
     suppliers, // T-179 — suppliers (T-047 port #4, migration 0073)
+    tasks, // T-180 — tasks/task_comments/task_attachments (T-047 port #5, migration 0074)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
