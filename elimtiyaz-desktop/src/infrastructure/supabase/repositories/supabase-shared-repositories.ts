@@ -2585,50 +2585,108 @@ export class SupabaseDebtRepository implements DebtRepository {
     }
   }
 
-  async sendReminder(): Promise<Result<void>> {
-    return Ok(undefined);
+  /**
+   * T-192 / MSG-101 — per-parent overdue reminder. Previously a literal
+   * no-op returning Ok(undefined) (the UI showed "Rappel envoyé" while
+   * nothing happened). Now delegates to the canonical 0077 RPC
+   * `notify_parent_user`, which resolves the parent's portal account
+   * server-side and inserts a notification the parent actually receives.
+   * Returns Ok(undefined) when delivered; a validation error when the
+   * parent id is malformed; a surfaced error otherwise. When the parent
+   * has NO active portal account the RPC returns NULL — delivered=false
+   * is reported as a validation error so the operator sees the truth.
+   */
+  async sendReminder(parentId: string): Promise<Result<void>> {
+    if (!isUuid(parentId)) {
+      return Err(Errors.validation("L'envoi d'un rappel nécessite un identifiant parent Supabase valide."));
+    }
+    try {
+      // The reminder copy mirrors broadcastReminders (VAULT §07.06).
+      const debtors = await this.collectDebtors(0);
+      const d = debtors.find((x) => x.parentId === parentId);
+      const outstanding = d?.outstanding ?? 0;
+      const days = d?.daysOverdue ?? 0;
+      const { data, error } = await this.client.rpc("notify_parent_user", {
+        p_parent_id: parentId,
+        p_kind: "alert",
+        p_title: "Rappel — paiement en retard",
+        p_body: `Votre solde en retard s'élève à ${outstanding.toLocaleString("fr-FR")} DZD (${days} jour(s) de retard). Merci de régulariser votre situation auprès de l'administration.`,
+        p_priority: days > 90 ? "urgent" : "high",
+        p_source_label: "Module Finances",
+        p_link_entity_type: "parent",
+        p_link_entity_id: parentId,
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      if (!data) {
+        return Err(
+          Errors.validation(
+            "Ce parent n'a pas de compte portail actif — le rappel ne peut pas lui être notifié. Utilisez le téléphone/WhatsApp.",
+          ),
+        );
+      }
+      return Ok(undefined);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
   }
 
   /**
    * VAULT §07.06 + §10.07 — "Broadcast Overdue Payment Reminders" (Supabase).
    *
-   * Dispatches a `payment_overdue` notification per debtor above the
-   * threshold and writes an audit entry per reminder plus one bulk summary.
+   * T-192 / MSG-101 REPAIR: the previous version inserted notifications
+   * with NONEXISTENT columns (`type`/`entity_type`/`entity_id` — the table
+   * uses `kind`/`link_entity_type`/`link_entity_id`), no recipient
+   * (target_user_id NULL → parents could never see the row), counted
+   * failures as dispatched (console.warn + dispatched++), and called a
+   * nonexistent `append_audit_entry` RPC. It never delivered a single
+   * reminder while reporting success.
+   *
+   * Now: one canonical 0077 `notify_parent_user` RPC call per debtor
+   * (server-side parent → account resolution, correct payload shape,
+   * real targeting), honest counting (only DELIVERED notifications count;
+   * parents without an active portal account are counted separately and
+   * surfaced in the audit note), and the canonical 0014 `write_audit_log`
+   * RPC for the bulk summary.
    */
   async broadcastReminders(minDaysOverdue = 0, actorId = "system"): Promise<Result<number>> {
     try {
-      const tenantId = requireTenantId();
       const debtors = await this.collectDebtors(minDaysOverdue);
       let dispatched = 0;
-      const nowIso = new Date().toISOString();
+      let undeliverable = 0;
       for (const d of debtors) {
-        const { error: notifErr } = await this.client.from("notifications").insert({
-          tenant_id: tenantId,
-          title: "Rappel — paiement en retard",
-          body: `Votre solde en retard s'élève à ${d.outstanding.toLocaleString("fr-FR")} DZD (${d.daysOverdue} jour(s) de retard). Merci de régulariser votre situation.`,
-          type: "payment_overdue",
-          priority: d.daysOverdue > 90 ? "urgent" : "high",
-          source: "system",
-          source_label: "Module Finances",
-          entity_type: "parent",
-          entity_id: d.parentId,
-          created_by: actorId,
-          created_at: nowIso,
+        const { data, error } = await this.client.rpc("notify_parent_user", {
+          p_parent_id: d.parentId,
+          p_kind: "alert",
+          p_title: "Rappel — paiement en retard",
+          p_body: `Votre solde en retard s'élève à ${d.outstanding.toLocaleString("fr-FR")} DZD (${d.daysOverdue} jour(s) de retard). Merci de régulariser votre situation.`,
+          p_priority: d.daysOverdue > 90 ? "urgent" : "high",
+          p_source_label: "Module Finances",
+          p_link_entity_type: "parent",
+          p_link_entity_id: d.parentId,
+          p_actor_id: isUuid(actorId) ? actorId : null,
         });
-        if (notifErr) {
-          console.warn("[SupabaseDebt] broadcast notification insert failed:", notifErr.message);
+        if (error) {
+          // Surfaces instead of swallowing (the MSG-101 defect class).
+          console.warn("[SupabaseDebt] reminder dispatch failed:", error.message);
+          undeliverable++;
+          continue;
         }
-        dispatched++;
+        if (data) {
+          dispatched++;
+        } else {
+          // NULL = the parent has no active portal account (0077 contract).
+          undeliverable++;
+        }
       }
-      await this.client.rpc("append_audit_entry", {
-        p_tenant_id: tenantId,
+      await this.client.rpc("write_audit_log", {
+        p_tenant_id: requireTenantId(),
         p_action: "debt.broadcast_reminders",
         p_entity_type: "parent",
         p_entity_id: "bulk",
-        p_actor_id: actorId,
+        p_actor_id: isUuid(actorId) ? actorId : null,
         p_actor_name: actorId,
-        p_diff: { dispatched, minDaysOverdue },
-        p_note: `Diffusion groupée de rappels — ${dispatched} destinataire(s)`,
+        p_after_json: { dispatched, undeliverable, minDaysOverdue },
+        p_note: `Diffusion groupée de rappels — ${dispatched} notifié(s)${undeliverable > 0 ? `, ${undeliverable} sans compte portail actif (non notifiables)` : ""}`,
       }).then(() => undefined, () => undefined);
       return Ok(dispatched);
     } catch (e) {
@@ -2660,14 +2718,17 @@ export class SupabaseDebtRepository implements DebtRepository {
         }
         restricted++;
       }
-      await this.client.rpc("append_audit_entry", {
+      // T-192 / MSG-101: the canonical audit RPC is `write_audit_log`
+      // (migration 0014) — the previous `append_audit_entry` call targeted a
+      // nonexistent RPC and was silently swallowed.
+      await this.client.rpc("write_audit_log", {
         p_tenant_id: tenantId,
         p_action: "debt.lock_delinquent_accounts",
         p_entity_type: "parent",
         p_entity_id: "bulk",
-        p_actor_id: actorId,
+        p_actor_id: isUuid(actorId) ? actorId : null,
         p_actor_name: actorId,
-        p_diff: { restricted, minDaysOverdue },
+        p_after_json: { restricted, minDaysOverdue },
         p_note: `Verrouillage comptes délinquants (> ${minDaysOverdue} j) — ${restricted} compte(s)`,
       }).then(() => undefined, () => undefined);
       return Ok(restricted);
