@@ -31,7 +31,7 @@
 - **Blocked:** T-067.
 - **Required to resolve:** owner decision; interacts with ADR-005.
 
-## UNKNOWN-004 — Do parents need server-stored downloadable receipts?
+## ~~UNKNOWN-004 — Do parents need server-stored downloadable receipts?~~ RESOLVED 2026-09-05 (30th session, ADR-014)
 
 - **Question:** The `receipts` table + storage bucket are orphaned (no writer since migration 0034 dropped the old `collect_payment`); the website's Receipts tab is permanently empty. Restore server-side receipt persistence, or remove the table and keep desktop client-side PDFs?
 - **Evidence:** CROSS-101 (table created 0007, written until 0034, empty since; website `useReceiptsForPayment` queries a table nothing writes).
@@ -39,6 +39,7 @@
 - **Affected components:** `receipts` table, website Receipts tab, desktop generateReceipt.
 - **Blocked:** T-066.
 - **Required to resolve:** product decision (support/audit requirements for receipt re-download).
+- **RESOLUTION:** **client-side deterministic generation** (ADR-014, `docs/decisions/ADR-014-client-side-receipt-generation.md`): receipt + statement PDFs generate client-side from the canonical payments/ledger rows on EVERY platform (desktop reference module; website pdf-lib ports — T-194/T-195). The outcome the question was really about — parents re-downloading receipts without staff intervention — is delivered with ZERO server state. The orphaned table + bucket + policies are dropped (migration 0079). Server-persisted immutable receipts stay a rejected alternative until a business need appears (revisit via a new ADR). T-066 unblocked (nothing to build).
 
 ## ~~UNKNOWN-005 — What is the chat product scope?~~ RESOLVED 2026-08-31
 

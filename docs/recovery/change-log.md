@@ -1634,3 +1634,51 @@ path for T-092.
 - **Live verification:** `scripts/verify_t-175.sql` **5/5** (chain 67 + 0070 registered; 3 columns correct types/defaults; priority CHECK == alert-priority union; RLS enabled; rows backfill-safe). Live table census: 0 rows (never written — the desktop was the missing writer).
 - **Left:** UNKNOWN-021 (NEW — registered): the website (parents) READS calendar_events but `calendar_events_select` lists staff roles only → parents silently get an empty array; parent visibility of calendar events (which kinds? exams/meetings yes, follow-up calls no?) is a product decision, deliberately not guessed.
 - **Commit:** (this session's hub commit hash)
+
+### 2026-09-05 — THIRTIETH REPAIR SESSION — owner mandate: "fix the messaging system (not the chat UI) across mobile/website/desktop + the Supabase backend end to end; fix every broken PDF generation; apply the migration tokens; consistent everywhere"
+
+The session's core discovery: **the chat CONVERSATION layer was complete and live-verified, but the messaging DELIVERY layer did not exist** — no chat send ever created a notification, the desktop's reminder actions never delivered anything while reporting success, homework pushes promised parent notifications that never fired, and the website's receipt downloads were dead. The owner's "messaging is not working at all" was precisely correct: a recipient without the app open learned NOTHING, on every platform.
+
+#### T-189 — the migration tokens + ALLOWED_ORIGINS + §7 (VERIFIED)
+- 0072/0073/0074 (the 28th session's gated applies) applied live atomically — chain 68→71.
+- ACT-203 CLOSED LIVE: the canonical 4-origin `ALLOWED_ORIGINS` deployed via the Supabase CLI; preflight probes echo all four canonical origins and REJECT a non-allowlisted one. The remediation script was REPAIRED — the Management-API PATCH/PUT secrets endpoints are DEAD (404) and GET returns MASKED DIGESTS (new AGENTS.md §11.1 #5–#6 discoveries); the script now probes live behavior, merges only missing origins, writes via the CLI, re-probes (idempotent re-run verified: "nothing to add").
+- `FIREBASE_PROJECT_ID=elimtiyaz-android` set live (owner-supplied). FIREBASE_SERVICE_ACCOUNT_JSON + RESEND_API_KEY remain owner-gated (not supplied — real FCM/email sends still blocked; the project id alone does not enable HTTP v1 pushes).
+- §7 checklist re-run: auth health 200 ×2; RLS anon 0 rows; 13/13 EFs deny anonymous; secrets census 12.
+
+#### T-190 — chat → notification fan-out (MSG-200, migration 0075) — TESTED
+- `chat_messages_notify_members` trigger (SECURITY DEFINER, 0061 convention): one notification per channel member except the author (kind 'info'→'message', 'Messagerie' label, `chat_channel` deep link every platform already maps, author provenance).
+- `verify_t-190.sql` **8/8** (payload shape, symmetric fan-out, group dedup, empty-members no-op, author exclusion, touch-trigger + count regressions).
+- **Full live two-user round-trip 10/10** (`/home/z/my-project/scripts/roundtrip_t-190.sh` — outside the repos, credential-carrying): real staff+parent auth users, real RLS, canonical RPCs — create_direct_channel → parent message → staff notification → staff bell SELECT under RLS → staff reply → parent notification → parent markRead persists → full cleanup. The messaging system now works END TO END on all platforms (desktop bell, website bell + messages view, Android pull).
+
+#### T-191 — live-drift repair (REG-004, migration 0076) — TESTED
+- DISCOVERED during the round-trip: the LIVE `notifications_select` policy was `using (true)` — ANY authenticated user could read EVERY notification (all users, all tenants). No migration ever widened it → unregistered live drift (the REG-003/ARCH-009 class). Symptom observed live: a parent's filtered query returned a staff-targeted row.
+- Migration 0076 restores the canonical 0019 policy; live census confirms the scoped expression; the round-trip went 9/10 → **10/10**. Prevention note: session-openings should census pg_policy, not just schema_migrations.
+
+#### T-192 — desktop debt reminders (MSG-101, migration 0077) — TESTED
+- Four stacked silent-failure defects fixed: (1) notification inserts used NONEXISTENT columns (type/entity_type/entity_id — domain names written straight into the DB payload); (2) no target (target_user_id NULL — the debtor parent could never see the row); (3) `sendReminder()` was a literal no-op returning Ok; (4) the audit called a nonexistent `append_audit_entry` RPC (canonical: `write_audit_log`). Every failure was swallowed and reported as success.
+- Migration 0077: canonical `notify_parent_user` RPC (hardened SECURITY DEFINER — staff gate, tenant scope, server-side parents.auth_user_id→user_profiles.id resolution [financial officers cannot read other profiles under RLS], NULL = no active portal account = honestly undeliverable).
+- Round-trip **7/7** live (notify activated parent → correct target + shape; parent reads under RLS; unactivated → NULL; non-staff → 42501; cleanup). Suite `t-192-debt-reminder-delivery.test.ts` **10/10**.
+
+#### T-193 — homework push fan-out (MSG-201, migration 0078) — TESTED
+- `notify_parents_on_homework` trigger: one notification per DISTINCT parent (active account) of the class roster — the desktop modal's "sera notifié aux parents" promise is now true for every writer. `verify_t-193.sql` **6/6** (the verify CAUGHT the missing DISTINCT — 3 rows instead of 2 — before it shipped).
+
+#### T-194/T-195 — the PDF generation system (CROSS-101, UNKNOWN-004 → ADR-014, migrations 0079) — TESTED
+- **ADR-014 resolves UNKNOWN-004:** receipts generate CLIENT-SIDE, deterministically from canonical rows — desktop reference module (unchanged) + NEW website pdf-lib ports (`src/lib/pdf/shared.ts`, `payment-receipt.ts`, `account-statement.ts`: same A4 geometry/branding/WinAnsi sanitization as the desktop).
+- Website UI: per-payment "Télécharger le reçu (PDF)" on every payment row + header-level "Générer un relevé" (full-family statement; canonical ledger-replay totals passed in, never re-derived).
+- The orphaned `receipts` table (0 rows, no writer since 0034) + storage policies DROPPED by migration 0079 (live-applied; chain 76/76); the empty bucket removed via the **Storage API** — DISCOVERY: SQL cannot touch storage.buckets (storage.protect_delete — AGENTS.md §11.1 #7). The dead website hooks + ReceiptRow typed entry removed (zero consumers; guarded by the t-194 S2 scan).
+- NEW suite `t-194-receipt-pdf.test.ts` **8/8** — includes the zlib-inflate PDF text extractor (DISCOVERY: pdf-lib emits hex-encoded `<…> Tj` operators; documented in the test). FULL website suite **496/496** (was 488) + lint + strict build.
+- Desktop/Android PDF generators: verified UNCHANGED and green (desktop 91 files/2420/0 — the receipts/bulletin/payslip suites all pass).
+
+#### T-196 — Android deep-link routing — TESTED
+- `AppNavHost.onNavigateToEntity`: `'chat_channel'` → `ChatDetail(channelId)` (the pull-synced notification deep-links to the conversation); homework notifications deliberately not routed (they target parents — the website renders them). `deepLinkTargetTabIndex`: "message"/"chat" FCM types → Dashboard tab (documented).
+- Android toolchain re-provisioned per the AGENTS.md §11 recipe (container reset: Temurin JDK 21 + SDK 35 cmdline-tools re-downloaded; root `.env` re-created with the publishable key — the §11 EMPTY-value quirk respected).
+
+#### Suites at close (all green)
+- Desktop: typecheck clean · lint 0 errors (401 warnings baseline) · **91 files / 2 420 tests / 0 failures** (was 89/2404; +2 files = t-192 suite ×16 tests… precisely: +1 file/10 tests + the round-trip evidence).
+- Website: lint clean · strict build green · **29 files / 496 tests / 0 failures** (was 28/488; +1 file/8 tests).
+- Android: **(count in the T-196 registry entry — recorded at close after the re-provisioned run finished)**.
+- Backend live: chain **76/76 = 0001–0079 ZERO DRIFT**; EF fleet 13/13 ACTIVE; RLS + anonymous-deny sweeps green.
+
+#### New problems registered (4, all TESTED with live evidence): MSG-101, MSG-200, MSG-201, REG-004 — totals 193 detailed entries.
+#### New discoveries persisted: dead Management-API secrets PATCH/PUT + masked GET digests; storage.buckets SQL guard; admin-API user rate limits + the 0002-trigger auto-profile pattern (all in AGENTS.md §11.1 #5–#8); pdf-lib hex-Tj text encoding (t-194 test); the REG-004 policy-drift detection pattern (session openings should census pg_policy).
+#### Owner residuals after this session: FIREBASE_SERVICE_ACCOUNT_JSON (real FCM push), RESEND_API_KEY (workflow emails), the website web-push Firebase env vars (NEXT_PUBLIC_FIREBASE_APP_ID/VAPID), AUTH-200's Google OAuth client step, T-173 part a (alert VOLUME decision / UNKNOWN-020).

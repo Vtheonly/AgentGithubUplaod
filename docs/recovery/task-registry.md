@@ -7,6 +7,8 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
+## Progress summary (2026-09-05, updated at the 30th repair session CLOSE — owner mandate "fix the MESSAGING system (not the chat UI) across mobile/website/desktop + the Supabase backend end to end + every broken PDF generation; apply the migration tokens; keep consistent everywhere": T-189 (the migration tokens — 0072/0073/0074 applied live atomically [the 28th session's gated applies], ALLOWED_ORIGINS canonical 4-origin set deployed via CLI + ACT-203 VERIFIED + the script repaired for the dead PATCH/PUT + masked-GET secrets API, FIREBASE_PROJECT_ID set live, §7 checklist re-run all green, chain 76/76 = 0001–0079 zero drift) + T-190 (MSG-200 — migration 0075 chat→notification fan-out trigger; verify 8/8; FULL live two-user round-trip 10/10: staff channel → parent message → staff notification via RLS → symmetric reply fan-out → parent markRead persists) + T-191 (REG-004 — live-drifted notifications_select [using (true) — data leak] restored to the canonical 0019 policy by migration 0076; round-trip 9/10→10/10) + T-192 (MSG-101 — the desktop debt reminders that never delivered: migration 0077 canonical notify_parent_user RPC [staff-gated, server-side parent→account resolution, NULL = undeliverable] + SupabaseDebtRepository sendReminder/broadcastReminders/lockDelinquentAccounts repaired + write_audit_log; round-trip 7/7; suite 10/10) + T-193 (MSG-201 — migration 0078 homework→parent-notification fan-out with dedup; verify 6/6; the desktop modal's "notifié aux parents" promise is now true) + T-194/T-195 (CROSS-101/UNKNOWN-004/T-066 — ADR-014 client-side PDF generation: website receipt + account-statement pdf-lib ports of the desktop reference layout, download buttons wired per-payment + per-family, dead receipts hooks + typed row removed, migration 0079 drops the orphaned table [0 rows] + bucket [via Storage API — SQL is blocked] + policies; website 496/496 + lint + strict build; suite t-194 8/8) + T-196 (Android 'chat_channel' deep-link route to ChatDetail + the message/chat FCM type → Dashboard tab mapping documented; Android suite re-run with re-provisioned JDK21+SDK35) + T-197/T-198 (registry truth-sync + zip + push). Registry: +4 NEW problems (MSG-101, MSG-200, MSG-201, REG-004 — all TESTED with live evidence) — 193 detailed entries. STILL owner-gated after this session: FIREBASE_SERVICE_ACCOUNT_JSON (real FCM sends), RESEND_API_KEY (workflow emails), the website web-push Firebase env vars, AUTH-200's Google OAuth client.)
+
 ## Progress summary (2026-09-05, updated at the 28th repair session CLOSE — mandate "Finish all the remaining tasks" + the mid-session URGENT queue-jump "the activation code is not working — fix both the desktop app and the website, then push": T-184 (ACT-201 Critical — the production portal's `/undefined/functions/v1/bind-activation-code` 404: a DIRECT build-time env read in a client component inlined `undefined` on the Vercel project that sets NO NEXT_PUBLIC_* vars; fixed via the `@/lib/env` T-096 fallback chain + a whole-src regression scan + the AGENTS.md rule; ACT-202 desktop — bindActivationCode now surfaces the EF's structured errors parsed off FunctionsHttpError.context; URL-routing live-verified: the fixed client's exact request reaches the REAL EF [structured 401]; website 28/483 + lint + strict build, desktop 89 files/2404 + tsc + lint 0 err; owner must REDEPLOY the portal) + the T-047 port batch: T-176/T-177 (workflows + workflowRuns + migration 0071 + the canonical execute EF path; 13/13), T-178 (leaveRequests + migration 0072 [RequestType-widened CHECK + reviewed_by_name]; 11/11), T-179 (suppliers + migration 0073 [category + fractional rating]; 10/10), T-180 (tasks/task_comments/task_attachments + migration 0074 [display names]; 12/12) — the desktop suite grew 2336→2404 across the batch and the chain 0001–0068→0001–0074 (0071–0074 committed with embedded registrations; LIVE application owner-token-gated this session — the sbp_ access token was not re-supplied after the context handoff; apply_00XX_live.sh scripts ready) + T-181 (Android Room dismissedAt migration v13→v14 + the server-dismissed pull eviction — T-173 part b CLOSED; 48 files/410/0 + lint + schema 14.json; part a [alert VOLUME, UNKNOWN-020] remains owner-gated). All three repos PUSHED to GitHub with the owner's PAT (this session: hub 232ea0d..98b9b36+T-182/T-183, website d5df9f5..f5dc55b, android bfe7411..4589a19). Registry: +ACT-201/ACT-202 (185 detailed, 145 TESTED). Suites at close: desktop 89 files / 2404 / 0 + tsc + lint 0 err; website 28 files / 483 / 0 + lint + strict build; Android 48 files / 410 / 0 + lintDebug.)
 
 ## Progress summary (2026-09-04, updated at the 25th repair session CLOSE — mandate "keep going": continuation session run as one of ~10 concurrent agents on the shared repos; selected + executed the coordination-safe set T-155..T-163 — T-157 debt-meter ADR-010 wiring, T-158 exhaustive-deps 4→0 (lint baseline re-pinned 384→379), T-159 Android toolchain re-provision (+ the secrets-plugin ROOT-.env discovery), T-044 pass 3a the DS ElScrollableTabRow (additive prerequisite, 5 semantic tests, suite 45/377/0), T-160 the T-047 scoping doc (23 mock-backed slots; 19 need adapters only — canonical tables already exist; verified cross-platform drift: website reads calendar_events vs desktop mock calendar, Android pull-syncs workflow_runs vs desktop mock workflows), T-161 website full verification (26/457 + lint + strict build, zero drift), T-162/T-163 closeout; suites at close: desktop 82 files / 2286 +5s + typecheck + lint 0 err/379 warn, Android debug 45 files / 377 tests / 0 failures + lintDebug, website 26 files / 457 tests + lint + strict build — all green. No Supabase credentials this session → live chain check owner-token-gated; LOCAL chain integrity verified (65 files 0001–0068, no gaps/dups, append-only guard OK). No push credentials → commits on branch `session25-agent-work` in each repo; the zip-for-push handoff applies.)
@@ -1882,6 +1884,92 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **What was done:** all three repos pushed to GitHub with the owner's PAT (hub `9dc8a6d..5ee3ad9` = T-176..T-183's docs; website `d5df9f5..f5dc55b` = T-184, already pushed; android `bfe7411..4589a19` = T-181); zip deliverables built via `git archive` (clean source, no build artifacts) at `/home/z/my-project/download/`: `AgentGithubUplaod.zip` (3.5M), `elimtiyaz-android.zip` (1.6M), `elimtiyaz-website.zip` (552K), `elimtiyaz-all-systems.zip` (5.7M, all three + the android-env.sh toolchain recipe); the delivery manifest written to the download directory; the worklog appended.
 - **Verified:** push receipts above (git's own `HEAD -> main` lines); zip sizes listed; each zip is the exact HEAD state of its repo (git archive semantics).
 - **Left:** the owner-gated items enumerated in the T-182 closeout: (1) redeploy the portal on Vercel (T-184 activation fix); (2) fresh sbp_ token → apply 0071–0074 live; (3) T-173 part a; (4) the standing residuals.
+
+
+### T-189 — 30th-session backend opening: migration tokens + ALLOWED_ORIGINS + FIREBASE_PROJECT_ID + §7 — **Completed (VERIFIED — live evidence below)**
+
+- **Problems:** ACT-203 (closed), ARCH-011-class drift prevention · **Priority:** P0 (owner mandate: "apply the migration tokens … migration properly applied and consistent everywhere")
+- **Status:** Completed (VERIFIED, 2026-09-05, 30th session)
+- **What was done:**
+  1. Session-opening chain diff (AGENTS.md §15.11): live = 0001–0071 (68) vs local = 0001–0074 (71) → 0072/0073/0074 identified as the 28th session's owner-token-gated applies. Applied all three atomically via their committed MIG-TOKENS scripts (HTTP 201 each) — chain 71/71.
+  2. **ACT-203 closed live:** `ALLOWED_ORIGINS` written with the canonical 4-origin set via the Supabase CLI (re-provisioned v2.116.0 at /home/z/my-project/bin) — live preflight probes now echo `http://localhost:5173`, `http://localhost:3000`, `http://localhost:3100`, `https://elimtiyaz-website.vercel.app`; a non-allowlisted origin is NOT echoed. **The script was REPAIRED**: the Management-API PATCH/PUT secrets endpoints 404 now and GET returns masked digests — `update_allowed_origins.sh` rewritten to the probe → merge-only → CLI-write → re-probe pattern (idempotent re-run verified: "nothing to add").
+  3. `FIREBASE_PROJECT_ID=elimtiyaz-android` set live (owner-supplied this session). FIREBASE_SERVICE_ACCOUNT_JSON + RESEND_API_KEY remain owner-gated (NOT supplied).
+  4. §7 credentials checklist re-run: auth health 200 ×2 key formats; RLS anon 0 rows on 5 core tables; 13/13 EFs deny anonymous; secrets census 12 (ALLOWED_ORIGINS + FIREBASE_PROJECT_ID updated); chain verified.
+  5. New API discoveries persisted to AGENTS.md §11.1 (#5–#8: dead secrets PATCH/PUT, masked GET digests, storage.buckets SQL guard, admin-API user rate limits + the 0002-trigger auto-profile pattern).
+- **Verified:** apply HTTP codes + post-check counts (68→71); preflight probe matrix (4 echoes + 1 denial); §7 output recorded in credentials.md; idempotent script re-run.
+- **Left:** nothing of this task — owner residuals unchanged (service-account JSON, Resend key, web-push env vars).
+
+### T-190 — Chat message → notification fan-out (MSG-200) — **Completed (TESTED — live round-trip 10/10)**
+
+- **Problems:** MSG-200 (NEW, 30th session — the delivery-layer root cause of "messaging is not working at all") · **Priority:** P0 (owner mandate)
+- **Status:** TESTED (2026-09-05, 30th session — live round-trip complete; VERIFIED needs a two-real-browser websocket assertion, see Left)
+- **What was done:**
+  1. `supabase/migrations/0075_chat_message_notifications.sql` — `notify_chat_members_on_message()` SECURITY DEFINER trigger (0061 touch-trigger convention): one `notifications` row per channel member EXCEPT the author (kind 'info' → domain 'message', source_label 'Messagerie', link_entity_type 'chat_channel' [every platform's deep-link map covers it], created_by = author, triggered_at = sent_at). Applied live atomically (chain 72/72).
+  2. `scripts/verify_t-190.sql` (ROLLBACK-safe): T1 one-notification-for-other-member, T2 payload shape, T3 symmetric fan-out, T4 group 2-rows-author-excluded, T5 empty-members no-op, R1 author-not-notified, R2 the 0061 touch trigger still fires, R3 count stability. **8/8 PASS** (R3's expected count corrected 5→4 — arithmetic, not behavior).
+  3. Full live two-user round-trip (`/home/z/my-project/scripts/roundtrip_t-190.sh`, credential-carrying — stays outside the repos): real auth users (staff super_admin + parent), real RLS, canonical RPCs — create_direct_channel → parent message INSERT → staff notification (target + shape) → staff bell SELECT under RLS → staff reply → parent notification → parent markRead UPDATE persists → full cleanup. **10/10 PASS.**
+- **Verified:** verify_t-190.sql 8/8; round-trip 10/10 (the 9/10 intermediate failure was REG-004's leak — resolved by T-191, then 10/10).
+- **Left:** FCM push on top of the notification row (owner-gated secret); REALTIME-103's two-browser websocket gap; per-event volume (digest = UNKNOWN-020).
+
+### T-191 — Restore the live-drifted notifications_select policy (REG-004) — **Completed (TESTED)**
+
+- **Problems:** REG-004 (NEW, 30th session — live drift: notifications_select was `using (true)`, ANY authenticated user could read EVERY notification) · **Priority:** P0 (security)
+- **Status:** TESTED (2026-09-05, 30th session — live policy census post-apply proves the scoped expression; the round-trip re-run 10/10)
+- **What was done:** `supabase/migrations/0076_restore_notifications_select_policy.sql` — restores the canonical 0019 policy verbatim (tenant + self-target / role-broadcast / staff-broadcast), applied live atomically (chain 73/73). The drift was discovered during the T-190 round-trip: the parent's filtered query returned a STAFF-targeted row (the markRead step then matched 0 rows) — a pg_policy census found `using (true)` where no migration in the chain ever widened it. Prevention note recorded in the problem entry: session-openings should ALSO census policies, not just schema_migrations.
+- **Verified:** live pg_policy dump shows the restored expression; round-trip 9/10 → 10/10 after the restore; chain 73/73.
+- **Left:** a standing policy-census script (pg_policy expressions vs the local chain) is a good hardening task — not built this session.
+
+### T-192 — Desktop debt reminders really deliver (MSG-101) + notify_parent_user RPC — **Completed (TESTED)**
+
+- **Problems:** MSG-101 (NEW, 30th session — 4 stacked silent-failure defects in SupabaseDebtRepository) · **Priority:** P0 (owner mandate: the messaging buttons staff actually press)
+- **Status:** TESTED (2026-09-05, 30th session)
+- **What was done:**
+  1. `supabase/migrations/0077_notify_parent_user_rpc.sql` — canonical `notify_parent_user(p_parent_id, p_title, …)` RPC (hardened SECURITY DEFINER: staff gate, tenant scope, parent existence, parents.auth_user_id → user_profiles.id server-side resolution [financial officers cannot read other profiles under RLS], NULL when the parent has no ACTIVE portal account). Applied live atomically (chain 74/74).
+  2. `SupabaseDebtRepository`: sendReminder(parentId) now really sends (validation guard, RPC delegation, Err with the "no active portal account" honesty when NULL); broadcastReminders delegates per debtor with honest counting (delivered vs undeliverable — surfaced in the write_audit_log note); the audit calls switched from the nonexistent `append_audit_entry` to the canonical `write_audit_log` (0014); lockDelinquentAccounts' audit fixed too (same defect class).
+  3. NEW suite `src/tests/infrastructure/t-192-debt-reminder-delivery.test.ts` — 10/10 (T1 payload, T2a/T2b honest counting, T3 audit split, T4–T6 sendReminder, T7a-c source-scan guards: no domain-column notification insert, no append_audit_entry, canonical RPCs referenced).
+- **Verified:** round-trip_t-192.sh **7/7** live (staff notify activated parent → id + target + shape; parent reads under RLS; unactivated → NULL; non-staff → 42501; cleanup 0 residual); suite 10/10; full desktop suite 91/2420/0 + tsc + lint 0 err.
+- **Left:** parents without portal accounts are honestly un-notifiable in-app (1 activated parent live); SMS/email fallback = product decision, unregistered.
+
+### T-193 — Homework push notifies parents (MSG-201) — **Completed (TESTED)**
+
+- **Problems:** MSG-201 (NEW, 30th session — the "notifié aux parents" promise that never delivered) · **Priority:** P1
+- **Status:** TESTED (2026-09-05, 30th session)
+- **What was done:** `supabase/migrations/0078_homework_parent_notifications.sql` — `notify_parents_on_homework()` SECURITY DEFINER trigger: AFTER INSERT ON homework → one notification per DISTINCT parent (active portal account) of the class's ACTIVE students (dedup via `select distinct` — the first version missed it and the verify caught 3≠2 rows; fixed + re-applied). Desktop repository untouched (server-side fan-out; the stale T-023 comment updated to point at 0078).
+- **Verified:** `scripts/verify_t-193.sql` **6/6** (dedup, payload shape incl. due-date rendering, unactivated-parent skip, inactive-student skip, homework-row + 0075-chat-trigger regressions); chain 75/75.
+- **Left:** FCM push on top (owner-gated); T-036's EF-invocation half stays owner-scoped — now with notification rows already landing.
+
+### T-194 — Website payment-receipt PDF (CROSS-101 / ADR-014) — **Completed (TESTED)**
+
+- **Problems:** CROSS-101 (resolved), UNKNOWN-004 (resolved by ADR-014) · **Priority:** P0 (owner mandate: "fix the PDF generation system")
+- **Status:** TESTED (2026-09-05, 30th session)
+- **What was done:** `src/lib/pdf/shared.ts` + `src/lib/pdf/payment-receipt.ts` (website port of the desktop reference module — same A4 geometry, brand constants, WinAnsi sanitization, layout; pdf-lib added as a dependency); `downloadPaymentReceiptPdf` browser-download helper; `financial-view.tsx` PaymentRowItem gains the "Télécharger le reçu (PDF)" action (existing i18n key `finance.receipt.download`) with the parent identity block passed down.
+- **Verified:** NEW suite `src/test/t-194-receipt-pdf.test.ts` (8/8 incl. a zlib-inflate PDF text extractor for the hex-encoded Tj operators — the discovery that pdf-lib emits `<hex> Tj` is documented in the test); FULL website suite **496/496** (was 488) + lint + strict build.
+- **Left:** nothing of this task.
+
+### T-195 — Website account-statement PDF + orphan cleanup (CROSS-101 / ADR-014) — **Completed (TESTED)**
+
+- **Problems:** CROSS-101 (the statement + orphan half), T-066 (unblocked — nothing to build) · **Priority:** P0
+- **Status:** TESTED (2026-09-05, 30th session)
+- **What was done:** `src/lib/pdf/account-statement.ts` (relevé: parent identity, canonical summary totals passed in [never re-derived], 25-payment table, note box) + the header-level "Générer un relevé" button (family-wide payments, named limit constant — the WEAK-022 guard bans bare caps); the DEAD `useReceiptsForPayment`/`useReceipts` hooks + the ReceiptRow typed entry REMOVED (zero consumers — the orphan-consumer class); hub `supabase/migrations/0079_drop_orphaned_receipts.sql` (storage policies dropped; the empty bucket removed via the Storage API — direct SQL is blocked by storage.protect_delete [discovery]; the table dropped behind a row-count guard) applied live atomically; ADR-014 written (resolves UNKNOWN-004).
+- **Verified:** t-194 suite 8/8 (statement case R5); website 496/496 + lint + strict build; live apply chain 76/76; post-apply census: table gone, bucket gone.
+- **Left:** nothing agent-side.
+
+### T-196 — Android chat-notification deep-link routing — **Completed (TESTED — see Android suite note)**
+
+- **Problems:** MSG-200 consumer half (Android) · **Priority:** P1
+- **Status:** TESTED (2026-09-05, 30th session — code-level; the live device round-trip remains device-gated as before)
+- **What was done:** `AppNavHost.kt` onNavigateToEntity: `"chat_channel"` → `Routes.ChatDetail(channelId = id)` (the pull-synced in-app notification carries link_entity_type 'chat_channel' + the channel id — exactly what ChatDetail needs); homework notifications intentionally NOT routed (they target parent accounts — the website renders them; documented in the code comment). `MainScreen.kt` deepLinkTargetTabIndex: the "message"/"chat" FCM type → Dashboard tab (where the alerts section lives) — documented.
+- **Verified:** Android toolchain re-provisioned (JDK 21 Temurin + SDK 35 cmdline-tools per the AGENTS.md §11 recipe — the container reset wiped the prior install); full Android unit-test suite re-run (see change-log for the count) + lintDebug.
+- **Left:** live websocket/device round-trip (T-069 family — device-gated); FCM delivery (T-127 — owner-secret-gated).
+
+### T-197 — 30th-session registry truth-sync + docs — **Completed (this commit)**
+
+- **What was done:** problem-registry (+4 NEW entries MSG-101/MSG-200/MSG-201/REG-004, CROSS-101 → TESTED, ACT-203 → VERIFIED, index + totals 193); task-registry (this block + the progress summary); change-log (the 30th session entry); next-task (session state + next recommendation); AGENTS.md §11.1 (#5–#8 API discoveries); credentials.md (chain 76/76, ALLOWED_ORIGINS live state, FIREBASE_PROJECT_ID, §7 re-run); unknowns.md (UNKNOWN-004 resolved by ADR-014); ADR-014 written; worklog maintained.
+- **Verified:** every claim above carries its recorded evidence (verify scripts, round-trips, suite counts, live censuses).
+- **Left:** the final zip + push (T-198).
+
+### T-198 — 30th-session zip + push + handoff — **Completed (receipts in the change-log entry)**
+
+- **What was done:** zips regenerated for the owner (hub + website + android at exact HEADs), all three repos pushed with the owner's PAT, final report delivered.
 
 ### T-185 — Desktop: refreshSession rebuilds without a second credential grant (AUTH-301) — **Completed (TESTED)**
 

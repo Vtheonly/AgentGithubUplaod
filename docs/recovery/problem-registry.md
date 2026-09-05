@@ -31,7 +31,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | | | | CLOSED | 1 |
 | | | | FIXED/MITIGATED | 3 |
 
-**Totals:** 189 detailed entries (recounted 2026-09-05 after T-185..T-188 added AUTH-301, SEC-114, ACT-203, ACT-204; the detailed entries are authoritative) (145 consolidated from 185 audit findings + the rest discovered during repair sessions) · **6 OPEN** (CROSS-104b, ARCH-001, DRIFT-011 [PARTIAL in its row], REG-002, WEAK-100, DATA-006 — all blocked-on-decisions/owner-gated) · **148 TESTED** (29th-session additions 2026-09-05: NEW TESTED entries AUTH-301, SEC-114, ACT-204; 28th-session additions 2026-09-05: NEW TESTED entries ACT-201, ACT-202; 24th-session flips 2026-09-03: CROSS-004→T-146, CROSS-009→T-146 + NEW TESTED entries ACT-200, CHAT-200, DATA-012) · 12 VERIFIED · **11 BLOCKED** (29th session: +ACT-203 — the live ALLOWED_ORIGINS secret fix is owner sbp_-token-gated; runbook committed) · 5 DEFERRED · 4 other (PARTIAL micro-states incl. DUP-003 after T-044 pass 2). Evidence: change-log sessions 1–29.
+**Totals:** 193 detailed entries (recounted 2026-09-05 after the 30th session added MSG-101, MSG-200, MSG-201, REG-004; prior recount: 189 after T-185..T-188 added AUTH-301, SEC-114, ACT-203, ACT-204; the detailed entries are authoritative) (145 consolidated from 185 audit findings + the rest discovered during repair sessions) · **6 OPEN** (CROSS-104b, ARCH-001, DRIFT-011 [PARTIAL in its row], REG-002, WEAK-100, DATA-006 — all blocked-on-decisions/owner-gated) · **148 TESTED** (29th-session additions 2026-09-05: NEW TESTED entries AUTH-301, SEC-114, ACT-204; 28th-session additions 2026-09-05: NEW TESTED entries ACT-201, ACT-202; 24th-session flips 2026-09-03: CROSS-004→T-146, CROSS-009→T-146 + NEW TESTED entries ACT-200, CHAT-200, DATA-012) · 12 VERIFIED · **11 BLOCKED** (29th session: +ACT-203 — the live ALLOWED_ORIGINS secret fix is owner sbp_-token-gated; runbook committed) · 5 DEFERRED · 4 other (PARTIAL micro-states incl. DUP-003 after T-044 pass 2). Evidence: change-log sessions 1–29.
 
 > T-125 (2026-09-02, 21st session): 20 stale detailed-entry Status headers flipped to their documented/evidenced states (live-DB or code probes this session; list in change-log). Status counts above RECOMPUTED from the detailed headers at flip time.
 
@@ -41,6 +41,10 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | ID | Sev | Status | Task | Title |
 |---|---|---|---|---|
+| MSG-101 | Critical | TESTED (2026-09-05, T-192 — 0077 notify_parent_user RPC; round-trip 7/7; suite 10/10) | T-192 | NEW (30th session): desktop debt reminders never delivered — wrong columns + no recipient + no-op sendReminder + nonexistent audit RPC, all reported as success |
+| MSG-200 | High | TESTED (2026-09-05, T-190 — 0075 chat fan-out trigger; verify 8/8; live round-trip 10/10) | T-190 | NEW (30th session): chat message sends produce ZERO notifications for absent recipients — the messaging delivery-layer gap behind "messaging is not working at all" |
+| MSG-201 | High | TESTED (2026-09-05, T-193 — 0078 homework fan-out trigger; verify 6/6) | T-193 | NEW (30th session): homework push promised "notifié aux parents" but never created any notification |
+| REG-004 | High | TESTED (2026-09-05, T-191 — 0076 restores the canonical policy; round-trip 10/10 after) | T-191 | NEW (30th session): LIVE DRIFT — notifications_select widened to `using (true)` by an unregistered actor (any authenticated user could read every notification) |
 | SEC-001 | High | TESTED | T-055 | Edge Functions swallow audit-log write failures silently |
 | SEC-002 | High | TESTED | T-055 | `defaultLLMAdapter` falls back from edge function → BYOK → mock, silently leaking user prompts to Groq/OpenRouter if Edge Function is down |
 | SEC-003 | Low | DEFERRED | T-076 | Committed `google-services.json` contains a real Firebase API key + project number |
@@ -64,7 +68,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | ACT-200 | Critical | TESTED (2026-09-03, T-145/146/147/153) | T-147 | NEW (24th session, owner-reported): account activation rejects every code as "already used" — codes never persisted (missing tenant_id), phantom fallback, EF 401'd pending users, generic error string; live round-trip 19/19 |
 | ACT-201 | Critical | TESTED (2026-09-05, T-184; URL-routing live-verified) | T-184 | NEW (28th session, owner-reported console 404): the production portal built the bind-activation-code EF URL from `process.env` read at runtime in a client component → `/undefined/functions/v1/…` 404 on the PORTAL origin — every activation attempt failed although the live EF was healthy; fixed by resolving through `@/lib/env` (T-096 fallback) |
 | ACT-202 | Medium | TESTED (2026-09-05, T-184) | T-184 | NEW (28th session, desktop half of the owner report): `bindActivationCode` collapsed every EF failure into the generic "Function returned an error" — functions-js returns `data:null` for non-2xx and the structured `{error:{code,message}}` body must be parsed off `FunctionsHttpError.context`; now mapped to precise AppErrors (desktop equivalent of the website's T-153) |
-| ACT-203 | Critical | BLOCKED (2026-09-05, 29th session — owner sbp_-token-gated; defect live-verified by preflight probe; runbook + idempotent script committed) | T-186 | NEW (29th session, owner-reported CORS): the deployed `ALLOWED_ORIGINS` Edge-Function secret carried only the dev origin `http://localhost:5173` — every production-portal preflight (`https://elimtiyaz-website.vercel.app`) failed the access-control check (`TypeError: Failed to fetch` on bind-activation-code); the EF CODE is correct (cors.ts echoes any allowlisted origin) — fix is a live secret update, no redeploy |
+| ACT-203 | Critical | VERIFIED (2026-09-05, 30th session — canonical 4-origin set deployed live; preflight probes echo all four; script repaired for the dead PATCH/PUT + masked-GET API) | T-186 | (29th session, owner-reported CORS): the deployed `ALLOWED_ORIGINS` Edge-Function secret carried only the dev origin `http://localhost:5173` — every production-portal preflight (`https://elimtiyaz-website.vercel.app`) failed the access-control check (`TypeError: Failed to fetch` on bind-activation-code); the EF CODE is correct (cors.ts echoes any allowlisted origin) — CLOSED live by the 30th session (sbp_ token re-supplied) |
 | ACT-204 | Medium | TESTED (2026-09-05, T-187) | T-187 | NEW (29th session): fetch-level activation failures (thrown TypeError — offline/CORS-block, no HTTP response) showed the generic "Impossible d'activer" message that wrongly blamed the CODE; now mapped to the dedicated `activation.code.error.network` message |
 | TENANT-100 | Critical | TESTED | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
 | TENANT-101 | Medium | TESTED | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
@@ -86,7 +90,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | CROSS-005 | Critical | BLOCKED | T-059 | Android `LocalPaymentRepository.collect()` bypasses the canonical `collect_payment` RPC |
 | CROSS-009 | High | TESTED (2026-09-03, T-146 — website copy deleted; ONE canonical EF in the hub with ADR-011 semantics; website t-126 guard pins zero local EFs) | T-028 | Website's `bind-activation-code` Edge Function is a drifted duplicate of the desktop's canonical version (no shared helpers, no audit log, different body key handling) |
 | CROSS-100 | Medium | TESTED | T-001/T-002 | Demo account emails and passwords diverge between Desktop and Android (financial@ vs finance@) — both demo lists removed 2026-08-29 |
-| CROSS-101 | Critical | BLOCKED | T-066 | `receipts` table is orphaned; website's receipt download is permanently broken |
+| CROSS-101 | Critical | TESTED (2026-09-05, 30th session — ADR-014: client-side PDF generation; orphaned table dropped by 0079) | T-194/T-195 | `receipts` table is orphaned; website's receipt download is permanently broken — RESOLVED: receipt + statement PDFs now generate client-side on the website |
 | CROSS-102 | High | TESTED (T-017, 17th session: refund reason rides the sync payload) | T-017 | Android refund sync payload drops the user's refund reason; server audit log has no reason |
 | CROSS-103 | High | TESTED | T-017 | Android refund sync does NOT push installment state changes; server-side installments stay stale |
 | CROSS-104 | High | TESTED (T-034, 17th session: TTL + window-focus freshness policy on all 9 Supabase-backed caches; design choice documented) | T-034 | Desktop SupabasePaymentRepository cache never re-seeds from server; no realtime, no manual refresh |
@@ -1045,7 +1049,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CROSS-101 — `receipts` table is orphaned; website's receipt download is permanently broken
 
-- **Category:** CROSS  |  **Severity:** Critical  |  **Status:** BLOCKED
+- **Category:** CROSS  |  **Severity:** Critical  |  **Status:** TESTED (2026-09-05, 30th session — RESOLVED by ADR-014 + T-194/T-195: receipt + statement PDFs are now generated CLIENT-SIDE on the website (pdf-lib ports of the desktop reference module, `src/lib/pdf/`), the dead `receipts` hooks removed, and the orphaned table + bucket + policies DROPPED by migration 0079 (live-applied atomically, chain 76/76). Website suite 496/496 + strict build green; the t-194 test file pins generation + wiring + the orphan-consumer-class scan. UNKNOWN-004 resolved by ADR-014.)
 - **Repositories:** AgentGithubUplaod (desktop), elimtiyaz-website
 - **Platforms affected:** Backend/DB, Desktop, Website
 - **Task:** T-066 (docs/recovery/task-registry.md)
@@ -1058,7 +1062,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Expected behavior:** The `receipts` table should store PDF receipts (one per payment, plus account statements) with their storage paths, so parents can re-download them from the website portal without staff intervention.
 - **Proposed resolution:** The `receipts` table should store PDF receipts (one per payment, plus account statements) with their storage paths, so parents can re-download them from the website portal without staff intervention.
 - **Dependencies:** none recorded
-- **Status note:** Blocked by UNKNOWN-004 (server-side receipt storage requirement).
+- **Status note (30th session):** The original BLOCKED was on UNKNOWN-004 (server-side receipt storage requirement). ADR-014 resolves it: client-side deterministic generation; the "parents re-download without staff intervention" outcome is delivered WITHOUT server persistence. Residual: server-persisted immutable receipts remain a rejected alternative until a business need appears (revisit via a new ADR).
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); migration-level test against a fresh schema with the full canonical chain applied; cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 
 ---
@@ -1822,6 +1826,62 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Proposed resolution:** The sync push should propagate the new gradeLevel to the server. Either: (a) the RPC should have a `p_grade_level_code` parameter, or (b) the dispatcher should detect `operation="promote"` and call a different RPC (e.g., a hypothetical `promote_student` RPC) or perform a direct table UPDATE on `students.grade_level_code`.
 - **Dependencies:** TENANT-106 (server-side promotion path must be usable first)
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); migration-level test against a fresh schema with the full canonical chain applied; cross-platform equivalence check per docs/testing/cross-platform.md; evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
+
+---
+
+### MSG-200 — Chat message sends produce ZERO notifications for absent recipients (the messaging delivery layer gap)
+
+- **Category:** MSG  |  **Severity:** High  |  **Status:** TESTED (2026-09-05, 30th session — T-190: migration 0075 `chat_messages_notify_members` trigger, live-applied atomically; verify_t-190.sql 8/8 (one notification per other member, payload shape, group fan-out, empty-members no-op, author exclusion, 0061 touch-trigger regression, count stability); FULL live two-user round-trip 10/10 (staff creates channel via create_direct_channel RPC → parent RLS insert → staff notification + bell SELECT under RLS → symmetric reply fan-out → parent markRead persists → cleanup). The messaging system now delivers end-to-end on all platforms — desktop bell, website bell + messages view, Android pull.)
+- **Repositories:** AgentGithubUplaod (backend — canonical fix), elimtiyaz-website, elimtiyaz-android, elimtiyaz-desktop (all clients benefit; no client code change required — the notification arrives through each platform's existing bell/pull path)
+- **Platforms affected:** Backend/DB, Android, Desktop, Website
+- **Task:** T-190 (30th session)
+- **Discovered:** 2026-09-05, 30th session (owner mandate "messaging is not working at all" — root-cause exploration): the chat PERSISTENCE layer was complete (chat_channels/chat_messages + RLS + realtime + read receipts, all TESTED) but NOTHING notified a recipient who did not have the app OPEN. A chat_messages INSERT produced zero `notifications` rows, zero pushes, zero emails; the only "delivery" was Supabase Realtime invalidation for an already-open client. A parent with the portal closed never learned a message existed. (This is the delivery half the chat tasks T-098..T-102/T-148..T-150 never covered — they built the conversation layer.)
+- **Root cause:** The chat completion (0061) and parent-admin channel (0067) migrations built the conversation tables + touch trigger, but no fan-out to the notifications table was ever specified — the delivery layer was implicitly "realtime invalidation", which only works for open clients.
+- **Resolution:** migration 0075 — AFTER INSERT ON chat_messages → one notification per channel member EXCEPT the author (kind 'info' → domain 'message', source_label 'Messagerie', link_entity_type 'chat_channel' → every platform's existing deep-link map, created_by = author). SECURITY DEFINER per the 0061 touch-trigger convention (notifications_insert is staff-or-self-gated; the trigger only targets explicit channel members). Per-event (NOT a digest — the digest decision stays with UNKNOWN-020).
+- **Left:** FCM push on top of the notification row remains owner-secret-gated (FIREBASE_SERVICE_ACCOUNT_JSON not supplied); the notification VOLUME/digest product decision is UNKNOWN-020; a live two-BROWSER websocket assertion (REALTIME-103's gap) still needs two real sessions.
+- **Related:** CHAT-200 (the parent↔admin-only policy this rides on), NOTIF-100 (role-broadcast mark-read — separate), PUSH-100 (EF invocation, owner-scoped).
+
+---
+
+### MSG-101 — Desktop debt reminders NEVER delivered: wrong columns + no recipient + no-op sendReminder + nonexistent audit RPC, all reported as success
+
+- **Category:** MSG  |  **Severity:** Critical  |  **Status:** TESTED (2026-09-05, 30th session — T-192: migration 0077 canonical `notify_parent_user` RPC (SECURITY DEFINER, staff-gated, server-side parent→account resolution, NULL = no active portal account), live round-trip 7/7 (staff notify activated parent → notification id + correct target + parent reads under RLS; unactivated parent → NULL; non-staff caller → 42501; cleanup 0 residual); SupabaseDebtRepository.sendReminder now really sends (Err on undeliverable), broadcastReminders delegates per debtor with honest counting (only delivered count; undeliverable surfaced in the write_audit_log note), lockDelinquentAccounts audit switched to the real write_audit_log RPC. New suite t-192-debt-reminder-delivery.test.ts 10/10; full desktop suite 91 files / 2420 / 0 + tsc + lint 0 err.)
+- **Repositories:** AgentGithubUplaod (desktop + backend)
+- **Platforms affected:** Backend/DB, Desktop, Website (parents receive the reminders)
+- **Task:** T-192 (30th session)
+- **Discovered:** 2026-09-05, 30th session — four stacked defects in `SupabaseDebtRepository` (supabase-shared-repositories.ts): (1) broadcastReminders inserted notifications with NONEXISTENT columns (`type`/`entity_type`/`entity_id` — the table uses `kind`/`link_entity_type`/`link_entity_id`; the domain model's field names were written straight into the DB payload) → PostgREST 400 on EVERY insert, swallowed by console.warn, `dispatched++` still counted — "Broadcast overdue reminders" reported success while delivering nothing; (2) no target (target_user_id NULL, target_role NULL) → even valid inserts would be staff-only broadcasts, the debtor parent could never see them; (3) sendReminder() was a literal no-op returning Ok(undefined) — the UI showed "Rappel envoyé" while nothing happened; (4) the audit call targeted a nonexistent `append_audit_entry` RPC (the canonical one is `write_audit_log`, 0014) — also swallowed.
+- **Root cause:** (a) The domain-model → DB-column mapping was skipped when the Supabase repo was written (the notification-alerts repository has the correct TYPE_TO_KIND mapping — a parallel-implementation drift in miniature); (b) the parent→portal-account resolution (parents.auth_user_id → user_profiles.id) CANNOT be done client-side by financial officers (user_profiles_select lets only super_admin/support_staff read other profiles) — the resolution was never designed, so the insert had no target; (c) an audit RPC name was invented instead of checking the chain.
+- **Resolution:** migration 0077 `notify_parent_user` (hardened SECURITY DEFINER: staff gate, tenant scope, parent existence check, active-profile resolution, NULL for undeliverable) + the desktop repository rewritten to delegate to it + the canonical write_audit_log audit + honest counting.
+- **Left:** parents WITHOUT portal accounts cannot be notified in-app (1 activated parent live today) — the honest NULL path tells the operator to use phone/WhatsApp; an SMS/email fallback is a product decision, not registered.
+- **Related:** REG-004 (discovered by the same round-trip), NOTIF-101 family (insert policy design), ADR-012 (parent↔admin channel context).
+
+---
+
+### MSG-201 — Homework push promised "notifié aux parents" but never created any notification
+
+- **Category:** MSG  |  **Severity:** High  |  **Status:** TESTED (2026-09-05, 30th session — T-193: migration 0078 `homework_notify_parents` trigger, live-applied atomically; verify_t-193.sql 6/6 — dedup (2 children of one parent → ONE notification), payload shape (kind info, Devoirs label, homework deep link, teacher as created_by, due date in body), unactivated-parent skip, inactive-student skip, homework-row + 0075-chat-trigger regressions. The desktop modal's "sera notifié aux parents" promise is now TRUE for every writer — desktop, Android, future.)
+- **Repositories:** AgentGithubUplaod (backend — canonical; the desktop repository needed NO code change: the fan-out is server-side on the homework INSERT)
+- **Platforms affected:** Backend/DB, Desktop (promise), Website (parents receive), Android (homework pushes fan out too)
+- **Task:** T-193 (30th session)
+- **Discovered:** 2026-09-05, 30th session — the homework-push-modal (desktop) promises "sera notifié aux parents" but the repository only INSERTs the `homework` row; the old `push-homework-notification` EF invoke never existed (dead call removed in T-023/HOMEWORK-100) and the parent-notification decision had been deferred to T-036/PUSH-100. The 30th-session owner mandate ("fix the messaging system") resolves the deferral: in-app notifications ARE the delivery layer.
+- **Root cause:** The push pipeline (T-036) was scoped around FCM push + email, both owner-secret-gated from the start — the achievable in-app notification layer was never built because it was lumped into the same deferred task.
+- **Resolution:** migration 0078 — AFTER INSERT ON public.homework → one notification per DISTINCT parent (with an ACTIVE portal account) of the class's ACTIVE students. SECURITY DEFINER (0061/0075 convention; roster-derived targets only).
+- **Left:** FCM push on top remains owner-gated (FIREBASE_SERVICE_ACCOUNT_JSON); T-036's EF-invocation half stays owner-scoped (now with the notification rows it needs already landing).
+- **Related:** HOMEWORK-100 (the tenant_id fix this rides on), MSG-200 (the chat fan-out sibling), PUSH-100.
+
+---
+
+### REG-004 — LIVE DRIFT: `notifications_select` was widened to `using (true)` by an unregistered actor (any authenticated user could read every notification)
+
+- **Category:** REG  |  **Severity:** High  |  **Status:** TESTED (2026-09-05, 30th session — T-191: migration 0076 restores the canonical 0019 policy verbatim (tenant + self-target / role-broadcast / staff-broadcast), live-applied atomically (chain 76/76); live policy census post-apply shows the scoped expression; the full T-190 round-trip re-run went 9/10 → 10/10 — the drift was the cause of the parent's filtered query returning a staff-targeted row.)
+- **Repositories:** AgentGithubUplaod (backend — live drift, not a code defect: the local chain's 0019 policy was always correct)
+- **Platforms affected:** Backend/DB (all clients' notification reads)
+- **Task:** T-191 (30th session)
+- **Discovered:** 2026-09-05, 30th session, live policy census during the T-190 round-trip: the LIVE `notifications_select` policy was `to authenticated using (true)` — ANY authenticated user could SELECT EVERY notifications row (all users, all tenants). No migration in the 0001–0075 chain drops or widens it (grep: only 0019 creates notifications_select; 0048 touches insert only) — the widening was applied directly to the production DB by an unknown actor (the REG-003 / ARCH-009 failure class AGENTS.md §15.11 warns about).
+- **Symptom observed:** a parent's filtered notifications query returned a STAFF-targeted row (the round-trip markRead step then matched 0 rows). The website's `.or()` client-side filter limited practical exposure, but any crafted query could read cross-user data — a real data-leak.
+- **Resolution:** migration 0076 (canonical policy restored + registration). PREVENTION: the session-opening ritual (§15.11 chain diff) only covers schema_migrations — policy drift needs a POLICY census too; the 30th session's census pattern (pg_policy dump for core tables) is the model for future session-openings (recorded in AGENTS.md §11.1 notes and this entry).
+- **Left:** a standing policy-census script (pg_policy diff local-chain-expressions vs live) is a good next hardening task; not built this session (scope).
+- **Related:** REG-003 (the unregistered-patch class), ARCH-009/ARCH-011 (drift precedents), MSG-200 (the round-trip that exposed it).
 
 ---
 
@@ -3985,7 +4045,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ACT-203 — Live `ALLOWED_ORIGINS` EF secret lacks the production origin: every portal activation preflight CORS-blocked (owner-gated fix)
 
-- **Category:** ACT  |  **Severity:** Critical  |  **Status:** BLOCKED (2026-09-05, 29th session — the update needs the owner's sbp_ access token; the defect itself is live-verified, the remediation script is committed and one command away)
+- **Category:** ACT  |  **Severity:** Critical  |  **Status:** VERIFIED (2026-09-05, 30th session — the owner re-supplied the sbp_ token; the canonical 4-origin set is DEPLOYED: live preflight probes echo http://localhost:5173, http://localhost:3000, http://localhost:3100 and https://elimtiyaz-website.vercel.app; a non-allowlisted origin is NOT echoed. The remediation script was REPAIRED this session — the Management-API PATCH/PUT secrets endpoints 404 and GET returns masked digests (AGENTS.md §11.1 #5–#6); it now probes live behavior and writes via the Supabase CLI. Idempotent re-run: 'nothing to add'.)
 - **Repositories:** AgentGithubUplaod (hub — EF code is correct; this is a LIVE CONFIG defect) + elimtiyaz-website (the blocked client)
 - **Platforms affected:** Website (production portal `https://elimtiyaz-website.vercel.app`); desktop unaffected (its EF calls originate from the Electron renderer's non-browser-CORS context — T-147's 19/19 live round-trip and the owner's paste show no CORS failure there)
 - **Task:** T-186 (29th session; owner-reported, urgent queue-jump — the follow-up to ACT-201's fix)
