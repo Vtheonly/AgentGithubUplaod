@@ -20,6 +20,17 @@
 
 ## Entries
 
+### 2026-09-05 — T-176 + T-177 — workflows + workflowRuns ports (T-047 #2a/#2b, migration 0071) — desktop workflow state goes server-side
+
+- **Problem IDs:** ARCH-001 (two of the 23 mock-backed slots; closes the T-160-verified cross-platform drift "Android pull-syncs `workflow_runs` while desktop's workflow slots were mock")
+- **What changed:** migration **0071** (`workflows.last_deployed_at` timestamptz, additive + registration row embedded, apply script `scripts/apply_0071_live.sh` ready); NEW `SupabaseWorkflowRepository` (full CRUD + deploy + the CANONICAL execute path through the `workflow-execute` EF — ADR-002 keeps cycle detection, daily cap, node execution, runs rows and audit server-side; Kahn cycle check on canvas save — VAULT §10.09; deterministic WF-code slug per ADR-003 with 23505 collision retry; RESTRICT-delete surfaced as Conflict; deployed↔published status mapping; edges from/to↔source/target dag_definition mapping); NEW `SupabaseWorkflowRunRepository` (read-only reactive views over `workflow_runs` with the `workflows(name)` embed; retryRun re-executes via the canonical EF path; documented lossy read folds pending→running, cancelled→failed, trigger enum→coarse union); both wired into `getSupabaseRepositories()`.
+- **Why:** pre-T-176 the desktop authored workflow definitions and manual executions in MEMORY only (wiped on restart) while Android pull-syncs `workflow_runs` — the platforms showed different execution histories and desktop definitions never reached the server. The run repository consumed by workflow-page.tsx now reads the EF-written rows (the same ones Android pulls).
+- **Affected components:** desktop infrastructure layer + wiring; migration chain 67→68 files (0001–0071); NO EF changes (workflow-execute already deployed and canonical); website untouched (parents have no workflow surface).
+- **Tests:** NEW suite `src/tests/infrastructure/supabase-workflow-repositories.test.ts` **13/13** (mapping round-trips, cycle rejection, RESTRICT conflict, deterministic code + collision retry, EF execute + run read-back, folds, embed resolution, retry path, refresh-after-write, wiring source-scan, cross-repo mapper parity); FULL suite **86 files / 2371 / 0**; `tsc --noEmit` clean; lint 0 errors; append-only chain guard OK (68 files, +1 vs origin).
+- **Verification:** local chain integrity + suites above. **Live application of 0071 is owner-token-gated this session** (the sbp_ access token was not re-supplied after the context handoff): run `SUPABASE_ACCESS_TOKEN=… bash scripts/apply_0071_live.sh` (atomic DDL+registration) then `supabase db query --linked < scripts/verify_t-176.sql` (C1–C7: chain 68 + 0071 registered, column types, status/trigger CHECKs, RLS, 0-row tables, EF write-shape compatibility). Both tables are 0-row live — no data risk.
+- **Commit:** (this commit)
+- **Notes:** execute() reads the full run row back from the table instead of trusting the EF summary (node_results live server-side); the EF summary fallback only fires if the read fails. Precedent check done: the 24th session also landed paired ports in one commit (T-148+T-150) — same atomic-wiring rationale.
+
 ### 2026-09-05 — T-184 — URGENT owner queue-jump — "the activation code is not working" — website `/undefined/` EF URL 404 (ACT-201) + desktop structured-error surfacing (ACT-202)
 
 - **Problem IDs:** ACT-201 (NEW, Critical), ACT-202 (NEW, Medium)

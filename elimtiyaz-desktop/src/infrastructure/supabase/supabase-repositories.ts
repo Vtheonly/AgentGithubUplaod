@@ -55,6 +55,8 @@ import { SupabaseOverdueAlertGenerator } from "./repositories/supabase-overdue-a
 import { SupabaseExpenseRepository } from "./repositories/supabase-expense-repository";
 import { SupabaseChatRepository } from "./repositories/supabase-chat-repository";
 import { SupabaseCalendarRepository } from "./repositories/supabase-calendar-repository";
+import { SupabaseWorkflowRepository } from "./repositories/supabase-workflow-repository";
+import { SupabaseWorkflowRunRepository } from "./repositories/supabase-workflow-run-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -179,6 +181,18 @@ export function getSupabaseRepositories(): Repositories {
   // with a verified live cross-platform read today).
   const calendar = new SupabaseCalendarRepository(client);
 
+  // T-176/T-177 (2026-09-05, T-047 ports #2a/#2b): wire the Supabase-backed
+  // workflow + workflow-run repositories onto workflows / workflow_runs
+  // (migration 0012 + 0071). BEFORE this, both slots stayed on
+  // mockRepositories even in Supabase mode — desktop-authored workflow
+  // definitions and manual executions lived in memory only (wiped on
+  // restart) while ANDROID pull-syncs workflow_runs (PullSyncRepository):
+  // the two platforms showed different execution histories. execute() now
+  // goes through the canonical workflow-execute EF (ADR-002 — cycle
+  // detection, daily cap and the runs row all happen server-side).
+  const workflows = new SupabaseWorkflowRepository(client);
+  const workflowRuns = new SupabaseWorkflowRunRepository(client, workflows);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -208,6 +222,8 @@ export function getSupabaseRepositories(): Repositories {
     expenses, // T-093 — expense tickets on the canonical expense_tickets table
     chat, // T-099 — chat on chat_channels/chat_messages (CHAT-105 dead)
     calendar, // T-175 — calendar on calendar_events (T-047 port #1)
+    workflows, // T-176 — workflows on the workflows table (T-047 port #2a)
+    workflowRuns, // T-177 — workflow_runs + canonical execute EF (T-047 port #2b)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
