@@ -4091,12 +4091,12 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### UI-302 — Page header rows (`flex items-center justify-between gap-3` + action buttons) never wrap: 39–163px horizontal overflow at 320px on 4 surfaces
 
-- **Category:** UI  |  **Severity:** Medium  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Category:** UI  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-06, 31st session — T-201: flex-wrap + gap-y + min-w-0 applied to all four instances; live DOM re-measure 0px document overflow at 320px on finance/academic/notifications/profile [was 163/77/39/42]; suite t-201 5/5; full website suite 33 files / 507 / 0; lint clean; strict build green)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website mobile ≤360px (screens ≤390px are ~35% of Algerian parent traffic per the mobile-first design note; the portal targets exactly this class)
 - **Discovered:** live DOM measurement at 320px — document overflow: finance 163px (`Paiements & Factures` h1 + `Générer un relevé` Button + StudentSwitcherDropdown), academic 77px (`Scolarité` + `Bulletin` Button + switcher), notifications 39px (`Notifications` + `Tout marquer comme lu` Button), profile 42px (StudentDocumentsCard `CardTitle` "Documents" + `Téléverser` Button — same justify-between pattern inside the title element).
 - **Root cause:** a single shared pattern — non-wrapping header flex rows whose action cluster (Button + dropdown) has a combined min-content width wider than a 320px viewport minus padding (288px). No `flex-wrap`, no `min-w-0` on the title.
-- **Proposed resolution:** T-201 — one fix class applied to the four instances: `flex-wrap` + `min-w-0` so the actions stack below the title at narrow widths (and `gap-y` so the stacked state looks intentional).
+- **Proposed resolution:** DONE (T-201) — one fix class on the four measured instances (financial-view, academic-view, notifications-view, student-documents-card): `flex flex-wrap items-center justify-between gap-x-3 gap-y-2` + `min-w-0` titles; the action clusters themselves wrap (`flex-wrap` on the inner div too). Pinned per-file by t-201-header-wrap.test.ts (scoped to the measured offenders, not a whole-src heuristic).
 
 ### UI-303 — Financial 5-tab TabsList clips its labels at ≤360px (whitespace-nowrap + equal 1fr cells)
 

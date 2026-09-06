@@ -2030,7 +2030,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Dependencies:** none (T-199's harness is reused for verification) · **Affected:** elimtiyaz-website (src/features/shared/kpi-card.tsx)
 - **Plan:** responsive value sizing + `break-words` on the value element; formatter untouched (parity); regression test pinning the class contract; re-measure finance view at 320/375/1280.
 
-### T-201 — Website: non-wrapping page header rows (UI-302) — **READY**
+### T-201 — Website: non-wrapping page header rows (UI-302) — **Completed (TESTED)**
 - **Problems:** UI-302 (Medium) · **Priority:** P1 · **Severity:** Medium
 - **Dependencies:** none · **Affected:** financial-view.tsx, academic-view.tsx, notifications-view.tsx, student-documents-card.tsx (one defect family, one fix class)
 - **Plan:** `flex-wrap` + `min-w-0` + `gap-y` on the four instances; re-measure at 320; regression source-scan for the vulnerable pattern in these views.
