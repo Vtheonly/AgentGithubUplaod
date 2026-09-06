@@ -40,15 +40,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Repository root (…/elimtiyaz-desktop) — this file lives in src/tests/security/. */
 const DESKTOP_ROOT = join(__dirname, "..", "..", "..");
 
-const WORKFLOW_EF = "supabase/functions/workflow-execute/index.ts";
 const APPROVE_EF = "supabase/functions/approve-signup-request/index.ts";
 const SHARED = "supabase/functions/_shared/send-email.ts";
+// T-225 (34th session): the workflow-execute send_email wiring moved from
+// index.ts into the action-executor module (actions.ts) — the guard reads
+// BOTH files so the pinned invariants keep covering the wiring wherever
+// it lives.
+const WORKFLOW_EF = "supabase/functions/workflow-execute/index.ts";
+const WORKFLOW_ACTIONS = "supabase/functions/workflow-execute/actions.ts";
 
 const PRODUCTION_PORTAL = "https://elimtiyaz-website.vercel.app";
 const DEAD_PORTAL = "portal.elimtiyaz.dz";
 
 function source(rel: string): string {
   return readFileSync(join(DESKTOP_ROOT, rel), "utf8");
+}
+
+function workflowSource(): string {
+  return source(WORKFLOW_EF) + "\n" + source(WORKFLOW_ACTIONS);
 }
 
 /** List every *.ts under functions/ that mentions the Resend endpoint. */
@@ -185,7 +194,7 @@ describe("PUSH-104 — source scans", () => {
   });
 
   it("workflow-execute: imports the shared helper and the send_email STUB is gone", () => {
-    const ef = source(WORKFLOW_EF);
+    const ef = workflowSource();
     expect(ef).toContain('from "../_shared/send-email.ts"');
     expect(ef).not.toContain("STUB send_email");
     expect(ef).not.toContain('output: { stub: true, to, subject, provider: "resend" }');
@@ -194,7 +203,7 @@ describe("PUSH-104 — source scans", () => {
   });
 
   it("workflow-execute: the send_email action resolves its config through the shared helper and records honest outcomes", () => {
-    const ef = source(WORKFLOW_EF);
+    const ef = workflowSource();
     // The action must resolve env config and call the shared sender.
     expect(ef).toMatch(/resolveEmailConfig/);
     expect(ef).toMatch(/sendEmailWithResend|sendEmailFromEnv/);

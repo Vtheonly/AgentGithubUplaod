@@ -195,7 +195,16 @@ async function pushNotification(
   // 1) PARENT-targeted in-app notification — the canonical 0077 RPC
   //    (resolves parents.auth_user_id → user_profiles server-side, writes
   //    the notifications row the parent can actually SEE under RLS).
+  //    SCHEDULER context (no caller JWT — T-228 resumed runs): the RPC's
+  //    tenant/staff gates resolve from auth.uid(), which the service role
+  //    lacks; the service-role writer below replicates the RPC's
+  //    invariants verbatim (parent exists in tenant, linked ACTIVE portal
+  //    account, undeliverable → honest NULL) — the same authority the
+  //    service role already holds server-side, NOT an RLS weakening.
   if (!explicitTarget && !staffRoleTarget && parentId) {
+    if (!run.callerJwt || run.callerJwt.trim() === "") {
+      return deliverParentNotificationServiceRole(supabase, parentId, { title, body, priority, kind, sourceLabel }, run);
+    }
     if (run.dryRun) {
       return ok({ simulated: true, parent_id: parentId, title }, `SIMULATED parent in-app notification (notify_parent_user) parent=${parentId}`);
     }
@@ -368,6 +377,78 @@ async function extractField(
   return ok(
     { extracted: value, field, found: true },
     `extract_field '${field}' → ${typeof value}`,
+  );
+}
+
+/**
+ * Service-role parent-notification writer (scheduler context only).
+ *
+ * Mirrors public.notify_parent_user (0077) invariant-for-invariant:
+ *   parent must exist + belong to the tenant; auth_user_id must resolve
+ * to an ACTIVE user_profiles row (else undeliverable — honest null, no
+ * fake dispatch); the notification row targets THAT profile so the
+ * parent sees it under notifications_select.
+ * Used ONLY when no staff JWT exists (workflow-resume-scheduler runs);
+ * user-triggered runs keep the canonical RPC path.
+ */
+async function deliverParentNotificationServiceRole(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  parentId: string,
+  cfg: { title: string; body: string | undefined; priority: string; kind: string; sourceLabel: string },
+  run: ActionRunContext,
+): Promise<EngineActionOutcome> {
+  const { data: parent, error: pErr } = await supabase
+    .from("parents")
+    .select("id, auth_user_id, tenant_id, deleted_at")
+    .eq("id", parentId)
+    .eq("tenant_id", run.tenantId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (pErr) return fail(`parent lookup failed: ${pErr.message}`);
+  if (!parent) {
+    return skippedByDesign("push_notification", `parent ${parentId} not found in tenant — nothing delivered`);
+  }
+  if (!parent.auth_user_id) {
+    return ok(
+      { sent: 0, undeliverable: 1, parent_id: parentId, reason: "parent has no linked portal account" },
+      `parent in-app notification UNDELIVERABLE (no portal account) parent=${parentId} [scheduler context]`,
+    );
+  }
+  const { data: profile, error: profErr } = await supabase
+    .from("user_profiles")
+    .select("id, status")
+    .eq("auth_user_id", parent.auth_user_id)
+    .limit(1);
+  const active = (profile ?? []).find((p: { status?: string }) => p.status === "active");
+  if (profErr || !active) {
+    return ok(
+      { sent: 0, undeliverable: 1, parent_id: parentId, reason: "parent portal account not active" },
+      `parent in-app notification UNDELIVERABLE (inactive/no profile) parent=${parentId} [scheduler context]`,
+    );
+  }
+  const { data: notif, error: insErr } = await supabase
+    .from("notifications")
+    .insert({
+      tenant_id: run.tenantId,
+      kind: cfg.kind,
+      title: cfg.title,
+      body: cfg.body ?? null,
+      priority: cfg.priority,
+      source: "system",
+      source_label: cfg.sourceLabel,
+      target_user_id: active.id,
+      target_role: null,
+      triggered_at: new Date().toISOString(),
+      link_entity_type: "workflow_run",
+      link_entity_id: null,
+      created_by: null,
+    })
+    .select("id")
+    .single();
+  if (insErr) return fail(`notification insert failed: ${insErr.message}`);
+  return ok(
+    { sent: 1, recipients: 1, parent_id: parentId, notification_id: notif?.id, channel: "in_app", context: "scheduler" },
+    `parent in-app notification sent (service-role writer, 0077 invariants) parent=${parentId}`,
   );
 }
 

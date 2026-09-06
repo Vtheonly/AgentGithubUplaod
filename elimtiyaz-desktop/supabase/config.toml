@@ -125,6 +125,12 @@ verify_jwt = true
 [functions.workflow-execute]
 verify_jwt = true
 
+[functions.workflow-resume-scheduler]
+verify_jwt = false
+# T-228: resumes workflow runs parked at wait_duration nodes. Every 10
+# minutes; a parked run resumes within ~10 minutes of its resume_after.
+cron = "*/10 * * * *"
+
 [functions.generate-receipt-pdf]
 verify_jwt = true
 

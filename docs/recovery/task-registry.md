@@ -2200,7 +2200,7 @@ Opening ritual (live, sbp_ token): migration chain 77/77 = 0001–0080 ZERO DRIF
 - **Plan:** build the ConditionContext from REAL data for the triggered entity (body parent_id/student_id/installment_id): parent financials via the canonical compute_parent_summary RPC (outstanding/overdue/flags), student status + absence counts from attendance_records (absent_unexcused), latest payment method/status, oldest-overdue days; merge node.config._context overrides (desktop parity); conditions then evaluate against real values (debt_over_threshold etc. no longer read _stub_*).
 - **Status:** In Progress
 
-### T-228 — Backend: persistent delay/resume (workflow_pending_resumes + scheduler EF) — **In Progress**
+### T-228 — Backend: persistent delay/resume (workflow_pending_resumes + scheduler EF) — **Completed (TESTED, live-verified multi-hop + duplicate protection)**
 - **Problems:** DAG-100 (delay not persistent/resumable) · **Priority:** P1
 - **Dependencies:** T-223 (table), T-225 (engine) · **Affected:** hub (EF workflow-execute + NEW workflow-resume-scheduler EF + config.toml)
 - **Plan:** wait_duration > inline cap (10s) parks the run: status stays 'running', a workflow_pending_resumes row (run, node, resume_after, serialized engine state) is written, the EF returns the pause honestly; NEW workflow-resume-scheduler EF (CRON_SECRET/service-role auth, cron +10min) claims due rows (atomic UPDATE...WHERE status='pending' → 'claimed', the unique index blocks double-claims), re-enters the engine at the parked node, runs to completion or parks again; execution state survives process death (it is a row, not memory); inline waits ≤10s still supported for short delays.
