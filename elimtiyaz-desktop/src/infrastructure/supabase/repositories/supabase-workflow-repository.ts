@@ -65,6 +65,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   WorkflowRun,
+  WorkflowServerDryRun,
   WorkflowTriggerType,
 } from "../../../domain/model/workflow";
 import { detectCycle } from "../../../domain/kahn";
@@ -399,10 +400,70 @@ export class SupabaseWorkflowRepository implements WorkflowRepository {
     });
   }
 
+  /**
+   * T-230: server dry-run — the canonical EF dry_run mode (real entity
+   * context, simulated actions, zero side effects, NO workflow_runs row;
+   * the T-229 live matrix proved prediction parity with real runs).
+   */
+  async dryRun(
+    id: string,
+    entity?: { parentId?: string; studentId?: string },
+  ): Promise<Result<WorkflowServerDryRun>> {
+    const { data, error } = await this.client.functions.invoke("workflow-execute", {
+      body: {
+        workflow_id: id,
+        dry_run: true,
+        ...(entity?.parentId ? { parent_id: entity.parentId } : {}),
+        ...(entity?.studentId ? { student_id: entity.studentId } : {}),
+      },
+    });
+    const payload = (data ?? null) as
+      | {
+          dry_run?: boolean;
+          status?: string;
+          error?: string | null;
+          node_results?: Array<Record<string, unknown>>;
+          taken_edge_keys?: string[];
+          warnings?: string[];
+        }
+      | { code?: string; message?: string }
+      | null;
+    if (error || !payload || ("code" in (payload as object) && (payload as { code?: string }).code)) {
+      const message =
+        ("message" in (payload as object) && (payload as { message?: string }).message) ||
+        error?.message ||
+        "workflow-execute dry-run failed";
+      return Err(Errors.conflict(message));
+    }
+    const p = payload as {
+      dry_run?: boolean;
+      status?: string;
+      error?: string | null;
+      node_results?: Array<Record<string, unknown>>;
+      taken_edge_keys?: string[];
+      warnings?: string[];
+    };
+    return Ok({
+      workflowId: id,
+      status: (p.status === "failed" || p.status === "timeout" ? p.status : "succeeded") as WorkflowServerDryRun["status"],
+      nodeOutcomes: (p.node_results ?? []).map((nr) => ({
+        nodeId: String(nr["node_id"] ?? ""),
+        nodeLabel: String(nr["node_label"] ?? nr["node_id"] ?? ""),
+        status: (nr["status"] ?? "skipped") as "skipped" | "running" | "succeeded" | "failed" | "timeout",
+        startedAt: String(nr["started_at"] ?? new Date().toISOString()),
+        completedAt: (nr["completed_at"] ?? null) as string | null,
+        output: nr["output"] !== undefined ? JSON.stringify(nr["output"]) : undefined,
+        error: (nr["error"] ?? undefined) as string | undefined,
+      })),
+      takenEdgeKeys: p.taken_edge_keys ?? [],
+      warnings: p.warnings ?? [],
+      ...(p.error ? { error: String(p.error) } : {}),
+    });
+  }
+
   // --------------------------------------------------------------------------
   // Internals
   // --------------------------------------------------------------------------
-
   private seed(): void {
     if (!this.freshness.shouldReseed()) return;
     this.freshness.markSeeded();

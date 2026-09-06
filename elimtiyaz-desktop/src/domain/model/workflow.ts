@@ -106,6 +106,20 @@ export interface WorkflowNodeResult {
   readonly error?: string;
 }
 
+/**
+ * T-230: a SERVER dry-run invocation outcome (the workflow-execute EF's
+ * dry_run mode: real entity context, real condition evaluation, simulated
+ * actions, zero side effects, no workflow_runs row).
+ */
+export interface WorkflowServerDryRun {
+  readonly workflowId: string;
+  readonly status: "succeeded" | "failed" | "timeout";
+  readonly nodeOutcomes: readonly WorkflowNodeResult[];
+  readonly takenEdgeKeys: readonly string[];
+  readonly warnings: readonly string[];
+  readonly error?: string;
+}
+
 export interface WorkflowRun {
   readonly id: string;
   readonly tenantId: string;

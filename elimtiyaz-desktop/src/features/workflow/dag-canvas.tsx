@@ -43,6 +43,8 @@ import {
   XCircle,
   Settings2,
   Map as MapIcon,
+  Cloud,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "../../shared/ui/cn";
@@ -54,6 +56,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../shared/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../shared/ui/select";
 import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { detectCycle } from "../../domain/kahn";
 import { dryRunWorkflow } from "../../domain/calc/workflow/dry-run";
@@ -101,6 +110,25 @@ export interface DagCanvasProps {
   canEdit: boolean;
   /** T-221: open the node inspector for this node (double-click / menu). */
   onInspectNode: (node: WorkflowNode) => void;
+  /**
+   * T-230: manual execution through the canonical EF path. Provided only
+   * for PUBLISHED workflows (the page gates it); the button is hidden
+   * otherwise.
+   */
+  onExecute?: () => Promise<void>;
+  /** T-230: server dry-run (the EF's dry_run mode, real entity context). */
+  onServerDryRun?: (parentId: string | null) => Promise<ServerDryRunOutcome | null>;
+  /** T-230: pickable entities for the server dry-run. */
+  serverDryRunEntities?: readonly { id: string; label: string }[];
+}
+
+/** T-230: the page-level server dry-run outcome (mapped by the page). */
+export interface ServerDryRunOutcome {
+  status: "succeeded" | "failed" | "timeout";
+  nodeOutcomes: readonly { nodeId: string; status: "succeeded" | "failed" | "skipped"; output?: string; error?: string }[];
+  takenEdgeKeys: readonly string[];
+  warnings: readonly string[];
+  error?: string;
 }
 
 interface DragState {
@@ -148,7 +176,17 @@ function snap(value: number): number {
   return Math.round(value / GRID) * GRID;
 }
 
-export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit, onInspectNode }: DagCanvasProps) {
+export function DagCanvas({
+  workflow,
+  onChange,
+  onSave,
+  onDeploy,
+  canEdit,
+  onInspectNode,
+  onExecute,
+  onServerDryRun,
+  serverDryRunEntities,
+}: DagCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [nodes, setNodes] = useState<WorkflowNode[]>([...workflow.nodes]);
   const [edges, setEdges] = useState<WorkflowEdge[]>([...workflow.edges]);
@@ -162,6 +200,11 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit, onIns
   // T-221 canvas state.
   const [view, setView] = useState<ViewState>({ zoom: 1, panX: 0, panY: 0 });
   const [dryRun, setDryRun] = useState<DryRunResult | null>(null);
+  // T-230: server dry-run (real entities) + manual execution state.
+  const [serverTesting, setServerTesting] = useState(false);
+  const [serverEntityId, setServerEntityId] = useState<string>("");
+  const [executing, setExecuting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [showMinimap, setShowMinimap] = useState(true);
 
   // Sync from parent workflow if the workflow id changes (selecting a different wf).
@@ -371,12 +414,64 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit, onIns
   /* --------------------- Dry-run simulator (T-221) --------------------- */
 
   function handleDryRun() {
+    setServerError(null);
     const result = dryRunWorkflow(nodes, edges, defaultConditionContext());
     setDryRun(result);
   }
 
+  /** T-230: server dry-run — the EF's dry_run mode against a REAL entity. */
+  async function handleServerDryRun() {
+    if (!onServerDryRun) return;
+    setServerTesting(true);
+    setServerError(null);
+    try {
+      const outcome = await onServerDryRun(serverEntityId || null);
+      if (!outcome) {
+        setServerError("La simulation serveur a échoué — voir la notification.");
+        return;
+      }
+      // Map the server outcome onto the canvas dry-run visualization.
+      const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
+      setDryRun({
+        ok: true,
+        results: outcome.nodeOutcomes.map((o) => {
+          const node = nodeById.get(o.nodeId);
+          return {
+            nodeId: o.nodeId,
+            nodeLabel: node?.label ?? o.nodeId,
+            subtype: node?.subtype ?? "manual_run",
+            type: node?.type ?? "action",
+            status: o.status,
+            output: [o.error ? `ERREUR : ${o.error}` : (o.output ?? ""), "(serveur — données réelles)"]
+              .filter(Boolean)
+              .join(" ")
+              .trim() || "Exécuté (serveur)",
+            warnings: [],
+          };
+        }),
+        takenEdgeKeys: outcome.takenEdgeKeys,
+        context: defaultConditionContext(),
+      });
+      if (outcome.error) setServerError(outcome.error);
+    } finally {
+      setServerTesting(false);
+    }
+  }
+
+  /** T-230: manual execution through the canonical EF path. */
+  async function handleExecute() {
+    if (!onExecute) return;
+    setExecuting(true);
+    setServerError(null);
+    try {
+      await onExecute();
+    } finally {
+      setExecuting(false);
+    }
+  }
+
   const dryRunNodeStatus = useMemo(() => {
-    const map = new Map<string, "succeeded" | "skipped">();
+    const map = new Map<string, "succeeded" | "skipped" | "failed">();
     if (dryRun) for (const r of dryRun.results) map.set(r.nodeId, r.status);
     return map;
   }, [dryRun]);
@@ -508,6 +603,32 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit, onIns
               <XCircle className="h-4 w-4" />
             </Button>
           )}
+          {/* T-230: server dry-run — real entities, simulated actions. */}
+          {onServerDryRun && (
+            <>
+              <span className="w-px h-5 bg-border mx-0.5" />
+              <Select value={serverEntityId} onValueChange={setServerEntityId}>
+                <SelectTrigger className="h-8 w-44" title="Entité de test (données réelles)">
+                  <SelectValue placeholder="Entité de test" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sans entité</SelectItem>
+                  {(serverDryRunEntities ?? []).map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleServerDryRun}
+                disabled={serverTesting || nodes.length === 0}
+                title="Test serveur : conditions réelles, actions simulées, aucun effet de bord"
+              >
+                <Cloud className="h-4 w-4" /> {serverTesting ? "Test serveur…" : "Test serveur"}
+              </Button>
+            </>
+          )}
           <span className="w-px h-5 bg-border mx-0.5" />
           {/* Persistence */}
           <Button size="sm" variant="outline" onClick={handleSave} disabled={!canEdit || saving}>
@@ -516,6 +637,12 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit, onIns
           <Button size="sm" onClick={() => setDeployOpen(true)} disabled={!canEdit || deploying}>
             <Rocket className="h-4 w-4" /> Déployer
           </Button>
+          {/* T-230: manual execution through the canonical EF path. */}
+          {onExecute && (
+            <Button size="sm" variant="outline" onClick={handleExecute} disabled={executing} title="Exécuter maintenant (serveur — exécution réelle)">
+              <Zap className="h-4 w-4" /> {executing ? "Exécution…" : "Exécuter"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -523,6 +650,12 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit, onIns
         <div className="flex items-start gap-2 border-b border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
           <span className="leading-snug">{cycleError}</span>
+        </div>
+      )}
+      {serverError && (
+        <div className="flex items-start gap-2 border-b border-status-warning/30 bg-status-warning/10 px-3 py-2 text-sm text-status-warning">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span className="leading-snug">{serverError}</span>
         </div>
       )}
 
@@ -699,7 +832,20 @@ export function DagCanvas({ workflow, onChange, onSave, onDeploy, canEdit, onIns
                       e.preventDefault();
                     }}
                   />
-                  {/* Dry-run status ring (T-221). */}
+                  {/* Dry-run status ring (T-221; failed variant T-230). */}
+                  {runStatus === "failed" && (
+                    <rect
+                      x={-3}
+                      y={-3}
+                      width={NODE_W + 6}
+                      height={NODE_H + 6}
+                      rx={13}
+                      ry={13}
+                      className="fill-none stroke-status-danger"
+                      strokeWidth={2}
+                      strokeDasharray="4 3"
+                    />
+                  )}
                   {runStatus === "succeeded" && (
                     <rect
                       width={NODE_W}

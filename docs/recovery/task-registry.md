@@ -2212,7 +2212,7 @@ Opening ritual (live, sbp_ token): migration chain 77/77 = 0001–0080 ZERO DRIF
 - **Plan:** body flag dry_run:true + optional entity ids → the engine runs with action handlers in SIMULATE mode (no notifications/emails/tasks/mutations — outputs record what WOULD happen), real entity context (T-227), conditions really evaluated, branch path + per-node outputs/errors returned; NO workflow_runs row (test runs never pollute the execution history); one write_audit_log entry (workflow.dry_run) keeps the test traceable; duplicate protection (daily cap does NOT consume on dry runs).
 - **Status:** In Progress
 
-### T-230 — Desktop: manual Execute button + server dry-run (Tester) + server validation surfacing — **In Progress**
+### T-230 — Desktop: manual Execute button + server dry-run (Tester) + server validation surfacing — **Completed (TESTED)**
 - **Problems:** DAG-100 (UX wiring to the real server path) · **Priority:** P1
 - **Dependencies:** T-225, T-229 · **Affected:** hub (features/workflow, domain repository contract, mock + supabase implementations)
 - **Plan:** editor toolbar "Exécuter" (published workflows only) → repos.workflows.execute → the canonical EF path (completes the manual trigger path — previously retry-on-existing-run only); Tester gains a Serveur mode with an entity picker (parents observable) invoking a NEW dryRun repository method (mock: local dry-run engine; supabase: the EF dry_run call) with the server-predicted path rendered on the canvas; server-side validation errors (publish gate) surfaced through the existing error path (supabaseErrorToAppError userMessage); i18n keys.

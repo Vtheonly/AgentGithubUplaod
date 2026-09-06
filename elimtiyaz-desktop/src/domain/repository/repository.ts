@@ -59,7 +59,7 @@ import type { PricingConfig, PricingEntry, PricingCategory, DiscountType, Discou
 import type { LedgerEntry, ParentLedgerSummary } from "../model/ledger";
 import type { GradeLevel } from "../model/student";
 import type { TransportDestination } from "../model/parent";
-import type { Workflow, WorkflowRun, WorkflowTriggerType } from "../model/workflow";
+import type { Workflow, WorkflowRun, WorkflowServerDryRun, WorkflowTriggerType } from "../model/workflow";
 import type { BackupArchive, BackupRestoreResult } from "../model/backup";
 import type { AIProviderConfig, AIProvider, AIRequest, AIResponse } from "../model/ai";
 import type { PromotionRepository } from "./academic-repository";
@@ -713,6 +713,15 @@ export interface WorkflowRepository {
   deploy(id: string, deployedBy: string): Promise<Result<Workflow>>;
   /** Execute a workflow manually (plan §10.06 — manual triggers). Returns the run record. */
   execute(id: string, actorId: string, actorName: string): Promise<Result<WorkflowRun>>;
+  /**
+   * T-230: server dry-run (the EF's dry_run mode — real entity context,
+   * simulated actions, zero side effects, no run row). Mock: the local
+   * dry-run engine; Supabase: the canonical EF call.
+   */
+  dryRun(
+    id: string,
+    entity?: { parentId?: string; studentId?: string },
+  ): Promise<Result<WorkflowServerDryRun>>;
 }
 
 /**

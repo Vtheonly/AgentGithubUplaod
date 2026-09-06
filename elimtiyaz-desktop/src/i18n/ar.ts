@@ -216,6 +216,7 @@ export const ar = {
     saved: "تم حفظ سير العمل",
     cycleDetected: "تم اكتشاف دورة — لا يمكن الحفظ",
     deployed: "تم نشر سير العمل",
+    execute: "تنفيذ",
     executed: "تم تنفيذ سير العمل",
     retried: "تم إطلاق تنفيذ جديد",
     status: {

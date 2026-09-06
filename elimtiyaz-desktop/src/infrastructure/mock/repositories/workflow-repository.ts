@@ -29,6 +29,7 @@ import {
   defaultConditionContext,
 } from "../../../domain/calc/workflow/condition-evaluator";
 import { dryRunWorkflow } from "../../../domain/calc/workflow/dry-run";
+import type { WorkflowServerDryRun } from "../../../domain/model/workflow";
 
 export class MockWorkflowRepository implements WorkflowRepository {
   observe(): Observable<Workflow[]> {
@@ -337,6 +338,34 @@ export class MockWorkflowRepository implements WorkflowRepository {
       note: `Exécution manuelle du workflow ${wf.name}`,
     });
     return Ok(run);
+  }
+
+  /** T-230: local dry-run engine mapped to the server-dry-run contract. */
+  async dryRun(
+    id: string,
+    _entity?: { parentId?: string; studentId?: string },
+  ): Promise<Result<WorkflowServerDryRun>> {
+    await delay(80);
+    const wf = store.workflows.find((w) => w.id === id);
+    if (!wf) return Err(Errors.notFound("Workflow", id));
+    const simulation = dryRunWorkflow(wf.nodes, wf.edges, defaultConditionContext());
+    if (!simulation.ok) {
+      return Err(Errors.validation("Workflow graph is invalid", simulation.error ?? "Graphe invalide."));
+    }
+    return Ok({
+      workflowId: id,
+      status: "succeeded",
+      nodeOutcomes: simulation.results.map((r) => ({
+        nodeId: r.nodeId,
+        nodeLabel: r.nodeLabel,
+        status: r.status,
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        output: [r.output, ...r.warnings].join(" ").trim() || undefined,
+      })),
+      takenEdgeKeys: simulation.takenEdgeKeys,
+      warnings: simulation.results.flatMap((r) => [...r.warnings]),
+    });
   }
 }
 

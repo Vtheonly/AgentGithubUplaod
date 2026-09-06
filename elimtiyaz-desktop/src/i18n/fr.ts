@@ -213,6 +213,7 @@ export const fr = {
     saved: "Workflow enregistré",
     cycleDetected: "Cycle détecté — impossible de sauvegarder",
     deployed: "Workflow déployé",
+    execute: "Exécuter",
     executed: "Workflow exécuté",
     retried: "Nouvelle exécution lancée",
     status: {

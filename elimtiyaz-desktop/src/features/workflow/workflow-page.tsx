@@ -128,6 +128,43 @@ function EditorTab() {
 
   const selected = workflows.find((w) => w.id === selectedId) ?? null;
   const canEdit = !!session && session.permissions.has(Permission.ManageWorkflows);
+  // T-230: real entities for the server dry-run picker (top parents by
+  // creation — the same observable the financials module reads).
+  const parents = useObservable(() => repos.parents.observe(), []);
+
+  /** T-230: manual execution through the canonical EF path (published only). */
+  async function handleExecute() {
+    if (!selected || !session) return;
+    const r = await repos.workflows.execute(selected.id, session.userId, session.displayName);
+    if (r.ok) toast.showSuccess(t("workflow.execute"), t("workflow.executed"));
+    else toast.showError("Échec", r.error.userMessage);
+  }
+
+  /** T-230: server dry-run (the EF's dry_run mode — real entity context,
+   *  simulated actions, zero side effects). Maps onto the canvas view. */
+  async function handleServerDryRun(parentId: string | null) {
+    if (!selected) return null;
+    const r = await repos.workflows.dryRun(
+      selected.id,
+      parentId && parentId !== "none" ? { parentId } : undefined,
+    );
+    if (!r.ok) {
+      toast.showError("Échec de la simulation serveur", r.error.userMessage);
+      return null;
+    }
+    return {
+      status: r.value.status,
+      nodeOutcomes: r.value.nodeOutcomes.map((o) => ({
+        nodeId: o.nodeId,
+        status: o.status === "timeout" ? "failed" as const : o.status === "running" ? "succeeded" as const : o.status,
+        output: o.output,
+        error: o.error,
+      })),
+      takenEdgeKeys: r.value.takenEdgeKeys,
+      warnings: r.value.warnings,
+      error: r.value.error,
+    };
+  }
 
   async function handleSave(nodes: WorkflowNode[], edges: WorkflowEdge[]) {
     if (!selected || !session) return;
@@ -239,6 +276,12 @@ function EditorTab() {
                 onDeploy={handleDeploy}
                 canEdit={canEdit}
                 onInspectNode={(node) => setInspectNodeId(node.id)}
+                onExecute={selected.status === "deployed" ? handleExecute : undefined}
+                onServerDryRun={selected.status === "deployed" ? handleServerDryRun : undefined}
+                serverDryRunEntities={parents.slice(0, 50).map((p) => ({
+                  id: p.id,
+                  label: p.displayName || `${p.firstName} ${p.lastName}`.trim() || p.id,
+                }))}
               />
             </div>
             <NodePalette onAddNode={handleAddNode} disabled={!canEdit} />

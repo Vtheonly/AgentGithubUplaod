@@ -42,8 +42,12 @@ export interface DryRunNodeResult {
   readonly nodeLabel: string;
   readonly subtype: WorkflowNodeSubtype;
   readonly type: WorkflowNodeType;
-  /** `succeeded` = executed; `skipped` = branch not taken / unreachable. */
-  readonly status: "succeeded" | "skipped";
+  /**
+   * `succeeded` = executed; `skipped` = branch not taken / unreachable.
+   * `failed` = a real server-side failure (T-230: the server dry-run maps
+   * the EF's failed nodes here; the LOCAL simulator never emits it).
+   */
+  readonly status: "succeeded" | "skipped" | "failed";
   /** Human-readable summary of what the node did (or why it was skipped). */
   readonly output: string;
   /** Vault §10.05 warnings (missing fields, non-numeric comparisons…). */
