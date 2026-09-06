@@ -2051,7 +2051,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Plan:** chain drift check 76/76 (done at session open — re-verify at close), EF fleet status matrix (14 EFs ACTIVE), ALLOWED_ORIGINS live preflight probes (4 canonical origins), dual-key format health probes (ADR-009), REST/RWS health. Record in docs/recovery/t-204-live-verification.md + change-log.
 - **Verification criteria:** all probes green with recorded evidence; any drift found → registered + fixed same-session.
 
-### T-205 — Cross-platform responsive-parity scan (desktop + Android) for the UI-300…303 defect families — **READY**
+### T-205 — Cross-platform responsive-parity scan (desktop + Android) for the UI-300…303 defect families — **Completed (TESTED)**
 - **Problems:** UI-300/301/302/303 cross-platform rule §10 follow-up · **Priority:** P2
 - **Dependencies:** T-199..T-202 patterns known · **Affected:** hub (elimtiyaz-desktop React views), elimtiyaz-android (Compose layouts)
 - **Plan:** scan the desktop views for the same defect families (bare `grid gap-*` without base cols; unbreakable KPI values; non-wrapping header rows; tab bars clipping); scan Android for equivalents (Row + Text without weight/overflow). Fix trivially-safe same-family desktop defects; register Android findings as divergences/defects (no Android UI changes without the toolchain-verified build — scope control).
