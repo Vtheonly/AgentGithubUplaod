@@ -3,7 +3,10 @@
  *
  * Two tabs (PageTabs):
  *   - Éditeur (variant="elevated", icon=Workflow): list of workflows on the
- *     left + DagCanvas + NodePalette on the right.
+ *     left + DagCanvas + NodePalette on the right. T-221: double-click (or
+ *     the node menu → Configurer) opens the NodeInspectorDrawer; "Nouveau"
+ *     offers the pre-built educational templates (one-click recipes) or a
+ *     blank draft.
  *   - Exécutions (icon=Activity): filterable list of WorkflowRuns. Click a
  *     row → opens UnifiedModal variant="drawer" with full run detail.
  *
@@ -19,6 +22,8 @@ import {
   Filter as FilterIcon,
   Send,
   RefreshCw,
+  LayoutTemplate,
+  FilePlus2,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -59,8 +64,14 @@ import {
   type WorkflowEdge,
   type WorkflowNodeType,
 } from "../../domain/model/workflow";
+import {
+  WORKFLOW_TEMPLATES,
+  instantiateTemplate,
+  templateIsValid,
+} from "../../domain/calc/workflow/templates";
 import { DagCanvas, makeNode } from "./dag-canvas";
 import { NodePalette } from "./node-palette";
+import { NodeInspectorDrawer } from "./node-inspector-drawer";
 import { WorkflowRunDetailDrawer } from "./workflow-run-detail-drawer";
 
 const RUN_STATUS_TONE: Record<WorkflowRunStatus, "success" | "danger" | "warning" | "info"> = {
@@ -112,6 +123,8 @@ function EditorTab() {
   const workflows = useObservable(() => repos.workflows.observe(), []);
   const [selectedId, setSelectedId] = useState<string | null>(workflows[0]?.id ?? null);
   const [newOpen, setNewOpen] = useState(false);
+  // T-221: node inspector state (opened by the canvas's double-click / menu).
+  const [inspectNodeId, setInspectNodeId] = useState<string | null>(null);
 
   const selected = workflows.find((w) => w.id === selectedId) ?? null;
   const canEdit = !!session && session.permissions.has(Permission.ManageWorkflows);
@@ -130,7 +143,7 @@ function EditorTab() {
     else toast.showError("Échec", r.error.userMessage);
   }
 
-  function handleAddNode(subtype: WorkflowNodeSubtype, type: WorkflowNodeType) {
+  async function handleAddNode(subtype: WorkflowNodeSubtype, type: WorkflowNodeType) {
     if (!selected || !session) return;
     const newNode = makeNode(subtype, type, selected.nodes);
     void repos.workflows.updateWorkflow(
@@ -138,6 +151,35 @@ function EditorTab() {
       { nodes: [...selected.nodes, newNode] },
       session.userId,
     );
+  }
+
+  /** T-221: persist a node's edited label + config from the inspector. */
+  async function handleInspectSave(
+    nodeId: string,
+    label: string,
+    config: Readonly<Record<string, unknown>>,
+  ) {
+    if (!selected || !session) return;
+    const nextNodes = selected.nodes.map((n) =>
+      n.id === nodeId ? { ...n, label, config } : n,
+    );
+    const r = await repos.workflows.updateWorkflow(selected.id, { nodes: nextNodes }, session.userId);
+    if (r.ok) toast.showSuccess("Nœud configuré", `${label} — paramètres enregistrés.`);
+    else toast.showError("Échec", r.error.userMessage);
+  }
+
+  /** T-221: delete from the inspector (mirrors the canvas menu delete). */
+  async function handleInspectDelete(nodeId: string) {
+    if (!selected || !session) return;
+    const nextNodes = selected.nodes.filter((n) => n.id !== nodeId);
+    const nextEdges = selected.edges.filter((e) => e.from !== nodeId && e.to !== nodeId);
+    const r = await repos.workflows.updateWorkflow(
+      selected.id,
+      { nodes: nextNodes, edges: nextEdges },
+      session.userId,
+    );
+    if (r.ok) toast.showWarning("Nœud supprimé", "Les liens attachés ont été retirés.");
+    else toast.showError("Échec", r.error.userMessage);
   }
 
   return (
@@ -196,6 +238,7 @@ function EditorTab() {
                 onSave={handleSave}
                 onDeploy={handleDeploy}
                 canEdit={canEdit}
+                onInspectNode={(node) => setInspectNodeId(node.id)}
               />
             </div>
             <NodePalette onAddNode={handleAddNode} disabled={!canEdit} />
@@ -210,12 +253,24 @@ function EditorTab() {
       </div>
 
       <NewWorkflowModal open={newOpen} onOpenChange={setNewOpen} onCreated={(id) => setSelectedId(id)} />
+
+      {/* T-221: node inspector drawer */}
+      <NodeInspectorDrawer
+        node={selected?.nodes.find((n) => n.id === inspectNodeId) ?? null}
+        allNodes={selected?.nodes ?? []}
+        edges={selected?.edges ?? []}
+        open={inspectNodeId !== null}
+        onOpenChange={(o) => !o && setInspectNodeId(null)}
+        onSave={handleInspectSave}
+        onDelete={handleInspectDelete}
+        canEdit={canEdit}
+      />
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  New Workflow modal                                                 */
+/*  New Workflow modal (T-221: blank draft OR one-click template)       */
 /* ------------------------------------------------------------------ */
 
 function NewWorkflowModal({
@@ -234,12 +289,18 @@ function NewWorkflowModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [triggerType, setTriggerType] = useState<WorkflowTriggerType>("manual");
+  // T-221: `null` = blank draft; otherwise the chosen template id.
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [alert, setAlert] = useState<{ tone: "warning" | "error"; title: string; description?: string } | null>(null);
+
+  const template = WORKFLOW_TEMPLATES.find((tpl) => tpl.id === templateId) ?? null;
 
   function reset() {
     setName("");
     setDescription("");
     setTriggerType("manual");
+    setTemplateId(null);
     setAlert(null);
   }
 
@@ -249,19 +310,40 @@ function NewWorkflowModal({
       setAlert({ tone: "warning", title: "Nom requis", description: "Donnez un nom au workflow." });
       return;
     }
-    const r = await repos.workflows.createWorkflow({
-      name: name.trim(),
-      description: description.trim(),
-      triggerType,
-      createdBy: session.userId,
-    });
-    if (r.ok) {
-      toast.showSuccess("Workflow créé", `${r.value.name} — brouillon prêt à éditer.`);
+    setCreating(true);
+    try {
+      const r = await repos.workflows.createWorkflow({
+        name: name.trim(),
+        description: description.trim(),
+        triggerType: template ? template.triggerType : triggerType,
+        createdBy: session.userId,
+      });
+      if (!r.ok) {
+        setAlert({ tone: "error", title: "Échec", description: r.error.userMessage });
+        return;
+      }
+      // T-221: a template was chosen → seed the new workflow with its
+      // pre-wired nodes + edges (one-click starter recipe).
+      if (template) {
+        const validity = templateIsValid(template);
+        if (!validity.ok) {
+          toast.showWarning("Modèle invalide", validity.error ?? "Le modèle sera créé vide.");
+        } else {
+          const { nodes, edges } = instantiateTemplate(template);
+          const seed = await repos.workflows.updateWorkflow(r.value.id, { nodes, edges }, session.userId);
+          if (!seed.ok) {
+            toast.showWarning("Amorçage du modèle", seed.error.userMessage);
+          }
+        }
+      }
+      toast.showSuccess("Workflow créé", template
+        ? `${r.value.name} — modèle « ${template.name} » amorcé, prêt à ajuster.`
+        : `${r.value.name} — brouillon prêt à éditer.`);
       onCreated(r.value.id);
       onOpenChange(false);
       setTimeout(reset, 200);
-    } else {
-      setAlert({ tone: "error", title: "Échec", description: r.error.userMessage });
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -269,19 +351,51 @@ function NewWorkflowModal({
     <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
-      size="sm"
+      size="lg"
       variant="dialog"
       icon={Plus}
       iconTone="primary"
       title={t("workflow.new")}
-      description="Crée un workflow vide (brouillon). Vous ajouterez des nœuds ensuite."
+      description="Partir d'un modèle métier prêt à l'emploi, ou d'un brouillon vide."
       submitLabel="Créer"
       submitIcon={Send}
+      submitLoading={creating}
       onSubmit={submit}
       alert={alert}
       onDismissAlert={() => setAlert(null)}
     >
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {/* ---- Template picker (T-221) ---- */}
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            <LayoutTemplate className="h-3.5 w-3.5" /> Modèles métier
+          </p>
+          <div className="space-y-1.5">
+            <TemplateOption
+              active={templateId === null}
+              onSelect={() => setTemplateId(null)}
+              icon={<FilePlus2 className="h-4 w-4" />}
+              title="Brouillon vide"
+              description="Commencer à zéro — j'ajoute les nœuds moi-même."
+            />
+            {WORKFLOW_TEMPLATES.map((tpl) => (
+              <TemplateOption
+                key={tpl.id}
+                active={templateId === tpl.id}
+                onSelect={() => {
+                  setTemplateId(tpl.id);
+                  // Pre-fill the identity from the template (author keeps control).
+                  if (!name.trim()) setName(tpl.name);
+                  if (!description.trim()) setDescription(tpl.description);
+                }}
+                icon={<LayoutTemplate className="h-4 w-4" />}
+                title={tpl.name}
+                description={tpl.description}
+              />
+            ))}
+          </div>
+        </div>
+
         <FormField label="Nom" required>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Relance impayés" />
         </FormField>
@@ -293,8 +407,12 @@ function NewWorkflowModal({
             rows={3}
           />
         </FormField>
-        <FormField label="Type de déclencheur">
-          <Select value={triggerType} onValueChange={(v) => setTriggerType(v as WorkflowTriggerType)}>
+        <FormField label="Type de déclencheur" hint={template ? "Dérivé du modèle choisi" : undefined}>
+          <Select
+            value={template ? template.triggerType : triggerType}
+            onValueChange={(v) => setTriggerType(v as WorkflowTriggerType)}
+            disabled={!!template}
+          >
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(WORKFLOW_TRIGGER_LABELS_FR).map(([k, label]) => (
@@ -305,6 +423,49 @@ function NewWorkflowModal({
         </FormField>
       </div>
     </UnifiedModal>
+  );
+}
+
+function TemplateOption({
+  active,
+  onSelect,
+  icon,
+  title,
+  description,
+}: {
+  active: boolean;
+  onSelect: () => void;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={[
+        "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+        active
+          ? "border-primary bg-primary/10 ring-1 ring-primary/40"
+          : "border-border hover:border-primary/40 hover:bg-accent/5",
+      ].join(" ")}
+    >
+      <span className={[
+        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+        active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
+      ].join(" ")}>
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className={[
+          "block text-sm font-semibold",
+          active ? "text-primary" : "text-foreground",
+        ].join(" ")}>
+          {title}
+        </span>
+        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{description}</span>
+      </span>
+    </button>
   );
 }
 

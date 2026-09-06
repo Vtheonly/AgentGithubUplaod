@@ -26,10 +26,9 @@ import type {
 } from "../../../domain/model/workflow";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 import {
-  evaluateConditionTree,
-  parseConditionConfig,
   defaultConditionContext,
 } from "../../../domain/calc/workflow/condition-evaluator";
+import { dryRunWorkflow } from "../../../domain/calc/workflow/dry-run";
 
 export class MockWorkflowRepository implements WorkflowRepository {
   observe(): Observable<Workflow[]> {
@@ -226,71 +225,78 @@ export class MockWorkflowRepository implements WorkflowRepository {
         `Plafond quotidien atteint — ${todayRuns}/${cap} exécutions aujourd'hui. Le workflow redeviendra exécutable demain.`,
       ));
     }
-    // Build a WorkflowRun with per-node results. Each node takes 50-200ms.
-    // VAULT §10.05 — condition nodes are evaluated with the REAL Boolean
-    // tree evaluator (AND/OR/NOT + comparisons, missing fields → false
-    // + warning, never an exception); downstream actions are skipped when a
-    // condition fails. Action nodes keep the 90% mock success rate.
-    const conditionContext = defaultConditionContext();
+    // T-221: the executor now walks the DAG in TOPOLOGICAL order with the
+    // SAME branch semantics as the canvas's dry-run simulator (the pure
+    // engine in domain/calc/workflow/dry-run is the single source of
+    // truth): a failing condition closes its branch, a route_switch opens
+    // only its first passing route, and nodes not fed by an active path are
+    // skipped. Previously the executor iterated the nodes array linearly
+    // with a single global `conditionFailed` flag, which diverged from the
+    // visual model (parallel branches could not diverge).
+    const simulation = dryRunWorkflow(wf.nodes, wf.edges, defaultConditionContext());
+    if (!simulation.ok) {
+      appendAudit({
+        action: AuditActions.WorkflowTriggered,
+        entityType: "workflow",
+        entityId: id,
+        actorId,
+        actorName,
+        diff: { before: null, after: null },
+        note: `Échec: ${simulation.error ?? "graphe invalide"}`,
+      });
+      return Err(Errors.validation(
+        "Workflow graph is invalid",
+        simulation.error ?? "Graphe invalide — exécution impossible.",
+      ));
+    }
     const startedAtMs = Date.now();
     const startedAt = nowIso();
     const results: WorkflowNodeResult[] = [];
     let cursor = startedAtMs;
     let failed = false;
     let failedNodeId: string | null = null;
-    const timedOut = false;
-    let conditionFailed = false;
-    for (const n of wf.nodes) {
+    for (const sim of simulation.results) {
       const nodeStart = new Date(cursor).toISOString();
       // charCodeAt may return NaN for short ids; coerce to 0 via Number.isNaN.
-      const charAt2 = n.id.charCodeAt(2);
-      const charAt0 = n.id.charCodeAt(0);
-      const dur = n.type === "delay" ? 50 : 50 + ((Number.isNaN(charAt2) ? 0 : charAt2) % 150);
+      const charAt2 = sim.nodeId.charCodeAt(2);
+      const charAt0 = sim.nodeId.charCodeAt(0);
+      const dur = sim.type === "delay" ? 50 : 50 + ((Number.isNaN(charAt2) ? 0 : charAt2) % 150);
       cursor += dur;
       const nodeEnd = new Date(cursor).toISOString();
-      let nodeStatus: WorkflowNodeResult["status"] = "succeeded";
-      let output: string | undefined = `OK (${n.subtype})`;
-      let error: string | undefined;
 
-      if (n.type === "condition") {
-        if (conditionFailed) {
-          // A previous condition failed — this branch is not taken.
-          nodeStatus = "skipped";
-          output = undefined;
-        } else {
-          const tree = parseConditionConfig(n.config.condition ?? n.config._condition);
-          const verdict = evaluateConditionTree(tree, {
-            ...conditionContext,
-            ...((n.config._context as Record<string, unknown> | undefined) ?? {}),
-          });
-          if (verdict.passed) {
-            nodeStatus = "succeeded";
-            output = `Condition remplie (${n.subtype})`;
-          } else {
-            nodeStatus = "skipped";
-            conditionFailed = true;
-            output = `Condition non remplie — branche suivante ignorée. ${verdict.warnings.join(" ")}`.trim();
-          }
-        }
-      } else if (conditionFailed) {
-        // Downstream non-condition nodes are skipped after a failed condition.
-        nodeStatus = "skipped";
-        output = undefined;
-      } else if (n.type === "action") {
+      if (sim.status === "skipped") {
+        results.push({
+          nodeId: sim.nodeId,
+          nodeLabel: sim.nodeLabel,
+          status: "skipped",
+          startedAt: nodeStart,
+          completedAt: nodeEnd,
+          output: sim.output,
+        });
+        continue;
+      }
+
+      let nodeStatus: WorkflowNodeResult["status"] = "succeeded";
+      let output: string | undefined = sim.output;
+      let error: string | undefined;
+      const warnings = sim.warnings.length > 0 ? ` ${sim.warnings.join(" ")}`.trim() : "";
+      if (warnings) output = `${output} ${warnings}`.trim();
+
+      if (sim.type === "action" && !failed) {
         // 90% success rate (deterministic by node id hash so tests are stable).
         const hash = (Number.isNaN(charAt0) ? 0 : charAt0) + (Number.isNaN(charAt2) ? 0 : charAt2);
         if (hash % 10 === 0) {
           nodeStatus = "failed";
           failed = true;
-          failedNodeId = n.id;
+          failedNodeId = sim.nodeId;
           output = undefined;
           error = "Échec de l'action (mock 90%)";
         }
       }
 
       results.push({
-        nodeId: n.id,
-        nodeLabel: n.label,
+        nodeId: sim.nodeId,
+        nodeLabel: sim.nodeLabel,
         status: nodeStatus,
         startedAt: nodeStart,
         completedAt: nodeEnd,
@@ -299,11 +305,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
       });
       if (failed) break;
     }
-    const overallStatus: WorkflowRunStatus = failed
-      ? "failed"
-      : timedOut
-        ? "timeout"
-        : "succeeded";
+    const overallStatus: WorkflowRunStatus = failed ? "failed" : "succeeded";
     const completedAt = new Date(cursor).toISOString();
     const durationMs = cursor - startedAtMs;
     const run: WorkflowRun = {

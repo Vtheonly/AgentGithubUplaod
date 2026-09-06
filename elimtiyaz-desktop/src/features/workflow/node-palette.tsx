@@ -5,6 +5,10 @@
  * Plan §10.03: the palette is the only way to add nodes to the canvas.
  * Each item shows the Lucide icon for the node type + the subtype's
  * French label (from WORKFLOW_NODE_SUBTYPE_LABELS_FR).
+ *
+ * T-221: each item also carries the subtype's one-line description as a
+ * native tooltip (NODE_SUBTYPE_DESCRIPTIONS_FR) so authors can discover
+ * the new trigger/condition/action set without opening the inspector.
  */
 import { Webhook, Filter, Send, Clock, GitBranch, type LucideIcon } from "lucide-react";
 import { cn } from "../../shared/ui/cn";
@@ -12,6 +16,7 @@ import {
   NODE_SUBTYPES_BY_TYPE,
   WORKFLOW_NODE_TYPE_LABELS_FR,
   WORKFLOW_NODE_SUBTYPE_LABELS_FR,
+  NODE_SUBTYPE_DESCRIPTIONS_FR,
   type WorkflowNodeType,
   type WorkflowNodeSubtype,
 } from "../../domain/model/workflow";
@@ -47,7 +52,7 @@ export function NodePalette({ onAddNode, disabled }: NodePaletteProps) {
           Palette de nœuds
         </h3>
         <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-          Cliquez pour ajouter au canevas
+          Cliquez pour ajouter · double-cliquez un nœud pour le configurer
         </p>
       </header>
       <div className="flex-1 overflow-y-auto p-2 space-y-3">
@@ -63,6 +68,7 @@ export function NodePalette({ onAddNode, disabled }: NodePaletteProps) {
               <ul className="space-y-0.5">
                 {subtypes.map((subtype) => {
                   const label = WORKFLOW_NODE_SUBTYPE_LABELS_FR[subtype] ?? subtype;
+                  const description = NODE_SUBTYPE_DESCRIPTIONS_FR[subtype] ?? "";
                   return (
                     <li key={subtype}>
                       <button
@@ -75,9 +81,9 @@ export function NodePalette({ onAddNode, disabled }: NodePaletteProps) {
                           "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent",
                           "text-muted-foreground",
                         )}
-                        title={`Ajouter: ${label}`}
+                        title={`${label} — ${description}`}
                       >
-                        <span className={cn("h-1.5 w-1.5 rounded-full bg-current", ICON_TONE_FOR_TYPE[type])} />
+                        <span className={cn("h-1.5 w-1.5 rounded-full bg-current shrink-0", ICON_TONE_FOR_TYPE[type])} />
                         <span className="truncate">{label}</span>
                       </button>
                     </li>
