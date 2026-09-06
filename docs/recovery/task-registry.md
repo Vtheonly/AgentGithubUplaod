@@ -2114,7 +2114,8 @@ Opening ritual (live, sbp_ token): migration chain 76/76 = 0001–0079 ZERO DRIF
 - **Dependencies:** none · **Affected:** hub scripts/ (new policy_census.sh)
 - **Plan:** machine-check the live pg_policy set (policy names per table) against the local chain's cumulative CREATE/DROP POLICY statements; run at session openings; evidence in change-log. Small, high-value, recommended by the 31st-session next-task note.
 
-### T-216 — Hub: MIG-TOKENS full consistency re-verification round (close) — **In Progress**
+### T-216 — Hub: MIG-TOKENS full consistency re-verification round (close) — **Completed (VERIFIED, 10/10 probe families GREEN)**
+- **Evidence:** /home/z/my-project/scripts/t-216-live-verification.sh (probes-only, persisted outside the repos per the T-140 convention) + docs/recovery/t-216-live-verification.md: chain 77/77 = 0001–0080 ZERO DRIFT (incl. 0080), policy census 189/189 zero drift, auth health 200 × both key regimes (ADR-009), REST 200 × both, EF fleet 13/13 ACTIVE 1:1 with the hub source, ALLOWED_ORIGINS 4-origin canonical set all echoing + non-allowlisted NOT echoed (ACT-203 intact), anonymous EF → 401, 0080 policy live (n=1 with has_role).
 - **Problems:** none new (verification; closes the owner's "apply the migration tokens + consistent everywhere" mandate with fresh evidence incl. 0080) · **Priority:** P1
 - **Dependencies:** T-214 applied · **Affected:** hub evidence docs
 - **Plan:** chain drift check 77/77 = 0001–0080, EF fleet matrix, dual-key health, ALLOWED_ORIGINS probe, anonymous-deny matrix; record in t-216-live-verification.md + change-log.
