@@ -2056,7 +2056,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Dependencies:** T-199..T-202 patterns known · **Affected:** hub (elimtiyaz-desktop React views), elimtiyaz-android (Compose layouts)
 - **Plan:** scan the desktop views for the same defect families (bare `grid gap-*` without base cols; unbreakable KPI values; non-wrapping header rows; tab bars clipping); scan Android for equivalents (Row + Text without weight/overflow). Fix trivially-safe same-family desktop defects; register Android findings as divergences/defects (no Android UI changes without the toolchain-verified build — scope control).
 
-### T-206 — Post-fix cross-viewport visual verification matrix — **READY**
+### T-206 — Post-fix cross-viewport visual verification matrix — **Completed (TESTED)**
 - **Problems:** none new (verification task) · **Priority:** P1
 - **Dependencies:** T-199..T-203 complete · **Affected:** elimtiyaz-website
 - **Plan:** re-run the harness across ALL 9 views × 4 widths (320/375/768/1280) + the financial sub-tabs + the messages conversation; document-level overflow must be 0 everywhere; screenshots persisted as evidence.
