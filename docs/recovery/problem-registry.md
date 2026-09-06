@@ -4066,3 +4066,52 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **What was changed:** the catch block discriminates `err instanceof TypeError` (fetch-level failure: offline, connection dropped, or a CORS rejection) → the NEW dedicated key `activation.code.error.network` ("Impossible de joindre le serveur. Vérifiez votre connexion internet, puis réessayez. Si le problème persiste, contactez l'administration."); every other throw keeps the generic key. The T-153/T-184 contracts are untouched (HTTP errors still map through mapActivationError; the URL still resolves through @/lib/env).
 - **Verification:** NEW suite `src/test/t-187-activation-network-error.test.ts` 5/5 (discriminator + key present, ternary fallback intact, dictionary entry actionable, T-184 URL contract pinned, T-153 call-scope preserved); FULL website suite 29 files / 488 / 0 (was 28/483); lint clean; strict build green.
 - **Left:** nothing agent-side.
+
+## 31st-session entries (2026-09-06) — the mobile-viewport UI defect family (owner mandate: "fix the website UI — elements overflowing their containers, not fitting; mobile-first but desktop must work")
+
+> Discovered via a LIVE headless-browser audit (Playwright @ 375/667, 320/568, 768, 1280 viewports against the dev server with a dedicated seeded TEST family in the live DB — see T-199's harness note). All measurements are DOM-geometry evidence (documentElement.scrollWidth − clientWidth, per-element getBoundingClientRect), not guesses.
+
+### UI-300 — Dashboard two-column grid has NO base column template: implicit auto track sizes to max-content → 880–935px horizontal page overflow on mobile (grid blowout)
+
+- **Category:** UI  |  **Severity:** Critical  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Repositories:** elimtiyaz-website
+- **Platforms affected:** Website mobile (<1024px — the lg:grid-cols-2 breakpoint covers desktop, hiding the defect there)
+- **Discovered:** live DOM measurement — `div.grid.gap-6.lg:grid-cols-2` (dashboard-view.tsx, the Upcoming-events/Announcements two-column section): scrollWidth 1239 vs clientWidth 343 at 375px; document overflow 880px at 375px, 935px at 320px. Every view beneath the section pokes out of the viewport; the whole dashboard scrolls horizontally.
+- **Root cause:** `className="grid gap-6 lg:grid-cols-2"` sets NO `grid-template-columns` below lg. An implicit grid track is `minmax(auto, auto)` — it sizes to the item's MAX-CONTENT width, and the CardListItem title/subtitle `.truncate` only ellipsizes when the box width is CONSTRAINED (truncate does not constrain the grid track). So the full untruncated text width ("Réunion parents-professeurs trimestre 1" + "20 sept. 2026, 10:00 AM • Salle de conférence") becomes the track width. Tailwind's `grid-cols-1` = `repeat(1, minmax(0, 1fr))` — the `0` min is exactly what prevents blowout. **Rule: every responsive grid MUST carry a base `grid-cols-*` (minmax(0,1fr) family), never a bare `grid gap-*` that only gains columns at a breakpoint.**
+- **Proposed resolution:** add `grid-cols-1` (T-199). Regression guard: a source-scan test forbidding `className="grid gap-…"` without any `grid-cols-` in the same class attribute.
+
+### UI-301 — KpiCard renders currency values as unbreakable text-2xl: Intl narrow no-break spaces + font-mono make "175 000,00 DA" overflow the card (and the page) on mobile
+
+- **Category:** UI  |  **Severity:** High  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Repositories:** elimtiyaz-website
+- **Platforms affected:** Website — finance view (grid-cols-2 KPI row) and dashboard KPI row; desktop unaffected (its KPI cards are wider; its own layout was not audited for this family — see T-205)
+- **Discovered:** live DOM measurement — finance view document overflow 108px at 375px: the KPI value `<p class="mt-1.5 font-mono text-2xl …">175 000,00 DA</p>` is ~180px wide inside a ~100px-wide flex-1 column (card 165px − padding 32 − icon 36 − gap 12). The `<p>` has no wrap/break handling and `Intl.NumberFormat` fr-XX currency output uses U+202F NARROW NO-BREAK SPACE between digit groups, so the string cannot line-break at the group separators. 23px overflow persists even at desktop 4-col width for large amounts.
+- **Root cause:** two stacked choices — (a) `text-2xl` (24px) mono for a value that must fit a half-mobile-screen card, and (b) no `overflow-wrap` on the value element. The formatter itself is CORRECT and must not change (it is pinned by format.test.ts and cross-platform parity — desktop/Android use the same Intl output; changing the space type would be a parity break).
+- **Proposed resolution:** display-layer only (T-200): responsive value sizing + `break-words` on the value `<p>` so the amount wraps inside the card when narrow. Formatter untouched.
+
+### UI-302 — Page header rows (`flex items-center justify-between gap-3` + action buttons) never wrap: 39–163px horizontal overflow at 320px on 4 surfaces
+
+- **Category:** UI  |  **Severity:** Medium  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Repositories:** elimtiyaz-website
+- **Platforms affected:** Website mobile ≤360px (screens ≤390px are ~35% of Algerian parent traffic per the mobile-first design note; the portal targets exactly this class)
+- **Discovered:** live DOM measurement at 320px — document overflow: finance 163px (`Paiements & Factures` h1 + `Générer un relevé` Button + StudentSwitcherDropdown), academic 77px (`Scolarité` + `Bulletin` Button + switcher), notifications 39px (`Notifications` + `Tout marquer comme lu` Button), profile 42px (StudentDocumentsCard `CardTitle` "Documents" + `Téléverser` Button — same justify-between pattern inside the title element).
+- **Root cause:** a single shared pattern — non-wrapping header flex rows whose action cluster (Button + dropdown) has a combined min-content width wider than a 320px viewport minus padding (288px). No `flex-wrap`, no `min-w-0` on the title.
+- **Proposed resolution:** T-201 — one fix class applied to the four instances: `flex-wrap` + `min-w-0` so the actions stack below the title at narrow widths (and `gap-y` so the stacked state looks intentional).
+
+### UI-303 — Financial 5-tab TabsList clips its labels at ≤360px (whitespace-nowrap + equal 1fr cells)
+
+- **Category:** UI  |  **Severity:** Medium  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Repositories:** elimtiyaz-website
+- **Platforms affected:** Website mobile ≤360px (finance view: Facturation/Tranches/Paiements/Relevé/Ajustements; academic view's 4-tab list is borderline)
+- **Discovered:** live DOM measurement at 320px — tab cells 54px each; "Facturation" needs 65px, "Paiements" 62px, "Ajustements +count" 84px → labels clipped mid-word (the shadcn TabsTrigger carries `whitespace-nowrap`; `grid-cols-5` = five minmax(0,1fr) tracks that shrink below content).
+- **Root cause:** the tab bar was designed for ≥375px; below that, equal cells + nowrap clip text with no scroll affordance.
+- **Proposed resolution:** T-202 — make the TabsList horizontally scrollable below sm (mobile pattern; scrollable chip rows already exist in the codebase — calendar filter chips and StudentSwitcher use `overflow-x-auto scrollbar-none`) and restore the equal 5-cell grid at sm+.
+
+### UI-304 — Dashboard renders raw English calendar `kind` enums ("meeting"/"reminder") as event pills while the calendar view maps them to localized labels — same data, two renderings
+
+- **Category:** UI  |  **Severity:** Low  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Repositories:** elimtiyaz-website
+- **Platforms affected:** Website (dashboard Upcoming-events section; the calendar view is the canonical rendering)
+- **Discovered:** live render — dashboard `<StatusPill>{ev.kind}</StatusPill>` shows "meeting" / "reminder" (English backend enums) in an otherwise French UI; calendar-view.tsx has the canonical `kindToUiType` map + `t("calendar.eventType.*")` localized labels ("Réunion", "Échéance").
+- **Root cause:** the dashboard was built before the calendar's kind mapping; the map lives inside calendar-view.tsx so it was never reused (an import-scope issue, not a logic fork — the dashboard has no map at all).
+- **Proposed resolution:** T-203 — extract `kindToUiType` to a shared module and render the SAME localized labels on the dashboard (Existing-Implementation-First: reuse, don't re-implement).

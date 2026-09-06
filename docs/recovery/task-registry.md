@@ -2012,3 +2012,60 @@ UNKNOWN-011 ──→ T-042 (timetable)
   2. This task-registry update, the problem-registry additions (AUTH-301, SEC-114, ACT-203, ACT-204 + totals recount 189 entries), the change-log 29th-session entry, the current-state delta, the next-task session state, the credentials.md §2.2 ALLOWED_ORIGINS canonical row, the worklog append, the three-repo push, and the zip regeneration.
 - **Verified:** all suite evidence above (desktop 90/2410/0 + tsc + lint 0 err; website 29/488/0 + lint + strict build); push receipts recorded in the change-log entry; zips rebuilt via git archive at exact HEADs.
 - **Left:** the ONE owner-gated activation unblock (T-186's script run), the standing residuals (sbp_ token → 0071–0074 live applies; T-173 part a; Firebase web-push env vars — optional, not activation-blocking).
+
+---
+
+## 31st repair session (2026-09-06) — owner mandate: mobile-first UI overflow fixes across the website + full-stack consistency verification
+
+### T-199 — Website: dashboard grid blowout (UI-300) + the UI visual-verification harness — **IN PROGRESS**
+- **Problems:** UI-300 (Critical) · **Priority:** P0 · **Severity:** Critical
+- **Dependencies:** none · **Affected:** elimtiyaz-website (src/features/dashboard/dashboard-view.tsx)
+- **Status:** In Progress (2026-09-06, 31st session)
+- **Plan:** (1) seed a dedicated UI-TEST family in the live DB (tagged PAR-UI99/ELV-UI9x rows, harness script persisted outside the repos), (2) sign a test auth user into the dev server via the @supabase/ssr cookie format, (3) fix the grid (add `grid-cols-1`), (4) re-measure the DOM at 320/375/768/1280, (5) add a source-scan regression test forbidding bare `grid gap-*` without a base `grid-cols-`, (6) run the full website suite + lint + strict build.
+- **Verification criteria:** document-level horizontal overflow = 0 at all four widths on the dashboard; regression suite green; suite count ≥ previous.
+
+### T-200 — Website: KpiCard currency overflow (UI-301) — **READY**
+- **Problems:** UI-301 (High) · **Priority:** P0 · **Severity:** High
+- **Dependencies:** none (T-199's harness is reused for verification) · **Affected:** elimtiyaz-website (src/features/shared/kpi-card.tsx)
+- **Plan:** responsive value sizing + `break-words` on the value element; formatter untouched (parity); regression test pinning the class contract; re-measure finance view at 320/375/1280.
+
+### T-201 — Website: non-wrapping page header rows (UI-302) — **READY**
+- **Problems:** UI-302 (Medium) · **Priority:** P1 · **Severity:** Medium
+- **Dependencies:** none · **Affected:** financial-view.tsx, academic-view.tsx, notifications-view.tsx, student-documents-card.tsx (one defect family, one fix class)
+- **Plan:** `flex-wrap` + `min-w-0` + `gap-y` on the four instances; re-measure at 320; regression source-scan for the vulnerable pattern in these views.
+
+### T-202 — Website: financial TabsList label clipping (UI-303) — **READY**
+- **Problems:** UI-303 (Medium) · **Priority:** P1 · **Severity:** Medium
+- **Dependencies:** none · **Affected:** financial-view.tsx (5-tab list), academic-view.tsx (4-tab list)
+- **Plan:** scrollable tab bar below sm (the codebase's established `overflow-x-auto scrollbar-none` pattern), equal grid at sm+; verify no label clipping at 320.
+
+### T-203 — Website: dashboard raw kind enums (UI-304) — **READY**
+- **Problems:** UI-304 (Low) · **Priority:** P2 · **Severity:** Low
+- **Dependencies:** none · **Affected:** dashboard-view.tsx + calendar-view.tsx (extract the shared map — Existing-Implementation-First)
+- **Plan:** extract `kindToUiType` to a shared module, render localized labels on the dashboard; unit test pinning the mapping reuse (no duplicate map).
+
+### T-204 — Live full-stack consistency verification round (migration-token mandate evidence) — **READY**
+- **Problems:** none new (verification task; closes the "migration tokens applied + consistent everywhere" mandate with FRESH evidence) · **Priority:** P1
+- **Dependencies:** the sbp_ access token (supplied this session) · **Affected:** hub (evidence docs)
+- **Plan:** chain drift check 76/76 (done at session open — re-verify at close), EF fleet status matrix (14 EFs ACTIVE), ALLOWED_ORIGINS live preflight probes (4 canonical origins), dual-key format health probes (ADR-009), REST/RWS health. Record in docs/recovery/t-204-live-verification.md + change-log.
+- **Verification criteria:** all probes green with recorded evidence; any drift found → registered + fixed same-session.
+
+### T-205 — Cross-platform responsive-parity scan (desktop + Android) for the UI-300…303 defect families — **READY**
+- **Problems:** UI-300/301/302/303 cross-platform rule §10 follow-up · **Priority:** P2
+- **Dependencies:** T-199..T-202 patterns known · **Affected:** hub (elimtiyaz-desktop React views), elimtiyaz-android (Compose layouts)
+- **Plan:** scan the desktop views for the same defect families (bare `grid gap-*` without base cols; unbreakable KPI values; non-wrapping header rows; tab bars clipping); scan Android for equivalents (Row + Text without weight/overflow). Fix trivially-safe same-family desktop defects; register Android findings as divergences/defects (no Android UI changes without the toolchain-verified build — scope control).
+
+### T-206 — Post-fix cross-viewport visual verification matrix — **READY**
+- **Problems:** none new (verification task) · **Priority:** P1
+- **Dependencies:** T-199..T-203 complete · **Affected:** elimtiyaz-website
+- **Plan:** re-run the harness across ALL 9 views × 4 widths (320/375/768/1280) + the financial sub-tabs + the messages conversation; document-level overflow must be 0 everywhere; screenshots persisted as evidence.
+
+### T-207 — Persist the UI-verification harness + discovery documentation — **READY**
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-199..T-206 evidence in hand · **Affected:** hub docs (AGENTS.md §11 verification table note, docs/testing/strategy.md) + scripts under /home/z/my-project/scripts (session-local; the PATTERN is documented in the hub)
+- **Plan:** document (a) the grid-blowout rule (base grid-cols mandatory), (b) the narrow-no-break-space currency rule, (c) the @supabase/ssr cookie-session sign-in recipe for headless UI verification, (d) the seeded UI-TEST family convention + cleanup script, so the next agent can re-run mobile verification without rediscovering the setup.
+
+### T-208 — 31st-session closeout: registry truth-sync + zip + push + handoff — **READY**
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-199..T-207 · **Affected:** all three repos
+- **Plan:** problem/task registry status flips with evidence, change-log entry, current-state delta, next-task session state, cleanup of the UI-TEST family from the live DB, git commits per task (git-workflow template), zips, push with the owner's PAT.
