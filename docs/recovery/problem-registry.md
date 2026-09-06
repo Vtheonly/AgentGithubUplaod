@@ -4115,3 +4115,14 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Discovered:** live render — dashboard `<StatusPill>{ev.kind}</StatusPill>` shows "meeting" / "reminder" (English backend enums) in an otherwise French UI; calendar-view.tsx has the canonical `kindToUiType` map + `t("calendar.eventType.*")` localized labels ("Réunion", "Échéance").
 - **Root cause:** the dashboard was built before the calendar's kind mapping; the map lives inside calendar-view.tsx so it was never reused (an import-scope issue, not a logic fork — the dashboard has no map at all).
 - **Proposed resolution:** DONE (T-203) — extracted to `src/features/calendar/event-kind.ts` (kindToUiType + uiTypeLabelKey + eventKindLabelKey); dashboard + calendar both consume it; the duplicate-map guard is pinned by t-203-event-kind-labels.test.ts.
+
+## 32nd-session entries (2026-09-07) — the owner's portal-detail mandate (parents' personal details / children detail / children's enrollments missing from the portal + abbreviated trimester labels)
+
+### INFO-300 — `service_enrollments_select` grants tenant-wide SELECT to every authenticated user: any parent can read every other family's enrollment amounts
+
+- **Category:** Security (information disclosure)  |  **Severity:** Medium  |  **Status:** OPEN (registered 2026-09-07, 32nd session — fix scheduled as T-214/migration 0080 this session)
+- **Repositories:** AgentGithubUplaod (canonical chain)
+- **Platforms affected:** all clients reading `service_enrollments` (the parent portal is about to consume it via T-211)
+- **Discovered:** while scoping T-211 (the owner's "children's enrollments" mandate) — the 0019 policy is `using (tenant_id = current_tenant_id())` for ALL authenticated users with no parent scoping, unlike the sibling policies (`invoices_select`, `students_parent_sees_own`) which scope parents to their own rows. A signed-in parent of family A can query family B's tuition/transport enrollment rows (amounts, tranches, due dates).
+- **Root cause:** the 0019 policy was written before the parent portal existed (migration 0043 portal_alignment tightened notifications/ledger but missed service_enrollments because the portal never read it — `useServiceEnrollments` has shipped with ZERO consumers since the portal was built).
+- **Proposed resolution:** migration 0080 (T-214): drop + recreate `service_enrollments_select` with the invoices_select pattern — `has_any_role(super_admin, financial_officer, support_staff, teacher, manager)` OR parent-own-student subquery (`student_id in (select s.id from students s join parents p on p.id = s.parent_id where p.auth_user_id = auth.uid() and p.deleted_at is null and s.deleted_at is null)`); applied live atomically with its registration (T-091/MIG-TOKENS pattern); verify script `scripts/verify_t-214.sql`.

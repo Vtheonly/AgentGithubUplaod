@@ -2072,3 +2072,57 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Problems:** process (ADR-007) · **Priority:** P2
 - **Dependencies:** T-199..T-207 · **Affected:** all three repos
 - **Plan:** problem/task registry status flips with evidence, change-log entry, current-state delta, next-task session state, cleanup of the UI-TEST family from the live DB, git commits per task (git-workflow template), zips, push with the owner's PAT.
+
+## 32nd repair session (2026-09-07, IN PROGRESS) — owner mandate: portal parent/children/enrollment detail enrichment + full Trimestre labels + migration-token consistency
+
+Opening ritual (live, sbp_ token): migration chain 76/76 = 0001–0079 ZERO DRIFT (live `supabase_migrations.schema_migrations` JSON-diffed against the local chain, numeric-prefix match); EF fleet 13/13 ACTIVE; all three repos clean on main. Website baseline 35 files / 514 tests / 0 failures. Live data probed: `students` 390 rows with DOB + class (265 with grade_level), `installments` 1 276 rows 100% student-attributed (tuition 1 170/390 + transport 106/54), `academic_years` 1 current row, `service_enrollments` EMPTY (canonical table, graceful empty state required), `parents` occupation/secondary_phone/national_id sparse (0/0/1). Session task set (balanced per importance/risk/dependency/feasibility):
+
+### T-209 — Website: profile parent personal-details enrichment — **In Progress**
+- **Problems:** owner mandate (portal "not enough detailed information … parents' personal details") · **Priority:** P1
+- **Dependencies:** none (data already fetched: auth-provider selects `parents.*`) · **Affected:** elimtiyaz-website (profile-view.tsx, dictionary)
+- **Plan:** extend the Profile account card with relationship, member-since (created_at), national_id (own-row data, RLS-scoped) + city/postal display rows; i18n keys fr/ar/en; component render test.
+
+### T-210 — Website: profile children identity + enrollment detail cards — **In Progress**
+- **Problems:** owner mandate (portal "not enough detailed information about the parents' children … children's enrollments") · **Priority:** P1
+- **Dependencies:** none · **Affected:** elimtiyaz-website (new children-info-card, profile-view.tsx, dictionary)
+- **Plan:** per-child card showing full identity (student_code, DOB + age, gender, grade level via useAcademicLevels, class via useClass, enrollment_date, enrollment_status) — all fields already in StudentRow (auth-provider selects `students.*`).
+
+### T-211 — Website: profile children's enrollments section (services + per-student fee schedule) — **In Progress**
+- **Problems:** owner mandate (children's enrollments) + WEAK-class (useServiceEnrollments hook shipped with ZERO consumers) · **Priority:** P1
+- **Dependencies:** T-210 (card placement) · **Affected:** elimtiyaz-website (new student-enrollments-card, portal-queries.ts, dictionary)
+- **Plan:** per-child enrollments card: service_enrollments (kind labels localized, amounts, tranche due dates, transport destination) + the REAL per-student fee schedule from `installments` (1 276 live rows, 100% student-attributed) + current academic year label; new hooks useInstallmentsForStudent + useCurrentAcademicYear + useTransportDestination (Existing-Implementation-First: extend portal-queries.ts).
+
+### T-212 — Website: T1/T2/T3 → full "Trimestre 1/2/3" labels — **In Progress**
+- **Problems:** owner mandate (abbreviated labels) · **Priority:** P1
+- **Dependencies:** none · **Affected:** academic-view.tsx (tabs line 205–207 + per-assessment chip line 262), dictionary, tests
+- **Plan:** replace the abbreviated tab triggers and assessment chips with full localized labels (fr: "Trimestre 1/2/3"); bulletin PDF already prints full "Trimestre N" (verified); source-scan guard test preventing the abbreviation's return.
+
+### T-213 — Website: dashboard children cards enrichment — **In Progress**
+- **Problems:** owner mandate (portal-wide children detail) · **Priority:** P2
+- **Dependencies:** T-210 patterns · **Affected:** dashboard-view.tsx, student-switcher.tsx
+- **Plan:** child cards show grade level + class + enrollment status (single-child card + switcher subtitle), driving deeper detail into the first screen parents see.
+
+### T-214 — Backend: migration 0080 — tighten service_enrollments_select to staff + own-parent scoping + live atomic apply — **In Progress**
+- **Problems:** INFO-300 (new: tenant-wide SELECT exposes every family's enrollment amounts to any authenticated parent) · **Priority:** P1 (security)
+- **Dependencies:** sbp_ token (supplied) · **Affected:** hub (new migration 0080 + apply script + verify script), all clients unchanged (staff roles pass has_any_role; parents see own)
+- **Plan:** drop/recreate policy with the invoices_select pattern (staff roles OR parent-own-student subquery); migration file with embedded registration; `apply_0080_live.sh` atomic BEGIN/COMMIT apply; `verify_t-214.sql` (BEGIN/ROLLBACK, temp-table evidence, regression paths); live verification doc.
+
+### T-215 — Hub: policy-census hardening script (REG-004 lesson) — **In Progress**
+- **Problems:** REG-004 class (unregistered live policy drift compounds silently) · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub scripts/ (new policy_census.sh)
+- **Plan:** machine-check the live pg_policy set (policy names per table) against the local chain's cumulative CREATE/DROP POLICY statements; run at session openings; evidence in change-log. Small, high-value, recommended by the 31st-session next-task note.
+
+### T-216 — Hub: MIG-TOKENS full consistency re-verification round (close) — **In Progress**
+- **Problems:** none new (verification; closes the owner's "apply the migration tokens + consistent everywhere" mandate with fresh evidence incl. 0080) · **Priority:** P1
+- **Dependencies:** T-214 applied · **Affected:** hub evidence docs
+- **Plan:** chain drift check 77/77 = 0001–0080, EF fleet matrix, dual-key health, ALLOWED_ORIGINS probe, anonymous-deny matrix; record in t-216-live-verification.md + change-log.
+
+### T-217 — Desktop: T-047 port #6 — workforceAttendance → workforce_attendance_events — **In Progress**
+- **Problems:** ARCH-001 (T-047 Group-A remainder; the dashboards trio's open member) · **Priority:** P2
+- **Dependencies:** none (table + RLS exist since 0010/0019) · **Affected:** hub (new SupabaseWorkforceAttendanceRepository, wiring, tests)
+- **Plan:** port observeByPersonnel/observeByDate/latestFor/recordEvent over the canonical table (T-178/T-180 adapter pattern: SubjectBehavior cache + refresh-after-write); unit tests incl. persistence + source scans.
+
+### T-218 — 32nd-session closeout: registry truth-sync + zip + push + handoff — **In Progress**
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-209..T-217 · **Affected:** all three repos
+- **Plan:** problem/task registry status flips with evidence, change-log entry, current-state delta, next-task session state, git commits per task (git-workflow template), zips, push with the owner's PAT.
