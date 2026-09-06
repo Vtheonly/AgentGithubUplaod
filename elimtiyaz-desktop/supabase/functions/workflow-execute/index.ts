@@ -1,534 +1,103 @@
 // ============================================================================
 // workflow-execute/index.ts
 // ============================================================================
-// Edge Function: Execute a published workflow DAG
+// Edge Function: Execute a published workflow DAG — T-225 REWRITE (34th
+// session, 2026-09-07) on the PURE branch-aware engine (./engine.ts).
 // ----------------------------------------------------------------------------
-// USE CASE:
-//   The Desktop app's "Workflow Builder" lets admins define automation DAGs
-//   (e.g. "When an installment is >30 days overdue, send email + apply 5%
-//   discount + log audit"). This function executes one such DAG on demand.
+// WHAT CHANGED vs the v21 deployment (DAG-101):
+//   - reads the REAL columns: workflows.dag_definition (+ .version from
+//     0081) — the old build selected nonexistent `definition`/`version`
+//     columns and 404'd on EVERY call;
+//   - inserts the REAL workflow_runs columns (actor_id / actor_note /
+//     request_id / workflow_version — 0081) instead of four nonexistent
+//     ones;
+//   - dispatches nodes by type+subtype through the 29-subtype registry
+//     (engine.ts) — the old flat-type sets made every action node throw
+//     "Unknown node type";
+//   - branch semantics == the desktop dry-run (single source of truth):
+//     failing gates close their branch, route_switch opens only the first
+//     passing route, convergence runs once, a failed action closes only
+//     its downstream (parallel branches continue — the old build skipped
+//     EVERYTHING after any failure);
+//   - per-branch skip reasons recorded per node; §10.05 warnings surfaced;
+//   - execution deadline → run status 'timeout'; unknown subtypes → failed
+//     nodes with diagnosable errors (never silent);
+//   - wait_duration > 10s PARKS the run (workflow_pending_resumes row +
+//     serialized engine state — survives process death; the
+//     workflow-resume-scheduler EF (T-228) claims due rows);
+//   - run finalization updates workflows.last_executed_at and
+//     total_executions (the EF owns both — 0012 contract, never done
+//     before);
+//   - dry_run mode (T-229): simulated actions, no workflow_runs row, one
+//     audit entry, does NOT consume the daily cap.
 //
 // FLOW:
-//   1. Caller POSTs { workflow_id, trigger_type?, actor_note? }
-//   2. Auth: requires JWT + `execute_workflow` permission
-//   3. Fetch the workflow definition (must be status='published')
-//   4. Check the daily execution limit (max_daily_executions)
-//   5. Insert a `workflow_runs` row with status='running'
-//   6. Parse the DAG definition (JSON: { nodes: [...], edges: [...] })
-//   7. Topologically sort nodes; detect cycles
-//   8. Walk nodes in topo order:
-//      - Trigger nodes    → mark as 'succeeded' (no work; entry points)
-//      - Condition nodes  → evaluate condition; activate 'true' or 'false'
-//                           downstream branch; prune the other
-//      - Action nodes     → execute via stub; TODO: wire real integrations
-//                           (Resend, FCM, Postgres, etc.)
-//      - Unreachable nodes (pruned by condition branches) → mark 'skipped'
-//   9. If any executed node fails → mark the run 'failed'; capture the error
-//      in node_results. Other nodes downstream of the failure are 'skipped'.
-//  10. Update `workflow_runs` with final status, duration_ms, node_results
-//  11. Write audit log entry with action='workflow.run'
-//  12. Return { run_id, status, duration_ms, node_count }
+//   1. Auth (JWT + execute_workflow permission — unchanged)
+//   2. Fetch the workflow (status='published', tenant-scoped)
+//   3. Daily execution limit (429 when reached)
+//   4. Parse + validate the definition (TS engine validation == the 0081
+//      SQL publish gate; a cyclic/invalid DAG never reaches a run row)
+//   5. Insert workflow_runs (status='running')
+//   6. Execute through the engine with the real action executors
+//      (actions.ts); node_results persist progressively
+//   7. Park on long delays OR finalize: status/duration/error/node_results
+//   8. Update last_executed_at/total_executions (completed runs only)
+//   9. Audit log entry (workflow.run) + structured response
 //
 // SECURITY:
-//   - Requires JWT (caller must be authenticated)
-//   - Caller must have `execute_workflow` permission
-//   - service_role key performs DB writes (bypasses RLS)
-//   - Workflow must be in 'published' status and belong to caller's tenant
-//
-// NODE TYPES SUPPORTED:
-//   - Trigger:  payment_overdue, schedule, manual_run, invoice_created,
-//               student_enrolled, grade_published
-//   - Condition: debt_over_threshold, payment_method_match, student_status_match
-//   - Action:   send_email, apply_discount, create_invoice, push_notification,
-//               log_audit, wait_duration, database_query, extract_field
-//
-// NOTE (T-126 + T-131): `push_notification` and `send_email` are REAL
-// integrations (the canonical send-push-notification EF via service-role
-// auth; the shared Resend module _shared/send-email.ts — both with honest
-// per-recipient/per-send failure recording). The remaining actions
-// (apply_discount, create_invoice, …) are still stubs; each logs the intent
-// and writes to the audit log. Real integrations are marked as TODO comments
-// and should be implemented incrementally per Plan §14.
+//   - Requires JWT; caller needs execute_workflow (super_admin per 0023)
+//   - service_role performs DB writes (bypasses RLS)
+//   - The client-provided definition is NEVER trusted raw: validated by
+//     the 0081 SQL gate at publish + by the TS engine here at execution
 // ============================================================================
 
 import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.ts";
-import { resolveEmailConfig, sendEmailWithResend } from "../_shared/send-email.ts";
-import { createServiceRoleClient, extractAuthContext, requirePermission, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createServiceRoleClient,
+  extractAuthContext,
+  requirePermission,
+  withAuditSurfacing,
+  writeAuditLog,
+} from "../_shared/supabase.ts";
+import {
+  executeWorkflowDefinition,
+  parseDefinition,
+  validateWorkflowDefinition,
+  type EngineContext,
+} from "./engine.ts";
+import { executeNodeAction } from "./actions.ts";
 
 // ---------------------------------------------------------------------------
-// Types
+// Request contract
 // ---------------------------------------------------------------------------
 
 interface ExecuteWorkflowBody {
   workflow_id: string;
   trigger_type?: string;
   actor_note?: string;
+  /** T-227: entity ids for the real execution context. */
+  parent_id?: string;
+  student_id?: string;
+  installment_id?: string;
+  /** Test payloads for manual/dry runs — merged UNDER the real context. */
+  context?: Record<string, unknown>;
+  /** T-229: simulate the whole DAG without side effects (no run row). */
+  dry_run?: boolean;
 }
 
-interface WorkflowNode {
-  id: string;
-  type: string;
-  label?: string;
-  config?: Record<string, unknown>;
-}
+/** DB trigger_type enum (0012 + 0081) — desktop spellings map onto it. */
+const RUN_TRIGGERS: readonly string[] = [
+  "payment_overdue", "student_enrolled", "payment_recorded", "schedule",
+  "absence_limit", "manual_run", "debt_over_threshold",
+  "grade_below_threshold", "payment_cleared_or_bounced",
+  "document_expiration", "calendar_cron_event", "stock_level_critical",
+];
 
-interface WorkflowEdge {
-  id?: string;
-  source: string;
-  target: string;
-  branch?: "true" | "false" | null;
-  label?: string;
-}
-
-interface WorkflowDefinition {
-  nodes: WorkflowNode[];
-  edges: WorkflowEdge[];
-}
-
-interface NodeResult {
-  node_id: string;
-  node_type: string;
-  node_label?: string;
-  status: "succeeded" | "failed" | "skipped";
-  started_at: string;
-  completed_at: string;
-  duration_ms: number;
-  output?: Record<string, unknown>;
-  error?: string;
-}
-
-const TRIGGER_TYPES = new Set([
-  "payment_overdue",
-  "schedule",
-  "manual_run",
-  "invoice_created",
-  "student_enrolled",
-  "grade_published",
-  "trigger", // generic fallback
-]);
-
-const CONDITION_TYPES = new Set([
-  "debt_over_threshold",
-  "payment_method_match",
-  "student_status_match",
-  "condition", // generic
-]);
-
-const ACTION_TYPES = new Set([
-  "send_email",
-  "apply_discount",
-  "create_invoice",
-  "push_notification",
-  "log_audit",
-  "wait_duration",
-  "database_query",
-  "extract_field",
-]);
-
-// ---------------------------------------------------------------------------
-// DAG helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Topological sort using Kahn's algorithm. Returns nodes in execution order.
- * Throws if a cycle is detected.
- */
-function topologicalSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
-  const nodeIds = new Set(nodes.map((n) => n.id));
-  const adj = new Map<string, string[]>(); // source → [targets]
-  const inDegree = new Map<string, number>();
-
-  for (const n of nodes) {
-    adj.set(n.id, []);
-    inDegree.set(n.id, 0);
-  }
-
-  for (const e of edges) {
-    if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) {
-      throw new Error(`Edge references unknown node: ${e.source} → ${e.target}`);
-    }
-    adj.get(e.source)!.push(e.target);
-    inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1);
-  }
-
-  const queue: string[] = [];
-  for (const [id, deg] of inDegree.entries()) {
-    if (deg === 0) queue.push(id);
-  }
-
-  const orderedIds: string[] = [];
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    orderedIds.push(id);
-    for (const next of adj.get(id) ?? []) {
-      inDegree.set(next, (inDegree.get(next) ?? 0) - 1);
-      if (inDegree.get(next) === 0) queue.push(next);
-    }
-  }
-
-  if (orderedIds.length !== nodes.length) {
-    const remaining = [...inDegree.entries()].filter(([, d]) => d > 0).map(([id]) => id);
-    throw new Error(`Cycle detected in workflow DAG (nodes involved: ${remaining.join(", ")})`);
-  }
-
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  return orderedIds.map((id) => byId.get(id)!);
-}
-
-/**
- * Returns true if nodeType is a trigger entry point.
- */
-function isTrigger(type: string): boolean {
-  return TRIGGER_TYPES.has(type);
-}
-
-function isCondition(type: string): boolean {
-  return CONDITION_TYPES.has(type);
-}
-
-function isAction(type: string): boolean {
-  return ACTION_TYPES.has(type);
-}
-
-// ---------------------------------------------------------------------------
-// Condition evaluation (STUB — TODO: real DB lookups per Plan §14)
-// ---------------------------------------------------------------------------
-
-interface ConditionEvaluation {
-  result: boolean;
-  reason: string;
-  output?: Record<string, unknown>;
-}
-
-async function evaluateCondition(
-  _supabase: SupabaseClient,
-  _tenantId: string,
-  node: WorkflowNode,
-  _context: { runId: string; triggerType: string }
-): Promise<ConditionEvaluation> {
-  // TODO: For each condition type, perform a real DB query to evaluate
-  // the predicate against the trigger payload. The trigger payload (e.g.
-  // overdue installment id, student id) should be passed in via node.config
-  // or a runtime context. For now we evaluate using static config defaults.
-  const config = node.config ?? {};
-  switch (node.type) {
-    case "debt_over_threshold": {
-      // TODO: SELECT outstanding_debt FROM mv_debt_aging WHERE parent_id = $1
-      const threshold = Number(config.threshold ?? 0);
-      const currentDebt = Number(config._stub_current_debt ?? 0);
-      const result = currentDebt >= threshold;
-      return {
-        result,
-        reason: `debt ${currentDebt} ${result ? ">=" : "<"} threshold ${threshold}`,
-        output: { current_debt: currentDebt, threshold, evaluated: result },
-      };
-    }
-    case "payment_method_match": {
-      // TODO: lookup payment.method from payments table
-      const expected = String(config.method ?? "cash");
-      const actual = String(config._stub_actual_method ?? "cash");
-      const result = expected === actual;
-      return {
-        result,
-        reason: `actual '${actual}' ${result ? "==" : "!="} expected '${expected}'`,
-        output: { expected, actual, evaluated: result },
-      };
-    }
-    case "student_status_match": {
-      // TODO: lookup student.status from students table
-      const expected = String(config.status ?? "active");
-      const actual = String(config._stub_actual_status ?? "active");
-      const result = expected === actual;
-      return {
-        result,
-        reason: `actual '${actual}' ${result ? "==" : "!="} expected '${expected}'`,
-        output: { expected, actual, evaluated: result },
-      };
-    }
-    case "condition":
-    default: {
-      // Generic condition: use config.default_result if provided, else true.
-      const result = config.default_result !== false;
-      return {
-        result,
-        reason: `generic condition evaluated to ${result} (stub)`,
-        output: { evaluated: result },
-      };
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Action execution (push_notification + send_email REAL [T-126, T-131];
-// the rest STUBS — TODO: wire real integrations per Plan §14)
-// ---------------------------------------------------------------------------
-
-async function executeActionNode(
-  supabase: SupabaseClient,
-  tenantId: string,
-  node: WorkflowNode,
-  context: { runId: string; triggerType: string; actorProfileId: string; actorEmail: string; requestId: string }
-): Promise<{ output: Record<string, unknown>; auditNote: string }> {
-  const config = node.config ?? {};
-
-  switch (node.type) {
-    case "send_email": {
-      // T-131 / PUSH-104 (2026-09-03): this action is NO LONGER a stub. It
-      // sends real transactional email through the ONE shared Resend
-      // integration (_shared/send-email.ts — the same module
-      // approve-signup-request uses; no parallel implementation).
-      //
-      // Honest-outcome contract (mirrors the T-126 push_notification fix):
-      // a missing RESEND_API_KEY secret or a provider-side failure is
-      // RECORDED in the node output + audit note — it never throws and
-      // never cascades the whole run to failed. Template-based configs
-      // (e.g. template: "relance_impayes_v2") are honestly skipped: there
-      // is no server-side template registry yet (business content is an
-      // owner decision — see the T-131 task entry).
-      const to = String(config.to ?? "").trim();
-      const subject = String(config.subject ?? "").trim();
-      const html = String(config.html ?? config.body ?? "").trim();
-
-      if (!to || !subject || !html) {
-        const missing = [
-          !to ? "to" : null,
-          !subject ? "subject" : null,
-          !html ? "html/body" : null,
-          config.template && !config.to ? "template (no server-side template registry — provide explicit to/subject/html)" : null,
-        ]
-          .filter(Boolean)
-          .join(", ");
-        return {
-          output: { sent: 0, skipped: 1, provider: "resend", reason: "missing_fields", missing },
-          auditNote: `send_email SKIPPED — missing config fields: ${missing}`,
-        };
-      }
-
-      const emailConfig = resolveEmailConfig(Deno.env);
-      const outcome = await sendEmailWithResend({ to, subject, html }, emailConfig);
-      if (!outcome.sent) {
-        return {
-          output: {
-            sent: 0,
-            skipped: outcome.reason === "not_configured" ? 1 : 0,
-            failed: outcome.reason === "not_configured" ? 0 : 1,
-            provider: "resend",
-            reason: outcome.reason,
-            ...(outcome.status != null ? { status: outcome.status } : {}),
-            error: outcome.error,
-          },
-          auditNote:
-            `send_email to=${to} subject="${subject}" FAILED (${outcome.reason})` +
-            (outcome.error ? ` — ${outcome.error}` : ""),
-        };
-      }
-      return {
-        output: { sent: 1, skipped: 0, failed: 0, provider: "resend", to },
-        auditNote: `send_email to=${to} subject="${subject}" sent via resend`,
-      };
-    }
-
-    case "apply_discount": {
-      // TODO: call public.apply_discount RPC (creates a discount row + ledger entry)
-      const percent = Number(config.percent ?? 0);
-      const targetType = String(config.target_type ?? "installment");
-      return {
-        output: { stub: true, percent, target_type: targetType },
-        auditNote: `STUB apply_discount percent=${percent}% target=${targetType}`,
-      };
-    }
-
-    case "create_invoice": {
-      // TODO: call public.create_invoice RPC
-      const parentId = String(config.parent_id ?? "(unspecified)");
-      const amount = Number(config.amount ?? 0);
-      return {
-        output: { stub: true, parent_id: parentId, amount },
-        auditNote: `STUB create_invoice parent=${parentId} amount=${amount}`,
-      };
-    }
-
-    case "push_notification": {
-      // T-126 / PUSH-100 (2026-09-02): this action is NO LONGER a stub. It
-      // resolves its recipients (an explicit config.target_user_id, or every
-      // active holder of config.target_role within the tenant) and invokes
-      // the canonical send-push-notification Edge Function (hub-owned, FCM
-      // HTTP v1) with the service_role key.
-      const title = String(config.title ?? "Notification");
-      const body = config.body != null ? String(config.body) : undefined;
-      const category = config.category != null ? String(config.category) : undefined;
-      const data = (config.data ?? undefined) as Record<string, string> | undefined;
-      const priority = (config.priority ?? undefined) as "normal" | "high" | undefined;
-      const explicitTarget = config.target_user_id != null ? String(config.target_user_id) : null;
-      const targetRole = explicitTarget ? null : String(config.target_role ?? "financial_officer");
-
-      // 1. Resolve recipients (user_profiles ids — device_tokens.user_id).
-      let recipientIds: string[] = [];
-      if (explicitTarget) {
-        recipientIds = [explicitTarget];
-      } else {
-        const { data: roleRow, error: roleErr } = await supabase
-          .from("roles")
-          .select("id")
-          .eq("code", targetRole!)
-          .limit(1);
-        if (roleErr) {
-          throw new Error(`push_notification role lookup failed: ${roleErr.message}`);
-        }
-        if (!roleRow || roleRow.length === 0) {
-          return {
-            output: { sent: 0, failed: 0, recipients: 0, note: `no role '${targetRole}' exists` },
-            auditNote: `push_notification role=${targetRole} title="${title}" — role not found, 0 recipients`,
-          };
-        }
-        const { data: assignments, error: asgErr } = await supabase
-          .from("role_assignments")
-          .select("user_profile_id")
-          .eq("role_id", (roleRow[0] as { id: string }).id)
-          .eq("tenant_id", tenantId)
-          .is("revoked_at", null);
-        if (asgErr) {
-          throw new Error(`push_notification role-assignment lookup failed: ${asgErr.message}`);
-        }
-        recipientIds = (assignments ?? []).map(
-          (a: { user_profile_id: string }) => a.user_profile_id,
-        );
-      }
-
-      if (recipientIds.length === 0) {
-        return {
-          output: { sent: 0, failed: 0, recipients: 0 },
-          auditNote: `push_notification role=${targetRole ?? "(direct)"} title="${title}" — 0 recipients`,
-        };
-      }
-
-      // 2. Invoke the canonical EF once per recipient (service-role auth).
-      const baseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-      if (!baseUrl || !serviceKey) {
-        throw new Error("push_notification requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env");
-      }
-      const efUrl = `${baseUrl}/functions/v1/send-push-notification`;
-      const perRecipient: { user_id: string; sent: number; error?: string }[] = [];
-      let sent = 0;
-      let failed = 0;
-      for (const userId of recipientIds) {
-        try {
-          const resp = await fetch(efUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${serviceKey}`,
-            },
-            body: JSON.stringify({
-              target_user_id: userId,
-              title,
-              body,
-              data,
-              category,
-              priority,
-            }),
-          });
-          const json = (await resp.json().catch(() => ({}))) as { sent?: number; error?: string };
-          if (resp.ok) {
-            sent += json.sent ?? 0;
-            perRecipient.push({ user_id: userId, sent: json.sent ?? 0 });
-          } else {
-            failed += 1;
-            perRecipient.push({ user_id: userId, sent: 0, error: json.error ?? `HTTP ${resp.status}` });
-          }
-        } catch (err) {
-          failed += 1;
-          perRecipient.push({ user_id: userId, sent: 0, error: String(err) });
-        }
-      }
-
-      // 3. Honest output — per-recipient failures are RECORDED, not thrown:
-      // a missing FIREBASE_SERVICE_ACCOUNT_JSON secret must not cascade the
-      // whole workflow run to failed; the failure is visible in the node
-      // output + audit trail (the EF itself returns 500 naming the missing
-      // secret, which lands in `failures` below).
-      return {
-        output: {
-          sent,
-          failed,
-          recipients: recipientIds.length,
-          provider: "fcm",
-          ...(failed > 0
-            ? {
-                partial_failure: true,
-                failures: perRecipient.filter((p) => p.error).slice(0, 5),
-              }
-            : {}),
-        },
-        auditNote:
-          `push_notification role=${targetRole ?? "(direct)"} title="${title}" — ` +
-          `${sent} sent, ${failed} failed of ${recipientIds.length} recipients`,
-      };
-    }
-
-    case "log_audit": {
-      // This one is NOT a stub — we write an audit log entry directly.
-      const action = String(config.action ?? "workflow.audit_log");
-      const note = String(config.note ?? "");
-      await writeAuditLog(
-        tenantId,
-        action,
-        String(config.entity_type ?? "workflow"),
-        (config.entity_id as string) ?? null,
-        context.actorProfileId,
-        context.actorEmail,
-        null,
-        config.payload ?? null,
-        note,
-        context.requestId
-      );
-      return {
-        output: { action, note },
-        auditNote: `log_audit action=${action}`,
-      };
-    }
-
-    case "wait_duration": {
-      // TODO: For real async waiting, enqueue a delayed job. For now we
-      // optionally sleep if duration_ms <= 5000 (5s safety cap) — longer
-      // waits must be implemented as a scheduler callback.
-      const waitMs = Math.min(Number(config.duration_ms ?? 0), 5000);
-      if (waitMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, waitMs));
-      }
-      return {
-        output: { waited_ms: waitMs, capped: Number(config.duration_ms ?? 0) > 5000 },
-        auditNote: `wait_duration ${waitMs}ms`,
-      };
-    }
-
-    case "database_query": {
-      // TODO: Execute a tenant-scoped SELECT against a whitelist of views.
-      // SECURITY: must NEVER run arbitrary user-supplied SQL. Use a stored
-      // function or parameterized query against a pre-approved view list.
-      const viewName = String(config.view ?? "(unspecified)");
-      return {
-        output: { stub: true, view: viewName },
-        auditNote: `STUB database_query view=${viewName}`,
-      };
-    }
-
-    case "extract_field": {
-      // TODO: extract a field from the trigger payload or upstream node output.
-      const source = String(config.source ?? "trigger");
-      const field = String(config.field ?? "");
-      return {
-        output: { stub: true, source, field, extracted_value: null },
-        auditNote: `STUB extract_field source=${source} field=${field}`,
-      };
-    }
-
-    default: {
-      throw new Error(`Unknown action node type: ${node.type}`);
-    }
-  }
+/** Desktop subtype → DB spelling (the one legacy mismatch). */
+function mapTriggerType(raw: string | undefined): string | null {
+  const t = (raw ?? "manual_run").trim();
+  const mapped = t === "absence_limit_exceeded" ? "absence_limit" : t;
+  return RUN_TRIGGERS.includes(mapped) ? mapped : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -548,33 +117,34 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (!ctx) {
     return jsonError(req, 401, "unauthorized", "Authentication required");
   }
-
-  // 2. Permission check
   if (!requirePermission(ctx, "execute_workflow")) {
     return jsonError(req, 403, "forbidden", "execute_workflow permission required");
   }
 
-  // 3. Parse body
+  // 2. Body
   let body: ExecuteWorkflowBody;
   try {
     body = await req.json();
   } catch {
     return jsonError(req, 400, "invalid_body", "Request body must be valid JSON");
   }
-
   if (!body.workflow_id) {
     return jsonError(req, 400, "missing_fields", "workflow_id is required");
   }
 
-  const triggerType = body.trigger_type ?? "manual_run";
+  const triggerType = mapTriggerType(body.trigger_type);
+  if (triggerType === null) {
+    return jsonError(req, 400, "invalid_trigger_type", `trigger_type '${body.trigger_type}' is not a registered run trigger`);
+  }
   const actorNote = body.actor_note?.trim() || null;
+  const dryRun = body.dry_run === true;
 
   const supabase = createServiceRoleClient();
 
-  // 4. Fetch the workflow definition
+  // 3. Fetch the workflow — the REAL columns (DAG-101 fix).
   const { data: workflow, error: wfError } = await supabase
     .from("workflows")
-    .select("id, tenant_id, name, code, status, definition, max_daily_executions, version")
+    .select("id, tenant_id, name, code, status, dag_definition, max_daily_executions, version, last_executed_at, total_executions")
     .eq("id", body.workflow_id)
     .eq("tenant_id", ctx.tenantId)
     .single();
@@ -582,14 +152,30 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
   if (wfError || !workflow) {
     return jsonError(req, 404, "workflow_not_found", "Workflow not found in this tenant");
   }
-
   if (workflow.status !== "published") {
     return jsonError(req, 409, "workflow_not_published", `Workflow status is '${workflow.status}', must be 'published'`);
   }
 
-  // 5. Daily execution limit check
+  // 4. Parse + validate the definition (execution-time gate — the 0081 SQL
+  //    gate already protected publishing; this protects direct DB edits).
+  const definition = parseDefinition(workflow.dag_definition);
+  const validation = validateWorkflowDefinition(definition, { strict: false });
+  if (!definition || !validation.valid) {
+    return jsonError(
+      req,
+      400,
+      "invalid_dag",
+      "Workflow definition is invalid",
+      validation.errors.join(" | "),
+    );
+  }
+  if (definition.nodes.length === 0) {
+    return jsonError(req, 400, "empty_workflow", "Workflow has no nodes");
+  }
+
+  // 5. Daily execution limit (dry runs do NOT consume the cap).
   const maxDaily = Number(workflow.max_daily_executions ?? 0);
-  if (maxDaily > 0) {
+  if (!dryRun && maxDaily > 0) {
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
     const { count, error: countError } = await supabase
@@ -598,51 +184,101 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       .eq("workflow_id", workflow.id)
       .eq("tenant_id", ctx.tenantId)
       .gte("started_at", todayStart.toISOString());
-
     if (countError) {
-      console.error("[workflow-execute] Failed to count today's runs:", countError);
       return jsonError(req, 500, "limit_check_failed", "Failed to verify daily execution limit");
     }
-
     if ((count ?? 0) >= maxDaily) {
       return jsonError(
         req,
         429,
         "daily_limit_reached",
-        `Workflow has reached its daily execution limit (${maxDaily}). Try again tomorrow.`
+        `Workflow has reached its daily execution limit (${maxDaily}). Try again tomorrow.`,
       );
     }
   }
 
-  // 6. Parse the DAG definition
-  let definition: WorkflowDefinition;
-  try {
-    const raw = typeof workflow.definition === "string"
-      ? JSON.parse(workflow.definition)
-      : workflow.definition;
-    if (!raw || !Array.isArray(raw.nodes) || !Array.isArray(raw.edges)) {
-      throw new Error("definition must be an object with nodes[] and edges[]");
-    }
-    definition = raw as WorkflowDefinition;
-  } catch (e) {
-    console.error("[workflow-execute] Invalid workflow definition:", e);
-    return jsonError(req, 500, "invalid_definition", "Workflow definition is malformed", String(e));
+  // 6. Build the execution context (T-227 real loaders; test payload merged
+  //    UNDER the real values — the client cannot fake entity data).
+  const entityContext = await buildExecutionContext(supabase, ctx.tenantId, {
+    parentId: body.parent_id ?? null,
+    studentId: body.student_id ?? null,
+    installmentId: body.installment_id ?? null,
+  });
+  const context: EngineContext = {
+    ...(body.context ?? {}),
+    ...entityContext,
+    workflow: {
+      ...((body.context?.workflow as Record<string, unknown>) ?? {}),
+      id: workflow.id,
+      code: workflow.code,
+      name: workflow.name,
+      version: workflow.version ?? 1,
+    },
+  };
+
+  const runCtx = {
+    tenantId: ctx.tenantId,
+    actorProfileId: ctx.userProfileId,
+    actorEmail: ctx.email,
+    requestId,
+    parentId: body.parent_id ?? (entityContext.parent as { id?: string } | undefined)?.id ?? null,
+    studentId: body.student_id ?? null,
+    installmentId: body.installment_id ?? null,
+    dryRun,
+  };
+
+  const actionHandler = (node, engineContext) =>
+    executeNodeAction(node, engineContext, runCtx);
+
+  // -------------------------------------------------------------------------
+  // DRY RUN (T-229): full simulation, no run row, one audit entry.
+  // -------------------------------------------------------------------------
+  if (dryRun) {
+    const dry = await executeWorkflowDefinition(definition, {
+      context,
+      actions: actionHandler,
+      deadlineMs: 25_000,
+    });
+    await writeAuditLog(
+      ctx.tenantId,
+      "workflow.dry_run",
+      "workflow",
+      workflow.id,
+      ctx.userProfileId,
+      ctx.email,
+      null,
+      {
+        workflow_id: workflow.id, workflow_code: workflow.code,
+        status: dry.status, node_count: definition.nodes.length,
+        succeeded: dry.node_results.filter((r) => r.status === "succeeded").length,
+        skipped: dry.node_results.filter((r) => r.status === "skipped").length,
+        failed: dry.node_results.filter((r) => r.status === "failed").length,
+        warnings: dry.warnings,
+        entity: { parent_id: runCtx.parentId, student_id: runCtx.studentId },
+      },
+      `Dry-run of workflow '${workflow.name}' (${dry.status}).`,
+      requestId,
+    );
+    return jsonOk(req, {
+      dry_run: true,
+      workflow_id: workflow.id,
+      workflow_code: workflow.code,
+      workflow_version: workflow.version ?? 1,
+      status: dry.status,
+      error: dry.error_message,
+      node_count: definition.nodes.length,
+      succeeded_nodes: dry.node_results.filter((r) => r.status === "succeeded").length,
+      failed_nodes: dry.node_results.filter((r) => r.status === "failed").length,
+      skipped_nodes: dry.node_results.filter((r) => r.status === "skipped").length,
+      taken_edge_keys: dry.taken_edge_keys,
+      warnings: dry.warnings,
+      node_results: dry.node_results,
+    });
   }
 
-  if (definition.nodes.length === 0) {
-    return jsonError(req, 400, "empty_workflow", "Workflow has no nodes");
-  }
-
-  // 7. Topological sort (with cycle detection)
-  let orderedNodes: WorkflowNode[];
-  try {
-    orderedNodes = topologicalSort(definition.nodes, definition.edges);
-  } catch (e) {
-    console.error("[workflow-execute] Topo sort failed:", e);
-    return jsonError(req, 400, "invalid_dag", "Workflow DAG is invalid", String(e));
-  }
-
-  // 8. Insert workflow_runs row (status='running')
+  // -------------------------------------------------------------------------
+  // REAL RUN: insert the run row (the 0081 contract columns).
+  // -------------------------------------------------------------------------
   const runStartedAt = new Date().toISOString();
   const runStartPerf = performance.now();
 
@@ -652,8 +288,8 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       tenant_id: ctx.tenantId,
       workflow_id: workflow.id,
       workflow_version: workflow.version ?? 1,
-      triggered_by_profile_id: ctx.userProfileId,
       trigger_type: triggerType,
+      actor_id: ctx.userProfileId,
       status: "running",
       started_at: runStartedAt,
       node_results: [],
@@ -667,199 +303,107 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     console.error("[workflow-execute] Failed to insert workflow_runs row:", insertError);
     return jsonError(req, 500, "run_insert_failed", "Failed to start workflow run", insertError?.message);
   }
-
   const runId = runRow.id;
 
-  // 9. Execute nodes
-  const nodeResults: NodeResult[] = [];
-  const activeNodes = new Set<string>();
-  const failedNodes = new Set<string>();
-
-  // Seed: trigger nodes are active entry points. If none, activate the first node.
-  const triggers = orderedNodes.filter((n) => isTrigger(n.type));
-  if (triggers.length > 0) {
-    for (const t of triggers) activeNodes.add(t.id);
-  } else {
-    activeNodes.add(orderedNodes[0].id);
-  }
-
-  // Index outgoing edges by source for quick lookup
-  const outgoingBySource = new Map<string, WorkflowEdge[]>();
-  for (const e of definition.edges) {
-    const list = outgoingBySource.get(e.source) ?? [];
-    list.push(e);
-    outgoingBySource.set(e.source, list);
-  }
-
-  let runFailed = false;
-  let failureMessage: string | null = null;
-
-  for (const node of orderedNodes) {
-    const nodeStart = performance.now();
-    const nodeStartedAt = new Date().toISOString();
-    const isActive = activeNodes.has(node.id);
-
-    // Node was pruned by a prior condition branch OR by a prior failure
-    if (!isActive || failedNodes.size > 0) {
-      const skipped: NodeResult = {
-        node_id: node.id,
-        node_type: node.type,
-        node_label: node.label,
-        status: "skipped",
-        started_at: nodeStartedAt,
-        completed_at: nodeStartedAt,
-        duration_ms: 0,
-        output: failedNodes.size > 0
-          ? { reason: "skipped_due_to_upstream_failure", failed_nodes: [...failedNodes] }
-          : { reason: "pruned_by_condition_branch" },
-      };
-      nodeResults.push(skipped);
-      continue;
-    }
-
-    try {
-      if (isTrigger(node.type)) {
-        // Trigger nodes are entry points — no execution work, just mark succeeded
-        nodeResults.push({
-          node_id: node.id,
-          node_type: node.type,
-          node_label: node.label,
-          status: "succeeded",
-          started_at: nodeStartedAt,
-          completed_at: new Date().toISOString(),
-          duration_ms: Math.round(performance.now() - nodeStart),
-          output: { trigger_type: node.type, note: "trigger entry point — no execution" },
-        });
-        // Activate all downstream nodes (triggers have unconditional edges)
-        for (const e of outgoingBySource.get(node.id) ?? []) {
-          activeNodes.add(e.target);
+  // Progressive persistence: every node result lands on the run row as it
+  // is produced (a worker death mid-run leaves the partial trail visible).
+  const persistProgress = (nodeResult): Promise<void> => {
+    return supabase
+      .from("workflow_runs")
+      .update({ node_results: accumulated })
+      .eq("id", runId)
+      .then(({ error }) => {
+        if (error) {
+          console.error(`[workflow-execute] progressive node_results persist failed for run ${runId}:`, error);
         }
-        continue;
-      }
-
-      if (isCondition(node.type)) {
-        const evalResult = await evaluateCondition(supabase, ctx.tenantId, node, {
-          runId,
-          triggerType,
-        });
-
-        nodeResults.push({
-          node_id: node.id,
-          node_type: node.type,
-          node_label: node.label,
-          status: "succeeded",
-          started_at: nodeStartedAt,
-          completed_at: new Date().toISOString(),
-          duration_ms: Math.round(performance.now() - nodeStart),
-          output: { condition_result: evalResult.result, reason: evalResult.reason, ...evalResult.output },
-        });
-
-        // Activate only the matching branch
-        for (const e of outgoingBySource.get(node.id) ?? []) {
-          // An edge with branch==='true' is taken when result is true;
-          // branch==='false' when false; null/undefined = always taken
-          if (e.branch == null) {
-            activeNodes.add(e.target);
-          } else if (e.branch === "true" && evalResult.result) {
-            activeNodes.add(e.target);
-          } else if (e.branch === "false" && !evalResult.result) {
-            activeNodes.add(e.target);
-          }
-        }
-        continue;
-      }
-
-      if (isAction(node.type)) {
-        try {
-          const exec = await executeActionNode(supabase, ctx.tenantId, node, {
-            runId,
-            triggerType,
-            actorProfileId: ctx.userProfileId,
-            actorEmail: ctx.email,
-            requestId,
-          });
-
-          nodeResults.push({
-            node_id: node.id,
-            node_type: node.type,
-            node_label: node.label,
-            status: "succeeded",
-            started_at: nodeStartedAt,
-            completed_at: new Date().toISOString(),
-            duration_ms: Math.round(performance.now() - nodeStart),
-            output: { ...exec.output, audit_note: exec.auditNote },
-          });
-
-          // Activate all downstream nodes (actions have unconditional edges)
-          for (const e of outgoingBySource.get(node.id) ?? []) {
-            activeNodes.add(e.target);
-          }
-        } catch (actionError) {
-          // Action failed — capture the error, mark run as failed
-          failedNodes.add(node.id);
-          runFailed = true;
-          failureMessage = `Node '${node.id}' (${node.type}) failed: ${String(actionError)}`;
-          console.error(`[workflow-execute] Node ${node.id} failed:`, actionError);
-
-          nodeResults.push({
-            node_id: node.id,
-            node_type: node.type,
-            node_label: node.label,
-            status: "failed",
-            started_at: nodeStartedAt,
-            completed_at: new Date().toISOString(),
-            duration_ms: Math.round(performance.now() - nodeStart),
-            error: String(actionError),
-          });
-          // Don't activate downstream — they'll be skipped via failedNodes check
-        }
-        continue;
-      }
-
-      // Unknown node type — treat as failure so admins notice the misconfiguration
-      throw new Error(`Unknown node type '${node.type}' on node '${node.id}'`);
-    } catch (nodeError) {
-      failedNodes.add(node.id);
-      runFailed = true;
-      failureMessage = failureMessage ?? `Node '${node.id}' failed: ${String(nodeError)}`;
-      console.error(`[workflow-execute] Node ${node.id} failed:`, nodeError);
-
-      nodeResults.push({
-        node_id: node.id,
-        node_type: node.type,
-        node_label: node.label,
-        status: "failed",
-        started_at: nodeStartedAt,
-        completed_at: new Date().toISOString(),
-        duration_ms: Math.round(performance.now() - nodeStart),
-        error: String(nodeError),
       });
+  };
+
+  // The engine pushes results through onNodeResult; accumulate + persist.
+  const accumulated: unknown[] = [];
+  const onNodeResult = (result): void => {
+    accumulated.push(result);
+    void persistProgress(result);
+  };
+
+  const outcome = await executeWorkflowDefinition(definition, {
+    context,
+    actions: actionHandler,
+    deadlineMs: 25_000,
+    onNodeResult,
+  });
+
+  // -------------------------------------------------------------------------
+  // Park (T-228 scheduler will resume) or finalize.
+  // -------------------------------------------------------------------------
+  if (outcome.status === "paused" && outcome.resume_state) {
+    const { error: parkError } = await supabase
+      .from("workflow_pending_resumes")
+      .insert({
+        tenant_id: ctx.tenantId,
+        run_id: runId,
+        workflow_id: workflow.id,
+        node_id: outcome.resume_state.parked_node_id,
+        state: outcome.resume_state as unknown as Record<string, unknown>,
+        resume_after: outcome.pause?.resume_after ?? new Date().toISOString(),
+        status: "pending",
+      });
+    if (parkError) {
+      // The pause row is the run's only lifeline — its failure is fatal
+      // (honestly): the run is marked failed so an operator sees it.
+      console.error(`[workflow-execute] park insert failed for run ${runId}:`, parkError);
+      await finalizeRun(supabase, runId, {
+        status: "failed",
+        completedAt: new Date().toISOString(),
+        durationMs: Math.round(performance.now() - runStartPerf),
+        nodeResults: outcome.node_results,
+        errorMessage: `park failed: ${parkError.message}`,
+      });
+      return jsonError(req, 500, "park_failed", "Workflow parked but the resume row could not be written", parkError.message);
     }
+    // Run stays 'running' (the DB enum has no paused state; node_results
+    // carries the park note; the scheduler finalizes after resuming).
+    return jsonOk(req, {
+      run_id: runId,
+      workflow_id: workflow.id,
+      workflow_code: workflow.code,
+      status: "paused",
+      paused_at: new Date().toISOString(),
+      resume_after: outcome.pause?.resume_after,
+      parked_node_id: outcome.resume_state.parked_node_id,
+      duration_ms: Math.round(performance.now() - runStartPerf),
+      node_count: definition.nodes.length,
+      node_results: outcome.node_results,
+    });
   }
 
-  // 10. Finalize the run
+  // Finalize: the run row + the workflow counters.
   const runCompletedAt = new Date().toISOString();
   const durationMs = Math.round(performance.now() - runStartPerf);
-  const finalStatus = runFailed ? "failed" : "succeeded";
+  await finalizeRun(supabase, runId, {
+    status: outcome.status,
+    completedAt: runCompletedAt,
+    durationMs,
+    nodeResults: outcome.node_results,
+    errorMessage: outcome.error_message,
+  });
 
-  const { error: updateError } = await supabase
-    .from("workflow_runs")
+  // The EF owns last_executed_at / total_executions (0012) — on COMPLETED
+  // runs only (parked runs update when the scheduler finishes them).
+  const { error: counterError } = await supabase
+    .from("workflows")
     .update({
-      status: finalStatus,
-      completed_at: runCompletedAt,
-      duration_ms: durationMs,
-      node_results: nodeResults,
-      error_message: runFailed ? failureMessage : null,
+      last_executed_at: runCompletedAt,
+      total_executions: (workflow.total_executions ?? 0) + 1,
     })
-    .eq("id", runId);
-
-  if (updateError) {
-    console.error("[workflow-execute] Failed to finalize workflow_runs row:", updateError);
-    // Don't return error here — the run executed, just couldn't persist final state.
-    // Audit log + response still reflect the actual outcome.
+    .eq("id", workflow.id);
+  if (counterError) {
+    console.error(`[workflow-execute] counter update failed for workflow ${workflow.id}:`, counterError);
+    // Not fatal: the run is complete + audited; the counters are
+    // best-effort by contract (0012 comment) — logged, surfaced in logs.
   }
 
-  // 11. Audit log
+  // Audit entry (canonical).
   await writeAuditLog(
     ctx.tenantId,
     "workflow.run",
@@ -871,34 +415,122 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     {
       workflow_id: workflow.id,
       workflow_code: workflow.code,
+      workflow_version: workflow.version ?? 1,
       run_id: runId,
-      status: finalStatus,
+      status: outcome.status,
       trigger_type: triggerType,
       duration_ms: durationMs,
       node_count: definition.nodes.length,
-      succeeded_nodes: nodeResults.filter((r) => r.status === "succeeded").length,
-      failed_nodes: nodeResults.filter((r) => r.status === "failed").length,
-      skipped_nodes: nodeResults.filter((r) => r.status === "skipped").length,
-      error: runFailed ? failureMessage : null,
+      succeeded_nodes: outcome.node_results.filter((r) => r.status === "succeeded").length,
+      failed_nodes: outcome.node_results.filter((r) => r.status === "failed").length,
+      skipped_nodes: outcome.node_results.filter((r) => r.status === "skipped").length,
+      warnings: outcome.warnings,
+      error: outcome.error_message,
+      entity: { parent_id: runCtx.parentId, student_id: runCtx.studentId },
     },
     actorNote
-      ? `Workflow '${workflow.name}' executed (${finalStatus}). Note: ${actorNote}`
-      : `Workflow '${workflow.name}' executed (${finalStatus}).`,
-    requestId
+      ? `Workflow '${workflow.name}' executed (${outcome.status}). Note: ${actorNote}`
+      : `Workflow '${workflow.name}' executed (${outcome.status}).`,
+    requestId,
   );
 
-  // 12. Return result
   return jsonOk(req, {
     run_id: runId,
     workflow_id: workflow.id,
     workflow_code: workflow.code,
-    status: finalStatus,
+    workflow_version: workflow.version ?? 1,
+    status: outcome.status,
     duration_ms: durationMs,
     node_count: definition.nodes.length,
-    succeeded_nodes: nodeResults.filter((r) => r.status === "succeeded").length,
-    failed_nodes: nodeResults.filter((r) => r.status === "failed").length,
-    skipped_nodes: nodeResults.filter((r) => r.status === "skipped").length,
-    error: runFailed ? failureMessage : null,
-    node_results: nodeResults,
+    succeeded_nodes: outcome.node_results.filter((r) => r.status === "succeeded").length,
+    failed_nodes: outcome.node_results.filter((r) => r.status === "failed").length,
+    skipped_nodes: outcome.node_results.filter((r) => r.status === "skipped").length,
+    taken_edge_keys: outcome.taken_edge_keys,
+    warnings: outcome.warnings,
+    error: outcome.error_message,
+    node_results: outcome.node_results,
   });
 }));
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function finalizeRun(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  runId: string,
+  final: {
+    status: string;
+    completedAt: string;
+    durationMs: number;
+    nodeResults: unknown[];
+    errorMessage: string | null;
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from("workflow_runs")
+    .update({
+      status: final.status,
+      completed_at: final.completedAt,
+      duration_ms: final.durationMs,
+      node_results: final.nodeResults,
+      error_message: final.errorMessage,
+    })
+    .eq("id", runId);
+  if (error) {
+    console.error(`[workflow-execute] final update failed for run ${runId}:`, error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Execution context builder — T-227's real loaders land in the next commits;
+// this slice seeds the workflow metadata + entity ids (ids the actions use).
+// The client-provided test payload is merged UNDER the server-built values.
+// ---------------------------------------------------------------------------
+
+async function buildExecutionContext(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  tenantId: string,
+  entity: { parentId: string | null; studentId: string | null; installmentId: string | null },
+): Promise<EngineContext> {
+  const context: Record<string, unknown> = {};
+  const nowIso = new Date().toISOString();
+
+  if (entity.parentId) {
+    const { data: parent } = await supabase
+      .from("parents")
+      .select("id, display_name, first_name, last_name, phone, is_financially_restricted, notes")
+      .eq("id", entity.parentId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (parent) {
+      context.parent = {
+        id: parent.id,
+        display_name: parent.display_name ?? parent.last_name ?? parent.id,
+        phone: parent.phone,
+        is_financially_restricted: parent.is_financially_restricted,
+      };
+    }
+  }
+  if (entity.studentId) {
+    const { data: student } = await supabase
+      .from("students")
+      .select("id, first_name, last_name, enrollment_status, parent_id")
+      .eq("id", entity.studentId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (student) {
+      context.student = {
+        id: student.id,
+        status: student.enrollment_status,
+        parent_id: student.parent_id,
+      };
+    }
+  }
+
+  context.workflow = { now: nowIso, nowMs: Date.now() };
+  return context;
+}
+
+// Exported for the scheduler EF's reuse (T-228) via the module system.
+export { buildExecutionContext };

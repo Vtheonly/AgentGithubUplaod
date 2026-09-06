@@ -43,10 +43,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DESKTOP_ROOT = join(__dirname, "..", "..", "..");
 
 const EF = "supabase/functions/send-push-notification/index.ts";
-const WORKFLOW = "supabase/functions/workflow-execute/index.ts";
+// T-225 (34th session): the workflow-execute push wiring moved from
+// index.ts into the action-executor module (actions.ts) — the guard now
+// reads the concatenation of BOTH files so the pinned invariants keep
+// covering whichever module carries the wiring.
+const WORKFLOW_FILES = [
+  "supabase/functions/workflow-execute/index.ts",
+  "supabase/functions/workflow-execute/actions.ts",
+];
+const WORKFLOW = "supabase/functions/workflow-execute/*";
 
 const read = (rel: string): string =>
-  readFileSync(join(DESKTOP_ROOT, rel), "utf8");
+  rel === WORKFLOW
+    ? WORKFLOW_FILES.map((f) => readFileSync(join(DESKTOP_ROOT, f), "utf8")).join("\n")
+    : readFileSync(join(DESKTOP_ROOT, rel), "utf8");
 
 describe("T-126 — canonical push EF (PUSH-100 family)", () => {
   it("the canonical EF source exists in the hub repo", () => {
@@ -94,12 +104,14 @@ describe("T-126 — workflow-execute push_notification wiring", () => {
     const src = read(WORKFLOW);
     expect(src).toContain('.from("role_assignments")');
     expect(src).toContain('.is("revoked_at", null)');
-    expect(src).toContain('.eq("tenant_id", tenantId)');
+    // run.tenantId (actions.ts) / ctx.tenantId (index.ts) — either form
+    // keeps the lookup tenant-scoped.
+    expect(src).toMatch(/\.eq\("tenant_id", (run|ctx)\.tenantId\)/);
   });
 
   it("per-recipient failures are recorded honestly (partial_failure), not swallowed", () => {
     const src = read(WORKFLOW);
     expect(src).toContain("partial_failure: true");
-    expect(src).toContain("failures: perRecipient.filter");
+    expect(src).toMatch(/failures: (perRecipient\.filter|failures\.slice)/);
   });
 });
