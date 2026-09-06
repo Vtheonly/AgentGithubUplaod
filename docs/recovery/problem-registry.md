@@ -4073,12 +4073,12 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### UI-300 — Dashboard two-column grid has NO base column template: implicit auto track sizes to max-content → 880–935px horizontal page overflow on mobile (grid blowout)
 
-- **Category:** UI  |  **Severity:** Critical  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Category:** UI  |  **Severity:** Critical  |  **Status:** TESTED (2026-09-06, 31st session — T-199: `grid-cols-1` added; live DOM re-measure 0px document overflow at 320/375/768/1280 [was 935/880/487/0]; regression guard `t-199-grid-blowout-guard.test.ts` 2/2 incl. a whole-src scan for the bug class; full website suite 31 files / 498 / 0; lint clean; strict build green)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website mobile (<1024px — the lg:grid-cols-2 breakpoint covers desktop, hiding the defect there)
 - **Discovered:** live DOM measurement — `div.grid.gap-6.lg:grid-cols-2` (dashboard-view.tsx, the Upcoming-events/Announcements two-column section): scrollWidth 1239 vs clientWidth 343 at 375px; document overflow 880px at 375px, 935px at 320px. Every view beneath the section pokes out of the viewport; the whole dashboard scrolls horizontally.
 - **Root cause:** `className="grid gap-6 lg:grid-cols-2"` sets NO `grid-template-columns` below lg. An implicit grid track is `minmax(auto, auto)` — it sizes to the item's MAX-CONTENT width, and the CardListItem title/subtitle `.truncate` only ellipsizes when the box width is CONSTRAINED (truncate does not constrain the grid track). So the full untruncated text width ("Réunion parents-professeurs trimestre 1" + "20 sept. 2026, 10:00 AM • Salle de conférence") becomes the track width. Tailwind's `grid-cols-1` = `repeat(1, minmax(0, 1fr))` — the `0` min is exactly what prevents blowout. **Rule: every responsive grid MUST carry a base `grid-cols-*` (minmax(0,1fr) family), never a bare `grid gap-*` that only gains columns at a breakpoint.**
-- **Proposed resolution:** add `grid-cols-1` (T-199). Regression guard: a source-scan test forbidding `className="grid gap-…"` without any `grid-cols-` in the same class attribute.
+- **Proposed resolution:** DONE — `grid-cols-1` added (T-199). Regression guard shipped: `t-199-grid-blowout-guard.test.ts` forbids any static responsive-grid className without a base `grid-cols-*` token (the whole bug class, production files only).
 
 ### UI-301 — KpiCard renders currency values as unbreakable text-2xl: Intl narrow no-break spaces + font-mono make "175 000,00 DA" overflow the card (and the page) on mobile
 

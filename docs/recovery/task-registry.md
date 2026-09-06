@@ -2017,12 +2017,13 @@ UNKNOWN-011 ──→ T-042 (timetable)
 
 ## 31st repair session (2026-09-06) — owner mandate: mobile-first UI overflow fixes across the website + full-stack consistency verification
 
-### T-199 — Website: dashboard grid blowout (UI-300) + the UI visual-verification harness — **IN PROGRESS**
+### T-199 — Website: dashboard grid blowout (UI-300) + the UI visual-verification harness — **Completed (TESTED)**
 - **Problems:** UI-300 (Critical) · **Priority:** P0 · **Severity:** Critical
 - **Dependencies:** none · **Affected:** elimtiyaz-website (src/features/dashboard/dashboard-view.tsx)
-- **Status:** In Progress (2026-09-06, 31st session)
-- **Plan:** (1) seed a dedicated UI-TEST family in the live DB (tagged PAR-UI99/ELV-UI9x rows, harness script persisted outside the repos), (2) sign a test auth user into the dev server via the @supabase/ssr cookie format, (3) fix the grid (add `grid-cols-1`), (4) re-measure the DOM at 320/375/768/1280, (5) add a source-scan regression test forbidding bare `grid gap-*` without a base `grid-cols-`, (6) run the full website suite + lint + strict build.
-- **Verification criteria:** document-level horizontal overflow = 0 at all four widths on the dashboard; regression suite green; suite count ≥ previous.
+- **Status:** TESTED (2026-09-06, 31st session)
+- **What was done:** (1) UI-TEST family seeded live (parent PAR-UI99 + 2 students + 6 installments + 2 payments + 6 ledger entries + 5 attendance rows + 1 homework + 2 calendar events + 3 notifications + 1 admin chat channel — harness scripts `ui-harness-setup*.sh` persisted at /home/z/my-project/scripts/); (2) test auth user signed into the dev server via the @supabase/ssr cookie format (password grant → `sb-<ref>-auth-token` cookie — the localStorage route does NOT work for @supabase/ssr clients); (3) `grid-cols-1` added to the dashboard two-column grid; (4) NEW regression suite `src/test/t-199-grid-blowout-guard.test.ts` (2 tests: the fix pinned + a whole-src scan forbidding any static responsive-grid className without base `grid-cols-*`, production files only — the guard caught its own docstring on the first run, fixed by excluding /test/).
+- **Verified:** live DOM re-measure — document overflow 0px at 320/375/768/1280 (was 935/880/487/0); NEW suite 2/2; FULL website suite **31 files / 498 / 0** (was 30/496); lint clean; strict build green.
+- **Left:** the harness documentation for future sessions (T-207); the UI-TEST family cleanup at session close (T-208).
 
 ### T-200 — Website: KpiCard currency overflow (UI-301) — **READY**
 - **Problems:** UI-301 (High) · **Priority:** P0 · **Severity:** High
