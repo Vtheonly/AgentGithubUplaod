@@ -2025,7 +2025,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Verified:** live DOM re-measure — document overflow 0px at 320/375/768/1280 (was 935/880/487/0); NEW suite 2/2; FULL website suite **31 files / 498 / 0** (was 30/496); lint clean; strict build green.
 - **Left:** the harness documentation for future sessions (T-207); the UI-TEST family cleanup at session close (T-208).
 
-### T-200 — Website: KpiCard currency overflow (UI-301) — **READY**
+### T-200 — Website: KpiCard currency overflow (UI-301) — **Completed (TESTED)**
 - **Problems:** UI-301 (High) · **Priority:** P0 · **Severity:** High
 - **Dependencies:** none (T-199's harness is reused for verification) · **Affected:** elimtiyaz-website (src/features/shared/kpi-card.tsx)
 - **Plan:** responsive value sizing + `break-words` on the value element; formatter untouched (parity); regression test pinning the class contract; re-measure finance view at 320/375/1280.

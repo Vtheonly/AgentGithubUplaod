@@ -4082,12 +4082,12 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### UI-301 — KpiCard renders currency values as unbreakable text-2xl: Intl narrow no-break spaces + font-mono make "175 000,00 DA" overflow the card (and the page) on mobile
 
-- **Category:** UI  |  **Severity:** High  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Category:** UI  |  **Severity:** High  |  **Status:** TESTED (2026-09-06, 31st session — T-200: display-layer fix; live DOM re-measure finance view 0px document overflow at 320/375/1280 [was 10/108/0]; suite t-200 4/4 incl. the formatter-parity pin; full website suite 32 files / 502 / 0; lint clean; strict build green)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website — finance view (grid-cols-2 KPI row) and dashboard KPI row; desktop unaffected (its KPI cards are wider; its own layout was not audited for this family — see T-205)
 - **Discovered:** live DOM measurement — finance view document overflow 108px at 375px: the KPI value `<p class="mt-1.5 font-mono text-2xl …">175 000,00 DA</p>` is ~180px wide inside a ~100px-wide flex-1 column (card 165px − padding 32 − icon 36 − gap 12). The `<p>` has no wrap/break handling and `Intl.NumberFormat` fr-XX currency output uses U+202F NARROW NO-BREAK SPACE between digit groups, so the string cannot line-break at the group separators. 23px overflow persists even at desktop 4-col width for large amounts.
 - **Root cause:** two stacked choices — (a) `text-2xl` (24px) mono for a value that must fit a half-mobile-screen card, and (b) no `overflow-wrap` on the value element. The formatter itself is CORRECT and must not change (it is pinned by format.test.ts and cross-platform parity — desktop/Android use the same Intl output; changing the space type would be a parity break).
-- **Proposed resolution:** display-layer only (T-200): responsive value sizing + `break-words` on the value `<p>` so the amount wraps inside the card when narrow. Formatter untouched.
+- **Proposed resolution:** DONE (T-200) — value element: `break-words` + `text-xl sm:text-2xl`; decorative icon block `hidden sm:block` (frees ~48px for the value column on mobile). Formatter untouched (pinned by the t-200 parity test asserting the U+202F/U+00A0 separators still emit).
 
 ### UI-302 — Page header rows (`flex items-center justify-between gap-3` + action buttons) never wrap: 39–163px horizontal overflow at 320px on 4 surfaces
 
