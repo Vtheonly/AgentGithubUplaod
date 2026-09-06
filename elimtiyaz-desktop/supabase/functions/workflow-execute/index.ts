@@ -489,13 +489,31 @@ async function finalizeRun(
 // The client-provided test payload is merged UNDER the server-built values.
 // ---------------------------------------------------------------------------
 
+/**
+ * T-227: the REAL execution context — conditions evaluate against live
+ * business data, never client-supplied numbers (the body's test payload
+ * merges UNDER these values: index.ts spreads entityContext AFTER
+ * body.context).
+ *
+ * Field names mirror the desktop dry-run's defaultConditionContext
+ * (domain/calc/workflow/condition-evaluator.ts) so conditions authored
+ * in the builder resolve identically in simulation and execution:
+ *   parent.outstanding_balance / days_overdue / is_financially_restricted
+ *   student.absence_count / status
+ *   payment.method / status / category / amount
+ *   debt.amount (= total_outstanding)
+ * Sources: the CANONICAL compute_parent_summary RPC (0034 — the single
+ * source of truth for parent totals), attendance_records (0004),
+ * payments (0007), installments (0007).
+ */
 async function buildExecutionContext(
   supabase: ReturnType<typeof createServiceRoleClient>,
   tenantId: string,
   entity: { parentId: string | null; studentId: string | null; installmentId: string | null },
 ): Promise<EngineContext> {
   const context: Record<string, unknown> = {};
-  const nowIso = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
 
   if (entity.parentId) {
     const { data: parent } = await supabase
@@ -505,6 +523,33 @@ async function buildExecutionContext(
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (parent) {
+      // Canonical financial totals — the compute_parent_summary RPC (the
+      // same single source of truth the desktop/Android engines mirror;
+      // ADR-002). Returns TABLE: one row.
+      const { data: summaryRows, error: summaryError } = await supabase
+        .rpc("compute_parent_summary", { p_parent_id: entity.parentId });
+      const summary = Array.isArray(summaryRows) ? summaryRows[0] : null;
+      if (summaryError) {
+        console.error("[workflow-execute] compute_parent_summary failed:", summaryError);
+      }
+
+      // Oldest unpaid installment → parent.days_overdue.
+      const { data: oldest } = await supabase
+        .from("installments")
+        .select("due_date")
+        .eq("parent_id", entity.parentId)
+        .eq("tenant_id", tenantId)
+        .neq("status", "paid")
+        .neq("status", "cancelled")
+        .order("due_date", { ascending: true })
+        .limit(1);
+      let daysOverdue = 0;
+      if (oldest && oldest.length > 0 && oldest[0].due_date) {
+        const due = new Date(oldest[0].due_date).getTime();
+        daysOverdue = Math.max(0, Math.floor((now.getTime() - due) / 86_400_000));
+      }
+
+      const outstanding = Number(summary?.total_outstanding ?? 0);
       context.parent = {
         id: parent.id,
         display_name: parent.display_name ?? parent.last_name ?? parent.id,
@@ -514,9 +559,37 @@ async function buildExecutionContext(
         phone: parent.primary_phone ?? parent.secondary_phone ?? null,
         email: parent.email,
         is_financially_restricted: parent.is_financially_restricted,
+        outstanding_balance: outstanding,
+        total_overdue: Number(summary?.total_overdue ?? 0),
+        days_overdue: daysOverdue,
+      };
+      context.debt = {
+        amount: outstanding,
+        days_overdue: daysOverdue,
+      };
+    }
+
+    // Latest payment for the parent (payment.method/status/category…).
+    const { data: payment } = await supabase
+      .from("payments")
+      .select("amount, method, status, collected_at, category, installment_id, student_id")
+      .eq("parent_id", entity.parentId)
+      .eq("tenant_id", tenantId)
+      .order("collected_at", { ascending: false })
+      .limit(1);
+    if (payment && payment.length > 0) {
+      const p = payment[0];
+      context.payment = {
+        amount: Number(p.amount ?? 0),
+        method: p.method,
+        status: p.status,
+        category: p.category ?? null,
+        collected_at: p.collected_at,
+        days_overdue: 0,
       };
     }
   }
+
   if (entity.studentId) {
     const { data: student } = await supabase
       .from("students")
@@ -525,15 +598,51 @@ async function buildExecutionContext(
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (student) {
+      // Unexcused absence count (the absence-escalation condition input).
+      const { count: absences, error: absErr } = await supabase
+        .from("attendance_records")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", entity.studentId)
+        .eq("tenant_id", tenantId)
+        .eq("status", "absent_unexcused");
+      if (absErr) {
+        console.error("[workflow-execute] absence count failed:", absErr);
+      }
       context.student = {
         id: student.id,
         status: student.enrollment_status,
         parent_id: student.parent_id,
+        absence_count: absences ?? 0,
       };
     }
   }
 
-  context.workflow = { now: nowIso, nowMs: Date.now() };
+  if (entity.installmentId) {
+    const { data: installment } = await supabase
+      .from("installments")
+      .select("id, parent_id, student_id, category, label, tranche_number, amount_due, amount_paid, due_date, status")
+      .eq("id", entity.installmentId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (installment) {
+      const due = new Date(installment.due_date).getTime();
+      context.installment = {
+        id: installment.id,
+        parent_id: installment.parent_id,
+        student_id: installment.student_id,
+        category: installment.category,
+        label: installment.label,
+        amount_due: Number(installment.amount_due ?? 0),
+        amount_paid: Number(installment.amount_paid ?? 0),
+        remaining: Number(installment.amount_due ?? 0) - Number(installment.amount_paid ?? 0),
+        due_date: installment.due_date,
+        days_overdue: Math.max(0, Math.floor((now.getTime() - due) / 86_400_000)),
+        status: installment.status,
+      };
+    }
+  }
+
+  context.workflow = { now: nowIso, nowMs: now.getTime() };
   return context;
 }
 
