@@ -2218,13 +2218,13 @@ Opening ritual (live, sbp_ token): migration chain 77/77 = 0001–0080 ZERO DRIF
 - **Plan:** editor toolbar "Exécuter" (published workflows only) → repos.workflows.execute → the canonical EF path (completes the manual trigger path — previously retry-on-existing-run only); Tester gains a Serveur mode with an entity picker (parents observable) invoking a NEW dryRun repository method (mock: local dry-run engine; supabase: the EF dry_run call) with the server-predicted path rendered on the canvas; server-side validation errors (publish gate) surfaced through the existing error path (supabaseErrorToAppError userMessage); i18n keys.
 - **Status:** In Progress
 
-### T-231 — Android: workflow_runs DTO contract fix (real column names + node_results decode) — **In Progress**
+### T-231 — Android: workflow_runs DTO contract fix (real column names + node_results decode) — **Completed (TESTED, gradle 416/416)**
 - **Problems:** NEW cross-platform drift (Android DTO vs the real workflow_runs schema) · **Priority:** P1
 - **Dependencies:** T-225 (the EF now writes the canonical shape) · **Affected:** elimtiyaz-android (SharedDtos, Room mapping, monitor display)
 - **Plan:** WorkflowRunDto field names fixed to the REAL table (trigger_type/actor_id/completed_at/node_results/duration_ms/workflow_id/started_at/status/error_message); node_results decoded into the WorkflowNodeResult model (node_id/node_label/status/started_at/completed_at/output/error); unit tests decoding the exact JSON shape the EF writes; monitor surfaces real trigger labels. Gradle run attempted per the documented JDK/SDK recipe; if the container blocks it, the suite run is reported BLOCKED (honestly) while the code+tests land.
 - **Status:** In Progress
 
-### T-232 — Live end-to-end DAG verification matrix + closeout — **In Progress**
+### T-232 — Live end-to-end DAG verification matrix + closeout — **Completed (VERIFIED, live 18/18)**
 - **Problems:** DAG-100 (final closure evidence) · **Priority:** P0 (owner's core demand)
 - **Dependencies:** T-223..T-231 · **Affected:** hub (docs, registries) + live backend
 - **Plan:** full live matrix with a real staff JWT: create → save → publish (version=1) → cyclic publish REJECTED server-side → execute (branch semantics on real debt data: >threshold vs ≤threshold branches) → node_results/audit/duration verified → actions really fire (in-app notification row, task row, parent restriction + audit) → delay workflow parks + scheduler resumes → dry-run leaves workflow_runs untouched + audit entry → daily cap enforced (429 on the second run) → malformed definitions rejected → full evidence to docs/recovery/t-232-live-verification.md; problem-registry DAG-100 → VERIFIED (residuals honestly listed); change-log 34th-session section; next-task 35th-session recommendation; zips + push.
