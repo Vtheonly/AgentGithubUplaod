@@ -701,7 +701,7 @@ export function UnifiedPaymentModal({
 
           {/* === Category + method (only when no context, since context drives category) === */}
           {!context && selectedParent && (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <FormField label="Catégorie" required>
                 <select
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -821,7 +821,7 @@ export function UnifiedPaymentModal({
               <p className="text-xs font-medium text-foreground">
                 Détails du chèque <span className="text-status-danger">*</span>
               </p>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <FormField label="N° de chèque" required error={!checkNumber.trim() ? "Obligatoire" : undefined}>
                   <Input
                     value={checkNumber}
@@ -858,7 +858,7 @@ export function UnifiedPaymentModal({
               <p className="text-xs font-medium text-foreground">
                 Détails du virement <span className="text-status-danger">*</span>
               </p>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <FormField label="Référence de transaction" required error={!transferReference.trim() ? "Obligatoire" : undefined}>
                   <Input
                     value={transferReference}

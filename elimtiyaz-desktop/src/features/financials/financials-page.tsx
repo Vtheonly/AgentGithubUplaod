@@ -599,13 +599,13 @@ function DebtTab() {
     <div className="space-y-4">
       {/* VAULT §07.06 — Debt Dashboard sections 1 + 4: Total Outstanding (with
           MoM trend) + Actions (broadcast reminders / lock delinquent). */}
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card>
           <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Créances totales</p>
-                <p className="text-2xl font-mono font-bold text-status-danger">
+                <p className="break-words text-2xl font-mono font-bold text-status-danger">
                   {formatDzd(debtNow)}
                 </p>
                 <p className="text-xs text-muted-foreground">

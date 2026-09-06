@@ -87,7 +87,7 @@ export function Step2({
               </Button>
             )}
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <FormField label="Prénom" required error={errors[`stu_${i}_firstName`]}>
               <Input value={s.firstName} onChange={(e) => update(i, { firstName: e.target.value })} placeholder="Yacine" />
             </FormField>

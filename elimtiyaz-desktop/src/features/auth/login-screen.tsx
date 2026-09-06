@@ -39,7 +39,7 @@ export function LoginScreen() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-background p-6">
-      <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_400px]">
+      <div className="grid grid-cols-1 w-full max-w-5xl gap-8 lg:grid-cols-[1fr_400px]">
         {/* Brand panel */}
         <div className="hidden lg:flex flex-col justify-between rounded-lg border border-border bg-surface-panel p-8">
           <div className="flex items-center gap-3">

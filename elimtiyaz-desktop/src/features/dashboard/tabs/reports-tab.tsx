@@ -238,7 +238,7 @@ export function ReportsTab() {
           directement depuis le profil de l'entité concernée (élève, parent, personnel).
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {reports.map((r) => {
           const Icon = r.icon;
           const isReady = ["revenu-mensuel", "creances-agees", "effectifs-niveau", "annuaire-personnel", "depenses-categorie"].includes(r.code);

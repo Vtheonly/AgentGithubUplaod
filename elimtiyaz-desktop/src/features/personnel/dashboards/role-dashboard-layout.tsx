@@ -64,7 +64,7 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
   const initials = actorName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="grid gap-4 p-6 pb-12">
+    <div className="grid grid-cols-1 gap-4 p-6 pb-12">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Avatar><AvatarFallback>{initials}</AvatarFallback></Avatar>

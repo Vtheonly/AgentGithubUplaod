@@ -163,7 +163,7 @@ export function HomeworkPushModal({
       onDismissAlert={() => setAlert(null)}
     >
       <div className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <FormField label="Classe" required>
             <Select value={classId} onValueChange={setClassId}>
               <SelectTrigger>

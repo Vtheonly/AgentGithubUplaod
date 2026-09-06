@@ -89,7 +89,7 @@ export function ReleveTab() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 max-w-2xl">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <FormField label="Date" required>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </FormField>

@@ -216,7 +216,7 @@ export function WarehouseWorkerDashboard() {
           { label: "Signaler avarie", icon: AlertTriangle, variant: "outline", onClick: () => setDamageOpen(true) },
         ]}
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
             <h3 className="text-sm font-semibold mb-3">Réceptions attendues</h3>
             <ul className="divide-y divide-border">

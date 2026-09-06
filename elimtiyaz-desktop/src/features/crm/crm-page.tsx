@@ -429,7 +429,7 @@ function BatchTab({
             </p>
           </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Button variant="outline" className="justify-start h-auto py-3" onClick={onBatch}>
             <div className="flex items-start gap-2">
               <Plus className="h-4 w-4 mt-0.5" />

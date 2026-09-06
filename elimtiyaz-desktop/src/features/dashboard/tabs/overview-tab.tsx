@@ -174,7 +174,7 @@ export function OverviewTab({
 
       {/* Calendar + Top Debtors — operational view, no analytics charts
           here (those are in the drill-down). */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Calendar takes 2/3 of the row — it's the operational "what
             happened today" view. */}
         <div className="lg:col-span-2">

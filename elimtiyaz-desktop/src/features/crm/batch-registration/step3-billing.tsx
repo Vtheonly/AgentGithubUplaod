@@ -23,7 +23,7 @@ export function Step3({
 }) {
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className="flex items-center gap-2 rounded-md border border-border p-3 cursor-pointer hover:bg-accent/5">
           <input
             type="checkbox"

@@ -192,7 +192,7 @@ export function AccountsTab() {
                 <KeyRound className="h-4 w-4" />
                 Identifiants à communiquer — affichés une seule fois
               </div>
-              <div className="grid gap-2 text-sm sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 <div>
                   <span className="text-muted-foreground">Email : </span>
                   <span className="font-medium">{credentials.email}</span>

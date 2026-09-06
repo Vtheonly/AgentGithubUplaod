@@ -276,7 +276,7 @@ export function PaymentSlider({
       )}
 
       {/* Manual input + quick snap buttons */}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
           <p className="text-[10px] uppercase text-muted-foreground mb-1">Montant précis</p>
           <MoneyInput value={value} onChange={(v) => onChange(v)} disabled={disabled} />

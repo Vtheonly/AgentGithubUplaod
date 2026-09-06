@@ -216,7 +216,7 @@ export function SeeDetailsModal({
               </CardContent>
             </Card>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {/* Gender: PIE with Male / Female / Unspecified. */}
               <Card>
                 <CardHeader><CardTitle className="text-sm">Par genre</CardTitle></CardHeader>
