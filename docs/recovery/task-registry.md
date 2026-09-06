@@ -2108,7 +2108,8 @@ Opening ritual (live, sbp_ token): migration chain 76/76 = 0001–0079 ZERO DRIF
 - **Dependencies:** sbp_ token (supplied) · **Affected:** hub (new migration 0080 + apply script + verify script), all clients unchanged (staff roles pass has_any_role; parents see own)
 - **Plan:** drop/recreate policy with the invoices_select pattern (staff roles OR parent-own-student subquery); migration file with embedded registration; `apply_0080_live.sh` atomic BEGIN/COMMIT apply; `verify_t-214.sql` (BEGIN/ROLLBACK, temp-table evidence, regression paths); live verification doc.
 
-### T-215 — Hub: policy-census hardening script (REG-004 lesson) — **In Progress**
+### T-215 — Hub: policy-census hardening script (REG-004 lesson) — **Completed (TESTED, live-verified 189/189)**
+- **Evidence:** scripts/policy_census.sh live run (chain=189 live=189 live_only=0 chain_only=0, exit 0 — ZERO policy drift incl. the 0080 re-creation); parser pinned by src/tests/infrastructure/t-215-policy-census.test.ts 5/5 (real-chain shape incl. the 0079 DROP TABLE cascade + LAST-creator-wins, storage-schema exclusion, throwaway-dir drop/recreate/table-drop/comment probes); desktop suite 92/2422/0 baseline re-run green + typecheck clean.
 - **Problems:** REG-004 class (unregistered live policy drift compounds silently) · **Priority:** P1
 - **Dependencies:** none · **Affected:** hub scripts/ (new policy_census.sh)
 - **Plan:** machine-check the live pg_policy set (policy names per table) against the local chain's cumulative CREATE/DROP POLICY statements; run at session openings; evidence in change-log. Small, high-value, recommended by the 31st-session next-task note.
