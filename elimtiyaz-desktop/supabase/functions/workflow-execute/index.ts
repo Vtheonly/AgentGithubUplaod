@@ -225,6 +225,7 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     studentId: body.student_id ?? null,
     installmentId: body.installment_id ?? null,
     dryRun,
+    callerJwt: req.headers.get("authorization")?.slice(7) ?? "",
   };
 
   const actionHandler = (node, engineContext) =>
@@ -499,7 +500,7 @@ async function buildExecutionContext(
   if (entity.parentId) {
     const { data: parent } = await supabase
       .from("parents")
-      .select("id, display_name, first_name, last_name, phone, is_financially_restricted, notes")
+      .select("id, display_name, first_name, last_name, primary_phone, secondary_phone, email, is_financially_restricted")
       .eq("id", entity.parentId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -507,7 +508,11 @@ async function buildExecutionContext(
       context.parent = {
         id: parent.id,
         display_name: parent.display_name ?? parent.last_name ?? parent.id,
-        phone: parent.phone,
+        // Normalized alias: the parents table column is primary_phone; the
+        // condition/action layer (send_whatsapp, template payloads) reads
+        // parent.phone.
+        phone: parent.primary_phone ?? parent.secondary_phone ?? null,
+        email: parent.email,
         is_financially_restricted: parent.is_financially_restricted,
       };
     }

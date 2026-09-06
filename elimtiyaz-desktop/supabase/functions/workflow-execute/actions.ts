@@ -34,6 +34,7 @@
 import { resolveEmailConfig, sendEmailWithResend } from "../_shared/send-email.ts";
 import {
   createServiceRoleClient,
+  createUserScopedClient,
   writeAuditLog,
 } from "../_shared/supabase.ts";
 import type {
@@ -54,6 +55,14 @@ export interface ActionRunContext {
   studentId: string | null;
   /** dry_run=true → every executor SIMULATES (no writes, no sends). */
   dryRun: boolean;
+  /**
+   * The caller's raw JWT — the notify_parent_user RPC (0077) resolves
+   * current_tenant_id() + staff-role gates from the CALLER's context, so
+   * it MUST be invoked through a user-scoped client, never the
+   * service-role one (service role has no auth.uid() → "caller has no
+   * tenant context", live evidence 2026-09-07).
+   */
+  callerJwt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -86,11 +95,11 @@ export async function executeNodeAction(
     case "log_audit":
       return logAudit(supabase, cfg, run);
     case "dispatch_task":
-      return skippedByDesign("dispatch_task", "real tasks insert lands with T-226 (this session's next commit)");
+      return dispatchTask(supabase, cfg, run);
     case "restrict_account":
-      return skippedByDesign("restrict_account", "real parents.is_financially_restricted write lands with T-226 (this session's next commit)");
+      return restrictAccount(supabase, cfg, context, run);
     case "send_whatsapp":
-      return skippedByDesign("send_whatsapp", "wa.me link preparation lands with T-226 (this session's next commit)");
+      return sendWhatsapp(cfg, context, run);
     case "extract_field":
       return extractField(cfg, context);
 
@@ -172,21 +181,27 @@ async function pushNotification(
   const sourceLabel = (cfg.source_label as string | undefined) ?? "Workflow automation";
 
   // ---- Target resolution ----------------------------------------------
-  // Priority: explicit target_user_id → explicit parent_id / run entity
-  // parent (PARENT in-app delivery via the canonical 0077 RPC) → staff
-  // role broadcast (in-app row + FCM push).
+  // Priority: explicit target_user_id → PARENT in-app delivery (via the
+  // canonical 0077 RPC) when a parent is targeted AND no staff target is
+  // configured → staff role broadcast (in-app row + FCM push).
+  // (Precedence fixed after live matrix round 2: a target_role config must
+  // NEVER fall into the parent path even when the run carries an entity
+  // parent — live evidence 2026-09-07.)
   const explicitTarget = cfg.target_user_id != null ? String(cfg.target_user_id) : null;
   const configParent = cfg.parent_id != null ? String(cfg.parent_id) : null;
+  const staffRoleTarget = cfg.target_role != null ? String(cfg.target_role) : null;
   const parentId = configParent ?? run.parentId;
 
   // 1) PARENT-targeted in-app notification — the canonical 0077 RPC
   //    (resolves parents.auth_user_id → user_profiles server-side, writes
   //    the notifications row the parent can actually SEE under RLS).
-  if (!explicitTarget && parentId) {
+  if (!explicitTarget && !staffRoleTarget && parentId) {
     if (run.dryRun) {
       return ok({ simulated: true, parent_id: parentId, title }, `SIMULATED parent in-app notification (notify_parent_user) parent=${parentId}`);
     }
-    const { data: notifId, error: rpcError } = await supabase.rpc("notify_parent_user", {
+    // 0077 RPC: caller-scoped (tenant + staff gates resolve from the JWT).
+    const callerClient = createUserScopedClient(run.callerJwt);
+    const { data: notifId, error: rpcError } = await callerClient.rpc("notify_parent_user", {
       p_parent_id: parentId,
       p_title: title,
       p_kind: kind,
@@ -215,7 +230,9 @@ async function pushNotification(
   }
 
   // 2) Explicit user target OR staff-role broadcast: in-app row + FCM.
-  const targetRole = explicitTarget ? null : String(cfg.target_role ?? "financial_officer");
+  //    (Reached when target_role/target_user_id is configured, or when
+  //    neither a parent nor a role target exists — default staff role.)
+  const targetRole = explicitTarget ? null : (staffRoleTarget ?? "financial_officer");
   let recipientIds: string[] = [];
   if (explicitTarget) {
     recipientIds = [explicitTarget];
@@ -354,9 +371,183 @@ async function extractField(
   );
 }
 
+async function dispatchTask(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  cfg: Record<string, unknown>,
+  run: ActionRunContext,
+): Promise<EngineActionOutcome> {
+  const title = String(cfg.title ?? "").trim();
+  if (!title) return skippedByDesign("dispatch_task", "missing config field: title");
+
+  const priority = (cfg.priority as string | undefined) ?? "medium";
+  const description = cfg.description != null ? String(cfg.description) : null;
+  const dueDate = cfg.due_date != null ? String(cfg.due_date) : null;
+
+  // Assignment resolution: explicit assignee_ids → role members.
+  let assigneeIds: string[] = [];
+  if (Array.isArray(cfg.assignee_ids)) {
+    assigneeIds = (cfg.assignee_ids as unknown[]).map(String);
+  } else if (cfg.target_role != null) {
+    const { data: roleRow, error: roleErr } = await supabase
+      .from("roles").select("id").eq("code", String(cfg.target_role)).limit(1);
+    if (roleErr) return fail(`role lookup failed: ${roleErr.message}`);
+    if (roleRow && roleRow.length > 0) {
+      const { data: assignments, error: asgErr } = await supabase
+        .from("role_assignments")
+        .select("user_profile_id")
+        .eq("role_id", (roleRow[0] as { id: string }).id)
+        .eq("tenant_id", run.tenantId)
+        .is("revoked_at", null);
+      if (asgErr) return fail(`role-assignment lookup failed: ${asgErr.message}`);
+      assigneeIds = (assignments ?? []).map((a: { user_profile_id: string }) => a.user_profile_id);
+    }
+  }
+
+  if (run.dryRun) {
+    return ok(
+      { simulated: true, title, assignees: assigneeIds.length },
+      `SIMULATED dispatch_task "${title}" to ${assigneeIds.length} assignee(s)`,
+    );
+  }
+
+  const { data: task, error: taskErr } = await supabase
+    .from("tasks")
+    .insert({
+      tenant_id: run.tenantId,
+      title,
+      description,
+      status: "pending",
+      priority,
+      department_id: cfg.department_id != null ? String(cfg.department_id) : null,
+      // assignee_ids is NOT NULL (default '[]') — always an array.
+      assignee_ids: assigneeIds.length > 0 ? assigneeIds : [],
+      due_date: dueDate,
+      progress: 0,
+      created_by: run.actorProfileId,
+      created_by_name: "Workflow automation",
+    })
+    .select("id")
+    .single();
+  if (taskErr) return fail(`tasks insert failed: ${taskErr.message}`);
+  return ok(
+    { task_id: task?.id, title, assignees: assigneeIds.length },
+    `dispatch_task "${title}" created (${assigneeIds.length} assignee(s))`,
+  );
+}
+
+async function restrictAccount(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  cfg: Record<string, unknown>,
+  context: EngineContext,
+  run: ActionRunContext,
+): Promise<EngineActionOutcome> {
+  // Entity resolution: config.parent_id → trigger entity → context parent id.
+  const parentId =
+    cfg.parent_id != null ? String(cfg.parent_id) :
+    run.parentId != null ? run.parentId :
+    contextParentId(context);
+
+  if (!parentId) {
+    return skippedByDesign("restrict_account", "no parent in the execution context — cannot resolve the account to restrict");
+  }
+  const restrictTo = cfg.restricted != null ? Boolean(cfg.restricted) : true;
+
+  if (run.dryRun) {
+    return ok(
+      { simulated: true, parent_id: parentId, restricted: restrictTo },
+      `SIMULATED restrict_account parent=${parentId} -> ${restrictTo}`,
+    );
+  }
+
+  // Tenant scoping enforced in the WHERE (service role bypasses RLS).
+  const { data: updated, error: updErr } = await supabase
+    .from("parents")
+    .update({ is_financially_restricted: restrictTo })
+    .eq("id", parentId)
+    .eq("tenant_id", run.tenantId)
+    .select("id, is_financially_restricted")
+    .single();
+  if (updErr) return fail(`parents update failed: ${updErr.message}`);
+  if (!updated) {
+    return skippedByDesign("restrict_account", `parent ${parentId} not found in tenant ${run.tenantId}`);
+  }
+
+  // Mutation audit (canonical §7.6 — every mutation emits an entry).
+  try {
+    await writeAuditLog(
+      run.tenantId,
+      "workflow.account_restriction",
+      "parent",
+      parentId,
+      run.actorProfileId,
+      run.actorEmail,
+      { is_financially_restricted: !restrictTo },
+      { is_financially_restricted: restrictTo },
+      `Workflow run ${run.runId} set is_financially_restricted=${restrictTo}`,
+      run.requestId,
+    );
+  } catch (auditErr) {
+    // The mutation IS committed; the audit hole is SURFACED, not swallowed.
+    return {
+      status: "failed",
+      output: { parent_id: parentId, restricted: restrictTo, audit_write: "failed" },
+      auditNote: `restrict_account parent=${parentId} -> ${restrictTo} COMMITTED but the audit entry failed: ${String(auditErr)}`,
+      error: `audit_write_failed: ${String(auditErr)}`,
+    };
+  }
+  return ok(
+    { parent_id: parentId, restricted: restrictTo },
+    `restrict_account parent=${parentId} -> is_financially_restricted=${restrictTo}`,
+  );
+}
+
+async function sendWhatsapp(
+  cfg: Record<string, unknown>,
+  context: EngineContext,
+  run: ActionRunContext,
+): Promise<EngineActionOutcome> {
+  // HONEST by design: there is NO WhatsApp Business API integration (no
+  // provider credentials, no sending contract). What the platform CAN do
+  // truthfully is prepare the wa.me deep link for a human to send. We NEVER
+  // claim delivery.
+  const phoneRaw =
+    (cfg.phone as string | undefined) ??
+    (contextPhone(context) ?? null);
+  const message = String(cfg.message ?? cfg.body ?? "");
+  const phone = phoneRaw != null ? String(phoneRaw).replace(/[^0-9]/g, "") : null;
+
+  if (!phone || phone.length < 8) {
+    return skippedByDesign("send_whatsapp", "no usable phone number in the execution context (wa.me link not prepared)");
+  }
+  const link = `https://wa.me/${phone}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+  return ok(
+    {
+      prepared: 1,
+      link,
+      phone,
+      delivered: 0,
+      note: "link prepared for a human operator — no WhatsApp API integration exists, no delivery claimed",
+      ...(run.dryRun ? { simulated: true } : {}),
+    },
+    `send_whatsapp prepared wa.me link for ${phone} (delivery NOT claimed — no provider integration)`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
+
+function contextParentId(context: EngineContext): string | null {
+  const parent = (context as Record<string, unknown>).parent as Record<string, unknown> | undefined;
+  if (parent && typeof parent.id === "string") return parent.id;
+  return null;
+}
+
+function contextPhone(context: EngineContext): string | null {
+  const parent = (context as Record<string, unknown>).parent as Record<string, unknown> | undefined;
+  if (parent && typeof parent.phone === "string") return parent.phone;
+  return null;
+}
 
 function resolve(source: Record<string, unknown>, path: string): unknown {
   let current: unknown = source;
