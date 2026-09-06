@@ -10,18 +10,25 @@
  *   - preset amount, overdue context, due-window label
  *   - allowPartial flag (single-item mode requires full settlement)
  *
- * Stage 1 — Payment Parameters & Allocation:
- *   1. Context header (parent + student + item title)
- *   2. Line-item / tranche summary card (gross, discounts, net, paid, remaining)
- *   3. AdaptivePaymentSlider + numeric input + quick-snap buttons
- *   4. Payment method (Cash / Check / Transfer) + proof capture
- *   5. UnifiedDebtMeter (3-color progress + dynamic status badge)
+ * Stage 1 — Payment Parameters & Allocation (T-219 wide-form layout):
+ *   Responsive two-column "≈16:9" split on the 2xl dialog stage
+ *   (`lg:grid lg:grid-cols-12`, `gap-5`):
+ *     - LEFT (7 cols): parent/student identification, line-item summary,
+ *       adaptive PaymentSlider, waterfall allocation hint.
+ *     - RIGHT (5 cols): category, payment method (cash/check/transfer),
+ *       structured check/wire fields, proof upload (VAULT §12.07),
+ *       DebtMeter, notes and status preview.
+ *   The modal shell caps the dialog at `max-h-[88vh]` with a scroll-bounded
+ *   body, so the footer ("Annuler" / "Encaisser") is ALWAYS visible and
+ *   clickable regardless of screen resolution — the old single-column layout
+ *   overflowed the form boundaries and cut the footer off.
  *
  * Stage 2 — Receipt Preview & Export:
- *   - PDF receipt preview (pdf-lib)
- *   - Download PDF, WhatsApp share, Terminer
+ *   - Two-column success summary (issuer, receipt no., amount, method,
+ *     category, date & time, collector, status)
+ *   - PDF receipt preview (pdf-lib), Download PDF, WhatsApp share, Terminer
  *
- * Backward-compat: `CounterPaymentModal` is now a thin wrapper that adapts
+ * Backward-compat: `CounterPaymentModal` is a thin wrapper that adapts
  * the legacy preset props (`presetParentId`, `presetCategory`, etc.) into
  * a `PaymentNavigationContext` and forwards to `UnifiedPaymentModal`.
  */
@@ -38,8 +45,8 @@ import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-mo
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { FormField } from "../../shared/ui/form-field";
-import { Separator } from "../../shared/ui/separator";
 import { StatusChip } from "../../shared/ui/status-chip";
+import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import { formatDateTime, formatDate } from "../../core/format/date";
 import {
@@ -54,6 +61,7 @@ import {
   proofRequiredFor,
 } from "../../domain/model/payment";
 import type { Parent } from "../../domain/model/parent";
+import { parentDisplayName } from "../../domain/model/parent";
 import { allocatePaymentToInstallments } from "../../domain/calc/payment/waterfall-allocator";
 import { currentTrancheLabel } from "../../domain/calc/payment/queries";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
@@ -81,7 +89,7 @@ function lineItemToTrancheSpec(item: PaymentLineItem): PaymentTrancheSpec {
   return {
     id: item.itemId,
     label: item.label,
-    dueWindowLabel: item.dueDate ? formatDateShort(item.dueDate) : (item.isOverdue ? "En retard" : "—"),
+    dueWindowLabel: item.dueDate ? formatDateShort(item.dueDate) : item.isOverdue ? "En retard" : "—",
     amountDue: item.netAmount,
     amountPaid: item.alreadyPaidAmount,
   };
@@ -90,12 +98,7 @@ function lineItemToTrancheSpec(item: PaymentLineItem): PaymentTrancheSpec {
 export interface UnifiedPaymentModalProps {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  /**
-   * The universal payment context. When `null`, the modal falls back to
-   * counter-payment mode with an inline parent search (legacy behavior).
-   */
   context: PaymentNavigationContext | null;
-  /** Called after a payment is successfully collected (for refresh hooks). */
   onPaymentCollected?: (payment: Payment) => void;
 }
 
@@ -110,7 +113,6 @@ export function UnifiedPaymentModal({
   const { session } = useAuth();
 
   const [stage, setStage] = useState<Stage>("form");
-  // === Inline parent search (only used when context is null) ===
   const [parentQuery, setParentQuery] = useState("");
   const debouncedQuery = useDebounce(parentQuery, 220);
   const [parentResults, setParentResults] = useState<Parent[]>([]);
@@ -483,23 +485,39 @@ export function UnifiedPaymentModal({
   }
 
   // === Custom footer per stage ===
+  // T-219: the form footer now leads with the payer/amount recap (left) and
+  // pins the actions (right) — inside the height-capped shell the footer row
+  // is always on-screen.
   const footerNode = stage === "form" ? (
-    <>
-      <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-        Annuler
-      </Button>
-      <Button onClick={submit} disabled={!canSubmit || submitting}>
-        {submitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" /> Encaissement…
-          </>
-        ) : (
-          <>Encaisser {formatDzd(amount)}</>
+    <div className="flex w-full flex-wrap items-center gap-2 justify-between">
+      <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex min-w-0">
+        {selectedParent && (
+          <span className="truncate">
+            {parentDisplayName(selectedParent)} ·{" "}
+            <strong className="text-foreground font-mono">{formatDzdPlain(amount)}</strong> à régler
+          </span>
         )}
-      </Button>
-    </>
+        {singleItemViolation && (
+          <span className="text-status-danger font-medium">Montant incomplet</span>
+        )}
+      </div>
+      <div className="flex items-center gap-2 ml-auto">
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          Annuler
+        </Button>
+        <Button onClick={submit} disabled={!canSubmit || submitting}>
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Encaissement…
+            </>
+          ) : (
+            <>Encaisser {formatDzd(amount)}</>
+          )}
+        </Button>
+      </div>
+    </div>
   ) : (
-    <>
+    <div className="flex w-full flex-wrap items-center gap-2 justify-end">
       <Button variant="outline" onClick={() => onOpenChange(false)}>
         Terminer
       </Button>
@@ -509,7 +527,7 @@ export function UnifiedPaymentModal({
       <Button onClick={downloadReceiptPdf} disabled={!pdfBytes}>
         <FileDown className="h-4 w-4" /> Télécharger PDF
       </Button>
-    </>
+    </div>
   );
 
   // === Mode label for header ===
@@ -529,14 +547,14 @@ export function UnifiedPaymentModal({
     <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
-      size="lg"
+      size="2xl"
       variant="dialog"
       icon={Wallet}
       iconTone="success"
       title={stage === "form" ? `Encaissement — ${modeLabel}` : "Paiement encaissé"}
       description={
         stage === "form"
-          ? `${itemTitle} · reçu généré automatiquement (plan §07.05).`
+          ? `${itemTitle} · saisie en temps réel et affectation comptable (plan §07.05)`
           : "Reçu généré — prêt à partager."
       }
       alert={alert}
@@ -544,164 +562,124 @@ export function UnifiedPaymentModal({
       footer={footerNode}
       hideFooter={false}
     >
+      {/* ======================= STAGE 1 — FORM ======================= */}
       {stage === "form" && (
-        <div className="space-y-4">
-          {/* === SECTION 1: Context Header === */}
-          {!selectedParent ? (
-            <FormField label="Parent" required>
-              <div className="relative">
+        <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-5 items-start">
+          {/* ============ LEFT COLUMN (7/12) — target, summary, slider ============ */}
+          <div className="lg:col-span-7 space-y-4 min-w-0">
+            {/* --- Parent & student identification --- */}
+            {!selectedParent ? (
+              <FormField label="Parent émetteur" required>
                 <Input
                   autoFocus
                   value={parentQuery}
                   onChange={(e) => setParentQuery(e.target.value)}
                   placeholder="Rechercher par nom, téléphone, code…"
-                  className="pl-9"
                 />
-              </div>
-              {searching && (
-                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Recherche…
-                </p>
-              )}
-              {parentResults.length > 0 && (
-                <ul className="mt-2 rounded-md border border-border max-h-48 overflow-y-auto">
-                  {parentResults.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFallbackParentId(p.id);
-                          setParentQuery("");
-                          setParentResults([]);
-                        }}
-                        className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-accent/5"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {p.firstName} {p.lastName}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground font-mono">{p.code}</p>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{p.phone}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </FormField>
-          ) : (
-            <div className="rounded-md border border-border p-3 space-y-1">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">
-                    {selectedParent.firstName} {selectedParent.lastName}
-                    <span className="text-xs text-muted-foreground font-mono ml-2">
-                      {selectedParent.code}
-                    </span>
+                {searching && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Recherche…
                   </p>
-                  {context?.studentName && (
-                    <p className="text-xs text-muted-foreground">
-                      Élève : {context.studentName}
-                    </p>
-                  )}
-                  {effectiveStudentId && !context?.studentName && (
-                    <p className="text-xs text-muted-foreground">
-                      Élève : {students.find((s) => s.id === effectiveStudentId)?.firstName}{" "}
-                      {students.find((s) => s.id === effectiveStudentId)?.lastName}
-                    </p>
-                  )}
+                )}
+                {parentResults.length > 0 && (
+                  <ul className="mt-2 rounded-md border border-border max-h-48 overflow-y-auto">
+                    {parentResults.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFallbackParentId(p.id);
+                            setParentQuery("");
+                            setParentResults([]);
+                          }}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-accent/5"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {p.firstName} {p.lastName}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground font-mono">{p.code}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{p.phone}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </FormField>
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                      {selectedParent.firstName[0]}
+                      {selectedParent.lastName[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold truncate">
+                        {parentDisplayName(selectedParent)}
+                      </p>
+                      <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+                        {selectedParent.code}
+                      </span>
+                    </div>
+                    {context?.studentName ? (
+                      <p className="text-xs text-muted-foreground truncate">
+                        Élève : <strong>{context.studentName}</strong>
+                      </p>
+                    ) : effectiveStudentId ? (
+                      <p className="text-xs text-muted-foreground truncate">
+                        Élève :{" "}
+                        {students.find((s) => s.id === effectiveStudentId)?.firstName}{" "}
+                        {students.find((s) => s.id === effectiveStudentId)?.lastName}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground truncate">
+                        Tél : {selectedParent.phone ?? "—"}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground italic truncate">{itemTitle}</p>
+                  </div>
                 </div>
                 {!context && (
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground shrink-0"
                     onClick={() => {
                       setFallbackParentId(null);
                       setFallbackStudentId(null);
                       setAmount(0);
                     }}
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3.5 w-3.5" /> Changer
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground italic">{itemTitle}</p>
-            </div>
-          )}
+            )}
 
-          {/* Optional student picker (fallback mode only) */}
-          {!context && selectedParent && students.length > 0 && (
-            <FormField label="Élève (optionnel)">
-              <select
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                value={effectiveStudentId ?? "__none__"}
-                onChange={(e) => setFallbackStudentId(e.target.value === "__none__" ? null : e.target.value)}
-              >
-                <option value="__none__">— Aucun —</option>
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.firstName} {s.lastName} · {s.code}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-          )}
+            {/* --- Optional student picker (fallback mode only) --- */}
+            {!context && selectedParent && students.length > 0 && (
+              <FormField label="Élève bénéficiaire (optionnel)">
+                <select
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={effectiveStudentId ?? "__none__"}
+                  onChange={(e) => setFallbackStudentId(e.target.value === "__none__" ? null : e.target.value)}
+                >
+                  <option value="__none__">— Famille complète (non restreint) —</option>
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.firstName} {s.lastName} · {s.code}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            )}
 
-          {/* === SECTION 2: Line Item / Tranche Summary === */}
-          {selectedParent && sliderTranches.length > 0 && (
-            <div className="rounded-md border border-border p-3 space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Brut</span>
-                <span className="font-mono">{formatDzdPlain(totalDue)}</span>
-              </div>
-              {context?.lineItems?.[0]?.discountAmount ? (
-                <div className="flex justify-between text-status-success">
-                  <span className="text-muted-foreground">Remises</span>
-                  <span className="font-mono">−{formatDzdPlain(context.lineItems[0].discountAmount)}</span>
-                </div>
-              ) : null}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Net dû</span>
-                <span className="font-mono font-semibold">{formatDzdPlain(totalDue)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Déjà payé</span>
-                <span className="font-mono text-status-success">{formatDzdPlain(alreadyPaid)}</span>
-              </div>
-              <div className="flex justify-between border-t border-border pt-1">
-                <span className="text-muted-foreground">Reste à payer</span>
-                <span className="font-mono font-bold text-status-danger">
-                  {formatDzdPlain(Math.max(0, totalDue - alreadyPaid))}
-                </span>
-              </div>
-              {context?.overdueDays ? (
-                <p className="text-[11px] text-status-danger italic">
-                  En retard de {context.overdueDays} jour(s) — fenêtre : {context.dueWindowLabel ?? "—"}
-                </p>
-              ) : null}
-            </div>
-          )}
-
-          {/* === SECTION 3: Adaptive Payment Slider === */}
-          {selectedParent && sliderTranches.length > 0 ? (
-            <PaymentSlider
-              tranches={sliderTranches}
-              value={amount}
-              onChange={setAmount}
-              disabled={submitting}
-              mode={sliderMode}
-              allowPartial={allowPartial}
-            />
-          ) : selectedParent ? (
-            <div className="rounded-md border border-status-success/40 bg-status-success/5 p-3 text-xs text-status-success">
-              ✓ Aucune tranche impayée pour cette catégorie — le paiement sera enregistré comme crédit parent.
-            </div>
-          ) : null}
-
-          {/* === Category + method (only when no context, since context drives category) === */}
-          {!context && selectedParent && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {/* --- Category (fallback mode only — context drives it otherwise) --- */}
+            {!context && selectedParent && (
               <FormField label="Catégorie" required>
                 <select
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -713,246 +691,358 @@ export function UnifiedPaymentModal({
                   ))}
                 </select>
               </FormField>
-              <FormField label="Méthode" required>
-                <div className="grid grid-cols-3 gap-2 h-10">
+            )}
+
+            {/* --- Line-item / tranche summary --- */}
+            {selectedParent && sliderTranches.length > 0 && (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1.5 text-xs">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Total brut engagé</span>
+                  <span className="font-mono">{formatDzdPlain(totalDue)}</span>
+                </div>
+                {context?.lineItems?.[0]?.discountAmount ? (
+                  <div className="flex justify-between text-status-success">
+                    <span>Remises appliquées</span>
+                    <span className="font-mono">
+                      −{formatDzdPlain(context.lineItems[0].discountAmount)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between font-medium">
+                  <span>Net dû</span>
+                  <span className="font-mono">{formatDzdPlain(totalDue)}</span>
+                </div>
+                <div className="flex justify-between text-status-success">
+                  <span>Déjà réglé (historique)</span>
+                  <span className="font-mono">{formatDzdPlain(alreadyPaid)}</span>
+                </div>
+                <div className="flex justify-between border-t border-border/60 pt-1 text-sm font-semibold">
+                  <span>Reste à payer</span>
+                  <span className="font-mono text-status-danger">
+                    {formatDzdPlain(Math.max(0, totalDue - alreadyPaid))}
+                  </span>
+                </div>
+                {context?.overdueDays ? (
+                  <p className="text-[11px] text-status-danger pt-0.5">
+                    En retard de {context.overdueDays} jour(s) — fenêtre :{" "}
+                    {context.dueWindowLabel ?? "—"}
+                  </p>
+                ) : null}
+              </div>
+            )}
+
+            {/* --- Adaptive payment slider --- */}
+            {selectedParent && sliderTranches.length > 0 ? (
+              <div className="rounded-lg border border-border bg-card p-3.5">
+                <PaymentSlider
+                  tranches={sliderTranches}
+                  value={amount}
+                  onChange={setAmount}
+                  disabled={submitting}
+                  mode={sliderMode}
+                  allowPartial={allowPartial}
+                />
+              </div>
+            ) : selectedParent ? (
+              <div className="rounded-md border border-status-success/40 bg-status-success/5 p-3 text-xs text-status-success">
+                ✓ Aucune tranche impayée pour cette catégorie — le versement sera enregistré
+                comme crédit parent (avance).
+              </div>
+            ) : null}
+
+            {/* --- Waterfall allocation preview --- */}
+            {selectedParent && allocationPreview && allocationPreview.allocations.length > 0 && (
+              <div className="rounded-md border border-border p-3 space-y-1 text-xs">
+                <p className="font-medium text-foreground">
+                  Affectation waterfall — {allocationPreview.allocations.length} tranche(s)
+                </p>
+                <ul className="space-y-0.5">
+                  {allocationPreview.allocations.slice(0, 6).map((a) => (
+                    <li key={a.installmentId} className="flex justify-between text-muted-foreground">
+                      <span className="truncate">
+                        {installments.find((i) => i.id === a.installmentId)?.label ?? a.installmentId}
+                      </span>
+                      <span className="font-mono">{formatDzdPlain(a.allocatedAmount)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {overpayingNow && (
+                  <p className="text-status-warning pt-0.5">
+                    Excédent de {formatDzdPlain(allocationPreview.unallocatedAmount)} — conservé
+                    en crédit parent.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* --- Single-item full-settlement warning --- */}
+            {singleItemViolation && sliderTranches[0] && (
+              <div className="rounded-md border border-status-warning/40 bg-status-warning/5 p-3 text-xs text-status-warning">
+                Ce service nécessite un règlement complet ({formatDzdPlain(
+                  Math.max(0, sliderTranches[0].amountDue - sliderTranches[0].amountPaid),
+                )}) — le montant sera ajusté.
+              </div>
+            )}
+          </div>
+
+          {/* ============ RIGHT COLUMN (5/12) — method, proof, debt ============ */}
+          <div className="lg:col-span-5 space-y-4 min-w-0">
+            {/* --- Payment method --- */}
+            {selectedParent && (
+              <div className="rounded-lg border border-border bg-card p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Mode de règlement *
+                  </span>
+                  <StatusChip
+                    label={PAYMENT_STATUS_LABELS_FR[method === "cash" ? "paid" : "pending"]}
+                    tone={method === "cash" ? "success" : "warning"}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
                   {(["cash", "check", "transfer"] as const).map((m) => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => setMethod(m)}
-                      className={`rounded-md border px-2 text-center text-xs transition-colors ${
+                      className={`h-9 rounded-md border text-xs font-medium transition-colors ${
                         method === m
-                          ? "border-primary bg-primary/10 text-primary font-medium"
-                          : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 font-semibold"
+                          : "border-border hover:border-primary/40 bg-background text-muted-foreground"
                       }`}
                     >
                       {PAYMENT_METHOD_LABELS_FR[m]}
                     </button>
                   ))}
                 </div>
-              </FormField>
-            </div>
-          )}
 
-          {/* When context IS provided, still allow method selection */}
-          {context && selectedParent && (
-            <FormField label="Méthode" required>
-              <div className="grid grid-cols-3 gap-2 h-10">
-                {(["cash", "check", "transfer"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMethod(m)}
-                    className={`rounded-md border px-2 text-center text-xs transition-colors ${
-                      method === m
-                        ? "border-primary bg-primary/10 text-primary font-medium"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    {PAYMENT_METHOD_LABELS_FR[m]}
-                  </button>
-                ))}
-              </div>
-            </FormField>
-          )}
+                {/* --- Structured check fields (vault §07.01) --- */}
+                {method === "check" && (
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <p className="text-xs font-semibold text-foreground">
+                      Détails du chèque <span className="text-status-danger">*</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField label="N° de chèque" required error={!checkNumber.trim() ? "Obligatoire" : undefined}>
+                        <Input
+                          value={checkNumber}
+                          onChange={(e) => setCheckNumber(e.target.value)}
+                          placeholder="ex. 004512"
+                          className="h-8 text-xs font-mono"
+                        />
+                      </FormField>
+                      <FormField label="Banque" required error={!checkBankName.trim() ? "Obligatoire" : undefined}>
+                        <Input
+                          value={checkBankName}
+                          onChange={(e) => setCheckBankName(e.target.value)}
+                          placeholder="ex. BNA, CPA, BDL"
+                          className="h-8 text-xs"
+                        />
+                      </FormField>
+                      <FormField label="Date d'émission">
+                        <Input
+                          type="date"
+                          value={checkIssueDate}
+                          onChange={(e) => setCheckIssueDate(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </FormField>
+                      <FormField label="Échéance / compensation">
+                        <Input
+                          type="date"
+                          value={checkClearanceDate}
+                          onChange={(e) => setCheckClearanceDate(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </FormField>
+                    </div>
+                  </div>
+                )}
 
-          {/* === SECTION 5: Unified Debt Meter === */}
-          {selectedParent && (
-            <DebtMeter
-              totalDue={totalDue}
-              alreadyPaid={alreadyPaid}
-              payingNow={amount}
-              currentTrancheLabel={focusedTrancheLabel}
-              unallocatedCredit={bankedCredit}
-              statusNote={
-                allocationPreview && allocationPreview.allocations.length > 0
-                  ? `Sera alloué à ${allocationPreview.allocations.length} tranche(s) — waterfall chronologique.`
-                  : overpayingNow
-                    ? "Excédent — sera stocké comme crédit parent (avance)."
-                    : null
-              }
-            />
-          )}
+                {/* --- Structured wire fields (vault §07.01) --- */}
+                {method === "transfer" && (
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <p className="text-xs font-semibold text-foreground">
+                      Coordonnées du virement <span className="text-status-danger">*</span>
+                    </p>
+                    <div className="grid grid-cols-1 gap-2">
+                      <FormField label="Référence de transaction" required error={!transferReference.trim() ? "Obligatoire" : undefined}>
+                        <Input
+                          value={transferReference}
+                          onChange={(e) => setTransferReference(e.target.value)}
+                          placeholder="ex. VIR-2026-00871"
+                          className="h-8 text-xs font-mono"
+                        />
+                      </FormField>
+                      <FormField label="Banque émettrice">
+                        <Input
+                          value={transferSourceBank}
+                          onChange={(e) => setTransferSourceBank(e.target.value)}
+                          placeholder="ex. CPA"
+                          className="h-8 text-xs"
+                        />
+                      </FormField>
+                    </div>
+                  </div>
+                )}
 
-          {/* === SECTION 4: Proof capture (mandatory for check/transfer) === */}
-          {proofRequired && (
-            <FormField
-              label="Justificatif (scan)"
-              required
-              error={!proofFileName ? "Obligatoire pour chèque et virement (plan §18.03)" : proofVaultPath ? undefined : "Téléversement en cours…"}
-              hint="Stockage privé — accès par URL signée (5 min) uniquement"
-            >
-              <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
-                <Upload className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  {proofUploading
-                    ? "Téléversement vers le coffre privé…"
-                    : proofFileName ?? "Téléverser un justificatif (image/PDF)"}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    void handleProofFileSelected(f ?? null);
-                  }}
-                />
-              </label>
-              {proofFileName && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-1 text-xs"
-                  onClick={() => {
-                    setProofFileName(null);
-                    setProofVaultPath(null);
-                  }}
-                >
-                  Retirer
-                </Button>
-              )}
-            </FormField>
-          )}
+                {/* --- Proof capture (mandatory for check/transfer) --- */}
+                {proofRequired && (
+                  <div className="pt-2 border-t border-border">
+                    <FormField
+                      label="Justificatif (scan)"
+                      required
+                      error={
+                        !proofFileName
+                          ? "Obligatoire pour chèque et virement (plan §18.03)"
+                          : proofVaultPath
+                            ? undefined
+                            : "Téléversement en cours…"
+                      }
+                      hint="Coffre privé — URL signée (5 min)"
+                    >
+                      <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-2.5 cursor-pointer hover:bg-accent/5">
+                        <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-xs text-muted-foreground truncate">
+                          {proofUploading
+                            ? "Téléversement vers le coffre privé…"
+                            : proofFileName ?? "Téléverser un justificatif (image/PDF)"}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            void handleProofFileSelected(f ?? null);
+                          }}
+                        />
+                      </label>
+                      {proofFileName && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1 text-xs"
+                          onClick={() => {
+                            setProofFileName(null);
+                            setProofVaultPath(null);
+                          }}
+                        >
+                          Retirer
+                        </Button>
+                      )}
+                    </FormField>
+                  </div>
+                )}
 
-          {/* === SECTION 4b: Structured non-cash fields (vault §07.01) === */}
-          {method === "check" && (
-            <div className="rounded-md border border-border bg-surface-elevated/40 p-3 space-y-3">
-              <p className="text-xs font-medium text-foreground">
-                Détails du chèque <span className="text-status-danger">*</span>
-              </p>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <FormField label="N° de chèque" required error={!checkNumber.trim() ? "Obligatoire" : undefined}>
+                {/* --- Notes --- */}
+                <FormField label="Notes / Remarques" hint="Obligatoires pour chèque/virement en attente">
                   <Input
-                    value={checkNumber}
-                    onChange={(e) => setCheckNumber(e.target.value)}
-                    placeholder="ex. 004512"
-                  />
-                </FormField>
-                <FormField label="Banque" required error={!checkBankName.trim() ? "Obligatoire" : undefined}>
-                  <Input
-                    value={checkBankName}
-                    onChange={(e) => setCheckBankName(e.target.value)}
-                    placeholder="ex. BNA"
-                  />
-                </FormField>
-                <FormField label="Date d'émission">
-                  <Input
-                    type="date"
-                    value={checkIssueDate}
-                    onChange={(e) => setCheckIssueDate(e.target.value)}
-                  />
-                </FormField>
-                <FormField label="Date d'échéance / compensation">
-                  <Input
-                    type="date"
-                    value={checkClearanceDate}
-                    onChange={(e) => setCheckClearanceDate(e.target.value)}
-                  />
-                </FormField>
-              </div>
-            </div>
-          )}
-          {method === "transfer" && (
-            <div className="rounded-md border border-border bg-surface-elevated/40 p-3 space-y-3">
-              <p className="text-xs font-medium text-foreground">
-                Détails du virement <span className="text-status-danger">*</span>
-              </p>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <FormField label="Référence de transaction" required error={!transferReference.trim() ? "Obligatoire" : undefined}>
-                  <Input
-                    value={transferReference}
-                    onChange={(e) => setTransferReference(e.target.value)}
-                    placeholder="ex. VIR-2026-00871"
-                  />
-                </FormField>
-                <FormField label="Banque émettrice">
-                  <Input
-                    value={transferSourceBank}
-                    onChange={(e) => setTransferSourceBank(e.target.value)}
-                    placeholder="ex. CPA"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder={
+                      method !== "cash"
+                        ? "Chèque en attente de compensation"
+                        : "Notes internes (optionnel)"
+                    }
+                    className="h-8 text-xs"
                   />
                 </FormField>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Notes */}
-          <FormField label="Notes / Remarques" hint="Obligatoires pour chèque/virement en attente">
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={method !== "cash" ? "Chèque en attente de compensation" : "Notes internes (optionnel)"}
-            />
-          </FormField>
-
-          <Separator />
-
-          {/* === Single-item partial-payment warning === */}
-          {singleItemViolation && sliderTranches[0] && (
-            <div className="rounded-md border border-status-warning/40 bg-status-warning/5 p-3 text-xs text-status-warning">
-              Ce service nécessite un règlement complet ({formatDzdPlain(
-                Math.max(0, sliderTranches[0].amountDue - sliderTranches[0].amountPaid),
-              )}) — le montant sera ajusté.
-            </div>
-          )}
-
-          {/* === Status preview === */}
-          <div className="rounded-md border border-border p-3 space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Statut initial</span>
-              <StatusChip
-                label={PAYMENT_STATUS_LABELS_FR[method === "cash" ? "paid" : "pending"]}
-                tone={method === "cash" ? "success" : "warning"}
+            {/* --- Unified debt meter --- */}
+            {selectedParent && (
+              <DebtMeter
+                totalDue={totalDue}
+                alreadyPaid={alreadyPaid}
+                payingNow={amount}
+                currentTrancheLabel={focusedTrancheLabel}
+                unallocatedCredit={bankedCredit}
+                statusNote={
+                  allocationPreview && allocationPreview.allocations.length > 0
+                    ? `Affectation automatique chronologique à ${allocationPreview.allocations.length} tranche(s).`
+                    : overpayingNow
+                      ? "Paiement supérieur aux échéances : excédent conservé en crédit parent (avance)."
+                      : null
+                }
               />
+            )}
+
+            {/* --- Status preview --- */}
+            <div className="rounded-md border border-border p-3 space-y-1 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Statut initial</span>
+                <StatusChip
+                  label={PAYMENT_STATUS_LABELS_FR[method === "cash" ? "paid" : "pending"]}
+                  tone={method === "cash" ? "success" : "warning"}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {method === "cash"
+                  ? "Espèces → statut Payé immédiatement."
+                  : "Chèque/Virement → statut En attente jusqu'à compensation bancaire."}
+              </p>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {method === "cash"
-                ? "Espèces → statut Payé immédiatement."
-                : "Chèque/Virement → statut En attente jusqu'à compensation bancaire."}
-            </p>
           </div>
         </div>
       )}
 
+      {/* ======================= STAGE 2 — RECEIPT ======================= */}
       {stage === "success" && receiptPayment && (
-        <div className="space-y-3">
-          <div className="rounded-md border border-status-success/40 bg-status-success/5 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-status-success font-medium">
-              <CheckCircle2 className="h-4 w-4" />
+        <div className="space-y-4">
+          <div className="rounded-lg border border-status-success/40 bg-status-success/5 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-status-success font-medium text-base">
+              <CheckCircle2 className="h-5 w-5" />
               Paiement encaissé avec succès
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Reçu</span>
-              <span className="font-mono font-semibold">{receiptPayment.receiptNumber}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Montant</span>
-              <span className="font-mono font-bold text-base">{formatDzd(receiptPayment.amount)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Méthode</span>
-              <span>{PAYMENT_METHOD_LABELS_FR[receiptPayment.method]}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Catégorie</span>
-              <span>{PAYMENT_CATEGORY_LABELS_FR[receiptPayment.category]}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Date</span>
-              <span>{formatDateTime(receiptPayment.collectedAt)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Statut</span>
-              <StatusChip
-                label={PAYMENT_STATUS_LABELS_FR[receiptPayment.status]}
-                tone={receiptPayment.status === "paid" ? "success" : "warning"}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Émetteur (famille)</span>
+                <span className="font-semibold truncate ml-3">
+                  {selectedParent ? parentDisplayName(selectedParent) : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Reçu</span>
+                <span className="font-mono font-semibold">{receiptPayment.receiptNumber}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Montant</span>
+                <span className="font-mono font-bold text-base text-status-success">
+                  {formatDzd(receiptPayment.amount)}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Méthode</span>
+                <span>{PAYMENT_METHOD_LABELS_FR[receiptPayment.method]}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Catégorie</span>
+                <span>{PAYMENT_CATEGORY_LABELS_FR[receiptPayment.category]}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Date &amp; heure</span>
+                <span className="font-medium">{formatDateTime(receiptPayment.collectedAt)}</span>
+              </div>
+              {receiptPayment.collectedBy && (
+                <div className="flex justify-between border-b border-border/40 pb-1">
+                  <span className="text-muted-foreground">Encaissé par</span>
+                  <span className="font-mono text-xs">{receiptPayment.collectedBy}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Statut</span>
+                <StatusChip
+                  label={PAYMENT_STATUS_LABELS_FR[receiptPayment.status]}
+                  tone={receiptPayment.status === "paid" ? "success" : "warning"}
+                />
+              </div>
             </div>
           </div>
 
           {/* PDF preview indicator */}
-          <div className="rounded-md border border-border p-3 flex items-center gap-3">
+          <div className="rounded-lg border border-border p-3 flex items-center gap-3">
             {generatingPdf ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -961,7 +1051,7 @@ export function UnifiedPaymentModal({
             ) : pdfBytes ? (
               <>
                 <FileDown className="h-4 w-4 text-status-success" />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Reçu PDF prêt</p>
                   <p className="text-[11px] text-muted-foreground">
                     {receiptPayment.receiptNumber}.pdf · {Math.ceil(pdfBytes.length / 1024)} Ko
@@ -974,13 +1064,16 @@ export function UnifiedPaymentModal({
             ) : (
               <>
                 <Share2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">PDF non généré (utilisez WhatsApp pour partager)</span>
+                <span className="text-sm text-muted-foreground">
+                  PDF non généré (utilisez WhatsApp pour partager)
+                </span>
               </>
             )}
           </div>
 
           <p className="text-[11px] text-muted-foreground text-center">
-            Le reçu PDF reste disponible dans l'onglet Reçus.
+            Le reçu PDF reste disponible dans l'onglet Reçus. Date d'émission :{" "}
+            {formatDate(receiptPayment.collectedAt)}.
           </p>
         </div>
       )}

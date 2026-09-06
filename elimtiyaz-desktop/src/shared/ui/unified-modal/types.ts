@@ -8,7 +8,13 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type ModalVariant = "dialog" | "drawer" | "command-palette";
-export type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
+/**
+ * T-219: `2xl` is the wide-form tier (max-w-6xl = 1152px) used by the
+ * UnifiedPaymentModal. Combined with the shell's `max-h-[88vh]` dialog cap,
+ * a 2xl dialog lands at ~1152×~648 on a 1080p display — an approximately
+ * 16:9 stage that fits dense two-column forms without clipping.
+ */
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "full";
 export type DrawerSize = "sm" | "md" | "lg";
 export type SubmitVariant = "default" | "destructive" | "success";
 export type AlertTone = "error" | "warning" | "info";
@@ -62,6 +68,7 @@ export const DIALOG_SIZE_CLASS: Record<ModalSize, string> = {
   md: "max-w-lg",
   lg: "max-w-2xl",
   xl: "max-w-4xl",
+  "2xl": "max-w-6xl",
   full: "max-w-[95vw] h-[90vh]",
 };
 
@@ -76,6 +83,7 @@ export const COMMAND_PALETTE_SIZE_CLASS: Record<ModalSize, string> = {
   md: "max-w-lg",
   lg: "max-w-2xl",
   xl: "max-w-4xl",
+  "2xl": "max-w-6xl",
   full: "max-w-[95vw]",
 };
 
@@ -92,4 +100,9 @@ export function mapSizeForDrawer(size?: ModalSize): DrawerSize {
   if (size === "sm") return "sm";
   if (size === "md") return "md";
   return "lg";
+}
+
+/** True when the size belongs to the wide-form tiers (xl/2xl/full). */
+export function isWideFormSize(size?: ModalSize): boolean {
+  return size === "xl" || size === "2xl" || size === "full";
 }

@@ -63,8 +63,16 @@ function contentClass(variant: ModalVariant, size: ModalSize, contentClassName?:
     );
   }
   // dialog
+  // T-219 (UI-305): the dialog was previously `grid … flex-col` with NO
+  // height cap — grid rows size to content, so `flex-1` on the body was
+  // inert and tall forms grew the dialog past the viewport, pushing the
+  // footer off-screen ("cut off / outside the form boundaries"). A real
+  // flex column capped at 88vh makes `UnifiedModalBody`'s existing
+  // `flex-1 overflow-y-auto` actually bound the content: the footer stays
+  // pinned and reachable at every resolution, matching the drawer variant
+  // (which was already `flex h-full flex-col`).
   return cn(
-    "fixed left-1/2 top-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 flex-col gap-0 border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+    "fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
     base,
     "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
     "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
