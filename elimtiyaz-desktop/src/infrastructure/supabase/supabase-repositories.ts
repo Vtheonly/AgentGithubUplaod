@@ -60,6 +60,7 @@ import { SupabaseWorkflowRunRepository } from "./repositories/supabase-workflow-
 import { SupabaseLeaveRequestRepository } from "./repositories/supabase-leave-request-repository";
 import { SupabaseSupplierRepository } from "./repositories/supabase-supplier-repository";
 import { SupabaseTaskRepository } from "./repositories/supabase-task-repository";
+import { SupabaseWorkforceAttendanceRepository } from "./repositories/supabase-workforce-attendance-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -221,6 +222,15 @@ export function getSupabaseRepositories(): Repositories {
   // sat empty.
   const tasks = new SupabaseTaskRepository(client);
 
+  // T-217 (2026-09-07, T-047 port #6): wire the Supabase-backed workforce
+  // attendance repository onto workforce_attendance_events (migration 0010).
+  // BEFORE this, the worker dashboard's clock punches, the manager
+  // dashboard's daily attendance feed and the employee profile drawer's
+  // attendance history lived in mock memory only (wiped on restart) while
+  // the canonical table sat empty. RLS (0019): SELECT tenant + (staff OR
+  // own-personnel), INSERT tenant — matching the domain's call sites.
+  const workforceAttendance = new SupabaseWorkforceAttendanceRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -255,6 +265,7 @@ export function getSupabaseRepositories(): Repositories {
     leaveRequests, // T-178 — leave_requests (T-047 port #3, migration 0072)
     suppliers, // T-179 — suppliers (T-047 port #4, migration 0073)
     tasks, // T-180 — tasks/task_comments/task_attachments (T-047 port #5, migration 0074)
+    workforceAttendance, // T-217 — workforce_attendance_events (T-047 port #6)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.

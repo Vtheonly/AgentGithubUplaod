@@ -103,6 +103,13 @@ export interface TaskRepository {
 export interface AttendanceRepository {
   observeByPersonnel(personnelId: string, fromDate: string, toDate: string): Observable<AttendanceEvent[]>;
   observeByDate(date: string): Observable<AttendanceEvent[]>;
+  /**
+   * Synchronous peek at the latest event for a personnel on a given date.
+   * T-217: promoted into the interface (it was mock-only surface the worker
+   * dashboard's clock-state memo consumes without awaiting). Both
+   * implementations answer from their local cache.
+   */
+  latestFor(personnelId: string, date: string): AttendanceEvent | null;
   recordEvent(input: {
     personnelId: string;
     date: string;

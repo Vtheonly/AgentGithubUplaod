@@ -2119,7 +2119,8 @@ Opening ritual (live, sbp_ token): migration chain 76/76 = 0001–0079 ZERO DRIF
 - **Dependencies:** T-214 applied · **Affected:** hub evidence docs
 - **Plan:** chain drift check 77/77 = 0001–0080, EF fleet matrix, dual-key health, ALLOWED_ORIGINS probe, anonymous-deny matrix; record in t-216-live-verification.md + change-log.
 
-### T-217 — Desktop: T-047 port #6 — workforceAttendance → workforce_attendance_events — **In Progress**
+### T-217 — Desktop: T-047 port #6 — workforceAttendance → workforce_attendance_events — **Completed (TESTED)**
+- **Evidence:** src/tests/infrastructure/supabase-workforce-attendance-repository.test.ts 12/12 (union verbatim + server-side punch instant, UUID/tenant validation, lat/lng mapping + ip drop, recorded_by, read mapping, cache filtering, SYNCHRONOUS latestFor incl. the just-punched reflection, persistence-across-restart, 3 source scans); full desktop suite 94 files / 2439 / 0 + typecheck clean + eslint 0 errors on the touched files. The dashboards trio (tasks / workforceAttendance / leaveRequests) is now FULLY Supabase-backed.
 - **Problems:** ARCH-001 (T-047 Group-A remainder; the dashboards trio's open member) · **Priority:** P2
 - **Dependencies:** none (table + RLS exist since 0010/0019) · **Affected:** hub (new SupabaseWorkforceAttendanceRepository, wiring, tests)
 - **Plan:** port observeByPersonnel/observeByDate/latestFor/recordEvent over the canonical table (T-178/T-180 adapter pattern: SubjectBehavior cache + refresh-after-write); unit tests incl. persistence + source scans.

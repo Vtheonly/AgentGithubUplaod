@@ -48,6 +48,11 @@ import type {
   PerformanceReviewRepository,
   ChatRepository,
   OnboardingRepository,
+  // T-217: aliased — THREE interfaces named AttendanceRepository exist in the
+  // domain (workforce: observeByPersonnel/observeByDate/recordEvent; the
+  // academic + core ones cover STUDENT attendance: observeByClass/
+  // recordRollCall). The workforceAttendance slot takes the workforce one.
+  AttendanceRepository as WorkforceAttendanceRepository,
 } from "../../domain/repository/workforce-repository";
 import type {
   SupplierRepository,
@@ -146,7 +151,11 @@ export interface Repositories {
   readonly shifts: ShiftRepository;
   readonly schedules: ScheduleRepository;
   readonly tasks: TaskRepository;
-  readonly workforceAttendance: typeof mockWorkforceAttendanceRepository;
+  // T-217: the interface type replaces `typeof mockWorkforceAttendanceRepository`
+  // (the mock structurally satisfies the workforce AttendanceRepository incl.
+  // latestFor). NOTE: NOT the academic AttendanceRepository (student
+  // attendance — the `attendance` slot's type).
+  readonly workforceAttendance: WorkforceAttendanceRepository;
   readonly leaveRequests: LeaveRequestRepository;
   readonly performanceReviews: PerformanceReviewRepository;
   readonly chat: ChatRepository;
