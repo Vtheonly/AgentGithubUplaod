@@ -2061,7 +2061,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Dependencies:** T-199..T-203 complete · **Affected:** elimtiyaz-website
 - **Plan:** re-run the harness across ALL 9 views × 4 widths (320/375/768/1280) + the financial sub-tabs + the messages conversation; document-level overflow must be 0 everywhere; screenshots persisted as evidence.
 
-### T-207 — Persist the UI-verification harness + discovery documentation — **READY**
+### T-207 — Persist the UI-verification harness + discovery documentation — **Completed (TESTED)**
 - **Problems:** process (ADR-007) · **Priority:** P2
 - **Dependencies:** T-199..T-206 evidence in hand · **Affected:** hub docs (AGENTS.md §11 verification table note, docs/testing/strategy.md) + scripts under /home/z/my-project/scripts (session-local; the PATTERN is documented in the hub)
 - **Plan:** document (a) the grid-blowout rule (base grid-cols mandatory), (b) the narrow-no-break-space currency rule, (c) the @supabase/ssr cookie-session sign-in recipe for headless UI verification, (d) the seeded UI-TEST family convention + cleanup script, so the next agent can re-run mobile verification without rediscovering the setup.

@@ -66,3 +66,65 @@ Known gaps registered as problems: missing `src/test/setup.ts` (DEAD-012), `igno
 5. Cross-platform equivalence report artifact per run.
 
 Until CI exists, the agent performing a change runs the suites locally and records the output in the change-log entry.
+
+## 6. Live mobile-viewport UI verification (added T-207, 31st session, 2026-09-06)
+
+For website UI/layout changes, DOM-geometry verification against a REAL
+signed-in session beats eyeballing: every UI defect found in the 31st
+session was measured, not guessed (documentElement.scrollWidth −
+clientWidth per viewport; per-element getBoundingClientRect /
+scrollWidth-vs-clientWidth for clipped containers).
+
+**The harness recipe (re-runnable, ~10 min):**
+
+1. **Seed a UI-TEST family in the live DB** (service-role SQL via the
+   Management API — the T-147 convention): a tagged parent
+   (`PAR-UI99`, notes `UI-TEST …`), 2 students, installments (mixed
+   statuses incl. overdue/pending/partial), payments (cash + transfer —
+   the transfer NEEDS `proof_path` or the 0045 trigger rejects it),
+   ledger entries (`account_id` is the composite
+   `parent:<uuid>:category:<cat>:student:<uuid>`, `entry_number` is free
+   text), attendance (`justification_status` ∈ none/submitted/accepted/
+   rejected, status ∈ present/late/absent_excused/absent_unexcused),
+   homework (needs a REAL `class_id` + `subject_id` + `teacher_id` —
+   personnel is empty on this project, create a tagged test row),
+   calendar_events, notifications (kind ∈ alert/info/warning/success/
+   error/system), a `direct` chat channel with `member_ids` ARRAY of
+   profile UUIDs. **Every live check constraint was discovered by trial —
+   see the schema columns + `pg_constraint` before inserting.**
+2. **Create the test auth user via the admin API** (`email_confirm: true`)
+   and UPDATE (never INSERT) the auto-created `user_profiles` row to
+   `status='active'`, bind `parents.auth_user_id`, grant the `parent`
+   role (`role_assignments.assigned_by`, NOT `granted_by`).
+3. **Sign the browser in via the @supabase/ssr cookie**: password-grant
+   via `POST /auth/v1/token?grant_type=password`, then
+   `document.cookie = 'sb-<ref>-auth-token=' + encodeURIComponent(JSON.stringify(session))`.
+   **localStorage does NOT work** — `createBrowserClient` from
+   `@supabase/ssr` stores sessions in COOKIES, not localStorage (the
+   31st session burned time on this).
+4. **Measure at 320/375/768/1280** (matrix script pattern:
+   `/home/z/my-project/scripts/t-206-viewport-matrix.sh`): assert
+   document overflow = 0 for every view; probe per-element
+   `scrollWidth > clientWidth` for clipped content; the Next.js dev-tools
+   `<nextjs-portal>` overlay can COVER click points — remove it via
+   `document.querySelectorAll('nextjs-portal').forEach(p => p.remove())`
+   before interacting; Radix tabs respond to focus + Enter, not
+   el.click().
+5. **Clean up**: delete the UI-TEST rows BY TAG (audit_logs is
+   append-only — leave the verification rows; see T-147 discovery 4).
+
+**The two CSS rules behind every 31st-session UI defect (both now
+source-scan-guarded on website + desktop):**
+
+- **Responsive grids MUST declare a base `grid-cols-*`** (Tailwind
+  `grid-cols-1` = `repeat(1, minmax(0, 1fr))`). A bare `grid gap-*` that
+  only gains columns at a breakpoint leaves an implicit `minmax(auto,
+  auto)` track below it — the track sizes to the item's MAX-CONTENT
+  (`.truncate` does NOT constrain a grid track), so the page scrolls
+  horizontally. Guards: website `t-199`, desktop `t-205`.
+- **Intl currency output is UNBREAKABLE** (fr-XX groups digits with
+  U+202F narrow no-break space, the pre-currency separator is U+00A0).
+  Any surface rendering formatted money in a width-constrained box needs
+  a `break-words`-class safety net + a size step for mobile — the
+  FORMATTERS are parity-pinned and must never be changed for display
+  reasons (the t-200 test enforces this on the website).
