@@ -1706,3 +1706,19 @@ The session's core discovery: **the chat CONVERSATION layer was complete and liv
 #### New problems registered (4, all TESTED with live evidence): MSG-101, MSG-200, MSG-201, REG-004 — totals 193 detailed entries.
 #### New discoveries persisted: dead Management-API secrets PATCH/PUT + masked GET digests; storage.buckets SQL guard; admin-API user rate limits + the 0002-trigger auto-profile pattern (all in AGENTS.md §11.1 #5–#8); pdf-lib hex-Tj text encoding (t-194 test); the REG-004 policy-drift detection pattern (session openings should census pg_policy).
 #### Owner residuals after this session: FIREBASE_SERVICE_ACCOUNT_JSON (real FCM push), RESEND_API_KEY (workflow emails), the website web-push Firebase env vars (NEXT_PUBLIC_FIREBASE_APP_ID/VAPID), AUTH-200's Google OAuth client step, T-173 part a (alert VOLUME decision / UNKNOWN-020).
+
+---
+
+## 32nd repair session (2026-09-07) — owner mandate: portal detail enrichment + full Trimestre labels + migration-token consistency
+
+**T-214 — migration 0080 / INFO-300 closed (TESTED, live-verified):** `service_enrollments_select` tightened from tenant-wide SELECT (any authenticated parent could read every family's enrollment amounts — discovered while scoping T-211) to staff-roles + parent-own-student + student-self scoping. Applied live atomically with registration (apply_0080_live.sh, HTTP 201; chain **77/77 = 0001–0080 zero drift**); verify_t-214.sql **6/6 GREEN** (registration, policy shape, leak-probe closed [own=1/other=0], fail-closed unbound user, staff path preserved, zero seed residue). Evidence: `docs/recovery/t-214-live-verification.md`. **NEW Management-API quirk #9 persisted in AGENTS.md §11.1:** doubled single quotes (`''`) in LIKE patterns corrupt SIBLING literals in the same SELECT (identical expressions re-tested alone returned true) — use `position()` with quote-free substrings or DO blocks; also: python-urllib's default User-Agent gets Cloudflare 403 error-1010 (send payloads via curl --data @file).
+
+**T-209 (website, TESTED):** Profile account card renders the parent identity rows (relationship via localized label map, national_id, parent_code, member-since) — data always fetched by the AuthProvider, never displayed before. Suite 36/517/0.
+
+**T-210 (website, TESTED):** NEW children-info-card.tsx — per-child identity + enrollment card (student_code, DOB + age, gender, grade level, class, enrollment date, enrollment-status pill) mounted in the Profile view; reuses useAcademicLevels/useClass. computeAge exported + tested. Suite 36/523/0.
+
+**T-211 (website, TESTED):** NEW student-enrollments-card.tsx — the per-child ENROLLMENTS surface: service_enrollments (first consumer of the previously-dead useServiceEnrollments hook) + the REAL per-student installment fee schedule (1 276 live rows, 100% student-attributed) + current academic year. Three new hooks (useInstallmentsForStudent, useCurrentAcademicYear, useTransportDestination); TransportDestinationRow typed into the Database interface (WEAK-017). Status tone + currency rendering reused from the canonical modules. Suite 36/530/0.
+
+**T-212 (website, TESTED):** full "Trimestre 1/2/3" labels replace the T1/T2/T3 abbreviations (tab triggers, per-assessment chips, term KPI) — the owner's explicit label mandate; the tab bar adopts the t-202 mobile pattern for the wider labels; hardcoded "Toutes" replaced with the academic.terms.all key. The canonical AcademicTerm DATA union untouched (parity-pinned). Suite 36/537/0.
+
+**T-213 (website, TESTED):** dashboard single-child card carries level · class + enrollment-status pill; the level/class label derivation extracted to the shared features/students/child-summary.ts (profile card + dashboard consume the one derivation); enrollment-status maps exported from children-info-card and reused. Suite 36/544/0.

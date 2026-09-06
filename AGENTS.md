@@ -162,6 +162,22 @@ For backend / SQL / Edge-Function tasks, **live verification is required** to cl
    `current_user_profile_id()` resolution; UPDATE the auto-created rows
    instead).
 
+**Management-API SQL-endpoint quirk #9 (32nd session, 2026-09-07 — live evidence):**
+
+9. **Doubled single quotes (`''`) in LIKE patterns corrupt SIBLING literals
+   in the same SELECT** — a four-condition check
+   (`lower(qual) LIKE '%…''…%' AND … LIKE '%auth_user_id = auth.uid()'`)
+   returned false for BOTH the `''`-containing pattern AND a plain
+   quote-free sibling, while the identical expressions re-tested alone
+   returned true (three probe rounds, verify_t-214 C2 development).
+   Dollar-quoted `DO $$ … $$` blocks are immune (the T-190/T-148 round-trip
+   scripts always used them); plain strings without `''` escapes are immune.
+   **Rule: never put `''` escapes in top-level SQL sent to this endpoint —
+   use `position(… in …) > 0` with quote-free substrings, or move the logic
+   into a DO block.** (Also: send payloads from a FILE via curl
+   `--data @file`; a default python-urllib User-Agent gets Cloudflare
+   error-1010 403s.)
+
 **Live verification script convention** (since the seventh session):
 
 For each backend migration (T-061, T-031, T-029, T-071, T-079), a

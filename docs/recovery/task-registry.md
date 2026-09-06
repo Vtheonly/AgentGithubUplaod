@@ -2102,7 +2102,8 @@ Opening ritual (live, sbp_ token): migration chain 76/76 = 0001–0079 ZERO DRIF
 - **Dependencies:** T-210 patterns · **Affected:** dashboard-view.tsx, student-switcher.tsx
 - **Plan:** child cards show grade level + class + enrollment status (single-child card + switcher subtitle), driving deeper detail into the first screen parents see.
 
-### T-214 — Backend: migration 0080 — tighten service_enrollments_select to staff + own-parent scoping + live atomic apply — **In Progress**
+### T-214 — Backend: migration 0080 — tighten service_enrollments_select to staff + own-parent scoping + live atomic apply — **Completed (TESTED, live-verified 6/6)**
+- **Evidence:** apply_0080_live.sh HTTP 201 (chain 77/77 = 0001–0080 zero drift, registration embedded); verify_t-214.sql 6/6 GREEN (C1 registration+chain, C2 policy shape, C3 parent-own-only [leak closed], C4 fail-closed unbound user, C5 staff sees all, zero seed residue); docs/recovery/t-214-live-verification.md. NEW Management-API quirk #9 documented (doubled-single-quote LIKE corruption → position()/DO blocks).
 - **Problems:** INFO-300 (new: tenant-wide SELECT exposes every family's enrollment amounts to any authenticated parent) · **Priority:** P1 (security)
 - **Dependencies:** sbp_ token (supplied) · **Affected:** hub (new migration 0080 + apply script + verify script), all clients unchanged (staff roles pass has_any_role; parents see own)
 - **Plan:** drop/recreate policy with the invoices_select pattern (staff roles OR parent-own-student subquery); migration file with embedded registration; `apply_0080_live.sh` atomic BEGIN/COMMIT apply; `verify_t-214.sql` (BEGIN/ROLLBACK, temp-table evidence, regression paths); live verification doc.
