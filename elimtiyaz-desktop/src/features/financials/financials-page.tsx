@@ -12,6 +12,11 @@
  *     but the Top 20 list is rendered via `<DataTable>`.
  *   - `PaymentNavigationContext` integration with `<UnifiedPaymentModal>`
  *     for consolidated debt collection is preserved.
+ *
+ * T-220: the payments journal identifies the ISSUER (parent full name,
+ * family code, linked student) and the exact transaction date & time
+ * (dd/MM/yyyy HH:mm + relative) — previously only a receipt serial number
+ * and a fuzzy "il y a X jours" were shown. Search spans the issuer fields.
  */
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,7 +41,9 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { formatDzd } from "../../core/format/currency";
-import { formatRelative } from "../../core/format/date";
+import { formatRelative, formatDateTime } from "../../core/format/date";
+import { parentDisplayName } from "../../domain/model/parent";
+import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
@@ -255,6 +262,18 @@ function TabActions({
 
 // ============================================================================
 // PaymentsTab — DataTable-backed list
+//
+// T-220: the payments journal now identifies WHO issued each payment and
+// WHEN it was collected, instead of an opaque serial-number column:
+//   - Émetteur (Payeur): parent avatar + full name + family code + linked
+//     student (resolved from repos.parents / repos.students).
+//   - Reçu / Encaissé par: the receipt number stays (it is the audit key)
+//     but is demoted to a secondary line under the collector attribution.
+//   - Date & Heure: the EXACT transaction timestamp (dd/MM/yyyy HH:mm)
+//     with the relative time as a secondary line — the old column showed
+//     only "il y a X jours" with no clock time at all.
+// Search now spans parent name, student name, family code, receipt number,
+// method and category.
 // ============================================================================
 
 const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
@@ -265,6 +284,14 @@ const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "ne
   partial: "info",
 };
 
+/** Payment row enriched with resolved issuer identity + timestamp. */
+interface EnrichedPaymentRow extends Payment {
+  readonly parentName: string;
+  readonly parentCode: string;
+  readonly studentName: string;
+  readonly exactDateTime: string;
+}
+
 function PaymentsTab({
   payments,
   onOpenPayment,
@@ -272,31 +299,123 @@ function PaymentsTab({
   payments: readonly Payment[];
   onOpenPayment: (id: string) => void;
 }) {
-  const columns: readonly DataTableColumn<Payment>[] = [
+  const repos = useRepositories();
+  const parents = useObservable(() => repos.parents.observe(), []);
+  const students = useObservable(() => repos.students.observe(), []);
+
+  // Resolve the issuer identity (parent + linked student) for each payment.
+  // `payments`/`parents`/`students` are observable-backed arrays — the memo
+  // recomputes when any of them emits.
+  const rows: readonly EnrichedPaymentRow[] = useMemo(() => {
+    const parentMap = new Map(parents.map((p) => [p.id, p]));
+    const studentMap = new Map(students.map((s) => [s.id, s]));
+    return payments.map((p) => {
+      const par = parentMap.get(p.parentId);
+      const stu = p.studentId ? studentMap.get(p.studentId) : undefined;
+      const parentName = par
+        ? parentDisplayName(par)
+        : "Parent non répertorié";
+      const studentName = stu ? `${stu.firstName} ${stu.lastName}`.trim() : "";
+      return {
+        ...p,
+        parentName,
+        parentCode: par?.code ?? "",
+        studentName,
+        exactDateTime: formatDateTime(p.collectedAt),
+      };
+    });
+  }, [payments, parents, students]);
+
+  const columns: readonly DataTableColumn<EnrichedPaymentRow>[] = [
     {
-      header: "Reçu",
+      header: "Émetteur (Payeur)",
+      accessor: "parentName",
+      cell: (p) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar className="h-8 w-8 shrink-0">
+            <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+              {p.parentName
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase() || "PA"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">{p.parentName}</p>
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+              {p.parentCode && <span className="font-mono shrink-0">{p.parentCode}</span>}
+              {p.studentName && (
+                <>
+                  <span className="shrink-0">·</span>
+                  <span className="truncate">Élève : {p.studentName}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Reçu / Encaissé par",
       accessor: "receiptNumber",
-      cell: (p) => <span className="font-mono font-medium">{p.receiptNumber}</span>,
+      cell: (p) => (
+        <div className="flex flex-col max-w-[170px]">
+          <span
+            className="font-mono text-xs font-medium text-foreground truncate"
+            title={p.receiptNumber}
+          >
+            {p.receiptNumber}
+          </span>
+          {p.collectedBy && (
+            <span className="text-[10px] text-muted-foreground truncate" title={p.collectedBy}>
+              Par : {p.collectedBy}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Date & Heure",
+      accessor: "collectedAt",
+      cell: (p) => (
+        <div className="flex flex-col whitespace-nowrap">
+          <span className="text-xs font-medium text-foreground">{p.exactDateTime}</span>
+          <span className="text-[11px] text-muted-foreground">{formatRelative(p.collectedAt)}</span>
+        </div>
+      ),
     },
     {
       header: "Méthode",
       accessor: "method",
-      cell: (p) => PAYMENT_METHOD_LABELS_FR[p.method],
+      cell: (p) => (
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-medium text-foreground">{PAYMENT_METHOD_LABELS_FR[p.method]}</span>
+          {p.checkNumber && (
+            <span className="font-mono text-[10px] text-muted-foreground truncate" title={p.checkNumber}>
+              N° {p.checkNumber}
+            </span>
+          )}
+          {p.transferReference && (
+            <span className="font-mono text-[10px] text-muted-foreground truncate" title={p.transferReference}>
+              Réf : {p.transferReference}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       header: "Catégorie",
       accessor: "category",
-      cell: (p) => PAYMENT_CATEGORY_LABELS_FR[p.category],
+      cell: (p) => (
+        <span className="text-xs text-muted-foreground">{PAYMENT_CATEGORY_LABELS_FR[p.category]}</span>
+      ),
     },
     {
       header: "Montant",
       accessor: "amount",
       cell: (p) => <span className="font-mono font-semibold">{formatDzd(p.amount)}</span>,
-    },
-    {
-      header: "Date",
-      accessor: "collectedAt",
-      cell: (p) => formatRelative(p.collectedAt),
     },
     {
       header: "Statut",
@@ -311,13 +430,13 @@ function PaymentsTab({
   ];
 
   return (
-    <DataTable<Payment>
-      data={payments}
+    <DataTable<EnrichedPaymentRow>
+      data={rows}
       columns={columns}
       onRowClick={(p) => onOpenPayment(p.id)}
       getRowId={(p) => p.id}
-      searchFields={["receiptNumber", "method", "category"]}
-      searchPlaceholder="Rechercher un reçu, méthode, catégorie…"
+      searchFields={["parentName", "studentName", "parentCode", "receiptNumber", "method", "category"]}
+      searchPlaceholder="Rechercher par payeur, élève, code famille, reçu, méthode, catégorie…"
       pageSize={15}
     />
   );
