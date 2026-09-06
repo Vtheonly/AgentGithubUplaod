@@ -2206,7 +2206,7 @@ Opening ritual (live, sbp_ token): migration chain 77/77 = 0001–0080 ZERO DRIF
 - **Plan:** wait_duration > inline cap (10s) parks the run: status stays 'running', a workflow_pending_resumes row (run, node, resume_after, serialized engine state) is written, the EF returns the pause honestly; NEW workflow-resume-scheduler EF (CRON_SECRET/service-role auth, cron +10min) claims due rows (atomic UPDATE...WHERE status='pending' → 'claimed', the unique index blocks double-claims), re-enters the engine at the parked node, runs to completion or parks again; execution state survives process death (it is a row, not memory); inline waits ≤10s still supported for short delays.
 - **Status:** In Progress
 
-### T-229 — Backend: EF dry-run mode (safe test execution) — **In Progress**
+### T-229 — Backend: EF dry-run mode (safe test execution) — **Completed (TESTED, live-verified 10/10 incl. prediction parity)**
 - **Problems:** DAG-100 (no server-side test execution) · **Priority:** P1
 - **Dependencies:** T-225, T-226, T-227 · **Affected:** hub (EF)
 - **Plan:** body flag dry_run:true + optional entity ids → the engine runs with action handlers in SIMULATE mode (no notifications/emails/tasks/mutations — outputs record what WOULD happen), real entity context (T-227), conditions really evaluated, branch path + per-node outputs/errors returned; NO workflow_runs row (test runs never pollute the execution history); one write_audit_log entry (workflow.dry_run) keeps the test traceable; duplicate protection (daily cap does NOT consume on dry runs).
