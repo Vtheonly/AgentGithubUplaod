@@ -4109,9 +4109,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### UI-304 — Dashboard renders raw English calendar `kind` enums ("meeting"/"reminder") as event pills while the calendar view maps them to localized labels — same data, two renderings
 
-- **Category:** UI  |  **Severity:** Low  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Category:** UI  |  **Severity:** Low  |  **Status:** TESTED (2026-09-06, 31st session — T-203: the mapping extracted to src/features/calendar/event-kind.ts; the dashboard renders t(eventKindLabelKey(ev.kind)); live render: dashboard pills 'Réunion | Échéance' [was 'meeting | reminder']; suite t-203 4/4 incl. the duplicate-implementation guard; full website suite 35 files / 514 / 0; lint clean; strict build green)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website (dashboard Upcoming-events section; the calendar view is the canonical rendering)
 - **Discovered:** live render — dashboard `<StatusPill>{ev.kind}</StatusPill>` shows "meeting" / "reminder" (English backend enums) in an otherwise French UI; calendar-view.tsx has the canonical `kindToUiType` map + `t("calendar.eventType.*")` localized labels ("Réunion", "Échéance").
 - **Root cause:** the dashboard was built before the calendar's kind mapping; the map lives inside calendar-view.tsx so it was never reused (an import-scope issue, not a logic fork — the dashboard has no map at all).
-- **Proposed resolution:** T-203 — extract `kindToUiType` to a shared module and render the SAME localized labels on the dashboard (Existing-Implementation-First: reuse, don't re-implement).
+- **Proposed resolution:** DONE (T-203) — extracted to `src/features/calendar/event-kind.ts` (kindToUiType + uiTypeLabelKey + eventKindLabelKey); dashboard + calendar both consume it; the duplicate-map guard is pinned by t-203-event-kind-labels.test.ts.

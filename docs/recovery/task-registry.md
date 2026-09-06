@@ -2040,7 +2040,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Dependencies:** none · **Affected:** financial-view.tsx (5-tab list), academic-view.tsx (4-tab list)
 - **Plan:** scrollable tab bar below sm (the codebase's established `overflow-x-auto scrollbar-none` pattern), equal grid at sm+; verify no label clipping at 320.
 
-### T-203 — Website: dashboard raw kind enums (UI-304) — **READY**
+### T-203 — Website: dashboard raw kind enums (UI-304) — **Completed (TESTED)**
 - **Problems:** UI-304 (Low) · **Priority:** P2 · **Severity:** Low
 - **Dependencies:** none · **Affected:** dashboard-view.tsx + calendar-view.tsx (extract the shared map — Existing-Implementation-First)
 - **Plan:** extract `kindToUiType` to a shared module, render localized labels on the dashboard; unit test pinning the mapping reuse (no duplicate map).
