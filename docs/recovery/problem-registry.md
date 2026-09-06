@@ -4100,12 +4100,12 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### UI-303 — Financial 5-tab TabsList clips its labels at ≤360px (whitespace-nowrap + equal 1fr cells)
 
-- **Category:** UI  |  **Severity:** Medium  |  **Status:** OPEN (registered 2026-09-06, 31st session)
+- **Category:** UI  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-06, 31st session — T-202: scrollable chip row below sm + equal grid at sm+; live re-measure at 320px: all five labels render unclipped [92/78/86/61/100px] in a 360px scroll row; desktop grid live-verified [display:grid, 5×197px]; suite t-202 3/3; full website suite 34 files / 510 / 0; lint clean; strict build green)
 - **Repositories:** elimtiyaz-website
 - **Platforms affected:** Website mobile ≤360px (finance view: Facturation/Tranches/Paiements/Relevé/Ajustements; academic view's 4-tab list is borderline)
 - **Discovered:** live DOM measurement at 320px — tab cells 54px each; "Facturation" needs 65px, "Paiements" 62px, "Ajustements +count" 84px → labels clipped mid-word (the shadcn TabsTrigger carries `whitespace-nowrap`; `grid-cols-5` = five minmax(0,1fr) tracks that shrink below content).
 - **Root cause:** the tab bar was designed for ≥375px; below that, equal cells + nowrap clip text with no scroll affordance.
-- **Proposed resolution:** T-202 — make the TabsList horizontally scrollable below sm (mobile pattern; scrollable chip rows already exist in the codebase — calendar filter chips and StudentSwitcher use `overflow-x-auto scrollbar-none`) and restore the equal 5-cell grid at sm+.
+- **Proposed resolution:** DONE (T-202) — `flex w-full overflow-x-auto scrollbar-none sm:grid sm:grid-cols-5` + `[&_[data-slot=tabs-trigger]]:basis-auto shrink-0` (neutralizes the trigger's base flex-1/basis-0 so triggers size to content in flex mode). The academic 4-tab list measured clean at 320px and was deliberately left unchanged (scoped fix).
 
 ### UI-304 — Dashboard renders raw English calendar `kind` enums ("meeting"/"reminder") as event pills while the calendar view maps them to localized labels — same data, two renderings
 

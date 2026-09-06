@@ -2035,7 +2035,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Dependencies:** none · **Affected:** financial-view.tsx, academic-view.tsx, notifications-view.tsx, student-documents-card.tsx (one defect family, one fix class)
 - **Plan:** `flex-wrap` + `min-w-0` + `gap-y` on the four instances; re-measure at 320; regression source-scan for the vulnerable pattern in these views.
 
-### T-202 — Website: financial TabsList label clipping (UI-303) — **READY**
+### T-202 — Website: financial TabsList label clipping (UI-303) — **Completed (TESTED)**
 - **Problems:** UI-303 (Medium) · **Priority:** P1 · **Severity:** Medium
 - **Dependencies:** none · **Affected:** financial-view.tsx (5-tab list), academic-view.tsx (4-tab list)
 - **Plan:** scrollable tab bar below sm (the codebase's established `overflow-x-auto scrollbar-none` pattern), equal grid at sm+; verify no label clipping at 320.
