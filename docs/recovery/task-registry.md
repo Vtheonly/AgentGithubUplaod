@@ -2163,3 +2163,69 @@ Opening ritual (live, sbp_ token): migration chain 76/76 = 0001–0079 ZERO DRIF
 - **Dependencies:** T-219..T-221 · **Affected:** all three repos (hub only receives commits; website/android untouched this session)
 - **Plan:** registry entries + counts (TESTED 81→95), problem-registry totals 199→201 (+UI-305, +DAG-100), change-log 33rd-session section, current-state snapshot, next-task 34th-session recommendation, 4 detailed commits on main, zips, push with the owner's PAT.
 - **Evidence:** this change-log entry + the git log; suite evidence in T-219..T-221.
+
+---
+
+## 34th repair session (2026-09-07) — owner mandate: "Fully solve the DAG automation system — complete, production-ready automation pipeline from the visual builder through persistence and execution"
+
+Opening ritual (live, sbp_ token): migration chain 77/77 = 0001–0080 ZERO DRIFT (live `supabase_migrations.schema_migrations` JSON-diffed against the local chain); EF fleet 13/13 ACTIVE incl. workflow-execute v21 (2026-09-02); live `workflows` = 0 rows, `workflow_runs` = 0 rows (the server path has NEVER produced a run); desktop baseline 100 files / 2513 tests / 0 failures. Opening audit findings (see DAG-100 residual + NEW discovery): the deployed workflow-execute EF selects non-existent columns (`definition`, `version` — the table has `dag_definition`, no version) → every call 404s; it inserts non-existent columns (workflow_version/triggered_by_profile_id/actor_note/request_id) → PGRST 204; its node dispatch uses flat legacy type strings while the desktop persists `{type, subtype}` nodes → every action/delay/transform node would throw "Unknown node type"; condition evaluation is stubbed (`_stub_*` config values); any action failure skips ALL remaining nodes (diverges from the T-221 branch semantics); `workflow_runs.trigger_type` CHECK (0012) lacks the T-221 trigger subtypes; no server-side publish validation (a cyclic workflow can be published via direct table write); no event-driven trigger path (run-overdue-scan never invokes workflows); wait_duration capped at 5s inline (not persistent/resumable); the EF never updates last_executed_at/total_executions; the Android workflow_runs DTO expects wrong column names. Session task set (10 tasks, DAG-only scope per the owner's instruction to ignore all other platform work):
+
+### T-223 — Backend: migration 0081 — workflow_runs/workflows schema alignment + server-side DAG validation (publish gate) — **In Progress**
+- **Problems:** DAG-100 (residual: server-side validation), NEW discovery (EF↔schema column drift) · **Priority:** P0 · **Severity:** Critical (the live execution path is dead)
+- **Dependencies:** none · **Affected:** hub (supabase/migrations/0081, scripts)
+- **Plan:** workflow_runs + actor_note/request_id/workflow_version/resumed_at; trigger_type CHECK extended with the T-221 trigger subtypes; workflows.version + publish-increment trigger; workflow_pending_resumes table (persistent delay/resume, unique pending per run+node); `validate_workflow_dag(jsonb, strict)` SQL function (duplicate node/edge ids, missing refs, self-edges, Kahn cycle detection with involved-node list, type/subtype whitelist mirroring the 29-subtype registry, trigger in-degree rule, strict-mode ≥1 trigger, condition-tree validation, wait_duration config) + BEFORE UPDATE publish-gate trigger on workflows (a cyclic/invalid DAG can never be published through ANY writer — the server-side requirement the client-side Kahn guard could not enforce); atomic live apply (MIG-TOKENS pattern); verify_t-223.sql regression script; desktop source-guard test pinning the SQL subtype whitelist == the TS registry.
+- **Status:** In Progress
+
+### T-224 — Backend: pure server execution engine (engine.ts) + desktop unit/equivalence tests — **In Progress**
+- **Problems:** DAG-100 (residual: branch-aware server engine) · **Priority:** P0
+- **Dependencies:** T-223 · **Affected:** hub (supabase/functions/workflow-execute/engine.ts, src/tests)
+- **Plan:** dependency-free pure TypeScript engine INSIDE the EF folder (no Deno imports → vitest-importable, tsc-strict-clean): definition parsing (string-or-jsonb, {nodes,edges} with source/target edges), full validation (TS mirror of the SQL rules), the condition evaluator ported VERBATIM from domain/calc/workflow/condition-evaluator.ts, branch-aware topological execution (per-branch closure, route_switch first-passing-route, convergence-once, §10.05 missing-field→false+warning, time_window vs context instant), injectable ActionHandler interface (the EF index wires real executors; tests wire fakes), deadline/timeout + max-node guards. Tests import the engine directly from src/tests (real unit tests of the server engine — not source guards) + an equivalence corpus vs the desktop dry-run engine (branch divergence, switch routing, convergence parity).
+- **Status:** In Progress
+
+### T-225 — Backend: rewrite workflow-execute EF on the engine + correct persistence + deploy — **In Progress**
+- **Problems:** NEW discovery (EF dead against the real schema) · **Priority:** P0
+- **Dependencies:** T-223, T-224 · **Affected:** hub (supabase/functions/workflow-execute/index.ts + live deploy)
+- **Plan:** read dag_definition (correct column; string-or-object), version (new column); write the REAL workflow_runs columns (actor_id, actor_note, request_id, workflow_version); dispatch through the 29-subtype registry (unknown subtype → failed node with a diagnosable error, not a silent skip); per-branch failure semantics (a failed action closes only its downstream — parallel branches continue; final status failed if any node failed); run finalization updates workflows.last_executed_at + total_executions; execution deadline → status 'timeout'; daily cap preserved; deployed live (functions deploy).
+- **Status:** In Progress
+
+### T-226 — Backend: real action executors in the EF — **In Progress**
+- **Problems:** DAG-100 (residual: simulated actions) · **Priority:** P0
+- **Dependencies:** T-225 · **Affected:** hub (EF action layer)
+- **Plan:** push_notification → REAL in-app notification (parent target via the canonical 0077 notify_parent_user RPC; staff target via role-assignment resolution + notifications insert with target_role) + FCM delivery via the canonical send-push-notification EF (honest per-recipient failures); dispatch_task → REAL tasks insert (title/description/priority/due_date/department/assignee resolution); restrict_account → REAL parents.is_financially_restricted update with audit entry; send_whatsapp → honest wa.me deep-link preparation (recorded as a prepared link, never a fake delivery claim); extract_field → real context dot-path extraction; send_email/log_audit stay real (T-126/T-131); apply_discount/create_invoice/generate_document/account_adjustment → honest `skipped` outputs naming the missing canonical RPC (NO fake success, NO silent stubs).
+- **Status:** In Progress
+
+### T-227 — Backend: real execution context builder (entity loading) — **In Progress**
+- **Problems:** DAG-100 (residual: stubbed condition inputs) · **Priority:** P0
+- **Dependencies:** T-225 · **Affected:** hub (EF context layer)
+- **Plan:** build the ConditionContext from REAL data for the triggered entity (body parent_id/student_id/installment_id): parent financials via the canonical compute_parent_summary RPC (outstanding/overdue/flags), student status + absence counts from attendance_records (absent_unexcused), latest payment method/status, oldest-overdue days; merge node.config._context overrides (desktop parity); conditions then evaluate against real values (debt_over_threshold etc. no longer read _stub_*).
+- **Status:** In Progress
+
+### T-228 — Backend: persistent delay/resume (workflow_pending_resumes + scheduler EF) — **In Progress**
+- **Problems:** DAG-100 (delay not persistent/resumable) · **Priority:** P1
+- **Dependencies:** T-223 (table), T-225 (engine) · **Affected:** hub (EF workflow-execute + NEW workflow-resume-scheduler EF + config.toml)
+- **Plan:** wait_duration > inline cap (10s) parks the run: status stays 'running', a workflow_pending_resumes row (run, node, resume_after, serialized engine state) is written, the EF returns the pause honestly; NEW workflow-resume-scheduler EF (CRON_SECRET/service-role auth, cron +10min) claims due rows (atomic UPDATE...WHERE status='pending' → 'claimed', the unique index blocks double-claims), re-enters the engine at the parked node, runs to completion or parks again; execution state survives process death (it is a row, not memory); inline waits ≤10s still supported for short delays.
+- **Status:** In Progress
+
+### T-229 — Backend: EF dry-run mode (safe test execution) — **In Progress**
+- **Problems:** DAG-100 (no server-side test execution) · **Priority:** P1
+- **Dependencies:** T-225, T-226, T-227 · **Affected:** hub (EF)
+- **Plan:** body flag dry_run:true + optional entity ids → the engine runs with action handlers in SIMULATE mode (no notifications/emails/tasks/mutations — outputs record what WOULD happen), real entity context (T-227), conditions really evaluated, branch path + per-node outputs/errors returned; NO workflow_runs row (test runs never pollute the execution history); one write_audit_log entry (workflow.dry_run) keeps the test traceable; duplicate protection (daily cap does NOT consume on dry runs).
+- **Status:** In Progress
+
+### T-230 — Desktop: manual Execute button + server dry-run (Tester) + server validation surfacing — **In Progress**
+- **Problems:** DAG-100 (UX wiring to the real server path) · **Priority:** P1
+- **Dependencies:** T-225, T-229 · **Affected:** hub (features/workflow, domain repository contract, mock + supabase implementations)
+- **Plan:** editor toolbar "Exécuter" (published workflows only) → repos.workflows.execute → the canonical EF path (completes the manual trigger path — previously retry-on-existing-run only); Tester gains a Serveur mode with an entity picker (parents observable) invoking a NEW dryRun repository method (mock: local dry-run engine; supabase: the EF dry_run call) with the server-predicted path rendered on the canvas; server-side validation errors (publish gate) surfaced through the existing error path (supabaseErrorToAppError userMessage); i18n keys.
+- **Status:** In Progress
+
+### T-231 — Android: workflow_runs DTO contract fix (real column names + node_results decode) — **In Progress**
+- **Problems:** NEW cross-platform drift (Android DTO vs the real workflow_runs schema) · **Priority:** P1
+- **Dependencies:** T-225 (the EF now writes the canonical shape) · **Affected:** elimtiyaz-android (SharedDtos, Room mapping, monitor display)
+- **Plan:** WorkflowRunDto field names fixed to the REAL table (trigger_type/actor_id/completed_at/node_results/duration_ms/workflow_id/started_at/status/error_message); node_results decoded into the WorkflowNodeResult model (node_id/node_label/status/started_at/completed_at/output/error); unit tests decoding the exact JSON shape the EF writes; monitor surfaces real trigger labels. Gradle run attempted per the documented JDK/SDK recipe; if the container blocks it, the suite run is reported BLOCKED (honestly) while the code+tests land.
+- **Status:** In Progress
+
+### T-232 — Live end-to-end DAG verification matrix + closeout — **In Progress**
+- **Problems:** DAG-100 (final closure evidence) · **Priority:** P0 (owner's core demand)
+- **Dependencies:** T-223..T-231 · **Affected:** hub (docs, registries) + live backend
+- **Plan:** full live matrix with a real staff JWT: create → save → publish (version=1) → cyclic publish REJECTED server-side → execute (branch semantics on real debt data: >threshold vs ≤threshold branches) → node_results/audit/duration verified → actions really fire (in-app notification row, task row, parent restriction + audit) → delay workflow parks + scheduler resumes → dry-run leaves workflow_runs untouched + audit entry → daily cap enforced (429 on the second run) → malformed definitions rejected → full evidence to docs/recovery/t-232-live-verification.md; problem-registry DAG-100 → VERIFIED (residuals honestly listed); change-log 34th-session section; next-task 35th-session recommendation; zips + push.
+- **Status:** In Progress
