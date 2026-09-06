@@ -2045,7 +2045,7 @@ UNKNOWN-011 ──→ T-042 (timetable)
 - **Dependencies:** none · **Affected:** dashboard-view.tsx + calendar-view.tsx (extract the shared map — Existing-Implementation-First)
 - **Plan:** extract `kindToUiType` to a shared module, render localized labels on the dashboard; unit test pinning the mapping reuse (no duplicate map).
 
-### T-204 — Live full-stack consistency verification round (migration-token mandate evidence) — **READY**
+### T-204 — Live full-stack consistency verification round (migration-token mandate evidence) — **Completed (VERIFIED)**
 - **Problems:** none new (verification task; closes the "migration tokens applied + consistent everywhere" mandate with FRESH evidence) · **Priority:** P1
 - **Dependencies:** the sbp_ access token (supplied this session) · **Affected:** hub (evidence docs)
 - **Plan:** chain drift check 76/76 (done at session open — re-verify at close), EF fleet status matrix (14 EFs ACTIVE), ALLOWED_ORIGINS live preflight probes (4 canonical origins), dual-key format health probes (ADR-009), REST/RWS health. Record in docs/recovery/t-204-live-verification.md + change-log.
