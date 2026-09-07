@@ -11,12 +11,20 @@
  *
  * Iteration 9: Dashboard access control (spec §1.1). Teachers and other
  * non-administrative staff are redirected to /personnel when they attempt
- * to access the main dashboard route ("/"). The Sidebar's GatedContent
- * also hides the dashboard nav entry for these roles, but we add a route
- * guard here as defense-in-depth so direct URL access is also blocked.
+ * to access the main dashboard route ("/").
+ *
+ * T-234 / RBAC-300 (35th session): the single-route guard became a full
+ * route-guard table. EVERY gated navigation section (/, /crm, /academics,
+ * /financials, /workflow, /routing, /settings) is now guarded through the
+ * SAME FeatureNode requirement the sidebar evaluates (route-access.ts) —
+ * direct-URL access to an administrative module by an operational role
+ * (Teacher/Driver/Buyer/WarehouseWorker/Worker) redirects to /personnel.
+ * The per-route DASHBOARD_RESTRICTED_ROLES set was replaced by the shared
+ * gate table (defense in depth, ONE source of truth — no drift between
+ * the sidebar padlock and the route guard).
  */
 import { useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Sidebar } from "../shared/layout/sidebar";
 import { Topbar } from "../shared/layout/topbar";
 import { DashboardPage } from "../features/dashboard/dashboard-page";
@@ -34,25 +42,12 @@ import { ProfilePage } from "../features/profile/profile-page";
 import { useRepositories } from "./providers/repository-provider";
 import { useAuth } from "./providers/auth-provider";
 import { startBackupScheduler } from "../infrastructure/backup/backup-scheduler";
-import { Role } from "../core/rbac/roles";
-
-/**
- * Iteration 9 — set of roles that are NOT allowed to access the main
- * administrative dashboard. They are redirected to /personnel instead.
- */
-const DASHBOARD_RESTRICTED_ROLES = new Set<Role>([
-  Role.Teacher,
-  Role.Buyer,
-  Role.Driver,
-  Role.WarehouseWorker,
-  Role.Worker,
-  Role.Parent,
-  Role.Student,
-]);
+import { routeRedirectFor, ROUTE_GUARD_REDIRECT } from "../core/rbac/route-access";
 
 export function AppShell() {
   const repos = useRepositories();
   const { session } = useAuth();
+  const location = useLocation();
 
   // Iteration 7: start the backup scheduler after the user is authenticated.
   // The scheduler uses the current session user as the actor at tick-time
@@ -68,10 +63,29 @@ export function AppShell() {
     return stop;
   }, [repos, session]);
 
-  // Iteration 9: route guard for the dashboard. If the session role is in
-  // the restricted set, render a redirect to /personnel instead of the
-  // dashboard. This blocks direct URL access ("defense in depth").
-  const canAccessDashboard = session ? !DASHBOARD_RESTRICTED_ROLES.has(session.role) : false;
+  // T-234 / RBAC-300: route guard. Every protected prefix is evaluated
+  // against the same FeatureNode requirement the sidebar uses; a session
+  // that fails it is redirected to /personnel (the operational staff's
+  // workspace). Runs on every location change so deep links AND in-app
+  // navigations are covered ("defense in depth" — the sidebar padlock
+  // alone was bypassable via the URL bar).
+  const redirectTo = routeRedirectFor(session, location.pathname);
+
+  if (redirectTo) {
+    return (
+      <div className="flex h-screen w-screen overflow-hidden bg-surface-background text-foreground">
+        <Sidebar />
+        <div className="flex flex-1 flex-col min-w-0">
+          <Topbar />
+          <main className="flex-1 overflow-y-auto">
+            <Routes>
+              <Route path="*" element={<Navigate to={ROUTE_GUARD_REDIRECT} replace />} />
+            </Routes>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-surface-background text-foreground">
@@ -80,10 +94,7 @@ export function AppShell() {
         <Topbar />
         <main className="flex-1 overflow-y-auto">
           <Routes>
-            <Route
-              path="/"
-              element={canAccessDashboard ? <DashboardPage /> : <Navigate to="/personnel" replace />}
-            />
+            <Route path="/" element={<DashboardPage />} />
             <Route path="/crm" element={<CrmPage />} />
             <Route path="/academics" element={<AcademicsPage />} />
             <Route path="/academics/class/:classId" element={<ClassDetailPage />} />

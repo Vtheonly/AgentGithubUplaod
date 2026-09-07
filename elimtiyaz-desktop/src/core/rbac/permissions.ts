@@ -278,8 +278,14 @@ DEFAULT_ROLE_PERMISSIONS[Role.FinancialOfficer] = new Set<Permission>([
 ]);
 
 DEFAULT_ROLE_PERMISSIONS[Role.Teacher] = new Set<Permission>([
-  Permission.ViewRoster,
-  Permission.ViewAcademics,
+  // T-234 / RBAC-300 (35th session): ViewRoster and ViewAcademics were
+  // REMOVED from the teacher role. They were the module-ENTRY permissions:
+  // holding them rendered the CRM (Élèves & Parents) and Pédagogie sidebar
+  // sections ENABLED (no padlock) for every teacher and exposed the full
+  // school directory + parents' contact data. Teachers keep the ACTION
+  // permissions (EnterGrades / RollCall / AssignHomework) and exercise
+  // them strictly inside their Personnel workspace (T-235); class rosters
+  // for roll-call/grades are loaded per-class, not via the CRM module.
   Permission.EnterGrades,
   Permission.AssignHomework,
   Permission.RollCall,
@@ -294,7 +300,8 @@ DEFAULT_ROLE_PERMISSIONS[Role.Teacher] = new Set<Permission>([
   Permission.ClockInOut,
   Permission.SubmitRequests,
   Permission.UseChat,
-  // Pédagogie redesign — teachers can view clubs + log activities for clubs they supervise
+  // Pédagogie redesign — teachers can view clubs + log activities for
+  // clubs they supervise
   Permission.ViewClubs,
   Permission.LogClubActivities,
 ]);
@@ -310,6 +317,15 @@ DEFAULT_ROLE_PERMISSIONS[Role.SupportStaff] = new Set<Permission>([
   Permission.GenerateReceipt,
   Permission.SubmitExpense,
   Permission.ViewPersonnel,
+  // T-234 / RBAC-300 (35th session): the clerk/front-office grants. The
+  // clerk desk handles enrollment, class assignment, year-end promotions
+  // and payment-log lookups — without ViewFinancials the Finances tab
+  // showed a padlock while CollectPayment was already held; without
+  // ManageClasses/PromoteStudent the clerk could not assign students to
+  // classes or run batch promotions (the audit's Part 2 finding #1).
+  Permission.ViewFinancials,
+  Permission.ManageClasses,
+  Permission.PromoteStudent,
   // Iteration 8
   Permission.ViewDepartments,
   Permission.ViewTasks,
