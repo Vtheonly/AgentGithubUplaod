@@ -61,6 +61,9 @@ import { SupabaseLeaveRequestRepository } from "./repositories/supabase-leave-re
 import { SupabaseSupplierRepository } from "./repositories/supabase-supplier-repository";
 import { SupabaseTaskRepository } from "./repositories/supabase-task-repository";
 import { SupabaseWorkforceAttendanceRepository } from "./repositories/supabase-workforce-attendance-repository";
+import { SupabasePurchaseRequestRepository } from "./repositories/supabase-purchase-request-repository";
+import { SupabaseDeliveryRepository } from "./repositories/supabase-delivery-repository";
+import { SupabaseInventoryRepository } from "./repositories/supabase-inventory-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -231,6 +234,31 @@ export function getSupabaseRepositories(): Repositories {
   // own-personnel), INSERT tenant — matching the domain's call sites.
   const workforceAttendance = new SupabaseWorkforceAttendanceRepository(client);
 
+  // T-238 (2026-09-07, 35th session, T-047 port #7): wire the Supabase-backed
+  // purchase-request repository onto purchase_requests (migration 0011 +
+  // 0084 display names). BEFORE this, the buyer dashboard's procurement
+  // pipeline (draft → submitted → approved → ordered → received) lived in
+  // mock memory only (wiped on restart) while the canonical table sat empty.
+  // RLS (0019): SELECT staff-trio OR own requests; INSERT any tenant member;
+  // UPDATE admin/manager/buyer.
+  const purchaseRequests = new SupabasePurchaseRequestRepository(client);
+
+  // T-239 (2026-09-07, 35th session, T-047 port #8): wire the Supabase-backed
+  // delivery repository onto deliveries (migration 0011 + 0084 driver_name /
+  // new_eta). BEFORE this, the driver dashboard's delivery dispatching, stops
+  // and delay reporting lived in mock memory only. RLS (0019): SELECT
+  // staff-trio OR own driver assignments; writes super_admin/manager.
+  const deliveries = new SupabaseDeliveryRepository(client);
+
+  // T-240 (2026-09-07, 35th session, T-047 port #9): wire the Supabase-backed
+  // inventory repository onto inventory_items + inventory_transactions
+  // (migration 0011 + 0084 frozen before/after + actor names). BEFORE this,
+  // the warehouse dashboard's stock, scanning and damage declarations lived
+  // in mock memory only. RLS (0019): item writes
+  // super_admin/warehouse_worker/manager; transaction inserts
+  // super_admin/warehouse_worker/buyer/manager.
+  const inventory = new SupabaseInventoryRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -266,6 +294,9 @@ export function getSupabaseRepositories(): Repositories {
     suppliers, // T-179 — suppliers (T-047 port #4, migration 0073)
     tasks, // T-180 — tasks/task_comments/task_attachments (T-047 port #5, migration 0074)
     workforceAttendance, // T-217 — workforce_attendance_events (T-047 port #6)
+    purchaseRequests, // T-238 — purchase_requests (T-047 port #7)
+    deliveries, // T-239 — deliveries (T-047 port #8)
+    inventory, // T-240 — inventory_items + transactions (T-047 port #9)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
