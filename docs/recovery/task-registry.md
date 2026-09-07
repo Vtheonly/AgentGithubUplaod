@@ -2229,3 +2229,69 @@ Opening ritual (live, sbp_ token): migration chain 77/77 = 0001–0080 ZERO DRIF
 - **Dependencies:** T-223..T-231 · **Affected:** hub (docs, registries) + live backend
 - **Plan:** full live matrix with a real staff JWT: create → save → publish (version=1) → cyclic publish REJECTED server-side → execute (branch semantics on real debt data: >threshold vs ≤threshold branches) → node_results/audit/duration verified → actions really fire (in-app notification row, task row, parent restriction + audit) → delay workflow parks + scheduler resumes → dry-run leaves workflow_runs untouched + audit entry → daily cap enforced (429 on the second run) → malformed definitions rejected → full evidence to docs/recovery/t-232-live-verification.md; problem-registry DAG-100 → VERIFIED (residuals honestly listed); change-log 34th-session section; next-task 35th-session recommendation; zips + push.
 - **Status:** In Progress
+
+---
+
+## 35th repair session (2026-09-07) — owner mandate: Personnel/Workforce RBAC overhaul — strict role workspaces + mock-layer elimination for the operational dashboards
+
+Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIFT; desktop baseline typecheck clean, suite **105 files passed + 1 FAILED** (supabase-workforce-attendance-repository.test.ts #7 latestFor — NEW finding TEST-306: time-of-day flaky fixture, attributed to ee02fae/T-217, repository itself correct; fixed first as T-233). External-reviewer audit (owner-supplied) verified against code: teacher ViewRoster/ViewAcademics confirmed (CRM+Pédagogie ENABLED in sidebar); no route guards on /crm//academics//financials confirmed; TeacherDashboard → /academics/class/:id leak confirmed; SupportStaff financials/classes/promotion lockout confirmed. TWO NEW data-layer findings the review missed: 0019 `students_update` RLS includes 'teacher' (DB-level student-profile write access!) and `parents_select`/`students_select` include 'teacher' (full directory + parent phones readable). Review rebuttals: account provisioning IS built (T-079 EF, live-verify this session); most of its "mock-only" matrix rows are stale (T-099..T-217 already ported: attendance/leave/tasks/suppliers/chat/calendar/workflows) — the still-mock slots are the ones ported here. Session task set:
+
+### T-233 — Desktop: fix time-of-day flaky test (TEST-306) — restore pristine baseline
+- **Problems:** TEST-306 (NEW — registered this session) · **Priority:** P0 (baseline must be green before building)
+- **Dependencies:** none · **Affected:** hub (1 test file)
+- **Plan:** fixture att-early re-stamped from `${today}T07:00:00.000Z` → `${today}T00:00:00.000Z` (always before the punch instant at any hour; the punch stamps `new Date()` which is ≥ midnight of the same UTC day) + comment documenting the flake mechanics.
+- **Status:** In Progress
+
+### T-234 — Desktop: RBAC boundary hardening (permission matrix + route guards + sidebar locking) — RBAC-300
+- **Problems:** RBAC-300 (NEW — the consolidated owner-mandate boundary problem) · **Priority:** P0
+- **Dependencies:** T-233 (green baseline) · **Affected:** hub (permissions.ts, feature-registry.ts, app-shell.tsx, tests)
+- **Plan:** (1) permissions.ts — Teacher: REMOVE ViewRoster + ViewAcademics (sidebar CRM+Pédagogie → padlock; retains EnterGrades/RollCall/AssignHomework exercised INSIDE Personnel); SupportStaff: ADD ViewFinancials + ManageClasses + PromoteStudent (front-office duties: payment logs, class assignment, year-end transitions); (2) app-shell.tsx — route guards for /crm, /academics*, /financials redirecting restricted roles to /personnel (defense-in-depth mirroring DASHBOARD_RESTRICTED_ROLES); (3) feature-registry: Dashboard section already role-gated — Crm/Academics/Financials stay permission-gated (the matrix change is what flips them to locked for operational roles); (4) RED-first test suite: role boundary matrix (every role × every module), route-guard behavior, regression for existing roles.
+- **Status:** In Progress
+
+### T-235 — Desktop: Teacher Personnel workspace self-containment — RBAC-301
+- **Problems:** RBAC-300 (teacher-scope residual) · **Priority:** P0
+- **Dependencies:** T-234 · **Affected:** hub (teacher-dashboard.tsx, roll-call-screen.tsx, grade-entry-screen.tsx, tests)
+- **Plan:** RollCallScreen + GradeEntryScreen refactored to accept optional props (classId/subjectId + onExit) falling back to useParams (route behavior unchanged); TeacherDashboard renders them as full-screen overlays INSIDE Personnel → Mes classes — Appel + Notes actions stay in-module; remove every navigate(`/academics/...`) from the teacher dashboard; Notes opens an in-module subject picker → GradeEntryScreen; tests pin: no teacher-dashboard navigation to /academics, overlay lifecycle, screens still work standalone via routes.
+- **Status:** In Progress
+
+### T-236 — Backend: migration 0083 — teacher CRM data-scoping in RLS (SEC-level) + live apply
+- **Problems:** RBAC-302 (NEW — data-layer: students_update includes teacher; parents/students_select unscoped for teachers) · **Priority:** P0 (severity: Critical)
+- **Dependencies:** none (schema untouched; policies only) · **Affected:** hub (supabase/migrations/0083, scripts/verify_t-236.sql, live DB)
+- **Plan:** NEW append-only migration 0083: (1) `students_update` drops 'teacher' from the role list (teachers can NEVER write student profiles — matches the already-enforced UI EditStudent gate and the owner's spec); (2) `students_select`: teacher branch scoped to classes they teach (homeroom classes via classes.homeroom_teacher_id → personnel.user_id, OR subject classes via class_subjects.teacher_id) instead of tenant-wide; (3) `parents_select`: drops 'teacher' entirely (teachers have no parent-facing duty; roll-call/grades never read parents). Regression-safe: all other roles unchanged. verify_t-236.sql (BEGIN…ROLLBACK temp-table convention) + atomic live apply via the MIG-TOKENS pattern (file + schema_migrations registration in ONE call).
+- **Status:** In Progress
+
+### T-237 — Android: RBAC mirror + in-Personnel teacher workspace — RBAC-300 (Android)
+- **Problems:** RBAC-300 (Android half) · **Priority:** P0 (cross-platform rule §10)
+- **Dependencies:** T-234 (desktop matrix first, then port) · **Affected:** elimtiyaz-android (core/Rbac.kt, PersonnelHubScreen + new teacher workspace, tests)
+- **Plan:** (1) Rbac.kt: teacher loses VIEW_ROSTER + VIEW_ACADEMICS (CRM + Pédagogie hub tabs disappear for teachers — Android hides unauthorized tabs); SupportStaff gains VIEW_FINANCIALS (already has), MANAGE_CLASSES, PROMOTE_STUDENT; (2) NEW "Mon espace" tab in PersonnelHubScreen for teachers (gated on the teacher role): my-classes list with Appel → Routes.RollCall(classId) and Notes → Routes.GradeEntry(classId, subjectId) — both routes already exist and are gated ROLL_CALL/ENTER_GRADES which teachers retain; (3) RbacTest updated RED-first + new teacher-workspace tests; gradle suite via the re-provisioned JDK/SDK recipe (report honestly if blocked).
+- **Status:** In Progress
+
+### T-238 — Desktop: T-047 port #7 — purchaseRequests → purchase_requests (Buyer dashboard production-grade)
+- **Problems:** ARCH-001 (residual slot #7) · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub (new SupabasePurchaseRequestRepository + wiring + tests)
+- **Plan:** T-178/T-180 adapter pattern onto 0011 `purchase_requests` (status/priority CHECK unions, lines jsonb, request_number PR-YYYY-NNNN deterministic generation, requester_id = session profile id, tenant scoping, reactive cache + refresh-after-write, state-transition validation mirroring the DB CHECK) + unit tests (payload shape, UUID guards, mapping, filters, persistence-across-restart, source scans) + wiring into getSupabaseRepositories().
+- **Status:** In Progress
+
+### T-239 — Desktop: T-047 port #8 — deliveries → deliveries (Driver dashboard production-grade)
+- **Problems:** ARCH-001 (residual slot #8) · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub (new SupabaseDeliveryRepository + wiring + tests)
+- **Plan:** same pattern onto 0011 `deliveries` (delivery_number DLV-YYYY-NNNN, status CHECK incl. delayed/failed mapping, stops jsonb, driver_id → personnel with user_id translation, delay_reason/delay_minutes, departure/delivered/confirmed timestamp columns) + tests + wiring.
+- **Status:** In Progress
+
+### T-240 — Desktop: T-047 port #9 — inventory → inventory_items + inventory_transactions (Warehouse dashboard production-grade)
+- **Problems:** ARCH-001 (residual slot #9) · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub (new SupabaseInventoryRepository + wiring + tests)
+- **Plan:** same pattern onto 0011 `inventory_items` (sku unique per tenant, quantity CHECKs, soft delete) + `inventory_transactions` (insert-only audit trail with quantity_before/after computed client-side under a transaction-safe upsert path, signed delta, actor stamps) + tests + wiring.
+- **Status:** In Progress
+
+### T-241 — Live verification round: account provisioning EF + role-scoping probes
+- **Problems:** RBAC-300/302 evidence + ACT-xxx provisioning confirmation · **Priority:** P1
+- **Dependencies:** T-236 · **Affected:** live backend + docs
+- **Plan:** live round-trip through the desktop's exact PostgREST+RLS path: (1) create-user-account EF with a super_admin JWT (create test account → sign-in works → role assigned → profile activated) then clean-up by email (the 0002 trigger auto-creates profiles — UPDATE, never parallel-insert); (2) teacher JWT probes: parents/students SELECT now empty/scoped, students UPDATE rejected; (3) full curl matrix documented in docs/recovery/t-241-live-verification.md.
+- **Status:** In Progress
+
+### T-242 — 35th-session closeout: registries + change-log + zip + push + handoff
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-233..T-241 · **Affected:** all repos (hub receives the commits; android gets its own commits)
+- **Plan:** problem-registry entries (TEST-306, RBAC-300, RBAC-301, RBAC-302 + ARCH-001 slot closures) + change-log 35th-session section + current-state snapshot + next-task 36th-session recommendation + detailed conventional commits per task + zips in download/ + push with the owner's PAT.
+- **Status:** In Progress

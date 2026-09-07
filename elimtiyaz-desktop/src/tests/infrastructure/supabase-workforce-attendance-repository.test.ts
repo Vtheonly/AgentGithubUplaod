@@ -276,12 +276,20 @@ describe("SupabaseWorkforceAttendanceRepository (T-217)", () => {
     // The punch instant is the REAL clock (the fake insert stamps
     // new Date()) — derive the fixture date from it, not a hard-coded
     // calendar day (the container clock and the session timezone differ).
+    // TEST-306 (35th session): the early fixture MUST be stamped at
+    // 00:00:00.000Z of `today`, NOT a wall-clock time like 07:00Z — the
+    // punch stamps new Date() and latestFor() sorts by event_at DESC, so
+    // any fixture stamped later than the CURRENT instant (e.g. 07:00Z
+    // while the container runs 00:16Z) wins the sort and the just-punched
+    // break_start never becomes "latest". Midnight-of-today is always ≤
+    // the punch instant (the punch happens after the test boots), making
+    // the test deterministic at every hour of the day.
     const today = new Date().toISOString().slice(0, 10);
     fakeClient.tables["workforce_attendance_events"] = [
       attRow({
         id: "att-early",
         event_type: "clock_in",
-        event_at: `${today}T07:00:00.000Z`,
+        event_at: `${today}T00:00:00.000Z`,
       }),
     ];
     const repo = makeRepo();
