@@ -48,15 +48,40 @@ interface Row {
   examen: string;
 }
 
-export function GradeEntryScreen() {
-  const { classId, subjectId } = useParams<{
-    classId: string;
-    subjectId: string;
-  }>();
+/**
+ * Props for embedding the screen OUTSIDE its route (T-235 / RBAC-301 —
+ * the teacher Personnel workspace). When provided, `classId`/`subjectId`
+ * override the route params; `onExit` replaces the navigate-back behavior
+ * (cancel + post-save) so the host stays in control.
+ */
+export interface GradeEntryScreenProps {
+  readonly classId?: string;
+  readonly subjectId?: string;
+  readonly onExit?: () => void;
+}
+
+export function GradeEntryScreen({
+  classId: classIdProp,
+  subjectId: subjectIdProp,
+  onExit,
+}: GradeEntryScreenProps = {}) {
+  const routeParams = useParams<{ classId: string; subjectId: string }>();
+  const classId = classIdProp ?? routeParams.classId;
+  const subjectId = subjectIdProp ?? routeParams.subjectId;
   const navigate = useNavigate();
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
+
+  // T-235: embedded hosts pass onExit (stay inside Personnel); the routed
+  // usage keeps the original navigate-back semantics.
+  const exitToClass = () => {
+    if (onExit) {
+      onExit();
+    } else {
+      navigate(`/academics/class/${classId}`);
+    }
+  };
 
   const cls = useObservable(
     () => repos.classes.observeById(classId ?? ""),
@@ -226,7 +251,7 @@ export function GradeEntryScreen() {
           previouslyEntered > 0 ? "Notes mises à jour" : "Notes enregistrées",
           `${result.value.length} note(s) sauvegardée(s)${previouslyEntered > 0 ? ` (remplace ${previouslyEntered} saisie(s) précédente(s))` : ""}.`,
         );
-        navigate(`/academics/class/${classId}`);
+        exitToClass();
       } else {
         toast.showError("Échec de la sauvegarde", result.error.userMessage);
       }
@@ -241,7 +266,9 @@ export function GradeEntryScreen() {
         <PageHeader title="Matière introuvable" />
         <Button
           variant="outline"
-          onClick={() => navigate("/academics")}
+          onClick={() =>
+            onExit ? onExit() : navigate("/academics")
+          }
           className="mx-6 w-fit"
         >
           <ArrowLeft className="h-4 w-4" /> Retour
@@ -259,7 +286,7 @@ export function GradeEntryScreen() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/academics/class/${classId}`)}
+            onClick={exitToClass}
           >
             <ArrowLeft className="h-4 w-4" /> Annuler
           </Button>

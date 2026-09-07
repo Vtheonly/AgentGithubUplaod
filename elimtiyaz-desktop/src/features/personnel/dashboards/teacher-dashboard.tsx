@@ -1,19 +1,26 @@
 /**
- * Teacher dashboard — pedagogical workspace.
+ * Teacher dashboard — pedagogical workspace (Personnel module).
  *
  * Teachers do ALL their pedagogical work from the Personnel dashboard and
- * never switch to the Student module.
+ * never switch to the Student or Pédagogie administrative modules.
  *
- * Refactored to consume `<RoleDashboardLayout>` (KPI row + class cards feed
- * + homework feed) and `<AutoFormModal>` (assign-homework form). The
- * previous `teacher-dashboard/` subfolder with mini-modals for taking
- * attendance and entering grades is replaced by direct navigation to the
- * canonical full-screen workflows `RollCallScreen` and `GradeEntryScreen`,
- * which are built for dynamic 30+ student rosters.
+ * T-235 / RBAC-301 (35th session): this workspace is now STRICTLY
+ * self-contained. The previous version navigated to the administrative
+ * screens (`/academics/class/:id` exposed the promotion button and the
+ * full class-management tabs; `/academics/class/:id/roll-call` left the
+ * Personnel module). Roll-call and grade entry now open as full-screen
+ * overlays INSIDE this dashboard — the teacher selects a class, performs
+ * the work, and stays in Personnel the whole time. With T-234 the
+ * teacher role no longer holds the module-entry permissions, so the
+ * sidebar shows CRM/Pédagogie/Finances as padlocked.
+ *
+ * Scoped data: `myClasses` lists ONLY the classes whose homeroom teacher
+ * is the signed-in teacher's own personnel record. An unlinked account
+ * (no personnel row) sees ZERO classes — never the full catalog (the
+ * previous `me === null` fallback showed every class in the school).
  */
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { GraduationCap, Users, BookOpen, ClipboardCheck, Plus, BookMarked } from "lucide-react";
+import { GraduationCap, Users, BookOpen, ClipboardCheck, Plus, BookMarked, X } from "lucide-react";
 import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
@@ -22,6 +29,9 @@ import { useToast } from "../../../app/providers/toast-provider";
 import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
 import { Button } from "../../../shared/ui/button";
 import { StatusChip } from "../../../shared/ui/status-chip";
+import { UnifiedModal } from "../../../shared/ui/unified-modal";
+import { RollCallScreen } from "../../academics/roll-call-screen";
+import { GradeEntryScreen } from "../../academics/grade-entry-screen";
 import {
   RoleDashboardLayout,
   type DashboardKpi,
@@ -39,8 +49,13 @@ const HomeworkSchema = z.object({
 
 type HomeworkFormData = z.infer<typeof HomeworkSchema>;
 
+/** Which in-module workflow overlay is open (T-235). */
+type Overlay =
+  | { kind: "roll-call"; classId: string }
+  | { kind: "grades"; classId: string; subjectId: string }
+  | { kind: "subject-picker"; classId: string };
+
 export function TeacherDashboard() {
-  const navigate = useNavigate();
   const repos = useRepositories();
   const { session } = useAuth();
   const toast = useToast();
@@ -49,6 +64,7 @@ export function TeacherDashboard() {
   const subjects = useObservable(() => repos.subjects.observe(), []);
 
   const [homeworkOpen, setHomeworkOpen] = useState(false);
+  const [overlay, setOverlay] = useState<Overlay | null>(null);
 
   // Resolve the teacher's own personnel record via the auth→personnel
   // userId bridge.
@@ -58,8 +74,11 @@ export function TeacherDashboard() {
   );
   const teacherId = me?.id ?? session?.userId ?? "";
 
+  // T-235: STRICT scoping — only the classes homeroom-assigned to THIS
+  // teacher's personnel record. An unlinked account (me === null) sees
+  // NOTHING (the previous fallback showed the entire school's classes).
   const myClasses = useMemo(
-    () => classes.filter((c) => me === null || c.homeroomTeacherId === me.id),
+    () => classes.filter((c) => me !== null && c.homeroomTeacherId === me.id),
     [classes, me],
   );
   const myHomework = useObservable(
@@ -98,12 +117,13 @@ export function TeacherDashboard() {
     { label: "Appel à faire", value: myClasses.length, icon: ClipboardCheck, trend: myClasses.length > 0 ? "À traiter" : undefined },
   ];
 
-  // Tasks = roll-call for each class with students enrolled
+  // Tasks = roll-call for each class with students enrolled — performed
+  // INSIDE the Personnel workspace (T-235: no navigation).
   const tasks: readonly DashboardTask[] = myClasses.map((c) => ({
     id: c.id,
     label: `Faire l'appel — ${c.name}`,
     description: `${c.enrolledCount} élèves inscrits`,
-    onClick: () => navigate(`/academics/class/${c.id}/roll-call`),
+    onClick: () => setOverlay({ kind: "roll-call", classId: c.id }),
   }));
 
   // Feed = recent homework
@@ -129,6 +149,26 @@ export function TeacherDashboard() {
     { name: "description", label: "Consignes", type: "textarea", wide: true, placeholder: "Précisez les attentes…" },
   ];
 
+  // Subjects offered for grade entry of a given class = the subjects
+  // assigned to that class (class-subject assignments). The observable is
+  // queried with the picked class id ("" while no picker is open → an
+  // empty assignment list, harmless); an empty assignment list falls
+  // back to the full catalog (a class may not have assignments yet).
+  const pickerClassId = overlay?.kind === "subject-picker" ? overlay.classId : "";
+  const classSubjects = useObservable(
+    () => repos.subjects.observeByClass(pickerClassId),
+    [pickerClassId],
+  );
+  const pickerSubjects = useMemo(() => {
+    const assignedIds = new Set(classSubjects.map((cs) => cs.subjectId));
+    const assigned = subjects.filter((s) => assignedIds.has(s.id));
+    return assigned.length > 0 ? assigned : subjects;
+  }, [classSubjects, subjects]);
+
+  const overlayClass = overlay
+    ? myClasses.find((c) => c.id === overlay.classId)
+    : undefined;
+
   return (
     <>
       <RoleDashboardLayout
@@ -143,7 +183,11 @@ export function TeacherDashboard() {
       >
         <div className="rounded-lg border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3">Mes classes affectées</h3>
-          {myClasses.length === 0 ? (
+          {me === null ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Votre compte n'est pas encore rattaché à une fiche enseignant. Contactez l'administrateur pour activer votre espace pédagogique.
+            </p>
+          ) : myClasses.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
               Aucune classe ne vous est affectée. Contactez le responsable pédagogique.
             </p>
@@ -158,10 +202,18 @@ export function TeacherDashboard() {
                   <div className="flex items-center justify-between">
                     <StatusChip label={`${c.enrolledCount}/${c.capacity ?? "∞"}`} tone="neutral" />
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/academics/class/${c.id}/roll-call`)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setOverlay({ kind: "roll-call", classId: c.id })}
+                      >
                         <ClipboardCheck className="size-3.5 mr-1" /> Appel
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/academics/class/${c.id}`)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setOverlay({ kind: "subject-picker", classId: c.id })}
+                      >
                         <BookMarked className="size-3.5 mr-1" /> Notes
                       </Button>
                     </div>
@@ -183,6 +235,70 @@ export function TeacherDashboard() {
         onSubmit={handleAssignHomework}
         submitLabel="Publier le devoir"
       />
+
+      {overlay?.kind === "subject-picker" && (
+        <UnifiedModal
+          open
+          onOpenChange={(open: boolean) => { if (!open) setOverlay(null); }}
+          title={`Saisie des notes — ${overlayClass?.name ?? "Classe"}`}
+          description="Choisissez la matière à évaluer. La saisie reste dans votre espace Personnel."
+          hideSubmit
+          hideCancel
+          size="md"
+        >
+          <div className="max-h-[50vh] overflow-y-auto space-y-1.5 pr-1">
+            {pickerSubjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Aucune matière disponible. Contactez le responsable pédagogique.
+              </p>
+            ) : (
+              pickerSubjects.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setOverlay({ kind: "grades", classId: overlay.classId, subjectId: s.id })}
+                  className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm text-left hover:bg-accent/10 transition-colors"
+                >
+                  <span className="font-medium truncate">{s.name}</span>
+                  <span className="text-xs text-muted-foreground">Coef. {s.coefficient}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </UnifiedModal>
+      )}
+
+      {(overlay?.kind === "roll-call" || overlay?.kind === "grades") && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-surface-background"
+          role="dialog"
+          aria-modal="true"
+          aria-label={overlay.kind === "roll-call" ? "Appel" : "Saisie des notes"}
+        >
+          {/* T-235: the in-module workspace chrome. The embedded screen's
+              own header/actions remain; this close affordance guarantees an
+              exit even when the screen renders its not-found branch. */}
+          <div className="flex items-center justify-between border-b border-border bg-surface-panel px-4 py-2 shrink-0">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Mon espace · {overlay.kind === "roll-call" ? "Appel" : "Notes"}
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => setOverlay(null)}>
+              <X className="h-4 w-4" /> Fermer
+            </Button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            {overlay.kind === "roll-call" ? (
+              <RollCallScreen classId={overlay.classId} onExit={() => setOverlay(null)} />
+            ) : (
+              <GradeEntryScreen
+                classId={overlay.classId}
+                subjectId={overlay.subjectId}
+                onExit={() => setOverlay(null)}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

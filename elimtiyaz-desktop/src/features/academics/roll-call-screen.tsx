@@ -39,12 +39,34 @@ const STATUS_TONES: Record<
   late: "info",
 };
 
-export function RollCallScreen() {
-  const { classId } = useParams<{ classId: string }>();
+/**
+ * Props for embedding the screen OUTSIDE its route (T-235 / RBAC-301 —
+ * the teacher Personnel workspace). When `classId` is provided it
+ * overrides the route param; `onExit` replaces the navigate-back
+ * behavior (cancel + post-save) so the host stays in control.
+ */
+export interface RollCallScreenProps {
+  readonly classId?: string;
+  readonly onExit?: () => void;
+}
+
+export function RollCallScreen({ classId: classIdProp, onExit }: RollCallScreenProps = {}) {
+  const routeParams = useParams<{ classId: string }>();
+  const classId = classIdProp ?? routeParams.classId;
   const navigate = useNavigate();
   const repos = useRepositories();
   const toast = useToast();
   const { session: authSession } = useAuth();
+
+  // T-235: embedded hosts pass onExit (stay inside Personnel); the routed
+  // usage keeps the original navigate-back semantics.
+  const exitToClass = () => {
+    if (onExit) {
+      onExit();
+    } else {
+      navigate(`/academics/class/${classId}`);
+    }
+  };
 
   const cls = useObservable(
     () => repos.classes.observeById(classId ?? ""),
@@ -129,7 +151,7 @@ export function RollCallScreen() {
           "Appel enregistré",
           `${students.length - absentCount} présent(s), ${absentCount} absence(s)/retard(s).`,
         );
-        navigate(`/academics/class/${classId}`);
+        exitToClass();
       } else {
         toast.showError("Échec de l'appel", result.error.userMessage);
       }
@@ -144,7 +166,9 @@ export function RollCallScreen() {
         <PageHeader title="Classe introuvable" />
         <Button
           variant="outline"
-          onClick={() => navigate("/academics")}
+          onClick={() =>
+            onExit ? onExit() : navigate("/academics")
+          }
           className="mx-6 w-fit"
         >
           <ArrowLeft className="h-4 w-4" /> Retour
@@ -162,7 +186,7 @@ export function RollCallScreen() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/academics/class/${classId}`)}
+            onClick={exitToClass}
           >
             <ArrowLeft className="h-4 w-4" /> Annuler
           </Button>
