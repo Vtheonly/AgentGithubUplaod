@@ -2316,10 +2316,10 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Problems:** process (session-opening §15.11 obligation) · **Priority:** P0
 - **Dependencies:** owner re-supplied the sbp_ access token + key sheet · **Affected:** live backend (read-only probes) + docs
 - **Plan:** re-provision the Supabase CLI (container reset wiped /home/z/my-project/bin — documented quirk), link hkvkefubghbbotgnteir, diff live `supabase_migrations.schema_migrations` vs local 0001–0084 chain, verify dual-key health (ADR-009), EF fleet ACTIVE census, ALLOWED_ORIGINS echo probe, anonymous EF → 401. Record results in change-log + a live-verification note if anything drifted.
-- **Status:** Completed — TESTED (2026-09-09: 17-test dashboard-3zone suite + full 112/2694/0 + tsc + eslint 0 err + vite build; see UI-306 evidence)
+- **Status:** Completed (2026-09-09: live round 18/18 GREEN — dual-key auth health, RLS anon 0-rows ×5, chain live=81/local=81 ZERO DRIFT, EF fleet 14/14 ACTIVE 1:1 with hub source, anonymous EF 401, ALLOWED_ORIGINS canonical 4-origin echo + non-allowlisted rejected, committed-key consistency ×3; script /home/z/my-project/scripts/verify_t-244_mig_tokens.sh)
 
 ### T-245 — 36th-session closeout: registries + change-log + zip + push
 - **Problems:** process (ADR-007) · **Priority:** P2
 - **Dependencies:** T-243, T-244 · **Affected:** all repos
 - **Plan:** UI-306 problem entry with evidence, task status flips, change-log 36th-session section, current-state snapshot, next-task 37th-session recommendation, conventional commits with the 5-question body, zips in download/, push with the owner PAT.
-- **Status:** Completed — TESTED (2026-09-09: 17-test dashboard-3zone suite + full 112/2694/0 + tsc + eslint 0 err + vite build; see UI-306 evidence)
+- **Status:** Completed (2026-09-09: UI-306 registered with full evidence; change-log/current-state/next-task updated; commits e9cedfd + this closeout; zips generated in download/. PUSH BLOCKED: the owner-supplied github_pat arrived REDACTED in the upload — no usable credential in the container; zips are the handoff, or push with a valid PAT: `git push origin main` in each repo under /home/z/my-project/repos/)
