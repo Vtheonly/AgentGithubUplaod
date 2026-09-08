@@ -381,7 +381,7 @@ export function Topbar() {
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher dans toute l'application…"
+              placeholder="Rechercher ou poser une question à l'IA (ex : « Combien d'impayés ce mois ? »)…"
               className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
             />
             <kbd className="flex items-center gap-0.5 rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">

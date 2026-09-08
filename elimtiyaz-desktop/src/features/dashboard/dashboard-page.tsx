@@ -1,41 +1,15 @@
 /**
  * DashboardPage — Hub 1, the staff statistics dashboard.
  *
- * T-088 (2026-08-30) — restructured for real-world hierarchy.
+ * T-088 (2026-08-30) — restructured for real-world hierarchy (single fetch
+ * at the page level, data flows DOWN to both OverviewTab and
+ * SeeDetailsModal as props).
  *
- * BEFORE (the "demo-around-mock-data" feel the audit flagged):
- *   - 4 KPIs in the grid, but 4 more numbers sat in a "Stat" card at the
- *     bottom that just re-rendered the same totals ("Revenu cumulé",
- *     "Créances", "Taux de recouvrement"). Pure duplication.
- *   - The Overview tab embedded 2 demographics charts (grade + gender).
- *     The SAME charts appeared in the SeeDetailsModal drill-down — plus
- *     age + capacity. So a parent looking at the overview saw a
- *     half-truth; clicking "Voir les détails" re-rendered the same pies.
- *   - The Overview's revenue bar chart was a 1:1 duplicate of the chart
- *     inside the SeeDetailsModal's Revenue tab — same data, same shape.
- *     Same for the debt-aging bars.
- *   - SeeDetailsModal RE-FETCHED revenue/debt/demographics on open —
- *     the page already had them in scope. Two HTTP round-trips, twice
- *     the surface area for stale data.
- *   - The hardcoded-zero KPIs (totalStaff, pendingExpenses,
- *     attendanceRateToday, overdueAlerts) meant the dashboard was
- *     effectively blind to 4 of the 8 things a school admin needs to
- *     see at a glance. (T-089 fixes the Supabase side of these.)
- *
- * AFTER:
- *   - ONE fetch at the page level. The data flows DOWN to both
- *     OverviewTab and SeeDetailsModal as props — no second fetch when
- *     the modal opens, no chance of drift between the two views.
- *   - OverviewTab carries 8 KPIs (4 financial + 4 operational), the
- *     calendar, and a compact Top Debtors card. No charts that
- *     duplicate the drill-down.
- *   - SeeDetailsModal is the analytics drill-down: Revenue trend,
- *     Departments breakdown, Demographics (all 4), Debt aging. The
- *     "Departments" sub-tab no longer calls the mock-only
- *     `repos.payments.observe().get()`; it derives from the same
- *     Supabase-backed revenue series the page already loaded.
- *   - The dead "Stat" card is gone. The KPI grid already shows the
- *     totals; another card restating them is dead UI.
+ * T-243 (2026-09-09) — the 3-zone dashboard integration (UI-306): the
+ * page additionally subscribes ONCE to the canonical payments observable
+ * and passes the stream + the academic-year range down to the OverviewTab
+ * so the weekly-rhythm chart reads REAL rows. Still ONE data flow: the
+ * tab never fetches; the modal receives the same prop shape.
  *
  * Tabs: Overview / Alerts / Reports.
  * Per AGENTS.md §15.9 — migrations are append-only; this changes UI code
@@ -74,6 +48,7 @@ import {
   type Demographics,
   AVAILABLE_ACADEMIC_YEARS,
 } from "./tabs/types";
+import type { Payment } from "../../domain/model/payment";
 
 type DashboardTab = "overview" | "alerts" | "reports";
 
@@ -83,7 +58,9 @@ type DashboardTab = "overview" | "alerts" | "reports";
  * from the four repository calls; never re-fetched by the modal.
  *
  * `topDebtors` is optional because the debt repository's observable
- * may not be subscribed in Mock mode if no parent has debt.
+ * may not be subscribed in Mock mode if no parent has debt. The T-243
+ * payments stream is passed to the OverviewTab as a SEPARATE prop so
+ * stream updates never re-trigger this aggregate fetch.
  */
 interface DashboardData {
   kpis: DashboardKpi | null;
@@ -111,6 +88,9 @@ export function DashboardPage() {
     demographics: EMPTY_DEMOGRAPHICS,
     topDebtors: [],
   });
+  // T-243: the canonical payments stream (one subscription, feeds the
+  // weekly-rhythm chart — the calendar reads the same observable).
+  const [payments, setPayments] = useState<readonly Payment[]>([]);
   const [seeDetailsOpen, setSeeDetailsOpen] = useState(false);
   const [seeDetailsTab, setSeeDetailsTab] = useState<SeeDetailsTab>("revenue");
   const [tab, setTab] = useState<DashboardTab>("overview");
@@ -151,6 +131,17 @@ export function DashboardPage() {
       });
     })();
   }, [repos.dashboard, repos.debt, yearRange]);
+
+  // T-243 — subscribe ONCE to the canonical payments observable. The
+  // weekly-rhythm chart derives its weekday × method matrix from this
+  // REAL stream (never hardcoded sample rows). Same observable the
+  // DashboardCalendar reads — one cache, one source of truth.
+  useEffect(() => {
+    const unsub = repos.payments.observe().subscribe((stream) => {
+      setPayments(stream);
+    });
+    return unsub;
+  }, [repos.payments]);
 
   // Unread alerts — keep the tab badge current without making the
   // Overview depend on the alerts observable (decoupling preserves the
@@ -250,6 +241,8 @@ export function DashboardPage() {
         <PageTabContent value="overview">
           <OverviewTab
             data={dataProp}
+            payments={payments}
+            range={yearRange.range}
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
           />
