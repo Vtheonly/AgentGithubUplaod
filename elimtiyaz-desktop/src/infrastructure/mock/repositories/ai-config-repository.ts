@@ -66,10 +66,16 @@ export class MockAIConfigRepository implements AIConfigRepository {
       groqApiKey: input.groqApiKey !== undefined ? input.groqApiKey : current.groqApiKey,
       openRouterApiKey:
         input.openRouterApiKey !== undefined ? input.openRouterApiKey : current.openRouterApiKey,
+      customApiKey: input.customApiKey !== undefined ? input.customApiKey : current.customApiKey,
+      customBaseUrl: input.customBaseUrl !== undefined ? input.customBaseUrl : current.customBaseUrl,
       defaultProvider: input.defaultProvider ?? current.defaultProvider,
       defaultModel: input.defaultModel ?? current.defaultModel,
       fallbackModel:
         input.fallbackModel !== undefined ? input.fallbackModel : current.fallbackModel,
+      temperature: input.temperature ?? current.temperature,
+      topP: input.topP ?? current.topP,
+      maxTokens: input.maxTokens ?? current.maxTokens,
+      reasoningEffort: input.reasoningEffort ?? current.reasoningEffort,
       updatedAt: nowIso(),
       updatedBy,
     };

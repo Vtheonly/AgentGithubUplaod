@@ -27,9 +27,11 @@
 import type { Result } from "../../core/result";
 import { Ok, Err } from "../../core/result";
 import { Errors } from "../../core/app-error";
-import type { AIRequest, AIResponse } from "../../domain/model/ai";
+import type { AIRequest, AIResponse, AIProvider } from "../../domain/model/ai";
 import { getSupabaseClient, isSupabaseConfigured } from "../supabase/supabase-client";
 import { loadConfig } from "./ai-config-storage";
+import { executeOpenAIStream } from "../../core/ai/streaming/stream-client";
+import { resolveEndpoint } from "../../core/ai/providers/provider-registry";
 
 /** LLM adapter contract — mock + edge + BYOK adapters implement this. */
 export interface LLMAdapter {
@@ -59,7 +61,10 @@ function newId(prefix: string): string {
  * the mock uses) so legacy call sites keep working.
  */
 export function featureOf(request: AIRequest): AIFeature {
-  if (request.feature) return request.feature;
+  // T-260: "copilot" is agentic — it has no single-shot feature budget;
+  // callers route it through the agent runtime, and this helper only
+  // classifies the single-shot paths.
+  if (request.feature && request.feature !== "copilot") return request.feature;
   const hay = `${request.systemPrompt}\n${request.userPrompt}`.toLowerCase();
   if (
     hay.includes("narratif") ||
@@ -332,19 +337,31 @@ export const edgeLLMAdapter: LLMAdapter = {
 };
 
 /* ------------------------------------------------------------------ */
-/* BYOK direct adapter (Groq / OpenRouter)                              */
+/* BYOK direct adapter (Groq / OpenRouter / custom OpenAI-compatible)  */
 /* ------------------------------------------------------------------ */
 
-interface ChatCompletionPayload {
+/**
+ * (T-260) The BYOK transport now uses the shared SSE streaming client
+ * (`executeOpenAIStream`) so single-shot feature requests AND agentic
+ * conversations share one wire path — and tool calls round-trip for the
+ * copilot. The provider fallback chain and the SEC-002 PII policy are
+ * preserved verbatim.
+ */
+type ChatCompletionPayload = {
   model: string;
-  messages: Array<{ role: "system" | "user"; content: string }>;
+  messages: Array<{
+    role: "system" | "user" | "assistant" | "tool";
+    content: string | null;
+    name?: string;
+    tool_calls?: unknown;
+    tool_call_id?: string;
+  }>;
   max_tokens: number;
   temperature: number;
-}
-
-interface ChatCompletionResponse {
-  choices?: Array<{ message?: { content?: string } }>;
-  usage?: { total_tokens?: number; prompt_tokens?: number; completion_tokens?: number };
+  top_p?: number;
+  tools?: unknown;
+  tool_choice?: string;
+  stream?: boolean;
 }
 
 async function callChatCompletions(
@@ -353,24 +370,17 @@ async function callChatCompletions(
   body: ChatCompletionPayload,
   extraHeaders: Record<string, string> = {},
 ): Promise<{ content: string; tokens: number }> {
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      ...extraHeaders,
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  }
-  const json = (await res.json()) as ChatCompletionResponse;
-  const content = json.choices?.[0]?.message?.content ?? "";
-  if (!content) throw new Error("Empty completion");
+  const streamResult = await executeOpenAIStream(endpoint, {
+    Authorization: `Bearer ${apiKey}`,
+    ...extraHeaders,
+  }, body, {});
+  const content = streamResult.fullContent;
+  // Agentic callers consume `toolCalls` via the AIResponse.toolCalls field;
+  // this helper is the single-shot leg, where an empty completion is fatal.
+  if (!content && streamResult.toolCalls.length === 0) throw new Error("Empty completion");
   return {
     content,
-    tokens: json.usage?.total_tokens ?? Math.max(1, Math.ceil(content.length / 4)),
+    tokens: Math.max(1, Math.ceil(content.length / 4)),
   };
 }
 
@@ -380,8 +390,21 @@ async function callChatCompletions(
  * Settings → IA (stored AES-256-GCM encrypted, decrypted only in memory
  * for the lifetime of the call).
  *
- * Mirrors the Edge Function's provider fallback: Groq first, OpenRouter as
- * fallback (and vice-versa depending on the configured default provider).
+ * T-260: three providers (groq / openrouter / custom OpenAI-compatible
+ * via `customBaseUrl`) and two request shapes:
+ *   - SINGLE-SHOT feature requests (narrative/drafting/anomaly) — the
+ *     SEC-002 masked-content policy applies verbatim (raw prompts never
+ *     leave the machine);
+ *   - AGENTIC requests (`request.messages` present, feature "copilot") —
+ *     the full conversation is forwarded as-is: the copilot is deliberately
+ *     domain-grounded (tool results contain real balances/GPAs, the staff
+ *     user asked about them), gated by the UseAI permission and the
+ *     locally-encrypted BYOK key. This mirrors the agent runtime transport.
+ *
+ * Provider fallback (groq ↔ openrouter) is preserved from the original
+ * behavior; `custom_openai` is tried first when selected and never
+ * cross-falls-back to a cloud provider (an explicitly local deployment
+ * must not silently ship data to Groq/OpenRouter).
  */
 export const byokLLMAdapter: LLMAdapter = {
   async generate(request: AIRequest): Promise<Result<AIResponse>> {
@@ -390,55 +413,84 @@ export const byokLLMAdapter: LLMAdapter = {
       const config = await loadConfig();
       const feature = featureOf(request);
       const systemPrompt = systemPromptForFeature(request, feature);
-      // T-055 (SEC-002): only the PII-masked prompt leaves the machine — an
-      // EMPTY maskedContent BLOCKS this path (it used to silently fall back
-      // to the raw prompt, leaking PII to Groq/OpenRouter).
-      if (!hasMaskedContent(request)) {
-        return Err(
-          Errors.validation(
-            "SEC-002: maskedContent is empty — the BYOK path refuses to send the raw prompt.",
-          ),
-        );
-      }
-      const userPrompt = request.maskedContent;
 
-      const primary: "groq" | "openrouter" = config.defaultProvider;
-      const fallback: "groq" | "openrouter" = primary === "groq" ? "openrouter" : "groq";
-      const keys: Record<"groq" | "openrouter", string | null> = {
+      const isAgentic = Array.isArray(request.messages) && request.messages.length > 0;
+
+      // T-055 (SEC-002): only the PII-masked prompt leaves the machine on
+      // the SINGLE-SHOT path — an EMPTY maskedContent BLOCKS this path (it
+      // used to silently fall back to the raw prompt, leaking PII).
+      if (!isAgentic) {
+        if (!hasMaskedContent(request)) {
+          return Err(
+            Errors.validation(
+              "SEC-002: maskedContent is empty — the BYOK path refuses to send the raw prompt.",
+            ),
+          );
+        }
+      }
+
+      const primary = config.defaultProvider;
+      const providers: AIProvider[] =
+        primary === "custom_openai"
+          ? ["custom_openai"]
+          : [primary, primary === "groq" ? "openrouter" : "groq"];
+      const keys: Record<AIProvider, string | null> = {
         groq: config.groqApiKey,
         openrouter: config.openRouterApiKey,
+        custom_openai: config.customApiKey,
       };
-      const models: Record<"groq" | "openrouter", string> = {
+      const models: Record<AIProvider, string> = {
         groq: primary === "groq" ? config.defaultModel : (config.fallbackModel ?? "llama-3.3-70b-versatile"),
         openrouter:
           primary === "openrouter"
             ? config.defaultModel
             : (config.fallbackModel ?? "meta-llama/llama-3.3-70b-instruct:free"),
+        custom_openai: config.defaultModel,
       };
-      const endpoints: Record<"groq" | "openrouter", string> = {
+      const endpoints: Record<AIProvider, string> = {
         groq: "https://api.groq.com/openai/v1/chat/completions",
         openrouter: "https://openrouter.ai/api/v1/chat/completions",
+        custom_openai: resolveEndpoint("custom_openai", config.customBaseUrl).chatCompletionsUrl,
       };
 
-      const bodyFor = (model: string): ChatCompletionPayload => ({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: request.maxTokens,
-        temperature: request.temperature,
-      });
+      const bodyFor = (model: string): ChatCompletionPayload => {
+        if (isAgentic) {
+          return {
+            model,
+            messages: (request.messages ?? []).map((m) => ({
+              role: m.role,
+              content: m.content,
+              name: m.name,
+              tool_calls: m.toolCalls,
+              tool_call_id: m.toolCallId,
+            })),
+            max_tokens: request.maxTokens,
+            temperature: request.temperature,
+            top_p: request.topP,
+            stream: request.stream,
+          };
+        }
+        return {
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: request.maskedContent },
+          ],
+          max_tokens: request.maxTokens,
+          temperature: request.temperature,
+          top_p: request.topP,
+        };
+      };
 
       // Primary provider, then fallback (mirrors ai-proxy behavior).
       let lastError: unknown = null;
-      for (const provider of [primary, fallback]) {
+      for (const provider of providers) {
         const key = keys[provider];
-        if (!key) continue;
+        if (!key && provider !== "custom_openai") continue;
         try {
           const { content, tokens } = await callChatCompletions(
             endpoints[provider],
-            key,
+            key ?? "",
             bodyFor(models[provider]),
             provider === "openrouter" ? { "HTTP-Referer": "https://elimtiyaz.dz" } : {},
           );

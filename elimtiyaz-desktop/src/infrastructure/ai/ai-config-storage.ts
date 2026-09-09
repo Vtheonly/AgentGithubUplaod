@@ -19,12 +19,22 @@
  *   {
  *     "groqApiKeyEnc": "base64(iv|ciphertext)" | null,
  *     "openRouterApiKeyEnc": "base64(iv|ciphertext)" | null,
- *     "defaultProvider": "groq" | "openrouter",
+ *     "customApiKeyEnc": "base64(iv|ciphertext)" | null,
+ *     "customBaseUrl": string | null,
+ *     "defaultProvider": "groq" | "openrouter" | "custom_openai",
  *     "defaultModel": string,
  *     "fallbackModel": string | null,
+ *     "temperature": number,
+ *     "topP": number,
+ *     "maxTokens": number,
+ *     "reasoningEffort": "default" | "low" | "medium" | "high" | undefined,
  *     "updatedAt": string,
  *     "updatedBy": string,
  *   }
+ *
+ * T-260 (39th session): the custom-OpenAI provider key + base URL + the
+ * sampling hyperparameters were added; all three keys are encrypted the
+ * same way. Older stored payloads load with the new defaults filled in.
  *
  * Plaintext API keys NEVER appear in localStorage.
  */
@@ -73,9 +83,15 @@ const AI_SALT_BYTES = (() => {
 interface StoredAIConfig {
   groqApiKeyEnc: string | null;
   openRouterApiKeyEnc: string | null;
+  customApiKeyEnc: string | null;
+  customBaseUrl: string | null;
   defaultProvider: AIProviderConfig["defaultProvider"];
   defaultModel: string;
   fallbackModel: string | null;
+  temperature: number;
+  topP: number;
+  maxTokens: number;
+  reasoningEffort?: AIProviderConfig["reasoningEffort"];
   updatedAt: string;
   updatedBy: string;
 }
@@ -158,6 +174,15 @@ export async function loadConfig(): Promise<AIProviderConfig> {
     const stored = JSON.parse(raw) as StoredAIConfig;
     let groqApiKey: string | null = null;
     let openRouterApiKey: string | null = null;
+    let customApiKey: string | null = null;
+    const decryptSafe = async (val: string | null | undefined): Promise<string | null> => {
+      if (!val) return null;
+      try {
+        return await decryptString(val);
+      } catch {
+        return null;
+      }
+    };
     if (stored.groqApiKeyEnc) {
       try {
         groqApiKey = await decryptString(stored.groqApiKeyEnc);
@@ -172,12 +197,19 @@ export async function loadConfig(): Promise<AIProviderConfig> {
         openRouterApiKey = null;
       }
     }
+    customApiKey = await decryptSafe(stored.customApiKeyEnc);
     return {
       groqApiKey,
       openRouterApiKey,
+      customApiKey,
+      customBaseUrl: stored.customBaseUrl ?? DEFAULT_AI_PROVIDER_CONFIG.customBaseUrl,
       defaultProvider: stored.defaultProvider ?? "groq",
       defaultModel: stored.defaultModel ?? DEFAULT_AI_PROVIDER_CONFIG.defaultModel,
       fallbackModel: stored.fallbackModel ?? null,
+      temperature: stored.temperature ?? DEFAULT_AI_PROVIDER_CONFIG.temperature,
+      topP: stored.topP ?? DEFAULT_AI_PROVIDER_CONFIG.topP,
+      maxTokens: stored.maxTokens ?? DEFAULT_AI_PROVIDER_CONFIG.maxTokens,
+      reasoningEffort: stored.reasoningEffort ?? DEFAULT_AI_PROVIDER_CONFIG.reasoningEffort,
       updatedAt: stored.updatedAt ?? DEFAULT_AI_PROVIDER_CONFIG.updatedAt,
       updatedBy: stored.updatedBy ?? DEFAULT_AI_PROVIDER_CONFIG.updatedBy,
     };
@@ -195,14 +227,23 @@ export async function loadConfig(): Promise<AIProviderConfig> {
  * what was actually written (e.g. tests verifying the key is encrypted).
  */
 export async function saveConfig(config: AIProviderConfig): Promise<StoredAIConfig> {
+  const [groqApiKeyEnc, openRouterApiKeyEnc, customApiKeyEnc] = await Promise.all([
+    config.groqApiKey ? encryptString(config.groqApiKey) : Promise.resolve(null),
+    config.openRouterApiKey ? encryptString(config.openRouterApiKey) : Promise.resolve(null),
+    config.customApiKey ? encryptString(config.customApiKey) : Promise.resolve(null),
+  ]);
   const stored: StoredAIConfig = {
-    groqApiKeyEnc: config.groqApiKey ? await encryptString(config.groqApiKey) : null,
-    openRouterApiKeyEnc: config.openRouterApiKey
-      ? await encryptString(config.openRouterApiKey)
-      : null,
+    groqApiKeyEnc,
+    openRouterApiKeyEnc,
+    customApiKeyEnc,
+    customBaseUrl: config.customBaseUrl,
     defaultProvider: config.defaultProvider,
     defaultModel: config.defaultModel,
     fallbackModel: config.fallbackModel,
+    temperature: config.temperature,
+    topP: config.topP,
+    maxTokens: config.maxTokens,
+    reasoningEffort: config.reasoningEffort,
     updatedAt: config.updatedAt,
     updatedBy: config.updatedBy,
   };

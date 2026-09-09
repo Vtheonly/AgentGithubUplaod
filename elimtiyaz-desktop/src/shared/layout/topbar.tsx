@@ -1,6 +1,6 @@
 /**
  * App topbar — global search (Cmd+K), alerts bell, language switcher,
- * quick backup, profile menu.
+ * quick backup, profile menu, AI Copilot trigger (Ctrl+J / Cmd+J).
  *
  * Persistent across all hub pages. The search opens a command palette
  * (Cmd+K / Ctrl+K) for cross-entity navigation across 6 indexes:
@@ -15,6 +15,13 @@
  *   - A language switcher is added between alerts and quick-backup.
  *   - All physical CSS properties (right-4, ml-auto) replaced with
  *     logical equivalents (end-4, ms-auto) for RTL support.
+ *
+ * T-261 (39th session): the Universal Copilot integration — a dedicated
+ * "Assistant IA" button (permission UseAI), the global Ctrl+J / Cmd+J
+ * shortcut, and the command palette's Enter-to-ask-the-AI action. The
+ * blueprint's whole-sale Topbar replacement was REJECTED (it would have
+ * deleted the palette, alerts, tenant switcher, language switcher, and
+ * profile menu — §15.3); these are additive integrations instead.
  */
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -34,9 +41,11 @@ import {
   Receipt,
   ScrollText,
   BookUser,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useRepositories } from "../../app/providers/repository-provider";
+import { useAICopilot } from "../../app/providers/ai-copilot-provider";
 import { ROLE_LABELS_FR } from "../../core/rbac/roles";
 import { formatRelative } from "../../core/format/date";
 import {
@@ -91,6 +100,7 @@ export function Topbar() {
   const navigate = useNavigate();
   const { session, signOut } = useAuth();
   const repos = useRepositories();
+  const copilot = useAICopilot();
   const [searchOpen, setSearchOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -148,17 +158,32 @@ export function Topbar() {
     }
   }
 
-  // Cmd+K / Ctrl+K shortcut
+  // Cmd+K / Ctrl+K shortcut (palette) — and T-261: Ctrl+J / Cmd+J opens the AI Copilot.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchOpen((s) => !s);
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j" && copilot.canUse) {
+        e.preventDefault();
+        copilot.toggleCopilot();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [copilot.canUse, copilot.toggleCopilot]);
+
+  // T-261: ask the AI straight from the palette — the typed query becomes
+  // the copilot prompt (drawer opens if closed).
+  const handleAskAI = (query: string) => {
+    const q = query.trim();
+    if (!q || !copilot.canUse) return;
+    copilot.setIsOpen(true);
+    void copilot.askAgent(q);
+    setSearchOpen(false);
+    setSearchQuery("");
+  };
 
   // Refresh recent searches whenever the palette opens
   useEffect(() => {
@@ -222,6 +247,20 @@ export function Topbar() {
         </button>
 
         <div className="flex-1" />
+
+        {/* T-261: AI Copilot trigger (Ctrl+J / Cmd+J). */}
+        {copilot.canUse && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={copilot.toggleCopilot}
+            className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+            title="Ouvrir le Copilot IA (Ctrl+J / Cmd+J)"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden text-xs font-semibold md:inline">Assistant IA</span>
+          </Button>
+        )}
 
         {/* Sync indicator — Iteration 14: shows online + queue status. */}
         <SyncIndicator />
@@ -381,6 +420,15 @@ export function Topbar() {
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // T-261: Enter submits the typed query to the AI Copilot
+                // (the palette is navigation-first; a full-sentence query
+                // is almost always an AI question, not a code lookup).
+                if (e.key === "Enter" && searchQuery.trim() && copilot.canUse) {
+                  e.preventDefault();
+                  handleAskAI(searchQuery);
+                }
+              }}
               placeholder="Rechercher ou poser une question à l'IA (ex : « Combien d'impayés ce mois ? »)…"
               className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
             />
@@ -394,6 +442,29 @@ export function Topbar() {
         hideCloseButton
       >
         <div className="max-h-[60vh] overflow-y-auto p-2">
+          {/* T-261: always-on ask-the-AI row while a query is typed. */}
+          {searchQuery.trim() !== "" && copilot.canUse && (
+            <button
+              type="button"
+              onClick={() => handleAskAI(searchQuery)}
+              className="flex w-full items-center gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-start transition-colors hover:bg-primary/10"
+            >
+              <span className="text-primary">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-primary">
+                  Demander à l&apos;IA : « {searchQuery.trim()} »
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Réponse raisonnée via les données réelles de l&apos;établissement
+                </p>
+              </div>
+              <kbd className="flex items-center gap-0.5 rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                ↵
+              </kbd>
+            </button>
+          )}
           {searchQuery.trim() === "" ? (
             recentSearches.length > 0 ? (
               <div>

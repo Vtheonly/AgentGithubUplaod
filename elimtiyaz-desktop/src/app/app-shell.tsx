@@ -22,6 +22,10 @@
  * The per-route DASHBOARD_RESTRICTED_ROLES set was replaced by the shared
  * gate table (defense in depth, ONE source of truth — no drift between
  * the sidebar padlock and the route guard).
+ *
+ * T-261 (39th session): the universal AICopilotDrawer is mounted in BOTH
+ * branches (guarded redirect + main) — it renders null while closed, so
+ * the copilot stays one Ctrl+J away even from the /personnel workspace.
  */
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -43,6 +47,7 @@ import { useRepositories } from "./providers/repository-provider";
 import { useAuth } from "./providers/auth-provider";
 import { startBackupScheduler } from "../infrastructure/backup/backup-scheduler";
 import { routeRedirectFor, ROUTE_GUARD_REDIRECT } from "../core/rbac/route-access";
+import { AICopilotDrawer } from "../features/ai/copilot-drawer";
 
 export function AppShell() {
   const repos = useRepositories();
@@ -75,7 +80,7 @@ export function AppShell() {
     return (
       <div className="flex h-screen w-screen overflow-hidden bg-surface-background text-foreground">
         <Sidebar />
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
           <main className="flex-1 overflow-y-auto">
             <Routes>
@@ -83,6 +88,8 @@ export function AppShell() {
             </Routes>
           </main>
         </div>
+        {/* Universal floating Copilot drawer (T-261) */}
+        <AICopilotDrawer />
       </div>
     );
   }
@@ -110,6 +117,8 @@ export function AppShell() {
           </Routes>
         </main>
       </div>
+      {/* Universal floating Copilot drawer (T-261) */}
+      <AICopilotDrawer />
     </div>
   );
 }

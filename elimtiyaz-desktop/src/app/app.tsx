@@ -20,6 +20,12 @@
  * (above RepositoryProvider) because theme + locale need to apply on the
  * login screen too — before any auth state exists. It is pure client-side
  * state and has no dependency on the repository layer.
+ *
+ * T-261 (39th session): AICopilotProvider sits INSIDE ToastProvider (it
+ * consumes useToast) and above the routed shell — the copilot drawer is
+ * reachable from every authenticated page. The blueprint's placement
+ * (outside ToastProvider) would throw "useToast must be used within
+ * <ToastProvider>" at mount.
  */
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { TooltipProvider } from "../shared/ui/tooltip";
@@ -27,6 +33,7 @@ import { RepositoryProvider } from "./providers/repository-provider";
 import { AuthProvider, useAuth } from "./providers/auth-provider";
 import { SyncProvider } from "./providers/sync-provider";
 import { ToastProvider } from "./providers/toast-provider";
+import { AICopilotProvider } from "./providers/ai-copilot-provider";
 import { ModalProvider } from "./providers/modal-provider";
 import { UserPreferencesProvider } from "./providers/user-preferences-provider";
 import { ToastViewport } from "../shared/layout/toast-viewport";
@@ -42,15 +49,17 @@ export function App() {
         <AuthProvider>
           <SyncProvider>
             <ToastProvider>
-              <ModalProvider>
-                <TooltipProvider delayDuration={300}>
-                  <SplashGate>
-                    <AppRoutes />
-                  </SplashGate>
-                  <ToastViewport />
-                  <ModalHost />
-                </TooltipProvider>
-              </ModalProvider>
+              <AICopilotProvider>
+                <ModalProvider>
+                  <TooltipProvider delayDuration={300}>
+                    <SplashGate>
+                      <AppRoutes />
+                    </SplashGate>
+                    <ToastViewport />
+                    <ModalHost />
+                  </TooltipProvider>
+                </ModalProvider>
+              </AICopilotProvider>
             </ToastProvider>
           </SyncProvider>
         </AuthProvider>

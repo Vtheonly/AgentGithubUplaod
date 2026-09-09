@@ -31,10 +31,26 @@ import { corsHeaders, handleOptions, jsonError, jsonOk } from "../_shared/cors.t
 import { createServiceRoleClient, extractAuthContext, requirePermission, withAuditSurfacing, writeAuditLog } from "../_shared/supabase.ts";
 
 interface AIProxyRequest {
-  feature: "narrative" | "drafting" | "anomaly";
+  feature: "copilot" | "narrative" | "drafting" | "anomaly";
   prompt: string;
   max_tokens?: number;
   temperature?: number;
+  top_p?: number;
+  // T-262 (39th session — Agentic AI Architecture): the agent mode.
+  // When `stream` is true the caller (desktop copilot) supplies the full
+  // conversation + optional tool schemas; the provider's SSE body is piped
+  // straight back and consumed by the desktop's executeOpenAIStream.
+  model?: string;
+  stream?: boolean;
+  messages?: Array<{
+    role: "system" | "user" | "assistant" | "tool";
+    content: string | null;
+    name?: string;
+    tool_calls?: unknown;
+    tool_call_id?: string;
+  }>;
+  tools?: unknown[];
+  tool_choice?: string;
   // For anomaly detection — context fields
   expense_context?: {
     ticket_id: string;
@@ -74,16 +90,28 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     return jsonError(req, 400, "invalid_body", "Request body must be valid JSON");
   }
 
-  if (!body.feature || !body.prompt) {
-    return jsonError(req, 400, "missing_fields", "feature and prompt are required");
+  // T-262: two request modes share this endpoint —
+  //   SINGLE-SHOT (legacy): feature + prompt (PII-masked client-side).
+  //   AGENT (stream): stream=true + messages (+ tools) — the desktop
+  //   copilot's multi-turn, tool-calling conversation.
+  const isAgentStream = body.stream === true && Array.isArray(body.messages);
+
+  if (isAgentStream && body.messages.length === 0) {
+    return jsonError(req, 400, "empty_messages", "Agent mode requires a non-empty messages array");
   }
 
-  if (!["narrative", "drafting", "anomaly"].includes(body.feature)) {
-    return jsonError(req, 400, "invalid_feature", "feature must be 'narrative', 'drafting', or 'anomaly'");
-  }
+  if (!isAgentStream) {
+    if (!body.feature || !body.prompt) {
+      return jsonError(req, 400, "missing_fields", "feature and prompt are required");
+    }
 
-  if (!body.prompt.trim()) {
-    return jsonError(req, 400, "empty_prompt", "Prompt cannot be empty");
+    if (!["narrative", "drafting", "anomaly"].includes(body.feature)) {
+      return jsonError(req, 400, "invalid_feature", "feature must be 'narrative', 'drafting', or 'anomaly'");
+    }
+
+    if (!body.prompt.trim()) {
+      return jsonError(req, 400, "empty_prompt", "Prompt cannot be empty");
+    }
   }
 
   const supabase = createServiceRoleClient();
@@ -121,6 +149,12 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     model = DEFAULT_MODELS.groq;
   }
 
+  // T-262: the caller's model override (the copilot selects the exact
+  // BYOK-discovered model id — qwen/qwen3.8-27b, llama-3.3-70b-versatile, …).
+  if (body.model) {
+    model = body.model;
+  }
+
   if (!apiKey) {
     return jsonError(req, 503, "ai_not_configured", "AI provider API key is not configured. Contact your administrator.");
   }
@@ -136,6 +170,69 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
   const rateLimit = aiConfig?.rate_limit_per_minute ?? 60;
   if ((recentCount ?? 0) >= rateLimit) {
     return jsonError(req, 429, "rate_limited", `Rate limit exceeded: ${rateLimit} requests/minute`);
+  }
+
+  // T-262 — AGENT STREAM MODE: forward the caller's messages + tool
+  // schemas to the provider with stream:true and pipe the SSE body back
+  // verbatim. The auth + permission + rate-limit gates above have already
+  // run; the request row is logged before the stream starts (token counts
+  // are unknown until the stream completes — logged as 0, success = the
+  // provider accepted the request). The desktop's executeOpenAIStream
+  // consumes this response exactly like a direct provider call.
+  if (isAgentStream) {
+    const agentEndpoint = provider === "groq"
+      ? "https://api.groq.com/openai/v1/chat/completions"
+      : "https://openrouter.ai/api/v1/chat/completions";
+
+    const agentStart = Date.now();
+    let agentOk = false;
+    let agentError: string | null = null;
+
+    try {
+      const providerResponse = await fetch(agentEndpoint, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          ...(provider === "openrouter" ? { "HTTP-Referer": "https://elimtiyaz.dz" } : {}),
+        },
+        body: JSON.stringify({
+          model,
+          messages: body.messages,
+          ...(body.tools && body.tools.length > 0
+            ? { tools: body.tools, tool_choice: body.tool_choice ?? "auto" }
+            : {}),
+          temperature: body.temperature ?? 0.6,
+          top_p: body.top_p ?? 0.95,
+          max_tokens: body.max_tokens ?? 2048,
+          stream: true,
+        }),
+      });
+
+      if (!providerResponse.ok || !providerResponse.body) {
+        const errText = await providerResponse.text();
+        agentError = `Provider ${provider} returned ${providerResponse.status}: ${errText.slice(0, 300)}`;
+        await logAgentRequest(supabase, ctx, requestId, provider, model, agentStart, false, agentError);
+        return jsonError(req, 502, "ai_call_failed", agentError);
+      }
+
+      agentOk = true;
+      await logAgentRequest(supabase, ctx, requestId, provider, model, agentStart, true, null);
+
+      return new Response(providerResponse.body, {
+        status: 200,
+        headers: {
+          ...corsHeaders(req),
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
+    } catch (err) {
+      agentError = err instanceof Error ? err.message : String(err);
+      await logAgentRequest(supabase, ctx, requestId, provider, model, agentStart, agentOk, agentError);
+      return jsonError(req, 502, "ai_call_failed", agentError);
+    }
   }
 
   // 3. Build the system prompt based on feature
@@ -320,3 +417,56 @@ Output JSON: { "signals": [{ "type": "duplication"|"new_vendor"|"budget_overrun"
     latency_ms: latencyMs,
   });
 }));
+
+/* ------------------------------------------------------------------ */
+/*  T-262: agent-stream request logging (rate-limit row + audit trail) */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Insert the ai_request_logs row + audit entry for an AGENT-mode request.
+ * Runs BEFORE the SSE stream starts (token counts are only known after the
+ * stream completes — logged as 0 for the agent path). Never throws: a
+ * logging failure must not kill the stream handoff.
+ */
+async function logAgentRequest(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  ctx: Awaited<ReturnType<typeof extractAuthContext>>,
+  requestId: string,
+  provider: "groq" | "openrouter",
+  model: string,
+  startMs: number,
+  success: boolean,
+  errorMessage: string | null,
+): Promise<void> {
+  const latencyMs = Date.now() - startMs;
+  try {
+    await supabase.from("ai_request_logs").insert({
+      tenant_id: ctx!.tenantId,
+      user_id: ctx!.userProfileId,
+      feature: "copilot",
+      provider,
+      model,
+      prompt_token_count: 0,
+      completion_token_count: 0,
+      latency_ms: latencyMs,
+      success,
+      error_message: errorMessage,
+      requested_at: new Date().toISOString(),
+    });
+
+    await writeAuditLog(
+      ctx!.tenantId,
+      "ai.copilot",
+      "ai_request",
+      null,
+      ctx!.userProfileId,
+      ctx!.email,
+      null,
+      { feature: "copilot", provider, model, latency_ms: latencyMs, stream: true, success },
+      `AI copilot stream request ${success ? "accepted" : "failed"}`,
+      requestId,
+    );
+  } catch (err) {
+    console.warn("[ai-proxy] Failed to log agent request", err);
+  }
+}
