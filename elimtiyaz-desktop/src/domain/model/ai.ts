@@ -1,9 +1,27 @@
 /**
- * AI domain model — iteration 7 (plan §11), extended for the Multi-Model
- * Agentic Architecture (T-260/T-261).
+ * AI domain model — iteration 7 (plan §11), extended T-260 (39th session,
+ * the Agentic Architecture) and T-266 (41st session, REG-005 repair).
  *
- * Provider stack: Groq (primary) + OpenRouter (fallback) + any
- * OpenAI-compatible endpoint (Ollama / LM Studio / vLLM), all via BYOK.
+ * Features:
+ *   1. Report Card Narrative Generator (plan §11.05) — teacher review MANDATORY
+ *   2. Administrative Drafting Assistant (plan §11.06) — human review required
+ *   3. Expense Anomaly Detector (plan §11.07) — signal not verdict
+ *   4. Universal Copilot (T-260/T-261) — model-agnostic, streaming, tool
+ *      calling, human-in-the-loop action proposals.
+ *
+ * Routing: single-shot features proxy through the `ai-proxy` Edge
+ * Function in production (plan §11.02); the BYOK paths call the provider
+ * directly from the desktop with locally-encrypted keys (AES-256-GCM,
+ * see ai-config-storage.ts).
+ *
+ * DEFAULT models (T-266): every default MUST be a REAL Groq model id —
+ * the registered 39th-session default `qwen/qwen3.8-27b` never existed
+ * on Groq's API (fresh installs would 404 model_not_found on every
+ * call). The defaults are the real, current Groq ids:
+ *   - defaultModel:   `llama-3.3-70b-versatile` (balanced)
+ *   - fastModel:      `llama-3.1-8b-instant` (search/routing/formatting)
+ *   - reasoningModel: `llama-3.3-70b-versatile` (finance/GPA synthesis)
+ *   - fallbackModel:  `llama-3.1-8b-instant` (429 fallback)
  */
 
 export type AIProvider = "groq" | "openrouter" | "custom_openai";
@@ -23,15 +41,15 @@ export interface AIProviderConfig {
   /** Base URL for the custom_openai provider (Ollama/LM Studio/vLLM). */
   readonly customBaseUrl: string | null;
   readonly defaultProvider: AIProvider;
-  /** Primary / Default general model */
+  /** Default general model — a REAL Groq model id (see file header). */
   readonly defaultModel: string;
-  /** Fast model dedicated to search, routing, and simple formatting */
+  /** Fast model for search, routing, and simple formatting. */
   readonly fastModel: string;
-  /** Heavy reasoning model dedicated to finance, GPA, and complex calculations */
+  /** Heavy reasoning model for finance, GPA, and complex synthesis. */
   readonly reasoningModel: string;
-  /** Fallback model used when primary models hit rate limits (429) */
+  /** Fallback model used when primary models hit rate limits (429). */
   readonly fallbackModel: string | null;
-  /** Enable dynamic multi-model task routing */
+  /** Enable dynamic multi-model task routing (fast vs reasoning tier). */
   readonly enableSmartRouting: boolean;
   readonly temperature: number;
   readonly topP: number;
@@ -197,12 +215,13 @@ export const DEFAULT_AI_PROVIDER_CONFIG: AIProviderConfig = {
   customApiKey: null,
   customBaseUrl: "https://api.groq.com/openai/v1",
   defaultProvider: "groq",
+  // REAL Groq model ids (T-266 — see file header for the rationale).
   defaultModel: "llama-3.3-70b-versatile",
   fastModel: "llama-3.1-8b-instant",
   reasoningModel: "llama-3.3-70b-versatile",
   fallbackModel: "llama-3.1-8b-instant",
   enableSmartRouting: true,
-  temperature: 0.5,
+  temperature: 0.6,
   topP: 0.95,
   maxTokens: 2048,
   reasoningEffort: "default",

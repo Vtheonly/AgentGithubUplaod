@@ -70,6 +70,17 @@ export class MockAIConfigRepository implements AIConfigRepository {
       customBaseUrl: input.customBaseUrl !== undefined ? input.customBaseUrl : current.customBaseUrl,
       defaultProvider: input.defaultProvider ?? current.defaultProvider,
       defaultModel: input.defaultModel ?? current.defaultModel,
+      // T-266 (REG-005 fix): the multi-model routing fields (fast/
+      // reasoning/smart-routing) MUST merge like every other field — the
+      // unregistered 6ce49b9 patch added them to the domain model but not
+      // here, so every updateConfig call produced a type error and a
+      // config that silently lost the routing selections.
+      fastModel: input.fastModel ?? current.fastModel,
+      reasoningModel: input.reasoningModel ?? current.reasoningModel,
+      enableSmartRouting:
+        input.enableSmartRouting !== undefined
+          ? input.enableSmartRouting
+          : current.enableSmartRouting,
       fallbackModel:
         input.fallbackModel !== undefined ? input.fallbackModel : current.fallbackModel,
       temperature: input.temperature ?? current.temperature,

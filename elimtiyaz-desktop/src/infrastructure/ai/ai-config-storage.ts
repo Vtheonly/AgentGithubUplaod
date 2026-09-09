@@ -2,9 +2,16 @@
 // FILE: elimtiyaz-desktop/src/infrastructure/ai/ai-config-storage.ts
 // ============================================================================
 /**
- * BYOK AI config storage — plan §11.04.
+ * BYOK AI config storage — plan §11.04, extended T-260 (39th session).
  *
- * Persists the `AIProviderConfig` with AES-256-GCM encryption for all keys.
+ * Persists the `AIProviderConfig` with AES-256-GCM encryption for all
+ * keys (groq / openrouter / custom-OpenAI); sampling params and model
+ * selections are plaintext (no secrets). Plaintext API keys NEVER
+ * appear in localStorage.
+ *
+ * T-266 (41st session): the `readRawStored()` test seam (the at-rest
+ * encryption assertions depend on it) was RESTORED after the
+ * unregistered 6ce49b9 patch deleted it (REG-005).
  */
 import type { AIProviderConfig } from "../../domain/model/ai";
 import { DEFAULT_AI_PROVIDER_CONFIG } from "../../domain/model/ai";
@@ -180,4 +187,21 @@ export async function saveConfig(config: AIProviderConfig): Promise<StoredAIConf
 
 export function clearConfig(): void {
   localStorage.removeItem(AI_CONFIG_STORAGE_KEY);
+}
+
+/**
+ * Test seam (T-260): read the RAW stored JSON payload — NOT the decrypted
+ * config — so tests can assert encryption-at-rest invariants (no
+ * plaintext `gsk-…` / `sk-or-…` / key material in localStorage).
+ * Restored by T-266 (REG-005) after the unregistered 6ce49b9 patch
+ * deleted it and broke the agent-architecture suite.
+ */
+export function readRawStored(): StoredAIConfig | null {
+  const raw = localStorage.getItem(AI_CONFIG_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredAIConfig;
+  } catch {
+    return null;
+  }
 }

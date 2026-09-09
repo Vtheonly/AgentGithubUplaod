@@ -115,8 +115,14 @@ describe("T-260 — domain model extension", () => {
     expect(DEFAULT_AI_PROVIDER_CONFIG.temperature).toBe(0.6);
     expect(DEFAULT_AI_PROVIDER_CONFIG.topP).toBe(0.95);
     expect(DEFAULT_AI_PROVIDER_CONFIG.maxTokens).toBe(2048);
-    expect(DEFAULT_AI_PROVIDER_CONFIG.defaultModel).toBe("qwen/qwen3.8-27b");
-    expect(DEFAULT_AI_PROVIDER_CONFIG.fallbackModel).toBe("llama-3.3-70b-versatile");
+    // T-266 (REG-005 repair): defaults must be REAL Groq model ids — the
+    // registered 39th-session default "qwen/qwen3.8-27b" never existed on
+    // Groq's API (fresh installs would 404 model_not_found on every call).
+    // The multi-model trio is: balanced default + fast instant + fallback.
+    expect(DEFAULT_AI_PROVIDER_CONFIG.defaultModel).toBe("llama-3.3-70b-versatile");
+    expect(DEFAULT_AI_PROVIDER_CONFIG.fastModel).toBe("llama-3.1-8b-instant");
+    expect(DEFAULT_AI_PROVIDER_CONFIG.reasoningModel).toBe("llama-3.3-70b-versatile");
+    expect(DEFAULT_AI_PROVIDER_CONFIG.fallbackModel).toBe("llama-3.1-8b-instant");
   });
 
   it("every LEGACY export survives (the 2745-test baseline contract)", () => {
@@ -529,7 +535,7 @@ describe("T-260 — AIAgentRuntime.runConversationStep", () => {
     expect(result).toHaveLength(11);
   });
 
-  it("sends the system prompt + tools + tool_choice:auto on the wire", async () => {
+  it("sends the system prompt + ALL tools + tool_choice:auto on the wire (T-266: slicing removed)", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
       sseResponse([sseChunk({ choices: [{ delta: { content: "salut" } }] }), DONE]),
     );
@@ -545,10 +551,38 @@ describe("T-260 — AIAgentRuntime.runConversationStep", () => {
     const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
     expect(body.messages[0].role).toBe("system");
     expect(body.messages[0].content).toContain("El-Imtiyaz");
-    expect(body.tools).toHaveLength(6);
+    // T-266 (REG-005 repair): EVERY tool schema is always on the wire —
+    // the 6ce49b9 patch sliced tools on French keywords, so "hello"
+    // (FAST tier) saw only 3 schemas and any non-keyword financial
+    // question silently lost financial capability. The runtime asserts
+    // the FULL registry (not a hardcoded count) so future deep tools
+    // (T-267) extend this contract automatically.
+    expect(body.tools).toHaveLength(SYSTEM_TOOLS_DEFINITIONS.length);
+    expect(SYSTEM_TOOLS_DEFINITIONS.length).toBeGreaterThanOrEqual(6);
     expect(body.tool_choice).toBe("auto");
-    expect(body.model).toBe("llama-3.3-70b-versatile");
+    // "hello" routes to the FAST tier (fastModel), not defaultModel.
+    expect(body.model).toBe("llama-3.1-8b-instant");
     expect(body.max_tokens).toBe(RUNTIME_CONFIG.maxTokens);
+  });
+
+  it("routes a reasoning-tier query to the reasoning model with the same full tool set", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      sseResponse([sseChunk({ choices: [{ delta: { content: "ok" } }] }), DONE]),
+    );
+    await AIAgentRuntime.runConversationStep({
+      config: RUNTIME_CONFIG,
+      conversation: [userMsg("Analyse comparatif des moyennes générales par classe")],
+      repositories: mockRepositories,
+      onTextDelta: () => {},
+      onToolStart: () => {},
+      onToolFinish: () => {},
+      onActionProposed: () => {},
+    });
+    const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
+    // "Analyse comparatif" → HEAVY_REASONING → reasoningModel
+    // (= llama-3.3-70b-versatile in DEFAULT_AI_PROVIDER_CONFIG).
+    expect(body.model).toBe("llama-3.3-70b-versatile");
+    expect(body.tools).toHaveLength(SYSTEM_TOOLS_DEFINITIONS.length);
   });
 });
 

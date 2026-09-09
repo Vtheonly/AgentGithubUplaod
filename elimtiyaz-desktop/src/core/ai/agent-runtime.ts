@@ -2,19 +2,36 @@
 // FILE: elimtiyaz-desktop/src/core/ai/agent-runtime.ts
 // ============================================================================
 /**
- * Multi-Model Agent Reasoning & Dynamic Task Router.
+ * Agent reasoning & tool-execution runtime (T-260, 39th session;
+ * repaired T-266, 41st session — REG-005).
  *
- * Capabilities:
- *   1. Task Complexity Classifier: Classifies incoming queries into FAST vs REASONING.
- *   2. Dynamic Tool Slicing: Only sends relevant tool definitions instead of all 6 schemas,
- *      reducing token footprint by ~75% and preventing 429 rate limits.
- *   3. Guardrail Verifier: Strictly verifies tool inputs from lightweight models before execution.
- *   4. Multi-Tier Rate-Limit Fallback: Auto-switches on HTTP 429 to the fallback model.
+ * Coordinates a multi-turn conversation with the model:
+ *   1. send the conversation + ALL tool schemas (function calling) with
+ *      `stream: true`;
+ *   2. if the model requests tools → execute each via
+ *      `executeSystemTool` against the REAL repositories;
+ *   3. feed the tool results back as `role: "tool"` messages and loop;
+ *   4. stop at the first tool-free assistant message (the final answer),
+ *      or after MAX_TOOL_STEPS rounds (runaway-loop guard).
+ *
+ * Model-tier routing (T-266): the 6ce49b9 patch's keyword intent
+ * classifier is KEPT for MODEL SELECTION only (fast vs reasoning tier —
+ * a misroute costs latency/quality, never capability), but its tool
+ * SLICING is REMOVED: slicing tool availability on French keyword
+ * matches produced silent misroutes (e.g. "qui me doit de l'argent ?"
+ * → FAST slice with no financial tool), the model could not call tools
+ * whose schemas were withheld, and the claimed "~75% token footprint"
+ * reduction is negligible for a ~10-schema payload on Groq's 128k
+ * context. ALL tools are always on the wire; the model decides.
+ *
+ * Mutating tools never write directly — `propose_account_adjustment`
+ * surfaces an `ActionProposal` through `onActionProposed` for the
+ * human-in-the-loop validation card (§15.5/§15.8).
  */
 import type { Repositories } from "../../app/providers/repository-provider";
 import type { AIChatMessage, AIProviderConfig } from "../../domain/model/ai";
 import { SYSTEM_TOOLS_DEFINITIONS, executeSystemTool } from "./tools/system-tools";
-import type { ToolDefinition, ActionProposal } from "./agent-types";
+import type { ActionProposal } from "./agent-types";
 import { PROVIDER_ENDPOINTS, resolveEndpoint, safeAuthHeader } from "./providers/provider-registry";
 import { executeOpenAIStream } from "./streaming/stream-client";
 
@@ -51,15 +68,19 @@ export class AIAgentRuntime {
   private static readonly MAX_TOOL_STEPS = 5;
 
   /**
-   * Analyzes query intent to pick the optimal tool slice and optimal model tier.
+   * Analyzes query intent to pick the optimal MODEL TIER ONLY.
+   *
+   * T-266 repair: tool slicing removed (see file header) — the return
+   * value never restricts tool availability; it only steers the
+   * fast/reasoning model selection. A keyword misroute is therefore
+   * harmless: the fast model still sees every tool schema.
    */
-  private static analyzeIntent(lastUserQuery: string): {
-    complexity: TaskComplexity;
-    allowedTools: ToolDefinition[];
-  } {
+  private static analyzeIntent(lastUserQuery: string): TaskComplexity {
     const q = lastUserQuery.toLowerCase();
 
-    // Heavy reasoning triggers (Finance adjustment, multi-step math, GPA evaluation)
+    // Heavy reasoning triggers (finance adjustment, multi-step math, GPA
+    // evaluation, comparative analysis). "analyse" is deliberately broad —
+    // the reasoning tier is the safe default for synthesis questions.
     const isHeavyReasoning =
       q.includes("remise") ||
       q.includes("ajustement") ||
@@ -69,48 +90,37 @@ export class AIAgentRuntime {
       q.includes("gpa") ||
       q.includes("bulletin") ||
       q.includes("comparatif") ||
-      q.includes("analyse");
+      q.includes("analyse") ||
+      q.includes("prévision") ||
+      q.includes("forecast");
+    if (isHeavyReasoning) return "HEAVY_REASONING";
 
-    if (isHeavyReasoning) {
-      return {
-        complexity: "HEAVY_REASONING",
-        allowedTools: SYSTEM_TOOLS_DEFINITIONS, // All tools available for deep synthesis
-      };
+    // Financial inspection — moderate questions benefit from the fast
+    // tier but never lose financial capability (all tools remain wired).
+    if (
+      q.includes("solde") ||
+      q.includes("impayé") ||
+      q.includes("créance") ||
+      q.includes("tranche") ||
+      q.includes("dette") ||
+      q.includes("retard")
+    ) {
+      return "MODERATE_INSPECTION";
     }
 
-    // Financial ledger check
-    if (q.includes("solde") || q.includes("impayé") || q.includes("créance") || q.includes("tranche") || q.includes("dette")) {
-      return {
-        complexity: "MODERATE_INSPECTION",
-        allowedTools: SYSTEM_TOOLS_DEFINITIONS.filter((t) =>
-          ["search_entities", "get_financial_ledger_summary", "get_school_kpi_overview", "request_user_clarification"].includes(
-            t.function.name,
-          ),
-        ),
-      };
+    // Academic & student notes.
+    if (
+      q.includes("note") ||
+      q.includes("élève") ||
+      q.includes("classe") ||
+      q.includes("présence") ||
+      q.includes("absence")
+    ) {
+      return "MODERATE_INSPECTION";
     }
 
-    // Academic & student notes
-    if (q.includes("note") || q.includes("élève") || q.includes("classe") || q.includes("présence") || q.includes("absence")) {
-      return {
-        complexity: "MODERATE_INSPECTION",
-        allowedTools: SYSTEM_TOOLS_DEFINITIONS.filter((t) =>
-          ["search_entities", "get_student_academic_profile", "request_user_clarification"].includes(
-            t.function.name,
-          ),
-        ),
-      };
-    }
-
-    // Simple search & macro questions
-    return {
-      complexity: "FAST_SEARCH",
-      allowedTools: SYSTEM_TOOLS_DEFINITIONS.filter((t) =>
-        ["search_entities", "get_school_kpi_overview", "request_user_clarification"].includes(
-          t.function.name,
-        ),
-      ),
-    };
+    // Simple search & macro questions.
+    return "FAST_SEARCH";
   }
 
   /**
@@ -171,8 +181,8 @@ export class AIAgentRuntime {
     const lastUserMsg = [...conversation].reverse().find((m) => m.role === "user");
     const userQueryText = lastUserMsg?.content ?? "";
 
-    // 1. Route task & dynamic tool slice
-    const { complexity, allowedTools } = this.analyzeIntent(userQueryText);
+    // 1. Route task tier (model selection only — see file header)
+    const complexity = this.analyzeIntent(userQueryText);
     let activeModel = this.selectModel(complexity, config);
 
     const systemMsg: AIChatMessage = {
@@ -205,8 +215,9 @@ export class AIAgentRuntime {
         temperature: complexity === "FAST_SEARCH" ? 0.2 : config.temperature,
         top_p: config.topP,
         max_tokens: config.maxTokens,
-        tools: allowedTools.length > 0 ? allowedTools : undefined,
-        tool_choice: allowedTools.length > 0 ? "auto" : undefined,
+        // T-266: ALL tools always on the wire (slicing removed — REG-005).
+        tools: SYSTEM_TOOLS_DEFINITIONS.length > 0 ? SYSTEM_TOOLS_DEFINITIONS : undefined,
+        tool_choice: SYSTEM_TOOLS_DEFINITIONS.length > 0 ? "auto" : undefined,
       };
 
       let result;
@@ -281,12 +292,12 @@ export class AIAgentRuntime {
           argsParsed = {};
         }
 
-        // Guardrail: If a small model attempts an account adjustment with missing fields, escalate or sanitize
-        if (tc.function.name === "propose_account_adjustment") {
-          if (!argsParsed.parent_id || !argsParsed.amount || !argsParsed.reason) {
-            console.warn("[AIAgentRuntime Guardrail] Incomplete proposal parameters, escalating validation.");
-          }
-        }
+        // NOTE (T-266): the 6ce49b9 patch's "guardrail" here was a
+        // console.warn that did NOTHING — a fake safety net. Real argument
+        // validation for mutating proposals now lives INSIDE
+        // executeSystemTool (see system-tools.ts, T-267), which returns a
+        // structured { error } the model must react to — enforcement, not
+        // logging.
 
         const toolOutput = await executeSystemTool(
           tc.function.name,
