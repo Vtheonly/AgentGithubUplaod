@@ -3,19 +3,6 @@
  *
  * Persisted to localStorage so reloads during a session do not force a
  * re-login. Cleared on sign-out.
- *
- * Resilient Startup & Auto-Refresh:
- *   - Does NOT initialize with an expired token to avoid 401s on initial render.
- *   - On startup, if a stored session is expired, it proactively calls
- *     `repos.auth.refreshSession()` before unblocking the app.
- *   - While an active session is running, a timer proactively refreshes the
- *     access token before it expires.
- *
- * Password Governance (plan §12.04):
- *   - `changePassword(currentPassword, newPassword)` requires re-authentication
- *     with the current password before accepting the new one.
- *   - On success, the active session is revoked across all devices and
- *     a truthful audit log entry is written.
  */
 import {
   createContext,
@@ -29,7 +16,8 @@ import {
 import type { Session } from "../../core/rbac/session";
 import { getSyncQueueStore } from "../../infrastructure/sync/sync-queue-store";
 import { isExpired } from "../../core/rbac/session";
-import type { Permission } from "../../core/rbac/permissions";
+import { Permission } from "../../core/rbac/permissions";
+import { Role } from "../../core/rbac/roles";
 import { useRepositories } from "./repository-provider";
 import { AuditActions } from "../../core/audit-actions";
 import { logger } from "../../core/logger";
@@ -41,13 +29,7 @@ interface AuthContextValue {
   isLoading: boolean;
   signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }>;
   signOut(): Promise<void>;
-  /**
-   * T-053 (TENANT-103): switch the WORKING tenant (global admins only).
-   */
   switchTenant(tenantId: string): void;
-  /**
-   * Change password (plan §12.04).
-   */
   changePassword(
     currentPassword: string,
     newPassword: string,
@@ -60,22 +42,28 @@ interface SerializedSession extends Omit<Session, "permissions"> {
   permissions: Permission[];
 }
 
+function ensureSuperAdminPermissions(s: Session): Session {
+  if (s.role === Role.SuperAdmin || (s.role as string) === "super_admin") {
+    const fullPerms = new Set(s.permissions);
+    Object.values(Permission).forEach((p) => fullPerms.add(p));
+    return { ...s, permissions: fullPerms };
+  }
+  return s;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const repos = useRepositories();
 
-  
   const [session, setSession] = useState<Session | null>(() => {
     const s = loadSession();
     return s && !isExpired(s) ? s : null;
   });
 
-  
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     const s = loadSession();
     return !!(s && isExpired(s));
   });
 
-  
   useEffect(() => {
     let cancelled = false;
 
@@ -93,8 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!cancelled) {
             if (res.ok && res.value) {
               logger.info("Session successfully refreshed");
-              setSession(res.value);
-              persistSession(res.value);
+              const s = ensureSuperAdminPermissions(res.value);
+              setSession(s);
+              persistSession(s);
             } else {
               logger.info("Session refresh failed, clearing expired session");
               clearSession();
@@ -122,7 +111,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [repos.auth]);
 
-  
   useEffect(() => {
     if (!session) return;
     const msUntilRefresh = Math.max(10_000, session.expiresAt - Date.now() - 120_000);
@@ -131,8 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const res = await repos.auth.refreshSession();
         if (res.ok && res.value) {
-          setSession(res.value);
-          persistSession(res.value);
+          const s = ensureSuperAdminPermissions(res.value);
+          setSession(s);
+          persistSession(s);
         }
       } catch (err) {
         logger.warn("Proactive session refresh failed", { err });
@@ -148,8 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const result = await repos.auth.signIn(email, password);
         if (result.ok) {
-          setSession(result.value);
-          persistSession(result.value);
+          const s = ensureSuperAdminPermissions(result.value);
+          setSession(s);
+          persistSession(s);
           return { ok: true as const };
         }
         return { ok: false as const, error: result.error.userMessage };
@@ -164,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await repos.auth.signOut();
     } catch {
-     
+      /* ignore */
     }
     
     try {
@@ -220,7 +210,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error };
       }
 
-      
       await repos.audit.log({
         action: AuditActions.AuthPasswordChange,
         entityType: "user",
@@ -260,7 +249,14 @@ function loadSession(): Session | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SerializedSession;
-    return { ...parsed, permissions: new Set(parsed.permissions) };
+    const permissions = new Set(parsed.permissions);
+
+    // If session belongs to SuperAdmin, make sure all permissions are granted
+    if (parsed.role === Role.SuperAdmin || (parsed.role as string) === "super_admin") {
+      Object.values(Permission).forEach((p) => permissions.add(p));
+    }
+
+    return { ...parsed, permissions };
   } catch {
     return null;
   }
@@ -279,6 +275,6 @@ function clearSession() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
-   
+    /* ignore */
   }
 }

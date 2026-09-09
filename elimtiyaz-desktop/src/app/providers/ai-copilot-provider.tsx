@@ -7,16 +7,6 @@
  * Owns the application-wide AI assistant state: drawer open/closed, the
  * agentic conversation, live streaming delta, active tool execution, and
  * the human-in-the-loop ActionProposals.
- *
- * Provider ORDER (app.tsx): this provider sits INSIDE <ToastProvider> (it
- * uses useToast) and OUTSIDE the routed shell — so the drawer is reachable
- * from every page. The blueprint's placement (outside ToastProvider) was
- * rejected: useToast would throw at mount.
- *
- * Mutation safety (§15.5): `askAgent` only READS through the agent runtime
- * (tools compute via the canonical domain engines). The ONLY write path is
- * `approveAction` — one 1-click human validation → the canonical
- * `repos.payments.adjust` contract, exactly like the account-adjustment UI.
  */
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { AIChatMessage, AIProviderConfig } from "../../domain/model/ai";
@@ -26,6 +16,7 @@ import { useRepositories } from "./repository-provider";
 import type { ActionProposal } from "../../core/ai/agent-types";
 import { useToast } from "./toast-provider";
 import { Permission } from "../../core/rbac/permissions";
+import { Role } from "../../core/rbac/roles";
 import { useAuth } from "./auth-provider";
 
 interface AICopilotContextValue {
@@ -53,7 +44,13 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
-  const canUse = !!session && session.permissions.has(Permission.UseAI);
+  
+  // SuperAdmin is always allowed, or roles with Permission.UseAI
+  const canUse =
+    !!session &&
+    (session.role === Role.SuperAdmin ||
+      session.permissions.has(Permission.UseAI));
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -87,9 +84,6 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
       if (!p) return;
 
       if (p.type === "account_adjustment") {
-        // The ONE sanctioned write path: the canonical payments.adjust
-        // contract (ledger waterfall + audit trail), same as the
-        // account-adjustment screen — the AI only ever proposes.
         const res = await repos.payments.adjust(
           String(p.payload.parentId),
           Number(p.payload.amount),
@@ -105,8 +99,6 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
           toast.showError("Échec", res.error.userMessage);
         }
       } else {
-        // record_attendance / dispatch_task / send_reminder proposals are
-        // display-only for now — mark executed so the card settles.
         toast.showInfo("Proposition notée", `${p.title} — exécution détaillée à venir.`);
         setProposals((prev) =>
           prev.map((x) => (x.id === proposalId ? { ...x, status: "executed" } : x)),

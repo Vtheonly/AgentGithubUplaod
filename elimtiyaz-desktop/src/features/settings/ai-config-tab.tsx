@@ -1,22 +1,10 @@
 /**
- * AIConfigTab — BYOK (Bring Your Own Key) settings UI with LIVE model
- * discovery (T-260/T-261, 39th session — the Agentic AI Architecture).
+ * AIConfigTab — Specialized Multi-Model Configuration.
  *
- * The admin pastes a Groq / OpenRouter / custom OpenAI-compatible key,
- * clicks "Découvrir les modèles" — the tab live-queries the provider's
- * `/models` endpoint (e.g. https://api.groq.com/openai/v1/models) and
- * populates the model selector (qwen/qwen3.8-27b,
- * llama-3.3-70b-versatile, …) with ZERO hardcoded model locks. Sampling
- * hyperparameters (temperature / top_p / max_tokens) configure the agent
- * runtime; the inference test measures real streaming latency.
- *
- * PRESERVED from the pre-existing tab (blueprint's un-gated variant
- * REJECTED per AGENTS.md §15.4 — never weaken security for a feature):
- *   - RBAC: SuperAdmin only (Permission.ManageAIConfig);
- *   - persistence through `repos.aiConfig.updateConfig` (audit entry per
- *     save, per plan §11.04 + §11.08);
- *   - AES-256-GCM encryption at rest (ai-config-storage.ts);
- *   - the clear/reset action.
+ * Allows administrators to assign:
+ *   - Fast Model (e.g. llama-3.1-8b-instant): Query routing, entity lookup & formatting
+ *   - Heavy Reasoning Model (e.g. llama-3.3-70b-versatile): Financial audits & complex reasoning
+ *   - Smart Task Routing Switch
  */
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +19,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Sliders,
+  Cpu,
+  Route,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -38,11 +28,13 @@ import { useToast } from "../../app/providers/toast-provider";
 import { useAICopilot } from "../../app/providers/ai-copilot-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { Permission } from "../../core/rbac/permissions";
+import { Role } from "../../core/rbac/roles";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
 import { Badge } from "../../shared/ui/badge";
+import { Switch } from "../../shared/ui/switch";
 import {
   Select,
   SelectTrigger,
@@ -59,14 +51,16 @@ import {
   type AIModelInfo,
 } from "../../domain/model/ai";
 import { clearConfig } from "../../infrastructure/ai/ai-config-storage";
-import { queryLiveProviderModels } from "../../core/ai/providers/provider-registry";
+import { queryLiveProviderModels, resolveEndpoint } from "../../core/ai/providers/provider-registry";
 import { executeOpenAIStream } from "../../core/ai/streaming/stream-client";
-import { resolveEndpoint } from "../../core/ai/providers/provider-registry";
 
 export function AIConfigTab() {
   const { t } = useTranslation();
   const { session } = useAuth();
-  const canManage = !!session && session.permissions.has(Permission.ManageAIConfig);
+  const canManage =
+    !!session &&
+    (session.role === Role.SuperAdmin ||
+      session.permissions.has(Permission.ManageAIConfig));
 
   if (!canManage) {
     return (
@@ -93,29 +87,31 @@ function AIConfigForm() {
   const { reloadConfig } = useAICopilot();
   const config = useObservable(() => repos.aiConfig.observe(), []);
 
-  // Local form state — initialized from the persisted config.
+  // Form state
   const [groqKey, setGroqKey] = useState("");
   const [openRouterKey, setOpenRouterKey] = useState("");
   const [customKey, setCustomKey] = useState("");
   const [customBaseUrl, setCustomBaseUrl] = useState("");
   const [defaultProvider, setDefaultProvider] = useState<AIProvider>("groq");
   const [defaultModel, setDefaultModel] = useState("");
+  const [fastModel, setFastModel] = useState("");
+  const [reasoningModel, setReasoningModel] = useState("");
   const [fallbackModel, setFallbackModel] = useState("");
+  const [enableSmartRouting, setEnableSmartRouting] = useState(true);
   const [temperature, setTemperature] = useState(DEFAULT_AI_PROVIDER_CONFIG.temperature);
   const [topP, setTopP] = useState(DEFAULT_AI_PROVIDER_CONFIG.topP);
   const [maxTokens, setMaxTokens] = useState(DEFAULT_AI_PROVIDER_CONFIG.maxTokens);
+
   const [showGroq, setShowGroq] = useState(false);
   const [showOpenRouter, setShowOpenRouter] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // T-260: live model discovery state.
   const [availableModels, setAvailableModels] = useState<AIModelInfo[]>([]);
   const [fetchingModels, setFetchingModels] = useState(false);
   const [testing, setTesting] = useState<AIProvider | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; latencyMs: number } | null>(null);
 
-  // Hydrate form when the persisted config loads.
   useEffect(() => {
     setGroqKey(config.groqApiKey ?? "");
     setOpenRouterKey(config.openRouterApiKey ?? "");
@@ -123,7 +119,10 @@ function AIConfigForm() {
     setCustomBaseUrl(config.customBaseUrl ?? "");
     setDefaultProvider(config.defaultProvider);
     setDefaultModel(config.defaultModel);
+    setFastModel(config.fastModel || DEFAULT_AI_PROVIDER_CONFIG.fastModel);
+    setReasoningModel(config.reasoningModel || DEFAULT_AI_PROVIDER_CONFIG.reasoningModel);
     setFallbackModel(config.fallbackModel ?? "");
+    setEnableSmartRouting(config.enableSmartRouting ?? true);
     setTemperature(config.temperature);
     setTopP(config.topP);
     setMaxTokens(config.maxTokens);
@@ -140,7 +139,6 @@ function AIConfigForm() {
     }
   };
 
-  /** T-260: live-query the provider's /models endpoint. */
   const fetchModelsForProvider = async (provider: AIProvider, key: string) => {
     if (!key && provider !== "custom_openai") return;
     setFetchingModels(true);
@@ -166,16 +164,13 @@ function AIConfigForm() {
     }
   };
 
-  /** Hydrate the model list when the tab (re)mounts with a key already set. */
   useEffect(() => {
     if (config.defaultProvider && activeKeyFor(config.defaultProvider)) {
       void fetchModelsForProvider(config.defaultProvider, activeKeyFor(config.defaultProvider));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once on persisted-config load; re-running on every keystroke would spam the provider
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
-  /** T-260/T-261: streaming inference test — measures real SSE latency. */
   const handleTestInference = async () => {
     const key = activeKeyFor(defaultProvider);
     if (!key && defaultProvider !== "custom_openai") {
@@ -194,7 +189,7 @@ function AIConfigForm() {
         endpoint.chatCompletionsUrl,
         endpoint.authHeader(key),
         {
-          model: defaultModel || DEFAULT_AI_PROVIDER_CONFIG.defaultModel,
+          model: fastModel || defaultModel || DEFAULT_AI_PROVIDER_CONFIG.defaultModel,
           messages: [{ role: "user", content: "ping" }],
           max_tokens: 5,
         },
@@ -223,7 +218,10 @@ function AIConfigForm() {
           customBaseUrl: customBaseUrl.trim() || null,
           defaultProvider,
           defaultModel: defaultModel.trim(),
+          fastModel: fastModel.trim(),
+          reasoningModel: reasoningModel.trim(),
           fallbackModel: fallbackModel.trim() || null,
+          enableSmartRouting,
           temperature,
           topP,
           maxTokens,
@@ -251,13 +249,12 @@ function AIConfigForm() {
       setCustomKey("");
       setCustomBaseUrl("");
       setDefaultModel(DEFAULT_AI_PROVIDER_CONFIG.defaultModel);
+      setFastModel(DEFAULT_AI_PROVIDER_CONFIG.fastModel);
+      setReasoningModel(DEFAULT_AI_PROVIDER_CONFIG.reasoningModel);
       setFallbackModel("");
+      setEnableSmartRouting(true);
       setDefaultProvider("groq");
-      setTemperature(DEFAULT_AI_PROVIDER_CONFIG.temperature);
-      setTopP(DEFAULT_AI_PROVIDER_CONFIG.topP);
-      setMaxTokens(DEFAULT_AI_PROVIDER_CONFIG.maxTokens);
       setAvailableModels([]);
-      // Refresh the observable so subscribers see the cleared state.
       await repos.aiConfig.updateConfig(
         {
           groqApiKey: null,
@@ -266,7 +263,10 @@ function AIConfigForm() {
           customBaseUrl: null,
           defaultProvider: "groq",
           defaultModel: DEFAULT_AI_PROVIDER_CONFIG.defaultModel,
+          fastModel: DEFAULT_AI_PROVIDER_CONFIG.fastModel,
+          reasoningModel: DEFAULT_AI_PROVIDER_CONFIG.reasoningModel,
           fallbackModel: null,
+          enableSmartRouting: true,
         },
         session.userId,
       );
@@ -276,44 +276,26 @@ function AIConfigForm() {
     }
   }
 
-  const partialConfig: Omit<AIProviderConfig, "updatedAt" | "updatedBy"> = {
-    groqApiKey: groqKey || null,
-    openRouterApiKey: openRouterKey || null,
-    customApiKey: customKey || null,
-    customBaseUrl: customBaseUrl || null,
-    defaultProvider,
-    defaultModel,
-    fallbackModel: fallbackModel || null,
-    temperature,
-    topP,
-    maxTokens,
-  };
-  void partialConfig;
-
   return (
     <Card className="max-w-2xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Bot className="h-4 w-4 text-primary" /> {t("ai.config")} — BYOK
+          <Bot className="h-4 w-4 text-primary" /> Configuration IA Multi-Modèles & Routage
         </CardTitle>
         <CardDescription>
-          Fournisseur modèle-agnostique : Groq (ultra-rapide, recommandé), OpenRouter
-          (multi-modèles) ou tout serveur compatible OpenAI (Ollama, LM Studio…). Découverte
-          des modèles en direct via l&apos;API du fournisseur. Les clés sont chiffrées
-          (AES-256-GCM) avant d&apos;être stockées localement.
+          Architecture multi-modèles : déléguez les requêtes simples et les recherches à un modèle rapide et léger (ex: LLaMA 3.1 8B), et réservez le modèle à fort raisonnement (ex: LLaMA 3.3 70B) aux audits financiers et aux synthèses académiques.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Encryption-at-rest info banner */}
         <div className="flex items-start gap-3 rounded-md border border-status-success/30 bg-status-success/5 p-3">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-status-success" />
           <div>
-            <p className="text-sm font-medium text-status-success">Chiffrement au repos</p>
+            <p className="text-sm font-medium text-status-success">Chiffrement matériel AES-256-GCM</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{t("ai.encryptionNote")}</p>
           </div>
         </div>
 
-        {/* Provider + keys */}
+        {/* Provider selection */}
         <FormField label={t("ai.defaultProvider")}>
           <Select
             value={defaultProvider}
@@ -322,8 +304,7 @@ function AIConfigForm() {
               setDefaultProvider(p);
               setAvailableModels([]);
               setTestResult(null);
-              const k =
-                p === "groq" ? groqKey : p === "openrouter" ? openRouterKey : customKey;
+              const k = p === "groq" ? groqKey : p === "openrouter" ? openRouterKey : customKey;
               if (k || p === "custom_openai") {
                 void fetchModelsForProvider(p, k);
               }
@@ -342,6 +323,7 @@ function AIConfigForm() {
           </Select>
         </FormField>
 
+        {/* API Key inputs */}
         {defaultProvider === "groq" && (
           <ProviderKeyField
             label={t("ai.groqKey")}
@@ -354,15 +336,7 @@ function AIConfigForm() {
             discovering={fetchingModels}
             onDiscover={() => void fetchModelsForProvider("groq", groqKey)}
             t={t}
-            hint={
-              <>
-                Endpoint :{" "}
-                <code className="font-mono text-[10px]">
-                  https://api.groq.com/openai/v1
-                </code>{" "}
-                — « Groq with a Q » (PAS xAI Grok). Clé gratuite sur console.groq.com.
-              </>
-            }
+            hint="Obtenez votre clé gratuite sur console.groq.com/keys"
           />
         )}
 
@@ -378,7 +352,6 @@ function AIConfigForm() {
             discovering={fetchingModels}
             onDiscover={() => void fetchModelsForProvider("openrouter", openRouterKey)}
             t={t}
-            hint={<>Utilisé uniquement lorsque Groq retourne 429. Ne PAS envoyer le même prompt en parallèle.</>}
           />
         )}
 
@@ -386,7 +359,7 @@ function AIConfigForm() {
           <>
             <ProviderKeyField
               label={t("ai.customKey")}
-              placeholder="facultatif (Ollama n'en demande pas)"
+              placeholder="Facultatif pour Ollama"
               value={customKey}
               onChange={setCustomKey}
               show={showCustom}
@@ -395,9 +368,8 @@ function AIConfigForm() {
               discovering={fetchingModels}
               onDiscover={() => void fetchModelsForProvider("custom_openai", customKey)}
               t={t}
-              hint={<>Ollama / LM Studio / vLLM — toute API compatible OpenAI.</>}
             />
-            <FormField label={t("ai.customBaseUrl")} hint="ex: http://localhost:11434/v1">
+            <FormField label="URL de base personnalisée" hint="ex: http://localhost:11434/v1">
               <Input
                 value={customBaseUrl}
                 onChange={(e) => setCustomBaseUrl(e.target.value)}
@@ -408,88 +380,96 @@ function AIConfigForm() {
           </>
         )}
 
-        {/* Model selection — live-discovered list or free input */}
-        <div className="space-y-4 border-t pt-4">
-          <FormField
-            label={t("ai.defaultModel")}
-            hint={
-              availableModels.length > 0
-                ? `${availableModels.length} ${t("ai.modelsFound")} — sélection dans la liste`
-                : "Saisissez l'identifiant ou cliquez Découvrir avec une clé valide"
-            }
-          >
-            {availableModels.length > 0 ? (
-              <Select value={defaultModel} onValueChange={(m) => setDefaultModel(m)}>
-                <SelectTrigger className="font-mono text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-64 font-mono text-xs">
-                  {availableModels.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  value={defaultModel}
-                  onChange={(e) => setDefaultModel(e.target.value)}
-                  placeholder="ex: qwen/qwen3.8-27b ou llama-3.3-70b-versatile"
-                  className="font-mono text-xs"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void fetchModelsForProvider(defaultProvider, activeKeyFor(defaultProvider))}
-                  disabled={fetchingModels}
-                >
-                  {fetchingModels ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  <span className="ml-1.5 hidden text-xs sm:inline">{t("ai.discoverModels")}</span>
-                </Button>
-              </div>
-            )}
-          </FormField>
-
-          <FormField label={t("ai.fallbackModel")} hint="Utilisé si le modèle principal retourne 429 / 503">
-            <Input
-              value={fallbackModel}
-              onChange={(e) => setFallbackModel(e.target.value)}
-              placeholder="ex: llama-3.3-70b-versatile"
-              className="font-mono text-xs"
+        {/* Multi-Model Task Routing Switch */}
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Route className="h-4 w-4 text-primary" />
+              <Label className="text-sm font-semibold text-foreground cursor-pointer">
+                Routage Intelligent Multi-Modèles
+              </Label>
+            </div>
+            <Switch
+              checked={enableSmartRouting}
+              onCheckedChange={setEnableSmartRouting}
             />
-          </FormField>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Optimise les quotas en allouant automatiquement chaque prompt au modèle le plus adapté : les recherches et questions simples passent par le <strong>Modèle Rapide</strong>, tandis que les calculs de dettes et propositions de remises sont traités par le <strong>Modèle Raisonnement</strong>.
+          </p>
         </div>
 
-        {/* Sampling hyperparameters (drive the agent runtime) */}
+        {/* Specialized Models Setup */}
+        <div className="space-y-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Fast model */}
+            <FormField
+              label="⚡ Modèle Rapide / Outils (Fast Model)"
+              hint="Pour recherches d'élèves, filtrage et réponses instantanées"
+            >
+              <Input
+                value={fastModel}
+                onChange={(e) => setFastModel(e.target.value)}
+                placeholder="ex: llama-3.1-8b-instant"
+                className="font-mono text-xs"
+              />
+            </FormField>
+
+            {/* Heavy reasoning model */}
+            <FormField
+              label="🧠 Modèle Raisonnement (Heavy Reasoning)"
+              hint="Pour analyses financières, déductions de remises et synthèses"
+            >
+              <Input
+                value={reasoningModel}
+                onChange={(e) => setReasoningModel(e.target.value)}
+                placeholder="ex: llama-3.3-70b-versatile"
+                className="font-mono text-xs"
+              />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Modèle Général par défaut" hint="Utilisé si le routage dynamique est désactivé">
+              <Input
+                value={defaultModel}
+                onChange={(e) => setDefaultModel(e.target.value)}
+                placeholder="ex: llama-3.3-70b-versatile"
+                className="font-mono text-xs"
+              />
+            </FormField>
+
+            <FormField label="Modèle de secours (Fallback 429)" hint="Activé automatiquement si la limite est atteinte">
+              <Input
+                value={fallbackModel}
+                onChange={(e) => setFallbackModel(e.target.value)}
+                placeholder="ex: llama-3.1-8b-instant"
+                className="font-mono text-xs"
+              />
+            </FormField>
+          </div>
+        </div>
+
+        {/* Hyperparameters */}
         <div className="space-y-3 border-t pt-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Sliders className="h-4 w-4" /> {t("ai.sampling")}
+            <Sliders className="h-4 w-4" /> Paramètres d'Échantillonnage
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label className="text-xs">
-                {t("ai.temperature")} ({temperature})
-              </Label>
+              <Label className="text-xs">Température ({temperature})</Label>
               <Input
                 type="number"
                 step="0.05"
                 min="0"
                 max="1.5"
                 value={temperature}
-                onChange={(e) => setTemperature(parseFloat(e.target.value) || 0.6)}
+                onChange={(e) => setTemperature(parseFloat(e.target.value) || 0.5)}
                 className="mt-1 h-8 font-mono text-xs"
               />
             </div>
             <div>
-              <Label className="text-xs">
-                {t("ai.topP")} ({topP})
-              </Label>
+              <Label className="text-xs">Top P ({topP})</Label>
               <Input
                 type="number"
                 step="0.05"
@@ -501,9 +481,7 @@ function AIConfigForm() {
               />
             </div>
             <div>
-              <Label className="text-xs">
-                {t("ai.maxTokens")} ({maxTokens})
-              </Label>
+              <Label className="text-xs">Max Tokens ({maxTokens})</Label>
               <Input
                 type="number"
                 step="128"
@@ -521,7 +499,7 @@ function AIConfigForm() {
         <div className="flex items-center gap-2 pt-2">
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            {t("ai.save")}
+            Enregistrer la configuration
           </Button>
           <Button
             variant="outline"
@@ -533,11 +511,11 @@ function AIConfigForm() {
             ) : (
               <Zap className="h-4 w-4 text-status-warning" />
             )}
-            {t("ai.inferenceTest")}
+            Tester le modèle rapide
           </Button>
           <Button variant="outline" onClick={handleClear} disabled={saving}>
             <Trash2 className="h-4 w-4" />
-            {t("ai.clear")}
+            Effacer
           </Button>
           {testResult && (
             <Badge
@@ -556,10 +534,6 @@ function AIConfigForm() {
     </Card>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Provider key field (Groq / OpenRouter / custom share the shape)    */
-/* ------------------------------------------------------------------ */
 
 function ProviderKeyField({
   label,

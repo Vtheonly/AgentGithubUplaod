@@ -4,16 +4,11 @@
 /**
  * Universal AI Copilot drawer (T-261, 39th session).
  *
- * The floating side panel that slides in when invoked (Ctrl+J / Cmd+J, the
- * Topbar Assistant IA button, or the command palette's ask-the-AI action).
  * Renders:
- *   - the conversation (user/assistant bubbles + tool-execution chips);
- *   - the LIVE streaming delta bubble while the model tokenizes;
- *   - the active tool chip while a domain tool executes;
- *   - the human-in-the-loop ActionProposal cards (Valider / Ignorer);
- *   - starter suggestions when the conversation is empty.
- *
- * Pure presentation — all state lives in AICopilotProvider.
+ *   - markdown-formatted assistant responses with tables and rich formatting
+ *   - live streaming markdown deltas
+ *   - tool execution indicators
+ *   - human-in-the-loop action proposals
  */
 import { useState, useRef, useEffect } from "react";
 import {
@@ -32,11 +27,12 @@ import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Badge } from "../../shared/ui/badge";
 import { Card } from "../../shared/ui/card";
+import { MarkdownView } from "../../shared/ui/markdown-view";
 
 const STARTER_SUGGESTIONS = [
   "Quel est le montant total des créances en retard ?",
   "Y a-t-il des alertes d'assiduité ce trimestre ?",
-  "Donne-moi la fiche académique du premier élève en retard.",
+  "Donne-moi la situation financière globale de l'école.",
 ];
 
 export function AICopilotDrawer() {
@@ -74,7 +70,7 @@ export function AICopilotDrawer() {
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-border bg-surface-panel shadow-2xl">
+    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-border bg-surface-panel shadow-2xl">
       {/* Header */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-2">
@@ -163,15 +159,15 @@ export function AICopilotDrawer() {
           const isUser = m.role === "user";
           return (
             <div key={m.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-              <div
-                className={`max-w-[85%] break-words whitespace-pre-wrap rounded-lg px-3.5 py-2.5 text-xs leading-relaxed ${
-                  isUser
-                    ? "bg-primary font-medium text-primary-foreground"
-                    : "border border-border/60 bg-surface-elevated text-foreground shadow-sm"
-                }`}
-              >
-                {m.content}
-              </div>
+              {isUser ? (
+                <div className="max-w-[85%] break-words whitespace-pre-wrap rounded-lg bg-primary px-3.5 py-2.5 text-xs font-medium text-primary-foreground leading-relaxed">
+                  {m.content}
+                </div>
+              ) : (
+                <div className="w-full max-w-[96%] rounded-lg border border-border/60 bg-surface-elevated px-3.5 py-2.5 text-xs shadow-sm">
+                  <MarkdownView content={m.content ?? ""} />
+                </div>
+              )}
               <span className="mt-1 px-1 text-[10px] text-muted-foreground">
                 {new Date(m.timestamp).toLocaleTimeString("fr-FR", {
                   hour: "2-digit",
@@ -184,7 +180,7 @@ export function AICopilotDrawer() {
 
         {/* Live streaming delta bubble */}
         {isStreaming && (
-          <div className="flex flex-col items-start space-y-1">
+          <div className="flex flex-col items-start space-y-1 w-full">
             {activeToolName && (
               <div className="flex animate-pulse items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary">
                 <Wrench className="h-3 w-3 animate-spin" />
@@ -192,8 +188,8 @@ export function AICopilotDrawer() {
               </div>
             )}
             {streamingDelta && (
-              <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-lg border border-border/60 bg-surface-elevated px-3.5 py-2.5 text-xs leading-relaxed text-foreground shadow-sm">
-                {streamingDelta}
+              <div className="w-full max-w-[96%] rounded-lg border border-border/60 bg-surface-elevated px-3.5 py-2.5 text-xs shadow-sm">
+                <MarkdownView content={streamingDelta} />
               </div>
             )}
             {!streamingDelta && !activeToolName && (
@@ -205,7 +201,7 @@ export function AICopilotDrawer() {
           </div>
         )}
 
-        {/* Pending Action Proposals — human-in-the-loop validation */}
+        {/* Pending Action Proposals */}
         {proposals
           .filter((p) => p.status === "pending")
           .map((p) => (

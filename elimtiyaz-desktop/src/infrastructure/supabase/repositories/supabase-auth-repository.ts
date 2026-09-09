@@ -118,7 +118,19 @@ export class SupabaseAuthRepository implements AuthRepository {
     const primaryRole = roleCodes[0] ? mapRoleCode(roleCodes[0]) : Role.SupportStaff;
 
     const { data: permsData } = await this.client.rpc("current_user_permissions");
-    const permissions = mapPermissionCodes(permsData ?? []);
+    // T-266 (AI-309): enforce the client invariant "SuperAdmin is
+    // unrestricted" (permissions.ts DEFAULT_ROLE_PERMISSIONS) after the DB
+    // mapping — the DB permission catalog never gained the AI codes
+    // ("use_ai"/"manage_ai_config", plan §11), so a DB-derived SuperAdmin
+    // session would otherwise lack them forever and the AI gates would
+    // lock out the very role plan §11.04/§11.05 authorizes. UI gate only —
+    // server-side RLS stays authoritative for every actual data access.
+    let permissions = mapPermissionCodes(permsData ?? []);
+    if (primaryRole === Role.SuperAdmin) {
+      const repaired = new Set<Permission>(permissions);
+      for (const p of Object.values(Permission)) repaired.add(p);
+      permissions = repaired;
+    }
 
     const session: Session = {
       userId: profile.id,
