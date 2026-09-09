@@ -2,13 +2,17 @@
 // FILE: elimtiyaz-desktop/src/features/ai/copilot-drawer.tsx
 // ============================================================================
 /**
- * Universal AI Copilot drawer (T-261, 39th session).
+ * Universal AI Copilot drawer (T-261, 39th session; COMPLETED T-268,
+ * 41st session).
  *
  * Renders:
  *   - markdown-formatted assistant responses with tables and rich formatting
  *   - live streaming markdown deltas
  *   - tool execution indicators
  *   - human-in-the-loop action proposals
+ *   - T-268: the clarification question card (the model's question made
+ *     actionable) + the stop-generation button + the persisted-conversation
+ *     hint in the header.
  */
 import { useState, useRef, useEffect } from "react";
 import {
@@ -21,6 +25,8 @@ import {
   AlertCircle,
   Wrench,
   ChevronRight,
+  Square,
+  HelpCircle,
 } from "lucide-react";
 import { useAICopilot } from "../../app/providers/ai-copilot-provider";
 import { Button } from "../../shared/ui/button";
@@ -45,20 +51,25 @@ export function AICopilotDrawer() {
     activeToolName,
     proposals,
     config,
+    pendingClarification,
     askAgent,
+    answerClarification,
+    dismissClarification,
+    stopStreaming,
     clearConversation,
     approveAction,
     dismissAction,
   } = useAICopilot();
 
   const [input, setInput] = useState("");
+  const [clarificationAnswer, setClarificationAnswer] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streamingDelta, activeToolName]);
+  }, [messages, streamingDelta, activeToolName, pendingClarification]);
 
   if (!isOpen) return null;
 
@@ -233,6 +244,53 @@ export function AICopilotDrawer() {
           ))}
       </div>
 
+      {/* T-268 — the model's clarification question, made actionable */}
+      {pendingClarification && !isStreaming && (
+        <div className="border-t border-primary/30 bg-primary/5 px-4 py-3">
+          <div className="mb-2 flex items-start gap-2">
+            <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-foreground">
+                {pendingClarification.question}
+              </p>
+              {pendingClarification.details && (
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {pendingClarification.details}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent/10"
+              onClick={dismissClarification}
+              title="Ignorer la question"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!clarificationAnswer.trim()) return;
+              const answer = clarificationAnswer;
+              setClarificationAnswer("");
+              void answerClarification(answer);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Input
+              value={clarificationAnswer}
+              onChange={(e) => setClarificationAnswer(e.target.value)}
+              placeholder="Votre réponse…"
+              className="h-9 flex-1 bg-surface-background text-xs"
+            />
+            <Button type="submit" size="icon" className="h-9 w-9 shrink-0" disabled={!clarificationAnswer.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+      )}
+
       {/* Input bar */}
       <div className="border-t border-border bg-surface-panel p-3">
         <form
@@ -249,14 +307,26 @@ export function AICopilotDrawer() {
             className="h-10 flex-1 bg-surface-background text-xs"
             disabled={isStreaming}
           />
-          <Button
-            type="submit"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            disabled={!input.trim() || isStreaming}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          {isStreaming ? (
+            <Button
+              type="button"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={stopStreaming}
+              title="Arrêter la génération"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              disabled={!input.trim() || isStreaming}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
         </form>
       </div>
     </div>
