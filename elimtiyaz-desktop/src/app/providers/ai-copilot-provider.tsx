@@ -98,14 +98,37 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
         } else {
           toast.showError("Échec", res.error.userMessage);
         }
+      } else if (p.type === "send_reminder") {
+        // T-267 — the canonical debt reminder (repos.debt.sendReminder:
+        // notification + audit entry, VAULT §07.06). Closes AI-308
+        // residual (b): a proposal type that executes a REAL side effect.
+        const res = await repos.debt.sendReminder(String(p.payload.parentId));
+        if (res.ok) {
+          toast.showSuccess("Rappel envoyé", p.summary);
+          setProposals((prev) =>
+            prev.map((x) => (x.id === proposalId ? { ...x, status: "executed" } : x)),
+          );
+        } else {
+          toast.showError("Échec de l'envoi", res.error.userMessage);
+        }
       } else {
-        toast.showInfo("Proposition notée", `${p.title} — exécution détaillée à venir.`);
+        // T-267 (honest settle): record_attendance / dispatch_task have NO
+        // canonical execution path yet — the 6ce49b9-era code marked them
+        // "executed" with a vague "à venir" toast, which LIED to the user
+        // (a proposal card that settles as executed without doing
+        // anything). No tool in the current registry generates these
+        // types (see system-tools.ts); if one ever does, its execution leg
+        // must be added HERE in the same change.
+        toast.showInfo(
+          "Type non exécutable",
+          `Le type « ${p.type} » n'a pas encore d'exécution canonique — proposition rejetée.`,
+        );
         setProposals((prev) =>
-          prev.map((x) => (x.id === proposalId ? { ...x, status: "executed" } : x)),
+          prev.map((x) => (x.id === proposalId ? { ...x, status: "dismissed" } : x)),
         );
       }
     },
-    [proposals, repos.payments, session, toast],
+    [proposals, repos.payments, repos.debt, session, toast],
   );
 
   const dismissAction = useCallback((proposalId: string) => {

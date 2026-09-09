@@ -289,15 +289,24 @@ describe("T-260 — provider registry + live model discovery", () => {
  * ================================================================ */
 
 describe("T-260 — system tool definitions", () => {
-  it("declares the six domain tools with JSON-schema parameters", () => {
-    expect(SYSTEM_TOOLS_DEFINITIONS).toHaveLength(6);
+  it("declares the 12 domain tools with JSON-schema parameters (T-267 deep set)", () => {
+    // T-267: the registry grew from 6 to 12 — the deep debt-collection,
+    // attendance, class-performance, payment-history and reminder-
+    // proposal tools the owner's production-quality mandate required.
+    expect(SYSTEM_TOOLS_DEFINITIONS).toHaveLength(12);
     const names = SYSTEM_TOOLS_DEFINITIONS.map((d) => d.function.name);
     expect(names).toEqual([
       "search_entities",
       "get_financial_ledger_summary",
+      "get_overdue_accounts",
+      "get_collection_analytics",
+      "get_payment_history",
       "get_student_academic_profile",
+      "get_student_attendance",
+      "get_class_performance",
       "get_school_kpi_overview",
       "propose_account_adjustment",
+      "propose_payment_reminder",
       "request_user_clarification",
     ]);
     for (const def of SYSTEM_TOOLS_DEFINITIONS) {
