@@ -154,7 +154,7 @@
 - **Problems:** process (ADR-007) · **Priority:** P2
 - **Dependencies:** T-246..T-253 · **Affected:** all repos
 - **Plan:** problem-registry entries + status flips, change-log 37th-session section, current-state snapshot, next-task 38th recommendation, conventional commits with the 5-question body, zips in download/, push with the owner PAT (re-supplied; the previous PAT placeholder in the paste was redacted — request re-supply if push 401s).
-- **Status:** Completed (2026-09-09: UI-306 continuation registered [218 detailed entries], statuses flipped, change-log/current-state/next-task updated, commits + zips + push attempted; the PAT placeholder in the owner's paste was REDACTED — see the push note)
+- **Status:** Completed (2026-09-09: UI-306 continuation registered [218 detailed entries], statuses flipped, change-log/current-state/next-task updated, commits + zips; the session-open push was blocked by the REDACTED PAT placeholder — push COMPLETED same-day with the owner's re-supplied PAT: 4d28a79 + 2632cfd on origin/main, fetch-confirmed in-sync across all three repos)
 
 ---
 
