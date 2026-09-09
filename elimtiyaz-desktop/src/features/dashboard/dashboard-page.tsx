@@ -11,7 +11,8 @@
  * so the weekly-rhythm chart reads REAL rows. Still ONE data flow: the
  * tab never fetches; the modal receives the same prop shape.
  *
- * Tabs: Overview / Alerts / Reports.
+ * Tabs: Overview / Analytique (T-255, 38th session — UI-307) / Alerts /
+ * Reports.
  * Per AGENTS.md §15.9 — migrations are append-only; this changes UI code
  * only, no schema touch.
  */
@@ -22,6 +23,7 @@ import {
   LayoutDashboard,
   FileText,
   Bell,
+  BarChart3,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -41,6 +43,7 @@ import {
   computeDateRange,
 } from "./academic-year-selector";
 import { OverviewTab } from "./tabs/overview-tab";
+import { AnalyticsTab } from "./tabs/analytics-tab";
 import { AlertsTab } from "./tabs/alerts-tab";
 import { ReportsTab } from "./tabs/reports-tab";
 import {
@@ -49,8 +52,12 @@ import {
   AVAILABLE_ACADEMIC_YEARS,
 } from "./tabs/types";
 import type { Payment } from "../../domain/model/payment";
+import {
+  previousAcademicYear,
+  shiftIsoYearBack,
+} from "./components/analytics/analytics-derivations";
 
-type DashboardTab = "overview" | "alerts" | "reports";
+type DashboardTab = "overview" | "analytics" | "alerts" | "reports";
 
 /**
  * DashboardData — the single source of truth passed to both the
@@ -91,6 +98,11 @@ export function DashboardPage() {
   // T-243: the canonical payments stream (one subscription, feeds the
   // weekly-rhythm chart — the calendar reads the same observable).
   const [payments, setPayments] = useState<readonly Payment[]>([]);
+  // T-255 (38th session, UI-307): the PREVIOUS academic year's revenue for
+  // the same month window — loaded once per range change for the Analytics
+  // tab's like-for-like YoY comparison. Empty when the selected year is the
+  // earliest available (the card renders its honest unavailable state).
+  const [prevRevenue, setPrevRevenue] = useState<RevenuePoint[]>([]);
   const [seeDetailsOpen, setSeeDetailsOpen] = useState(false);
   const [seeDetailsTab, setSeeDetailsTab] = useState<SeeDetailsTab>("revenue");
   const [tab, setTab] = useState<DashboardTab>("overview");
@@ -131,6 +143,28 @@ export function DashboardPage() {
       });
     })();
   }, [repos.dashboard, repos.debt, yearRange]);
+
+  // T-255: load the previous academic year's series for the YoY card —
+  // the SAME month window shifted back one year (like-for-like months).
+  // Only years present in AVAILABLE_ACADEMIC_YEARS are fetched.
+  const prevYearCode = previousAcademicYear(yearRange.academicYear);
+  const loadablePrevYear =
+    prevYearCode && AVAILABLE_ACADEMIC_YEARS.includes(prevYearCode) ? prevYearCode : null;
+  useEffect(() => {
+    const currentRange = yearRange.range;
+    if (!loadablePrevYear || !currentRange) {
+      setPrevRevenue([]);
+      return;
+    }
+    void (async () => {
+      const shifted = {
+        from: shiftIsoYearBack(currentRange.from),
+        to: shiftIsoYearBack(currentRange.to),
+      };
+      const prev = await repos.dashboard.revenueForRange(loadablePrevYear, shifted);
+      setPrevRevenue(prev.ok ? prev.value : []);
+    })();
+  }, [repos.dashboard, loadablePrevYear, yearRange.range]);
 
   // T-243 — subscribe ONCE to the canonical payments observable. The
   // weekly-rhythm chart derives its weekday × method matrix from this
@@ -225,6 +259,9 @@ export function DashboardPage() {
       >
         <PageTabList>
           <PageTab value="overview" label={t("dashboard.overview")} icon={LayoutDashboard} />
+          {/* T-255 (UI-307): the Power BI-style analytics report page —
+              statistics, trends, comparisons, distributions, heatmap. */}
+          <PageTab value="analytics" label="Analytique" icon={BarChart3} />
           {/* Unread badge — a real operational signal, not a decoration.
               The count prop renders inside the tab via PageTab's CountBadge.
               countTone="danger" makes it red so urgent alerts stand out. */}
@@ -245,6 +282,19 @@ export function DashboardPage() {
             range={yearRange.range}
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
+          />
+        </PageTabContent>
+
+        <PageTabContent value="analytics">
+          <AnalyticsTab
+            revenue={data.revenue}
+            prevRevenue={prevRevenue}
+            academicYear={yearRange.academicYear}
+            prevAcademicYear={loadablePrevYear}
+            debtAging={data.debtAging}
+            topDebtors={data.topDebtors}
+            payments={payments}
+            range={yearRange.range}
           />
         </PageTabContent>
 
