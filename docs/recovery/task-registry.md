@@ -132,6 +132,20 @@
 - **Plan:** AI-308 problem entry with evidence, task status flips, change-log 39th-session section, current-state snapshot, next-task 40th recommendation, conventional commits with the 5-question body, zips in download/, push with the owner PAT (one-shot URL, never persisted).
 - **Status:** Completed (2026-09-10: AI-308 registered with full evidence, statuses flipped, change-log/current-state/next-task updated, commits + zips + push with the owner PAT)
 
+**40th repair session (2026-09-10, IN PROGRESS) — owner mandate: "fix it and push it" (the post-39th-launch console-noise fix: the 406 spam from the approval-queue matcher) + a Groq BYOK key supplied for the AI.** Session-opening ritual: hub repo re-used from the 39th-session close (HEAD e0f090f, clean tree); the baseline is the 39th-session close suite (116 files / 2782 / 0). Registered BEFORE implementation per AGENTS.md §13.
+
+### T-264 — Approval-queue 406-noise: findPotentialMatches .single() → .maybeSingle() (OPS-309)
+- **Problems:** OPS-309 (NEW — see problem registry) · **Priority:** P2
+- **Dependencies:** none · **Affected:** hub desktop (`src/infrastructure/supabase/repositories/supabase-approval-repository.ts`, NEW `src/tests/infrastructure/t-264-approval-406-noise.test.ts`)
+- **Plan:** the Settings→Approvals tab's `listPending()` enriches each pending request via `findPotentialMatches()`, which fires up to 4 `.is(col, null).single()` lookups (activation_codes by code, parents by email / national_id / phone) + a parents-by-id `.single()` — every one that legitimately matches ZERO rows returns PostgREST 406 PGRST116 ("JSON object requested, multiple (or no) rows returned") because `.single()` ERRORS on 0 rows. The code already treats "error or null" as no-match (falls through to the next strategy), so the app works — but the production console spams ~15 red 406s per approval-queue refresh (owner-reported at the 39th-session launch, 2026-09-09 20:36). Fix: convert all 5 `.single()` calls in `findPotentialMatches` to `.maybeSingle()` (the established codebase pattern — `supabase-academic-repository.ts` already uses it): 0 rows → `data:null, error:null` (HTTP 200, silent), >1 rows → error (same fall-through as today). Semantics preserved: `codeRow?.parent_id` / `if (parent)` guards already handle null. Regression test: behavioral (0-row maybeSingle → `parent_match: null`, no error surfaced; matched row → enrichment; >1-rows error → fall-through) + source-scan guard (no `.single()` remains in the approval repository; the 4 `.is(...)` filters preserved).
+- **Status:** In Progress
+
+### T-265 — 40th-session closeout: registries + change-log + push with the owner PAT
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-264 · **Affected:** all repos
+- **Plan:** OPS-309 problem entry with evidence, task status flips, change-log 40th-session section, current-state snapshot, next-task 41st recommendation, conventional commits with the 5-question body, push with the owner PAT (one-shot URL, never persisted). Also document: the owner-supplied Groq BYOK key verified live against api.groq.com (models endpoint) WITHOUT persisting it anywhere in the repos (§15.12); the EF server-side GROQ_API_KEY secret remains owner-gated (needs the sbp_ token or a dashboard manual set — not supplied this session).
+- **Status:** In Progress
+
 ---
 
 ### T-255 — Analytics tab: shell + derivations + statistics strip + trend explorer + slicers (UI-307)

@@ -107,6 +107,16 @@ export class SupabaseApprovalRepository {
   /**
    * For a given approval request, find a matching parent (by activation_code,
    * email, national_id, or phone). Returns the parent record if found.
+   *
+   * T-264 / OPS-309 (2026-09-10): every lookup here uses `.maybeSingle()` —
+   * NOT `.single()`. Zero-row results are the COMMON case (most pending
+   * requests have no matching parent yet), and `.single()` turns that into a
+   * PostgREST 406 PGRST116 error that spams the production console on every
+   * approval-queue refresh (the owner-reported "h_user_id=is.null → 406"
+   * noise, 2026-09-09 20:36). `.maybeSingle()` returns `data:null` with NO
+   * error for 0 rows; the >1-row case still errors — and BOTH paths already
+   * fall through to the next matching strategy here (only `data` is read),
+   * so the enrichment semantics are byte-identical.
    */
   private async findPotentialMatches(request: AccountApprovalRequestRow): Promise<{
     parent_match: PendingApprovalWithDetails["parent_match"];
@@ -119,14 +129,14 @@ export class SupabaseApprovalRepository {
         .select("parent_id, student_id")
         .eq("code", request.activation_code)
         .is("bound_to_auth_user_id", null)
-        .single();
+        .maybeSingle();
 
       if (codeRow?.parent_id) {
         const { data: parent } = await this.client
           .from("parents")
           .select("id, parent_code, first_name, last_name, primary_phone, email")
           .eq("id", codeRow.parent_id)
-          .single();
+          .maybeSingle();
 
         if (parent) {
           return { parent_match: parent, student_match: null };
@@ -141,7 +151,7 @@ export class SupabaseApprovalRepository {
         .select("id, parent_code, first_name, last_name, primary_phone, email")
         .eq("email", request.email)
         .is("auth_user_id", null)
-        .single();
+        .maybeSingle();
 
       if (parent) {
         return { parent_match: parent, student_match: null };
@@ -155,7 +165,7 @@ export class SupabaseApprovalRepository {
         .select("id, parent_code, first_name, last_name, primary_phone, email")
         .eq("national_id", request.national_id)
         .is("auth_user_id", null)
-        .single();
+        .maybeSingle();
 
       if (parent) {
         return { parent_match: parent, student_match: null };
@@ -169,7 +179,7 @@ export class SupabaseApprovalRepository {
         .select("id, parent_code, first_name, last_name, primary_phone, email")
         .eq("primary_phone", request.phone)
         .is("auth_user_id", null)
-        .single();
+        .maybeSingle();
 
       if (parent) {
         return { parent_match: parent, student_match: null };
