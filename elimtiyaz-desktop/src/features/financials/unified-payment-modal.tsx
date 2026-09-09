@@ -143,6 +143,9 @@ export function UnifiedPaymentModal({
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [alert, setAlert] = useState<Alert | null>(null);
+  // T-249 (AI-review Screen 7) — cashier change-return calculator state:
+  // the banknote amount handed by the parent (Espèces only). Reset on close.
+  const [givenCash, setGivenCash] = useState(0);
 
   // === Derived from context (or fallback) ===
   const effectiveParentId = context?.parentId ?? fallbackParentId;
@@ -202,6 +205,7 @@ export function UnifiedPaymentModal({
         setReceiptPayment(null);
         setPdfBytes(null);
         setAlert(null);
+        setGivenCash(0);
       }, 200);
       return () => clearTimeout(t);
     }
@@ -731,6 +735,44 @@ export function UnifiedPaymentModal({
               </div>
             )}
 
+            {/* --- T-249: 1-click quick-pay shortcut chips (AI-review Screen 7) ---
+                Snap the amount to the exact open tranche balance or the full
+                remaining balance — the cashier desk's two most frequent
+                actions. Amounts use the file's established cleared-funds
+                convention (amountDue − amountPaid), same as the auto-suggest
+                effect and the single-item violation check. */}
+            {selectedParent && sliderTranches.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                  Raccourcis d'encaissement direct :
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {sliderTranches
+                    .filter((t) => t.amountDue - t.amountPaid > 0)
+                    .slice(0, 2)
+                    .map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setAmount(Math.max(0, t.amountDue - t.amountPaid))}
+                        className="px-2.5 py-1 text-xs rounded border border-border bg-surface-panel hover:border-primary hover:text-primary transition-colors font-mono"
+                      >
+                        Payer {t.label} ({formatDzdPlain(Math.max(0, t.amountDue - t.amountPaid))})
+                      </button>
+                    ))}
+                  {Math.max(0, totalDue - alreadyPaid) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAmount(Math.max(0, totalDue - alreadyPaid))}
+                      className="px-2.5 py-1 text-xs rounded border border-primary/40 bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors font-mono"
+                    >
+                      Soldé total ({formatDzdPlain(Math.max(0, totalDue - alreadyPaid))})
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* --- Adaptive payment slider --- */}
             {selectedParent && sliderTranches.length > 0 ? (
               <div className="rounded-lg border border-border bg-card p-3.5">
@@ -815,6 +857,51 @@ export function UnifiedPaymentModal({
                     </button>
                   ))}
                 </div>
+
+                {/* --- T-249: cashier change-return calculator (Espèces only) ---
+                    "Montant remis" → "Monnaie à rendre". Kills mental-math
+                    errors at the counter; pure UI state, no contract change. */}
+                {method === "cash" && amount > 0 && (
+                  <div className="rounded-lg border border-border/80 bg-surface-elevated/40 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">Calculateur de monnaie</span>
+                      <span className="text-[10px] text-muted-foreground">Comptoir Espèces</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="Montant remis par le parent">
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="Ex : 70000"
+                          className="h-8 font-mono text-xs"
+                          value={givenCash > 0 ? String(givenCash) : ""}
+                          onChange={(e) => setGivenCash(Math.max(0, Number(e.target.value) || 0))}
+                        />
+                      </FormField>
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground block mb-1">
+                          Monnaie à rendre
+                        </label>
+                        <div
+                          className={
+                            "h-8 px-2 rounded border flex items-center font-mono font-bold text-xs break-words " +
+                            (givenCash > amount
+                              ? "border-status-success/40 bg-status-success/10 text-status-success"
+                              : givenCash > 0 && givenCash < amount
+                                ? "border-status-warning/40 bg-status-warning/10 text-status-warning"
+                                : "border-border bg-muted/20 text-muted-foreground")
+                          }
+                        >
+                          {givenCash <= 0
+                            ? "—"
+                            : givenCash >= amount
+                              ? `${formatDzdPlain(givenCash - amount)} DZD`
+                              : `Manque ${formatDzdPlain(amount - givenCash)} DZD`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* --- Structured check fields (vault §07.01) --- */}
                 {method === "check" && (

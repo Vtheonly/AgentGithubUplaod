@@ -4,64 +4,80 @@
 
 /**
  * El-Imtiyaz Design Tokens
- * Source of truth: business plan §03 (Branding & Visual Identity) + Android Color.kt
+ * Source of truth: business plan §03 (Branding & Visual Identity) + Android Color.kt,
+ * REFRESHED by the owner's AI-review Part-2 overhaul (T-246, 37th session,
+ * 2026-09-09): the muddy charcoal surfaces (#242526/#1e1f20) are replaced by
+ * the professional midnight blue-gray canvas, the status hues are crisper,
+ * and the palette gains --brand-violet / --brand-coral / --surface-hover.
  *
  * Color tokens are exposed as CSS variables so the palette can be themed
  * (dark default / light fallback) without touching component code.
  * Per the plan's discipline rule: ALWAYS use tokens, never hard-code hex.
+ *
+ * PARITY CONTRACT (do not break): `tailwind.config.cjs` duplicates these
+ * values as static hexes so opacity utilities (`bg-surface-panel/50`,
+ * `bg-status-danger/10`) resolve at build time — Tailwind 3 cannot apply
+ * alpha to `var()` colors. When a token value changes here, the twin value
+ * in tailwind.config.cjs AND the TS hex fallbacks that mirror the tokens
+ * (`src/shared/ui/dashboard-theme.ts` chartPalette,
+ * `see-details-modal.tsx` useChartPalette, `tabs/types.ts` AGING_COLORS,
+ * `sparkline-kpi-card.tsx` STROKE_BY_TONE) MUST change in the SAME commit.
  */
 @layer base {
   :root {
-    /* === Brand palette (plan §03.01) === */
+    /* === Brand palette (plan §03.01, refreshed T-246) === */
     --brand-blue: #349bd4;
-    --brand-blue-deep: #2b7fb0;
-    --brand-blue-light: #6ec1e4;
-    --brand-cyan: #6ec1e4;
+    --brand-blue-deep: #216d9b;
+    --brand-blue-light: #52b6eb;
+    --brand-cyan: #3dd6d0;
+    --brand-violet: #8b5cf6;
+    --brand-coral: #f43f5e;
     --brand-slate: #3b464c;
     --brand-brown: #836c68;
-    --brand-gold: #c8a98c;
+    --brand-gold: #eab308;
 
-    /* === Status palette === */
-    --status-success: #3fa66e;
-    --status-warning: #c8a98c;
-    --status-danger: #c0504d;
-    --status-info: #6ec1e4;
+    /* === Status palette (refreshed T-246 — crisper hues on midnight) === */
+    --status-success: #10b981;
+    --status-warning: #f59e0b;
+    --status-danger: #ef4444;
+    --status-info: #0ea5e9;
     --status-neutral: #3b464c;
 
-    /* === Dark theme (DEFAULT) === */
-    --surface-background: #242526;
-    --surface-panel: #1e1f20;
-    --surface-elevated: #2a2b2d;
-    --foreground-bright: #eff2f3;
+    /* === Dark theme (DEFAULT) — professional midnight (T-246) === */
+    --surface-background: #0b0d14;
+    --surface-panel: #111523;
+    --surface-elevated: #181d30;
+    --surface-hover: #222842;
+    --foreground-bright: #f8fafc;
 
-    /* === shadcn/ui token mapping (dark theme default) === */
-    --background: 220 7% 15%;
-    --foreground: 210 14% 93%;
+    /* === shadcn/ui token mapping (dark theme default, midnight) === */
+    --background: 226 39% 6%;
+    --foreground: 210 40% 98%;
 
-    --card: 220 6% 13%;
-    --card-foreground: 210 14% 93%;
+    --card: 224 35% 10%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 220 6% 13%;
-    --popover-foreground: 210 14% 93%;
+    --popover: 224 35% 10%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 201 60% 52%;
+    --primary: 201 68% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 6% 18%;
-    --secondary-foreground: 210 14% 93%;
+    --secondary: 223 28% 16%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 220 6% 18%;
-    --muted-foreground: 220 5% 65%;
+    --muted: 223 25% 14%;
+    --muted-foreground: 217 19% 65%;
 
-    --accent: 30 33% 65%;
-    --accent-foreground: 220 7% 15%;
+    --accent: 45 60% 55%;
+    --accent-foreground: 226 39% 6%;
 
-    --destructive: 2 47% 55%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 6% 25%;
-    --input: 220 6% 25%;
-    --ring: 201 60% 52%;
+    --border: 223 24% 18%;
+    --input: 223 24% 18%;
+    --ring: 201 68% 52%;
 
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -76,11 +92,19 @@
   .light,
   [data-theme="light"] {
     /* Light theme — for daytime operation / low-glare environments.
-       Dark is the platform default (set in index.html <html class="dark">). */
+       Dark is the platform default (set in index.html <html class="dark">).
+       T-246: status accents get darker light-mode variants for text contrast
+       on white (the dark-mode values are tuned for the midnight canvas). */
+    --status-success: #0e9f6e;
+    --status-warning: #d97706;
+    --status-danger: #dc2626;
+    --status-info: #0284c7;
+
     --surface-background: #f7f9fb;
     --surface-panel: #ffffff;
-    --surface-elevated: #ffffff;
-    --foreground-bright: #1b2a3a;
+    --surface-elevated: #f4f7fc;
+    --surface-hover: #eef2f9;
+    --foreground-bright: #16233b;
 
     --background: 210 30% 98%;
     --foreground: 215 28% 17%;
@@ -91,24 +115,24 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 17%;
 
-    --primary: 201 60% 52%;
+    --primary: 201 68% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 20% 92%;
+    --secondary: 222 24% 92%;
     --secondary-foreground: 215 28% 17%;
 
-    --muted: 210 20% 92%;
-    --muted-foreground: 215 12% 45%;
+    --muted: 222 24% 93%;
+    --muted-foreground: 217 15% 40%;
 
-    --accent: 30 33% 65%;
-    --accent-foreground: 215 28% 17%;
+    --accent: 45 60% 45%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 2 47% 55%;
+    --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 201 60% 52%;
+    --border: 222 20% 87%;
+    --input: 222 20% 87%;
+    --ring: 201 68% 42%;
   }
 
   * {
@@ -199,6 +223,33 @@
 
   .text-bright {
     color: var(--foreground-bright);
+  }
+
+  /* T-246 (AI-review Part 2) — micro-glow border for professional chart
+     containers: a 1px gradient rim (blue → transparent → violet) masked to
+     the border ring only. Purely decorative; pointer-events none so it can
+     never intercept clicks. Inherit the element's border-radius. */
+  .glow-border {
+    position: relative;
+  }
+  .glow-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brand-blue) 25%, transparent),
+      transparent 50%,
+      color-mix(in srgb, var(--brand-violet) 15%, transparent)
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
   }
 }
 

@@ -28,16 +28,18 @@ function token(name: string, fallback: string): string {
   }
 }
 
-/** Palette for chart strokes/fills — mirrors index.css brand + status tokens. */
+/** Palette for chart strokes/fills — mirrors index.css brand + status tokens
+ *  (T-246 midnight refresh; keep in parity with src/index.css). */
 export const chartPalette = {
   primary: token("--brand-blue", "#349bd4"),
-  primaryDeep: token("--brand-blue-deep", "#2b7fb0"),
-  cyan: token("--brand-cyan", "#6ec1e4"),
-  gold: token("--brand-gold", "#c8a98c"),
+  primaryDeep: token("--brand-blue-deep", "#216d9b"),
+  cyan: token("--brand-cyan", "#3dd6d0"),
+  violet: token("--brand-violet", "#8b5cf6"),
+  gold: token("--brand-gold", "#eab308"),
   slate: token("--brand-slate", "#3b464c"),
-  success: token("--status-success", "#3fa66e"),
-  danger: token("--status-danger", "#c0504d"),
-  info: token("--status-info", "#6ec1e4"),
+  success: token("--status-success", "#10b981"),
+  danger: token("--status-danger", "#ef4444"),
+  info: token("--status-info", "#0ea5e9"),
 };
 
 /** Recharts shared config — gridlines, axis ticks, tooltip chrome. */

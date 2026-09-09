@@ -61,31 +61,35 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
 
-        // Brand palette (plan §03.01)
+        // Brand palette (plan §03.01, refreshed T-246 — mirrors src/index.css;
+        // hexes are duplicated so opacity modifiers resolve at build time)
         brand: {
           blue: "#349bd4",
-          "blue-deep": "#2b7fb0",
-          "blue-light": "#6ec1e4",
-          cyan: "#6ec1e4",
+          "blue-deep": "#216d9b",
+          "blue-light": "#52b6eb",
+          cyan: "#3dd6d0",
+          violet: "#8b5cf6",
+          coral: "#f43f5e",
           slate: "#3b464c",
           brown: "#836c68",
-          gold: "#c8a98c",
+          gold: "#eab308",
         },
 
-        // Status palette
+        // Status palette (T-246 — midnight-tuned hues)
         status: {
-          success: "#3fa66e",
-          warning: "#c8a98c",
-          danger: "#c0504d",
-          info: "#6ec1e4",
+          success: "#10b981",
+          warning: "#f59e0b",
+          danger: "#ef4444",
+          info: "#0ea5e9",
           neutral: "#3b464c",
         },
 
-        // Surfaces
+        // Surfaces (T-246 — midnight canvas)
         surface: {
-          background: "#242526",
-          panel: "#1e1f20",
-          elevated: "#2a2b2d",
+          background: "#0b0d14",
+          panel: "#111523",
+          elevated: "#181d30",
+          hover: "#222842",
         },
       },
       borderRadius: {

@@ -24,10 +24,10 @@ export interface Demographics {
  * to the canonical palette values when the DOM is unavailable (SSR/tests).
  */
 export const AGING_COLORS: Record<string, string> = {
-  "0_30": tokenOr("--status-success", "#3fa66e"),
-  "31_60": tokenOr("--status-info", "#6ec1e4"),
-  "61_90": tokenOr("--status-warning", "#c8a98c"),
-  "91_180": tokenOr("--status-danger", "#c0504d"),
+  "0_30": tokenOr("--status-success", "#10b981"),
+  "31_60": tokenOr("--status-info", "#0ea5e9"),
+  "61_90": tokenOr("--status-warning", "#f59e0b"),
+  "91_180": tokenOr("--status-danger", "#ef4444"),
   "180_plus": tokenOr("--brand-brown", "#836c68"),
 };
 

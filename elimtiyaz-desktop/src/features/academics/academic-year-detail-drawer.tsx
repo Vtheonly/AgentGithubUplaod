@@ -28,6 +28,7 @@ import {
   Star,
   Search,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   Layers,
 } from "lucide-react";
@@ -161,8 +162,53 @@ export function AcademicYearDetailDrawer({
 }
 
 // ============================================================================
-// Overview tab — KPIs + per-cycle breakdown
+// Overview tab — KPIs + readiness index + per-cycle breakdown
 // ============================================================================
+
+/** T-251 — one readiness checklist tile (rate + progress bar + detail). */
+function ReadinessTile({
+  label,
+  rate,
+  tone,
+  detail,
+}: {
+  label: string;
+  rate: number;
+  tone: "success" | "info" | "warning" | "danger";
+  detail: string;
+}) {
+  const barTone =
+    tone === "success"
+      ? "bg-status-success"
+      : tone === "info"
+        ? "bg-primary"
+        : tone === "warning"
+          ? "bg-status-warning"
+          : "bg-status-danger";
+  const textTone =
+    tone === "success"
+      ? "text-status-success"
+      : tone === "info"
+        ? "text-primary"
+        : tone === "warning"
+          ? "text-status-warning"
+          : "text-status-danger";
+  return (
+    <div className="p-3 rounded-lg border border-border/70 bg-surface-elevated/40 space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-foreground truncate">{label}</span>
+        <span className={`text-xs font-mono font-bold shrink-0 ${textTone}`}>{rate}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${barTone}`}
+          style={{ width: `${Math.min(100, Math.max(rate, rate > 0 ? 4 : 0))}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground truncate">{detail}</p>
+    </div>
+  );
+}
 
 function OverviewTab({ year }: { year: AcademicYear }) {
   const repos = useRepositories();
@@ -226,6 +272,17 @@ function OverviewTab({ year }: { year: AcademicYear }) {
       ? Math.round((classesWithTimetable / yearClasses.length) * 100)
       : 0;
 
+  // T-251 (AI-review Screen 4) — pedagogical readiness rates: REAL class
+  // attributes (homeroomTeacherId) + the existing timetable stream.
+  const classesWithHomeroom = yearClasses.filter(
+    (c) => c.homeroomTeacherId !== null,
+  ).length;
+  const homeroomAssignmentRate =
+    yearClasses.length > 0
+      ? Math.round((classesWithHomeroom / yearClasses.length) * 100)
+      : 0;
+  const classesConfiguredRate = yearClasses.length > 0 ? 100 : 0;
+
   // Per-cycle breakdown
   const cycleBreakdown = useMemo(() => {
     const cycles: Array<{ cycle: AcademicLevel; label: string; classes: number; students: number }> = [
@@ -243,7 +300,8 @@ function OverviewTab({ year }: { year: AcademicYear }) {
     return cycles;
   }, [yearClasses]);
 
-  // Per-grade breakdown
+  // Per-grade breakdown — T-251: ALL 14 levels render (empty levels show
+  // honest zero tiles so gaps are visible at a glance instead of hidden).
   const gradeBreakdown = useMemo(() => {
     return GRADE_LEVELS.map((g) => {
       const gradeClasses = yearClasses.filter((c) => c.gradeCode === g);
@@ -257,7 +315,7 @@ function OverviewTab({ year }: { year: AcademicYear }) {
         classes: gradeClasses.length,
         students: gradeStudents,
       };
-    }).filter((g) => g.classes > 0);
+    });
   }, [yearClasses]);
 
   // Subjects without a teacher assigned (data quality check)
@@ -340,6 +398,43 @@ function OverviewTab({ year }: { year: AcademicYear }) {
         />
       </div>
 
+      {/* T-251 (AI-review Screen 4) — Readiness index: the actionable
+          pedagogical checklist (classes configured / homeroom teachers
+          assigned / timetables completed), REAL rates with progress bars. */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4 text-primary" />
+              État de Préparation de l'Année Scolaire
+            </span>
+            <Badge variant="outline" className="text-[10px] font-mono shrink-0">
+              {year.code}
+            </Badge>
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <ReadinessTile
+              label="Salles & Classes"
+              rate={classesConfiguredRate}
+              tone="success"
+              detail={`${yearClasses.length} classe(s) configurée(s)`}
+            />
+            <ReadinessTile
+              label="Enseignants Principaux"
+              rate={homeroomAssignmentRate}
+              tone={homeroomAssignmentRate >= 80 ? "success" : homeroomAssignmentRate > 0 ? "info" : "danger"}
+              detail={`${classesWithHomeroom} / ${yearClasses.length} classes assignées`}
+            />
+            <ReadinessTile
+              label="Emplois du Temps"
+              rate={timetableCoverage}
+              tone={timetableCoverage >= 80 ? "success" : timetableCoverage > 0 ? "warning" : "danger"}
+              detail={`${classesWithTimetable} / ${yearClasses.length} EDT validés`}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Year progress bar */}
       <Card>
         <CardContent className="p-4 space-y-2">
@@ -400,32 +495,44 @@ function OverviewTab({ year }: { year: AcademicYear }) {
         </CardContent>
       </Card>
 
-      {/* Per-grade breakdown */}
-      {gradeBreakdown.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <School className="h-4 w-4 text-primary" />
-              Détail par niveau scolaire
-            </h3>
-            <div className="grid gap-2 grid-cols-2 md:grid-cols-3">
-              {gradeBreakdown.map((g) => (
-                <div
-                  key={g.grade}
-                  className="rounded border border-border/60 bg-muted/20 p-2"
-                >
-                  <p className="text-xs font-medium text-foreground">
+      {/* Per-grade breakdown — T-251: all 14 levels, empty-state tiles included */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <School className="h-4 w-4 text-primary" />
+            Effectifs Détaillés par Niveau (14 paliers)
+          </h3>
+          <div className="grid gap-2.5 grid-cols-2 md:grid-cols-4">
+            {gradeBreakdown.map((g) => (
+              <div
+                key={g.grade}
+                className={
+                  "rounded-lg border p-2.5 flex flex-col justify-between gap-1.5 " +
+                  (g.classes > 0
+                    ? "border-border/80 bg-surface-panel/40"
+                    : "border-border/40 bg-muted/10 opacity-70")
+                }
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <p className="text-xs font-bold text-foreground truncate" title={g.label}>
                     {g.label}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {g.classes} classe(s) · {g.students} élève(s)
-                  </p>
+                  <Badge variant="outline" className="text-[9px] font-mono shrink-0">
+                    {g.classes} cl.
+                  </Badge>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-mono font-bold text-primary">{g.students}</span>
+                  <span className="text-[10px] text-muted-foreground">élèves</span>
+                </div>
+                {g.classes === 0 && (
+                  <p className="text-[9px] text-muted-foreground italic">aucune classe ouverte</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Data quality alerts */}
       {(subjectsWithoutTeacher > 0 || teachersOnLeave > 0) && (

@@ -10,10 +10,18 @@
  * Per plan §07.03: Tuition = 3 tranches; Transport = tier-based.
  * Iteration 9 features (flexible schedule + custom notes + cycle regeneration
  * + overdue scan) are preserved.
+ *
+ * T-248 (2026-09-09, 37th session) — the owner's AI-review Screen-5
+ * "Tranche Wave header": a macro collection-health strip (T1/T2/T3) above
+ * the table, computed from the REAL filtered rows via the canonical
+ * installment sum helpers — never the review's `label.includes("1")`
+ * substring hack (which would also match "Tranche 10" and "Année complète
+ * 1"). The next tranche with a remaining balance is highlighted as the
+ * active collection target.
  */
 import { useState, useMemo, useEffect } from "react";
 import {
-  Wallet, CalendarCog, RefreshCw, Zap, AlertTriangle,
+  Wallet, CalendarCog, RefreshCw, Zap, AlertTriangle, Waves,
 } from "lucide-react";
 import { z } from "zod";
 import { useRepositories } from "../../app/providers/repository-provider";
@@ -36,6 +44,7 @@ import {
   // uncleared funds sat on a tranche (DATA-008).
   sumInstallmentsDue,
   sumInstallmentsPaid,
+  sumInstallmentsPending,
   installmentRemaining,
   totalOutstanding,
 } from "../../domain/model/payment";
@@ -77,6 +86,131 @@ const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "ne
   overdue: "danger",
   cancelled: "neutral",
 };
+
+/**
+ * T-248 — canonical tranche-number matcher (labels: "Tranche 1",
+ * "Tranche 2 (Jan–Mar)", … — never a bare substring match, which would
+ * also catch "Tranche 10" or "Année complète 1").
+ * Returns 1/2/3 or null for non-tranche rows ("Année complète", …).
+ */
+export function trancheNumberOf(label: string): 1 | 2 | 3 | null {
+  const m = /^\s*Tranche\s*([1-3])\b/i.exec(label);
+  return m ? (Number(m[1]) as 1 | 2 | 3) : null;
+}
+
+/** T-248 — one T1/T2/T3 collection wave derived from REAL rows. */
+export interface TrancheWave {
+  readonly index: 1 | 2 | 3;
+  readonly label: string;
+  /** Due-window hint from the canonical schedule (display-only). */
+  readonly hint: string;
+  readonly due: number;
+  readonly paid: number;
+  readonly pending: number;
+  readonly pct: number;
+  readonly isNextTarget: boolean;
+}
+
+const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: string }> = [
+  { index: 1, label: "Tranche 1 (Septembre)", hint: "échéance 15 sep — à l'inscription" },
+  { index: 2, label: "Tranche 2 (Décembre)", hint: "échéance 15 déc" },
+  { index: 3, label: "Tranche 3 (Mars)", hint: "échéance 15 mars" },
+];
+
+/**
+ * T-248 — derive the T1/T2/T3 collection waves from REAL rows.
+ * PURE (unit-tested): per wave — due (Σ amountDue), paid (Σ amountPaid,
+ * cleared), pending (Σ amountPending, uncleared non-cash), pct (paid/due,
+ * 0–100). `isNextTarget` marks the first wave with a canonical remaining
+ * balance (the active collection target for the highlight).
+ */
+export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] {
+  const groups = new Map<1 | 2 | 3, Installment[]>();
+  for (const r of rows) {
+    const n = trancheNumberOf(r.label);
+    if (n === null) continue;
+    const list = groups.get(n) ?? [];
+    list.push(r);
+    groups.set(n, list);
+  }
+  const firstWithRemaining = [...groups.entries()]
+    .filter(([, list]) => totalOutstanding(list) > 0)
+    .map(([n]) => n)
+    .sort((a, b) => a - b)[0];
+  return TRANCHE_WAVE_META.map(({ index, label, hint }) => {
+    const list = groups.get(index) ?? [];
+    const due = sumInstallmentsDue(list);
+    const paid = sumInstallmentsPaid(list);
+    const pending = sumInstallmentsPending(list);
+    const pct = due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
+    return { index, label, hint, due, paid, pending, pct, isNextTarget: index === firstWithRemaining };
+  });
+}
+
+/**
+ * T-248 — TrancheWaveHeader: the review's macro T1/T2/T3 collection strip,
+ * fed by `deriveTrancheWaves` (REAL rows only). Honest zero state when the
+ * current filters match no tranche rows.
+ */
+function TrancheWaveHeader({ waves }: { waves: TrancheWave[] }) {
+  if (waves.every((w) => w.due === 0)) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-2.5 text-xs text-muted-foreground">
+        <Waves className="size-3.5 shrink-0" />
+        <span>
+          Aucune tranche T1 / T2 / T3 dans la sélection courante — l'entête de
+          vague s'affichera dès qu'une tranche correspond aux filtres.
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {waves.map((w) => (
+        <div
+          key={w.index}
+          className={
+            "rounded-lg border p-3 space-y-2 " +
+            (w.isNextTarget
+              ? "border-primary/50 bg-primary/5 shadow-sm"
+              : "border-border/80 bg-surface-panel/40")
+          }
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-foreground truncate">{w.label}</span>
+            <span
+              className={
+                "text-xs font-mono font-bold shrink-0 " +
+                (w.isNextTarget ? "text-primary" : w.pct >= 90 ? "text-status-success" : "text-muted-foreground")
+              }
+              title={w.hint}
+            >
+              {w.pct}%
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+            <div
+              className={
+                "h-full rounded-full transition-all duration-500 " +
+                (w.isNextTarget ? "bg-primary" : w.pct >= 90 ? "bg-status-success" : "bg-muted-foreground/40")
+              }
+              style={{ width: `${w.pct}%` }}
+            />
+          </div>
+          <div className="flex justify-between gap-2 text-[11px] font-mono text-muted-foreground">
+            <span className="truncate">Encaissé : {formatDzdPlain(w.paid)}</span>
+            <span className="truncate">Dû : {formatDzdPlain(w.due)}</span>
+          </div>
+          {w.pending > 0 && (
+            <p className="text-[10px] text-status-warning font-mono">
+              Dont en attente (chèque / virement) : {formatDzdPlain(w.pending)}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function InstallmentScheduleTab() {
   const repos = useRepositories();
@@ -139,6 +273,10 @@ export function InstallmentScheduleTab() {
     const overdueCount = filtered.filter((i) => i.status === "overdue").length;
     return { totalDue, totalPaid, totalRemaining, overdueCount };
   }, [filtered]);
+
+  // T-248 — the T1/T2/T3 collection waves for the macro header (REAL
+  // filtered rows; canonical sum helpers inside the derivation).
+  const waves = useMemo(() => deriveTrancheWaves(filtered), [filtered]);
 
   async function handleRunOverdueScan() {
     setScanningOverdue(true);
@@ -378,6 +516,9 @@ export function InstallmentScheduleTab() {
             )}
           </Button>
         </div>
+
+        {/* T-248 — Tranche Wave header (macro T1/T2/T3 collection health) */}
+        <TrancheWaveHeader waves={waves} />
 
         {/* Totals header */}
         <div className="grid grid-cols-4 gap-2 rounded-md border bg-muted/20 p-3">

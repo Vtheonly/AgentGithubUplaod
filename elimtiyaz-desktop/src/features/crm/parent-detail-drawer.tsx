@@ -85,6 +85,8 @@ import {
   type Installment,
   type ParentFinancialProfile,
   type Payment,
+  type PaymentNavigationContext,
+  installmentRemaining,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import { deterministicActivationCode } from "../../core/format/id";
@@ -93,6 +95,8 @@ import {
   computeParentBillingBreakdown,
   classifyAdjustmentHistory,
   type AdjustmentProvenance,
+  type ChildBillingBreakdown,
+  type TrancheCoverageNode,
 } from "../../domain/calc/payment/billing-breakdown";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { ActivationCodeModal } from "./activation-code-modal";
@@ -160,7 +164,14 @@ export function ParentDetailDrawer({
   const classes = useObservable(() => repos.classes.observe(), []);
   const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
 
-  const [collectOpen, setCollectOpen] = useState(false);
+  // T-252 — the payment-terminal context drives the modal. The main action
+  // opens the consolidated family debt; the per-tranche 1-click buttons open
+  // the EXACT tranche when the node carries the real installment row
+  // (mode installment_tranche, canonical INV-4 remaining preset) and fall
+  // back to a preset consolidated context for synthetic nodes (no phantom
+  // targetItemId — collect() receives null and the server waterfall
+  // allocates).
+  const [collectContext, setCollectContext] = useState<PaymentNavigationContext | null>(null);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [activationCode, setActivationCode] = useState<string | null>(null);
@@ -168,6 +179,81 @@ export function ParentDetailDrawer({
   const [openingChannel, setOpeningChannel] = useState(false);
 
   const entity: Parent | null = open && parentId && parent ? parent : null;
+
+  /**
+   * T-252 — build the payment context for a per-tranche 1-click collect.
+   *
+   * REAL installment row → mode `installment_tranche` with the canonical
+   * INV-4 remaining (due − paid − pending) as the preset and the row id as
+   * the target (exactly the InstallmentScheduleTab's context shape).
+   * Synthetic node (no DB row — the canonical 40/30/30 display fallback) →
+   * consolidated context preset to the node's derived remaining; NO
+   * targetItemId is emitted (the server waterfall allocates, never a
+   * phantom id).
+   */
+  function buildTrancheContext(
+    child: ChildBillingBreakdown,
+    tranche: TrancheCoverageNode,
+  ): PaymentNavigationContext {
+    const fallbackConsolidated = (preset: number): PaymentNavigationContext => ({
+      parentId: entity?.id ?? parentId ?? "",
+      parentName: entity ? parentDisplayName(entity) : undefined,
+      parentCode: entity?.code,
+      studentId: child.student.id,
+      mode: "consolidated_debt",
+      presetAmount: preset,
+      lineItems: [{
+        itemId: tranche.key,
+        category: "tuition",
+        label: `${tranche.label} — ${child.student.firstName} ${child.student.lastName}`,
+        grossAmount: tranche.amountDue,
+        discountAmount: 0,
+        netAmount: tranche.amountDue,
+        alreadyPaidAmount: tranche.amountPaid,
+        remainingAmount: tranche.remaining,
+        dueDate: tranche.dueDate ?? undefined,
+        isOverdue: tranche.status === "unpaid" && tranche.dueDate != null && new Date(tranche.dueDate).getTime() < Date.now(),
+      }],
+      allowPartial: true,
+      originRoute: "crm.parent_drawer",
+    });
+
+    const real = tranche.installment;
+    if (!real || real.parentId !== (entity?.id ?? parentId)) {
+      return fallbackConsolidated(Math.max(0, tranche.remaining));
+    }
+    const remaining = installmentRemaining(real);
+    const isOverdue = real.status === "overdue";
+    const overdueDays = isOverdue
+      ? Math.max(0, Math.floor((Date.now() - new Date(real.dueDate).getTime()) / 86_400_000))
+      : undefined;
+    return {
+      parentId: real.parentId,
+      parentName: entity ? parentDisplayName(entity) : undefined,
+      parentCode: entity?.code,
+      studentId: real.studentId,
+      mode: "installment_tranche",
+      targetItemId: real.id,
+      presetAmount: remaining,
+      overdueDays,
+      dueWindowLabel: tranche.dueWindowLabel,
+      lineItems: [{
+        itemId: real.id,
+        category: real.category,
+        label: real.label,
+        grossAmount: real.amountDue,
+        discountAmount: 0,
+        netAmount: real.amountDue,
+        alreadyPaidAmount: real.amountPaid,
+        remainingAmount: remaining,
+        dueDate: real.dueDate,
+        isOverdue,
+        daysOverdue: overdueDays,
+      }],
+      allowPartial: true,
+      originRoute: "crm.parent_drawer",
+    } as PaymentNavigationContext;
+  }
 
   async function handleDownloadStatement(p: Parent) {
     if (payments.length === 0) {
@@ -449,6 +535,7 @@ export function ParentDetailDrawer({
           canAdjust={canAdjust}
           onAdjust={() => setAdjustOpen(true)}
           onDownloadStatement={() => void handleDownloadStatement(p)}
+          onCollectTranche={(child, tranche) => setCollectContext(buildTrancheContext(child, tranche))}
         />
       ),
     },
@@ -476,7 +563,34 @@ export function ParentDetailDrawer({
 
     list.push({
       label: "Encaisser / Régler",
-      onClick: () => setCollectOpen(true),
+      onClick: () => {
+        // T-252 — consolidated context (the family's REAL server-side
+        // outstanding) built exactly as before, now via the context state.
+        const outstandingTotal = financialProfile?.totalOutstanding ?? 0;
+        setCollectContext(
+          outstandingTotal > 0
+            ? {
+                parentId: entity!.id,
+                parentName: parentDisplayName(entity!),
+                parentCode: entity!.code,
+                mode: "consolidated_debt",
+                presetAmount: outstandingTotal,
+                lineItems: [{
+                  itemId: `parent-debt-${entity!.id}`,
+                  category: "other",
+                  label: "Solde familial consolidé",
+                  grossAmount: outstandingTotal,
+                  discountAmount: 0,
+                  netAmount: outstandingTotal,
+                  alreadyPaidAmount: 0,
+                  remainingAmount: outstandingTotal,
+                }],
+                allowPartial: true,
+                originRoute: "crm.parent_drawer",
+              }
+            : null,
+        );
+      },
       variant: "default",
       icon: <Wallet className="h-4 w-4" />,
       disabled: () => (financialProfile?.totalOutstanding ?? 0) <= 0,
@@ -524,31 +638,9 @@ export function ParentDetailDrawer({
             outstanding={financialProfile?.totalOutstanding ?? 0}
           />
           <UnifiedPaymentModal
-            open={collectOpen}
-            onOpenChange={setCollectOpen}
-            context={
-              (financialProfile?.totalOutstanding ?? 0) > 0
-                ? {
-                    parentId: entity.id,
-                    parentName: parentDisplayName(entity),
-                    parentCode: entity.code,
-                    mode: "consolidated_debt",
-                    presetAmount: financialProfile!.totalOutstanding,
-                    lineItems: [{
-                      itemId: `parent-debt-${entity.id}`,
-                      category: "other",
-                      label: "Solde familial consolidé",
-                      grossAmount: financialProfile!.totalOutstanding,
-                      discountAmount: 0,
-                      netAmount: financialProfile!.totalOutstanding,
-                      alreadyPaidAmount: 0,
-                      remainingAmount: financialProfile!.totalOutstanding,
-                    }],
-                    allowPartial: true,
-                    originRoute: "crm.parent_drawer",
-                  }
-                : null
-            }
+            open={collectContext !== null}
+            onOpenChange={(o) => !o && setCollectContext(null)}
+            context={collectContext}
           />
         </>
       )}
@@ -573,6 +665,7 @@ function FinancesTab({
   canAdjust,
   onAdjust,
   onDownloadStatement,
+  onCollectTranche,
 }: {
   profile: ParentFinancialProfile | null | undefined;
   outstanding: number;
@@ -586,6 +679,8 @@ function FinancesTab({
   canAdjust: boolean;
   onAdjust: () => void;
   onDownloadStatement: () => void;
+  /** T-252 — 1-click per-tranche collect (see buildTrancheContext). */
+  onCollectTranche: (child: ChildBillingBreakdown, tranche: TrancheCoverageNode) => void;
 }) {
   const [breakdownMode, setBreakdownMode] = useState<"by_child" | "by_service">("by_child");
 
@@ -714,6 +809,57 @@ function FinancesTab({
           <span className="text-status-danger font-medium">
             Créance en retard : {formatDzd(overdue)}
           </span>
+        </div>
+      )}
+
+      {/* T-252 (AI-review Screen 8) — family-level "Couverture de
+          l'Engagement Annuel" visual stack: paid vs remaining, derived from
+          the canonical reconciliation (clearedPaid / netDue — the §15.18
+          discipline; pending funds shown as their own legend line, the
+          bridge stays visible in the balance cards above). */}
+      {recon.netDue > 0 && (
+        <div className="rounded-lg border border-border bg-surface-panel/40 p-3.5 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Couverture de l'Engagement Annuel
+            </span>
+            <span className="font-mono text-xs text-foreground break-words">
+              {formatDzdPlain(recon.clearedPaid)} / {formatDzdPlain(recon.netDue)} DZD
+              ({Math.min(100, Math.round((recon.clearedPaid / recon.netDue) * 100))}%)
+            </span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex" aria-hidden="true">
+            <div
+              className="h-full bg-status-success transition-all duration-700"
+              style={{
+                width: `${Math.min(100, Math.round((recon.clearedPaid / recon.netDue) * 100))}%`,
+              }}
+              title="Encaissé confirmé"
+            />
+            <div
+              className="h-full bg-status-danger/80 transition-all duration-700"
+              style={{
+                width: `${Math.max(0, 100 - Math.min(100, Math.round((recon.clearedPaid / recon.netDue) * 100)))}%`,
+              }}
+              title="Reste à payer"
+            />
+          </div>
+          <div className="flex flex-wrap justify-between gap-2 text-[10px] text-muted-foreground font-mono">
+            <span className="flex items-center gap-1 text-status-success">
+              <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
+              Payé : {formatDzdPlain(recon.clearedPaid)} DZD
+            </span>
+            {recon.pendingPaid > 0 && (
+              <span className="flex items-center gap-1 text-status-warning">
+                <span className="h-1.5 w-1.5 rounded-full bg-status-warning" />
+                En attente : {formatDzdPlain(recon.pendingPaid)} DZD
+              </span>
+            )}
+            <span className="flex items-center gap-1 text-status-danger">
+              <span className="h-1.5 w-1.5 rounded-full bg-status-danger" />
+              Reste : {formatDzdPlain(recon.derivedRemaining)} DZD
+            </span>
+          </div>
         </div>
       )}
 
@@ -901,6 +1047,27 @@ function FinancesTab({
                                 style={{ width: `${Math.min(100, t.coveragePct)}%` }}
                               />
                             </div>
+                          )}
+
+                          {/* T-252 (AI-review Screen 8) — 1-click collect THIS
+                              tranche: opens the payment terminal preset to
+                              the tranche's remaining (real row → exact
+                              installment target; synthetic → consolidated
+                              preset, see buildTrancheContext). */}
+                          {t.remaining > 0 && (
+                            <Button
+                              size="sm"
+                              className="w-full h-7 text-xs mt-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+                              onClick={() => onCollectTranche(child, t)}
+                              title={
+                                t.installment
+                                  ? `Encaisser ${formatDzdPlain(t.remaining)} DZD sur cette tranche (cible exacte)`
+                                  : `Encaisser ${formatDzdPlain(t.remaining)} DZD (échéancier déduit — affectation waterfall)`
+                              }
+                            >
+                              <Wallet className="h-3 w-3 mr-1" />
+                              Encaisser {formatDzdPlain(t.remaining)}
+                            </Button>
                           )}
                         </div>
                       ))}

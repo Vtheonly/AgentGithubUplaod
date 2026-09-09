@@ -27,9 +27,9 @@ export type SparklineTone = "primary" | "success" | "danger" | "warning";
 
 const STROKE_BY_TONE: Record<SparklineTone, string> = {
   primary: "#349bd4",
-  success: "#3fa66e",
-  danger: "#c0504d",
-  warning: "#c8a98c",
+  success: "#10b981",
+  danger: "#ef4444",
+  warning: "#f59e0b",
 };
 
 export interface SparklineKpiCardProps {
