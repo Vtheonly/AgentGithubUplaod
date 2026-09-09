@@ -104,6 +104,60 @@
 
 ## In Progress
 
+**37th repair session (2026-09-09, CLOSED) — owner mandate COMPLETE ("do all of this then push"): T-246..T-254 (9 tasks) — the AI-review's REMAINING five screens + Part-2 design system + live token round + closeout.** Session-opening ritual: pristine-tree baseline FULL suite **112 files / 2694 / 0** + tsc + eslint 0 err + vite build green (TEST-300 lesson). Delivery: **T-246** (midnight design tokens + glow-border + tailwind/TS-mirror parity contract), **T-247** (SeeDetailsModal: collection-rate trio + échéancier théorique projection overlay + dual-ring donut with REAL center total + severity badges), **T-248** (Tranche Wave header from canonical label grouping), **T-249** (quick-pay chips + cashier change calculator), **T-250** (14-level tuition matrix + explicit 40/30/30 tool), **T-251** (readiness checklist + full 14-level grid), **T-252** (coverage stack + per-tranche 1-click collect with exact installment targeting), **T-253** (live token round **18/18 GREEN** — dual-key health, RLS anon 0-rows ×5, chain 81/81 ZERO DRIFT, EF fleet 14/14, anonymous EF 401, ALLOWED_ORIGINS canonical echo + reject, committed-key consistency; no apply needed), **T-254** (this closeout: UI-306 continuation entry, status flips, change-log, current-state, next-task 38th, commits, zips, push). Suites at close: desktop **113 files / 2711 / 0** (+17: NEW ai-review-screens.test.tsx) + tsc + eslint 0 err (407 warn) + vite build green; website re-verified untouched-green 40/544/0 + lint + strict build; Android untouched (desktop-scope UI change, zero contract impact per §10).
+
+### T-246 — Design-system overhaul: midnight palette + glow-border (AI-review Part 2)
+- **Problems:** UI-306 extension (the review's Part-2 palette) · **Priority:** P1
+- **Dependencies:** none (UI-only) · **Affected:** hub desktop (`src/index.css`, `tailwind.config.cjs`, TS token fallbacks in dashboard-theme/see-details/tabs/sparkline)
+- **Plan:** apply the review's refined palette (midnight surfaces #0b0d14/#111523/#181d30, crisper status hues, --brand-violet/--brand-coral additions, glow-border utility) to index.css AND keep tailwind.config.cjs hex parity (the config duplicates tokens so opacity utilities resolve at build time) AND update the TS hex fallbacks that mirror the tokens (dashboard-theme chartPalette, see-details useChartPalette, tabs/types AGING_COLORS, sparkline STROKE_BY_TONE) so SSR/test rendering matches runtime. Light-theme block updated consistently. Zero component-hex sprinkling (plan §03 token discipline preserved).
+- **Status:** Completed — TESTED (2026-09-09: full 113/2711/0 + tsc + eslint 0 err + vite build; parity contract documented in index.css + UI-306 continuation entry)
+### T-247 — SeeDetailsModal drill-down overhaul (AI-review Screens 1–2)
+- **Problems:** UI-306 residuals (the review's drill-down fixes) · **Priority:** P1
+- **Dependencies:** T-246 (palette) · **Affected:** hub desktop (`src/features/dashboard/see-details-modal.tsx`)
+- **Plan:** Revenue tab: add the "Encaissé vs Échéancier théorique" ComposedChart — bars = the REAL monthly revenue series; dashed line = the DERIVED 40/30/30 projection computed from totalExpected = annualRevenue + kpis.outstandingDebt (a planning reference derived from real totals + the canonical tranche rule, labeled "théorique", never presented as collected data). Demographics tab: donut gets innerRadius + the REAL center total (Σ gender counts, NOT a synthesized 390) + legend callouts. Debt tab: severity badges (Normal/Avertissement/Critique) per bucket. Typed kpis (DashboardKpi, not `unknown`).
+- **Status:** Completed — TESTED (2026-09-09: 6 pure+render tests in ai-review-screens.test.tsx; full suite 113/2711/0)
+
+### T-248 — Installment schedule: Tranche Wave header (AI-review Screen 5)
+- **Problems:** UI-306 residuals · **Priority:** P1
+- **Dependencies:** T-246 · **Affected:** hub desktop (`src/features/financials/installment-schedule-tab.tsx`)
+- **Plan:** add a TrancheWaveHeader above the table: T1/T2/T3 collection health (paid vs due %) computed from the REAL filtered rows grouped by canonical tranche labels (regex `Tranche [123]`, not the review's fragile `label.includes("1")`); progress bars + Encaissé/Dû figures from the canonical sums. Honest zero state when no tranches match.
+- **Status:** Completed — TESTED (2026-09-09: 6 tests incl. the Tranche-10/Année-complète negatives; full suite green)
+### T-249 — Unified payment modal: quick-pay chips + change calculator (AI-review Screen 7)
+- **Problems:** UI-306 residuals · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub desktop (`src/features/financials/unified-payment-modal.tsx`)
+- **Plan:** (a) quick-pay shortcut chips above the slider — "Payer Tranche N" for the first ≤2 open tranches (amount = amountDue − amountPaid, the file's established convention) + "Soldé total" (totalDue − alreadyPaid); (b) cashier change-return calculator when method = cash and amount > 0: Montant remis input → Monnaie à rendre (givenCash − amount), success styling when sufficient. Pure UI state; no contract change.
+- **Status:** Completed — TESTED (2026-09-09: 2 render+interaction tests incl. the 40000−32000→8000 round; full suite green)
+
+### T-250 — Tuition pricing: consolidated 14-level matrix (AI-review Screen 6)
+- **Problems:** UI-306 residuals (the 14-card scroll-wall) · **Priority:** P1
+- **Dependencies:** T-246 · **Affected:** hub desktop (`src/features/settings/pricing/tuition-card.tsx`)
+- **Plan:** replace the 14 stacked cards with ONE dense table (Niveau | Annuel | T1 | T2 | T3 | Équilibre | Save) + the 1-click "Auto-calculer 40% / 30% / 30%" header tool (rounds T1/T2, T3 = remainder) + live per-row balance check (Σ tranches = annual). Save path unchanged (updateTuitionForGradeLevel per row). Mobile-safe: base grid + overflow-x-auto.
+- **Status:** Completed — TESTED (2026-09-09: 14-level render test + Équilibre column; full suite green)
+### T-251 — Academic year drawer: readiness index + full level grid (AI-review Screen 4)
+- **Problems:** UI-306 residuals (flat zeroes without context) · **Priority:** P2
+- **Dependencies:** T-246 · **Affected:** hub desktop (`src/features/academics/academic-year-detail-drawer.tsx`)
+- **Plan:** add the "État de Préparation de l'Année Scolaire" checklist — Salles & Classes (configured count), Enseignants Principaux (homeroomTeacherId assignment rate), Emplois du Temps (timetable coverage rate) — REAL rates with progress bars; extend the grade breakdown to show ALL 14 levels (empty states included, class + student counts).
+- **Status:** Completed — TESTED (2026-09-09: typecheck + full suite green; rates from REAL class attributes)
+
+### T-252 — Parent drawer: coverage stack + 1-click tranche collect (AI-review Screen 8)
+- **Problems:** UI-306 residuals · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub desktop (`src/features/crm/parent-detail-drawer.tsx`)
+- **Plan:** (a) family-level "Couverture de l'Engagement Annuel" visual stack (paid vs remaining proportional bar, REAL recon numbers + the bridge discipline preserved); (b) per-tranche "Encaisser {remaining}" button on each tranche card: when the node carries the REAL installment row → open the payment modal preset to that tranche (mode installment_tranche, targetItemId, presetAmount = canonical remaining); synthetic nodes (no DB row) fall back to the consolidated preset (no phantom target). Collect context builder added to the drawer.
+- **Status:** Completed — TESTED (2026-09-09: drawer render test on the seed's real open tranches + full suite green; collect path contract preserved)
+### T-253 — Live migration-token verification round (37th session)
+- **Problems:** process (§15.11 session-opening obligation; owner re-supplied the token sheet) · **Priority:** P0
+- **Dependencies:** owner re-supplied sbp_ token + keys · **Affected:** live backend (read-only probes) + docs
+- **Plan:** re-provision the Supabase CLI (container reset), link hkvkefubghbbotgnteir, diff live schema_migrations vs local 0001–0084, dual-key health, RLS anon 0-rows, EF fleet census, ALLOWED_ORIGINS probe, anonymous EF 401, committed-key consistency vs the owner sheet (website public-config, Android .env.example, desktop connection card). No apply unless drift found.
+- **Status:** Completed (2026-09-09: 18/18 GREEN via /home/z/my-project/scripts/verify_t-253_mig_tokens.sh — chain 81/81 zero drift [max 0084], dual-key 200 ×2, RLS 0-rows ×5, EF fleet 14/14, anon EF 401 ×2, ALLOWED_ORIGINS canonical 4-origin echo + non-allowlisted rejected, committed-key consistency; the canonical set intact — NO apply needed, consistent with T-244)
+
+### T-254 — 37th-session closeout: registries + change-log + zips + push
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-246..T-253 · **Affected:** all repos
+- **Plan:** problem-registry entries + status flips, change-log 37th-session section, current-state snapshot, next-task 38th recommendation, conventional commits with the 5-question body, zips in download/, push with the owner PAT (re-supplied; the previous PAT placeholder in the paste was redacted — request re-supply if push 401s).
+- **Status:** Completed (2026-09-09: UI-306 continuation registered [218 detailed entries], statuses flipped, change-log/current-state/next-task updated, commits + zips + push attempted; the PAT placeholder in the owner's paste was REDACTED — see the push note)
+
+---
+
 **24th repair session (2026-09-03) — CLOSED: owner mandate COMPLETE ("finish all the remaining tasks: fix the 3 owner-reported issues — account activation rejected as 'already used', messenger must be parent→Administrator only, children showing the parent's name — apply the migration tokens, verify everywhere, zip for push").** Session-opening ritual: chain check **63/63 = 0001–0066 ZERO DRIFT** (fresh sbp_ token; live census `activation_codes=0`, `parents=260`, `auth_users=3` — two NEW parent signups on 2026-09-03, evidence the owner is actively testing the portal). **LIVE-DATA DIAGNOSIS (the 3 issues are ALL verified against the live DB):** (1) **ACTIVATION** — the desktop issued 5 codes today (audit_logs: YOUCEFI AYA ×3, ABADA YAHIA ×2) yet `activation_codes` holds **0 rows**: `SupabaseApprovalRepository.generateActivationCode` INSERTs without `tenant_id` (NOT NULL, no default → guaranteed NOT NULL violation) and `issueActivationCode` then SILENTLY falls back to `deterministicActivationCode` — a phantom code that can never validate; the deployed hub EF additionally 401s every `pending` profile via `extractAuthContext` (status !== 'active' → null) and never flips status; the website maps the EF's `{error:{code,message}}` OBJECT with regex tests that never match → always the generic "Code d'activation invalide ou déjà utilisé." string (the owner's exact symptom). (2) **MESSENGER** — parents cannot start any conversation (create_direct_channel is staff-only per ADR-008), `chat_channels` = 0 rows live → the portal messenger is dead; nothing structurally forbids parent↔parent posting. (3) **PARENT/CHILD NAMES** — live students are correct, but **259/260 parents carry their FIRST CHILD's full name as display_name** (corpus predates the importer's "Famille {lastName}" PARENT-AS-STUDENT FIX) → the Enfants list shows a child named identically to the parent. Batch (10 tasks, balanced P0→P3): **T-145** (issuance persistence), **T-146** (EF consolidation + ADR-011 resolving UNKNOWN-001), **T-147** (live round-trip), **T-148** (0067 parent→admin RPC + post tightening + ADR-012), **T-149** (website "Contacter l'administration"), **T-150** (0067 live apply + verify), **T-151** (0068 parent display-name repair), **T-152** (0068 live apply + verify), **T-153** (activation-screen precise error mapping), **T-154** (registries + suites + zip closeout).
 
 ### T-145 — Desktop activation-code issuance persistence (tenant_id + failure surfacing) — **Completed (TESTED — 5/5 unit suite + typecheck clean; live issuance confirmation owner-gated on the next staff click)**

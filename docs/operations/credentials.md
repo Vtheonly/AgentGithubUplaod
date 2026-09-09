@@ -133,6 +133,15 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 # 4. Website build: npm run build (strict) — env validation must not flag placeholders
 ```
 
+**§7 checklist re-run (37th session, 2026-09-09 — owner re-supplied the same token sheet; consistency re-confirmed, 18/18):**
+
+1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
+2. RLS: anon/publishable sees **0 rows** on parents / students / payments / ledger_entries / installments (HTTP 200, empty arrays).
+3. Live chain: **81/81 = 0001–0084, zero drift**; EF fleet 14/14 ACTIVE (1:1 with the hub's function dirs); anonymous EF sweep 2×401.
+4. ALLOWED_ORIGINS: the canonical 4-origin set still echoes (localhost:5173 / :3000 / :3100 / elimtiyaz-website.vercel.app) and a non-allowlisted origin is NOT echoed (ACT-203 posture intact).
+5. Committed-key consistency: the owner sheet's URL / publishable key / JWKS URL remain byte-identical to the committed values (website `public-config.ts`, Android `.env.example`). No apply was needed — the canonical set is intact (same conclusion as T-244, 36th session).
+6. Script: `/home/z/my-project/scripts/verify_t-253_mig_tokens.sh` (outside the repos — carries the access token; re-created this session after the container reset wiped the scripts dir).
+
 **§7 checklist re-run (30th session, 2026-09-05 — owner re-supplied the sbp_ access token; consistency confirmed):**
 
 1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
