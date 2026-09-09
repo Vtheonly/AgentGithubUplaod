@@ -134,6 +134,46 @@
 
 **40th repair session (2026-09-10, CLOSED) — owner mandate COMPLETE ("fix it and push it" — the post-39th-launch console-noise fix: the 406 spam from the approval-queue matcher) + a Groq BYOK key supplied for the AI): T-264..T-265 (2 tasks).** Session-opening ritual: hub repo re-used from the 39th-session close (HEAD e0f090f, clean tree); the baseline is the 39th-session close suite (116 files / 2782 / 0). Registered BEFORE implementation per AGENTS.md §13. Delivery: **T-264** (the fix — all five findPotentialMatches `.single()` → `.maybeSingle()` + the 7-test regression suite), **T-265** (this closeout: OPS-309 registered TESTED [221 detailed entries], registries truth-synced, push with the owner PAT). Suites at close: desktop **117 files / 2789 / 0** (+7) + tsc + eslint 0 err (424 warn, unchanged) + vite build green (19.85 s); website + Android untouched; no migrations (the live chain 0001–0084 and the 39th session's 7-probe live evidence stand).
 
+**41st repair session (2026-09-10, CLOSED) — owner mandate COMPLETE ("review the AI implementation critically, fix all mistakes/inconsistencies/incomplete functionality, deliver a production-quality integration that solves real problems" + "apply the migration tokens and make sure everything works"): T-266..T-271 (6 tasks).** Session-opening ritual: the 3 repos re-cloned; the §15.11 session-opening live round ran FIRST (migration chain 81/81 = 0001–0084 ZERO DRIFT; EF fleet 14/14 ACTIVE) — then the baseline suite exposed an UNREGISTERED PATCH at HEAD (REG-005: 6ce49b9, "chore: refresh smartexport selection-state file registry", actually a 14-file AI-layer rewrite carrying 5 failed tests / 4 type errors). The patch was triaged per §15.14 — damage attributed BEFORE any work was built on it. Delivery: **T-266** (REG-005 triage + AI-309 registration + baseline repair: edgeLLMAdapter + readRawStored + routing restored, real-model defaults, tool slicing removed, Bearer-null fixed → green), **T-267** (the deep tools — 6→12: overdue/debt ledger with aging, collection analytics, payment history, attendance with drop-off risk, class performance, + REAL proposal validation + the canonical send_reminder execution leg), **T-268** (copilot UX completion: clarification question card + framed answers, abort with partial-answer commit, conversation persistence), **T-269** (EF hardening + deploy v20 + GROQ_API_KEY secret set + the LIVE agent-stream round-trip: 9/9 probes GREEN incl. tool-call reassembly on the wire; the 2026 Groq catalog discovery — llama/qwen all 404 → defaults repinned to openai/gpt-oss-120b/20b), **T-270** (the 31-test deep-integration regression suite), **T-271** (this closeout). ADR-015 records the copilot data policy (grounded tool results, BYOK/EF transports, human-gated writes, honest settle). Suites at close: desktop **119 files / 2824 / 0** (+31) + tsc + eslint 0 err + build green; website + Android untouched (desktop + additive EF change, zero contract impact per §10); no migrations (the chain stays 0001–0084, verified ZERO DRIFT at open AND close).
+
+### T-266 — REG-005 triage: register AI-309, repair the unregistered 6ce49b9 patch's regressions, baseline back to green
+- **Problems:** REG-005 (NEW), AI-309 (NEW — registered on behalf of the patch's unregistered fix) · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub desktop (llm-adapter, ai-config-storage, mock ai-config-repository, domain/model/ai, agent-runtime, agent-architecture tests)
+- **Plan:** attribute the session-opening red suite to the 6ce49b9 commit range; KEEP the patch's sound parts (AI-309 auth fix + test, markdown-view.tsx) and register them; RESTORE what it deleted (edgeLLMAdapter + the edge→byok→mock routing + readRawStored + the stripped docs); fix its defects (defaults → real Groq models, temperature 0.6, mock-repo merge fields, tool slicing removed — a capability bug not an optimization, Bearer-null); update the 5 affected test contracts with registration.
+- **Status:** Completed — TESTED (2026-09-10: tsc 0 errors, full suite 118/2793/0, lint 0 err; commit a461227)
+
+### T-267 — Deep domain tools + enforced proposals (AI-310a): the copilot answers the school's real operational questions
+- **Problems:** AI-310 (NEW) · **Priority:** P1
+- **Dependencies:** T-266 (green baseline) · **Affected:** hub desktop (system-tools 6→12 tools, ai-copilot-provider approveAction send_reminder + honest settle)
+- **Plan:** ground 6 NEW tools in the canonical streams (debt.observeSummary, dashboard.kpis+debtByAging, payments.observeByParent, attendance.observeByStudent+calculateAttendanceRate, students+grades per class via evaluateStudentTermPerformance); enforce REAL proposal validation (parent exists, non-zero amount ≤ 5 000 000 DZD, reason ≥ 3 chars — structured errors, never a silent console.warn); add propose_payment_reminder → repos.debt.sendReminder as the second REAL execution leg; honest settle for unexecutable types.
+- **Status:** Completed — TESTED (2026-09-10: full suite green; behavioral coverage lands in T-270; commit c7107a7)
+
+### T-268 — Copilot UX completion (AI-310b): clarification surface + abort + conversation persistence
+- **Problems:** AI-310 (residuals c/d + the never-listed clarification gap) · **Priority:** P1
+- **Dependencies:** T-267 · **Affected:** hub desktop (ai-copilot-provider, copilot-drawer)
+- **Plan:** parse request_user_clarification tool outputs into a pendingClarification card with a framed answer turn; wire an AbortController per turn to the runtime's signal with partial-answer commit + info toast; persist messages + pending proposals to localStorage (capped 60, corrupt-safe).
+- **Status:** Completed — TESTED (2026-09-10: full suite green; commit 20a2ceb)
+
+### T-269 — ai-proxy EF hardening + LIVE agent-stream round-trip (AI-310c): GROQ secret, 2026 catalog pinned
+- **Problems:** AI-310 (server leg) · **Priority:** P1
+- **Dependencies:** T-266..T-268 · **Affected:** hub (supabase/functions/ai-proxy — deployed live v20; scripts/t269-live-matrix.sh; docs/recovery/t-269-live-verification.md; default model ids everywhere)
+- **Plan:** .maybeSingle() on the tenant-config lookup (the OPS-309 class in the EF); agent-mode input hardening (model-id pattern, role enum, content type, 60-msg/20-tool caps); set GROQ_API_KEY as a server-side secret (CLI timeout quirk documented — digest + behavior verified); deploy; run the 9-probe live matrix including the authenticated agent-stream round-trip + tool-call passthrough + the single-shot narrative path; probe the 2026 Groq catalog and repin every default to LIVE-reachable ids (openai/gpt-oss-120b / -20b); document the gpt-oss reasoning-channel behavior.
+- **Status:** Completed — VERIFIED-LIVE (2026-09-10: 9/9 probes GREEN, t-269-live-verification.md; migration chain 81/81 ZERO DRIFT at open + close; commits 2cbbace + the EF deploy)
+
+### T-270 — The deep-integration regression suite (31 tests): REG-005-class regressions become impossible
+- **Problems:** AI-310 (evidence leg) · **Priority:** P2
+- **Dependencies:** T-266..T-269 · **Affected:** hub desktop (NEW src/tests/ai/ai-310-deep-integration.test.tsx)
+- **Plan:** behavioral coverage of every new capability (tools against the REAL mock repositories; all five validation failure shapes; clarification/abort/persistence through the REAL runtime with stubbed SSE; the send_reminder execution leg) + source guards pinning the restored architecture (edge-first routing, readRawStored, mock-repo merge fields, full-tool wire, EF hardening markers, LIVE-reachable defaults, drawer stop/clarification wiring, no drawer repository writes).
+- **Status:** Completed — TESTED (2026-09-10: 31/31 + full suite 119/2824/0; commit 3a1167b)
+
+### T-271 — 41st-session closeout: registries + ADR-015 + change-log + zips + push
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-266..T-270 · **Affected:** all repos
+- **Plan:** AI-309/AI-310/REG-005 problem entries with evidence (totals 221→224, 159→162 TESTED), task status flips, change-log 41st-session section, current-state 41st snapshot, next-task 42nd recommendation, ADR-015 (the copilot data policy), zips in download/, push with the owner PAT (one-shot URL, never persisted).
+- **Status:** Completed (this commit)
+
+---
+
 ### T-264 — Approval-queue 406-noise: findPotentialMatches .single() → .maybeSingle() (OPS-309)
 - **Problems:** OPS-309 (NEW — see problem registry) · **Priority:** P2
 - **Dependencies:** none · **Affected:** hub desktop (`src/infrastructure/supabase/repositories/supabase-approval-repository.ts`, NEW `src/tests/infrastructure/t-264-approval-406-noise.test.ts`)

@@ -137,6 +137,15 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 
 1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
 2. RLS: anon/publishable sees **0 rows** on parents / students / payments / ledger_entries / installments (HTTP 200, empty arrays).
+**§7 checklist re-run (41st session, 2026-09-10 — owner re-supplied the sbp_ access token + the Groq key; consistency confirmed + the AI live round):**
+
+1. Auth health: `auth/v1/token` password grant → admin JWT (the documented admin password had been rotated by the owner; re-reset via the GoTrue admin API per the T-241 runbook pattern — the owner should rotate it again at leisure).
+2. Live chain: **81/81 = 0001–0084, ZERO DRIFT** at session open AND close (the 41st session's changes are EF + client code — deliberately DB-free; no apply needed).
+3. EF fleet: **14/14 ACTIVE**; ai-proxy redeployed **v20** (T-269 hardening: `.maybeSingle()`, agent-mode input validation).
+4. **GROQ_API_KEY set live** (owner-supplied this session, set via `supabase secrets set` — the CLI timed out per the documented quirk; confirmed by the secrets-list digest AND by live behavior). The key value is in NO repo file (§15.12). Verified through the EF (the sandbox egress is geo-blocked by Groq; the EF's eu-west-1 egress is NOT): the authenticated agent-stream round-trip + the tool-call passthrough + the single-shot narrative path all GREEN (9/9 — `docs/recovery/t-269-live-verification.md`, script `elimtiyaz-desktop/scripts/t269-live-matrix.sh`).
+5. **The 2026 Groq catalog (owner's key):** every llama-*/qwen-* id 404s (removed from the catalog); reachable: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `groq/compound`. All default model ids repinned to the reachable pair (the prior defaults would have 404'd on every call).
+6. Anonymous EF sweep: ai-proxy 401 ×2 (no Authorization / anon-key-as-Bearer) — intact.
+
 3. Live chain: **81/81 = 0001–0084, zero drift**; EF fleet 14/14 ACTIVE (1:1 with the hub's function dirs); anonymous EF sweep 2×401.
 4. ALLOWED_ORIGINS: the canonical 4-origin set still echoes (localhost:5173 / :3000 / :3100 / elimtiyaz-website.vercel.app) and a non-allowlisted origin is NOT echoed (ACT-203 posture intact).
 5. Committed-key consistency: the owner sheet's URL / publishable key / JWKS URL remain byte-identical to the committed values (website `public-config.ts`, Android `.env.example`). No apply was needed — the canonical set is intact (same conclusion as T-244, 36th session).

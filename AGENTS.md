@@ -178,6 +178,36 @@ For backend / SQL / Edge-Function tasks, **live verification is required** to cl
    `--data @file`; a default python-urllib User-Agent gets Cloudflare
    error-1010 403s.)
 
+**Groq / AI-provider live evidence (41st session, 2026-09-10):**
+
+10. **The agent sandbox CANNOT reach Groq directly** (Hong Kong egress →
+   geo-block → 403 Forbidden on every endpoint) — but the **ai-proxy Edge
+   Function CAN** (Supabase eu-west-1 egress is not blocked). To verify a
+   Groq key from the sandbox: set it as the `GROQ_API_KEY` function secret
+   (`supabase secrets set` — the CLI call may TIME OUT with the secret
+   already set, quirk #5; verify via `secrets list` digest + a live
+   behavior probe), then POST an agent-stream request to the EF with a
+   staff JWT (the t269-live-matrix.sh script is the reusable pattern).
+   NEVER conclude a key is invalid from a sandbox 403.
+11. **The 2026 Groq catalog (owner's key, probed live 2026-09-10):** every
+   `llama-*` and `qwen-*` model id returns 404 model_not_found (removed
+   from the catalog for this account). Reachable: `openai/gpt-oss-120b`
+   (reasoning flagship), `openai/gpt-oss-20b` (fast), `groq/compound`.
+   All default model ids (desktop DEFAULT_AI_PROVIDER_CONFIG, the EF's
+   DEFAULT_MODELS, settings placeholders) are pinned to the reachable
+   ids — a default that 404s is a production bug (fresh installs fail on
+   every call). Catalog drift is fixed by SELECTION via the settings
+   tab's live model discovery (`queryLiveProviderModels`), never by
+   editing code blind.
+12. **gpt-oss models stream a hidden reasoning channel:** `delta.reasoning`
+   + `channel:"analysis"` fragments arrive BEFORE the content, and
+   reasoning tokens are spent from the SAME `max_tokens` budget (a small
+   budget can finish `reason=length` with ZERO content — see the P6
+   discovery in t-269-live-verification.md). The desktop's
+   `executeOpenAIStream` correctly accumulates only `delta.content`;
+   keep it that way. Budgets must leave room after reasoning (default
+   2048 is safe).
+
 **Live verification script convention** (since the seventh session):
 
 For each backend migration (T-061, T-031, T-029, T-071, T-079), a
