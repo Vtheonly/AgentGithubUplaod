@@ -14,14 +14,19 @@
  * directly from the desktop with locally-encrypted keys (AES-256-GCM,
  * see ai-config-storage.ts).
  *
- * DEFAULT models (T-266): every default MUST be a REAL Groq model id —
- * the registered 39th-session default `qwen/qwen3.8-27b` never existed
- * on Groq's API (fresh installs would 404 model_not_found on every
- * call). The defaults are the real, current Groq ids:
- *   - defaultModel:   `llama-3.3-70b-versatile` (balanced)
- *   - fastModel:      `llama-3.1-8b-instant` (search/routing/formatting)
- *   - reasoningModel: `llama-3.3-70b-versatile` (finance/GPA synthesis)
- *   - fallbackModel:  `llama-3.1-8b-instant` (429 fallback)
+ * DEFAULT models (T-266/T-269): every default MUST be a model the
+ * owner's LIVE Groq key can actually reach — verified 2026-09-09 by
+ * probing through the deployed ai-proxy EF: every llama-… and qwen-… id
+ * returns 404 model_not_found (removed from Groq's 2026 catalog for
+ * this account); openai/gpt-oss-120b and openai/gpt-oss-20b stream
+ * successfully. Defaults pinned to the reachable trio:
+ *   - defaultModel:   `openai/gpt-oss-120b` (reasoning flagship)
+ *   - fastModel:      `openai/gpt-oss-20b` (fast tier)
+ *   - reasoningModel: `openai/gpt-oss-120b`
+ *   - fallbackModel:  `openai/gpt-oss-20b`
+ * The settings tab's live model discovery (`queryLiveProviderModels`)
+ * re-derives the list per key, so a future catalog change is a
+ * one-click selection away — never a code change.
  */
 
 export type AIProvider = "groq" | "openrouter" | "custom_openai";
@@ -215,11 +220,13 @@ export const DEFAULT_AI_PROVIDER_CONFIG: AIProviderConfig = {
   customApiKey: null,
   customBaseUrl: "https://api.groq.com/openai/v1",
   defaultProvider: "groq",
-  // REAL Groq model ids (T-266 — see file header for the rationale).
-  defaultModel: "llama-3.3-70b-versatile",
-  fastModel: "llama-3.1-8b-instant",
-  reasoningModel: "llama-3.3-70b-versatile",
-  fallbackModel: "llama-3.1-8b-instant",
+  // LIVE-verified 2026-09-09 (T-269, through the deployed EF — see file
+  // header): gpt-oss-120b/20b are the reachable Groq models for the
+  // owner's key; the legacy llama-3.3-70b/3.1-8b ids 404.
+  defaultModel: "openai/gpt-oss-120b",
+  fastModel: "openai/gpt-oss-20b",
+  reasoningModel: "openai/gpt-oss-120b",
+  fallbackModel: "openai/gpt-oss-20b",
   enableSmartRouting: true,
   temperature: 0.6,
   topP: 0.95,

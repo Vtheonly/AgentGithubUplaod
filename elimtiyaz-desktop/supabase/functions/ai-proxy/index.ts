@@ -11,6 +11,15 @@
 //   1. narrative — Report Card Narrative Generator (teacher-reviewed, never auto-published)
 //   2. drafting — Administrative Drafting Assistant (convocations, alerts, policy notices)
 //   3. anomaly — Expense Anomaly Detector (signals, never auto-rejections)
+//   4. copilot (T-262, 39th session) — the agent-stream mode: the desktop's
+//      multi-turn tool-calling conversation, SSE piped straight back.
+//
+// T-269 (41st session) hardening:
+//   - `.maybeSingle()` on the tenant-config lookup (zero rows is the COMMON
+//     case — `.single()` produced 406 PGRST116 noise, the OPS-309 class);
+//   - agent-mode input validation: model-id pattern, role enum,
+//     content type, message/tool caps (the forwarded payload is a
+//     security surface).
 //
 // PII MASKING:
 //   The desktop app masks PII BEFORE calling this function. The function
@@ -62,7 +71,12 @@ interface AIProxyRequest {
 }
 
 const DEFAULT_MODELS = {
-  groq: "llama-3.3-70b-versatile",
+  // T-269 (41st session — LIVE evidence, 2026-09-09): probed through this
+  // EF with the owner's Groq key — every llama-*/qwen-* id returns 404
+  // model_not_found (removed from the 2026 catalog for this account);
+  // openai/gpt-oss-120b (reasoning flagship), openai/gpt-oss-20b (fast)
+  // and groq/compound stream successfully. Defaults pinned accordingly.
+  groq: "openai/gpt-oss-120b",
   openrouter: "meta-llama/llama-3.3-70b-instruct:free",
 };
 
@@ -100,6 +114,38 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     return jsonError(req, 400, "empty_messages", "Agent mode requires a non-empty messages array");
   }
 
+  // T-269 (41st session): agent-mode input hardening — this endpoint
+  // forwards the caller's payload to the upstream provider, so the
+  // payload shape is a SECURITY surface, not a convenience:
+  //   - the model override must be a sane model id (max 100 chars,
+  //     provider-id charset) — never arbitrary strings;
+  //   - message roles must be the chat-protocol enum (content string|null);
+  //   - the conversation is capped (60 messages) and the tool-schema list
+  //     is capped (20) so a runaway client can't proxy unbounded payloads.
+  const MODEL_ID_PATTERN = /^[A-Za-z0-9._\/:\-]{1,100}$/;
+  const VALID_ROLES = new Set(["system", "user", "assistant", "tool"]);
+  if (isAgentStream) {
+    if (body.model !== undefined && !MODEL_ID_PATTERN.test(String(body.model))) {
+      return jsonError(req, 400, "invalid_model", "model must be a provider model id (max 100 chars)");
+    }
+    if (body.messages.length > 60) {
+      return jsonError(req, 400, "too_many_messages", "Agent mode accepts at most 60 messages");
+    }
+    for (const m of body.messages) {
+      if (!VALID_ROLES.has(m.role)) {
+        return jsonError(req, 400, "invalid_role", `Invalid message role: ${String(m.role)}`);
+      }
+      if (m.content !== null && typeof m.content !== "string") {
+        return jsonError(req, 400, "invalid_content", "Message content must be a string or null");
+      }
+    }
+    if (body.tools !== undefined) {
+      if (!Array.isArray(body.tools) || body.tools.length > 20) {
+        return jsonError(req, 400, "invalid_tools", "tools must be an array of at most 20 schemas");
+      }
+    }
+  }
+
   if (!isAgentStream) {
     if (!body.feature || !body.prompt) {
       return jsonError(req, 400, "missing_fields", "feature and prompt are required");
@@ -116,7 +162,16 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
 
   const supabase = createServiceRoleClient();
 
-  // 1. Fetch the tenant's AI provider config
+  // 1. Fetch the tenant's AI provider config.
+  //
+  // T-269 (41st session): `.single()` → `.maybeSingle()` — zero rows is
+  // the COMMON case (most tenants never configure ai_provider_configs and
+  // the EF falls back to env keys), and `.single()` turns that into a
+  // PostgREST 406 PGRST116 error — the same console-noise class OPS-309
+  // fixed in the approval matcher. With `.maybeSingle()`, no-config is a
+  // clean `data: null` and the env fallback reads correctly. A >1-row
+  // result (unique index makes it impossible, but defensively) still
+  // errors and falls through to the fallback.
   const { data: aiConfig, error: configError } = await supabase
     .from("ai_provider_configs")
     .select("provider, api_key_encrypted, default_model, fallback_model, rate_limit_per_minute, is_active")
@@ -124,7 +179,7 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     .eq("is_active", true)
     .order("provider")
     .limit(1)
-    .single();
+    .maybeSingle();
 
   // If no tenant config, fall back to global Groq key from env
   let provider: "groq" | "openrouter" = "groq";

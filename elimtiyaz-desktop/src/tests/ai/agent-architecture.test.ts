@@ -79,7 +79,7 @@ function userMsg(content: string): AIChatMessage {
 const RUNTIME_CONFIG: AIProviderConfig = {
   ...DEFAULT_AI_PROVIDER_CONFIG,
   groqApiKey: "gsk-test-key",
-  defaultModel: "llama-3.3-70b-versatile",
+  defaultModel: "openai/gpt-oss-120b",
 };
 
 beforeEach(() => {
@@ -115,14 +115,15 @@ describe("T-260 — domain model extension", () => {
     expect(DEFAULT_AI_PROVIDER_CONFIG.temperature).toBe(0.6);
     expect(DEFAULT_AI_PROVIDER_CONFIG.topP).toBe(0.95);
     expect(DEFAULT_AI_PROVIDER_CONFIG.maxTokens).toBe(2048);
-    // T-266 (REG-005 repair): defaults must be REAL Groq model ids — the
-    // registered 39th-session default "qwen/qwen3.8-27b" never existed on
-    // Groq's API (fresh installs would 404 model_not_found on every call).
-    // The multi-model trio is: balanced default + fast instant + fallback.
-    expect(DEFAULT_AI_PROVIDER_CONFIG.defaultModel).toBe("llama-3.3-70b-versatile");
-    expect(DEFAULT_AI_PROVIDER_CONFIG.fastModel).toBe("llama-3.1-8b-instant");
-    expect(DEFAULT_AI_PROVIDER_CONFIG.reasoningModel).toBe("llama-3.3-70b-versatile");
-    expect(DEFAULT_AI_PROVIDER_CONFIG.fallbackModel).toBe("llama-3.1-8b-instant");
+    // T-269 (LIVE evidence): defaults must be models the owner's Groq key
+    // can actually reach — probed through the deployed ai-proxy EF
+    // (2026-09-09): gpt-oss-120b/20b stream; every llama-*/qwen-* id 404s
+    // (removed from the 2026 catalog). The multi-model trio:
+    // reasoning flagship default + fast 20b + fallback.
+    expect(DEFAULT_AI_PROVIDER_CONFIG.defaultModel).toBe("openai/gpt-oss-120b");
+    expect(DEFAULT_AI_PROVIDER_CONFIG.fastModel).toBe("openai/gpt-oss-20b");
+    expect(DEFAULT_AI_PROVIDER_CONFIG.reasoningModel).toBe("openai/gpt-oss-120b");
+    expect(DEFAULT_AI_PROVIDER_CONFIG.fallbackModel).toBe("openai/gpt-oss-20b");
   });
 
   it("every LEGACY export survives (the 2745-test baseline contract)", () => {
@@ -228,7 +229,7 @@ describe("T-260 — executeOpenAIStream (SSE parser)", () => {
     await executeOpenAIStream(
       "https://api.groq.com/openai/v1/chat/completions",
       { Authorization: "Bearer gsk-xyz" },
-      { model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: "hi" }] },
+      { model: "openai/gpt-oss-120b", messages: [{ role: "user", content: "hi" }] },
       {},
     );
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -569,8 +570,8 @@ describe("T-260 — AIAgentRuntime.runConversationStep", () => {
     expect(body.tools).toHaveLength(SYSTEM_TOOLS_DEFINITIONS.length);
     expect(SYSTEM_TOOLS_DEFINITIONS.length).toBeGreaterThanOrEqual(6);
     expect(body.tool_choice).toBe("auto");
-    // "hello" routes to the FAST tier (fastModel), not defaultModel.
-    expect(body.model).toBe("llama-3.1-8b-instant");
+    // "hello" routes to the FAST tier (fastModel = gpt-oss-20b).
+    expect(body.model).toBe("openai/gpt-oss-20b");
     expect(body.max_tokens).toBe(RUNTIME_CONFIG.maxTokens);
   });
 
@@ -589,8 +590,8 @@ describe("T-260 — AIAgentRuntime.runConversationStep", () => {
     });
     const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
     // "Analyse comparatif" → HEAVY_REASONING → reasoningModel
-    // (= llama-3.3-70b-versatile in DEFAULT_AI_PROVIDER_CONFIG).
-    expect(body.model).toBe("llama-3.3-70b-versatile");
+    // (= openai/gpt-oss-120b in DEFAULT_AI_PROVIDER_CONFIG).
+    expect(body.model).toBe("openai/gpt-oss-120b");
     expect(body.tools).toHaveLength(SYSTEM_TOOLS_DEFINITIONS.length);
   });
 });
@@ -642,7 +643,7 @@ describe("T-260 — ai-config-storage (3 encrypted keys + sampling)", () => {
       groqApiKeyEnc: null,
       openRouterApiKeyEnc: null,
       defaultProvider: "groq",
-      defaultModel: "llama-3.3-70b-versatile",
+      defaultModel: "openai/gpt-oss-120b",
       fallbackModel: null,
       updatedAt: "2026-08-01T00:00:00Z",
       updatedBy: "admin-001",
@@ -655,6 +656,6 @@ describe("T-260 — ai-config-storage (3 encrypted keys + sampling)", () => {
     expect(loaded.temperature).toBe(DEFAULT_AI_PROVIDER_CONFIG.temperature);
     expect(loaded.topP).toBe(DEFAULT_AI_PROVIDER_CONFIG.topP);
     expect(loaded.maxTokens).toBe(DEFAULT_AI_PROVIDER_CONFIG.maxTokens);
-    expect(loaded.defaultModel).toBe("llama-3.3-70b-versatile");
+    expect(loaded.defaultModel).toBe("openai/gpt-oss-120b");
   });
 });

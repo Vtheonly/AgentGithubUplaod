@@ -2,8 +2,8 @@
  * AIConfigTab — Specialized Multi-Model Configuration.
  *
  * Allows administrators to assign:
- *   - Fast Model (e.g. llama-3.1-8b-instant): Query routing, entity lookup & formatting
- *   - Heavy Reasoning Model (e.g. llama-3.3-70b-versatile): Financial audits & complex reasoning
+ *   - Fast Model (e.g. openai/gpt-oss-20b): Query routing, entity lookup & formatting
+ *   - Heavy Reasoning Model (e.g. openai/gpt-oss-120b): Financial audits & complex reasoning
  *   - Smart Task Routing Switch
  */
 import { useEffect, useState } from "react";
@@ -410,7 +410,7 @@ function AIConfigForm() {
               <Input
                 value={fastModel}
                 onChange={(e) => setFastModel(e.target.value)}
-                placeholder="ex: llama-3.1-8b-instant"
+                placeholder="ex: openai/gpt-oss-20b"
                 className="font-mono text-xs"
               />
             </FormField>
@@ -423,7 +423,7 @@ function AIConfigForm() {
               <Input
                 value={reasoningModel}
                 onChange={(e) => setReasoningModel(e.target.value)}
-                placeholder="ex: llama-3.3-70b-versatile"
+                placeholder="ex: openai/gpt-oss-120b"
                 className="font-mono text-xs"
               />
             </FormField>
@@ -434,7 +434,7 @@ function AIConfigForm() {
               <Input
                 value={defaultModel}
                 onChange={(e) => setDefaultModel(e.target.value)}
-                placeholder="ex: llama-3.3-70b-versatile"
+                placeholder="ex: openai/gpt-oss-120b"
                 className="font-mono text-xs"
               />
             </FormField>
@@ -443,7 +443,7 @@ function AIConfigForm() {
               <Input
                 value={fallbackModel}
                 onChange={(e) => setFallbackModel(e.target.value)}
-                placeholder="ex: llama-3.1-8b-instant"
+                placeholder="ex: openai/gpt-oss-20b"
                 className="font-mono text-xs"
               />
             </FormField>
