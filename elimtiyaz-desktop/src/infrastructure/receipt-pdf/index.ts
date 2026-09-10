@@ -18,4 +18,13 @@ export { generatePaymentReceiptPdf } from "./payment-receipt";
 export { generateAccountStatementPdf } from "./account-statement";
 export { generateBulletinPdf } from "./bulletin";
 export { generatePayslipPdf } from "./payslip";
+// T-275/T-276 (42nd session) — the copilot document generators.
+export { generateReportPdf } from "./report-document";
+export type { ReportSpec, ReportSection, ReportTable } from "./report-document";
+export { generateClassReportPdf } from "./class-report";
+export type { ClassReportInput } from "./class-report";
+export { generateDebtReportPdf } from "./debt-report";
+export type { DebtReportInput } from "./debt-report";
+export { generatePaymentPlanPdf } from "./payment-plan";
+export type { PaymentPlanInput } from "./payment-plan";
 export { downloadPdf } from "./download";

@@ -14,7 +14,7 @@
  *     actionable) + the stop-generation button + the persisted-conversation
  *     hint in the header.
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Bot,
   Send,
@@ -34,11 +34,14 @@ import { Input } from "../../shared/ui/input";
 import { Badge } from "../../shared/ui/badge";
 import { Card } from "../../shared/ui/card";
 import { MarkdownView } from "../../shared/ui/markdown-view";
+import { ArtifactRenderer } from "./artifact-renderer";
+import { parseToolArtifact } from "../../core/ai/artifacts";
 
 const STARTER_SUGGESTIONS = [
-  "Quel est le montant total des créances en retard ?",
-  "Y a-t-il des alertes d'assiduité ce trimestre ?",
-  "Donne-moi la situation financière globale de l'école.",
+  "Analyse la tendance des revenus sur 12 mois",
+  "Qui sont les débiteurs prioritaires ? Construis une campagne de recouvrement",
+  "Y a-t-il des élèves à risque ? Recommande des interventions",
+  "Compare les performances des classes",
 ];
 
 export function AICopilotDrawer() {
@@ -59,11 +62,25 @@ export function AICopilotDrawer() {
     clearConversation,
     approveAction,
     dismissAction,
+    downloadArtifact,
   } = useAICopilot();
 
   const [input, setInput] = useState("");
   const [clarificationAnswer, setClarificationAnswer] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // T-272 — parse every tool message ONCE per render pass; a tool
+  // output carrying a validated `artifact` renders as a visual card
+  // below the tool indicator (charts, diagrams, document downloads).
+  // Parsing is memoized per message id — malformed payloads are
+  // dropped by parseToolArtifact (fail-open to "no visual", ADR-016 §3).
+  const toolArtifacts = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof parseToolArtifact>>();
+    for (const m of messages) {
+      if (m.role === "tool") map.set(m.id, parseToolArtifact(m.content ?? ""));
+    }
+    return map;
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -155,14 +172,17 @@ export function AICopilotDrawer() {
 
         {messages.map((m) => {
           if (m.role === "tool") {
+            const artifact = toolArtifacts.get(m.id) ?? null;
             return (
-              <div
-                key={m.id}
-                className="flex items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground"
-              >
-                <Wrench className="h-3 w-3 text-primary" />
-                <span className="font-semibold">{m.name}</span>
-                <span className="truncate opacity-75">Résultat traité</span>
+              <div key={m.id} className="space-y-1.5">
+                <div className="flex items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+                  <Wrench className="h-3 w-3 text-primary" />
+                  <span className="font-semibold">{m.name}</span>
+                  <span className="truncate opacity-75">
+                    {artifact ? "Résultat + visuel généré" : "Résultat traité"}
+                  </span>
+                </div>
+                {artifact && <ArtifactRenderer artifact={artifact} onDownload={downloadArtifact} />}
               </div>
             );
           }

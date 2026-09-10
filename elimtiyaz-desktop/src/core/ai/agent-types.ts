@@ -48,7 +48,12 @@ export interface ToolDefinition {
  */
 export interface ActionProposal {
   id: string;
-  type: "account_adjustment" | "record_attendance" | "dispatch_task" | "send_reminder";
+  /**
+   * T-276 (42nd session): `batch_reminders` — one validation card
+   * carrying N parents; the approval leg executes the canonical
+   * sendReminder PER parent with honest per-parent results.
+   */
+  type: "account_adjustment" | "record_attendance" | "dispatch_task" | "send_reminder" | "batch_reminders";
   title: string;
   summary: string;
   payload: Record<string, unknown>;

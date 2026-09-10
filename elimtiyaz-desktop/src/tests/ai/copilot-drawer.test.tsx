@@ -177,8 +177,10 @@ describe("T-261 — copilot drawer render + RBAC gating", () => {
     });
     expect(screen.getByText("Copilot Éducatif")).toBeTruthy();
     expect(screen.getByText("Comment puis-je vous assister ?")).toBeTruthy();
+    // T-272: the starter suggestions now showcase the capability suites
+    // (trends, campaigns, interventions, comparisons) — AI-311.
     expect(
-      screen.getByText("Quel est le montant total des créances en retard ?"),
+      screen.getByText("Analyse la tendance des revenus sur 12 mois"),
     ).toBeTruthy();
     expect(screen.getByPlaceholderText("Posez une question à l'assistant…")).toBeTruthy();
   });
