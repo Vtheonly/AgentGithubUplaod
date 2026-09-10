@@ -1,0 +1,361 @@
+{
+  "id": "analytics_visuals_demographics",
+  "description": "PARITY-003/T-292: the class demographics derivation (grade from the class grade_code with the label fallback chain; gender Garçons/Filles/Non spécifié added only when > 0; age buckets by birth YEAR only, out-of-range skipped; capacity cap null/0 -> 30, percent = round(count/cap*100)). Both runners must derive identical slices.",
+  "category": "analytics_visuals",
+  "tags": [
+    "parity-003",
+    "demographics",
+    "capacity"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Famille Demo"
+    },
+    "ledgerEntries": [],
+    "installments": [],
+    "payments": [],
+    "classes": [
+      {
+        "id": "cls-1",
+        "name": "1AP-A",
+        "grade_code": "1ap",
+        "capacity": 30
+      },
+      {
+        "id": "cls-2",
+        "name": "Groupe Intégré",
+        "grade_code": "unknown_code",
+        "capacity": 22
+      },
+      {
+        "id": "cls-3",
+        "name": "3AM-B",
+        "grade_code": "3am",
+        "capacity": 25
+      },
+      {
+        "id": "cls-4",
+        "name": "Sans-Cap",
+        "grade_code": null,
+        "capacity": null
+      }
+    ],
+    "students": [
+      {
+        "id": "st-1",
+        "parentId": "par-001",
+        "gradeLevel": "1ap",
+        "gender": "male",
+        "birthDate": "2020-05-10",
+        "classId": "cls-1"
+      },
+      {
+        "id": "st-2",
+        "parentId": "par-001",
+        "gradeLevel": "1ap",
+        "gender": "female",
+        "birthDate": "2019-11-02",
+        "classId": "cls-1"
+      },
+      {
+        "id": "st-3",
+        "parentId": "par-002",
+        "gradeLevel": "1ap",
+        "gender": "female",
+        "birthDate": "2017-01-15",
+        "classId": "cls-1"
+      },
+      {
+        "id": "st-4",
+        "parentId": "par-002",
+        "gradeLevel": "1ap",
+        "gender": "male",
+        "birthDate": "2012-08-30",
+        "classId": "cls-1"
+      },
+      {
+        "id": "st-5",
+        "parentId": "par-003",
+        "gradeLevel": "unknown_code",
+        "gender": "unspecified",
+        "birthDate": null,
+        "classId": "cls-2"
+      },
+      {
+        "id": "st-6",
+        "parentId": "par-003",
+        "gradeLevel": "unknown_code",
+        "gender": "male",
+        "birthDate": "2015-03-20",
+        "classId": "cls-2"
+      },
+      {
+        "id": "st-7",
+        "parentId": "par-004",
+        "gradeLevel": "3am",
+        "gender": "female",
+        "birthDate": "2009-06-01",
+        "classId": "cls-3"
+      },
+      {
+        "id": "st-8",
+        "parentId": "par-004",
+        "gradeLevel": "3am",
+        "gender": "female",
+        "birthDate": "2008-02-28",
+        "classId": "cls-3"
+      },
+      {
+        "id": "st-9",
+        "parentId": "par-005",
+        "gradeLevel": "3am",
+        "gender": "female",
+        "birthDate": "2007-12-31",
+        "classId": "cls-3"
+      },
+      {
+        "id": "st-10",
+        "parentId": "par-005",
+        "gradeLevel": "3am",
+        "gender": "male",
+        "birthDate": "1900-01-01",
+        "classId": "cls-3"
+      },
+      {
+        "id": "st-11",
+        "parentId": "par-006",
+        "gradeLevel": "3am",
+        "gender": "male",
+        "birthDate": "2024-09-05",
+        "classId": null
+      },
+      {
+        "id": "st-12",
+        "parentId": "par-006",
+        "gradeLevel": "3am",
+        "gender": "female",
+        "birthDate": "2022-04-18",
+        "classId": "cls-4"
+      },
+      {
+        "id": "st-13",
+        "parentId": "par-007",
+        "gradeLevel": "3am",
+        "gender": "male",
+        "birthDate": "2025-01-01",
+        "classId": "cls-4"
+      }
+    ]
+  },
+  "when": {
+    "type": "deriveAnalyticsVisuals",
+    "now": "2026-09-10T00:00:00Z"
+  },
+  "then": {
+    "weeklyRhythm": [
+      {
+        "day": "Dim",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Lun",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Mar",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Mer",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Jeu",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      }
+    ],
+    "heatmap": {
+      "monthLabels": [],
+      "monthKeys": [],
+      "rows": [
+        {
+          "day": "Dim",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Lun",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Mar",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Mer",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Jeu",
+          "rowTotal": 0,
+          "cells": []
+        }
+      ],
+      "max": 0,
+      "monthTotals": []
+    },
+    "yoy": {
+      "points": [],
+      "totalCurrent": 0,
+      "totalPrevious": 0,
+      "deltaPercent": null
+    },
+    "trancheWaves": [
+      {
+        "index": 1,
+        "label": "Tranche 1 (Septembre)",
+        "hint": "échéance 15 sep — à l'inscription",
+        "due": 0,
+        "paid": 0,
+        "pending": 0,
+        "pct": 0,
+        "isNextTarget": false
+      },
+      {
+        "index": 2,
+        "label": "Tranche 2 (Décembre)",
+        "hint": "échéance 15 déc",
+        "due": 0,
+        "paid": 0,
+        "pending": 0,
+        "pct": 0,
+        "isNextTarget": false
+      },
+      {
+        "index": 3,
+        "label": "Tranche 3 (Mars)",
+        "hint": "échéance 15 mars",
+        "due": 0,
+        "paid": 0,
+        "pending": 0,
+        "pct": 0,
+        "isNextTarget": false
+      }
+    ],
+    "demographics": {
+      "grade": [
+        {
+          "label": "1AP",
+          "count": 4,
+          "percent": 31
+        },
+        {
+          "label": "Groupe Intégré",
+          "count": 2,
+          "percent": 15
+        },
+        {
+          "label": "3AM",
+          "count": 4,
+          "percent": 31
+        },
+        {
+          "label": "Non assigné",
+          "count": 1,
+          "percent": 8
+        },
+        {
+          "label": "Sans-Cap",
+          "count": 2,
+          "percent": 15
+        }
+      ],
+      "gender": [
+        {
+          "label": "Garçons",
+          "count": 6,
+          "percent": 46
+        },
+        {
+          "label": "Filles",
+          "count": 6,
+          "percent": 46
+        },
+        {
+          "label": "Non spécifié",
+          "count": 1,
+          "percent": 8
+        }
+      ],
+      "age": [
+        {
+          "label": "< 6 ans",
+          "count": 3,
+          "percent": 23
+        },
+        {
+          "label": "6–8 ans",
+          "count": 2,
+          "percent": 15
+        },
+        {
+          "label": "9–11 ans",
+          "count": 2,
+          "percent": 15
+        },
+        {
+          "label": "12–14 ans",
+          "count": 1,
+          "percent": 8
+        },
+        {
+          "label": "15–17 ans",
+          "count": 1,
+          "percent": 8
+        },
+        {
+          "label": "18+ ans",
+          "count": 2,
+          "percent": 15
+        }
+      ],
+      "capacity": [
+        {
+          "label": "1AP-A",
+          "count": 4,
+          "percent": 13
+        },
+        {
+          "label": "Groupe Intégré",
+          "count": 2,
+          "percent": 9
+        },
+        {
+          "label": "3AM-B",
+          "count": 4,
+          "percent": 16
+        },
+        {
+          "label": "Sans-Cap",
+          "count": 2,
+          "percent": 7
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,736 @@
+{
+  "id": "analytics_visuals_rhythm_heatmap_yoy",
+  "description": "PARITY-003/T-292: the weekly operating rhythm (Dim-Jeu, counter-activity: only refunded excluded; Fri/Sat dropped; pending counted), the collection heatmap (paid slice; weekday x calendar-month; 5-step levels) and the YoY comparison (label alignment; null deltas where previous = 0). Both runners must derive identical per-day method stacks, heatmap cells/levels/totals, and YoY points/deltas.",
+  "category": "analytics_visuals",
+  "tags": [
+    "parity-003",
+    "weekly-rhythm",
+    "heatmap",
+    "yoy"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Famille Test"
+    },
+    "ledgerEntries": [],
+    "installments": [],
+    "payments": [
+      {
+        "id": "p1",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 3000000,
+        "method": "cash",
+        "status": "paid",
+        "category": "tuition",
+        "receiptNumber": "REC-1",
+        "collectedBy": "staff-1",
+        "collectedAt": "2025-09-15T09:00:00Z"
+      },
+      {
+        "id": "p2",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 2500000,
+        "method": "check",
+        "status": "paid",
+        "category": "tuition",
+        "receiptNumber": "REC-2",
+        "collectedBy": "staff-1",
+        "collectedAt": "2025-09-17T11:00:00Z"
+      },
+      {
+        "id": "p3",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 4000000,
+        "method": "transfer",
+        "status": "paid",
+        "category": "transport",
+        "receiptNumber": "REC-3",
+        "collectedBy": "staff-1",
+        "collectedAt": "2025-09-19T10:00:00Z"
+      },
+      {
+        "id": "p4",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 1500000,
+        "method": "cash",
+        "status": "paid",
+        "category": "canteen",
+        "receiptNumber": "REC-4",
+        "collectedBy": "staff-1",
+        "collectedAt": "2025-09-20T10:00:00Z"
+      },
+      {
+        "id": "p5",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 9000000,
+        "method": "transfer",
+        "status": "paid",
+        "category": "tuition",
+        "receiptNumber": "REC-5",
+        "collectedBy": "staff-1",
+        "collectedAt": "2025-10-05T08:30:00Z"
+      },
+      {
+        "id": "p6",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 2000000,
+        "method": "cash",
+        "status": "refunded",
+        "category": "tuition",
+        "receiptNumber": "REC-6",
+        "collectedBy": "staff-1",
+        "collectedAt": "2025-10-07T12:00:00Z"
+      },
+      {
+        "id": "p7",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 4500000,
+        "method": "cash",
+        "status": "pending",
+        "category": "uniform",
+        "receiptNumber": "REC-7",
+        "collectedBy": "staff-1",
+        "collectedAt": "2025-11-06T14:00:00Z"
+      },
+      {
+        "id": "p8",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 6000000,
+        "method": "check",
+        "status": "paid",
+        "category": "tuition",
+        "receiptNumber": "REC-8",
+        "collectedBy": "staff-1",
+        "collectedAt": "2026-01-12T09:30:00Z"
+      },
+      {
+        "id": "p9",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 8000000,
+        "method": "transfer",
+        "status": "paid",
+        "category": "tuition",
+        "receiptNumber": "REC-9",
+        "collectedBy": "staff-1",
+        "collectedAt": "2026-01-14T10:00:00Z"
+      },
+      {
+        "id": "p10",
+        "parentId": "par-001",
+        "studentId": null,
+        "amount": 5500000,
+        "method": "cash",
+        "status": "paid",
+        "category": "tuition",
+        "receiptNumber": "REC-10",
+        "collectedBy": "staff-1",
+        "collectedAt": "2026-03-10T11:00:00Z"
+      }
+    ]
+  },
+  "when": {
+    "type": "deriveAnalyticsVisuals",
+    "now": "2026-09-10T00:00:00Z",
+    "range": {
+      "from": "2025-09-01",
+      "to": "2026-06-30"
+    },
+    "currentRevenue": [
+      {
+        "label": "Sep",
+        "amountDzd": 5000000
+      },
+      {
+        "label": "Oct",
+        "amountDzd": 7000000
+      },
+      {
+        "label": "Nov",
+        "amountDzd": 0
+      },
+      {
+        "label": "Déc",
+        "amountDzd": 3000000
+      },
+      {
+        "label": "Jan",
+        "amountDzd": 14000000
+      },
+      {
+        "label": "Fév",
+        "amountDzd": 6000000
+      },
+      {
+        "label": "Mar",
+        "amountDzd": 5500000
+      },
+      {
+        "label": "Avr",
+        "amountDzd": 2000000
+      },
+      {
+        "label": "Mai",
+        "amountDzd": 0
+      },
+      {
+        "label": "Juin",
+        "amountDzd": 1000000
+      }
+    ],
+    "previousRevenue": [
+      {
+        "label": "Sep",
+        "amountDzd": 4000000
+      },
+      {
+        "label": "Oct",
+        "amountDzd": 7000000
+      },
+      {
+        "label": "Nov",
+        "amountDzd": 1000000
+      },
+      {
+        "label": "Déc",
+        "amountDzd": 0
+      },
+      {
+        "label": "Jan",
+        "amountDzd": 9000000
+      },
+      {
+        "label": "Fév",
+        "amountDzd": 0
+      },
+      {
+        "label": "Mar",
+        "amountDzd": 5500000
+      },
+      {
+        "label": "Avr",
+        "amountDzd": 2500000
+      },
+      {
+        "label": "Mai",
+        "amountDzd": 500000
+      },
+      {
+        "label": "Juin",
+        "amountDzd": 0
+      }
+    ]
+  },
+  "then": {
+    "weeklyRhythm": [
+      {
+        "day": "Dim",
+        "cash": 0,
+        "check": 0,
+        "transfer": 9000000
+      },
+      {
+        "day": "Lun",
+        "cash": 3000000,
+        "check": 6000000,
+        "transfer": 0
+      },
+      {
+        "day": "Mar",
+        "cash": 5500000,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Mer",
+        "cash": 0,
+        "check": 2500000,
+        "transfer": 8000000
+      },
+      {
+        "day": "Jeu",
+        "cash": 4500000,
+        "check": 0,
+        "transfer": 0
+      }
+    ],
+    "heatmap": {
+      "monthLabels": [
+        "Sep",
+        "Oct",
+        "Nov",
+        "Déc",
+        "Jan",
+        "Fév",
+        "Mar",
+        "Avr",
+        "Mai",
+        "Juin"
+      ],
+      "monthKeys": [
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "rows": [
+        {
+          "day": "Dim",
+          "rowTotal": 9000000,
+          "cells": [
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 9000000,
+              "count": 1,
+              "level": 4
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            }
+          ]
+        },
+        {
+          "day": "Lun",
+          "rowTotal": 9000000,
+          "cells": [
+            {
+              "amount": 3000000,
+              "count": 1,
+              "level": 2
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 6000000,
+              "count": 1,
+              "level": 3
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            }
+          ]
+        },
+        {
+          "day": "Mar",
+          "rowTotal": 5500000,
+          "cells": [
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 5500000,
+              "count": 1,
+              "level": 3
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            }
+          ]
+        },
+        {
+          "day": "Mer",
+          "rowTotal": 10500000,
+          "cells": [
+            {
+              "amount": 2500000,
+              "count": 1,
+              "level": 2
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 8000000,
+              "count": 1,
+              "level": 4
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            }
+          ]
+        },
+        {
+          "day": "Jeu",
+          "rowTotal": 0,
+          "cells": [
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            },
+            {
+              "amount": 0,
+              "count": 0,
+              "level": 0
+            }
+          ]
+        }
+      ],
+      "max": 9000000,
+      "monthTotals": [
+        5500000,
+        9000000,
+        0,
+        0,
+        14000000,
+        0,
+        5500000,
+        0,
+        0,
+        0
+      ]
+    },
+    "yoy": {
+      "points": [
+        {
+          "label": "Sep",
+          "current": 500000000,
+          "previous": 400000000,
+          "deltaPercent": 25
+        },
+        {
+          "label": "Oct",
+          "current": 700000000,
+          "previous": 700000000,
+          "deltaPercent": 0
+        },
+        {
+          "label": "Nov",
+          "current": 0,
+          "previous": 100000000,
+          "deltaPercent": -100
+        },
+        {
+          "label": "Déc",
+          "current": 300000000,
+          "previous": 0,
+          "deltaPercent": null
+        },
+        {
+          "label": "Jan",
+          "current": 1400000000,
+          "previous": 900000000,
+          "deltaPercent": 56
+        },
+        {
+          "label": "Fév",
+          "current": 600000000,
+          "previous": 0,
+          "deltaPercent": null
+        },
+        {
+          "label": "Mar",
+          "current": 550000000,
+          "previous": 550000000,
+          "deltaPercent": 0
+        },
+        {
+          "label": "Avr",
+          "current": 200000000,
+          "previous": 250000000,
+          "deltaPercent": -20
+        },
+        {
+          "label": "Mai",
+          "current": 0,
+          "previous": 50000000,
+          "deltaPercent": -100
+        },
+        {
+          "label": "Juin",
+          "current": 100000000,
+          "previous": 0,
+          "deltaPercent": null
+        }
+      ],
+      "totalCurrent": 4350000000,
+      "totalPrevious": 2950000000,
+      "deltaPercent": 47
+    },
+    "trancheWaves": [
+      {
+        "index": 1,
+        "label": "Tranche 1 (Septembre)",
+        "hint": "échéance 15 sep — à l'inscription",
+        "due": 0,
+        "paid": 0,
+        "pending": 0,
+        "pct": 0,
+        "isNextTarget": false
+      },
+      {
+        "index": 2,
+        "label": "Tranche 2 (Décembre)",
+        "hint": "échéance 15 déc",
+        "due": 0,
+        "paid": 0,
+        "pending": 0,
+        "pct": 0,
+        "isNextTarget": false
+      },
+      {
+        "index": 3,
+        "label": "Tranche 3 (Mars)",
+        "hint": "échéance 15 mars",
+        "due": 0,
+        "paid": 0,
+        "pending": 0,
+        "pct": 0,
+        "isNextTarget": false
+      }
+    ],
+    "demographics": {
+      "grade": [],
+      "gender": [
+        {
+          "label": "Garçons",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "Filles",
+          "count": 0,
+          "percent": 0
+        }
+      ],
+      "age": [
+        {
+          "label": "< 6 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "6–8 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "9–11 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "12–14 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "15–17 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "18+ ans",
+          "count": 0,
+          "percent": 0
+        }
+      ],
+      "capacity": []
+    }
+  }
+}

@@ -63,6 +63,12 @@ import {
   daysBetweenFloorFor,
   agingBucketFor,
   toAnalyticsPayment,
+  // PARITY-003 / T-292 — the visual-parity derivations
+  deriveWeeklyRhythmFor,
+  deriveTrancheWavesFor,
+  deriveDemographicsFor,
+  deriveCollectionHeatmap as deriveCollectionHeatmapBridge,
+  deriveYearOverYear as deriveYearOverYearBridge,
 } from "./analytics_bridge";
 import {
   crossCheckBalanceSum,
@@ -870,6 +876,111 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
         })),
         funnel: funnel.map((st) => ({ name: st.name, count: st.count, sharePct: st.rateFromPrevious })),
         collectionRatePct: collectionRate,
+      };
+    }
+
+    // ── PARITY-003 / T-292: the visual-parity derivation op — the 5 new
+    // families the 13-chart inventory requires (weekly rhythm, collection
+    // heatmap, YoY, tranche waves, demographics). Runs the SAME canonical
+    // desktop derivations the cards render; the Android runner mirrors
+    // this op through core/StatisticsEngine — the comparator then proves
+    // desktop ≡ android centime-exact on every value.
+    case "deriveAnalyticsVisuals": {
+      const range = (when.range as { from: string; to: string } | undefined) ?? undefined;
+
+      // (a) Weekly rhythm — over the FULL payments stream (the
+      // counter-activity convention: only "refunded" excluded).
+      const allPayments = (given.payments ?? []).map((p) => toAnalyticsPayment(p));
+      const weeklyRhythm = deriveWeeklyRhythmFor(allPayments, range);
+
+      // (b) Collection heatmap — over the paid slice + the same range.
+      const paidSlice = (given.payments ?? [])
+        .filter((p) => p.status === "paid")
+        .map((p) => toAnalyticsPayment(p));
+      const heatmap = deriveCollectionHeatmapBridge(paidSlice, range);
+
+      // (c) YoY — the scenario's current/previous monthly series (DZD).
+      const current = ((when.currentRevenue as { label: string; amountDzd: number }[] | undefined) ?? [])
+        .map((r) => ({ label: r.label, amount: r.amountDzd }));
+      const previous = ((when.previousRevenue as { label: string; amountDzd: number }[] | undefined) ?? [])
+        .map((r) => ({ label: r.label, amount: r.amountDzd }));
+      const yoy = deriveYearOverYearBridge(current, previous);
+
+      // (d) Tranche waves — over the installments (DZD conversion).
+      const trancheRows = (given.installments ?? []).map((i) => ({
+        label: i.label ?? "",
+        amountDue: centimesToDzd(i.amountDue),
+        amountPaid: centimesToDzd(i.amountPaid ?? 0),
+        amountPending: centimesToDzd(i.amountPending ?? 0),
+      }));
+      const trancheWaves = deriveTrancheWavesFor(trancheRows);
+
+      // (e) Demographics — students + classes, pinned currentYear.
+      const currentYear = new Date((when.now as string) ?? "2026-09-10T00:00:00Z").getUTCFullYear();
+      const demographics = deriveDemographicsFor(
+        (given.students ?? []).map((s) => ({
+          gender: (s as { gender?: string }).gender ?? "",
+          birthDate: (s as { birthDate?: string | null }).birthDate ?? null,
+          classId: (s as { classId?: string | null }).classId ?? null,
+        })),
+        (given.classes ?? []).map((c) => ({
+          id: c.id,
+          name: c.name,
+          gradeCode: (c as { grade_code?: string | null }).grade_code ?? null,
+          capacity: (c as { capacity?: number | null }).capacity ?? null,
+        })),
+        currentYear,
+      );
+
+      return {
+        weeklyRhythm: weeklyRhythm.map((r) => ({
+          day: r.day,
+          cash: dzdToCentimes(r.cash),
+          check: dzdToCentimes(r.check),
+          transfer: dzdToCentimes(r.transfer),
+        })),
+        heatmap: {
+          monthLabels: heatmap.monthLabels,
+          monthKeys: heatmap.monthKeys,
+          rows: heatmap.rows.map((r) => ({
+            day: r.day,
+            rowTotal: dzdToCentimes(r.rowTotal),
+            cells: r.cells.map((c) => ({
+              amount: dzdToCentimes(c.amount),
+              count: c.count,
+              level: c.level,
+            })),
+          })),
+          max: dzdToCentimes(heatmap.max),
+          monthTotals: heatmap.monthTotals.map(dzdToCentimes),
+        },
+        yoy: {
+          points: yoy.points.map((p) => ({
+            label: p.label,
+            current: dzdToCentimes(p.current),
+            previous: dzdToCentimes(p.previous),
+            deltaPercent: p.deltaPercent,
+          })),
+          totalCurrent: dzdToCentimes(yoy.totalCurrent),
+          totalPrevious: dzdToCentimes(yoy.totalPrevious),
+          deltaPercent: yoy.deltaPercent,
+        },
+        trancheWaves: trancheWaves.map((w) => ({
+          index: w.index,
+          label: w.label,
+          hint: w.hint,
+          due: dzdToCentimes(w.due),
+          paid: dzdToCentimes(w.paid),
+          pending: dzdToCentimes(w.pending),
+          pct: w.pct,
+          isNextTarget: w.isNextTarget,
+        })),
+        demographics: {
+          grade: demographics.grade,
+          gender: demographics.gender,
+          age: demographics.age,
+          capacity: demographics.capacity,
+        },
       };
     }
 

@@ -1,0 +1,269 @@
+{
+  "id": "analytics_visuals_tranche_waves",
+  "description": "PARITY-003/T-292: the T1/T2/T3 tranche-wave collection-health meters (regex ^\\s*Tranche\\s*([1-3])\\b; 'Année complète' and 'Tranche 10' must not match; pct = min(100, round(paid/due*100)); isNextTarget = the first wave with a remaining balance; paid includes uncleared checks). Both runners must derive identical waves.",
+  "category": "analytics_visuals",
+  "tags": [
+    "parity-003",
+    "tranches",
+    "t248"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Famille Tranche"
+    },
+    "ledgerEntries": [],
+    "installments": [
+      {
+        "id": "inst-t1a",
+        "parentId": "par-001",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 1",
+        "amountDue": 4000000,
+        "amountPaid": 4000000,
+        "amountPending": 0,
+        "dueDate": "2025-09-15",
+        "paidDate": "2025-09-20",
+        "status": "paid"
+      },
+      {
+        "id": "inst-t1b",
+        "parentId": "par-002",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 1",
+        "amountDue": 2000000,
+        "amountPaid": 1000000,
+        "amountPending": 0,
+        "dueDate": "2025-09-15",
+        "paidDate": null,
+        "status": "partial"
+      },
+      {
+        "id": "inst-t2a",
+        "parentId": "par-001",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 2 (Jan–Mar)",
+        "amountDue": 3000000,
+        "amountPaid": 1500000,
+        "amountPending": 500000,
+        "dueDate": "2025-12-15",
+        "paidDate": null,
+        "status": "partial"
+      },
+      {
+        "id": "inst-t2b",
+        "parentId": "par-003",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 2",
+        "amountDue": 3000000,
+        "amountPaid": 0,
+        "amountPending": 0,
+        "dueDate": "2025-12-15",
+        "paidDate": null,
+        "status": "unpaid"
+      },
+      {
+        "id": "inst-t3a",
+        "parentId": "par-004",
+        "studentId": null,
+        "category": "tuition",
+        "label": "tranche 3",
+        "amountDue": 3000000,
+        "amountPaid": 0,
+        "amountPending": 0,
+        "dueDate": "2026-03-15",
+        "paidDate": null,
+        "status": "unpaid"
+      },
+      {
+        "id": "inst-full",
+        "parentId": "par-005",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Année complète",
+        "amountDue": 9000000,
+        "amountPaid": 9000000,
+        "amountPending": 0,
+        "dueDate": "2026-06-15",
+        "paidDate": "2026-06-15",
+        "status": "paid"
+      },
+      {
+        "id": "inst-t10",
+        "parentId": "par-006",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 10",
+        "amountDue": 1000000,
+        "amountPaid": 1000000,
+        "amountPending": 0,
+        "dueDate": "2026-06-15",
+        "paidDate": "2026-06-15",
+        "status": "paid"
+      }
+    ],
+    "payments": []
+  },
+  "when": {
+    "type": "deriveAnalyticsVisuals",
+    "now": "2026-09-10T00:00:00Z"
+  },
+  "then": {
+    "weeklyRhythm": [
+      {
+        "day": "Dim",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Lun",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Mar",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Mer",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      },
+      {
+        "day": "Jeu",
+        "cash": 0,
+        "check": 0,
+        "transfer": 0
+      }
+    ],
+    "heatmap": {
+      "monthLabels": [],
+      "monthKeys": [],
+      "rows": [
+        {
+          "day": "Dim",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Lun",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Mar",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Mer",
+          "rowTotal": 0,
+          "cells": []
+        },
+        {
+          "day": "Jeu",
+          "rowTotal": 0,
+          "cells": []
+        }
+      ],
+      "max": 0,
+      "monthTotals": []
+    },
+    "yoy": {
+      "points": [],
+      "totalCurrent": 0,
+      "totalPrevious": 0,
+      "deltaPercent": null
+    },
+    "trancheWaves": [
+      {
+        "index": 1,
+        "label": "Tranche 1 (Septembre)",
+        "hint": "échéance 15 sep — à l'inscription",
+        "due": 6000000,
+        "paid": 5000000,
+        "pending": 0,
+        "pct": 83,
+        "isNextTarget": true
+      },
+      {
+        "index": 2,
+        "label": "Tranche 2 (Décembre)",
+        "hint": "échéance 15 déc",
+        "due": 6000000,
+        "paid": 1500000,
+        "pending": 500000,
+        "pct": 25,
+        "isNextTarget": false
+      },
+      {
+        "index": 3,
+        "label": "Tranche 3 (Mars)",
+        "hint": "échéance 15 mars",
+        "due": 3000000,
+        "paid": 0,
+        "pending": 0,
+        "pct": 0,
+        "isNextTarget": false
+      }
+    ],
+    "demographics": {
+      "grade": [],
+      "gender": [
+        {
+          "label": "Garçons",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "Filles",
+          "count": 0,
+          "percent": 0
+        }
+      ],
+      "age": [
+        {
+          "label": "< 6 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "6–8 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "9–11 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "12–14 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "15–17 ans",
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "label": "18+ ans",
+          "count": 0,
+          "percent": 0
+        }
+      ],
+      "capacity": []
+    }
+  }
+}
