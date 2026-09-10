@@ -140,8 +140,14 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       }
     }
     if (body.tools !== undefined) {
-      if (!Array.isArray(body.tools) || body.tools.length > 20) {
-        return jsonError(req, 400, "invalid_tools", "tools must be an array of at most 20 schemas");
+      // T-277 (42nd session): 20 → 40 — the desktop registry grew to 27
+      // tool schemas (core + analysis + visualization + document +
+      // workflow suites, AI-311). The cap guards payload sanity, not a
+      // provider limit; it must stay ≥ the registry size or every
+      // agent-stream call 400s (invalid_tools). Raise WITH the registry,
+      // never after (registry-side MAX note: tool-registry.ts header).
+      if (!Array.isArray(body.tools) || body.tools.length > 40) {
+        return jsonError(req, 400, "invalid_tools", "tools must be an array of at most 40 schemas");
       }
     }
   }
