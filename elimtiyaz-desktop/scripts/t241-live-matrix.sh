@@ -29,7 +29,7 @@ API="https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query"
 TEACHER_EMAIL="t241-teacher@elimtiyaz.test"
 DRIVER_EMAIL="t241-driver@elimtiyaz.test"
 ADMIN_EMAIL="admin@elimtiyaz.dz"
-ADMIN_PW="Elimtiyaz2026Admin!"
+ADMIN_PW="elimtiyaz@admin2026"
 
 jqget() { python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)" 2>/dev/null; }
 

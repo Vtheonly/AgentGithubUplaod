@@ -30,7 +30,7 @@ ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 EF="${SB_URL}/functions/v1/ai-proxy"
 
 ADMIN_EMAIL="admin@elimtiyaz.dz"
-ADMIN_PW="Elimtiyaz2026Admin!"
+ADMIN_PW="elimtiyaz@admin2026"
 
 jqget() { python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)" 2>/dev/null; }
 

@@ -17,6 +17,22 @@
 ```
 
 ---
+### 2026-09-10 — 43rd session (T-280) — the owner-pinned admin credential RESTORED (`admin@elimtiyaz.dz` / `elimtiyaz@admin2026`) + the permanent no-rotation pin (OPS-310)
+
+- **Problem IDs:** OPS-310 (NEW, VERIFIED LIVE) — totals 225→226 detailed, 14→15 VERIFIED.
+- **Mandate:** owner (2026-09-10) — "do not change the usernames and passwords admin@elimtiyaz.dz elimtiyaz@admin2026 bring them back" (after the earlier capability report + push confirmation).
+- **Root cause (live-probed before any change):** the owner's canonical password returned 400 `invalid_credentials` while the probe value `Elimtiyaz2026Admin!` (installed by the T-079/T-241 "re-set if the documented password fails" pattern) still granted a JWT — the repair process's own fallback had overwritten the owner's credential, silently and one-way.
+- **What changed:**
+  - LIVE: the admin password restored to the owner-pinned value via the authenticated GoTrue self-service API (`PUT /auth/v1/user` with `{password, current_password}` — an authenticated user path; no service-role/sbp_ token required). Nothing else on the account touched (email, confirmation, app_metadata intact).
+  - `docs/operations/credentials.md` §1: a dedicated OWNER-PINNED credential row + directive — NEVER rotate or re-set; a probe hitting `invalid_credentials` on the pinned value must STOP and ask the owner, never re-set it.
+  - `elimtiyaz-desktop/scripts/t241-live-matrix.sh` / `t269-live-matrix.sh` / `t277-live-matrix.sh`: `ADMIN_PW` repinned to the owner value, so future probe rounds authenticate without ever triggering a re-set fallback. Historical verification docs deliberately untouched (evidence, not live tooling).
+- **Why:** the admin password is the OWNER's credential, not agent-owned rotating infrastructure; every "re-set to the documented value" loop was a silent lockout of the owner's chosen value.
+- **Affected components:** live Supabase auth (1 password field) + 2 docs files + 3 probe scripts. NO app code, NO EF, NO migration — the chain stays 0001–0084; the 42nd-close suites stand (120 files / 2875 / 0).
+- **Tests:** not applicable (no source change — the live matrix below IS the test).
+- **Verification:** live both-direction matrix (2026-09-10): `elimtiyaz@admin2026` → HTTP 200 + 796-char JWT; `Elimtiyaz2026Admin!` → HTTP 400 `invalid_credentials` (the overwrite is dead, not shadowed). Session-opening verification: hub re-cloned after the container reset, HEAD f908ed9 confirmed, `git push` → Everything up-to-date (the 42nd-session delivery fully landed on origin/main).
+- **Notes / residuals:** (a) the password change revokes prior refresh tokens by design — the owner's saved desktop session (if any) signs out once and re-authenticates with the restored credential; (b) the Groq key + GitHub PAT remain chat-transmitted — rotate at leisure (the Groq key lives ONLY as the live EF secret); (c) the P0 owner-gated residual is unchanged: the ai-proxy cap-40 deploy (runbook in t-277-live-verification.md) — until deployed, edge-mode agent-stream calls 400 `invalid_tools` at 27 schemas (BYOK/mock + single-shot features unaffected).
+
+---
 ### 2026-09-10 — 41st session (T-266..T-271) — the production-quality AI integration (AI-310) + the REG-005 unregistered-patch triage + the LIVE agent round-trip (EF v20, GROQ secret, 2026 catalog)
 
 - **Problem IDs:** REG-005 (NEW, TESTED), AI-309 (NEW, TESTED), AI-310 (NEW, TESTED) — totals 221→224 detailed, 159→162 TESTED.

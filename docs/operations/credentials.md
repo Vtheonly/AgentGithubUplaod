@@ -12,7 +12,8 @@
 | Region | `eu-west-1` |
 | REST URL | `https://hkvkefubghbbotgnteir.supabase.co` |
 | Tenant | El-Imtiyaz Boumerdès (`00000000-0000-0000-0000-000000000001`), DZD, `fr`, Africa/Algiers |
-| Auth users (live, 2026-09-01) | 1 — `admin@elimtiyaz.dz` (active, confirmed; password RESET 2026-09-01 by T-106/AUTH-300 after `invalid_credentials` 400s — new value delivered out-of-band, never in git) |
+| Auth users (live, 2026-09-10) | 1 — `admin@elimtiyaz.dz` (active, confirmed; password = the OWNER-PINNED value below — **owner directive 2026-09-10: NEVER rotate or re-set this credential; agents must use it as-is for probes**) |
+| **ADMIN CREDENTIAL (owner-pinned, 2026-09-10, T-280)** | `admin@elimtiyaz.dz` / `elimtiyaz@admin2026` — the owner's canonical sign-in, RESTORED live this session after session resets (T-079/T-241 pattern) had overwritten it with a probe value (`Elimtiyaz2026Admin!`, now dead). **Directive:** do not change the usernames or passwords — probes that hit `invalid_credentials` on this value must STOP and ask the owner, never re-set the password. The three live-matrix scripts (`t241`/`t269`/`t277`) now carry this value as `ADMIN_PW`. |
 | Migration chain applied | 0001–0079 (76/76, 30th-session 2026-09-05: zero drift after the owner re-supplied the sbp_ token — 0072/0073/0074 (the 28th-session gated applies) + 0075–0079 (the messaging-delivery + CROSS-101 batch) applied atomically with registrations; cosmetic live quirks: row 0050 label + NULL catalog comments [the Management API drops COMMENT ON — see AGENTS.md §11.1]) |
 
 **Verified live (session 8):** auth health OK · RLS blocks anon reads on all 9 core tables · 58 RPCs exposed · `expire-pending-approvals` EF denies anonymous calls (SEC-105 fix holding) · canonical financial RPCs present.
