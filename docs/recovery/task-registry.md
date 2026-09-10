@@ -278,7 +278,49 @@
 - **Problems:** process (ADR-007) · **Priority:** P2
 - **Dependencies:** T-283..T-286 · **Affected:** all repos
 - **Plan:** PARITY-002 status flip with evidence, task status flips, change-log 44th-session section, current-state snapshot, next-task 45th recommendation, conventional commits with the 5-question body per repo, zips in download/, push with the owner PAT.
-- **Status:** In Progress (this commit — registries + change-log + zips + push with the owner PAT)
+- **Status:** Completed (2026-09-11 — registries + change-log + current-state + next-task 45th recommendation + zips + push all landed; status truth-synced by the 45th session's opening commit, the same T-218 precedent)
+
+---
+
+## 45th session (2026-09-11) — owner mandate: "100% Visual, Mathematical & Analytical Parity (Desktop to Android)" — the 13-chart parity inventory
+
+> Mandate source: the owner's comprehensive engineering directive (§3 inventory table: 13 desktop visualizations — revenue trend explorer + MA3, weekly operating rhythm, recovery funnel, amount histogram, method mix donut, category revenue breakdown, collection heatmap, top-debtors Pareto, debt aging composition, YoY comparison, 7-day attendance spline, tranche wave progress, class demographics & capacity gauges — every one must have a native Jetpack Compose implementation computed from the exact same canonical data models and mathematical logic, with a `CrossPlatformEquivalenceTest.kt` proving identical numbers). Registered BEFORE implementation per AGENTS.md §13.
+
+### T-288 — Register PARITY-003: the visual/chart parity gap (5 missing derivation families + 8 missing native chart components)
+- **Problems:** PARITY-003 (NEW — see problem registry) · **Priority:** P1
+- **Dependencies:** T-284/T-285 (the statistics-engine base) · **Affected:** hub docs only
+- **Plan:** audit the 13-item inventory against both codebases and record the exact gap: engine-missing derivations (deriveWeeklyRhythm, deriveCollectionHeatmap, deriveYearOverYear + shiftIsoYearBack/previousAcademicYear/inRange/applyAnalyticsFilters/presentCategories/deriveFilteredMonthly, deriveTrancheWaves + trancheNumberOf, demographics grade/gender/age/capacity) and UI-missing components (stacked bar chart, composed revenue chart with cumulative+MA3, method-mix donut card, horizontal ranked bars, heatmap grid, Pareto chart, 100% stacked ratio bar, grouped YoY bars, capacity gauge arc, tranche wave meters, demographics card) plus the un-rendered `paymentMethods` stream and the list-only Pareto/aging surfaces.
+- **Status:** Completed (this session — problem entry written with file:line evidence before the fix)
+
+### T-289 — Engine completion: the 5 missing derivation families in `core/StatisticsEngine.kt` (verbatim ADR-002 mirrors)
+- **Problems:** PARITY-003 (engine leg) · **Priority:** P0
+- **Dependencies:** T-288 · **Affected:** android (`core/StatisticsEngine.kt`)
+- **Plan:** port VERBATIM (source-commit-recorded header): (a) `deriveWeeklyRhythm` — counter-activity convention (exclude ONLY status="refunded", unlike the paid-only encaissé slice), Dim→Jeu school week, per-method accumulation, UTC day computation; (b) `deriveCollectionHeatmap` — month columns walked from the range cursor (guard ≤ 24), 5 school-weekday rows, cell level = max(1, ceil(amount/max×4)) quantized in 5 steps, monthTotals + rowTotal + max; (c) `deriveYearOverYear` — month-LABEL alignment, deltaPercent = prev>0 ? Math.round((cur−prev)/prev×100) : null (null = "n/a", never −100%), totals + global delta; + `shiftIsoYearBack` (leap-day safe) + `previousAcademicYear` + `inRange` + `applyAnalyticsFilters` + `presentCategories` + `deriveFilteredMonthly`; (d) `deriveTrancheWaves` + `trancheNumberOf` — regex ^\s*Tranche\s*([1-3])\b, per-wave due/paid/pending sums, pct = min(100, round(paid/due×100)), isNextTarget = first wave with outstanding > 0, T1 "(Septembre)"/T2 "(Décembre)"/T3 "(Mars)" labels; (e) `deriveDemographics` — grade (GRADE_LEVEL_LABELS_FR or class name fallback), gender (Garçons/Filles/Non spécifié), age buckets (<6/6–8/9–11/12–14/15–17/18+, year-only arithmetic), capacity (cap default 30, pct = round(count/cap×100)). All centimes, mathRound/dzRound rounding discipline, PARITY-001 seams respected.
+- **Status:** Not Started (this commit)
+
+### T-290 — Repository + ViewModel wiring: every new derivation flows through the engine (never UI re-derivation)
+- **Problems:** PARITY-003 (data leg) · **Priority:** P0
+- **Dependencies:** T-289 · **Affected:** android (`domain/model/DashboardKpi.kt`, `domain/repository/DashboardRepository.kt`, `infrastructure/local/LocalDashboardRepository.kt`, `ui/features/dashboard/DashboardViewModel.kt`)
+- **Plan:** extend `DashboardKpi` with the engine contract (weeklyRhythm, collectionHeatmap, yoy, trancheWaves, demographics, paymentStats min/max consolidation, methodMix); rewire `observePaymentMethodsSummary` through `deriveMethodMix` (the fixed-3-method custom derivation retires); the ViewModel exposes the new state; the UI consumes repository-computed values ONLY (§15.16 + PARITY-002 discipline — no inline statistics, no fallback numbers).
+- **Status:** Not Started (this commit)
+
+### T-291 — Native Compose UI: the 13 visualizations (8 new chart primitives + the card grid)
+- **Problems:** PARITY-003 (UI leg) · **Priority:** P0
+- **Dependencies:** T-290 · **Affected:** android (`ui/designsystem/components/data/` NEW primitives + `ui/features/dashboard/` Analytique tab rebuild + `ui/features/financials/FinancialsTranchesTab.kt` + `ui/features/academics/ClassDetailScreen.kt`)
+- **Plan:** new pure-Canvas primitives in the design system (house style: Animatable reveal + ElTheme.colors): ElStackedBarChart (weekly rhythm), ElComposedRevenueChart (bars + cumulative + MA3 overlay, dual scale), ElHorizontalBarChart (category ranking with Montant/Nb toggle), ElHeatmapGrid (weekday × month matrix, 5-step alpha quantization), ElParetoChart (bars + cumulative % curve + right axis), ElStackedRatioBar (100% aging composition), ElGroupedBarChart (YoY current vs previous), ElGaugeArc (capacity). Cards: WeeklyOperatingRhythmCard (Overview), the desktop-parity Analytique tab (slicers → stat strip → trend explorer + mix cards → YoY + histogram → heatmap + aging composition → Pareto), TrancheWaveCard (Financials Tranches tab, global meters + totals row), DemographicsCard + capacity gauges (ClassDetailScreen + Analytique). Calm executive styling (brand blue / warm gold / dark slate), responsive, honest empty states.
+- **Status:** Not Started (this commit)
+
+### T-292 — `CrossPlatformEquivalenceTest.kt`: the 13-visualization equivalence suite + corpus generation
+- **Problems:** PARITY-003 (proof leg) · **Priority:** P0 (the owner's explicit mandate)
+- **Dependencies:** T-289 · **Affected:** android (`app/src/test/.../CrossPlatformEquivalenceTest.kt` NEW, `AndroidEquivalenceRunner.kt` op), hub (`financial-tests/equivalence/scenarios/analytics_visuals_*.json` NEW, `desktop_runner.ts` op, generator script)
+- **Plan:** (a) a hub generator script runs the REAL desktop TS derivations over shared reference datasets (payments, installments, students/classes, prev/current revenue series) and records the expected outputs as canonical corpus scenarios (category `analytics_visuals`); (b) the op implemented in BOTH runners (desktop_runner.ts + AndroidEquivalenceRunner) computing every new derivation; (c) `CrossPlatformEquivalenceTest.kt` runs the corpus + asserts identical numbers/bins/percentages/status tags; (d) StatisticsEngineTest extended with desktop-fixture-pinned unit tests for the 5 new families (heatmap levels, YoY null-delta semantics, weekly rhythm refunded exclusion, tranche waves, demographics buckets).
+- **Status:** Not Started (this commit)
+
+### T-293 — 45th-session closeout: registries + change-log + zips + push
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-288..T-292 · **Affected:** all repos
+- **Plan:** PARITY-003 status flip with evidence, task status flips, change-log 45th-session section, current-state snapshot, next-task 46th recommendation, conventional commits with the 5-question body per repo, zips in download/, push (owner PAT if re-supplied; otherwise documented as blocked).
+- **Status:** Not Started (this commit)
 
 ---
 
