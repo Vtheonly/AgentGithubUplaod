@@ -41,7 +41,7 @@ import { ToastViewport } from "../../shared/layout/toast-viewport";
 import { AICopilotProvider, useAICopilot } from "../../app/providers/ai-copilot-provider";
 import { AICopilotDrawer } from "../../features/ai/copilot-drawer";
 import { AIAgentRuntime } from "../../core/ai/agent-runtime";
-import { executeSystemTool } from "../../core/ai/tools/system-tools";
+import { executeSystemTool } from "../../core/ai/tools/tool-registry";
 import { saveConfig } from "../../infrastructure/ai/ai-config-storage";
 import { DEFAULT_AI_PROVIDER_CONFIG } from "../../domain/model/ai";
 import type { AuthRepository } from "../../domain/repository/repository";

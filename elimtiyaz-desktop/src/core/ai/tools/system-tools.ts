@@ -2,8 +2,11 @@
 // FILE: elimtiyaz-desktop/src/core/ai/tools/system-tools.ts
 // ============================================================================
 /**
- * Deep-domain tools for the Agentic Copilot (T-260, 39th session;
- * DEEPENED T-267, 41st session).
+ * CORE domain tools for the Agentic Copilot (T-260, 39th session;
+ * DEEPENED T-267, 41st session; RESTRUCTURED T-272, 42nd session — the
+ * registry split: this file now owns the CORE suite only; the analysis /
+ * visualization / document / workflow suites live in their own modules
+ * and are composed by tool-registry.ts, the single on-the-wire source).
  *
  * Instead of shallow chatbot answers, the agent is granted direct READ
  * access to real data through the Repositories and the EXACT mathematical
@@ -138,11 +141,11 @@ function validateAdjustmentArgs(
  * Descriptions are in professional French — they steer the model's tool
  * selection and are part of the product's UX.
  *
- * T-267: the registry grew from 6 to 11 tools. ALL of them are always on
+ * T-267: the registry grew from 6 to 12 tools. ALL of them are always on
  * the wire (T-266 removed slicing); list outputs are capped to keep the
  * tool-result payloads token-efficient.
  */
-export const SYSTEM_TOOLS_DEFINITIONS: ToolDefinition[] = [
+export const CORE_TOOLS_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
@@ -357,7 +360,7 @@ export const SYSTEM_TOOLS_DEFINITIONS: ToolDefinition[] = [
  * call can't kill the whole agent loop. List outputs are capped for token
  * efficiency.
  */
-export async function executeSystemTool(
+export async function executeCoreTool(
   name: string,
   args: Record<string, unknown>,
   repos: Repositories,

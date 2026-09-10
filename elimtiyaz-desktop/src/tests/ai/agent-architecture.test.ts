@@ -42,7 +42,7 @@ import {
 import {
   SYSTEM_TOOLS_DEFINITIONS,
   executeSystemTool,
-} from "../../core/ai/tools/system-tools";
+} from "../../core/ai/tools/tool-registry";
 import { AIAgentRuntime } from "../../core/ai/agent-runtime";
 import { loadConfig, saveConfig, readRawStored, clearConfig } from "../../infrastructure/ai/ai-config-storage";
 import { mockRepositories } from "../../app/providers/repository-provider";
@@ -290,13 +290,15 @@ describe("T-260 — provider registry + live model discovery", () => {
  * ================================================================ */
 
 describe("T-260 — system tool definitions", () => {
-  it("declares the 12 domain tools with JSON-schema parameters (T-267 deep set)", () => {
-    // T-267: the registry grew from 6 to 12 — the deep debt-collection,
-    // attendance, class-performance, payment-history and reminder-
-    // proposal tools the owner's production-quality mandate required.
-    expect(SYSTEM_TOOLS_DEFINITIONS).toHaveLength(12);
-    const names = SYSTEM_TOOLS_DEFINITIONS.map((d) => d.function.name);
+  it("declares the 27 domain tools with JSON-schema parameters (T-267 deep set + T-272..T-276 capability suites)", () => {
+    // T-267: the core registry grew 6 → 12. T-272..T-276 (42nd session,
+    // AI-311): the analysis / visualization / document / workflow
+    // suites brought it to 27 — the combined registry lives in
+    // tool-registry.ts (the single on-the-wire source).
+    expect(SYSTEM_TOOLS_DEFINITIONS).toHaveLength(27);
+    const names = SYSTEM_TOOLS_DEFINITIONS.map((d: { function: { name: string } }) => d.function.name);
     expect(names).toEqual([
+      // Core (T-260/T-267)
       "search_entities",
       "get_financial_ledger_summary",
       "get_overdue_accounts",
@@ -309,7 +311,28 @@ describe("T-260 — system tool definitions", () => {
       "propose_account_adjustment",
       "propose_payment_reminder",
       "request_user_clarification",
+      // Analysis (T-273)
+      "analyze_revenue_trends",
+      "compute_statistics",
+      "detect_anomalies",
+      "compare_classes",
+      "get_enrollment_demographics",
+      // Visualization (T-274)
+      "render_chart",
+      "draw_relationship_diagram",
+      // Documents (T-275)
+      "generate_parent_statement",
+      "generate_class_report",
+      "generate_debt_report",
+      "export_data",
+      // Workflows (T-276)
+      "plan_collection_campaign",
+      "propose_batch_reminders",
+      "propose_payment_plan",
+      "recommend_interventions",
     ]);
+    // No accidental duplicates — the EF would forward them all.
+    expect(new Set(names).size).toBe(27);
     for (const def of SYSTEM_TOOLS_DEFINITIONS) {
       expect(def.type).toBe("function");
       expect(def.function.description.length).toBeGreaterThan(10);
@@ -540,9 +563,11 @@ describe("T-260 — AIAgentRuntime.runConversationStep", () => {
       onActionProposed: () => {},
     });
 
-    expect(toolStarts).toBe(5);
-    // user + 5×(assistant + tool)
-    expect(result).toHaveLength(11);
+    expect(toolStarts).toBe(8);
+    // user + 8×(assistant + tool) — T-277 raised the guard 5 → 8 for
+    // the composite workflows (see agent-runtime.ts header); the
+    // runaway guard still terminates the loop deterministically.
+    expect(result).toHaveLength(17);
   });
 
   it("sends the system prompt + ALL tools + tool_choice:auto on the wire (T-266: slicing removed)", async () => {
