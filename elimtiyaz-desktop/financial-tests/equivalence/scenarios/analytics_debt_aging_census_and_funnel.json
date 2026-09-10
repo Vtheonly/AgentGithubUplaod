@@ -1,0 +1,37 @@
+{
+  "id": "analytics_debt_aging_census_and_funnel",
+  "description": "PARITY-002/T-285: the canonical INV-4 installment aging census with a PINNED now — per-installment remaining (paid rows and zero-remaining rows skipped), days from the REAL dueDate, distinct parents per bucket (a family with tranches in two buckets counts in BOTH), not-yet-due rows clamped into 0_30, the recovery funnel from the census family counts, the aging composition shares, the per-parent top-debtors Pareto, and the collection rate (encaissé/(encaissé+créances)).",
+  "category": "analytics_statistics",
+  "tags": ["parity-002", "aging", "funnel", "inv-4"],
+  "given": {
+    "tenantId": "t1",
+    "parent": {"id": "par-001", "name": "Famille A"},
+    "ledgerEntries": [
+      {
+        "id": "le-1", "parentId": "par-001", "studentId": null, "category": "tuition",
+        "amount": 500000, "type": "charge", "sourceType": "installment", "sourceId": "inst-1",
+        "method": null, "receiptNumber": null, "paymentStatus": null, "reversesId": null,
+        "description": "charge", "actorId": "staff-1", "actorName": "Staff", "at": "2025-09-15T10:00:00Z"
+      }
+    ],
+    "installments": [
+      {"id": "inst-1", "parentId": "par-001", "studentId": null, "category": "tuition", "label": "T1", "amountDue": 300000, "amountPaid": 100000, "amountPending": 0, "dueDate": "2026-09-05", "paidDate": null, "status": "overdue"},
+      {"id": "inst-2", "parentId": "par-001", "studentId": null, "category": "tuition", "label": "T2", "amountDue": 200000, "amountPaid": 200000, "amountPending": 0, "dueDate": "2025-09-01", "paidDate": "2025-09-02", "status": "paid"},
+      {"id": "inst-3", "parentId": "par-002", "studentId": null, "category": "tuition", "label": "T1", "amountDue": 100000, "amountPaid": 0, "amountPending": 0, "dueDate": "2026-06-20", "paidDate": null, "status": "overdue"},
+      {"id": "inst-4", "parentId": "par-003", "studentId": null, "category": "tuition", "label": "T1", "amountDue": 800000, "amountPaid": 0, "amountPending": 200000, "dueDate": "2025-09-01", "paidDate": null, "status": "overdue"},
+      {"id": "inst-5", "parentId": "par-004", "studentId": null, "category": "tuition", "label": "T1", "amountDue": 50000, "amountPaid": 50000, "amountPending": 0, "dueDate": "2025-08-01", "paidDate": null, "status": "overdue"},
+      {"id": "inst-6", "parentId": "par-005", "studentId": null, "category": "tuition", "label": "T1", "amountDue": 900000, "amountPaid": 0, "amountPending": 0, "dueDate": "2026-09-30", "paidDate": null, "status": "pending"},
+      {"id": "inst-7", "parentId": "par-006", "studentId": null, "category": "tuition", "label": "T1", "amountDue": 600000, "amountPaid": 0, "amountPending": 0, "dueDate": "2026-02-01", "paidDate": null, "status": "overdue"},
+      {"id": "inst-8", "parentId": "par-007", "studentId": null, "category": "transport", "label": "T1", "amountDue": 400000, "amountPaid": 100000, "amountPending": 0, "dueDate": "2026-08-25", "paidDate": null, "status": "overdue"}
+    ],
+    "payments": [
+      {"id": "p1", "parentId": "par-001", "studentId": null, "amount": 300000, "method": "cash", "status": "paid", "category": "tuition", "receiptNumber": "REC-1", "collectedBy": "staff-1", "collectedAt": "2025-09-15T10:00:00Z"}
+    ],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "deriveAnalyticsStats",
+    "now": "2026-09-10T00:00:00Z"
+  },
+  "then": {}
+}

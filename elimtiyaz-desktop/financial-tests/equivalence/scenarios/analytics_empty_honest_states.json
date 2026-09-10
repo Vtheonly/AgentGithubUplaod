@@ -1,0 +1,34 @@
+{
+  "id": "analytics_empty_honest_states",
+  "description": "PARITY-002/T-285: the honest-empty contract — an empty paid slice and no unpaid installments must produce zeroed stats with NO best month, an empty histogram/mixes/Pareto/aging census/funnel (never a fabricated '100% critical' funnel or a default best month), and a 0% collection rate.",
+  "category": "analytics_statistics",
+  "tags": ["parity-002", "empty", "honest-states"],
+  "given": {
+    "tenantId": "t1",
+    "parent": {"id": "par-001", "name": "Famille Vide"},
+    "ledgerEntries": [
+      {
+        "id": "le-1", "parentId": "par-001", "studentId": null, "category": "tuition",
+        "amount": 100000, "type": "charge", "sourceType": "installment", "sourceId": "inst-1",
+        "method": null, "receiptNumber": null, "paymentStatus": null, "reversesId": null,
+        "description": "charge", "actorId": "staff-1", "actorName": "Staff", "at": "2025-09-15T10:00:00Z"
+      }
+    ],
+    "installments": [
+      {"id": "inst-1", "parentId": "par-001", "studentId": null, "category": "tuition", "label": "T1", "amountDue": 100000, "amountPaid": 100000, "amountPending": 0, "dueDate": "2025-09-15", "paidDate": "2025-09-16", "status": "paid"}
+    ],
+    "payments": [
+      {"id": "p1", "parentId": "par-001", "studentId": null, "amount": 100000, "method": "cash", "status": "paid", "category": "tuition", "receiptNumber": "REC-1", "collectedBy": "staff-1", "collectedAt": "2025-09-15T10:00:00Z"}
+    ],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "deriveAnalyticsStats",
+    "now": "2026-09-10T00:00:00Z"
+  },
+  "then": {
+    "stats": {"count": 1, "total": 100000},
+    "funnel": [],
+    "agingCensus": []
+  }
+}

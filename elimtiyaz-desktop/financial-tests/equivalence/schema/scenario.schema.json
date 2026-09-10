@@ -29,9 +29,10 @@
         "idempotency",
         "boundary",
         "property_based",
-        "complex_sequence"
+        "complex_sequence",
+        "analytics_statistics"
       ],
-      "description": "Test category — used by the comparator to group results."
+      "description": "Test category — used by the comparator to group results. analytics_statistics = the PARITY-002/T-285 dashboard-statistics derivation ops (deriveAnalyticsStats)."
     },
     "tags": {
       "type": "array",
@@ -159,8 +160,14 @@
             "collectPayment",
             "refundPayment",
             "applyAdjustment",
-            "syncRoundTrip"
+            "syncRoundTrip",
+            "deriveAnalyticsStats"
           ]
+        },
+        "now": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The PINNED reference instant for time-dependent derivations (aging buckets, funnel) — required for deriveAnalyticsStats determinism."
         }
       },
       "allOf": [

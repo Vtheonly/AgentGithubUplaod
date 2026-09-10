@@ -52,6 +52,19 @@ import {
   deterministicParentCode,
 } from "../../equivalence/android_mirror/kotlin_mirror_engine";
 import {
+  derivePaymentStats,
+  deriveAmountHistogram,
+  deriveCategoryMix,
+  deriveMethodMix,
+  derivePareto,
+  deriveAgingComposition,
+  deriveRecoveryFunnel,
+  collectionRateFromTotals,
+  daysBetweenFloorFor,
+  agingBucketFor,
+  toAnalyticsPayment,
+} from "./analytics_bridge";
+import {
   crossCheckBalanceSum,
   crossCheckPayments,
   crossCheckInstallments,
@@ -761,6 +774,103 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
     case "stableHash": {
       const input = when.hashInput as string;
       return { hash: stableHash(input) };
+    }
+
+    // ── PARITY-002 / T-285: the analytics-statistics derivation op. Runs
+    // the SAME canonical desktop derivations the Analytics tab renders
+    // (derivePaymentStats / histogram / mixes / Pareto / aging composition /
+    // funnel / collection rate) over the scenario's payments + installments
+    // with a PINNED `now` so the aging/funnel are deterministic. The Android
+    // runner mirrors this op through core/StatisticsEngine — the comparator
+    // then proves the two platforms produce IDENTICAL numbers.
+    case "deriveAnalyticsStats": {
+      const now = (when.now as string) ?? "2026-09-10T00:00:00Z";
+      const slice = (given.payments ?? [])
+        .filter((p) => p.status === "paid")
+        .map((p) => toAnalyticsPayment(p));
+
+      const stats = derivePaymentStats(slice);
+      const histogram = deriveAmountHistogram(slice);
+      const categoryMix = deriveCategoryMix(slice);
+      const methodMix = deriveMethodMix(slice);
+
+      // Top debtors from the installments (desktop seedSummary semantics):
+      // per-parent Σ INV-4 remaining over unpaid installments.
+      const remainingByParent = new Map<string, number>();
+      for (const i of given.installments ?? []) {
+        if (i.status === "paid") continue;
+        const remaining = Math.max(0, centimesToDzd(i.amountDue) - centimesToDzd(i.amountPaid) - centimesToDzd(i.amountPending));
+        if (remaining <= 0) continue;
+        remainingByParent.set(i.parentId, (remainingByParent.get(i.parentId) ?? 0) + remaining);
+      }
+      const parentName = given.parent?.name ?? "Test Parent";
+      const topDebtors = Array.from(remainingByParent.entries())
+        .map(([pid, amount]) => ({ parentName: `${parentName} ${pid}`, outstandingAmount: amount }))
+        .sort((a, b) => b.outstandingAmount - a.outstandingAmount);
+      const pareto = derivePareto(topDebtors);
+
+      // The aging census — the desktop Supabase debtByAgingForRange path:
+      // per-installment remaining, days from the REAL dueDate, distinct
+      // parents per bucket.
+      const AGING_ORDER = ["0_30", "31_60", "61_90", "91_180", "180_plus"] as const;
+      const amountByBucket = new Map<string, number>();
+      const parentsByBucket = new Map<string, Set<string>>();
+      for (const i of given.installments ?? []) {
+        if (i.status === "paid") continue;
+        const remaining = Math.max(0, centimesToDzd(i.amountDue) - centimesToDzd(i.amountPaid) - centimesToDzd(i.amountPending));
+        if (remaining <= 0) continue;
+        const days = daysBetweenFloorFor(i.dueDate, now);
+        const bucket = agingBucketFor(days);
+        amountByBucket.set(bucket, (amountByBucket.get(bucket) ?? 0) + remaining);
+        if (!parentsByBucket.has(bucket)) parentsByBucket.set(bucket, new Set());
+        parentsByBucket.get(bucket)!.add(i.parentId);
+      }
+      const debtAging = AGING_ORDER
+        .filter((b) => amountByBucket.has(b))
+        .map((bucket) => ({
+          bucket,
+          amount: amountByBucket.get(bucket) ?? 0,
+          debtorCount: parentsByBucket.get(bucket)?.size ?? 0,
+        }));
+
+      const funnel = deriveRecoveryFunnel(debtAging);
+      const agingComposition = deriveAgingComposition(debtAging);
+      const totalRevenueDzd = stats.total;
+      const totalOutstandingDzd = Array.from(remainingByParent.values()).reduce((s, v) => s + v, 0);
+      const collectionRate = collectionRateFromTotals(totalRevenueDzd, totalOutstandingDzd);
+
+      return {
+        stats: {
+          count: stats.count,
+          total: dzdToCentimes(stats.total),
+          mean: dzdToCentimes(stats.mean),
+          median: dzdToCentimes(stats.median),
+          stdDev: dzdToCentimes(stats.stdDev),
+          min: dzdToCentimes(stats.min),
+          max: dzdToCentimes(stats.max),
+          bestMonth: stats.bestMonth
+            ? { label: stats.bestMonth.label, amount: dzdToCentimes(stats.bestMonth.amount) }
+            : null,
+        },
+        histogram: histogram.map((b) => ({ label: b.label, count: b.count, amount: dzdToCentimes(b.amount) })),
+        categoryMix: categoryMix.map((m) => ({
+          key: m.key, label: m.label, amount: dzdToCentimes(m.amount), count: m.count, percent: m.percent,
+        })),
+        methodMix: methodMix.map((m) => ({
+          key: m.key, label: m.label, amount: dzdToCentimes(m.amount), count: m.count, percent: m.percent,
+        })),
+        pareto: pareto.map((d) => ({
+          name: d.name, amount: dzdToCentimes(d.amount), cumPercent: d.cumPercent,
+        })),
+        agingCensus: debtAging.map((b) => ({
+          bucket: b.bucket, amount: dzdToCentimes(b.amount), debtorCount: b.debtorCount,
+        })),
+        agingComposition: agingComposition.map((s) => ({
+          bucket: s.bucket, amount: dzdToCentimes(s.amount), debtorCount: s.debtorCount, share: s.share,
+        })),
+        funnel: funnel.map((st) => ({ name: st.name, count: st.count, sharePct: st.rateFromPrevious })),
+        collectionRatePct: collectionRate,
+      };
     }
 
     default:

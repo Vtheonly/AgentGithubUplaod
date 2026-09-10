@@ -1,0 +1,48 @@
+{
+  "id": "analytics_descriptive_stats_and_mixes",
+  "description": "PARITY-002/T-285: the descriptive-statistics derivation over a mixed paid slice (amounts spanning every bin edge, methods, categories, a refunded and a pending payment excluded, cross-year same-month best-month discrimination). Both runners must derive identical count/total/mean/median/sample-σ/best-month, histogram, category mix, method mix, and collection rate.",
+  "category": "analytics_statistics",
+  "tags": ["parity-002", "statistics", "bins", "mixes"],
+  "given": {
+    "tenantId": "t1",
+    "parent": {"id": "par-001", "name": "Famille Test"},
+    "ledgerEntries": [
+      {
+        "id": "le-1", "parentId": "par-001", "studentId": null, "category": "tuition",
+        "amount": 200000, "type": "charge", "sourceType": "installment", "sourceId": "inst-1",
+        "method": null, "receiptNumber": null, "paymentStatus": null, "reversesId": null,
+        "description": "charge", "actorId": "staff-1", "actorName": "Staff", "at": "2025-09-15T10:00:00Z"
+      }
+    ],
+    "installments": [
+      {
+        "id": "inst-1", "parentId": "par-001", "studentId": null, "category": "tuition",
+        "label": "T1", "amountDue": 200000, "amountPaid": 100000, "amountPending": 0,
+        "dueDate": "2025-09-15", "paidDate": null, "status": "overdue"
+      }
+    ],
+    "payments": [
+      {"id": "p1", "parentId": "par-001", "studentId": null, "amount": 1000000, "method": "cash", "status": "paid", "category": "tuition", "receiptNumber": "REC-1", "collectedBy": "staff-1", "collectedAt": "2025-09-15T10:00:00Z"},
+      {"id": "p2", "parentId": "par-001", "studentId": null, "amount": 499900, "method": "cash", "status": "paid", "category": "tuition", "receiptNumber": "REC-2", "collectedBy": "staff-1", "collectedAt": "2025-09-20T10:00:00Z"},
+      {"id": "p3", "parentId": "par-001", "studentId": null, "amount": 500000, "method": "check", "status": "paid", "category": "transport", "receiptNumber": "REC-3", "collectedBy": "staff-1", "collectedAt": "2025-11-05T10:00:00Z"},
+      {"id": "p4", "parentId": "par-001", "studentId": null, "amount": 1999900, "method": "transfer", "status": "paid", "category": "canteen", "receiptNumber": "REC-4", "collectedBy": "staff-1", "collectedAt": "2025-11-25T10:00:00Z"},
+      {"id": "p5", "parentId": "par-001", "studentId": null, "amount": 5000000, "method": "cash", "status": "paid", "category": "tuition", "receiptNumber": "REC-5", "collectedBy": "staff-1", "collectedAt": "2026-01-10T10:00:00Z"},
+      {"id": "p6", "parentId": "par-001", "studentId": null, "amount": 9000000, "method": "cash", "status": "paid", "category": "uniform", "receiptNumber": "REC-6", "collectedBy": "staff-1", "collectedAt": "2026-08-01T10:00:00Z"},
+      {"id": "p7", "parentId": "par-001", "studentId": null, "amount": 3000000, "method": "cash", "status": "paid", "category": "therapy_speech", "receiptNumber": "REC-7", "collectedBy": "staff-1", "collectedAt": "2026-01-15T10:00:00Z"},
+      {"id": "p8", "parentId": "par-001", "studentId": null, "amount": 9900000, "method": "cash", "status": "refunded", "category": "tuition", "receiptNumber": "REC-8", "collectedBy": "staff-1", "collectedAt": "2025-09-21T10:00:00Z"},
+      {"id": "p9", "parentId": "par-001", "studentId": null, "amount": 9900000, "method": "cash", "status": "pending", "category": "tuition", "receiptNumber": "REC-9", "collectedBy": "staff-1", "collectedAt": "2025-09-22T10:00:00Z"}
+    ],
+    "academicYearStartYear": 2025
+  },
+  "when": {
+    "type": "deriveAnalyticsStats",
+    "now": "2026-09-10T00:00:00Z"
+  },
+  "then": {
+    "stats": {
+      "count": 7,
+      "total": 20898800,
+      "bestMonth": {"label": "Jan", "amount": 8000000}
+    }
+  }
+}

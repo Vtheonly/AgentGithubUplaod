@@ -152,6 +152,8 @@ object AndroidEquivalenceRunner {
         val includeInstallments: Boolean = false,
         val includeParentSummaries: Boolean = false,
         val operations: List<Operation> = emptyList(),
+        // PARITY-002/T-285: the pinned reference instant for the analytics op.
+        val now: String? = null,
     )
 
     @Serializable
@@ -488,6 +490,141 @@ object AndroidEquivalenceRunner {
                 }
             }
 
+            // ── PARITY-002 / T-285: the analytics-statistics derivation op —
+            // the ANDROID MIRROR of the desktop runner's deriveAnalyticsStats.
+            // Runs core/StatisticsEngine (the analytics-derivations mirror)
+            // over the same scenario rows with the same PINNED now; the
+            // comparator then proves desktop ≡ android centime-exact.
+            "deriveAnalyticsStats" -> {
+                val nowMs = parseNowMs(when_.now ?: "2026-09-10T00:00:00Z")
+                val slice = given.payments
+                    .filter { it.status == "paid" }
+                    .map { com.example.core.StatsPayment(it.id, it.amount, it.method, it.status, it.category, it.collectedAt) }
+
+                val stats = com.example.core.derivePaymentStats(slice)
+                val histogram = com.example.core.deriveAmountHistogram(slice)
+                val categoryMix = com.example.core.deriveCategoryMix(slice)
+                val methodMix = com.example.core.deriveMethodMix(slice)
+
+                // Top debtors — per-parent Σ INV-4 remaining over unpaid
+                // installments (mirrors the desktop seedSummary semantics).
+                val remainingByParent = LinkedHashMap<String, Long>()
+                for (i in given.installments) {
+                    val rem = com.example.core.installmentRemaining(
+                        com.example.core.StatsInstallment(i.id, i.parentId, i.amountDue, i.amountPaid, i.amountPending, i.dueDate, i.status),
+                    )
+                    if (rem <= 0L) continue
+                    remainingByParent[i.parentId] = (remainingByParent[i.parentId] ?: 0L) + rem
+                }
+                val parentName = given.parent?.name ?: "Test Parent"
+                val topDebtors = remainingByParent.entries
+                    .map { (pid, amount) -> com.example.core.ParetoDebtor("${parentName} ${pid}", amount) }
+                    .sortedByDescending { it.outstandingAmount }
+                val pareto = com.example.core.derivePareto(topDebtors)
+
+                // The aging census (deriveDebtAging — the canonical
+                // per-installment INV-4 path with distinct parents per bucket).
+                val statsInstallments = given.installments.map {
+                    com.example.core.StatsInstallment(it.id, it.parentId, it.amountDue, it.amountPaid, it.amountPending, it.dueDate, it.status)
+                }
+                val census = com.example.core.deriveDebtAging(statsInstallments, nowMs)
+                val funnel = com.example.core.deriveRecoveryFunnel(census)
+                val agingComposition = com.example.core.deriveAgingComposition(census)
+                val collectionRate = com.example.core.collectionRatePct(
+                    stats.total,
+                    statsInstallments.sumOf { com.example.core.installmentRemaining(it) },
+                )
+
+                buildJsonObject {
+                    put("stats", buildJsonObject {
+                        put("count", stats.count)
+                        put("total", stats.total)
+                        put("mean", stats.mean)
+                        put("median", stats.median)
+                        put("stdDev", stats.stdDev)
+                        put("min", stats.min)
+                        put("max", stats.max)
+                        if (stats.bestMonth != null) {
+                            put("bestMonth", buildJsonObject {
+                                put("label", stats.bestMonth.label)
+                                put("amount", stats.bestMonth.amount)
+                            })
+                        } else {
+                            put("bestMonth", kotlinx.serialization.json.JsonNull)
+                        }
+                    })
+                    put("histogram", kotlinx.serialization.json.buildJsonArray {
+                        histogram.forEach { b ->
+                            add(buildJsonObject {
+                                put("label", b.label)
+                                put("count", b.count)
+                                put("amount", b.amount)
+                            })
+                        }
+                    })
+                    put("categoryMix", kotlinx.serialization.json.buildJsonArray {
+                        categoryMix.forEach { m ->
+                            add(buildJsonObject {
+                                put("key", m.key)
+                                put("label", m.label)
+                                put("amount", m.amount)
+                                put("count", m.count)
+                                put("percent", m.percent)
+                            })
+                        }
+                    })
+                    put("methodMix", kotlinx.serialization.json.buildJsonArray {
+                        methodMix.forEach { m ->
+                            add(buildJsonObject {
+                                put("key", m.key)
+                                put("label", m.label)
+                                put("amount", m.amount)
+                                put("count", m.count)
+                                put("percent", m.percent)
+                            })
+                        }
+                    })
+                    put("pareto", kotlinx.serialization.json.buildJsonArray {
+                        pareto.forEach { d ->
+                            add(buildJsonObject {
+                                put("name", d.name)
+                                put("amount", d.amount)
+                                put("cumPercent", d.cumPercent)
+                            })
+                        }
+                    })
+                    put("agingCensus", kotlinx.serialization.json.buildJsonArray {
+                        census.forEach { b ->
+                            add(buildJsonObject {
+                                put("bucket", b.bucket)
+                                put("amount", b.amount)
+                                put("debtorCount", b.debtorCount)
+                            })
+                        }
+                    })
+                    put("agingComposition", kotlinx.serialization.json.buildJsonArray {
+                        agingComposition.forEach { s ->
+                            add(buildJsonObject {
+                                put("bucket", s.bucket)
+                                put("amount", s.amount)
+                                put("debtorCount", s.debtorCount)
+                                put("share", s.share)
+                            })
+                        }
+                    })
+                    put("funnel", kotlinx.serialization.json.buildJsonArray {
+                        funnel.forEach { st ->
+                            add(buildJsonObject {
+                                put("name", st.name)
+                                put("count", st.count)
+                                put("sharePct", st.sharePct)
+                            })
+                        }
+                    })
+                    put("collectionRatePct", collectionRate)
+                }
+            }
+
             else -> errorResult("Unknown operation type: ${when_.type}")
         }
     }
@@ -574,6 +711,10 @@ object AndroidEquivalenceRunner {
     private fun errorResult(message: String): JsonObject = buildJsonObject {
         put("error", message)
     }
+
+    /** Parse the pinned scenario `now` instant to epoch-ms (0 on parse failure). */
+    private fun parseNowMs(iso: String): Long =
+        runCatching { java.time.Instant.parse(iso).toEpochMilli() }.getOrDefault(0L)
 
     // ─── JSON builder helpers ───────────────────────────────────────────
 
