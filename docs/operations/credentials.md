@@ -137,6 +137,8 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 
 1. Auth health: `auth/v1/health` → **200 with BOTH formats** (legacy anon JWT + `sb_publishable_…`).
 2. RLS: anon/publishable sees **0 rows** on parents / students / payments / ledger_entries / installments (HTTP 200, empty arrays).
+**42nd session note (2026-09-10 — the ONE owner-gated step, P0):** the ai-proxy EF's agent-mode `tools` array cap was raised 20 → 40 in code (T-277: the desktop registry now sends 27 schemas; the cap must stay ≥ the registry or every edge-mode agent-stream call 400s `invalid_tools`). The DEPLOY could not run this session (the sbp_ access token was not re-supplied; it is never persisted). **Runbook:** `SUPABASE_ACCESS_TOKEN=sbp_… supabase functions deploy ai-proxy --project-ref hkvkefubghbbotgnteir --no-verify-jwt` → re-run `elimtiyaz-desktop/scripts/t277-live-matrix.sh` → probe P2 flips HTTP 400 → 200 (the acceptance criterion; evidence + impact scope: docs/recovery/t-277-live-verification.md). Until the deploy: edge-mode AGENT-STREAM calls 400; BYOK + mock modes and all single-shot features (narrative/drafting/anomaly — no `tools` on the wire) are unaffected. The GROQ_API_KEY secret is unchanged and was re-proven live through the EF this session (matrix P3: HTTP 200 + 77 SSE lines).
+
 **§7 checklist re-run (41st session, 2026-09-10 — owner re-supplied the sbp_ access token + the Groq key; consistency confirmed + the AI live round):**
 
 1. Auth health: `auth/v1/token` password grant → admin JWT (the documented admin password had been rotated by the owner; re-reset via the GoTrue admin API per the T-241 runbook pattern — the owner should rotate it again at leisure).
