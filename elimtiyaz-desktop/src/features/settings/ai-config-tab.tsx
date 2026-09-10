@@ -139,14 +139,20 @@ function AIConfigForm() {
     }
   };
 
-  const fetchModelsForProvider = async (provider: AIProvider, key: string) => {
+  const fetchModelsForProvider = async (
+    provider: AIProvider,
+    key: string,
+    baseUrlOverride?: string,
+  ) => {
     if (!key && provider !== "custom_openai") return;
     setFetchingModels(true);
     try {
       const models = await queryLiveProviderModels(
         provider,
         key,
-        provider === "custom_openai" ? customBaseUrl || undefined : undefined,
+        provider === "custom_openai"
+          ? baseUrlOverride || customBaseUrl || undefined
+          : undefined,
       );
       setAvailableModels(models);
       toast.showSuccess(
@@ -165,11 +171,31 @@ function AIConfigForm() {
   };
 
   useEffect(() => {
-    if (config.defaultProvider && activeKeyFor(config.defaultProvider)) {
-      void fetchModelsForProvider(config.defaultProvider, activeKeyFor(config.defaultProvider));
+    // T-281 (AI-312): auto-discovery keyed on the SAVED config values —
+    // the OLD effect read the live form state (still empty on the first
+    // pass because the populate effect's setState only lands on the NEXT
+    // render), so opening the tab WITHOUT touching anything never fetched
+    // the list. Keyed on the observable's own fields, the fetch fires as
+    // soon as the saved config arrives — and NEVER re-fires per keystroke
+    // in the key input (the saved value is unchanged while typing).
+    const savedKey =
+      config.defaultProvider === "groq"
+        ? config.groqApiKey
+        : config.defaultProvider === "openrouter"
+          ? config.openRouterApiKey
+          : config.customApiKey;
+    if (
+      config.defaultProvider &&
+      (savedKey || config.defaultProvider === "custom_openai")
+    ) {
+      void fetchModelsForProvider(
+        config.defaultProvider,
+        savedKey ?? "",
+        config.defaultProvider === "custom_openai" ? config.customBaseUrl || undefined : undefined,
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config]);
+  }, [config.defaultProvider, config.groqApiKey, config.openRouterApiKey, config.customApiKey, config.customBaseUrl]);
 
   const handleTestInference = async () => {
     const key = activeKeyFor(defaultProvider);
@@ -399,54 +425,59 @@ function AIConfigForm() {
           </p>
         </div>
 
-        {/* Specialized Models Setup */}
+        {/* Specialized Models Setup — T-281 (AI-312): SELECT from the
+            live-fetched model list instead of typing ids blind. A custom
+            value stays selectable ("hors liste" badge + manual-entry
+            escape hatch) so a working id that the /models endpoint no
+            longer lists never locks the form. */}
         <div className="space-y-4 border-t pt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Cpu className="h-4 w-4" /> Modèles ({availableModels.length} découverts)
+            </div>
+            <div className="flex items-center gap-2">
+              {fetchingModels && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              <span className="text-[10px] text-muted-foreground">
+                {t("ai.modelsFound")} : {availableModels.length}
+              </span>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Fast model */}
-            <FormField
+            <ModelSelectField
               label="⚡ Modèle Rapide / Outils (Fast Model)"
               hint="Pour recherches d'élèves, filtrage et réponses instantanées"
-            >
-              <Input
-                value={fastModel}
-                onChange={(e) => setFastModel(e.target.value)}
-                placeholder="ex: openai/gpt-oss-20b"
-                className="font-mono text-xs"
-              />
-            </FormField>
+              value={fastModel}
+              onChange={setFastModel}
+              models={availableModels}
+            />
 
             {/* Heavy reasoning model */}
-            <FormField
+            <ModelSelectField
               label="🧠 Modèle Raisonnement (Heavy Reasoning)"
               hint="Pour analyses financières, déductions de remises et synthèses"
-            >
-              <Input
-                value={reasoningModel}
-                onChange={(e) => setReasoningModel(e.target.value)}
-                placeholder="ex: openai/gpt-oss-120b"
-                className="font-mono text-xs"
-              />
-            </FormField>
+              value={reasoningModel}
+              onChange={setReasoningModel}
+              models={availableModels}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Modèle Général par défaut" hint="Utilisé si le routage dynamique est désactivé">
-              <Input
-                value={defaultModel}
-                onChange={(e) => setDefaultModel(e.target.value)}
-                placeholder="ex: openai/gpt-oss-120b"
-                className="font-mono text-xs"
-              />
-            </FormField>
+            <ModelSelectField
+              label="Modèle Général par défaut"
+              hint="Utilisé si le routage dynamique est désactivé"
+              value={defaultModel}
+              onChange={setDefaultModel}
+              models={availableModels}
+            />
 
-            <FormField label="Modèle de secours (Fallback 429)" hint="Activé automatiquement si la limite est atteinte">
-              <Input
-                value={fallbackModel}
-                onChange={(e) => setFallbackModel(e.target.value)}
-                placeholder="ex: openai/gpt-oss-20b"
-                className="font-mono text-xs"
-              />
-            </FormField>
+            <ModelSelectField
+              label="Modèle de secours (Fallback 429)"
+              hint="Activé automatiquement si la limite est atteinte"
+              value={fallbackModel}
+              onChange={setFallbackModel}
+              models={availableModels}
+            />
           </div>
         </div>
 
@@ -532,6 +563,103 @@ function AIConfigForm() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * T-281 (AI-312): a model field that SELECTS from the live-fetched model
+ * list instead of blind typing. Behavior:
+ *   - list populated → dropdown; the current value is always present as
+ *     an option (even when absent from the provider's list — a working
+ *     custom id never locks the form), and shows a "hors liste" warning
+ *     badge when that is the case;
+ *   - "Saisie manuelle…" item (or an empty list) → free-text input with a
+ *     return-to-list button, so any provider/endpoint shape stays usable;
+ *   - an empty list without a manual switch keeps the free-text input
+ *     (no dead dropdown) — this is the pre-T-281 behavior.
+ *
+ * Exported for the T-281 suite (rendered-branch pinning).
+ */
+export function ModelSelectField({
+  label,
+  hint,
+  value,
+  onChange,
+  models,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  models: AIModelInfo[];
+}) {
+  const [manual, setManual] = useState(false);
+  const valueInList = value === "" || models.some((m) => m.id === value);
+  const options: { id: string }[] = value && !valueInList
+    ? [{ id: value }, ...models]
+    : models;
+
+  const showInput = manual || models.length === 0;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        {value && models.length > 0 && !valueInList && (
+          <Badge
+            variant="outline"
+            className="border-status-warning/40 bg-status-warning/5 text-[10px] text-status-warning"
+          >
+            hors liste
+          </Badge>
+        )}
+      </div>
+      {showInput ? (
+        <div className="flex gap-2">
+          <Input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="ex: openai/gpt-oss-20b"
+            className="font-mono text-xs"
+          />
+          {models.length > 0 && (
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setManual(false)}
+              className="h-9 shrink-0"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="ml-1 hidden text-xs sm:inline">Liste</span>
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Select
+          value={value || undefined}
+          onValueChange={(v) => {
+            if (v === "__manual__") {
+              setManual(true);
+              return;
+            }
+            onChange(v);
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner un modèle…" />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((m) => (
+              <SelectItem key={m.id} value={m.id} className="font-mono text-xs">
+                {m.id}
+              </SelectItem>
+            ))}
+            <SelectItem value="__manual__">Saisie manuelle…</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+    </div>
   );
 }
 

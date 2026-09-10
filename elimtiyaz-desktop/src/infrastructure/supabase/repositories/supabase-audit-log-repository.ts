@@ -45,6 +45,43 @@ import type { AuditLogRow } from "../types";
 import { requireTenantId, getTenantId, isUuid } from "./supabase-shared-repositories";
 
 // ============================================================================
+// T-282 (OPS-311, 43rd session): transient-retry for the audit read paths
+// ============================================================================
+
+/**
+ * The owner's production console showed an INTERMITTENT HTTP 500 on the
+ * audit recent-activity query (`order=occurred_at.desc&limit=200`) at app
+ * start (2026-09-09 20:32, 2026-09-10 11:15 — recorded as the OPS-309
+ * residual (a), "not reproducible"). Live-probed 2026-09-10: the exact
+ * query returns 200 in ~1.1s with 161 small rows — the failure is a
+ * TRANSIENT server-side blip (startup query burst / connection pool),
+ * not a defect in the query itself. A single short-delay retry absorbs
+ * the blip: the search index (Cmd+K) and the audit feed stay green and
+ * the console stays clean. The retry is ONE attempt, then the second
+ * result (success or failure) is final — a genuine error still surfaces.
+ */
+const TRANSIENT_RETRY_DELAY_MS = 600;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Typed wrapper: retry when the first attempt returned a PostgREST error —
+ * the second outcome is final. Preserves the full Supabase result shape
+ * (data / error / count). Read paths only (idempotent SELECTs); the write
+ * path `log()` is NEVER retried blindly.
+ */
+async function queryWithTransientRetry<T extends { error: unknown }>(
+  run: () => PromiseLike<T>,
+): Promise<T> {
+  const first = await run();
+  if (!first.error) return first;
+  await delay(TRANSIENT_RETRY_DELAY_MS);
+  return run();
+}
+
+// ============================================================================
 // Row → domain mapper
 // ============================================================================
 
@@ -122,7 +159,7 @@ export class SupabaseAuditLogRepository implements AuditRepository {
         .order("occurred_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
-      const { data, error, count } = await qb;
+      const { data, error, count } = await queryWithTransientRetry(() => qb);
       if (error) return Err(supabaseErrorToAppError(error));
 
       const entries = (data ?? []).map(mapAuditRow);
@@ -152,14 +189,16 @@ export class SupabaseAuditLogRepository implements AuditRepository {
       // Non-UUID entity ids (mock-era) can never match the uuid column.
       if (!isUuid(entityId)) return Ok([]);
 
-      const { data, error } = await this.client
-        .from("audit_logs")
-        .select("*")
-        .eq("tenant_id", getTenantId())
-        .eq("entity_type", entityType)
-        .eq("entity_id", entityId)
-        .order("occurred_at", { ascending: false })
-        .limit(200);
+      const { data, error } = await queryWithTransientRetry(() =>
+        this.client
+          .from("audit_logs")
+          .select("*")
+          .eq("tenant_id", getTenantId())
+          .eq("entity_type", entityType)
+          .eq("entity_id", entityId)
+          .order("occurred_at", { ascending: false })
+          .limit(200),
+      );
 
       if (error) return Err(supabaseErrorToAppError(error));
       return Ok((data ?? []).map(mapAuditRow));
@@ -178,12 +217,17 @@ export class SupabaseAuditLogRepository implements AuditRepository {
    */
   async recent(limit = 50): Promise<Result<AuditEntry[]>> {
     try {
-      const { data, error } = await this.client
-        .from("audit_logs")
-        .select("*")
-        .eq("tenant_id", getTenantId())
-        .order("occurred_at", { ascending: false })
-        .limit(limit);
+      // T-282 (OPS-311): the OWNER-OBSERVED intermittent 500 hits exactly
+      // this query (search index + recent-activity feed) — wrapped in the
+      // transient retry.
+      const { data, error } = await queryWithTransientRetry(() =>
+        this.client
+          .from("audit_logs")
+          .select("*")
+          .eq("tenant_id", getTenantId())
+          .order("occurred_at", { ascending: false })
+          .limit(limit),
+      );
 
       if (error) return Err(supabaseErrorToAppError(error));
       return Ok((data ?? []).map(mapAuditRow));

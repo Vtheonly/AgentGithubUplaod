@@ -270,18 +270,47 @@ export class AIAgentRuntime {
           activeModel = config.fallbackModel;
           body.model = activeModel;
 
-          result = await executeOpenAIStream(
-            url,
-            headers,
-            body,
-            {
-              onDelta: (text) => {
-                onTextDelta(text);
+          try {
+            result = await executeOpenAIStream(
+              url,
+              headers,
+              body,
+              {
+                onDelta: (text) => {
+                  onTextDelta(text);
+                },
               },
-            },
-            signal,
-          );
+              signal,
+            );
+          } catch (fallbackErr) {
+            const still429 =
+              fallbackErr instanceof Error &&
+              (fallbackErr.message.includes("429") ||
+                fallbackErr.message.toLowerCase().includes("rate limit"));
+            // T-281 (AI-312): the stream client already backed off and
+            // retried both models — a persistent 429 needs a HUMAN-readable
+            // verdict, not a raw provider body (the owner's console showed
+            // five bare 429s with no guidance).
+            if (still429) {
+              throw new Error(
+                `Limite de débit atteinte sur ${activeModel} et ${config.fallbackModel} ` +
+                  "(HTTP 429 — quota Groq épuisé pour la minute en cours). " +
+                  "Patientez environ une minute avant de renvoyer la question, ou réglez " +
+                  "des modèles plus légers dans Réglages → IA.",
+              );
+            }
+            throw fallbackErr;
+          }
         } else {
+          if (is429) {
+            // T-281 (AI-312): no fallback model configured (or it IS the
+            // active one) — same human verdict as above.
+            throw new Error(
+              `Limite de débit atteinte sur ${activeModel} (HTTP 429 — quota Groq ` +
+                "épuisé pour la minute en cours). Patientez environ une minute avant de " +
+                "renvoyer la question, ou réglez un modèle de secours dans Réglages → IA.",
+            );
+          }
           throw err;
         }
       }

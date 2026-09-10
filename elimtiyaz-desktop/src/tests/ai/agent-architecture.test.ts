@@ -33,7 +33,7 @@ import {
   type AIProviderConfig,
   type AIChatMessage,
 } from "../../domain/model/ai";
-import { executeOpenAIStream } from "../../core/ai/streaming/stream-client";
+import { executeOpenAIStream, STREAM_RETRY } from "../../core/ai/streaming/stream-client";
 import {
   PROVIDER_ENDPOINTS,
   resolveEndpoint,
@@ -216,12 +216,22 @@ describe("T-260 — executeOpenAIStream (SSE parser)", () => {
   });
 
   it("throws with the HTTP status + body text on a non-OK response", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response("quota exceeded", { status: 429 }),
-    );
-    await expect(
-      executeOpenAIStream("u", {}, { model: "m", messages: [] }, {}),
-    ).rejects.toThrow("HTTP 429");
+    // T-281 (AI-312): 429 is now TRANSIENT (retried with backoff — the
+    // retry behavior has its own dedicated suite, t-281-rate-limit-
+    // resilience.test.ts). Retries disabled here to keep the unit fast
+    // and the assertion about the throw SHAPE.
+    const saved = { ...STREAM_RETRY };
+    Object.assign(STREAM_RETRY, { maxAttempts: 1 });
+    try {
+      (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+        new Response("quota exceeded", { status: 429 }),
+      );
+      await expect(
+        executeOpenAIStream("u", {}, { model: "m", messages: [] }, {}),
+      ).rejects.toThrow("HTTP 429");
+    } finally {
+      Object.assign(STREAM_RETRY, saved);
+    }
   });
 
   it("always sends stream:true on the wire with the auth header", async () => {
