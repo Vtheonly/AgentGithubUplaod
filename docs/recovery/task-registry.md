@@ -320,7 +320,7 @@
 - **Problems:** process (ADR-007) · **Priority:** P2
 - **Dependencies:** T-288..T-292 · **Affected:** all repos
 - **Plan:** PARITY-003 status flip with evidence, task status flips, change-log 45th-session section, current-state snapshot, next-task 46th recommendation, conventional commits with the 5-question body per repo, zips in download/, push (owner PAT if re-supplied; otherwise documented as blocked).
-- **Status:** In Progress (this commit — registries + change-log + current-state + next-task + commits + zips; push owner-PAT-gated)
+- **Status:** Completed (2026-09-11 — registries + change-log + current-state + next-task landed; conventional commits in BOTH repos with the 5-question bodies; zips generated in download/; the push is owner-PAT-gated: the token was not re-supplied this session, so the commits await the owner's push or the next session with a fresh PAT — the 43rd-session precedent [one-shot URL, never persisted])
 
 ---
 
