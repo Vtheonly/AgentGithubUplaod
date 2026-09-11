@@ -432,3 +432,68 @@ describe("T-296 — drawer data path (diff string → engine rows)", () => {
     expect(statusRow.newDisplay).toBe("paid");
   });
 });
+
+// ---------------------------------------------------------------------------
+// T-310 (49th session) — AUDIT-502: the payment.collect drawer case. The
+// pre-0087 RPC rows recover their details via mapAuditDiff's legacy-diff
+// fallback → the domain diff carries {before: null, after: {…payment…}} →
+// the TABLE renders every payment detail as a GREEN added row (INSERT
+// semantics), NOT the "structurally identical" empty state the owner saw.
+// ---------------------------------------------------------------------------
+
+describe("T-310 — payment.collect drawer renders the recovered details as a table", () => {
+  function renderTab() {
+    return render(<AuditLogTab />);
+  }
+
+  it("a recovered payment entry (before null, flat after) renders green added rows", async () => {
+    const paymentEntry = makeEntry({
+      id: "aud-pay-310",
+      actorName: "dac9c821-22a3-4edb-857c-6c4414199d2e",
+      actorRole: null,
+      diff: JSON.stringify({
+        before: null,
+        after: {
+          amount: 152500,
+          method: "cash",
+          status: "paid",
+          receipt: "REC-2026-000001",
+          allocations: [],
+          unallocatedCredit: 152500,
+        },
+      }),
+    });
+    auditStub.query.mockImplementation(async () => ({
+      ok: true,
+      value: { entries: [paymentEntry], total: 1, hasMore: false },
+    }));
+    renderTab();
+    const row = await screen.findByText("payment.collect");
+    row.closest("li")!.click();
+
+    // The TABLE (not the empty state) renders with the payment fields.
+    const table = await screen.findByTestId("audit-diff-table");
+    expect(table).toBeTruthy();
+    // Map the rows: field label → the row's new-value cell (rows are sorted
+    // by key — allocations/amount/method/receipt/status/unallocatedCredit).
+    const rowMap = new Map<string, string>();
+    for (const tr of Array.from(table.querySelectorAll("tr[data-testid='audit-diff-row']"))) {
+      const field = tr.querySelector("[data-testid='audit-diff-field']")?.textContent ?? "";
+      const newCell = tr.querySelector("[data-testid='diff-new-value']")?.textContent ?? "";
+      rowMap.set(field, newCell);
+    }
+    expect(rowMap.get("receipt")).toContain("REC-2026-000001");
+    expect(rowMap.get("amount")).toContain("152500");
+    expect(rowMap.get("method")).toContain("cash");
+    expect(rowMap.get("status")).toContain("paid");
+    expect(rowMap.get("unallocatedCredit")).toContain("152500");
+    // Added rows: every old-value cell shows the em-dash placeholder.
+    const oldCells = table.querySelectorAll("[data-testid='diff-old-cell']");
+    expect(oldCells.length).toBe(6);
+    for (const cell of Array.from(oldCells)) {
+      expect(cell.querySelector("span")?.textContent).toBe("—");
+    }
+    // No empty-state message.
+    expect(screen.queryByText(/structurellement identiques/i)).toBeNull();
+  });
+});
