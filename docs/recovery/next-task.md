@@ -16,7 +16,9 @@
 
 **OFFLINE-400 registered (BEFORE implementation, per §13):** six sub-gaps with file:line evidence — the shallow raw-JSON AuditDiffDrawer; the dropped actor_role in mapAuditRow; Android's fabricated delta inspector (never reads beforeJson/afterJson); NO 3-way conflict detection/resolver anywhere (engine-level LWW tests only — concurrent edits silently overwrite); NO realtime audit_logs subscription on either platform (no attributed "Actor (Role) action target" broadcast); the mock-only backup restore ("aucune écriture en base") + the untoggleable scheduler. The session plan: T-295 field-diff engine → T-296 desktop drawer + attribution → T-297 Android mirror → T-298 3-way resolver → T-299 realtime broadcast → T-300 offline restore + staging → T-301 scheduler toggle → T-302 closeout (zips + push with the re-supplied PAT). Zero-duplication rule: revive AuditDiffDrawer/AuditRepository/BackupRepository/SyncService/SyncQueueDispatcher in place; the diff engine + 3-way engine are NEW pure domain modules (no existing implementation to duplicate — verified by rg at registration).
 
-**Currently in progress:** T-295 (the field-level diff engine, desktop TS).
+**Progress (2026-09-11, same session):** T-294 registered ✅ · T-295 field-diff engine ✅ (29/29, commit 86dcf77) · T-296 desktop drawer + actor attribution ✅ (11/11, commit 86dcf77) · T-297 Android mirror ✅ (android commit a8a046a — FieldDiffTest 26/26 + AuditDiffSheetTest 9/9, full suite 56/502/0; the fabricated "Inspecteur JSON" REPLACED by the shared ui/components/AuditDiffSheet.kt red/green renderer in BOTH screens; one mirror deviation found+fixed live: malformed-before + valid-after renders nothing, matching the desktop drawer).
+
+**Currently in progress:** T-298 (the desktop 3-way conflict detection + resolver UI — the field-diff engine powers the 3-column Base/A/B rendering).
 
 ## 45th session (2026-09-11, CLOSED) — owner mandate COMPLETE ("100% Visual, Mathematical & Analytical Parity (Desktop to Android)" — the 13-chart parity inventory): T-288..T-293 (6 tasks)
 

@@ -340,19 +340,19 @@
 - **Problems:** OFFLINE-400 (sub-gap 1) · **Priority:** P0
 - **Dependencies:** T-294 · **Affected:** hub desktop (`src/domain/calc/diff/field-diff.ts` NEW — no existing diff computation to duplicate; the AuditDiffDrawer never computed deltas)
 - **Plan:** a PURE function family: `computeFieldDiff(before, after)` → `FieldDiffNode[]` where each node carries `{ path, kind: added|removed|changed|unchanged, oldValue, newValue, children }`; nested objects recurse by sorted key order; arrays diff by index with length-change semantics (added/removed tail entries); primitives + null handled exactly (null ≠ undefined ≠ "" at the leaves, but null-vs-absent collapses for display); deep-equal short-circuit; cycle-safe (identity map). Formatting helpers render values as compact display strings (objects → "{…} N champs", arrays → "[…] N éléments"). Dedicated Vitest suite: nested objects, arrays (grow/shrink/reorder), primitives, null/undefined/"" boundaries, deep-equal fast path, cycle guard.
-- **Status:** In Progress
+- **Status:** Completed — TESTED (2026-09-11: 29/29 src/tests/domain/field-diff.test.ts; commit 86dcf77)
 
 ### T-296 — Desktop AuditDiffDrawer upgrade: field-level red/green rendering + full actor attribution (Name, Account ID, Role)
 - **Problems:** OFFLINE-400 (sub-gaps 1+2) · **Priority:** P0
 - **Dependencies:** T-295 · **Affected:** hub desktop (`src/features/settings/audit-log-tab.tsx` AuditDiffDrawer REVIVED in place, `src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts` mapAuditRow actor_role fix, mock mapper parity, NEW regression tests)
 - **Plan:** fix `mapAuditRow` to carry `actor_role` (and the mock mapper); the drawer renders the T-295 diff tree: per-field rows with the old value struck/red and the new value green, nested paths indented, added fields green-only, removed fields red-only; the drawer header shows actorName + actorId (Account ID) + actorRole badge; the audit list rows show the role chip. Regression tests: mapper parity (actor_role round-trip), drawer rendering (field rows, red/green classes, actor attribution block), empty-diff honesty (INSERT-only entries show all-green added fields; DELETE-only all-red removed).
-- **Status:** Not Started
+- **Status:** Completed — TESTED (2026-09-11: 11/11 t-296-audit-diff-drawer + 40/40 combined with field-diff; mapAuditRow carries actor_role + the RPC path passes p_actor_role; commit 86dcf77)
 
 ### T-297 — Android audit diff mirror: `core/FieldDiff.kt` (verbatim mirror) + the real before/after renderer in AuditStreamScreen/AuditLogScreen
 - **Problems:** OFFLINE-400 (sub-gap 3) · **Priority:** P0
 - **Dependencies:** T-295 · **Affected:** android (`core/FieldDiff.kt` NEW mirror with source-commit header, `ui/features/personnel/AuditStreamScreen.kt` fabricated inspector REPLACED, `ui/features/settings/AuditLogScreen.kt`, NEW FieldDiffTest)
 - **Plan:** port the T-295 engine verbatim to Kotlin (kotlinx.serialization JsonElement traversal; ADR-002 mirror discipline); replace the fabricated "Inspecteur JSON" with a real field-level red/green renderer reading `beforeJson`/`afterJson` (parse → computeFieldDiff → rows: old value red, new value green, path label, added/removed semantics); actor attribution (name + role + account id) in the sheet header and the list rows. Unit tests mirror the desktop vectors (nested/arrays/primitives/null) + a rendering-state test.
-- **Status:** Not Started
+- **Status:** Completed — TESTED (2026-09-11: android commit a8a046a — FieldDiffTest 26/26 + AuditDiffSheetTest 9/9 [35/35 targeted]; full suite 56 suites / 502 / 0 failures / 0 errors; the shared ui/components/AuditDiffSheet.kt renderer replaces the fabricated payload dump in BOTH screens; one mirror deviation found+fixed live: malformed-before + valid-after must render nothing, not an INSERT — now matches the desktop drawer's parseAuditDiff)
 
 ### T-298 — 3-way merge conflict detection + resolver UI + conflict notifications (desktop)
 - **Problems:** OFFLINE-400 (sub-gap 4) · **Priority:** P0
