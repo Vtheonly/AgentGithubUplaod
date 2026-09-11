@@ -324,7 +324,16 @@ export class MockStore {
       if (before === undefined) {
         sink.enqueue({ entity, operation: "insert", payload: JSON.parse(json) as Record<string, unknown> });
       } else if (before !== json) {
-        sink.enqueue({ entity, operation: "update", payload: JSON.parse(json) as Record<string, unknown> });
+        // T-305: the UPDATE carries its pre-edit snapshot (the 3-way base) —
+        // the drain's conflict guard can then detect a field BOTH sides
+        // changed and park the entry for resolution instead of silently
+        // overwriting the server row.
+        sink.enqueue({
+          entity,
+          operation: "update",
+          payload: JSON.parse(json) as Record<string, unknown>,
+          basePayload: JSON.parse(before) as Record<string, unknown>,
+        });
       }
     }
     for (const id of prev.keys()) {
@@ -409,6 +418,13 @@ export interface StagedMutation {
   readonly entity: "parent" | "student" | "payment" | "installment" | "ledger_entry";
   readonly operation: "insert" | "update" | "delete";
   readonly payload: Record<string, unknown>;
+  /**
+   * T-305 (47th session): the pre-edit row snapshot for `update` mutations —
+   * the 3-way BASE the drain's conflict guard needs. The producer arms the
+   * no-silent-overwrite guard for production offline edit traffic by passing
+   * the checkpoint row the local edit started from.
+   */
+  readonly basePayload?: Record<string, unknown> | null;
 }
 
 /**
