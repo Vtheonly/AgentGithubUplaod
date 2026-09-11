@@ -96,13 +96,43 @@ async function queryWithTransientRetry<T extends { error: unknown }>(
  * (plan §12: NEVER truncated). The mapper re-serializes both snapshots into
  * the domain `diff` shape `{ before, after }` so the Journal d'audit diff
  * drawer keeps working unchanged.
+ *
+ * T-310 (49th session, AUDIT-502): RPC-written rows (0034's
+ * `collect_and_allocate_payment` / `revert_payment_allocation`) carry their
+ * payload ONLY in the legacy `diff` column with BOTH canonical snapshots
+ * NULL — the payment details were silently dropped here, so the audit
+ * drawer rendered "structurally identical" for every payment entry (the
+ * owner's "payment details missing from the audit" report). Fallback:
+ * when both snapshots are NULL but `diff` exists, unwrap it — a wrapped
+ * `{before, after}` shape (payment.refund) maps to the snapshots; a FLAT
+ * object (payment.collect — the created-payment result) maps to the AFTER
+ * state (INSERT semantics: every detail renders as a green added row).
  */
 function mapAuditRow(row: Record<string, any>): AuditEntry {
   const hasBefore = row.before_json != null;
   const hasAfter = row.after_json != null;
+  let before: unknown = row.before_json ?? null;
+  let after: unknown = row.after_json ?? null;
+  if (!hasBefore && !hasAfter && row.diff != null) {
+    // jsonb arrives parsed; legacy/text payloads arrive as strings.
+    const raw: unknown =
+      typeof row.diff === "string" ? safeJsonParse(row.diff) : row.diff;
+    if (
+      typeof raw === "object" &&
+      raw !== null &&
+      !Array.isArray(raw) &&
+      ("before" in raw || "after" in raw)
+    ) {
+      const wrapped = raw as { before?: unknown; after?: unknown };
+      before = wrapped.before ?? null;
+      after = wrapped.after ?? null;
+    } else {
+      after = raw;
+    }
+  }
   const diff =
-    hasBefore || hasAfter
-      ? JSON.stringify({ before: row.before_json ?? null, after: row.after_json ?? null })
+    before != null || after != null
+      ? JSON.stringify({ before, after })
       : null;
 
   return {
@@ -123,6 +153,15 @@ function mapAuditRow(row: Record<string, any>): AuditEntry {
     userAgent: row.user_agent ?? null,
     at: row.occurred_at ?? row.created_at,
   };
+}
+
+/** Parse a JSON string, returning the raw input on failure (never throws). */
+function safeJsonParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
 }
 
 // ============================================================================

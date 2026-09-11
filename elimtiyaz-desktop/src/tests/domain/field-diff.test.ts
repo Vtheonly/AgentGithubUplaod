@@ -359,3 +359,65 @@ describe("T-308 — DiffRow.field (short label for the table's Champ column)", (
     expect(rows.every((r) => r.field.length > 0)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// T-310 (49th session) — the owner's union-key property-matching spec:
+// "Match the JSON objects against each other — properties in BOTH objects
+//  sit on the same row for direct comparison; properties that exist only
+//  before or only after are handled appropriately and clearly shown as
+//  added or removed."
+// ---------------------------------------------------------------------------
+
+describe("T-310 — union-key property matching (the owner's explicit spec)", () => {
+  it("shared property → ONE row, old on the red side + new on the green side", () => {
+    const rows = flattenDiffRows(computeFieldDiff({ price: 1000 }, { price: 1300 }));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].field).toBe("price");
+    expect(rows[0].kind).toBe("changed");
+    expect(rows[0].oldDisplay).toContain("1000");
+    expect(rows[0].newDisplay).toContain("1300");
+  });
+
+  it("before-only property → a REMOVED row (red old value, absent new)", () => {
+    const rows = flattenDiffRows(computeFieldDiff({ legacy_tag: "x", price: 1000 }, { price: 1300 }));
+    const legacy = rows.find((r) => r.field === "legacy_tag");
+    expect(legacy?.kind).toBe("removed");
+    expect(legacy?.oldDisplay).toContain("x");
+    // The engine's ABSENT sentinel flattens to the drawer's "—" placeholder.
+    expect(legacy?.newDisplay).toBe("—");
+  });
+
+  it("after-only property → an ADDED row (absent old, green new value)", () => {
+    const rows = flattenDiffRows(computeFieldDiff({ price: 1000 }, { price: 1300, tax: 90 }));
+    const tax = rows.find((r) => r.field === "tax");
+    expect(tax?.kind).toBe("added");
+    expect(tax?.oldDisplay).toBe("—");
+    expect(tax?.newDisplay).toContain("90");
+  });
+
+  it("a mixed union object: shared + before-only + after-only in one diff", () => {
+    const before = { first_name: "Karim", middle_name: "Ould", grade: "1ap" };
+    const after = { first_name: "Karim B.", grade: "1am", transport: "Les Bananiers" };
+    const rows = flattenDiffRows(computeFieldDiff(before, after));
+    const byPath = new Map(rows.map((r) => [r.path, r]));
+    // Shared → same-row comparison.
+    expect(byPath.get("first_name")).toMatchObject({ kind: "changed" });
+    // Before-only → removed.
+    expect(byPath.get("middle_name")).toMatchObject({ kind: "removed" });
+    // After-only → added.
+    expect(byPath.get("transport")).toMatchObject({ kind: "added" });
+    // grade also changed (1ap → 1am).
+    expect(byPath.get("grade")).toMatchObject({ kind: "changed" });
+    expect(rows).toHaveLength(4);
+  });
+
+  it("nested objects union-match too (added/removed sub-properties)", () => {
+    const before = { bank: { name: "BNA", branch: "Alger Centre" } };
+    const after = { bank: { name: "BNA", swift: "BNAADZAL" } };
+    const rows = flattenDiffRows(computeFieldDiff(before, after));
+    const byPath = new Map(rows.map((r) => [r.path, r]));
+    expect(byPath.get("bank.swift")).toMatchObject({ kind: "added" });
+    expect(byPath.get("bank.branch")).toMatchObject({ kind: "removed" });
+    expect(byPath.has("bank.name")).toBe(false);
+  });
+});

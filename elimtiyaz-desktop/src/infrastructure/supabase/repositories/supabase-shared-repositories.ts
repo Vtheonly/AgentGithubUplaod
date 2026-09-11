@@ -1102,7 +1102,12 @@ export class SupabasePaymentRepository implements PaymentRepository {
         p_transfer_reference: input.transferReference ?? null,
         p_transfer_source_bank: input.transferSourceBank ?? null,
         p_actor_id: collectedBy,
-        p_actor_name: collectedBy,
+        // T-310 (AUDIT-502): NULL, not the user ID — the previous
+        // `p_actor_name: collectedBy` wrote the UUID into the audit's
+        // attribution block (actor_name showed "dac9c821-…" instead of a
+        // display name). Migration 0087 resolves the display name + role
+        // server-side from user_profiles when the caller passes NULL.
+        p_actor_name: null,
       };
       const { data: atomicData, error: atomicErr } = await this.client.rpc(
         "collect_and_allocate_payment",
