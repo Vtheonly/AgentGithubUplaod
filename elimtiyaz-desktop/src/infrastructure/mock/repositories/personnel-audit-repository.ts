@@ -16,7 +16,7 @@ import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
 import { SubjectBehavior } from "../subject-behavior";
 import type { Personnel, ReleveEntry, ReleveActivity } from "../../../domain/model/personnel";
-import type { AuditEntry, AuditLogFilter, AuditLogQueryResult } from "../../../domain/model/audit";
+import type { AuditEntry, AuditLogFilter, AuditLogQueryResult, AttributedActivityEvent, AttributedActivityStream } from "../../../domain/model/audit";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 
 // ============================================================================
@@ -124,6 +124,23 @@ export class MockReleveRepository implements ReleveRepository {
 // ============================================================================
 
 export class MockAuditRepository implements AuditRepository {
+  /**
+   * T-299 (OFFLINE-400): the attributed-activity stream — mock mode emits
+   * on `log()` (the same contract the Supabase realtime subscription
+   * provides in production; the toaster renders identically in both).
+   */
+  private readonly activity = new SubjectBehavior<AttributedActivityEvent | null>(null);
+
+  observeActivity(): AttributedActivityStream {
+    return {
+      subscribe: (fn: (value: AttributedActivityEvent) => void) => {
+        return this.activity.subscribe((v) => {
+          if (v !== null) fn(v);
+        });
+      },
+    };
+  }
+
   async query(filter: AuditLogFilter): Promise<Result<AuditLogQueryResult>> {
     await delay(120);
     let rows = [...store.audit];
@@ -182,6 +199,16 @@ export class MockAuditRepository implements AuditRepository {
     };
     store.audit.unshift(entry);
     store.notifyAudit();
+    // T-299: the attributed broadcast (mock-mode realtime).
+    this.activity.set({
+      actorName: entry.actorName,
+      actorRole: entry.actorRole ?? null,
+      actorId: entry.actorId,
+      action: entry.action,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      occurredAt: entry.at,
+    });
     return Ok(entry);
   }
 }

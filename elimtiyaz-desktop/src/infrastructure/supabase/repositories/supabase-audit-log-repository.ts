@@ -37,12 +37,15 @@ import type {
   AuditRepository,
 } from "../../../domain/repository/repository";
 import type {
+  AttributedActivityEvent,
+  AttributedActivityStream,
   AuditEntry,
   AuditLogFilter,
   AuditLogQueryResult,
 } from "../../../domain/model/audit";
 import type { AuditLogRow } from "../types";
 import { requireTenantId, getTenantId, isUuid } from "./supabase-shared-repositories";
+import { SubjectBehavior } from "../../mock/subject-behavior";
 
 // ============================================================================
 // T-282 (OPS-311, 43rd session): transient-retry for the audit read paths
@@ -127,7 +130,74 @@ function mapAuditRow(row: Record<string, any>): AuditEntry {
 // ============================================================================
 
 export class SupabaseAuditLogRepository implements AuditRepository {
+  /**
+   * T-299 (OFFLINE-400): the attributed-activity EVENT stream — one event
+   * per audit_logs INSERT received on the realtime channel. Null is the
+   * "no event yet" sentinel of the backing SubjectBehavior (event streams
+   * have no current value).
+   */
+  private readonly activity = new SubjectBehavior<AttributedActivityEvent | null>(null);
+  private realtimeStarted = false;
+
   constructor(private readonly client: SupabaseClient) {}
+
+  /**
+   * T-299: the realtime attributed-activity stream. Lazily arms the
+   * postgres-changes subscription on audit_logs (INSERT events — the table
+   * is append-only, migration 0014) the first time a consumer subscribes.
+   *
+   * RLS: realtime postgres-changes events are filtered by each
+   * subscriber's SELECT policies — admins/financial officers receive the
+   * full tenant stream (the audit audience the tab already serves), other
+   * staff receive their own entries. NO policy is weakened (the mandate's
+   * cross-platform attribution rides the roles that hold audit
+   * visibility — the deviation from the task text's "widen the
+   * realtime-read path", recorded in the T-299 registry entry).
+   *
+   * Degrade gracefully: a realtime failure never breaks the repository
+   * (the read paths + the polling topbar feed keep working — same stance
+   * as the chat repository's realtime).
+   */
+  observeActivity(): AttributedActivityStream {
+    this.startRealtimeIfNeeded();
+    return {
+      subscribe: (fn: (event: AttributedActivityEvent) => void) => {
+        return this.activity.subscribe((v) => {
+          if (v !== null) fn(v);
+        });
+      },
+    };
+  }
+
+  /** Arm the audit_logs INSERT subscription once (chat-repository pattern). */
+  private startRealtimeIfNeeded(): void {
+    if (this.realtimeStarted) return;
+    this.realtimeStarted = true;
+    try {
+      const channel = this.client.channel("desktop-audit-realtime");
+      channel
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "audit_logs" },
+          (payload: { new: Record<string, unknown> | null }) => {
+            const row = payload.new;
+            if (!row) return;
+            this.activity.set({
+              actorName: (row.actor_name as string) ?? "",
+              actorRole: (row.actor_role as string | null) ?? null,
+              actorId: (row.actor_id as string) ?? "",
+              action: (row.action as string) ?? "",
+              entityType: (row.entity_type as string) ?? "",
+              entityId: (row.entity_id as string) ?? "",
+              occurredAt: (row.occurred_at as string) ?? new Date().toISOString(),
+            });
+          },
+        )
+        .subscribe();
+    } catch {
+      // Realtime is an enhancement — the polling feed still works.
+    }
+  }
 
   /**
    * Multi-column filtered query with pagination.

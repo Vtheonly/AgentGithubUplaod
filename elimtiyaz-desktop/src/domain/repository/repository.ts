@@ -54,7 +54,7 @@ import type {
 } from "../model/calendar";
 import type { Expense, SubmitExpenseInput } from "../model/expense";
 import type { Personnel, ReleveEntry, ReleveActivity } from "../model/personnel";
-import type { AuditEntry, AuditLogFilter, AuditLogQueryResult } from "../model/audit";
+import type { AttributedActivityEvent, AttributedActivityStream, AuditEntry, AuditLogFilter, AuditLogQueryResult } from "../model/audit";
 import type { PricingConfig, PricingEntry, PricingCategory, DiscountType, DiscountCode } from "../model/pricing";
 import type { LedgerEntry, ParentLedgerSummary } from "../model/ledger";
 import type { GradeLevel } from "../model/student";
@@ -532,6 +532,16 @@ export interface AuditRepository {
   query(filter: AuditLogFilter): Promise<Result<AuditLogQueryResult>>;
   byEntity(entityType: string, entityId: string): Promise<Result<AuditEntry[]>>;
   recent(limit?: number): Promise<Result<AuditEntry[]>>;
+  /**
+   * T-299 (OFFLINE-400): the realtime attributed-activity stream — one
+   * event per audit_logs INSERT (Actor name + role + account id, action,
+   * target entity), broadcast cross-platform. The mock implementation
+   * emits on `log()`; the Supabase implementation subscribes to the
+   * audit_logs postgres-changes channel (migration 0085 adds the table to
+   * the realtime publication — RLS still gates which rows each subscriber
+   * receives).
+   */
+  observeActivity(): AttributedActivityStream;
   log(input: {
     action: string;
     entityType: string;

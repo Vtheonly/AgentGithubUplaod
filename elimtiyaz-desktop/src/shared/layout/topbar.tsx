@@ -75,6 +75,7 @@ import { LanguageSwitcher } from "../../i18n/language-switcher";
 import { TenantSwitcher } from "./tenant-switcher";
 import { AlertDetailModal } from "../../features/dashboard/alert-detail-modal";
 import { SyncIndicator } from "../../infrastructure/sync/sync-indicator";
+import { AuditActivityToaster } from "./audit-activity-toaster";
 import { cn } from "../ui/cn";
 import {
   makeSearchIndex,
@@ -264,6 +265,11 @@ export function Topbar() {
 
         {/* Sync indicator — Iteration 14: shows online + queue status. */}
         <SyncIndicator />
+
+        {/* T-299 (OFFLINE-400): the realtime attributed-activity toasts —
+            every cross-platform audit INSERT renders "Actor (Role) — action ·
+            target" (self-events suppressed). */}
+        <AuditActivityToaster />
 
         {/* Alerts — Iteration 9: click opens detail drawer (not just "mark read"). */}
         <DropdownMenu open={alertsOpen} onOpenChange={setAlertsOpen}>
