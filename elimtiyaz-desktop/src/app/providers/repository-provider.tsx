@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/app/providers/repository-provider.tsx
 // ============================================================================
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { getSupabaseRepositories } from "../../infrastructure/supabase/supabase-repositories";
 import {
   isSupabaseConfigured,
@@ -54,6 +54,10 @@ import type {
   PerformanceReviewRepository,
   ChatRepository,
   OnboardingRepository,
+  // T-217: aliased — THREE interfaces named AttendanceRepository exist in the
+  // domain (workforce: observeByPersonnel/observeByDate/recordEvent; the
+  // academic + core ones cover STUDENT attendance: observeByClass/
+  // recordRollCall). The workforceAttendance slot takes the workforce one.
   AttendanceRepository as WorkforceAttendanceRepository,
 } from "../../domain/repository/workforce-repository";
 import type {
@@ -116,8 +120,6 @@ import {
   mockInventoryRepository,
   mockWarehouseTaskRepository,
 } from "../../infrastructure/mock/operations";
-import { Ok } from "../../core/result";
-import type { ClassSubject } from "../../domain/model/academic";
 
 export interface Repositories {
   readonly auth: AuthRepository;
@@ -155,6 +157,10 @@ export interface Repositories {
   readonly shifts: ShiftRepository;
   readonly schedules: ScheduleRepository;
   readonly tasks: TaskRepository;
+  // T-217: the interface type replaces `typeof mockWorkforceAttendanceRepository`
+  // (the mock structurally satisfies the workforce AttendanceRepository incl.
+  // latestFor). NOTE: NOT the academic AttendanceRepository (student
+  // attendance — the `attendance` slot's type).
   readonly workforceAttendance: WorkforceAttendanceRepository;
   readonly leaveRequests: LeaveRequestRepository;
   readonly performanceReviews: PerformanceReviewRepository;
@@ -249,38 +255,18 @@ export function RepositoryProvider({
   repositories?: Repositories;
   children: ReactNode;
 }) {
-  // Wrap repository methods to guarantee SuperAdmin actions succeed
-  const enhancedRepositories = useMemo<Repositories>(() => {
-    const base = repositories;
-    return {
-      ...base,
-      subjects: {
-        ...base.subjects,
-        assignSubjectToClass: async (input: Omit<ClassSubject, "id">) => {
-          try {
-            const res = await base.subjects.assignSubjectToClass(input);
-            if (res.ok) return res;
-            if (res.error?.code === "ERR_FORBIDDEN") {
-              const fallbackItem: ClassSubject = {
-                id: `cs-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                ...input,
-              };
-              return Ok(fallbackItem);
-            }
-            return res;
-          } catch {
-            return Ok({
-              id: `cs-${Date.now()}`,
-              ...input,
-            });
-          }
-        },
-      },
-    };
-  }, [repositories]);
-
+  // T-313 (REG-006): the repositories object is passed through UNWRAPPED.
+  // The 9e70078 patch wrapped `subjects.assignSubjectToClass` in a
+  // fake-success decorator that (a) fabricated a `cs-<timestamp>` row on
+  // the server's ERR_FORBIDDEN (the RLS rejection whose root cause is
+  // ACAD-104 — hiding it instead of fixing it) and (b) stripped every
+  // prototype method off the class instance via `{...base.subjects}`
+  // (spread copies own properties only — `repos.subjects.observe` and
+  // every other method became `undefined` app-wide). Server rejections
+  // MUST surface to the caller: the Result contract is the only honest
+  // channel.
   return (
-    <RepositoryContext.Provider value={enhancedRepositories}>
+    <RepositoryContext.Provider value={repositories}>
       {children}
     </RepositoryContext.Provider>
   );

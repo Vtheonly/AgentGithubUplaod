@@ -1,6 +1,26 @@
 // ============================================================================
 // FILE: src/features/personnel/dashboards/teacher-dashboard.tsx
 // ============================================================================
+/**
+ * Teacher dashboard — pedagogical workspace (Personnel module).
+ *
+ * Teachers do ALL their pedagogical work from the Personnel dashboard and
+ * never switch to the Student or Pédagogie administrative modules.
+ *
+ * T-235 / RBAC-301 (35th session): this workspace is STRICTLY
+ * self-contained. The previous version navigated to the administrative
+ * screens (`/academics/class/:id` exposed the promotion button and the
+ * full class-management tabs; `/academics/class/:id/roll-call` left the
+ * Personnel module). Roll-call and grade entry open as full-screen
+ * overlays INSIDE this dashboard — the teacher selects a class, performs
+ * the work, and stays in Personnel the whole time. With T-234 the
+ * teacher role no longer holds the module-entry permissions, so the
+ * sidebar shows CRM/Pédagogie/Finances as padlocked.
+ *
+ * Scoped data: `myClasses` lists ONLY the classes whose homeroom teacher
+ * is the signed-in teacher's own personnel record. An unlinked account
+ * (no personnel row) sees ZERO classes — never the full catalog.
+ */
 import { useMemo, useState } from "react";
 import {
   GraduationCap,
@@ -58,23 +78,24 @@ export function TeacherDashboard() {
   const [homeworkOpen, setHomeworkOpen] = useState(false);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
 
+  // Resolve the teacher's own personnel record via the auth→personnel
+  // userId bridge.
   const me = useObservable(
     () => repos.personnel.observeByUserId(session?.userId ?? ""),
     [session?.userId],
   );
   const teacherId = me?.id ?? session?.userId ?? "";
 
-  // Find all classes associated with this teacher (either homeroom or teaching a subject)
-  const myClasses = useMemo(() => {
-    if (!me) return [];
-    const teacherName = `${me.firstName} ${me.lastName}`.toLowerCase();
-    return classes.filter(
-      (c) =>
-        c.homeroomTeacherId === me.id ||
-        (c.homeroomTeacherName &&
-          c.homeroomTeacherName.toLowerCase() === teacherName),
-    );
-  }, [classes, me]);
+  // T-235 / RBAC-301: STRICT scoping — only the classes homeroom-assigned
+  // to THIS teacher's personnel record (by id, never by display-name
+  // matching: two teachers can share a name — the 9e70078 name-equality
+  // heuristic was a collision-prone regression, restored per T-313).
+  // An unlinked account (me === null) sees NOTHING — never the full
+  // catalog (the old fallback showed the entire school's classes).
+  const myClasses = useMemo(
+    () => classes.filter((c) => me !== null && c.homeroomTeacherId === me.id),
+    [classes, me],
+  );
 
   const myHomework = useObservable(
     () => repos.homework.observeByTeacher(teacherId),

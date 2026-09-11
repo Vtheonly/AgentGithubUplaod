@@ -20,6 +20,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DESKTOP_ROOT = join(__dirname, "..", "..", "..");
 const read = (rel: string): string => readFileSync(join(DESKTOP_ROOT, rel), "utf8");
 
+/**
+ * T-313 (REG-006): whitespace-normalize source pins before matching.
+ * The 9e70078 reformat pass (prettier) split the pinned single-line
+ * expressions across lines WITHOUT changing semantics — e.g.
+ * `selected.status === "deployed" ? handleServerDryRun : undefined`
+ * became a 3-line ternary. Source pins exist to pin SEMANTICS (the wiring
+ * exists), not byte formatting; normalizing both sides keeps the pin
+ * honest while surviving any formatter pass.
+ */
+const normalizeWs = (s: string): string =>
+  // strip ALL whitespace and trailing commas before closers — prettier's
+  // multiline style emits `execute(\n  a,\n  b,\n)` which is byte-different
+  // but semantically identical to `execute(a, b)`. Pins are semantic
+  // (the wiring exists), not byte-level.
+  s.replace(/\s+/g, "").replace(/,([)\]])/g, "$1");
+const containsNormalized = (source: string, pin: string): boolean =>
+  normalizeWs(source).includes(normalizeWs(pin));
+
 const ACTOR = { id: "usr-test-t230", name: "T-230 Test" };
 
 function node(id: string, type: WorkflowNode["type"], subtype: WorkflowNode["subtype"], config: Record<string, unknown> = {}): WorkflowNode {
@@ -92,10 +110,12 @@ describe("T-230 — source wiring (page + canvas + supabase contract)", () => {
 
   it("the page gates Exécuter + Test serveur to PUBLISHED workflows and passes entities", () => {
     const page = read("src/features/workflow/workflow-page.tsx");
-    expect(page).toContain('selected.status === "deployed" ? handleExecute : undefined');
-    expect(page).toContain('selected.status === "deployed" ? handleServerDryRun : undefined');
-    expect(page).toContain("serverDryRunEntities");
-    expect(page).toContain("repos.workflows.execute(selected.id, session.userId, session.displayName)");
+    // T-313: whitespace-normalized pins (prettier multi-line formatting
+    // must not break a SEMANTIC pin — see normalizeWs docblock above).
+    expect(containsNormalized(page, 'selected.status === "deployed" ? handleExecute : undefined')).toBe(true);
+    expect(containsNormalized(page, 'selected.status === "deployed" ? handleServerDryRun : undefined')).toBe(true);
+    expect(containsNormalized(page, "serverDryRunEntities")).toBe(true);
+    expect(containsNormalized(page, "repos.workflows.execute(selected.id, session.userId, session.displayName)")).toBe(true);
   });
 
   it("the canvas renders the Exécuter + Test serveur controls and honest failure rings", () => {

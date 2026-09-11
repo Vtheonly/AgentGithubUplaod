@@ -126,6 +126,23 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     _actorId: string,
     _actorName: string,
   ): Promise<Result<AcademicYear>> {
+    // T-313 (ACAD-104): tenant_id is NOT NULL with NO column default and
+    // the academic_years_admin WITH CHECK is
+    // `(tenant_id = current_tenant_id() AND has_any_role(...))` — an
+    // insert without tenant_id evaluates NULL = ... → 42501 → ERR_FORBIDDEN
+    // (the owner's SuperAdmin denial). Same fix as the T-023 ATT-100/
+    // HOMEWORK-100 precedent in this file: supply the session's working
+    // tenant explicitly, and fail loud (Result) when there is none — a
+    // global admin who has not picked a tenant cannot create a year.
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      return Err(
+        Errors.validation(
+          "createAcademicYear: no active tenant context",
+          "Aucun établissement actif — sélectionnez un établissement ou reconnectez-vous.",
+        ),
+      );
+    }
     // T-041 (ACAD-101): INSERT with is_current = false, then (when the new
     // year must be current) flip via the ATOMIC set_current_academic_year
     // RPC — one UPDATE statement, no zero-current-year window. Failure
@@ -136,6 +153,7 @@ export class SupabaseAcademicYearRepository implements AcademicYearRepository {
     const { data, error } = await this.client
       .from("academic_years")
       .insert({
+        tenant_id: tenantId,
         code: input.code,
         label: input.label,
         start_date: input.startDate,
@@ -348,9 +366,23 @@ export class SupabaseClassRepository implements ClassRepository {
       "id" | "tenantId" | "enrolledCount" | "isActive"
     >,
   ): Promise<Result<AcademicClass>> {
+    // T-313 (ACAD-104): tenant_id is NOT NULL, no default, no set-tenant
+    // trigger on `classes` — the insert MUST carry the session's working
+    // tenant or the classes_admin WITH CHECK rejects it (42501). Same
+    // T-023 in-file precedent (attendance L934 / homework L1135).
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      return Err(
+        Errors.validation(
+          "createClass: no active tenant context",
+          "Aucun établissement actif — sélectionnez un établissement ou reconnectez-vous.",
+        ),
+      );
+    }
     const { data, error } = await this.client
       .from("classes")
       .insert({
+        tenant_id: tenantId,
         academic_year_id: input.academicYearId,
         academic_level_id: input.academicLevelId,
         code: input.code,
@@ -485,9 +517,28 @@ export class SupabaseSubjectRepository implements SubjectRepository {
       );
     }
 
+    // T-313 (ACAD-104): this is the EXACT insert the owner's SuperAdmin
+    // denial report was about. class_subjects.tenant_id is NOT NULL, no
+    // default, no set-tenant trigger; the class_subjects_admin WITH CHECK
+    // `(tenant_id = current_tenant_id() AND has_any_role(...))` evaluates
+    // NULL on a tenant-less payload → 42501 → ERR_FORBIDDEN. The 9e70078
+    // "fix" wrapped this failure into a fake-success client-side row
+    // (REG-006) instead of fixing the payload. Verified live: the table
+    // had ZERO rows — the flow never once persisted.
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      return Err(
+        Errors.validation(
+          "assignSubjectToClass: no active tenant context",
+          "Aucun établissement actif — sélectionnez un établissement ou reconnectez-vous.",
+        ),
+      );
+    }
+
     const { data, error } = await this.client
       .from("class_subjects")
       .insert({
+        tenant_id: tenantId,
         class_id: input.classId,
         subject_id: input.subjectId,
         // Mock-era personnel ids ("per-001") are not UUIDs.
@@ -517,9 +568,22 @@ export class SupabaseSubjectRepository implements SubjectRepository {
   async createSubject(
     input: Omit<Subject, "id" | "tenantId">,
   ): Promise<Result<Subject>> {
+    // T-313 (ACAD-104): tenant_id is NOT NULL, no default, no set-tenant
+    // trigger on `subjects` — the subjects_admin WITH CHECK rejects a
+    // tenant-less insert (42501). T-023 in-file precedent.
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      return Err(
+        Errors.validation(
+          "createSubject: no active tenant context",
+          "Aucun établissement actif — sélectionnez un établissement ou reconnectez-vous.",
+        ),
+      );
+    }
     const { data, error } = await this.client
       .from("subjects")
       .insert({
+        tenant_id: tenantId,
         code: input.code,
         name_fr: input.name,
         name_ar: input.nameAr,

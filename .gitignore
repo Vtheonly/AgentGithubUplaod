@@ -81,3 +81,7 @@ release/
 # ─── Tailwind ───────────────────────────────────────────────────
 tailwind.config.js
 postcss.config.js
+# ─── Session scratch artifacts (T-313 / REG-006 hygiene) ────────
+# Editor-tool state and session patch dumps must never enter the repo.
+.smartexport/
+changes.patch.txt

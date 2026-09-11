@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/features/academics/academic-year-detail-drawer.tsx
 // ============================================================================
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Calendar,
   Users,
@@ -599,30 +599,15 @@ function TeachersSubTab({
     [allClasses, year.id],
   );
 
-  // Automatically ensure teacher records exist for any Personnel teacher
-  useEffect(() => {
-    if (!session) return;
-    const personnelTeachers = allPersonnel.filter(
-      (p) => p.staffCategory === "teacher" || p.roleId === "teacher",
-    );
-    personnelTeachers.forEach((p) => {
-      const existing = teachers.find((t) => t.personnelId === p.id);
-      if (!existing) {
-        void repos.teachers.createTeacher(
-          {
-            personnelId: p.id,
-            code: `ENS-${year.code.slice(0, 4)}-${p.id.slice(-3).toUpperCase()}`,
-            academicYearId: year.id,
-            academicYearCode: year.code,
-            status: "active",
-            maxWeeklyHours: p.weeklyHoursTarget || 18,
-          },
-          session.userId,
-          session.displayName,
-        );
-      }
-    });
-  }, [allPersonnel, teachers, year.id, year.code, session, repos.teachers]);
+  // T-313 (REG-006): NO render-triggered auto-provisioning. The 9e70078
+  // patch fired repos.teachers.createTeacher() for every un-provisioned
+  // personnel teacher ON EVERY RENDER PASS — a write with no user action,
+  // retried forever when it failed (feedback loop on the observables it
+  // mutates). Teacher records for a school year are now created ONLY via
+  // the explicit "+ Ajouter un enseignant" modal (handleRegisterTeacher).
+  // The unifiedTeachers merge below already DISPLAYS un-provisioned
+  // personnel teachers (badged by their computed ENS- code) so nothing is
+  // hidden by this removal — it only stops the silent writes.
 
   // Merge teachers from TeacherRepository and Personnel for comprehensive display
   const unifiedTeachers = useMemo<UnifiedTeacherDisplay[]>(() => {

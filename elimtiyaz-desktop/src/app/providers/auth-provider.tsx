@@ -1,6 +1,23 @@
 // ============================================================================
 // FILE: src/app/providers/auth-provider.tsx
 // ============================================================================
+/**
+ * Auth state — current session, sign-in / sign-out, role gating, token refresh.
+ *
+ * Persisted to localStorage so reloads during a session do not force a
+ * re-login. Cleared on sign-out.
+ *
+ * Session lifecycle contracts (T-313 / REG-006 pin):
+ *   - The persisted session is serialized with `permissions: Permission[]`
+ *     and re-hydrated into a `Set` by loadSession() — the ONLY boundary
+ *     where the array form exists.
+ *   - SuperAdmin permission repair happens at CONSTRUCTION
+ *     (ensureSuperAdminPermissions — mirroring buildSession's T-266/AI-309
+ *     repair) and after load, never scattered across gate consumers.
+ *   - refreshSession rebuilds the domain Session from the SDK's refreshed
+ *     auth session via the shared buildSession (AUTH-301) — no credential
+ *     grant is ever re-issued on the refresh path.
+ */
 import {
   createContext,
   useCallback,
@@ -47,7 +64,7 @@ function ensureSuperAdminPermissions(s: Session): Session {
   if (isSuperAdmin(s)) {
     const fullPerms = new Set(s.permissions);
     Object.values(Permission).forEach((p) => fullPerms.add(p));
-    return { ...s, role: Role.SuperAdmin, permissions: fullPerms };
+    return { ...s, permissions: fullPerms };
   }
   return s;
 }
@@ -76,6 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        // T-185 (AUTH-301): refreshSession rebuilds the domain Session via
+        // the shared buildSession(user, authSession) — NEVER a second
+        // credential grant. Validating the stored session against the
+        // server on every startup (not only when expired) also evicts
+        // sessions whose profile was suspended since the last visit.
         const res = await repos.auth.refreshSession();
         if (!cancelled) {
           if (res.ok && res.value) {
@@ -274,13 +296,17 @@ function loadSession(): Session | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SerializedSession;
+    // T-313 (REG-006): the permissions Set is RE-HYDRATED here — the single
+    // boundary where the JSON array becomes a Set again. Downstream `can()`
+    // deliberately does NOT tolerate arrays (fail loud at the producer).
     const permissions = new Set(
       Array.isArray(parsed.permissions) ? parsed.permissions : [],
     );
 
-    if (isSuperAdmin(parsed as unknown as Session)) {
+    // If session belongs to SuperAdmin, make sure all permissions are granted
+    // (T-266/AI-309: the DB catalog may lag the client permission enum).
+    if (parsed.role === Role.SuperAdmin) {
       Object.values(Permission).forEach((p) => permissions.add(p));
-      return { ...parsed, role: Role.SuperAdmin, permissions };
     }
 
     return { ...parsed, permissions };
@@ -291,13 +317,10 @@ function loadSession(): Session | null {
 
 function persistSession(s: Session) {
   try {
-    const perms =
-      s.permissions instanceof Set
-        ? [...s.permissions]
-        : Array.isArray(s.permissions)
-          ? s.permissions
-          : [];
-    const serializable: SerializedSession = { ...s, permissions: perms };
+    const serializable: SerializedSession = {
+      ...s,
+      permissions: [...s.permissions],
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
   } catch (err) {
     logger.warn("Failed to persist session", { err });
