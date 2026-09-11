@@ -1,30 +1,29 @@
+// ============================================================================
+// FILE: src/features/dashboard/tabs/analytics-tab.tsx
+// ============================================================================
 /**
- * AnalyticsTab — the Power BI-style analytics report page (T-255..T-257,
- * 38th session, 2026-09-09 — UI-307; the owner's "more Power BI–type
- * visualizations" mandate).
+ * AnalyticsTab — The Actionable Decision Support & Exploration Hub.
  *
- * Layout (12-column grid, same dual-stage skeleton as the Overview):
- *   Row 0  slicer bar — method + category chips that CROSS-FILTER every
- *          payments-derived card below (stat strip, mix cards, heatmap,
- *          histogram, and the dashed "filtré" overlay on the trend chart);
- *   Row 1  statistics strip — count / total / mean / median / best month /
- *          volatility over the filtered slice;
- *   Row 2  hero trend explorer (8 cols) + method/category mix pair (4 cols);
- *   Row 3  YoY comparison + amount distribution;
- *   Row 4  collection heatmap (8 cols) + aging composition (4 cols);
- *   Row 5  top-debtors Pareto (6) + aging table continues (6 → the aging
- *          card spans rows 4–5 in the right rail).
- *
- * Data flow (T-088 single-fetch pipeline PRESERVED — the tab never
- * fetches): the page passes the dashboard aggregates (revenue, debtAging,
- * topDebtors), the canonical payments stream, the academic-year range,
- * and the PREVIOUS year's revenue series (loaded by the page for the
- * like-for-like YoY window). The tab's only state is the slicer
- * selection — every derivation is a useMemo of the props.
+ * Offers two operational modes:
+ *   1. « Exploration & Diagnostic Actif » :
+ *      - Operational Query Console (instant interrogation & search)
+ *      - Cross-Domain Risk Matrix (combining grades + attendance + fees)
+ *      - Multi-Dimensional Pivot Matrix (PowerBI-style slice-and-dice)
+ *   2. « Métriques & Flux Financiers » :
+ *      - Slicers bar (cross-filters live charts)
+ *      - Descriptive Statistics Strip
+ *      - Hero Revenue Trend Explorer
+ *      - Payment Mix & Category breakdown
+ *      - Collection Heatmap & YoY comparison
+ *      - Debtors Pareto & Aging Composition
  */
+
 import { useMemo, useState, useCallback } from "react";
+import { Search, BarChart3, Layers, Filter } from "lucide-react";
 import type { RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
 import type { Payment, PaymentMethod, PaymentCategory, DebtSummary } from "../../../domain/model/payment";
+import { useRepositories } from "../../../app/providers/repository-provider";
+import { useObservable } from "../../../shared/hooks/use-observable";
 import {
   applyAnalyticsFilters,
   presentCategories,
@@ -41,23 +40,28 @@ import { YoYComparisonCard } from "../components/analytics/yoy-comparison-card";
 import { AgingCompositionCard } from "../components/analytics/aging-composition-card";
 import { DebtorsParetoCard } from "../components/analytics/debtors-pareto-card";
 
+// New Diagnostic & Query Engine components
+import {
+  evaluateStudentRiskProfiles,
+  type StudentRiskProfile,
+} from "../components/analytics/operational-query-engine";
+import { OperationalQueryConsole } from "../components/analytics/operational-query-console";
+import { PivotMatrixCard } from "../components/analytics/pivot-matrix-card";
+import { CrossRiskCard } from "../components/analytics/cross-risk-card";
+
 const ALL_METHODS: PaymentMethod[] = ["cash", "check", "transfer"];
 
 export interface AnalyticsTabProps {
-  /** The repository's canonical monthly series for the selected period. */
   revenue: RevenuePoint[];
-  /** The PREVIOUS academic year's series (same month window) — YoY. */
   prevRevenue: RevenuePoint[];
-  /** Selected academic year code (display). */
   academicYear: string;
-  /** The previous academic year code (display; null = unavailable). */
   prevAcademicYear: string | null;
   debtAging: DebtByAgingBucket[];
   topDebtors: DebtSummary[];
-  /** The canonical payments stream (page-level subscription). */
   payments: readonly Payment[];
-  /** The academic-year date range the aggregates were loaded for. */
   range?: { from: string; to: string };
+  onOpenStudent?: (studentId: string) => void;
+  onOpenParent?: (parentId: string) => void;
 }
 
 export function AnalyticsTab({
@@ -69,8 +73,37 @@ export function AnalyticsTab({
   topDebtors,
   payments,
   range,
+  onOpenStudent,
+  onOpenParent,
 }: AnalyticsTabProps) {
+  const repos = useRepositories();
+
+  // Load operational datasets for the deep cross-domain query engine
+  const students = useObservable(() => repos.students.observe(), []);
+  const parents = useObservable(() => repos.parents.observe(), []);
+  const classes = useObservable(() => repos.classes.observe(), []);
+  const subjects = useObservable(() => repos.subjects.observe(), []);
+  const assessments = useObservable(() => repos.grades.observeForClass(""), []);
+  const attendance = useObservable(() => repos.attendance.observeByStudent("", "2020-01-01", "2030-12-31"), []);
+
+  // Mode switcher: "diagnostic" vs "charts"
+  const [viewMode, setViewMode] = useState<"diagnostic" | "charts">("diagnostic");
+
+  // Slicer filters state for the charts view
   const [filters, setFilters] = useState<AnalyticsFilterState>(NO_ANALYTICS_FILTERS);
+
+  // Compute live multi-risk profiles across all school dimensions
+  const riskProfiles = useMemo<StudentRiskProfile[]>(() => {
+    return evaluateStudentRiskProfiles({
+      students,
+      parents,
+      classes,
+      subjects,
+      assessments,
+      attendance,
+      debtSummaries: topDebtors,
+    });
+  }, [students, parents, classes, subjects, assessments, attendance, topDebtors]);
 
   const toggleMethod = useCallback((method: PaymentMethod) => {
     setFilters((prev) => {
@@ -90,10 +123,8 @@ export function AnalyticsTab({
     });
   }, []);
 
-  const reset = useCallback(() => setFilters(NO_ANALYTICS_FILTERS), []);
+  const resetFilters = useCallback(() => setFilters(NO_ANALYTICS_FILTERS), []);
 
-  // The canonical filtered slice — every payments-derived card consumes
-  // THIS (one derivation, consistent cross-filtering across the tab).
   const slice = useMemo(
     () => applyAnalyticsFilters(payments, range, filters),
     [payments, range, filters],
@@ -109,65 +140,128 @@ export function AnalyticsTab({
   const filteredTotal = useMemo(() => slice.reduce((s, p) => s + p.amount, 0), [slice]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-6" data-testid="analytics-tab">
-      {/* Row 0 — the slicer bar (cross-filters the payments-derived cards). */}
-      <div className="lg:col-span-12">
-        <AnalyticsSlicers
-          filters={filters}
-          onToggleMethod={toggleMethod}
-          onToggleCategory={toggleCategory}
-          onReset={reset}
-          methods={ALL_METHODS}
-          categories={categories}
-          filteredCount={slice.length}
-          filteredTotal={filteredTotal}
-          totalCount={unfilteredCount}
-        />
+    <div className="space-y-4 pb-8" data-testid="analytics-tab">
+      {/* Top View Mode Navigation */}
+      <div className="flex items-center justify-between border-b border-border pb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode("diagnostic")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
+              viewMode === "diagnostic"
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Search className="h-3.5 w-3.5" />
+            Diagnostic Actif & Questions Directes
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode("charts")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
+              viewMode === "charts"
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Flux Financiers & Visualisations Power BI
+          </button>
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          Année active : <strong className="text-foreground font-mono">{academicYear}</strong>
+        </div>
       </div>
 
-      {/* Row 1 — the statistics strip (filtered descriptive statistics). */}
-      <div className="lg:col-span-12">
-        <StatStrip slice={slice} />
-      </div>
+      {/* VIEW 1: DIAGNOSTIC & OPERATIONAL QUERY CONSOLE */}
+      {viewMode === "diagnostic" && (
+        <div className="space-y-4">
+          {/* Main Query Console */}
+          <OperationalQueryConsole
+            profiles={riskProfiles}
+            onOpenStudent={onOpenStudent}
+            onOpenParent={onOpenParent}
+          />
 
-      {/* Row 2 — hero trend (8) + mix pair (4). */}
-      <div className="lg:col-span-8">
-        <RevenueTrendExplorer
-          revenue={revenue}
-          filteredSlice={slice}
-          filters={filters}
-        />
-      </div>
-      <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-        <MethodMixCard slice={slice} />
-        <CategoryMixCard slice={slice} />
-      </div>
+          {/* Secondary Analytical Row: Vulnerability Radar + Multi-Dimensional Pivot Matrix */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-5">
+              <CrossRiskCard profiles={riskProfiles} />
+            </div>
 
-      {/* Row 3 — YoY comparison + amount distribution. */}
-      <div className="lg:col-span-6">
-        <YoYComparisonCard
-          currentYear={academicYear}
-          previousYear={prevAcademicYear}
-          revenue={revenue}
-          prevRevenue={prevRevenue}
-        />
-      </div>
-      <div className="lg:col-span-6">
-        <AmountHistogramCard slice={slice} />
-      </div>
+            <div className="lg:col-span-7">
+              <PivotMatrixCard profiles={riskProfiles} classes={classes} />
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Row 4 — collection heatmap (8) + aging composition rail (4). */}
-      <div className="lg:col-span-8">
-        <CollectionHeatmapCard slice={slice} range={range} />
-      </div>
-      <div className="lg:col-span-4">
-        <AgingCompositionCard debtAging={debtAging} />
-      </div>
+      {/* VIEW 2: STATISTICAL & POWER BI FINANCIAL FLOW CHARTS */}
+      {viewMode === "charts" && (
+        <div className="space-y-4">
+          {/* Row 0 — Slicers bar */}
+          <AnalyticsSlicers
+            filters={filters}
+            onToggleMethod={toggleMethod}
+            onToggleCategory={toggleCategory}
+            onReset={resetFilters}
+            methods={ALL_METHODS}
+            categories={categories}
+            filteredCount={slice.length}
+            filteredTotal={filteredTotal}
+            totalCount={unfilteredCount}
+          />
 
-      {/* Row 5 — the debtors Pareto. */}
-      <div className="lg:col-span-12">
-        <DebtorsParetoCard topDebtors={topDebtors} />
-      </div>
+          {/* Row 1 — Descriptive statistics strip */}
+          <StatStrip slice={slice} />
+
+          {/* Row 2 — Trend Explorer + Mix Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-8">
+              <RevenueTrendExplorer
+                revenue={revenue}
+                filteredSlice={slice}
+                filters={filters}
+              />
+            </div>
+            <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+              <MethodMixCard slice={slice} />
+              <CategoryMixCard slice={slice} />
+            </div>
+          </div>
+
+          {/* Row 3 — YoY Comparison + Amount Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-6">
+              <YoYComparisonCard
+                currentYear={academicYear}
+                previousYear={prevAcademicYear}
+                revenue={revenue}
+                prevRevenue={prevRevenue}
+              />
+            </div>
+            <div className="lg:col-span-6">
+              <AmountHistogramCard slice={slice} />
+            </div>
+          </div>
+
+          {/* Row 4 — Collection Heatmap + Aging Composition */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-8">
+              <CollectionHeatmapCard slice={slice} range={range} />
+            </div>
+            <div className="lg:col-span-4">
+              <AgingCompositionCard debtAging={debtAging} />
+            </div>
+          </div>
+
+          {/* Row 5 — Debtors Pareto */}
+          <DebtorsParetoCard topDebtors={topDebtors} />
+        </div>
+      )}
     </div>
   );
 }

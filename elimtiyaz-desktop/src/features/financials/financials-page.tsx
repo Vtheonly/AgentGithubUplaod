@@ -35,6 +35,7 @@ import {
   FileCheck,
   Bell,
   Lock,
+  Brain,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -76,9 +77,29 @@ import { InstallmentScheduleTab } from "./installment-schedule-tab";
 import { ReceiptsTab } from "./receipts-tab";
 import { PaymentDetailDrawer } from "./payment-detail-drawer";
 
-type FinanceTab = "payments" | "installments" | "debt" | "expenses" | "receipts";
+
+
+
+// Diagnostic Hub — cross-domain financial analysis & treasury radar.
+import {
+  evaluateFamilyFinancialDiagnoses,
+  computeCrossServicePerformance,
+  computeTreasuryHealth,
+} from "../../domain/calc/payment/financial-query-engine";
+import { FinancialQueryConsole } from "./financial-query-console";
+import { CrossServiceMatrix } from "./cross-service-matrix";
+import { CashFlowRadar } from "./cash-flow-radar";
+
+
+
+
+type FinanceTab = "payments" | "installments" | "debt" | "expenses" | "receipts" | "diagnostic";
 
 export function FinancialsPage() {
+
+
+
+
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
@@ -87,9 +108,15 @@ export function FinancialsPage() {
   const payments = useObservable(() => repos.payments.observe(), []);
   const expenses = useObservable(() => repos.expenses.observe(), []);
   const debtSummary = useObservable(() => repos.debt.observeSummary(), []);
+  // Cross-domain streams for the Diagnostic Hub.
+  const parents = useObservable(() => repos.parents.observe(), []);
+  const students = useObservable(() => repos.students.observe(), []);
+  const installments = useObservable(() => repos.installments.observe(), []);
+  const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
 
   const [tab, setTab] = useState<FinanceTab>("payments");
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [diagnosticCollect, setDiagnosticCollect] = useState<{ parentId: string; amount: number } | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseDetailId, setExpenseDetailId] = useState<string | null>(null);
   // FIX (missing detail view): payment detail drawer — payments previously
@@ -120,6 +147,39 @@ export function FinancialsPage() {
   const overdueDebt = debtSummary.reduce((s, d) => s + d.outstandingAmount, 0);
   const monthlyRev = monthlyRevenue(payments);
 
+  // Diagnostic Hub — live cross-domain derivations (pure engine, memoised).
+  const financialDiagnoses = useMemo(() => {
+    return evaluateFamilyFinancialDiagnoses({
+      parents,
+      students,
+      installments,
+      payments,
+      ledgerEntries,
+      debtSummaries: debtSummary,
+    });
+  }, [parents, students, installments, payments, ledgerEntries, debtSummary]);
+
+  const servicePerformance = useMemo(() => {
+    return computeCrossServicePerformance({
+      installments,
+      payments,
+    });
+  }, [installments, payments]);
+
+  const treasuryHealth = useMemo(() => {
+    return computeTreasuryHealth({
+      payments,
+      installments,
+      expenses,
+      debtSummaries: debtSummary,
+    });
+  }, [payments, installments, expenses, debtSummary]);
+
+  const diagnosticAlertCount = useMemo(
+    () => financialDiagnoses.filter((d) => d.anomalies.length > 0 && !d.anomalies.includes("healthy")).length,
+    [financialDiagnoses],
+  );
+
   const canCollect = !!session && session.permissions.has(Permission.CollectPayment);
   const canSubmitExpense = !!session && session.permissions.has(Permission.SubmitExpense);
 
@@ -139,6 +199,8 @@ export function FinancialsPage() {
         return "Demandes de dépenses — workflow Approbation → Décaissement → Justificatif.";
       case "receipts":
         return "Reçus générés — téléchargement PDF et régénération à la demande.";
+      case "diagnostic":
+        return "Diagnostic financier des familles — requêtes stratégiques, fuite inter-services et santé de trésorerie.";
     }
   };
 
@@ -160,10 +222,18 @@ export function FinancialsPage() {
 
       <div className="px-6 pb-3">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="Encaissé (cumul)" value={formatDzd(totalToday, { compact: true })} icon={<Wallet className="h-5 w-5" />} tone="success" />
-          <KpiCard label="Revenu mensuel" value={formatDzd(monthlyRev, { compact: true })} icon={<TrendingUp className="h-5 w-5" />} tone="info" />
-          <KpiCard label="Créances en retard" value={formatDzd(overdueDebt, { compact: true })} icon={<AlertTriangle className="h-5 w-5" />} tone="danger" />
-          <KpiCard label="Dépenses en attente" value={pendingExpenses} icon={<Receipt className="h-5 w-5" />} tone="warning" />
+          <button type="button" onClick={() => setTab("payments")} title="Voir le journal des paiements" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
+            <KpiCard label="Encaissé (cumul)" value={formatDzd(totalToday, { compact: true })} icon={<Wallet className="h-5 w-5" />} tone="success" />
+          </button>
+          <button type="button" onClick={() => setTab("payments")} title="Voir le journal des paiements" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
+            <KpiCard label="Revenu mensuel" value={formatDzd(monthlyRev, { compact: true })} icon={<TrendingUp className="h-5 w-5" />} tone="info" />
+          </button>
+          <button type="button" onClick={() => setTab("debt")} title="Voir les créances en retard" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
+            <KpiCard label="Créances en retard" value={formatDzd(overdueDebt, { compact: true })} icon={<AlertTriangle className="h-5 w-5" />} tone="danger" />
+          </button>
+          <button type="button" onClick={() => setTab("expenses")} title="Voir les dépenses en attente" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
+            <KpiCard label="Dépenses en attente" value={pendingExpenses} icon={<Receipt className="h-5 w-5" />} tone="warning" />
+          </button>
         </div>
       </div>
 
@@ -178,6 +248,7 @@ export function FinancialsPage() {
           <PageTab value="debt" label="Créances" icon={AlertCircle} count={debtSummary.length} countTone={overdueDebt > 0 ? "danger" : "default"} />
           <PageTab value="expenses" label="Dépenses" icon={Send} count={pendingExpenses} countTone={pendingExpenses > 0 ? "warning" : "default"} />
           <PageTab value="receipts" label="Reçus" icon={FileCheck} />
+          <PageTab value="diagnostic" label="Diagnostic & Requêtes" icon={Brain} count={diagnosticAlertCount} countTone={diagnosticAlertCount > 0 ? "warning" : "default"} />
         </PageTabList>
 
         <PageTabContent value="payments">
@@ -195,9 +266,45 @@ export function FinancialsPage() {
         <PageTabContent value="receipts">
           <ReceiptsTab />
         </PageTabContent>
+        <PageTabContent value="diagnostic">
+          <div className="space-y-4">
+            {/* Interactive Financial Query Console */}
+            <FinancialQueryConsole
+              diagnoses={financialDiagnoses}
+              onOpenParent={(parentId) => {
+                navigate(`/crm?parentId=${parentId}`);
+              }}
+              onCollectPayment={(parentId, amount) => {
+                setDiagnosticCollect({ parentId, amount });
+                setPaymentOpen(true);
+              }}
+            />
+
+            {/* Cross-Service Performance Matrix & Cash Flow Radar */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-7">
+                <CrossServiceMatrix
+                  services={servicePerformance}
+                  onFilterService={() => setTab("installments")}
+                />
+              </div>
+              <div className="lg:col-span-5">
+                <CashFlowRadar treasury={treasuryHealth} />
+              </div>
+            </div>
+          </div>
+        </PageTabContent>
       </PageTabs>
 
-      <CounterPaymentModal open={paymentOpen} onOpenChange={setPaymentOpen} />
+      <CounterPaymentModal
+        open={paymentOpen}
+        onOpenChange={(o) => {
+          setPaymentOpen(o);
+          if (!o) setDiagnosticCollect(null);
+        }}
+        presetParentId={diagnosticCollect?.parentId ?? null}
+        presetAmount={diagnosticCollect?.amount ?? null}
+      />
       <PaymentDetailDrawer
         paymentId={paymentDetailId}
         open={paymentDetailId !== null}
@@ -219,7 +326,18 @@ export function FinancialsPage() {
       />
     </div>
   );
+
+
+
+
+
+
+
 }
+
+
+
+
 
 // ============================================================================
 // TabActions — purpose-bound action buttons that change based on active tab
@@ -240,6 +358,7 @@ function TabActions({
 }) {
   switch (tab) {
     case "installments":
+    case "diagnostic":
       return canCollect ? (
         <Button size="sm" onClick={onCollect}>
           <Plus className="h-4 w-4" /> Encaissement
