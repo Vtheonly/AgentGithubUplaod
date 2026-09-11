@@ -273,3 +273,189 @@
     min-width: 0;
   }
 }
+
+/* ==================================================================== */
+/* DYNAMIC THEME ENGINE OVERRIDES (Fixes Light, Dark & Custom Themes)   */
+/* ==================================================================== */
+
+/* 1. Force all surface classes to dynamically follow CSS variables */
+.bg-surface-background {
+  background-color: var(--surface-background) !important;
+}
+.bg-surface-panel {
+  background-color: var(--surface-panel) !important;
+}
+.bg-surface-elevated {
+  background-color: var(--surface-elevated) !important;
+}
+.bg-surface-hover:hover {
+  background-color: var(--surface-hover) !important;
+}
+
+/* 2. Text and Border color overrides */
+.text-foreground-bright {
+  color: var(--foreground-bright) !important;
+}
+.text-muted {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.border-surface-panel {
+  border-color: var(--surface-panel) !important;
+}
+
+/* 3. Dynamic opacity support via color-mix */
+.bg-surface-background\/95 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-background) 95%,
+    transparent
+  ) !important;
+}
+.bg-surface-background\/90 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-background) 90%,
+    transparent
+  ) !important;
+}
+.bg-surface-background\/80 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-background) 80%,
+    transparent
+  ) !important;
+}
+.bg-surface-background\/50 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-background) 50%,
+    transparent
+  ) !important;
+}
+
+.bg-surface-panel\/95 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 95%,
+    transparent
+  ) !important;
+}
+.bg-surface-panel\/90 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 90%,
+    transparent
+  ) !important;
+}
+.bg-surface-panel\/80 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 80%,
+    transparent
+  ) !important;
+}
+.bg-surface-panel\/50 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 50%,
+    transparent
+  ) !important;
+}
+.bg-surface-panel\/40 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 40%,
+    transparent
+  ) !important;
+}
+.bg-surface-panel\/30 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 30%,
+    transparent
+  ) !important;
+}
+.bg-surface-panel\/20 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 20%,
+    transparent
+  ) !important;
+}
+.bg-surface-panel\/10 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-panel) 10%,
+    transparent
+  ) !important;
+}
+
+.bg-surface-elevated\/95 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-elevated) 95%,
+    transparent
+  ) !important;
+}
+.bg-surface-elevated\/80 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-elevated) 80%,
+    transparent
+  ) !important;
+}
+.bg-surface-elevated\/50 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-elevated) 50%,
+    transparent
+  ) !important;
+}
+.bg-surface-elevated\/40 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-elevated) 40%,
+    transparent
+  ) !important;
+}
+.bg-surface-elevated\/30 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-elevated) 30%,
+    transparent
+  ) !important;
+}
+.bg-surface-elevated\/20 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-elevated) 20%,
+    transparent
+  ) !important;
+}
+.bg-surface-elevated\/10 {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-elevated) 10%,
+    transparent
+  ) !important;
+}
+
+/* 4. Ensure Sidebar, Topbar, and Canvas background follow the theme */
+aside,
+[data-sidebar] {
+  background-color: var(--surface-panel) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+header,
+[data-topbar] {
+  background-color: var(--surface-panel) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Ensure body and html background adapt */
+html,
+body {
+  background-color: var(--surface-background) !important;
+  color: hsl(var(--foreground)) !important;
+}

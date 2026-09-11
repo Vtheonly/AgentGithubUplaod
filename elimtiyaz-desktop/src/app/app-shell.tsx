@@ -46,7 +46,10 @@ import { ProfilePage } from "../features/profile/profile-page";
 import { useRepositories } from "./providers/repository-provider";
 import { useAuth } from "./providers/auth-provider";
 import { startBackupScheduler } from "../infrastructure/backup/backup-scheduler";
-import { routeRedirectFor, ROUTE_GUARD_REDIRECT } from "../core/rbac/route-access";
+import {
+  routeRedirectFor,
+  ROUTE_GUARD_REDIRECT,
+} from "../core/rbac/route-access";
 import { AICopilotDrawer } from "../features/ai/copilot-drawer";
 
 export function AppShell() {
@@ -78,13 +81,16 @@ export function AppShell() {
 
   if (redirectTo) {
     return (
-      <div className="flex h-screen w-screen overflow-hidden bg-surface-background text-foreground">
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
           <main className="flex-1 overflow-y-auto">
             <Routes>
-              <Route path="*" element={<Navigate to={ROUTE_GUARD_REDIRECT} replace />} />
+              <Route
+                path="*"
+                element={<Navigate to={ROUTE_GUARD_REDIRECT} replace />}
+              />
             </Routes>
           </main>
         </div>
@@ -95,7 +101,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-surface-background text-foreground">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       <Sidebar />
       <div className="flex flex-1 flex-col min-w-0">
         <Topbar />
@@ -104,9 +110,18 @@ export function AppShell() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/crm" element={<CrmPage />} />
             <Route path="/academics" element={<AcademicsPage />} />
-            <Route path="/academics/class/:classId" element={<ClassDetailPage />} />
-            <Route path="/academics/class/:classId/roll-call" element={<RollCallScreen />} />
-            <Route path="/academics/class/:classId/grades/:subjectId" element={<GradeEntryScreen />} />
+            <Route
+              path="/academics/class/:classId"
+              element={<ClassDetailPage />}
+            />
+            <Route
+              path="/academics/class/:classId/roll-call"
+              element={<RollCallScreen />}
+            />
+            <Route
+              path="/academics/class/:classId/grades/:subjectId"
+              element={<GradeEntryScreen />}
+            />
             <Route path="/financials" element={<FinancialsPage />} />
             <Route path="/personnel" element={<PersonnelPage />} />
             <Route path="/workflow" element={<WorkflowPage />} />

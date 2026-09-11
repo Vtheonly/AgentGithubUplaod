@@ -1,36 +1,30 @@
-/**
- * useUserPreferences — single source of truth for client-side user preferences.
- *
- * Before this hook existed, four divergent storage layers held pieces of
- * "user preferences":
- *   - `localStorage["el-imtiyaz:locale"]` (language-switcher.tsx)
- *   - `localStorage["el-imtiyaz:theme"]` (didn't exist — theme was hardcoded)
- *   - `session.locale` (declared but never read)
- *   - `system_settings` table (timezone, default_locale, default_currency,
- *     log_level — but the GeneralTab never displayed or updated them)
- *
- * This hook unifies all four into ONE provider. The provider:
- *   1. Holds the in-memory state (theme, locale, timezone, currency).
- *   2. Persists theme + locale to localStorage (client-side — instant).
- *   3. Mirrors locale to `i18n.changeLanguage()` + the `document.documentElement.dir`/`lang` attributes.
- *   4. Mirrors theme to the `data-theme` attribute on `<html>` (used by the
- *      CSS variables in index.css to switch between light/dark palettes).
- *   5. Exposes `setTheme`, `setLocale`, `setTimezone`, `setCurrency` that
- *      also fire audit log entries + (if Supabase is configured) push the
- *      new value to the `system_settings` table.
- *
- * The hook is intentionally lightweight — it does NOT depend on Supabase.
- * If Supabase is unavailable (mock mode), preferences still work locally.
- */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+// ============================================================================
+// FILE: src/app/providers/user-preferences-provider.tsx
+// ============================================================================
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import i18n from "../../i18n/i18n";
 import { logger } from "../../core/logger";
+import {
+  applyThemePaletteToDom,
+  findThemeById,
+  loadStoredCustomThemes,
+  saveStoredCustomThemes,
+} from "../../core/theme/theme-engine";
+import {
+  PRESET_THEMES,
+  type CustomThemePalette,
+} from "../../core/theme/theme-types";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-export type AppTheme = "dark" | "light";
+export type AppTheme = string; // can be "dark", "light", "emerald", "amethyst", or custom ID
 export type AppLocale = "fr" | "ar";
 
 export interface UserPreferences {
@@ -45,13 +39,11 @@ export interface UserPreferencesContextValue extends UserPreferences {
   setLocale(locale: AppLocale): void;
   setTimezone(timezone: string): void;
   setCurrency(currency: string): void;
-  /** Reset all preferences to defaults. Used by the "Réinitialiser" button. */
+  customThemes: CustomThemePalette[];
+  saveCustomTheme(palette: CustomThemePalette): void;
+  deleteCustomTheme(id: string): void;
   reset(): void;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
 
 const STORAGE_KEY = "el-imtiyaz:prefs";
 
@@ -62,37 +54,20 @@ const DEFAULTS: UserPreferences = {
   currency: "DZD",
 };
 
-const THEME_ATTR = "data-theme";
-const LOCALE_STORAGE_KEY_LEGACY = "el-imtiyaz:locale";
-
-/* ------------------------------------------------------------------ */
-/*  Storage helpers (pure)                                             */
-/* ------------------------------------------------------------------ */
-
 function loadPreferences(): UserPreferences {
-  // First try the new unified key.
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<UserPreferences>;
       return {
-        theme: parsed.theme === "light" || parsed.theme === "dark" ? parsed.theme : DEFAULTS.theme,
+        theme: typeof parsed.theme === "string" ? parsed.theme : DEFAULTS.theme,
         locale: parsed.locale === "fr" || parsed.locale === "ar" ? parsed.locale : DEFAULTS.locale,
-        timezone: typeof parsed.timezone === "string" && parsed.timezone ? parsed.timezone : DEFAULTS.timezone,
-        currency: typeof parsed.currency === "string" && parsed.currency ? parsed.currency : DEFAULTS.currency,
+        timezone: typeof parsed.timezone === "string" ? parsed.timezone : DEFAULTS.timezone,
+        currency: typeof parsed.currency === "string" ? parsed.currency : DEFAULTS.currency,
       };
     }
   } catch {
-    // Fall through to legacy migration.
-  }
-  // Migrate legacy locale key if present (one-time).
-  try {
-    const legacy = localStorage.getItem(LOCALE_STORAGE_KEY_LEGACY);
-    if (legacy === "fr" || legacy === "ar") {
-      return { ...DEFAULTS, locale: legacy };
-    }
-  } catch {
-    /* ignore */
+    // fallback
   }
   return DEFAULTS;
 }
@@ -105,68 +80,37 @@ function savePreferences(prefs: UserPreferences): void {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Side-effect appliers                                               */
-/* ------------------------------------------------------------------ */
-
-function applyTheme(theme: AppTheme): void {
-  document.documentElement.setAttribute(THEME_ATTR, theme);
-  // Also set / remove the legacy `.dark` / `.light` classes so any CSS
-  // rules still keying off `<html class="dark">` or `<html class="light">`
-  // continue to work alongside the new `[data-theme="..."]` selector.
-  document.documentElement.classList.remove("dark", "light");
-  document.documentElement.classList.add(theme);
-}
-
 function applyLocale(locale: AppLocale): void {
   const dir = locale === "ar" ? "rtl" : "ltr";
   document.documentElement.dir = dir;
   document.documentElement.lang = locale;
-  // Mirror to legacy key so existing readers (language-switcher.tsx) see it.
-  try {
-    localStorage.setItem(LOCALE_STORAGE_KEY_LEGACY, locale);
-  } catch {
-    /* ignore */
-  }
-  // i18n.changeLanguage is async but we don't need to await — React will
-  // re-render when the language changes via the useTranslation hook.
   void i18n.changeLanguage(locale);
 }
 
-/**
- * Synchronously apply stored theme + locale BEFORE React mounts.
- *
- * Call this from main.tsx so:
- *   - The `dir="rtl"` attribute is set before the first paint (prevents
- *     an LTR flash for users who previously selected Arabic).
- *   - The `data-theme="dark|light"` attribute is set before the first
- *     paint (prevents a flash of the wrong palette).
- *
- * Safe to call multiple times — the UserPreferencesProvider will apply
- * the same values again on mount (idempotent).
- */
 export function initUserPreferences(): UserPreferences {
   const prefs = loadPreferences();
-  applyTheme(prefs.theme);
+  const custom = loadStoredCustomThemes();
+  const palette = findThemeById(prefs.theme, custom);
+  applyThemePaletteToDom(palette);
   applyLocale(prefs.locale);
   return prefs;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Context                                                            */
-/* ------------------------------------------------------------------ */
 
 const UserPreferencesContext = createContext<UserPreferencesContextValue | null>(null);
 
 export function UserPreferencesProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
+  const [customThemes, setCustomThemes] = useState<CustomThemePalette[]>(() =>
+    loadStoredCustomThemes()
+  );
 
-  // Apply side-effects whenever prefs change.
+  // Apply visual theme to DOM
   useEffect(() => {
-    applyTheme(prefs.theme);
+    const palette = findThemeById(prefs.theme, customThemes);
+    applyThemePaletteToDom(palette);
     applyLocale(prefs.locale);
     savePreferences(prefs);
-  }, [prefs]);
+  }, [prefs, customThemes]);
 
   const setTheme = useCallback((theme: AppTheme) => {
     setPrefs((prev) => (prev.theme === theme ? prev : { ...prev, theme }));
@@ -184,13 +128,42 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
     setPrefs((prev) => (prev.currency === currency ? prev : { ...prev, currency }));
   }, []);
 
+  const saveCustomTheme = useCallback((palette: CustomThemePalette) => {
+    setCustomThemes((prev) => {
+      const idx = prev.findIndex((t) => t.id === palette.id);
+      const next = idx >= 0 ? prev.map((t, i) => (i === idx ? palette : t)) : [...prev, palette];
+      saveStoredCustomThemes(next);
+      return next;
+    });
+    setTheme(palette.id);
+  }, [setTheme]);
+
+  const deleteCustomTheme = useCallback((id: string) => {
+    setCustomThemes((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      saveStoredCustomThemes(next);
+      return next;
+    });
+    setPrefs((prev) => (prev.theme === id ? { ...prev, theme: "dark" } : prev));
+  }, []);
+
   const reset = useCallback(() => {
     setPrefs(DEFAULTS);
   }, []);
 
   const value = useMemo<UserPreferencesContextValue>(
-    () => ({ ...prefs, setTheme, setLocale, setTimezone, setCurrency, reset }),
-    [prefs, setTheme, setLocale, setTimezone, setCurrency, reset],
+    () => ({
+      ...prefs,
+      setTheme,
+      setLocale,
+      setTimezone,
+      setCurrency,
+      customThemes,
+      saveCustomTheme,
+      deleteCustomTheme,
+      reset,
+    }),
+    [prefs, setTheme, setLocale, setTimezone, setCurrency, customThemes, saveCustomTheme, deleteCustomTheme, reset]
   );
 
   return (
