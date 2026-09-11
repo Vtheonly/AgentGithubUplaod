@@ -58,6 +58,37 @@ vi.mock("recharts", () => ({
   CartesianGrid: () => <div />,
 }));
 
+// Mock the AI copilot context — the owner's analytics overhaul (db5e159)
+// added OperationalQueryConsole + CrossRiskCard to the tab, both calling
+// useAICopilot() (askAgent + setIsOpen only). The REAL provider pulls
+// useRepositories/useToast/useAuth — out of scope for a visuals-regression
+// suite. This stub keeps the harness isolated (the same pattern as the
+// recharts mock above) and leaves the owner's components untouched.
+vi.mock("../../app/providers/ai-copilot-provider", () => ({
+  useAICopilot: () => ({
+    isOpen: false,
+    setIsOpen: vi.fn(),
+    toggleCopilot: vi.fn(),
+    messages: [],
+    isStreaming: false,
+    streamingDelta: "",
+    activeToolName: null,
+    proposals: [],
+    config: null,
+    canUse: true,
+    pendingClarification: null,
+    askAgent: vi.fn().mockResolvedValue(undefined),
+    answerClarification: vi.fn().mockResolvedValue(undefined),
+    dismissClarification: vi.fn(),
+    stopStreaming: vi.fn(),
+    clearConversation: vi.fn(),
+    approveAction: vi.fn().mockResolvedValue(undefined),
+    dismissAction: vi.fn(),
+    downloadArtifact: vi.fn().mockResolvedValue(undefined),
+    reloadConfig: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 import {
   applyAnalyticsFilters,
   presentCategories,
@@ -75,7 +106,7 @@ import {
   shiftIsoYearBack,
   previousAcademicYear,
 } from "../../features/dashboard/components/analytics/analytics-derivations";
-import { AnalyticsTab } from "../../features/dashboard/tabs/analytics-tab";
+import { AnalyticsTab, type AnalyticsTabProps } from "../../features/dashboard/tabs/analytics-tab";
 import type { Payment } from "../../domain/model/payment";
 
 // ============================================================
@@ -466,8 +497,23 @@ const TAB_PROPS = {
 };
 
 describe("UI-307 — AnalyticsTab render (the report page)", () => {
+  // The owner's analytics overhaul (db5e159) split the tab into two view
+  // modes: "diagnostic" (the NEW default — OperationalQueryConsole +
+  // CrossRiskCard + PivotMatrixCard) and "charts" (the ORIGINAL Power BI
+  // chart wall — preserved verbatim). These render-regression tests pin
+  // the CHART wall, so every render switches to the charts view first.
+  // The diagnostic default view is exercised by the operational-query-
+  // engine suites; nothing here overwrites the owner's layout.
+  function renderChartsView(props: Partial<AnalyticsTabProps> = {}) {
+    render(<AnalyticsTab {...TAB_PROPS} {...props} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Flux Financiers & Visualisations/ }),
+    );
+    return screen.getByTestId("analytics-tab");
+  }
+
   it("renders the full chart wall with REAL derived statistics", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     // Stat strip reflects the unfiltered paid in-range slice (6 payments,
     // Σ 86 000 DZD — p1..p4 + the Fri/Sat rows).
     const strip = screen.getByTestId("analytics-stat-strip");
@@ -487,7 +533,7 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   });
 
   it("method chip cross-filters the payments-derived cards (Power BI slicer)", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     // Before: 6 / 6.
     expect(screen.getByTestId("analytics-slicer-badge").textContent).toContain("6 / 6");
     // Click "Chèque" — only p3 survives (40 000 DZD).
@@ -503,7 +549,7 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   });
 
   it("category chip cross-filters (additive within the group)", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     const chips = within(screen.getByTestId("analytics-category-chips"));
     // Click "Scolarité" (tuition) — p1 + p2 + p8 + p9 = 40 000 DZD
     // (the Fri/Sat rows are tuition+cash too — they match the filter).
@@ -517,7 +563,7 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   });
 
   it("the trend explorer gains the 'Filtré' overlay series only under active filters", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     const methodChips = within(screen.getByTestId("analytics-method-chips"));
     // Unfiltered: 3 series chips (Encaissé / Cumulé / MM 3 mois).
     expect(screen.getByTestId("analytics-trend-legend").textContent).not.toContain("Filtré");
@@ -526,7 +572,7 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   });
 
   it("the trend view toggle switches the monthly series (Barres ↔ Aire)", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     const toggle = screen.getByTestId("analytics-trend-view-toggle");
     const bars = toggle.querySelectorAll("button")[0];
     const area = toggle.querySelectorAll("button")[1];
@@ -537,7 +583,7 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   });
 
   it("heatmap cells carry the real amounts (data attributes)", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     // Dimanche × Sep 2025 = p1 (20 000).
     const cell = screen.getByTestId("heatmap-cell-Dim-2025-09");
     expect(cell.getAttribute("data-amount")).toBe("20000");
@@ -546,7 +592,7 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   });
 
   it("aging composition renders the normalized shares + total row", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     const bar = screen.getByTestId("aging-stacked-bar");
     const segments = bar.querySelectorAll("[role='progressbar']");
     expect(segments.length).toBe(3);
@@ -555,23 +601,20 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   });
 
   it("YoY card renders the grouped chart when the previous series exists", () => {
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    renderChartsView();
     // Σ current = 136 000; Σ previous (aligned Sep+Oct) = 38 000 → +258%.
     expect(screen.getByTestId("yoy-chart")).toBeInTheDocument();
   });
 
   it("renders honest empty states when there is nothing to show", () => {
-    render(
-      <AnalyticsTab
-        {...TAB_PROPS}
-        revenue={[]}
-        prevRevenue={[]}
-        prevAcademicYear={null}
-        payments={[]}
-        topDebtors={[]}
-        debtAging={[]}
-      />,
-    );
+    renderChartsView({
+      revenue: [],
+      prevRevenue: [],
+      prevAcademicYear: null,
+      payments: [],
+      topDebtors: [],
+      debtAging: [],
+    });
     expect(screen.getByTestId("method-mix-empty")).toBeInTheDocument();
     expect(screen.getByTestId("category-mix-empty")).toBeInTheDocument();
     expect(screen.getByTestId("heatmap-empty")).toBeInTheDocument();
