@@ -160,6 +160,7 @@ export class MockAuditRepository implements AuditRepository {
     entityId: string;
     actorId: string;
     actorName: string;
+    actorRole?: string | null;
     tenantId: string;
     diff?: { before?: unknown; after?: unknown } | null;
     note?: string | null;
@@ -172,6 +173,7 @@ export class MockAuditRepository implements AuditRepository {
       entityId: input.entityId,
       actorId: input.actorId,
       actorName: input.actorName,
+      actorRole: input.actorRole ?? null,
       diff: input.diff ? JSON.stringify(input.diff) : null,
       note: input.note ?? null,
       ipAddress: "10.0.1.42",

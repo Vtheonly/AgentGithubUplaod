@@ -11,11 +11,16 @@
  * module (CRM, Financials, Academics, etc.) where each tab is a separate
  * component file.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Filter, ScrollText, ChevronDown } from "lucide-react";
+import { Download, Filter, ScrollText, ChevronDown, ChevronRight, User, IdCard, ShieldCheck } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import type { AuditEntry, AuditLogFilter } from "../../domain/model/audit";
+import {
+  computeFieldDiff,
+  flattenDiffRows,
+  type DiffRow,
+} from "../../domain/calc/diff/field-diff";
 import { formatDateTime } from "../../core/format/date";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -223,7 +228,11 @@ export function AuditLogTab() {
                     <span className="text-xs text-muted-foreground">{e.entityType}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {e.actorName} → {e.entityId}
+                    {e.actorName}
+                    {e.actorRole && (
+                      <Badge variant="outline" className="ml-1.5 text-[9px] py-0 px-1">{e.actorRole}</Badge>
+                    )}{" "}
+                    → {e.entityId}
                   </p>
                 </div>
                 <div className="text-right">
@@ -243,21 +252,79 @@ export function AuditLogTab() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Audit diff drawer                                                  */
+/*  Audit diff drawer — T-296 (OFFLINE-400) upgrade                    */
+/*                                                                     */
+/*  Was: two <pre> blocks dumping the raw before/after JSON.           */
+/*  Now: field-level rows computed by the canonical diff engine —      */
+/*  the OLD value renders red/struck, the NEW value green; the actor   */
+/*  attribution block shows Name + Account ID + Role (VAULT §12.02).   */
+/*  The raw JSON stays available as a collapsible forensic view.       */
 /* ------------------------------------------------------------------ */
 
-function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose: () => void }) {
-  let before: unknown = null;
-  let after: unknown = null;
-  if (entry?.diff) {
-    try {
-      const parsed = JSON.parse(entry.diff) as { before?: unknown; after?: unknown };
-      before = parsed.before;
-      after = parsed.after;
-    } catch {
-      /* ignore */
-    }
+/** Parse the entry's diff JSON into the before/after snapshots. */
+function parseAuditDiff(entry: AuditEntry | null): { before: unknown; after: unknown } {
+  if (!entry?.diff) return { before: null, after: null };
+  try {
+    const parsed = JSON.parse(entry.diff) as { before?: unknown; after?: unknown };
+    return { before: parsed.before ?? null, after: parsed.after ?? null };
+  } catch {
+    return { before: null, after: null };
   }
+}
+
+/** One red/green field row. */
+function DiffFieldRow({ row }: { row: DiffRow }) {
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2 px-2 py-1.5 rounded border-l-2",
+        row.kind === "added" && "border-status-success/60 bg-status-success/5",
+        row.kind === "removed" && "border-status-danger/60 bg-status-danger/5",
+        row.kind === "changed" && "border-primary/40 bg-primary/5",
+      )}
+    >
+      <code className="text-[11px] font-mono text-muted-foreground min-w-[140px] max-w-[220px] truncate shrink-0 pt-0.5">
+        {row.path}
+      </code>
+      <div className="flex-1 flex items-center gap-1.5 flex-wrap min-w-0">
+        {row.kind !== "added" && (
+          <span
+            data-testid="diff-old-value"
+            className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-status-danger/10 text-status-danger line-through decoration-status-danger/60 break-words"
+          >
+            {row.oldDisplay}
+          </span>
+        )}
+        {row.kind === "changed" && <span className="text-[10px] text-muted-foreground">→</span>}
+        {row.kind !== "removed" && (
+          <span
+            data-testid="diff-new-value"
+            className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-status-success/10 text-status-success break-words"
+          >
+            {row.newDisplay}
+          </span>
+        )}
+        <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 ml-auto shrink-0">
+          {row.kind === "added" ? "ajouté" : row.kind === "removed" ? "supprimé" : "modifié"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose: () => void }) {
+  const [showRaw, setShowRaw] = useState(false);
+  const { before, after } = parseAuditDiff(entry);
+  const rows = useMemo(
+    () => (entry ? flattenDiffRows(computeFieldDiff(before, after)) : []),
+    [entry, before, after],
+  );
+  const counts = useMemo(() => {
+    const added = rows.filter((r) => r.kind === "added").length;
+    const removed = rows.filter((r) => r.kind === "removed").length;
+    const changed = rows.filter((r) => r.kind === "changed").length;
+    return { added, removed, changed, total: rows.length };
+  }, [rows]);
 
   return (
     <UnifiedModal
@@ -284,25 +351,97 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
       onSubmit={onClose}
     >
       <div className="space-y-3">
+        {/* Actor attribution block — T-296: Name + Account ID + Role */}
+        <div className="rounded border bg-muted/30 p-2.5 space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Opérateur</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <span className="flex items-center gap-1.5 text-sm font-medium">
+              <User className="h-3.5 w-3.5 text-primary" />
+              {entry?.actorName || "—"}
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+              <IdCard className="h-3.5 w-3.5" />
+              {entry?.actorId || "—"}
+            </span>
+            {entry?.actorRole ? (
+              <Badge variant="outline" className="gap-1 text-[10px]">
+                <ShieldCheck className="h-3 w-3" />
+                {entry.actorRole}
+              </Badge>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/60 italic">rôle non enregistré</span>
+            )}
+          </div>
+        </div>
+
         {entry?.note && (
           <div>
             <p className="text-xs uppercase text-muted-foreground mb-1">Note</p>
             <p className="text-sm text-foreground bg-muted/30 rounded p-2">{entry.note}</p>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs uppercase text-muted-foreground mb-1">Avant</p>
-            <pre className="bg-status-danger/10 border border-status-danger/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
-              {before == null ? "null" : JSON.stringify(before, null, 2)}
-            </pre>
+
+        {/* Field-level diff summary */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs uppercase text-muted-foreground">Diff par champ</p>
+          {counts.total > 0 ? (
+            <>
+              <Badge variant="outline" className="text-[9px] text-status-danger border-status-danger/40">
+                {`${counts.removed} supprimé${counts.removed === 1 ? "" : "s"}`}
+              </Badge>
+              <Badge variant="outline" className="text-[9px] text-primary border-primary/40">
+                {`${counts.changed} modifié${counts.changed === 1 ? "" : "s"}`}
+              </Badge>
+              <Badge variant="outline" className="text-[9px] text-status-success border-status-success/40">
+                {`${counts.added} ajouté${counts.added === 1 ? "" : "s"}`}
+              </Badge>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">aucune différence structurelle</span>
+          )}
+        </div>
+
+        {/* The red/green field rows */}
+        {rows.length > 0 ? (
+          <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
+            {rows.map((row) => (
+              <DiffFieldRow key={`${row.path}:${row.kind}`} row={row} />
+            ))}
           </div>
-          <div>
-            <p className="text-xs uppercase text-muted-foreground mb-1">Après</p>
-            <pre className="bg-status-success/10 border border-status-success/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
-              {after == null ? "null" : JSON.stringify(after, null, 2)}
-            </pre>
+        ) : (
+          <div className="rounded border border-dashed p-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              Avant et après sont structurellement identiques (aucun champ modifié).
+            </p>
           </div>
+        )}
+
+        {/* Collapsible raw JSON (forensic view) */}
+        <div className="border-t border-border pt-2">
+          <button
+            type="button"
+            onClick={() => setShowRaw((v) => !v)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {showRaw ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            JSON brut (forensique)
+          </button>
+          {showRaw && (
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div>
+                <p className="text-xs uppercase text-muted-foreground mb-1">Avant</p>
+                <pre className="bg-status-danger/10 border border-status-danger/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
+                  {before == null ? "null" : JSON.stringify(before, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <p className="text-xs uppercase text-muted-foreground mb-1">Après</p>
+                <pre className="bg-status-success/10 border border-status-success/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
+                  {after == null ? "null" : JSON.stringify(after, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </UnifiedModal>

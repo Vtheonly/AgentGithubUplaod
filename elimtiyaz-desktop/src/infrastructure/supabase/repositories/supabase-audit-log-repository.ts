@@ -110,6 +110,10 @@ function mapAuditRow(row: Record<string, any>): AuditEntry {
     entityId: row.entity_id ?? "",
     actorId: row.actor_id ?? "",
     actorName: row.actor_name ?? "",
+    // T-296 (OFFLINE-400): the role was DROPPED here — the DB column exists
+    // (0014) and the domain carries actorRole; the diff drawer's attribution
+    // block (Name + Account ID + Role) requires it.
+    actorRole: row.actor_role ?? null,
     diff,
     note: row.note ?? null,
     ipAddress: row.ip_address ?? null,
@@ -255,6 +259,8 @@ export class SupabaseAuditLogRepository implements AuditRepository {
     entityId: string;
     actorId: string;
     actorName: string;
+    /** T-296 (OFFLINE-400): the role at the time of the action (0014's actor_role). */
+    actorRole?: string | null;
     /** T-053: null = resolve the working tenant (requireTenantId). */
     tenantId: string | null;
     diff?: { before?: unknown; after?: unknown } | null;
@@ -281,6 +287,9 @@ export class SupabaseAuditLogRepository implements AuditRepository {
         p_entity_id: entityId,
         p_actor_id: actorId,
         p_actor_name: input.actorName,
+        // T-296: the RPC has carried p_actor_role since 0014 — the client
+        // never passed it, so every row landed with a NULL role.
+        p_actor_role: input.actorRole ?? null,
         p_before_json: input.diff?.before ?? null,
         p_after_json: input.diff?.after ?? null,
         p_note: note,
@@ -312,6 +321,7 @@ export class SupabaseAuditLogRepository implements AuditRepository {
         entity_id: entityId,
         actor_id: actorId,
         actor_name: input.actorName,
+        actor_role: input.actorRole ?? null,
         before_json: (input.diff?.before ?? null) as Record<string, unknown> | null,
         after_json: (input.diff?.after ?? null) as Record<string, unknown> | null,
         note,
@@ -342,6 +352,7 @@ function synthesizeEntry(
     entityId: string;
     actorId: string;
     actorName: string;
+    actorRole?: string | null;
     tenantId: string;
     diff?: { before?: unknown; after?: unknown } | null;
     note?: string | null;
@@ -356,6 +367,7 @@ function synthesizeEntry(
     entityId: entityId ?? input.entityId,
     actorId: input.actorId,
     actorName: input.actorName,
+    actorRole: input.actorRole ?? null,
     diff: input.diff ? JSON.stringify(input.diff) : null,
     note: input.note ?? null,
     ipAddress: null,

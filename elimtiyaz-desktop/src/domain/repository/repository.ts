@@ -538,6 +538,13 @@ export interface AuditRepository {
     entityId: string;
     actorId: string;
     actorName: string;
+    /**
+     * T-296 (OFFLINE-400): the actor's role at the time of the action — part
+     * of the contextual audit schema (VAULT §12.02, migration 0014's
+     * actor_role column). Optional for backward compatibility with existing
+     * call sites; the UI renders it in the diff drawer's attribution block.
+     */
+    actorRole?: string | null;
     /** T-053: null = resolve the working tenant (throws for a global admin with no tenant picked). */
     tenantId: string | null;
     diff?: { before?: unknown; after?: unknown } | null;

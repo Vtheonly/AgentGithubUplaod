@@ -242,6 +242,8 @@ export interface AppendAuditInput {
   entityId: string;
   actorId: string;
   actorName: string;
+  /** T-296 (OFFLINE-400): the actor's role (VAULT §12.02 — rendered in the diff drawer). */
+  actorRole?: string | null;
   diff?: { before?: unknown; after?: unknown } | null;
   note?: string | null;
 }
@@ -261,6 +263,7 @@ export function appendAudit(input: AppendAuditInput): void {
     entityId: input.entityId,
     actorId: input.actorId,
     actorName: input.actorName,
+    actorRole: input.actorRole ?? null,
     diff: input.diff ? JSON.stringify(input.diff) : null,
     note: input.note ?? null,
     ipAddress: "10.0.1.42",
