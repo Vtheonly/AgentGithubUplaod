@@ -324,6 +324,66 @@
 
 ---
 
+---
+
+## 46th session (2026-09-11) — owner mandate: "Fix and stabilize the offline-first architecture" (diff engine, conflict resolution, realtime notifications, offline backup/restore, zero duplication)
+
+> Mandate source: the owner's 46th-session engineering directive — visual red/green field-level diff engine with operator attribution (Name, Account ID, Role) integrated into the Audit Log AND the Merge Conflict Resolver; concurrent-edit conflict detection (never silent overwrite) with a 3-way visual resolver (Base vs User A vs User B, choose-A / choose-B / field-level manual merge) and notifications on detection AND resolution; realtime cross-platform notifications (Desktop ↔ Android) carrying Actor + Action + Target Entity; offline-first standalone operation on encrypted local storage (Android Room / Desktop IndexedDB) with offline browse + restore of ANY historical backup archive and post-restore sync staging that drains safely on reconnect without data loss; toggleable auto-backup scheduler + on-demand snapshots + point-in-time file selector; STRICT zero-duplication (revive the existing orphan modules — AuditDiffDrawer, AuditRepository, before_json/after_json, Reconcile.kt/reconcile/, SyncService, SyncQueueDispatcher, BackupRepository, kahn.ts, pii-mask.ts — no parallel data models, computation engines, UI, or sync queues); massive testing (Vitest + JUnit/Robolectric/MockK) with 0 errors, 0 regressions, 100% pass. Registered BEFORE implementation per AGENTS.md §13.
+
+### T-294 — Register OFFLINE-400: the offline-first stabilization gap family (6 sub-gaps, file:line evidence)
+- **Problems:** OFFLINE-400 (NEW — see problem registry) · **Priority:** P1
+- **Dependencies:** none · **Affected:** hub docs only
+- **Plan:** audit both codebases against the mandate and record the exact gaps (this registration): the shallow raw-JSON AuditDiffDrawer; the dropped actor_role in mapAuditRow; Android's fabricated delta inspector; the absent 3-way conflict detection/resolver; the absent realtime audit broadcast on both platforms; the mock-only restore + the untoggleable scheduler.
+- **Status:** Completed (this session — problem entry written with file:line evidence before the fix)
+
+### T-295 — Field-level diff engine (desktop TS): `src/domain/calc/diff/field-diff.ts` — pure, nestable, red/green semantics
+- **Problems:** OFFLINE-400 (sub-gap 1) · **Priority:** P0
+- **Dependencies:** T-294 · **Affected:** hub desktop (`src/domain/calc/diff/field-diff.ts` NEW — no existing diff computation to duplicate; the AuditDiffDrawer never computed deltas)
+- **Plan:** a PURE function family: `computeFieldDiff(before, after)` → `FieldDiffNode[]` where each node carries `{ path, kind: added|removed|changed|unchanged, oldValue, newValue, children }`; nested objects recurse by sorted key order; arrays diff by index with length-change semantics (added/removed tail entries); primitives + null handled exactly (null ≠ undefined ≠ "" at the leaves, but null-vs-absent collapses for display); deep-equal short-circuit; cycle-safe (identity map). Formatting helpers render values as compact display strings (objects → "{…} N champs", arrays → "[…] N éléments"). Dedicated Vitest suite: nested objects, arrays (grow/shrink/reorder), primitives, null/undefined/"" boundaries, deep-equal fast path, cycle guard.
+- **Status:** In Progress
+
+### T-296 — Desktop AuditDiffDrawer upgrade: field-level red/green rendering + full actor attribution (Name, Account ID, Role)
+- **Problems:** OFFLINE-400 (sub-gaps 1+2) · **Priority:** P0
+- **Dependencies:** T-295 · **Affected:** hub desktop (`src/features/settings/audit-log-tab.tsx` AuditDiffDrawer REVIVED in place, `src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts` mapAuditRow actor_role fix, mock mapper parity, NEW regression tests)
+- **Plan:** fix `mapAuditRow` to carry `actor_role` (and the mock mapper); the drawer renders the T-295 diff tree: per-field rows with the old value struck/red and the new value green, nested paths indented, added fields green-only, removed fields red-only; the drawer header shows actorName + actorId (Account ID) + actorRole badge; the audit list rows show the role chip. Regression tests: mapper parity (actor_role round-trip), drawer rendering (field rows, red/green classes, actor attribution block), empty-diff honesty (INSERT-only entries show all-green added fields; DELETE-only all-red removed).
+- **Status:** Not Started
+
+### T-297 — Android audit diff mirror: `core/FieldDiff.kt` (verbatim mirror) + the real before/after renderer in AuditStreamScreen/AuditLogScreen
+- **Problems:** OFFLINE-400 (sub-gap 3) · **Priority:** P0
+- **Dependencies:** T-295 · **Affected:** android (`core/FieldDiff.kt` NEW mirror with source-commit header, `ui/features/personnel/AuditStreamScreen.kt` fabricated inspector REPLACED, `ui/features/settings/AuditLogScreen.kt`, NEW FieldDiffTest)
+- **Plan:** port the T-295 engine verbatim to Kotlin (kotlinx.serialization JsonElement traversal; ADR-002 mirror discipline); replace the fabricated "Inspecteur JSON" with a real field-level red/green renderer reading `beforeJson`/`afterJson` (parse → computeFieldDiff → rows: old value red, new value green, path label, added/removed semantics); actor attribution (name + role + account id) in the sheet header and the list rows. Unit tests mirror the desktop vectors (nested/arrays/primitives/null) + a rendering-state test.
+- **Status:** Not Started
+
+### T-298 — 3-way merge conflict detection + resolver UI + conflict notifications (desktop)
+- **Problems:** OFFLINE-400 (sub-gap 4) · **Priority:** P0
+- **Dependencies:** T-295 (the field-diff engine powers the 3-way rendering) · **Affected:** hub desktop (`src/domain/calc/diff/three-way.ts` NEW, `src/infrastructure/sync/` conflict detection on the push path, NEW resolver modal + notification wiring, NEW suites)
+- **Plan:** (a) pure 3-way engine: `detectConflicts(base, local, remote)` → `FieldConflict[]` (per-path: local-vs-base diff, remote-vs-base diff, overlap = conflict; non-overlapping changes auto-merge); `resolveThreeWay(base, local, remote, choices)` applies per-field choices (take-local / take-remote / manual value). (b) Conflict detection wired into the existing SyncService push path: a queued entry whose payload diverges from the server row on a field BOTH sides changed creates a ConflictRecord (never silent LWW overwrite) + emits a notification + opens the resolver from the sync indicator. (c) The resolver modal: 3-column view (Base / User A / User B) with the T-295 field-level red/green in each column, per-field choice chips (A / B / manual edit), the merged preview, and an audit-logged resolution (`sync.conflict_resolved` with before/after). Resolution emits a second notification. Vitest: detection vectors (both-changed-same-field, disjoint auto-merge, array edits, null transitions), resolution correctness, no-silent-overwrite guarantee, notification emission (both events).
+- **Status:** Not Started
+
+### T-299 — Realtime cross-platform notification broadcast with actor attribution (Desktop ↔ Android)
+- **Problems:** OFFLINE-400 (sub-gap 5) · **Priority:** P0
+- **Dependencies:** T-296 (actor attribution surfaces) · **Affected:** hub desktop (`src/infrastructure/supabase/` realtime subscription on audit_logs + topbar activity feed), android (`RealtimeSyncManager` routing + notifications surface), supabase migration ONLY IF RLS requires it (check first — 0019's audit SELECT policy scope)
+- **Plan:** subscribe both platforms to `audit_logs` postgres-changes (the canonical "every change" stream — every mutation already writes an entry via write_audit_log, so ONE subscription covers the whole mandate); the desktop topbar feed + toast render the attributed sentence "Actor (Role) action target" from the entry's actor_name/actor_role/action/entity_type+entity_id; the Android routing map gains audit_logs → notification pull + an in-app attributed feed. Realtime events must respect the existing RLS SELECT policy on audit_logs (staff-scoped — verify with a live probe; if the policy blocks the anon/staff realtime SELECT, ship a migration widening only the realtime-read path per the 0048 precedent and verify live). Notification attribution resolution: actor name + role + account id from the audit row itself (denormalized columns — no joins needed).
+- **Status:** Not Started
+
+### T-300 — Offline-first restore + sync staging: the desktop backup restore becomes REAL (offline browse → restore → stage → safe drain)
+- **Problems:** OFFLINE-400 (sub-gaps 6+7 partial) · **Priority:** P0
+- **Dependencies:** T-295 (diff engine not required; backup/restore is independent) · **Affected:** hub desktop (`src/infrastructure/backup/backup-service.ts` restore() upgraded, `src/infrastructure/backup/` archive browser, `src/features/settings/backup-tab.tsx`, sync-queue integration, NEW suites)
+- **Plan:** (a) offline archive browser: `inspectArchive(archiveId)` decrypts in place and returns the parsed snapshot summary (per-collection counts + the entity list) WITHOUT restoring — the point-in-time file selector reads real metadata. (b) REAL restore: the restored snapshot replaces the mock/in-memory repository state (the offline operating mode — the desktop already runs fully on local state when Supabase is unreachable; restore now repopulates it), the audit log records `backup.restore` with before/after counts, and the app is explicitly marked "restored-from" until reconnect. (c) sync staging: post-restore mutations enqueue into the EXISTING sync-queue-store (no parallel queue — zero-duplication rule); on reconnect the drain pushes staged entries through the existing upsert RPCs (idempotent — the Tier-4 equivalence already pins this). (d) integrity: encryption round-trip (GCM auth-tag failure → corrupted status), checksum verification, and the drain-no-data-loss guarantee are all test-pinned. Vitest: inspect/restore/stage/drain vectors incl. the offline (unreachable) simulation.
+- **Status:** Not Started
+
+### T-301 — Backup scheduler toggle + the point-in-time selector completion
+- **Problems:** OFFLINE-400 (sub-gap 7) · **Priority:** P1
+- **Dependencies:** T-300 · **Affected:** hub desktop (`src/infrastructure/backup/backup-scheduler.ts` toggle support, `src/features/settings/backup-tab.tsx`, NEW tests)
+- **Plan:** a persisted on/off preference (`localStorage` key, read at scheduler start — the 02:00 daemon arms ONLY when enabled; default ON preserving current behavior); the Backup tab renders the toggle + the next-run-at + the run log; on-demand "Sauvegarder maintenant" (exists — preserved) and the archive list gains the T-300 inspector entry point (click an archive → inspect → restore). Tests: toggle semantics (armed vs not, persistence, default-on), UI wiring.
+- **Status:** Not Started
+
+### T-302 — 46th-session closeout: registries + change-log + zips + push
+- **Problems:** process (ADR-007) · **Priority:** P2
+- **Dependencies:** T-294..T-301 · **Affected:** all repos
+- **Plan:** OFFLINE-400 status flip with evidence, task status flips, change-log 46th-session section, current-state snapshot, next-task 47th recommendation, conventional commits with the 5-question body per repo, zips in download/, push with the owner PAT (re-supplied this session).
+- **Status:** Not Started
+
 ### T-264 — Approval-queue 406-noise: findPotentialMatches .single() → .maybeSingle() (OPS-309)
 - **Problems:** OPS-309 (NEW — see problem registry) · **Priority:** P2
 - **Dependencies:** none · **Affected:** hub desktop (`src/infrastructure/supabase/repositories/supabase-approval-repository.ts`, NEW `src/tests/infrastructure/t-264-approval-406-noise.test.ts`)
