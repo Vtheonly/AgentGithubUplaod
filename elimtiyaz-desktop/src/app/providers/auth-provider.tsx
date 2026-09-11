@@ -1,9 +1,6 @@
-/**
- * Auth state — current session, sign-in / sign-out, role gating, token refresh.
- *
- * Persisted to localStorage so reloads during a session do not force a
- * re-login. Cleared on sign-out.
- */
+// ============================================================================
+// FILE: src/app/providers/auth-provider.tsx
+// ============================================================================
 import {
   createContext,
   useCallback,
@@ -14,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session } from "../../core/rbac/session";
+import { isSuperAdmin } from "../../core/rbac/session";
 import { getSyncQueueStore } from "../../infrastructure/sync/sync-queue-store";
 import { isExpired } from "../../core/rbac/session";
 import { Permission } from "../../core/rbac/permissions";
@@ -27,7 +25,10 @@ const STORAGE_KEY = "el-imtiyaz.session";
 interface AuthContextValue {
   session: Session | null;
   isLoading: boolean;
-  signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }>;
+  signIn(
+    email: string,
+    password: string,
+  ): Promise<{ ok: true } | { ok: false; error: string }>;
   signOut(): Promise<void>;
   switchTenant(tenantId: string): void;
   changePassword(
@@ -43,10 +44,10 @@ interface SerializedSession extends Omit<Session, "permissions"> {
 }
 
 function ensureSuperAdminPermissions(s: Session): Session {
-  if (s.role === Role.SuperAdmin || (s.role as string) === "super_admin") {
+  if (isSuperAdmin(s)) {
     const fullPerms = new Set(s.permissions);
     Object.values(Permission).forEach((p) => fullPerms.add(p));
-    return { ...s, permissions: fullPerms };
+    return { ...s, role: Role.SuperAdmin, permissions: fullPerms };
   }
   return s;
 }
@@ -74,33 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (isExpired(stored)) {
-        logger.info("Stored session expired, attempting token refresh...");
-        try {
-          const res = await repos.auth.refreshSession();
-          if (!cancelled) {
-            if (res.ok && res.value) {
-              logger.info("Session successfully refreshed");
-              const s = ensureSuperAdminPermissions(res.value);
-              setSession(s);
-              persistSession(s);
-            } else {
-              logger.info("Session refresh failed, clearing expired session");
-              clearSession();
-              setSession(null);
-            }
-          }
-        } catch (err) {
-          logger.warn("Failed to refresh session on startup", { err });
-          if (!cancelled) {
+      try {
+        const res = await repos.auth.refreshSession();
+        if (!cancelled) {
+          if (res.ok && res.value) {
+            const s = ensureSuperAdminPermissions(res.value);
+            setSession(s);
+            persistSession(s);
+          } else if (isExpired(stored)) {
             clearSession();
             setSession(null);
           }
-        } finally {
-          if (!cancelled) setIsLoading(false);
         }
-      } else {
-        setIsLoading(false);
+      } catch (err) {
+        logger.warn("Failed to refresh session on startup", { err });
+        if (!cancelled && isExpired(stored)) {
+          clearSession();
+          setSession(null);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     }
 
@@ -113,9 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!session) return;
-    const msUntilRefresh = Math.max(10_000, session.expiresAt - Date.now() - 120_000);
+    const msUntilRefresh = Math.max(
+      10_000,
+      session.expiresAt - Date.now() - 120_000,
+    );
     const timer = setTimeout(async () => {
-      logger.info("Proactively refreshing session token before expiration...");
       try {
         const res = await repos.auth.refreshSession();
         if (res.ok && res.value) {
@@ -156,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    
+
     try {
       await getSyncQueueStore().clear();
     } catch (err) {
@@ -186,22 +182,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: "Aucune session active." };
       }
       if (newPassword.length < 8) {
-        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins 8 caractères." };
+        return {
+          ok: false,
+          error: "Le nouveau mot de passe doit contenir au moins 8 caractères.",
+        };
       }
       if (!/[a-z]/.test(newPassword)) {
-        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins une lettre minuscule." };
+        return {
+          ok: false,
+          error:
+            "Le nouveau mot de passe doit contenir au moins une lettre minuscule.",
+        };
       }
       if (!/[A-Z]/.test(newPassword)) {
-        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins une lettre majuscule." };
+        return {
+          ok: false,
+          error:
+            "Le nouveau mot de passe doit contenir au moins une lettre majuscule.",
+        };
       }
       if (!/[0-9]/.test(newPassword)) {
-        return { ok: false, error: "Le nouveau mot de passe doit contenir au moins un chiffre." };
+        return {
+          ok: false,
+          error: "Le nouveau mot de passe doit contenir au moins un chiffre.",
+        };
       }
       if (newPassword === currentPassword) {
-        return { ok: false, error: "Le nouveau mot de passe doit être différent de l'actuel." };
+        return {
+          ok: false,
+          error: "Le nouveau mot de passe doit être différent de l'actuel.",
+        };
       }
 
-      const result = await repos.auth.changePassword(currentPassword, newPassword);
+      const result = await repos.auth.changePassword(
+        currentPassword,
+        newPassword,
+      );
       if (!result.ok) {
         const error =
           result.error.code === "ERR_UNAUTHORIZED"
@@ -224,14 +240,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession();
       setSession(null);
 
-      logger.info("Password changed; sessions revoked", { userId: session.userId });
+      logger.info("Password changed; sessions revoked", {
+        userId: session.userId,
+      });
       return { ok: true as const };
     },
     [repos, session],
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ session, isLoading, signIn, signOut, switchTenant, changePassword }),
+    () => ({
+      session,
+      isLoading,
+      signIn,
+      signOut,
+      switchTenant,
+      changePassword,
+    }),
     [session, isLoading, signIn, signOut, switchTenant, changePassword],
   );
 
@@ -249,11 +274,13 @@ function loadSession(): Session | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SerializedSession;
-    const permissions = new Set(parsed.permissions);
+    const permissions = new Set(
+      Array.isArray(parsed.permissions) ? parsed.permissions : [],
+    );
 
-    // If session belongs to SuperAdmin, make sure all permissions are granted
-    if (parsed.role === Role.SuperAdmin || (parsed.role as string) === "super_admin") {
+    if (isSuperAdmin(parsed as unknown as Session)) {
       Object.values(Permission).forEach((p) => permissions.add(p));
+      return { ...parsed, role: Role.SuperAdmin, permissions };
     }
 
     return { ...parsed, permissions };
@@ -264,7 +291,13 @@ function loadSession(): Session | null {
 
 function persistSession(s: Session) {
   try {
-    const serializable: SerializedSession = { ...s, permissions: [...s.permissions] };
+    const perms =
+      s.permissions instanceof Set
+        ? [...s.permissions]
+        : Array.isArray(s.permissions)
+          ? s.permissions
+          : [];
+    const serializable: SerializedSession = { ...s, permissions: perms };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
   } catch (err) {
     logger.warn("Failed to persist session", { err });

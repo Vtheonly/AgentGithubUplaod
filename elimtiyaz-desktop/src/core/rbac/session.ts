@@ -1,26 +1,18 @@
+// ============================================================================
+// FILE: src/core/rbac/session.ts
+// ============================================================================
 /**
  * Session — the authenticated user context.
  *
- * Sessions are immutable; modifying session state requires creating a new
- * Session object. Permissions are precomputed at sign-in time so feature
- * gating never re-queries the role map.
+ * Standardizes super-admin privilege resolution so that SuperAdmin sessions
+ * unconditionally bypass role/permission gating everywhere in the application.
  */
 import type { Permission } from "./permissions";
 import { Role } from "./roles";
 
 export interface Session {
   readonly userId: string;
-  /**
-   * T-053 (TENANT-103): the WORKING tenant — every query/audit/write runs in
-   * this context. Null ONLY for a global admin (profile tenant_id NULL per
-   * migration 0002) who has not picked a tenant yet: reads return empty and
-   * writes fail loud (requireTenantId) until they choose one.
-   */
   readonly tenantId: string | null;
-  /**
-   * T-053: the profile's HOME tenant (null = global admin). Only the tenant
-   * switcher reads this — it is shown exactly when homeTenantId is null.
-   */
   readonly homeTenantId?: string | null;
   readonly email: string;
   readonly displayName: string;
@@ -33,20 +25,65 @@ export interface Session {
   readonly locale: "fr" | "ar" | "en";
 }
 
-export function can(session: Session | null, permission: Permission): boolean {
+/**
+ * Checks whether a session holds SuperAdmin privileges across all role name variants.
+ */
+export function isSuperAdmin(session: Session | null | undefined): boolean {
   if (!session) return false;
-  return session.permissions.has(permission);
+  const rawRole = ((session.role as unknown as string) || "")
+    .toLowerCase()
+    .replace(/[-_\s]/g, "");
+  return rawRole === "superadmin" || rawRole === "admin";
 }
 
-export function hasRole(session: Session | null, role: Role): boolean {
-  return session?.role === role;
+/**
+ * Evaluates whether a session holds a specific permission.
+ * SuperAdmin unconditionally returns `true`.
+ */
+export function can(
+  session: Session | null | undefined,
+  permission: Permission,
+): boolean {
+  if (!session) return false;
+  if (isSuperAdmin(session)) return true;
+  if (!session.permissions) return false;
+  if (session.permissions instanceof Set) {
+    return session.permissions.has(permission);
+  }
+  if (Array.isArray(session.permissions)) {
+    return (session.permissions as unknown as string[]).includes(permission);
+  }
+  return false;
 }
 
-export function hasAnyRole(session: Session | null, ...roles: Role[]): boolean {
-  return session ? roles.includes(session.role) : false;
+/**
+ * Checks if a session matches a specific role. SuperAdmin matches any role check.
+ */
+export function hasRole(
+  session: Session | null | undefined,
+  role: Role,
+): boolean {
+  if (!session) return false;
+  if (isSuperAdmin(session)) return true;
+  return session.role === role;
 }
 
-export function isExpired(session: Session | null, now: number = Date.now()): boolean {
+/**
+ * Checks if a session matches any of the specified roles. SuperAdmin returns `true`.
+ */
+export function hasAnyRole(
+  session: Session | null | undefined,
+  ...roles: Role[]
+): boolean {
+  if (!session) return false;
+  if (isSuperAdmin(session)) return true;
+  return roles.includes(session.role);
+}
+
+export function isExpired(
+  session: Session | null,
+  now: number = Date.now(),
+): boolean {
   if (!session) return true;
   return now > session.expiresAt - 60_000;
 }

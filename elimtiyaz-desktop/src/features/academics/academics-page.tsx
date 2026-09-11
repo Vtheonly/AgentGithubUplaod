@@ -1,26 +1,6 @@
-/**
- * AcademicsPage — unified Pédagogie hub.
- *
- * Redesigned to host ALL pedagogy-related sub-modules as controlled tabs:
- *   1. Années scolaires  — school year lifecycle (create/edit/archive/restore/delete)
- *   2. Niveaux & Classes — grade levels + class catalog (existing)
- *   3. Matières          — subject directory (existing)
- *   4. Devoirs           — homework history (existing)
- *   5. Justificatifs     — absence-justification review queue (T-040 / ATT-101:
- *                          parents submit from the portal, staff accept/reject here)
- *   6. Clubs             — extracurricular clubs catalog + memberships + activities
- *   7. Psychologie       — psychological follow-ups + sessions + reports (restricted)
- *   8. Orthophonie       — speech therapy follow-ups + evaluations + sessions (restricted)
- *
- * Each tab renders its OWN action buttons in the PageHeader — they are
- * purpose-bound to the active tab (no more "useless or unrelated" buttons
- * above the tab bar, per user brief).
- *
- * Tab visibility is driven by RBAC: tabs the user can't see are hidden.
- * Therapy tabs (Psychologie / Orthophonie) require explicit
- * ViewPsychology / ViewOrthophonie permissions and are restricted by
- * confidentiality level at the row level.
- */
+// ============================================================================
+// FILE: src/features/academics/academics-page.tsx
+// ============================================================================
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -31,6 +11,7 @@ import {
   Brain,
   Stethoscope,
   FileCheck,
+  Users,
 } from "lucide-react";
 import { PageHeader } from "../../shared/layout/page-header";
 import {
@@ -42,12 +23,15 @@ import {
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { Permission } from "../../core/rbac/permissions";
+import { can } from "../../core/rbac/session";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { Button } from "../../shared/ui/button";
 import { SchoolYearsTab } from "./school-years-tab";
 import { ClubsTab } from "./clubs/clubs-tab";
 import { PsychologyTab } from "./therapy/psychology-tab";
 import { OrthophonieTab } from "./therapy/orthophonie-tab";
 import { GradeLevelsClassView } from "./grade-levels-class-view";
+import { TeachersTab } from "./teachers-tab";
 import { SubjectsDirectoryTab } from "./subjects-directory-tab";
 import { HomeworkHistoryTab } from "./homework-history-tab";
 import { JustificationsTab } from "./justifications-tab";
@@ -56,6 +40,7 @@ import { HomeworkPushModal } from "./homework-push-modal";
 type AcademicsTab =
   | "school_years"
   | "classes"
+  | "teachers"
   | "subjects"
   | "homework"
   | "justifications"
@@ -67,7 +52,7 @@ export function AcademicsPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
-  const [tab, setTab] = useState<AcademicsTab>("school_years");
+  const [tab, setTab] = useState<AcademicsTab>("classes");
   const [homeworkOpen, setHomeworkOpen] = useState(false);
 
   const classes = useObservable(() => repos.classes.observe(), []);
@@ -81,45 +66,40 @@ export function AcademicsPage() {
     () => repos.orthophonie.observeFollowUps(),
     [],
   );
-  // T-040: the pending-justification count drives the tab's badge.
   const pendingJustifications = useObservable(
     () => repos.attendance.observeJustifications("submitted"),
     [],
   );
+  const personnel = useObservable(() => repos.personnel.observe(), []);
 
-  const can = useMemo(() => {
-    if (!session) {
-      return {
-        viewAcademics: false,
-        manageClasses: false,
-        manageSubjects: false,
-        assignHomework: false,
-        viewClubs: false,
-        manageClubs: false,
-        viewPsychology: false,
-        managePsychology: false,
-        viewOrthophonie: false,
-        manageOrthophonie: false,
-        viewAttendance: false,
-      };
-    }
-    const p = session.permissions;
+  const canObj = useMemo(() => {
     return {
-      viewAcademics: p.has(Permission.ViewAcademics),
-      manageClasses: p.has(Permission.ManageClasses),
-      manageSubjects: p.has(Permission.ManageSubjects),
-      assignHomework: p.has(Permission.AssignHomework),
-      viewClubs: p.has(Permission.ViewClubs),
-      manageClubs: p.has(Permission.ManageClubs),
-      viewPsychology: p.has(Permission.ViewPsychology) || p.has(Permission.ManagePsychology),
-      managePsychology: p.has(Permission.ManagePsychology),
-      viewOrthophonie: p.has(Permission.ViewOrthophonie) || p.has(Permission.ManageOrthophonie),
-      manageOrthophonie: p.has(Permission.ManageOrthophonie),
-      viewAttendance: p.has(Permission.ViewAttendance) || p.has(Permission.RollCall),
+      viewAcademics: can(session, Permission.ViewAcademics),
+      manageClasses: can(session, Permission.ManageClasses),
+      manageSubjects: can(session, Permission.ManageSubjects),
+      assignHomework: can(session, Permission.AssignHomework),
+      viewClubs: can(session, Permission.ViewClubs),
+      manageClubs: can(session, Permission.ManageClubs),
+      viewPsychology:
+        can(session, Permission.ViewPsychology) ||
+        can(session, Permission.ManagePsychology),
+      managePsychology: can(session, Permission.ManagePsychology),
+      viewOrthophonie:
+        can(session, Permission.ViewOrthophonie) ||
+        can(session, Permission.ManageOrthophonie),
+      manageOrthophonie: can(session, Permission.ManageOrthophonie),
+      viewAttendance:
+        can(session, Permission.ViewAttendance) ||
+        can(session, Permission.RollCall),
     };
   }, [session]);
 
-  // Build the tab list dynamically based on permissions.
+  const teacherCount = useMemo(() => {
+    return personnel.filter(
+      (p) => p.staffCategory === "teacher" || p.roleId === "teacher",
+    ).length;
+  }, [personnel]);
+
   const tabs = useMemo(() => {
     const list: Array<{
       value: AcademicsTab;
@@ -129,77 +109,95 @@ export function AcademicsPage() {
       visible: boolean;
     }> = [
       {
-        value: "school_years",
-        label: "Années scolaires",
-        icon: School,
-        visible: can.viewAcademics,
-      },
-      {
         value: "classes",
         label: "Niveaux & Classes",
         icon: School,
         count: classes.length,
-        visible: can.viewAcademics,
+        visible: canObj.viewAcademics,
+      },
+      {
+        value: "teachers",
+        label: "Enseignants",
+        icon: Users,
+        count: teacherCount,
+        visible: canObj.viewAcademics,
       },
       {
         value: "subjects",
         label: "Matières",
         icon: BookOpen,
         count: subjects.length,
-        visible: can.viewAcademics,
+        visible: canObj.viewAcademics,
+      },
+      {
+        value: "school_years",
+        label: "Années scolaires",
+        icon: School,
+        visible: canObj.viewAcademics,
       },
       {
         value: "homework",
         label: "Devoirs",
         icon: ClipboardList,
-        visible: can.assignHomework,
+        visible: canObj.assignHomework,
       },
       {
-        // T-040 (ATT-101): the staff-side justification review queue.
         value: "justifications",
         label: "Justificatifs",
         icon: FileCheck,
-        count: pendingJustifications.filter((r) => (r.justificationStatus ?? "none") === "submitted").length,
-        visible: can.viewAttendance,
+        count: pendingJustifications.filter(
+          (r) => (r.justificationStatus ?? "none") === "submitted",
+        ).length,
+        visible: canObj.viewAttendance,
       },
       {
         value: "clubs",
         label: "Clubs",
         icon: Trophy,
         count: clubs.filter((c) => !c.isArchived).length,
-        visible: can.viewClubs,
+        visible: canObj.viewClubs,
       },
       {
         value: "psychology",
         label: "Psychologie",
         icon: Brain,
         count: psychFollowUps.filter((f) => f.status === "active").length,
-        visible: can.viewPsychology,
+        visible: canObj.viewPsychology,
       },
       {
         value: "orthophonie",
         label: "Orthophonie",
         icon: Stethoscope,
         count: orthoFollowUps.filter((f) => f.status === "active").length,
-        visible: can.viewOrthophonie,
+        visible: canObj.viewOrthophonie,
       },
     ];
     return list.filter((x) => x.visible);
-  }, [can, classes.length, subjects.length, clubs, psychFollowUps, orthoFollowUps, pendingJustifications]);
+  }, [
+    canObj,
+    classes.length,
+    teacherCount,
+    subjects.length,
+    clubs,
+    psychFollowUps,
+    orthoFollowUps,
+    pendingJustifications,
+  ]);
 
-  // Compute the active tab description (shown in the header)
   const descriptionFor = (active: AcademicsTab): string => {
     switch (active) {
+      case "classes":
+        return "Organisation par niveaux scolaires & classes indépendantes — création et affectation des enseignants.";
+      case "teachers":
+        return "Gestion du corps enseignant, affectations aux classes et matières.";
       case "school_years":
         return "Cycle de vie des années scolaires — création, modification, archivage, restauration, suppression.";
-      case "classes":
-        return "Organisation par niveaux scolaires & classes indépendantes — création illimitée par niveau.";
       case "subjects":
         return "Catalogue des matières avec coefficients par cycle et niveau.";
       case "homework":
         return "Historique des devoirs diffusés aux classes.";
       case "justifications":
-        return "Justificatifs d'absence soumis par les parents — examinez et décidez (T-040 : boucle fermée du portail vers le bureau).";
+        return "Justificatifs d'absence soumis par les parents — examen et décision administrative.";
       case "clubs":
         return "Clubs extrascolaires : catalogue, adhésions, activités, encadrement.";
       case "psychology":
@@ -215,11 +213,15 @@ export function AcademicsPage() {
         title={t("nav.academics")}
         description={descriptionFor(tab)}
         actions={
-          <TabActions
-            tab={tab}
-            can={can}
-            onPushHomework={() => setHomeworkOpen(true)}
-          />
+          tab === "homework" && canObj.assignHomework ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setHomeworkOpen(true)}
+            >
+              Diffuser un devoir
+            </Button>
+          ) : null
         }
       />
 
@@ -240,106 +242,44 @@ export function AcademicsPage() {
           ))}
         </PageTabList>
 
-        {tabs.some((t) => t.value === "school_years") && (
-          <PageTabContent value="school_years">
-            <SchoolYearsTab />
-          </PageTabContent>
-        )}
+        <PageTabContent value="classes">
+          <GradeLevelsClassView canCreate={canObj.manageClasses} />
+        </PageTabContent>
 
-        {tabs.some((t) => t.value === "classes") && (
-          <PageTabContent value="classes">
-            <GradeLevelsClassView canCreate={can.manageClasses} />
-          </PageTabContent>
-        )}
+        <PageTabContent value="teachers">
+          <TeachersTab canManage={canObj.manageClasses} />
+        </PageTabContent>
 
-        {tabs.some((t) => t.value === "subjects") && (
-          <PageTabContent value="subjects">
-            <SubjectsDirectoryTab />
-          </PageTabContent>
-        )}
+        <PageTabContent value="school_years">
+          <SchoolYearsTab />
+        </PageTabContent>
 
-        {tabs.some((t) => t.value === "homework") && (
-          <PageTabContent value="homework">
-            <HomeworkHistoryTab />
-          </PageTabContent>
-        )}
+        <PageTabContent value="subjects">
+          <SubjectsDirectoryTab />
+        </PageTabContent>
 
-        {tabs.some((t) => t.value === "justifications") && (
-          <PageTabContent value="justifications">
-            <JustificationsTab />
-          </PageTabContent>
-        )}
+        <PageTabContent value="homework">
+          <HomeworkHistoryTab />
+        </PageTabContent>
 
-        {tabs.some((t) => t.value === "clubs") && (
-          <PageTabContent value="clubs">
-            <ClubsTab canManage={can.manageClubs} />
-          </PageTabContent>
-        )}
+        <PageTabContent value="justifications">
+          <JustificationsTab />
+        </PageTabContent>
 
-        {tabs.some((t) => t.value === "psychology") && (
-          <PageTabContent value="psychology">
-            <PsychologyTab canManage={can.managePsychology} />
-          </PageTabContent>
-        )}
+        <PageTabContent value="clubs">
+          <ClubsTab canManage={canObj.manageClubs} />
+        </PageTabContent>
 
-        {tabs.some((t) => t.value === "orthophonie") && (
-          <PageTabContent value="orthophonie">
-            <OrthophonieTab canManage={can.manageOrthophonie} />
-          </PageTabContent>
-        )}
+        <PageTabContent value="psychology">
+          <PsychologyTab canManage={canObj.managePsychology} />
+        </PageTabContent>
+
+        <PageTabContent value="orthophonie">
+          <OrthophonieTab canManage={canObj.manageOrthophonie} />
+        </PageTabContent>
       </PageTabs>
 
       <HomeworkPushModal open={homeworkOpen} onOpenChange={setHomeworkOpen} />
     </div>
-  );
-}
-
-// ============================================================================
-// TabActions — purpose-bound action buttons that change based on active tab
-// ============================================================================
-
-function TabActions({
-  tab,
-  can,
-  onPushHomework,
-}: {
-  tab: AcademicsTab;
-  can: {
-    manageClasses: boolean;
-    assignHomework: boolean;
-    manageClubs: boolean;
-    managePsychology: boolean;
-    manageOrthophonie: boolean;
-  };
-  onPushHomework: () => void;
-}) {
-  // Each tab owns its actions. Empty fragment when no action is relevant.
-  switch (tab) {
-    case "homework":
-      return can.assignHomework ? (
-        <HomeworkActionButton onPushHomework={onPushHomework} />
-      ) : null;
-    case "classes":
-    case "school_years":
-    case "subjects":
-    case "clubs":
-    case "psychology":
-    case "orthophonie":
-      // These tabs render their own action buttons inside the tab content
-      // (closer to the data they act on), so the header stays clean.
-      return null;
-    default:
-      return null;
-  }
-}
-
-import { Button } from "../../shared/ui/button";
-import { Plus } from "lucide-react";
-
-function HomeworkActionButton({ onPushHomework }: { onPushHomework: () => void }) {
-  return (
-    <Button variant="outline" size="sm" onClick={onPushHomework}>
-      <Plus className="h-4 w-4" /> Diffuser un devoir
-    </Button>
   );
 }

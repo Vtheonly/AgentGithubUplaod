@@ -1,19 +1,9 @@
 /**
  * WorkflowPage — Automatisations hub (plan §10).
  *
- * Two tabs (PageTabs):
- *   - Éditeur (variant="elevated", icon=Workflow): list of workflows on the
- *     left + DagCanvas + NodePalette on the right. T-221: double-click (or
- *     the node menu → Configurer) opens the NodeInspectorDrawer; "Nouveau"
- *     offers the pre-built educational templates (one-click recipes) or a
- *     blank draft.
- *   - Exécutions (icon=Activity): filterable list of WorkflowRuns. Click a
- *     row → opens UnifiedModal variant="drawer" with full run detail.
- *
- * Sidebar entry "Automatisations" → route /workflow (between Personnel and
- * Tournées). Gated by ManageWorkflows OR ViewWorkflowRuns (feature-registry).
+ * Visual DAG editor with live state synchronization and execution monitor.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Workflow as WorkflowIcon,
@@ -30,20 +20,23 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { PageHeader } from "../../shared/layout/page-header";
-import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
+import {
+  PageTabs,
+  PageTabList,
+  PageTab,
+  PageTabContent,
+} from "../../shared/layout/page-tabs";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { Input } from "../../shared/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../shared/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../shared/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../shared/ui/select";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { FormField } from "../../shared/ui/form-field";
 import { Textarea } from "../../shared/ui/textarea";
@@ -53,7 +46,6 @@ import {
   WORKFLOW_STATUS_LABELS_FR,
   WORKFLOW_RUN_STATUS_LABELS_FR,
   WORKFLOW_TRIGGER_LABELS_FR,
-  WORKFLOW_RUN_STATUS_TONE,
   type Workflow,
   type WorkflowRun,
   type WorkflowRunStatus,
@@ -74,7 +66,10 @@ import { NodePalette } from "./node-palette";
 import { NodeInspectorDrawer } from "./node-inspector-drawer";
 import { WorkflowRunDetailDrawer } from "./workflow-run-detail-drawer";
 
-const RUN_STATUS_TONE: Record<WorkflowRunStatus, "success" | "danger" | "warning" | "info"> = {
+const RUN_STATUS_TONE: Record<
+  WorkflowRunStatus,
+  "success" | "danger" | "warning" | "info"
+> = {
   succeeded: "success",
   failed: "danger",
   timeout: "warning",
@@ -95,9 +90,16 @@ export function WorkflowPage() {
         title={t("workflow.title")}
         description="Éditeur visuel de DAG + moniteur d'exécutions (plan §10)"
       />
-      <PageTabs defaultValue="editor" className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+      <PageTabs
+        defaultValue="editor"
+        className="flex-1 flex flex-col px-6 pb-6 min-h-0"
+      >
         <PageTabList>
-          <PageTab value="editor" label={t("workflow.editor")} icon={WorkflowIcon} />
+          <PageTab
+            value="editor"
+            label={t("workflow.editor")}
+            icon={WorkflowIcon}
+          />
           <PageTab value="runs" label={t("workflow.runs")} icon={Activity} />
         </PageTabList>
         <PageTabContent value="editor">
@@ -121,27 +123,34 @@ function EditorTab() {
   const { session } = useAuth();
   const toast = useToast();
   const workflows = useObservable(() => repos.workflows.observe(), []);
-  const [selectedId, setSelectedId] = useState<string | null>(workflows[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    workflows[0]?.id ?? null,
+  );
   const [newOpen, setNewOpen] = useState(false);
-  // T-221: node inspector state (opened by the canvas's double-click / menu).
   const [inspectNodeId, setInspectNodeId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!selectedId && workflows.length > 0) {
+      setSelectedId(workflows[0].id);
+    }
+  }, [selectedId, workflows]);
+
   const selected = workflows.find((w) => w.id === selectedId) ?? null;
-  const canEdit = !!session && session.permissions.has(Permission.ManageWorkflows);
-  // T-230: real entities for the server dry-run picker (top parents by
-  // creation — the same observable the financials module reads).
+  const canEdit =
+    !!session && session.permissions.has(Permission.ManageWorkflows);
   const parents = useObservable(() => repos.parents.observe(), []);
 
-  /** T-230: manual execution through the canonical EF path (published only). */
   async function handleExecute() {
     if (!selected || !session) return;
-    const r = await repos.workflows.execute(selected.id, session.userId, session.displayName);
+    const r = await repos.workflows.execute(
+      selected.id,
+      session.userId,
+      session.displayName,
+    );
     if (r.ok) toast.showSuccess(t("workflow.execute"), t("workflow.executed"));
     else toast.showError("Échec", r.error.userMessage);
   }
 
-  /** T-230: server dry-run (the EF's dry_run mode — real entity context,
-   *  simulated actions, zero side effects). Maps onto the canvas view. */
   async function handleServerDryRun(parentId: string | null) {
     if (!selected) return null;
     const r = await repos.workflows.dryRun(
@@ -156,7 +165,12 @@ function EditorTab() {
       status: r.value.status,
       nodeOutcomes: r.value.nodeOutcomes.map((o) => ({
         nodeId: o.nodeId,
-        status: o.status === "timeout" ? "failed" as const : o.status === "running" ? "succeeded" as const : o.status,
+        status:
+          o.status === "timeout"
+            ? ("failed" as const)
+            : o.status === "running"
+              ? ("succeeded" as const)
+              : o.status,
         output: o.output,
         error: o.error,
       })),
@@ -168,9 +182,26 @@ function EditorTab() {
 
   async function handleSave(nodes: WorkflowNode[], edges: WorkflowEdge[]) {
     if (!selected || !session) return;
-    const r = await repos.workflows.updateWorkflow(selected.id, { nodes, edges }, session.userId);
+    const r = await repos.workflows.updateWorkflow(
+      selected.id,
+      { nodes, edges },
+      session.userId,
+    );
     if (r.ok) toast.showSuccess(t("workflow.save"), t("workflow.saved"));
     else toast.showError("Échec", r.error.userMessage);
+  }
+
+  async function handleCanvasChange(
+    nodes: WorkflowNode[],
+    edges: WorkflowEdge[],
+  ) {
+    if (!selected || !session) return;
+    // Persist position and layout changes silently so parent & inspector always have current state
+    await repos.workflows.updateWorkflow(
+      selected.id,
+      { nodes, edges },
+      session.userId,
+    );
   }
 
   async function handleDeploy() {
@@ -180,17 +211,27 @@ function EditorTab() {
     else toast.showError("Échec", r.error.userMessage);
   }
 
-  async function handleAddNode(subtype: WorkflowNodeSubtype, type: WorkflowNodeType) {
+  async function handleAddNode(
+    subtype: WorkflowNodeSubtype,
+    type: WorkflowNodeType,
+  ) {
     if (!selected || !session) return;
     const newNode = makeNode(subtype, type, selected.nodes);
-    void repos.workflows.updateWorkflow(
+    const r = await repos.workflows.updateWorkflow(
       selected.id,
       { nodes: [...selected.nodes, newNode] },
       session.userId,
     );
+    if (r.ok) {
+      toast.showSuccess(
+        "Nœud ajouté",
+        `${newNode.label} a été ajouté au canevas.`,
+      );
+    } else {
+      toast.showError("Échec", r.error.userMessage);
+    }
   }
 
-  /** T-221: persist a node's edited label + config from the inspector. */
   async function handleInspectSave(
     nodeId: string,
     label: string,
@@ -200,22 +241,29 @@ function EditorTab() {
     const nextNodes = selected.nodes.map((n) =>
       n.id === nodeId ? { ...n, label, config } : n,
     );
-    const r = await repos.workflows.updateWorkflow(selected.id, { nodes: nextNodes }, session.userId);
-    if (r.ok) toast.showSuccess("Nœud configuré", `${label} — paramètres enregistrés.`);
+    const r = await repos.workflows.updateWorkflow(
+      selected.id,
+      { nodes: nextNodes },
+      session.userId,
+    );
+    if (r.ok)
+      toast.showSuccess("Nœud configuré", `${label} — paramètres enregistrés.`);
     else toast.showError("Échec", r.error.userMessage);
   }
 
-  /** T-221: delete from the inspector (mirrors the canvas menu delete). */
   async function handleInspectDelete(nodeId: string) {
     if (!selected || !session) return;
     const nextNodes = selected.nodes.filter((n) => n.id !== nodeId);
-    const nextEdges = selected.edges.filter((e) => e.from !== nodeId && e.to !== nodeId);
+    const nextEdges = selected.edges.filter(
+      (e) => e.from !== nodeId && e.to !== nodeId,
+    );
     const r = await repos.workflows.updateWorkflow(
       selected.id,
       { nodes: nextNodes, edges: nextEdges },
       session.userId,
     );
-    if (r.ok) toast.showWarning("Nœud supprimé", "Les liens attachés ont été retirés.");
+    if (r.ok)
+      toast.showWarning("Nœud supprimé", "Les liens attachés ont été retirés.");
     else toast.showError("Échec", r.error.userMessage);
   }
 
@@ -227,7 +275,12 @@ function EditorTab() {
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Workflows ({workflows.length})
           </h3>
-          <Button size="sm" variant="ghost" onClick={() => setNewOpen(true)} disabled={!canEdit}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setNewOpen(true)}
+            disabled={!canEdit}
+          >
             <Plus className="h-3.5 w-3.5" /> Nouveau
           </Button>
         </div>
@@ -244,15 +297,21 @@ function EditorTab() {
               onClick={() => setSelectedId(w.id)}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{w.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{w.description}</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {w.name}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {w.description}
+                </p>
                 <div className="flex items-center gap-2 mt-1">
                   <StatusChip
                     label={WORKFLOW_STATUS_LABELS_FR[w.status]}
                     tone={STATUS_TONE[w.status]}
                   />
                   <span className="text-[10px] text-muted-foreground">
-                    {w.lastDeployedAt ? `Déployé ${formatRelative(w.lastDeployedAt)}` : "Jamais déployé"}
+                    {w.lastDeployedAt
+                      ? `Déployé ${formatRelative(w.lastDeployedAt)}`
+                      : "Jamais déployé"}
                   </span>
                 </div>
               </div>
@@ -268,19 +327,25 @@ function EditorTab() {
             <div className="flex-1 min-w-0">
               <DagCanvas
                 workflow={selected}
-                onChange={() => {
-                  // DagCanvas owns its own state; we only persist on Save.
-                  // No-op here to avoid parent re-renders during drag.
-                }}
+                onChange={handleCanvasChange}
                 onSave={handleSave}
                 onDeploy={handleDeploy}
                 canEdit={canEdit}
                 onInspectNode={(node) => setInspectNodeId(node.id)}
-                onExecute={selected.status === "deployed" ? handleExecute : undefined}
-                onServerDryRun={selected.status === "deployed" ? handleServerDryRun : undefined}
+                onExecute={
+                  selected.status === "deployed" ? handleExecute : undefined
+                }
+                onServerDryRun={
+                  selected.status === "deployed"
+                    ? handleServerDryRun
+                    : undefined
+                }
                 serverDryRunEntities={parents.slice(0, 50).map((p) => ({
                   id: p.id,
-                  label: p.displayName || `${p.firstName} ${p.lastName}`.trim() || p.id,
+                  label:
+                    p.displayName ||
+                    `${p.firstName} ${p.lastName}`.trim() ||
+                    p.id,
                 }))}
               />
             </div>
@@ -295,9 +360,12 @@ function EditorTab() {
         )}
       </div>
 
-      <NewWorkflowModal open={newOpen} onOpenChange={setNewOpen} onCreated={(id) => setSelectedId(id)} />
+      <NewWorkflowModal
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        onCreated={(id) => setSelectedId(id)}
+      />
 
-      {/* T-221: node inspector drawer */}
       <NodeInspectorDrawer
         node={selected?.nodes.find((n) => n.id === inspectNodeId) ?? null}
         allNodes={selected?.nodes ?? []}
@@ -313,7 +381,7 @@ function EditorTab() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  New Workflow modal (T-221: blank draft OR one-click template)       */
+/*  New Workflow modal                                                */
 /* ------------------------------------------------------------------ */
 
 function NewWorkflowModal({
@@ -332,12 +400,16 @@ function NewWorkflowModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [triggerType, setTriggerType] = useState<WorkflowTriggerType>("manual");
-  // T-221: `null` = blank draft; otherwise the chosen template id.
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [alert, setAlert] = useState<{ tone: "warning" | "error"; title: string; description?: string } | null>(null);
+  const [alert, setAlert] = useState<{
+    tone: "warning" | "error";
+    title: string;
+    description?: string;
+  } | null>(null);
 
-  const template = WORKFLOW_TEMPLATES.find((tpl) => tpl.id === templateId) ?? null;
+  const template =
+    WORKFLOW_TEMPLATES.find((tpl) => tpl.id === templateId) ?? null;
 
   function reset() {
     setName("");
@@ -350,7 +422,11 @@ function NewWorkflowModal({
   async function submit() {
     if (!session) return;
     if (!name.trim()) {
-      setAlert({ tone: "warning", title: "Nom requis", description: "Donnez un nom au workflow." });
+      setAlert({
+        tone: "warning",
+        title: "Nom requis",
+        description: "Donnez un nom au workflow.",
+      });
       return;
     }
     setCreating(true);
@@ -362,26 +438,38 @@ function NewWorkflowModal({
         createdBy: session.userId,
       });
       if (!r.ok) {
-        setAlert({ tone: "error", title: "Échec", description: r.error.userMessage });
+        setAlert({
+          tone: "error",
+          title: "Échec",
+          description: r.error.userMessage,
+        });
         return;
       }
-      // T-221: a template was chosen → seed the new workflow with its
-      // pre-wired nodes + edges (one-click starter recipe).
       if (template) {
         const validity = templateIsValid(template);
         if (!validity.ok) {
-          toast.showWarning("Modèle invalide", validity.error ?? "Le modèle sera créé vide.");
+          toast.showWarning(
+            "Modèle invalide",
+            validity.error ?? "Le modèle sera créé vide.",
+          );
         } else {
           const { nodes, edges } = instantiateTemplate(template);
-          const seed = await repos.workflows.updateWorkflow(r.value.id, { nodes, edges }, session.userId);
+          const seed = await repos.workflows.updateWorkflow(
+            r.value.id,
+            { nodes, edges },
+            session.userId,
+          );
           if (!seed.ok) {
             toast.showWarning("Amorçage du modèle", seed.error.userMessage);
           }
         }
       }
-      toast.showSuccess("Workflow créé", template
-        ? `${r.value.name} — modèle « ${template.name} » amorcé, prêt à ajuster.`
-        : `${r.value.name} — brouillon prêt à éditer.`);
+      toast.showSuccess(
+        "Workflow créé",
+        template
+          ? `${r.value.name} — modèle « ${template.name} » amorcé.`
+          : `${r.value.name} — brouillon prêt à éditer.`,
+      );
       onCreated(r.value.id);
       onOpenChange(false);
       setTimeout(reset, 200);
@@ -399,7 +487,7 @@ function NewWorkflowModal({
       icon={Plus}
       iconTone="primary"
       title={t("workflow.new")}
-      description="Partir d'un modèle métier prêt à l'emploi, ou d'un brouillon vide."
+      description="Partir d'un modèle métier prêt à l'emploi ou d'un brouillon vide."
       submitLabel="Créer"
       submitIcon={Send}
       submitLoading={creating}
@@ -408,7 +496,6 @@ function NewWorkflowModal({
       onDismissAlert={() => setAlert(null)}
     >
       <div className="space-y-4">
-        {/* ---- Template picker (T-221) ---- */}
         <div>
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             <LayoutTemplate className="h-3.5 w-3.5" /> Modèles métier
@@ -427,7 +514,6 @@ function NewWorkflowModal({
                 active={templateId === tpl.id}
                 onSelect={() => {
                   setTemplateId(tpl.id);
-                  // Pre-fill the identity from the template (author keeps control).
                   if (!name.trim()) setName(tpl.name);
                   if (!description.trim()) setDescription(tpl.description);
                 }}
@@ -440,7 +526,11 @@ function NewWorkflowModal({
         </div>
 
         <FormField label="Nom" required>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Relance impayés" />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Relance impayés"
+          />
         </FormField>
         <FormField label="Description">
           <Textarea
@@ -450,16 +540,23 @@ function NewWorkflowModal({
             rows={3}
           />
         </FormField>
-        <FormField label="Type de déclencheur" hint={template ? "Dérivé du modèle choisi" : undefined}>
+        <FormField
+          label="Type de déclencheur"
+          hint={template ? "Dérivé du modèle choisi" : undefined}
+        >
           <Select
             value={template ? template.triggerType : triggerType}
             onValueChange={(v) => setTriggerType(v as WorkflowTriggerType)}
             disabled={!!template}
           >
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {Object.entries(WORKFLOW_TRIGGER_LABELS_FR).map(([k, label]) => (
-                <SelectItem key={k} value={k}>{label}</SelectItem>
+                <SelectItem key={k} value={k}>
+                  {label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -493,20 +590,28 @@ function TemplateOption({
           : "border-border hover:border-primary/40 hover:bg-accent/5",
       ].join(" ")}
     >
-      <span className={[
-        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
-        active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
-      ].join(" ")}>
+      <span
+        className={[
+          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+          active
+            ? "bg-primary/20 text-primary"
+            : "bg-muted text-muted-foreground",
+        ].join(" ")}
+      >
         {icon}
       </span>
       <span className="min-w-0">
-        <span className={[
-          "block text-sm font-semibold",
-          active ? "text-primary" : "text-foreground",
-        ].join(" ")}>
+        <span
+          className={[
+            "block text-sm font-semibold",
+            active ? "text-primary" : "text-foreground",
+          ].join(" ")}
+        >
           {title}
         </span>
-        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{description}</span>
+        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+          {description}
+        </span>
       </span>
     </button>
   );
@@ -534,13 +639,18 @@ function RunsTab() {
     .filter((r) => filterStatus === "all" || r.status === filterStatus);
 
   const detailRun = allRuns.find((r) => r.id === detailRunId) ?? null;
-  const canRetry = !!session && session.permissions.has(Permission.ManageWorkflows);
+  const canRetry =
+    !!session && session.permissions.has(Permission.ManageWorkflows);
 
   async function retry(run: WorkflowRun) {
     if (!session) return;
     setRetrying(true);
     try {
-      const r = await repos.workflowRuns.retryRun(run.id, session.userId, session.displayName);
+      const r = await repos.workflowRuns.retryRun(
+        run.id,
+        session.userId,
+        session.displayName,
+      );
       if (r.ok) toast.showSuccess(t("workflow.retry"), t("workflow.executed"));
       else toast.showError("Échec", r.error.userMessage);
     } finally {
@@ -553,24 +663,34 @@ function RunsTab() {
       <div className="flex items-center gap-2 border-b border-border p-3">
         <FilterIcon className="h-4 w-4 text-muted-foreground" />
         <Select value={filterWorkflow} onValueChange={setFilterWorkflow}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="Workflow" /></SelectTrigger>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="Workflow" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les workflows</SelectItem>
             {workflows.map((w) => (
-              <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+              <SelectItem key={w.id} value={w.id}>
+                {w.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Statut" /></SelectTrigger>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Statut" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
             {Object.entries(WORKFLOW_RUN_STATUS_LABELS_FR).map(([k, label]) => (
-              <SelectItem key={k} value={k}>{label}</SelectItem>
+              <SelectItem key={k} value={k}>
+                {label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">{runs.length} exécution(s)</span>
+        <span className="text-xs text-muted-foreground">
+          {runs.length} exécution(s)
+        </span>
       </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-sm">
@@ -587,7 +707,10 @@ function RunsTab() {
           <tbody>
             {runs.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-xs text-muted-foreground">
+                <td
+                  colSpan={6}
+                  className="px-3 py-8 text-center text-xs text-muted-foreground"
+                >
                   Aucune exécution ne correspond aux filtres.
                 </td>
               </tr>
@@ -601,13 +724,24 @@ function RunsTab() {
                   setDetailOpen(true);
                 }}
               >
-                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[200px]">{r.workflowName}</td>
-                <td className="px-3 py-2">
-                  <StatusChip label={WORKFLOW_RUN_STATUS_LABELS_FR[r.status]} tone={RUN_STATUS_TONE[r.status]} />
+                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[200px]">
+                  {r.workflowName}
                 </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground font-mono">{formatDateTime(r.startedAt)}</td>
-                <td className="px-3 py-2 text-xs text-muted-foreground font-mono">{r.durationMs} ms</td>
-                <td className="px-3 py-2 text-xs text-foreground truncate max-w-[160px]">{r.actorName}</td>
+                <td className="px-3 py-2">
+                  <StatusChip
+                    label={WORKFLOW_RUN_STATUS_LABELS_FR[r.status]}
+                    tone={RUN_STATUS_TONE[r.status]}
+                  />
+                </td>
+                <td className="px-3 py-2 text-xs text-muted-foreground font-mono">
+                  {formatDateTime(r.startedAt)}
+                </td>
+                <td className="px-3 py-2 text-xs text-muted-foreground font-mono">
+                  {r.durationMs} ms
+                </td>
+                <td className="px-3 py-2 text-xs text-foreground truncate max-w-[160px]">
+                  {r.actorName}
+                </td>
                 <td className="px-3 py-2 text-right">
                   {canRetry && r.status !== "running" && (
                     <Button
@@ -619,7 +753,8 @@ function RunsTab() {
                       }}
                       disabled={retrying}
                     >
-                      <RefreshCw className="h-3.5 w-3.5" /> {t("workflow.retry")}
+                      <RefreshCw className="h-3.5 w-3.5" />{" "}
+                      {t("workflow.retry")}
                     </Button>
                   )}
                 </td>
@@ -637,10 +772,6 @@ function RunsTab() {
     </Card>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function cnRow(active: boolean): string {
   return [

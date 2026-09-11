@@ -1,14 +1,25 @@
-/**
- * ClassAttendanceTab — replaces placeholder in Class Detail page.
- *
- * Iteration 3-G: this-week summary (Present/Late/Absent counts),
- * grouped by date. Uses AttendanceRepository.observeByClass(classId, date).
- */
-import { useState } from "react";
-import { Calendar, CheckCircle2, AlertCircle, XCircle, Clock } from "lucide-react";
+// ============================================================================
+// FILE: src/features/academics/class-attendance-tab.tsx
+// ============================================================================
+import { useNavigate } from "react-router-dom";
+import {
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  Clock,
+  ClipboardCheck,
+} from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../../shared/ui/card";
+import { Button } from "../../shared/ui/button";
 import { EmptyState } from "../../shared/layout/state-views";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { formatDate } from "../../core/format/date";
@@ -20,32 +31,26 @@ import {
 
 export function ClassAttendanceTab({ classId }: { classId: string }) {
   const repos = useRepositories();
+  const navigate = useNavigate();
 
-  // Query attendance for the last 7 days
   const today = new Date();
   const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
+  weekAgo.setDate(weekAgo.getDate() - 14);
   const todayStr = today.toISOString().slice(0, 10);
   const weekAgoStr = weekAgo.toISOString().slice(0, 10);
 
-  // FIX (7-day claim): the header says "7 derniers jours" but the query
-  // fetched only TODAY's records — the 7-day range was computed and never
-  // used. Query the real range via the new `observeByClassRange`.
   const records = useObservable(
     () => repos.attendance.observeByClassRange(classId, weekAgoStr, todayStr),
     [classId, weekAgoStr, todayStr],
   );
 
-  // Group by date (then session) — newest first.
   const byDate = new Map<string, typeof records>();
   for (const r of records) {
-    if (r.date < weekAgoStr || r.date > todayStr) continue;
     if (!byDate.has(r.date)) byDate.set(r.date, []);
     byDate.get(r.date)!.push(r);
   }
   const dates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
 
-  // Compute summary
   const counts = records.reduce(
     (acc, r) => {
       acc[r.status] = (acc[r.status] ?? 0) + 1;
@@ -56,23 +61,43 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-primary" /> Présences — 7 derniers jours
-        </CardTitle>
-        <CardDescription>
-          {records.length} enregistrement(s) sur la période {formatDate(weekAgoStr)} → {formatDate(todayStr)}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between pb-3 flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" /> Présences &amp;
+            Assiduité de la classe
+          </CardTitle>
+          <CardDescription>
+            {records.length} enregistrement(s) sur les 14 derniers jours (
+            {formatDate(weekAgoStr)} → {formatDate(todayStr)})
+          </CardDescription>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => navigate(`/academics/class/${classId}/roll-call`)}
+        >
+          <ClipboardCheck className="h-4 w-4 mr-1" /> Faire l'appel (30 sec)
+        </Button>
       </CardHeader>
+
       <CardContent className="space-y-4">
         {records.length === 0 ? (
-          <EmptyState
-            title="Aucun enregistrement"
-            description="Les présences apparaîtront ici une fois l'appel effectué via 'Appel (30 sec)'."
-          />
+          <div className="space-y-3 py-6 text-center">
+            <EmptyState
+              title="Aucun enregistrement de présence"
+              description="Les présences apparaîtront ici dès que l'appel aura été effectué."
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate(`/academics/class/${classId}/roll-call`)}
+            >
+              <ClipboardCheck className="h-4 w-4 mr-1" /> Faire le premier appel
+              de la classe
+            </Button>
+          </div>
         ) : (
           <>
-            {/* Summary cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <SummaryCard
                 icon={CheckCircle2}
@@ -100,10 +125,9 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
               />
             </div>
 
-            {/* Per-date breakdown */}
             <div className="rounded-md border border-border overflow-hidden">
-              <div className="bg-muted/30 px-3 py-2 text-xs uppercase text-muted-foreground">
-                Détail par date
+              <div className="bg-muted/30 px-3 py-2 text-xs uppercase text-muted-foreground font-semibold">
+                Historique chronologique
               </div>
               <ul className="divide-y divide-border">
                 {dates.map((date) => {
@@ -119,10 +143,15 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
                     <li key={date} className="p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium">{formatDate(date)}</p>
+                          <p className="text-sm font-medium text-foreground">
+                            {formatDate(date)}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {dayCounts.present ?? 0} présents · {dayCounts.late ?? 0} retards ·{" "}
-                            {(dayCounts.absent_excused ?? 0) + (dayCounts.absent_unexcused ?? 0)} absences
+                            {dayCounts.present ?? 0} présents ·{" "}
+                            {dayCounts.late ?? 0} retards ·{" "}
+                            {(dayCounts.absent_excused ?? 0) +
+                              (dayCounts.absent_unexcused ?? 0)}{" "}
+                            absences
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -134,7 +163,14 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {(["present", "late", "absent_excused", "absent_unexcused"] as AttendanceStatus[]).map((s) => {
+                        {(
+                          [
+                            "present",
+                            "late",
+                            "absent_excused",
+                            "absent_unexcused",
+                          ] as AttendanceStatus[]
+                        ).map((s) => {
                           const c = dayCounts[s] ?? 0;
                           if (c === 0) return null;
                           return (
@@ -142,10 +178,13 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
                               key={s}
                               label={`${c} ${ATTENDANCE_STATUS_LABELS_FR[s]}`}
                               tone={
-                                // VAULT §09.03 — EXCUSED = warning, LATE = info.
-                                s === "present" ? "success" :
-                                s === "late" ? "info" :
-                                s === "absent_excused" ? "warning" : "danger"
+                                s === "present"
+                                  ? "success"
+                                  : s === "late"
+                                    ? "info"
+                                    : s === "absent_excused"
+                                      ? "warning"
+                                      : "danger"
                               }
                             />
                           );
@@ -164,7 +203,10 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
 }
 
 function SummaryCard({
-  icon: Icon, label, value, tone,
+  icon: Icon,
+  label,
+  value,
+  tone,
 }: {
   icon: typeof CheckCircle2;
   label: string;
@@ -179,7 +221,9 @@ function SummaryCard({
   }[tone];
   return (
     <div className="rounded-md border border-border p-3">
-      <div className={`inline-flex items-center justify-center h-8 w-8 rounded-md ${toneClass} mb-2`}>
+      <div
+        className={`inline-flex items-center justify-center h-8 w-8 rounded-md ${toneClass} mb-2`}
+      >
         <Icon className="h-4 w-4" />
       </div>
       <p className="text-2xl font-mono font-bold">{value}</p>

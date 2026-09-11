@@ -1,29 +1,18 @@
 /**
  * DagCanvas — SVG-based workflow DAG editor (plan §10.03-04).
  *
- * T-221 upgrades (owner mandate "fully do the DAG automations"):
- *   - Zoom & pan: toolbar buttons (zoom in/out/reset/fit) + wheel zoom
- *     (anchored at the cursor) + drag-on-empty-canvas panning.
- *   - Minimap: bottom-right overlay showing node positions and the current
- *     viewport rectangle; click to jump.
- *   - Snap-to-grid: node drags snap to the 20px background grid.
- *   - Auto-layout ("Réorganiser"): deterministic layered layout derived
- *     from the topological order (domain/calc/workflow/auto-layout).
- *   - Dry-run simulator ("Tester"): runs the PURE topological simulator
- *     (domain/calc/workflow/dry-run) and visualises the outcome — edges
- *     on the taken path turn green/thick, executed nodes get a green
- *     ring, skipped nodes fade with a dashed border, and a summary banner
- *     lists per-node verdicts + vault §10.05 warnings.
- *   - Node inspector: double-click a node (or its "⋯" menu → Configurer)
- *     opens the NodeInspectorDrawer via `onInspectNode`.
- *
- * Preserved plan §10.03 contract:
- *   - Click node → select (highlight border); drag node → move.
- *   - Click empty → deselect. Output-port drag → input port → create edge.
- *   - "Enregistrer" → validate via detectCycle (red cycle edges + banner).
- *   - "Déployer" → ConfirmModal → onDeploy.
+ * Real-time drag & drop with window-level pointer tracking,
+ * topological auto-layout, edge drawing, and live synchronization.
  */
-import { useCallback, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type WheelEvent as ReactWheelEvent } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+  type MouseEvent as ReactMouseEvent,
+  type WheelEvent as ReactWheelEvent,
+} from "react";
 import {
   Webhook,
   Filter,
@@ -94,12 +83,35 @@ const ICON_FOR_TYPE: Record<WorkflowNodeType, LucideIcon> = {
   transform: GitBranch,
 };
 
-const COLOR_FOR_TYPE: Record<WorkflowNodeType, { border: string; bg: string; text: string }> = {
-  trigger: { border: "stroke-primary", bg: "fill-primary/10", text: "text-primary" },
-  condition: { border: "stroke-status-warning", bg: "fill-status-warning/10", text: "text-status-warning" },
-  action: { border: "stroke-status-success", bg: "fill-status-success/10", text: "text-status-success" },
-  delay: { border: "stroke-status-info", bg: "fill-status-info/10", text: "text-status-info" },
-  transform: { border: "stroke-status-neutral", bg: "fill-status-neutral/10", text: "text-status-neutral" },
+const COLOR_FOR_TYPE: Record<
+  WorkflowNodeType,
+  { border: string; bg: string; text: string }
+> = {
+  trigger: {
+    border: "stroke-primary",
+    bg: "fill-primary/10",
+    text: "text-primary",
+  },
+  condition: {
+    border: "stroke-status-warning",
+    bg: "fill-status-warning/10",
+    text: "text-status-warning",
+  },
+  action: {
+    border: "stroke-status-success",
+    bg: "fill-status-success/10",
+    text: "text-status-success",
+  },
+  delay: {
+    border: "stroke-status-info",
+    bg: "fill-status-info/10",
+    text: "text-status-info",
+  },
+  transform: {
+    border: "stroke-status-neutral",
+    bg: "fill-status-neutral/10",
+    text: "text-status-neutral",
+  },
 };
 
 export interface DagCanvasProps {
@@ -108,24 +120,22 @@ export interface DagCanvasProps {
   onSave: (nodes: WorkflowNode[], edges: WorkflowEdge[]) => Promise<void>;
   onDeploy: () => Promise<void>;
   canEdit: boolean;
-  /** T-221: open the node inspector for this node (double-click / menu). */
   onInspectNode: (node: WorkflowNode) => void;
-  /**
-   * T-230: manual execution through the canonical EF path. Provided only
-   * for PUBLISHED workflows (the page gates it); the button is hidden
-   * otherwise.
-   */
   onExecute?: () => Promise<void>;
-  /** T-230: server dry-run (the EF's dry_run mode, real entity context). */
-  onServerDryRun?: (parentId: string | null) => Promise<ServerDryRunOutcome | null>;
-  /** T-230: pickable entities for the server dry-run. */
+  onServerDryRun?: (
+    parentId: string | null,
+  ) => Promise<ServerDryRunOutcome | null>;
   serverDryRunEntities?: readonly { id: string; label: string }[];
 }
 
-/** T-230: the page-level server dry-run outcome (mapped by the page). */
 export interface ServerDryRunOutcome {
   status: "succeeded" | "failed" | "timeout";
-  nodeOutcomes: readonly { nodeId: string; status: "succeeded" | "failed" | "skipped"; output?: string; error?: string }[];
+  nodeOutcomes: readonly {
+    nodeId: string;
+    status: "succeeded" | "failed" | "skipped";
+    output?: string;
+    error?: string;
+  }[];
   takenEdgeKeys: readonly string[];
   warnings: readonly string[];
   error?: string;
@@ -136,11 +146,12 @@ interface DragState {
   nodeId: string;
   offsetX: number;
   offsetY: number;
+  startX: number;
+  startY: number;
 }
 
 interface EdgeDraft {
   fromId: string;
-  /** Pointer coordinates in viewBox viewBox space. */
   cursorX: number;
   cursorY: number;
 }
@@ -151,10 +162,6 @@ interface ViewState {
   panY: number;
 }
 
-/**
- * Convert a clientX/clientY pair to SVG viewBox coordinates, inverting the
- * zoom/pan viewport transform.
- */
 function clientToSvg(
   svg: SVGSVGElement | null,
   view: ViewState,
@@ -162,6 +169,17 @@ function clientToSvg(
   clientY: number,
 ): { x: number; y: number } {
   if (!svg) return { x: 0, y: 0 };
+  const ctm = svg.getScreenCTM();
+  if (ctm) {
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const svgP = pt.matrixTransform(ctm.inverse());
+    return {
+      x: (svgP.x - view.panX) / view.zoom,
+      y: (svgP.y - view.panY) / view.zoom,
+    };
+  }
   const rect = svg.getBoundingClientRect();
   const baseX = (clientX - rect.left) * (1000 / rect.width);
   const baseY = (clientY - rect.top) * (600 / rect.height);
@@ -171,7 +189,6 @@ function clientToSvg(
   };
 }
 
-/** Snap to the canvas grid (T-221 snap-to-grid). */
 function snap(value: number): number {
   return Math.round(value / GRID) * GRID;
 }
@@ -197,41 +214,118 @@ export function DagCanvas({
   const [saving, setSaving] = useState(false);
   const [deployOpen, setDeployOpen] = useState(false);
   const [deploying, setDeploying] = useState(false);
-  // T-221 canvas state.
   const [view, setView] = useState<ViewState>({ zoom: 1, panX: 0, panY: 0 });
   const [dryRun, setDryRun] = useState<DryRunResult | null>(null);
-  // T-230: server dry-run (real entities) + manual execution state.
   const [serverTesting, setServerTesting] = useState(false);
   const [serverEntityId, setServerEntityId] = useState<string>("");
   const [executing, setExecuting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showMinimap, setShowMinimap] = useState(true);
 
-  // Sync from parent workflow if the workflow id changes (selecting a different wf).
-  // We intentionally use the workflow.id as a key dependency — not the array contents —
-  // so internal edits don't trigger a parent→child overwrite on every render.
-  // (parent stays in sync via onChange + the parent's re-emit from observable.)
-  const wfIdRef = useRef<string>(workflow.id);
-  if (wfIdRef.current !== workflow.id) {
-    wfIdRef.current = workflow.id;
-    setNodes([...workflow.nodes]);
-    setEdges([...workflow.edges]);
-    setSelectedId(null);
-    setCycleError(null);
-    setDryRun(null);
-    setView({ zoom: 1, panX: 0, panY: 0 });
-  }
+  // Sync internal state when the workflow prop updates (switched, node added/configured externally)
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
-  const emit = useCallback((nextNodes: WorkflowNode[], nextEdges: WorkflowEdge[]) => {
-    setNodes(nextNodes);
-    setEdges(nextEdges);
-    onChange(nextNodes, nextEdges);
-  }, [onChange]);
+  const lastWfIdRef = useRef<string>(workflow.id);
+  useEffect(() => {
+    if (lastWfIdRef.current !== workflow.id) {
+      lastWfIdRef.current = workflow.id;
+      setNodes([...workflow.nodes]);
+      setEdges([...workflow.edges]);
+      setSelectedId(null);
+      setCycleError(null);
+      setDryRun(null);
+      setView({ zoom: 1, panX: 0, panY: 0 });
+    } else if (!dragRef.current) {
+      setNodes([...workflow.nodes]);
+      setEdges([...workflow.edges]);
+    }
+  }, [workflow]);
 
-  /* --------------------- Node drag + canvas pan --------------------- */
+  const emit = useCallback(
+    (nextNodes: WorkflowNode[], nextEdges: WorkflowEdge[]) => {
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      onChange(nextNodes, nextEdges);
+    },
+    [onChange],
+  );
 
-  function handleNodeMouseDown(e: ReactMouseEvent<SVGRectElement>, node: WorkflowNode) {
+  /* --------------------- Window-level drag & drop --------------------- */
+  useEffect(() => {
+    if (!drag && !edgeDraft) return;
+
+    function onMouseMove(e: MouseEvent) {
+      if (drag?.kind === "pan") {
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const dx = (e.clientX - drag.offsetX) * (1000 / rect.width);
+        const dy = (e.clientY - drag.offsetY) * (600 / rect.height);
+        setDrag((prev) =>
+          prev ? { ...prev, offsetX: e.clientX, offsetY: e.clientY } : null,
+        );
+        setView((v) => ({ ...v, panX: v.panX + dx, panY: v.panY + dy }));
+        return;
+      }
+
+      if (drag && drag.kind === "node") {
+        const { x, y } = clientToSvg(
+          svgRef.current,
+          viewRef.current,
+          e.clientX,
+          e.clientY,
+        );
+        const nextX = snap(Math.max(0, x - drag.offsetX));
+        const nextY = snap(Math.max(0, y - drag.offsetY));
+        setNodes((curr) =>
+          curr.map((n) =>
+            n.id === drag.nodeId
+              ? { ...n, position: { x: nextX, y: nextY } }
+              : n,
+          ),
+        );
+      } else if (edgeDraft) {
+        const { x, y } = clientToSvg(
+          svgRef.current,
+          viewRef.current,
+          e.clientX,
+          e.clientY,
+        );
+        setEdgeDraft((prev) =>
+          prev ? { ...prev, cursorX: x, cursorY: y } : null,
+        );
+      }
+    }
+
+    function onMouseUp() {
+      if (drag?.kind === "node") {
+        const currentNodes = nodesRef.current;
+        const currentEdges = edgesRef.current;
+        emit(currentNodes, currentEdges);
+        // Persist the moved position automatically
+        void onSave(currentNodes, currentEdges);
+      }
+      setDrag(null);
+      setEdgeDraft(null);
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [drag, edgeDraft, emit, onSave]);
+
+  function handleNodeMouseDown(e: ReactMouseEvent, node: WorkflowNode) {
     if (!canEdit) return;
+    e.preventDefault();
     e.stopPropagation();
     setSelectedId(node.id);
     const { x, y } = clientToSvg(svgRef.current, view, e.clientX, e.clientY);
@@ -240,85 +334,74 @@ export function DagCanvas({
       nodeId: node.id,
       offsetX: x - node.position.x,
       offsetY: y - node.position.y,
+      startX: node.position.x,
+      startY: node.position.y,
     });
   }
 
   function handleCanvasMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
-    // Drag on the empty canvas → pan the viewport (T-221).
-    if (e.target === e.currentTarget || (e.target as Element).getAttribute("data-canvas-bg") === "true") {
-      setDrag({ kind: "pan", nodeId: "", offsetX: e.clientX, offsetY: e.clientY });
+    if (
+      e.target === e.currentTarget ||
+      (e.target as Element).getAttribute("data-canvas-bg") === "true"
+    ) {
+      e.preventDefault();
+      setDrag({
+        kind: "pan",
+        nodeId: "",
+        offsetX: e.clientX,
+        offsetY: e.clientY,
+        startX: view.panX,
+        startY: view.panY,
+      });
     }
-  }
-
-  function handleCanvasMouseMove(e: ReactMouseEvent<SVGSVGElement>) {
-    if (drag?.kind === "pan") {
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const dx = (e.clientX - drag.offsetX) * (1000 / rect.width);
-      const dy = (e.clientY - drag.offsetY) * (600 / rect.height);
-      setDrag({ ...drag, offsetX: e.clientX, offsetY: e.clientY });
-      setView((v) => ({ ...v, panX: v.panX + dx, panY: v.panY + dy }));
-      return;
-    }
-    if (drag && drag.kind === "node") {
-      const { x, y } = clientToSvg(svgRef.current, view, e.clientX, e.clientY);
-      const next = nodes.map((n) =>
-        n.id === drag.nodeId
-          ? { ...n, position: { x: snap(Math.max(0, x - drag.offsetX)), y: snap(Math.max(0, y - drag.offsetY)) } }
-          : n,
-      );
-      setNodes(next);
-      onChange(next, edges);
-    } else if (edgeDraft) {
-      const { x, y } = clientToSvg(svgRef.current, view, e.clientX, e.clientY);
-      setEdgeDraft({ ...edgeDraft, cursorX: x, cursorY: y });
-    }
-  }
-
-  function handleMouseUp() {
-    setDrag(null);
-    setEdgeDraft(null);
   }
 
   function handleCanvasClick(e: ReactMouseEvent<SVGSVGElement>) {
-    // Click on empty canvas (not on a node/edge) → deselect.
-    if (e.target === e.currentTarget) setSelectedId(null);
+    if (
+      e.target === e.currentTarget ||
+      (e.target as Element).getAttribute("data-canvas-bg") === "true"
+    ) {
+      setSelectedId(null);
+    }
   }
 
-  /* --------------------- Zoom & fit (T-221) --------------------- */
-
+  /* --------------------- Zoom & fit --------------------- */
   function zoomBy(factor: number, anchorClient?: { x: number; y: number }) {
     setView((v) => {
       const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor));
       if (Math.abs(next - v.zoom) < 0.0001) return v;
-      // Anchor the zoom at the cursor when provided: the viewBox point under
-      // the cursor stays under the cursor.
       if (anchorClient && svgRef.current) {
         const rect = svgRef.current.getBoundingClientRect();
         const svgX = (anchorClient.x - rect.left) * (1000 / rect.width);
         const svgY = (anchorClient.y - rect.top) * (600 / rect.height);
         const viewX = (svgX - v.panX) / v.zoom;
         const viewY = (svgY - v.panY) / v.zoom;
-        return { zoom: next, panX: svgX - viewX * next, panY: svgY - viewY * next };
+        return {
+          zoom: next,
+          panX: svgX - viewX * next,
+          panY: svgY - viewY * next,
+        };
       }
       return { ...v, zoom: next };
     });
   }
 
   function handleWheel(e: ReactWheelEvent<SVGSVGElement>) {
-    if (!e.ctrlKey && !e.metaKey) return; // plain wheel scrolls the page vertically otherwise
+    if (!e.ctrlKey && !e.metaKey) return;
     try {
       e.preventDefault();
     } catch {
-      // Passive listener fallback — zoom continues without preventing scroll.
+      // Passive listener fallback
     }
     zoomBy(e.deltaY < 0 ? 1.1 : 0.9, { x: e.clientX, y: e.clientY });
   }
 
-  /** Content bounding box in view coordinates (with node size + margin). */
   const contentBounds = useMemo(() => {
     if (nodes.length === 0) return { minX: 0, minY: 0, maxX: 1000, maxY: 600 };
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const n of nodes) {
       minX = Math.min(minX, n.position.x);
       minY = Math.min(minY, n.position.y);
@@ -332,7 +415,10 @@ export function DagCanvas({
   function fitView() {
     const w = Math.max(1, contentBounds.maxX - contentBounds.minX);
     const h = Math.max(1, contentBounds.maxY - contentBounds.minY);
-    const zoom = Math.min(MAX_ZOOM, Math.max(0.25, Math.min(1000 / w, 600 / h)));
+    const zoom = Math.min(
+      MAX_ZOOM,
+      Math.max(0.25, Math.min(1000 / w, 600 / h)),
+    );
     setView({
       zoom,
       panX: (1000 - (contentBounds.minX + contentBounds.maxX) * zoom) / 2,
@@ -340,24 +426,31 @@ export function DagCanvas({
     });
   }
 
-  /* --------------------- Edge creation (port drag) --------------------- */
-
-  function handleOutputPortMouseDown(e: ReactMouseEvent<SVGCircleElement>, node: WorkflowNode) {
+  /* --------------------- Edge connection --------------------- */
+  function handleOutputPortMouseDown(
+    e: ReactMouseEvent<SVGCircleElement>,
+    node: WorkflowNode,
+  ) {
     if (!canEdit) return;
     e.stopPropagation();
+    e.preventDefault();
     const { x, y } = clientToSvg(svgRef.current, view, e.clientX, e.clientY);
     setEdgeDraft({ fromId: node.id, cursorX: x, cursorY: y });
   }
 
-  function handleInputPortMouseUp(e: ReactMouseEvent<SVGCircleElement>, node: WorkflowNode) {
+  function handleInputPortMouseUp(
+    e: ReactMouseEvent<SVGCircleElement>,
+    node: WorkflowNode,
+  ) {
     if (!edgeDraft || !canEdit) return;
     e.stopPropagation();
     if (edgeDraft.fromId === node.id) {
       setEdgeDraft(null);
       return;
     }
-    // Avoid duplicate edges.
-    const exists = edges.some((ed) => ed.from === edgeDraft.fromId && ed.to === node.id);
+    const exists = edges.some(
+      (ed) => ed.from === edgeDraft.fromId && ed.to === node.id,
+    );
     if (!exists) {
       const newEdge: WorkflowEdge = {
         id: `e-${edgeDraft.fromId}-${node.id}-${Date.now().toString(36)}`,
@@ -366,13 +459,12 @@ export function DagCanvas({
       };
       const nextEdges = [...edges, newEdge];
       emit(nodes, nextEdges);
-      // VAULT §10.09 (best practice 7) — LIVE cycle feedback: check the new
-      // connection IMMEDIATELY so the offending edge renders red before the
-      // user clicks Save (previously the cycle banner only appeared on save).
+      void onSave(nodes, nextEdges);
+
       const cycle = detectCycle(nodes, nextEdges);
       if (cycle.hasCycle) {
         setCycleError(
-          `Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle. Cette connexion créera une boucle : corrigez avant de sauvegarder.`,
+          `Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle. Cette connexion crée une boucle : supprimez-la.`,
         );
       } else {
         setCycleError(null);
@@ -381,24 +473,19 @@ export function DagCanvas({
     setEdgeDraft(null);
   }
 
-  /* --------------------- Context menu (right-click / ⋯) --------------------- */
-
   function deleteNode(id: string) {
     const nextNodes = nodes.filter((n) => n.id !== id);
     const nextEdges = edges.filter((e) => e.from !== id && e.to !== id);
     emit(nextNodes, nextEdges);
+    void onSave(nextNodes, nextEdges);
     if (selectedId === id) setSelectedId(null);
-    // VAULT §10.09 (best practice 7) — re-evaluate the live cycle state after
-    // deleting a node (the cycle may have been resolved by the deletion).
     const cycle = detectCycle(nextNodes, nextEdges);
     setCycleError(
       cycle.hasCycle
-        ? `Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle. Corrigez avant de sauvegarder.`
+        ? `Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle.`
         : null,
     );
   }
-
-  /* --------------------- Auto-layout (T-221) --------------------- */
 
   function handleAutoLayout() {
     const result = autoLayout(nodes, edges);
@@ -408,10 +495,9 @@ export function DagCanvas({
     }
     setCycleError(null);
     emit([...result.nodes], edges);
+    void onSave([...result.nodes], edges);
     fitView();
   }
-
-  /* --------------------- Dry-run simulator (T-221) --------------------- */
 
   function handleDryRun() {
     setServerError(null);
@@ -419,7 +505,6 @@ export function DagCanvas({
     setDryRun(result);
   }
 
-  /** T-230: server dry-run — the EF's dry_run mode against a REAL entity. */
   async function handleServerDryRun() {
     if (!onServerDryRun) return;
     setServerTesting(true);
@@ -427,10 +512,9 @@ export function DagCanvas({
     try {
       const outcome = await onServerDryRun(serverEntityId || null);
       if (!outcome) {
-        setServerError("La simulation serveur a échoué — voir la notification.");
+        setServerError("La simulation serveur a échoué.");
         return;
       }
-      // Map the server outcome onto the canvas dry-run visualization.
       const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
       setDryRun({
         ok: true,
@@ -442,10 +526,12 @@ export function DagCanvas({
             subtype: node?.subtype ?? "manual_run",
             type: node?.type ?? "action",
             status: o.status,
-            output: [o.error ? `ERREUR : ${o.error}` : (o.output ?? ""), "(serveur — données réelles)"]
+            output: [
+              o.error ? `ERREUR : ${o.error}` : (o.output ?? ""),
+              "(serveur)",
+            ]
               .filter(Boolean)
-              .join(" ")
-              .trim() || "Exécuté (serveur)",
+              .join(" "),
             warnings: [],
           };
         }),
@@ -458,7 +544,6 @@ export function DagCanvas({
     }
   }
 
-  /** T-230: manual execution through the canonical EF path. */
   async function handleExecute() {
     if (!onExecute) return;
     setExecuting(true);
@@ -476,20 +561,23 @@ export function DagCanvas({
     return map;
   }, [dryRun]);
 
-  const dryRunTakenEdges = useMemo(() => new Set(dryRun?.takenEdgeKeys ?? []), [dryRun]);
+  const dryRunTakenEdges = useMemo(
+    () => new Set(dryRun?.takenEdgeKeys ?? []),
+    [dryRun],
+  );
   const dryRunWarningCount = useMemo(
     () => dryRun?.results.reduce((s, r) => s + r.warnings.length, 0) ?? 0,
     [dryRun],
   );
-
-  /* --------------------- Save + Deploy --------------------- */
 
   async function handleSave() {
     setSaving(true);
     setCycleError(null);
     const cycle = detectCycle(nodes, edges);
     if (cycle.hasCycle) {
-      setCycleError(`Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle. Sauvegarde impossible.`);
+      setCycleError(
+        `Cycle détecté — ${cycle.cycleNodeIds.size} nœud(s) en boucle. Sauvegarde impossible.`,
+      );
       setSaving(false);
       return;
     }
@@ -509,12 +597,10 @@ export function DagCanvas({
     }
   }
 
-  /* --------------------- Derived: cycle edges (red highlight) --------------------- */
   const cycle = cycleError ? detectCycle(nodes, edges) : null;
   const cycleEdgeKeys = new Set(cycle?.cycleEdgeKeys ?? []);
   const cycleNodeIds = new Set(cycle?.cycleNodeIds ?? []);
 
-  /* --------------------- Minimap geometry --------------------- */
   const minimap = useMemo(() => {
     const w = Math.max(1, contentBounds.maxX - contentBounds.minX);
     const h = Math.max(1, contentBounds.maxY - contentBounds.minY);
@@ -522,10 +608,9 @@ export function DagCanvas({
     const mapW = w * scale;
     const mapH = h * scale;
     const toMap = (x: number, y: number) => ({
-      x: ((x - contentBounds.minX) * scale),
-      y: ((y - contentBounds.minY) * scale),
+      x: (x - contentBounds.minX) * scale,
+      y: (y - contentBounds.minY) * scale,
     });
-    // Visible region in view coordinates.
     const visX = -view.panX / view.zoom;
     const visY = -view.panY / view.zoom;
     const visW = 1000 / view.zoom;
@@ -546,10 +631,12 @@ export function DagCanvas({
     const mapY = ((e.clientY - rect.top) / rect.height) * minimap.mapH;
     const viewX = mapX / minimap.scale + contentBounds.minX;
     const viewY = mapY / minimap.scale + contentBounds.minY;
-    setView((v) => ({ ...v, panX: 500 - viewX * v.zoom, panY: 300 - viewY * v.zoom }));
+    setView((v) => ({
+      ...v,
+      panX: 500 - viewX * v.zoom,
+      panY: 300 - viewY * v.zoom,
+    }));
   }
-
-  /* --------------------- Render --------------------- */
 
   const zoomPct = Math.round(view.zoom * 100);
 
@@ -558,20 +645,39 @@ export function DagCanvas({
       {/* ---------- Toolbar ---------- */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-medium text-foreground truncate">{workflow.name}</span>
+          <span className="text-sm font-medium text-foreground truncate">
+            {workflow.name}
+          </span>
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             · {nodes.length} nœud(s), {edges.length} lien(s)
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          {/* Viewport controls */}
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => zoomBy(1.2)} title="Zoom avant (Ctrl+molette)">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => zoomBy(1.2)}
+            title="Zoom avant (Ctrl+molette)"
+          >
             <ZoomIn className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => zoomBy(1 / 1.2)} title="Zoom arrière (Ctrl+molette)">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => zoomBy(1 / 1.2)}
+            title="Zoom arrière (Ctrl+molette)"
+          >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={fitView} title="Ajuster à l'écran">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={fitView}
+            title="Ajuster à l'écran"
+          >
             <Maximize className="h-4 w-4" />
           </Button>
           <Button
@@ -579,14 +685,23 @@ export function DagCanvas({
             variant="ghost"
             className="h-8 w-8 p-0"
             onClick={() => setShowMinimap((s) => !s)}
-            title={showMinimap ? "Masquer la mini-carte" : "Afficher la mini-carte"}
+            title={
+              showMinimap ? "Masquer la mini-carte" : "Afficher la mini-carte"
+            }
           >
             <MapIcon className="h-4 w-4" />
           </Button>
-          <span className="text-[10px] font-mono text-muted-foreground w-9 text-center">{zoomPct}%</span>
+          <span className="text-[10px] font-mono text-muted-foreground w-9 text-center">
+            {zoomPct}%
+          </span>
           <span className="w-px h-5 bg-border mx-0.5" />
-          {/* Layout + dry-run */}
-          <Button size="sm" variant="outline" onClick={handleAutoLayout} disabled={!canEdit} title="Réorganiser selon la topologie">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleAutoLayout}
+            disabled={!canEdit}
+            title="Réorganiser selon la topologie"
+          >
             <Wand2 className="h-4 w-4" /> Réorganiser
           </Button>
           <Button
@@ -599,22 +714,31 @@ export function DagCanvas({
             <Play className="h-4 w-4" /> Tester
           </Button>
           {dryRun && (
-            <Button size="sm" variant="ghost" onClick={() => setDryRun(null)} title="Effacer la simulation">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setDryRun(null)}
+              title="Effacer la simulation"
+            >
               <XCircle className="h-4 w-4" />
             </Button>
           )}
-          {/* T-230: server dry-run — real entities, simulated actions. */}
           {onServerDryRun && (
             <>
               <span className="w-px h-5 bg-border mx-0.5" />
               <Select value={serverEntityId} onValueChange={setServerEntityId}>
-                <SelectTrigger className="h-8 w-44" title="Entité de test (données réelles)">
+                <SelectTrigger
+                  className="h-8 w-44"
+                  title="Entité de test (données réelles)"
+                >
                   <SelectValue placeholder="Entité de test" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sans entité</SelectItem>
                   {(serverDryRunEntities ?? []).map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -623,24 +747,40 @@ export function DagCanvas({
                 variant="outline"
                 onClick={handleServerDryRun}
                 disabled={serverTesting || nodes.length === 0}
-                title="Test serveur : conditions réelles, actions simulées, aucun effet de bord"
+                title="Test serveur avec données réelles"
               >
-                <Cloud className="h-4 w-4" /> {serverTesting ? "Test serveur…" : "Test serveur"}
+                <Cloud className="h-4 w-4" />{" "}
+                {serverTesting ? "Test serveur…" : "Test serveur"}
               </Button>
             </>
           )}
           <span className="w-px h-5 bg-border mx-0.5" />
-          {/* Persistence */}
-          <Button size="sm" variant="outline" onClick={handleSave} disabled={!canEdit || saving}>
-            <Save className="h-4 w-4" /> {saving ? "Sauvegarde…" : "Enregistrer"}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSave}
+            disabled={!canEdit || saving}
+          >
+            <Save className="h-4 w-4" />{" "}
+            {saving ? "Sauvegarde…" : "Enregistrer"}
           </Button>
-          <Button size="sm" onClick={() => setDeployOpen(true)} disabled={!canEdit || deploying}>
+          <Button
+            size="sm"
+            onClick={() => setDeployOpen(true)}
+            disabled={!canEdit || deploying}
+          >
             <Rocket className="h-4 w-4" /> Déployer
           </Button>
-          {/* T-230: manual execution through the canonical EF path. */}
           {onExecute && (
-            <Button size="sm" variant="outline" onClick={handleExecute} disabled={executing} title="Exécuter maintenant (serveur — exécution réelle)">
-              <Zap className="h-4 w-4" /> {executing ? "Exécution…" : "Exécuter"}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExecute}
+              disabled={executing}
+              title="Exécuter maintenant (serveur)"
+            >
+              <Zap className="h-4 w-4" />{" "}
+              {executing ? "Exécution…" : "Exécuter"}
             </Button>
           )}
         </div>
@@ -659,7 +799,6 @@ export function DagCanvas({
         </div>
       )}
 
-      {/* ---------- Dry-run banner ---------- */}
       {dryRun && (
         <div
           className={cn(
@@ -681,7 +820,9 @@ export function DagCanvas({
                 .flatMap((r) => r.warnings.map((w) => `${r.nodeLabel}: ${w}`))
                 .slice(0, 4)
                 .map((w, i) => (
-                  <li key={i} className="leading-snug">{w}</li>
+                  <li key={i} className="leading-snug">
+                    {w}
+                  </li>
                 ))}
             </ul>
           )}
@@ -695,15 +836,17 @@ export function DagCanvas({
           className="w-full h-full bg-surface-background select-none"
           style={{ cursor: drag?.kind === "pan" ? "grabbing" : "default" }}
           onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
           onClick={handleCanvasClick}
           onWheel={handleWheel}
         >
           <defs>
-            <pattern id="dag-grid" width={40} height={40} patternUnits="userSpaceOnUse">
-              <circle cx="0" cy="0" r="1" fill="rgba(0,0,0,0.06)" />
+            <pattern
+              id="dag-grid"
+              width={40}
+              height={40}
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="0" cy="0" r="1" fill="rgba(255,255,255,0.08)" />
             </pattern>
             <marker
               id="dag-arrow"
@@ -739,10 +882,17 @@ export function DagCanvas({
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-status-success" />
             </marker>
           </defs>
-          <rect width="1000" height="600" fill="url(#dag-grid)" data-canvas-bg="true" />
+          <rect
+            width="1000"
+            height="600"
+            fill="url(#dag-grid)"
+            data-canvas-bg="true"
+          />
 
-          {/* Viewport transform: everything inside pan+zooms together. */}
-          <g transform={`translate(${view.panX}, ${view.panY}) scale(${view.zoom})`}>
+          {/* Viewport transform */}
+          <g
+            transform={`translate(${view.panX}, ${view.panY}) scale(${view.zoom})`}
+          >
             {/* Edges */}
             {edges.map((edge) => {
               const from = nodes.find((n) => n.id === edge.from);
@@ -762,7 +912,11 @@ export function DagCanvas({
                   key={edge.id}
                   d={path}
                   className={cn(
-                    isCycle ? "stroke-status-danger" : isTaken ? "stroke-status-success" : "stroke-border",
+                    isCycle
+                      ? "stroke-status-danger"
+                      : isTaken
+                        ? "stroke-status-success"
+                        : "stroke-border",
                     isTaken && dryRun && "animate-pulse",
                   )}
                   strokeWidth={isCycle || isTaken ? 2.5 : 1.8}
@@ -778,25 +932,26 @@ export function DagCanvas({
               );
             })}
 
-            {/* Edge draft (while dragging from a port) */}
-            {edgeDraft && (() => {
-              const from = nodes.find((n) => n.id === edgeDraft.fromId);
-              if (!from) return null;
-              const x1 = from.position.x + NODE_W;
-              const y1 = from.position.y + NODE_H / 2;
-              const x2 = edgeDraft.cursorX;
-              const y2 = edgeDraft.cursorY;
-              const mx = (x1 + x2) / 2;
-              return (
-                <path
-                  d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
-                  className="stroke-primary/60"
-                  strokeWidth={1.8}
-                  strokeDasharray="6 4"
-                  fill="none"
-                />
-              );
-            })()}
+            {/* Edge draft during port drag */}
+            {edgeDraft &&
+              (() => {
+                const from = nodes.find((n) => n.id === edgeDraft.fromId);
+                if (!from) return null;
+                const x1 = from.position.x + NODE_W;
+                const y1 = from.position.y + NODE_H / 2;
+                const x2 = edgeDraft.cursorX;
+                const y2 = edgeDraft.cursorY;
+                const mx = (x1 + x2) / 2;
+                return (
+                  <path
+                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                    className="stroke-primary/60"
+                    strokeWidth={1.8}
+                    strokeDasharray="6 4"
+                    fill="none"
+                  />
+                );
+              })()}
 
             {/* Nodes */}
             {nodes.map((node) => {
@@ -809,7 +964,11 @@ export function DagCanvas({
                 <g
                   key={node.id}
                   transform={`translate(${node.position.x}, ${node.position.y})`}
-                  className="cursor-move"
+                  className={cn(
+                    "cursor-grab active:cursor-grabbing select-none",
+                    !canEdit && "cursor-default",
+                  )}
+                  onMouseDown={(e) => handleNodeMouseDown(e, node)}
                   onDoubleClick={() => onInspectNode(node)}
                 >
                   <rect
@@ -824,15 +983,12 @@ export function DagCanvas({
                       runStatus === "skipped" && "opacity-50",
                     )}
                     strokeWidth={isSelected ? 2.5 : isCycle ? 2.5 : 1.5}
-                    strokeDasharray={runStatus === "skipped" ? "6 3" : undefined}
-                    onMouseDown={(e) => handleNodeMouseDown(e, node)}
-                    onContextMenu={(e) => {
-                      // Prevent the browser's native context menu so the
-                      // DropdownMenu (rendered below) can take over.
-                      e.preventDefault();
-                    }}
+                    strokeDasharray={
+                      runStatus === "skipped" ? "6 3" : undefined
+                    }
                   />
-                  {/* Dry-run status ring (T-221; failed variant T-230). */}
+
+                  {/* Dry-run status rings */}
                   {runStatus === "failed" && (
                     <rect
                       x={-3}
@@ -844,6 +1000,7 @@ export function DagCanvas({
                       className="fill-none stroke-status-danger"
                       strokeWidth={2}
                       strokeDasharray="4 3"
+                      pointerEvents="none"
                     />
                   )}
                   {runStatus === "succeeded" && (
@@ -857,68 +1014,99 @@ export function DagCanvas({
                       pointerEvents="none"
                     />
                   )}
+
                   {/* Type tag at top */}
                   <text
                     x={10}
                     y={16}
-                    className={cn("text-[10px] font-medium", colors.text)}
+                    className={cn(
+                      "text-[10px] font-medium pointer-events-none select-none",
+                      colors.text,
+                    )}
                     fill="currentColor"
                   >
                     {WORKFLOW_NODE_TYPE_LABELS_FR[node.type]}
                   </text>
-                  {/* Label */}
+
+                  {/* Node label */}
                   <text
                     x={10}
                     y={36}
-                    className="text-xs font-semibold text-foreground"
+                    className="text-xs font-semibold text-foreground pointer-events-none select-none"
                     fill="currentColor"
                   >
                     {node.label}
                   </text>
+
+                  {/* Subtype description */}
                   <text
                     x={10}
                     y={52}
-                    className="text-[10px] text-muted-foreground"
+                    className="text-[10px] text-muted-foreground pointer-events-none select-none"
                     fill="currentColor"
                   >
-                    {WORKFLOW_NODE_SUBTYPE_LABELS_FR[node.subtype] ?? node.subtype}
+                    {WORKFLOW_NODE_SUBTYPE_LABELS_FR[node.subtype] ??
+                      node.subtype}
                   </text>
-                  {/* Icon (top-right) */}
-                  <foreignObject x={NODE_W - 28} y={6} width={22} height={22}>
+
+                  {/* Top-right Icon */}
+                  <foreignObject
+                    x={NODE_W - 28}
+                    y={6}
+                    width={22}
+                    height={22}
+                    className="pointer-events-none select-none"
+                  >
                     <Icon className={cn("h-5 w-5", colors.text)} />
                   </foreignObject>
+
                   {/* Input port (left) */}
                   <circle
                     cx={0}
                     cy={NODE_H / 2}
-                    r={5}
-                    className="fill-popover stroke-border"
-                    strokeWidth={1.5}
+                    r={6}
+                    className="fill-popover stroke-border hover:stroke-primary hover:scale-125 transition-transform"
+                    strokeWidth={2}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
                     onMouseUp={(e) => handleInputPortMouseUp(e, node)}
                   />
+
                   {/* Output port (right) */}
                   <circle
                     cx={NODE_W}
                     cy={NODE_H / 2}
-                    r={5}
-                    className="fill-popover stroke-primary"
-                    strokeWidth={1.5}
+                    r={6}
+                    className="fill-popover stroke-primary hover:scale-125 transition-transform cursor-crosshair"
+                    strokeWidth={2}
                     onMouseDown={(e) => handleOutputPortMouseDown(e, node)}
-                    style={{ cursor: "crosshair" }}
                   />
 
-                  {/* Context menu — small "⋯" button in the top-right corner. */}
+                  {/* Context menu trigger */}
                   {canEdit && (
-                    <foreignObject x={NODE_W - 22} y={NODE_H - 22} width={20} height={20}>
+                    <foreignObject
+                      x={NODE_W - 22}
+                      y={NODE_H - 22}
+                      width={20}
+                      height={20}
+                    >
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
                             className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:bg-accent/20 hover:text-foreground transition-colors"
                             aria-label="Actions du nœud"
+                            onMouseDown={(ev) => ev.stopPropagation()}
                             onClick={(ev) => ev.stopPropagation()}
                           >
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 14 14"
+                              fill="currentColor"
+                            >
                               <circle cx="3" cy="7" r="1.2" />
                               <circle cx="7" cy="7" r="1.2" />
                               <circle cx="11" cy="7" r="1.2" />
@@ -940,16 +1128,21 @@ export function DagCanvas({
               );
             })}
 
-            {/* Empty state hint */}
             {nodes.length === 0 && (
-              <text x={500} y={300} textAnchor="middle" className="text-xs text-muted-foreground" fill="currentColor">
-                Cliquez un type de nœud dans la palette à droite pour commencer
+              <text
+                x={500}
+                y={300}
+                textAnchor="middle"
+                className="text-xs text-muted-foreground"
+                fill="currentColor"
+              >
+                Cliquez sur un type de nœud dans la palette pour commencer
               </text>
             )}
           </g>
         </svg>
 
-        {/* ---------- Minimap (T-221) ---------- */}
+        {/* ---------- Minimap ---------- */}
         {showMinimap && nodes.length > 0 && (
           <div className="absolute bottom-3 right-3 rounded-md border border-border bg-popover/95 shadow-lg p-1.5">
             <svg
@@ -989,7 +1182,6 @@ export function DagCanvas({
                   />
                 );
               })}
-              {/* Viewport rectangle */}
               <rect
                 x={minimap.viewport.x}
                 y={minimap.viewport.y}
@@ -1007,7 +1199,7 @@ export function DagCanvas({
         open={deployOpen}
         onOpenChange={setDeployOpen}
         title="Déployer ce workflow"
-        description="Le workflow sera figé et exécutable. Les modifications futures nécessiteront un nouveau déploiement."
+        description="Le workflow sera figé et exécutable en production."
         confirmLabel="Déployer"
         onConfirm={handleDeployConfirm}
       />
@@ -1015,11 +1207,11 @@ export function DagCanvas({
   );
 }
 
-/**
- * Helper exported for the parent component: generate a new node at a
- * default position with the next available id. The palette calls this.
- */
-export function makeNode(subtype: WorkflowNodeSubtype, type: WorkflowNodeType, existing: readonly WorkflowNode[]): WorkflowNode {
+export function makeNode(
+  subtype: WorkflowNodeSubtype,
+  type: WorkflowNodeType,
+  existing: readonly WorkflowNode[],
+): WorkflowNode {
   const idx = existing.length + 1;
   return {
     id: `n-${idx}-${Date.now().toString(36)}`,
@@ -1031,8 +1223,5 @@ export function makeNode(subtype: WorkflowNodeSubtype, type: WorkflowNodeType, e
   };
 }
 
-/** Plus icon re-exported for the palette header. */
 export const PlusIcon = Plus;
-
-/** Re-exported for the workflow page (node-type resolution on template import). */
 export { NODE_SUBTYPE_TO_TYPE };
