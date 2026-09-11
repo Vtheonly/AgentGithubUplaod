@@ -6,9 +6,9 @@
  *
  * Iteration 15: language state now lives in the unified
  * `UserPreferencesContext` (app/providers/user-preferences-provider.tsx) so the
- * Settings → General tab and this Topbar dropdown stay in sync. The
- * legacy `localStorage["el-imtiyaz:locale"]` key is still mirrored by
- * the provider for backward compatibility with any external readers.
+ * Settings → General tab and this Topbar dropdown stay in sync. The unified
+ * `localStorage["el-imtiyaz:prefs"]` key is the single source of truth — the
+ * legacy `el-imtiyaz:locale` key is no longer written (theme-engine era).
  */
 import { useState } from "react";
 import { useUserPreferences, type AppLocale } from "../app/providers/user-preferences-provider";

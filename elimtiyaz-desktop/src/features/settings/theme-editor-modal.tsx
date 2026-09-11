@@ -3,14 +3,13 @@
 // ============================================================================
 
 import { useState } from "react";
-import { Palette, Check, Sparkles, Sun, Moon } from "lucide-react";
+import { Palette, Sparkles, Sun, Moon } from "lucide-react";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
 import { Switch } from "../../shared/ui/switch";
 import { Badge } from "../../shared/ui/badge";
-import { StatusChip } from "../../shared/ui/status-chip";
 import {
   PRESET_THEMES,
   type CustomThemePalette,

@@ -15,7 +15,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { Table, Layers, ArrowUpDown, ChevronRight } from "lucide-react";
+import { Layers, ArrowUpDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -46,8 +46,8 @@ export function PivotMatrixCard({ profiles, classes }: Props) {
   const pivotRows = useMemo(() => {
     const raw = computeMultiDimensionalPivot({ profiles, classes, dimension });
     return raw.sort((a, b) => {
-      let valA = a[sortKey] ?? -1;
-      let valB = b[sortKey] ?? -1;
+      const valA = a[sortKey] ?? -1;
+      const valB = b[sortKey] ?? -1;
       if (valA === valB) return 0;
       return sortAsc ? (valA > valB ? 1 : -1) : valA < valB ? 1 : -1;
     });

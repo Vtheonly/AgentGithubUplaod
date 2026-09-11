@@ -19,10 +19,7 @@ import {
   loadStoredCustomThemes,
   saveStoredCustomThemes,
 } from "../../core/theme/theme-engine";
-import {
-  PRESET_THEMES,
-  type CustomThemePalette,
-} from "../../core/theme/theme-types";
+import type { CustomThemePalette } from "../../core/theme/theme-types";
 
 export type AppTheme = string; // can be "dark", "light", "emerald", "amethyst", or custom ID
 export type AppLocale = "fr" | "ar";

@@ -15,12 +15,6 @@
 import { useState, useMemo } from "react";
 import {
   Search,
-  AlertTriangle,
-  BookOpen,
-  Wallet,
-  Users,
-  Sparkles,
-  Phone,
   MessageCircle,
   ExternalLink,
   Bot,
@@ -38,13 +32,11 @@ import {
 import { Button } from "../../../../shared/ui/button";
 import { Input } from "../../../../shared/ui/input";
 import { Badge } from "../../../../shared/ui/badge";
-import { StatusChip } from "../../../../shared/ui/status-chip";
 import { formatDzdPlain } from "../../../../core/format/currency";
 import { useAICopilot } from "../../../../app/providers/ai-copilot-provider";
 import {
   OPERATIONAL_PRESETS,
   type StudentRiskProfile,
-  type RiskCategory,
 } from "./operational-query-engine";
 
 interface Props {
@@ -56,7 +48,6 @@ interface Props {
 export function OperationalQueryConsole({
   profiles,
   onOpenStudent,
-  onOpenParent,
 }: Props) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
 
@@ -108,8 +99,8 @@ export function OperationalQueryConsole({
         return true;
       })
       .sort((a, b) => {
-        let valA = a[sortField] ?? -1;
-        let valB = b[sortField] ?? -1;
+        const valA = a[sortField] ?? -1;
+        const valB = b[sortField] ?? -1;
         if (valA === valB) return 0;
         return sortAsc ? (valA > valB ? 1 : -1) : valA < valB ? 1 : -1;
       });

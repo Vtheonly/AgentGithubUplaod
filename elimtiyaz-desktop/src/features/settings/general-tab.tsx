@@ -3,7 +3,6 @@
 // ============================================================================
 
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   useUserPreferences,
   type AppLocale,
@@ -18,7 +17,6 @@ import {
   CardDescription,
 } from "../../shared/ui/card";
 import { Label } from "../../shared/ui/label";
-import { Badge } from "../../shared/ui/badge";
 import { Button } from "../../shared/ui/button";
 import {
   Select,
@@ -27,14 +25,8 @@ import {
   SelectContent,
   SelectItem,
 } from "../../shared/ui/select";
-import { StatusChip } from "../../shared/ui/status-chip";
 import {
-  Moon,
-  Sun,
   Globe,
-  Clock,
-  Coins,
-  Building2,
   UserCircle,
   LogOut,
   RotateCcw,
@@ -65,7 +57,6 @@ const CURRENCIES = [
 ];
 
 export function GeneralTab() {
-  const { t } = useTranslation();
   const {
     theme,
     setTheme,
