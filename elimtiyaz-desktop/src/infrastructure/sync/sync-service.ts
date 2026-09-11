@@ -38,6 +38,11 @@ import type {
 } from "./sync-types";
 import { getSyncQueueStore } from "./sync-queue-store";
 import { getOnlineDetector, OnlineDetector, type OnlineState } from "./online-detector";
+import {
+  computeThreeWay,
+  resolveThreeWay,
+  type ConflictChoices,
+} from "../../domain/calc/diff/three-way";
 
 const DEBOUNCE_MS = 2_000;
 const BACKOFF_BASE_MS = 1_000;
@@ -85,7 +90,12 @@ export interface SyncServiceConstructorOptions extends SyncServiceOptions {
 }
 
 export class SyncService {
-  private readonly opts: Required<SyncServiceOptions>;
+  /**
+   * The core options get Required<> defaults; the T-298 conflict hooks
+   * stay OPTIONAL (undefined = no detection — mock mode / tests).
+   */
+  private readonly opts: Required<Omit<SyncServiceOptions, "conflictGuard" | "onConflictDetected" | "onConflictResolved">> &
+    Pick<SyncServiceOptions, "conflictGuard" | "onConflictDetected" | "onConflictResolved">;
   private readonly store = getSyncQueueStore();
   private readonly detector: OnlineDetector;
   private snapshot: SyncStatusSnapshot;
@@ -113,6 +123,7 @@ export class SyncService {
       syncedCount: 0,
       failedCount: 0,
       skippedMockCount: 0,
+      conflictCount: 0,
       queueUsingFallback: false,
       // T-171: restore the persisted timestamp (was always null at boot).
       lastSyncAt: loadPersistedLastSyncAt(),
@@ -162,6 +173,8 @@ export class SyncService {
     isMock: boolean;
     sourceFile?: string;
     importRunId?: string;
+    /** T-298 (OFFLINE-400): the server-row snapshot at edit start (3-way base). */
+    basePayload?: Record<string, unknown> | null;
   }): Promise<string> {
     const id = generateId();
     const now = new Date().toISOString();
@@ -177,6 +190,8 @@ export class SyncService {
       isMock: input.isMock,
       sourceFile: input.sourceFile,
       importRunId: input.importRunId,
+      basePayload: input.basePayload ?? null,
+      conflict: null,
       status: input.isMock ? "skipped_mock" : "pending",
       attempts: 0,
       lastError: null,
@@ -218,6 +233,7 @@ export class SyncService {
       isMock: boolean;
       sourceFile?: string;
       importRunId?: string;
+      basePayload?: Record<string, unknown> | null;
     }>,
   ): Promise<string[]> {
     if (inputs.length === 0) return [];
@@ -241,6 +257,8 @@ export class SyncService {
         isMock: input.isMock,
         sourceFile: input.sourceFile,
         importRunId: input.importRunId,
+        basePayload: input.basePayload ?? null,
+        conflict: null,
         status: input.isMock ? "skipped_mock" : "pending",
         attempts: 0,
         lastError: null,
@@ -326,6 +344,78 @@ export class SyncService {
     return () => this.listeners.delete(fn);
   }
 
+  /**
+   * T-298 (OFFLINE-400): list the entries parked in `conflict` status —
+   * the resolver modal's work list (each entry carries its basePayload /
+   * payload / conflict record; the 3-way is recomputed at render time).
+   */
+  async listConflicts(): Promise<SyncQueueEntry[]> {
+    return this.store.listByStatus("conflict");
+  }
+
+  /**
+   * T-298 (OFFLINE-400): apply the resolver's per-field choices to a
+   * conflict-parked entry.
+   *
+   * The 3-way is RECOMPUTED from the entry's own three sides (base =
+   * basePayload, local = payload, remote = the conflict record's
+   * remotePayload) — no values were duplicated at detection time. The
+   * resolved tree replaces the entry payload, the entry re-enters
+   * `pending`, the conflict record is cleared, and `onConflictResolved`
+   * fires (audit + notification in the production wiring). The next
+   * drain re-runs the guard against the LIVE server row: if the remote
+   * moved again on the same paths a fresh conflict is detected — never a
+   * silent overwrite.
+   *
+   * @returns the resolved entry, or null when the entry does not exist /
+   *         is not parked in conflict status.
+   */
+  async resolveConflict(
+    entryId: string,
+    choices: ConflictChoices,
+  ): Promise<SyncQueueEntry | null> {
+    const conflicts = await this.store.listByStatus("conflict");
+    const entry = conflicts.find((e) => e.id === entryId);
+    if (!entry || !entry.conflict) return null;
+
+    const base = entry.basePayload ?? null;
+    const local = entry.payload;
+    const remote = entry.conflict.remotePayload;
+    const threeWay = computeThreeWay(base, local, remote);
+    const resolvedValue = resolveThreeWay(threeWay, choices);
+    const resolvedPayload =
+      resolvedValue && typeof resolvedValue === "object" && !Array.isArray(resolvedValue)
+        ? (resolvedValue as Record<string, unknown>)
+        : { value: resolvedValue };
+
+    const resolved: SyncQueueEntry = {
+      ...entry,
+      payload: resolvedPayload,
+      status: "pending",
+      attempts: 0,
+      lastAttemptAt: null,
+      lastError: null,
+      conflict: null,
+    };
+    await this.store.update(resolved);
+    await this.refreshSnapshot();
+
+    if (this.opts.onConflictResolved) {
+      try {
+        await this.opts.onConflictResolved(entry, resolved, {
+          chosenPaths: Object.keys(choices),
+          payload: resolvedPayload,
+        });
+      } catch {
+        // The audit/notification side-effect must never block the queue.
+      }
+    }
+
+    // The resolved entry is immediately drainable.
+    this.scheduleDebouncedDrain();
+    return resolved;
+  }
+
   /** Current snapshot (immutable copy). */
   getSnapshot(): SyncStatusSnapshot {
     return { ...this.snapshot };
@@ -384,6 +474,7 @@ export class SyncService {
       syncedCount: all.filter((e) => e.status === "synced").length,
       failedCount: all.filter((e) => e.status === "failed").length,
       skippedMockCount: all.filter((e) => e.status === "skipped_mock").length,
+      conflictCount: all.filter((e) => e.status === "conflict").length,
       queueUsingFallback: this.store.isUsingFallback(),
       lastSyncAt: this.snapshot.lastSyncAt,
       lastAttemptAt: this.snapshot.lastAttemptAt,
@@ -489,6 +580,47 @@ export class SyncService {
           const backoffMs = BACKOFF_BASE_MS * Math.pow(2, entryToPush.attempts);
           const nextAllowedAt = new Date(entryToPush.lastAttemptAt).getTime() + backoffMs;
           if (Date.now() < nextAllowedAt) continue;
+        }
+
+        // T-298 (OFFLINE-400) — THE NO-SILENT-OVERWRITE GUARD: for an
+        // UPDATE entry that carries a base snapshot, run the 3-way check
+        // BEFORE pushing. When the current server row and the queued edit
+        // diverge on fields BOTH sides changed, the entry parks in
+        // `conflict` status (pushed NEVER — the other operator's edit is
+        // never silently overwritten), the record is persisted ON the entry
+        // (IndexedDB survives restarts; no parallel store), and
+        // onConflictDetected fires (audit + notification in the wiring).
+        if (
+          entryToPush.operation === "update" &&
+          entryToPush.basePayload &&
+          this.opts.conflictGuard
+        ) {
+          let record: Awaited<ReturnType<NonNullable<SyncServiceOptions["conflictGuard"]>>> = null;
+          try {
+            record = await this.opts.conflictGuard(entryToPush);
+          } catch {
+            // A guard failure (e.g. remote fetch error) must NOT eat the
+            // push — the entry proceeds (the push RPCs stay authoritative).
+            record = null;
+          }
+          if (record) {
+            const parked: SyncQueueEntry = {
+              ...entryToPush,
+              status: "conflict",
+              conflict: record,
+              lastAttemptAt: new Date().toISOString(),
+              lastError: null,
+            };
+            await this.store.update(parked);
+            if (this.opts.onConflictDetected) {
+              try {
+                await this.opts.onConflictDetected(parked, record);
+              } catch {
+                // The audit/notification side-effect must never block the queue.
+              }
+            }
+            continue; // Parked — the resolver decides; the drain moves on.
+          }
         }
 
         try {

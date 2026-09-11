@@ -17,12 +17,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Cloud, CloudOff, CloudUpload, Check, AlertCircle, Loader2, RefreshCw, RotateCcw,
+  Cloud, CloudOff, CloudUpload, Check, AlertCircle, Loader2, RefreshCw, RotateCcw, GitMerge,
 } from "lucide-react";
 import { useSyncStatus, useSyncActions } from "../../app/providers/sync-provider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../shared/ui/tooltip";
 import { Button } from "../../shared/ui/button";
 import { cn } from "../../shared/ui/cn";
+import { ConflictResolverModal } from "../../features/settings/conflict-resolver-modal";
+import type { SyncQueueEntry } from "./sync-types";
 
 export function SyncIndicator() {
   const status = useSyncStatus();
@@ -30,13 +32,17 @@ export function SyncIndicator() {
   const navigate = useNavigate();
   const [syncing, setSyncing] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  // T-298 (OFFLINE-400): the conflict resolver mounts from the indicator —
+  // the fastest path from anywhere in the app to the 3-way resolution.
+  const [resolverEntry, setResolverEntry] = useState<SyncQueueEntry | null>(null);
+  const [loadingConflicts, setLoadingConflicts] = useState(false);
 
   if (!status) return null;
 
   const {
     online, supabaseConfigured, syncing: isServiceSyncing,
     pendingCount, failedCount, skippedMockCount, lastSyncAt,
-    queueUsingFallback,
+    queueUsingFallback, conflictCount,
   } = status;
 
   const handleSyncNow = async (e: React.MouseEvent) => {
@@ -61,6 +67,27 @@ export function SyncIndicator() {
     }
   };
 
+  // T-298 (OFFLINE-400): open the 3-way resolver on the first parked
+  // conflict — resolution advances to the next one automatically.
+  const handleResolveConflicts = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLoadingConflicts(true);
+    try {
+      const conflicts = await actions.listConflicts();
+      setResolverEntry(conflicts[0] ?? null);
+    } finally {
+      setLoadingConflicts(false);
+    }
+  };
+
+  const handleResolverClose = async (open: boolean) => {
+    if (open) return;
+    setResolverEntry(null);
+    // After a resolution, advance to the next parked conflict (if any).
+    const remaining = await actions.listConflicts();
+    if (remaining.length > 0) setResolverEntry(remaining[0]);
+  };
+
   const handleClick = () => {
     navigate("/settings?tab=sync");
   };
@@ -83,6 +110,12 @@ export function SyncIndicator() {
     tone = "text-status-warning";
     description =
       "File d'attente EN MÉMOIRE (IndexedDB indisponible) — les changements en attente seront PERDUS à la fermeture de l'application.";
+  } else if (conflictCount > 0) {
+    // T-298: conflicts outrank everything except the fallback data-loss
+    // warning — a parked entry never pushes until a human decides.
+    Icon = GitMerge;
+    tone = "text-status-danger";
+    description = `${conflictCount} conflit(s) d'édition concurrente — résolution requise avant synchronisation.`;
   } else if (!supabaseConfigured) {
     Icon = Cloud;
     tone = "text-muted-foreground";
@@ -107,11 +140,12 @@ export function SyncIndicator() {
       : "Synchronisé.";
   }
 
-  const showBadge = pendingCount > 0 || failedCount > 0;
-  const badgeCount = pendingCount + failedCount;
+  const showBadge = pendingCount > 0 || failedCount > 0 || conflictCount > 0;
+  const badgeCount = pendingCount + failedCount + conflictCount;
 
   return (
-    <Tooltip>
+    <>
+      <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
@@ -130,7 +164,7 @@ export function SyncIndicator() {
             <span
               className={cn(
                 "absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white",
-                failedCount > 0 ? "bg-status-danger" : "bg-status-warning",
+                conflictCount > 0 || failedCount > 0 ? "bg-status-danger" : "bg-status-warning",
               )}
             >
               {badgeCount}
@@ -152,9 +186,25 @@ export function SyncIndicator() {
             <span className="text-end">{status.syncedCount}</span>
             <span className="text-muted-foreground">Échecs:</span>
             <span className="text-end text-status-danger">{failedCount}</span>
+            <span className="text-muted-foreground">Conflits:</span>
+            <span className="text-end text-status-danger">{conflictCount}</span>
             <span className="text-muted-foreground">Exclues (mock):</span>
             <span className="text-end text-muted-foreground">{skippedMockCount}</span>
           </div>
+          {/* T-298 (OFFLINE-400): the 3-way resolver opens straight from the
+              indicator — one click from anywhere in the app. */}
+          {conflictCount > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-7 text-xs border-status-danger/40 text-status-danger"
+              onClick={handleResolveConflicts}
+              disabled={loadingConflicts || syncing || isServiceSyncing}
+            >
+              <GitMerge className="h-3 w-3" />
+              Résoudre les {conflictCount} conflit(s)
+            </Button>
+          )}
           {supabaseConfigured && online && pendingCount > 0 && (
             <Button
               size="sm"
@@ -168,7 +218,7 @@ export function SyncIndicator() {
             </Button>
           )}
           {/* T-171 (SYNC-200): retry action for terminal failures. */}
-          {supabaseConfigured && online && failedCount > 0 && (
+          {supabaseConfigured && online && failedCount > 0 && conflictCount === 0 && (
             <Button
               size="sm"
               variant="outline"
@@ -182,6 +232,10 @@ export function SyncIndicator() {
           )}
         </div>
       </TooltipContent>
-    </Tooltip>
+      </Tooltip>
+      {/* T-298 (OFFLINE-400): the mounted 3-way resolver (advances to the
+          next parked conflict after each resolution). */}
+      <ConflictResolverModal entry={resolverEntry} onOpenChange={handleResolverClose} />
+    </>
   );
 }

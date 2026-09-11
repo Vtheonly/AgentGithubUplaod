@@ -23,9 +23,12 @@ import {
   getSyncService,
   _resetSyncServiceForTests,
 } from "../../infrastructure/sync/sync-service";
-import type { SyncQueueEntry, SyncStatusSnapshot } from "../../infrastructure/sync/sync-types";
+import type { SyncConflictRecord, SyncQueueEntry, SyncStatusSnapshot } from "../../infrastructure/sync/sync-types";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { useAuth } from "../../app/providers/auth-provider";
+import { useRepositories } from "../../app/providers/repository-provider";
+import { conflictGuard } from "../../infrastructure/sync/conflict-detector";
+import type { ConflictChoices } from "../../domain/calc/diff/three-way";
 
 const SyncStatusContext = createContext<SyncStatusSnapshot | null>(null);
 const SyncActionsContext = createContext<SyncActions | null>(null);
@@ -39,6 +42,8 @@ export interface SyncActions {
     isMock: boolean;
     sourceFile?: string;
     importRunId?: string;
+    /** T-298 (OFFLINE-400): the server-row snapshot at edit start (3-way base). */
+    basePayload?: Record<string, unknown> | null;
   }) => Promise<string>;
   /**
    * Enqueue MANY mutations in ONE shot. Returns the created queue entry IDs.
@@ -55,6 +60,7 @@ export interface SyncActions {
     isMock: boolean;
     sourceFile?: string;
     importRunId?: string;
+    basePayload?: Record<string, unknown> | null;
   }>) => Promise<string[]>;
   /** Manually trigger a sync drain. */
   syncNow: () => Promise<{ pushed: number; failed: number; skippedMock: number }>;
@@ -73,14 +79,28 @@ export interface SyncActions {
   clearQueue: () => Promise<void>;
   /** Force an online probe. */
   probeNow: () => Promise<boolean>;
+  /**
+   * T-298 (OFFLINE-400): list the entries parked in `conflict` status —
+   * the resolver modal's work list.
+   */
+  listConflicts: () => Promise<SyncQueueEntry[]>;
+  /**
+   * T-298 (OFFLINE-400): apply the resolver's per-field choices (take-local /
+   * take-remote / manual) to a conflict-parked entry. Returns the resolved
+   * entry, or null when the entry is not parked in conflict status.
+   */
+  resolveConflict: (entryId: string, choices: ConflictChoices) => Promise<SyncQueueEntry | null>;
 }
 
 import { defaultPushHandler } from "../../infrastructure/sync/default-push-handler";
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
+  const repos = useRepositories();
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  const reposRef = useRef(repos);
+  reposRef.current = repos;
   const [snapshot, setSnapshot] = useState<SyncStatusSnapshot | null>(null);
 
   // Construct the service once.
@@ -95,6 +115,78 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       isMockMode: () => !isSupabaseConfigured(),
       push: defaultPushHandler,
       autoStart: true,
+      // T-298 (OFFLINE-400): the 3-way no-silent-overwrite guard — fetches
+      // the live server row and parks entries whose payload diverges from it
+      // on fields BOTH sides changed.
+      conflictGuard,
+      // Detection side-effects: the attributed audit entry + the user
+      // notification (the mandate requires BOTH events to notify).
+      onConflictDetected: (entry, record) => {
+        const s = sessionRef.current;
+        const id = conflictEntityId(entry);
+        void reposRef.current.audit
+          .log({
+            action: "sync.conflict_detected",
+            entityType: entry.entity,
+            entityId: id,
+            actorId: s?.userId ?? "system",
+            actorName: s?.displayName ?? "Système",
+            actorRole: s?.role ?? null,
+            tenantId: s?.tenantId ?? null,
+            diff: {
+              before: entry.basePayload ?? null,
+              after: record.remotePayload,
+            },
+            note: `Conflit d'édition concurrente détecté (${record.conflictPaths.length} champ(s): ${record.conflictPaths.join(", ")}). Résolution requise avant synchronisation.`,
+          })
+          .catch(() => undefined);
+        void reposRef.current.notifications
+          .create({
+            title: "Conflit d'édition détecté",
+            body: `Une modification concurrente a été détectée sur ${entry.entity} ${id}. ${s?.displayName ?? "Votre édition"} diverge du serveur sur ${record.conflictPaths.length} champ(s) — résolvez-la depuis l'indicateur de synchronisation.`,
+            type: "system",
+            priority: "high",
+            sourceLabel: "Synchronisation",
+            entityType: entry.entity,
+            entityId: id,
+            createdBy: s?.userId ?? "system",
+          })
+          .catch(() => undefined);
+      },
+      // Resolution side-effects: the audit-logged resolution (with the
+      // before/after diff) + the second notification.
+      onConflictResolved: (entry, resolved, resolution) => {
+        const s = sessionRef.current;
+        const id = conflictEntityId(entry);
+        void reposRef.current.audit
+          .log({
+            action: "sync.conflict_resolved",
+            entityType: entry.entity,
+            entityId: id,
+            actorId: s?.userId ?? "system",
+            actorName: s?.displayName ?? "Système",
+            actorRole: s?.role ?? null,
+            tenantId: s?.tenantId ?? null,
+            diff: {
+              before: entry.payload,
+              after: resolution.payload,
+            },
+            note: `Conflit résolu par ${s?.displayName ?? "l'utilisateur"} (${resolution.chosenPaths.length} choix appliqué(s): ${resolution.chosenPaths.join(", ")}). La version fusionnée est reprogrammée pour synchronisation.`,
+          })
+          .catch(() => undefined);
+        void reposRef.current.notifications
+          .create({
+            title: "Conflit résolu",
+            body: `Le conflit sur ${entry.entity} ${id} a été résolu (${resolution.chosenPaths.length} champ(s) fusionné(s)). La version fusionnée sera synchronisée.`,
+            type: "system",
+            priority: "medium",
+            sourceLabel: "Synchronisation",
+            entityType: entry.entity,
+            entityId: id,
+            createdBy: s?.userId ?? "system",
+          })
+          .catch(() => undefined);
+      },
     });
   }, []);
 
@@ -118,6 +210,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       discardFailed: () => service.discardFailed(),
       clearQueue: () => service.clearQueue(),
       probeNow: () => getSyncServiceProbeNow(service),
+      listConflicts: () => service.listConflicts(),
+      resolveConflict: (entryId, choices) => service.resolveConflict(entryId, choices),
     }),
     [service],
   );
@@ -136,6 +230,21 @@ async function getSyncServiceProbeNow(service: SyncService): Promise<boolean> {
   // the settings UI for a manual "Check connection" button.
   const det = (service as unknown as { detector: { probe: () => Promise<boolean> } }).detector;
   return det.probe();
+}
+
+/** T-298: a human-stable entity id for audit/notification attribution. */
+function conflictEntityId(entry: Pick<SyncQueueEntry, "entity" | "payload">): string {
+  const p = entry.payload ?? {};
+  const id =
+    (p.id as string) ??
+    (p.code as string) ??
+    (p.parent_code as string) ??
+    (p.student_code as string) ??
+    (p.receiptNumber as string) ??
+    (p.payment_number as string) ??
+    (p.entry_number as string) ??
+    entry.entity;
+  return String(id);
 }
 
 export function useSyncStatus(): SyncStatusSnapshot | null {

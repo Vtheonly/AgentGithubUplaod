@@ -34,6 +34,8 @@ import { StatusChip } from "../../shared/ui/status-chip";
 import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { useToast } from "../../app/providers/toast-provider";
 import { formatDateTime } from "../../core/format/date";
+import { GitMerge } from "lucide-react";
+import { ConflictResolverModal } from "./conflict-resolver-modal";
 
 export function SyncTab() {
   const status = useSyncStatus();
@@ -45,6 +47,8 @@ export function SyncTab() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // T-298 (OFFLINE-400): the resolver entry opened from this tab.
+  const [resolverEntry, setResolverEntry] = useState<SyncQueueEntry | null>(null);
 
   // Refresh the queue entries whenever the snapshot changes.
   useEffect(() => {
@@ -52,8 +56,9 @@ export function SyncTab() {
     void (async () => {
       try {
         const all = await getSyncService().getStore().listAll();
-        // Sort: pending first, then failed, then synced, then skipped_mock.
-        const order: Record<string, number> = { pending: 0, failed: 1, synced: 2, skipped_mock: 3 };
+        // Sort: conflicts first (they block the push), then pending, then
+        // failed, then synced, then skipped_mock.
+        const order: Record<string, number> = { conflict: 0, pending: 1, failed: 2, synced: 3, skipped_mock: 4 };
         all.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
         setEntries(all.slice(0, 50));
       } catch (err) {
@@ -222,12 +227,51 @@ export function SyncTab() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-5 gap-3 mb-4">
             <QueueStat label="En attente" value={status.pendingCount} tone="warning" icon={<Clock className="h-3.5 w-3.5" />} />
             <QueueStat label="Synchronisées" value={status.syncedCount} tone="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
             <QueueStat label="Échecs" value={status.failedCount} tone="danger" icon={<AlertCircle className="h-3.5 w-3.5" />} />
+            <QueueStat label="Conflits" value={status.conflictCount} tone="danger" icon={<GitMerge className="h-3.5 w-3.5" />} />
             <QueueStat label="Exclues (mock)" value={status.skippedMockCount} tone="muted" icon={<Trash2 className="h-3.5 w-3.5" />} />
           </div>
+
+          {/* T-298 (OFFLINE-400): the 3-way conflict work list — parked
+              entries NEVER push until a human resolves them. */}
+          {status.conflictCount > 0 && (
+            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 mb-4 space-y-2" data-testid="sync-conflict-section">
+              <p className="text-xs text-status-danger flex items-start gap-2">
+                <GitMerge className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  {status.conflictCount} édition(s) concurrente(s) détectée(s) — un autre opérateur a modifié le serveur
+                  pendant que la version locale était en file d'attente. Aucune donnée n'est écrasée : résolvez chaque
+                  conflit champ par champ (votre version / serveur / valeur manuelle).
+                </span>
+              </p>
+              <div className="space-y-1.5">
+                {entries.filter((e) => e.status === "conflict").map((e) => (
+                  <div key={e.id} className="flex items-center gap-2 rounded border border-border bg-background p-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">
+                        <code className="font-mono text-[11px]">{e.entity}</code> · {e.operation}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground truncate font-mono">
+                        {e.conflict?.conflictPaths.join(", ")}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs border-status-danger/40 text-status-danger"
+                      onClick={() => setResolverEntry(e)}
+                    >
+                      <GitMerge className="h-3 w-3" />
+                      Résoudre
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* T-171 (SYNC-200): recovery actions for terminal-failed entries. */}
           {status.failedCount > 0 && (
@@ -335,6 +379,14 @@ export function SyncTab() {
         destructive
         onConfirm={handleDiscardFailed}
       />
+
+      {/* T-298 (OFFLINE-400): the mounted 3-way resolver. */}
+      <ConflictResolverModal
+        entry={resolverEntry}
+        onOpenChange={(open) => {
+          if (!open) setResolverEntry(null);
+        }}
+      />
     </div>
   );
 }
@@ -379,6 +431,7 @@ function statusLabel(s: SyncQueueEntry["status"]): string {
     synced: "Synchronisée",
     failed: "Échec",
     skipped_mock: "Exclue (mock)",
+    conflict: "Conflit",
   }[s];
 }
 
@@ -388,5 +441,6 @@ function statusTone(s: SyncQueueEntry["status"]): "success" | "warning" | "dange
     synced: "success",
     failed: "danger",
     skipped_mock: "neutral",
+    conflict: "danger",
   }[s] as "success" | "warning" | "danger" | "neutral";
 }
