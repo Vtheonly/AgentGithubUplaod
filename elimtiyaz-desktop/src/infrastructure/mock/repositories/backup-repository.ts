@@ -22,11 +22,12 @@ import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { SubjectBehavior } from "../subject-behavior";
-import type { BackupArchive, BackupRestoreResult } from "../../../domain/model/backup";
+import type { ArchiveInspection, BackupArchive, BackupRestoreResult } from "../../../domain/model/backup";
 import { BACKUP_RETENTION_DAYS } from "../../../domain/model/backup";
 import {
   runBackup as runBackupService,
   restore as restoreService,
+  inspectArchive as inspectArchiveService,
   purgeExpired as purgeExpiredService,
   deleteArchive as deleteArchiveService,
   deriveBackupKey,
@@ -134,6 +135,28 @@ export class MockBackupRepository implements BackupRepository {
       ));
     }
     return restoreService(this.repositoriesRef, archiveId, actorId, actorName);
+  }
+
+  /** T-300 (OFFLINE-400): the offline point-in-time selector's read path. */
+  async inspectArchive(archiveId: string): Promise<Result<ArchiveInspection>> {
+    const meta = this.archives$.get().find((a) => a.id === archiveId);
+    if (meta && meta.metadata?.parentCount === 0 && meta.sizeBytes === 0) {
+      // Seed archives carry no real ciphertext — report honestly instead of
+      // surfacing a decrypt failure.
+      return Ok({
+        archiveId,
+        snapshotAt: meta.createdAt,
+        tenantId: meta.tenantId,
+        counts: {
+          parents: 0, students: 0, payments: 0, installments: 0,
+          ledger: 0, expenses: 0, personnel: 0, workflows: 0,
+        },
+        integrity: "corrupted",
+        integrityNote:
+          "Archive de démonstration — aucun contenu réel (créez une sauvegarde via « Sauvegarder maintenant »).",
+      });
+    }
+    return inspectArchiveService(archiveId);
   }
 
   async deleteArchive(archiveId: string, actorId: string, actorName: string): Promise<Result<void>> {

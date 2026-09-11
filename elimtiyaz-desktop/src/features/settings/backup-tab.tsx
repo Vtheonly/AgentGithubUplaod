@@ -41,6 +41,8 @@ import {
 import {
   hasBackupPassphrase,
   setBackupPassphrase,
+  getRestoredFromMarker,
+  clearRestoredFromMarker,
 } from "../../infrastructure/backup/backup-service";
 import {
   readRunLog,
@@ -52,14 +54,16 @@ import { isSupabaseConfigured, getSupabaseClient } from "../../infrastructure/su
 import {
   BACKUP_STATUS_LABELS_FR,
   BACKUP_VAULT_LABELS_FR,
+  type ArchiveInspection,
   type BackupArchive,
+  type RestoredFromMarker,
 } from "../../domain/model/backup";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { EmptyState } from "../../shared/layout/state-views";
-import { ConfirmModal } from "../../shared/ui/unified-modal";
+import { ConfirmModal, UnifiedModal } from "../../shared/ui/unified-modal";
 import { cn } from "../../shared/ui/cn";
 
 /** Format a byte count as a human-readable string (KB / MB / GB). */
@@ -160,6 +164,13 @@ export function BackupTab() {
   const [restoring, setRestoring] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [purging, setPurging] = useState(false);
+  // T-300 (OFFLINE-400): the offline point-in-time inspector + the
+  // restored-from mode banner.
+  const [inspection, setInspection] = useState<ArchiveInspection | null>(null);
+  const [inspecting, setInspecting] = useState(false);
+  const [restoredFrom, setRestoredFrom] = useState<RestoredFromMarker | null>(() =>
+    getRestoredFromMarker(),
+  );
   // VAULT §13.02 / §13.06 — passphrase state + daemon run log + capacity.
   const [passphraseReady, setPassphraseReady] = useState(hasBackupPassphrase());
   const [passphraseInput, setPassphraseInput] = useState("");
@@ -221,9 +232,10 @@ export function BackupTab() {
     try {
       const r = await repos.backups.restore(pendingRestore.id, actorId, actorName);
       if (r.ok) {
+        setRestoredFrom(getRestoredFromMarker());
         toast.showSuccess(
-          "Restauration réussie",
-          `Archive restaurée en ${r.value.durationMs} ms (mock — aucune écriture en base).`,
+          "Restauration appliquée",
+          `État opérationnel remplacé en ${r.value.durationMs} ms. Les modifications suivantes sont mises en file et synchronisées à la reconnexion.`,
         );
       } else {
         toast.showError("Restauration échouée", r.error.userMessage);
@@ -232,6 +244,31 @@ export function BackupTab() {
       setRestoring(false);
       setPendingRestore(null);
     }
+  }
+
+  /** T-300: inspect an archive offline (decrypt + verify, NO restore). */
+  async function handleInspect(archive: BackupArchive) {
+    setInspecting(true);
+    try {
+      const r = await repos.backups.inspectArchive(archive.id);
+      if (r.ok) {
+        setInspection(r.value);
+      } else {
+        toast.showError("Inspection échouée", r.error.userMessage);
+      }
+    } finally {
+      setInspecting(false);
+    }
+  }
+
+  /** T-300: close the restored-from mode (clears the marker). */
+  function handleClearRestoredFrom() {
+    clearRestoredFromMarker();
+    setRestoredFrom(null);
+    toast.showInfo(
+      "Mode restauré fermé",
+      "L'indicateur de restauration a été effacé. La file de synchronisation conserve les modifications mises en attente.",
+    );
   }
 
   async function handleDelete() {
@@ -271,6 +308,32 @@ export function BackupTab() {
 
   return (
     <div className="space-y-4 max-w-5xl">
+      {/* T-300 (OFFLINE-400): the restored-from mode banner — the app runs
+          on the restored snapshot; post-restore mutations queue for the
+          reconnect drain. */}
+      {restoredFrom && (
+        <div
+          data-testid="restored-from-banner"
+          className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 flex items-start gap-2"
+        >
+          <Clock className="h-4 w-4 mt-0.5 text-status-warning shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              Mode restauré — {restoredFrom.archiveId}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              État opérationnel restauré le {formatDateTime(restoredFrom.restoredAt)} par {restoredFrom.restoredBy} ·{" "}
+              {restoredFrom.counts.parents} parents, {restoredFrom.counts.students} élèves, {restoredFrom.counts.payments} paiements.
+              Les modifications effectuées depuis sont mises en file et seront synchronisées à la reconnexion (sans perte).
+            </p>
+          </div>
+          {canManage && (
+            <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={handleClearRestoredFrom}>
+              Fermer le mode
+            </Button>
+          )}
+        </div>
+      )}
       {/* ---------------------------------------------------------------- */}
       {/*  Top card — last backup summary + run-now button                  */}
       {/* ---------------------------------------------------------------- */}
@@ -535,6 +598,17 @@ export function BackupTab() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              onClick={() => void handleInspect(archive)}
+                              disabled={inspecting}
+                              title="Inspecter le contenu (déchiffrer sans restaurer)"
+                              data-testid={`inspect-${archive.id}`}
+                            >
+                              <Download className="size-4" />
+                              Inspecter
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => setPendingRestore(archive)}
                               title="Restaurer cette archive"
                             >
@@ -621,11 +695,80 @@ export function BackupTab() {
         open={pendingRestore !== null}
         onOpenChange={(o) => !o && setPendingRestore(null)}
         title="Restaurer la sauvegarde ?"
-        description="Cette action remplacera les données actuelles. Irréversible."
+        description="Cette action remplacera l'état opérationnel local par le contenu de l'archive (les modifications suivantes seront mises en file et synchronisées à la reconnexion). Irréversible."
         confirmLabel={restoring ? "Restauration…" : "Restaurer"}
         destructive
         onConfirm={handleRestore}
       />
+
+      {/* T-300 (OFFLINE-400): the offline point-in-time inspector — decrypt +
+          verify + parse WITHOUT restoring; corrupted archives render the
+          honest status; a verified inspection offers the restore. */}
+      <UnifiedModal
+        open={inspection !== null}
+        onOpenChange={(o) => !o && setInspection(null)}
+        variant="dialog"
+        size="lg"
+        icon={Download}
+        iconTone="primary"
+        title={
+          <span className="flex items-center gap-2 text-base">
+            Inspection — <code className="font-mono text-primary text-sm">{inspection?.archiveId}</code>
+          </span>
+        }
+        description={
+          inspection
+            ? `Instantané du ${formatDateTime(inspection.snapshotAt)} — contenu déchiffré sans restauration.`
+            : undefined
+        }
+        hideCancel
+        submitLabel="Fermer"
+        onSubmit={() => setInspection(null)}
+      >
+        {inspection && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={inspection.integrity === "verified" ? "success" : "danger"}
+                data-testid="inspection-integrity"
+              >
+                {inspection.integrity === "verified" ? "Intégrité vérifiée" : "Corrompue"}
+              </Badge>
+              {inspection.integrityNote && (
+                <span className="text-xs text-muted-foreground">{inspection.integrityNote}</span>
+              )}
+            </div>
+            {inspection.integrity === "verified" && (
+              <>
+                <div className="grid grid-cols-4 gap-2">
+                  <InspectionCount label="Parents" value={inspection.counts.parents} />
+                  <InspectionCount label="Élèves" value={inspection.counts.students} />
+                  <InspectionCount label="Paiements" value={inspection.counts.payments} />
+                  <InspectionCount label="Tranches" value={inspection.counts.installments} />
+                  <InspectionCount label="Écritures" value={inspection.counts.ledger} />
+                  <InspectionCount label="Dépenses" value={inspection.counts.expenses} />
+                  <InspectionCount label="Personnel" value={inspection.counts.personnel} />
+                  <InspectionCount label="Workflows" value={inspection.counts.workflows} />
+                </div>
+                {canManage && (
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      const meta = archives.find((a) => a.id === inspection.archiveId);
+                      setInspection(null);
+                      if (meta) setPendingRestore(meta);
+                    }}
+                  >
+                    <Upload className="size-4" />
+                    Restaurer ce point-in-time
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </UnifiedModal>
       <ConfirmModal
         open={pendingDelete !== null}
         onOpenChange={(o) => !o && setPendingDelete(null)}
@@ -660,6 +803,16 @@ function SummaryItem({
         <span>{label}</span>
       </div>
       <div className="text-sm font-medium text-foreground">{value}</div>
+    </div>
+  );
+}
+
+/** T-300: one count tile inside the archive inspection modal. */
+function InspectionCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-2 text-center">
+      <div className="text-lg font-mono font-semibold text-foreground">{value}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
     </div>
   );
 }

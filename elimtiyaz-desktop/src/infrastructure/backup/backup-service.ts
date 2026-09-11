@@ -22,8 +22,11 @@ import type { Result } from "../../core/result";
 import { Ok, Err, tryResult } from "../../core/result";
 import { Errors } from "../../core/app-error";
 import type {
+  ArchiveInspection,
+  ArchiveSnapshotCounts,
   BackupArchive,
   BackupRestoreResult,
+  RestoredFromMarker,
 } from "../../domain/model/backup";
 import { BACKUP_RETENTION_DAYS } from "../../domain/model/backup";
 import { logger } from "../../core/logger";
@@ -43,9 +46,63 @@ import {
   deleteArchive as vaultDelete,
   purgeExpired as vaultPurge,
 } from "./indexed-db-vault";
+import { store as mockStore } from "../mock/repositories/mock-store";
 
 /** localStorage key for the backup passphrase (mock-only; production uses a secrets manager). */
 export const BACKUP_PASSPHRASE_KEY = "el-imtiyaz:backup-passphrase";
+
+/** T-300 (OFFLINE-400): the restored-from marker's localStorage key. */
+export const RESTORED_FROM_KEY = "el-imtiyaz:restored-from";
+
+/** Read the restored-from marker (null when not restored). */
+export function getRestoredFromMarker(): RestoredFromMarker | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(RESTORED_FROM_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as RestoredFromMarker;
+    if (typeof parsed.archiveId !== "string") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Clear the restored-from marker (explicit close of the restored mode). */
+export function clearRestoredFromMarker(): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(RESTORED_FROM_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Write the restored-from marker (internal — restore() sets it). */
+function setRestoredFromMarker(marker: RestoredFromMarker): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(RESTORED_FROM_KEY, JSON.stringify(marker));
+    }
+  } catch {
+    /* quota/private-mode — the in-session state still works. */
+  }
+}
+
+/** Count the rows of one snapshot collection (tolerant of absent keys). */
+function snapshotCounts(parsed: Record<string, unknown> | null): ArchiveSnapshotCounts {
+  const n = (key: string): number =>
+    Array.isArray(parsed?.[key]) ? (parsed[key] as unknown[]).length : 0;
+  return {
+    parents: n("parents"),
+    students: n("students"),
+    payments: n("payments"),
+    installments: n("installments"),
+    ledger: n("ledger"),
+    expenses: n("expenses"),
+    personnel: n("personnel"),
+    workflows: n("workflows"),
+  };
+}
 
 /** Salt for PBKDF2 — fixed per tenant in the mock; production would use a per-tenant secret. */
 const BACKUP_SALT = encodeUtf8("el-imtiyaz-backup-salt-v1");
@@ -141,7 +198,11 @@ function snapshotState(repos: Repositories): Record<string, unknown> {
  * Firefox 113+, Safari 16.4+).
  */
 async function gzipCompress(data: Uint8Array): Promise<Uint8Array> {
-  if (typeof CompressionStream === "undefined") {
+  if (
+    typeof CompressionStream === "undefined" ||
+    typeof Blob === "undefined" ||
+    typeof Blob.prototype.stream !== "function"
+  ) {
     logger.warn("backup.compress", {
       reason: "CompressionStream unavailable — storing uncompressed",
     });
@@ -154,7 +215,11 @@ async function gzipCompress(data: Uint8Array): Promise<Uint8Array> {
 
 /** Gzip-decompress a Uint8Array via the DecompressionStream API. */
 async function gzipDecompress(data: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") {
+  if (
+    typeof DecompressionStream === "undefined" ||
+    typeof Blob === "undefined" ||
+    typeof Blob.prototype.stream !== "function"
+  ) {
     return data;
   }
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip"));
@@ -265,14 +330,89 @@ export async function runBackup(
 }
 
 /**
- * Restore an archive by id.
+ * T-300 (OFFLINE-400): inspect an archive OFFLINE — decrypt + verify +
+ * parse WITHOUT restoring (the point-in-time selector's read path; no
+ * state mutation). A corrupted archive (GCM auth-tag or checksum failure)
+ * returns integrity: "corrupted" instead of a thrown error, so the
+ * selector renders the honest status.
+ */
+export async function inspectArchive(
+  archiveId: string,
+): Promise<Result<ArchiveInspection>> {
+  return tryResult(async () => {
+    const record = await getArchive(archiveId);
+    if (!record) {
+      throw Errors.notFound("BackupArchive", archiveId);
+    }
+
+    const key = await deriveBackupKey();
+
+    // 1. Decrypt — GCM auth-tag failure → the corrupted verdict.
+    let decrypted: Uint8Array;
+    try {
+      decrypted = await decrypt(record.ciphertext, record.iv, key);
+    } catch {
+      return {
+        archiveId,
+        snapshotAt: record.metadata.createdAt,
+        tenantId: record.metadata.tenantId,
+        counts: snapshotCounts(null),
+        integrity: "corrupted",
+        integrityNote: "Échec du déchiffrement (auth tag GCM invalide — archive potentiellement corrompue)",
+      } satisfies ArchiveInspection;
+    }
+
+    // 2. Checksum — bit-rot → the corrupted verdict.
+    const actualChecksum = await sha256(record.ciphertext);
+    if (actualChecksum !== record.metadata.checksum) {
+      return {
+        archiveId,
+        snapshotAt: record.metadata.createdAt,
+        tenantId: record.metadata.tenantId,
+        counts: snapshotCounts(null),
+        integrity: "corrupted",
+        integrityNote: "Checksum SHA-256 invalide — bit-rot détecté",
+      } satisfies ArchiveInspection;
+    }
+
+    // 3. Decompress + parse (no mutation — the inspection is read-only).
+    const decompressed = await gzipDecompress(decrypted);
+    let parsed: Record<string, unknown> | null = null;
+    try {
+      parsed = JSON.parse(decodeUtf8(decompressed)) as Record<string, unknown>;
+    } catch {
+      return {
+        archiveId,
+        snapshotAt: record.metadata.createdAt,
+        tenantId: record.metadata.tenantId,
+        counts: snapshotCounts(null),
+        integrity: "corrupted",
+        integrityNote: "JSON illisible après déchiffrement",
+      } satisfies ArchiveInspection;
+    }
+
+    return {
+      archiveId,
+      snapshotAt: typeof parsed?.snapshotAt === "string" ? parsed.snapshotAt : record.metadata.createdAt,
+      tenantId: record.metadata.tenantId,
+      counts: snapshotCounts(parsed),
+      integrity: "verified",
+      integrityNote: null,
+    } satisfies ArchiveInspection;
+  });
+}
+
+/**
+ * Restore an archive by id — T-300 (OFFLINE-400): the restore is REAL.
  *
- * Steps: fetch from vault → decrypt → decompress → verify checksum →
- * (mock) log what would be restored → audit log.
- *
- * In production (Supabase), the restore step would write the deserialized
- * records back to the database in a single transaction. The mock simply
- * logs the operation and writes an audit entry — no state is mutated.
+ * Steps: fetch from vault → decrypt (GCM) → verify checksum → parse →
+ * APPLY the snapshot to the local operational state (the offline
+ * operating mode — the mock layer the app runs on when Supabase is
+ * unreachable; every replaced stream notifies so open screens re-render
+ * on the restored point-in-time) → ARM post-restore sync staging (the
+ * EXISTING SyncService queue — mutations after this point enqueue and
+ * drain safely on reconnect; no parallel queue) → set the restored-from
+ * marker → audit log with the REAL before/after counts.
  */
 export async function restore(
   repos: Repositories,
@@ -334,7 +474,7 @@ export async function restore(
       );
     }
 
-    // 4. (Mock) Deserialize + log what would be restored.
+    // 4. Parse
     let parsed: Record<string, unknown> | null = null;
     try {
       parsed = JSON.parse(decodeUtf8(decompressed)) as Record<string, unknown>;
@@ -345,15 +485,61 @@ export async function restore(
         { cause: err },
       );
     }
-    const meta = parsed?.metadata as BackupArchive["metadata"] | undefined;
-    logger.info("backup.restore.parsed", {
+    if (!parsed || typeof parsed !== "object") {
+      throw Errors.validation(
+        "Restored snapshot is not an object",
+        "L'archive ne contient pas un instantané exploitable.",
+      );
+    }
+
+    // 5. T-300 — APPLY: the restored snapshot replaces the local
+    // operational state (the offline operating mode). The before/after
+    // counts ride the audit diff; every replaced stream notifies.
+    const beforeCounts = snapshotCounts({
+      parents: mockStore.parents,
+      students: mockStore.students,
+      payments: mockStore.payments,
+      installments: mockStore.installments,
+      ledger: mockStore.ledger,
+      expenses: mockStore.expenses,
+      personnel: mockStore.personnel,
+      workflows: mockStore.workflows,
+    });
+    mockStore.replaceOperationalState(parsed);
+    const afterCounts = snapshotCounts(parsed);
+
+    // 6. T-300 — ARM post-restore sync staging: mutations from here on
+    // enqueue into the EXISTING sync queue (never a parallel queue) and
+    // drain safely on reconnect (idempotent upsert RPCs — the Tier-4
+    // equivalence already pins this).
+    try {
+      const { getSyncService } = await import("../sync/sync-service");
+      const syncService = getSyncService();
+      mockStore.armStaging({
+        enqueue: (mutation) => {
+          // Real restored data — never the skipped_mock path.
+          void syncService.enqueue({ ...mutation, isMock: false });
+        },
+      });
+    } catch (err) {
+      // The SyncService singleton is not initialised in this environment
+      // (headless test without the provider) — the restore still applied;
+      // staging re-arms on the next restore with the service present.
+      logger.warn("backup.restore.staging_unavailable", {
+        reason: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    // 7. T-300 — the restored-from marker (the mode indicator until
+    // cleared by an explicit close or a successful reconnect-and-drain).
+    setRestoredFromMarker({
       archiveId,
-      parentCount: meta?.parentCount ?? (parsed?.parents as unknown[] | undefined)?.length ?? 0,
-      studentCount: meta?.studentCount ?? (parsed?.students as unknown[] | undefined)?.length ?? 0,
-      paymentCount: meta?.paymentCount ?? (parsed?.payments as unknown[] | undefined)?.length ?? 0,
+      restoredAt: new Date().toISOString(),
+      restoredBy: actorName,
+      counts: afterCounts,
     });
 
-    // 5. Audit
+    // 8. Audit — with the REAL applied counts.
     const durationMs = Date.now() - startedAt;
     await repos.audit.log({
       action: "backup.restore",
@@ -363,11 +549,13 @@ export async function restore(
       actorName,
       tenantId: record.metadata.tenantId,
       diff: {
-        before: null,
-        after: { durationMs, sizeBytes: record.metadata.sizeBytes },
+        before: beforeCounts,
+        after: { ...afterCounts, durationMs, sizeBytes: record.metadata.sizeBytes },
       },
-      note: "Restauration point-in-time (mock — aucune écriture en base)",
+      note: `Restauration point-in-time APPLIQUÉE: ${afterCounts.parents} parents, ${afterCounts.students} élèves, ${afterCounts.payments} paiements, ${afterCounts.ledger} écritures. Les modifications suivantes sont mises en file et synchronisées à la reconnexion.`,
     });
+
+    logger.info("backup.restore.success", { archiveId, durationMs, afterCounts });
 
     return {
       archiveId,

@@ -60,7 +60,7 @@ import type { LedgerEntry, ParentLedgerSummary } from "../model/ledger";
 import type { GradeLevel } from "../model/student";
 import type { TransportDestination } from "../model/parent";
 import type { Workflow, WorkflowRun, WorkflowServerDryRun, WorkflowTriggerType } from "../model/workflow";
-import type { BackupArchive, BackupRestoreResult } from "../model/backup";
+import type { ArchiveInspection, BackupArchive, BackupRestoreResult } from "../model/backup";
 import type { AIProviderConfig, AIProvider, AIRequest, AIResponse } from "../model/ai";
 import type { PromotionRepository } from "./academic-repository";
 
@@ -780,6 +780,12 @@ export interface BackupRepository {
   runBackup(actorId: string, actorName: string): Promise<Result<BackupArchive>>;
   /** Restore an archive by id: fetch → decrypt → verify checksum → audit log. */
   restore(archiveId: string, actorId: string, actorName: string): Promise<Result<BackupRestoreResult>>;
+  /**
+   * T-300 (OFFLINE-400): inspect an archive OFFLINE — decrypt + verify +
+   * parse WITHOUT restoring (the point-in-time selector's read path).
+   * Corrupted archives return integrity: "corrupted" (no thrown error).
+   */
+  inspectArchive(archiveId: string): Promise<Result<ArchiveInspection>>;
   /** Delete a single archive (manual). Writes an audit entry. */
   deleteArchive(archiveId: string, actorId: string, actorName: string): Promise<Result<void>>;
   /** Purge all archives whose retentionExpiresAt has passed. Returns the purged archives. */

@@ -187,15 +187,15 @@ export class MockStore {
   teacherSubjectAssignments$ = new SubjectBehavior<TeacherSubjectAssignment[]>(this.teacherSubjectAssignments);
   timetableEntries$ = new SubjectBehavior<TimetableEntry[]>(this.timetableEntries);
 
-  notifyParents() { this.parents$.set([...this.parents]); }
-  notifyStudents() { this.students$.set([...this.students]); }
-  notifyPayments() { this.payments$.set([...this.payments]); }
-  notifyInstallments() { this.installments$.set([...this.installments]); }
+  notifyParents() { this.stageAndNotify("parent", this.parents as unknown as StagedRow[], () => this.parents$.set([...this.parents])); }
+  notifyStudents() { this.stageAndNotify("student", this.students as unknown as StagedRow[], () => this.students$.set([...this.students])); }
+  notifyPayments() { this.stageAndNotify("payment", this.payments as unknown as StagedRow[], () => this.payments$.set([...this.payments])); }
+  notifyInstallments() { this.stageAndNotify("installment", this.installments as unknown as StagedRow[], () => this.installments$.set([...this.installments])); }
   notifyExpenses() { this.expenses$.set([...this.expenses]); }
   notifyPersonnel() { this.personnel$.set([...this.personnel]); }
   notifyAudit() { this.audit$.set([...this.audit]); }
   notifyNotifications() { this.notifications$.set([...this.notifications]); }
-  notifyLedger() { this.ledger$.set([...this.ledger]); }
+  notifyLedger() { this.stageAndNotify("ledger_entry", this.ledger as unknown as StagedRow[], () => this.ledger$.set([...this.ledger])); }
   notifyClassSubjects() { this.classSubjects$.set([...this.classSubjects]); }
   notifyAssessments() { this.assessments$.set([...this.assessments]); }
   notifyAttendance() { this.attendance$.set([...this.attendance]); }
@@ -219,6 +219,122 @@ export class MockStore {
   notifyTeachers() { this.teachers$.set([...this.teachers]); }
   notifyTeacherSubjectAssignments() { this.teacherSubjectAssignments$.set([...this.teacherSubjectAssignments]); }
   notifyTimetableEntries() { this.timetableEntries$.set([...this.timetableEntries]); }
+
+  // ── T-300 (OFFLINE-400): the offline operating mode ─────────────────
+  //
+  // RESTORE: replaceOperationalState swaps the snapshot collections in
+  // place and notifies every stream — the app instantly runs ON the
+  // restored archive (the mock layer IS the offline operating mode).
+  //
+  // STAGING: armStaging binds a sink (the EXISTING SyncService.enqueue —
+  // injected by the backup service; the store never imports the sync
+  // layer, no parallel queue). Once armed, the five staged collections'
+  // notify methods diff their rows against the last checkpoint and enqueue
+  // insert/update/delete entries for every post-restore mutation. The
+  // staged kinds are exactly the ones with a canonical push path in the
+  // dispatcher (defaultPushHandler): parent, student, payment, installment,
+  // ledger_entry. Expenses / personnel / workflows are restored but NOT
+  // staged (their push port does not exist yet — documented in the T-300
+  // registry entry; staging them would create permanently-failing entries,
+  // the exact noise class T-171 eliminated).
+
+  private stagingSink: StagingSink | null = null;
+  private stagingCheckpoints = new Map<string, Map<string, string>>();
+
+  get stagingArmed(): boolean {
+    return this.stagingSink !== null;
+  }
+
+  /** Replace the operational state from a restored backup snapshot. */
+  replaceOperationalState(snapshot: Record<string, unknown>): void {
+    const arr = (key: string): unknown[] =>
+      Array.isArray(snapshot[key]) ? (snapshot[key] as unknown[]) : [];
+    this.parents = arr("parents") as typeof this.parents;
+    this.students = arr("students") as typeof this.students;
+    this.payments = arr("payments") as typeof this.payments;
+    this.installments = arr("installments") as typeof this.installments;
+    this.ledger = arr("ledger") as typeof this.ledger;
+    this.expenses = arr("expenses") as typeof this.expenses;
+    this.personnel = arr("personnel") as typeof this.personnel;
+    this.workflows = arr("workflows") as typeof this.workflows;
+    // Notify every replaced stream so open screens re-render on the
+    // restored state.
+    this.parents$.set([...this.parents]);
+    this.students$.set([...this.students]);
+    this.payments$.set([...this.payments]);
+    this.installments$.set([...this.installments]);
+    this.ledger$.set([...this.ledger]);
+    this.expenses$.set([...this.expenses]);
+    this.personnel$.set([...this.personnel]);
+    this.workflows$.set([...this.workflows]);
+    // RBAC matrix overrides ride inside the snapshot (vault §13.01).
+    const rbac = snapshot["rbacMatrixOverrides"];
+    try {
+      if (rbac != null) {
+        localStorage.setItem("el-imtiyaz:rbac-matrix-overrides", JSON.stringify(rbac));
+      } else {
+        localStorage.removeItem("el-imtiyaz:rbac-matrix-overrides");
+      }
+    } catch {
+      /* localStorage unavailable — the data collections still restored. */
+    }
+  }
+
+  /** Arm post-restore mutation staging (idempotent re-arm refreshes checkpoints). */
+  armStaging(sink: StagingSink): void {
+    this.stagingSink = sink;
+    this.refreshCheckpoint("parent", this.parents as unknown as StagedRow[]);
+    this.refreshCheckpoint("student", this.students as unknown as StagedRow[]);
+    this.refreshCheckpoint("payment", this.payments as unknown as StagedRow[]);
+    this.refreshCheckpoint("installment", this.installments as unknown as StagedRow[]);
+    this.refreshCheckpoint("ledger_entry", this.ledger as unknown as StagedRow[]);
+    logger.info("store.staging.armed", { collections: 5 });
+  }
+
+  /** Disarm staging (tests / explicit mode close). */
+  disarmStaging(): void {
+    this.stagingSink = null;
+    this.stagingCheckpoints.clear();
+  }
+
+  private refreshCheckpoint(entity: string, rows: StagedRow[]): void {
+    const next = new Map<string, string>();
+    for (const row of rows) next.set(row.id, JSON.stringify(row));
+    this.stagingCheckpoints.set(entity, next);
+  }
+
+  /**
+   * Diff the collection against its staging checkpoint and enqueue the
+   * mutations, then notify the stream. Rows are keyed by `id`; a changed
+   * row is one whose serialized JSON differs (field-level drift inside a
+   * row is an update — the sync push sends the full row, matching the
+   * upsert-RPC contract).
+   */
+  private stageAndNotify(entity: StagedMutation["entity"], rows: StagedRow[], notify: () => void): void {
+    const sink = this.stagingSink;
+    if (!sink) {
+      notify();
+      return;
+    }
+    const prev = this.stagingCheckpoints.get(entity) ?? new Map<string, string>();
+    const next = new Map<string, string>();
+    for (const row of rows) next.set(row.id, JSON.stringify(row));
+    for (const [id, json] of next) {
+      const before = prev.get(id);
+      if (before === undefined) {
+        sink.enqueue({ entity, operation: "insert", payload: JSON.parse(json) as Record<string, unknown> });
+      } else if (before !== json) {
+        sink.enqueue({ entity, operation: "update", payload: JSON.parse(json) as Record<string, unknown> });
+      }
+    }
+    for (const id of prev.keys()) {
+      if (!next.has(id)) {
+        sink.enqueue({ entity, operation: "delete", payload: { id } });
+      }
+    }
+    this.stagingCheckpoints.set(entity, next);
+    notify();
+  }
 }
 
 /** Singleton store instance — shared by all mock repositories. */
@@ -281,4 +397,36 @@ export function appendAudit(input: AppendAuditInput): void {
  */
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  T-300 (OFFLINE-400) — the offline operating mode's staging types   */
+/* ------------------------------------------------------------------ */
+
+/** One staged mutation (the sync-queue entry shape — no parallel queue). */
+export interface StagedMutation {
+  readonly entity: "parent" | "student" | "payment" | "installment" | "ledger_entry";
+  readonly operation: "insert" | "update" | "delete";
+  readonly payload: Record<string, unknown>;
+}
+
+/**
+ * The staging sink — injected by the backup service at restore time (it
+ * binds the EXISTING SyncService.enqueue; the store never imports the
+ * sync layer). The five staged collections are exactly the ones with a
+ * canonical push path in the dispatcher (defaultPushHandler); expenses /
+ * personnel / workflows stay restored-but-not-staged until their ports
+ * land (documented in the T-300 registry entry — staging them would
+ * create permanently-failing entries, the exact noise class T-171
+ * eliminated).
+ */
+export interface StagingSink {
+  enqueue(mutation: StagedMutation): void;
+}
+
+/** Minimal id + row-shape access for the staged collections. */
+interface StagedRow {
+  readonly id: string;
+  [key: string]: unknown;
 }

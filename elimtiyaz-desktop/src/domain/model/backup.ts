@@ -72,3 +72,44 @@ export const BACKUP_GCM_IV_LENGTH = 12;
 
 /** localStorage key for the backup passphrase (mock — production uses a separate secrets manager). */
 export const BACKUP_PASSPHRASE_KEY = "el-imtiyaz:backup-passphrase";
+
+/* ------------------------------------------------------------------ */
+/*  T-300 (OFFLINE-400) — the offline archive browser + the            */
+/*  restored-from marker                                               */
+/* ------------------------------------------------------------------ */
+
+/** Per-collection row counts inside one archive's snapshot. */
+export interface ArchiveSnapshotCounts {
+  readonly parents: number;
+  readonly students: number;
+  readonly payments: number;
+  readonly installments: number;
+  readonly ledger: number;
+  readonly expenses: number;
+  readonly personnel: number;
+  readonly workflows: number;
+}
+
+/**
+ * The OFFLINE archive inspection — what the point-in-time selector reads:
+ * decrypt + verify + parse WITHOUT restoring (no state mutation). The
+ * integrity field tells corrupted archives apart from verifiable ones
+ * (GCM auth-tag / SHA-256 checksum failures), so the selector can render
+ * an honest "corrompu" state instead of a failed modal.
+ */
+export interface ArchiveInspection {
+  readonly archiveId: string;
+  readonly snapshotAt: string;
+  readonly tenantId: string;
+  readonly counts: ArchiveSnapshotCounts;
+  readonly integrity: "verified" | "corrupted";
+  readonly integrityNote: string | null;
+}
+
+/** The restored-from marker — the app's "restored-from" state until cleared. */
+export interface RestoredFromMarker {
+  readonly archiveId: string;
+  readonly restoredAt: string;
+  readonly restoredBy: string;
+  readonly counts: ArchiveSnapshotCounts;
+}
