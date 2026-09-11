@@ -1,15 +1,19 @@
 /**
- * T-296 (OFFLINE-400) — the desktop AuditDiffDrawer upgrade regression suite.
+ * T-296 (OFFLINE-400) + T-308 (48th session) — the desktop AuditDiffDrawer
+ * upgrade regression suite.
  *
- * Pins three things:
+ * Pins four things:
  *   1. Mapper parity: actor_role now round-trips through BOTH the Supabase
  *      mapper (mapAuditRow) and the mock appendAudit/log path — the role was
  *      silently dropped before (the drawer could never show it).
- *   2. Drawer rendering: the field-level red/green rows computed by the
- *      T-295 engine render per-field (old value red, new value green), with
- *      the actor attribution block (Name + Account ID + Role).
+ *   2. Drawer rendering: the field-level red/green TABLE (T-308) computed by
+ *      the T-295 engine renders per-field (old value RED struck in the Avant
+ *      column, new value GREEN bold in the Après column), with the actor
+ *      attribution block (Name + Account ID + Role).
  *   3. Honest empty state: an entry with a structurally-equal diff renders
  *      the "aucune différence" panel, not fabricated rows.
+ *   4. T-306 live refresh: an observeActivity event re-queries the list (the
+ *      realtime row-level-trigger rows appear without re-opening the tab).
  *
  * Run:
  *   npx vitest run src/tests/features/t-296-audit-diff-drawer.test.tsx
@@ -51,6 +55,13 @@ function makeEntry(overrides: Partial<AuditEntry> = {}): AuditEntry {
 
 const entries: AuditEntry[] = [makeEntry()];
 
+// T-306 (48th session): the live-refresh subscription target — the stub
+// mirrors the AttributedActivityStream contract (subscribe → unsubscribe).
+const activitySubscribers = new Set<(event: unknown) => void>();
+function emitActivityEvent(): void {
+  for (const fn of activitySubscribers) fn({ actorName: "Probe", action: "parent.update" });
+}
+
 // STABLE identity across renders — the tab's useEffect depends on
 // [filter, repos.audit]; a fresh object per render loops the effect forever.
 const auditStub = {
@@ -59,6 +70,14 @@ const auditStub = {
     value: { entries: [...entries], total: entries.length, hasMore: false },
   })),
   log: vi.fn(async () => ({ ok: true })),
+  observeActivity: vi.fn(() => ({
+    subscribe: (fn: (event: unknown) => void) => {
+      activitySubscribers.add(fn);
+      return () => {
+        activitySubscribers.delete(fn);
+      };
+    },
+  })),
 };
 
 vi.mock("../../app/providers/repository-provider", () => ({
@@ -260,6 +279,138 @@ describe("T-296 — AuditDiffDrawer field-level rendering", () => {
     row.closest("li")!.click();
     expect(await screen.findByText(/2 supprimés/)).toBeTruthy();
     entries[0] = makeEntry();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T-308 (48th session) — the red/green TABLE presentation.
+// ---------------------------------------------------------------------------
+
+describe("T-308 — the diff TABLE (old RED struck | new GREEN bold)", () => {
+  beforeEach(() => {
+    cleanup();
+    activitySubscribers.clear();
+    auditStub.query.mockImplementation(async () => ({
+      ok: true,
+      value: { entries: [...entries], total: entries.length, hasMore: false },
+    }));
+  });
+
+  function renderTab() {
+    return render(<AuditLogTab />);
+  }
+
+  async function openDrawer(action: string = entries[0].action) {
+    renderTab();
+    const row = await screen.findByText(action);
+    row.closest("li")!.click();
+    await screen.findByText("Yacine Benali");
+  }
+
+  it("renders a real <table> with the Champ / Avant / Après header row", async () => {
+    await openDrawer();
+    const table = screen.getByTestId("audit-diff-table") as HTMLTableElement;
+    expect(table.tagName).toBe("TABLE");
+    // Header labels — the owner's requested presentation.
+    expect(screen.getByText("Champ")).toBeTruthy();
+    expect(screen.getByText(/Avant \(ancien\)/i)).toBeTruthy();
+    expect(screen.getByText(/Après \(nouveau\)/i)).toBeTruthy();
+    // The changed fields render as table rows.
+    const trs = table.querySelectorAll("tbody tr");
+    expect(trs.length).toBe(2); // status + note
+  });
+
+  it("old values land in the Avant cell as RED struck <span>, new values in the Après cell as GREEN bold", async () => {
+    await openDrawer();
+    // Two changed fields (status + note) → two old-value spans; take the
+    // status one.
+    const oldVal = screen
+      .getAllByTestId("diff-old-value")
+      .find((el) => el.textContent === "pending")!;
+    expect(oldVal).toBeTruthy();
+    // RED + struck (the owner's explicit convention).
+    expect(oldVal.className).toContain("line-through");
+    expect(oldVal.className).toContain("text-status-danger");
+    // The cell is the table's second column.
+    expect(oldVal.closest("td")?.getAttribute("data-testid")).toBe("diff-old-cell");
+
+    const newVal = screen
+      .getAllByTestId("diff-new-value")
+      .find((el) => el.textContent === "paid")!;
+    expect(newVal).toBeTruthy();
+    // GREEN + bold.
+    expect(newVal.className).toContain("text-status-success");
+    expect(newVal.className).toContain("font-bold");
+    expect(newVal.closest("td")?.getAttribute("data-testid")).toBe("diff-new-cell");
+  });
+
+  it("an ADDED row shows an em-dash in the Avant cell (nothing before) and the green value in Après", async () => {
+    entries[0] = makeEntry({
+      action: "parent.create",
+      diff: JSON.stringify({
+        before: null,
+        after: { id: "par-007", firstName: "Amine" },
+      }),
+    });
+    await openDrawer("parent.create");
+    // One added row's old cell renders the em-dash placeholder.
+    const oldCells = screen.getAllByTestId("diff-old-cell");
+    expect(oldCells.length).toBe(2);
+    for (const cell of oldCells) {
+      expect(cell.querySelector("[data-testid='diff-old-value']")).toBeNull();
+    }
+    const newVal = screen.getAllByTestId("diff-new-value").find((el) => el.textContent === "Amine")!;
+    expect(newVal).toBeTruthy();
+    entries[0] = makeEntry();
+  });
+
+  it("the raw JSON forensic view is COLLAPSED by default (the table is the presentation)", async () => {
+    await openDrawer();
+    expect(screen.queryByText(/Vue JSON brute/)).toBeTruthy();
+    // The JSON payload itself is NOT rendered until expanded.
+    expect(screen.queryByText(/"status": "pending"/)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T-306 (48th session) — the live refresh over observeActivity.
+// ---------------------------------------------------------------------------
+
+describe("T-306 — realtime live refresh of the audit list", () => {
+  beforeEach(() => {
+    cleanup();
+    activitySubscribers.clear();
+  });
+
+  it("an observeActivity event re-queries the CURRENT filter", async () => {
+    auditStub.query.mockClear();
+    render(<AuditLogTab />);
+    await screen.findByText("payment.collect");
+    const queriesBefore = auditStub.query.mock.calls.length;
+    expect(queriesBefore).toBeGreaterThanOrEqual(1);
+    expect(auditStub.observeActivity).toHaveBeenCalled();
+
+    // A trigger-written audit row lands → the stream emits → the tab
+    // re-queries (the owner's "nothing changed in the audit" last mile).
+    emitActivityEvent();
+    await vi.waitFor(() => {
+      expect(auditStub.query.mock.calls.length).toBeGreaterThan(queriesBefore);
+    });
+  });
+
+  it("pausing the live feed unsubscribes (no re-query on events)", async () => {
+    auditStub.query.mockClear();
+    render(<AuditLogTab />);
+    await screen.findByText("payment.collect");
+    // Toggle the live pill OFF.
+    screen.getByTitle(/Flux temps réel actif/).click();
+    await vi.waitFor(() => {
+      expect(screen.getByText("En pause")).toBeTruthy();
+    });
+    const queriesBefore = auditStub.query.mock.calls.length;
+    emitActivityEvent();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(auditStub.query.mock.calls.length).toBe(queriesBefore);
   });
 });
 

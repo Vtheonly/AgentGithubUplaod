@@ -75,6 +75,7 @@ import {
 } from "./repositories/supabase-academic-repository";
 import { SupabaseAuditLogRepository } from "./repositories/supabase-audit-log-repository";
 import { SupabaseNotificationRepository } from "./repositories/supabase-notification-repository";
+import { SupabasePricingRepository } from "./repositories/supabase-pricing-repository";
 import {
   SupabasePersonnelRepository,
   SupabaseDepartmentRepository,
@@ -259,6 +260,19 @@ export function getSupabaseRepositories(): Repositories {
   // super_admin/warehouse_worker/buyer/manager.
   const inventory = new SupabaseInventoryRepository(client);
 
+  // T-307 (48th session, T-047 Group-B port #1 — PRICING FIRST): wire the
+  // Supabase-backed pricing repository onto the canonical 0006 tables
+  // (pricing_configs + grade_level_tuition + transport_destinations +
+  // complementary/additional services + discounts, monthly via the audited
+  // system_settings RPC). BEFORE this, the `pricing` slot stayed on
+  // mockRepositories even in Supabase mode — every price edit in the
+  // Settings → Tarification tab was in-memory only: never persisted, never
+  // audited (the owner's "I changed a name and a price, but nothing changed
+  // in the audit" report), wiped on restart. Price edits now UPDATE the
+  // canonical rows and the 0086 audit triggers (T-306) capture each mutation
+  // server-side with actor attribution.
+  const pricing = new SupabasePricingRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -297,6 +311,7 @@ export function getSupabaseRepositories(): Repositories {
     purchaseRequests, // T-238 — purchase_requests (T-047 port #7)
     deliveries, // T-239 — deliveries (T-047 port #8)
     inventory, // T-240 — inventory_items + transactions (T-047 port #9)
+    pricing, // T-307 — the canonical 0006 pricing tables (T-047 port #10)
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.

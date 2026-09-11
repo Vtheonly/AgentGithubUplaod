@@ -412,6 +412,8 @@ export function formatDiffValue(value: unknown): string {
 /** One flattened display row (leaf change with the full dotted path). */
 export interface DiffRow {
   readonly path: string;
+  /** Short field label (last path segment) — the T-308 table's Champ column. */
+  readonly field: string;
   readonly kind: FieldDiffKind;
   readonly oldDisplay: string;
   readonly newDisplay: string;
@@ -430,6 +432,7 @@ export function flattenDiffRows(nodes: readonly FieldDiffNode[]): DiffRow[] {
       if (node.kind !== null) {
         rows.push({
           path: node.path,
+          field: node.field || node.path,
           kind: node.kind,
           oldDisplay: formatDiffValue(node.oldValue),
           newDisplay: formatDiffValue(node.newValue),

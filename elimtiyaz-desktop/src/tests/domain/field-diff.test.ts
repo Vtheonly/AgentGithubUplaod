@@ -336,3 +336,26 @@ describe("audit-shaped integration vectors (the real before/after shapes)", () =
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// T-308 (48th session) — the DiffRow.field label (the table's Champ column).
+// ---------------------------------------------------------------------------
+
+describe("T-308 — DiffRow.field (short label for the table's Champ column)", () => {
+  it("field = last dot-segment of the path; falls back to the full path", () => {
+    const rows = flattenDiffRows(
+      computeFieldDiff(
+        { a: 1, nested: { deep: { leaf: "old" } }, arr: [0, 0] },
+        { a: 2, nested: { deep: { leaf: "new" } }, arr: [0, 1] },
+      ),
+    );
+    const byPath = new Map(rows.map((r) => [r.path, r]));
+    expect(byPath.get("a")!.field).toBe("a");
+    expect(byPath.get("nested.deep.leaf")!.field).toBe("leaf");
+    // Array elements carry the explicit "[N]" field label (the engine's
+    // diffArrays convention — mirrored by the Kotlin computed property).
+    expect(byPath.get("arr[1]")!.field).toBe("[1]");
+    // Root-level scalars: field === path.
+    expect(rows.every((r) => r.field.length > 0)).toBe(true);
+  });
+});

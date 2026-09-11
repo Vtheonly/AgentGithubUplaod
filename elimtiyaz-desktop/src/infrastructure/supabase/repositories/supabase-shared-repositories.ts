@@ -106,6 +106,10 @@ import {
 } from "../../../domain/calc/pricing";
 import { createChargeEntry } from "../../../domain/calc/ledger/entries";
 import { defaultPricingConfig } from "../../mock/pricing-seed";
+// T-307 (48th session): the billing WRITE path reads the DB pricing config —
+// the same builder the pricing repository uses (one derivation, no parallel
+// config source). Seed fallback only when the fetch fails.
+import { readDbPricingConfig } from "./supabase-pricing-repository";
 // T-018 (DRIFT-001): the deterministic identity-code generators moved to
 // their canonical home (core/format/id.ts, ADR-003). Re-exported here for
 // the existing import-path consumers.
@@ -812,10 +816,19 @@ export class SupabaseStudentRepository implements StudentRepository {
         const includeRegistration = input.includeRegistration ?? true;
         const [due1, due2, due3] = getOfficialTuitionDueDates(year);
         const at = new Date().toISOString();
+        // T-307: the generated charges come from the DB pricing config (the
+        // canonical 0006 grid), NOT the hardcoded mock seed — seed fallback
+        // only when the DB read fails (the honest degraded path).
+        let billingConfig = defaultPricingConfig;
+        try {
+          billingConfig = await readDbPricingConfig(this.client);
+        } catch {
+          /* keep the seed config — the charges still generate */
+        }
 
         for (let i = 0; i < created.length; i++) {
           const student = created[i];
-          const gross = tuitionForGradeLevel(defaultPricingConfig, student.gradeLevel).annualAmount;
+          const gross = tuitionForGradeLevel(billingConfig, student.gradeLevel).annualAmount;
           if (gross > 0) {
             const evals = evaluateAllSystemDiscounts({
               grossTuition: gross,
@@ -874,7 +887,7 @@ export class SupabaseStudentRepository implements StudentRepository {
             const destination =
               (student.transportTier as TransportDestination | null) ?? parent.transportDestination;
             if (destination) {
-              const tranches = transportTranchesForDestination(defaultPricingConfig, destination);
+              const tranches = transportTranchesForDestination(billingConfig, destination);
               for (let t = 0; t < tranches.length; t++) {
                 await ledgerRepo.append(
                   createChargeEntry({
@@ -908,14 +921,14 @@ export class SupabaseStudentRepository implements StudentRepository {
             }
           }
         }
-        if (includeRegistration && defaultPricingConfig.registrationFee > 0 && created.length > 0) {
+        if (includeRegistration && billingConfig.registrationFee > 0 && created.length > 0) {
           await ledgerRepo.append(
             createChargeEntry({
               tenantId: requireTenantId(),
               parentId: parent.id,
               studentId: null,
               category: "other",
-              amount: defaultPricingConfig.registrationFee,
+              amount: billingConfig.registrationFee,
               sourceType: "manual_entry",
               sourceId: `reg-${parent.id}-fee`,
               description: `Frais d'inscription ${year} (nouvelle famille)`,

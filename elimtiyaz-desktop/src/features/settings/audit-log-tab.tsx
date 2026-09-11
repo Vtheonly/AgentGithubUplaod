@@ -11,9 +11,9 @@
  * module (CRM, Financials, Academics, etc.) where each tab is a separate
  * component file.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Filter, ScrollText, ChevronDown, ChevronRight, User, IdCard, ShieldCheck } from "lucide-react";
+import { Download, Filter, ScrollText, ChevronDown, ChevronRight, User, IdCard, ShieldCheck, Radio } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import type { AuditEntry, AuditLogFilter } from "../../domain/model/audit";
 import {
@@ -52,6 +52,15 @@ export function AuditLogTab() {
   const [toInput, setToInput] = useState("");
   const [selected, setSelected] = useState<AuditEntry | null>(null);
   const [exporting, setExporting] = useState<"xlsx" | "csv" | null>(null);
+  // T-306 (48th session): live refresh — the realtime attributed-activity
+  // stream (T-299, already wired for the topbar toaster) re-queries the list
+  // so newly-triggered audit rows (row-level triggers on parents/students/
+  // pricing — migration 0086) appear WITHOUT the owner re-opening the tab.
+  // The owner's report was literally "nothing changed in the audit" — this
+  // closes the last mile between the DB write and the visible list.
+  const [live, setLive] = useState(true);
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
 
   useEffect(() => {
     void (async () => {
@@ -61,6 +70,18 @@ export function AuditLogTab() {
       setIsLoading(false);
     })();
   }, [filter, repos.audit]);
+
+  useEffect(() => {
+    if (!live) return;
+    const unsub = repos.audit.observeActivity().subscribe(() => {
+      // Re-run the CURRENT filter (no state churn — same object identity).
+      void (async () => {
+        const result = await repos.audit.query(filterRef.current);
+        if (result.ok) setEntries([...result.value.entries]);
+      })();
+    });
+    return unsub;
+  }, [live, repos.audit]);
 
   function applyFilters() {
     setFilter({
@@ -124,6 +145,20 @@ export function AuditLogTab() {
           <div>
             <CardTitle className="text-base flex items-center gap-2">
               <ScrollText className="h-4 w-4 text-primary" /> {t("settings.audit")}
+              <button
+                type="button"
+                onClick={() => setLive((v) => !v)}
+                title={live ? "Flux temps réel actif — la liste se rafraîchit à chaque événement" : "Flux temps réel en pause — cliquer pour réactiver"}
+                className={cn(
+                  "ml-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
+                  live
+                    ? "border-status-success/50 text-status-success bg-status-success/10"
+                    : "border-border text-muted-foreground bg-transparent",
+                )}
+              >
+                <Radio className="h-3 w-3" />
+                {live ? "En direct" : "En pause"}
+              </button>
             </CardTitle>
             <CardDescription>
               Traçabilité universelle — append-only, aucun contournement possible.
@@ -272,43 +307,69 @@ function parseAuditDiff(entry: AuditEntry | null): { before: unknown; after: unk
   }
 }
 
-/** One red/green field row. */
+/** One red/green field row — TABLE presentation (T-308, 48th session). */
 function DiffFieldRow({ row }: { row: DiffRow }) {
+  const tone =
+    row.kind === "added" ? "added" : row.kind === "removed" ? "removed" : "changed";
   return (
-    <div
+    <tr
+      data-testid="audit-diff-row"
       className={cn(
-        "flex items-start gap-2 px-2 py-1.5 rounded border-l-2",
-        row.kind === "added" && "border-status-success/60 bg-status-success/5",
-        row.kind === "removed" && "border-status-danger/60 bg-status-danger/5",
-        row.kind === "changed" && "border-primary/40 bg-primary/5",
+        "align-top",
+        tone === "added" && "bg-status-success/[0.04]",
+        tone === "removed" && "bg-status-danger/[0.04]",
+        tone === "changed" && "bg-primary/[0.03]",
+        "hover:bg-accent/10",
       )}
     >
-      <code className="text-[11px] font-mono text-muted-foreground min-w-[140px] max-w-[220px] truncate shrink-0 pt-0.5">
-        {row.path}
-      </code>
-      <div className="flex-1 flex items-center gap-1.5 flex-wrap min-w-0">
-        {row.kind !== "added" && (
+      <td className="px-2.5 py-2 border-r border-border/60">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className={cn(
+              "inline-block size-1.5 rounded-full shrink-0",
+              tone === "added" && "bg-status-success",
+              tone === "removed" && "bg-status-danger",
+              tone === "changed" && "bg-primary",
+            )}
+          />
+          <code
+            className="text-[11px] font-mono text-foreground/80 break-all"
+            data-testid="audit-diff-field"
+          >
+            {row.field || row.path}
+          </code>
+        </div>
+        {row.path !== row.field && row.path.includes(".") && (
+          <p className="text-[9px] font-mono text-muted-foreground/70 mt-0.5 pl-3 break-all">{row.path}</p>
+        )}
+      </td>
+      {/* OLD value — RED, struck through (the owner's explicit request). */}
+      <td className="px-2.5 py-2 border-r border-border/60" data-testid="diff-old-cell">
+        {row.kind === "added" ? (
+          <span className="text-[11px] text-muted-foreground/50 italic">—</span>
+        ) : (
           <span
             data-testid="diff-old-value"
-            className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-status-danger/10 text-status-danger line-through decoration-status-danger/60 break-words"
+            className="inline-block text-[11px] font-mono px-1.5 py-0.5 rounded bg-status-danger/10 text-status-danger line-through decoration-status-danger/70 break-words"
           >
             {row.oldDisplay}
           </span>
         )}
-        {row.kind === "changed" && <span className="text-[10px] text-muted-foreground">→</span>}
-        {row.kind !== "removed" && (
+      </td>
+      {/* NEW value — GREEN, bold. */}
+      <td className="px-2.5 py-2" data-testid="diff-new-cell">
+        {row.kind === "removed" ? (
+          <span className="text-[11px] text-muted-foreground/50 italic">—</span>
+        ) : (
           <span
             data-testid="diff-new-value"
-            className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-status-success/10 text-status-success break-words"
+            className="inline-block text-[11px] font-mono px-1.5 py-0.5 rounded bg-status-success/10 text-status-success font-bold break-words"
           >
             {row.newDisplay}
           </span>
         )}
-        <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 ml-auto shrink-0">
-          {row.kind === "added" ? "ajouté" : row.kind === "removed" ? "supprimé" : "modifié"}
-        </span>
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
 
@@ -401,12 +462,32 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
           )}
         </div>
 
-        {/* The red/green field rows */}
+        {/* The red/green TABLE (T-308 — the owner's explicit request: a
+            table with the old values in red and the new values in green) */}
         {rows.length > 0 ? (
-          <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
-            {rows.map((row) => (
-              <DiffFieldRow key={`${row.path}:${row.kind}`} row={row} />
-            ))}
+          <div className="rounded-md border border-border/70 overflow-hidden">
+            <div className="max-h-[40vh] overflow-y-auto">
+              <table data-testid="audit-diff-table" className="w-full text-xs border-collapse">
+                <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm">
+                  <tr className="text-left uppercase">
+                    <th className="px-2.5 py-2 text-[10px] font-semibold text-muted-foreground border-b border-border/70 border-r border-border/60 w-[28%]">
+                      Champ
+                    </th>
+                    <th className="px-2.5 py-2 text-[10px] font-semibold text-status-danger/90 border-b border-border/70 border-r border-border/60 w-[36%]">
+                      Avant (ancien)
+                    </th>
+                    <th className="px-2.5 py-2 text-[10px] font-semibold text-status-success/90 border-b border-border/70 w-[36%]">
+                      Après (nouveau)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {rows.map((row) => (
+                    <DiffFieldRow key={`${row.path}:${row.kind}`} row={row} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <div className="rounded border border-dashed p-4 text-center">
@@ -424,7 +505,7 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             {showRaw ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            JSON brut (forensique)
+            Vue JSON brute (expert — forensique)
           </button>
           {showRaw && (
             <div className="grid grid-cols-2 gap-3 mt-2">
