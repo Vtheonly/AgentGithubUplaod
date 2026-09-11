@@ -40,6 +40,42 @@ export interface BackupRunLogEntry {
 const RUN_LOG_KEY = "el-imtiyaz:backup-run-log";
 const RUN_LOG_LIMIT = 50;
 
+/** T-301 (OFFLINE-400): localStorage key for the persisted on/off preference. */
+const SCHEDULER_ENABLED_KEY = "el-imtiyaz:backup-scheduler-enabled";
+
+/**
+ * T-301 (OFFLINE-400): is the automatic scheduler enabled? DEFAULT ON —
+ * preserves the pre-T-301 unconditional arming (vault §13.01's 24h daemon).
+ */
+export function isSchedulerEnabled(): boolean {
+  try {
+    if (typeof localStorage === "undefined") return true;
+    const raw = localStorage.getItem(SCHEDULER_ENABLED_KEY);
+    // Absent key = the default (ON). Only an explicit "false" disables.
+    return raw !== "false";
+  } catch {
+    return true;
+  }
+}
+
+/** T-301: persist the on/off preference (read at scheduler start AND at every tick). */
+export function setSchedulerEnabled(enabled: boolean): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(SCHEDULER_ENABLED_KEY, enabled ? "true" : "false");
+    }
+  } catch {
+    /* best-effort persistence */
+  }
+}
+
+/** T-301: the next scheduled run moment (the toggle card's "prochaine exécution
+ * à ~02:00" display; dev mode ticks every 5 minutes instead). */
+export function nextScheduledRunAt(now: Date = new Date()): Date {
+  const isDev = readDevFlag();
+  return new Date(now.getTime() + (isDev ? DEV_TICK_MS : msUntilNextScheduledRun(now)));
+}
+
 /** Dev tick: 5 minutes (so iteration is observable without waiting a day). */
 const DEV_TICK_MS = 5 * 60 * 1000;
 
@@ -136,12 +172,25 @@ export function startBackupScheduler(
   logger.info("backup.scheduler.start", {
     mode: isDev ? "dev" : "prod",
     scheduledHour: SCHEDULE_HOUR,
+    // T-301: the persisted preference rides the log line (a disabled
+    // scheduler starts in DORMANT mode — the timer keeps cycling so a
+    // runtime re-enable resumes instantly, but NO backup ever runs while
+    // disabled; manual backups are unaffected).
+    enabled: isSchedulerEnabled(),
   });
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
 
   async function runTick(trigger: "scheduled" | "manual") {
+    // T-301 (OFFLINE-400): the persisted preference gates every SCHEDULED
+    // tick (manual runs never pass through here). A disabled scheduler
+    // no-ops the tick and keeps idling — flipping the toggle back on
+    // resumes at the next tick without an app restart.
+    if (trigger === "scheduled" && !isSchedulerEnabled()) {
+      logger.info("backup.scheduler.skipped_disabled", { trigger });
+      return;
+    }
     const actor = getActor();
     const actorId = actor?.id ?? "system";
     const actorName = actor?.name ?? "Système (scheduler)";

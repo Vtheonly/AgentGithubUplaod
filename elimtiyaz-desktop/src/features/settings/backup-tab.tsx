@@ -47,6 +47,9 @@ import {
 import {
   readRunLog,
   checkVaultCapacity,
+  isSchedulerEnabled,
+  setSchedulerEnabled,
+  nextScheduledRunAt,
   type BackupRunLogEntry,
   type StorageCapacity,
 } from "../../infrastructure/backup/backup-scheduler";
@@ -61,6 +64,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
+import { Switch } from "../../shared/ui/switch";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { EmptyState } from "../../shared/layout/state-views";
 import { ConfirmModal, UnifiedModal } from "../../shared/ui/unified-modal";
@@ -176,6 +180,8 @@ export function BackupTab() {
   const [passphraseInput, setPassphraseInput] = useState("");
   const [runLog, setRunLog] = useState<BackupRunLogEntry[]>([]);
   const [capacity, setCapacity] = useState<StorageCapacity | null>(null);
+  // T-301 (OFFLINE-400): the persisted scheduler on/off preference.
+  const [schedulerEnabled, setSchedulerEnabledState] = useState(() => isSchedulerEnabled());
 
   useEffect(() => {
     setRunLog(readRunLog());
@@ -269,6 +275,23 @@ export function BackupTab() {
       "Mode restauré fermé",
       "L'indicateur de restauration a été effacé. La file de synchronisation conserve les modifications mises en attente.",
     );
+  }
+
+  /** T-301: toggle the automatic scheduler (persisted; read at every tick). */
+  function handleToggleScheduler(enabled: boolean) {
+    setSchedulerEnabled(enabled);
+    setSchedulerEnabledState(enabled);
+    if (enabled) {
+      toast.showSuccess(
+        "Planification activée",
+        `La sauvegarde automatique reprend — prochaine exécution ${formatDateTime(nextScheduledRunAt())}.`,
+      );
+    } else {
+      toast.showWarning(
+        "Planification désactivée",
+        "Aucune sauvegarde automatique ne s'exécutera. Les sauvegardes manuelles restent disponibles.",
+      );
+    }
   }
 
   async function handleDelete() {
@@ -401,6 +424,54 @@ export function BackupTab() {
             <p className="text-sm text-muted-foreground">
               Aucune sauvegarde n'a encore été effectuée. Cliquez sur « Sauvegarder maintenant »
               pour créer la première.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ---------------------------------------------------------------- */}
+      {/*  T-301 (OFFLINE-400) — the toggleable automatic scheduler           */}
+      {/* ---------------------------------------------------------------- */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="size-5 text-primary" />
+                Planification automatique
+              </CardTitle>
+              <CardDescription>
+                Sauvegarde quotidienne à ~02:00 (coffre §13.01). Le réglage est persistant — la désactivation ne touche ni les sauvegardes manuelles ni les restaurations.
+              </CardDescription>
+            </div>
+            {canManage && (
+              <Switch
+                checked={schedulerEnabled}
+                onCheckedChange={handleToggleScheduler}
+                aria-label="Activer la planification automatique"
+                data-testid="backup-scheduler-toggle"
+              />
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Clock className="size-4" />
+              <span>
+                Prochaine exécution planifiée :{" "}
+                <span className="font-medium text-foreground">
+                  {schedulerEnabled ? formatDateTime(nextScheduledRunAt()) : "—"}
+                </span>
+              </span>
+            </div>
+            <Badge variant={schedulerEnabled ? "success" : "neutral"} data-testid="backup-scheduler-state">
+              {schedulerEnabled ? "Active" : "Désactivée"}
+            </Badge>
+          </div>
+          {!schedulerEnabled && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Le planificateur est en veille — aucune sauvegarde automatique ne s'exécutera tant que le réglage reste désactivé. L'historique des exécutions et la restauration point-in-time restent opérationnels.
             </p>
           )}
         </CardContent>
