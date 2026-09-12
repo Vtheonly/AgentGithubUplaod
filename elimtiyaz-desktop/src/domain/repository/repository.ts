@@ -59,7 +59,7 @@ import type { PricingConfig, PricingEntry, PricingCategory, DiscountType, Discou
 import type { LedgerEntry, ParentLedgerSummary } from "../model/ledger";
 import type { GradeLevel } from "../model/student";
 import type { TransportDestination } from "../model/parent";
-import type { Workflow, WorkflowRun, WorkflowServerDryRun, WorkflowTriggerType } from "../model/workflow";
+import type { Workflow, WorkflowRun, WorkflowServerDryRun, WorkflowTriggerType, WorkflowNodeSubtype } from "../model/workflow";
 import type { ArchiveInspection, BackupArchive, BackupRestoreResult } from "../model/backup";
 import type { AIProviderConfig, AIProvider, AIRequest, AIResponse } from "../model/ai";
 import type { PromotionRepository } from "./academic-repository";
@@ -728,8 +728,42 @@ export interface WorkflowRepository {
   ): Promise<Result<Workflow>>;
   deleteWorkflow(id: string): Promise<Result<void>>;
   deploy(id: string, deployedBy: string): Promise<Result<Workflow>>;
-  /** Execute a workflow manually (plan §10.06 — manual triggers). Returns the run record. */
-  execute(id: string, actorId: string, actorName: string): Promise<Result<WorkflowRun>>;
+  /**
+   * Execute a workflow manually (plan §10.06 — manual triggers). Returns
+   * the run record.
+   *
+   * T-314: executions now produce REAL side effects (tasks, notifications,
+   * parent restriction, audit). The optional `options` carry the Test
+   * Studio's real-entity context / target parent / event trigger subtype —
+   * the legacy 3-argument call keeps working (default context).
+   */
+  execute(
+    id: string,
+    actorId: string,
+    actorName: string,
+    options?: {
+      /** Execution context (Test Studio real-entity run; default when absent). */
+      context?: Record<string, unknown>;
+      /** The parent the run targets (restrict_account / recipients). */
+      targetParentId?: string | null;
+      /** Which trigger fired (event bridge; recorded in the audit trail). */
+      triggerSubtype?: WorkflowNodeSubtype;
+    },
+  ): Promise<Result<WorkflowRun>>;
+  /**
+   * T-314 (event bridge): fire every DEPLOYED workflow whose trigger nodes
+   * include `triggerSubtype`, with a real-entity context and REAL side
+   * effects. Called by the school-domain repositories (roll call, payment
+   * collection, enrollment). Optional — implementations without event
+   * bridging (tests) may omit it; callers must feature-detect.
+   */
+  dispatchTrigger?(input: {
+    triggerSubtype: WorkflowNodeSubtype;
+    context: Record<string, unknown>;
+    actorId: string;
+    actorName: string;
+    targetParentId?: string | null;
+  }): Promise<Result<readonly WorkflowRun[]>>;
   /**
    * T-230: server dry-run (the EF's dry_run mode — real entity context,
    * simulated actions, zero side effects, no run row). Mock: the local

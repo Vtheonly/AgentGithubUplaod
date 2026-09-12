@@ -73,6 +73,18 @@ export interface WorkflowEdge {
   readonly id: string;
   readonly from: string; // node id
   readonly to: string; // node id
+  /**
+   * T-314 (IF/ELSE binary branching): the OUTPUT PORT this edge leaves
+   * from, meaningful only on edges whose `from` node is a condition:
+   *   - "true"  → the green VRAI/OUI port (open iff the condition passes);
+   *   - "false" → the red FAUX/NON port (open iff the condition fails).
+   *
+   * Absent (undefined) → LEGACY GATE semantics: the edge is open iff the
+   * condition passes (a failing condition closes every unlabeled edge).
+   * Both engines (domain dry-run + the workflow-execute EF engine) must
+   * agree on this contract — the parity tests pin it.
+   */
+  readonly sourceHandle?: "true" | "false";
 }
 
 export interface Workflow {
@@ -327,3 +339,16 @@ export const NODE_SUBTYPES_BY_TYPE: Record<WorkflowNodeType, WorkflowNodeSubtype
   delay: ["wait_duration"],
   transform: ["database_query", "extract_field"],
 };
+
+/**
+ * T-314 (palette cleanup): low-level developer nodes hidden from the
+ * standard school-admin palette. They stay REGISTERED in the model + the
+ * SQL validator (0081) so legacy graphs (seed workflows, existing rows)
+ * keep validating, executing and rendering — they are simply no longer
+ * OFFERED to admin authors from the palette. The palette component and
+ * its guard test consume this set.
+ */
+export const ADMIN_PALETTE_HIDDEN_SUBTYPES: ReadonlySet<WorkflowNodeSubtype> = new Set([
+  "database_query",
+  "extract_field",
+]);

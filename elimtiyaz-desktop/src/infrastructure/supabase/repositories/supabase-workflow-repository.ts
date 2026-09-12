@@ -67,6 +67,7 @@ import type {
   WorkflowRun,
   WorkflowServerDryRun,
   WorkflowTriggerType,
+  WorkflowNodeSubtype,
 } from "../../../domain/model/workflow";
 import { detectCycle } from "../../../domain/kahn";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
@@ -81,6 +82,8 @@ interface StoredEdge {
   id: string;
   source: string;
   target: string;
+  /** T-314: the condition output port ("true" | "false") — optional. */
+  source_handle?: "true" | "false";
 }
 
 interface StoredDefinition {
@@ -144,6 +147,9 @@ function mapRow(row: WorkflowTableRow): Workflow {
     id: String(e.id ?? `${e.source}-${e.target}`),
     from: e.source,
     to: e.target,
+    ...(e.source_handle === "true" || e.source_handle === "false"
+      ? { sourceHandle: e.source_handle }
+      : {}),
   }));
   return {
     id: row.id,
@@ -173,7 +179,12 @@ function toDefinition(nodes: readonly WorkflowNode[], edges: readonly WorkflowEd
       position: n.position,
       config: n.config,
     })),
-    edges: edges.map((e) => ({ id: e.id, source: e.from, target: e.to })),
+    edges: edges.map((e) => ({
+      id: e.id,
+      source: e.from,
+      target: e.to,
+      ...(e.sourceHandle ? { source_handle: e.sourceHandle } : {}),
+    })),
   };
 }
 
@@ -358,13 +369,33 @@ export class SupabaseWorkflowRepository implements WorkflowRepository {
   /**
    * Execute a workflow manually — the CANONICAL server path (ADR-002):
    * invokes the `workflow-execute` EF which enforces the published-status
-   * gate, the daily cap, cycle detection, node execution and writes the
-   * `workflow_runs` row + audit entry. The desktop then reads the run back
+   * gate, the daily cap, cycle detection, node execution (REAL side
+   * effects server-side: tasks, notifications, restrictions, audit) and
+   * writes the `workflow_runs` row. The desktop then reads the run back
    * from the table (full node_results) rather than trusting the summary.
+   *
+   * T-314: the optional `options` carry the Test Studio's real-entity
+   * context / target parent / trigger subtype — forwarded to the EF body
+   * (`context` is merged UNDER the real entity context server-side).
    */
-  async execute(id: string, actorId: string, actorName: string): Promise<Result<WorkflowRun>> {
+  async execute(
+    id: string,
+    actorId: string,
+    actorName: string,
+    options: {
+      context?: Record<string, unknown>;
+      targetParentId?: string | null;
+      triggerSubtype?: WorkflowNodeSubtype;
+    } = {},
+  ): Promise<Result<WorkflowRun>> {
     const { data, error } = await this.client.functions.invoke("workflow-execute", {
-      body: { workflow_id: id, trigger_type: "manual_run", actor_note: `Desktop manual run by ${actorName}` },
+      body: {
+        workflow_id: id,
+        trigger_type: options.triggerSubtype ?? "manual_run",
+        actor_note: `Desktop run by ${actorName}${options.targetParentId ? ` (parent ${options.targetParentId})` : ""}`,
+        ...(options.targetParentId ? { parent_id: options.targetParentId } : {}),
+        ...(options.context ? { context: options.context } : {}),
+      },
     });
     const payload = (data ?? null) as
       | { run_id?: string; status?: string; duration_ms?: number; error_message?: string; code?: string; message?: string }
@@ -398,6 +429,39 @@ export class SupabaseWorkflowRepository implements WorkflowRepository {
       actorName,
       nodeResults: [],
     });
+  }
+
+  /**
+   * T-314 (event bridge): fire every DEPLOYED workflow whose trigger nodes
+   * match the subtype — each through the canonical `workflow-execute` EF
+   * (server-side real entity context + real side effects). Fail-safe per
+   * workflow: errors are collected, never thrown.
+   */
+  async dispatchTrigger(input: {
+    triggerSubtype: WorkflowNodeSubtype;
+    context: Record<string, unknown>;
+    actorId: string;
+    actorName: string;
+    targetParentId?: string | null;
+  }): Promise<Result<readonly WorkflowRun[]>> {
+    await this.refresh();
+    const deployed = this.cache
+      .get()
+      .filter(
+        (wf) =>
+          wf.status === "deployed" &&
+          wf.nodes.some((n) => n.type === "trigger" && n.subtype === input.triggerSubtype),
+      );
+    const runs: WorkflowRun[] = [];
+    for (const wf of deployed) {
+      const r = await this.execute(wf.id, input.actorId, input.actorName, {
+        context: input.context,
+        targetParentId: input.targetParentId ?? null,
+        triggerSubtype: input.triggerSubtype,
+      });
+      if (r.ok) runs.push(r.value);
+    }
+    return Ok(runs);
   }
 
   /**

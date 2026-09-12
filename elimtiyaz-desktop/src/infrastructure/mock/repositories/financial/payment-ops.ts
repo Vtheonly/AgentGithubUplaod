@@ -34,6 +34,10 @@ import { allocatePaymentAcrossInstallments } from "./installment-ops";
 import { revertPaymentAllocation } from "../../../../domain/calc/payment/lifo-reversal";
 import { clearPendingAllocation } from "../../../../domain/calc/payment/clearance";
 import type { FinancialOpsCtx } from "./types";
+import {
+  dispatchPaymentRecorded,
+  dispatchPaymentClearedOrBounced,
+} from "../workflow-event-bridge";
 
 /**
  * Collect a payment and atomically:
@@ -239,6 +243,17 @@ export async function collectPayment(
       },
     },
     note: `Encaissement ${payment.receiptNumber} — ${payment.method} (${payment.category}) ${payment.amount.toLocaleString("fr-FR")} DZD [${payment.status}]`,
+  });
+  // T-314 (event bridge): fire the DEPLOYED `payment_recorded` workflows
+  // with a REAL entity context (parent + ledger debt + students). Fail-
+  // safe: workflow errors never break the collection.
+  void dispatchPaymentRecorded(input.parentId, {
+    id: payment.id,
+    amount: payment.amount,
+    method: payment.method,
+    category: payment.category,
+  }, collectedBy).catch(() => {
+    /* the bridge audit-logs its own failures */
   });
   return Ok(payment);
 }
@@ -510,6 +525,16 @@ export async function markPaymentCleared(
     },
     note: `Compensation bancaire confirmée pour ${before.receiptNumber} — ${before.method} de ${before.amount.toLocaleString("fr-FR")} DZD`,
   });
+  // T-314 (event bridge): fire the DEPLOYED `payment_cleared_or_bounced`
+  // workflows (cleared outcome). Fail-safe by contract.
+  void dispatchPaymentClearedOrBounced(before.parentId, {
+    id: before.id,
+    amount: before.amount,
+    method: before.method,
+    outcome: "cleared",
+  }, actorId).catch(() => {
+    /* the bridge audit-logs its own failures */
+  });
   return Ok(after);
 }
 
@@ -656,6 +681,17 @@ export async function markPaymentBounced(
       note: `Rejet bancaire ${before.receiptNumber} — motif : ${trimmedReason} (aucune écriture de ledger correspondante)`,
     });
   }
+  // T-314 (event bridge): fire the DEPLOYED `payment_cleared_or_bounced`
+  // workflows (bounced outcome). Fail-safe by contract.
+  void dispatchPaymentClearedOrBounced(before.parentId, {
+    id: before.id,
+    amount: before.amount,
+    method: before.method,
+    outcome: "bounced",
+    reason: trimmedReason,
+  }, actorId).catch(() => {
+    /* the bridge audit-logs its own failures */
+  });
   return Ok(after);
 }
 

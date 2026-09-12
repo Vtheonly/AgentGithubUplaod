@@ -60,6 +60,14 @@ export interface EngineEdge {
   id?: string;
   source: string;
   target: string;
+  /**
+   * T-314 (IF/ELSE binary branching): the output port this edge leaves
+   * from — "true" (green VRAI port, open iff the condition passes) or
+   * "false" (red FAUX port, open iff it fails). Absent → legacy GATE
+   * semantics (open iff the condition passes). Parity contract with the
+   * desktop dry-run engine (workflow-engine equivalence tests).
+   */
+  source_handle?: string;
 }
 
 export interface EngineDefinition {
@@ -205,6 +213,20 @@ export function validateWorkflowDefinition(
         errors.push(`duplicate edge between "${source}" and "${target}"`);
       } else {
         seenPairs.add(pair);
+      }
+    }
+    // T-314: source_handle must be "true" or "false" when present, and
+    // only edges LEAVING a condition node may carry it.
+    if (edge.source_handle !== undefined) {
+      const handle = edge.source_handle;
+      const edgeName2 = edgeName;
+      if (handle !== "true" && handle !== "false") {
+        errors.push(`edge "${edgeName2}": invalid source_handle '${String(handle)}' (expected "true" | "false")`);
+      } else {
+        const sourceNode = nodes.find((n) => n?.id === source);
+        if (sourceNode && sourceNode.type !== "condition") {
+          warnings.push(`edge "${edgeName2}": source_handle is only meaningful from a condition node (source '${source}' is ${sourceNode.type}) — ignored at runtime`);
+        }
       }
     }
   }
@@ -539,6 +561,43 @@ function edgeKey(from: string, to: string): string {
   return `${from}->${to}`;
 }
 
+/**
+ * T-314 (IF/ELSE binary branching): handle-aware output routing shared by
+ * every condition flavor — the EXACT mirror of dry-run.routeConditionOutputs
+ * (parity is pinned by the workflow-engine equivalence tests).
+ *
+ *   - `source_handle: "true"`  → open iff `passed`  (green VRAI port);
+ *   - `source_handle: "false"` → open iff `!passed` (red FAUX port);
+ *   - unlabeled edges          → legacy GATE rule (open iff `passed`).
+ */
+function routeConditionOutputs(
+  targets: readonly EngineEdge[],
+  passed: boolean,
+  openEdges: Set<string>,
+  takenEdgeKeys: string[],
+): void {
+  for (const e of targets) {
+    const k = edgeKey(e.source, e.target);
+    if (e.source_handle === "false") {
+      if (passed) {
+        openEdges.delete(k);
+      } else if (openEdges.has(k)) {
+        takenEdgeKeys.push(k);
+      }
+    } else if (e.source_handle === "true") {
+      if (passed) {
+        if (openEdges.has(k)) takenEdgeKeys.push(k);
+      } else {
+        openEdges.delete(k);
+      }
+    } else if (passed) {
+      if (openEdges.has(k)) takenEdgeKeys.push(k);
+    } else {
+      openEdges.delete(k);
+    }
+  }
+}
+
 function readFiniteNumber(raw: unknown): number | undefined {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw === "string" && raw.trim() !== "" && Number.isFinite(Number(raw))) return Number(raw);
@@ -799,20 +858,21 @@ export async function executeWorkflowDefinition(
         const verdict = evaluateConditionTree(tree, merged);
         warnings.push(...verdict.warnings);
         keepOpen = verdict.passed;
+        const targets = outgoing.get(node.id) ?? [];
+        const hasLabeled = targets.some((e) => e.source_handle === "true" || e.source_handle === "false");
         output = {
           condition_result: verdict.passed,
           warnings: verdict.warnings,
           evaluated: node.subtype ?? "condition",
+          // T-314: which OUTPUT PORT the execution left through ("true" /
+          // "false" for IF/ELSE graphs, "gate" for legacy single-output).
+          branch: hasLabeled ? (verdict.passed ? "true" : "false") : "gate",
         };
       }
 
-      if (!keepOpen) {
-        for (const e of outgoing.get(node.id) ?? []) openEdges.delete(edgeKey(e.source, e.target));
-      } else {
-        for (const e of outgoing.get(node.id) ?? []) {
-          if (openEdges.has(edgeKey(e.source, e.target))) takenEdgeKeys.push(edgeKey(e.source, e.target));
-        }
-      }
+      // T-314: handle-aware output routing — labeled edges follow the
+      // VRAI/FAUX ports; unlabeled edges keep the legacy GATE rule.
+      routeConditionOutputs(outgoing.get(node.id) ?? [], keepOpen, openEdges, takenEdgeKeys);
       record(result(node, "succeeded", nodeStartIso, nodeStartPerf, clock, output, error));
       continue;
     }

@@ -32,6 +32,7 @@ import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 import { ACADEMIC_YEAR } from "../seed-data";
 import { currentTermWindow, isDateInCurrentTerm } from "../../../domain/calc/academics/terms";
 import { logAutoReleveEntry } from "./auto-releve";
+import { dispatchAbsenceLimitExceeded } from "./workflow-event-bridge";
 import type { AppError } from "../../../core/result";
 
 // ============================================================================
@@ -510,6 +511,30 @@ export class MockAttendanceRepository implements AttendanceRepository {
       classId: input.classId,
       note: `Appel enregistré (${input.session === "morning" ? "matin" : input.session === "afternoon" ? "après-midi" : "journée"}) — ${present}/${records.length} présents`,
     });
+    // T-314 (event bridge): when a student JUST crossed the unexcused-
+    // absence threshold (3) in the current term, fire the DEPLOYED
+    // `absence_limit_exceeded` workflows — REAL side effects (notification
+    // + supervisor task + run record). Fail-safe: a workflow failure never
+    // breaks the roll-call save.
+    const now = new Date();
+    for (const record of records) {
+      if (record.status !== "absent_unexcused" && record.status !== "absent_excused") continue;
+      const termAbsences = store.attendance.filter(
+        (r) =>
+          r.studentId === record.studentId &&
+          (r.status === "absent_unexcused" || r.status === "absent_excused") &&
+          isDateInCurrentTerm(r.date, now) &&
+          (r.justificationStatus ?? "none") !== "accepted",
+      ).length;
+      if (termAbsences >= 3) {
+        const student = store.students.find((s) => s.id === record.studentId);
+        if (student) {
+          void dispatchAbsenceLimitExceeded(student, termAbsences, input.recordedBy).catch(() => {
+            /* fail-safe — the workflow bridge already audit-logs its errors */
+          });
+        }
+      }
+    }
     return Ok(records);
   }
   async alertAbsences(studentIds: string[]): Promise<Result<void>> {

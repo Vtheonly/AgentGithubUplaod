@@ -249,6 +249,87 @@ export function parseConditionConfig(raw: unknown): ConditionNode | null {
 }
 
 /**
+ * T-314 (Test Studio): human-readable MATH EVALUATION of a Boolean tree —
+ * resolves every leaf's field value from the context and renders the
+ * comparison, e.g. `debt.amount (65 000) > 40 000 = VRAI`.
+ *
+ * PURE — mirrors evaluateConditionTree's semantics (missing field →
+ * `introuvable`), never throws. Used by the dry-run engine to enrich node
+ * results so the step-by-step inspector can show the actual numbers.
+ */
+export function explainConditionTree(
+  root: ConditionNode | null | undefined,
+  context: ConditionContext,
+): string {
+  if (root === null || root === undefined) return "aucune condition — passage inconditionnel";
+  const leaf = (node: ComparisonNode): string => {
+    const resolved = resolveField(context, node.field);
+    const actual = resolved.found ? formatValue(resolved.value) : "introuvable";
+    return `${node.field} (${actual}) ${node.op} ${formatValue(node.value)}`;
+  };
+  const walk = (node: ConditionNode): string => {
+    if (node.kind === "comparison") {
+      const verdict = evaluateNode(node, context, []) ? "VRAI" : "FAUX";
+      return `${leaf(node)} = ${verdict}`;
+    }
+    const children = Array.isArray(node.children) ? node.children : [];
+    const label = node.combinator === "and" ? "ET" : node.combinator === "or" ? "OU" : "NON";
+    const inner = children.map(walk);
+    if (node.combinator === "not") {
+      return `${label} (${inner.join(" ")})`;
+    }
+    return `(${inner.join(` ${label} `)})`;
+  };
+  try {
+    const explanation = walk(root);
+    const verdict = evaluateNode(root, context, []) ? "VRAI" : "FAUX";
+    return `${explanation} → ${verdict}`;
+  } catch {
+    return "évaluation impossible (arbre invalide)";
+  }
+}
+
+/** Compact value formatter for explanations (DZD amounts, booleans, strings). */
+function formatValue(value: unknown): string {
+  if (typeof value === "number") {
+    // Money-ish magnitudes get the fr-DZ separator convention.
+    if (Number.isFinite(value) && Math.abs(value) >= 1000) {
+      return value.toLocaleString("fr-FR");
+    }
+    return String(value);
+  }
+  if (typeof value === "boolean") return value ? "vrai" : "faux";
+  if (value === null || value === undefined) return "null";
+  return String(value);
+}
+
+/**
+ * T-314 (Test Studio): resolve `{{path.to.field}}` placeholders in an
+ * action's message template against the execution context — e.g.
+ * `"Bonjour {{parent.name}}, votre solde de {{debt.amount}} DZD…"` becomes
+ * `"Bonjour Karim Benali, votre solde de 65 000 DZD…"`.
+ *
+ * Unknown fields resolve to `?` (visible, honest) instead of throwing.
+ * PURE — no side effects.
+ */
+export function resolveTemplate(
+  template: string,
+  context: ConditionContext,
+): string {
+  if (typeof template !== "string" || template === "") return template ?? "";
+  return template.replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_full, path: string) => {
+    const resolved = resolveField(context, String(path));
+    if (!resolved.found) return "?";
+    const value = resolved.value;
+    if (typeof value === "number") {
+      return Math.abs(value) >= 1000 ? value.toLocaleString("fr-FR") : String(value);
+    }
+    if (value === null || value === undefined) return "?";
+    return String(value);
+  });
+}
+
+/**
  * Build the default entity context for the mock workflow executor.
  * Seeds realistic values so conditions have something to evaluate against;
  * individual node configs may override via `config._context`.

@@ -1,6 +1,6 @@
 /**
  * Workflow dry-run simulator — T-221 (owner mandate "fully do the DAG
- * automations"; vault §10.02/§10.05 semantics).
+ * automations"; vault §10.02/§10.05 semantics), T-314 IF/ELSE branching.
  *
  * A PURE function that walks a workflow DAG in topological order and
  * simulates what the execution engine WOULD do, without writing anything:
@@ -10,17 +10,27 @@
  *   2. Branch-aware reachability: a node executes only if at least one
  *      incoming edge originates from an EXECUTED node whose branch is
  *      still "open":
- *        - a passing condition keeps its outgoing edges open;
- *        - a failing condition CLOSES its outgoing edges (downstream
- *          nodes become "skipped" unless another open path feeds them);
+ *        - an UNLABELED edge from a condition keeps the LEGACY GATE
+ *          semantics: open iff the condition passes (a failing condition
+ *          closes the edge — downstream nodes are "skipped");
+ *        - T-314 IF/ELSE: an edge labeled `sourceHandle: "true"` (green
+ *          port) opens iff the condition passes; an edge labeled
+ *          `sourceHandle: "false"` (red port) opens iff it fails — the
+ *          condition becomes a ROUTER that always sends execution down
+ *          exactly one of the two labeled ports;
  *        - a `route_switch` opens ONLY the first route whose condition
  *          passes — every other outgoing edge is closed.
  *   3. Condition nodes are evaluated with the REAL Boolean tree evaluator
  *      (AND/OR/NOT + comparisons, missing fields → false + warning,
- *      never an exception — vault §10.05).
- *   4. `time_window` guards evaluate against `workflow.now` in the context.
+ *      never an exception — vault §10.05). T-314: each condition result
+ *      carries a human-readable MATH EVALUATION (`explainConditionTree`)
+ *      so the Test Studio can show `debt.amount (65 000) > 40 000 = VRAI`.
+ *   4. `time_window` guards evaluate against `workflow.now` in the context
+ *      (with the same true/false port routing as regular conditions).
  *   5. Triggers/actions/delays/transforms are simulated as succeeded
- *      (the dry-run never performs external effects).
+ *      (the dry-run never performs external effects). T-314: message
+ *      actions carry `resolvedTemplate` — `{{debt.amount}}` resolved
+ *      against the live context.
  *
  * The canvas uses the result to animate the taken path (green edges) and
  * per-node status rings; the mock repository executor reuses the same
@@ -30,7 +40,9 @@
 import { detectCycle } from "../../kahn";
 import {
   evaluateConditionTree,
+  explainConditionTree,
   parseConditionConfig,
+  resolveTemplate,
   type ConditionContext,
   type ConditionNode,
 } from "./condition-evaluator";
@@ -52,6 +64,22 @@ export interface DryRunNodeResult {
   readonly output: string;
   /** Vault §10.05 warnings (missing fields, non-numeric comparisons…). */
   readonly warnings: readonly string[];
+  /**
+   * T-314 (Test Studio): the MATH EVALUATION line for condition nodes —
+   * `debt.amount (65 000) > 40 000 = VRAI`. Absent on non-conditions.
+   */
+  readonly evaluation?: string;
+  /**
+   * T-314 (Test Studio): a compact snapshot of the INPUT payload the node
+   * evaluated against (payment / student / parent / debt key fields).
+   */
+  readonly inputSnapshot?: Readonly<Record<string, unknown>>;
+  /**
+   * T-314 (Test Studio): the node's message template with `{{fields}}`
+   * RESOLVED against the context (send_whatsapp / send_email /
+   * push_notification bodies). Absent when the node has no template.
+   */
+  readonly resolvedTemplate?: string;
 }
 
 export interface DryRunResult {
@@ -159,6 +187,94 @@ export function parseSwitchRoutes(raw: unknown): readonly SwitchRoute[] {
   return routes;
 }
 
+/* ------------------------- T-314: condition port routing -------------------- */
+
+/**
+ * Handle-aware output routing shared by every condition flavor.
+ *
+ * LEGACY (all edges unlabeled): GATE — every edge opens iff `passed`.
+ * T-314 IF/ELSE (labeled edges): the node becomes a binary ROUTER —
+ *   - `sourceHandle: "true"`  → open iff `passed`  (green VRAI port);
+ *   - `sourceHandle: "false"` → open iff `!passed` (red FAUX port).
+ * A mixed config (labeled + unlabeled edges from the same condition) keeps
+ * the gate rule for the unlabeled stragglers — predictable and documented.
+ *
+ * Returns true when at least one outgoing edge stayed open.
+ */
+function routeConditionOutputs(
+  targets: readonly WorkflowEdge[],
+  passed: boolean,
+  openEdges: Set<string>,
+  takenEdgeKeys: string[],
+): boolean {
+  let anyOpen = false;
+  for (const e of targets) {
+    const k = keyOf(e.from, e.to);
+    if (e.sourceHandle === "false") {
+      if (passed) {
+        openEdges.delete(k);
+      } else if (openEdges.has(k)) {
+        takenEdgeKeys.push(k);
+        anyOpen = true;
+      } else {
+        anyOpen = true;
+      }
+    } else if (e.sourceHandle === "true") {
+      if (passed) {
+        if (openEdges.has(k)) takenEdgeKeys.push(k);
+        anyOpen = true;
+      } else {
+        openEdges.delete(k);
+      }
+    } else {
+      // Legacy gate semantics for unlabeled edges.
+      if (passed) {
+        if (openEdges.has(k)) takenEdgeKeys.push(k);
+        anyOpen = true;
+      } else {
+        openEdges.delete(k);
+      }
+    }
+  }
+  return anyOpen;
+}
+
+/* ------------------------- T-314: Test Studio helpers ---------------------- */
+
+/** The message-bearing config keys of the communication action subtypes. */
+const TEMPLATE_KEYS: readonly string[] = ["template", "body", "message"];
+
+/** Extract the first message template found in an action's config. */
+function readTemplate(config: Readonly<Record<string, unknown>>): string | null {
+  for (const key of TEMPLATE_KEYS) {
+    const raw = config[key];
+    if (typeof raw === "string" && raw.includes("{{")) return raw;
+  }
+  return null;
+}
+
+/** Compact input-payload snapshot for the step inspector. */
+function snapshotContext(context: ConditionContext): Record<string, unknown> {
+  const pick = (key: string): unknown => {
+    const raw = readField(context, key);
+    if (raw === null || raw === undefined) return undefined;
+    if (typeof raw === "object") {
+      try {
+        return JSON.parse(JSON.stringify(raw)) as unknown;
+      } catch {
+        return String(raw);
+      }
+    }
+    return raw;
+  };
+  const out: Record<string, unknown> = {};
+  for (const key of ["payment", "student", "parent", "debt"]) {
+    const value = pick(key);
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 /* --------------------------------- the engine -------------------------------- */
 
 /**
@@ -217,7 +333,6 @@ export function dryRunWorkflow(
 
   /** Edges currently OPEN (branch propagates through them). */
   const openEdges = new Set<string>(edges.map((e) => keyOf(e.from, e.to)));
-  const executed = new Set<string>();
   const results: DryRunNodeResult[] = [];
   const takenEdgeKeys: string[] = [];
 
@@ -244,25 +359,29 @@ export function dryRunWorkflow(
       continue;
     }
 
-    executed.add(node.id);
     const warnings: string[] = [];
     let output = `Exécuté (${node.subtype}) — simulé`;
-    let keepOpen = true;
+    const inputSnapshot = snapshotContext(context);
+    let evaluation: string | undefined;
+    let resolvedTemplate: string | undefined;
 
     if (node.type === "condition") {
       const mergedContext: ConditionContext = {
         ...context,
         ...((node.config._context as Record<string, unknown> | undefined) ?? {}),
       };
+      const targets = outgoing.get(node.id) ?? [];
+      const hasLabeled = targets.some((e) => e.sourceHandle === "true" || e.sourceHandle === "false");
+      let passed = true;
 
       if (node.subtype === "time_window") {
         const verdict = evaluateTimeWindow(node.config, mergedContext);
-        keepOpen = verdict.passed;
-        output = `${verdict.note} — ${verdict.passed ? "condition remplie" : "condition non remplie"}`;
+        passed = verdict.passed;
+        evaluation = `${verdict.note} — ${verdict.passed ? "condition remplie" : "condition non remplie"}`;
+        output = evaluation;
       } else if (node.subtype === "route_switch") {
         // Multi-way switch: open ONLY the first passing route's edge.
         const routes = parseSwitchRoutes(node.config.routes);
-        const targets = outgoing.get(node.id) ?? [];
         let chosen: WorkflowEdge | null = null;
         if (routes.length === 0) {
           // No routes configured → default route (first edge) stays open.
@@ -282,7 +401,6 @@ export function dryRunWorkflow(
           }
           if (!chosen) {
             output = `Aucune voie ne correspond (${routes.length} voie(s) évaluée(s)) — sorties fermées.`;
-            keepOpen = false;
           }
         }
         if (chosen) {
@@ -305,6 +423,7 @@ export function dryRunWorkflow(
           status: "succeeded",
           output,
           warnings,
+          inputSnapshot,
         });
         continue;
       } else {
@@ -312,19 +431,46 @@ export function dryRunWorkflow(
         const tree = parseConditionConfig(node.config.condition ?? node.config._condition);
         const verdict = evaluateConditionTree(tree, mergedContext);
         warnings.push(...verdict.warnings);
-        keepOpen = verdict.passed;
-        output = verdict.passed
-          ? "Condition remplie — la branche continue."
-          : `Condition non remplie — la branche est bloquée. ${verdict.warnings.join(" ")}`.trim();
+        passed = verdict.passed;
+        evaluation = explainConditionTree(tree, mergedContext);
+        output = hasLabeled
+          ? passed
+            ? "Condition VRAI — le port TRUE (vert) est ouvert."
+            : "Condition FAUX — le port FALSE (rouge) est ouvert."
+          : verdict.passed
+            ? "Condition remplie — la branche continue."
+            : `Condition non remplie — la branche est bloquée. ${verdict.warnings.join(" ")}`.trim();
       }
+
+      // T-314: handle-aware routing (true/false ports OR legacy gate).
+      routeConditionOutputs(targets, passed, openEdges, takenEdgeKeys);
+
+      results.push({
+        nodeId: node.id,
+        nodeLabel: node.label,
+        subtype: node.subtype,
+        type: node.type,
+        status: "succeeded",
+        output,
+        warnings,
+        ...(evaluation !== undefined ? { evaluation } : {}),
+        inputSnapshot,
+      });
+      continue;
+    }
+
+    // Triggers / actions / delays / transforms: simulate success + enrich
+    // message templates so the Test Studio shows RESOLVED strings.
+    const template = readTemplate(node.config);
+    if (template !== null) {
+      resolvedTemplate = resolveTemplate(template, context);
+      output = `Exécuté (${node.subtype}) — simulé · message résolu : « ${resolvedTemplate} »`;
     }
 
     // Record taken edges (source executed AND target reachable via an open edge).
     for (const e of outgoing.get(node.id) ?? []) {
       const k = keyOf(e.from, e.to);
-      if (!keepOpen) {
-        openEdges.delete(k);
-      } else if (openEdges.has(k)) {
+      if (openEdges.has(k)) {
         takenEdgeKeys.push(k);
       }
     }
@@ -337,6 +483,8 @@ export function dryRunWorkflow(
       status: "succeeded",
       output,
       warnings,
+      ...(resolvedTemplate !== undefined ? { resolvedTemplate } : {}),
+      inputSnapshot,
     });
   }
 

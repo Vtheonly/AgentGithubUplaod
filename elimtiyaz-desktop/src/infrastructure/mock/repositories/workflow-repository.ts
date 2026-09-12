@@ -3,8 +3,17 @@
  *
  * Extracted from `mock-repositories.ts` in iteration 2 of the platform-wide
  * refactor. Behavior preserved verbatim — including DAG cycle detection
- * (refuses to deploy/execute cyclic graphs) and the 90% mock success rate
- * for action nodes.
+ * (refuses to deploy/execute cyclic graphs).
+ *
+ * T-314 (the DAG overhaul): execution is now REAL — `execute` runs the
+ * branch-aware dry-run engine as the path decider, then applies the REAL
+ * side effects (tasks / notifications / parent restriction / audit) via
+ * workflow-side-effects.ts. The deterministic 90% mock failure was removed
+ * (real executions must not randomly fail — the demo flows depend on it;
+ * the EF engine keeps honest failure semantics server-side). `dryRun`
+ * builds a REAL-entity context from the shared store (T-227 mock parity),
+ * and `dispatchTrigger` bridges school-domain events to deployed
+ * workflows (workflow-event-bridge.ts).
  */
 import type {
   WorkflowRepository,
@@ -15,21 +24,23 @@ import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
-import { SubjectBehavior } from "../subject-behavior";
 import { detectCycle } from "../../../domain/kahn";
 import type {
   Workflow,
   WorkflowRun,
-  WorkflowNodeResult,
-  WorkflowRunStatus,
   WorkflowTriggerType,
+  WorkflowServerDryRun,
+  WorkflowNodeSubtype,
 } from "../../../domain/model/workflow";
-import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
-import {
-  defaultConditionContext,
-} from "../../../domain/calc/workflow/condition-evaluator";
+import type { ConditionContext } from "../../../domain/calc/workflow/condition-evaluator";
+import { store, appendAudit, nowIso, delay } from "./mock-store";
+import { SubjectBehavior } from "../subject-behavior";
 import { dryRunWorkflow } from "../../../domain/calc/workflow/dry-run";
-import type { WorkflowServerDryRun } from "../../../domain/model/workflow";
+import {
+  buildEntityContext,
+  dispatchWorkflowTrigger,
+  executeWorkflowWithSideEffects,
+} from "./workflow-event-bridge";
 
 export class MockWorkflowRepository implements WorkflowRepository {
   observe(): Observable<Workflow[]> {
@@ -54,7 +65,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     const now = nowIso();
     const workflow: Workflow = {
       id,
-      tenantId: TENANT_ID,
+      tenantId: store.workflows[0]?.tenantId ?? "tenant-el-imtiyaz-oran-001",
       name: input.name.trim(),
       description: input.description.trim(),
       nodes: [],
@@ -179,7 +190,26 @@ export class MockWorkflowRepository implements WorkflowRepository {
     return Ok(after);
   }
 
-  async execute(id: string, actorId: string, actorName: string): Promise<Result<WorkflowRun>> {
+  /**
+   * Execute a workflow — REAL side effects (T-314). The dry-run engine
+   * decides the taken path (single source of truth); succeeded action
+   * nodes create real tasks / notifications / restrictions / audit rows.
+   *
+   * Options (all optional — the legacy 3-arg call keeps working):
+   *   - `context`      : execution context (Test Studio real-entity run);
+   *   - `targetParentId`: the parent the run targets (restrict_account…);
+   *   - `triggerSubtype`: which trigger fired (event bridge / dispatch).
+   */
+  async execute(
+    id: string,
+    actorId: string,
+    actorName: string,
+    options: {
+      context?: ConditionContext;
+      targetParentId?: string | null;
+      triggerSubtype?: WorkflowNodeSubtype;
+    } = {},
+  ): Promise<Result<WorkflowRun>> {
     await delay(120);
     const wf = store.workflows.find((w) => w.id === id);
     if (!wf) return Err(Errors.notFound("Workflow", id));
@@ -226,129 +256,67 @@ export class MockWorkflowRepository implements WorkflowRepository {
         `Plafond quotidien atteint — ${todayRuns}/${cap} exécutions aujourd'hui. Le workflow redeviendra exécutable demain.`,
       ));
     }
-    // T-221: the executor now walks the DAG in TOPOLOGICAL order with the
-    // SAME branch semantics as the canvas's dry-run simulator (the pure
-    // engine in domain/calc/workflow/dry-run is the single source of
-    // truth): a failing condition closes its branch, a route_switch opens
-    // only its first passing route, and nodes not fed by an active path are
-    // skipped. Previously the executor iterated the nodes array linearly
-    // with a single global `conditionFailed` flag, which diverged from the
-    // visual model (parallel branches could not diverge).
-    const simulation = dryRunWorkflow(wf.nodes, wf.edges, defaultConditionContext());
-    if (!simulation.ok) {
-      appendAudit({
-        action: AuditActions.WorkflowTriggered,
-        entityType: "workflow",
-        entityId: id,
-        actorId,
-        actorName,
-        diff: { before: null, after: null },
-        note: `Échec: ${simulation.error ?? "graphe invalide"}`,
-      });
+
+    const run = executeWorkflowWithSideEffects({
+      workflow: wf,
+      context: options.context ?? buildEntityContext({}),
+      actorId,
+      actorName,
+      targetParentId: options.targetParentId ?? null,
+      triggerType: wf.triggerType,
+      triggerSubtype: options.triggerSubtype,
+    });
+    if (!run) {
       return Err(Errors.validation(
         "Workflow graph is invalid",
-        simulation.error ?? "Graphe invalide — exécution impossible.",
+        "Graphe invalide — exécution impossible.",
       ));
     }
-    const startedAtMs = Date.now();
-    const startedAt = nowIso();
-    const results: WorkflowNodeResult[] = [];
-    let cursor = startedAtMs;
-    let failed = false;
-    let failedNodeId: string | null = null;
-    for (const sim of simulation.results) {
-      const nodeStart = new Date(cursor).toISOString();
-      // charCodeAt may return NaN for short ids; coerce to 0 via Number.isNaN.
-      const charAt2 = sim.nodeId.charCodeAt(2);
-      const charAt0 = sim.nodeId.charCodeAt(0);
-      const dur = sim.type === "delay" ? 50 : 50 + ((Number.isNaN(charAt2) ? 0 : charAt2) % 150);
-      cursor += dur;
-      const nodeEnd = new Date(cursor).toISOString();
-
-      if (sim.status === "skipped") {
-        results.push({
-          nodeId: sim.nodeId,
-          nodeLabel: sim.nodeLabel,
-          status: "skipped",
-          startedAt: nodeStart,
-          completedAt: nodeEnd,
-          output: sim.output,
-        });
-        continue;
-      }
-
-      let nodeStatus: WorkflowNodeResult["status"] = "succeeded";
-      let output: string | undefined = sim.output;
-      let error: string | undefined;
-      const warnings = sim.warnings.length > 0 ? ` ${sim.warnings.join(" ")}`.trim() : "";
-      if (warnings) output = `${output} ${warnings}`.trim();
-
-      if (sim.type === "action" && !failed) {
-        // 90% success rate (deterministic by node id hash so tests are stable).
-        const hash = (Number.isNaN(charAt0) ? 0 : charAt0) + (Number.isNaN(charAt2) ? 0 : charAt2);
-        if (hash % 10 === 0) {
-          nodeStatus = "failed";
-          failed = true;
-          failedNodeId = sim.nodeId;
-          output = undefined;
-          error = "Échec de l'action (mock 90%)";
-        }
-      }
-
-      results.push({
-        nodeId: sim.nodeId,
-        nodeLabel: sim.nodeLabel,
-        status: nodeStatus,
-        startedAt: nodeStart,
-        completedAt: nodeEnd,
-        output,
-        error,
-      });
-      if (failed) break;
-    }
-    const overallStatus: WorkflowRunStatus = failed ? "failed" : "succeeded";
-    const completedAt = new Date(cursor).toISOString();
-    const durationMs = cursor - startedAtMs;
-    const run: WorkflowRun = {
-      id: `wfr-${String(store.workflowRuns.length + 1).padStart(3, "0")}-${Date.now().toString(36)}`,
-      tenantId: wf.tenantId,
-      workflowId: wf.id,
-      workflowName: wf.name,
-      triggerType: wf.triggerType,
-      status: overallStatus,
-      startedAt,
-      completedAt,
-      durationMs,
-      actorId,
-      actorName,
-      nodeResults: results,
-      error: failed && failedNodeId
-        ? `Échec au nœud ${failedNodeId}`
-        : undefined,
-    };
-    store.workflowRuns = [run, ...store.workflowRuns];
-    store.notifyWorkflowRuns();
-    appendAudit({
-      action: AuditActions.WorkflowTriggered,
-      entityType: "workflow_run",
-      entityId: run.id,
-      actorId,
-      actorName,
-      diff: { before: null, after: { status: run.status, durationMs: run.durationMs } },
-      note: `Exécution manuelle du workflow ${wf.name}`,
-    });
     return Ok(run);
   }
 
-  /** T-230: local dry-run engine mapped to the server-dry-run contract. */
+  /**
+   * T-314: the event bridge — fire every DEPLOYED workflow whose trigger
+   * nodes match the subtype, with a real-entity context and real side
+   * effects. Fail-safe per workflow (errors audit-logged, never thrown).
+   */
+  async dispatchTrigger(input: {
+    triggerSubtype: WorkflowNodeSubtype;
+    context: ConditionContext;
+    actorId: string;
+    actorName: string;
+    targetParentId?: string | null;
+  }): Promise<Result<readonly WorkflowRun[]>> {
+    await delay(80);
+    const runs = await dispatchWorkflowTrigger({
+      triggerSubtype: input.triggerSubtype,
+      context: input.context,
+      actorId: input.actorId,
+      actorName: input.actorName,
+      targetParentId: input.targetParentId ?? null,
+      triggerType: "automatic",
+    });
+    return Ok(runs);
+  }
+
+  /**
+   * T-230/T-314: local dry-run engine mapped to the server-dry-run
+   * contract — REAL entity context built from the shared store (parent,
+   * students, term absences, ledger-derived debt), simulated actions,
+   * zero side effects.
+   */
   async dryRun(
     id: string,
-    _entity?: { parentId?: string; studentId?: string },
+    entity?: { parentId?: string; studentId?: string },
   ): Promise<Result<WorkflowServerDryRun>> {
     await delay(80);
     const wf = store.workflows.find((w) => w.id === id);
     if (!wf) return Err(Errors.notFound("Workflow", id));
-    const simulation = dryRunWorkflow(wf.nodes, wf.edges, defaultConditionContext());
+    const context = buildEntityContext({
+      parentId: entity?.parentId ?? null,
+      studentId: entity?.studentId ?? null,
+    });
+    const simulation = dryRunWorkflow(wf.nodes, wf.edges, context);
     if (!simulation.ok) {
       return Err(Errors.validation("Workflow graph is invalid", simulation.error ?? "Graphe invalide."));
     }

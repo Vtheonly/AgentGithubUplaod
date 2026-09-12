@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // T-314 (hermetic suite): expose NO custom env vars to import.meta.env in
+  // tests. A developer's .env.local (real Supabase credentials for the running
+  // app) must NOT leak into the suite — the tests' documented contract is
+  // MOCK mode (isSupabaseConfigured() === false; the vault/LLM/adapter tests
+  // assert the mock paths). With this prefix, Vite loads env files but only
+  // exposes VITE_TEST_-prefixed keys — every other VITE_* var stays undefined,
+  // exactly as before .env.local existed.
+  envPrefix: ["VITE_TEST_"],
   test: {
     environment: "jsdom",
     globals: true,

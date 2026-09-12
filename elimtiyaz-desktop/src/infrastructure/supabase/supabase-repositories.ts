@@ -56,6 +56,7 @@ import { SupabaseExpenseRepository } from "./repositories/supabase-expense-repos
 import { SupabaseChatRepository } from "./repositories/supabase-chat-repository";
 import { SupabaseCalendarRepository } from "./repositories/supabase-calendar-repository";
 import { SupabaseWorkflowRepository } from "./repositories/supabase-workflow-repository";
+import { setWorkflowDispatcher } from "./repositories/workflow-dispatch";
 import { SupabaseWorkflowRunRepository } from "./repositories/supabase-workflow-run-repository";
 import { SupabaseLeaveRequestRepository } from "./repositories/supabase-leave-request-repository";
 import { SupabaseSupplierRepository } from "./repositories/supabase-supplier-repository";
@@ -200,6 +201,21 @@ export function getSupabaseRepositories(): Repositories {
   // detection, daily cap and the runs row all happen server-side).
   const workflows = new SupabaseWorkflowRepository(client);
   const workflowRuns = new SupabaseWorkflowRunRepository(client, workflows);
+
+  // T-314 (event bridge): inject the workflow dispatcher so the academic /
+  // payment / student repositories can fire DEPLOYED workflows on real app
+  // events (3rd unexcused absence → absence_limit_exceeded, …) through the
+  // canonical workflow-execute EF. Late-bound here because those
+  // repositories are constructed before this one and must not import it.
+  setWorkflowDispatcher((request) =>
+    workflows.dispatchTrigger({
+      triggerSubtype: request.triggerSubtype,
+      context: request.context ?? {},
+      actorId: request.actorId,
+      actorName: request.actorName,
+      targetParentId: request.parentId ?? null,
+    }),
+  );
 
   // T-178 (2026-09-05, T-047 port #3): wire the Supabase-backed leave-request
   // repository onto leave_requests (migration 0010 + 0072 — the 0072 widening

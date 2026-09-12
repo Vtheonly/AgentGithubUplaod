@@ -63,8 +63,8 @@ function makeNode(
   };
 }
 
-function makeEdge(from: string, to: string): WorkflowEdge {
-  return { id: `tpl-e-${from}-${to}`, from, to };
+function makeEdge(from: string, to: string, sourceHandle?: "true" | "false"): WorkflowEdge {
+  return { id: `tpl-e-${from}-${to}${sourceHandle ? `-${sourceHandle}` : ""}`, from, to, ...(sourceHandle ? { sourceHandle } : {}) };
 }
 
 /** Comparison leaf helper (visual-predicate-builder output shape). */
@@ -80,7 +80,7 @@ const overdueCollection: WorkflowTemplate = {
   id: "relance-impayes-echelonne",
   name: "Pack Relance Impayés Échelonné",
   description:
-    "Tranche impayée 7 jours après échéance : rappel doux portail ; si la dette dépasse 40 000 DZD, préparation WhatsApp + compte marqué délinquant + tâche urgente pour le responsable financier.",
+    "Tranche impayée 7 jours après échéance → port VRAI (dette > 40 000 DZD) : WhatsApp + compte marqué délinquant + tâche urgente ; port FAUX : rappel doux portail. Le branchement VRAI/FAUX (T-314) rend l'aiguillage explicite.",
   triggerType: "automatic",
   build: () => {
     instanceCounter = 0;
@@ -88,14 +88,14 @@ const overdueCollection: WorkflowTemplate = {
       "payment_overdue",
       "Tranche impayée (+7 j)",
       60,
-      140,
+      200,
       { grace_days: 7 },
     );
     const debt = makeNode(
       "debt_over_threshold",
       "Dette > 40 000 DZD ?",
       320,
-      140,
+      200,
       {
         condition: cmp("debt.amount", ">", 40_000),
       },
@@ -103,7 +103,7 @@ const overdueCollection: WorkflowTemplate = {
     const soft = makeNode(
       "push_notification",
       "Rappel doux portail",
-      320,
+      580,
       340,
       {
         title: "Rappel de paiement",
@@ -115,7 +115,7 @@ const overdueCollection: WorkflowTemplate = {
       "send_whatsapp",
       "Message WhatsApp parent",
       580,
-      60,
+      80,
       {
         template:
           "Bonjour, votre solde dû atteint {{debt.amount}} DZD. Merci de contacter l'administration.",
@@ -125,7 +125,7 @@ const overdueCollection: WorkflowTemplate = {
       "restrict_account",
       "Marquer délinquant",
       580,
-      220,
+      200,
       { days_overdue: 30 },
     );
     const task = makeNode(
@@ -140,11 +140,13 @@ const overdueCollection: WorkflowTemplate = {
       },
     );
     const nodes = [trigger, debt, soft, whatsapp, restrict, task];
+    // T-314: the debt gate routes through the VRAI/FAUX ports — TRUE feeds
+    // the escalation branch, FALSE feeds the gentle reminder.
     const edges = [
       makeEdge(trigger.id, debt.id),
-      makeEdge(trigger.id, soft.id),
-      makeEdge(debt.id, whatsapp.id),
-      makeEdge(debt.id, restrict.id),
+      makeEdge(debt.id, whatsapp.id, "true"),
+      makeEdge(debt.id, restrict.id, "true"),
+      makeEdge(debt.id, soft.id, "false"),
       makeEdge(whatsapp.id, task.id),
       makeEdge(restrict.id, task.id),
     ];
@@ -228,7 +230,7 @@ const termClose: WorkflowTemplate = {
   id: "cloture-trimestrielle",
   name: "Clôture Trimestrielle",
   description:
-    "Fin de trimestre (cron) : vérifie que toutes les notes sont saisies, compile les bulletins PDF puis notifie chaque famille que le relevé est disponible sur le portail.",
+    "Fin de trimestre (cron) : filtre les élèves actifs, compile les bulletins PDF puis notifie chaque famille que le relevé est disponible sur le portail. (T-314 : le nœud technique database_query a été retiré — palette admin épurée.)",
   triggerType: "scheduled",
   build: () => {
     instanceCounter = 0;
@@ -236,35 +238,28 @@ const termClose: WorkflowTemplate = {
       "calendar_cron_event",
       "Fin de trimestre (cron)",
       60,
-      160,
+      200,
       { cron: "0 18 * * 12", description: "Fin de trimestre à 18:00" },
-    );
-    const grades = makeNode(
-      "database_query",
-      "Notes toutes saisies ?",
-      320,
-      160,
-      { entity: "grades", filter: "term = current AND missing = 0" },
     );
     const check = makeNode(
       "student_status_match",
       "Élèves actifs",
-      580,
-      160,
+      360,
+      200,
       { condition: cmp("student.status", "==", "active") },
     );
     const bulletins = makeNode(
       "generate_document",
       "Compiler les bulletins",
-      840,
-      60,
+      660,
+      80,
       { document_type: "bulletin", batch: true },
     );
     const notify = makeNode(
       "push_notification",
       "Notifier les familles",
-      1080,
-      160,
+      920,
+      200,
       {
         title: "Bulletin disponible",
         body: "Le bulletin du trimestre est disponible sur votre portail.",
@@ -274,14 +269,13 @@ const termClose: WorkflowTemplate = {
     const audit = makeNode(
       "log_audit",
       "Journaliser la clôture",
-      1080,
-      320,
+      920,
+      360,
       { note: "Clôture trimestrielle exécutée" },
     );
-    const nodes = [trigger, grades, check, bulletins, notify, audit];
+    const nodes = [trigger, check, bulletins, notify, audit];
     const edges = [
-      makeEdge(trigger.id, grades.id),
-      makeEdge(grades.id, check.id),
+      makeEdge(trigger.id, check.id),
       makeEdge(check.id, bulletins.id),
       makeEdge(bulletins.id, notify.id),
       makeEdge(notify.id, audit.id),

@@ -55,7 +55,10 @@ import {
 import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { detectCycle } from "../../domain/kahn";
 import { dryRunWorkflow } from "../../domain/calc/workflow/dry-run";
-import { defaultConditionContext } from "../../domain/calc/workflow/condition-evaluator";
+import {
+  defaultConditionContext,
+  type ConditionContext,
+} from "../../domain/calc/workflow/condition-evaluator";
 import { autoLayout } from "../../domain/calc/workflow/auto-layout";
 import type { DryRunResult } from "../../domain/calc/workflow/dry-run";
 import {
@@ -68,12 +71,20 @@ import {
   type WorkflowEdge,
   type WorkflowNodeType,
 } from "../../domain/model/workflow";
+import {
+  TestStudioDrawer,
+  type TestStudioEntity,
+} from "./test-studio-drawer";
 
 const NODE_W = 160;
 const NODE_H = 60;
 const GRID = 20;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.5;
+
+/** T-314: output-port Y offsets for condition nodes (VRAI top / FAUX bottom). */
+const TRUE_PORT_Y = 15;
+const FALSE_PORT_Y = 45;
 
 const ICON_FOR_TYPE: Record<WorkflowNodeType, LucideIcon> = {
   trigger: Webhook,
@@ -126,6 +137,12 @@ export interface DagCanvasProps {
     parentId: string | null,
   ) => Promise<ServerDryRunOutcome | null>;
   serverDryRunEntities?: readonly { id: string; label: string }[];
+  /** T-314 (Test Studio): real entities (parents) selectable in the drawer. */
+  testEntities?: readonly TestStudioEntity[];
+  /** T-314: REAL execution for a specific parent (side effects applied). */
+  onTestExecute?: (parentId: string, context: ConditionContext) => Promise<void>;
+  /** Whether the real-execution button is enabled (deployed + permitted). */
+  canTestExecute?: boolean;
 }
 
 export interface ServerDryRunOutcome {
@@ -152,6 +169,8 @@ interface DragState {
 
 interface EdgeDraft {
   fromId: string;
+  /** T-314: the output port the draft leaves from ("out" for non-conditions). */
+  fromHandle: "out" | "true" | "false";
   cursorX: number;
   cursorY: number;
 }
@@ -193,6 +212,16 @@ function snap(value: number): number {
   return Math.round(value / GRID) * GRID;
 }
 
+/** T-314: the Y coordinate an edge leaves from, by output port. */
+function outputPortY(
+  from: WorkflowNode,
+  handle: "out" | "true" | "false" | undefined,
+): number {
+  if (from.type === "condition" && handle === "true") return from.position.y + TRUE_PORT_Y;
+  if (from.type === "condition" && handle === "false") return from.position.y + FALSE_PORT_Y;
+  return from.position.y + NODE_H / 2;
+}
+
 export function DagCanvas({
   workflow,
   onChange,
@@ -203,6 +232,9 @@ export function DagCanvas({
   onExecute,
   onServerDryRun,
   serverDryRunEntities,
+  testEntities,
+  onTestExecute,
+  canTestExecute,
 }: DagCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [nodes, setNodes] = useState<WorkflowNode[]>([...workflow.nodes]);
@@ -221,6 +253,10 @@ export function DagCanvas({
   const [executing, setExecuting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showMinimap, setShowMinimap] = useState(true);
+  // T-314 (Test Studio): drawer open state + the inspected step node.
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [testSelectedId, setTestSelectedId] = useState<string | null>(null);
+  const [testExecuting, setTestExecuting] = useState(false);
 
   // Sync internal state when the workflow prop updates (switched, node added/configured externally)
   const dragRef = useRef(drag);
@@ -430,12 +466,13 @@ export function DagCanvas({
   function handleOutputPortMouseDown(
     e: ReactMouseEvent<SVGCircleElement>,
     node: WorkflowNode,
+    handle: "out" | "true" | "false",
   ) {
     if (!canEdit) return;
     e.stopPropagation();
     e.preventDefault();
     const { x, y } = clientToSvg(svgRef.current, view, e.clientX, e.clientY);
-    setEdgeDraft({ fromId: node.id, cursorX: x, cursorY: y });
+    setEdgeDraft({ fromId: node.id, fromHandle: handle, cursorX: x, cursorY: y });
   }
 
   function handleInputPortMouseUp(
@@ -452,10 +489,18 @@ export function DagCanvas({
       (ed) => ed.from === edgeDraft.fromId && ed.to === node.id,
     );
     if (!exists) {
+      const fromNode = nodes.find((n) => n.id === edgeDraft.fromId) ?? null;
+      // T-314: edges drawn from a condition's VRAI/FAUX port carry the
+      // sourceHandle — the engines route TRUE/FALSE through it.
+      const sourceHandle =
+        fromNode && fromNode.type === "condition" && edgeDraft.fromHandle !== "out"
+          ? (edgeDraft.fromHandle as "true" | "false")
+          : undefined;
       const newEdge: WorkflowEdge = {
         id: `e-${edgeDraft.fromId}-${node.id}-${Date.now().toString(36)}`,
         from: edgeDraft.fromId,
         to: node.id,
+        ...(sourceHandle ? { sourceHandle } : {}),
       };
       const nextEdges = [...edges, newEdge];
       emit(nodes, nextEdges);
@@ -499,10 +544,34 @@ export function DagCanvas({
     fitView();
   }
 
-  function handleDryRun() {
+  /**
+   * T-314: the Tester button opens the REAL-ENTITY Test Studio (replaces
+   * the old invisible dummy payload). The studio builds a context (real
+   * parent / preset / sliders) and calls back into handleStudioSimulation.
+   */
+  function handleOpenStudio() {
     setServerError(null);
-    const result = dryRunWorkflow(nodes, edges, defaultConditionContext());
+    setStudioOpen(true);
+  }
+
+  /** Studio → canvas: run the simulation against the studio's context. */
+  function handleStudioSimulation(context: ConditionContext, _entityLabel: string) {
+    setServerError(null);
+    setTestSelectedId(null);
+    const result = dryRunWorkflow(nodes, edges, context);
     setDryRun(result);
+  }
+
+  /** Studio → canvas: REAL execution for a parent (side effects applied). */
+  async function handleStudioExecute(parentId: string, context: ConditionContext) {
+    if (!onTestExecute) return;
+    setTestExecuting(true);
+    setServerError(null);
+    try {
+      await onTestExecute(parentId, context);
+    } finally {
+      setTestExecuting(false);
+    }
   }
 
   async function handleServerDryRun() {
@@ -707,9 +776,9 @@ export function DagCanvas({
           <Button
             size="sm"
             variant={dryRun ? "default" : "outline"}
-            onClick={handleDryRun}
+            onClick={handleOpenStudio}
             disabled={nodes.length === 0}
-            title="Simulation sans effet de bord"
+            title="Studio de test — entités réelles, presets et curseurs (T-314)"
           >
             <Play className="h-4 w-4" /> Tester
           </Button>
@@ -898,37 +967,61 @@ export function DagCanvas({
               const from = nodes.find((n) => n.id === edge.from);
               const to = nodes.find((n) => n.id === edge.to);
               if (!from || !to) return null;
+              // T-314: the edge leaves from the VRAI/FAUX port when labeled.
               const x1 = from.position.x + NODE_W;
-              const y1 = from.position.y + NODE_H / 2;
+              const y1 = outputPortY(from, edge.sourceHandle);
               const x2 = to.position.x;
               const y2 = to.position.y + NODE_H / 2;
               const mx = (x1 + x2) / 2;
               const key = `${edge.from}->${edge.to}`;
               const isCycle = cycleEdgeKeys.has(key);
               const isTaken = dryRunTakenEdges.has(key);
+              // T-314: untaken branches dim to 30% while a simulation runs.
+              const isDimmed = !!dryRun && !isTaken && !isCycle;
               const path = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
               return (
-                <path
-                  key={edge.id}
-                  d={path}
-                  className={cn(
-                    isCycle
-                      ? "stroke-status-danger"
-                      : isTaken
-                        ? "stroke-status-success"
-                        : "stroke-border",
-                    isTaken && dryRun && "animate-pulse",
+                <g key={edge.id} className={isDimmed ? "opacity-30" : undefined}>
+                  <path
+                    d={path}
+                    className={cn(
+                      isCycle
+                        ? "stroke-status-danger"
+                        : isTaken
+                          ? "stroke-status-success"
+                          : edge.sourceHandle === "false"
+                            ? "stroke-status-danger/70"
+                            : edge.sourceHandle === "true"
+                              ? "stroke-status-success/70"
+                              : "stroke-border",
+                      isTaken && dryRun && "animate-pulse",
+                    )}
+                    strokeWidth={isCycle || isTaken ? 2.5 : 1.8}
+                    strokeDasharray={
+                      !isTaken && !isCycle && edge.sourceHandle === "false" ? "7 4" : undefined
+                    }
+                    fill="none"
+                    markerEnd={
+                      isCycle
+                        ? "url(#dag-arrow-cycle)"
+                        : isTaken
+                          ? "url(#dag-arrow-taken)"
+                          : "url(#dag-arrow)"
+                    }
+                  />
+                  {(edge.sourceHandle === "true" || edge.sourceHandle === "false") && !dryRun && (
+                    <text
+                      x={mx}
+                      y={edge.sourceHandle === "true" ? Math.min(y1, y2) - 6 : Math.max(y1, y2) + 14}
+                      textAnchor="middle"
+                      className={cn(
+                        "text-[9px] font-semibold select-none pointer-events-none",
+                        edge.sourceHandle === "true" ? "fill-status-success" : "fill-status-danger",
+                      )}
+                    >
+                      {edge.sourceHandle === "true" ? "VRAI / OUI" : "FAUX / NON"}
+                    </text>
                   )}
-                  strokeWidth={isCycle || isTaken ? 2.5 : 1.8}
-                  fill="none"
-                  markerEnd={
-                    isCycle
-                      ? "url(#dag-arrow-cycle)"
-                      : isTaken
-                        ? "url(#dag-arrow-taken)"
-                        : "url(#dag-arrow)"
-                  }
-                />
+                </g>
               );
             })}
 
@@ -938,14 +1031,20 @@ export function DagCanvas({
                 const from = nodes.find((n) => n.id === edgeDraft.fromId);
                 if (!from) return null;
                 const x1 = from.position.x + NODE_W;
-                const y1 = from.position.y + NODE_H / 2;
+                const y1 = outputPortY(from, edgeDraft.fromHandle);
                 const x2 = edgeDraft.cursorX;
                 const y2 = edgeDraft.cursorY;
                 const mx = (x1 + x2) / 2;
                 return (
                   <path
                     d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
-                    className="stroke-primary/60"
+                    className={cn(
+                      edgeDraft.fromHandle === "true"
+                        ? "stroke-status-success/70"
+                        : edgeDraft.fromHandle === "false"
+                          ? "stroke-status-danger/70"
+                          : "stroke-primary/60",
+                    )}
                     strokeWidth={1.8}
                     strokeDasharray="6 4"
                     fill="none"
@@ -970,6 +1069,11 @@ export function DagCanvas({
                   )}
                   onMouseDown={(e) => handleNodeMouseDown(e, node)}
                   onDoubleClick={() => onInspectNode(node)}
+                  // T-314 (Test Studio): single-click a node while a
+                  // simulation is showing → inspect that step in the studio.
+                  onClick={() => {
+                    if (dryRun && testSelectedId !== node.id) setTestSelectedId(node.id);
+                  }}
                 >
                   <rect
                     width={NODE_W}
@@ -987,6 +1091,22 @@ export function DagCanvas({
                       runStatus === "skipped" ? "6 3" : undefined
                     }
                   />
+
+                  {/* T-314: Test Studio inspected-step ring (info blue) */}
+                  {dryRun && testSelectedId === node.id && (
+                    <rect
+                      x={-6}
+                      y={-6}
+                      width={NODE_W + 12}
+                      height={NODE_H + 12}
+                      rx={14}
+                      ry={14}
+                      className="fill-none stroke-primary"
+                      strokeWidth={2}
+                      strokeDasharray="5 4"
+                      pointerEvents="none"
+                    />
+                  )}
 
                   {/* Dry-run status rings */}
                   {runStatus === "failed" && (
@@ -1074,15 +1194,58 @@ export function DagCanvas({
                     onMouseUp={(e) => handleInputPortMouseUp(e, node)}
                   />
 
-                  {/* Output port (right) */}
-                  <circle
-                    cx={NODE_W}
-                    cy={NODE_H / 2}
-                    r={6}
-                    className="fill-popover stroke-primary hover:scale-125 transition-transform cursor-crosshair"
-                    strokeWidth={2}
-                    onMouseDown={(e) => handleOutputPortMouseDown(e, node)}
-                  />
+                  {/* T-314: output ports — conditions carry the VRAI/FAUX
+                      binary pair (green top / red bottom); every other node
+                      keeps its single right-side port. */}
+                  {node.type === "condition" ? (
+                    <>
+                      <circle
+                        cx={NODE_W}
+                        cy={TRUE_PORT_Y}
+                        r={6}
+                        className="fill-popover stroke-status-success hover:scale-125 transition-transform cursor-crosshair"
+                        strokeWidth={2.5}
+                        onMouseDown={(e) => handleOutputPortMouseDown(e, node, "true")}
+                      >
+                        <title>Port VRAI / OUI — la condition est remplie</title>
+                      </circle>
+                      <circle
+                        cx={NODE_W}
+                        cy={FALSE_PORT_Y}
+                        r={6}
+                        className="fill-popover stroke-status-danger hover:scale-125 transition-transform cursor-crosshair"
+                        strokeWidth={2.5}
+                        onMouseDown={(e) => handleOutputPortMouseDown(e, node, "false")}
+                      >
+                        <title>Port FAUX / NON — la condition n'est pas remplie</title>
+                      </circle>
+                      <text
+                        x={NODE_W - 34}
+                        y={TRUE_PORT_Y + 3.5}
+                        textAnchor="end"
+                        className="text-[9px] font-semibold fill-status-success pointer-events-none select-none"
+                      >
+                        VRAI
+                      </text>
+                      <text
+                        x={NODE_W - 34}
+                        y={FALSE_PORT_Y + 3.5}
+                        textAnchor="end"
+                        className="text-[9px] font-semibold fill-status-danger pointer-events-none select-none"
+                      >
+                        FAUX
+                      </text>
+                    </>
+                  ) : (
+                    <circle
+                      cx={NODE_W}
+                      cy={NODE_H / 2}
+                      r={6}
+                      className="fill-popover stroke-primary hover:scale-125 transition-transform cursor-crosshair"
+                      strokeWidth={2}
+                      onMouseDown={(e) => handleOutputPortMouseDown(e, node, "out")}
+                    />
+                  )}
 
                   {/* Context menu trigger */}
                   {canEdit && (
@@ -1202,6 +1365,25 @@ export function DagCanvas({
         description="Le workflow sera figé et exécutable en production."
         confirmLabel="Déployer"
         onConfirm={handleDeployConfirm}
+      />
+
+      {/* ---------- T-314: the Test Studio (real entities + live path) ---------- */}
+      <TestStudioDrawer
+        open={studioOpen}
+        onOpenChange={setStudioOpen}
+        entities={testEntities ?? []}
+        nodes={nodes}
+        dryRun={dryRun}
+        onRunSimulation={handleStudioSimulation}
+        onClearSimulation={() => {
+          setDryRun(null);
+          setTestSelectedId(null);
+        }}
+        onRealExecute={onTestExecute ?? (async () => undefined)}
+        executing={testExecuting}
+        canExecute={!!onTestExecute && (canTestExecute ?? false)}
+        selectedNodeId={testSelectedId}
+        onSelectNode={setTestSelectedId}
       />
     </Card>
   );

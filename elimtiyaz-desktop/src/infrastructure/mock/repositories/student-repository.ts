@@ -26,6 +26,7 @@ import type {
 } from "../../../domain/model/student";
 import { gradeLevelFromLevelYear } from "../../../domain/model/student";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import { dispatchStudentEnrolled } from "./workflow-event-bridge";
 import { defaultPricingConfig } from "../pricing-seed";
 import {
   evaluateAllSystemDiscounts,
@@ -288,6 +289,14 @@ export class MockStudentRepository implements StudentRepository {
         },
         note: `Inscription groupée atomique — ${students.length} élève(s) créé(s), ${billing.entries.length} écriture(s) de facturation`,
       });
+      // T-314 (event bridge): fire the DEPLOYED `student_enrolled` workflows
+      // for each newly created student (REAL entity context + side
+      // effects). Fail-safe: never breaks the registration.
+      for (const student of students) {
+        void dispatchStudentEnrolled(student, "usr-current").catch(() => {
+          /* the bridge audit-logs its own failures */
+        });
+      }
       return Ok({ parent, students });
     } catch (err) {
       // Step 5: ROLLBACK on failure — restore the snapshot.

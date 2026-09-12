@@ -3,7 +3,7 @@
  *
  * Visual DAG editor with live state synchronization and execution monitor.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Workflow as WorkflowIcon,
@@ -62,6 +62,7 @@ import {
   templateIsValid,
 } from "../../domain/calc/workflow/templates";
 import { DagCanvas, makeNode } from "./dag-canvas";
+import type { TestStudioEntity } from "./test-studio-drawer";
 import { NodePalette } from "./node-palette";
 import { NodeInspectorDrawer } from "./node-inspector-drawer";
 import { WorkflowRunDetailDrawer } from "./workflow-run-detail-drawer";
@@ -139,6 +140,27 @@ function EditorTab() {
   const canEdit =
     !!session && session.permissions.has(Permission.ManageWorkflows);
   const parents = useObservable(() => repos.parents.observe(), []);
+  const students = useObservable(() => repos.students.observe(), []);
+  const debtSummaries = useObservable(() => repos.debt.observeSummary(), []);
+
+  // T-314 (Test Studio): real selectable entities — every parent with their
+  // REAL ledger-derived outstanding balance + restriction status.
+  const testEntities: TestStudioEntity[] = useMemo(() => {
+    const debtByParent = new Map(debtSummaries.map((d) => [d.parentId, d] as const));
+    return parents
+      .map((p) => {
+        const label = p.displayName || `${p.firstName} ${p.lastName}`.trim() || p.id;
+        const children = students.filter((s) => s.parentId === p.id);
+        return {
+          parentId: p.id,
+          label,
+          studentLabels: children.map((s) => s.displayName || `${s.firstName} ${s.lastName}`.trim()),
+          debtAmount: debtByParent.get(p.id)?.outstandingAmount ?? 0,
+          isRestricted: p.financiallyRestricted ?? false,
+        } satisfies TestStudioEntity;
+      })
+      .sort((a, b) => b.debtAmount - a.debtAmount);
+  }, [parents, students, debtSummaries]);
 
   async function handleExecute() {
     if (!selected || !session) return;
@@ -149,6 +171,30 @@ function EditorTab() {
     );
     if (r.ok) toast.showSuccess(t("workflow.execute"), t("workflow.executed"));
     else toast.showError("Échec", r.error.userMessage);
+  }
+
+  /**
+   * T-314 (Test Studio): REAL execution for a specific parent — the studio's
+   * context + target flow into the repository, which applies REAL side
+   * effects (task, notification, restriction) and records the run.
+   */
+  async function handleTestExecute(parentId: string, context: Record<string, unknown>) {
+    if (!selected || !session) return;
+    const r = await repos.workflows.execute(
+      selected.id,
+      session.userId,
+      session.displayName,
+      { context, targetParentId: parentId },
+    );
+    if (r.ok) {
+      toast.showSuccess(
+        "Exécution réelle",
+        "Effets de bord appliqués — vérifiez la cloche, Personnel → Tâches et Exécutions.",
+      );
+    } else {
+      toast.showError("Échec de l'exécution", r.error.userMessage);
+      throw new Error(r.error.userMessage);
+    }
   }
 
   async function handleServerDryRun(parentId: string | null) {
@@ -347,6 +393,9 @@ function EditorTab() {
                     `${p.firstName} ${p.lastName}`.trim() ||
                     p.id,
                 }))}
+                testEntities={testEntities}
+                onTestExecute={handleTestExecute}
+                canTestExecute={canEdit && selected.status === "deployed"}
               />
             </div>
             <NodePalette onAddNode={handleAddNode} disabled={!canEdit} />

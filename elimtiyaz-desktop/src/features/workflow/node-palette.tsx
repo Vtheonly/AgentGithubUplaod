@@ -9,11 +9,19 @@
  * T-221: each item also carries the subtype's one-line description as a
  * native tooltip (NODE_SUBTYPE_DESCRIPTIONS_FR) so authors can discover
  * the new trigger/condition/action set without opening the inspector.
+ *
+ * T-314 (palette cleanup): the low-level developer nodes
+ * (`database_query`, `extract_field`) are HIDDEN from the standard
+ * school-admin palette (ADMIN_PALETTE_HIDDEN_SUBTYPES). They stay
+ * registered in the model + SQL validator so legacy graphs keep
+ * validating and rendering — they are just no longer offered to admin
+ * authors. The `transform` group disappears with them (empty group).
  */
 import { Webhook, Filter, Send, Clock, GitBranch, type LucideIcon } from "lucide-react";
 import { cn } from "../../shared/ui/cn";
 import {
   NODE_SUBTYPES_BY_TYPE,
+  ADMIN_PALETTE_HIDDEN_SUBTYPES,
   WORKFLOW_NODE_TYPE_LABELS_FR,
   WORKFLOW_NODE_SUBTYPE_LABELS_FR,
   NODE_SUBTYPE_DESCRIPTIONS_FR,
@@ -37,6 +45,15 @@ const ICON_TONE_FOR_TYPE: Record<WorkflowNodeType, string> = {
   transform: "text-muted-foreground",
 };
 
+/** T-314: subtypes visible in the admin palette (hidden dev nodes filtered). */
+export const PALETTE_VISIBLE_SUBTYPES_BY_TYPE: Record<WorkflowNodeType, WorkflowNodeSubtype[]> = {
+  trigger: NODE_SUBTYPES_BY_TYPE.trigger.filter((s) => !ADMIN_PALETTE_HIDDEN_SUBTYPES.has(s)),
+  condition: NODE_SUBTYPES_BY_TYPE.condition.filter((s) => !ADMIN_PALETTE_HIDDEN_SUBTYPES.has(s)),
+  action: NODE_SUBTYPES_BY_TYPE.action.filter((s) => !ADMIN_PALETTE_HIDDEN_SUBTYPES.has(s)),
+  delay: NODE_SUBTYPES_BY_TYPE.delay.filter((s) => !ADMIN_PALETTE_HIDDEN_SUBTYPES.has(s)),
+  transform: NODE_SUBTYPES_BY_TYPE.transform.filter((s) => !ADMIN_PALETTE_HIDDEN_SUBTYPES.has(s)),
+};
+
 const NODE_TYPE_ORDER: WorkflowNodeType[] = ["trigger", "condition", "action", "delay", "transform"];
 
 export interface NodePaletteProps {
@@ -58,7 +75,9 @@ export function NodePalette({ onAddNode, disabled }: NodePaletteProps) {
       <div className="flex-1 overflow-y-auto p-2 space-y-3">
         {NODE_TYPE_ORDER.map((type) => {
           const Icon = ICON_FOR_TYPE[type];
-          const subtypes = NODE_SUBTYPES_BY_TYPE[type];
+          const subtypes = PALETTE_VISIBLE_SUBTYPES_BY_TYPE[type];
+          // T-314: skip groups emptied by the dev-node cleanup.
+          if (subtypes.length === 0) return null;
           return (
             <div key={type} className="space-y-1">
               <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1">

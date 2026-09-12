@@ -43,6 +43,7 @@ import type {
 import type { PromotionCandidate } from "../../../domain/calc/academics/promotion";
 import { createAcademicHistoryEntry } from "../../../domain/calc/academics/promotion";
 import { currentTermWindow } from "../../../domain/calc/academics/terms";
+import { dispatchWorkflowTriggerSafe } from "./workflow-dispatch";
 import type {
   CreateSchoolYearInput,
   UpdateSchoolYearInput,
@@ -1032,7 +1033,70 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
       .select();
 
     if (error) return Err(supabaseErrorToAppError(error));
+
+    // T-314 (event bridge): when a student JUST crossed the 3-unexcused-
+    // absence threshold in the current term, fire the DEPLOYED
+    // `absence_limit_exceeded` workflows through the canonical
+    // workflow-execute EF (real entity context + REAL side effects
+    // server-side). Fail-safe: never breaks the roll-call save.
+    void this.dispatchAbsenceWorkflows(data);
+
     return Ok(data.map(mapAttendanceRow));
+  }
+
+  /**
+   * T-314: threshold re-check + workflow dispatch for the students that
+   * just became absent. PRIVATE — called after a successful roll-call
+   * upsert; every failure is swallowed (audit-logged server-side).
+   */
+  private async dispatchAbsenceWorkflows(
+    rows: readonly { student_id: string; status: string }[],
+  ): Promise<void> {
+    try {
+      const THRESHOLD = 3;
+      const absentStudentIds = rows
+        .filter((r) => r.status === "absent" || r.status === "absent_unexcused" || r.status === "absent_excused")
+        .map((r) => r.student_id);
+      if (absentStudentIds.length === 0) return;
+      const now = new Date();
+      const window = currentTermWindow(now);
+      const windowStart = window.start.toISOString().slice(0, 10);
+      const { data: countRows } = await this.client
+        .from("attendance_records")
+        .select("student_id, status")
+        .in("student_id", absentStudentIds)
+        .in("status", ["absent_unexcused", "absent"])
+        .gte("record_date", windowStart)
+        .lte("record_date", now.toISOString().slice(0, 10));
+      if (!countRows) return;
+      const counts = new Map<string, number>();
+      for (const row of countRows as { student_id: string }[]) {
+        counts.set(row.student_id, (counts.get(row.student_id) ?? 0) + 1);
+      }
+      const flagged = [...counts.entries()].filter(([, c]) => c >= THRESHOLD);
+      if (flagged.length === 0) return;
+      // Resolve each student's parent for the entity-targeted dispatch.
+      const { data: studentRows } = await this.client
+        .from("students")
+        .select("id, parent_id")
+        .in("id", flagged.map(([id]) => id));
+      const parentByStudent = new Map<string, string>();
+      for (const row of (studentRows ?? []) as { id: string; parent_id: string | null }[]) {
+        if (row.parent_id) parentByStudent.set(row.id, row.parent_id);
+      }
+      for (const [studentId, count] of flagged) {
+        await dispatchWorkflowTriggerSafe({
+          triggerSubtype: "absence_limit_exceeded",
+          studentId,
+          parentId: parentByStudent.get(studentId) ?? null,
+          context: { student: { absence_count: count } },
+          actorId: "system",
+          actorName: "Système (appel — seuil absences)",
+        });
+      }
+    } catch {
+      /* fail-safe by contract — the roll call is already saved */
+    }
   }
 
   /**
