@@ -2133,3 +2133,21 @@ The session's core discovery: **the chat CONVERSATION layer was complete and liv
 **The fix:** the importer now runs on the REAL matrix — `realScheduleFor()` (exact grade from CLASSE via the new `resolveGradeFromClasse`; AUTISTE track via CLASSE/OPTION); 4-payment BON dues (INSCRIPTION/2EME/3ème/4ème) with the REMISE on 2EME ONLY; real per-town transport for every observed spelling (REF typos aliased); `trancheNumber` parsed from the deterministic id `imp-…-T<n>` (never the label); the fictional `OFFICIAL_*` exports deleted from destination-mapper.ts; `ImportInstallmentInput.trancheNumber` widened to 1|2|3|4; migration **0090** (append-only) relaxes the CHECK + backfills the BON labels. `buildStudentInput` also stores the EXACT grade — a CE1 import is now a 2ap student, not a CP student.
 
 **Evidence at close:** full desktop suite **140 files / 3 127 tests / 0 failures** (8 new tests: `excel-import-mappers.test.ts` + the BON/per-grade block in t-105) + `tsc` 0 errors + eslint 0 errors; the real-workbook integration import replays all 390 rows with C3 EXACT (113 518 800 == 113 518 800) and **ZIREG LEA reproduced to the dinar: INSCRIPTION 25 000 + 2EME/3ème/4ème 71 500 each = 239 500, zero reconciliation residual**; MERABTI transport 30 000/15 000/10 000 (DJENET). Append-only guard OK (86 files, +1). Migration 0090 LIVE apply prepared (`scripts/apply_0090_live.sh`, atomic T-091 pattern) — awaits the owner's sbp_ token (token hygiene: never persisted); until applied, live Supabase imports must NOT run. Registry: +CALC-002 (CLOSED — TESTED). Android: NOT affected (the import engine is desktop-only; DiscountEngine.kt unchanged this session).
+
+---
+
+## 56th session (2026-09-13) — CALC-002 closed LIVE: migration 0090 applied to production + verified; the delivery push
+
+**Mandate:** the owner's delivery message — "Access Tokens for supabase sbp_… and when you're done Zip all the systems and the main 3 repos, push them to github with this pat, and give them to me."
+
+**What changed:**
+- **Migration 0090 applied LIVE, atomically** (`scripts/apply_0090_live.sh`, T-091 pattern, the owner's sbp_ token supplied at delivery time — never persisted): HTTP 201, SQL + `schema_migrations` registration in one call. Live chain now 0001–0090, zero drift.
+- **Live verification (independent post-checks, all GREEN):** registration `0090/installments_four_payment_bon` present; `installments_tranche_number_check` def = `CHECK ((tranche_number = ANY (ARRAY[1, 2, 3, 4])))`; rolled-back tranche-4 insert probe ACCEPTED (silent `[]`); tranche-5 probe REJECTED by the constraint (23514 — enforcement intact, not just relaxed); BON label backfill present (INSCRIPTION (FI) / 2EME (V2) / 3ème (2V) × 390). **A live Supabase Excel import is now SAFE to run.**
+- **The apply script's original post-check probe carried a self-bug** (wrong column list — `category`/`source_type`/`source_id`/`gen_uuid()` — NOT a migration defect): fixed in the same session with the correct column set + a NEW tranche-5 REJECT probe (must-fail semantics inverted in the checker), so a rerun reports POST-CHECKS OK honestly.
+- Registry: CALC-002 status flipped TESTED → **TESTED + VERIFIED LIVE** with the probe evidence.
+
+**Tests:** full desktop suite re-run fresh this session BEFORE the live apply: **140 files / 3 127 tests / 0 failures** (+1 skipped file / 5 skipped tests, pre-existing) + corpus 11/11 + excel-import-mappers 7/7. Nothing changed under the tests since the 55th session — this re-run is the delivery gate.
+
+**Verification:** `apply_0090_live.sh` (HTTP 201 + 4 post-checks); manual tranche-4-accept / tranche-5-reject probes via the Supabase query API; live `schema_migrations` head = 0090.
+
+**Notes:** hub push — the stale local `origin/main` ref suggested CALC-001 7355378 was unpushed, but `git ls-remote` proved the remote already had it (the 54th-session push was real); this session pushes the one genuinely-new commit (CALC-002) on top; android repo pushed (f210cc4 — CALC-001 mirror; CALC-002 is desktop-only by design); website repo unchanged (no financial engine per ADR-002 — its displays flow from the canonical backend, now correct via 0089+0090). Deliverables zipped: the 3 repos + the all-in-one bundle, under download/zips/.
