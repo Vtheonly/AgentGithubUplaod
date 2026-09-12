@@ -444,15 +444,17 @@ export interface InstallmentRepository {
  * Input for `InstallmentRepository.importInstallment` — the bulk-import
  * path that creates or updates an installment row idempotently.
  *
- * The `trancheNumber` (1, 2, or 3) plus `category`, `parentId`, `studentId`
+ * The `trancheNumber` (1–4) plus `category`, `parentId`, `studentId`
  * form the identity key. Re-importing the same Excel row produces the same
  * identity key → the existing installment is updated rather than duplicated.
+ * Tuition uses the 4-payment BON structure (1=INSCRIPTION/FI, 2=2EME/V2,
+ * 3=3ème/2V, 4=4ème/v3 — CALC-001); transport stays 1..3.
  */
 export interface ImportInstallmentInput {
   readonly parentId: string;
   readonly studentId: string;
   readonly category: PaymentCategory;
-  readonly trancheNumber: 1 | 2 | 3;
+  readonly trancheNumber: 1 | 2 | 3 | 4;
   readonly label: string;
   readonly amountDue: number;
   readonly amountPaid: number;

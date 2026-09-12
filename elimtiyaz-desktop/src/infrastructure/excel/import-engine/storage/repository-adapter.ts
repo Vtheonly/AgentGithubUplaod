@@ -27,19 +27,21 @@ import { objectChecksum } from "../utils/checksum";
 import { StorageAdapter, type StorageRecord, type RunAuditEntry } from "./storage-adapter";
 import { uuid } from "../utils/id";
 import type { ParentRepository, StudentRepository, LedgerRepository, PaymentRepository, InstallmentRepository, ImportInstallmentInput } from "../../../../domain/repository/repository";
-import type { Parent, CreateParentInput } from "../../../../domain/model/parent";
+import type { Parent, CreateParentInput, TransportDestination } from "../../../../domain/model/parent";
 import type { CreateStudentInput, Student } from "../../../../domain/model/student";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Payment, Installment, PaymentCategory, AcademicCycle, CollectPaymentInput } from "../../../../domain/model/payment";
 import { createChargeEntry, createPaymentEntry, createAdjustmentEntry } from "../../../../domain/calc/ledger/entries";
-import { mapNiveauCode } from "../mappers/niveau-mapper";
+import { mapNiveauCode, resolveGradeFromClasse, isAutisteTrack } from "../mappers/niveau-mapper";
 import { splitFullName } from "../mappers/name-splitter";
+import { mapExcelDestinationToCanonical } from "../mappers/destination-mapper";
 import {
-  mapExcelDestinationToCanonical,
-  OFFICIAL_TUITION_SCHEDULE,
-  OFFICIAL_TRANSPORT_SCHEDULE,
-} from "../mappers/destination-mapper";
-import { REAL_TRANSPORT_MATRIX } from "../../../../domain/calc/pricing/school-price-matrix";
+  REAL_TRANSPORT_MATRIX,
+  REAL_TUITION_BY_GRADE,
+  REAL_FI_BY_GRADE,
+  REAL_TUITION_AUTISTE,
+  REAL_FI_AUTISTE,
+} from "../../../../domain/calc/pricing/school-price-matrix";
 
 export interface RepositoryStorageAdapterDeps {
   readonly parents: ParentRepository;
@@ -503,7 +505,12 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       // Add to pending batch — the actual importInstallment() calls happen
       // in commitTransaction via bulkImportInstallments.
       for (const inst of installmentRows) {
-        const trancheNum = Number(inst.label.match(/Tranche (\d)/)?.[1] ?? "1") as 1 | 2 | 3;
+        // Tranche number is parsed from the deterministic id
+        // (`imp-…-<category>-T<n>`) — NOT from the label: the BON labels
+        // ("2EME TRANCHE (V2)"…) are uppercase and would never match the
+        // old `/Tranche (\d)/` regex, silently collapsing every tuition
+        // installment onto tranche 1 (the T-105 C3 regression).
+        const trancheNum = Number(/-T(\d)$/.exec(inst.id)?.[1] ?? "1") as 1 | 2 | 3 | 4;
         this.pendingInstallments.push({
           parentId: inst.parentId,
           studentId: inst.studentId ?? studentId,
@@ -747,7 +754,11 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
   private buildStudentInput(record: ImportRecord): CreateStudentInput {
     const nameParts = splitFullName(record.nom);
-    const mapping = mapNiveauCode(record.niveau);
+    // CALC-001: resolve the EXACT grade from the CLASSE column (H) first —
+    // the broad NIVEAU code (G: PRIM/COLG/LYC) would store every primary
+    // student as 1ap and price them at the CP rate. Falls back to the
+    // niveau mapping for unknown class codes (NV3/NV4 special tracks).
+    const mapping = resolveGradeFromClasse(record.classe, record.niveau);
     // Store the DISTINATION town name as transportTier when present — this
     // is more useful than the OPTION code (TRNSP/TENSP/TRNP) because it
     // identifies the actual transport zone, which drives pricing per
@@ -1395,11 +1406,39 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * caller adds them to `pendingPayments`, and the actual write happens
    * ONCE in `commitTransaction` via `bulkCollect`.
    *
-   * PAYMENT BREAKDOWN: Each payment includes `expectedAmount` — the real
-   * expected amount for the corresponding tranche from `Prices.md`. When
-   * the paid amount exceeds the expected, `excessAmount` + `excessRemark`
-   * are set so the UI can show the overpayment clearly.
+   * PAYMENT BREAKDOWN: Each payment includes `expectedAmount` — the REAL
+   * expected amount for the corresponding tranche from the CALC-001 matrix
+   * (`school-price-matrix.ts`). When the paid amount exceeds the expected,
+   * `excessAmount` + `excessRemark` are set so the UI can show the
+   * overpayment clearly.
    */
+  /**
+   * The REAL 2026/2027 schedule for an imported row — the CALC-001 matrix
+   * (per-grade FI, V2/2V/v3 tranches with the REMISE on V2 ONLY, per-town
+   * transport). AUTISTE rows (detected via the CLASSE column) use the
+   * dedicated autism schedule (23 000 + 250 000).
+   */
+  private realScheduleFor(record: ImportRecord): {
+    fi: number;
+    tuitionTranches: [number, number, number]; // [V2, 2V, v3] stickers
+    transport: readonly [number, number, number, number];
+    destination: TransportDestination;
+  } {
+    // EXACT grade from the CLASSE column (CALC-001) — the broad NIVEAU
+    // code would price every primary student at the CP rate.
+    const mapping = resolveGradeFromClasse(record.classe, record.niveau);
+    const gradeLevel = mapping.gradeLevel;
+    const isAutiste = isAutisteTrack(record.classe, record.option);
+    const schedule = isAutiste ? REAL_TUITION_AUTISTE : REAL_TUITION_BY_GRADE[gradeLevel];
+    const fi = isAutiste ? REAL_FI_AUTISTE : REAL_FI_BY_GRADE[gradeLevel];
+    const tuitionTranches: [number, number, number] = schedule
+      ? [schedule.v2, schedule.tranche3, schedule.tranche4]
+      : [0, 0, 0];
+    const destination = mapExcelDestinationToCanonical(record.distination);
+    const transport = REAL_TRANSPORT_MATRIX[destination] ?? [0, 0, 0, 0];
+    return { fi, tuitionTranches, transport, destination };
+  }
+
   private buildPaymentRows(
     record: ImportRecord,
     parentId: string,
@@ -1409,28 +1448,20 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     const actorId = this.deps.actorId ?? "excel-import";
     const at = new Date().toISOString();
 
-    // REAL PRICING from Prices.md — look up expected amounts per tranche.
-    const mapping = mapNiveauCode(record.niveau);
-    const gradeLevel = mapping.gradeLevel;
-    const tuitionSchedule = OFFICIAL_TUITION_SCHEDULE[gradeLevel] ?? [0, 0, 0, 0];
-    const tuitionAnnual = tuitionSchedule[0];
+    // CALC-001 REAL PRICING — expected amounts from the real matrix.
+    const { fi: fiExpected, tuitionTranches, transport: transportSchedule, destination } =
+      this.realScheduleFor(record);
     const remise = numOrZero(record.remise);
-    const remiseRatio = tuitionAnnual > 0 ? Math.max(0, 1 - remise / tuitionAnnual) : 1;
 
-    // Expected tuition tranche amounts (after REMISE).
+    // The REMISE lands on the V2 tranche ONLY (workbook column-S rule:
+    // `=122000-J58`); 2V / v3 are never discounted.
     const expectedTuitionTranches: [number, number, number] = [
-      Math.round(tuitionSchedule[1] * remiseRatio),
-      Math.round(tuitionSchedule[2] * remiseRatio),
-      Math.round(tuitionSchedule[3] * remiseRatio),
+      Math.max(0, tuitionTranches[0] - remise),
+      tuitionTranches[1],
+      tuitionTranches[2],
     ];
 
     // Expected transport tranche amounts.
-    const canonicalDestination = mapExcelDestinationToCanonical(record.distination);
-    // CALC-001: real per-town matrix with legacy fallback.
-    const transportSchedule =
-      REAL_TRANSPORT_MATRIX[canonicalDestination] ??
-      OFFICIAL_TRANSPORT_SCHEDULE[canonicalDestination] ??
-      [0, 0, 0, 0];
     const expectedTransportTranches: [number, number, number] = [
       transportSchedule[1],
       transportSchedule[2],
@@ -1438,17 +1469,19 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     ];
 
     // Each entry: [field, amount, category, description, expectedAmount]
-    // expectedAmount = the real expected amount for this tranche from Prices.md.
+    // expectedAmount = the real expected amount for this tranche (CALC-001).
+    // Tranche labels follow the BON receipt sheet: INSCRIPTION / 2EME /
+    // 3ème / 4ème TRANCHE.
     type PaymentSpec = [string, number, PaymentCategory, string, number];
     const specs: PaymentSpec[] = [
       ["REGLEMENTS_DETTES", numOrZero(record.reglementsDettes), "tuition", "Règlement dettes antérieures", 0],
-      ["FI", numOrZero(record.fi), "tuition", "Frais d'inscription (FI) — Tranche 1", expectedTuitionTranches[0]],
-      ["V2", numOrZero(record.v2), "tuition", "Versement 2 (V2) — Tranche 2", expectedTuitionTranches[1]],
-      ["V2_ALT", numOrZero(record.v2Alt), "tuition", "Versement 2 alternatif (2V) — Tranche 2", expectedTuitionTranches[1]],
-      ["V3", numOrZero(record.v3), "tuition", "Versement 3 (v3) — Tranche 3", expectedTuitionTranches[2]],
-      ["T1", numOrZero(record.t1), "transport", `Tranche 1 transport (1T) — ${canonicalDestination}`, expectedTransportTranches[0]],
-      ["T2", numOrZero(record.t2), "transport", `Tranche 2 transport (T2) — ${canonicalDestination}`, expectedTransportTranches[1]],
-      ["T3", numOrZero(record.t3), "transport", `Tranche 3 transport (t3) — ${canonicalDestination}`, expectedTransportTranches[2]],
+      ["FI", numOrZero(record.fi), "tuition", "INSCRIPTION (FI) — frais d'inscription", fiExpected],
+      ["V2", numOrZero(record.v2), "tuition", "2EME TRANCHE (V2)", expectedTuitionTranches[0]],
+      ["V2_ALT", numOrZero(record.v2Alt), "tuition", "3ème TRANCHE (2V)", expectedTuitionTranches[1]],
+      ["V3", numOrZero(record.v3), "tuition", "4ème TRANCHE (v3)", expectedTuitionTranches[2]],
+      ["T1", numOrZero(record.t1), "transport", `Tranche 1 transport (1T) — ${destination}`, expectedTransportTranches[0]],
+      ["T2", numOrZero(record.t2), "transport", `Tranche 2 transport (T2) — ${destination}`, expectedTransportTranches[1]],
+      ["T3", numOrZero(record.t3), "transport", `Tranche 3 transport (t3) — ${destination}`, expectedTransportTranches[2]],
       ["PSY1", numOrZero(record.psy1), "therapy_psychology", "Séance psychologie 1 (PSY1)", 10_000],
       ["PSY2", numOrZero(record.psy2), "therapy_psychology", "Séance psychologie 2 (PSY2)", 10_000],
       ["ORTH1", numOrZero(record.orth1), "therapy_speech", "Séance orthophonie 1 (ORTH1)", 10_000],
@@ -1498,11 +1531,12 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
   // ── Installments persistence ─────────────────────────────────────────
   //
-  // The Excel file models tuition as 3 tranches (FI/V2/v3) and transport as
-  // 3 tranches (1T/T2/t3). The installer creates one `installments` row per
-  // tranche, marking them paid/partial/unpaid according to the imported
-  // amounts. The official schedule per `Prices.md` is Sept 15 / Dec 15 /
-  // Mar 15 for ALL cycles and for Transport.
+  // The Excel file models tuition as the 4-payment BON structure
+  // (FI/V2/2V/v3 — the workbook's own receipt labels: INSCRIPTION, 2EME,
+  // 3ème, 4ème TRANCHE) and transport as 3 tranches (1T/T2/t3). The
+  // installer creates one `installments` row per payment, marking them
+  // paid/partial/unpaid according to the imported amounts. Due dates
+  // follow the BON rhythm: Sept 15 / Dec 15 / Mar 15 / Jun 15.
 
   /**
    * BUILD INSTALLMENT ROWS (deferred write — added to pendingInstallments).
@@ -1511,10 +1545,15 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * The caller adds them to `pendingInstallments`, and the actual write
    * happens ONCE in `commitTransaction` via `bulkImportInstallments`.
    *
-   * PRICING FIX: Uses the REAL prices from `Prices.md` (not made-up
-   * percentages). The tuition tranche amounts are looked up per grade
-   * level from `OFFICIAL_TUITION_SCHEDULE`. The transport tranche amounts
-   * are looked up per destination from `OFFICIAL_TRANSPORT_SCHEDULE`.
+   * CALC-001 REAL PRICING: the tuition schedule is the 4-payment BON
+   * structure — INSCRIPTION (FI) / 2EME TRANCHE (V2) / 3ème TRANCHE (2V) /
+   * 4ème TRANCHE (v3) — with the REMISE deducted from the 2EME (V2)
+   * tranche ONLY (workbook column-S rule `=122000-J58`). Transport
+   * tranches come from the REAL per-town matrix.
+   *
+   * Negotiated-price rows (the school wrote custom constants in its own
+   * workbook formula) are realigned by the T-105 reconciliation below,
+   * which absorbs the residual delta into the latest tranche.
    */
   private buildInstallmentRows(
     record: ImportRecord,
@@ -1524,70 +1563,60 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     runId: string,
   ): Installment[] {
     void runId;
+    void student;
     const now = new Date();
 
-    // Resolve the academic cycle + grade level for pricing lookup.
-    const mapping = mapNiveauCode(record.niveau);
+    // Resolve the academic cycle for the installment rows.
+    const mapping = resolveGradeFromClasse(record.classe, record.niveau);
     const cycle: AcademicCycle = mapping.academicLevel === "lycee"
       ? "lycee"
       : mapping.academicLevel === "cem"
         ? "cem"
         : "primaire";
-    const gradeLevel = mapping.gradeLevel;
 
-    // Official due dates — Sept 15 / Dec 15 / Mar 15 per `Prices.md`.
+    // Due dates — the BON rhythm: INSCRIPTION at signup (Sept 15), then
+    // 2EME (Dec 15), 3ème (Mar 15), 4ème (Jun 15).
     const academicYearStart = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-    const dueDates: [string, string, string] = [
+    const dueDates: readonly [string, string, string, string] = [
       `${academicYearStart}-09-15`,
       `${academicYearStart}-12-15`,
       `${academicYearStart + 1}-03-15`,
+      `${academicYearStart + 1}-06-15`,
     ];
 
-    // REAL TUITION PRICES from Prices.md — look up by grade level.
-    // Each schedule is [annual, tranche1, tranche2, tranche3].
-    const tuitionSchedule = OFFICIAL_TUITION_SCHEDULE[gradeLevel] ?? [0, 0, 0, 0];
-    const tuitionAnnual = tuitionSchedule[0];
-    const tuitionTrancheDue: [number, number, number] = [
-      tuitionSchedule[1],
-      tuitionSchedule[2],
-      tuitionSchedule[3],
-    ];
-
-    // Apply the REMISE (discount) — subtract from the annual, then
-    // redistribute proportionally across the 3 tranches.
+    // REAL TUITION PRICES from the CALC-001 matrix — per grade (or the
+    // AUTISTE schedule). The REMISE lands on the 2EME (V2) tranche ONLY.
+    const { fi: fiDue, tuitionTranches, transport: transportSchedule, destination } =
+      this.realScheduleFor(record);
     const remise = numOrZero(record.remise);
-    let netTuitionTrancheDue = tuitionTrancheDue;
-    if (remise > 0 && tuitionAnnual > 0) {
-      const ratio = Math.max(0, 1 - remise / tuitionAnnual);
-      netTuitionTrancheDue = [
-        Math.round(tuitionTrancheDue[0] * ratio),
-        Math.round(tuitionTrancheDue[1] * ratio),
-        Math.round(tuitionTrancheDue[2] * ratio),
-      ];
-    }
+    const netTuitionTrancheDue: readonly [number, number, number, number] = [
+      fiDue,
+      Math.max(0, tuitionTranches[0] - remise), // 2EME (V2) — remise here only
+      tuitionTranches[1],                        // 3ème (2V)
+      tuitionTranches[2],                        // 4ème (v3)
+    ];
 
     // Tuition amounts PAID — from the Excel payment columns.
-    // FI (frais d'inscription) + SEPTEMBRE → tranche 1
-    // V2 + V2_ALT + DECEMBRE → tranche 2
-    // V3 + MARS + RATRAPAGE → tranche 3
-    const tuitionTranchePaid: [number, number, number] = [
+    // FI + SEPTEMBRE → INSCRIPTION; V2 + DECEMBRE → 2EME;
+    // V2_ALT + MARS → 3ème; V3 + RATRAPAGE → 4ème.
+    const tuitionTranchePaid: readonly [number, number, number, number] = [
       numOrZero(record.fi) + numOrZero(record.septembre),
-      numOrZero(record.v2) + numOrZero(record.v2Alt) + numOrZero(record.decembre),
-      numOrZero(record.v3) + numOrZero(record.mars) + numOrZero(record.ratrapage),
+      numOrZero(record.v2) + numOrZero(record.decembre),
+      numOrZero(record.v2Alt) + numOrZero(record.mars),
+      numOrZero(record.v3) + numOrZero(record.ratrapage),
+    ];
+    const tuitionLabels: readonly [string, string, string, string] = [
+      "INSCRIPTION (FI)",
+      "2EME TRANCHE (V2)",
+      "3ème TRANCHE (2V)",
+      "4ème TRANCHE (v3)",
     ];
 
-    // REAL TRANSPORT PRICES from Prices.md — look up by destination.
-    // Map the Excel DISTINATION (raw town name) → canonical TransportDestination.
+    // REAL TRANSPORT PRICES — per-town from the CALC-001 matrix.
     const hasTransport =
       !!record.distination ||
       String(record.option ?? "").toUpperCase() === "TRNSP";
-    const canonicalDestination = mapExcelDestinationToCanonical(record.distination);
-    // CALC-001: the REAL per-town matrix supersedes the fictional 4-zone
-    // schedule; legacy zone keys still resolve inside REAL_TRANSPORT_MATRIX.
-    const transportSchedule =
-      REAL_TRANSPORT_MATRIX[canonicalDestination] ??
-      OFFICIAL_TRANSPORT_SCHEDULE[canonicalDestination] ??
-      [0, 0, 0, 0];
+    const canonicalDestination = destination;
     const transportTrancheDue: [number, number, number] = [
       transportSchedule[1],
       transportSchedule[2],
@@ -1603,7 +1632,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
     const buildInstallment = (
       category: PaymentCategory,
-      trancheNumber: 1 | 2 | 3,
+      trancheNumber: 1 | 2 | 3 | 4,
       label: string,
       amountDue: number,
       amountPaid: number,
@@ -1635,19 +1664,20 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       };
     };
 
-    // Tuition installments (3 tranches) — use REAL Prices.md amounts.
-    for (let i = 0; i < 3; i++) {
-      const trancheNumber = (i + 1) as 1 | 2 | 3;
+    // Tuition installments — the 4-payment BON structure (INSCRIPTION /
+    // 2EME / 3ème / 4ème TRANCHE) with REAL matrix amounts.
+    for (let i = 0; i < 4; i++) {
+      const trancheNumber = (i + 1) as 1 | 2 | 3 | 4;
       const amountDue = netTuitionTrancheDue[i];
       const amountPaid = tuitionTranchePaid[i];
       if (amountDue === 0 && amountPaid === 0) continue;
       results.push(buildInstallment(
-        "tuition", trancheNumber, `Tranche ${trancheNumber} — Scolarité`,
+        "tuition", trancheNumber, tuitionLabels[i],
         amountDue, amountPaid, dueDates[i],
       ));
     }
 
-    // Transport installments (3 tranches) — use REAL Prices.md amounts.
+    // Transport installments (3 tranches) — REAL per-town matrix amounts.
     if (hasTransport) {
       for (let i = 0; i < 3; i++) {
         const trancheNumber = (i + 1) as 1 | 2 | 3;

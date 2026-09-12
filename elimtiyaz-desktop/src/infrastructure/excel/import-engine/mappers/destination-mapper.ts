@@ -2,127 +2,93 @@
  * Excel DISTINATION column → canonical TransportDestination mapping.
  *
  * The Excel `DISTINATION` column contains raw town names (e.g. "BOUDOUAOU",
- * "DJENAT", "FIGUIER"). The canonical `TransportDestination` enum has 4
- * values per `Prices.md`:
+ * "DJENAT", "FIGUIER"). Since CALC-001 the canonical transport model is the
+ * REAL per-town matrix `REAL_TRANSPORT_MATRIX` in
+ * `src/domain/calc/pricing/school-price-matrix.ts` — 20 real towns with
+ * observed 2026/2027 prices (40k–65k DZD):
  *
- *   - ville_boumerdes                → 40,000 DA (20k + 10k + 10k)
- *   - tidjelabine_sahel_figuier_corso → 43,000 DA (20k + 13k + 10k)
- *   - boudouaou_thenia_zemmouri      → 52,000 DA (30k + 12k + 10k)
- *   - autres                         → 55,000 DA (30k + 15k + 10k)
+ *   40 000: BOUMERDES
+ *   43 000: CORSO, SAHEL, FIGUIER, TIDJELABINE
+ *   52 000: BOUDOUAOU, THENIA
+ *   57 000: ZEMMOURI
+ *   55 000: DJENAT/CAP DJENET, BORDJ MENAIEL, SI MUSTAPHA, ISSER,
+ *           OULED MOUSSA, KHEMIS EL KHECHNA, BENYOUNES, SOUK ELHAD,
+ *           CHABAT/CHABET
+ *   65 000: BENI AMRANE, REGHAIA, ROUIBA, OULED HEDDAJ, LAGATA
  *
- * This mapping normalizes the raw town names to the canonical enum so the
- * importer can look up the correct transport pricing.
+ * The legacy 4-zone enum values (ville_boumerdes, …) remain valid keys —
+ * they still resolve inside REAL_TRANSPORT_MATRIX — but every KNOWN town
+ * spelling now maps to its own real-town key so the per-town price is
+ * exact (the old mapping collapsed ZEMMOURI into the 52k zone and BENI
+ * AMRANE into the 55k zone — both wrong by 5 000 / 10 000 DZD).
+ *
+ * Spelling variants below are the ones ACTUALLY OBSERVED in the workbook
+ * (ETAT DISTINATION column + REF reference sheet), including the REF-sheet
+ * typos: "ZEMOURI" (missing M), "REGHIAA" (double A), "KHEMIS KHENCHELA"
+ * (real town: Khemis El Khechna), "OULED HEDDAJ /HOUCHE MEKHEFI".
  */
 import type { TransportDestination } from "../../../../domain/model/parent";
 
 /**
+ * Exact spelling → real-town key. Input is normalized: trimmed, uppercased,
+ * ALL whitespace removed. The compound REF spelling
+ * "OULED HEDDAJ /HOUCHE MEKHEFI" normalizes to "OULEDHEDDAJ/HOUCHEMEKHEFI".
+ */
+const TOWN_ALIASES: Record<string, TransportDestination> = {
+  // 40k — Boumerdès centre
+  BOUMERDES: "boumerdes",
+  BOUMRDES: "boumerdes",
+  BOUMREDES: "boumerdes",
+  BOUMERDES20000: "boumerdes",
+  CHABAT: "chabat",
+  CHABET: "chabet",
+  // 43k — Corso / Sahel / Figuier / Tidjelabine
+  CORSO: "corso",
+  SAHEL: "sahel",
+  FIGUIER: "figuier",
+  TIDJELABINE: "tidjelabine",
+  // 52k — Boudouaou / Thénia
+  BOUDOUAOU: "boudouaou",
+  THENIA: "thenia",
+  // 57k — Zemmouri (REF-sheet typo "ZEMOURI" included)
+  ZEMMOURI: "zemmouri",
+  ZEMOURI: "zemmouri",
+  // 55k — the "medium ring" towns
+  DJENAT: "djenet",
+  DJENET: "djenet",
+  CAPDJENET: "cap_djenet",
+  BORDJMNAIL: "bordj_menaiel",
+  SIMUSTAPHA: "si_mustapha",
+  ISSER: "isser",
+  OULEDMOUSSA: "ouled_moussa",
+  KHEMISKHECHNA: "khemis_el_khechna",
+  KHEMISELKHCHNA: "khemis_el_khechna",
+  KHEMISKHCHNA: "khemis_el_khechna",
+  KHEMISKHENCHELA: "khemis_el_khechna", // REF-sheet typo
+  BENYOUNES: "benyounes",
+  SOUKELHAD: "souk_elhad",
+  // 65k — the far ring
+  BENIAMRAN: "beni_amrane",
+  REGHAIA: "reghaia",
+  REGHIAA: "reghaia", // REF-sheet typo
+  ROUIBA: "rouiba",
+  OULEDHEDADJ: "ouled_heddadj",
+  OULEDHDADJ: "ouled_heddadj",
+  "OULEDHEDDAJ/HOUCHEMEKHEFI": "ouled_heddadj", // REF compound spelling
+  OULEDHADADJ: "ouled_heddadj",
+  LAGATA: "lagata",
+};
+
+/**
  * Map a raw Excel DISTINATION value to a canonical TransportDestination.
  *
- * The mapping is based on the actual values found in the real
- * `Suivis clients 2026_2027.xlsx` workbook:
- *
- *   ville_boumerdes:
- *     BOUMERDES, BOUMRDES, BOUMREDES, BOUMERDES20000, CHABAT, CHABET
- *
- *   tidjelabine_sahel_figuier_corso:
- *     TIDJELABINE, SAHEL, FIGUIER, CORSO, DJENAT
- *
- *   boudouaou_thenia_zemmouri:
- *     BOUDOUAOU, THENIA, ZEMMOURI
- *
- *   autres (everything else):
- *     BENIAMRAN, BORDJMNAIL, ERBATACHE, ISSER, KHEMIS KHECHNA,
- *     KHEMISELKHCHNA, KHEMISKHCHNA, LAGATA, OULED MOUSSA, OULEDMOUSA,
- *     OULEDHDADJ, OULEDHADADJ, OULEDHEDADJ, REGHAIA
+ * Known town spellings resolve to their REAL per-town key (exact price).
+ * Unknown/blank values fall back to the legacy `autres` zone (55 000 DZD)
+ * so the row still imports with a defensible price.
  */
 export function mapExcelDestinationToCanonical(raw: unknown): TransportDestination {
   if (raw === null || raw === undefined) return "autres";
   const s = String(raw).trim().toUpperCase().replace(/\s+/g, "");
   if (!s) return "autres";
-
-  // ville_boumerdes — Boumerdes centre + nearby (Chabat)
-  if (s === "BOUMERDES" || s === "BOUMRDES" || s === "BOUMREDES" ||
-      s === "BOUMERDES20000" || s === "CHABAT" || s === "CHABET") {
-    return "ville_boumerdes";
-  }
-
-  // tidjelabine_sahel_figuier_corso
-  if (s === "TIDJELABINE" || s === "SAHEL" || s === "FIGUIER" ||
-      s === "CORSO" || s === "DJENAT") {
-    return "tidjelabine_sahel_figuier_corso";
-  }
-
-  // boudouaou_thenia_zemmouri
-  if (s === "BOUDOUAOU" || s === "THENIA" || s === "ZEMMOURI") {
-    return "boudouaou_thenia_zemmouri";
-  }
-
-  // Everything else → autres (55,000 DA per Prices.md)
-  return "autres";
+  return TOWN_ALIASES[s] ?? "autres";
 }
-
-/**
- * Official 2026-2027 tuition schedule from `Prices.md`.
- * Each tuple is [annual, tranche1, tranche2, tranche3].
- *
- * These are the REAL prices — not percentages or made-up numbers.
- */
-export const OFFICIAL_TUITION_SCHEDULE: Record<string, readonly [number, number, number, number]> = {
-  // Préscolaire & Primaire
-  prescolaire_1: [130_000, 52_000, 39_000, 39_000],
-  prescolaire_2: [180_000, 72_000, 54_000, 54_000],
-  "1ap": [245_000, 98_000, 73_500, 73_500],
-  "2ap": [265_000, 106_000, 79_500, 79_500],
-  "3ap": [280_000, 112_000, 84_000, 84_000],
-  "4ap": [285_000, 114_000, 85_500, 85_500],
-  "5ap": [300_000, 120_000, 90_000, 90_000],
-  // Collège
-  "1am": [330_000, 132_000, 99_000, 99_000],
-  "2am": [345_000, 138_000, 103_500, 103_500],
-  "3am": [355_000, 142_000, 106_500, 106_500],
-  "4am": [370_000, 148_000, 111_000, 111_000],
-  // Lycée
-  "1ere_annee": [375_000, 150_000, 112_500, 112_500],
-  "2eme_annee": [380_000, 152_000, 114_000, 114_000],
-  "3eme_annee": [395_000, 158_000, 118_500, 118_500],
-};
-
-/**
- * Official 2026-2027 transport schedule from `Prices.md`.
- * Each tuple is [annual, tranche1, tranche2, tranche3].
- *
- * | Destination                                  | T1     | T2     | T3     | Total  |
- * |----------------------------------------------|--------|--------|--------|--------|
- * | Ville Boumerdès                              | 20,000 | 10,000 | 10,000 | 40,000 |
- * | Tidjelabine – Sahel – Figuier – Corso        | 20,000 | 13,000 | 10,000 | 43,000 |
- * | Boudouaou – Thénia – Zemmouri                | 30,000 | 12,000 | 10,000 | 52,000 |
- * | Autres                                       | 30,000 | 15,000 | 10,000 | 55,000 |
- */
-export const OFFICIAL_TRANSPORT_SCHEDULE: Partial<Record<TransportDestination, readonly [number, number, number, number]>> = {
-  ville_boumerdes: [40_000, 20_000, 10_000, 10_000],
-  tidjelabine_sahel_figuier_corso: [43_000, 20_000, 13_000, 10_000],
-  boudouaou_thenia_zemmouri: [52_000, 30_000, 12_000, 10_000],
-  autres: [55_000, 30_000, 15_000, 10_000],
-};
-
-/**
- * Official complementary services pricing from `Prices.md`.
- */
-export const OFFICIAL_SERVICES_PRICING = {
-  psychology_semester: 10_000,
-  psychology_annual: 20_000,
-  speech_therapy_semester: 10_000,
-  speech_therapy_annual: 20_000,
-  second_apron: 2_000,
-} as const;
-
-/**
- * Official discounts from `Prices.md`.
- */
-export const OFFICIAL_DISCOUNTS = {
-  passage_palier: 10_000, // fixed -10,000 DA
-  sibling: 5_000, // fixed -5,000 DA per additional child
-  early_annual: 0.10, // 10% off for full annual payment before June 30
-  highest_average: 0.10, // 10% off for highest average in level
-  seniority: 0.05, // 5% off for > 5 years seniority
-} as const;

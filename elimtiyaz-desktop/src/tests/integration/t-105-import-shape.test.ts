@@ -412,6 +412,33 @@ describeOrSkip("T-105 — import shape invariants (real workbook)", () => {
     expect(Math.round(totalDue)).toBe(Math.round(corpusTotal));
   });
 
+  it("CALC-001 — the BON 4-payment structure with REAL per-grade amounts (ZIREG LEA)", () => {
+    // ZIREG LEA (ETAT l2, CE1, remise 25 500): the workbook's own row is
+    // FI 25 000 + V2/2V/v3 = 71 500 each (V2 sticker 97 000 − 25 500).
+    // The import must reproduce EXACTLY this schedule — not the broad
+    // PRIM→1ap pricing the importer used before the classe resolution fix.
+    const zireg = [...installments.rows.values()].filter(
+      (i) => i.studentId === "stu-001" && i.category === "tuition",
+    );
+    expect(zireg).toHaveLength(4);
+    const byLabel = new Map(zireg.map((i) => [i.label, i]));
+    expect([...byLabel.keys()].sort()).toEqual(
+      ["2EME TRANCHE (V2)", "3ème TRANCHE (2V)", "4ème TRANCHE (v3)", "INSCRIPTION (FI)"].sort(),
+    );
+    expect(byLabel.get("INSCRIPTION (FI)")?.amountDue).toBe(25_000);
+    expect(byLabel.get("2EME TRANCHE (V2)")?.amountDue).toBe(71_500);
+    expect(byLabel.get("3ème TRANCHE (2V)")?.amountDue).toBe(71_500);
+    expect(byLabel.get("4ème TRANCHE (v3)")?.amountDue).toBe(71_500);
+    // The 4 tuition installments sum to the row's own devis (239 500 —
+    // no T-105 residual delta for this standard row).
+    expect(zireg.reduce((s, i) => s + i.amountDue, 0)).toBe(239_500);
+    // Transport rows keep the 3-tranche per-town shape (MERABTI l3, DJENAT).
+    const transport = [...installments.rows.values()].filter(
+      (i) => i.studentId === "stu-002" && i.category === "transport",
+    );
+    expect(transport.map((i) => i.amountDue).sort((a, b) => b - a)).toEqual([30_000, 15_000, 10_000]);
+  });
+
   it("ledger net obligation == Σ(devis + dettes) (charges + adjustments, no phantom discounts)", () => {
     const net = ledger.rows
       .filter((e) => e.type === "charge" || e.type === "adjustment")
