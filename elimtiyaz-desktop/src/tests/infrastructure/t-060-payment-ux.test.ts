@@ -9,12 +9,13 @@
  * the chosen one — the preview lied. Fixed: the modal applies the SAME exact
  * category filter and hands the allocator the SAME concrete categoryFilter.
  *
- * WEAK-005: the batch-registration form never captured
- * previousGradeLevel/previousRank, so the `passage_palier` (−10,000 DZD) and
- * `highest_average` (−10%) discount rules were silently disabled (always
- * null inputs). Fixed: step 2 captures both fields; computeBilling passes
- * them to the deterministic engine; the submitted CreateStudentInput carries
- * them so the mock's persisted billing matches the preview.
+ * WEAK-005 → CALC-001 supersession (2026-09-12): the T-060 "fix" captured
+ * previousGradeLevel/previousRank to feed the `passage_palier` (−10,000 DZD)
+ * and `highest_average` (−10%) rules — but those rules NEVER EXISTED at the
+ * school (verified against `Suivis clients  2026_2027.xlsx`: the 10 000 DZD
+ * remises were two 5 000 sibling components). The ghost fields are now
+ * REMOVED and this suite pins their absence + the REAL remise model
+ * (negotiated remise input, deducted from the V2 tranche).
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -99,44 +100,39 @@ describe("T-060 — batch registration captures the discount inputs (WEAK-005)",
     return { students, pricing: defaultPricingConfig, includeRegistration: false, includeTransport: false };
   }
 
-  it("a 5AP → 1AM transition applies the passage_palier discount (−10,000 DZD)", () => {
-    const billing = computeBilling(billingInput([
-      { ...baseStudent, previousGradeLevel: "5ap" },
-    ]));
-    const per = billing.perStudent[0];
-    const passage = per.discounts.find((d) => d.code === "passage_palier");
-    expect(passage).toBeDefined();
-    expect(passage!.amount).toBe(-10_000);
-    // Net = gross − 10,000.
-    expect(per.netTuition).toBe(330_000 - 10_000);
-  });
-
-  it("a rank-1 student applies the highest_average discount (−10%)", () => {
-    const gross = 330_000;
-    const billing = computeBilling(billingInput([
-      { ...baseStudent, previousRank: "1" },
-    ]));
-    const per = billing.perStudent[0];
-    const excellence = per.discounts.find((d) => d.code === "highest_average");
-    expect(excellence).toBeDefined();
-    // Discounts are SIGNED (negative) — matches passage_palier's −10,000.
-    expect(excellence!.amount).toBe(-Math.round(gross * 0.10 * 100) / 100);
-  });
-
-  it("both discounts stack when both inputs qualify", () => {
-    const billing = computeBilling(billingInput([
-      { ...baseStudent, previousGradeLevel: "5ap", previousRank: "1" },
-    ]));
-    const per = billing.perStudent[0];
-    const codes = per.discounts.filter((d) => d.amount < 0).map((d) => d.code);
-    expect(codes).toContain("passage_palier");
-    expect(codes).toContain("highest_average");
-  });
-
-  it("absent inputs leave both rules at zero (no accidental discounts)", () => {
+  it("CALC-001: the ghost fields are GONE — no passage_palier / highest_average codes exist", () => {
+    // The workbook proves those rules never existed; the wizard no longer
+    // collects them and the engine can never fire them.
     const billing = computeBilling(billingInput([{ ...baseStudent }]));
     const per = billing.perStudent[0];
-    expect(per.discounts.find((d) => d.code === "passage_palier")?.amount ?? 0).toBe(0);
-    expect(per.discounts.find((d) => d.code === "highest_average")?.amount ?? 0).toBe(0);
+    expect(per.discounts.find((d) => d.code === "passage_palier")).toBeUndefined();
+    expect(per.discounts.find((d) => d.code === "highest_average")).toBeUndefined();
+    expect(per.discounts.find((d) => d.code === "seniority_5y")).toBeUndefined();
+  });
+
+  it("CALC-001: the negotiated remise is deducted from the V2 tranche (workbook rule)", () => {
+    // 1AM (1AAM): scolarité 305 000, V2 sticker 122 000, 2V = v3 = 91 500.
+    // With a 50 000 remise: V2 = 122 000 − 50 000 = 72 000, 2V/v3 unchanged
+    // (ETAT row l39 BENZAOUI FATIMA — exact replay).
+    const billing = computeBilling(billingInput([
+      { ...baseStudent, remise: "50000" },
+    ]));
+    const per = billing.perStudent[0];
+    expect(per.tranches[0].amountDue).toBe(72_000); // V2 − remise
+    expect(per.tranches[1].amountDue).toBe(91_500); // 2V fixed
+    expect(per.tranches[2].amountDue).toBe(91_500); // v3 fixed
+    expect(per.devis).toBe(305_000 - 50_000); // FI excluded (includeRegistration=false)
+  });
+
+  it("CALC-001: the sticker-price case (SEDIKI rows) charges the FULL devis", () => {
+    const billing = computeBilling(billingInput([
+      { ...baseStudent, remise: "50000", chargeStickerPrice: true },
+    ]));
+    const per = billing.perStudent[0];
+    // Devis follows the sticker (remise recorded but NOT deducted)…
+    expect(per.devis).toBe(305_000);
+    // …while the V2 tranche still gets the remise.
+    expect(per.tranches[0].amountDue).toBe(72_000);
+    expect(per.tranches[1].amountDue).toBe(91_500);
   });
 });

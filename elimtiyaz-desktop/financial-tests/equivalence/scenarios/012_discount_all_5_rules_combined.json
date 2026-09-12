@@ -1,6 +1,6 @@
 {
   "id": "012_discount_all_5_rules_combined",
-  "description": "Student who: transitions 5ap→1am (passage_palier -10000), is child #2 (sibling_fixed -5000), pays annual early (full_annual -10%), was rank 1 (highest_average -10%), has 6y seniority (seniority_5y -5%). Verifies all 5 rules fire in single pass on gross with no compounding.",
+  "description": "CALC-001: only 2 REAL rules survive — sibling_fixed (child #2, -5000 DZD) + full_annual early payment (-5% of the SCOLARITE, workbook formula SUM(F)*0.05). The fictional passage_palier / highest_average / seniority_5y inputs are kept to pin that they never fire.",
   "category": "discount_engine",
   "tags": [
     "discount",
@@ -35,12 +35,9 @@
   },
   "then": {
     "discountsApplied": [
-      "passage_palier",
       "sibling_fixed",
-      "full_annual",
-      "highest_average",
-      "seniority_5y"
+      "full_annual"
     ],
-    "totalDiscount": -9750000
+    "totalDiscount": -2150000
   }
 }

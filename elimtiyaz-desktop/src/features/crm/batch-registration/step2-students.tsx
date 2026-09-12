@@ -3,6 +3,13 @@
  *
  * Pure presentational component — state lives in the orchestrator and is
  * threaded via props.
+ *
+ * CALC-001 (2026-09-12): the ghost fields « Niveau l'année dernière » and
+ * « Rang l'année dernière » (feeding the fictional passage_palier /
+ * highest_average rules) are REMOVED. In their place: the negotiated
+ * REMISE input (per student — the school's real-world discount is manual,
+ * e.g. HEBBAZ 3 kids = 10 000 vs KOUBA 3 kids = 41 500) and the
+ * sticker-price flag (the SEDIKI workbook case).
  */
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "../../../shared/ui/button";
@@ -16,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../shared/ui/select";
-import { LEVEL_YEARS, GRADE_LEVEL_LABELS_FR, type AcademicLevel, type Gender, type GradeLevel } from "../../../domain/model/student";
+import { LEVEL_YEARS, type AcademicLevel, type Gender } from "../../../domain/model/student";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import {
@@ -34,9 +41,6 @@ const NO_TRANSPORT = "__none__";
 
 /** Sentinel for "no class assigned" — Radix Select forbids empty-string values. */
 const NO_CLASS = "__none__";
-
-/** Sentinel for "previous grade not provided" — same Radix empty-value rule. */
-const NO_PREVIOUS_GRADE = "__none__";
 
 export function Step2({
   students,
@@ -67,7 +71,7 @@ export function Step2({
   }
   function remove(i: number) {
     if (students.length === 1) return; // keep at least 1
-    setStudents(students.filter((_, idx) => idx !== i));
+    setStudents(students.filter((s, idx) => idx !== i));
   }
 
   return (
@@ -154,7 +158,8 @@ export function Step2({
                 </SelectContent>
               </Select>
             </FormField>
-            <FormField label="Zone transport" hint="Laisser vide si pas de transport">
+            {/* CALC-001 — the 20 real towns replace the 4 grouped zones. */}
+            <FormField label="Commune (transport)" hint="Laisser vide si pas de transport">
               {/* FIX (Radix crash): empty-string SelectItem values are
                   forbidden by Radix — use a sentinel mapped back to "". */}
               <Select
@@ -168,55 +173,51 @@ export function Step2({
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_TRANSPORT}>Sans transport</SelectItem>
-                  {TRANSPORT_DESTINATIONS.map((d) => (
+                  {TRANSPORT_DESTINATIONS.filter((d) => !d.includes("_sahel_") && !d.startsWith("ville_") && !d.startsWith("boudouaou_") && d !== "autres").map((d) => (
                     <SelectItem key={d} value={d}>{TRANSPORT_DESTINATION_LABELS_FR[d]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </FormField>
-            {/* FIX (dead config): `paymentPlan` drove the billing computation
-                (40/30/30 tranches vs full annual with early-bird discount)
-                but had NO UI control — every student silently defaulted to
-                "tranches". It is now selectable per student. */}
-            <FormField label="Plan de paiement" hint="Année complète : −10% si payée avant le 30 juin">
+            <FormField label="Plan de paiement">
               <Select
                 value={s.paymentPlan}
                 onValueChange={(v) => update(i, { paymentPlan: v as PaymentPlan })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tranches">3 tranches (40/30/30)</SelectItem>
-                  <SelectItem value="full_annual">Année complète (−10%)</SelectItem>
+                  <SelectItem value="tranches">4 versements (FI + 3 tranches)</SelectItem>
+                  <SelectItem value="full_annual">Année complète (−5% scolarité avant le 30 juin)</SelectItem>
                 </SelectContent>
               </Select>
             </FormField>
-            {/* T-060 (WEAK-005) — previous-year grade level feeds the
-                deterministic `passage_palier` rule; optional. */}
-            <FormField label="Niveau l'année dernière" hint="Pour le rabais passage de palier (−10 000 DZD, 5AP→1AM / 4AM→1ère)">
+            {/* CALC-001 — negotiated remise (the school's real discount input). */}
+            <FormField
+              label="Remise négociée (DZD)"
+              hint="Remise manuelle négociée — déduite de la tranche V2. La fratrie (−5 000 DA/enfant supp.) est suggérée par défaut."
+            >
+              <Input
+                value={s.remise}
+                onChange={(e) => update(i, { remise: e.target.value.replace(/[^0-9]/g, "") })}
+                placeholder="ex. 5000"
+                inputMode="numeric"
+              />
+            </FormField>
+            {/* CALC-001 — the sticker-price case (SEDIKI rows in the workbook). */}
+            <FormField
+              label="Devis au prix affiché"
+              hint="Exception SEDIKI : la remise est enregistrée mais NON déduite du devis annuel (elle réduit uniquement la tranche V2)."
+            >
               <Select
-                value={s.previousGradeLevel || NO_PREVIOUS_GRADE}
-                onValueChange={(v) =>
-                  update(i, { previousGradeLevel: v === NO_PREVIOUS_GRADE ? "" : (v as GradeLevel) })
-                }
+                value={s.chargeStickerPrice ? "sticker" : "apply"}
+                onValueChange={(v) => update(i, { chargeStickerPrice: v === "sticker" })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_PREVIOUS_GRADE}>Non renseigné</SelectItem>
-                  {(Object.keys(GRADE_LEVEL_LABELS_FR) as GradeLevel[]).map((g) => (
-                    <SelectItem key={g} value={g}>{GRADE_LEVEL_LABELS_FR[g]}</SelectItem>
-                  ))}
+                  <SelectItem value="apply">Appliquer la remise au devis (défaut)</SelectItem>
+                  <SelectItem value="sticker">Prix affiché — remise non déduite du devis</SelectItem>
                 </SelectContent>
               </Select>
-            </FormField>
-            {/* T-060 (WEAK-005) — previous-year rank feeds the
-                `highest_average` rule (−10% pour le 1er de la classe). */}
-            <FormField label="Rang l'année dernière" hint="1er de la classe : −10% (plus forte moyenne)">
-              <Input
-                value={s.previousRank}
-                onChange={(e) => update(i, { previousRank: e.target.value.replace(/[^0-9]/g, "") })}
-                placeholder="ex. 1"
-                inputMode="numeric"
-              />
             </FormField>
             <FormField label="Notes médicales" hint="Allergies, conditions particulières">
               <Input

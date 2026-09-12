@@ -73,7 +73,9 @@ describe("buildClubEnrollmentCharge (Epic 4.3)", () => {
 
   it("metadata records the pricing source (pricing_seed vs default_map)", () => {
     const chessEntry = buildClubEnrollmentCharge(BASE_INPUT, "chess", "Chess");
-    expect(chessEntry.metadata?.pricingSource).toBe("pricing_seed");
+    // CALC-001: the seed no longer prices the fictional clubs — the builder
+    // falls back to the per-category map.
+    expect(chessEntry.metadata?.pricingSource).toBe("default_map");
     const otherEntry = buildClubEnrollmentCharge(BASE_INPUT, "other", "Other");
     expect(otherEntry.metadata?.pricingSource).toBe("default_map");
   });
@@ -118,43 +120,53 @@ describe("buildTherapyCharge (Epic 4.4)", () => {
   });
 });
 
-describe("buildAdditionalServiceCharge (Epic 4.3 — canteen / uniform / books / 2nd apron)", () => {
-  it("canteen_term produces a 12,000 DA canteen charge", () => {
-    const entry = buildAdditionalServiceCharge(BASE_INPUT, "canteen_term");
+describe("buildAdditionalServiceCharge (CALC-001 — the REAL school services)", () => {
+  // The real billable services are the ETAT columns PSY1/PSY2/ORTH1/ORTH2/
+  // E-PLANT/Ratrapage (+ AUTISTE). The fictional canteen/uniform/books
+  // catalog is retired (problem CALC-001).
+  it("psy1 produces a therapy_psychology charge priced from the real seed", () => {
+    const entry = buildAdditionalServiceCharge(BASE_INPUT, "psy1");
     expect(entry.type).toBe("charge");
-    expect(entry.category).toBe("canteen");
-    expect(entry.amount).toBe(12_000);
+    expect(entry.category).toBe("therapy_psychology");
+    expect(entry.amount).toBe(10_000);
     expect(entry.accountId).toBe(
-      deriveAccountId("par-test-001", "canteen", "stu-test-001"),
+      deriveAccountId("par-test-001", "therapy_psychology", "stu-test-001"),
     );
   });
 
-  it("uniform produces an 8,500 DA uniform charge", () => {
-    const entry = buildAdditionalServiceCharge(BASE_INPUT, "uniform");
-    expect(entry.category).toBe("uniform");
-    expect(entry.amount).toBe(8_500);
+  it("psy2 produces a therapy_psychology charge", () => {
+    const entry = buildAdditionalServiceCharge(BASE_INPUT, "psy2");
+    expect(entry.category).toBe("therapy_psychology");
+    expect(entry.amount).toBe(10_000);
   });
 
-  it("books produces a 6,500 DA books charge", () => {
-    const entry = buildAdditionalServiceCharge(BASE_INPUT, "books");
-    expect(entry.category).toBe("books");
-    expect(entry.amount).toBe(6_500);
+  it("orth1 / orth2 produce therapy_speech charges", () => {
+    const entry1 = buildAdditionalServiceCharge(BASE_INPUT, "orth1");
+    const entry2 = buildAdditionalServiceCharge(BASE_INPUT, "orth2");
+    expect(entry1.category).toBe("therapy_speech");
+    expect(entry1.amount).toBe(10_000);
+    expect(entry2.category).toBe("therapy_speech");
+    expect(entry2.amount).toBe(10_000);
   });
 
-  it("second_apron produces a 2,000 DA second_apron charge", () => {
-    const entry = buildAdditionalServiceCharge(BASE_INPUT, "second_apron");
-    expect(entry.category).toBe("second_apron");
-    expect(entry.amount).toBe(2_000);
+  it("e_plant / ratrapage / autiste produce charges", () => {
+    const ePlant = buildAdditionalServiceCharge(BASE_INPUT, "e_plant");
+    const ratrapage = buildAdditionalServiceCharge(BASE_INPUT, "ratrapage");
+    const autiste = buildAdditionalServiceCharge(BASE_INPUT, "autiste");
+    expect(ePlant.category).toBe("other");
+    expect(ePlant.amount).toBe(20_000);
+    expect(ratrapage.amount).toBe(10_000);
+    expect(autiste.amount).toBe(40_000);
   });
 
   it("metadata records the service qualifier", () => {
-    const entry = buildAdditionalServiceCharge(BASE_INPUT, "uniform");
-    expect(entry.metadata?.serviceQualifier).toBe("uniform");
+    const entry = buildAdditionalServiceCharge(BASE_INPUT, "psy1");
+    expect(entry.metadata?.serviceQualifier).toBe("psy1");
     expect(entry.metadata?.pricingSource).toBe("pricing_seed");
   });
 
   it("all charges are positive (debits)", () => {
-    const qualifiers = ["canteen_term", "uniform", "books", "second_apron"] as const;
+    const qualifiers = ["psy1", "psy2", "orth1", "orth2", "e_plant", "ratrapage", "autiste"] as const;
     for (const q of qualifiers) {
       const entry = buildAdditionalServiceCharge(BASE_INPUT, q);
       expect(entry.amount).toBeGreaterThan(0);

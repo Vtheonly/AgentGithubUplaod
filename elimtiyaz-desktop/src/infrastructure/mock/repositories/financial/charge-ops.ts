@@ -20,12 +20,19 @@ import type { LedgerEntry } from "../../../../domain/model/ledger";
 import { buildAdditionalServiceCharge } from "../../../../domain/calc/ledger/non-tuition-charges";
 import type { FinancialOpsCtx } from "./types";
 
-/** Qualifier for an additional service charge. */
+/**
+ * CALC-001 (2026-09-12): the REAL billable services (ETAT columns
+ * PSY1/PSY2/ORTH1/ORTH2/E-PLANT/Ratrapage/AUTISTE) replace the fictional
+ * canteen/uniform/books/second_apron catalog.
+ */
 export type AdditionalServiceQualifier =
-  | "canteen_term"
-  | "uniform"
-  | "books"
-  | "second_apron";
+  | "psy1"
+  | "psy2"
+  | "orth1"
+  | "orth2"
+  | "e_plant"
+  | "ratrapage"
+  | "autiste";
 
 export interface AppendManualChargeInput {
   readonly parentId: string;

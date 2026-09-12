@@ -5,7 +5,9 @@
  *   - Club enrollment appends an `extracurricular` charge to the ledger.
  *   - Psychology follow-up creation appends a `therapy_psychology` charge.
  *   - Orthophonie follow-up creation appends a `therapy_speech` charge.
- *   - `appendManualCharge` writes canteen / uniform / books / 2nd apron charges.
+ *   - `appendManualCharge` writes the REAL service charges (PSY1/ORTH1/
+ *     E-PLANT/Ratrapage — CALC-001; the fictional canteen/uniform/books
+ *     catalog is retired).
  *   - All charges are student-scoped and roll up to the parent summary
  *     via `computeAccountBalance`.
  */
@@ -28,13 +30,13 @@ describe("Integration: Non-Tuition Billing (Epic 4.3 / 4.4)", () => {
     // state destructively. We pick seed students / clubs that exist.
   });
 
-  it("appendManualCharge writes a canteen_term charge to the ledger", async () => {
+  it("appendManualCharge writes a psy1 charge to the ledger (CALC-001)", async () => {
     const before = store.ledger.length;
     const res = await mockPaymentRepository.appendManualCharge(
       {
         parentId: "par-001",
         studentId: "stu-001",
-        serviceQualifier: "canteen_term",
+        serviceQualifier: "psy1",
       },
       ACTOR.actorId,
     );
@@ -42,56 +44,56 @@ describe("Integration: Non-Tuition Billing (Epic 4.3 / 4.4)", () => {
     expect(store.ledger.length).toBe(before + 1);
     const entry = store.ledger[store.ledger.length - 1];
     expect(entry.type).toBe("charge");
-    expect(entry.category).toBe("canteen");
-    expect(entry.amount).toBe(12_000); // canteen_term per pricing-seed
+    expect(entry.category).toBe("therapy_psychology");
+    expect(entry.amount).toBe(10_000); // psy1 per the real pricing seed
     expect(entry.studentId).toBe("stu-001");
     expect(entry.parentId).toBe("par-001");
   });
 
-  it("appendManualCharge writes a uniform charge", async () => {
+  it("appendManualCharge writes an orth1 charge", async () => {
     const before = store.ledger.length;
     const res = await mockPaymentRepository.appendManualCharge(
       {
         parentId: "par-001",
         studentId: "stu-001",
-        serviceQualifier: "uniform",
+        serviceQualifier: "orth1",
       },
       ACTOR.actorId,
     );
     expect(res.ok).toBe(true);
     const entry = store.ledger[store.ledger.length - 1];
-    expect(entry.category).toBe("uniform");
-    expect(entry.amount).toBe(8_500); // uniform per pricing-seed
+    expect(entry.category).toBe("therapy_speech");
+    expect(entry.amount).toBe(10_000);
   });
 
-  it("appendManualCharge writes a second_apron charge (2,000 DA per Prices.md)", async () => {
+  it("appendManualCharge writes an e_plant charge (20,000 DA)", async () => {
     const res = await mockPaymentRepository.appendManualCharge(
       {
         parentId: "par-001",
         studentId: "stu-001",
-        serviceQualifier: "second_apron",
+        serviceQualifier: "e_plant",
       },
       ACTOR.actorId,
     );
     expect(res.ok).toBe(true);
     const entry = store.ledger[store.ledger.length - 1];
-    expect(entry.category).toBe("second_apron");
-    expect(entry.amount).toBe(2_000); // 2nd apron per Prices.md
+    expect(entry.category).toBe("other");
+    expect(entry.amount).toBe(20_000);
   });
 
-  it("appendManualCharge writes a books charge", async () => {
+  it("appendManualCharge writes a ratrapage charge", async () => {
     const res = await mockPaymentRepository.appendManualCharge(
       {
         parentId: "par-001",
         studentId: "stu-001",
-        serviceQualifier: "books",
+        serviceQualifier: "ratrapage",
       },
       ACTOR.actorId,
     );
     expect(res.ok).toBe(true);
     const entry = store.ledger[store.ledger.length - 1];
-    expect(entry.category).toBe("books");
-    expect(entry.amount).toBe(6_500); // books per pricing-seed
+    expect(entry.category).toBe("other");
+    expect(entry.amount).toBe(10_000);
   });
 
   it("club enrollment writes an extracurricular charge (9,000 DA for chess)", async () => {
@@ -183,23 +185,26 @@ describe("Integration: Non-Tuition Billing (Epic 4.3 / 4.4)", () => {
   it("non-tuition charges roll up to the parent summary via computeParentSummary", () => {
     // Use a parent that we just added charges to (par-001).
     const summary = computeParentSummary(store.ledger, "par-001", "Test Parent");
-    // The summary should include at least one canteen + uniform + 2nd apron + books
-    // charge from the previous tests.
+    // The summary should include the REAL service categories from the
+    // previous tests (CALC-001).
     const categoriesPresent = new Set(summary.accounts.map((a) => a.category));
-    expect(categoriesPresent.has("canteen")).toBe(true);
-    expect(categoriesPresent.has("uniform")).toBe(true);
-    expect(categoriesPresent.has("second_apron")).toBe(true);
-    expect(categoriesPresent.has("books")).toBe(true);
-    // Total charged should include 12,000 + 8,500 + 2,000 + 6,500 = 29,000 DA
+    expect(categoriesPresent.has("therapy_psychology")).toBe(true);
+    expect(categoriesPresent.has("therapy_speech")).toBe(true);
+    expect(categoriesPresent.has("other")).toBe(true);
+    // Total charged should include 10,000 + 10,000 + 20,000 + 10,000 = 50,000 DA
     // (plus any prior charges from seed data, so check >= )
-    expect(summary.totalCharged).toBeGreaterThanOrEqual(29_000);
+    expect(summary.totalCharged).toBeGreaterThanOrEqual(50_000);
   });
 
-  it("pricing-seed has chess_club and english_club qualifiers with correct amounts", () => {
-    const chess = defaultPricingConfig.additionalServices.find((s) => s.qualifier === "chess_club");
-    expect(chess?.amount).toBe(9_000);
-    const english = defaultPricingConfig.additionalServices.find((s) => s.qualifier === "english_club");
-    expect(english?.amount).toBe(11_000);
+  it("pricing-seed has the REAL service qualifiers (CALC-001)", () => {
+    const psy1 = defaultPricingConfig.additionalServices.find((s) => s.qualifier === "psy1");
+    expect(psy1?.amount).toBe(10_000);
+    const ePlant = defaultPricingConfig.additionalServices.find((s) => s.qualifier === "e_plant");
+    expect(ePlant?.amount).toBe(20_000);
+    const ratrapage = defaultPricingConfig.additionalServices.find((s) => s.qualifier === "ratrapage");
+    expect(ratrapage?.amount).toBe(10_000);
+    const autiste = defaultPricingConfig.additionalServices.find((s) => s.qualifier === "autiste");
+    expect(autiste?.amount).toBe(40_000);
   });
 
   it("pricing-seed has psychology and speech_therapy complementary services with semester + annual amounts", () => {

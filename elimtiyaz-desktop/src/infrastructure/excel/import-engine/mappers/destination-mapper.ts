@@ -98,7 +98,7 @@ export const OFFICIAL_TUITION_SCHEDULE: Record<string, readonly [number, number,
  * | Boudouaou – Thénia – Zemmouri                | 30,000 | 12,000 | 10,000 | 52,000 |
  * | Autres                                       | 30,000 | 15,000 | 10,000 | 55,000 |
  */
-export const OFFICIAL_TRANSPORT_SCHEDULE: Record<TransportDestination, readonly [number, number, number, number]> = {
+export const OFFICIAL_TRANSPORT_SCHEDULE: Partial<Record<TransportDestination, readonly [number, number, number, number]>> = {
   ville_boumerdes: [40_000, 20_000, 10_000, 10_000],
   tidjelabine_sahel_figuier_corso: [43_000, 20_000, 13_000, 10_000],
   boudouaou_thenia_zemmouri: [52_000, 30_000, 12_000, 10_000],

@@ -248,7 +248,9 @@ export function bucketize(
 
 /**
  * Standard DZD amount buckets for payment/expense analysis (the school's
- * real tuition tranche scale — a full year ≈ 700k DZD, tranches ≈ 40/30/30).
+ * REAL 2026/2027 scale — scolarité 135 000–365 000 DZD by grade, FI 18 000–
+ * 30 000 per student, transport 40 000–65 000; tranches V2/2V/v3 ≈ 40/30/30
+ * of the scolarité with the remise deducted from V2 — school-price-matrix.ts).
  */
 export const DZD_AMOUNT_BUCKETS: readonly { label: string; min: number; max: number }[] = [
   { label: "< 10k", min: 0, max: 10_000 },

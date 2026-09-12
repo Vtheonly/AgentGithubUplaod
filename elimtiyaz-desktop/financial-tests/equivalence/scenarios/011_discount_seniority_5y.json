@@ -1,11 +1,21 @@
 {
   "id": "011_discount_seniority_5y",
-  "description": "Student enrolled 6+ years before academic year start qualifies for -5% seniority discount.",
+  "description": "CALC-001: the seniority_5y rule (-5% after 5 years) NEVER EXISTED at the school. The scenario is RETAINED as a NEGATIVE pin: 6 years of enrollment must produce NO discount.",
   "category": "discount_engine",
-  "tags": ["discount", "seniority"],
+  "tags": [
+    "discount",
+    "seniority"
+  ],
   "given": {
-    "tenantId": "t1", "parent": {"id": "par-001", "name": "Test Parent"},
-    "students": [], "ledgerEntries": [], "installments": [], "payments": [],
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Test Parent"
+    },
+    "students": [],
+    "ledgerEntries": [],
+    "installments": [],
+    "payments": [],
     "academicYearStartYear": 2025
   },
   "when": {
@@ -24,7 +34,7 @@
     }
   },
   "then": {
-    "discountsApplied": ["seniority_5y"],
-    "totalDiscount": -1650000
+    "discountsApplied": [],
+    "totalDiscount": 0
   }
 }

@@ -160,26 +160,44 @@ export function buildTherapyCharge(
  *   - books: 6,500 DA
  *   - second_apron: 2,000 DA
  */
+export type RealSchoolServiceQualifier =
+  | "psy1"
+  | "psy2"
+  | "orth1"
+  | "orth2"
+  | "e_plant"
+  | "ratrapage"
+  | "autiste";
+
+/**
+ * CALC-001 (2026-09-12): the REAL billable services are the ETAT columns
+ * PSY1 / PSY2 / ORTH1 / ORTH2 / E-PLANT / Ratrapage (+ AUTISTE program).
+ * The fictional canteen/uniform/books qualifiers are kept ONLY for
+ * historical ledger rows — the pricing seed no longer prices them, so
+ * calling this builder with them now throws (as it should).
+ */
 export function buildAdditionalServiceCharge(
   input: NonTuitionChargeInput,
-  serviceQualifier:
-    | "canteen_term"
-    | "uniform"
-    | "books"
-    | "second_apron",
+  serviceQualifier: RealSchoolServiceQualifier,
   customDescription?: string,
 ): LedgerEntry {
-  const categoryMap: Record<typeof serviceQualifier, PaymentCategory> = {
-    canteen_term: "canteen",
-    uniform: "uniform",
-    books: "books",
-    second_apron: "second_apron",
+  const categoryMap: Record<RealSchoolServiceQualifier, PaymentCategory> = {
+    psy1: "therapy_psychology",
+    psy2: "therapy_psychology",
+    orth1: "therapy_speech",
+    orth2: "therapy_speech",
+    e_plant: "other",
+    ratrapage: "other",
+    autiste: "other",
   };
-  const labelMap: Record<typeof serviceQualifier, string> = {
-    canteen_term: "Cantine — trimestre",
-    uniform: "Uniforme scolaire",
-    books: "Livres et fournitures",
-    second_apron: "2ème tablier",
+  const labelMap: Record<RealSchoolServiceQualifier, string> = {
+    psy1: "Séances de psychologie — 1er semestre (PSY1)",
+    psy2: "Séances de psychologie — 2ème semestre (PSY2)",
+    orth1: "Séances d'orthophonie — 1er semestre (ORTH1)",
+    orth2: "Séances d'orthophonie — 2ème semestre (ORTH2)",
+    e_plant: "Plan d'accompagnement éducatif (E-PLANT)",
+    ratrapage: "Rattrapage / soutien scolaire",
+    autiste: "Programme d'intégration (autisme)",
   };
   const fromSeed = defaultPricingConfig.additionalServices.find(
     (s) => s.qualifier === serviceQualifier,

@@ -298,17 +298,18 @@ export interface CreateStudentInput {
   /** Payment plan — defaults to `"tranches"` when omitted. */
   readonly paymentPlan?: PaymentPlan;
   /**
-   * T-060 (WEAK-005) — the student's grade level LAST year (wizard step 2).
-   * Discount-ENGINE input only (feeds `passage_palier`); not a persisted
-   * column. Null/omitted → the rule evaluates to 0.
+   * CALC-001 (2026-09-12) — negotiated REMISE for this student (DZD).
+   * The school's remises are individually negotiated (workbook column J);
+   * the wizard collects this per student. Deducted from the V2 tranche.
+   * 0 when omitted.
    */
-  readonly previousGradeLevel?: GradeLevel | null;
+  readonly remise?: number;
   /**
-   * T-060 (WEAK-005) — the student's rank last year (1 = first of class).
-   * Discount-ENGINE input only (feeds `highest_average`); not a persisted
-   * column. Null/omitted → the rule evaluates to 0.
+   * CALC-001 — STICKER-PRICE case: when true the annual devis follows the
+   * full sticker price (the remise is recorded but NOT subtracted — the
+   * workbook's SEDIKI rows l5/l6). False when omitted.
    */
-  readonly previousRank?: number | null;
+  readonly chargeStickerPrice?: boolean;
 }
 
 /**
@@ -354,6 +355,13 @@ export interface BatchRegistrationInput {
   readonly includeTransport?: boolean;
   /** Calendar year the academic year starts (for due dates + discounts). */
   readonly academicYearStartYear?: number;
+  /**
+   * CALC-001 — prior-year credit (REMBOURSEMENT) carried into the quote.
+   * Subtracted from the family's Montant Total at intake (Devis rule).
+   */
+  readonly priorCredit?: number;
+  /** CALC-001 — prior-year debt (DETTES) carried at intake (tracked separately). */
+  readonly priorDebt?: number;
 }
 
 export interface BatchRegistrationResult {

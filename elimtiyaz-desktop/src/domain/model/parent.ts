@@ -17,16 +17,71 @@ export type CityTier = "t1" | "t2" | "t3"; // urban / peri-urban / rural — dri
  * Transport destination — the canonical geographic zone a student lives in.
  * Drives transportation pricing per plan §07.03 (3-tranche schedule).
  *
- * Each destination has its own 1st / 2nd / 3rd installment amounts that
- * the billing system reads from `PricingConfig.transportByDestination`.
+ * CALC-001 (2026-09-12): the legacy 4 grouped zones are kept (existing DB
+ * rows resolve them), and the 20 REAL towns served by the school — from
+ * `REF.csv` / the ETAT DISTINATION column — are added as first-class
+ * destinations with their own prices (see
+ * `domain/calc/pricing/school-price-matrix.ts` REAL_TRANSPORT_MATRIX).
  */
 export type TransportDestination =
+  // ── Legacy grouped zones (DB-compat) ──
   | "ville_boumerdes"
   | "tidjelabine_sahel_figuier_corso"
   | "boudouaou_thenia_zemmouri"
-  | "autres";
+  | "autres"
+  // ── Real towns (2026/2027) ──
+  | "boumerdes"
+  | "chabat"
+  | "chabet"
+  | "corso"
+  | "sahel"
+  | "figuier"
+  | "tidjelabine"
+  | "boudouaou"
+  | "thenia"
+  | "zemmouri"
+  | "djenet"
+  | "cap_djenet"
+  | "bordj_menaiel"
+  | "si_mustapha"
+  | "isser"
+  | "ouled_moussa"
+  | "khemis_el_khechna"
+  | "benyounes"
+  | "souk_elhad"
+  | "beni_amrane"
+  | "reghaia"
+  | "rouiba"
+  | "ouled_heddadj"
+  | "lagata";
 
 export const TRANSPORT_DESTINATIONS: readonly TransportDestination[] = [
+  // Real towns first (the registration wizard lists these).
+  "boumerdes",
+  "chabat",
+  "chabet",
+  "corso",
+  "sahel",
+  "figuier",
+  "tidjelabine",
+  "boudouaou",
+  "thenia",
+  "zemmouri",
+  "djenet",
+  "cap_djenet",
+  "bordj_menaiel",
+  "si_mustapha",
+  "isser",
+  "ouled_moussa",
+  "khemis_el_khechna",
+  "benyounes",
+  "souk_elhad",
+  "beni_amrane",
+  "reghaia",
+  "rouiba",
+  "ouled_heddadj",
+  "lagata",
+  // Legacy grouped zones (kept for DB-compat; hidden from new registrations).
   "ville_boumerdes",
   "tidjelabine_sahel_figuier_corso",
   "boudouaou_thenia_zemmouri",
@@ -38,6 +93,30 @@ export const TRANSPORT_DESTINATION_LABELS_FR: Record<TransportDestination, strin
   tidjelabine_sahel_figuier_corso: "Tidjelabine – Sahel – Figuier – Corso",
   boudouaou_thenia_zemmouri: "Boudouaou – Thénia – Zemmouri",
   autres: "Autres",
+  boumerdes: "Boumerdès (ville)",
+  chabat: "Chabet",
+  chabet: "Chabet (El Chabet)",
+  corso: "Corso",
+  sahel: "Sahel",
+  figuier: "Figuier",
+  tidjelabine: "Tidjelabine",
+  boudouaou: "Boudouaou",
+  thenia: "Thénia",
+  zemmouri: "Zemmouri",
+  djenet: "Cap Djinet",
+  cap_djenet: "Cap Djinet",
+  bordj_menaiel: "Bordj Menaïel",
+  si_mustapha: "Si Mustapha",
+  isser: "Isser",
+  ouled_moussa: "Ouled Moussa",
+  khemis_el_khechna: "Khemis El Khechna",
+  benyounes: "Benyounes",
+  souk_elhad: "Souk El Had",
+  beni_amrane: "Beni Amrane",
+  reghaia: "Reghaïa",
+  rouiba: "Rouiba",
+  ouled_heddadj: "Ouled Heddadj",
+  lagata: "Lagata",
 };
 
 /** Map a legacy city tier to the closest transport destination. */

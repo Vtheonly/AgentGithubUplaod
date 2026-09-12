@@ -1,11 +1,21 @@
 {
   "id": "010_discount_highest_average",
-  "description": "Student ranked #1 in previous palier qualifies for -10% academic excellence discount.",
+  "description": "CALC-001: the highest_average rule (rank 1 -> -10%) NEVER EXISTED at the school. The scenario is RETAINED as a NEGATIVE pin: rank 1 must produce NO discount.",
   "category": "discount_engine",
-  "tags": ["discount", "highest_average"],
+  "tags": [
+    "discount",
+    "highest_average"
+  ],
   "given": {
-    "tenantId": "t1", "parent": {"id": "par-001", "name": "Test Parent"},
-    "students": [], "ledgerEntries": [], "installments": [], "payments": [],
+    "tenantId": "t1",
+    "parent": {
+      "id": "par-001",
+      "name": "Test Parent"
+    },
+    "students": [],
+    "ledgerEntries": [],
+    "installments": [],
+    "payments": [],
     "academicYearStartYear": 2025
   },
   "when": {
@@ -24,7 +34,7 @@
     }
   },
   "then": {
-    "discountsApplied": ["highest_average"],
-    "totalDiscount": -3300000
+    "discountsApplied": [],
+    "totalDiscount": 0
   }
 }

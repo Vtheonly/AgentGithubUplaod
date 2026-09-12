@@ -1,22 +1,30 @@
 /**
- * Discount Engine — orchestrates the 5 canonical discount rules in a SINGLE PASS.
- * Prevents double-discounting bug (was applied per-tranche previously).
+ * Discount Engine — orchestrates the REAL 2026/2027 discount rules in a
+ * SINGLE PASS on the gross scolarité.
+ *
+ * CALC-001 fix (2026-09-12): the engine previously ran 5 fictional rules
+ * (passage_palier, highest_average, seniority_5y, 10% early, linear sibling).
+ * The school's actual model — extracted from the workbook formulas — is:
+ *
+ *   1. `full_annual` early payment: −5% of the FRAIS DE SCOLARISATION
+ *      (never of FI / transport), before June 30.
+ *   2. `sibling_fixed`: −5 000 DZD per additional child (default component
+ *      of the negotiated remise — the real remises are manual inputs).
+ *
+ * The negotiated REMISE itself is NOT computed here — it is collected in the
+ * registration wizard (per student) and deducted from the V2 tranche by
+ * `school-price-matrix.ts computeSchoolDevis`. This engine only evaluates
+ * the two deterministic rules that can fire without manual input.
  */
 import type { DiscountCode } from "../../model/pricing";
 import type { GradeLevel } from "../../model/student";
 import type { PaymentPlan } from "../../model/payment";
-import {
-  evaluatePassageDePalier, evaluateSiblingDiscount, evaluateEarlyAnnualDiscount,
-  evaluateAcademicExcellenceDiscount, evaluateSeniorityDiscount,
-} from "./discount-rules";
+import { evaluateSiblingDiscount, evaluateEarlyAnnualDiscount } from "./discount-rules";
 
-export {
-  evaluatePassageDePalier, evaluateSiblingDiscount, evaluateEarlyAnnualDiscount,
-  evaluateAcademicExcellenceDiscount, evaluateSeniorityDiscount,
-};
+export { evaluateSiblingDiscount, evaluateEarlyAnnualDiscount };
 
 export type SystemDiscountCode =
-  | DiscountCode | "passage_palier" | "sibling_fixed" | "full_annual" | "highest_average" | "seniority_5y";
+  | DiscountCode | "sibling_fixed" | "full_annual";
 
 export interface DiscountEvaluation {
   readonly code: SystemDiscountCode;
@@ -27,16 +35,32 @@ export interface DiscountEvaluation {
 }
 
 export interface EvaluateAllDiscountsParams {
-  readonly grossTuition: number;
-  readonly previousGradeLevel: GradeLevel | null;
-  readonly currentGradeLevel: GradeLevel;
+  /**
+   * The base for percentage rules = the gross SCOLARITÉ (FI and transport
+   * excluded — mirrors the workbook's `SUM(F)*0.05`).
+   */
+  readonly grossScolarite?: number;
+  /**
+   * DEPRECATED alias for `grossScolarite` (CALC-001 rename — the base is the
+   * scolarité only, never the tuition+FI+transport gross). Kept so the
+   * shared cross-platform scenario fixtures keep compiling; new code must
+   * pass `grossScolarite`.
+   */
+  readonly grossTuition?: number;
+  /**
+   * CALC-001: previous-grade / previous-rank inputs are DEPRECATED and
+   * ignored (the rules they fed never existed). Kept in the interface so
+   * older call sites compile; migration TODOs live in the task registry.
+   */
+  readonly previousGradeLevel?: GradeLevel | null;
+  readonly currentGradeLevel?: GradeLevel;
   readonly childIndex: number;
   readonly paymentPlan: PaymentPlan;
   readonly paymentDate: string | Date;
   readonly academicYearStartYear: number;
-  readonly academicYearStart: string | Date;
-  readonly enrollmentDate: string | Date;
-  readonly previousRank: number | null;
+  readonly academicYearStart?: string | Date;
+  readonly enrollmentDate?: string | Date;
+  readonly previousRank?: number | null;
   readonly siblingPerChildAmount?: number;
 }
 
@@ -57,56 +81,39 @@ export function evaluateAllSystemDiscounts(
   params: EvaluateAllDiscountsParams,
 ): readonly DiscountEvaluation[] {
   const out: DiscountEvaluation[] = [];
-
-  pushRule(out, {
-    code: "passage_palier",
-    label: "Passage de palier (−10 000 DA)",
-    amount: evaluatePassageDePalier(params.previousGradeLevel, params.currentGradeLevel),
-    reason: `Transition ${params.previousGradeLevel ?? "—"} → ${params.currentGradeLevel}`,
-  });
+  const grossScolarite = params.grossScolarite ?? params.grossTuition ?? 0;
 
   const sibling = evaluateSiblingDiscount(params.childIndex, params.siblingPerChildAmount);
-  pushRule(out, {
-    code: "sibling_fixed",
-    // CANONICAL (cross-platform equivalence): byte-identical label format
-    // on desktop and Android — toLocaleString("fr-FR") emits a narrow
-    // no-break space (U+202F) on Node but a different separator on Android's
-    // JVM. Both platforms now use a plain-space manual grouping.
-    label: `Fratrie — enfant #${params.childIndex} (−${groupAmountFr(Math.abs(sibling))} DA)`,
-    amount: sibling, reason: `Enfant ${params.childIndex} de la fratrie`,
-  });
+  if (sibling !== 0) {
+    out.push({
+      code: "sibling_fixed",
+      // CANONICAL (cross-platform equivalence): byte-identical label format
+      // on desktop and Android — plain-space manual grouping.
+      label: `Fratrie — enfant #${params.childIndex} (−${groupAmountFr(Math.abs(sibling))} DA)`,
+      amount: sibling,
+      applied: true,
+      reason: `Enfant ${params.childIndex} de la fratrie`,
+    });
+  }
 
   const early = evaluateEarlyAnnualDiscount(
-    params.paymentDate, params.grossTuition, params.paymentPlan, params.academicYearStartYear,
+    params.paymentDate, grossScolarite, params.paymentPlan, params.academicYearStartYear,
   );
-  pushRule(out, {
-    code: "full_annual", label: "Paiement annuel avant le 30 juin (−10%)",
-    amount: -early, reason: "Paiement intégral avant le 30 juin",
-  });
+  if (early !== 0) {
+    out.push({
+      code: "full_annual",
+      label: "Paiement annuel avant le 30 juin (−5% scolarité)",
+      amount: -early,
+      applied: true,
+      reason: "Paiement intégral avant le 30 juin",
+    });
+  }
 
-  const excellence = evaluateAcademicExcellenceDiscount(params.previousRank, params.grossTuition);
-  pushRule(out, {
-    code: "highest_average", label: "Meilleure moyenne du palier (−10%)",
-    amount: -excellence, reason: "Rang 1 au palier l'année précédente",
-  });
-
-  const seniority = evaluateSeniorityDiscount(
-    params.enrollmentDate, params.academicYearStart, params.grossTuition,
-  );
-  pushRule(out, {
-    code: "seniority_5y", label: "Ancienneté > 5 ans (−5%)",
-    amount: -seniority, reason: "Plus de 5 ans d'ancienneté",
-  });
+  // ── Removed rules (CALC-001): passage_palier, highest_average, seniority_5y.
+  // Their params (previousGradeLevel / previousRank / enrollmentDate /
+  // academicYearStart) are accepted but intentionally ignored.
 
   return out;
-}
-
-function pushRule(
-  out: DiscountEvaluation[],
-  entry: { code: SystemDiscountCode; label: string; amount: number; reason: string },
-): void {
-  if (entry.amount === 0) return;
-  out.push({ ...entry, applied: true });
 }
 
 export function sumDiscounts(evaluations: readonly DiscountEvaluation[]): number {

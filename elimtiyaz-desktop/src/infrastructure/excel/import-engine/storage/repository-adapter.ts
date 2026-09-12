@@ -39,6 +39,7 @@ import {
   OFFICIAL_TUITION_SCHEDULE,
   OFFICIAL_TRANSPORT_SCHEDULE,
 } from "../mappers/destination-mapper";
+import { REAL_TRANSPORT_MATRIX } from "../../../../domain/calc/pricing/school-price-matrix";
 
 export interface RepositoryStorageAdapterDeps {
   readonly parents: ParentRepository;
@@ -1425,7 +1426,11 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
     // Expected transport tranche amounts.
     const canonicalDestination = mapExcelDestinationToCanonical(record.distination);
-    const transportSchedule = OFFICIAL_TRANSPORT_SCHEDULE[canonicalDestination];
+    // CALC-001: real per-town matrix with legacy fallback.
+    const transportSchedule =
+      REAL_TRANSPORT_MATRIX[canonicalDestination] ??
+      OFFICIAL_TRANSPORT_SCHEDULE[canonicalDestination] ??
+      [0, 0, 0, 0];
     const expectedTransportTranches: [number, number, number] = [
       transportSchedule[1],
       transportSchedule[2],
@@ -1577,7 +1582,12 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       !!record.distination ||
       String(record.option ?? "").toUpperCase() === "TRNSP";
     const canonicalDestination = mapExcelDestinationToCanonical(record.distination);
-    const transportSchedule = OFFICIAL_TRANSPORT_SCHEDULE[canonicalDestination];
+    // CALC-001: the REAL per-town matrix supersedes the fictional 4-zone
+    // schedule; legacy zone keys still resolve inside REAL_TRANSPORT_MATRIX.
+    const transportSchedule =
+      REAL_TRANSPORT_MATRIX[canonicalDestination] ??
+      OFFICIAL_TRANSPORT_SCHEDULE[canonicalDestination] ??
+      [0, 0, 0, 0];
     const transportTrancheDue: [number, number, number] = [
       transportSchedule[1],
       transportSchedule[2],

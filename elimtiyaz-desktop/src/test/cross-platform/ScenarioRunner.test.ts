@@ -451,14 +451,15 @@ describe("cross-platform scenario: refund_pending_payment (R5 fix)", () => {
 });
 
 describe("cross-platform scenario: discount_engine_all_5_rules", () => {
-  test("INV §5 — all 5 discounts fire on gross", () => {
-    // CANONICAL-FINANCIAL-LOGIC.md §5 — note the desktop domain layer uses
+  test("CALC-001 — only the 2 REAL rules fire (the 3 fictional ones never existed)", () => {
+    // CALC-001 (2026-09-12): verified against `Suivis clients  2026_2027.xlsx`,
+    // only sibling_fixed and full_annual (5% of SCOLARITÉ) are real. The
+    // scenario name is kept for the shared fixture path, but the expected
+    // behaviour is the corrected one. Note the desktop domain layer uses
     // DZD (not centimes) for all money values. The Android Kotlin engine
-    // uses centimes (Long). Both are semantically equivalent — the .yml
-    // scenario files use centimes, but each runner converts to its
-    // platform's convention.
+    // uses centimes (Long).
     const evaluations = evaluateAllSystemDiscounts({
-      grossTuition: 330_000,    // 330,000 DZD
+      grossScolarite: 330_000,  // 330,000 DZD scolarité
       previousGradeLevel: "5ap",
       currentGradeLevel: "1am",
       childIndex: 3,
@@ -470,15 +471,15 @@ describe("cross-platform scenario: discount_engine_all_5_rules", () => {
       previousRank: 1,
     });
     const total = sumDiscounts(evaluations);
-    expect(evaluations).toHaveLength(5);
-    expect(evaluations.find((e) => e.code === "passage_palier")!.amount).toBe(-10_000);
+    expect(evaluations).toHaveLength(2);
     expect(evaluations.find((e) => e.code === "sibling_fixed")!.amount).toBe(-10_000);
-    expect(evaluations.find((e) => e.code === "full_annual")!.amount).toBe(-33_000);
-    expect(evaluations.find((e) => e.code === "highest_average")!.amount).toBe(-33_000);
-    expect(evaluations.find((e) => e.code === "seniority_5y")!.amount).toBe(-16_500);
-    expect(total).toBe(-102_500);
+    expect(evaluations.find((e) => e.code === "full_annual")!.amount).toBe(-16_500);
+    expect(evaluations.find((e) => e.code === "passage_palier")).toBeUndefined();
+    expect(evaluations.find((e) => e.code === "highest_average")).toBeUndefined();
+    expect(evaluations.find((e) => e.code === "seniority_5y")).toBeUndefined();
+    expect(total).toBe(-26_500);
     const net = Math.max(0, 330_000 + total);
-    expect(net).toBe(227_500);
+    expect(net).toBe(303_500);
   });
 });
 

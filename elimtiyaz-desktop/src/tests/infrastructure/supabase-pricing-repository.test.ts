@@ -259,10 +259,14 @@ describe("T-307 — readDbPricingConfig mapping", () => {
 
   it("falls back to the SEED config for grades absent from the DB (the grid always renders whole)", async () => {
     const config = await readDbPricingConfig(fakeClient);
-    // 3am has no row in the fixture → seed value (355 000).
-    expect(config.tuitionByGradeLevel["3am"].annualAmount).toBe(355000);
+    // 3am has no row in the fixture → REAL seed value (330 000 — CALC-001;
+    // the fictional 355 000 is retired).
+    expect(config.tuitionByGradeLevel["3am"].annualAmount).toBe(330000);
     // Missing transport destination → seed value.
     expect(config.transportByDestination["autres"].annualAmount).toBe(55000);
+    // CALC-001: per-grade FI falls back to the real matrix.
+    expect(config.registrationFeeByGrade["1am"]).toBe(25000);
+    expect(config.registrationFeeByGrade["3eme_annee"]).toBe(30000);
   });
 
   it("maps discounts with the domain sign convention (fixed NEGATIVE, percentage POSITIVE)", async () => {
@@ -277,9 +281,12 @@ describe("T-307 — readDbPricingConfig mapping", () => {
 
   it("keeps seed entries for services the DB lacks (additional_services is empty live)", async () => {
     const config = await readDbPricingConfig(fakeClient);
-    // The DB has no additional services → the 4 seed services keep rendering.
-    expect(config.additionalServices.length).toBeGreaterThanOrEqual(4);
-    expect(config.additionalServices.some((s) => s.qualifier === "second_apron")).toBe(true);
+    // The DB has no additional services → the REAL seed services render
+    // (CALC-001: PSY/ORTH/E-PLANT/Ratrapage/AUTISTE replace the fictional
+    // canteen/uniform/books/chess catalog).
+    expect(config.additionalServices.length).toBeGreaterThanOrEqual(7);
+    expect(config.additionalServices.some((s) => s.qualifier === "psy1")).toBe(true);
+    expect(config.additionalServices.some((s) => s.qualifier === "ratrapage")).toBe(true);
     // Complementary: DB psychology takes precedence over the seed duplicate.
     const psy = config.complementaryServices.filter((s) => s.qualifier === "psychology");
     expect(psy.length).toBe(1);

@@ -1,11 +1,17 @@
 {
   "id": "007_discount_passage_palier",
-  "description": "Student transitioning 5ap → 1am qualifies for passage_palier discount of -10,000 DZD (fixed amount, applied once on gross).",
+  "description": "CALC-001: the passage_palier rule (5ap->1am -10000) NEVER EXISTED at the school — verified against Suivis clients  2026_2027.xlsx (the 10 000 DZD remises decompose as two 5 000 sibling components). The scenario is RETAINED as a NEGATIVE pin: a cycle transition must produce NO discount.",
   "category": "discount_engine",
-  "tags": ["discount", "passage_palier"],
+  "tags": [
+    "discount",
+    "passage_palier"
+  ],
   "given": {
     "tenantId": "t1",
-    "parent": {"id": "par-001", "name": "Test Parent"},
+    "parent": {
+      "id": "par-001",
+      "name": "Test Parent"
+    },
     "students": [],
     "ledgerEntries": [],
     "installments": [],
@@ -28,7 +34,7 @@
     }
   },
   "then": {
-    "discountsApplied": ["passage_palier"],
-    "totalDiscount": -1000000
+    "discountsApplied": [],
+    "totalDiscount": 0
   }
 }

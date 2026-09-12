@@ -1,7 +1,24 @@
 /**
- * Discount Rules — the 5 canonical `Prices.md` (2026-2027) discount evaluators
- * plus the legacy pricing-config lookup helpers (`applyDiscount`,
- * `findDiscountByCode`, `computeSiblingDiscount`).
+ * Discount Rules — the REAL school remise rules (2026/2027).
+ *
+ * CALC-001/002 fix (2026-09-12): the previous "5 canonical Prices.md rules"
+ * were a FICTIONAL price book that never existed at the school. Verified
+ * against the actual workbook (`Suivis clients  2026_2027.xlsx`):
+ *
+ *   ❌ passage_palier (−10 000 DZD on 5AP→1AM / 4AM→1ère)  — DOES NOT EXIST.
+ *      The ETAT rows with 10 000 DZD remises (HEBBAZ, MAHAMED OUSSAID)
+ *      decompose as two 5 000 DZD sibling components (J-formulas
+ *      `=5000+5000+20500` etc.); none of those children changed cycle.
+ *   ❌ highest_average (rank 1 → −10%)                     — DOES NOT EXIST.
+ *   ❌ seniority_5y (−5%)                                  — DOES NOT EXIST.
+ *   ✅ full_annual early payment — REAL, but 5% (not 10%) and applied to
+ *      the FRAIS DE SCOLARISATION only: the Devis sheet formula is
+ *      `=+SUM(F15:F26)*0.05`.
+ *   ✅ sibling_fixed — REAL as a DEFAULT component (5 000 DZD per additional
+ *      child, visible inside the J-column decompositions). The school's
+ *      actual family remises are individually NEGOTIATED (HEBBAZ 3 kids =
+ *      10 000 vs KOUBA 3 kids = 41 500), so the sibling rule is a suggested
+ *      default, and the wizard collects the negotiated remise as an input.
  *
  * Each rule is PURE: zero I/O, zero side effects.
  */
@@ -16,26 +33,15 @@ import type {
 
 export type { GradeLevel, PaymentPlan };
 
-export const PASSAGE_DE_PALIER_AMOUNT = -10_000;
+/**
+ * Early annual payment discount rate — 5% of the FRAIS DE SCOLARISATION
+ * (Devis formula `=+SUM(F15:F26)*0.05`). Superseded by
+ * `school-price-matrix.ts EARLY_PAYMENT_RATE` for new code paths.
+ */
+export const EARLY_ANNUAL_RATE = 0.05;
+
+/** Default sibling remise per additional child (5 000 DZD) — J-formula evidence. */
 export const SIBLING_PER_CHILD_AMOUNT = 5_000;
-export const EARLY_ANNUAL_RATE = 0.10;
-export const HIGHEST_AVERAGE_RATE = 0.10;
-export const SENIORITY_RATE = 0.05;
-export const SENIORITY_YEARS = 5;
-
-const MS_PER_DAY = 86_400_000;
-const DAYS_PER_YEAR_AVG = 365.25;
-
-const CYCLE_TRANSITIONS: ReadonlyArray<readonly [GradeLevel, GradeLevel]> = [
-  ["5ap", "1am"],
-  ["4am", "1ere_annee"],
-];
-
-export function evaluatePassageDePalier(previous: GradeLevel | null, current: GradeLevel): number {
-  if (!previous) return 0;
-  const crossed = CYCLE_TRANSITIONS.some(([from, to]) => previous === from && current === to);
-  return crossed ? PASSAGE_DE_PALIER_AMOUNT : 0;
-}
 
 export function evaluateSiblingDiscount(childIndex: number, perChild = SIBLING_PER_CHILD_AMOUNT): number {
   if (childIndex <= 1) return 0;
@@ -43,7 +49,7 @@ export function evaluateSiblingDiscount(childIndex: number, perChild = SIBLING_P
 }
 
 export function evaluateEarlyAnnualDiscount(
-  paymentDate: string | Date, grossTuition: number,
+  paymentDate: string | Date, grossScolarite: number,
   paymentPlan: PaymentPlan, academicYearStartYear: number,
 ): number {
   if (paymentPlan !== "full_annual") return 0;
@@ -53,30 +59,18 @@ export function evaluateEarlyAnnualDiscount(
   // CENTIME-PRECISION ROUNDING (cross-platform equivalence fix disc-009):
   // the wire format stores centimes; rounding at whole DZD diverged from the
   // Android engine by up to 50 centimes on fractional gross amounts.
-  return Math.round(grossTuition * EARLY_ANNUAL_RATE * 100) / 100;
+  // NOTE (CALC-002): the base is the SCOLARITÉ ONLY (FI and transport are
+  // excluded — the workbook's `SUM(F)*0.05` sums the Frais Scolarisation
+  // column, never the F I or Services columns).
+  return Math.round(grossScolarite * EARLY_ANNUAL_RATE * 100) / 100;
 }
 
-export function evaluateAcademicExcellenceDiscount(rank: number | null, grossTuition: number): number {
-  if (rank === null || rank !== 1) return 0;
-  // Centime-precision rounding — see evaluateEarlyAnnualDiscount.
-  return Math.round(grossTuition * HIGHEST_AVERAGE_RATE * 100) / 100;
-}
-
-export function evaluateSeniorityDiscount(
-  enrollmentDate: string | Date, academicYearStart: string | Date, grossTuition: number,
-): number {
-  const enrolled = typeof enrollmentDate === "string" ? new Date(enrollmentDate) : enrollmentDate;
-  const yearStart = typeof academicYearStart === "string" ? new Date(academicYearStart) : academicYearStart;
-  const thresholdMs = SENIORITY_YEARS * DAYS_PER_YEAR_AVG * MS_PER_DAY;
-  if (yearStart.getTime() - enrolled.getTime() <= thresholdMs) return 0;
-  // Centime-precision rounding — see evaluateEarlyAnnualDiscount.
-  return Math.round(grossTuition * SENIORITY_RATE * 100) / 100;
-}
-
-export function isCycleTransition(previous: GradeLevel | null, current: GradeLevel): boolean {
-  if (!previous) return false;
-  return CYCLE_TRANSITIONS.some(([from, to]) => previous === from && current === to);
-}
+// ── REMOVED RULES (CALC-001, 2026-09-12) ─────────────────────────────────────
+// evaluatePassageDePalier / PASSAGE_DE_PALIER_AMOUNT / CYCLE_TRANSITIONS /
+// isCycleTransition — deleted: the rule does not exist at the school.
+// evaluateAcademicExcellenceDiscount / HIGHEST_AVERAGE_RATE — deleted.
+// evaluateSeniorityDiscount / SENIORITY_RATE / SENIORITY_YEARS — deleted.
+// (Historical implementations recoverable from git history / Android mirror.)
 
 // ─── Legacy pricing-config helpers ───────────────────────────────────────────
 // These wrap the discount evaluators above for callers that operate on

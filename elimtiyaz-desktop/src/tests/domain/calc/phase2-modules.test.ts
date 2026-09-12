@@ -3,8 +3,7 @@
  */
 import { describe, it, expect } from "vitest";
 import {
-  evaluatePassageDePalier, evaluateSiblingDiscount, evaluateEarlyAnnualDiscount,
-  evaluateAcademicExcellenceDiscount, evaluateSeniorityDiscount,
+  evaluateSiblingDiscount, evaluateEarlyAnnualDiscount,
   evaluateAllSystemDiscounts, sumDiscounts,
 } from "../../../domain/calc/pricing/discount-engine";
 import { allocatePaymentToInstallments, isOverpayment } from "../../../domain/calc/payment/waterfall-allocator";
@@ -27,21 +26,26 @@ describe("discount-engine — single-pass evaluation", () => {
     expect(sumDiscounts(result)).toBe(0);
   });
 
-  it("applies ALL 5 discounts (single pass)", () => {
+  it("applies the 2 REAL discounts (single pass) — CALC-001", () => {
     const result = evaluateAllSystemDiscounts({
-      grossTuition: 100_000, previousGradeLevel: "5ap", currentGradeLevel: "1am",
+      grossScolarite: 100_000, previousGradeLevel: "5ap", currentGradeLevel: "1am",
       childIndex: 2, paymentPlan: "full_annual", paymentDate: "2026-06-15",
       academicYearStartYear: 2026, academicYearStart: "2026-09-01",
       enrollmentDate: "2018-09-01", previousRank: 1,
     });
-    expect(result.length).toBe(5);
-    expect(sumDiscounts(result)).toBe(-40_000);
+    // CALC-001: only sibling (−5 000) + early 5% (−5 000) survive; the
+    // fictional passage_palier / highest_average / seniority never fire.
+    expect(result.length).toBe(2);
+    expect(sumDiscounts(result)).toBe(-10_000);
   });
 
-  it("passage de palier fires only on cycle transitions", () => {
-    expect(evaluatePassageDePalier("5ap", "1am")).toBe(-10_000);
-    expect(evaluatePassageDePalier("3ap", "4ap")).toBe(0);
-    expect(evaluatePassageDePalier(null, "1ap")).toBe(0);
+  it("CALC-001: cycle transitions and rank-1 no longer produce discounts", () => {
+    const result = evaluateAllSystemDiscounts({
+      grossScolarite: 100_000, previousGradeLevel: "5ap", currentGradeLevel: "1am",
+      childIndex: 1, paymentPlan: "tranches", paymentDate: "2026-09-15",
+      academicYearStartYear: 2026, enrollmentDate: "2018-09-01", previousRank: 1,
+    });
+    expect(result).toHaveLength(0);
   });
 
   it("sibling discount scales linearly", () => {
@@ -50,19 +54,9 @@ describe("discount-engine — single-pass evaluation", () => {
     expect(evaluateSiblingDiscount(3)).toBe(-10_000);
   });
 
-  it("early annual requires full_annual + date ≤ June 30", () => {
-    expect(evaluateEarlyAnnualDiscount("2026-06-30", 100_000, "full_annual", 2026)).toBe(10_000);
+  it("early annual requires full_annual + date ≤ June 30 (5% of scolarité)", () => {
+    expect(evaluateEarlyAnnualDiscount("2026-06-30", 100_000, "full_annual", 2026)).toBe(5_000);
     expect(evaluateEarlyAnnualDiscount("2026-07-01", 100_000, "full_annual", 2026)).toBe(0);
-  });
-
-  it("excellence requires rank 1", () => {
-    expect(evaluateAcademicExcellenceDiscount(1, 100_000)).toBe(10_000);
-    expect(evaluateAcademicExcellenceDiscount(2, 100_000)).toBe(0);
-  });
-
-  it("seniority > 5 years", () => {
-    expect(evaluateSeniorityDiscount("2020-08-01", "2026-09-01", 100_000)).toBe(5_000);
-    expect(evaluateSeniorityDiscount("2024-09-01", "2026-09-01", 100_000)).toBe(0);
   });
 });
 

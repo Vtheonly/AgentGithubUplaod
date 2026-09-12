@@ -74,7 +74,7 @@ export function Step4({
         <p className="text-xs font-semibold uppercase text-muted-foreground">Facturation</p>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Frais d'inscription</span>
+            <span className="text-muted-foreground">Frais d'inscription (par élève)</span>
             <span className="font-mono">{formatDzd(billing.registrationFee)}</span>
           </div>
           <div className="flex justify-between">
@@ -85,10 +85,40 @@ export function Step4({
             <span className="text-muted-foreground">Transport</span>
             <span className="font-mono">{formatDzd(billing.totalTransport)}</span>
           </div>
+          {billing.totalRemise > 0 && (
+            <div className="flex justify-between text-status-success">
+              <span className="text-muted-foreground">Remises négociées</span>
+              <span className="font-mono">−{formatDzd(billing.totalRemise)}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Sous-total</span>
+            <span className="font-mono">{formatDzd(billing.subTotal)}</span>
+          </div>
+          {billing.priorCredit > 0 && (
+            <div className="flex justify-between text-status-success">
+              <span className="text-muted-foreground">Remboursement antérieur</span>
+              <span className="font-mono">−{formatDzd(billing.priorCredit)}</span>
+            </div>
+          )}
+          {billing.priorDebt > 0 && (
+            <div className="flex justify-between text-status-danger">
+              <span className="text-muted-foreground">Dettes antérieures (suivi séparé)</span>
+              <span className="font-mono">{formatDzd(billing.priorDebt)}</span>
+            </div>
+          )}
           <div className="flex justify-between pt-2 border-t border-border">
-            <span className="font-semibold">Total</span>
+            <span className="font-semibold">Montant total DZD</span>
             <span className="font-mono font-bold text-primary">{formatDzd(billing.grandTotal)}</span>
           </div>
+          {billing.totalEarlyPaymentDiscount > 0 && (
+            <div className="flex justify-between text-xs text-status-success">
+              <span className="text-muted-foreground">
+                dont remise 5% paiement anticipé (avant le 30 juin, scolarité)
+              </span>
+              <span className="font-mono">−{formatDzd(billing.totalEarlyPaymentDiscount)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

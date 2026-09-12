@@ -346,11 +346,15 @@ export interface PaymentRepository {
   appendManualCharge(input: {
     parentId: string;
     studentId: string;
+    /** CALC-001: the REAL school services (PSY/ORTH/E-PLANT/Ratrapage/AUTISTE). */
     serviceQualifier:
-      | "canteen_term"
-      | "uniform"
-      | "books"
-      | "second_apron";
+      | "psy1"
+      | "psy2"
+      | "orth1"
+      | "orth2"
+      | "e_plant"
+      | "ratrapage"
+      | "autiste";
     description?: string;
   }, actorId: string): Promise<Result<LedgerEntry>>;
 }

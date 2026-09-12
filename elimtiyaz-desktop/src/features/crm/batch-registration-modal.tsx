@@ -80,6 +80,10 @@ export function BatchRegistrationModal({
   const [students, setStudents] = useState<Step2Student[]>([{ ...EMPTY_STUDENT }]);
   const [includeRegistration, setIncludeRegistration] = useState(true);
   const [includeTransport, setIncludeTransport] = useState(true);
+  // CALC-001 — prior balances at intake (REMBOURSEMENT / DETTES): the Devis
+  // sheet's Montant Total = Sous-total − Réduction − Remboursement.
+  const [priorCredit, setPriorCredit] = useState("");
+  const [priorDebt, setPriorDebt] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   // VAULT §02.08 — the activation code issued at enrollment time (Step 1 of
   // the Account Activation Protocol: "Office staff registers family AND
@@ -100,6 +104,8 @@ export function BatchRegistrationModal({
         setStudents([{ ...EMPTY_STUDENT }]);
         setIncludeRegistration(true);
         setIncludeTransport(true);
+        setPriorCredit("");
+        setPriorDebt("");
         setErrors({});
         setIssuedActivation(null);
       }, 200);
@@ -138,8 +144,10 @@ export function BatchRegistrationModal({
       pricing,
       includeRegistration,
       includeTransport,
+      priorCredit: Math.max(0, Number(priorCredit) || 0),
+      priorDebt: Math.max(0, Number(priorDebt) || 0),
     });
-  }, [students, pricing, includeRegistration, includeTransport]);
+  }, [students, pricing, includeRegistration, includeTransport, priorCredit, priorDebt]);
 
 
   // === Step validation (returns a human-readable error string or null) ===
@@ -201,12 +209,12 @@ export function BatchRegistrationModal({
       // Student.transportTier is a bare string — we store the canonical destination key in it.
       transportTier: (s.transportDestination || null) as string | null,
       paymentPlan: s.paymentPlan,
-      // T-060 (WEAK-005) — discount-engine inputs captured in step 2 so the
-      // persisted billing (mock buildRegistrationBilling) matches the
-      // step-3 preview exactly (passage_palier + highest_average).
-      previousGradeLevel: s.previousGradeLevel === "" ? null : s.previousGradeLevel,
-      previousRank:
-        s.previousRank.trim() === "" ? null : Number(s.previousRank) || null,
+      // CALC-001 (2026-09-12): the ghost inputs (previousGradeLevel /
+      // previousRank) are REMOVED — the rules they fed never existed at the
+      // school. The negotiated remise + sticker-price flag live on the
+      // billing input instead (buildRegistrationBilling reads them).
+      remise: Math.max(0, Number(s.remise) || 0),
+      chargeStickerPrice: s.chargeStickerPrice,
     }));
 
     // FIX (add-child duplication): attach children to the EXISTING parent
@@ -323,6 +331,10 @@ export function BatchRegistrationModal({
           setIncludeRegistration={setIncludeRegistration}
           includeTransport={includeTransport}
           setIncludeTransport={setIncludeTransport}
+          priorCredit={priorCredit}
+          setPriorCredit={setPriorCredit}
+          priorDebt={priorDebt}
+          setPriorDebt={setPriorDebt}
         />
       ),
     },

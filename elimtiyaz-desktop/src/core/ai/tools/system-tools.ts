@@ -67,8 +67,10 @@ import { studentDisplayName } from "../../../domain/model/student";
 
 /**
  * Sanity ceiling for a single manual account adjustment.
- * A full-year tuition is ~700 000 DZD; 5 000 000 DZD is a generous
- * ceiling that still catches gross model errors (e.g. a stray ×10).
+ * CALC-001 (2026-09-12): the REAL full-year sticker (FI + scolarité +
+ * transport) tops out around ~430 000 DZD for a single student (3EM
+ * 30 000 + 365 000 + 65 000); 5 000 000 DZD stays a generous ceiling
+ * that still catches gross model errors (e.g. a stray ×10).
  */
 const ADJUSTMENT_AMOUNT_CEILING_DZD = 5_000_000;
 
@@ -119,7 +121,7 @@ function validateAdjustmentArgs(
     return {
       ok: false,
       error: `Montant hors limites : |${amount}| DZD dépasse le plafond de ${ADJUSTMENT_AMOUNT_CEILING_DZD.toLocaleString("fr-FR")} DZD pour un ajustement manuel.`,
-      hint: "Vérifiez l'ordre de grandeur — une scolarité annuelle complète est d'environ 700 000 DZD.",
+      hint: "Vérifiez l'ordre de grandeur — une scolarité annuelle complète (FI + scolarité + transport) est d'environ 125 000 à 430 000 DZD selon le niveau (matrice réelle 2026/2027).",
     };
   }
   const reason = typeof args.reason === "string" ? args.reason.trim() : "";

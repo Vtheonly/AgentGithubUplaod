@@ -56,6 +56,12 @@ export type DiscountType = "percentage" | "fixed_amount";
  * Canonical discount codes recognized by the billing engine.
  * Adding a new code here automatically makes it selectable in the
  * Account Adjustment modal — no UI changes required.
+ *
+ * CALC-001 (2026-09-12): `passage_palier`, `highest_average` and
+ * `seniority_5y` are FICTIONAL rules (never existed at the school — see
+ * discount-rules.ts). The codes stay in the union for DB compatibility
+ * (the `discounts` table CHECK constraint allows them) but they are marked
+ * legacy and the engine never fires them.
  */
 export type DiscountCode =
   | "passage_palier"
@@ -66,17 +72,19 @@ export type DiscountCode =
   | "sibling_10"
   | "sibling_15"
   | "early_bird"
+  | "negotiated_remise"
   | "custom";
 
 export const DISCOUNT_CODE_LABELS_FR: Record<DiscountCode, string> = {
-  passage_palier: "Passage de palier (−10 000 DA)",
-  seniority_5y: "Ancienneté > 5 ans (−5%)",
-  full_annual: "Paiement annuel avant le 30 juin (−10%)",
-  highest_average: "Meilleure moyenne du palier (−10%)",
+  passage_palier: "Passage de palier [RÈGLE FICTIVE — ne pas utiliser]",
+  seniority_5y: "Ancienneté > 5 ans [RÈGLE FICTIVE — ne pas utiliser]",
+  full_annual: "Paiement annuel avant le 30 juin (−5% scolarité)",
+  highest_average: "Meilleure moyenne du palier [RÈGLE FICTIVE — ne pas utiliser]",
   sibling_fixed: "Fratrie — par enfant supplémentaire (−5 000 DA)",
   sibling_10: "Fratrie — 2ème enfant (−10%) [legacy]",
   sibling_15: "Fratrie — 3ème enfant et + (−15%) [legacy]",
   early_bird: "Paiement anticipé annuel (−5%) [legacy]",
+  negotiated_remise: "Remise négociée (montant libre)",
   custom: "Remise personnalisée",
 };
 
@@ -134,16 +142,27 @@ export interface ComplementaryServicePricing {
 export interface PricingConfig {
   /** Per-grade-level tuition (14 entries — one per `GradeLevel`). */
   readonly tuitionByGradeLevel: Record<GradeLevel, TuitionPricing>;
-  /** Per-destination transport (4 entries — one per `TransportDestination`). */
+  /** Per-destination transport (all towns + legacy zones). */
   readonly transportByDestination: Record<TransportDestination, TransportPricing>;
+  /**
+   * LEGACY flat family FI (deprecated — CALC-001). Kept because the
+   * `pricing_configs.registration_fee` column and older UIs still read it.
+   * New registrations charge `registrationFeeByGrade` PER STUDENT.
+   */
   readonly registrationFee: number;
+  /**
+   * FI (frais d'inscription) per grade level — charged PER STUDENT.
+   * Evidence: ETAT column R is per-student; the Devis sheet lists an F I
+   * column per student line (HEBBAZ: 33000 + 33000 + 18000 for 3 children).
+   */
+  readonly registrationFeeByGrade: Record<GradeLevel, number>;
   readonly monthlyByLevel: Partial<Record<AcademicLevel, number>>;
   readonly latePenaltyPerDay: number;
   readonly discounts: readonly PricingEntry[];
   readonly additionalServices: readonly PricingEntry[];
   /** Complementary services — psychology sessions, speech therapy sessions. */
   readonly complementaryServices: readonly (PricingEntry & ComplementaryServicePricing)[];
-  /** 2nd apron surcharge — fixed at 2,000 DA per the official schedule. */
+  /** 2nd apron surcharge — legacy fictional item (CALC-001); kept for compat. */
   readonly secondApronFee: number;
 }
 

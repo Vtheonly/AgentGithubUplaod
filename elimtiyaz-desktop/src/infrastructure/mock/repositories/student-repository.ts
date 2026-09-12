@@ -29,13 +29,13 @@ import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 import { dispatchStudentEnrolled } from "./workflow-event-bridge";
 import { defaultPricingConfig } from "../pricing-seed";
 import {
-  evaluateAllSystemDiscounts,
-  sumDiscounts,
-  splitNetTuitionByOfficialSchedule,
   getOfficialTuitionDueDates,
-  tuitionForGradeLevel,
-  transportTranchesForDestination,
 } from "../../../domain/calc/pricing";
+import {
+  REAL_FI_BY_GRADE,
+  REAL_TUITION_BY_GRADE,
+  REAL_TRANSPORT_MATRIX,
+} from "../../../domain/calc/pricing/school-price-matrix";
 import { createChargeEntry } from "../../../domain/calc/ledger/entries";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { Installment } from "../../../domain/model/payment";
@@ -365,7 +365,6 @@ function buildRegistrationBilling(
   students: readonly Student[],
   year: number,
 ): { entries: LedgerEntry[]; installments: Installment[]; totalCharged: number } {
-  const config = defaultPricingConfig;
   const includeTransport = input.includeTransport ?? true;
   const includeRegistration = input.includeRegistration ?? true;
   const actorId = "usr-current";
@@ -376,94 +375,57 @@ function buildRegistrationBilling(
   const installments: Installment[] = [];
 
   students.forEach((student, index) => {
-    // === Tuition: evaluate ALL 5 discount rules once on the gross, then split ===
-    const grossTuition = tuitionForGradeLevel(config, student.gradeLevel).annualAmount;
-    if (grossTuition > 0) {
-      // T-060 (WEAK-005): `input.students` is index-aligned with `students`
-      // (both built from the same wizard payload) — read the captured
-      // previous-year grade/rank so the persisted billing matches the
-      // step-3 preview (passage_palier + highest_average can now fire).
-      const wizardStudent: CreateStudentInput | undefined = input.students[index];
-      const discountEvals = evaluateAllSystemDiscounts({
-        grossTuition,
-        previousGradeLevel: wizardStudent?.previousGradeLevel ?? null,
-        currentGradeLevel: student.gradeLevel,
-        childIndex: index + 1,
-        paymentPlan: student.paymentPlan,
-        paymentDate: at,
-        academicYearStartYear: year,
-        academicYearStart: new Date(Date.UTC(year, 8, 1)).toISOString(),
-        enrollmentDate: student.enrollmentDate,
-        previousRank: wizardStudent?.previousRank ?? null,
-      });
-      const tuitionDiscount = sumDiscounts(discountEvals); // negative
-      const netTuition = Math.max(0, grossTuition + tuitionDiscount);
+    // === CALC-001: REAL model — FI (per grade) + scolarité − remise,
+    // tranches V2/2V/v3 with the remise on V2 (workbook column S rule) ===
+    const wizardStudent: CreateStudentInput | undefined = input.students[index];
+    const remise = Math.max(0, wizardStudent?.remise ?? 0);
+    const chargeStickerPrice = wizardStudent?.chargeStickerPrice ?? false;
+    const realSchedule = REAL_TUITION_BY_GRADE[student.gradeLevel];
+    const fi = includeRegistration
+      ? defaultPricingConfig.registrationFeeByGrade[student.gradeLevel] ?? REAL_FI_BY_GRADE[student.gradeLevel]
+      : 0;
 
-      if (student.paymentPlan === "full_annual") {
+    if (realSchedule.scolarite > 0) {
+      const remiseApplied = chargeStickerPrice ? 0 : remise;
+      const v2 = Math.max(0, realSchedule.v2 - remise);
+      const tranches = [
+        { amount: fi, num: 0 as const, label: "Frais d'inscription (FI)", due: due1 },
+        { amount: v2, num: 1 as const, label: "Tranche 2 (V2)", due: due1 },
+        { amount: realSchedule.tranche3, num: 2 as const, label: "Tranche 3 (2V)", due: due2 },
+        { amount: realSchedule.tranche4, num: 3 as const, label: "Tranche 4 (v3)", due: due3 },
+      ].filter((t) => t.amount > 0);
+      for (const t of tranches) {
+        const isFi = t.num === 0;
         entries.push(
           createChargeEntry({
             tenantId: TENANT_ID,
             parentId: parent.id,
             studentId: student.id,
-            category: "tuition",
-            amount: netTuition,
+            category: isFi ? "other" : "tuition",
+            amount: t.amount,
             sourceType: "installment",
-            sourceId: `reg-${student.id}-t1`,
-            description: `Scolarité ${year} — Année complète (${student.gradeLevel})`,
+            sourceId: `reg-${student.id}-${isFi ? "fi" : `t${t.num}`}`,
+            description: `${t.label} — ${isFi ? "Inscription" : "Scolarité"} ${year} (${student.gradeLevel})`,
             actorId,
             actorName,
             at,
             metadata: {
-              tranche: 1,
+              tranche: t.num,
               gradeLevel: student.gradeLevel,
-              paymentPlan: "full_annual",
-              baseAmount: grossTuition,
-              netTuition,
-              tuitionDiscount,
+              paymentPlan: student.paymentPlan,
+              scolarite: realSchedule.scolarite,
+              remise,
+              chargeStickerPrice,
             },
           }),
         );
         installments.push(makeInstallment(
-          `reg-ins-${student.id}-t1`, parent.id, student.id, "tuition",
-          "Année complète", netTuition, due1,
+          `reg-ins-${student.id}-${isFi ? "fi" : `t${t.num}`}`, parent.id, student.id,
+          isFi ? "other" : "tuition",
+          t.label, t.amount, t.due,
         ));
-      } else {
-        const [t1, t2, t3] = splitNetTuitionByOfficialSchedule(netTuition);
-        const tranches = [
-          { amount: t1, num: 1 as const, label: "Tranche 1 (Sept–Déc)", due: due1 },
-          { amount: t2, num: 2 as const, label: "Tranche 2 (Jan–Mar)", due: due2 },
-          { amount: t3, num: 3 as const, label: "Tranche 3 (Avr–Juin)", due: due3 },
-        ];
-        for (const t of tranches) {
-          entries.push(
-            createChargeEntry({
-              tenantId: TENANT_ID,
-              parentId: parent.id,
-              studentId: student.id,
-              category: "tuition",
-              amount: t.amount,
-              sourceType: "installment",
-              sourceId: `reg-${student.id}-t${t.num}`,
-              description: `${t.label} — Scolarité ${year} (${student.gradeLevel})`,
-              actorId,
-              actorName,
-              at,
-              metadata: {
-                tranche: t.num,
-                gradeLevel: student.gradeLevel,
-                paymentPlan: "tranches",
-                baseAmount: grossTuition,
-                netTuition,
-                tuitionDiscount,
-              },
-            }),
-          );
-          installments.push(makeInstallment(
-            `reg-ins-${student.id}-t${t.num}`, parent.id, student.id, "tuition",
-            t.label, t.amount, t.due,
-          ));
-        }
       }
+      void remiseApplied;
     }
 
     // === Transport: per-student destination, else the parent's zone ===
@@ -472,8 +434,12 @@ function buildRegistrationBilling(
         (student.transportTier as import("../../../domain/model/parent").TransportDestination | null)
         ?? parent.transportDestination;
       if (destination) {
-        const tranches = transportTranchesForDestination(config, destination);
-        tranches.forEach((t, i) => {
+        // CALC-001: real per-town transport matrix (legacy zone values keep
+        // resolving — REAL_TRANSPORT_MATRIX covers both).
+        const schedule = REAL_TRANSPORT_MATRIX[destination] ?? [0, 0, 0, 0];
+        const tranches = schedule.slice(1).map((amountDue, i) => ({ amountDue, i }));
+        tranches.forEach(({ amountDue, i }) => {
+          if (amountDue <= 0) return;
           const due = [due1, due2, due3][i];
           entries.push(
             createChargeEntry({
@@ -481,7 +447,7 @@ function buildRegistrationBilling(
               parentId: parent.id,
               studentId: student.id,
               category: "transport",
-              amount: t.amountDue,
+              amount: amountDue,
               sourceType: "installment",
               sourceId: `reg-${student.id}-transport-t${i + 1}`,
               description: `Transport ${year} — Tranche ${i + 1} (${destination})`,
@@ -493,29 +459,33 @@ function buildRegistrationBilling(
           );
           installments.push(makeInstallment(
             `reg-ins-${student.id}-transport-t${i + 1}`, parent.id, student.id, "transport",
-            `Transport T${i + 1}`, t.amountDue, due,
+            `Transport T${i + 1}`, amountDue, due,
           ));
         });
       }
     }
   });
 
-  // === Registration fee: flat, one charge per family (per wizard step 3) ===
-  if (includeRegistration && config.registrationFee > 0 && students.length > 0) {
+  // CALC-001: the FI is charged PER STUDENT inside the students.forEach loop
+  // above (per-grade amounts from the real matrix). The legacy flat family
+  // fee is intentionally NOT written anymore — the workbook charges F I per
+  // student line (HEBBAZ: 33000 + 33000 + 18000 for three children).
+  // Prior balances (REMBOURSEMENT credit / DETTES debt) at intake:
+  if ((input.priorDebt ?? 0) > 0) {
     entries.push(
       createChargeEntry({
         tenantId: TENANT_ID,
         parentId: parent.id,
         studentId: null,
-        category: "other",
-        amount: config.registrationFee,
+        category: "tuition",
+        amount: input.priorDebt ?? 0,
         sourceType: "manual_entry",
-        sourceId: `reg-${parent.id}-fee`,
-        description: `Frais d'inscription ${year} (nouvelle famille)`,
+        sourceId: `reg-${parent.id}-dettes`,
+        description: `Dettes antérieures (report d'année) ${year}`,
         actorId,
         actorName,
         at,
-        metadata: { type: "registration_fee" },
+        metadata: { type: "prior_debt" },
       }),
     );
   }

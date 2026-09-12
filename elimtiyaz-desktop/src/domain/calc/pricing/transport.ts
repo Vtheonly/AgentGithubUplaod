@@ -25,6 +25,7 @@
 import type { TransportDestination } from "@/domain/model/parent";
 import { cityTierToDestination } from "@/domain/model/parent";
 import type { PricingConfig, TransportPricing } from "@/domain/model/pricing";
+import { REAL_TRANSPORT_MATRIX } from "./school-price-matrix";
 
 /* ============================================================ */
 /*  Official schedule generators (Prices.md — 2026-2027)        */
@@ -79,6 +80,11 @@ export function getOfficialTransportTrancheSplit(
       return [30_000, 12_000, 10_000];
     case "autres":
       return [30_000, 15_000, 10_000];
+    default: {
+      // CALC-001: the 20 real towns — look up the real matrix (annual, T1, T2, T3).
+      const schedule = REAL_TRANSPORT_MATRIX[destination];
+      return [schedule[1], schedule[2], schedule[3]];
+    }
   }
 }
 

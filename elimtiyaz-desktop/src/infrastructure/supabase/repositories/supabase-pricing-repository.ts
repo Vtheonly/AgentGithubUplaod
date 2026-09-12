@@ -50,6 +50,7 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { SubjectBehavior } from "../../mock/subject-behavior";
 import { defaultPricingConfig } from "../../mock/pricing-seed";
+import { REAL_FI_BY_GRADE } from "../../../domain/calc/pricing/school-price-matrix";
 import type {
   PricingConfig,
   DiscountType,
@@ -82,6 +83,7 @@ interface TuitionRow {
   tranche_1_amount: number | string;
   tranche_2_amount: number | string;
   tranche_3_amount: number | string;
+  registration_fee?: number | null;
 }
 
 interface LevelRow {
@@ -174,12 +176,14 @@ export async function readDbPricingConfig(
   if (cfg) {
     const { data: tRows } = await client
       .from("grade_level_tuition")
-      .select("id, pricing_config_id, academic_level_id, annual_amount, tranche_1_amount, tranche_2_amount, tranche_3_amount")
+      .select("id, pricing_config_id, academic_level_id, annual_amount, tranche_1_amount, tranche_2_amount, tranche_3_amount, registration_fee")
       .eq("pricing_config_id", cfg.id);
     tuitionRows = (tRows ?? []) as TuitionRow[];
   }
   const tuitionByGradeLevel: Record<GradeLevel, { annualAmount: number; installments: readonly [number, number, number] }> =
     {} as Record<GradeLevel, { annualAmount: number; installments: readonly [number, number, number] }>;
+  // CALC-001: per-grade FI — REAL matrix defaults, overridden by DB rows.
+  const registrationFeeByGrade: Record<GradeLevel, number> = { ...REAL_FI_BY_GRADE };
   const seenGrades = new Set<string>();
   for (const row of tuitionRows) {
     const code = levelIdToCode.get(row.academic_level_id);
@@ -193,6 +197,10 @@ export async function readDbPricingConfig(
         num(row.tranche_3_amount),
       ],
     };
+    // CALC-001: per-grade FI (migration 0088 additive column; falls back to
+    // the real workbook matrix when the row predates the column).
+    const fiFromRow = row.registration_fee == null ? null : num(row.registration_fee);
+    registrationFeeByGrade[code as GradeLevel] = fiFromRow ?? REAL_FI_BY_GRADE[code as GradeLevel];
   }
   // Seed fallback per missing grade (the 14-row grid always renders whole).
   for (const g of ALL_GRADES) {
@@ -337,6 +345,7 @@ export async function readDbPricingConfig(
     tuitionByGradeLevel,
     transportByDestination,
     registrationFee: cfg ? num(cfg.registration_fee) : seed.registrationFee,
+    registrationFeeByGrade,
     monthlyByLevel,
     latePenaltyPerDay: cfg ? num(cfg.late_penalty_per_day) : seed.latePenaltyPerDay,
     discounts: discountsAll,

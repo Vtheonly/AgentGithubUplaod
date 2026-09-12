@@ -1486,7 +1486,7 @@ export class SupabasePaymentRepository implements PaymentRepository {
     input: {
       parentId: string;
       studentId: string;
-      serviceQualifier: "canteen_term" | "uniform" | "books" | "second_apron";
+      serviceQualifier: "psy1" | "psy2" | "orth1" | "orth2" | "e_plant" | "ratrapage" | "autiste";
       description?: string;
     },
     actorId: string,
