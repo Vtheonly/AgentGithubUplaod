@@ -23,9 +23,23 @@
  * INSERT and fail loud (ERR_VALIDATION Result) when the session has no
  * working tenant — a global admin who has not picked a tenant cannot
  * write academic structure silently.
+ *
+ * T-313a (follow-up, 52nd session): the original fixtures shipped with 8
+ * tsc errors — vitest transpiles via esbuild WITHOUT typechecking, so a
+ * fixture that misses required domain fields (level / gradeYear / notes /
+ * isActive / academicYearId / …) still passes at runtime. The fixtures are
+ * now shared constants ANNOTATED WITH THE DOMAIN INPUT TYPES, so any
+ * future domain-type drift fails `npm run typecheck` at these lines
+ * instead of silently diverging from the wire contract.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CreateSchoolYearInput } from "../../domain/calc/academics/school-year";
+import type {
+  AcademicClass,
+  ClassSubject,
+  Subject,
+} from "../../domain/model/academic";
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
@@ -35,6 +49,61 @@ import {
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 const UUID_A = "aaaaaaaa-1111-1111-1111-111111111111";
 const UUID_B = "bbbbbbbb-2222-2222-2222-222222222222";
+
+/** Type-checked against the domain contract — the whole point of T-313a. */
+const YEAR_INPUT: CreateSchoolYearInput = {
+  code: "2026-2027",
+  label: "Année 2026-2027",
+  startDate: "2026-09-01",
+  endDate: "2027-06-30",
+  termStructure: "trimester",
+  isCurrent: false,
+};
+
+const CLASS_INPUT: Omit<
+  AcademicClass,
+  "id" | "tenantId" | "enrolledCount" | "isActive"
+> = {
+  academicYearId: UUID_A,
+  academicLevelId: UUID_B,
+  code: "CL-1",
+  name: "1AP A",
+  gradeCode: "1ap",
+  level: "primaire",
+  gradeYear: 1,
+  section: "A",
+  room: "S1",
+  capacity: 30,
+  homeroomTeacherId: null,
+  homeroomTeacherName: null,
+  notes: null,
+  academicYear: "2026-2027",
+};
+
+const SUBJECT_INPUT: Omit<Subject, "id" | "tenantId"> = {
+  code: "MATH",
+  name: "Mathématiques",
+  nameAr: "الرياضيات",
+  cycle: "primaire",
+  level: "primaire",
+  coefficient: 2,
+  passingGrade: 10,
+  isExtracurricular: false,
+  isActive: true,
+  teacherId: null,
+  teacherName: null,
+  academicYearId: UUID_A,
+  academicYearCode: "2026-2027",
+};
+
+const ASSIGN_INPUT: Omit<ClassSubject, "id"> = {
+  classId: UUID_A,
+  subjectId: UUID_B,
+  teacherId: null,
+  teacherName: "Enseignant",
+  weeklyHours: 2,
+  coefficient: 1,
+};
 
 beforeAll(() => {
   localStorage.setItem(
@@ -129,14 +198,7 @@ describe("T-313 — createAcademicYear carries tenant_id (ACAD-104)", () => {
     const captures: InsertCapture[] = [];
     const repo = new SupabaseAcademicYearRepository(makeCapturingClient(captures));
     const res = await repo.createAcademicYear(
-      {
-        code: "2026-2027",
-        label: "Année 2026-2027",
-        startDate: "2026-09-01",
-        endDate: "2027-06-30",
-        termStructure: { terms: 3 },
-        isCurrent: false,
-      },
+      YEAR_INPUT,
       "staff-1",
       "Staff",
     );
@@ -152,14 +214,7 @@ describe("T-313 — createAcademicYear carries tenant_id (ACAD-104)", () => {
     try {
       const repo = new SupabaseAcademicYearRepository(makeNoTenantClient(violations));
       const res = await repo.createAcademicYear(
-        {
-          code: "2026-2027",
-          label: "Année 2026-2027",
-          startDate: "2026-09-01",
-          endDate: "2027-06-30",
-          termStructure: { terms: 3 },
-          isCurrent: false,
-        },
+        YEAR_INPUT,
         "staff-1",
         "Staff",
       );
@@ -182,19 +237,7 @@ describe("T-313 — createClass carries tenant_id (ACAD-104)", () => {
   it("stamps the working tenant on the INSERT payload", async () => {
     const captures: InsertCapture[] = [];
     const repo = new SupabaseClassRepository(makeCapturingClient(captures));
-    const res = await repo.createClass({
-      academicYearId: UUID_A,
-      academicLevelId: UUID_B,
-      code: "CL-1",
-      name: "1AP A",
-      gradeCode: "1ap",
-      section: "A",
-      room: "S1",
-      capacity: 30,
-      homeroomTeacherId: null,
-      homeroomTeacherName: null,
-      academicYear: "2026-2027",
-    });
+    const res = await repo.createClass(CLASS_INPUT);
     expect(res.ok).toBe(true);
     const ins = captures.find((c) => c.table === "classes");
     expect(ins).toBeDefined();
@@ -206,19 +249,7 @@ describe("T-313 — createClass carries tenant_id (ACAD-104)", () => {
     const violations: string[] = [];
     try {
       const repo = new SupabaseClassRepository(makeNoTenantClient(violations));
-      const res = await repo.createClass({
-        academicYearId: UUID_A,
-        academicLevelId: UUID_B,
-        code: "CL-1",
-        name: "1AP A",
-        gradeCode: "1ap",
-        section: "A",
-        room: "S1",
-        capacity: 30,
-        homeroomTeacherId: null,
-        homeroomTeacherName: null,
-        academicYear: "2026-2027",
-      });
+      const res = await repo.createClass(CLASS_INPUT);
       expect(res.ok).toBe(false);
       if (!res.ok) {
         expect(res.error.code).toBe("ERR_VALIDATION");
@@ -238,14 +269,7 @@ describe("T-313 — assignSubjectToClass carries tenant_id (ACAD-104 — the own
   it("stamps the working tenant on the INSERT payload", async () => {
     const captures: InsertCapture[] = [];
     const repo = new SupabaseSubjectRepository(makeCapturingClient(captures));
-    const res = await repo.assignSubjectToClass({
-      classId: UUID_A,
-      subjectId: UUID_B,
-      teacherId: null,
-      teacherName: "Enseignant",
-      weeklyHours: 2,
-      coefficient: 1,
-    });
+    const res = await repo.assignSubjectToClass(ASSIGN_INPUT);
     expect(res.ok).toBe(true);
     const ins = captures.find((c) => c.table === "class_subjects");
     expect(ins).toBeDefined();
@@ -257,14 +281,7 @@ describe("T-313 — assignSubjectToClass carries tenant_id (ACAD-104 — the own
     const violations: string[] = [];
     try {
       const repo = new SupabaseSubjectRepository(makeNoTenantClient(violations));
-      const res = await repo.assignSubjectToClass({
-        classId: UUID_A,
-        subjectId: UUID_B,
-        teacherId: null,
-        teacherName: "Enseignant",
-        weeklyHours: 2,
-        coefficient: 1,
-      });
+      const res = await repo.assignSubjectToClass(ASSIGN_INPUT);
       expect(res.ok).toBe(false);
       if (!res.ok) {
         expect(res.error.code).toBe("ERR_VALIDATION");
@@ -284,15 +301,7 @@ describe("T-313 — createSubject carries tenant_id (ACAD-104)", () => {
   it("stamps the working tenant on the INSERT payload", async () => {
     const captures: InsertCapture[] = [];
     const repo = new SupabaseSubjectRepository(makeCapturingClient(captures));
-    const res = await repo.createSubject({
-      code: "MATH",
-      name: "Mathématiques",
-      nameAr: "الرياضيات",
-      cycle: "primaire",
-      coefficient: 2,
-      passingGrade: 10,
-      isExtracurricular: false,
-    });
+    const res = await repo.createSubject(SUBJECT_INPUT);
     expect(res.ok).toBe(true);
     const ins = captures.find((c) => c.table === "subjects");
     expect(ins).toBeDefined();
@@ -304,15 +313,7 @@ describe("T-313 — createSubject carries tenant_id (ACAD-104)", () => {
     const violations: string[] = [];
     try {
       const repo = new SupabaseSubjectRepository(makeNoTenantClient(violations));
-      const res = await repo.createSubject({
-        code: "MATH",
-        name: "Mathématiques",
-        nameAr: "الرياضيات",
-        cycle: "primaire",
-        coefficient: 2,
-        passingGrade: 10,
-        isExtracurricular: false,
-      });
+      const res = await repo.createSubject(SUBJECT_INPUT);
       expect(res.ok).toBe(false);
       if (!res.ok) {
         expect(res.error.code).toBe("ERR_VALIDATION");

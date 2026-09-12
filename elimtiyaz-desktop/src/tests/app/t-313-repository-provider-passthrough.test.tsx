@@ -66,8 +66,13 @@ function Probe() {
 }
 
 function buildReposWithPrototypeSlot(): Repositories {
+  // T-313a: double-assertion — `Repositories` (an interface, no index
+  // signature) does not overlap `Record<string, unknown>` directly, so the
+  // write must go through `unknown` (the TS-blessed path for intentional
+  // partial construction in tests).
   const base = {} as Repositories;
-  (base as Record<string, unknown>).subjects = new PrototypeSubjectRepository();
+  (base as unknown as Record<string, unknown>).subjects =
+    new PrototypeSubjectRepository();
   return base;
 }
 
