@@ -3,7 +3,15 @@
  * Savings: 645 → ~280 lines (-57%).
  */
 import { useState } from "react";
-import { Plus, Archive, ArchiveRestore, Trash2, Star, Pencil, Calendar } from "lucide-react";
+import {
+  Plus,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  Star,
+  Pencil,
+  Calendar,
+} from "lucide-react";
 import { z } from "zod";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -20,7 +28,9 @@ import { Permission } from "../../core/rbac/permissions";
 import { AcademicYearDetailDrawer } from "./academic-year-detail-drawer";
 
 const TERM_STRUCTURE_LABELS: Record<string, string> = {
-  semester: "Semestres", trimester: "Trimestres", quarter: "Quarts",
+  semester: "Semestres",
+  trimester: "Trimestres",
+  quarter: "Quarts",
 };
 
 const TERM_OPTIONS = [
@@ -41,20 +51,52 @@ const SchoolYearSchema = z.object({
 type SchoolYearFormData = z.infer<typeof SchoolYearSchema>;
 
 const FORM_FIELDS: readonly AutoFormField[] = [
-  { name: "code", label: "Code", type: "text", required: true, placeholder: "2026-2027", help: "Ex. 2026-2027" },
-  { name: "termStructure", label: "Structure", type: "select", required: true, options: TERM_OPTIONS },
-  { name: "label", label: "Libellé", type: "text", wide: true, placeholder: "Année scolaire 2026-2027", help: "Optionnel — généré si vide" },
+  {
+    name: "code",
+    label: "Code",
+    type: "text",
+    required: true,
+    placeholder: "2026-2027",
+    help: "Ex. 2026-2027",
+  },
+  {
+    name: "termStructure",
+    label: "Structure",
+    type: "select",
+    required: true,
+    options: TERM_OPTIONS,
+  },
+  {
+    name: "label",
+    label: "Libellé",
+    type: "text",
+    wide: true,
+    placeholder: "Année scolaire 2026-2027",
+    help: "Optionnel — généré si vide",
+  },
   { name: "startDate", label: "Date de début", type: "date", required: true },
   { name: "endDate", label: "Date de fin", type: "date", required: true },
-  { name: "isCurrent", label: "Définir comme année courante", type: "switch", wide: true,
-    help: "Cocher pour désigner cette année comme l'année courante (désactive les autres)" },
+  {
+    name: "isCurrent",
+    label: "Définir comme année courante",
+    type: "switch",
+    wide: true,
+    help: "Cocher pour désigner cette année comme l'année courante (désactive les autres)",
+  },
 ];
 
 const EDIT_FIELDS: readonly AutoFormField[] = [
   { name: "label", label: "Libellé", type: "text", required: true, wide: true },
   { name: "startDate", label: "Date de début", type: "date", required: true },
   { name: "endDate", label: "Date de fin", type: "date", required: true },
-  { name: "termStructure", label: "Structure", type: "select", required: true, options: TERM_OPTIONS, wide: true },
+  {
+    name: "termStructure",
+    label: "Structure",
+    type: "select",
+    required: true,
+    options: TERM_OPTIONS,
+    wide: true,
+  },
 ];
 
 function buildDefaultCode(): string {
@@ -67,35 +109,56 @@ export function SchoolYearsTab() {
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
-  const years = useObservable(() => repos.academicYears.observeAll(), []);
+  const years = useObservable(() => repos.academicYears.observeAll(), []) ?? [];
   const [showArchived, setShowArchived] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<AcademicYear | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AcademicYear | null>(null);
   const [detailTarget, setDetailTarget] = useState<AcademicYear | null>(null);
 
-  const canManage = !!session && session.permissions.has(Permission.ManageSchoolYears);
-  const visibleYears = showArchived ? years : years.filter((y) => !y.isArchived);
+  const canManage =
+    !!session && session.permissions.has(Permission.ManageSchoolYears);
+  const visibleYears = showArchived
+    ? years
+    : years.filter((y) => !y.isArchived);
   const sorted = [...visibleYears].sort((a, b) => b.code.localeCompare(a.code));
 
   async function handleSetCurrent(year: AcademicYear) {
     if (!session) return;
-    const res = await repos.academicYears.setCurrentYear(year.id, session.userId, session.displayName);
-    if (res.ok) toast.showSuccess("Année courante mise à jour", `L'année ${year.code} est maintenant l'année courante.`);
+    const res = await repos.academicYears.setCurrentYear(
+      year.id,
+      session.userId,
+      session.displayName,
+    );
+    if (res.ok)
+      toast.showSuccess(
+        "Année courante mise à jour",
+        `L'année ${year.code} est maintenant l'année courante.`,
+      );
     else toast.showError("Échec", res.error.userMessage);
   }
 
   async function handleArchive(year: AcademicYear) {
     if (!session) return;
-    const res = await repos.academicYears.archiveAcademicYear(year.id, session.userId, session.displayName);
-    if (res.ok) toast.showSuccess("Année archivée", `${year.label} a été archivée.`);
+    const res = await repos.academicYears.archiveAcademicYear(
+      year.id,
+      session.userId,
+      session.displayName,
+    );
+    if (res.ok)
+      toast.showSuccess("Année archivée", `${year.label} a été archivée.`);
     else toast.showError("Échec de l'archivage", res.error.userMessage);
   }
 
   async function handleRestore(year: AcademicYear) {
     if (!session) return;
-    const res = await repos.academicYears.restoreAcademicYear(year.id, session.userId, session.displayName);
-    if (res.ok) toast.showSuccess("Année restaurée", `${year.label} a été restaurée.`);
+    const res = await repos.academicYears.restoreAcademicYear(
+      year.id,
+      session.userId,
+      session.displayName,
+    );
+    if (res.ok)
+      toast.showSuccess("Année restaurée", `${year.label} a été restaurée.`);
     else toast.showError("Échec de la restauration", res.error.userMessage);
   }
 
@@ -104,12 +167,21 @@ export function SchoolYearsTab() {
     const input: CreateSchoolYearInput = {
       code: data.code.trim(),
       label: (data.label ?? "").trim() || `Année scolaire ${data.code.trim()}`,
-      startDate: data.startDate, endDate: data.endDate,
-      termStructure: data.termStructure, isCurrent: data.isCurrent,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      termStructure: data.termStructure,
+      isCurrent: data.isCurrent,
     };
-    const res = await repos.academicYears.createAcademicYear(input, session.userId, session.displayName);
+    const res = await repos.academicYears.createAcademicYear(
+      input,
+      session.userId,
+      session.displayName,
+    );
     if (res.ok) {
-      toast.showSuccess("Année créée", `L'année ${input.code} a été créée avec succès.`);
+      toast.showSuccess(
+        "Année créée",
+        `L'année ${input.code} a été créée avec succès.`,
+      );
       setCreateOpen(false);
     } else {
       throw new Error(res.error.userMessage);
@@ -122,13 +194,18 @@ export function SchoolYearsTab() {
       editTarget.id,
       {
         label: (data.label ?? "").trim() || editTarget.label,
-        startDate: data.startDate, endDate: data.endDate,
+        startDate: data.startDate,
+        endDate: data.endDate,
         termStructure: data.termStructure,
       },
-      session.userId, session.displayName,
+      session.userId,
+      session.displayName,
     );
     if (res.ok) {
-      toast.showSuccess("Année modifiée", `${editTarget.code} a été mise à jour.`);
+      toast.showSuccess(
+        "Année modifiée",
+        `${editTarget.code} a été mise à jour.`,
+      );
       setEditTarget(null);
     } else {
       throw new Error(res.error.userMessage);
@@ -137,23 +214,32 @@ export function SchoolYearsTab() {
 
   async function handleDeleteConfirmed() {
     if (!session || !deleteTarget) return;
-    const res = await repos.academicYears.deleteAcademicYear(deleteTarget.id, session.userId, session.displayName);
+    const res = await repos.academicYears.deleteAcademicYear(
+      deleteTarget.id,
+      session.userId,
+      session.displayName,
+    );
     if (res.ok) {
-      toast.showSuccess("Année supprimée", `${deleteTarget.label} a été supprimée.`);
+      toast.showSuccess(
+        "Année supprimée",
+        `${deleteTarget.label} a été supprimée.`,
+      );
       setDeleteTarget(null);
     } else {
       toast.showError("Échec de la suppression", res.error.userMessage);
     }
   }
 
-  const editInitialValues = editTarget ? {
-    code: editTarget.code,
-    label: editTarget.label,
-    startDate: editTarget.startDate,
-    endDate: editTarget.endDate,
-    termStructure: editTarget.termStructure,
-    isCurrent: editTarget.isCurrent,
-  } : undefined;
+  const editInitialValues = editTarget
+    ? {
+        code: editTarget.code,
+        label: editTarget.label,
+        startDate: editTarget.startDate,
+        endDate: editTarget.endDate,
+        termStructure: editTarget.termStructure,
+        isCurrent: editTarget.isCurrent,
+      }
+    : undefined;
 
   const createInitialValues = {
     code: buildDefaultCode(),
@@ -177,7 +263,11 @@ export function SchoolYearsTab() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
+            <Button
+              size="sm"
+              variant={showArchived ? "default" : "outline"}
+              onClick={() => setShowArchived((v) => !v)}
+            >
               <Archive className="size-3.5 mr-1" />
               {showArchived ? "Masquer archivées" : "Voir archivées"}
             </Button>
@@ -191,14 +281,19 @@ export function SchoolYearsTab() {
       </Card>
 
       {sorted.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-          Aucune année scolaire. Cliquez sur « Nouvelle année » pour créer la première.
-        </CardContent></Card>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Aucune année scolaire. Cliquez sur « Nouvelle année » pour créer la
+            première.
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {sorted.map((year) => (
             <YearCard
-              key={year.id} year={year} canManage={canManage}
+              key={year.id}
+              year={year}
+              canManage={canManage}
               onOpenDetail={() => setDetailTarget(year)}
               onSetCurrent={() => handleSetCurrent(year)}
               onEdit={() => setEditTarget(year)}
@@ -211,7 +306,12 @@ export function SchoolYearsTab() {
       )}
 
       {detailTarget && (
-        <AcademicYearDetailDrawer year={detailTarget} open={!!detailTarget} onOpenChange={(o) => !o && setDetailTarget(null)} canManage={canManage} />
+        <AcademicYearDetailDrawer
+          year={detailTarget}
+          open={!!detailTarget}
+          onOpenChange={(o) => !o && setDetailTarget(null)}
+          canManage={canManage}
+        />
       )}
 
       <AutoFormModal
@@ -251,10 +351,24 @@ export function SchoolYearsTab() {
   );
 }
 
-function YearCard({ year, canManage, onOpenDetail, onSetCurrent, onEdit, onArchive, onRestore, onDelete }: {
-  year: AcademicYear; canManage: boolean;
-  onOpenDetail: () => void; onSetCurrent: () => void; onEdit: () => void;
-  onArchive: () => void; onRestore: () => void; onDelete: () => void;
+function YearCard({
+  year,
+  canManage,
+  onOpenDetail,
+  onSetCurrent,
+  onEdit,
+  onArchive,
+  onRestore,
+  onDelete,
+}: {
+  year: AcademicYear;
+  canManage: boolean;
+  onOpenDetail: () => void;
+  onSetCurrent: () => void;
+  onEdit: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
 }) {
   return (
     <Card
@@ -265,39 +379,89 @@ function YearCard({ year, canManage, onOpenDetail, onSetCurrent, onEdit, onArchi
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{year.code}</h3>
-              {year.isCurrent && <Badge className="text-[10px]"><Star className="size-3 mr-1" />Courante</Badge>}
-              {year.isArchived && <Badge variant="secondary" className="text-[10px]">Archivée</Badge>}
+              <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                {year.code}
+              </h3>
+              {year.isCurrent && (
+                <Badge className="text-[10px]">
+                  <Star className="size-3 mr-1" />
+                  Courante
+                </Badge>
+              )}
+              {year.isArchived && (
+                <Badge variant="secondary" className="text-[10px]">
+                  Archivée
+                </Badge>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{year.label}</p>
           </div>
-          <Badge variant="outline" className="text-[10px]">{TERM_STRUCTURE_LABELS[year.termStructure] ?? year.termStructure}</Badge>
+          <Badge variant="outline" className="text-[10px]">
+            {TERM_STRUCTURE_LABELS[year.termStructure] ?? year.termStructure}
+          </Badge>
         </div>
         <div className="text-xs text-muted-foreground space-y-1">
-          <div><strong>Début :</strong> {year.startDate}</div>
-          <div><strong>Fin :</strong> {year.endDate}</div>
+          <div>
+            <strong>Début :</strong> {year.startDate}
+          </div>
+          <div>
+            <strong>Fin :</strong> {year.endDate}
+          </div>
         </div>
         {canManage && (
-          <div className="pt-2 border-t border-border/50 flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="pt-2 border-t border-border/50 flex items-center gap-1 flex-wrap"
+            onClick={(e) => e.stopPropagation()}
+          >
             {!year.isCurrent && !year.isArchived && (
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onSetCurrent}>
-                <Star className="size-3 mr-1" />Définir courante
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={onSetCurrent}
+              >
+                <Star className="size-3 mr-1" />
+                Définir courante
               </Button>
             )}
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onEdit}>
-              <Pencil className="size-3 mr-1" />Modifier
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={onEdit}
+            >
+              <Pencil className="size-3 mr-1" />
+              Modifier
             </Button>
             {!year.isArchived ? (
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onArchive}>
-                <Archive className="size-3 mr-1" />Archiver
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={onArchive}
+              >
+                <Archive className="size-3 mr-1" />
+                Archiver
               </Button>
             ) : (
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onRestore}>
-                <ArchiveRestore className="size-3 mr-1" />Restaurer
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={onRestore}
+              >
+                <ArchiveRestore className="size-3 mr-1" />
+                Restaurer
               </Button>
             )}
-            <Button size="sm" variant="outline" className="h-7 text-xs text-status-danger hover:bg-status-danger/10" onClick={onDelete}>
-              <Trash2 className="size-3 mr-1" />Supprimer
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs text-status-danger hover:bg-status-danger/10"
+              onClick={onDelete}
+            >
+              <Trash2 className="size-3 mr-1" />
+              Supprimer
             </Button>
           </div>
         )}

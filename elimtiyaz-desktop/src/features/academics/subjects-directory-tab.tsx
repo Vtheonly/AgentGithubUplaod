@@ -1,7 +1,6 @@
-/**
- * SubjectsDirectoryTab — refactored to use <DataTable> + <AutoFormModal>.
- * Savings: 473 → ~190 lines (-60%).
- */
+// ============================================================================
+// FILE: src/features/academics/subjects-directory-tab.tsx
+// ============================================================================
 import { useState } from "react";
 import { Plus, Edit2, Archive } from "lucide-react";
 import { z } from "zod";
@@ -15,7 +14,10 @@ import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { DataTable, type DataTableColumn } from "../../shared/ui/data-table";
 import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
 import { Permission } from "../../core/rbac/permissions";
-import { LEVEL_LABELS_FR, type AcademicLevel } from "../../domain/model/student";
+import {
+  LEVEL_LABELS_FR,
+  type AcademicLevel,
+} from "../../domain/model/student";
 import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
 import type { AcademicCycle, Subject } from "../../domain/model/academic";
 
@@ -40,29 +42,77 @@ const SubjectSchema = z.object({
 type SubjectFormData = z.infer<typeof SubjectSchema>;
 
 const SUBJECT_FIELDS: readonly AutoFormField[] = [
-  { name: "name", label: "Nom (Français)", type: "text", required: true, placeholder: "Mathématiques", wide: true },
-  { name: "code", label: "Code court", type: "text", required: true, placeholder: "MATH", help: "Code unique (ex: MATH)" },
-  { name: "cycle", label: "Cycle", type: "select", required: true, options: CYCLE_OPTIONS },
-  { name: "coefficient", label: "Coefficient", type: "number", required: true, min: 0.5, max: 10 },
-  { name: "passingGrade", label: "Seuil admis", type: "number", required: true, min: 0, max: 20, help: "Sur 20" },
-  { name: "nameAr", label: "Nom en Arabe (optionnel)", type: "text", placeholder: "الرياضيات", wide: true },
-  { name: "isExtracurricular", label: "Activité / Club Extracurriculaire", type: "switch", wide: true,
-    help: "Si coché, les notes ne seront pas comptabilisées dans la moyenne générale." },
+  {
+    name: "name",
+    label: "Nom (Français)",
+    type: "text",
+    required: true,
+    placeholder: "Mathématiques",
+    wide: true,
+  },
+  {
+    name: "code",
+    label: "Code court",
+    type: "text",
+    required: true,
+    placeholder: "MATH",
+    help: "Code unique (ex: MATH)",
+  },
+  {
+    name: "cycle",
+    label: "Cycle",
+    type: "select",
+    required: true,
+    options: CYCLE_OPTIONS,
+  },
+  {
+    name: "coefficient",
+    label: "Coefficient",
+    type: "number",
+    required: true,
+    min: 0.5,
+    max: 10,
+  },
+  {
+    name: "passingGrade",
+    label: "Seuil admis",
+    type: "number",
+    required: true,
+    min: 0,
+    max: 20,
+    help: "Sur 20",
+  },
+  {
+    name: "nameAr",
+    label: "Nom en Arabe (optionnel)",
+    type: "text",
+    placeholder: "الرياضيات",
+    wide: true,
+  },
+  {
+    name: "isExtracurricular",
+    label: "Activité / Club Extracurriculaire",
+    type: "switch",
+    wide: true,
+    help: "Si coché, les notes ne seront pas comptabilisées dans la moyenne générale.",
+  },
 ];
 
 export function SubjectsDirectoryTab() {
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
-  const subjects = useObservable(() => repos.subjects.observe(), []);
-  // FIX (vault §05.05): scope new subjects to the CURRENT academic year.
+  const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
   const currentYear = useCurrentAcademicYear();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
-  const [archivingSubject, setArchivingSubject] = useState<Subject | null>(null);
+  const [archivingSubject, setArchivingSubject] = useState<Subject | null>(
+    null,
+  );
 
-  const canManage = !!session && session.permissions.has(Permission.ManageSubjects);
+  const canManage =
+    !!session && session.permissions.has(Permission.ManageSubjects);
 
   const columns: readonly DataTableColumn<Subject>[] = [
     {
@@ -70,30 +120,65 @@ export function SubjectsDirectoryTab() {
       accessor: "name",
       cell: (s) => (
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs bg-primary/10 text-primary rounded px-1.5 py-0.5">{s.code}</span>
+          <span className="font-mono text-xs bg-primary/10 text-primary rounded px-1.5 py-0.5">
+            {s.code}
+          </span>
           <span className="font-medium">{s.name}</span>
-          {s.nameAr && <span className="text-xs text-muted-foreground" dir="rtl">{s.nameAr}</span>}
+          {s.nameAr && (
+            <span className="text-xs text-muted-foreground" dir="rtl">
+              {s.nameAr}
+            </span>
+          )}
         </div>
       ),
     },
-    { header: "Cycle", accessor: (s) => LEVEL_LABELS_FR[s.level as AcademicLevel] },
-    { header: "Coef.", accessor: "coefficient", cell: (s) => <span className="font-mono font-bold">{s.coefficient}</span> },
-    { header: "Seuil", accessor: "passingGrade", cell: (s) => <span className="font-mono">{s.passingGrade}/20</span> },
+    {
+      header: "Cycle",
+      accessor: (s) => LEVEL_LABELS_FR[s.level as AcademicLevel],
+    },
+    {
+      header: "Coef.",
+      accessor: "coefficient",
+      cell: (s) => <span className="font-mono font-bold">{s.coefficient}</span>,
+    },
+    {
+      header: "Seuil",
+      accessor: "passingGrade",
+      cell: (s) => <span className="font-mono">{s.passingGrade}/20</span>,
+    },
     {
       header: "Type",
-      accessor: (s) => s.isExtracurricular ? "Club" : "Standard",
-      cell: (s) => s.isExtracurricular
-        ? <Badge variant="secondary" className="bg-status-info/10 text-status-info border-status-info/20">Club / Activité</Badge>
-        : <Badge variant="outline">Standard</Badge>,
+      accessor: (s) => (s.isExtracurricular ? "Club" : "Standard"),
+      cell: (s) =>
+        s.isExtracurricular ? (
+          <Badge
+            variant="secondary"
+            className="bg-status-info/10 text-status-info border-status-info/20"
+          >
+            Club / Activité
+          </Badge>
+        ) : (
+          <Badge variant="outline">Standard</Badge>
+        ),
     },
   ];
 
-  const actions = canManage ? [
-    { label: "Modifier", icon: <Edit2 className="size-3.5" />, variant: "ghost" as const, onClick: (s: Subject) => setEditingSubject(s) },
-    { label: "Archiver", icon: <Archive className="size-3.5" />, variant: "ghost" as const,
-      onClick: (s: Subject) => setArchivingSubject(s),
-    },
-  ] : [];
+  const actions = canManage
+    ? [
+        {
+          label: "Modifier",
+          icon: <Edit2 className="size-3.5" />,
+          variant: "ghost" as const,
+          onClick: (s: Subject) => setEditingSubject(s),
+        },
+        {
+          label: "Archiver",
+          icon: <Archive className="size-3.5" />,
+          variant: "ghost" as const,
+          onClick: (s: Subject) => setArchivingSubject(s),
+        },
+      ]
+    : [];
 
   async function handleSubmit(data: SubjectFormData) {
     const level = data.cycle as AcademicLevel;
@@ -115,12 +200,17 @@ export function SubjectsDirectoryTab() {
 
     if (editingSubject) {
       const coefChanged = data.coefficient !== editingSubject.coefficient;
-      const result = await repos.subjects.updateSubject(editingSubject.id, payload);
+      const result = await repos.subjects.updateSubject(
+        editingSubject.id,
+        payload,
+      );
       if (result.ok) {
-        toast.showSuccess("Matière mise à jour",
+        toast.showSuccess(
+          "Matière mise à jour",
           coefChanged
             ? `Le coefficient a changé (${editingSubject.coefficient} → ${data.coefficient}). Un recalcul des moyennes sera effectué.`
-            : "Les modifications ont été enregistrées.");
+            : "Les modifications ont été enregistrées.",
+        );
         setEditingSubject(null);
       } else {
         throw new Error(result.error.userMessage);
@@ -128,7 +218,10 @@ export function SubjectsDirectoryTab() {
     } else {
       const result = await repos.subjects.createSubject(payload);
       if (result.ok) {
-        toast.showSuccess("Matière créée", `${result.value.name} (${result.value.code}) a été ajoutée.`);
+        toast.showSuccess(
+          "Matière créée",
+          `${result.value.name} (${result.value.code}) a été ajoutée.`,
+        );
         setCreateOpen(false);
       } else {
         throw new Error(result.error.userMessage);
@@ -140,23 +233,28 @@ export function SubjectsDirectoryTab() {
     if (!archivingSubject) return;
     const result = await repos.subjects.archiveSubject(archivingSubject.id);
     if (result.ok) {
-      toast.showSuccess("Matière archivée", `${archivingSubject.name} a été retirée.`);
+      toast.showSuccess(
+        "Matière archivée",
+        `${archivingSubject.name} a été retirée.`,
+      );
       setArchivingSubject(null);
     } else {
       toast.showError("Échec de l'archivage", result.error.userMessage);
     }
   }
 
-  const editingInitialValues = editingSubject ? {
-    name: editingSubject.name,
-    code: editingSubject.code,
-    cycle: editingSubject.cycle,
-    level: editingSubject.level,
-    coefficient: editingSubject.coefficient,
-    passingGrade: editingSubject.passingGrade,
-    nameAr: editingSubject.nameAr ?? "",
-    isExtracurricular: editingSubject.isExtracurricular,
-  } : undefined;
+  const editingInitialValues = editingSubject
+    ? {
+        name: editingSubject.name,
+        code: editingSubject.code,
+        cycle: editingSubject.cycle,
+        level: editingSubject.level,
+        coefficient: editingSubject.coefficient,
+        passingGrade: editingSubject.passingGrade,
+        nameAr: editingSubject.nameAr ?? "",
+        isExtracurricular: editingSubject.isExtracurricular,
+      }
+    : undefined;
 
   return (
     <div className="space-y-3">
@@ -180,14 +278,25 @@ export function SubjectsDirectoryTab() {
 
       <AutoFormModal
         open={createOpen || editingSubject !== null}
-        onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditingSubject(null); } }}
-        title={editingSubject ? `Modifier ${editingSubject.name}` : "Nouvelle Matière"}
+        onOpenChange={(o) => {
+          if (!o) {
+            setCreateOpen(false);
+            setEditingSubject(null);
+          }
+        }}
+        title={
+          editingSubject
+            ? `Modifier ${editingSubject.name}`
+            : "Nouvelle Matière"
+        }
         description="Configuration de la matière et de sa pondération dans la moyenne globale Scolarité."
         schema={SubjectSchema}
         fields={SUBJECT_FIELDS}
         initialValues={editingInitialValues}
         onSubmit={handleSubmit}
-        submitLabel={editingSubject ? "Enregistrer les modifications" : "Créer la matière"}
+        submitLabel={
+          editingSubject ? "Enregistrer les modifications" : "Créer la matière"
+        }
       />
 
       <ConfirmModal

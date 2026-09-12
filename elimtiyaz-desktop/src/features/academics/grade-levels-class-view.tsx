@@ -1,10 +1,6 @@
-/**
- * GradeLevelsClassView — hierarchical view of grade levels → classes.
- *
- * Extracted from the original academics-page.tsx so the new AcademicsPage
- * can compose it as one tab among many. The class creation modal lives
- * in this file (it was previously inlined in academics-page.tsx).
- */
+// ============================================================================
+// FILE: src/features/academics/grade-levels-class-view.tsx
+// ============================================================================
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -22,7 +18,6 @@ import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { Input } from "../../shared/ui/input";
-import { Label } from "../../shared/ui/label";
 import { Textarea } from "../../shared/ui/textarea";
 import { FormField } from "../../shared/ui/form-field";
 import {
@@ -55,7 +50,7 @@ type Alert = NonNullable<UnifiedModalProps["alert"]>;
 export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
   const navigate = useNavigate();
   const repos = useRepositories();
-  const classes = useObservable(() => repos.classes.observe(), []);
+  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
   const [cycleFilter, setCycleFilter] = useState<string>("all");
   const [collapsedLevels, setCollapsedLevels] = useState<
     Record<string, boolean>
@@ -262,10 +257,6 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
   );
 }
 
-// ============================================================================
-// Modal: Create Class
-// ============================================================================
-
 function CreateClassModal({
   open,
   onOpenChange,
@@ -278,8 +269,7 @@ function CreateClassModal({
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
-  const personnel = useObservable(() => repos.personnel.observe(), []);
-  // FIX (vault §05.05): scope new classes to the CURRENT academic year.
+  const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
   const currentYear = useCurrentAcademicYear();
 
   const [gradeCode, setGradeCode] = useState<GradeLevel>(

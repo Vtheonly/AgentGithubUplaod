@@ -19,8 +19,10 @@
     "test:watch": "vitest",
     "check:migrations": "bash scripts/check-migrations-append-only.sh",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron .\"",
+    "electron:dev:nosandbox": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron --no-sandbox .\"",
     "electron:build": "vite build && tsc -p electron/tsconfig.json && electron-builder",
-    "start": "vite build && tsc -p electron/tsconfig.json && cross-env NODE_ENV=production electron ."
+    "start": "vite build && tsc -p electron/tsconfig.json && cross-env NODE_ENV=production electron .",
+    "start:nosandbox": "vite build && tsc -p electron/tsconfig.json && cross-env NODE_ENV=production electron --no-sandbox ."
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

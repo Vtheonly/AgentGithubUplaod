@@ -47,10 +47,10 @@ export function TeachersTab({ canManage }: { canManage: boolean }) {
   const { session } = useAuth();
   const currentYear = useCurrentAcademicYear();
 
-  const personnel = useObservable(() => repos.personnel.observe(), []);
-  const teachers = useObservable(() => repos.teachers.observe(), []);
-  const classes = useObservable(() => repos.classes.observe(), []);
-  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+  const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
+  const teachers = useObservable(() => repos.teachers.observe(), []) ?? [];
+  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+  const allSubjects = useObservable(() => repos.subjects.observe(), []) ?? [];
 
   const [search, setSearch] = useState("");
   const [assignModalTarget, setAssignModalTarget] = useState<TeacherRow | null>(

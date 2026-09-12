@@ -55,22 +55,22 @@ export function AcademicsPage() {
   const [tab, setTab] = useState<AcademicsTab>("classes");
   const [homeworkOpen, setHomeworkOpen] = useState(false);
 
-  const classes = useObservable(() => repos.classes.observe(), []);
-  const subjects = useObservable(() => repos.subjects.observe(), []);
-  const clubs = useObservable(() => repos.clubs.observe(), []);
+  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+  const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
+  const clubs = useObservable(() => repos.clubs.observe(), []) ?? [];
   const psychFollowUps = useObservable(
     () => repos.psychology.observeFollowUps(),
     [],
-  );
+  ) ?? [];
   const orthoFollowUps = useObservable(
     () => repos.orthophonie.observeFollowUps(),
     [],
-  );
+  ) ?? [];
   const pendingJustifications = useObservable(
     () => repos.attendance.observeJustifications("submitted"),
     [],
-  );
-  const personnel = useObservable(() => repos.personnel.observe(), []);
+  ) ?? [];
+  const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
 
   const canObj = useMemo(() => {
     return {
