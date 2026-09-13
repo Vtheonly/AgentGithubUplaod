@@ -31,7 +31,7 @@ function buildInstallment(parent: Parent, student: Student, trancheIdx: number, 
   return {
     id: `ins-${parent.id}-${student.id}-t${trancheIdx + 1}`,
     parentId: parent.id, studentId: student.id, category: "tuition",
-    label: `Tranche ${trancheIdx + 1}`, amountDue,
+    label: `Tranche ${trancheIdx + 1}`, trancheNumber: (trancheIdx + 1) as 1 | 2 | 3, amountDue,
     amountPaid: paid ? amountDue : trancheIdx === 1 ? Math.round(amountDue / 2) : 0,
     amountPending: 0, dueDate: iso(due), paidDate: paid ? iso(due) : null,
     status: paid ? "paid" : trancheIdx === 1 ? "partial" : "pending",

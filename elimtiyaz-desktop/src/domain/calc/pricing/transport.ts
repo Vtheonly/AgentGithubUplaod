@@ -28,6 +28,91 @@ import type { PricingConfig, TransportPricing } from "@/domain/model/pricing";
 import { REAL_TRANSPORT_MATRIX } from "./school-price-matrix";
 
 /* ============================================================ */
+/*  TOWN-ALIAS normalization (T-338 — the statistics leg)       */
+/* ============================================================ */
+
+/**
+ * Exact spelling → real-town key. Input is normalized: trimmed, uppercased,
+ * ALL whitespace removed.
+ *
+ * T-338 (61st session): this table is the ONE canonical copy of the town
+ * aliases, lifted verbatim from the Excel `DISTINATION` mapper (which now
+ * delegates here). The workbook spelling variants (ETAT DISTINATION column +
+ * REF reference sheet, including the REF typos "ZEMOURI", "REGHIAA",
+ * "KHEMIS KHENCHELA", "OULED HEDDAJ /HOUCHE MEKHEFI") and the LIVE
+ * `students.transport_tier` values (which include "BOUMRDES", "BOUMREDES",
+ * "OULED MOUSSA", "KHEMISELKHCHNA", …) all resolve through it.
+ */
+export const TOWN_ALIASES: Readonly<Record<string, TransportDestination>> = {
+  // 40k — Boumerdès centre
+  BOUMERDES: "boumerdes",
+  BOUMRDES: "boumerdes",
+  BOUMREDES: "boumerdes",
+  BOUMERDES20000: "boumerdes",
+  CHABAT: "chabat",
+  CHABET: "chabet",
+  // 43k — Corso / Sahel / Figuier / Tidjelabine
+  CORSO: "corso",
+  SAHEL: "sahel",
+  FIGUIER: "figuier",
+  TIDJELABINE: "tidjelabine",
+  // 52k — Boudouaou / Thénia
+  BOUDOUAOU: "boudouaou",
+  THENIA: "thenia",
+  // 57k — Zemmouri (REF-sheet typo "ZEMOURI" included)
+  ZEMMOURI: "zemmouri",
+  ZEMOURI: "zemmouri",
+  // 55k — the "medium ring" towns
+  DJENAT: "djenet",
+  DJENET: "djenet",
+  CAPDJENET: "cap_djenet",
+  BORDJMNAIL: "bordj_menaiel",
+  SIMUSTAPHA: "si_mustapha",
+  ISSER: "isser",
+  OULEDMOUSSA: "ouled_moussa",
+  KHEMISKHECHNA: "khemis_el_khechna",
+  KHEMISELKHCHNA: "khemis_el_khechna",
+  KHEMISKHCHNA: "khemis_el_khechna",
+  KHEMISKHENCHELA: "khemis_el_khechna", // REF-sheet typo
+  BENYOUNES: "benyounes",
+  SOUKELHAD: "souk_elhad",
+  // 65k — the far ring
+  BENIAMRAN: "beni_amrane",
+  REGHAIA: "reghaia",
+  REGHIAA: "reghaia", // REF-sheet typo
+  ROUIBA: "rouiba",
+  OULEDHEDADJ: "ouled_heddadj",
+  OULEDHDADJ: "ouled_heddadj",
+  "OULEDHEDDAJ/HOUCHEMEKHEFI": "ouled_heddadj", // REF compound spelling
+  OULEDHADADJ: "ouled_heddadj",
+  LAGATA: "lagata",
+  // Legacy grouped-zone codes that appear as transport_tier values
+  TIDJELABINE_SAHEL_FIGUIER_CORSO: "tidjelabine_sahel_figuier_corso",
+  BOUDOUAOU_THENIA_ZEMMOURI: "boudouaou_thenia_zemmouri",
+  VILLEBOUMERDES: "ville_boumerdes",
+};
+
+/**
+ * Normalize a raw transport-tier/town string to its canonical
+ * TransportDestination — the statistics-grade entry point (T-338).
+ *
+ * Semantics (deliberately different from the Excel pricing mapper):
+ *   - null / undefined / blank → null — the student has NO transport
+ *     service; transport statistics must NOT count them.
+ *   - Known spelling → the canonical real-town key.
+ *   - Unknown non-empty value → "autres" (the legacy fallback zone) — the
+ *     student IS a rider, just from an unrecognized locality.
+ */
+export function normalizeTransportTier(
+  raw: string | null | undefined,
+): TransportDestination | null {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim().toUpperCase().replace(/\s+/g, "");
+  if (!s) return null;
+  return TOWN_ALIASES[s] ?? "autres";
+}
+
+/* ============================================================ */
 /*  Official schedule generators (Prices.md — 2026-2027)        */
 /* ============================================================ */
 

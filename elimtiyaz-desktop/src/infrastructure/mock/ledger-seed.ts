@@ -265,6 +265,42 @@ export function buildSeedLedger(): LedgerEntry[] {
     metadata: { decisionId: "DEC-2025-008" },
   }));
 
+  // T-338 (61st session, STATS-400): a live-shaped REMISE pair so the mock
+  // mode exercises the Discount Erosion derivation exactly like production.
+  // The Excel devis import writes a negative adjustment carrying the
+  // STRUCTURED marker metadata.field === "REMISE"; the reconciliation-0063
+  // repair writes the positive double-remise-cancel debit (metadata.reason
+  // === "double_remise_cancel") that nets it (the imported devis is already
+  // net of remise). See executive-statistics.ts → deriveDiscountErosion.
+  entries.push(createAdjustmentEntry({
+    tenantId: TENANT_ID,
+    parentId: "par-002",
+    studentId: null,
+    category: "tuition",
+    amount: -25000, // negotiated devis remise (25 000 DZD)
+    reason: "Remise sur devis (import Excel run run_seed_2026)",
+    sourceType: "bulk_import",
+    sourceId: "seed-run-001:REMISE",
+    actorId: "system",
+    actorName: "System",
+    at: daysAgo(60),
+    metadata: { field: "REMISE", importRunId: "run_seed_2026" },
+  }));
+  entries.push(createAdjustmentEntry({
+    tenantId: TENANT_ID,
+    parentId: "par-002",
+    studentId: null,
+    category: "tuition",
+    amount: 25000, // the reconciliation-0063 cancel debit
+    reason: "Annulation double-remise (réconciliation 0063) — le devis importé est déjà net de remise (formule Excel L = composantes − J)",
+    sourceType: "bulk_import",
+    sourceId: "seed-run-001:REMISE:RECON0063",
+    actorId: "system",
+    actorName: "System",
+    at: daysAgo(59),
+    metadata: { reason: "double_remise_cancel", reconciliation: "0063", original_amount: -25000 },
+  }));
+
   entries.push(createAdjustmentEntry({
     tenantId: TENANT_ID,
     parentId: "par-005",

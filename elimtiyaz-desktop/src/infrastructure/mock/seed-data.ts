@@ -746,6 +746,7 @@ export const seedInstallments = seedParents
         studentId: student.id,
         category: "tuition" as const,
         label: `Tranche ${t}`,
+        trancheNumber: t as 1 | 2 | 3,
         amountDue,
         amountPaid: paid ? amountDue : t === 2 ? Math.round(amountDue / 2) : 0,
         amountPending: 0,

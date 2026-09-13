@@ -2388,6 +2388,9 @@ function mapInstallmentRow(r: InstallmentRow): Installment {
     studentId: r.student_id,
     category: (r.category ?? "tuition") as Installment["category"],
     label: r.label ?? `Tranche ${r.tranche_number}`,
+    // T-338: carry the canonical wave number into the domain (the executive
+    // statistics group by tranche_number, never by label parsing).
+    trancheNumber: (r.tranche_number ?? 1) as 1 | 2 | 3,
     amountDue: Number(r.amount_due ?? 0),
     amountPaid: Number(r.amount_paid ?? 0),
     amountPending: Number(r.amount_pending ?? 0),
