@@ -19,6 +19,7 @@ import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { resolveSubjectConfiguration } from "../../domain/calc/academics/subject-config";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
@@ -51,6 +52,12 @@ export function TeachersTab({ canManage }: { canManage: boolean }) {
   const teachers = useObservable(() => repos.teachers.observe(), []) ?? [];
   const classes = useObservable(() => repos.classes.observe(), []) ?? [];
   const allSubjects = useObservable(() => repos.subjects.observe(), []) ?? [];
+
+  // T-345 (MATIERE-500/ADR-018): the context configurations.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
 
   const [search, setSearch] = useState("");
   const [assignModalTarget, setAssignModalTarget] = useState<TeacherRow | null>(
@@ -168,7 +175,13 @@ export function TeachersTab({ canManage }: { canManage: boolean }) {
         teacherId: assignModalTarget.personnelId,
         teacherName: `${assignModalTarget.firstName} ${assignModalTarget.lastName}`,
         weeklyHours: 2,
-        coefficient: subj?.coefficient || 1,
+        // T-345 (ADR-018): the canonical resolver replaces the fallback.
+        coefficient: resolveSubjectConfiguration({
+          subject: subj,
+          configurations: subjectConfigurations,
+          academicLevelId: targetClass?.academicLevelId ?? null,
+          academicYearId: targetClass?.academicYearId ?? null,
+        }).coefficient,
       });
 
       if (result.ok) {

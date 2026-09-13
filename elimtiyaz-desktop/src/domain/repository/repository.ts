@@ -7,6 +7,7 @@
  * subscribe callback so React can re-render on backend changes.
  */
 import type { Result } from "../../core/result";
+import type { GradeEntryInput } from "./academic-repository";
 import type { Session } from "../../core/rbac/session";
 import type { Role } from "../../core/rbac/roles";
 import type {
@@ -25,6 +26,7 @@ import type {
   AttendanceStatus,
   Homework,
   AcademicTerm,
+  SubjectConfiguration,
 } from "../model/academic";
 import type {
   Payment,
@@ -165,6 +167,16 @@ export interface SubjectRepository {
   observe(): Observable<Subject[]>;
   observeByLevel(level: string): Observable<Subject[]>;
   observeByClass(classId: string): Observable<ClassSubject[]>;
+  /**
+   * T-345 (MATIERE-500/ADR-018): the context-specific subject
+   * configurations (subject × year × level × direction) — the single
+   * source every surface resolves coefficients/recipes through.
+   */
+  observeConfigurations(): Observable<SubjectConfiguration[]>;
+  /** Create/update ONE configuration row (non-retroactive: snapshots hold). */
+  upsertSubjectConfiguration(
+    input: Omit<SubjectConfiguration, "id" | "tenantId"> & { id?: string },
+  ): Promise<Result<SubjectConfiguration>>;
   assignSubjectToClass(input: Omit<ClassSubject, "id">): Promise<Result<ClassSubject>>;
   removeSubjectFromClass(id: string): Promise<Result<void>>;
   /**
@@ -180,8 +192,8 @@ export interface SubjectRepository {
 export interface GradeRepository {
   observeForStudent(studentId: string): Observable<Assessment[]>;
   observeForClass(classId: string, academicYear?: string, term?: string): Observable<Assessment[]>;
-  enterGrade(input: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">): Promise<Result<Assessment>>;
-  enterGradesBatch(inputs: ReadonlyArray<Omit<Assessment, "id" | "subjectAverage" | "enteredAt">>): Promise<Result<Assessment[]>>;
+  enterGrade(input: GradeEntryInput): Promise<Result<Assessment>>;
+  enterGradesBatch(inputs: ReadonlyArray<GradeEntryInput>): Promise<Result<Assessment[]>>;
 }
 
 export interface AttendanceRepository {

@@ -1,4 +1,8 @@
 import {
+  computeSubjectAverageFromRecipe,
+  resolveSubjectConfiguration,
+} from "./subject-config";
+import {
   computeSubjectAverage,
   computeOverallGpa,
   isPassing,
@@ -6,6 +10,7 @@ import {
   DEFAULT_PASSING_GRADE,
   type Assessment,
   type Subject,
+  type SubjectConfiguration,
 } from "../../model/academic";
 
 export interface StudentGpaResult {
@@ -23,21 +28,42 @@ export interface StudentRankResult extends StudentGpaResult {
 
 /**
  * Calculates GPA and evaluates passing status for a single student given their assessments.
+ *
+ * T-345 (MATIERE-500/ADR-018): the coefficient and the recipe resolve
+ * through the ONE canonical rule — the assessment snapshot first (history
+ * is never re-resolved), then the subject-configuration context, then the
+ * legacy directory columns. The old `a.coefficient || subject?.coefficient
+ * || 1` chain is gone.
  */
 export function evaluateStudentTermPerformance(
   studentId: string,
   assessments: readonly Assessment[],
   subjects: readonly Subject[],
+  configurations: readonly SubjectConfiguration[] = [],
   passingThreshold = DEFAULT_PASSING_GRADE,
 ): StudentGpaResult {
   const studentAssessments = assessments.filter((a) => a.studentId === studentId);
-  
+
   const mapped = studentAssessments.map((a) => {
     const subject = subjects.find((s) => s.id === a.subjectId);
+    const resolved = resolveSubjectConfiguration({ subject, configurations });
     return {
-      subjectAverage: a.subjectAverage ?? computeSubjectAverage(a.devoir1, a.devoir2, a.examen),
-      coefficient: a.coefficient || subject?.coefficient || 1,
-      isExtracurricular: subject?.isExtracurricular ?? false,
+      subjectAverage:
+        a.subjectAverage ??
+        computeSubjectAverageFromRecipe(
+          a.devoir1,
+          a.devoir2,
+          a.examen,
+          a.cc,
+          {
+            devoir1: a.coefficientDevoir1,
+            devoir2: a.coefficientDevoir2,
+            examen: a.coefficientExamen,
+            cc: a.coefficientCc,
+          },
+        ),
+      coefficient: a.coefficient || resolved.coefficient,
+      isExtracurricular: resolved.isExtracurricular,
     };
   });
 

@@ -42,6 +42,7 @@ import { KpiCard } from "../../shared/ui/kpi-card";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { resolveSubjectConfiguration } from "../../domain/calc/academics/subject-config";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import type { AcademicYear } from "../../domain/model/academic";
@@ -578,6 +579,12 @@ function TeachersSubTab({
     [year.id],
   );
   const allSubjects = useObservable(() => repos.subjects.observe(), []);
+
+  // T-345 (MATIERE-500/ADR-018): the context configurations.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const allPersonnel = useObservable(() => repos.personnel.observe(), []);
   const allClasses = useObservable(() => repos.classes.observe(), []);
 
@@ -720,7 +727,13 @@ function TeachersSubTab({
         teacherId: assignClassTarget.personnelId,
         teacherName: `${assignClassTarget.firstName} ${assignClassTarget.lastName}`,
         weeklyHours: 2,
-        coefficient: subj?.coefficient || 1,
+        // T-345 (ADR-018): the canonical resolver replaces the fallback.
+        coefficient: resolveSubjectConfiguration({
+          subject: subj,
+          configurations: subjectConfigurations,
+          academicLevelId: targetClass?.academicLevelId ?? null,
+          academicYearId: targetClass?.academicYearId ?? null,
+        }).coefficient,
       });
 
       if (result.ok) {

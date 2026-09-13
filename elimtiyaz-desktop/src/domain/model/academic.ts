@@ -95,6 +95,64 @@ export interface ClassSubject {
   readonly coefficient: number;
 }
 
+/**
+ * The component-weight recipe of a subject's term average (ADR-018).
+ * Each weight ≥ 0; a 0-weight component does not participate. The sum
+ * must be > 0. `cc` is the contrôle continu (المراقبة المستمرة) weight —
+ * the continuous-assessment mark that Algerian term averages are built
+ * from; it counts toward the official GPA exactly like any other
+ * component when its weight is positive.
+ */
+export interface GradingRecipe {
+  readonly devoir1: number;
+  readonly devoir2: number;
+  readonly examen: number;
+  readonly cc: number;
+}
+
+/**
+ * The DEFAULT recipe — bit-identical to the historical (D1 + D2 + 2×Ex) / 4
+ * engine (cc weight 0 = excluded). Matches the SQL default of
+ * `subject_configurations.grading_recipe` (migration 0094) and the
+ * `assessments.coefficient_*` snapshot defaults (migrations 0041/0094).
+ */
+export const DEFAULT_GRADING_RECIPE: GradingRecipe = {
+  devoir1: 1,
+  devoir2: 1,
+  examen: 2,
+  cc: 0,
+};
+
+/**
+ * A context-specific subject configuration (ADR-018 / MATIERE-500):
+ * ONE row per (subject, academic year, academic level, direction) —
+ * "Mathematics in 5AP, 2026-2027, general direction". This is where the
+ * coefficient, the per-bulletin subject code, the passing grade, the
+ * extracurricular flag and the grading recipe LIVE. The `subjects` table
+ * carries the subject's IDENTITY (code + names); these rows carry the
+ * context. Coefficient changes here never rewrite historical results —
+ * assessment rows snapshot the resolution at entry.
+ */
+export interface SubjectConfiguration {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly subjectId: string;
+  readonly academicYearId: string;
+  readonly academicLevelId: string;
+  /** Filière / شعبة — 'general' until classes carry a real direction. */
+  readonly direction: string;
+  /** The coefficient of the subject in THIS context. */
+  readonly coefficient: number;
+  /** Per-bulletin identifier for this context; falls back to Subject.code. */
+  readonly subjectCode: string | null;
+  readonly passingGrade: number;
+  /** Whether the subject counts toward the official GPA in THIS context. */
+  readonly isExtracurricular: boolean;
+  readonly gradingRecipe: GradingRecipe;
+  readonly weeklyHours: number | null;
+  readonly isActive: boolean;
+}
+
 export interface Assessment {
   readonly id: string;
   readonly studentId: string;
@@ -105,8 +163,21 @@ export interface Assessment {
   readonly devoir1: number | null;
   readonly devoir2: number | null;
   readonly examen: number | null;
+  /**
+   * Contrôle continu (المراقبة المستمرة) — the continuous-assessment mark
+   * (0-20), participating in the subject average only when the resolved
+   * recipe gives it a positive weight (ADR-018). `null` = not entered.
+   */
+  readonly cc: number | null;
   readonly subjectAverage: number | null;
+  /** The subject coefficient SNAPSHOT at entry — never retroactively
+   * rewritten (ADR-018 §3: configs change, history does not). */
   readonly coefficient: number;
+  /** The component-weight snapshot at entry. */
+  readonly coefficientDevoir1: number;
+  readonly coefficientDevoir2: number;
+  readonly coefficientExamen: number;
+  readonly coefficientCc: number;
   readonly enteredBy: string;
   readonly enteredAt: string;
 }

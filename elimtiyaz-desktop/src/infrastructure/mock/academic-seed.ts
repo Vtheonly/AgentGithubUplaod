@@ -84,8 +84,15 @@ function makeAssessment(
     devoir1: d1,
     devoir2: d2,
     examen: ex,
+    // T-345 (ADR-018): cc + the entry-time snapshots. The seed rows use
+    // the DEFAULT recipe {1,1,2,0} — cc excluded, identical averages.
+    cc: null,
     subjectAverage,
     coefficient,
+    coefficientDevoir1: 1,
+    coefficientDevoir2: 1,
+    coefficientExamen: 2,
+    coefficientCc: 0,
     enteredBy: teacherId,
     enteredAt: daysAgo(enteredAtDaysAgo),
   };
@@ -391,3 +398,45 @@ export const seedReleve: ReleveEntry[] = [
     recordedAt: daysAgo(3),
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Subject configurations (T-345 / ADR-018) — the context matrix: one row per
+// (subject × class-level × year) mirroring the migration-0094 live seed:
+// every subject configured for the levels of its own cycle, preserving the
+// directory values. Cross-cycle rows are admin-created through the UI.
+// ---------------------------------------------------------------------------
+import type { SubjectConfiguration } from "../../domain/model/academic";
+import { seedSubjects } from "./seed-data";
+
+const SEED_CLASSES_LEVELS: ReadonlyArray<{
+  academicLevelId: string;
+  cycle: string;
+}> = [
+  { academicLevelId: "al-1ap", cycle: "primaire" },
+  { academicLevelId: "al-4ap", cycle: "primaire" },
+  { academicLevelId: "al-2am", cycle: "cem" },
+  { academicLevelId: "al-4am", cycle: "cem" },
+  { academicLevelId: "al-1ere_annee", cycle: "lycee" },
+  { academicLevelId: "al-2eme_annee", cycle: "lycee" },
+];
+
+export const seedSubjectConfigurations: SubjectConfiguration[] =
+  seedSubjects.flatMap((subject, i) =>
+    SEED_CLASSES_LEVELS.filter((l) => l.cycle === subject.level).map(
+      (l): SubjectConfiguration => ({
+        id: `subcfg-${String(i + 1).padStart(2, "0")}-${l.academicLevelId}`,
+        tenantId: subject.tenantId,
+        subjectId: subject.id,
+        academicYearId: "ay-2025-2026",
+        academicLevelId: l.academicLevelId,
+        direction: "general",
+        coefficient: subject.coefficient,
+        subjectCode: null,
+        passingGrade: subject.passingGrade,
+        isExtracurricular: subject.isExtracurricular,
+        gradingRecipe: { devoir1: 1, devoir2: 1, examen: 2, cc: 0 },
+        weeklyHours: null,
+        isActive: true,
+      }),
+    ),
+  );

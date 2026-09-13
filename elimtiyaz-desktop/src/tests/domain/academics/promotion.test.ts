@@ -99,9 +99,9 @@ describe("Academic Year-End Promotion Engine", () => {
 
     const mockAssessments: Assessment[] = [
       // Amine Benali -> Avg 14.0 (Pass)
-      { id: "a1", studentId: "stu-001", classId: "cls-1", subjectId: "sub-1", term: "T1", academicYear: "2025-2026", devoir1: 14, devoir2: 14, examen: 14, subjectAverage: 14, coefficient: 4, enteredBy: "teacher-1", enteredAt: "2025-12-01" },
+      { id: "a1", studentId: "stu-001", classId: "cls-1", subjectId: "sub-1", term: "T1", academicYear: "2025-2026", devoir1: 14, devoir2: 14, examen: 14, cc: null, subjectAverage: 14, coefficient: 4, coefficientDevoir1: 1, coefficientDevoir2: 1, coefficientExamen: 2, coefficientCc: 0, enteredBy: "teacher-1", enteredAt: "2025-12-01" },
       // Yasmine Cherif -> Avg 8.0 (Fail)
-      { id: "a2", studentId: "stu-002", classId: "cls-1", subjectId: "sub-1", term: "T1", academicYear: "2025-2026", devoir1: 8, devoir2: 8, examen: 8, subjectAverage: 8, coefficient: 4, enteredBy: "teacher-1", enteredAt: "2025-12-01" },
+      { id: "a2", studentId: "stu-002", classId: "cls-1", subjectId: "sub-1", term: "T1", academicYear: "2025-2026", devoir1: 8, devoir2: 8, examen: 8, cc: null, subjectAverage: 8, coefficient: 4, coefficientDevoir1: 1, coefficientDevoir2: 1, coefficientExamen: 2, coefficientCc: 0, enteredBy: "teacher-1", enteredAt: "2025-12-01" },
     ];
 
     it("should correctly evaluate candidates against the passing threshold (10.00)", () => {

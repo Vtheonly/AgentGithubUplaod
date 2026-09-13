@@ -89,6 +89,9 @@ export function buildPromotionReviewQueue(input: {
   students: readonly Student[];
   assessments: readonly Assessment[];
   subjects: readonly Subject[];
+  /** T-345 (ADR-018): the subject configurations (optional — legacy callers
+   *  keep the directory fallback). */
+  subjectConfigurations?: readonly import("../../model/academic").SubjectConfiguration[];
   academicYear: string;
   targetAcademicYear: string;
   passingThreshold?: number;
@@ -97,7 +100,13 @@ export function buildPromotionReviewQueue(input: {
 
   const perStudentEvals = input.students.map((student) => {
     const studentAssessments = input.assessments.filter((a) => a.studentId === student.id);
-    return evaluateStudentTermPerformance(student.id, studentAssessments, input.subjects, threshold);
+    return evaluateStudentTermPerformance(
+      student.id,
+      studentAssessments,
+      input.subjects,
+      input.subjectConfigurations ?? [],
+      threshold,
+    );
   });
 
   const ranked = rankClassPerformance(perStudentEvals);

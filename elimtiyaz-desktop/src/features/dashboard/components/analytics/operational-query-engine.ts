@@ -24,6 +24,7 @@ import type {
   Subject,
 } from "../../../../domain/model/academic";
 import type { DebtSummary, Payment } from "../../../../domain/model/payment";
+import { resolveSubjectConfiguration } from "../../../../domain/calc/academics/subject-config";
 import {
   computeOverallGpa,
   computeSubjectAverage,
@@ -136,6 +137,9 @@ export function evaluateStudentRiskProfiles(params: {
   parents: readonly Parent[];
   classes: readonly AcademicClass[];
   subjects: readonly Subject[];
+  /** T-345 (ADR-018): the context configurations (optional — legacy
+   *  directory fallback when absent). */
+  subjectConfigurations?: readonly import("../../../../domain/model/academic").SubjectConfiguration[];
   assessments: readonly Assessment[];
   attendance: readonly AttendanceRecord[];
   debtSummaries: readonly DebtSummary[];
@@ -145,6 +149,7 @@ export function evaluateStudentRiskProfiles(params: {
     parents,
     classes,
     subjects,
+    subjectConfigurations,
     assessments,
     attendance,
     debtSummaries,
@@ -183,7 +188,13 @@ export function evaluateStudentRiskProfiles(params: {
         subjectAverage:
           a.subjectAverage ??
           computeSubjectAverage(a.devoir1, a.devoir2, a.examen),
-        coefficient: a.coefficient || subj?.coefficient || 1,
+        // T-345 (ADR-018): the canonical resolver replaces the fallback chain.
+        coefficient:
+          a.coefficient ||
+          resolveSubjectConfiguration({
+            subject: subj,
+            configurations: subjectConfigurations ?? [],
+          }).coefficient,
         isExtracurricular: subj?.isExtracurricular ?? false,
       };
     });

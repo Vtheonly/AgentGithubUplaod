@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { BookOpen, User, Clock, Plus, Trash2 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { resolveSubjectConfiguration } from "../../domain/calc/academics/subject-config";
 import { useToast } from "../../app/providers/toast-provider";
 import {
   Card,
@@ -55,6 +56,12 @@ export function ClassSubjectsTab({ classId }: { classId: string }) {
     () => repos.classes.observeById(classId),
     [classId],
   );
+
+  // T-345 (MATIERE-500/ADR-018): the context configurations.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const levelSubjects = cls
     ? allSubjects.filter((s) => s.level === (cls.level as AcademicLevel))
     : allSubjects;
@@ -102,7 +109,16 @@ export function ClassSubjectsTab({ classId }: { classId: string }) {
       teacherId: teacherId || null,
       teacherName: teacher ? teacher.name : null,
       weeklyHours: weeklyHours || 2,
-      coefficient: coefficient || selectedSubj?.coefficient || 1,
+      // T-345 (ADR-018): the canonical resolver (configuration context ->
+      // legacy directory -> default) — the old fallback chain is gone.
+      coefficient:
+        coefficient ||
+        resolveSubjectConfiguration({
+          subject: selectedSubj,
+          configurations: subjectConfigurations,
+          academicLevelId: cls?.academicLevelId ?? null,
+          academicYearId: cls?.academicYearId ?? null,
+        }).coefficient,
     });
 
     if (result.ok) {

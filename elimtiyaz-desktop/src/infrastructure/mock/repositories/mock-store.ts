@@ -33,6 +33,7 @@ import {
   seedAttendance,
   seedHomework,
   seedReleve,
+  seedSubjectConfigurations,
 } from "../academic-seed";
 import { seedLedger } from "../ledger-seed";
 import { seedWorkflows, seedWorkflowRuns } from "../workflow-seed";
@@ -59,6 +60,7 @@ import type {
   AcademicClass,
   AcademicYear,
   Subject,
+  SubjectConfiguration,
   ClassSubject,
   Assessment,
   AttendanceRecord,
@@ -109,6 +111,7 @@ export class MockStore {
   classes: AcademicClass[] = [...seedClasses];
   subjects: Subject[] = [...seedSubjects];
   classSubjects: ClassSubject[] = [...seedClassSubjects];
+  subjectConfigurations: SubjectConfiguration[] = [...seedSubjectConfigurations];
   assessments: Assessment[] = [...seedAssessments];
   attendance: AttendanceRecord[] = [...seedAttendance];
   homework: Homework[] = [...seedHomework];
@@ -155,6 +158,7 @@ export class MockStore {
   classes$ = new SubjectBehavior<AcademicClass[]>(this.classes);
   subjects$ = new SubjectBehavior<Subject[]>(this.subjects);
   classSubjects$ = new SubjectBehavior<ClassSubject[]>(this.classSubjects);
+  subjectConfigurations$ = new SubjectBehavior<SubjectConfiguration[]>(this.subjectConfigurations);
   assessments$ = new SubjectBehavior<Assessment[]>(this.assessments);
   attendance$ = new SubjectBehavior<AttendanceRecord[]>(this.attendance);
   homework$ = new SubjectBehavior<Homework[]>(this.homework);
@@ -197,6 +201,7 @@ export class MockStore {
   notifyNotifications() { this.notifications$.set([...this.notifications]); }
   notifyLedger() { this.stageAndNotify("ledger_entry", this.ledger as unknown as StagedRow[], () => this.ledger$.set([...this.ledger])); }
   notifyClassSubjects() { this.classSubjects$.set([...this.classSubjects]); }
+  notifySubjectConfigurations() { this.subjectConfigurations$.set([...this.subjectConfigurations]); }
   notifyAssessments() { this.assessments$.set([...this.assessments]); }
   notifyAttendance() { this.attendance$.set([...this.attendance]); }
   notifyHomework() { this.homework$.set([...this.homework]); }

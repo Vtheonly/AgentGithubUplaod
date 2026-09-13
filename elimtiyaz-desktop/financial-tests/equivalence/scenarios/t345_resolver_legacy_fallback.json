@@ -1,0 +1,58 @@
+{
+  "id": "t345_resolver_legacy_fallback",
+  "description": "ADR-018/T-345: no configuration row for the context -> the legacy subjects columns answer (coefficient 3, default recipe) — the documented fallback layer of the ONE resolution rule.",
+  "category": "subject_configuration",
+  "tags": [
+    "subject_configuration",
+    "resolver",
+    "legacy"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": [],
+    "subject": {
+      "id": "subj-ar",
+      "code": "AR",
+      "coefficient": 3,
+      "passingGrade": 10,
+      "isExtracurricular": false
+    },
+    "configurations": [
+      {
+        "subjectId": "subj-ar",
+        "academicLevelId": "al-4am",
+        "academicYearId": "ay-1",
+        "direction": "general",
+        "coefficient": 4,
+        "subjectCode": null,
+        "passingGrade": 10,
+        "isExtracurricular": false,
+        "isActive": true,
+        "gradingRecipe": {
+          "devoir1": 1,
+          "devoir2": 1,
+          "examen": 2,
+          "cc": 0
+        }
+      }
+    ],
+    "context": {
+      "academicLevelId": "al-1ap",
+      "academicYearId": "ay-1"
+    }
+  },
+  "when": {
+    "type": "resolveSubjectConfiguration"
+  },
+  "then": {
+    "coefficient": 3,
+    "subjectCode": "AR",
+    "source": "legacy-subject",
+    "recipe": {
+      "devoir1": 1,
+      "devoir2": 1,
+      "examen": 2,
+      "cc": 0
+    }
+  }
+}

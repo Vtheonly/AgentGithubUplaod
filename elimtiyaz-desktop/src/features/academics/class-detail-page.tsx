@@ -20,6 +20,7 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { resolveSubjectConfiguration } from "../../domain/calc/academics/subject-config";
 import { can } from "../../core/rbac/session";
 import {
   GRADE_LEVEL_LABELS_FR,
@@ -93,6 +94,11 @@ export function ClassDetailPage() {
     [classId],
   );
   const allSubjects = useObservable(() => repos.subjects.observe(), []);
+  // T-345 (MATIERE-500/ADR-018): the context configurations.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const personnel = useObservable(() => repos.personnel.observe(), []);
 
   const [homeworkOpen, setHomeworkOpen] = useState(false);
@@ -122,7 +128,15 @@ export function ClassDetailPage() {
           id: cs.subjectId,
           name: s?.name ?? cs.subjectId,
           code: s?.code ?? "",
-          coefficient: cs.coefficient || s?.coefficient || 1,
+          // T-345 (ADR-018): the canonical resolver replaces the fallback chain.
+          coefficient: s
+            ? resolveSubjectConfiguration({
+                subject: s,
+                configurations: subjectConfigurations,
+                academicLevelId: cls?.academicLevelId ?? null,
+                academicYearId: cls?.academicYearId ?? null,
+              }).coefficient
+            : cs.coefficient,
         };
       });
     }
