@@ -193,8 +193,19 @@ export class MockDashboardRepository implements DashboardRepository {
       .filter((p) => p.status === "paid")
       .reduce((s, p) => s + p.amount, 0);
 
+    // T-353 (DASH-403): the outstanding debt follows the ACADEMIC YEAR's
+    // billing window (NOT the preset range) — the same semantics the
+    // Supabase implementation applies to installments.due_date. Debt is a
+    // year-level point-in-time metric; only the revenue KPI follows the
+    // preset range. computeRange(academicYear, undefined) = the pure year
+    // window (Sept 1 → Sept 1), immune to the month/quarter presets.
+    const yearMs = this.computeRange(academicYear, undefined);
+    const inYear = (ts: string) => {
+      const t = new Date(ts).getTime();
+      return t >= yearMs.fromMs && t < yearMs.toMs;
+    };
     const totalOutstanding = store.parents.reduce((sum, p) => {
-      const entries = store.ledger.filter((e) => e.parentId === p.id && inRange(e.at));
+      const entries = store.ledger.filter((e) => e.parentId === p.id && inYear(e.at));
       const dueDateMap = buildOverdueDueDateMap(entries);
       return sum + computeParentSummary(entries, p.id, "", dueDateMap).totalOutstanding;
     }, 0);
@@ -256,9 +267,50 @@ export class MockDashboardRepository implements DashboardRepository {
     // by the date range in the same way revenue is. The academic year
     // determines which installments to consider; the range is ignored for
     // aging (it's a point-in-time metric).
-    void academicYear;
+    //
+    // T-353 (DASH-403): the year is no longer just a comment — the ledger
+    // replay below is scoped to the academic year's billing window (same
+    // window the Supabase implementation applies to `installments.due_date`
+    // and the page applies to the TS derivations). Without this, the mock
+    // and the live layer disagreed on whether the aging chart follows the
+    // year selector (mock↔Supabase parity, §15.15).
+    await delay(120);
+    const yearMs = this.computeRange(academicYear, undefined);
+    const entriesInYear = (parentId: string) =>
+      store.ledger.filter(
+        (e) =>
+          e.parentId === parentId &&
+          new Date(e.at).getTime() >= yearMs.fromMs &&
+          new Date(e.at).getTime() < yearMs.toMs,
+      );
     void range;
-    return this.debtByAging();
+
+    // Compute aging buckets from the year-scoped ledger.
+    const buckets: Record<string, { amount: number; debtorCount: number }> = {
+      "0_30": { amount: 0, debtorCount: 0 },
+      "31_60": { amount: 0, debtorCount: 0 },
+      "61_90": { amount: 0, debtorCount: 0 },
+      "91_180": { amount: 0, debtorCount: 0 },
+      "180_plus": { amount: 0, debtorCount: 0 },
+    };
+    for (const p of store.parents) {
+      const entries = entriesInYear(p.id);
+      if (entries.length === 0) continue;
+      const dueDateMap = buildOverdueDueDateMap(entries);
+      const summary = computeParentSummary(entries, p.id, "", dueDateMap);
+      if (summary.totalOutstanding <= 0.001) continue;
+      const days = maxDaysOverdueFromLedger(entries);
+      const bucket = agingBucketFromDays(days);
+      buckets[bucket].amount += summary.totalOutstanding;
+      buckets[bucket].debtorCount += 1;
+    }
+    return Ok(
+      (Object.entries(buckets) as Array<[string, { amount: number; debtorCount: number }]>).map(([bucket, data]) => ({
+        bucket: bucket as AgingBucket,
+        amount: data.amount,
+        debtorCount: data.debtorCount,
+      })),
+    );
   }
 
   /**

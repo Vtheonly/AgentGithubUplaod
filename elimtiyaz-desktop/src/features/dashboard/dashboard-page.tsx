@@ -53,6 +53,7 @@ import {
 } from "./tabs/types";
 import type { Payment, Installment } from "../../domain/model/payment";
 import {
+  installmentsForAcademicYear,
   previousAcademicYear,
   shiftIsoYearBack,
 } from "./components/analytics/analytics-derivations";
@@ -222,6 +223,19 @@ export function DashboardPage() {
     return unsub;
   }, [repos.installments]);
 
+  // T-353 (DASH-403): the ACADEMIC-YEAR-scoped installment stream. The raw
+  // subscription carries EVERY tenant installment (the table has no
+  // academic_year column — due_date is the only year signal), so every
+  // installment-derived statistic (wave velocity, debt triage, family
+  // concentration, transport yield) is derived from the SCOPED slice:
+  // switching the year selector now re-scopes those cards instead of
+  // leaving last year's numbers under the new year's header (the owner's
+  // screenshot 10: waves stayed 44.3M/86.9M/42.6M under 2026-2027).
+  const scopedInstallments = useMemo(
+    () => installmentsForAcademicYear(installments, yearRange.academicYear),
+    [installments, yearRange.academicYear],
+  );
+
   // Unread alerts — keep the tab badge current without making the
   // Overview depend on the alerts observable (decoupling preserves the
   // single-fetch model above).
@@ -324,7 +338,7 @@ export function DashboardPage() {
           <OverviewTab
             data={dataProp}
             payments={payments}
-            installments={installments}
+            installments={scopedInstallments}
             range={yearRange.range}
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
@@ -341,6 +355,7 @@ export function DashboardPage() {
             topDebtors={topDebtors}
             debtSummaries={debtSummaries}
             payments={payments}
+            installments={scopedInstallments}
             range={yearRange.range}
           />
         </PageTabContent>

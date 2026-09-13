@@ -3098,7 +3098,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-353 — 63rd session: academic-year scoping for the installment-derived statistics (DASH-403)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — 15 new t-353 tests; full suite 150 files / 3255 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-403
 - **Scope:** ONE pure range-filter helper (due-date window) applied at the page level to the installments stream before it feeds OverviewTab + AnalyticsTab; the canonical derivations untouched. Tests: year-switch re-scoping (2025-2026 shows the 3-wave picture; 2026-2027 shows its own 4 rows), boundary due-dates, no-installment honest state.
 - **Depends on:** T-350.
