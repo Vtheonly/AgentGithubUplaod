@@ -12,6 +12,10 @@
 6. If the task touches financial or academic rules, read `docs/domain/financial-rules.md` / `academic-rules.md` first. If your change needs a rule that is not written there, stop — that is an unknown, not a design choice.
 7. Record the selected task: set it `In Progress` in `task-registry.md`, note it in this file under "Currently in progress", and commit the doc update before starting implementation.
 
+## 62nd session (2026-09-14, IN PROGRESS) — MATIERE-500: the matière-architecture mandate (T-343..T-349)
+
+The owner's commit 158d806 ("idk mattier is wrong") + the restructuring mandate: canonical subject + context-specific subject configuration (per level, year, direction), the contrôle-continu (المراقبة المستمرة) component in the GPA path, the 12-item canonical architecture, website sync. T-343 (registration + ADR-018) IN PROGRESS; then T-344 (migration 0094 + live apply) → T-345 (desktop domain/resolver) → T-346 (desktop UI) → T-347 (website sync) → T-348 (Android mirror) → T-349 (closeout + zips + push). COORDINATION NOTE for the concurrent agent: migration number 0094 is claimed by T-344 (subject_configurations) — if the T-337 realtime publication migration lands first as 0094, this task renumbers at push time (fetch → inspect → merge → renumber if needed → push).
+
 ## 61st session (2026-09-14, CLOSED) — STATS-400: the executive-statistics mandate (T-338..T-342) — the unified engine proven desktop ≡ android ≡ SQL
 
 **ALL FIVE TASKS COMPLETE (T-338..T-341 VERIFIED, T-342 closeout):** the canonical executive-statistics engine (T-338), the Executive Command Center UI + the vanity purge (T-339), the verbatim Android mirror + Room 14→15 (T-340), and the two-level equivalence proof (T-341 — the corpus + the 299-check LIVE TS≡SQL diff, evidence docs/recovery/t-338-live-verification.md). STATS-400 CLOSED VERIFIED LIVE (251 registry entries, 21 VERIFIED). The owner's mid-session "push before you continue" request honored (the WIP backup 47a7cd7 + every completion pushed same-session).

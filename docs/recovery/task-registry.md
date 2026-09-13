@@ -7,6 +7,8 @@
 >
 > Statuses: `Not Started` · `Needs Investigation` · `Ready` (understood, dependencies cleared) · `In Progress` · `Blocked` · `Deferred`. Within `Ready`, work P0 → P1 → P2 → P3. Pick tasks via `next-task.md`.
 
+## Progress summary (2026-09-14, OPEN at the 62nd session — the owner matière-architecture mandate [commit 158d806 "idk mattier is wrong" is the trigger]): T-343..T-349 registered BEFORE implementation (per §13). MATIERE-500 registered (252 detailed entries) + ADR-018 accepted: the canonical subject architecture — subjects = identity, NEW subject_configurations = context (subject × year × level × direction: coefficient, subject_code, passing_grade, is_extracurricular, grading_recipe incl. the NEW contrôle-continu cc component), assessment rows snapshot the resolution (never retroactive), ONE canonical resolver per platform replaces the 14 coefficient fallback chains, NEW exam_sessions table. Live census evidence: 12 subjects each frozen to ONE cycle ("Arabe" only exists as primaire), 3 class_subjects, 4 wide-row assessments, 0 grades rows.
+
 ## Progress summary (2026-09-13, updated at the 60th session CLOSE — owner mandate "the student grades/marks on the website: exam grades already entered and recorded are not displaying correctly; make the website handle grades the same way as the desktop application (multiple subjects, multiple exams, multiple grades, several academic records); fix the retrieval/display logic; test with the live tokens; document; commit; zip + push"): T-336 (1 task + the T-337 registration) — T-336 (GRADE-102 CLOSED — VERIFIED LIVE: the owner's symptom root-caused NOT to the retrieval layer (the portal's exact PostgREST query under the parent's RLS returns the canonical assessments with the joined subject — 11/11 live data-path checks) but to per-child ID ROUTING: every per-child view derives its active kid from the store's activeStudentId, which was only auto-selected inside the StudentSwitcher components that render ONLY for 2+ children — a single-child parent (the most common family shape) kept a null id FOREVER, so the Academic view queried useGradesForStudent(undefined) → "Aucune note pour cette période" with entered grades; the dashboard's local kids[0] fallback masked it. Fix: ONE canonical auto-select effect in the AppShell (null OR stale-id → kids[0]) — fixes academic/attendance/homework/financial at once + resets stale ids after account re-bindings; duplicated switcher effects removed. Desktop-parity companions in the same task: the MOYENNE/MATIÈRE KPIs now follow the term filter (per-term canonical GPA = the desktop AcademicTab + fn_calculate_student_term_gpa + Android termGpas semantics; all-terms tab = the Android yearlyGpa convention) and partial marks show the desktop/Android "Moyenne à paraître" hint instead of a silent "—" (i18n fr/ar/en). New discovery registered: REALTIME-105 (the portal's five realtime subscriptions target tables NOT in the supabase_realtime publication — live probe: assessments 0 events vs audit_logs [member] 1 event; fix = migration 0094, task T-337). Suites at close: website 45 files / 599 tests / 0 (+14 T-336 tests) + tsc 0 + eslint clean + strict build green; live browser RED/GREEN round-trip (before: empty view for the bound single-child ATTOUCHE parent with recorded grades; after: full display — banner, 11.00 GPA, Arabe 11.00·11.00·11.00); zero-residue cleanup (3 owner rows untouched, 2 original parent bindings restored).
 
 ## Progress summary (2026-09-12, updated at the 54th session CLOSE — owner mandate "fix the calculation modules to match the CSVs to the letter, including the sticker-price case; update desktop + backend consistently; test everything; zip + push"): T-315…T-319 (5 tasks, the CALC-001 realignment) — T-315 (the REAL price matrix: `school-price-matrix.ts` extracted from the workbook's raw formulas — FI per grade 18k–30k PER STUDENT, scolarité 135k–365k, V2/2V/v3 tranche stickers with the remise on V2 ONLY, 20-town transport matrix 40k–65k, real services PSY/ORTH/E-PLANT/Ratrapage/AUTISTE, 5%-of-scolarité early rate; the 5 fictional discount rules reduced to the 2 real ones in desktop + Android lockstep; seeds/labels/destination-mapper/importer realigned) + T-316 (the wizard: ghost fields REMOVED, negotiated remise + sticker-price flag + prior balances REMBOURSEMENT/DETTES collected, per-student FI, 20 towns selectable; mock buildRegistrationBilling on the real model with per-student FI charges) + T-317 (backend migration 0089 applied LIVE atomically HTTP 201: grade_level_tuition.registration_fee column + the real grid + 24 transport town rows + 7 real services + fictional discounts deactivated + full_annual 5%; post-checks 5/5 GREEN; the missing updated_at columns on the 0006 catalog tables added additively — the touch_updated_at triggers were crashing on any UPDATE) + T-318 (Android mirror: DiscountEngine.kt lockstep + the 5 shared discount scenario fixtures corrected; suite re-run pending toolchain re-provision) + T-319 (the corpus verification suite: fixture from the workbook [390 ETAT rows + 10 Devis quotes] + 11 tests: devis formula, V2−remise rule, sticker-price SEDIKI case, transport matrix, 5%-of-scolarité, per-quote totals — 11/11 GREEN; full desktop suite 139 files / 3 119 / 0 + tsc 0 errors + the AI tools' 700k hallucination corrected). Live chain 0001–0089 zero drift (0088 workflow_condition_subtype was already registered live — my first apply attempt caught the collision BEFORE any write; 0089 is the realignment). Registry: +CALC-001 [CLOSED — TESTED + VERIFIED LIVE] + ADR-017. Owner-gated residual: Android suite re-run needs the JDK21+SDK35 toolchain re-provision (script committed); the EF ai-proxy redeploy is NOT needed (no pricing text in the EF — the 700k fix was desktop-side).)
@@ -3002,4 +3004,67 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Problems:** process (ADR-007)
 - **Scope:** all repos — the five-question commits per repo, registry status flips with evidence, change-log entries, zips to the download area, push with the owner PAT.
 - **Depends on:** T-338..T-341.
+- **Priority:** P1
+
+### T-343 — 62nd session: the matière mandate registration — MATIERE-500 + ADR-018 + the task set
+
+- **Status:** In Progress (2026-09-14 — the audit complete, the problem registered BEFORE the fix per §13, ADR-018 accepted)
+- **Problems:** MATIERE-500
+- **Scope:** docs only — the problem-registry entry (252 detailed entries), ADR-018 (canonical subject architecture: identity vs context configuration, the cc component, the snapshot discipline, the one-resolver rule), this task set (T-344..T-349), next-task update.
+- **Depends on:** none (owner mandate; commit 158d806 is the trigger evidence).
+- **Priority:** P0
+- **Required tests:** none (docs-only commit).
+- **Next:** T-344.
+
+### T-344 — 62nd session: DB — migration 0094 (subject_configurations + the cc component + exam_sessions + the live seed)
+
+- **Status:** Ready
+- **Problems:** MATIERE-500
+- **Scope:** `elimtiyaz-desktop/supabase/migrations/0094_subject_context_configurations.sql` — the `subject_configurations` table (tenant, subject, academic_year, academic_level, direction, coefficient, subject_code, passing_grade, is_extracurricular, grading_recipe JSONB, is_active; unique (tenant, subject, year, level, direction)) + RLS (the 0019 pattern) + the `assessments.cc` + `coefficient_cc` columns + the generalized `compute_assessments_subject_average` trigger (recipe Σ(mark×weight)/Σ(weight), default {1,1,2,0} bit-identical) + the `exam_sessions` table + RLS + the live seed (12 subjects × levels in use, preserving live values) + the atomic live apply (MIG-TOKENS pattern: file + registration in one call) + `scripts/verify_t-344.sql` (BEGIN…ROLLBACK, both the happy paths and the regression paths).
+- **Depends on:** T-343.
+- **Priority:** P0
+- **Next:** T-345.
+
+### T-345 — 62nd session: desktop domain — the SubjectConfiguration model + the canonical resolver + the 14-chain replacement
+
+- **Status:** Ready
+- **Problems:** MATIERE-500
+- **Scope:** `src/domain/model/academic.ts` (SubjectConfiguration type + Assessment.cc/coefficientCc), NEW `src/domain/calc/academics/subject-config.ts` (`resolveSubjectConfiguration` + `computeSubjectAverageFromRecipe`), the Supabase + mock repositories (observe/upsert configurations; the resolver wired into observeByClass), the 14 coefficient fallback chains replaced by the resolver (gpa.ts, grade-entry-screen, class-detail-page, class-grades-tab, class-subjects-tab, academic-year-detail-drawer, teachers-tab, academic-tab, operational-query-engine), unit tests + the `subject_configuration` corpus category.
+- **Depends on:** T-344.
+- **Priority:** P0
+- **Next:** T-346.
+
+### T-346 — 62nd session: desktop UI — the subject-config management surface + grade-entry integration
+
+- **Status:** Ready
+- **Problems:** MATIERE-500
+- **Scope:** the subjects directory gains the per-year × per-level configuration matrix (coefficient, subject code, passing grade, recipe incl. cc weight, extracurricular flag — admin-editable, non-retroactive banner), the grade-entry screen renders the cc slot when the resolved recipe enables it, exam sessions listing in the academics tab.
+- **Depends on:** T-345.
+- **Priority:** P1
+- **Next:** T-347.
+
+### T-347 — 62nd session: website sync — the canonical resolver port + academic-view/bulletin on the same definitions
+
+- **Status:** Ready
+- **Problems:** MATIERE-500
+- **Scope:** `src/lib/canonical/subject-config.ts` (verbatim port), portal-queries read `subject_configurations`, the 3 website fallback chains (portal-derive.ts, bulletin.ts, academic-view.tsx) replaced by the resolver, the cc mark rendered (i18n fr/ar/en), tests.
+- **Depends on:** T-344 (the website reads the new table through parent-scoped RLS).
+- **Priority:** P0
+- **Next:** T-348.
+
+### T-348 — 62nd session: Android mirror — the cc-aware formula + the config-aware coefficient
+
+- **Status:** Ready
+- **Problems:** MATIERE-500
+- **Scope:** `core/Pricing.kt` computeSubjectAverage gains the cc component (defaults bit-identical), Subject/Assessment DTOs + Room migration add cc, the corpus `subject_configuration` category in the Android runner, the coefficient resolution via the config mirror (`core/SubjectConfig.kt`).
+- **Depends on:** T-344, T-345.
+- **Priority:** P1
+- **Next:** T-349.
+
+### T-349 — 62nd session: closeout — registries + change-log + current-state + next-task + zips + push
+
+- **Status:** Not Started
+- **Problems:** MATIERE-500 (status flip with evidence)
+- **Scope:** registry flips, change-log, current-state, next-task, the zip set (hub + website + android), the GitHub push with the owner PAT.
+- **Depends on:** T-343..T-348.
 - **Priority:** P1
