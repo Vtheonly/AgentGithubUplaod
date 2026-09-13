@@ -3080,7 +3080,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-351 — 63rd session: reactive debt/payments/students/personnel wiring — kill every `.get()`-on-unseeded-observable read (DASH-401 + DASH-406)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — 8 new t-351 tests; full suite 145 files / 3206 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-401, DASH-406
 - **Scope:** `dashboard-page.tsx` subscribes `repos.debt.observeSummary()` reactively (the T-243 payments-stream pattern), keeps a top-10 display slice, passes the FULL summary to the risk engine; `reports-tab.tsx` subscribes its four streams via `useObservable`. Regression tests: the first-render race (empty cache → populated cache) and the top-10-slice-vs-full-summary contract.
 - **Depends on:** T-350 (the registrations).

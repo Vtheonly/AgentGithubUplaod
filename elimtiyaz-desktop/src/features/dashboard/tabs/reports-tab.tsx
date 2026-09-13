@@ -29,6 +29,7 @@ import {
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useToast } from "../../../app/providers/toast-provider";
 import { useAuth } from "../../../app/providers/auth-provider";
+import { useObservable } from "../../../shared/hooks/use-observable";
 import { AuditActions } from "../../../core/audit-actions";
 import {
   exportRevenueReport, exportOutstandingDebtReport, exportStudentRoster,
@@ -42,6 +43,20 @@ export function ReportsTab() {
   const toast = useToast();
   const { session } = useAuth();
   const [exporting, setExporting] = useState<string | null>(null);
+
+  // T-351 (DASH-406): the export streams, subscribed REACTIVELY. The
+  // previous handlers read `repos.<x>.observe().get()` synchronously inside
+  // the click handler — in Supabase mode every one of these caches seeds
+  // asynchronously (SubjectBehavior starting `[]`), so an export clicked in
+  // the first seconds of a session wrote an EMPTY XLSX with a success
+  // toast. The useObservable hook (the analytics-tab pattern) keeps the
+  // streams live; the handlers export what is actually loaded.
+  const payments = useObservable(() => repos.payments.observe(), []);
+  const debtSummaries = useObservable(() => repos.debt.observeSummary(), []);
+  const students = useObservable(() => repos.students.observe(), []);
+  const personnel = useObservable(() => repos.personnel.observe(), []);
+  const expenses = useObservable(() => repos.expenses.observe(), []);
+  const parents = useObservable(() => repos.parents.observe(), []);
 
   // Iteration 9: ONLY macro / organization-level aggregate reports.
   // Entity-specific reports (relevé-enseignant, releve-notes, bulletins,
@@ -104,7 +119,8 @@ export function ReportsTab() {
     try {
       let exportedRows: number | null = null;
       if (code === "revenu-mensuel" && format === "XLSX") {
-        const payments = repos.payments.observe().get();
+        // T-351 (DASH-406): the REACTIVE payments stream (never a `.get()`
+        // race on an unseeded cache).
         const today = new Date();
         const from = new Date(today);
         from.setMonth(from.getMonth() - 12);
@@ -114,9 +130,7 @@ export function ReportsTab() {
         });
         exportedRows = payments.length;
       } else if (code === "creances-agees") {
-        const summary = repos.debt.observeSummary().get();
-        const parents = repos.parents.observe().get();
-        const rows = summary
+        const rows = debtSummaries
           .filter((d) => d.outstandingAmount > 0)
           .map((d) => ({
             // VAULT §14.04 — debt report carries the real parent phone +
@@ -131,11 +145,9 @@ export function ReportsTab() {
         await exportOutstandingDebtReport(rows, "xlsx");
         exportedRows = rows.length;
       } else if (code === "effectifs-niveau") {
-        const students = repos.students.observe().get();
         await exportStudentRoster(students);
         exportedRows = students.length;
       } else if (code === "annuaire-personnel") {
-        const personnel = repos.personnel.observe().get();
         if (personnel.length === 0) {
           toast.showWarning("Aucun personnel", "Rien à exporter.");
           return;
@@ -176,7 +188,7 @@ export function ReportsTab() {
         return;
       } else if (code === "depenses-categorie") {
         const { exportToXlsx } = await import("../../../infrastructure/excel/export-engine");
-        const expenses = repos.expenses.observe().get();
+        // T-351 (DASH-406): the reactive expenses stream.
         const byCategory = new Map<string, number>();
         for (const e of expenses) {
           byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
