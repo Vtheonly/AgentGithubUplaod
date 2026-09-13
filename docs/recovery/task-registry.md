@@ -3068,3 +3068,83 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Scope:** registry flips, change-log, current-state, next-task, the zip set (hub + website + android), the GitHub push with the owner PAT.
 - **Depends on:** T-343..T-348.
 - **Priority:** P1
+
+### T-350 — 63rd session: the dashboard-statistics investigation — full data-flow verification (Excel → import → DB → repos → engines → UI) + the defect matrix + the negative findings
+
+- **Status:** In Progress
+- **Problems:** DASH-401..DASH-407, DATA-017, DATA-018 (the registrations above)
+- **Scope:** the owner's investigation mandate — verify ALL claimed defects from the pasted diagnostic report against the CURRENT tree + the LIVE database before any fix. Evidence goes to `docs/recovery/t-350-live-verification.md` (the full Excel↔DB cross-comparison + the refuted-claims registry). Also the session-opening baseline gates (tsc 0 / eslint 0 errors / vitest 144 files / 3198 / 0).
+- **Depends on:** nothing (read-only investigation).
+- **Priority:** P0
+- **Next:** T-351.
+
+### T-351 — 63rd session: reactive debt/payments/students/personnel wiring — kill every `.get()`-on-unseeded-observable read (DASH-401 + DASH-406)
+
+- **Status:** Ready
+- **Problems:** DASH-401, DASH-406
+- **Scope:** `dashboard-page.tsx` subscribes `repos.debt.observeSummary()` reactively (the T-243 payments-stream pattern), keeps a top-10 display slice, passes the FULL summary to the risk engine; `reports-tab.tsx` subscribes its four streams via `useObservable`. Regression tests: the first-render race (empty cache → populated cache) and the top-10-slice-vs-full-summary contract.
+- **Depends on:** T-350 (the registrations).
+- **Priority:** P0
+- **Next:** T-352.
+
+### T-352 — 63rd session: school-wide grade + attendance streams (DASH-402)
+
+- **Status:** Ready
+- **Problems:** DASH-402
+- **Scope:** `GradeRepository.observeAll()` + `AttendanceRepository.observeAll()` added to the contract, the Supabase repositories (tenant-scoped, ordered), and the mock repositories (store-derived — parity); `analytics-tab.tsx` consumes them (the `""`-ID queries deleted). Tests: Supabase query shape + mock parity + the analytics tab feeding non-empty assessment/attendance into `evaluateStudentRiskProfiles`.
+- **Depends on:** T-350.
+- **Priority:** P0
+- **Next:** T-353.
+
+### T-353 — 63rd session: academic-year scoping for the installment-derived statistics (DASH-403)
+
+- **Status:** Ready
+- **Problems:** DASH-403
+- **Scope:** ONE pure range-filter helper (due-date window) applied at the page level to the installments stream before it feeds OverviewTab + AnalyticsTab; the canonical derivations untouched. Tests: year-switch re-scoping (2025-2026 shows the 3-wave picture; 2026-2027 shows its own 4 rows), boundary due-dates, no-installment honest state.
+- **Depends on:** T-350.
+- **Priority:** P0
+- **Next:** T-354.
+
+### T-354 — 63rd session: retire the label-parsed tranche-wave twin in the Financials tab (DASH-404)
+
+- **Status:** Ready
+- **Problems:** DASH-404
+- **Scope:** `installment-schedule-tab.tsx` wave derivation switches to `tranche_number` grouping (canonical semantic); the label-regex helper deleted; the header renders tuition rows again. Tests: BON labels ("INSCRIPTION (FI)" / "2EME TRANCHE" / "3ème TRANCHE" / "4ème TRANCHE") group correctly; transport rows unaffected; "Année complète" excluded from wave cards.
+- **Depends on:** T-350.
+- **Priority:** P1
+- **Next:** T-355.
+
+### T-355 — 63rd session: the Departments drill-down from the REAL payments stream (DASH-405)
+
+- **Status:** Ready
+- **Problems:** DASH-405
+- **Scope:** `dashboard-page.tsx` passes the payments stream (range-filtered) to `SeeDetailsModal`; `DepartmentsTab` derives per-operational-unit totals from REAL rows (category→unit map), placeholder state deleted. Tests: the category→unit mapping, range filtering, honest zero state.
+- **Depends on:** T-350.
+- **Priority:** P1
+- **Next:** T-356.
+
+### T-356 — 63rd session: mock↔Supabase revenue-bucket parity (DASH-407)
+
+- **Status:** Ready
+- **Problems:** DASH-407
+- **Scope:** `SupabaseDashboardRepository.revenueForRange` builds buckets anchored to the requested range (the mock's convention) instead of NOW-relative last-12-months; out-of-bucket dropping removed. Tests: same fixture through mock + Supabase shapes → identical labels/amounts (the §15.15 tell).
+- **Depends on:** T-350.
+- **Priority:** P1
+- **Next:** T-357.
+
+### T-357 — 63rd session: honest demographics for placeholder data (DATA-018) + the DATA-017 documentation
+
+- **Status:** Ready
+- **Problems:** DATA-018, DATA-017
+- **Scope:** `SupabaseDashboardRepository.demographics` routes NULL + the pinned 2000-01-01 import placeholder to a "Non renseigné" age slice (unit test pins the placeholder value); the T-350 verification doc records DATA-017 (import-timestamp payments) as a data-quality boundary. No date/gender fabrication.
+- **Depends on:** T-350.
+- **Priority:** P2
+- **Next:** T-358.
+
+### T-358 — 63rd session: closeout — registry flips + change-log + current-state + next-task + zips + push
+
+- **Status:** Not Started
+- **Problems:** DASH-401..407 + DATA-017/018 (status flips with evidence)
+- **Scope:** registry flips, change-log, current-state, next-task, the zip set, the GitHub push with the owner PAT. COORDINATION: the 62nd session (MATIERE-500, T-345..T-349) is running CONCURRENTLY — fetch → inspect → merge forward → re-run the full gates before push (never force-push).
+- **Depends on:** T-350..T-357.
+- **Priority:** P1
