@@ -4799,3 +4799,36 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Discovered:** 2026-09-14 (63rd session). Live census: `date_of_birth='2000-01-01'` × 390 (+1 manual 2026-09-02); `gender` NULL × 391. The age derivation computes 2026−2000 = 26 → every child lands in the "18+ ans" bucket (owner screenshot 8). The honest display: NULL and the documented import placeholder must render "Non renseigné" — never a fake 26-year-old.
 - **Resolution:** the demographics derivation routes NULL and the documented 2000-01-01 placeholder to a "Non renseigné" age slice (the placeholder value is pinned by a unit test so a future importer change fails loudly); the gender slice already handles NULL honestly. No birth dates are fabricated.
 - **Status:** OPEN — registered before the fix (T-357).
+
+### UPLOAD-101 — the parent portal's document upload writes to a TENANT-LESS storage path (`{studentId}/…`): every parent document upload is RLS-rejected ("new row violates row-level security policy") — the `student_documents` table is EMPTY (0 rows) in production because the flow has never once succeeded
+
+- **Category:** CROSS (storage path convention) | **Severity:** Critical (the portal's only parent-initiated document feature has never worked; the UI reports "Échec de l'envoi du fichier: new row violates row-level security policy")
+- **Repositories:** elimtiyaz-website (`src/features/profile/student-documents-card.tsx` — `UploadDocumentDialog.handleSubmit`)
+- **Platforms affected:** Website (Profile view, StudentDocumentsCard)
+- **Task:** T-360
+- **Discovered:** 2026-09-14 (64th session — the owner's cross-platform upload mandate). Live RED proof: a parent JWT uploading to `student-documents/{studentId}/…` → HTTP 403 AccessDenied "new row violates row-level security policy"; the SAME JWT uploading to `student-documents/{tenantId}/{studentId}/…` → HTTP 200 (t-359-upload-e2e.py, checks E/F).
+- **Root cause:** the dialog builds `objectPath = `${studentId}/${kind}-${Date.now()}.${ext}`` — folder[1] is the STUDENT id, but both parent storage policies (`student_documents_parent_write`, hub 0043) require `(storage.foldername(name))[1] = current_tenant_id()` AND `[2] ∈ own children`. The migration 0018/0043 path convention (`<tenant_id>/<entity_id>/<filename>`) was never followed by this call site (the file's own header comment cites "migration 0027" — a migration that does not exist in the canonical chain).
+- **Resolution:** build the path as `${activeKid.tenant_id}/${studentId}/${kind}-${Date.now()}.${ext}` (StudentRow already carries tenant_id); correct the header comment to cite 0018/0043; pin with a regression test that source-scans the path construction.
+- **Status:** OPEN — registered before the fix (T-360).
+
+### UPLOAD-102 — the desktop UnifiedPaymentModal hardcodes `tenantId: "mock"` in its payment-proof vault upload: in Supabase mode every proof upload is RLS-rejected, and because check/transfer methods REQUIRE a proof before submission, non-cash payment collection is BLOCKED at the source on the desktop
+
+- **Category:** DATA (storage path convention) + FINANCIAL (blocked collection flow) | **Severity:** Critical (proof-gated payment methods cannot be collected at all in production mode)
+- **Repositories:** hub (desktop — `src/features/financials/unified-payment-modal.tsx` `handleProofFileSelected`)
+- **Platforms affected:** Desktop (Financials — UnifiedPaymentModal proof upload)
+- **Task:** T-361
+- **Discovered:** 2026-09-14 (64th session). Live RED proof: a staff JWT uploading to `payment-proofs/mock/{entityId}/…` → HTTP 403 AccessDenied; the canonical `payment-proofs/{tenantId}/{entityId}/…` → HTTP 200 (t-359-upload-e2e.py, checks B/C).
+- **Root cause:** `uploadPrivateMedia({ bucket: "payment-proofs", entityId: effectiveParentId, tenantId: "mock", file })` — a mock-era literal that survived the Supabase wiring. The `payment_proofs_write` policy (0018) requires folder[1] = `current_tenant_id()`; `"mock"` never equals it. The two sibling call sites already do it right (`documents-tab.tsx` uses `student?.tenantId`, `homework-push-modal.tsx` uses `session.tenantId` with the T-053 no-tenant guard).
+- **Resolution:** use `session.tenantId` with the SAME explicit French no-tenant failure the homework modal gained in T-053/TENANT-103 (global admin without a working tenant fails BEFORE the network call, never uploads to a wrong path); pin with a regression test asserting the literal `"mock"` never appears in the upload call.
+- **Status:** OPEN — registered before the fix (T-361).
+
+### UPLOAD-103 — the Android proof scanner uploads to a TENANT-LESS path AND the storage failure is silently swallowed: `LocalStorageRepository.uploadProof` pushes `{entityId}/{fileName}` (RLS-rejected every time), `NetworkTimeouts.guard` converts the RestException into `null`, and the UI reports success with a `file://` local path — the proof NEVER reaches the server while the user believes it did (the CROSS-200 anti-pattern reborn in the storage path)
+
+- **Category:** SYNC (silent-failure class) + CROSS (storage path convention) | **Severity:** Critical (silent data loss: scanned payment proofs exist only on the device; the desktop can never see them; the screen even prints "Prêt pour la synchronisation Supabase Storage" under a local path)
+- **Repositories:** elimtiyaz-android (`infrastructure/local/LocalStorageRepository.kt` uploadProof, `domain/repository/StorageRepository.kt` contract, `ui/features/financials/ProofScannerViewModel.kt`)
+- **Platforms affected:** Android (Financials — ProofScannerScreen; every future StorageRepository consumer)
+- **Task:** T-362
+- **Discovered:** 2026-09-14 (64th session). Live RED proof: a staff JWT uploading to `payment-proofs/{entityId}/{fileName}` → HTTP 403 AccessDenied (t-359-upload-e2e.py, check A). The repository's own KDoc already documents the INTENDED convention ("Path convention: `{tenantId}/{entityId}/{fileName}` (RLS-enforced)" — ProofScannerViewModel.kt) — the implementation never followed it (the §15.24 mirror-the-CODE trap, inverted: here the comment was right and the code wrong).
+- **Root cause:** (1) the remote path omits the tenant folder; (2) `NetworkTimeouts.guard` catches ALL Throwables → a 403 RestException is indistinguishable from airplane mode → the code falls back to the local `file://` URI and returns `Result.Ok`; (3) `DEFAULT_TIMEOUT_MS = 4s` — a 10 MB proof upload on a slow mobile network times out long before completion, deepening the false "offline" fallback.
+- **Resolution:** extend the `StorageRepository.uploadProof` contract with the tenant parameter (mirroring the desktop `uploadPrivateMedia` params); upload to `{tenantId}/{entityId}/{fileName}`; REUSE `SyncErrorClassifier.isTransient` (existing implementation — §6) to separate transport failures (offline → local fallback, the sanctioned offline-first behaviour) from permanent 4xx rejections (RLS → `Result.Err` surfaced to the UI, never a fake success); a dedicated 60 s upload timeout.
+- **Status:** OPEN — registered before the fix (T-362).
