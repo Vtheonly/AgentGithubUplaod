@@ -63,7 +63,15 @@ export interface AnalyticsTabProps {
   academicYear: string;
   prevAcademicYear: string | null;
   debtAging: DebtByAgingBucket[];
+  /** Top-10 display slice (the drill-down tables). */
   topDebtors: DebtSummary[];
+  /**
+   * T-351 (DASH-401): the FULL reactive debt-summaries stream. The risk
+   * engine must see every debtor family — the previous top-10-only feed
+   * evaluated families ranked 11+ as debt 0. The Pareto card also consumes
+   * it (derivePareto self-limits to its top N).
+   */
+  debtSummaries?: readonly DebtSummary[];
   payments: readonly Payment[];
   range?: { from: string; to: string };
   onOpenStudent?: (studentId: string) => void;
@@ -77,6 +85,7 @@ export function AnalyticsTab({
   prevAcademicYear,
   debtAging,
   topDebtors,
+  debtSummaries,
   payments,
   range,
   onOpenStudent,
@@ -102,7 +111,10 @@ export function AnalyticsTab({
   // Slicer filters state for the charts view
   const [filters, setFilters] = useState<AnalyticsFilterState>(NO_ANALYTICS_FILTERS);
 
-  // Compute live multi-risk profiles across all school dimensions
+  // Compute live multi-risk profiles across all school dimensions.
+  // T-351 (DASH-401): the FULL debt stream (every debtor family), not the
+  // top-10 display slice.
+  const riskDebt = debtSummaries ?? topDebtors;
   const riskProfiles = useMemo<StudentRiskProfile[]>(() => {
     return evaluateStudentRiskProfiles({
       students,
@@ -111,9 +123,9 @@ export function AnalyticsTab({
       subjects,
       assessments,
       attendance,
-      debtSummaries: topDebtors,
+      debtSummaries: riskDebt,
     });
-  }, [students, parents, classes, subjects, assessments, attendance, topDebtors]);
+  }, [students, parents, classes, subjects, assessments, attendance, riskDebt]);
 
   const toggleMethod = useCallback((method: PaymentMethod) => {
     setFilters((prev) => {
@@ -294,8 +306,10 @@ export function AnalyticsTab({
             </div>
           </div>
 
-          {/* Row 5 — Debtors Pareto */}
-          <DebtorsParetoCard topDebtors={topDebtors} />
+          {/* Row 5 — Debtors Pareto (T-351: the full stream — derivePareto
+              self-limits to its top N, so the curve reflects the real
+              debtor population, not the display slice) */}
+          <DebtorsParetoCard topDebtors={riskDebt as DebtSummary[]} />
         </div>
       )}
     </div>

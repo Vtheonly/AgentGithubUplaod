@@ -94,6 +94,16 @@ export function DashboardPage() {
     demographics: EMPTY_DEMOGRAPHICS,
     topDebtors: [],
   });
+  // T-351 (DASH-401): the debt summaries, subscribed REACTIVELY. The
+  // previous code read the summary observable's cached value synchronously
+  // inside the range effect — in Supabase mode that cache seeds
+  // ASYNCHRONOUSLY, so the first read returned the initial `[]` and
+  // every debt-derived surface (Pareto, "À relancer", the modal's top
+  // debtors, the risk engine) rendered empty until the user switched the
+  // academic year (the only thing that re-ran the effect). The full sorted
+  // stream feeds the risk engine (families ranked 11+ evaluate with their
+  // real debt); the top-10 display slice is derived below.
+  const [debtSummaries, setDebtSummaries] = useState<readonly DebtSummary[]>([]);
   // T-243: the canonical payments stream (one subscription, feeds the
   // weekly-rhythm chart — the calendar reads the same observable).
   const [payments, setPayments] = useState<readonly Payment[]>([]);
@@ -131,22 +141,44 @@ export function DashboardPage() {
         repos.dashboard.debtByAgingForRange(yearRange.academicYear, yearRange.range),
         repos.dashboard.demographics(),
       ]);
-      // Top debtors — derived from the debt repository's observable
-      // summary. In Supabase mode this reads real ledger state; in mock
-      // mode it reads the seeded ledger. Same code path either way.
-      const topDebtors = repos.debt.observeSummary().get()
-        .filter((d) => d.outstandingAmount > 0)
-        .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
-        .slice(0, 10);
-      setData({
+      setData((prev) => ({
         kpis: k.ok ? k.value : null,
         revenue: rev.ok ? rev.value : [],
         debtAging: debt.ok ? debt.value : [],
         demographics: demo.ok ? demo.value : EMPTY_DEMOGRAPHICS,
-        topDebtors,
-      });
+        topDebtors: prev.topDebtors,
+      }));
     })();
-  }, [repos.dashboard, repos.debt, yearRange]);
+  }, [repos.dashboard, yearRange]);
+
+  // T-351 (DASH-401): subscribe ONCE to the debt summary observable — the
+  // same pattern as the payments/installments streams above/below. The
+  // repository seeds asynchronously in Supabase mode; the subscription
+  // delivers the rows the moment they land instead of racing `.get()`.
+  useEffect(() => {
+    const unsub = repos.debt.observeSummary().subscribe((stream) => {
+      setDebtSummaries(
+        stream
+          .filter((d) => d.outstandingAmount > 0)
+          .sort((a, b) => b.outstandingAmount - a.outstandingAmount),
+      );
+    });
+    return unsub;
+  }, [repos.debt]);
+
+  // The display slice (top 10) for the drill-down modal's "Top débiteurs"
+  // table. The FULL stream is what the analytics risk engine consumes
+  // (DASH-401: the previous top-10-only feed made every family ranked 11+
+  // evaluate as debt 0).
+  const topDebtors = useMemo(
+    () => debtSummaries.slice(0, 10) as DebtSummary[],
+    [debtSummaries],
+  );
+  useEffect(() => {
+    setData((prev) =>
+      prev.topDebtors === topDebtors ? prev : { ...prev, topDebtors },
+    );
+  }, [topDebtors]);
 
   // T-255: load the previous academic year's series for the YoY card —
   // the SAME month window shifted back one year (like-for-like months).
@@ -306,7 +338,8 @@ export function DashboardPage() {
             academicYear={yearRange.academicYear}
             prevAcademicYear={loadablePrevYear}
             debtAging={data.debtAging}
-            topDebtors={data.topDebtors}
+            topDebtors={topDebtors}
+            debtSummaries={debtSummaries}
             payments={payments}
             range={yearRange.range}
           />
