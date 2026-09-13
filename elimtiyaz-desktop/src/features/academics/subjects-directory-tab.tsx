@@ -19,6 +19,7 @@ import {
   type AcademicLevel,
 } from "../../domain/model/student";
 import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
+import { SubjectConfigurationsPanel } from "./subject-configurations-panel";
 import type { AcademicCycle, Subject } from "../../domain/model/academic";
 
 const CYCLE_OPTIONS = [
@@ -308,6 +309,11 @@ export function SubjectsDirectoryTab() {
         destructive
         onConfirm={handleArchive}
       />
+
+      {/* T-346 (MATIERE-500/ADR-018): the context matrix — per subject ×
+          level × year: coefficient, code bulletin, seuil, recette (incl.
+          contrôle continu). Non-retroactive by design. */}
+      <SubjectConfigurationsPanel />
     </div>
   );
 }
