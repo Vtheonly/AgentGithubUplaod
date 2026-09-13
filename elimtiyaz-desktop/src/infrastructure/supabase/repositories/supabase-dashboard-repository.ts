@@ -24,7 +24,7 @@ import type {
 import type { AgingBucket } from "../../../domain/model/payment";
 import { buildWindowAnchoredBuckets, daysBetweenFloor } from "../../../domain/calc/shared/dates";
 import { agingBucketFromDays } from "../../../domain/calc/payment/queries";
-import { GRADE_LEVEL_LABELS_FR, type GradeLevel } from "../../../domain/model/student";
+import { GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER, type GradeLevel } from "../../../domain/model/student";
 
 export class SupabaseDashboardRepository implements DashboardRepository {
   constructor(private readonly client: SupabaseClient) {}
@@ -381,7 +381,12 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         });
       }
 
-      // 4. Age distribution
+      // 4. Age distribution — T-357 (DATA-018): NULL and the documented
+      // import placeholder (2000-01-01 — the workbook has NO birth-date
+      // column) are "Non renseigné", NEVER computed ages. The previous
+      // derivation turned every imported child into a 26-year-old
+      // ("18+ ans: 391" on live) — placeholder data presented as
+      // demographic intelligence. Real birth dates bucket normally.
       const ageBuckets = [
         { label: "< 6 ans", min: 0, max: 5, count: 0 },
         { label: "6–8 ans", min: 6, max: 8, count: 0 },
@@ -390,12 +395,20 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         { label: "15–17 ans", min: 15, max: 17, count: 0 },
         { label: "18+ ans", min: 18, max: 120, count: 0 },
       ];
+      let unknownBirthDate = 0;
 
       const currentYear = new Date().getFullYear();
       for (const s of students) {
-        if (!s.date_of_birth) continue;
-        const birthYear = new Date(s.date_of_birth).getFullYear();
-        if (isNaN(birthYear)) continue;
+        const raw = s.date_of_birth ? String(s.date_of_birth).slice(0, 10) : null;
+        if (!raw || raw === IMPORTED_BIRTH_DATE_PLACEHOLDER) {
+          unknownBirthDate += 1;
+          continue;
+        }
+        const birthYear = new Date(raw).getFullYear();
+        if (isNaN(birthYear)) {
+          unknownBirthDate += 1;
+          continue;
+        }
         const ageYears = currentYear - birthYear;
         const bucket = ageBuckets.find((b) => ageYears >= b.min && ageYears <= b.max);
         if (bucket) bucket.count++;
@@ -406,6 +419,13 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         count: b.count,
         percent: Math.round((b.count / totalStudents) * 100),
       }));
+      if (unknownBirthDate > 0) {
+        age.push({
+          label: "Non renseigné",
+          count: unknownBirthDate,
+          percent: Math.round((unknownBirthDate / totalStudents) * 100),
+        });
+      }
 
       // 5. T-339 (STATS-400): the CAPACITY fill-rate distribution was
       // REMOVED — no fake ceilings. The section-imbalance intelligence now

@@ -4798,7 +4798,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Task:** T-357
 - **Discovered:** 2026-09-14 (63rd session). Live census: `date_of_birth='2000-01-01'` × 390 (+1 manual 2026-09-02); `gender` NULL × 391. The age derivation computes 2026−2000 = 26 → every child lands in the "18+ ans" bucket (owner screenshot 8). The honest display: NULL and the documented import placeholder must render "Non renseigné" — never a fake 26-year-old.
 - **Resolution:** the demographics derivation routes NULL and the documented 2000-01-01 placeholder to a "Non renseigné" age slice (the placeholder value is pinned by a unit test so a future importer change fails loudly); the gender slice already handles NULL honestly. No birth dates are fabricated.
-- **Status:** OPEN — registered before the fix (T-357).
+- **Status:** CLOSED (TESTED, 2026-09-14 — T-357): NEW shared constant IMPORTED_BIRTH_DATE_PLACEHOLDER (domain/model/student.ts — the ONE definition, used by the importer AND both demographics implementations, pinned by test so a future importer change fails loudly); NULL and the placeholder route to a 'Non renseigné' age slice in BOTH the Supabase and mock derivations; real birth dates bucket normally; the gender NULL slice was already honest ('Non spécifié'). The importer no longer writes a literal placeholder.
 
 ### UPLOAD-101 — the parent portal's document upload writes to a TENANT-LESS storage path (`{studentId}/…`): every parent document upload is RLS-rejected ("new row violates row-level security policy") — the `student_documents` table is EMPTY (0 rows) in production because the flow has never once succeeded
 

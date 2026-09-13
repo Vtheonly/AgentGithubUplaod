@@ -3134,7 +3134,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-357 — 63rd session: honest demographics for placeholder data (DATA-018) + the DATA-017 documentation
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — 8 new t-357 tests; full suite 152 files / 3275 / 0; tsc 0; eslint 0 errors; DATA-017 documented in the T-350 verification doc)
 - **Problems:** DATA-018, DATA-017
 - **Scope:** `SupabaseDashboardRepository.demographics` routes NULL + the pinned 2000-01-01 import placeholder to a "Non renseigné" age slice (unit test pins the placeholder value); the T-350 verification doc records DATA-017 (import-timestamp payments) as a data-quality boundary. No date/gender fabrication.
 - **Depends on:** T-350.

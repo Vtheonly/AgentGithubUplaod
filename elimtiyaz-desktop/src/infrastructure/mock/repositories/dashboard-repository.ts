@@ -23,7 +23,7 @@ import type {
   DemographicSlice,
 } from "../../../domain/model/operations";
 import type { AgingBucket } from "../../../domain/model/payment";
-import { GRADE_LEVELS, GRADE_LEVEL_LABELS_FR } from "../../../domain/model/student";
+import { GRADE_LEVELS, GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER } from "../../../domain/model/student";
 import {
   agingBucketFromDays,
   monthlyRevenue,
@@ -156,6 +156,19 @@ export class MockDashboardRepository implements DashboardRepository {
       }).length;
       return { label: b.label, count };
     });
+
+    // T-357 (DATA-018): NULL and the pinned import placeholder are
+    // "Non renseigné" — parity with the Supabase implementation (never
+    // computed ages from missing data; the mock seed carries real dates
+    // but the contract must behave identically for NULL/placeholder rows).
+    const unknownBirth = store.students.filter(
+      (s) =>
+        !s.birthDate ||
+        String(s.birthDate).slice(0, 10) === IMPORTED_BIRTH_DATE_PLACEHOLDER,
+    ).length;
+    if (unknownBirth > 0) {
+      byAge.push({ label: "Non renseigné", count: unknownBirth });
+    }
 
     // T-339 (61st session, STATS-400): the CAPACITY slice was REMOVED per
     // the owner's directive — a class has NO artificial maximum (the school
