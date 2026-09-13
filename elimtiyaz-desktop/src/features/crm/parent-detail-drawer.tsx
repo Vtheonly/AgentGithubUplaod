@@ -1898,6 +1898,9 @@ function ServicePricingCard({
                 <p className="text-muted-foreground">Référence catalogue non mappable.</p>
               )}
               <ProfileAmountRow label="Devis brut facturé" amount={profile?.construction.billedGross ?? 0} />
+              {(profile?.construction.adjustmentsDebit ?? 0) > 0 && (
+                <ProfileAmountRow label="+ Annulations de remise / majorations" amount={profile?.construction.adjustmentsDebit ?? 0} tone="danger" />
+              )}
               {(profile?.construction.discountsTotal ?? 0) > 0 && (
                 <ProfileAmountRow label="− Remises appliquées" amount={profile?.construction.discountsTotal ?? 0} tone="success" />
               )}

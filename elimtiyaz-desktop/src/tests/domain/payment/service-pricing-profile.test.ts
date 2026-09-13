@@ -336,9 +336,43 @@ describe("servicePricingProfiles — the exhaustive tuition profile (LIVE ALIOUA
     expect(c.catalogAnnual).toBe(340_000);
     expect(c.billedGross).toBe(350_000);
     expect(c.discountsTotal).toBe(20_000);
+    expect(c.adjustmentsDebit).toBe(0);
     expect(c.billedNet).toBe(330_000);
     expect(c.deltaVsCatalog).toBe(-10_000);
     expect(c.hasSyntheticSchedule).toBe(false);
+  });
+
+  it("nets the LIVE double-remise-cancel: devis 350 000 + cancel 20 000 − remise 20 000 = net 350 000 (delta +10 000)", () => {
+    // The LIVE 0063 reconciliation class — the construction must be
+    // ledger-honest (§15.18): the debit cancellation nets the credit out.
+    const p = servicePricingProfiles({
+      ledgerEntries: [
+        makeCharge({}),
+        makeAdjustment({}),
+        makeAdjustment({
+          id: "led-test-cancel",
+          amount: 20_000,
+          description:
+            "Annulation double-remise (réconciliation 0063) — le devis importé est déjà net de remise",
+          metadata: {
+            reason: "double_remise_cancel",
+            original_entry: "led-test-remise",
+            reconciliation: "0063",
+            original_amount: -20_000,
+          },
+        }),
+      ],
+      installments: [],
+      students: [linda],
+      pricingConfig: PRICING,
+      academicYearContext: "2026-2027",
+      fallbackAcademicYear: "2025-2026",
+    })[0];
+    expect(p.construction.billedGross).toBe(350_000);
+    expect(p.construction.discountsTotal).toBe(20_000);
+    expect(p.construction.adjustmentsDebit).toBe(20_000);
+    expect(p.construction.billedNet).toBe(350_000);
+    expect(p.construction.deltaVsCatalog).toBe(10_000);
   });
 
   it("decodes the item's provenance (Excel import + run id)", () => {
