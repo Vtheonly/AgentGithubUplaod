@@ -110,6 +110,49 @@ export function previousAcademicYear(code: string): string | null {
 }
 
 // ============================================================================
+// T-353 (DASH-403) — academic-year scoping for the installment-derived stats
+// ============================================================================
+
+/**
+ * The billing window of an academic year: [Sept 1 of the start year,
+ * Sept 1 of the following year). "2025-2026" → 2025-09-01 → 2026-09-01.
+ * Null when the code doesn't parse (no scoping possible).
+ */
+export function academicYearWindow(
+  academicYear: string,
+): { from: string; to: string } | null {
+  const m = /^(\d{4})-(\d{4})$/.exec(academicYear);
+  if (!m) return null;
+  const start = parseInt(m[1], 10);
+  return { from: `${start}-09-01`, to: `${start + 1}-09-01` };
+}
+
+/**
+ * T-353 (DASH-403): the installments that BELONG to the given academic
+ * year, by billing window (dueDate ∈ [Sept 1 start, Sept 1 next)). The
+ * `installments` table carries NO academic_year column — `due_date` is
+ * the only year signal — so every installment-derived statistic (wave
+ * velocity, debt triage, family concentration, transport yield) must be
+ * scoped through THIS filter before derivation. Unparsed year codes (or
+ * a null window) return the stream UNCHANGED (honest: cannot scope).
+ */
+export function installmentsForAcademicYear<T extends { dueDate: string }>(
+  installments: readonly T[],
+  academicYear: string,
+): T[] {
+  const window = academicYearWindow(academicYear);
+  if (!window) return [...installments];
+  const from = tsOf(`${window.from}T00:00:00Z`);
+  const to = tsOf(`${window.to}T00:00:00Z`);
+  if (from === null || to === null) return [...installments];
+  return installments.filter((i) => {
+    const due = tsOf(i.dueDate);
+    if (due === null) return false;
+    return due >= from && due < to;
+  });
+}
+
+// ============================================================================
 // Slicer filtering (the cross-filtering engine)
 // ============================================================================
 

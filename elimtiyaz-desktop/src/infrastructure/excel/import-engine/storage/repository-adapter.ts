@@ -28,7 +28,7 @@ import { StorageAdapter, type StorageRecord, type RunAuditEntry } from "./storag
 import { uuid } from "../utils/id";
 import type { ParentRepository, StudentRepository, LedgerRepository, PaymentRepository, InstallmentRepository, ImportInstallmentInput } from "../../../../domain/repository/repository";
 import type { Parent, CreateParentInput, TransportDestination } from "../../../../domain/model/parent";
-import type { CreateStudentInput, Student } from "../../../../domain/model/student";
+import { IMPORTED_BIRTH_DATE_PLACEHOLDER, type CreateStudentInput, type Student } from "../../../../domain/model/student";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Payment, Installment, PaymentCategory, AcademicCycle, CollectPaymentInput } from "../../../../domain/model/payment";
 import { createChargeEntry, createPaymentEntry, createAdjustmentEntry } from "../../../../domain/calc/ledger/entries";
@@ -774,7 +774,9 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       lastName: nameParts.lastName || "Inconnu",
       displayName: nomRaw,
       gender: "unspecified",
-      birthDate: "2000-01-01",
+      // DATA-018: the shared pinned placeholder (see student.ts) — never a
+      // literal again; the demographics layer routes it to "Non renseigné".
+      birthDate: IMPORTED_BIRTH_DATE_PLACEHOLDER,
       level: mapping.academicLevel,
       gradeYear: mapping.gradeYear,
       gradeLevel: mapping.gradeLevel,

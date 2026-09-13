@@ -27,7 +27,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { Search, BarChart3, Gauge } from "lucide-react";
 import type { RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
-import type { Payment, PaymentMethod, PaymentCategory, DebtSummary } from "../../../domain/model/payment";
+import type { Payment, PaymentMethod, PaymentCategory, DebtSummary, Installment } from "../../../domain/model/payment";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import {
@@ -73,6 +73,14 @@ export interface AnalyticsTabProps {
    */
   debtSummaries?: readonly DebtSummary[];
   payments: readonly Payment[];
+  /**
+   * T-353 (DASH-403): the ACADEMIC-YEAR-SCOPED installments stream (the
+   * page filters the raw tenant stream through
+   * installmentsForAcademicYear). Optional — absent = the tab's internal
+   * unscoped subscription (test back-compat); the page ALWAYS passes the
+   * scoped slice so the executive cards follow the year selector.
+   */
+  installments?: readonly Installment[];
   range?: { from: string; to: string };
   onOpenStudent?: (studentId: string) => void;
   onOpenParent?: (parentId: string) => void;
@@ -87,6 +95,7 @@ export function AnalyticsTab({
   topDebtors,
   debtSummaries,
   payments,
+  installments: installmentsProp,
   range,
   onOpenStudent,
   onOpenParent,
@@ -105,9 +114,24 @@ export function AnalyticsTab({
     () => repos.subjects.observeConfigurations(),
     [],
   );
-  const assessments = useObservable(() => repos.grades.observeForClass(""), []);
-  const attendance = useObservable(() => repos.attendance.observeByStudent("", "2020-01-01", "2030-12-31"), []);
-  const installments = useObservable(() => repos.installments.observe(), []);
+  // T-352 (DASH-402): the SCHOOL-WIDE streams. The previous wiring passed
+  // "" as classId/studentId to observeForClass/observeByStudent — the
+  // repositories build literal `.eq("class_id", "")` /
+  // `.eq("student_id", "")` filters (a UUID column vs an empty string —
+  // ZERO rows in Supabase mode; `classId === ""` — also zero in mock
+  // mode), so every GPA rendered "—" and calculateAttendanceRate([])
+  // defaulted every student to 100% attendance. The observeAll streams
+  // return the real tenant catalogue.
+  const assessments = useObservable(() => repos.grades.observeAll(), []);
+  const attendance = useObservable(
+    () => repos.attendance.observeAll(range?.from ?? "2020-01-01", range?.to ?? "2030-12-31"),
+    [range?.from, range?.to],
+  );
+  // T-353 (DASH-403): the installments stream — the page's YEAR-SCOPED
+  // slice when provided (the production path); the internal subscription
+  // only as a fallback for prop-less test renders.
+  const internalInstallments = useObservable(() => repos.installments.observe(), []);
+  const installments = installmentsProp ?? internalInstallments;
   const ledger = useObservable(() => repos.ledger.observe(), []);
 
   // Mode switcher: "pilotage" (the executive default) / "diagnostic" / "charts".

@@ -321,6 +321,18 @@ export class MockGradeRepository implements GradeRepository {
       () => store.assessments.filter((a) => a.classId === classId),
     );
   }
+  /**
+   * T-352 (DASH-402): the school-wide stream — mock-parity with the
+   * Supabase implementation (tenant-scoped there; store-scoped here).
+   * Optional year/term filters ignored on the mock store (single demo
+   * year), same as the other observe* methods' leading-underscore params.
+   */
+  observeAll(
+    _academicYear?: string,
+    _term?: string,
+  ): Observable<Assessment[]> {
+    return derived([store.assessments$], () => [...store.assessments]);
+  }
   async enterGrade(input: GradeEntryInput): Promise<Result<Assessment>> {
     await delay(150);
     // FIX (vault §04.07 / §06.05 — append-only history): reject any write
@@ -493,6 +505,16 @@ export class MockAttendanceRepository implements AttendanceRepository {
       () => store.attendance.filter(
         (r) => r.studentId === studentId && r.date >= from && r.date <= to,
       ),
+    );
+  }
+  /**
+   * T-352 (DASH-402): the school-wide stream — mock-parity with the
+   * Supabase implementation.
+   */
+  observeAll(from: string, to: string): Observable<AttendanceRecord[]> {
+    return derived(
+      [store.attendance$],
+      () => store.attendance.filter((r) => r.date >= from && r.date <= to),
     );
   }
   async recordRollCall(input: {

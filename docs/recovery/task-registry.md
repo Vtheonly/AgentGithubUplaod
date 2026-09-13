@@ -3071,7 +3071,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-350 — 63rd session: the dashboard-statistics investigation — full data-flow verification (Excel → import → DB → repos → engines → UI) + the defect matrix + the negative findings
 
-- **Status:** In Progress
+- **Status:** Completed (TESTED + LIVE-VERIFIED — evidence: docs/recovery/t-350-live-verification.md: the full data-flow trace, the 9-defect matrix, the 5 refuted claims, the CSV↔DB exact-parity script, the live leg-2 probes 6/6 GREEN, the engine re-verification 302 checks TS≡SQL)
 - **Problems:** DASH-401..DASH-407, DATA-017, DATA-018 (the registrations above)
 - **Scope:** the owner's investigation mandate — verify ALL claimed defects from the pasted diagnostic report against the CURRENT tree + the LIVE database before any fix. Evidence goes to `docs/recovery/t-350-live-verification.md` (the full Excel↔DB cross-comparison + the refuted-claims registry). Also the session-opening baseline gates (tsc 0 / eslint 0 errors / vitest 144 files / 3198 / 0).
 - **Depends on:** nothing (read-only investigation).
@@ -3089,7 +3089,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-352 — 63rd session: school-wide grade + attendance streams (DASH-402)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — 11 new t-352 tests; full suite 148 files / 3237 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-402
 - **Scope:** `GradeRepository.observeAll()` + `AttendanceRepository.observeAll()` added to the contract, the Supabase repositories (tenant-scoped, ordered), and the mock repositories (store-derived — parity); `analytics-tab.tsx` consumes them (the `""`-ID queries deleted). Tests: Supabase query shape + mock parity + the analytics tab feeding non-empty assessment/attendance into `evaluateStudentRiskProfiles`.
 - **Depends on:** T-350.
@@ -3098,7 +3098,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-353 — 63rd session: academic-year scoping for the installment-derived statistics (DASH-403)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — 15 new t-353 tests; full suite 150 files / 3255 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-403
 - **Scope:** ONE pure range-filter helper (due-date window) applied at the page level to the installments stream before it feeds OverviewTab + AnalyticsTab; the canonical derivations untouched. Tests: year-switch re-scoping (2025-2026 shows the 3-wave picture; 2026-2027 shows its own 4 rows), boundary due-dates, no-installment honest state.
 - **Depends on:** T-350.
@@ -3107,7 +3107,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-354 — 63rd session: retire the label-parsed tranche-wave twin in the Financials tab (DASH-404)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — the T-248 suite re-pinned to the canonical column + the new T-354 BON-label cases; full suite 150 files / 3256 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-404
 - **Scope:** `installment-schedule-tab.tsx` wave derivation switches to `tranche_number` grouping (canonical semantic); the label-regex helper deleted; the header renders tuition rows again. Tests: BON labels ("INSCRIPTION (FI)" / "2EME TRANCHE" / "3ème TRANCHE" / "4ème TRANCHE") group correctly; transport rows unaffected; "Année complète" excluded from wave cards.
 - **Depends on:** T-350.
@@ -3116,7 +3116,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-355 — 63rd session: the Departments drill-down from the REAL payments stream (DASH-405)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — the t-355/t-356 suite 11/11; full suite 151 files / 3267 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-405
 - **Scope:** `dashboard-page.tsx` passes the payments stream (range-filtered) to `SeeDetailsModal`; `DepartmentsTab` derives per-operational-unit totals from REAL rows (category→unit map), placeholder state deleted. Tests: the category→unit mapping, range filtering, honest zero state.
 - **Depends on:** T-350.
@@ -3125,7 +3125,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-356 — 63rd session: mock↔Supabase revenue-bucket parity (DASH-407)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — the shared buildWindowAnchoredBuckets helper + the query-shape and parity tests; full suite 151 files / 3267 / 0)
 - **Problems:** DASH-407
 - **Scope:** `SupabaseDashboardRepository.revenueForRange` builds buckets anchored to the requested range (the mock's convention) instead of NOW-relative last-12-months; out-of-bucket dropping removed. Tests: same fixture through mock + Supabase shapes → identical labels/amounts (the §15.15 tell).
 - **Depends on:** T-350.
@@ -3134,7 +3134,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-357 — 63rd session: honest demographics for placeholder data (DATA-018) + the DATA-017 documentation
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — 8 new t-357 tests; full suite 152 files / 3275 / 0; tsc 0; eslint 0 errors; DATA-017 documented in the T-350 verification doc)
 - **Problems:** DATA-018, DATA-017
 - **Scope:** `SupabaseDashboardRepository.demographics` routes NULL + the pinned 2000-01-01 import placeholder to a "Non renseigné" age slice (unit test pins the placeholder value); the T-350 verification doc records DATA-017 (import-timestamp payments) as a data-quality boundary. No date/gender fabrication.
 - **Depends on:** T-350.
@@ -3143,8 +3143,52 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-358 — 63rd session: closeout — registry flips + change-log + current-state + next-task + zips + push
 
-- **Status:** Not Started
+- **Status:** Completed (this commit — the registries, the change-log entry, the current-state snapshot, the next-task update, the live leg-2 verification doc extension, the zips + the push)
 - **Problems:** DASH-401..407 + DATA-017/018 (status flips with evidence)
 - **Scope:** registry flips, change-log, current-state, next-task, the zip set, the GitHub push with the owner PAT. COORDINATION: the 62nd session (MATIERE-500, T-345..T-349) is running CONCURRENTLY — fetch → inspect → merge forward → re-run the full gates before push (never force-push).
 - **Depends on:** T-350..T-357.
+- **Priority:** P1
+
+### T-359 — 64th session: register the cross-platform upload-defect family + the LIVE RED/GREEN evidence script (UPLOAD-101/102/103)
+
+- **Status:** COMPLETED (TESTED + live-verified, 2026-09-14 — `scripts/t-359-upload-e2e.py` 13/13 GREEN: the three tenant-less/mock-tenant paths RLS-rejected live, the canonical tenant-scoped paths accepted, role resolution + cross-tenant denial + zero-residue cleanup all verified; evidence `docs/recovery/t-359-live-verification.md`)
+- **Problems:** UPLOAD-101, UPLOAD-102, UPLOAD-103
+- **Scope:** the live end-to-end proof that the three client-side upload defects are real (tenant-less / mock-tenant paths → RLS 403) AND that the canonical tenant-scoped paths pass on the SAME accounts: `elimtiyaz-desktop/scripts/t-359-upload-e2e.py` (staff leg + parent leg + role-resolution leg + cross-tenant denial guard + zero-residue cleanup; secrets env-only per §15.12). Backend census recorded: all 10 buckets + 24 storage policies exist and are correctly configured — the defects are CLIENT-side path/tenant bugs, NOT missing buckets.
+- **Depends on:** nothing (independent of the concurrent 63rd-session dashboard scope).
+- **Priority:** P0
+- **Next:** T-360.
+
+### T-360 — 64th session: website document-upload path fix (UPLOAD-101)
+
+- **Status:** COMPLETED (TESTED, 2026-09-14 — commit 68ad0b6 website repo: tenant-scoped path from activeKid.tenant_id; 5-test regression suite incl. the whole-src upload-path guard; gates 47 files / 612 tests / 0 + lint + strict build + tsc 0)
+- **Problems:** UPLOAD-101
+- **Scope:** `student-documents-card.tsx` UploadDocumentDialog builds `{tenantId}/{studentId}/{kind}-{ts}.{ext}` (tenant from the active StudentRow); header comment corrected (0018/0043, not "0027"); regression test source-scanning the path construction; website gates (lint + vitest + strict build).
+- **Depends on:** T-359.
+- **Priority:** P0
+- **Next:** T-361.
+
+### T-361 — 64th session: desktop payment-proof tenant fix + phantom bucket removal (UPLOAD-102)
+
+- **Status:** COMPLETED (TESTED, 2026-09-14 — commit 2fef316 hub repo: session.tenantId + the T-053 loud guard; phantom therapy-attachments bucket removed; 5-test regression suite; gates typecheck 0 / eslint 0 errors / 152 files / 3280 tests / 0 on the merged tree)
+- **Problems:** UPLOAD-102
+- **Scope:** `unified-payment-modal.tsx` uses `session.tenantId` with the T-053 explicit no-tenant failure (mirrors `homework-push-modal.tsx`); the unused phantom `"therapy-attachments"` member removed from `MediaBucket` (no bucket by that name exists anywhere); regression test asserting no `"mock"` literal reaches the vault call; desktop gates (typecheck + eslint + vitest).
+- **Depends on:** T-359.
+- **Priority:** P0
+- **Next:** T-362.
+
+### T-362 — 64th session: Android storage upload fix — tenant path + honest failure + upload timeout (UPLOAD-103)
+
+- **Status:** COMPLETED (TESTED, 2026-09-14 — commit 5adc721 android repo: contract tenantId + StorageBuckets.objectPath; null-tenant fail-closed; SyncErrorClassifier reuse (transport vs 4xx); 60 s upload timeout; honest scanner UI; 8-test suite; gates 60 files / 566 tests / 0 + lintDebug + assembleDebug green)
+- **Problems:** UPLOAD-103
+- **Scope:** `StorageRepository.uploadProof` contract gains the tenant parameter (desktop `uploadPrivateMedia` mirror); `LocalStorageRepository` uploads `{tenantId}/{entityId}/{fileName}` with a 60 s upload timeout; REUSES `SyncErrorClassifier.isTransient` so transport failures keep the sanctioned offline-first local fallback while permanent 4xx rejections (RLS) surface as `Result.Err` — never a fake success; `ProofScannerViewModel` passes `sessionManager.currentTenantId()`; unit tests for the path construction + the classifier branches; Android gates (compile + lint + test).
+- **Depends on:** T-359.
+- **Priority:** P0
+- **Next:** T-363.
+
+### T-363 — 64th session: closeout — registry flips + change-log + current-state + next-task + zips + push
+
+- **Status:** COMPLETED (2026-09-14 — post-fix live re-verification 13/13 GREEN ×2 idempotent runs zero residue; AGENTS.md §15.28 added (the storage-path convention rule); registry flips; change-log + current-state + next-task; zips + push with the owner PAT)
+- **Problems:** UPLOAD-101/102/103 (status flips with evidence)
+- **Scope:** registry flips, change-log, current-state, next-task, the zip set, the GitHub push with the owner PAT. COORDINATION: the 63rd session (T-351..T-358 dashboard wiring) may push concurrently — fetch → inspect → merge forward → re-run gates before every push (never force-push).
+- **Depends on:** T-359..T-362.
 - **Priority:** P1

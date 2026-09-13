@@ -53,6 +53,9 @@ import {
 } from "./tabs/types";
 import type { Payment, Installment } from "../../domain/model/payment";
 import {
+  applyAnalyticsFilters,
+  installmentsForAcademicYear,
+  NO_ANALYTICS_FILTERS,
   previousAcademicYear,
   shiftIsoYearBack,
 } from "./components/analytics/analytics-derivations";
@@ -222,6 +225,29 @@ export function DashboardPage() {
     return unsub;
   }, [repos.installments]);
 
+  // T-353 (DASH-403): the ACADEMIC-YEAR-scoped installment stream. The raw
+  // subscription carries EVERY tenant installment (the table has no
+  // academic_year column — due_date is the only year signal), so every
+  // installment-derived statistic (wave velocity, debt triage, family
+  // concentration, transport yield) is derived from the SCOPED slice:
+  // switching the year selector now re-scopes those cards instead of
+  // leaving last year's numbers under the new year's header (the owner's
+  // screenshot 10: waves stayed 44.3M/86.9M/42.6M under 2026-2027).
+  const scopedInstallments = useMemo(
+    () => installmentsForAcademicYear(installments, yearRange.academicYear),
+    [installments, yearRange.academicYear],
+  );
+
+  // T-355 (DASH-405): the drill-down modal's Departments tab consumes the
+  // SAME paid + range-filtered slice the Analytics tab derives (the
+  // ENCAISSÉ definition — applyAnalyticsFilters with no slicer selection).
+  // One derivation, two surfaces; the Departments total reconciles with
+  // the Revenue tab by construction.
+  const rangePayments = useMemo(
+    () => applyAnalyticsFilters(payments, yearRange.range, NO_ANALYTICS_FILTERS),
+    [payments, yearRange.range],
+  );
+
   // Unread alerts — keep the tab badge current without making the
   // Overview depend on the alerts observable (decoupling preserves the
   // single-fetch model above).
@@ -324,7 +350,7 @@ export function DashboardPage() {
           <OverviewTab
             data={dataProp}
             payments={payments}
-            installments={installments}
+            installments={scopedInstallments}
             range={yearRange.range}
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
@@ -341,6 +367,7 @@ export function DashboardPage() {
             topDebtors={topDebtors}
             debtSummaries={debtSummaries}
             payments={payments}
+            installments={scopedInstallments}
             range={yearRange.range}
           />
         </PageTabContent>
@@ -355,12 +382,15 @@ export function DashboardPage() {
       </PageTabs>
 
       {/* The drill-down modal receives the SAME data the Overview shows.
-          No re-fetch on open; no chance of drift between the two views. */}
+          No re-fetch on open; no chance of drift between the two views.
+          T-355: + the range-filtered paid payments (the Departments tab's
+          per-unit breakdown — the stream the page holds since T-243). */}
       <SeeDetailsModal
         open={seeDetailsOpen}
         onOpenChange={setSeeDetailsOpen}
         initialTab={seeDetailsTab}
         data={dataProp}
+        payments={rangePayments}
       />
     </div>
   );

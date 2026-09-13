@@ -22,9 +22,9 @@ import type {
   DemographicSlice,
 } from "../../../domain/model/operations";
 import type { AgingBucket } from "../../../domain/model/payment";
-import { buildMonthlyBuckets, daysBetweenFloor } from "../../../domain/calc/shared/dates";
+import { buildWindowAnchoredBuckets, daysBetweenFloor } from "../../../domain/calc/shared/dates";
 import { agingBucketFromDays } from "../../../domain/calc/payment/queries";
-import { GRADE_LEVEL_LABELS_FR, type GradeLevel } from "../../../domain/model/student";
+import { GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER, type GradeLevel } from "../../../domain/model/student";
 
 export class SupabaseDashboardRepository implements DashboardRepository {
   constructor(private readonly client: SupabaseClient) {}
@@ -40,6 +40,22 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       /* ignore */
     }
     return "00000000-0000-0000-0000-000000000001";
+  }
+
+  /**
+   * T-353 (DASH-403): the billing window of an academic year —
+   * [Sept 1 of the start year, Sept 1 of the next). Null when the code
+   * doesn't parse (no scoping possible). The `installments` table has NO
+   * academic_year column; `due_date` is the only year signal, so the
+   * debt-scoped aggregates (KPI outstanding + aging) follow THIS window.
+   * Mirrors the mock's documented semantics ("the academic year
+   * determines which installments to consider").
+   */
+  private academicYearWindow(academicYear: string): { from: string; to: string } | null {
+    const m = /^(\d{4})-(\d{4})$/.exec(academicYear);
+    if (!m) return null;
+    const start = parseInt(m[1], 10);
+    return { from: `${start}-09-01`, to: `${start + 1}-09-01` };
   }
 
   async kpis(): Promise<Result<DashboardKpi>> {
@@ -87,11 +103,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
           .eq("status", "paid")
           .gte("collected_at", monthStart)
           .lt("collected_at", monthEnd),
-        this.client
-          .from("installments")
-          .select("amount_due, amount_paid, amount_pending, status")
-          .eq("tenant_id", tenantId)
-          .neq("status", "paid"),
+        this.buildInstallmentsQuery(tenantId, academicYear),
         this.client
           .from("expense_tickets")
           .select("id", { count: "exact", head: true })
@@ -154,44 +166,77 @@ export class SupabaseDashboardRepository implements DashboardRepository {
     }
   }
 
+  /**
+   * T-353 (DASH-403): the unpaid-installments query, scoped to the
+   * academic year's billing window (due_date) when the year code parses.
+   * A shared builder for kpisForRange + debtByAgingForRange so the KPI
+   * outstanding and the aging chart follow the SAME year semantics.
+   */
+  private buildInstallmentsQuery(tenantId: string, academicYear: string) {
+    let query = this.client
+      .from("installments")
+      .select("parent_id, amount_due, amount_paid, amount_pending, due_date, status")
+      .eq("tenant_id", tenantId)
+      .neq("status", "paid");
+    const window = this.academicYearWindow(academicYear);
+    if (window) {
+      query = query.gte("due_date", window.from).lt("due_date", window.to);
+    }
+    return query;
+  }
+
   async revenueLast12Months(): Promise<Result<RevenuePoint[]>> {
     return this.revenueForRange("2025-2026");
   }
 
   async revenueForRange(academicYear: string, range?: DateRange): Promise<Result<RevenuePoint[]>> {
     const tenantId = this.getTenantId();
-    const buckets = buildMonthlyBuckets(new Date(), 12);
 
     try {
+      // T-356 (DASH-407): the bucket window is the REQUESTED range — or,
+      // when absent, the academic year's billing window (the mock's
+      // computeRange convention: the year resolves the window). The
+      // previous implementation anchored buckets to the LAST 12 MONTHS
+      // FROM NOW — labels that drift away from the selected academic
+      // year and in-range payments silently dropped outside the
+      // NOW-relative window (the §15.15 mock↔Supabase parity break).
+      const window =
+        range?.from && range?.to
+          ? { from: range.from, to: range.to }
+          : (this.academicYearWindow(academicYear) ?? undefined);
+
       let query = this.client
         .from("payments")
         .select("amount, collected_at")
         .eq("tenant_id", tenantId)
         .eq("status", "paid");
 
-      if (range?.from) query = query.gte("collected_at", range.from);
-      if (range?.to) query = query.lte("collected_at", range.to);
+      if (window) {
+        // EXCLUSIVE upper bound at the to-date's midnight — the house
+        // convention (the mock's computeRange `t < toMs` AND the KPI's
+        // `.lt(collected_at, monthEnd)`): the boundary day belongs to the
+        // NEXT window, never double-counted.
+        query = query
+          .gte("collected_at", `${window.from.slice(0, 10)}T00:00:00Z`)
+          .lt("collected_at", `${window.to.slice(0, 10)}T00:00:00Z`);
+      }
 
       const { data, error } = await query;
       if (error) {
         console.warn("[SupabaseDashboard] revenue query failed:", error.message);
-        return Ok(buckets.map((b) => ({ label: b.label, amount: 0 })));
+        return Ok([]);
       }
 
-      for (const p of data ?? []) {
-        const d = new Date(p.collected_at);
-        const y = d.getFullYear();
-        const m = d.getMonth();
-        const bucket = buckets.find((b) => b.year === y && b.month === m);
-        if (bucket) {
-          bucket.amount += Number(p.amount) || 0;
-        }
-      }
+      const rows = (data ?? []).map((p) => ({
+        amount: p.amount as number | string,
+        collectedAt: p.collected_at as string,
+      }));
+      const buckets = buildWindowAnchoredBuckets(window, rows);
 
       return Ok(buckets.map((b) => ({ label: b.label, amount: b.amount })));
     } catch (err) {
       console.warn("[SupabaseDashboard] revenue exception:", err);
-      return Ok(buckets.map((b) => ({ label: b.label, amount: 0 })));
+      return Ok([]);
     }
   }
 
@@ -210,11 +255,10 @@ export class SupabaseDashboardRepository implements DashboardRepository {
 
     try {
       const now = new Date();
-      const { data, error } = await this.client
-        .from("installments")
-        .select("parent_id, amount_due, amount_paid, amount_pending, due_date, status")
-        .eq("tenant_id", tenantId)
-        .neq("status", "paid");
+      // T-353 (DASH-403): the aging chart follows the academic year's
+      // billing window (same buildInstallmentsQuery as the KPI's
+      // outstanding — ONE year semantics for both debt aggregates).
+      const { data, error } = await this.buildInstallmentsQuery(tenantId, academicYear);
 
       if (error) {
         console.warn("[SupabaseDashboard] debt aging query failed:", error.message);
@@ -337,7 +381,12 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         });
       }
 
-      // 4. Age distribution
+      // 4. Age distribution — T-357 (DATA-018): NULL and the documented
+      // import placeholder (2000-01-01 — the workbook has NO birth-date
+      // column) are "Non renseigné", NEVER computed ages. The previous
+      // derivation turned every imported child into a 26-year-old
+      // ("18+ ans: 391" on live) — placeholder data presented as
+      // demographic intelligence. Real birth dates bucket normally.
       const ageBuckets = [
         { label: "< 6 ans", min: 0, max: 5, count: 0 },
         { label: "6–8 ans", min: 6, max: 8, count: 0 },
@@ -346,12 +395,20 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         { label: "15–17 ans", min: 15, max: 17, count: 0 },
         { label: "18+ ans", min: 18, max: 120, count: 0 },
       ];
+      let unknownBirthDate = 0;
 
       const currentYear = new Date().getFullYear();
       for (const s of students) {
-        if (!s.date_of_birth) continue;
-        const birthYear = new Date(s.date_of_birth).getFullYear();
-        if (isNaN(birthYear)) continue;
+        const raw = s.date_of_birth ? String(s.date_of_birth).slice(0, 10) : null;
+        if (!raw || raw === IMPORTED_BIRTH_DATE_PLACEHOLDER) {
+          unknownBirthDate += 1;
+          continue;
+        }
+        const birthYear = new Date(raw).getFullYear();
+        if (isNaN(birthYear)) {
+          unknownBirthDate += 1;
+          continue;
+        }
         const ageYears = currentYear - birthYear;
         const bucket = ageBuckets.find((b) => ageYears >= b.min && ageYears <= b.max);
         if (bucket) bucket.count++;
@@ -362,6 +419,13 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         count: b.count,
         percent: Math.round((b.count / totalStudents) * 100),
       }));
+      if (unknownBirthDate > 0) {
+        age.push({
+          label: "Non renseigné",
+          count: unknownBirthDate,
+          percent: Math.round((unknownBirthDate / totalStudents) * 100),
+        });
+      }
 
       // 5. T-339 (STATS-400): the CAPACITY fill-rate distribution was
       // REMOVED — no fake ceilings. The section-imbalance intelligence now

@@ -279,6 +279,16 @@ export interface Student {
   readonly updatedAt: string;
 }
 
+/**
+ * DATA-018 (T-357, 63rd session): the workbook has NO birth-date column —
+ * the Excel importer writes THIS placeholder. Every consumer that DERIVES
+ * age must treat it as "not provided" (never compute 26-year-old
+ * children); the value is pinned by unit test so a future importer change
+ * fails loudly. Gender is likewise absent from the workbook (imported as
+ * "unspecified" / NULL).
+ */
+export const IMPORTED_BIRTH_DATE_PLACEHOLDER = "2000-01-01" as const;
+
 export interface CreateStudentInput {
   readonly firstName: string;
   /** Optional middle name (vault §04.03). Persisted to `students.middle_name`. */

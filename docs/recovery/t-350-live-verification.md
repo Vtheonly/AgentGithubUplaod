@@ -58,3 +58,28 @@ Every claim from the pasted report was re-verified against (a) the current tree 
 The statistics **engines** are correct and consistent (T-338/T-341, 299 live checks). The **import** is faithful on the money dimension (exact CSV↔DB parity) with two DOCUMENTED source limitations (no payment dates → DATA-017; no birth dates/gender → DATA-018). The live defects the owner observed are concentrated in the **wiring layer**: statistics consuming empty, race-lost, unscoped, or incompletely-sliced datasets (DASH-401..407). Fixing the wiring — not the engines, not the data — is what makes the dashboard "one consistent source of truth".
 
 **Verification commands** (re-runnable): the Management-API SQL probes above; `python3 scripts/excel_vs_db.py` (the CSV↔DB cross-comparison, evidence in §2); `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors / 515 pre-existing warnings), `npm test` (144 files / 3198 / 0 / 5 pre-existing skips) — baseline at session open.
+
+## 7. The fixes — LIVE verification leg 2 (T-351..T-357, 2026-09-14)
+
+After the seven fix tasks landed, the live DB was re-probed through the Management API (`SUPABASE_ACCESS_TOKEN=… npx tsx scripts/verify_t-338_live.ts` + `SUPABASE_ACCESS_TOKEN=… python3 scripts/t-350-live-leg2.py`):
+
+1. **The canonical engine is UNCHANGED and still ≡ SQL**: `verify_t-338_live.ts` → **LIVE TRUTH DIFF PASSED — 302 checks, TS engine ≡ SQL on every value** (the regression proof that the wiring fixes never touched the engine's math).
+2. **The year-scoping partitions the stream correctly** (the DASH-403 fix, live):
+   - 2025-2026 outstanding = **58,354,700 DZD** (691 unpaid rows) — the year's OWN billing;
+   - 2026-2027 outstanding = **248,000 DZD** (4 unpaid rows) — NOT the global number under the wrong year header;
+   - global (58,354,700 + 248,000 = 58,602,700) — the two windows partition the unpaid stream with no double-count and no leakage (the pre-fix KPI showed the GLOBAL number for every year).
+3. **The trancheNumber grouping sees the tuition waves** (the DASH-404 fix, live): tuition T1 41,752,240 due / 74% collected, T2 31,149,180 / 33%, T3 38,758,380 / 31% + transport 1.39M/0.42M/0.30M — the retired label-regex saw ZERO of the tuition family (transport-only 2.11M).
+4. **The demographics placeholder census** (the DATA-018 fix inputs, live): 390/391 placeholder birthdates + 391/391 NULL gender → all route to "Non renseigné" (previously "18+ ans: 391").
+5. **The year-scoped aging = the year-scoped outstanding** (all tranches past due): 58,354,700 — the aging chart and the KPI now agree BY CONSTRUCTION (the same `buildInstallmentsQuery` window).
+
+**The semantic table (one rule per metric family — documented, tested):**
+
+| Surface | Follows | Rationale |
+|---|---|---|
+| Revenue KPI + monthly series + YoY | the PRESET range (month/quarter/custom), default = the academic-year window | "Revenu mensuel" is a period concept; the buckets are window-anchored (T-356) |
+| KPI outstanding + aging chart + waves/triage/concentration/transport + the debt-KPI chronic share | the ACADEMIC-YEAR billing window (dueDate ∈ [Sept 1, Sept 1 next)) | Debt is a year-level point-in-time metric; the mock's documented intent, now enforced at every layer (T-353) |
+| "À relancer" feed, top-debtors tables, Pareto, the risk-engine debt | point-in-time (ALL outstanding) | An action list does not care which year's billing created the debt — you call the family that owes money NOW |
+| The risk-engine assessments/attendance | the school-wide streams (observeAll) | GPA and attendance are per-student TODAY facts (T-352) |
+| Departments drill-down | the page's range-filtered PAID payments | The same ENCAISSÉ slice the Analytics tab consumes — reconciliation by construction (T-355) |
+
+**The number-consistency statement (the owner's core demand)**: for any selected year, the dashboard's debt-family numbers (KPI outstanding, aging chart, wave remaining, triage total, concentration total) are all derived from the SAME year-window installment set, and the revenue-family numbers (KPI, stat strip, mixes, YoY, departments) are all derived from the SAME paid-payments slice — through ONE derivation per family (the canonical engines), with no `.get()` races (DASH-401/406), no empty-ID feeds (DASH-402), no duplicate label-parsing (DASH-404), and no mock↔Supabase divergence (DASH-407). The engines were already live-verified (T-341: 299 checks → now re-verified: 302 checks).
