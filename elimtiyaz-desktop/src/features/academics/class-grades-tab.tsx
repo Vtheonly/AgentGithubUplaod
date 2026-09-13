@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { GraduationCap, Plus, BookOpen } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+import { resolveSubjectConfiguration } from "../../domain/calc/academics/subject-config";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Badge } from "../../shared/ui/badge";
 import { Button } from "../../shared/ui/button";
@@ -24,7 +25,23 @@ export function ClassGradesTab({ classId }: { classId: string }) {
   const allSubjects = useObservable(() => repos.subjects.observe(), []);
   const classSubjects = useObservable(() => repos.subjects.observeByClass(classId), [classId]);
 
+  // T-345 (ADR-018): the coefficient comes from the ONE canonical resolver
+  // (configuration context -> legacy directory -> default); the catalogue is
+  // config-driven when no class-subject assignments exist.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const levelSubjects = useMemo(() => {
+    const classLevelId = cls?.academicLevelId ?? null;
+    const classYearId = cls?.academicYearId ?? null;
+    const resolveCoef = (sub: typeof allSubjects[number]): number =>
+      resolveSubjectConfiguration({
+        subject: sub,
+        configurations: subjectConfigurations,
+        academicLevelId: classLevelId,
+        academicYearId: classYearId,
+      }).coefficient;
     if (classSubjects.length > 0) {
       return classSubjects.map((cs) => {
         const s = allSubjects.find((sub) => sub.id === cs.subjectId);
@@ -32,14 +49,36 @@ export function ClassGradesTab({ classId }: { classId: string }) {
           id: cs.subjectId,
           name: s?.name ?? cs.subjectId,
           code: s?.code ?? "",
-          coefficient: cs.coefficient || s?.coefficient || 1,
+          coefficient: s ? resolveCoef(s) : cs.coefficient,
         };
       });
     }
+    const configDriven = allSubjects.filter((s) =>
+      subjectConfigurations.some(
+        (c) =>
+          c.subjectId === s.id &&
+          c.academicLevelId === classLevelId &&
+          c.academicYearId === classYearId &&
+          c.isActive,
+      ),
+    );
+    if (configDriven.length > 0) {
+      return configDriven.map((s) => ({
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        coefficient: resolveCoef(s),
+      }));
+    }
     const level = cls?.level as AcademicLevel;
     const levelSubjs = allSubjects.filter((s) => s.level === level);
-    return levelSubjs.length > 0 ? levelSubjs : allSubjects;
-  }, [classSubjects, allSubjects, cls?.level]);
+    return (levelSubjs.length > 0 ? levelSubjs : allSubjects).map((s) => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      coefficient: resolveCoef(s),
+    }));
+  }, [classSubjects, allSubjects, subjectConfigurations, cls?.academicLevelId, cls?.academicYearId, cls?.level]);
 
   const filteredAssessments = assessments.filter((a) => a.term === activeTerm);
 

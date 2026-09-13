@@ -3,6 +3,7 @@ import type { Observable } from "./repository";
 import type {
   AcademicClass,
   Subject,
+  SubjectConfiguration,
   ClassSubject,
   Assessment,
   AttendanceRecord,
@@ -75,13 +76,49 @@ export interface SubjectRepository {
   createSubject(input: Omit<Subject, "id" | "tenantId">): Promise<Result<Subject>>;
   updateSubject(id: string, updates: Partial<Omit<Subject, "id" | "tenantId">>): Promise<Result<Subject>>;
   archiveSubject(id: string): Promise<Result<void>>;
+  /**
+   * T-345 (MATIERE-500 / ADR-018): the context-specific subject
+   * configurations (subject × year × level × direction). The single
+   * source every surface resolves coefficients/recipes through —
+   * `resolveSubjectConfiguration` (domain/calc/academics/subject-config).
+   */
+  observeConfigurations(): Observable<SubjectConfiguration[]>;
+  /**
+   * Create or update ONE configuration row. Coefficient changes are
+   * NON-RETROACTIVE: assessment rows keep their entry-time snapshots
+   * (ADR-018 §3).
+   */
+  upsertSubjectConfiguration(
+    input: Omit<SubjectConfiguration, "id" | "tenantId"> & { id?: string },
+  ): Promise<Result<SubjectConfiguration>>;
 }
+
+/**
+ * T-345 (ADR-018): the grade-entry write input. The cc mark and the
+ * component-weight snapshots are OPTIONAL so every pre-0094 caller keeps
+ * compiling byte-identically (defaults: cc null, weights 1/1/2/0 — the
+ * historical recipe). The UI resolves them through
+ * `resolveSubjectConfiguration` before writing, so new rows snapshot the
+ * configuration in force at entry.
+ */
+export type GradeEntryInput = Omit<
+  Assessment,
+  "id" | "subjectAverage" | "enteredAt" |
+  "cc" | "coefficientDevoir1" | "coefficientDevoir2" |
+  "coefficientExamen" | "coefficientCc"
+> & {
+  cc?: number | null;
+  coefficientDevoir1?: number;
+  coefficientDevoir2?: number;
+  coefficientExamen?: number;
+  coefficientCc?: number;
+};
 
 export interface GradeRepository {
   observeForStudent(studentId: string): Observable<Assessment[]>;
   observeForClass(classId: string, academicYear?: string, term?: string): Observable<Assessment[]>;
-  enterGrade(input: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">): Promise<Result<Assessment>>;
-  enterGradesBatch(inputs: ReadonlyArray<Omit<Assessment, "id" | "subjectAverage" | "enteredAt">>): Promise<Result<Assessment[]>>;
+  enterGrade(input: GradeEntryInput): Promise<Result<Assessment>>;
+  enterGradesBatch(inputs: ReadonlyArray<GradeEntryInput>): Promise<Result<Assessment[]>>;
 }
 
 export interface AttendanceRepository {

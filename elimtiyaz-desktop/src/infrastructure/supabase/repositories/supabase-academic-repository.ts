@@ -10,6 +10,7 @@ import type { Observable } from "../../../domain/repository/repository";
 import type {
   AcademicClass,
   Subject,
+  SubjectConfiguration,
   ClassSubject,
   Assessment,
   AttendanceRecord,
@@ -21,6 +22,7 @@ import type {
   AcademicTerm,
 } from "../../../domain/model/academic";
 import { computeSubjectAverage } from "../../../domain/model/academic";
+import { computeSubjectAverageFromRecipe } from "../../../domain/calc/academics/subject-config";
 import type {
   Student,
   AcademicLevel,
@@ -39,6 +41,7 @@ import type {
   AttendanceRepository,
   HomeworkRepository,
   PromotionRepository,
+  GradeEntryInput,
 } from "../../../domain/repository/academic-repository";
 import type { PromotionCandidate } from "../../../domain/calc/academics/promotion";
 import { createAcademicHistoryEntry } from "../../../domain/calc/academics/promotion";
@@ -456,10 +459,13 @@ export class SupabaseSubjectRepository implements SubjectRepository {
   private readonly subject = new SubjectBehavior<Subject[]>([]);
   /** All class-subject assignments — kept reactive for `observeByClass`. */
   private readonly classSubjects = new SubjectBehavior<ClassSubject[]>([]);
+  /** T-345 (MATIERE-500/ADR-018): the context configurations cache. */
+  private readonly configurations = new SubjectBehavior<SubjectConfiguration[]>([]);
 
   constructor(private readonly client: SupabaseClient) {
     this.refresh();
     this.refreshClassSubjects();
+    this.refreshConfigurations();
   }
 
   private async refresh(): Promise<void> {
@@ -483,6 +489,92 @@ export class SupabaseSubjectRepository implements SubjectRepository {
     if (data) {
       this.classSubjects.set(data.map(mapClassSubjectRow));
     }
+  }
+
+  /** T-345: the context-specific subject configurations (0094 table). */
+  private async refreshConfigurations(): Promise<void> {
+    const { data } = await this.client
+      .from("subject_configurations")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      this.configurations.set(data.map(mapSubjectConfigurationRow));
+    }
+  }
+
+  observeConfigurations(): Observable<SubjectConfiguration[]> {
+    return this.configurations;
+  }
+
+  async upsertSubjectConfiguration(
+    input: Omit<SubjectConfiguration, "id" | "tenantId"> & { id?: string },
+  ): Promise<Result<SubjectConfiguration>> {
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      return Err(
+        Errors.validation(
+          "upsertSubjectConfiguration: no active tenant context",
+          "Aucun établissement actif — sélectionnez un établissement ou reconnectez-vous.",
+        ),
+      );
+    }
+    if (
+      !isUuid(input.subjectId) ||
+      !isUuid(input.academicYearId) ||
+      !isUuid(input.academicLevelId)
+    ) {
+      return Err(
+        Errors.validation(
+          "La configuration matière nécessite des identifiants Supabase valides (matière, année, niveau).",
+        ),
+      );
+    }
+    // Grading-recipe shape guard (mirrors the SQL CHECK constraint).
+    const r = input.gradingRecipe;
+    const weights = [r.devoir1, r.devoir2, r.examen, r.cc];
+    if (weights.some((w) => !Number.isFinite(w) || w < 0) || weights.reduce((a, b) => a + b, 0) <= 0) {
+      return Err(
+        Errors.validation(
+          "Recette de notation invalide — chaque poids doit être ≥ 0 et leur somme > 0.",
+        ),
+      );
+    }
+
+    const payload = {
+      tenant_id: tenantId,
+      subject_id: input.subjectId,
+      academic_year_id: input.academicYearId,
+      academic_level_id: input.academicLevelId,
+      direction: input.direction || "general",
+      coefficient: input.coefficient,
+      subject_code: input.subjectCode,
+      passing_grade: input.passingGrade,
+      is_extracurricular: input.isExtracurricular,
+      grading_recipe: {
+        devoir1: r.devoir1,
+        devoir2: r.devoir2,
+        examen: r.examen,
+        cc: r.cc,
+      },
+      weekly_hours: input.weeklyHours,
+      is_active: input.isActive,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await this.client
+      .from("subject_configurations")
+      .upsert(payload, {
+        onConflict:
+          "tenant_id,subject_id,academic_year_id,academic_level_id,direction",
+      })
+      .select()
+      .single();
+
+    if (error) return Err(supabaseErrorToAppError(error));
+    await this.refreshConfigurations();
+    return Ok(mapSubjectConfigurationRow(data));
   }
 
   observe(): Observable<Subject[]> {
@@ -730,9 +822,7 @@ export class SupabaseGradeRepository implements GradeRepository {
     return sub;
   }
 
-  async enterGrade(
-    input: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">,
-  ): Promise<Result<Assessment>> {
+  async enterGrade(input: GradeEntryInput): Promise<Result<Assessment>> {
     // FIX (vault §04.07 — append-only history): refuse writes to archived
     // academic years, mirroring the mock repository and the backend rule.
     const archived = await this.isArchivedYear(input.academicYear);
@@ -757,14 +847,29 @@ export class SupabaseGradeRepository implements GradeRepository {
           devoir1: input.devoir1,
           devoir2: input.devoir2,
           examen: input.examen,
+          // T-345 (ADR-018): the contrôle-continu mark + the entry-time
+          // snapshots (coefficient + component weights) — history is never
+          // re-resolved when the configuration later changes.
+          cc: input.cc ?? null,
           coefficient: input.coefficient,
+          coefficient_devoir1: input.coefficientDevoir1 ?? 1,
+          coefficient_devoir2: input.coefficientDevoir2 ?? 1,
+          coefficient_examen: input.coefficientExamen ?? 2,
+          coefficient_cc: input.coefficientCc ?? 0,
           // CANONICAL (INV §13.03): persist the subject average computed by
           // the canonical engine — identical to the backend trigger
-          // (migration 0041) and the Android Room write path.
-          subject_average: computeSubjectAverage(
+          // (migrations 0041/0094) and the Android Room write path.
+          subject_average: computeSubjectAverageFromRecipe(
             input.devoir1 ?? null,
             input.devoir2 ?? null,
             input.examen ?? null,
+            input.cc ?? null,
+            {
+              devoir1: input.coefficientDevoir1 ?? 1,
+              devoir2: input.coefficientDevoir2 ?? 1,
+              examen: input.coefficientExamen ?? 2,
+              cc: input.coefficientCc ?? 0,
+            },
           ),
           entered_by: input.enteredBy,
           entered_at: new Date().toISOString(),
@@ -780,9 +885,7 @@ export class SupabaseGradeRepository implements GradeRepository {
   }
 
   async enterGradesBatch(
-    inputs: ReadonlyArray<
-      Omit<Assessment, "id" | "subjectAverage" | "enteredAt">
-    >,
+    inputs: ReadonlyArray<GradeEntryInput>,
   ): Promise<Result<Assessment[]>> {
     // FIX (vault §04.07 — append-only history): all-or-nothing rejection of
     // batches targeting archived years (mirrors the mock repository).
@@ -806,12 +909,27 @@ export class SupabaseGradeRepository implements GradeRepository {
       devoir1: input.devoir1,
       devoir2: input.devoir2,
       examen: input.examen,
+      // T-345 (ADR-018): the contrôle-continu mark + the entry-time
+      // snapshots (coefficient + component weights) — history is never
+      // re-resolved when the configuration later changes.
+      cc: input.cc ?? null,
       coefficient: input.coefficient,
+      coefficient_devoir1: input.coefficientDevoir1 ?? 1,
+      coefficient_devoir2: input.coefficientDevoir2 ?? 1,
+      coefficient_examen: input.coefficientExamen ?? 2,
+      coefficient_cc: input.coefficientCc ?? 0,
       // CANONICAL subject average (see single-row path).
-      subject_average: computeSubjectAverage(
+      subject_average: computeSubjectAverageFromRecipe(
         input.devoir1 ?? null,
         input.devoir2 ?? null,
         input.examen ?? null,
+        input.cc ?? null,
+        {
+          devoir1: input.coefficientDevoir1 ?? 1,
+          devoir2: input.coefficientDevoir2 ?? 1,
+          examen: input.coefficientExamen ?? 2,
+          cc: input.coefficientCc ?? 0,
+        },
       ),
       entered_by: input.enteredBy,
       entered_at: new Date().toISOString(),
@@ -1495,6 +1613,31 @@ function mapClassRow(
   };
 }
 
+/** T-345 (MATIERE-500/ADR-018): the context-specific subject configuration. */
+function mapSubjectConfigurationRow(row: Record<string, any>): SubjectConfiguration {
+  const recipe = row.grading_recipe ?? {};
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    subjectId: row.subject_id,
+    academicYearId: row.academic_year_id,
+    academicLevelId: row.academic_level_id,
+    direction: row.direction ?? "general",
+    coefficient: Number(row.coefficient),
+    subjectCode: row.subject_code ?? null,
+    passingGrade: Number(row.passing_grade),
+    isExtracurricular: Boolean(row.is_extracurricular),
+    gradingRecipe: {
+      devoir1: Number(recipe.devoir1 ?? 1),
+      devoir2: Number(recipe.devoir2 ?? 1),
+      examen: Number(recipe.examen ?? 2),
+      cc: Number(recipe.cc ?? 0),
+    },
+    weeklyHours: row.weekly_hours != null ? Number(row.weekly_hours) : null,
+    isActive: row.is_active,
+  };
+}
+
 function mapSubjectRow(row: Record<string, any>): Subject {
   const cycleToLevel: Record<string, AcademicLevel> = {
     prescolaire: "primaire",
@@ -1563,9 +1706,16 @@ function mapAssessmentRow(row: Record<string, any>): Assessment {
     devoir1: row.devoir1 != null ? Number(row.devoir1) : null,
     devoir2: row.devoir2 != null ? Number(row.devoir2) : null,
     examen: row.examen != null ? Number(row.examen) : null,
+    // T-345 (ADR-018): the contrôle-continu mark + the snapshots. Legacy
+    // rows (pre-0094) read as cc=null / weight 0 — bit-identical behavior.
+    cc: row.cc != null ? Number(row.cc) : null,
     subjectAverage:
       row.subject_average != null ? Number(row.subject_average) : null,
     coefficient: Number(row.coefficient),
+    coefficientDevoir1: Number(row.coefficient_devoir1 ?? 1),
+    coefficientDevoir2: Number(row.coefficient_devoir2 ?? 1),
+    coefficientExamen: Number(row.coefficient_examen ?? 2),
+    coefficientCc: Number(row.coefficient_cc ?? 0),
     enteredBy: row.entered_by,
     enteredAt: row.entered_at,
   };

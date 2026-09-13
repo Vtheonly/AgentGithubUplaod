@@ -14,12 +14,18 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { Permission } from "../../core/rbac/permissions";
 import {
-  computeSubjectAverage,
   isPassing,
   validateScore,
   type AcademicTerm,
-  type Assessment,
+  type Subject,
 } from "../../domain/model/academic";
+// T-345 (MATIERE-500/ADR-018): the canonical resolution — ONE rule for the
+// coefficient + the grading recipe, replacing the per-screen fallback chains.
+import {
+  resolveSubjectConfiguration,
+  computeSubjectAverageFromRecipe,
+} from "../../domain/calc/academics/subject-config";
+import type { GradeEntryInput } from "../../domain/repository/academic-repository";
 import { PageHeader } from "../../shared/layout/page-header";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -46,6 +52,7 @@ interface Row {
   d1: string;
   d2: string;
   examen: string;
+  cc: string;
 }
 
 /**
@@ -96,6 +103,12 @@ export function GradeEntryScreen({
     () => repos.subjects.observeByClass(classId ?? ""),
     [classId],
   );
+  // T-345 (MATIERE-500/ADR-018): the context-specific subject
+  // configurations — the ONE source the coefficient/recipe resolve through.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const classAssessments = useObservable(
     () => repos.grades.observeForClass(classId ?? ""),
     [classId],
@@ -115,9 +128,21 @@ export function GradeEntryScreen({
   const effectiveSubjectId = activeSubjectId ?? subjectId;
 
   // Same catalogue rule as ClassDetailPage / ClassGradesTab: assigned
-  // class-subjects first, else level-filtered, else the full directory — so
-  // the switcher never shows an empty list while entry stays possible.
+  // class-subjects first, else the CONFIG-DRIVEN list (subjects carrying a
+  // subject_configuration for this class's level+year — the T-345 way a
+  // CEM class gets its Arabe once the admin adds the configuration), else
+  // the legacy level-filtered directory, else the full directory — so the
+  // switcher never shows an empty list while entry stays possible.
   const availableSubjects = useMemo(() => {
+    const classLevelId = cls?.academicLevelId ?? null;
+    const classYearId = cls?.academicYearId ?? null;
+    const resolveCoef = (sub: Subject | undefined): number =>
+      resolveSubjectConfiguration({
+        subject: sub,
+        configurations: subjectConfigurations,
+        academicLevelId: classLevelId,
+        academicYearId: classYearId,
+      }).coefficient;
     if (classSubjects.length > 0) {
       return classSubjects.map((cs) => {
         const s = subjects.find((sub) => sub.id === cs.subjectId);
@@ -125,9 +150,26 @@ export function GradeEntryScreen({
           id: cs.subjectId,
           name: s?.name ?? cs.subjectId,
           code: s?.code ?? "",
-          coefficient: cs.coefficient || s?.coefficient || 1,
+          coefficient: resolveCoef(s),
         };
       });
+    }
+    const configDriven = subjects.filter((s) =>
+      subjectConfigurations.some(
+        (c) =>
+          c.subjectId === s.id &&
+          c.academicLevelId === classLevelId &&
+          c.academicYearId === classYearId &&
+          c.isActive,
+      ),
+    );
+    if (configDriven.length > 0) {
+      return configDriven.map((s) => ({
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        coefficient: resolveCoef(s),
+      }));
     }
     const level = cls?.level as
       | import("../../domain/model/student").AcademicLevel
@@ -139,9 +181,9 @@ export function GradeEntryScreen({
       id: s.id,
       name: s.name,
       code: s.code,
-      coefficient: s.coefficient,
+      coefficient: resolveCoef(s),
     }));
-  }, [classSubjects, subjects, cls?.level]);
+  }, [classSubjects, subjects, subjectConfigurations, cls?.academicLevelId, cls?.academicYearId, cls?.level]);
 
   const handleSubjectChange = (nextId: string) => {
     if (!nextId || nextId === effectiveSubjectId) return;
@@ -153,6 +195,20 @@ export function GradeEntryScreen({
   };
 
   const subject = subjects.find((s) => s.id === effectiveSubjectId);
+  // T-345: the canonical resolution (configuration → legacy subject →
+  // default) — replaces the per-screen scattered coefficient fallback
+  // chains that resolved differently on every surface (MATIERE-500).
+  const resolved = useMemo(
+    () =>
+      resolveSubjectConfiguration({
+        subject,
+        configurations: subjectConfigurations,
+        academicLevelId: cls?.academicLevelId ?? null,
+        academicYearId: cls?.academicYearId ?? null,
+      }),
+    [subject, subjectConfigurations, cls?.academicLevelId, cls?.academicYearId],
+  );
+  const recipe = resolved.gradingRecipe;
   const [term, setTerm] = useState<AcademicTerm>("T1");
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
@@ -204,6 +260,7 @@ export function GradeEntryScreen({
           d1: existing?.devoir1 != null ? String(existing.devoir1) : "",
           d2: existing?.devoir2 != null ? String(existing.devoir2) : "",
           examen: existing?.examen != null ? String(existing.examen) : "",
+          cc: existing?.cc != null ? String(existing.cc) : "",
         };
       }),
     );
@@ -211,7 +268,7 @@ export function GradeEntryScreen({
 
   function updateRow(
     studentId: string,
-    field: "d1" | "d2" | "examen",
+    field: "d1" | "d2" | "examen" | "cc",
     value: string,
   ) {
     const cleaned = value.replace(/[^0-9.,]/g, "").replace(",", ".");
@@ -240,13 +297,14 @@ export function GradeEntryScreen({
       const d1 = parseScore(r.d1);
       const d2 = parseScore(r.d2);
       const ex = parseScore(r.examen);
+      const ccMark = parseScore(r.cc);
 
-      if (d1 == null && d2 == null && ex == null) {
+      if (d1 == null && d2 == null && ex == null && ccMark == null) {
         missing++;
         continue;
       }
 
-      const avg = computeSubjectAverage(d1, d2, ex);
+      const avg = computeSubjectAverageFromRecipe(d1, d2, ex, ccMark, recipe);
       if (avg == null) {
         missing++;
         continue;
@@ -264,7 +322,7 @@ export function GradeEntryScreen({
       missing,
       classAverage: count > 0 ? sum / count : null,
     };
-  }, [rows]);
+  }, [rows, recipe]);
 
   async function save() {
     if (!session || !classId || !effectiveSubjectId) return;
@@ -274,14 +332,14 @@ export function GradeEntryScreen({
     }
     setSaving(true);
     try {
-      const payload: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">[] =
-        [];
+      const payload: GradeEntryInput[] = [];
 
       for (const r of rows) {
         const d1 = parseScore(r.d1);
         const d2 = parseScore(r.d2);
         const ex = parseScore(r.examen);
-        if (d1 == null && d2 == null && ex == null) continue;
+        const ccMark = parseScore(r.cc);
+        if (d1 == null && d2 == null && ex == null && ccMark == null) continue;
 
         payload.push({
           studentId: r.studentId,
@@ -292,7 +350,15 @@ export function GradeEntryScreen({
           devoir1: d1,
           devoir2: d2,
           examen: ex,
-          coefficient: subject?.coefficient ?? 1,
+          // T-345 (ADR-018): the contrôle-continu mark + the entry-time
+          // snapshots — the resolved configuration in force RIGHT NOW
+          // (coefficient + component weights). History keeps these.
+          cc: ccMark,
+          coefficient: resolved.coefficient,
+          coefficientDevoir1: recipe.devoir1,
+          coefficientDevoir2: recipe.devoir2,
+          coefficientExamen: recipe.examen,
+          coefficientCc: recipe.cc,
           enteredBy: session.userId,
         });
       }
@@ -493,7 +559,14 @@ export function GradeEntryScreen({
                   <th className="py-2.5 px-3">Élève</th>
                   <th className="py-2.5 px-3 text-center w-24">Devoir 1</th>
                   <th className="py-2.5 px-3 text-center w-24">Devoir 2</th>
-                  <th className="py-2.5 px-3 text-center w-24">Examen (x2)</th>
+                  <th className="py-2.5 px-3 text-center w-24">
+                    Examen (×{recipe.examen || 0})
+                  </th>
+                  {recipe.cc > 0 && (
+                    <th className="py-2.5 px-3 text-center w-24">
+                      Contrôle continu (×{recipe.cc})
+                    </th>
+                  )}
                   <th className="py-2.5 px-3 text-center w-28">Moyenne</th>
                   <th className="py-2.5 px-3 text-center w-24">Statut</th>
                 </tr>
@@ -503,11 +576,19 @@ export function GradeEntryScreen({
                   const d1 = parseScore(r.d1);
                   const d2 = parseScore(r.d2);
                   const ex = parseScore(r.examen);
-                  const avg = computeSubjectAverage(d1, d2, ex);
+                  const ccMark = parseScore(r.cc);
+                  const avg = computeSubjectAverageFromRecipe(
+                    d1,
+                    d2,
+                    ex,
+                    ccMark,
+                    recipe,
+                  );
                   const hasInvalid =
                     (r.d1 && d1 == null) ||
                     (r.d2 && d2 == null) ||
-                    (r.examen && ex == null);
+                    (r.examen && ex == null) ||
+                    (r.cc && ccMark == null);
 
                   return (
                     <tr key={r.studentId} className="hover:bg-accent/5">
@@ -550,6 +631,15 @@ export function GradeEntryScreen({
                           invalid={!!r.examen && ex == null}
                         />
                       </td>
+                      {recipe.cc > 0 && (
+                        <td className="py-2 px-3">
+                          <ScoreInput
+                            value={r.cc}
+                            onChange={(v) => updateRow(r.studentId, "cc", v)}
+                            invalid={!!r.cc && ccMark == null}
+                          />
+                        </td>
+                      )}
                       <td className="py-2 px-3 text-center font-mono font-bold text-sm">
                         {avg == null ? "—" : avg.toFixed(2)}
                       </td>
@@ -580,7 +670,17 @@ export function GradeEntryScreen({
 
       <div className="sticky bottom-0 left-0 right-0 border-t border-border bg-surface-panel/95 backdrop-blur-sm p-3 flex items-center justify-between">
         <p className="text-xs text-muted-foreground font-mono">
-          Formule : SubjectAverage = (D1 + D2 + 2·Examen) / 4
+          Formule : Moyenne = (D1×{recipe.devoir1} + D2×{recipe.devoir2} +
+          Examen×{recipe.examen}
+          {recipe.cc > 0 ? ` + C.Continu×${recipe.cc}` : ""}) /
+          {" "}
+          {recipe.devoir1 + recipe.devoir2 + recipe.examen + recipe.cc} —
+          coefficient {resolved.coefficient}
+          {resolved.source === "configuration"
+            ? " (configuration de la matière pour cette classe)"
+            : resolved.source === "legacy-subject"
+              ? " (répertoire matières — configuration à définir)"
+              : ""}
         </p>
         <Button onClick={save} disabled={saving || rows.length === 0 || readOnly}>
           {saving ? (

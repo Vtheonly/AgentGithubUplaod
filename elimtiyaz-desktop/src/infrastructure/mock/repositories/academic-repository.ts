@@ -5,6 +5,7 @@ import type {
   AttendanceRepository,
   HomeworkRepository,
   PromotionRepository,
+  GradeEntryInput,
 } from "../../../domain/repository/academic-repository";
 import type { Observable } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
@@ -12,10 +13,11 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
 import { derived } from "../subject-behavior";
-import { computeSubjectAverage } from "../../../domain/model/academic";
+import { computeSubjectAverageFromRecipe } from "../../../domain/calc/academics/subject-config";
 import type {
   AcademicClass,
   Subject,
+  SubjectConfiguration,
   ClassSubject,
   Assessment,
   AttendanceRecord,
@@ -131,6 +133,44 @@ export class MockSubjectRepository implements SubjectRepository {
       [store.classSubjects$],
       () => store.classSubjects.filter((cs) => cs.classId === classId),
     );
+  }
+  /** T-345 (MATIERE-500/ADR-018): the context configurations. */
+  observeConfigurations(): Observable<SubjectConfiguration[]> {
+    return store.subjectConfigurations$;
+  }
+  async upsertSubjectConfiguration(
+    input: Omit<SubjectConfiguration, "id" | "tenantId"> & { id?: string },
+  ): Promise<Result<SubjectConfiguration>> {
+    await delay(160);
+    const key = (c: SubjectConfiguration) =>
+      `${c.subjectId}|${c.academicYearId}|${c.academicLevelId}|${c.direction}`;
+    const idx = store.subjectConfigurations.findIndex(
+      (c) =>
+        key(c) ===
+        `${input.subjectId}|${input.academicYearId}|${input.academicLevelId}|${input.direction || "general"}`,
+    );
+    const before = idx >= 0 ? store.subjectConfigurations[idx] : null;
+    const row: SubjectConfiguration = {
+      ...input,
+      direction: input.direction || "general",
+      id: idx >= 0 ? store.subjectConfigurations[idx].id : `subcfg-${Date.now()}`,
+      tenantId: TENANT_ID,
+    };
+    store.subjectConfigurations =
+      idx >= 0
+        ? store.subjectConfigurations.map((c, i) => (i === idx ? row : c))
+        : [...store.subjectConfigurations, row];
+    store.notifySubjectConfigurations();
+    appendAudit({
+      action: AuditActions.SubjectUpdate,
+      entityType: "subject-configuration",
+      entityId: row.id,
+      actorId: "usr-current",
+      actorName: "Session courante",
+      diff: { before, after: row },
+      note: `Configuration matière — coefficient ${row.coefficient}, recette D1:${row.gradingRecipe.devoir1} D2:${row.gradingRecipe.devoir2} Ex:${row.gradingRecipe.examen} CC:${row.gradingRecipe.cc}`,
+    });
+    return Ok(row);
   }
   async assignSubjectToClass(
     input: Omit<ClassSubject, "id">,
@@ -281,9 +321,7 @@ export class MockGradeRepository implements GradeRepository {
       () => store.assessments.filter((a) => a.classId === classId),
     );
   }
-  async enterGrade(
-    input: Omit<Assessment, "id" | "subjectAverage" | "enteredAt">,
-  ): Promise<Result<Assessment>> {
+  async enterGrade(input: GradeEntryInput): Promise<Result<Assessment>> {
     await delay(150);
     // FIX (vault §04.07 / §06.05 — append-only history): reject any write
     // targeting an ARCHIVED academic year. Once a year is archived its
@@ -294,11 +332,25 @@ export class MockGradeRepository implements GradeRepository {
     if (archivedYearErr) return Err(archivedYearErr);
     const asm: Assessment = {
       ...input,
+      cc: input.cc ?? null,
+      coefficientDevoir1: input.coefficientDevoir1 ?? 1,
+      coefficientDevoir2: input.coefficientDevoir2 ?? 1,
+      coefficientExamen: input.coefficientExamen ?? 2,
+      coefficientCc: input.coefficientCc ?? 0,
       id: `asm-${Date.now()}`,
-      subjectAverage: computeSubjectAverage(
+      // T-345 (ADR-018): the recipe-aware canonical engine (the snapshots
+      // carried by the input are the recipe in force at entry).
+      subjectAverage: computeSubjectAverageFromRecipe(
         input.devoir1,
         input.devoir2,
         input.examen,
+        input.cc ?? null,
+        {
+          devoir1: input.coefficientDevoir1 ?? 1,
+          devoir2: input.coefficientDevoir2 ?? 1,
+          examen: input.coefficientExamen ?? 2,
+          cc: input.coefficientCc ?? 0,
+        },
       ),
       enteredAt: nowIso(),
     };
@@ -327,9 +379,7 @@ export class MockGradeRepository implements GradeRepository {
   }
 
   async enterGradesBatch(
-    inputs: ReadonlyArray<
-      Omit<Assessment, "id" | "subjectAverage" | "enteredAt">
-    >,
+    inputs: ReadonlyArray<GradeEntryInput>,
   ): Promise<Result<Assessment[]>> {
     await delay(250);
     // FIX (vault §04.07 / §06.05 — append-only history): reject the whole
@@ -341,11 +391,24 @@ export class MockGradeRepository implements GradeRepository {
     }
     const created: Assessment[] = inputs.map((input) => ({
       ...input,
+      cc: input.cc ?? null,
+      coefficientDevoir1: input.coefficientDevoir1 ?? 1,
+      coefficientDevoir2: input.coefficientDevoir2 ?? 1,
+      coefficientExamen: input.coefficientExamen ?? 2,
+      coefficientCc: input.coefficientCc ?? 0,
       id: `asm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      subjectAverage: computeSubjectAverage(
+      // T-345 (ADR-018): the recipe-aware canonical engine.
+      subjectAverage: computeSubjectAverageFromRecipe(
         input.devoir1,
         input.devoir2,
         input.examen,
+        input.cc ?? null,
+        {
+          devoir1: input.coefficientDevoir1 ?? 1,
+          devoir2: input.coefficientDevoir2 ?? 1,
+          examen: input.coefficientExamen ?? 2,
+          cc: input.coefficientCc ?? 0,
+        },
       ),
       enteredAt: nowIso(),
     }));

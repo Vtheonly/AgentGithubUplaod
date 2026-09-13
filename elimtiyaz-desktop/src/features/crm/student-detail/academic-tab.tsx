@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
+import { resolveSubjectConfiguration } from "../../../domain/calc/academics/subject-config";
 import { useToast } from "../../../app/providers/toast-provider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
@@ -74,6 +75,12 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
   const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
   const history = student?.academicHistory ?? [];
   const subjects = useObservable(() => repos.subjects.observe(), []);
+
+  // T-345 (MATIERE-500/ADR-018): the context configurations.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const classes = useObservable(() => repos.classes.observe(), []);
   const assignedClass = student?.classId
     ? (classes.find((c) => c.id === student.classId) ?? null)
@@ -100,7 +107,14 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
           return {
             subjectAverage:
               a.subjectAverage ?? computeSubjectAverage(a.devoir1, a.devoir2, a.examen),
-            coefficient: a.coefficient || subject?.coefficient || 1,
+            // T-345 (ADR-018): the assessment snapshot first (non-retroactive),
+            // then the canonical resolver — ONE rule.
+            coefficient:
+              a.coefficient ||
+              resolveSubjectConfiguration({
+                subject,
+                configurations: subjectConfigurations,
+              }).coefficient,
             isExtracurricular: subject?.isExtracurricular ?? false,
           };
         }),

@@ -100,6 +100,11 @@ export function AnalyticsTab({
   const parents = useObservable(() => repos.parents.observe(), []);
   const classes = useObservable(() => repos.classes.observe(), []);
   const subjects = useObservable(() => repos.subjects.observe(), []);
+  // T-345 (MATIERE-500/ADR-018): the context configurations.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const assessments = useObservable(() => repos.grades.observeForClass(""), []);
   const attendance = useObservable(() => repos.attendance.observeByStudent("", "2020-01-01", "2030-12-31"), []);
   const installments = useObservable(() => repos.installments.observe(), []);
@@ -121,11 +126,12 @@ export function AnalyticsTab({
       parents,
       classes,
       subjects,
+      subjectConfigurations,
       assessments,
       attendance,
       debtSummaries: riskDebt,
     });
-  }, [students, parents, classes, subjects, assessments, attendance, riskDebt]);
+  }, [students, parents, classes, subjects, subjectConfigurations, assessments, attendance, riskDebt]);
 
   const toggleMethod = useCallback((method: PaymentMethod) => {
     setFilters((prev) => {

@@ -46,6 +46,10 @@ import {
   computeSubjectAverage,
   computeOverallGpa,
 } from "../../../src/domain/model/academic";
+import {
+  resolveSubjectConfiguration,
+  computeSubjectAverageFromRecipe,
+} from "../../../src/domain/calc/academics/subject-config";
 import { getNextGradeProgression } from "../../../src/domain/calc/academics/promotion";
 import {
   stableHash,
@@ -747,6 +751,69 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
       return {
         subjectAverage: avg,
         averageIsNotNull: avg != null,
+      };
+    }
+
+    // T-345 (MATIERE-500/ADR-018): the subject_configuration category — the
+    // recipe-aware canonical engine + the ONE resolution rule, pinned
+    // equivalent across desktop / website / Android / SQL (migration 0094).
+    case "computeSubjectAverageFromRecipe": {
+      const a = (when.assessment ?? given.assessment) as {
+        devoir1: number | null; devoir2: number | null;
+        examen: number | null; cc?: number | null;
+      };
+      const r = ((when.recipe ?? given.recipe) ?? {}) as {
+        devoir1?: number; devoir2?: number; examen?: number; cc?: number;
+      };
+      const recipe = {
+        devoir1: r.devoir1 ?? 1,
+        devoir2: r.devoir2 ?? 1,
+        examen: r.examen ?? 2,
+        cc: r.cc ?? 0,
+      };
+      const avg = computeSubjectAverageFromRecipe(
+        a.devoir1, a.devoir2, a.examen, a.cc ?? null, recipe);
+      return {
+        subjectAverage: avg,
+        averageIsNotNull: avg != null,
+      };
+    }
+
+    case "resolveSubjectConfiguration": {
+      const subject = ((when.subject ?? given.subject)) as {
+        id: string; code?: string; coefficient?: number; passingGrade?: number;
+        isExtracurricular?: boolean;
+      };
+      const configurations = ((when.configurations ?? given.configurations) ?? []) as Array<{
+        subjectId: string; academicLevelId: string; academicYearId: string;
+        direction?: string; coefficient: number; subjectCode?: string | null;
+        passingGrade?: number; isExtracurricular?: boolean; isActive?: boolean;
+        gradingRecipe?: { devoir1: number; devoir2: number; examen: number; cc: number };
+      }>;
+      const ctx = ((when.context ?? given.context) ?? {}) as {
+        academicLevelId?: string | null; academicYearId?: string | null;
+        direction?: string;
+        snapshot?: {
+          coefficient?: number | null; coefficientDevoir1?: number | null;
+          coefficientDevoir2?: number | null; coefficientExamen?: number | null;
+          coefficientCc?: number | null;
+        };
+      };
+      const resolved = resolveSubjectConfiguration({
+        subject: subject as never,
+        configurations: configurations as never,
+        academicLevelId: ctx.academicLevelId ?? null,
+        academicYearId: ctx.academicYearId ?? null,
+        direction: ctx.direction,
+        snapshot: ctx.snapshot ?? null,
+      });
+      return {
+        coefficient: resolved.coefficient,
+        subjectCode: resolved.subjectCode,
+        passingGrade: resolved.passingGrade,
+        isExtracurricular: resolved.isExtracurricular,
+        recipe: resolved.gradingRecipe,
+        source: resolved.source,
       };
     }
 

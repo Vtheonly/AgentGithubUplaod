@@ -1,0 +1,33 @@
+{
+  "id": "t345_recipe_required_mark_missing",
+  "description": "ADR-018/T-345: a positive-weight component is REQUIRED -> any missing mark makes the average not computable (null, the T-336 honesty rule).",
+  "category": "subject_configuration",
+  "tags": [
+    "subject_configuration",
+    "recipe",
+    "honesty"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": [],
+    "assessment": {
+      "devoir1": 12,
+      "devoir2": null,
+      "examen": 16,
+      "cc": null
+    },
+    "recipe": {
+      "devoir1": 1,
+      "devoir2": 1,
+      "examen": 2,
+      "cc": 0
+    }
+  },
+  "when": {
+    "type": "computeSubjectAverageFromRecipe"
+  },
+  "then": {
+    "subjectAverage": null,
+    "averageIsNotNull": false
+  }
+}

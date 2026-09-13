@@ -1,0 +1,34 @@
+{
+  "id": "t345_recipe_cc_enabled",
+  "description": "ADR-018/T-345: the controle-continu recipe {d1:0,d2:0,ex:2,cc:1} -> (cc*1 + ex*2)/3 = (15+24)/3 = 13.00 (the migration-0094 C4 probe). CC counts toward the official GPA exactly like any other component when its weight is positive.",
+  "category": "subject_configuration",
+  "tags": [
+    "subject_configuration",
+    "recipe",
+    "cc",
+    "controle_continu"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": [],
+    "assessment": {
+      "devoir1": null,
+      "devoir2": null,
+      "examen": 12,
+      "cc": 15
+    },
+    "recipe": {
+      "devoir1": 0,
+      "devoir2": 0,
+      "examen": 2,
+      "cc": 1
+    }
+  },
+  "when": {
+    "type": "computeSubjectAverageFromRecipe"
+  },
+  "then": {
+    "subjectAverage": 13.0,
+    "averageIsNotNull": true
+  }
+}

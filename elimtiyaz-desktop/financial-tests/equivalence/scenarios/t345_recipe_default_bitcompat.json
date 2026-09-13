@@ -1,0 +1,33 @@
+{
+  "id": "t345_recipe_default_bitcompat",
+  "description": "ADR-018/T-345: the DEFAULT recipe {d1:1,d2:1,ex:2,cc:0} must be bit-identical to the historical (D1+D2+2*Ex)/4 engine (the migration-0094 C2 probe: 12/14/16 -> 14.50).",
+  "category": "subject_configuration",
+  "tags": [
+    "subject_configuration",
+    "recipe",
+    "bitcompat"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "ledgerEntries": [],
+    "assessment": {
+      "devoir1": 12,
+      "devoir2": 14,
+      "examen": 16,
+      "cc": null
+    },
+    "recipe": {
+      "devoir1": 1,
+      "devoir2": 1,
+      "examen": 2,
+      "cc": 0
+    }
+  },
+  "when": {
+    "type": "computeSubjectAverageFromRecipe"
+  },
+  "then": {
+    "subjectAverage": 14.5,
+    "averageIsNotNull": true
+  }
+}

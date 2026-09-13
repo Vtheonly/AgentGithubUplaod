@@ -38,9 +38,10 @@
     "property_based",
     "complex_sequence",
     "analytics_statistics",
-    "analytics_visuals"
+    "analytics_visuals",
+    "subject_configuration"
    ],
-   "description": "Test category — used by the comparator to group results. analytics_statistics = the PARITY-002/T-285 dashboard-statistics derivation ops (deriveAnalyticsStats). analytics_visuals = the PARITY-003/T-292 13-chart visual-derivation ops (deriveAnalyticsVisuals)."
+   "description": "Test category — used by the comparator to group results. analytics_statistics = the PARITY-002/T-285 dashboard-statistics derivation ops (deriveAnalyticsStats). analytics_visuals = the PARITY-003/T-292 13-chart visual-derivation ops (deriveAnalyticsVisuals). subject_configuration = the T-345/ADR-018 canonical subject-architecture ops (resolveSubjectConfiguration + computeSubjectAverageFromRecipe)."
   },
   "tags": {
    "type": "array",

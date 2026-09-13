@@ -77,8 +77,14 @@ function makeAssessment(partial: Partial<Assessment> & { id: string }): Assessme
     devoir1: partial.devoir1 ?? 14,
     devoir2: partial.devoir2 ?? 16,
     examen: partial.examen ?? 18,
+    // T-345 (ADR-018): cc + the entry-time snapshots (default recipe).
+    cc: partial.cc ?? null,
     subjectAverage: partial.subjectAverage ?? 16.5,
     coefficient: partial.coefficient ?? 4,
+    coefficientDevoir1: partial.coefficientDevoir1 ?? 1,
+    coefficientDevoir2: partial.coefficientDevoir2 ?? 1,
+    coefficientExamen: partial.coefficientExamen ?? 2,
+    coefficientCc: partial.coefficientCc ?? 0,
     enteredBy: ACTOR.actorId,
     enteredAt: new Date().toISOString(),
   };
