@@ -3215,9 +3215,9 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-367 — 66th session: the portal document-upload TABLE leg (UPLOAD-104) — the row INSERT omits tenant_id, so the "fixed" upload still 403s live
 
-- **Status:** IN PROGRESS (2026-09-14, 66th session — registered BEFORE the fix per §13)
+- **Status:** COMPLETED (TESTED + the live leg RED→GREEN-proven, 2026-09-14 — website 51ca7e5 [fix + 6-test guard, full gates 48/618/0 + tsc 0 + eslint + strict build], hub eab7bfe [registration] + f829033 [the t-359 e2e TABLE leg]; live E2E 19/19 GREEN: L = pre-fix payload → 403/42501 'new row violates row-level security policy for table student_documents' [the owner's exact console signature], M = fixed payload → 201, M2 = parent read-back 200, N = cross-tenant still 403, Z = zero residue [docs 0 before AND after — no upload has ever succeeded])
 - **Problems:** UPLOAD-104 (the `student_documents` row INSERT omits `tenant_id`; the column has NO default; the 0043 parent INSERT policy's WITH CHECK `tenant_id = current_tenant_id()` fails on NULL → SQLSTATE 42501 → PostgREST HTTP 403 — the owner's live console evidence. The t-359 e2e probe covered the STORAGE leg only; the TABLE leg was never exercised — the verification gap that let UPLOAD-101 close TESTED while the live flow still failed)
 - **Scope:** elimtiyaz-website `src/features/profile/student-documents-card.tsx` (insert payload gains `tenant_id: tenantId` — the `chat_messages` convention); NEW regression guard `src/test/t-367-insert-tenant-guard.test.ts` (payload carries tenant_id + whole-src guard on every `.from("student_documents").insert(`); hub `elimtiyaz-desktop/scripts/t-359-upload-e2e.py` extended with the TABLE leg (L: no-tenant insert → 42501/403 RED proof; M: tenant insert → 201 + parent read-back GREEN proof + zero-residue cleanup); closeout registries.
 - **Depends on:** T-360 (the storage-path fix whose tenantId prop this fix reuses).
 - **Priority:** P0 (the owner's live console evidence names this exact endpoint)
-- **Next:** live probe + gates, then closeout.
+- **Next:** T-337 (REALTIME-105) — the standing P0 publication migration (unchanged recommendation from the 65th session).
