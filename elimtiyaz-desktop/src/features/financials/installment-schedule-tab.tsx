@@ -18,6 +18,17 @@
  * substring hack (which would also match "Tranche 10" and "Année complète
  * 1"). The next tranche with a remaining balance is highlighted as the
  * active collection target.
+ *
+ * T-354 (63rd session, 2026-09-14 — DASH-404): the grouping key is now
+ * the CANONICAL `installment.trancheNumber` column — the label-regex
+ * `/^\s*Tranche\s*([1-3])\b/i` is RETIRED. The live data carries the
+ * workbook's BON receipt labels ("INSCRIPTION (FI)", "2EME TRANCHE
+ * (V2)", "3ème TRANCHE (2V)", "4ème TRANCHE (v3)") — ZERO of which
+ * matched the regex, so the header silently computed TRANSPORT-ONLY
+ * totals (109 rows) while the canonical T-338 engine grouped all 1 170
+ * tuition rows by tranche_number. Two derivations of the same concept
+ * produced different numbers on two screens — the label twin is gone;
+ * every wave card on every surface now derives from the same column.
  */
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -88,17 +99,11 @@ const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "ne
 };
 
 /**
- * T-248 — canonical tranche-number matcher (labels: "Tranche 1",
- * "Tranche 2 (Jan–Mar)", … — never a bare substring match, which would
- * also catch "Tranche 10" or "Année complète 1").
- * Returns 1/2/3 or null for non-tranche rows ("Année complète", …).
+ * T-248/T-354 — the wave derivation groups rows by the CANONICAL
+ * `trancheNumber` column (never label text). Rows without a tranche
+ * number ("Année complète", custom schedule lines) are excluded from the
+ * wave cards exactly as before.
  */
-export function trancheNumberOf(label: string): 1 | 2 | 3 | null {
-  const m = /^\s*Tranche\s*([1-3])\b/i.exec(label);
-  return m ? (Number(m[1]) as 1 | 2 | 3) : null;
-}
-
-/** T-248 — one T1/T2/T3 collection wave derived from REAL rows. */
 export interface TrancheWave {
   readonly index: 1 | 2 | 3;
   readonly label: string;
@@ -118,17 +123,22 @@ const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: 
 ];
 
 /**
- * T-248 — derive the T1/T2/T3 collection waves from REAL rows.
- * PURE (unit-tested): per wave — due (Σ amountDue), paid (Σ amountPaid,
- * cleared), pending (Σ amountPending, uncleared non-cash), pct (paid/due,
- * 0–100). `isNextTarget` marks the first wave with a canonical remaining
- * balance (the active collection target for the highlight).
+ * T-248/T-354 — derive the T1/T2/T3 collection waves from REAL rows,
+ * grouped by the canonical `trancheNumber` column (the DASH-404 fix: the
+ * BON labels "INSCRIPTION (FI)" / "2EME TRANCHE" / "3ème TRANCHE" must
+ * group like every other surface). PURE (unit-tested): per wave — due
+ * (Σ amountDue), paid (Σ amountPaid, cleared), pending (Σ amountPending,
+ * uncleared non-cash), pct (paid/due, 0–100). `isNextTarget` marks the
+ * first wave with a canonical remaining balance (the active collection
+ * target for the highlight).
  */
 export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] {
   const groups = new Map<1 | 2 | 3, Installment[]>();
   for (const r of rows) {
-    const n = trancheNumberOf(r.label);
-    if (n === null) continue;
+    // T-354: the canonical column — never the label text. Rows without a
+    // tranche number are non-wave rows (excluded, same as before).
+    const n = r.trancheNumber;
+    if (n !== 1 && n !== 2 && n !== 3) continue;
     const list = groups.get(n) ?? [];
     list.push(r);
     groups.set(n, list);

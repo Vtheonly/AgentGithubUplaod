@@ -3107,7 +3107,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-354 — 63rd session: retire the label-parsed tranche-wave twin in the Financials tab (DASH-404)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — the T-248 suite re-pinned to the canonical column + the new T-354 BON-label cases; full suite 150 files / 3256 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-404
 - **Scope:** `installment-schedule-tab.tsx` wave derivation switches to `tranche_number` grouping (canonical semantic); the label-regex helper deleted; the header renders tuition rows again. Tests: BON labels ("INSCRIPTION (FI)" / "2EME TRANCHE" / "3ème TRANCHE" / "4ème TRANCHE") group correctly; transport rows unaffected; "Année complète" excluded from wave cards.
 - **Depends on:** T-350.

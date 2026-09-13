@@ -8,10 +8,11 @@
  *   - T-247 SeeDetailsModal render — the collection-rate summary trio, the
  *     donut's REAL center total (Σ gender counts), legend callouts, the
  *     per-bucket severity badges, honest "—" when kpis are absent.
- *   - T-248 `trancheNumberOf` — canonical label matching (never a substring
- *     match: "Tranche 10" / "Année complète" must NOT match).
- *   - T-248 `deriveTrancheWaves` — wave grouping + canonical sums + the
- *     next-target highlight + pending surfacing.
+ *   - T-248/T-354 `deriveTrancheWaves` — wave grouping by the CANONICAL
+ *     `trancheNumber` column (the DASH-404 fix: the live BON labels
+ *     "INSCRIPTION (FI)" / "2EME TRANCHE" / "3ème TRANCHE" never matched
+ *     the retired label regex) + canonical sums + the next-target
+ *     highlight + pending surfacing.
  *   - T-249 UnifiedPaymentModal render — quick-pay shortcut chips and the
  *     cashier change-return calculator (Montant remis → Monnaie à rendre).
  *   - T-250 TuitionCard render — the consolidated 14-level matrix (one row
@@ -41,7 +42,7 @@ beforeAll(() => {
 // Initialize i18n FIRST — useTranslation() will otherwise throw.
 import "../../i18n/i18n";
 import { deriveTrancheProjection, SeeDetailsModal } from "../../features/dashboard/see-details-modal";
-import { trancheNumberOf, deriveTrancheWaves } from "../../features/financials/installment-schedule-tab";
+import { deriveTrancheWaves } from "../../features/financials/installment-schedule-tab";
 import type { DashboardKpi, RevenuePoint } from "../../domain/model/operations";
 import type { Installment } from "../../domain/model/payment";
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS_FR } from "../../domain/model/student";
@@ -113,22 +114,8 @@ describe("T-247 — deriveTrancheProjection (échéancier théorique)", () => {
 });
 
 // ============================================================
-// T-248 — trancheNumberOf + deriveTrancheWaves (pure)
+// T-248/T-354 — deriveTrancheWaves (pure; grouped by trancheNumber)
 // ============================================================
-
-describe("T-248 — trancheNumberOf (canonical label matching)", () => {
-  it("matches the real label shapes", () => {
-    expect(trancheNumberOf("Tranche 1")).toBe(1);
-    expect(trancheNumberOf("Tranche 2 (Jan–Mar)")).toBe(2);
-    expect(trancheNumberOf("  tranche 3 ")).toBe(3);
-  });
-
-  it("never substring-matches (Tranche 10 / Année complète)", () => {
-    expect(trancheNumberOf("Tranche 10")).toBeNull();
-    expect(trancheNumberOf("Année complète 1")).toBeNull();
-    expect(trancheNumberOf("Abonnement transport")).toBeNull();
-  });
-});
 
 function mkInstallment(over: Partial<Installment> & { label: string }): Installment {
   return {
@@ -146,13 +133,54 @@ function mkInstallment(over: Partial<Installment> & { label: string }): Installm
   } as Installment;
 }
 
+describe("T-354 — the wave grouping follows the CANONICAL trancheNumber column (DASH-404)", () => {
+  it("the live BON labels group correctly (the exact rows the retired regex missed)", () => {
+    const rows: Installment[] = [
+      mkInstallment({ label: "INSCRIPTION (FI)", trancheNumber: 1, amountDue: 25_000, amountPaid: 25_000, status: "paid" }),
+      mkInstallment({ label: "2EME TRANCHE (V2)", trancheNumber: 2, amountDue: 100_000, amountPaid: 40_000, status: "partial" }),
+      mkInstallment({ label: "3ème TRANCHE (2V)", trancheNumber: 3, amountDue: 100_000, amountPaid: 0, status: "pending" }),
+    ];
+    const waves = deriveTrancheWaves(rows);
+    // ALL THREE tuition waves are present — the retired label-regex
+    // produced ZERO of them (transport-only header on live data).
+    expect(waves[0].due).toBe(25_000);
+    expect(waves[1].due).toBe(100_000);
+    expect(waves[2].due).toBe(100_000);
+    expect(waves[1].pct).toBe(40);
+  });
+
+  it("transport rows (label 'Tranche N — Transport') group by the same column", () => {
+    const rows: Installment[] = [
+      mkInstallment({ label: "Tranche 1 — Transport (Boumerdès)", trancheNumber: 1, category: "transport", amountDue: 30_000, amountPaid: 30_000, status: "paid" }),
+      mkInstallment({ label: "Tranche 2 — Transport (Boumerdès)", trancheNumber: 2, category: "transport", amountDue: 15_000, amountPaid: 5_000, status: "partial" }),
+    ];
+    const waves = deriveTrancheWaves(rows);
+    expect(waves[0].due).toBe(30_000);
+    expect(waves[1].due).toBe(15_000);
+    expect(waves[1].pct).toBe(33);
+  });
+
+  it("rows WITHOUT a tranche number are excluded (Année complète / custom lines)", () => {
+    const rows: Installment[] = [
+      mkInstallment({ label: "Année complète", amountDue: 999, trancheNumber: undefined }),
+      mkInstallment({ label: "Tranche 2", trancheNumber: 2, amountDue: 100, amountPaid: 40, status: "partial" }),
+    ];
+    const waves = deriveTrancheWaves(rows);
+    expect(waves[0].due).toBe(0);
+    expect(waves[1].due).toBe(100);
+    expect(waves[2].due).toBe(0);
+    // The Année complète row never lands in a wave.
+    expect(waves.every((w) => w.due <= 100)).toBe(true);
+  });
+});
+
 describe("T-248 — deriveTrancheWaves (REAL row grouping)", () => {
   it("groups, sums and highlights the first wave with remaining balance", () => {
     const rows: Installment[] = [
-      mkInstallment({ label: "Tranche 1", amountDue: 100, amountPaid: 100, status: "paid" }),
-      mkInstallment({ label: "Tranche 2", amountDue: 100, amountPaid: 40, status: "partial" }),
-      mkInstallment({ label: "Tranche 3", amountDue: 100, amountPaid: 0, status: "pending" }),
-      mkInstallment({ label: "Année complète", amountDue: 999, amountPaid: 0, status: "pending" }),
+      mkInstallment({ label: "Tranche 1", trancheNumber: 1, amountDue: 100, amountPaid: 100, status: "paid" }),
+      mkInstallment({ label: "Tranche 2", trancheNumber: 2, amountDue: 100, amountPaid: 40, status: "partial" }),
+      mkInstallment({ label: "Tranche 3", trancheNumber: 3, amountDue: 100, amountPaid: 0, status: "pending" }),
+      mkInstallment({ label: "Année complète", trancheNumber: undefined, amountDue: 999, amountPaid: 0, status: "pending" }),
     ];
     const waves = deriveTrancheWaves(rows);
     expect(waves).toHaveLength(3);
@@ -177,7 +205,7 @@ describe("T-248 — deriveTrancheWaves (REAL row grouping)", () => {
 
   it("surfaces uncleared pending funds as their own figure", () => {
     const waves = deriveTrancheWaves([
-      mkInstallment({ label: "Tranche 2", amountDue: 100, amountPaid: 30, amountPending: 20, status: "partial" }),
+      mkInstallment({ label: "Tranche 2", trancheNumber: 2, amountDue: 100, amountPaid: 30, amountPending: 20, status: "partial" }),
     ]);
     expect(waves[1].pending).toBe(20);
     expect(waves[1].pct).toBe(30); // cleared-only rate
@@ -185,7 +213,7 @@ describe("T-248 — deriveTrancheWaves (REAL row grouping)", () => {
 
   it("returns honest zero waves for non-tranche rows only", () => {
     const waves = deriveTrancheWaves([
-      mkInstallment({ label: "Année complète", amountDue: 500, amountPaid: 100, status: "partial" }),
+      mkInstallment({ label: "Année complète", trancheNumber: undefined, amountDue: 500, amountPaid: 100, status: "partial" }),
     ]);
     expect(waves.every((w) => w.due === 0 && w.pct === 0)).toBe(true);
   });
