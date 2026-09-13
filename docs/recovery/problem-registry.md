@@ -4788,7 +4788,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Task:** T-357 (honest-state documentation; no date fabrication)
 - **Discovered:** 2026-09-14 (63rd session). Live census: `SELECT date_trunc('day', collected_at), count(*), sum(amount)` → 2026-08-11: 891 payments / 55,227,100 DZD; 2026-09-13: 2 payments / 235,500 DZD; nothing else. Cross-comparison vs the CSV source: EXACT amount parity (55,227,100) — no data was lost or misrecorded; only the DATE dimension is synthetic.
 - **Resolution:** documented as a data-quality boundary (this registry entry + the T-350 verification doc). Any future change requires the owner to supply real payment dates (or accept the single-spike picture). The vanity-purge (STATS-400) already removed the charts that over-promised on this dimension.
-- **Status:** OPEN (data-quality documentation — no code change planned; closing note recorded in the T-350 verification doc).
+- **Status:** DOCUMENTED (2026-09-14 — the T-350 verification doc §3 item 8 + §7: the boundary is recorded, the vanity purge already removed the charts that over-promised on this dimension, and NO dates are fabricated; resolving it requires the owner to supply real payment dates).
 
 ### DATA-018 — all imported students carry the placeholder `birthDate: 2000-01-01` (390/391 live) and `gender: NULL` (391/391 live): the age distribution places every child in "18+ ans" and the gender donut renders a single "Non spécifié" ring — the demographics surface presents placeholders as intelligence
 

@@ -3071,7 +3071,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-350 — 63rd session: the dashboard-statistics investigation — full data-flow verification (Excel → import → DB → repos → engines → UI) + the defect matrix + the negative findings
 
-- **Status:** In Progress
+- **Status:** Completed (TESTED + LIVE-VERIFIED — evidence: docs/recovery/t-350-live-verification.md: the full data-flow trace, the 9-defect matrix, the 5 refuted claims, the CSV↔DB exact-parity script, the live leg-2 probes 6/6 GREEN, the engine re-verification 302 checks TS≡SQL)
 - **Problems:** DASH-401..DASH-407, DATA-017, DATA-018 (the registrations above)
 - **Scope:** the owner's investigation mandate — verify ALL claimed defects from the pasted diagnostic report against the CURRENT tree + the LIVE database before any fix. Evidence goes to `docs/recovery/t-350-live-verification.md` (the full Excel↔DB cross-comparison + the refuted-claims registry). Also the session-opening baseline gates (tsc 0 / eslint 0 errors / vitest 144 files / 3198 / 0).
 - **Depends on:** nothing (read-only investigation).
@@ -3143,7 +3143,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-358 — 63rd session: closeout — registry flips + change-log + current-state + next-task + zips + push
 
-- **Status:** Not Started
+- **Status:** Completed (this commit — the registries, the change-log entry, the current-state snapshot, the next-task update, the live leg-2 verification doc extension, the zips + the push)
 - **Problems:** DASH-401..407 + DATA-017/018 (status flips with evidence)
 - **Scope:** registry flips, change-log, current-state, next-task, the zip set, the GitHub push with the owner PAT. COORDINATION: the 62nd session (MATIERE-500, T-345..T-349) is running CONCURRENTLY — fetch → inspect → merge forward → re-run the full gates before push (never force-push).
 - **Depends on:** T-350..T-357.

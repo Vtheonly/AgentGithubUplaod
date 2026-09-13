@@ -2,6 +2,52 @@
 
 > Chronological record of significant recovery changes. This file — not chat transcripts, not DONE/TODO notes — is the history of what has been fixed and how it was verified. Append one entry per completed task, using the template below.
 
+## 63rd session (2026-09-14) — the dashboard-statistics investigation: the wiring layer root-caused and unified (the owner's "something is wrong with the Dashboard and its models" mandate) — T-350..T-358
+
+**The owner's mandate (2026-09-14):** "There is clearly something wrong with the Dashboard and its models… The income, condition, and other statistics do not appear to be using all available data correctly… investigate ALL three possibilities (Excel import / statistics engine / data fed into statistics)… trace the ENTIRE data flow Excel → import → DB → data access → statistics engine → models → components → displayed results… one consistent source of truth… a lot of testing." A pasted diagnostic report (12 claimed defects) was supplied as REFERENCE ONLY ("may or may not be the issue"). Live tokens supplied.
+
+### 2026-09-14 — T-350 — the full data-flow investigation + the defect matrix + the negative findings
+
+- **Problem IDs:** DASH-401..407 (NEW — all CLOSED TESTED same-session), DATA-017 (NEW — documented data-quality boundary), DATA-018 (NEW — CLOSED TESTED). Totals 252→261 detailed, 8→17 OPEN at registration → 8 OPEN at close (the 9 new all resolved same-session; DATA-017 stays a documented boundary, not an open defect).
+- **The investigation (t-350-live-verification.md):** every hop verified — Excel ETAT (390 rows) → parser/validator (0 rows dropped — the keyword rule never fires on this workbook) → payments table (EXACT parity: CSV Σ 55,227,100 DZD = 891 paid rows = ledger −55,227,100) → students (390 = 390) → installments (3-tranche structure + the 0063 alignDelta reconciliation) → repositories → engines (canonical, re-verified 302 checks TS≡SQL) → components. **5 pasted claims REFUTED with evidence** (row drops / payments data loss / remise-erosion 0% / REGLEMENTS-DETTES mixing / matview split-brain) — recorded so no future agent re-chases them.
+- **The root cause statement:** the engines and the import were correct; the defects sat in the WIRING — statistics consuming empty (`.get()` races), unreachable (empty-ID queries), unscoped (no year filtering), incompletely-sliced (top-10-only feeds), or duplicate-logic (label-parsed) datasets.
+
+### 2026-09-14 — T-351 — the reactive debt/payments/students/personnel wiring (DASH-401 + DASH-406)
+
+- **What changed:** dashboard-page subscribes observeSummary() reactively (the T-243 stream pattern; the top-10 display slice kept, the FULL stream feeds the risk engine + the Pareto); the Reports tab's five export streams + parents subscribe via useObservable. 8 tests (source guards + the after-mount emission race + the families-ranked-11+ contract).
+
+### 2026-09-14 — T-352 — the school-wide grade + attendance streams (DASH-402)
+
+- **What changed:** GradeRepository.observeAll(academicYear?, term?) + AttendanceRepository.observeAll(from, to) — declared in BOTH contract modules (the duplicated-contract reality kept in lockstep), implemented in the Supabase repositories (tenant-scoped, no empty-ID filters) + the mock repositories (store parity); the Analytics tab consumes them, the `""`-ID queries deleted. 11 tests (contract lockstep, query shapes, mock parity, source guards, the engine round-trip: observeAll data → non-null GPAs).
+
+### 2026-09-14 — T-353 — the academic-year scoping for every installment-derived statistic (DASH-403)
+
+- **What changed:** ONE year semantic across three layers — the pure installmentsForAcademicYear filter (dueDate ∈ [Sept 1, Sept 1 next)) applied at the page level; SupabaseDashboardRepository.kpisForRange + debtByAgingForRange scope through the shared buildInstallmentsQuery (the KPI outstanding + the aging chart follow the year); MockDashboardRepository parity (the outstanding no longer preset-intersected, the aging no longer a void pass-through). 15 tests. LIVE: 2025-2026 = 58,354,700 / 2026-2027 = 248,000 / the windows partition the stream (global 58,602,700 = the sum).
+
+### 2026-09-14 — T-354 — the label-parsed tranche-wave twin retired (DASH-404)
+
+- **What changed:** the Financials tab's deriveTrancheWaves groups by the canonical `trancheNumber` column (the T-338 semantic — one column, every surface); the label-regex helper DELETED. The T-248 suite re-pinned + 3 new cases (the live BON labels INSCRIPTION (FI) / 2EME TRANCHE / 3ème TRANCHE group correctly — the exact rows the regex missed; transport unaffected; no-number rows excluded). LIVE: tuition T1 41.75M / T2 31.15M / T3 38.76M now reach the header (the regex saw ZERO).
+
+### 2026-09-14 — T-355 — the Departments drill-down from the REAL payments stream (DASH-405)
+
+- **What changed:** SeeDetailsModal accepts the page's range-filtered PAID payments (the same applyAnalyticsFilters ENCAISSÉ slice the Analytics tab consumes); the DepartmentsTab derives per-unit totals from REAL rows (the OPERATIONAL_UNITS mapping; unclaimed categories → 'Autres catégories'); the placeholder state deleted; the T-088 backend-method proposal superseded (§6 reuse-first — the stream existed since T-243).
+
+### 2026-09-14 — T-356 — the mock↔Supabase revenue-bucket parity (DASH-407)
+
+- **What changed:** NEW shared canonical helper buildWindowAnchoredBuckets (domain/calc/shared/dates.ts) — window-anchored labels (the requested range, or the academic-year window when absent), the house EXCLUSIVE-midnight end convention (the mock's computeRange + the KPI's .lt), a 24-bucket runaway cap; SupabaseDashboardRepository.revenueForRange consumes it (the NOW-relative drift + the silent in-window drops gone); the error path returns the honest empty series. 11 tests incl. the mock≡Supabase label parity on the same fixture.
+
+### 2026-09-14 — T-357 — the honest demographics for placeholder data (DATA-018) + DATA-017 documented
+
+- **What changed:** NEW shared pinned constant IMPORTED_BIRTH_DATE_PLACEHOLDER (domain/model/student.ts — the ONE definition, used by the importer AND both demographics implementations); NULL + the placeholder route to a 'Non renseigné' age slice in BOTH implementations; real dates bucket normally. 8 tests. DATA-017 (all 891 payments stamped with the import date — the workbook has no payment dates) documented as a data-quality boundary; no dates fabricated.
+
+### 2026-09-14 — T-358 — the closeout
+
+- **What changed:** the registries + this entry + current-state + next-task; the live leg-2 verification (6/6 GREEN: the year partition, the trancheNumber waves, the placeholder census, the aging≡outstanding consistency) + the canonical engine re-verification (302 checks TS≡SQL, the regression proof); the zips + the push.
+- **Tests/verification:** desktop at close **152 files / 3275 tests / 0 failures / 5 pre-existing skips + tsc 0 errors + eslint 0 errors** (baseline 144/3198/0). LIVE: verify_t-338_live.ts PASSED (302 checks); scripts/t-350-live-leg2.py 6/6 GREEN; scripts/t-350-excel-vs-db.py exact parity. Concurrent-agent protocol honored at every push: fetch → inspect → merge forward (never force-push) → full-gate re-run → push (the analytics-tab conflict with the 62nd session's T-345 resolved by UNION — subjectConfigurations + riskDebt both kept).
+- **New discoveries persisted:** the duplicated GradeRepository/AttendanceRepository contract (repository.ts AND academic-repository.ts — kept in lockstep, documented in the T-352 test); the semantic table (revenue = preset range; debt family = academic-year billing window; action lists = point-in-time; the ENCAISSÉ definition shared by Analytics + Departments) recorded in t-350-live-verification.md §7; the attendance-KPI "100% when no records" display-honesty residual registered in next-task.
+- **Commits (hub):** e9b6318 (T-350 registration) → 0e3fa36 + a96815c (T-351 + the merge) → d196b53 (T-352) → 9259780 (T-353) → 9362f65 (T-354) → 295b56e (T-355+T-356) → 033743a (T-357) → the T-358 closeout.
+- **Notes:** zero migrations (wiring-layer fixes only); the canonical engines untouched; the concurrent 62nd session's T-347..T-349 continue (website + Android mirrors).
+
 ## 60th session (2026-09-13) — GRADE-102: the website grades-display fix (the owner's "exam grades are recorded but the website is not displaying them" mandate) — T-336
 
 **The owner's mandate (2026-09-13):** "There is a problem with the student grades/marks shown on the website. Some exam grades have already been entered and recorded in the system, but the website is not displaying them correctly… make the website handle grades the same way as the desktop application. This includes multiple subjects, multiple exams, multiple grades… The website should correctly detect and display all of these existing records instead of missing or hiding them… fix the logic so the website correctly retrieves and displays the actual current academic data, with the same behavior and calculations as the desktop version." Live tokens supplied ("here are all the tokens you need to test if it works — make sure it works").
