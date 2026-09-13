@@ -1,10 +1,8 @@
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/settings/approvals-tab.tsx
+// ============================================================================
 /**
  * ApprovalsTab — admin UI for the web-registration → admin-approval workflow.
- *
- * Per the user's brief:
- *   "Approval workflow so that when a user registers from the website, an
- *    administrator can approve the account and assign it to the appropriate
- *    apprentice [parent/student] profile in the database."
  *
  * This tab is shown to SuperAdmin + SupportStaff. It displays:
  *   1. Pending approval requests (web visitors who signed up via Google OAuth
@@ -14,45 +12,61 @@
  *   3. The matched parent profile (if any) — found via activation_code,
  *      email, national_id, or phone lookup
  *   4. Approve / Reject buttons:
- *      - "Approve & Bind" — binds the user to the matched parent profile
- *      - "Approve & Create New Parent" — opens a form to create a new parent
- *      - "Reject" — opens a modal requiring a rejection reason
- *
- * Implementation note: This tab uses the `approvals` repository attached to
- * the Repositories object by the Supabase adapter. When running in mock mode
- * (VITE_USE_SUPABASE=false), the approvals repository is not available, so
- * the tab shows an informative "Supabase required" message instead.
+ *      - "Approuver & Lier" — manually search/select an existing parent to bind to
+ *      - "Approuver & Créer" — opens a form to create a brand new parent
+ *      - "Rejeter" — opens a modal requiring a rejection reason
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
+import { useObservable } from "../../shared/hooks/use-observable";
 import { Role } from "../../core/rbac/roles";
-import { Permission } from "../../core/rbac/permissions";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
 import { Textarea } from "../../shared/ui/textarea";
 import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "../../shared/ui/select";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { EmptyState, LoadingState } from "../../shared/layout/state-views";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import {
-  UserCheck, UserX, Clock, Mail, Phone, IdCard, KeyRound,
-  CheckCircle2, AlertTriangle, Search, RefreshCw,
+  UserCheck,
+  UserX,
+  Clock,
+  Mail,
+  Phone,
+  IdCard,
+  KeyRound,
+  CheckCircle2,
+  AlertTriangle,
+  Search,
+  RefreshCw,
+  UserPlus,
 } from "lucide-react";
 import type { RepositoriesWithApprovals } from "../../infrastructure/supabase/supabase-repositories";
 import type { PendingApprovalWithDetails } from "../../infrastructure/supabase/repositories/supabase-approval-repository";
+import { parentDisplayName, type Parent } from "../../domain/model/parent";
 
 interface ApprovalDecision {
   requestId: string;
   type: "approve_existing" | "approve_new" | "reject";
-  targetParentId?: string;
+  targetParentId?: string | null;
   newParent?: {
     first_name: string;
     last_name: string;
@@ -72,16 +86,22 @@ export function ApprovalsTab() {
   const { session } = useAuth();
   const { showSuccess, showError } = useToast();
 
+  const parents = useObservable(() => repos.parents.observe(), []);
+
   const [pending, setPending] = useState<PendingApprovalWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [decisionModal, setDecisionModal] = useState<ApprovalDecision | null>(null);
+  const [decisionModal, setDecisionModal] = useState<ApprovalDecision | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const loadPending = useCallback(async () => {
     if (!repos.approvals) {
-      setError("Supabase n'est pas configuré. Activez VITE_USE_SUPABASE=true dans .env.local pour utiliser cette fonctionnalité.");
+      setError(
+        "Supabase n'est pas configuré. Activez VITE_USE_SUPABASE=true dans .env.local pour utiliser cette fonctionnalité.",
+      );
       setIsLoading(false);
       return;
     }
@@ -101,14 +121,10 @@ export function ApprovalsTab() {
   }, [loadPending]);
 
   const handleApproveExisting = async (request: PendingApprovalWithDetails) => {
-    if (!request.parent_match) {
-      showError("Aucun parent correspondant. Utilisez 'Créer un nouveau parent'.");
-      return;
-    }
     setDecisionModal({
       requestId: request.id,
       type: "approve_existing",
-      targetParentId: request.parent_match.id,
+      targetParentId: request.parent_match?.id ?? null,
       note: "",
     });
   };
@@ -143,16 +159,26 @@ export function ApprovalsTab() {
     try {
       let result;
       if (decisionModal.type === "approve_existing") {
+        if (!decisionModal.targetParentId) {
+          showError(
+            "Veuillez sélectionner un parent existant pour l'association.",
+          );
+          setIsSubmitting(false);
+          return;
+        }
         result = await repos.approvals.approveWithExistingParent(
           decisionModal.requestId,
-          decisionModal.targetParentId!,
-          decisionModal.note
+          decisionModal.targetParentId,
+          decisionModal.note,
         );
-      } else if (decisionModal.type === "approve_new" && decisionModal.newParent) {
+      } else if (
+        decisionModal.type === "approve_new" &&
+        decisionModal.newParent
+      ) {
         result = await repos.approvals.approveWithNewParent(
           decisionModal.requestId,
           decisionModal.newParent,
-          decisionModal.note
+          decisionModal.note,
         );
       } else if (decisionModal.type === "reject") {
         if (!decisionModal.reason?.trim()) {
@@ -162,7 +188,7 @@ export function ApprovalsTab() {
         }
         result = await repos.approvals.reject(
           decisionModal.requestId,
-          decisionModal.reason
+          decisionModal.reason,
         );
       }
 
@@ -170,7 +196,7 @@ export function ApprovalsTab() {
         showSuccess(
           decisionModal.type === "reject"
             ? "Demande rejetée. L'utilisateur a été suspendu."
-            : "Compte approuvé. L'utilisateur peut maintenant se connecter."
+            : "Compte approuvé. L'utilisateur peut maintenant se connecter à son profil.",
         );
         setDecisionModal(null);
         loadPending();
@@ -183,7 +209,10 @@ export function ApprovalsTab() {
   };
 
   // RBAC check
-  if (!session || (session.role !== Role.SuperAdmin && session.role !== Role.SupportStaff)) {
+  if (
+    !session ||
+    (session.role !== Role.SuperAdmin && session.role !== Role.SupportStaff)
+  ) {
     return (
       <Card>
         <CardContent className="py-12">
@@ -219,11 +248,19 @@ export function ApprovalsTab() {
                 File d'attente ({filteredPending.length})
               </CardTitle>
               <CardDescription>
-                Les utilisateurs web s'inscrivent via Google OAuth ou email/mot de passe. Leur compte reste en attente jusqu'à approbation.
+                Les utilisateurs web s'inscrivent via Google OAuth ou email/mot
+                de passe. Leur compte reste en attente jusqu'à approbation.
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={loadPending} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadPending}
+              disabled={isLoading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+              />
               Rafraîchir
             </Button>
           </div>
@@ -241,10 +278,12 @@ export function ApprovalsTab() {
           {isLoading ? (
             <LoadingState message="Chargement des demandes..." />
           ) : error ? (
-            <div className="py-8 text-center text-destructive">
+            <div className="py-8 text-center text-status-danger">
               <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
               <p className="mb-3">{error}</p>
-              <Button variant="outline" size="sm" onClick={loadPending}>Réessayer</Button>
+              <Button variant="outline" size="sm" onClick={loadPending}>
+                Réessayer
+              </Button>
             </div>
           ) : filteredPending.length === 0 ? (
             <EmptyState
@@ -271,6 +310,7 @@ export function ApprovalsTab() {
       {decisionModal && (
         <DecisionModal
           decision={decisionModal}
+          parents={parents}
           isSubmitting={isSubmitting}
           onChange={setDecisionModal}
           onSubmit={submitDecision}
@@ -298,10 +338,12 @@ function ApprovalRequestCard({
 }) {
   const requestedAt = new Date(request.requested_at);
   const expiresAt = new Date(request.expires_at);
-  const daysUntilExpiry = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const daysUntilExpiry = Math.ceil(
+    (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+  );
 
   return (
-    <div className="border rounded-lg p-4 space-y-3 bg-card">
+    <div className="border rounded-lg p-4 space-y-3 bg-card hover:border-primary/50 transition-colors">
       {/* Header: email + status + expiry */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -309,17 +351,23 @@ function ApprovalRequestCard({
             <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="font-medium truncate">{request.email}</span>
             <Badge variant="outline" className="flex-shrink-0">
-              {request.requested_role === "parent" ? "Parent" : request.requested_role === "student" ? "Élève" : "Personnel"}
+              {request.requested_role === "parent"
+                ? "Parent"
+                : request.requested_role === "student"
+                  ? "Élève"
+                  : "Personnel"}
             </Badge>
           </div>
           {request.full_name && (
-            <div className="text-sm text-muted-foreground ml-6">{request.full_name}</div>
+            <div className="text-sm text-muted-foreground ml-6">
+              {request.full_name}
+            </div>
           )}
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <StatusChip tone="warning" label="En attente" />
           {daysUntilExpiry <= 2 && (
-            <span className="text-xs text-destructive">
+            <span className="text-xs text-status-danger font-medium">
               Expire dans {daysUntilExpiry}j
             </span>
           )}
@@ -332,7 +380,9 @@ function ApprovalRequestCard({
           <div className="flex items-center gap-2">
             <KeyRound className="h-3 w-3 text-muted-foreground" />
             <span className="text-muted-foreground">Code:</span>
-            <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{request.activation_code}</code>
+            <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+              {request.activation_code}
+            </code>
           </div>
         )}
         {request.phone && (
@@ -344,7 +394,9 @@ function ApprovalRequestCard({
         {request.national_id && (
           <div className="flex items-center gap-2">
             <IdCard className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">NN: {request.national_id}</span>
+            <span className="text-muted-foreground">
+              NN: {request.national_id}
+            </span>
           </div>
         )}
         <div className="text-muted-foreground">
@@ -360,44 +412,42 @@ function ApprovalRequestCard({
 
       {/* Match info */}
       {request.parent_match ? (
-        <div className="bg-green-500/10 border border-green-500/30 rounded p-3 text-sm">
-          <div className="flex items-center gap-2 font-medium text-green-700 dark:text-green-400 mb-1">
+        <div className="bg-status-success/10 border border-status-success/30 rounded p-3 text-sm">
+          <div className="flex items-center gap-2 font-medium text-status-success mb-1">
             <CheckCircle2 className="h-4 w-4" />
-            Parent correspondant trouvé
+            Correspondance détectée par le système
           </div>
           <div className="text-muted-foreground">
-            {request.parent_match.parent_code} — {request.parent_match.last_name} {request.parent_match.first_name}
+            {request.parent_match.parent_code} —{" "}
+            {request.parent_match.last_name} {request.parent_match.first_name}
             {request.parent_match.email && ` · ${request.parent_match.email}`}
           </div>
         </div>
       ) : (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded p-3 text-sm">
-          <div className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">
+        <div className="bg-status-warning/10 border border-status-warning/30 rounded p-3 text-sm">
+          <div className="flex items-center gap-2 font-medium text-status-warning">
             <AlertTriangle className="h-4 w-4" />
-            Aucun parent correspondant — un nouveau profil sera créé
+            Aucun parent correspondant détecté automatiquement
           </div>
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-2 pt-2 border-t">
-        {request.parent_match ? (
-          <Button size="sm" onClick={onApproveExisting}>
-            <UserCheck className="h-4 w-4 mr-2" />
-            Approuver & Lier
-          </Button>
-        ) : (
-          <Button size="sm" onClick={onApproveNew}>
-            <UserCheck className="h-4 w-4 mr-2" />
-            Approuver & Créer un parent
-          </Button>
-        )}
-        {request.parent_match && (
-          <Button size="sm" variant="outline" onClick={onApproveNew}>
-            Créer un nouveau parent
-          </Button>
-        )}
-        <Button size="sm" variant="destructive" onClick={onReject} className="ml-auto">
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50 mt-2">
+        <Button size="sm" onClick={onApproveExisting}>
+          <UserCheck className="h-4 w-4 mr-2" />
+          Approuver & Lier à un existant
+        </Button>
+        <Button size="sm" variant="outline" onClick={onApproveNew}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Créer un nouveau parent
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onReject}
+          className="ml-auto text-status-danger hover:bg-status-danger/10 hover:text-status-danger"
+        >
           <UserX className="h-4 w-4 mr-2" />
           Rejeter
         </Button>
@@ -412,20 +462,47 @@ function ApprovalRequestCard({
 
 function DecisionModal({
   decision,
+  parents,
   isSubmitting,
   onChange,
   onSubmit,
   onCancel,
 }: {
   decision: ApprovalDecision;
+  parents: readonly Parent[];
   isSubmitting: boolean;
   onChange: (d: ApprovalDecision) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const [parentQuery, setParentQuery] = useState("");
+
   const isReject = decision.type === "reject";
   const isApproveNew = decision.type === "approve_new";
-  const title = isReject ? "Rejeter la demande" : isApproveNew ? "Approuver & créer un parent" : "Approuver & lier au parent";
+  const isApproveExisting = decision.type === "approve_existing";
+
+  const title = isReject
+    ? "Rejeter la demande"
+    : isApproveNew
+      ? "Approuver & Créer un profil parent"
+      : "Approuver & Lier au parent existant";
+
+  const selectedParent = decision.targetParentId
+    ? parents.find((p) => p.id === decision.targetParentId)
+    : null;
+
+  const filteredParents = useMemo(() => {
+    if (!parentQuery.trim()) return parents.slice(0, 8);
+    const q = parentQuery.toLowerCase();
+    return parents
+      .filter(
+        (p) =>
+          parentDisplayName(p).toLowerCase().includes(q) ||
+          p.phone.includes(q) ||
+          p.code.toLowerCase().includes(q),
+      )
+      .slice(0, 8);
+  }, [parents, parentQuery]);
 
   return (
     <UnifiedModal
@@ -438,74 +515,186 @@ function DecisionModal({
       iconTone={isReject ? "danger" : "success"}
       submitLoading={isSubmitting}
       onSubmit={onSubmit}
-      submitLabel={isReject ? "Rejeter" : "Approuver"}
+      submitLabel={isReject ? "Rejeter" : "Confirmer l'approbation"}
       submitVariant={isReject ? "destructive" : "default"}
       cancelLabel="Annuler"
-      alert={isReject ? {
-        tone: "warning",
-        title: "Le compte utilisateur sera suspendu",
-        description: "L'utilisateur ne pourra pas se connecter après le rejet.",
-      } : null}
+      alert={
+        isReject
+          ? {
+              tone: "warning",
+              title: "Le compte utilisateur sera suspendu",
+              description:
+                "L'utilisateur ne pourra pas se connecter après le rejet.",
+            }
+          : null
+      }
     >
+      {/* Existing Parent Linking Form */}
+      {isApproveExisting && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Sélectionnez le dossier parent auquel cet utilisateur doit être
+            associé. Aucune nouvelle donnée ne sera dupliquée en base.
+          </p>
+          <FormField label="Parent cible" required>
+            {selectedParent ? (
+              <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {parentDisplayName(selectedParent)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedParent.code} · {selectedParent.phone}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    onChange({ ...decision, targetParentId: null })
+                  }
+                >
+                  Changer
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    autoFocus
+                    value={parentQuery}
+                    onChange={(e) => setParentQuery(e.target.value)}
+                    placeholder="Rechercher un parent (nom, code, tél)..."
+                    className="pl-8"
+                  />
+                </div>
+                {filteredParents.length > 0 && (
+                  <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
+                    {filteredParents.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onChange({ ...decision, targetParentId: p.id })
+                          }
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-accent/5"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {parentDisplayName(p)}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground font-mono">
+                              {p.code}
+                            </p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {p.phone}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {filteredParents.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    Aucun parent trouvé.
+                  </p>
+                )}
+              </div>
+            )}
+          </FormField>
+        </div>
+      )}
+
+      {/* New Parent Form */}
       {isApproveNew && decision.newParent && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Créez un nouveau profil parent. L'utilisateur sera automatiquement lié à ce profil.
+            Un nouveau profil parent va être créé. L'utilisateur web sera
+            automatiquement lié à ce dossier.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Prénom" required>
               <Input
                 value={decision.newParent.first_name}
-                onChange={(e) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, first_name: e.target.value },
-                })}
+                onChange={(e) =>
+                  onChange({
+                    ...decision,
+                    newParent: {
+                      ...decision.newParent!,
+                      first_name: e.target.value,
+                    },
+                  })
+                }
               />
             </FormField>
             <FormField label="Nom" required>
               <Input
                 value={decision.newParent.last_name}
-                onChange={(e) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, last_name: e.target.value },
-                })}
+                onChange={(e) =>
+                  onChange({
+                    ...decision,
+                    newParent: {
+                      ...decision.newParent!,
+                      last_name: e.target.value,
+                    },
+                  })
+                }
               />
             </FormField>
             <FormField label="Téléphone principal" required>
               <Input
                 value={decision.newParent.primary_phone}
-                onChange={(e) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, primary_phone: e.target.value },
-                })}
+                onChange={(e) =>
+                  onChange({
+                    ...decision,
+                    newParent: {
+                      ...decision.newParent!,
+                      primary_phone: e.target.value,
+                    },
+                  })
+                }
               />
             </FormField>
             <FormField label="Email">
               <Input
                 type="email"
                 value={decision.newParent.email ?? ""}
-                onChange={(e) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, email: e.target.value },
-                })}
+                onChange={(e) =>
+                  onChange({
+                    ...decision,
+                    newParent: {
+                      ...decision.newParent!,
+                      email: e.target.value,
+                    },
+                  })
+                }
               />
             </FormField>
             <FormField label="NN (National ID)">
               <Input
                 value={decision.newParent.national_id ?? ""}
-                onChange={(e) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, national_id: e.target.value },
-                })}
+                onChange={(e) =>
+                  onChange({
+                    ...decision,
+                    newParent: {
+                      ...decision.newParent!,
+                      national_id: e.target.value,
+                    },
+                  })
+                }
               />
             </FormField>
             <FormField label="Relation">
               <Select
                 value={decision.newParent.relationship ?? "father"}
-                onValueChange={(v) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, relationship: v },
-                })}
+                onValueChange={(v) =>
+                  onChange({
+                    ...decision,
+                    newParent: { ...decision.newParent!, relationship: v },
+                  })
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -521,25 +710,33 @@ function DecisionModal({
             <FormField label="Adresse" className="col-span-2">
               <Input
                 value={decision.newParent.address ?? ""}
-                onChange={(e) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, address: e.target.value },
-                })}
+                onChange={(e) =>
+                  onChange({
+                    ...decision,
+                    newParent: {
+                      ...decision.newParent!,
+                      address: e.target.value,
+                    },
+                  })
+                }
               />
             </FormField>
             <FormField label="Ville">
               <Input
                 value={decision.newParent.city ?? ""}
-                onChange={(e) => onChange({
-                  ...decision,
-                  newParent: { ...decision.newParent!, city: e.target.value },
-                })}
+                onChange={(e) =>
+                  onChange({
+                    ...decision,
+                    newParent: { ...decision.newParent!, city: e.target.value },
+                  })
+                }
               />
             </FormField>
           </div>
         </div>
       )}
 
+      {/* Reject Form */}
       {isReject && (
         <FormField label="Raison du rejet" required>
           <Textarea
@@ -551,13 +748,14 @@ function DecisionModal({
         </FormField>
       )}
 
+      {/* Shared Note */}
       {!isReject && (
-        <FormField label="Note (optionnel)">
+        <FormField label="Note interne (optionnelle)">
           <Textarea
             value={decision.note ?? ""}
             onChange={(e) => onChange({ ...decision, note: e.target.value })}
-            placeholder="Note interne pour audit..."
-            rows={3}
+            placeholder="Note d'audit conservée avec l'approbation..."
+            rows={2}
           />
         </FormField>
       )}
@@ -579,7 +777,7 @@ function FormField({
   return (
     <div className={className}>
       <Label className="text-xs font-medium mb-1 block">
-        {label} {required && <span className="text-destructive">*</span>}
+        {label} {required && <span className="text-status-danger">*</span>}
       </Label>
       {children}
     </div>
