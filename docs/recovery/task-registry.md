@@ -2926,3 +2926,20 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 - **Status:** VERIFIED (2026-09-13) — the full live round-trip 16/16 GREEN (scripts/t-332-approval-e2e.py, evidence docs/recovery/t-332-live-verification.md): website registration → 0002-trigger pending request → admin sign-in → EF approve WITH target_parent_id → request approved + parents.auth_user_id bound + profile active + parent role assigned + parent.bind audit written + ZERO duplicate parents/students/installments/payments/ledger-entries (261/391/1280/903/2056 before AND after) + the portal login path resolves the EXISTING parent + child under the user's own RLS + zero-residue cleanup. Coverage/history probes 9/9 + 1/1 GREEN (scripts/t-332-coverage-probe.py).
 - **Scope:** live backend E2E + documentation closeout.
+
+### T-333 — 59th session: the exhaustive per-service pricing profile on the website (DATA-016) — canonical derivation + pricing-catalog reads + the expandable detail card
+
+- **Status:** IN_PROGRESS (2026-09-13, 59th session)
+- **Scope:** website (src/lib/canonical/service-pricing-profile.ts NEW + portal-queries pricing-catalog hook + typed schema extension + financial-view per-service card detail + dictionary keys ×3 + tests).
+- **Depends on:** T-330 (payment-coverage canonical chain — unchanged), T-168 (byService derivation — extended additively), CALC-001 real price matrix (the live catalog).
+
+### T-334 — 59th session: the desktop verbatim half (DATA-016) — domain/calc/payment/service-pricing-profile.ts + the parent-detail-drawer per-service detail
+
+- **Status:** IN_PROGRESS (2026-09-13, 59th session)
+- **Scope:** desktop (domain/calc/payment/service-pricing-profile.ts NEW + parent-detail-drawer Facturation per-service expansion + tests pinning the same fixtures as the website suite).
+- **Depends on:** T-333 (the shared profile shape), PricingConfig repository (T-047/supabase-pricing-repository).
+
+### T-335 — 59th session: LIVE verification + closeout (registries, change-log, zips, push)
+
+- **Status:** IN_PROGRESS (2026-09-13, 59th session)
+- **Scope:** live probe (parent JWT reads the pricing catalog under RLS; the ALIOUAT family's tuition profile derives exhaustively: year, level 4am, catalog 340 000 vs devis 350 000, FI/V2/2V schedule, remise −20 000, provenance) + full suites both repos + docs + commits + push + zip.
