@@ -192,6 +192,16 @@ export interface SubjectRepository {
 export interface GradeRepository {
   observeForStudent(studentId: string): Observable<Assessment[]>;
   observeForClass(classId: string, academicYear?: string, term?: string): Observable<Assessment[]>;
+  /**
+   * T-352 (DASH-402): school-wide assessment stream (tenant-scoped).
+   * The Analytics tab's risk engine needs EVERY student's marks; the
+   * previous wiring queried `observeForClass("")` — a literal empty-UUID
+   * filter matching ZERO rows (the whole Diagnostic Actif surface showed
+   * GPA "—" while marks existed). Semantics: `academicYear`/`term` are
+   * optional filters exactly as on observeForClass; no filters = the
+   * entire tenant catalogue.
+   */
+  observeAll(academicYear?: string, term?: string): Observable<Assessment[]>;
   enterGrade(input: GradeEntryInput): Promise<Result<Assessment>>;
   enterGradesBatch(inputs: ReadonlyArray<GradeEntryInput>): Promise<Result<Assessment[]>>;
 }
@@ -205,6 +215,15 @@ export interface AttendanceRepository {
    */
   observeByClassRange(classId: string, from: string, to: string): Observable<AttendanceRecord[]>;
   observeByStudent(studentId: string, from: string, to: string): Observable<AttendanceRecord[]>;
+  /**
+   * T-352 (DASH-402): school-wide attendance stream over [from, to]
+   * (tenant-scoped). The Analytics tab's risk engine previously called
+   * `observeByStudent("", …)` — an empty-UUID filter matching ZERO rows,
+   * so `calculateAttendanceRate([])` defaulted every student to 100%
+   * (§WEAK-019 family inversion: missing data rendered as PERFECT
+   * attendance).
+   */
+  observeAll(from: string, to: string): Observable<AttendanceRecord[]>;
   recordRollCall(input: {
     classId: string;
     date: string;

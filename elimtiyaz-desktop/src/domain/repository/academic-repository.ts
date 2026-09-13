@@ -117,6 +117,12 @@ export type GradeEntryInput = Omit<
 export interface GradeRepository {
   observeForStudent(studentId: string): Observable<Assessment[]>;
   observeForClass(classId: string, academicYear?: string, term?: string): Observable<Assessment[]>;
+  /**
+   * T-352 (DASH-402): school-wide assessment stream (tenant-scoped) —
+   * mirrors repository.ts's GradeRepository.observeAll (the contract is
+   * declared in both modules; keep them in lockstep).
+   */
+  observeAll(academicYear?: string, term?: string): Observable<Assessment[]>;
   enterGrade(input: GradeEntryInput): Promise<Result<Assessment>>;
   enterGradesBatch(inputs: ReadonlyArray<GradeEntryInput>): Promise<Result<Assessment[]>>;
 }
@@ -130,6 +136,11 @@ export interface AttendanceRepository {
    */
   observeByClassRange(classId: string, from: string, to: string): Observable<AttendanceRecord[]>;
   observeByStudent(studentId: string, fromDate: string, toDate: string): Observable<AttendanceRecord[]>;
+  /**
+   * T-352 (DASH-402): school-wide attendance stream over [from, to]
+   * (tenant-scoped) — mirrors repository.ts's AttendanceRepository.observeAll.
+   */
+  observeAll(from: string, to: string): Observable<AttendanceRecord[]>;
   recordRollCall(input: {
     classId: string;
     date: string; // YYYY-MM-DD

@@ -3089,7 +3089,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-352 — 63rd session: school-wide grade + attendance streams (DASH-402)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — 11 new t-352 tests; full suite 148 files / 3237 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-402
 - **Scope:** `GradeRepository.observeAll()` + `AttendanceRepository.observeAll()` added to the contract, the Supabase repositories (tenant-scoped, ordered), and the mock repositories (store-derived — parity); `analytics-tab.tsx` consumes them (the `""`-ID queries deleted). Tests: Supabase query shape + mock parity + the analytics tab feeding non-empty assessment/attendance into `evaluateStudentRiskProfiles`.
 - **Depends on:** T-350.

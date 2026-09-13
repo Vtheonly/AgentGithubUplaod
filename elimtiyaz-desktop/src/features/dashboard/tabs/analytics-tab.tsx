@@ -105,8 +105,19 @@ export function AnalyticsTab({
     () => repos.subjects.observeConfigurations(),
     [],
   );
-  const assessments = useObservable(() => repos.grades.observeForClass(""), []);
-  const attendance = useObservable(() => repos.attendance.observeByStudent("", "2020-01-01", "2030-12-31"), []);
+  // T-352 (DASH-402): the SCHOOL-WIDE streams. The previous wiring passed
+  // "" as classId/studentId to observeForClass/observeByStudent — the
+  // repositories build literal `.eq("class_id", "")` /
+  // `.eq("student_id", "")` filters (a UUID column vs an empty string —
+  // ZERO rows in Supabase mode; `classId === ""` — also zero in mock
+  // mode), so every GPA rendered "—" and calculateAttendanceRate([])
+  // defaulted every student to 100% attendance. The observeAll streams
+  // return the real tenant catalogue.
+  const assessments = useObservable(() => repos.grades.observeAll(), []);
+  const attendance = useObservable(
+    () => repos.attendance.observeAll(range?.from ?? "2020-01-01", range?.to ?? "2030-12-31"),
+    [range?.from, range?.to],
+  );
   const installments = useObservable(() => repos.installments.observe(), []);
   const ledger = useObservable(() => repos.ledger.observe(), []);
 

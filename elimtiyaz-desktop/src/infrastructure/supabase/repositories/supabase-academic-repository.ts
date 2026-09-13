@@ -822,6 +822,34 @@ export class SupabaseGradeRepository implements GradeRepository {
     return sub;
   }
 
+  /**
+   * T-352 (DASH-402): the school-wide assessment stream. The Analytics
+   * tab's risk engine previously queried `observeForClass("")` — a
+   * literal empty-UUID filter matching ZERO rows, so every GPA rendered
+   * "—" and every risk category collapsed to "healthy". This method
+   * returns EVERY tenant assessment (optionally narrowed by year/term —
+   * same optional filters as observeForClass).
+   */
+  observeAll(
+    academicYear?: string,
+    term?: string,
+  ): Observable<Assessment[]> {
+    const sub = new SubjectBehavior<Assessment[]>([]);
+    const fetchAllGrades = async () => {
+      let query = this.client
+        .from("assessments")
+        .select("*")
+        .eq("tenant_id", getTenantId() ?? "");
+      if (academicYear) query = query.eq("academic_year", academicYear);
+      if (term) query = query.eq("term", term);
+
+      const { data } = await query.order("entered_at", { ascending: false });
+      if (data) sub.set(data.map(mapAssessmentRow));
+    };
+    fetchAllGrades();
+    return sub;
+  }
+
   async enterGrade(input: GradeEntryInput): Promise<Result<Assessment>> {
     // FIX (vault §04.07 — append-only history): refuse writes to archived
     // academic years, mirroring the mock repository and the backend rule.
@@ -1023,6 +1051,32 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
       if (data) sub.set(data.map(mapAttendanceRow));
     };
     fetchStudentAttendance();
+    return sub;
+  }
+
+  /**
+   * T-352 (DASH-402): the school-wide attendance stream over [from, to].
+   * The Analytics tab's risk engine previously queried
+   * `observeByStudent("", …)` — an empty-UUID filter matching ZERO rows,
+   * so `calculateAttendanceRate([])` defaulted every student to 100%
+   * (missing data rendered as PERFECT attendance — the WEAK-019 family
+   * inversion). Tenant-scoped; ordered newest-first like the sibling
+   * methods.
+   */
+  observeAll(from: string, to: string): Observable<AttendanceRecord[]> {
+    const sub = new SubjectBehavior<AttendanceRecord[]>([]);
+    const fetchAllAttendance = async () => {
+      const { data } = await this.client
+        .from("attendance_records")
+        .select("*")
+        .eq("tenant_id", getTenantId() ?? "")
+        .gte("record_date", from)
+        .lte("record_date", to)
+        .order("record_date", { ascending: false });
+
+      if (data) sub.set(data.map(mapAttendanceRow));
+    };
+    fetchAllAttendance();
     return sub;
   }
 
