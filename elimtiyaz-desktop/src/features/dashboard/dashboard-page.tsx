@@ -53,7 +53,9 @@ import {
 } from "./tabs/types";
 import type { Payment, Installment } from "../../domain/model/payment";
 import {
+  applyAnalyticsFilters,
   installmentsForAcademicYear,
+  NO_ANALYTICS_FILTERS,
   previousAcademicYear,
   shiftIsoYearBack,
 } from "./components/analytics/analytics-derivations";
@@ -236,6 +238,16 @@ export function DashboardPage() {
     [installments, yearRange.academicYear],
   );
 
+  // T-355 (DASH-405): the drill-down modal's Departments tab consumes the
+  // SAME paid + range-filtered slice the Analytics tab derives (the
+  // ENCAISSÉ definition — applyAnalyticsFilters with no slicer selection).
+  // One derivation, two surfaces; the Departments total reconciles with
+  // the Revenue tab by construction.
+  const rangePayments = useMemo(
+    () => applyAnalyticsFilters(payments, yearRange.range, NO_ANALYTICS_FILTERS),
+    [payments, yearRange.range],
+  );
+
   // Unread alerts — keep the tab badge current without making the
   // Overview depend on the alerts observable (decoupling preserves the
   // single-fetch model above).
@@ -370,12 +382,15 @@ export function DashboardPage() {
       </PageTabs>
 
       {/* The drill-down modal receives the SAME data the Overview shows.
-          No re-fetch on open; no chance of drift between the two views. */}
+          No re-fetch on open; no chance of drift between the two views.
+          T-355: + the range-filtered paid payments (the Departments tab's
+          per-unit breakdown — the stream the page holds since T-243). */}
       <SeeDetailsModal
         open={seeDetailsOpen}
         onOpenChange={setSeeDetailsOpen}
         initialTab={seeDetailsTab}
         data={dataProp}
+        payments={rangePayments}
       />
     </div>
   );

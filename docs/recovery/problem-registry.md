@@ -4758,7 +4758,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Task:** T-355
 - **Discovered:** 2026-09-14 (63rd session). The modal's comment says the page "exposes revenue as RevenuePoint[]" — stale: since T-243 the page subscribes to the full canonical `payments` stream for the weekly-rhythm chart; the DepartmentsTab was never migrated onto it. No new backend method is needed (the T-088 comment's proposed `DashboardRepository.revenueByCategory()` is superseded by simply passing the existing stream and deriving per-category totals client-side — a pure display aggregation, not a business rule).
 - **Resolution:** pass `payments` (already filtered by the page range for consistency with the Revenue tab) into the modal; derive per-operational-unit totals from the REAL rows; delete the placeholder state.
-- **Status:** OPEN — registered before the fix (T-355).
+- **Status:** CLOSED (TESTED, 2026-09-14 — T-355): the modal receives the page's range-filtered PAID payments (the same applyAnalyticsFilters slice the Analytics tab consumes); the DepartmentsTab derives per-operational-unit totals from REAL rows (the OPERATIONAL_UNITS category mapping), unclaimed categories surface as 'Autres catégories', the placeholder state is deleted. The T-088 proposal for a new backend method is superseded (§6 reuse-first — the stream existed since T-243).
 
 ### DASH-406 — the Reports tab reads every observable with synchronous `.get()` inside the click handler (`payments`, `debt.observeSummary`, `students`, `personnel`): an export clicked before the async seeds complete writes an EMPTY or PARTIAL XLSX
 
@@ -4778,7 +4778,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Task:** T-356
 - **Discovered:** 2026-09-14 (63rd session). The mock walks a cursor from `range.from` to `range.to` (academic-year-aligned labels); the Supabase version uses `buildMonthlyBuckets(new Date(), 12)` (NOW-anchored labels) then drops every payment outside those buckets even when it is inside the requested range.
 - **Resolution:** the Supabase implementation mirrors the mock's range-anchored bucket walk (the mock is the reference convention — its labels match the academic-year window the page requested).
-- **Status:** OPEN — registered before the fix (T-356).
+- **Status:** CLOSED (TESTED, 2026-09-14 — T-356): NEW shared canonical helper buildWindowAnchoredBuckets (domain/calc/shared/dates.ts) — buckets anchored to the REQUESTED window (range, or the academic-year billing window when absent), exclusive midnight end (the house convention: the mock's computeRange + the KPI's .lt), 24-bucket runaway cap; SupabaseDashboardRepository.revenueForRange consumes it — the NOW-relative last-12-months drift and the silent in-window drops are gone; the error path returns the honest empty series. The parity test pins mock≡Supabase label conventions on the same fixture.
 
 ### DATA-017 — every imported payment carries the IMPORT TIMESTAMP, not a business date: all 891 Excel payments are stamped 2026-08-11 (the import execution date) — monthly revenue, YoY, best-month, and weekly-rhythm charts degenerate into a single-month spike
 

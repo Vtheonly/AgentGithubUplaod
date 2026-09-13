@@ -3116,7 +3116,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-355 — 63rd session: the Departments drill-down from the REAL payments stream (DASH-405)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — the t-355/t-356 suite 11/11; full suite 151 files / 3267 / 0; tsc 0; eslint 0 errors)
 - **Problems:** DASH-405
 - **Scope:** `dashboard-page.tsx` passes the payments stream (range-filtered) to `SeeDetailsModal`; `DepartmentsTab` derives per-operational-unit totals from REAL rows (category→unit map), placeholder state deleted. Tests: the category→unit mapping, range filtering, honest zero state.
 - **Depends on:** T-350.
@@ -3125,7 +3125,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-356 — 63rd session: mock↔Supabase revenue-bucket parity (DASH-407)
 
-- **Status:** Ready
+- **Status:** Completed (TESTED — the shared buildWindowAnchoredBuckets helper + the query-shape and parity tests; full suite 151 files / 3267 / 0)
 - **Problems:** DASH-407
 - **Scope:** `SupabaseDashboardRepository.revenueForRange` builds buckets anchored to the requested range (the mock's convention) instead of NOW-relative last-12-months; out-of-bucket dropping removed. Tests: same fixture through mock + Supabase shapes → identical labels/amounts (the §15.15 tell).
 - **Depends on:** T-350.

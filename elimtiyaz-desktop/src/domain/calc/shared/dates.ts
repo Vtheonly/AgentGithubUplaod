@@ -114,3 +114,49 @@ export function buildMonthlyBuckets(
   }
   return buckets;
 }
+
+/**
+ * T-356 (DASH-407): month buckets anchored to a REQUESTED window — the
+ * convention `MockDashboardRepository.revenueForRange` always used (the
+ * reference implementation). A cursor walks from the window's first month
+ * to its last (inclusive); every payment lands in the bucket of its own
+ * calendar month and NOTHING in-window is dropped. Guards: a window whose
+ * end precedes its start yields []; a runaway window (custom range > 24
+ * months) is capped at 24 buckets so a bad input can't generate an
+ * unbounded series.
+ */
+export function buildWindowAnchoredBuckets(
+  window: { from: string; to: string } | null | undefined,
+  payments: ReadonlyArray<{ amount: number | string; collectedAt: string }> = [],
+): Array<{ label: string; year: number; month: number; amount: number }> {
+  if (!window) return [];
+  const fromMs = Date.parse(`${window.from.slice(0, 10)}T00:00:00Z`);
+  // EXCLUSIVE end at the to-date's midnight — the mock's cursor semantics
+  // (`while (cursor < toMs)`): "to: 2026-09-01" yields Sep 2025..Août 2026
+  // (12 buckets, the academic year), while "to: 2026-03-31" still includes
+  // March (Mar 1 < Mar 31 midnight). Payments on the window's last day
+  // still land — bucketing is by calendar month, not by timestamp bound.
+  const toMs = Date.parse(`${window.to.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(fromMs) || Number.isNaN(toMs) || toMs <= fromMs) return [];
+
+  const buckets: Array<{ label: string; year: number; month: number; amount: number }> = [];
+  const cursor = new Date(fromMs);
+  cursor.setUTCDate(1);
+  while (cursor.getTime() < toMs && buckets.length < 24) {
+    buckets.push({
+      label: MONTH_LABELS_FR[cursor.getUTCMonth()],
+      year: cursor.getUTCFullYear(),
+      month: cursor.getUTCMonth(),
+      amount: 0,
+    });
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  for (const p of payments) {
+    const t = Date.parse(p.collectedAt);
+    if (Number.isNaN(t)) continue;
+    const d = new Date(t);
+    const bucket = buckets.find((b) => b.year === d.getUTCFullYear() && b.month === d.getUTCMonth());
+    if (bucket) bucket.amount += Number(p.amount) || 0;
+  }
+  return buckets;
+}

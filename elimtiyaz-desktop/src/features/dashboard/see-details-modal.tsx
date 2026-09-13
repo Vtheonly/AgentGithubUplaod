@@ -53,6 +53,7 @@ import type {
   RevenuePoint,
   DebtByAgingBucket,
 } from "../../domain/model/operations";
+import type { Payment } from "../../domain/model/payment";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import {
   AGING_BUCKET_LABELS_FR,
@@ -191,6 +192,7 @@ export function SeeDetailsModal({
   onOpenChange,
   initialTab = "revenue",
   data,
+  payments = [],
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -198,6 +200,13 @@ export function SeeDetailsModal({
   initialTab?: "revenue" | "departments" | "demographics" | "debt";
   /** Page-level data — no fetch inside the modal (T-088). */
   data: DashboardData;
+  /**
+   * T-355 (DASH-405): the canonical payments stream (the page's, already
+   * range-filtered + paid-only) — feeds the Departments tab's per-unit
+   * breakdown. Optional for back-compat (absent = the honest empty state
+   * that the tab rendered before).
+   */
+  payments?: readonly Payment[];
 }) {
   const { t } = useTranslation();
 
@@ -384,7 +393,7 @@ export function SeeDetailsModal({
           {/* T-088: Departments derives its breakdown from the page-level
               revenue series via the canonical `revenueByCategory` helper.
               No more `repos.payments.observe().get()` Mock-only leak. */}
-          <DepartmentsTab data={data} />
+          <DepartmentsTab data={data} payments={payments} />
         </PageTabContent>
 
         <PageTabContent value="demographics">
@@ -667,41 +676,27 @@ export function SeeDetailsModal({
   );
 }
 
-/**
- * DepartmentsTab — derives its per-category breakdown from the page-level
- * revenue series via the canonical `revenueByCategory` helper.
- *
- * T-088 fix: BEFORE this used `repos.payments.observe().get()` which is
- * the local cached observable. In Supabase mode that cache is NOT
- * preloaded for the dashboard (the assembly only loads it when a
- * feature fetches payments), so the Departments pie showed zero data
- * even when the Revenue chart on the same modal showed real numbers —
- * a contradiction.
- *
- * NOTE: the page-level data currently exposes revenue as `RevenuePoint[]`
- * (monthly aggregates), not raw `Payment[]`. To keep the
- * single-source-of-truth model intact WITHOUT another fetch, the
- * Departments tab surfaces an honest empty state explaining WHY the
- * breakdown is unavailable, instead of fabricating data from a different
- * cache (which was the bug). The real per-category breakdown belongs in a
- * new `DashboardRepository.revenueByCategory()` method (a backend change,
- * not a UI shortcut).
- */
-function DepartmentsTab({ data }: { data: DashboardData }) {
-  // The DashboardData shape the page passes doesn't include raw
-  // `Payment[]`. Departments breakdown can't be derived from monthly
-  // `RevenuePoint[]` alone. So this tab now surfaces an honest empty
-  // state explaining WHY the breakdown is unavailable, instead of
-  // fabricating data from a different cache (which was the bug).
-  //
-  // This is the correct fix per AGENTS.md §15: "Never add a second
-  // implementation of a rule that exists". The real per-category
-  // breakdown belongs in a new `DashboardRepository.revenueByCategory()`
-  // method (a backend addition, not a UI shortcut).
-  const hasRevenueData =
-    data.revenue.length > 0 && data.revenue.some((r) => r.amount > 0);
-  const annualTotal = data.revenue.reduce((s, r) => s + r.amount, 0);
 
+/**
+ * DepartmentsTab — the per-operational-unit revenue breakdown, derived from
+ * the page-level canonical payments stream (T-355, 63rd session — DASH-405).
+ *
+ * History: T-088 replaced a `repos.payments.observe().get()` Mock-only read
+ * with an honest empty state + a comment proposing a new backend method
+ * (`DashboardRepository.revenueByCategory()`). That proposal is superseded:
+ * since T-243 the page ALREADY holds the canonical payments stream (one
+ * subscription), so the breakdown is a PURE display aggregation of rows the
+ * page already loaded — no new backend contract needed (§6 reuse-first).
+ * The payments arrive already paid-only + range-filtered (the same
+ * `applyAnalyticsFilters` slice the Analytics tab consumes — the ENCAISSÉ
+ * definition), so the Departments total reconciles with the Revenue tab.
+ */
+function DepartmentsTab({
+  payments,
+}: {
+  data: DashboardData;
+  payments: readonly Payment[];
+}) {
   /** Resolve a design-token CSS variable (plan §03; T-246 palette). */
   const token = (name: string, fallback: string): string => {
     try {
@@ -715,6 +710,23 @@ function DepartmentsTab({ data }: { data: DashboardData }) {
     }
   };
 
+  // T-355: per-unit totals from the REAL payments (the page's
+  // range-filtered paid slice). Categories not claimed by any unit land
+  // in the "Autres catégories" row — never silently dropped.
+  const unitsWithTotals = OPERATIONAL_UNITS.map((u) => {
+    const amount = payments
+      .filter((p) => u.categories.includes(p.category))
+      .reduce((s, p) => s + p.amount, 0);
+    return { ...u, amount };
+  });
+  const claimed = new Set(OPERATIONAL_UNITS.flatMap((u) => u.categories));
+  const otherAmount = payments
+    .filter((p) => !claimed.has(p.category))
+    .reduce((s, p) => s + p.amount, 0);
+  const grandTotal =
+    unitsWithTotals.reduce((s, u) => s + u.amount, 0) + otherAmount;
+  const hasData = payments.length > 0 && grandTotal > 0;
+
   return (
     <div className="space-y-4">
       <Card>
@@ -727,63 +739,81 @@ function DepartmentsTab({ data }: { data: DashboardData }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!hasRevenueData ? (
+          {!hasData ? (
             <div className="py-8 text-center space-y-2">
               <p className="text-sm font-medium text-foreground">
                 Aucun revenu enregistré sur la période sélectionnée.
               </p>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Le découpage par unité opérationnelle nécessite les paiements
-                agrégés par catégorie, qui ne sont pas encore exposés par le
-                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[10px]">
-                  DashboardRepository
-                </code>
-                (une extension de l'API backend, pas un contournement UI). Le
-                total annuel agrégé ci-dessous reste correct.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Total annuel agrégé :{" "}
-                <span className="font-mono font-semibold text-foreground">
-                  {formatDzd(annualTotal)}
-                </span>
+                Le découpage par unité opérationnelle agrège les paiements
+                encaissés de la période (statut « payé », même fenêtre que
+                l&apos;onglet Revenu).
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Per-unit breakdown placeholder — kept for when the
-                  backend exposes per-category revenue. The buckets
-                  are the 4 canonical operational units (VAULT §15.02). */}
-              {OPERATIONAL_UNITS.map((u) => (
-                <div key={u.key} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ background: token(u.tokenName, u.fallback) }}
-                      />
-                      <span className="text-muted-foreground">{u.label}</span>
+              {unitsWithTotals.map((u) => {
+                const pct =
+                  grandTotal > 0 ? Math.round((u.amount / grandTotal) * 100) : 0;
+                return (
+                  <div key={u.key} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: token(u.tokenName, u.fallback) }}
+                        />
+                        <span className="text-muted-foreground">{u.label}</span>
+                      </div>
+                      <span className="font-mono text-foreground">
+                        {formatDzd(u.amount)}
+                        <span className="ml-2 text-muted-foreground font-sans">
+                          {pct}%
+                        </span>
+                      </span>
                     </div>
-                    <span className="text-muted-foreground italic text-[10px]">
-                      données par catégorie non exposées
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full"
+                        style={{
+                          width: `${pct}%`,
+                          background: token(u.tokenName, u.fallback),
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {otherAmount > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      Autres catégories
+                    </span>
+                    <span className="font-mono text-foreground">
+                      {formatDzd(otherAmount)}
+                      <span className="ml-2 text-muted-foreground font-sans">
+                        {Math.round((otherAmount / grandTotal) * 100)}%
+                      </span>
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full"
                       style={{
-                        width: "0%",
-                        background: token(u.tokenName, u.fallback),
+                        width: `${Math.round((otherAmount / grandTotal) * 100)}%`,
                       }}
                     />
                   </div>
                 </div>
-              ))}
+              )}
               <div className="pt-2 border-t border-border flex items-center justify-between">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Total agrégé
+                  Total encaissé ({payments.length} paiement
+                  {payments.length > 1 ? "s" : ""})
                 </span>
                 <span className="font-mono font-semibold text-foreground">
-                  {formatDzdPlain(annualTotal)}
+                  {formatDzdPlain(grandTotal)}
                 </span>
               </div>
             </div>

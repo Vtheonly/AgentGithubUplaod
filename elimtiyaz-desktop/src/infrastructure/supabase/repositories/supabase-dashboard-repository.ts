@@ -22,7 +22,7 @@ import type {
   DemographicSlice,
 } from "../../../domain/model/operations";
 import type { AgingBucket } from "../../../domain/model/payment";
-import { buildMonthlyBuckets, daysBetweenFloor } from "../../../domain/calc/shared/dates";
+import { buildWindowAnchoredBuckets, daysBetweenFloor } from "../../../domain/calc/shared/dates";
 import { agingBucketFromDays } from "../../../domain/calc/payment/queries";
 import { GRADE_LEVEL_LABELS_FR, type GradeLevel } from "../../../domain/model/student";
 
@@ -191,38 +191,52 @@ export class SupabaseDashboardRepository implements DashboardRepository {
 
   async revenueForRange(academicYear: string, range?: DateRange): Promise<Result<RevenuePoint[]>> {
     const tenantId = this.getTenantId();
-    const buckets = buildMonthlyBuckets(new Date(), 12);
 
     try {
+      // T-356 (DASH-407): the bucket window is the REQUESTED range — or,
+      // when absent, the academic year's billing window (the mock's
+      // computeRange convention: the year resolves the window). The
+      // previous implementation anchored buckets to the LAST 12 MONTHS
+      // FROM NOW — labels that drift away from the selected academic
+      // year and in-range payments silently dropped outside the
+      // NOW-relative window (the §15.15 mock↔Supabase parity break).
+      const window =
+        range?.from && range?.to
+          ? { from: range.from, to: range.to }
+          : (this.academicYearWindow(academicYear) ?? undefined);
+
       let query = this.client
         .from("payments")
         .select("amount, collected_at")
         .eq("tenant_id", tenantId)
         .eq("status", "paid");
 
-      if (range?.from) query = query.gte("collected_at", range.from);
-      if (range?.to) query = query.lte("collected_at", range.to);
+      if (window) {
+        // EXCLUSIVE upper bound at the to-date's midnight — the house
+        // convention (the mock's computeRange `t < toMs` AND the KPI's
+        // `.lt(collected_at, monthEnd)`): the boundary day belongs to the
+        // NEXT window, never double-counted.
+        query = query
+          .gte("collected_at", `${window.from.slice(0, 10)}T00:00:00Z`)
+          .lt("collected_at", `${window.to.slice(0, 10)}T00:00:00Z`);
+      }
 
       const { data, error } = await query;
       if (error) {
         console.warn("[SupabaseDashboard] revenue query failed:", error.message);
-        return Ok(buckets.map((b) => ({ label: b.label, amount: 0 })));
+        return Ok([]);
       }
 
-      for (const p of data ?? []) {
-        const d = new Date(p.collected_at);
-        const y = d.getFullYear();
-        const m = d.getMonth();
-        const bucket = buckets.find((b) => b.year === y && b.month === m);
-        if (bucket) {
-          bucket.amount += Number(p.amount) || 0;
-        }
-      }
+      const rows = (data ?? []).map((p) => ({
+        amount: p.amount as number | string,
+        collectedAt: p.collected_at as string,
+      }));
+      const buckets = buildWindowAnchoredBuckets(window, rows);
 
       return Ok(buckets.map((b) => ({ label: b.label, amount: b.amount })));
     } catch (err) {
       console.warn("[SupabaseDashboard] revenue exception:", err);
-      return Ok(buckets.map((b) => ({ label: b.label, amount: 0 })));
+      return Ok([]);
     }
   }
 
