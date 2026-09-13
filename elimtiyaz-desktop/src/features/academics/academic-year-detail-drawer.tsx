@@ -238,9 +238,9 @@ function OverviewTab({ year }: { year: AcademicYear }) {
   }, [teachers, allPersonnel]);
 
   const totalEnrolled = yearClasses.reduce((s, c) => s + c.enrolledCount, 0);
-  const totalCapacity = yearClasses.reduce((s, c) => s + (c.capacity ?? 30), 0);
-  const capacityRate =
-    totalCapacity > 0 ? Math.round((totalEnrolled / totalCapacity) * 100) : 0;
+  // T-339 (STATS-400): totalCapacity + capacityRate REMOVED — the fake-30
+  // fallback fabricated a fill rate against ceilings the school does not
+  // enforce (owner directive: a class has no artificial maximum).
 
   const classesWithTimetable = new Set(timetableEntries.map((e) => e.classId))
     .size;
@@ -526,8 +526,7 @@ function ClassesSubTab({ year }: { year: AcademicYear }) {
               </div>
               <div className="text-right shrink-0">
                 <p className="text-xs font-semibold text-foreground">
-                  {c.enrolledCount}
-                  {c.capacity ? `/${c.capacity}` : ""} élèves
+                  {c.enrolledCount} élèves inscrits
                 </p>
                 <p className="text-[10px] text-muted-foreground">
                   {c.homeroomTeacherName ?? "Non désigné"}

@@ -9,12 +9,16 @@
 /** Sub-tab identifier used by SeeDetailsModal drill-down navigation. */
 export type SeeDetailsTab = "revenue" | "demographics" | "debt" | "departments";
 
-/** Demographics shape returned by `repos.dashboard.demographics()`. */
+/**
+ * Demographics shape returned by `repos.dashboard.demographics()`.
+ *
+ * T-339 (STATS-400): the `capacity` fill-rate slice was REMOVED (no fake
+ * ceilings — the section-imbalance derivation replaced the gauges).
+ */
 export interface Demographics {
   grade: { label: string; count: number; percent: number }[];
   gender: { label: string; count: number; percent: number }[];
   age: { label: string; count: number; percent: number }[];
-  capacity: { label: string; count: number; percent: number }[];
 }
 
 /** Colors per debt-aging bucket, used by the debt-aging chart on OverviewTab. */

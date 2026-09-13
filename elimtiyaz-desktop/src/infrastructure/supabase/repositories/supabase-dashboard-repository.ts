@@ -258,13 +258,15 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       grade: DemographicSlice[];
       gender: DemographicSlice[];
       age: DemographicSlice[];
-      capacity: DemographicSlice[];
     }>
   > {
     const tenantId = this.getTenantId();
 
     try {
-      // 1. Fetch only verified columns on students (no 'level' or 'grade_year')
+      // 1. Fetch only verified columns on students (no 'level' or 'grade_year').
+      // T-339 (STATS-400): the classes query drops `capacity` — the fill-rate
+      // slice was REMOVED (a class has no artificial maximum; the replacement
+      // is the section-imbalance derivation, see executive-statistics.ts).
       const [studentsRes, classesRes] = await Promise.all([
         this.client
           .from("students")
@@ -273,7 +275,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
           .eq("is_active", true),
         this.client
           .from("classes")
-          .select("id, name, grade_code, capacity")
+          .select("id, name, grade_code")
           .eq("tenant_id", tenantId)
           .order("name", { ascending: true }),
       ]);
@@ -282,21 +284,13 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const totalStudents = students.length || 1;
       const classes = classesRes.data ?? [];
 
-      const classMap = new Map<string, { name: string; grade_code: string | null; capacity: number }>();
-      const classStudentCounts = new Map<string, number>();
+      const classMap = new Map<string, { name: string; grade_code: string | null }>();
 
       for (const c of classes) {
         classMap.set(c.id, {
           name: c.name ?? c.id,
           grade_code: c.grade_code ?? null,
-          capacity: c.capacity && Number(c.capacity) > 0 ? Number(c.capacity) : 30,
         });
-      }
-
-      for (const s of students) {
-        if (s.class_id) {
-          classStudentCounts.set(s.class_id, (classStudentCounts.get(s.class_id) ?? 0) + 1);
-        }
       }
 
       // 2. Grade distribution (derived safely from student's class)
@@ -369,23 +363,15 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         percent: Math.round((b.count / totalStudents) * 100),
       }));
 
-      // 5. Capacity distribution
-      const capacity: DemographicSlice[] = classes.map((c) => {
-        const count = classStudentCounts.get(c.id) ?? 0;
-        const cap = c.capacity && Number(c.capacity) > 0 ? Number(c.capacity) : 30;
-        const percent = Math.round((count / cap) * 100);
-        return {
-          label: c.name ?? c.id,
-          count,
-          percent,
-        };
-      });
+      // 5. T-339 (STATS-400): the CAPACITY fill-rate distribution was
+      // REMOVED — no fake ceilings. The section-imbalance intelligence now
+      // lives in the executive statistics (deriveEnrollmentDynamics), which
+      // consumes the classes stream directly.
 
       return Ok({
         grade,
         gender,
         age,
-        capacity,
       });
     } catch (err) {
       console.warn("[SupabaseDashboard] demographics exception:", err);
@@ -393,7 +379,6 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         grade: [],
         gender: [],
         age: [],
-        capacity: [],
       });
     }
   }

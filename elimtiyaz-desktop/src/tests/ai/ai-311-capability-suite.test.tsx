@@ -418,15 +418,17 @@ describe("AI-311 — analysis tools", () => {
     expect(artifact?.kind).toBe("chart");
   });
 
-  it("get_enrollment_demographics returns the 4 canonical slices + capacity chart", async () => {
+  it("get_enrollment_demographics returns the canonical slices + effectifs chart (T-339: capacity removed)", async () => {
     const out = await executeSystemTool("get_enrollment_demographics", {}, mockRepositories);
     const parsed = parseToolJson(out);
     expect(parsed.error).toBeUndefined();
     expect(Array.isArray(parsed.by_level)).toBe(true);
     expect(Array.isArray(parsed.by_gender)).toBe(true);
-    expect(Array.isArray(parsed.capacity_fill)).toBe(true);
+    expect(Array.isArray(parsed.by_age)).toBe(true);
+    // T-339 (STATS-400): the capacity_fill slice no longer exists — no fake ceilings.
+    expect(parsed.capacity_fill).toBeUndefined();
     const artifact = parseToolArtifact(out);
-    if (artifact?.kind === "chart") expect(artifact.unit).toBe("percent");
+    if (artifact?.kind === "chart") expect(artifact.unit).toBe("count");
   });
 });
 

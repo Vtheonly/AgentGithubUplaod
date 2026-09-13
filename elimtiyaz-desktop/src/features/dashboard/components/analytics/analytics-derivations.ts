@@ -4,21 +4,34 @@
  *
  * The owner's mandate: "more Power BI–type visualizations — interactive
  * charts, statistics, comparisons, trends and other data visualizations
- * wherever they make sense." Every function below is a PURE transform of
- * the repository contract (the payments stream, the dashboard KPI series,
+ * wherever they make sense." Every function below is a PURE transform
+ * of the repository contract (the payments stream, the dashboard KPI series,
  * the aging buckets, the top-debtors summary). NOTHING is synthesized
  * (§15.16 discipline — same as T-243..T-252): if the input rows are empty
  * the output is empty, and the cards render their honest empty states.
+ *
+ * T-339 (61st session, 2026-09-14 — STATS-400, the vanity purge): the
+ * payment-amount histogram (deriveAmountHistogram + AMOUNT_BINS), the
+ * weekday×month collection heatmap (deriveCollectionHeatmap), the smooth
+ * 12-month revenue spline (deriveRevenueTrend + deriveFilteredMonthly +
+ * RevenueTrendPoint) were REMOVED per the owner's kill list — they are
+ * generic e-commerce visuals that carry zero school-specific intelligence
+ * (fixed-price tranches make the histogram a single spike; parents pay
+ * when the tranche is DUE, not on a lucky weekday; school revenue is a
+ * three-wave staircase, not a smooth curve — the WaveVelocityCard in
+ * executive-cards.tsx renders the staircase). The surviving derivations
+ * (stats strip, method/category mixes, Pareto, aging composition, YoY)
+ * consume REAL repository data only.
  *
  * THE ENCAISSÉ DEFINITION (consistency contract):
  *   The dashboard repository's `revenueForRange` counts payments with
  *   `status === "paid"`, bucketed by the calendar month of `collectedAt`
  *   within the academic-year range (see MockDashboardRepository /
  *   SupabaseDashboardRepository). The Analytics tab's MONETARY aggregates
- *   use the SAME definition so the stat strip reconciles with the hero
- *   trend chart and the KPI cards. (The weekly-rhythm chart on Overview
- *   keeps its own counter-activity convention — skip-refunded — documented
- *   in T-243; the two views answer different questions.)
+ *   use the SAME definition so the stat strip reconciles with the KPI
+ *   cards. (The weekly-rhythm chart on Overview keeps its own
+ *   counter-activity convention — skip-refunded — documented in T-243;
+ *   the two views answer different questions.)
  *
  * All functions are exported for the analytics-visuals test suite.
  */
@@ -51,15 +64,6 @@ export const SCHOOL_WEEK_ROWS: { key: string; jsDay: number }[] = [
   { key: "Mar", jsDay: 2 },
   { key: "Mer", jsDay: 3 },
   { key: "Jeu", jsDay: 4 },
-];
-
-/** Fixed histogram bins for the payment-amount distribution (DZD). */
-export const AMOUNT_BINS: { label: string; lo: number; hi: number }[] = [
-  { label: "0–5k", lo: 0, hi: 5_000 },
-  { label: "5k–10k", lo: 5_000, hi: 10_000 },
-  { label: "10k–20k", lo: 10_000, hi: 20_000 },
-  { label: "20k–50k", lo: 20_000, hi: 50_000 },
-  { label: "50k+", lo: 50_000, hi: Number.POSITIVE_INFINITY },
 ];
 
 // ============================================================================
@@ -228,60 +232,6 @@ export function derivePaymentStats(
 }
 
 // ============================================================================
-// T-255 — revenue trend (cumulative + 3-month moving average)
-// ============================================================================
-
-export interface RevenueTrendPoint {
-  label: string;
-  amount: number;
-  cumulative: number;
-  movingAvg3: number | null;
-}
-
-/**
- * The hero trend derivation: repository monthly series + running total +
- * 3-month moving average (null until the 3rd point — never fabricated).
- */
-export function deriveRevenueTrend(revenue: readonly RevenuePoint[]): RevenueTrendPoint[] {
-  let cumulative = 0;
-  return revenue.map((r, i) => {
-    cumulative += r.amount;
-    const movingAvg3 = i >= 2
-      ? Math.round((revenue[i - 2].amount + revenue[i - 1].amount + r.amount) / 3)
-      : null;
-    return { label: r.label, amount: r.amount, cumulative, movingAvg3 };
-  });
-}
-
-/**
- * Monthly encaissé derived from the FILTERED payments slice, aligned to the
- * repository series' month labels. Academic-year ranges never repeat a
- * calendar month, so aligning by month index is unambiguous. Powers the
- * dashed "filtré" overlay on the trend chart — the slicers' visible effect
- * on the trend, without ever replacing the canonical repository bars.
- */
-export function deriveFilteredMonthly(
-  slice: readonly Payment[],
-  monthLabels: readonly string[],
-): number[] {
-  const positionByMonthIndex = new Map<number, number>();
-  monthLabels.forEach((label, i) => {
-    const idx = MONTH_INDEX_BY_LABEL[label];
-    if (idx !== undefined) positionByMonthIndex.set(idx, i);
-  });
-  const out = new Array<number>(monthLabels.length).fill(0);
-  for (const p of slice) {
-    const t = Date.parse(p.collectedAt);
-    if (Number.isNaN(t)) continue;
-    const monthIndex = new Date(t).getUTCMonth();
-    const pos = positionByMonthIndex.get(monthIndex);
-    if (pos === undefined) continue;
-    out[pos] += p.amount;
-  }
-  return out;
-}
-
-// ============================================================================
 // T-256 — method / category mix (donut + ranked bars)
 // ============================================================================
 
@@ -349,116 +299,6 @@ export function deriveCategoryMix(
       percent: total > 0 ? Math.round((tailAmount / total) * 100) : 0,
     },
   ];
-}
-
-// ============================================================================
-// T-256 — collection heatmap (weekday × month matrix)
-// ============================================================================
-
-export interface HeatmapCell {
-  amount: number;
-  count: number;
-  /** 0–4 intensity level (0 = empty). Quantized against the matrix max. */
-  level: number;
-}
-
-export interface CollectionHeatmap {
-  /** Month columns in range order ("Sep", "Oct", …). */
-  monthLabels: string[];
-  /** Parallel year-month keys ("2025-09") for honest tooltips. */
-  monthKeys: string[];
-  rows: { day: string; cells: HeatmapCell[]; rowTotal: number }[];
-  max: number;
-  monthTotals: number[];
-}
-
-/**
- * The Power BI matrix heatmap: encaissé per (school-weekday × calendar
- * month) over the range. Rows follow the Algerian school week (Dim→Jeu);
- * Friday/Saturday collections are excluded (T-243 convention). Cell level
- * quantizes the amount against the matrix max in 5 steps.
- */
-export function deriveCollectionHeatmap(
-  slice: readonly Payment[],
-  range?: { from: string; to: string },
-): CollectionHeatmap {
-  // Month columns: cursor over the range (Sep 2025 → Jun 2026 …).
-  const monthLabels: string[] = [];
-  const monthKeys: string[] = [];
-  const monthIndexByKey = new Map<string, number>(); // "2025-09" → column
-  if (range) {
-    const from = tsOf(range.from);
-    const to = tsOf(`${range.to}T23:59:59Z`) ?? tsOf(range.to);
-    if (from !== null && to !== null && to > from) {
-      const cursor = new Date(from);
-      cursor.setUTCDate(1);
-      for (let guard = 0; guard < 24 && cursor.getTime() <= to; guard++) {
-        const key = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, "0")}`;
-        monthIndexByKey.set(key, monthLabels.length);
-        monthLabels.push(MONTH_LABELS_FR[cursor.getUTCMonth()]);
-        monthKeys.push(key);
-        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-      }
-    }
-  }
-
-  const cells: { amount: number; count: number }[][] = SCHOOL_WEEK_ROWS.map(() =>
-    monthLabels.map(() => ({ amount: 0, count: 0 })),
-  );
-  const monthTotals = monthLabels.map(() => 0);
-  let max = 0;
-
-  for (const p of slice) {
-    const t = Date.parse(p.collectedAt);
-    if (Number.isNaN(t)) continue;
-    const d = new Date(t);
-    const dayIdx = SCHOOL_WEEK_ROWS.findIndex((r) => r.jsDay === d.getUTCDay());
-    if (dayIdx === -1) continue;
-    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    const col = monthIndexByKey.get(key);
-    if (col === undefined) continue;
-    cells[dayIdx][col].amount += p.amount;
-    cells[dayIdx][col].count += 1;
-    monthTotals[col] += p.amount;
-    if (cells[dayIdx][col].amount > max) max = cells[dayIdx][col].amount;
-  }
-
-  const rows = SCHOOL_WEEK_ROWS.map((r, i) => ({
-    day: r.key,
-    rowTotal: cells[i].reduce((s, c) => s + c.amount, 0),
-    cells: cells[i].map((c) => ({
-      ...c,
-      level: max > 0 && c.amount > 0 ? Math.max(1, Math.ceil((c.amount / max) * 4)) : 0,
-    })),
-  }));
-
-  return { monthLabels, monthKeys, rows, max, monthTotals };
-}
-
-// ============================================================================
-// T-256 — payment-amount histogram
-// ============================================================================
-
-export interface HistogramBin {
-  label: string;
-  count: number;
-  amount: number;
-}
-
-/** Distribution of payment amounts into the fixed DZD bins. */
-export function deriveAmountHistogram(slice: readonly Payment[]): HistogramBin[] {
-  const bins: HistogramBin[] = AMOUNT_BINS.map((b) => ({
-    label: b.label,
-    count: 0,
-    amount: 0,
-  }));
-  for (const p of slice) {
-    const idx = AMOUNT_BINS.findIndex((b) => p.amount >= b.lo && p.amount < b.hi);
-    if (idx === -1) continue;
-    bins[idx].count += 1;
-    bins[idx].amount += p.amount;
-  }
-  return bins;
 }
 
 // ============================================================================

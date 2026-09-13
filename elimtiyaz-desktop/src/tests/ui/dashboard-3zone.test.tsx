@@ -40,7 +40,7 @@ import {
 import {
   deriveWeeklyRhythm,
 } from "../../features/dashboard/components/weekly-operating-rhythm";
-import type { Payment } from "../../domain/model/payment";
+import type { Payment, Installment } from "../../domain/model/payment";
 
 // Mock the DashboardCalendar so we don't need ToastProvider/AuthProvider/
 // RepositoryProvider. The OverviewTab's own logic is what we test here.
@@ -81,7 +81,7 @@ const EMPTY_DATA: DashboardData = {
   },
   revenue: [],
   debtAging: [],
-  demographics: { grade: [], gender: [], age: [], capacity: [] },
+  demographics: { grade: [], gender: [], age: [] },
   topDebtors: [],
 };
 
@@ -115,7 +115,6 @@ const POPULATED_DATA: DashboardData = {
       { label: "Filles", count: 189, percent: 49 },
     ],
     age: [{ label: "6-8 ans", count: 80, percent: 20 }],
-    capacity: [{ label: "1AP-A", count: 28, percent: 93 }],
   },
   topDebtors: [
     {
@@ -227,15 +226,45 @@ describe("deriveRecoveryFunnel — REAL debtAging → escalation stages", () => 
 });
 
 describe("OverviewTab — T-243 3-zone layout", () => {
+  /** T-339: a live-shaped 3-wave installment fixture (tuition T1/T2/T3). */
+  const baseInstallment: Installment = {
+    id: "w-base",
+    parentId: "p1",
+    studentId: "s1",
+    category: "tuition",
+    label: "Tranche 1",
+    trancheNumber: 1,
+    amountDue: 0,
+    amountPaid: 0,
+    amountPending: 0,
+    dueDate: "2025-09-15",
+    paidDate: null,
+    status: "unpaid",
+    academicCycle: "primaire",
+    paymentPlan: "tranches",
+    isCustomSchedule: false,
+    customSchedule: false,
+    customScheduleNote: null,
+  };
+  const WAVES: Installment[] = [
+    { ...baseInstallment, id: "w-t1-a", trancheNumber: 1, label: "INSCRIPTION (FI)", amountDue: 100_000, amountPaid: 100_000, status: "paid", dueDate: "2025-09-15" },
+    { ...baseInstallment, id: "w-t1-b", trancheNumber: 1, label: "INSCRIPTION (FI)", amountDue: 100_000, amountPaid: 50_000, status: "partial", dueDate: "2025-09-15" },
+    { ...baseInstallment, id: "w-t2-a", trancheNumber: 2, label: "2EME TRANCHE (V2)", amountDue: 80_000, amountPaid: 80_000, status: "paid", dueDate: "2025-12-15" },
+    { ...baseInstallment, id: "w-t2-b", trancheNumber: 2, label: "2EME TRANCHE (V2)", amountDue: 80_000, amountPaid: 0, status: "unpaid", dueDate: "2025-12-15" },
+    { ...baseInstallment, id: "w-t3-a", trancheNumber: 3, label: "3ème TRANCHE (2V)", amountDue: 80_000, amountPaid: 0, status: "unpaid", dueDate: "2026-03-15" },
+  ];
+
   function setup(
     data: DashboardData,
     payments: readonly Payment[] = [],
     range?: { from: string; to: string },
+    installments: readonly Installment[] = WAVES,
   ) {
     return render(
       <OverviewTab
         data={data}
         payments={payments}
+        installments={installments}
         range={range}
         onDrillDown={() => {}}
         onGoToAlerts={() => {}}
@@ -267,12 +296,20 @@ describe("OverviewTab — T-243 3-zone layout", () => {
     expect(document.querySelector("svg polyline")).toBeNull();
   });
 
-  it("renders the hero trend card with an honest empty state when the series is empty", () => {
-    setup(EMPTY_DATA);
-    expect(screen.getByText("Flux Financiers & Recouvrements")).toBeInTheDocument();
-    expect(
-      screen.getByText("Aucun encaissement enregistré sur la période sélectionnée."),
-    ).toBeInTheDocument();
+  it("renders the hero Wave Velocity meters from the REAL installment waves (T-339)", () => {
+    setup(POPULATED_DATA);
+    // The staircase hero replaces the removed smooth spline.
+    expect(screen.getByTestId("wave-velocity-card")).toBeInTheDocument();
+    expect(screen.getByTestId("wave-meter-1")).toBeInTheDocument();
+    expect(screen.getByTestId("wave-meter-2")).toBeInTheDocument();
+    expect(screen.getByTestId("wave-meter-3")).toBeInTheDocument();
+    // T1: 150000/200000 collected = 75% (value-based, real derivation).
+    expect(screen.getByTestId("wave-meter-1").textContent).toContain("75%");
+  });
+
+  it("renders the hero's honest empty state when no tranche is billed", () => {
+    setup(EMPTY_DATA, [], undefined, []);
+    expect(screen.getByTestId("wave-velocity-empty")).toBeInTheDocument();
   });
 
   it("renders the funnel + weekly rhythm + calendar (Zone A rows 3–4)", () => {
@@ -324,6 +361,7 @@ describe("OverviewTab — T-243 3-zone layout", () => {
       <OverviewTab
         data={POPULATED_DATA}
         payments={[]}
+        installments={WAVES}
         onDrillDown={onDrillDown}
         onGoToAlerts={() => {}}
       />,
@@ -342,6 +380,7 @@ describe("OverviewTab — T-243 3-zone layout", () => {
       <OverviewTab
         data={POPULATED_DATA}
         payments={[]}
+        installments={WAVES}
         onDrillDown={() => {}}
         onGoToAlerts={onGoToAlerts}
       />,

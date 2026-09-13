@@ -2,24 +2,30 @@
 // FILE: src/features/dashboard/tabs/analytics-tab.tsx
 // ============================================================================
 /**
- * AnalyticsTab — The Actionable Decision Support & Exploration Hub.
+ * AnalyticsTab — the Executive Command Center + the exploration hub.
  *
- * Offers two operational modes:
- *   1. « Exploration & Diagnostic Actif » :
- *      - Operational Query Console (instant interrogation & search)
- *      - Cross-Domain Risk Matrix (combining grades + attendance + fees)
- *      - Multi-Dimensional Pivot Matrix (PowerBI-style slice-and-dice)
- *   2. « Métriques & Flux Financiers » :
- *      - Slicers bar (cross-filters live charts)
- *      - Descriptive Statistics Strip
- *      - Hero Revenue Trend Explorer
- *      - Payment Mix & Category breakdown
- *      - Collection Heatmap & YoY comparison
- *      - Debtors Pareto & Aging Composition
+ * T-339 (61st session, 2026-09-14 — STATS-400): the tab's DEFAULT view is
+ * now « Pilotage Exécutif » — the owner-mandated operational decision
+ * triggers (tranche-wave velocity, discount erosion, debt triage with the
+ * immediate call list, family concentration, transport yield, service
+ * yield, sibling index + section imbalance, and the Triple-Risk radar
+ * front-and-center) computed by the canonical executive-statistics
+ * derivations. The vanity statistics are REMOVED (owner kill list): the
+ * payment-amount histogram, the weekday collection heatmap, and the smooth
+ * 12-month revenue spline (RevenueTrendExplorer) — school revenue is a
+ * staircase of three waves, rendered by the WaveVelocityCard instead.
+ *
+ * Modes:
+ *   1. « Pilotage Exécutif » (DEFAULT): ExecutiveDashboard + the
+ *      operational query console (the triple-risk radar list).
+ *   2. « Diagnostic Actif »: cross-domain risk matrix + pivot matrix.
+ *   3. « Métriques & Flux Financiers »: the surviving REAL charts —
+ *      slicers, descriptive statistics strip, YoY like-for-like,
+ *      method/category mixes, debtors Pareto, aging composition.
  */
 
 import { useMemo, useState, useCallback } from "react";
-import { Search, BarChart3, Layers, Filter } from "lucide-react";
+import { Search, BarChart3, Gauge } from "lucide-react";
 import type { RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
 import type { Payment, PaymentMethod, PaymentCategory, DebtSummary } from "../../../domain/model/payment";
 import { useRepositories } from "../../../app/providers/repository-provider";
@@ -32,15 +38,13 @@ import {
 } from "../components/analytics/analytics-derivations";
 import { AnalyticsSlicers } from "../components/analytics/analytics-slicers";
 import { StatStrip } from "../components/analytics/stat-strip";
-import { RevenueTrendExplorer } from "../components/analytics/revenue-trend-explorer";
 import { MethodMixCard, CategoryMixCard } from "../components/analytics/mix-cards";
-import { CollectionHeatmapCard } from "../components/analytics/collection-heatmap-card";
-import { AmountHistogramCard } from "../components/analytics/amount-histogram-card";
 import { YoYComparisonCard } from "../components/analytics/yoy-comparison-card";
 import { AgingCompositionCard } from "../components/analytics/aging-composition-card";
 import { DebtorsParetoCard } from "../components/analytics/debtors-pareto-card";
+import { ExecutiveDashboard } from "../components/analytics/executive-cards";
 
-// New Diagnostic & Query Engine components
+// The cross-domain query engine (the Triple-Risk radar source).
 import {
   evaluateStudentRiskProfiles,
   type StudentRiskProfile,
@@ -50,6 +54,8 @@ import { PivotMatrixCard } from "../components/analytics/pivot-matrix-card";
 import { CrossRiskCard } from "../components/analytics/cross-risk-card";
 
 const ALL_METHODS: PaymentMethod[] = ["cash", "check", "transfer"];
+
+type ViewMode = "pilotage" | "diagnostic" | "charts";
 
 export interface AnalyticsTabProps {
   revenue: RevenuePoint[];
@@ -78,16 +84,20 @@ export function AnalyticsTab({
 }: AnalyticsTabProps) {
   const repos = useRepositories();
 
-  // Load operational datasets for the deep cross-domain query engine
+  // Load operational datasets for the executive + cross-domain engines.
+  // T-339: installments (the wave stream) + ledger (the remise census)
+  // join the existing student/parent/class streams.
   const students = useObservable(() => repos.students.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
   const classes = useObservable(() => repos.classes.observe(), []);
   const subjects = useObservable(() => repos.subjects.observe(), []);
   const assessments = useObservable(() => repos.grades.observeForClass(""), []);
   const attendance = useObservable(() => repos.attendance.observeByStudent("", "2020-01-01", "2030-12-31"), []);
+  const installments = useObservable(() => repos.installments.observe(), []);
+  const ledger = useObservable(() => repos.ledger.observe(), []);
 
-  // Mode switcher: "diagnostic" vs "charts"
-  const [viewMode, setViewMode] = useState<"diagnostic" | "charts">("diagnostic");
+  // Mode switcher: "pilotage" (the executive default) / "diagnostic" / "charts".
+  const [viewMode, setViewMode] = useState<ViewMode>("pilotage");
 
   // Slicer filters state for the charts view
   const [filters, setFilters] = useState<AnalyticsFilterState>(NO_ANALYTICS_FILTERS);
@@ -137,13 +147,24 @@ export function AnalyticsTab({
     () => presentCategories(payments, range),
     [payments, range],
   );
-  const filteredTotal = useMemo(() => slice.reduce((s, p) => s + p.amount, 0), [slice]);
 
   return (
     <div className="space-y-4 pb-8" data-testid="analytics-tab">
       {/* Top View Mode Navigation */}
       <div className="flex items-center justify-between border-b border-border pb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setViewMode("pilotage")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
+              viewMode === "pilotage"
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Gauge className="h-3.5 w-3.5" />
+            Pilotage Exécutif
+          </button>
           <button
             type="button"
             onClick={() => setViewMode("diagnostic")}
@@ -154,7 +175,7 @@ export function AnalyticsTab({
             }`}
           >
             <Search className="h-3.5 w-3.5" />
-            Diagnostic Actif & Questions Directes
+            Diagnostic Actif
           </button>
 
           <button
@@ -167,7 +188,7 @@ export function AnalyticsTab({
             }`}
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            Flux Financiers & Visualisations Power BI
+            Flux Financiers (métriques réelles)
           </button>
         </div>
 
@@ -175,6 +196,30 @@ export function AnalyticsTab({
           Année active : <strong className="text-foreground font-mono">{academicYear}</strong>
         </div>
       </div>
+
+      {/* VIEW 0 (DEFAULT): THE EXECUTIVE COMMAND CENTER */}
+      {viewMode === "pilotage" && (
+        <div className="space-y-4">
+          <ExecutiveDashboard
+            installments={installments}
+            ledger={ledger}
+            students={students}
+            parents={parents}
+            classes={classes}
+            payments={payments}
+            riskProfiles={riskProfiles}
+            nowEpochMs={Date.now()}
+          />
+
+          {/* The radar's full actionable list — the operational console
+              (triple-risk presets, per-student drill-down). */}
+          <OperationalQueryConsole
+            profiles={riskProfiles}
+            onOpenStudent={onOpenStudent}
+            onOpenParent={onOpenParent}
+          />
+        </div>
+      )}
 
       {/* VIEW 1: DIAGNOSTIC & OPERATIONAL QUERY CONSOLE */}
       {viewMode === "diagnostic" && (
@@ -199,7 +244,9 @@ export function AnalyticsTab({
         </div>
       )}
 
-      {/* VIEW 2: STATISTICAL & POWER BI FINANCIAL FLOW CHARTS */}
+      {/* VIEW 2: STATISTICAL CHARTS — only the REAL-data survivors of the
+          T-339 vanity purge (histogram, heatmap, and the revenue spline
+          were REMOVED per the owner's kill list). */}
       {viewMode === "charts" && (
         <div className="space-y-4">
           {/* Row 0 — Slicers bar */}
@@ -211,31 +258,26 @@ export function AnalyticsTab({
             methods={ALL_METHODS}
             categories={categories}
             filteredCount={slice.length}
-            filteredTotal={filteredTotal}
+            filteredTotal={slice.reduce((s, p) => s + p.amount, 0)}
             totalCount={unfilteredCount}
           />
 
           {/* Row 1 — Descriptive statistics strip */}
           <StatStrip slice={slice} />
 
-          {/* Row 2 — Trend Explorer + Mix Cards */}
+          {/* Row 2 — Mix Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-8">
-              <RevenueTrendExplorer
-                revenue={revenue}
-                filteredSlice={slice}
-                filters={filters}
-              />
-            </div>
-            <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+            <div className="lg:col-span-6">
               <MethodMixCard slice={slice} />
+            </div>
+            <div className="lg:col-span-6">
               <CategoryMixCard slice={slice} />
             </div>
           </div>
 
-          {/* Row 3 — YoY Comparison + Amount Distribution */}
+          {/* Row 3 — YoY Comparison (like-for-like REAL months) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-6">
+            <div className="lg:col-span-12">
               <YoYComparisonCard
                 currentYear={academicYear}
                 previousYear={prevAcademicYear}
@@ -243,17 +285,11 @@ export function AnalyticsTab({
                 prevRevenue={prevRevenue}
               />
             </div>
-            <div className="lg:col-span-6">
-              <AmountHistogramCard slice={slice} />
-            </div>
           </div>
 
-          {/* Row 4 — Collection Heatmap + Aging Composition */}
+          {/* Row 4 — Aging Composition (the debt context) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-8">
-              <CollectionHeatmapCard slice={slice} range={range} />
-            </div>
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-12">
               <AgingCompositionCard debtAging={debtAging} />
             </div>
           </div>

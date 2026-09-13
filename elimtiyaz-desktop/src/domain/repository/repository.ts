@@ -616,14 +616,17 @@ export interface DashboardRepository {
   /**
    * Demographic visualizations (plan §15.03).
    *
-   * Returns 4 slices:
+   * Returns 3 slices:
    *   - `grade`: student count per academic level (Primaire / CEM / Lycée)
    *   - `gender`: student count per gender
    *   - `age`: student count per age bucket (< 6, 6-8, 9-11, 12-14, 15-17, 18+)
-   *   - `capacity`: per-level enrollment vs capacity — `count` is enrolled,
-   *     `percent` is the fill rate (enrolled / capacity * 100)
+   *
+   * T-339 (61st session, STATS-400): the `capacity` fill-rate slice was
+   * REMOVED — a class carries no artificial maximum (owner directive), so
+   * fill-rate denominators were operationally false. The replacement is
+   * the SECTION IMBALANCE derivation (executive-statistics.ts).
    */
-  demographics(): Promise<Result<{ grade: DemographicSlice[]; gender: DemographicSlice[]; age: DemographicSlice[]; capacity: DemographicSlice[] }>>;
+  demographics(): Promise<Result<{ grade: DemographicSlice[]; gender: DemographicSlice[]; age: DemographicSlice[] }>>;
   /**
    * Iteration 9 — academic year + date range filtering.
    *

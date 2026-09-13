@@ -2,12 +2,23 @@
  * OverviewTab — the dashboard's 3-zone analytical overview (T-243,
  * 2026-09-09).
  *
+ * T-339 (61st session, 2026-09-14 — STATS-400): the hero macro SPLINE
+ * (the smooth 12-month revenue curve) was REMOVED per the owner's vanity
+ * kill list — school revenue is a STAIRCASE of three seasonal waves
+ * (Sept / Déc / Mars), and a smooth curve over the quiet months causes
+ * fake panic. The hero is now the WaveVelocityCard (the tranche-wave
+ * collection meters vs the invoiced targets) computed from the canonical
+ * installments stream by deriveTrancheWaves. The debt KPI is
+ * contextualized the same way: the raw outstanding number now carries
+ * its chronic (> 45 j) share from the debt-triage derivation, so a new
+ * billing cycle no longer reads as bad debt.
+ *
  * Source: the owner's AI-review integration blueprint — "Unified 3-Zone
  * Dashboard Architecture" (the 12-column dual-stage grid):
  *
  *   ZONE A (8 cols) — primary analytical stage:
  *     Row 1  4 tight executive sparkline KPI cards
- *     Row 2  hero macro spline (revenue trend, real series)
+ *     Row 2  hero Wave Velocity (tranche collection meters — the staircase)
  *     Row 3  recovery funnel (real debtAging family counts)
  *            + weekly operating rhythm (real payments stream)
  *     Row 4  embedded operational calendar (DashboardCalendar, kept)
@@ -15,42 +26,30 @@
  *     AI decision card + recovery gauge + "à relancer" feed (InsightsRail)
  *
  * T-088 (2026-08-30) lineage — the single-fetch pipeline is PRESERVED:
- * the data still arrives via one prop from the page (never fetched here),
- * and the drill-down modal receives the SAME data. The page now also
- * subscribes to the canonical payments observable once and passes it down
- * so the weekly rhythm chart reads REAL rows (the calendar already reads
- * the same stream internally).
- *
- * T-088 supersession (owner mandate, documented in UI-306): the review's
- * Tab-1 blueprint explicitly places a PRIMARY TREND CARD on the overview
- * (the "Flux Financiers & Recouvrements" spline). T-088 had removed the
- * overview's revenue BAR chart as a duplicate of the drill-down's Revenue
- * tab; the owner's blueprint restores a TREND view on the overview while
- * the drill-down keeps the DETAIL view (bar + per-month breakdown +
- * departments pie). Demographics/debt-aging detail charts stay
- * drill-down-ONLY — exactly where the review's own §5 also puts them.
+ * the data still arrives via one prop from the page (never fetched here).
  *
  * Data honesty (§15.16, documented in UI-306): every number rendered here
  * comes from the repository contract — kpis, the revenue series, the
- * debt-aging buckets, topDebtors, and the payments stream. No component
- * synthesizes trends, deltas, funnel stages or targets. Cards without a
- * real series render without a sparkline/delta badge.
+ * debt-aging buckets, topDebtors, the payments stream, and (T-339) the
+ * installments stream. No component synthesizes trends, deltas, funnel
+ * stages or targets. Cards without a real series render without a
+ * sparkline/delta badge.
  */
 import { useTranslation } from "react-i18next";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { SparklineKpiCard } from "../components/sparkline-kpi-card";
 import { RecoveryFunnelCard, deriveRecoveryFunnel } from "../components/recovery-funnel-card";
 import { WeeklyOperatingRhythm } from "../components/weekly-operating-rhythm";
 import { InsightsRail } from "../components/insights-rail";
 import { DashboardCalendar } from "../dashboard-calendar";
+import { WaveVelocityCard } from "../components/analytics/executive-cards";
+import { deriveTrancheWaves, deriveDebtTriage } from "../components/analytics/executive-statistics";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
-import { DASHBOARD_THEME, chartPalette } from "../../../shared/ui/dashboard-theme";
 import type {
   DashboardKpi,
   RevenuePoint,
   DebtByAgingBucket,
 } from "../../../domain/model/operations";
-import type { DebtSummary, Payment } from "../../../domain/model/payment";
+import type { DebtSummary, Payment, Installment } from "../../../domain/model/payment";
 import { formatDzd, formatDzdPlain } from "../../../core/format/currency";
 import type { Demographics } from "./types";
 
@@ -66,6 +65,7 @@ export interface DashboardData {
 export function OverviewTab({
   data,
   payments,
+  installments,
   range,
   onDrillDown,
   onGoToAlerts,
@@ -78,6 +78,13 @@ export function OverviewTab({
    * page's aggregate fetch effect never re-runs on stream updates.
    */
   payments: readonly Payment[];
+  /**
+   * T-339: the canonical installments stream — feeds the Wave Velocity
+   * hero (deriveTrancheWaves) and the debt KPI's chronic-share
+   * contextualization (deriveDebtTriage). Same page-level subscription
+   * pattern as the payments stream.
+   */
+  installments: readonly Installment[];
   /** The academic-year date range the KPIs/revenue were loaded for. */
   range?: { from: string; to: string };
   onDrillDown: (kpi: string) => void;
@@ -87,6 +94,13 @@ export function OverviewTab({
   const { kpis, revenue, debtAging, topDebtors } = data;
 
   // ---- REAL derivations (pure, from the repository contract) --------
+  // T-339: the wave staircase + the debt triage from the installments
+  // stream (executive-statistics.ts — the ONE canonical derivation).
+  const nowEpochMs = Date.now();
+  const waves = deriveTrancheWaves(installments, nowEpochMs);
+  const triage = deriveDebtTriage(installments, nowEpochMs);
+  const chronicAmount = triage.buckets.find((b) => b.bucket === "chronic")?.amount ?? 0;
+  const chronicFamilies = triage.buckets.find((b) => b.bucket === "chronic")?.familyCount ?? 0;
   // Annual revenue for the loaded period (Σ of the monthly series).
   const annualRevenue = revenue.reduce((s, r) => s + r.amount, 0);
   // Month-over-month delta + sparkline series — only when a REAL series
@@ -140,9 +154,14 @@ export function OverviewTab({
             label={t("dashboard.kpi.outstandingDebt")}
             value={kpis ? formatDzd(outstanding, { compact: true }) : "—"}
             subValue={
-              debtAging.length > 0
-                ? `${overdueFamilies} fam. en retard`
-                : undefined
+              // T-339: the raw debt number now carries its CHRONIC share
+              // (> 45 j) — the actionable split that separates bad debt
+              // from the current billing cycle.
+              chronicAmount > 0
+                ? `${formatDzd(chronicAmount, { compact: true })} critiques > 45 j · ${chronicFamilies} fam.`
+                : debtAging.length > 0
+                  ? `${overdueFamilies} fam. en retard`
+                  : undefined
             }
             tone="danger"
             gradientKey="outstanding-debt"
@@ -157,81 +176,12 @@ export function OverviewTab({
           />
         </div>
 
-        {/* Row 2 — hero macro spline (review's Primary Trend Card). The
-            trend view lives here; the DETAIL view (bars + breakdown)
-            stays in the drill-down's Revenue tab. */}
-        <Card className="border-border bg-surface-panel">
-          <CardHeader className="py-2.5 px-4 border-b border-border/50 flex flex-row items-center justify-between gap-2">
-            <div className="min-w-0">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Flux Financiers &amp; Recouvrements
-              </CardTitle>
-              <CardDescription className="text-xs text-foreground">
-                Tendance mensuelle des encaissements (DZD) sur la période
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground shrink-0">
-              <span className="flex items-center gap-1">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: chartPalette.primary }}
-                />{" "}
-                Encaissé
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="p-3">
-            {revenue.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-16">
-                Aucun encaissement enregistré sur la période sélectionnée.
-              </p>
-            ) : (
-              <div className="h-[220px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenue} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
-                    <defs>
-                      <linearGradient id="revenueCurveFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={chartPalette.primary} stopOpacity={0.35} />
-                        <stop offset="100%" stopColor={chartPalette.primary} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={DASHBOARD_THEME.gridStroke}
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="label"
-                      {...DASHBOARD_THEME.axisTick}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      {...DASHBOARD_THEME.axisTick}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(v: number) => `${Math.round(Number(v) / 1000)}k`}
-                    />
-                    <Tooltip
-                      contentStyle={DASHBOARD_THEME.tooltipStyle}
-                      formatter={(val: number) => [
-                        `${formatDzdPlain(val)} DZD`,
-                        "Encaissé",
-                      ]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="amount"
-                      stroke={chartPalette.primary}
-                      strokeWidth={2.5}
-                      fill="url(#revenueCurveFill)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Row 2 — the hero Wave Velocity meters (T-339: the spline was
+            REMOVED — the staircase of the three seasonal waves vs their
+            invoiced targets is the real revenue picture). The DETAIL view
+            (per-month bars + breakdown) stays in the drill-down's Revenue
+            tab. */}
+        <WaveVelocityCard waves={waves} variant="hero" />
 
         {/* Row 3 — conversion pipeline + weekly rhythm (50/50 split). */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

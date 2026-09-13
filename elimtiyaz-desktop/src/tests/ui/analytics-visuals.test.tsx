@@ -7,8 +7,9 @@
  *     + category; empty selection = ALL) and presentCategories.
  *   - T-255 statistics: derivePaymentStats (count/total/mean/median/σ/
  *     best-month) + the StatStrip render.
- *   - T-255 trend: deriveRevenueTrend (cumulative + 3-month MA, null until
- *     the 3rd point) + deriveFilteredMonthly label alignment.
+ *   - T-339: the revenue spline / heatmap / histogram derivations were REMOVED
+ *     with the vanity charts (owner kill list — STATS-400);
+ *     executive-statistics.test.ts covers the replacements.
  *   - T-256 mixes: deriveMethodMix / deriveCategoryMix (top-N tail merge).
  *   - T-256 heatmap: deriveCollectionHeatmap (month columns, school-week
  *     rows, Fri/Sat exclusion, level quantization, month totals).
@@ -94,12 +95,8 @@ import {
   presentCategories,
   NO_ANALYTICS_FILTERS,
   derivePaymentStats,
-  deriveRevenueTrend,
-  deriveFilteredMonthly,
   deriveMethodMix,
   deriveCategoryMix,
-  deriveCollectionHeatmap,
-  deriveAmountHistogram,
   derivePareto,
   deriveAgingComposition,
   deriveYearOverYear,
@@ -269,33 +266,10 @@ describe("T-255 — derivePaymentStats (descriptive statistics)", () => {
   });
 });
 
-describe("T-255 — deriveRevenueTrend (cumulative + 3-month MA)", () => {
-  it("computes the running total and the 3-month moving average", () => {
-    const trend = deriveRevenueTrend(REVENUE);
-    expect(trend.map((p) => p.cumulative)).toEqual([30_000, 76_000, 96_000, 136_000]);
-    // MA3 null until the 3rd point, then the real window means.
-    expect(trend[0].movingAvg3).toBeNull();
-    expect(trend[1].movingAvg3).toBeNull();
-    expect(trend[2].movingAvg3).toBe(Math.round((30_000 + 46_000 + 20_000) / 3));
-    expect(trend[3].movingAvg3).toBe(Math.round((46_000 + 20_000 + 40_000) / 3));
-  });
-});
+// T-339: the revenue-spline derivations (deriveRevenueTrend /
+// deriveFilteredMonthly) were REMOVED with the vanity charts — the
+// WaveVelocityCard renders the tranche staircase instead (executive-statistics.ts).
 
-describe("T-255 — deriveFilteredMonthly (label alignment)", () => {
-  it("aligns filtered payments to the series' month labels", () => {
-    const slice = [
-      pay({ id: "a", amount: 7_000, collectedAt: "2025-09-10T10:00:00Z" }),
-      pay({ id: "b", amount: 3_000, collectedAt: "2025-09-25T10:00:00Z" }),
-      pay({ id: "c", amount: 5_000, collectedAt: "2025-11-05T10:00:00Z" }),
-    ];
-    expect(deriveFilteredMonthly(slice, ["Sep", "Oct", "Nov", "Déc"])).toEqual([
-      10_000,
-      0,
-      5_000,
-      0,
-    ]);
-  });
-});
 
 // ============================================================
 // T-256 — mixes, heatmap, histogram
@@ -331,64 +305,9 @@ describe("T-256 — deriveMethodMix / deriveCategoryMix", () => {
   });
 });
 
-describe("T-256 — deriveCollectionHeatmap (weekday × month matrix)", () => {
-  // The component contract: the slice is the ALREADY-FILTERED paid slice
-  // (applyAnalyticsFilters output). The pure tests honor the contract.
-  const SLICE = applyAnalyticsFilters(FIXTURE_PAYMENTS, RANGE, NO_ANALYTICS_FILTERS);
+// T-339: the weekday-heatmap and amount-histogram derivations were
+// REMOVED with the vanity charts (owner kill list — STATS-400).
 
-  it("builds month columns in range order and school-week rows only", () => {
-    const hm = deriveCollectionHeatmap(SLICE, RANGE);
-    expect(hm.monthLabels.slice(0, 4)).toEqual(["Sep", "Oct", "Nov", "Déc"]);
-    expect(hm.monthLabels.length).toBe(10); // Sep 2025 → Juin 2026
-    expect(hm.monthKeys[0]).toBe("2025-09");
-    expect(hm.rows.map((r) => r.day)).toEqual(["Dim", "Lun", "Mar", "Mer", "Jeu"]);
-  });
-
-  it("sums cells by weekday×month and EXCLUDES Fri/Sat (school week)", () => {
-    const hm = deriveCollectionHeatmap(SLICE, RANGE);
-    const dim = hm.rows[0]; // p1: 20k on Sunday Sep 14
-    expect(dim.cells[0].amount).toBe(20_000);
-    expect(dim.cells[0].count).toBe(1);
-    const mer = hm.rows[3]; // p3+p4 on Wednesday Oct 1
-    expect(mer.cells[1].amount).toBe(46_000);
-    expect(mer.cells[1].count).toBe(2);
-    // p8 (Fri) and p9 (Sat) never land anywhere.
-    const allCells = hm.rows.flatMap((r) => r.cells);
-    expect(allCells.filter((c) => c.amount === 5_000).length).toBe(0);
-  });
-
-  it("quantizes cell levels against the matrix max and totals columns", () => {
-    const hm = deriveCollectionHeatmap(SLICE, RANGE);
-    expect(hm.max).toBe(46_000);
-    // The 46k cell is the max → level 4; the 20k cell → ceil(20/46*4)=2.
-    expect(hm.rows[3].cells[1].level).toBe(4);
-    expect(hm.rows[0].cells[0].level).toBe(2);
-    expect(hm.monthTotals[0]).toBe(20_000 + 10_000); // Sep: p1 + p2
-    expect(hm.monthTotals[1]).toBe(46_000); // Oct: p3 + p4
-  });
-
-  it("empty range → empty columns (honest zero matrix)", () => {
-    const hm = deriveCollectionHeatmap([], RANGE);
-    expect(hm.max).toBe(0);
-    expect(hm.monthLabels.length).toBe(10);
-    expect(hm.rows.every((r) => r.cells.every((c) => c.amount === 0))).toBe(true);
-  });
-});
-
-describe("T-256 — deriveAmountHistogram (distribution bins)", () => {
-  it("bins amounts with correct edges (half-open [lo, hi))", () => {
-    const slice = [
-      pay({ id: "a", amount: 4_999 }),
-      pay({ id: "b", amount: 5_000 }), // edge → second bin
-      pay({ id: "c", amount: 19_999 }),
-      pay({ id: "d", amount: 50_000 }), // edge → open bin
-    ];
-    const bins = deriveAmountHistogram(slice);
-    expect(bins.map((b) => b.count)).toEqual([1, 1, 1, 0, 1]);
-    expect(bins[1].amount).toBe(5_000);
-    expect(bins[4].label).toBe("50k+");
-  });
-});
 
 // ============================================================
 // T-257 — Pareto, aging, YoY + range helpers
@@ -507,10 +426,28 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   function renderChartsView(props: Partial<AnalyticsTabProps> = {}) {
     render(<AnalyticsTab {...TAB_PROPS} {...props} />);
     fireEvent.click(
-      screen.getByRole("button", { name: /Flux Financiers & Visualisations/ }),
+      screen.getByRole("button", { name: /Flux Financiers \(métriques réelles\)/ }),
     );
     return screen.getByTestId("analytics-tab");
   }
+
+  it("T-339: the DEFAULT view is the Executive Command Center (Pilotage)", () => {
+    // No mode click — the tab opens on "pilotage" by default.
+    render(<AnalyticsTab {...TAB_PROPS} />);
+    expect(screen.getByTestId("executive-dashboard")).toBeInTheDocument();
+    expect(screen.getByTestId("triple-risk-summary-card")).toBeInTheDocument();
+    expect(screen.getByTestId("wave-velocity-card")).toBeInTheDocument();
+    expect(screen.getByTestId("debt-triage-card")).toBeInTheDocument();
+    expect(screen.getByTestId("discount-erosion-card")).toBeInTheDocument();
+    expect(screen.getByTestId("family-concentration-card")).toBeInTheDocument();
+    expect(screen.getByTestId("transport-yield-card")).toBeInTheDocument();
+    expect(screen.getByTestId("service-yield-card")).toBeInTheDocument();
+    expect(screen.getByTestId("enrollment-dynamics-card")).toBeInTheDocument();
+    // The removed vanity charts are absent even in the other modes' DOM.
+    expect(screen.queryByTestId("analytics-trend-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("heatmap-grid")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("histogram-chart")).not.toBeInTheDocument();
+  });
 
   it("renders the full chart wall with REAL derived statistics", () => {
     renderChartsView();
@@ -521,15 +458,17 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
     expect(strip.getAttribute("data-total")).toBe("86000");
     // Slicer badge carries the same live figures.
     expect(screen.getByTestId("analytics-slicer-badge").textContent).toContain("6 / 6");
-    // All the card families are present.
-    expect(screen.getByTestId("analytics-trend-chart")).toBeInTheDocument();
+    // The surviving REAL card families (T-339: trend explorer / heatmap /
+    // histogram REMOVED — the owner's vanity-statistics kill list).
     expect(screen.getByTestId("method-mix-chart")).toBeInTheDocument();
     expect(screen.getByTestId("category-mix-chart")).toBeInTheDocument();
-    expect(screen.getByTestId("heatmap-grid")).toBeInTheDocument();
-    expect(screen.getByTestId("histogram-chart")).toBeInTheDocument();
     expect(screen.getByTestId("yoy-chart")).toBeInTheDocument();
     expect(screen.getByTestId("pareto-chart")).toBeInTheDocument();
     expect(screen.getByTestId("aging-stacked-bar")).toBeInTheDocument();
+    // The removed vanity charts must NOT render anywhere on the tab.
+    expect(screen.queryByTestId("analytics-trend-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("heatmap-grid")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("histogram-chart")).not.toBeInTheDocument();
   });
 
   it("method chip cross-filters the payments-derived cards (Power BI slicer)", () => {
@@ -562,34 +501,13 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
     expect(screen.getByTestId("analytics-stat-strip").getAttribute("data-total")).toBe("46000");
   });
 
-  it("the trend explorer gains the 'Filtré' overlay series only under active filters", () => {
+  it("the removed vanity charts never mount (T-339 kill list)", () => {
     renderChartsView();
-    const methodChips = within(screen.getByTestId("analytics-method-chips"));
-    // Unfiltered: 3 series chips (Encaissé / Cumulé / MM 3 mois).
-    expect(screen.getByTestId("analytics-trend-legend").textContent).not.toContain("Filtré");
-    fireEvent.click(methodChips.getByText("Espèces"));
-    expect(screen.getByTestId("analytics-trend-legend").textContent).toContain("Filtré");
+    expect(screen.queryByTestId("analytics-trend-legend")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("analytics-trend-view-toggle")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("heatmap-cell-Dim-2025-09")).not.toBeInTheDocument();
   });
 
-  it("the trend view toggle switches the monthly series (Barres ↔ Aire)", () => {
-    renderChartsView();
-    const toggle = screen.getByTestId("analytics-trend-view-toggle");
-    const bars = toggle.querySelectorAll("button")[0];
-    const area = toggle.querySelectorAll("button")[1];
-    expect(bars.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(area);
-    expect(area.getAttribute("aria-pressed")).toBe("true");
-    expect(bars.getAttribute("aria-pressed")).toBe("false");
-  });
-
-  it("heatmap cells carry the real amounts (data attributes)", () => {
-    renderChartsView();
-    // Dimanche × Sep 2025 = p1 (20 000).
-    const cell = screen.getByTestId("heatmap-cell-Dim-2025-09");
-    expect(cell.getAttribute("data-amount")).toBe("20000");
-    // Mercredi × Oct 2025 = p3 + p4 (46 000).
-    expect(screen.getByTestId("heatmap-cell-Mer-2025-10").getAttribute("data-amount")).toBe("46000");
-  });
 
   it("aging composition renders the normalized shares + total row", () => {
     renderChartsView();
@@ -617,8 +535,6 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
     });
     expect(screen.getByTestId("method-mix-empty")).toBeInTheDocument();
     expect(screen.getByTestId("category-mix-empty")).toBeInTheDocument();
-    expect(screen.getByTestId("heatmap-empty")).toBeInTheDocument();
-    expect(screen.getByTestId("histogram-empty")).toBeInTheDocument();
     expect(screen.getByTestId("yoy-unavailable")).toBeInTheDocument();
     expect(screen.getByTestId("pareto-empty")).toBeInTheDocument();
     expect(screen.getByTestId("aging-empty")).toBeInTheDocument();

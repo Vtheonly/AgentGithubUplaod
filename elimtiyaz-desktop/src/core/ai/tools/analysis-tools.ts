@@ -148,7 +148,7 @@ export const ANALYSIS_TOOLS_DEFINITIONS: ToolDefinition[] = [
     function: {
       name: "get_enrollment_demographics",
       description:
-        "Démographie de l'école : effectifs par niveau (Primaire/CEM/Lycée), par genre, par tranche d'âge, et taux de remplissage par niveau (inscrits / capacité). Retourne un graphique du taux de remplissage. Utile pour la planification de capacité et les inscriptions.",
+        "Démographie de l'école : effectifs par niveau (Primaire/CEM/Lycée), par genre, par tranche d'âge. Retourne un graphique des effectifs par niveau. Utile pour la planification des inscriptions (les capacités de classe ne sont pas plafonnées — l'équilibre entre sections se lit dans les statistiques exécutives).",
       parameters: {
         type: "object",
         properties: {},
@@ -610,11 +610,11 @@ export async function executeAnalysisTool(
       const artifact: ChartArtifact = {
         kind: "chart",
         chartType: "bar",
-        title: "Taux de remplissage par niveau (%)",
-        categories: demo.capacity.map((c) => c.label),
-        series: [{ name: "Remplissage", data: demo.capacity.map((c) => c.percent) }],
-        unit: "percent",
-        caption: "Inscrits / capacité — 100% = niveau saturé.",
+        title: "Effectifs par niveau",
+        categories: demo.grade.map((c) => c.label),
+        series: [{ name: "Élèves", data: demo.grade.map((c) => c.count) }],
+        unit: "count",
+        caption: "Effectifs inscrits par niveau — aucune capacité plafonnée (T-339 : les taux de remplissage ont été retirés).",
       };
 
       return withArtifact(
@@ -622,13 +622,8 @@ export async function executeAnalysisTool(
           by_level: demo.grade,
           by_gender: demo.gender,
           by_age: demo.age,
-          capacity_fill: demo.capacity.map((c) => ({
-            level: c.label,
-            enrolled: c.count,
-            fill_rate_percent: c.percent,
-          })),
           guidance:
-            "Un niveau > 90% rempli anticipe la saturation d'inscriptions ; un niveau < 50% signale un vide de pipeline commercial.",
+            "Les effectifs par niveau guident la planification des sections ; l'équilibre entre sections d'un même niveau se lit dans les statistiques exécutives (déséquilibres de sections).",
         },
         artifact,
       );

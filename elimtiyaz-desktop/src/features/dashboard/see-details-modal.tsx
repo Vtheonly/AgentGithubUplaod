@@ -78,8 +78,6 @@ import {
 import { DASHBOARD_THEME, chartPalette } from "../../shared/ui/dashboard-theme";
 import type { Demographics } from "./tabs/types";
 
-import { ClassCapacityAnalyzer } from "./components/class-capacity-analyzer";
-
 /** VAULT §15.02 — the 4 operational units (never a single "Other" bucket). */
 const OPERATIONAL_UNITS: readonly {
   key: string;
@@ -564,9 +562,6 @@ export function SeeDetailsModal({
                 </CardContent>
               </Card>
             </div>
-
-            {/* Replaced with the new Interactive Class Capacity Analyzer */}
-            <ClassCapacityAnalyzer capacityData={data.demographics.capacity} />
           </div>
         </PageTabContent>
 

@@ -338,7 +338,6 @@ export async function executeDocumentTool(
             ...res.value.grade.map((s) => ["Niveau", s.label, s.count, s.percent]),
             ...res.value.gender.map((s) => ["Genre", s.label, s.count, s.percent]),
             ...res.value.age.map((s) => ["Âge", s.label, s.count, s.percent]),
-            ...res.value.capacity.map((s) => ["Remplissage", s.label, s.count, s.percent]),
           ];
           label = "demographie";
           break;

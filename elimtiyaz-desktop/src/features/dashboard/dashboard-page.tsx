@@ -51,7 +51,7 @@ import {
   type Demographics,
   AVAILABLE_ACADEMIC_YEARS,
 } from "./tabs/types";
-import type { Payment } from "../../domain/model/payment";
+import type { Payment, Installment } from "../../domain/model/payment";
 import {
   previousAcademicYear,
   shiftIsoYearBack,
@@ -81,7 +81,6 @@ const EMPTY_DEMOGRAPHICS: Demographics = {
   grade: [],
   gender: [],
   age: [],
-  capacity: [],
 };
 
 export function DashboardPage() {
@@ -98,6 +97,11 @@ export function DashboardPage() {
   // T-243: the canonical payments stream (one subscription, feeds the
   // weekly-rhythm chart — the calendar reads the same observable).
   const [payments, setPayments] = useState<readonly Payment[]>([]);
+  // T-339 (STATS-400): the canonical installments stream — feeds the
+  // Overview's Wave Velocity hero + the debt KPI's chronic-share
+  // contextualization (deriveTrancheWaves / deriveDebtTriage). One
+  // page-level subscription, the same pattern as the payments stream.
+  const [installments, setInstallments] = useState<readonly Installment[]>([]);
   // T-255 (38th session, UI-307): the PREVIOUS academic year's revenue for
   // the same month window — loaded once per range change for the Analytics
   // tab's like-for-like YoY comparison. Empty when the selected year is the
@@ -176,6 +180,15 @@ export function DashboardPage() {
     });
     return unsub;
   }, [repos.payments]);
+
+  // T-339 — subscribe ONCE to the canonical installments observable (the
+  // tranche-wave stream — see the payments comment above).
+  useEffect(() => {
+    const unsub = repos.installments.observe().subscribe((stream) => {
+      setInstallments(stream);
+    });
+    return unsub;
+  }, [repos.installments]);
 
   // Unread alerts — keep the tab badge current without making the
   // Overview depend on the alerts observable (decoupling preserves the
@@ -279,6 +292,7 @@ export function DashboardPage() {
           <OverviewTab
             data={dataProp}
             payments={payments}
+            installments={installments}
             range={yearRange.range}
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}

@@ -117,7 +117,7 @@ export class MockDashboardRepository implements DashboardRepository {
     );
   }
 
-  async demographics(): Promise<Result<{ grade: DemographicSlice[]; gender: DemographicSlice[]; age: DemographicSlice[]; capacity: DemographicSlice[] }>> {
+  async demographics(): Promise<Result<{ grade: DemographicSlice[]; gender: DemographicSlice[]; age: DemographicSlice[] }>> {
     await delay(120);
     const total = store.students.length;
     // VAULT §15.03 — Grade Level Distribution is a BAR chart "per grade
@@ -157,28 +157,18 @@ export class MockDashboardRepository implements DashboardRepository {
       return { label: b.label, count };
     });
 
-    // VAULT §15.03 — Capacity vs Enrollment is a GAUGE PER CLASS
-    // ("Enrollment as % of max capacity per class") — not per-level bars.
-    // Each slice = one class; `count` carries the enrolled count and
-    // `percent` the fill rate (enrolled / capacity × 100).
-    const byCapacity = store.classes
-      .map((c) => {
-        const capacity = c.capacity ?? 30;
-        const enrolled = c.enrolledCount;
-        return {
-          label: c.name,
-          count: enrolled,
-          percent: capacity > 0 ? Math.round((enrolled / capacity) * 100) : 0,
-        };
-      })
-      .sort((a, b) => b.percent - a.percent)
-      .slice(0, 12);
+    // T-339 (61st session, STATS-400): the CAPACITY slice was REMOVED per
+    // the owner's directive — a class has NO artificial maximum (the school
+    // adds desks or splits sections later), so "fill rate" denominators are
+    // operationally false and the gauges were mathematically meaningless.
+    // The replacement intelligence is the SECTION IMBALANCE detector
+    // (deriveEnrollmentDynamics in executive-statistics.ts): same-grade
+    // sections are compared to each other — no fake ceilings.
 
     return Ok({
       grade: byLevel.map((s) => ({ ...s, percent: total === 0 ? 0 : Math.round((s.count / total) * 100) })),
       gender: byGender.map((s) => ({ ...s, percent: total === 0 ? 0 : Math.round((s.count / total) * 100) })),
       age: byAge.map((s) => ({ ...s, percent: total === 0 ? 0 : Math.round((s.count / total) * 100) })),
-      capacity: byCapacity,
     });
   }
 

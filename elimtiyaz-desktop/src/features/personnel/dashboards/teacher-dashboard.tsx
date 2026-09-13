@@ -255,8 +255,10 @@ export function TeacherDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center justify-between">
+                    {/* T-339 (STATS-400): the X/Y capacity badge became a
+                        plain enrolled count — no fake limits on classes. */}
                     <StatusChip
-                      label={`${c.enrolledCount}/${c.capacity ?? "∞"}`}
+                      label={`${c.enrolledCount} élèves inscrits`}
                       tone="neutral"
                     />
                     <div className="flex gap-2">
