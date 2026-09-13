@@ -7,15 +7,21 @@
  *   - The expected total vs paid total.
  *   - If overpaid: the excess amount + remark.
  *
- * This component reads the payment's `expectedAmount`, `excessAmount`, and
- * `excessRemark` fields (added by migration 0033). It also reads the
- * `payment_allocations` table to show the per-category breakdown.
+ * T-330 (58th session, 2026-09-13) — the canonical precedence chain, in
+ * lockstep with the website's src/lib/canonical/payment-coverage.ts
+ * (cross-platform mandate: same payment → same coverage lines):
+ *   1. PRIMARY: `payment_allocations` rows (migration 0033 — the
+ *      server-side waterfall record written by collect_and_allocate_payment)
+ *      via repos.payments.allocationsForPayment(payment.id).
+ *   2. FALLBACK (legacy payments): the ledger receipt-number join (the
+ *      previous only source — every payment ledger entry sharing the
+ *      payment's receiptNumber is one allocation).
+ *   3. LAST RESORT: the payment's own category + amount as a single line.
  *
- * For payments that don't have allocations (legacy or single-category), it
- * falls back to showing the payment's `category` + `amount` as a single line.
+ * It reads the payment's `expectedAmount`, `excessAmount`, and
+ * `excessRemark` fields (added by migration 0033) for the totals block.
  */
 import { useRepositories } from "../../app/providers/repository-provider";
-import { useObservable } from "../../shared/hooks/use-observable";
 import { Card, CardContent, CardHeader, CardTitle } from "../../shared/ui/card";
 import { Badge } from "../../shared/ui/badge";
 import { formatDzdPlain } from "../../core/format/currency";
@@ -34,14 +40,24 @@ export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
   const repos = useRepositories();
   const [allocations, setAllocations] = useState<PaymentAllocation[]>([]);
 
-  // Fetch allocations for this payment from the ledger entries that have
-  // this payment's receiptNumber in their metadata. This is a client-side
-  // join — the `payment_allocations` table may not exist on all DBs.
+  // T-330: the canonical chain — payment_allocations table FIRST (the
+  // server waterfall record), the ledger receipt-number join as fallback
+  // (legacy payments / mock mode), single-category line last.
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
       try {
-        // Read ledger entries for the parent, filter to those whose
-        // metadata.paymentReceiptNumber matches this payment.
+        // 1. PRIMARY: the canonical table read (Supabase mode; the mock
+        //    repository derives the same lines from its own ledger).
+        if (typeof repos.payments.allocationsForPayment === "function") {
+          const result = await repos.payments.allocationsForPayment(payment.id);
+          if (!cancelled && result.ok && result.value.length > 0) {
+            setAllocations([...result.value]);
+            return;
+          }
+        }
+        // 2. FALLBACK: ledger entries for the parent filtered to this
+        //    payment's receiptNumber (payment-type entries are allocations).
         const ledgerObs = repos.ledger.observeByParent(payment.parentId);
         const allEntries = typeof ledgerObs.get === "function" ? ledgerObs.get() : [];
         const matching = allEntries.filter(
@@ -49,8 +65,6 @@ export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
             e.receiptNumber === payment.receiptNumber &&
             e.type === "payment",
         );
-        // Build allocations from the matching ledger entries.
-        // Each payment ledger entry represents one allocation.
         const built: PaymentAllocation[] = matching.map((e) => ({
           id: `${payment.id}-${e.id}`,
           paymentId: payment.id,
@@ -61,12 +75,15 @@ export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
           label: (e.metadata?.field as string) ?? null,
           createdAt: e.at,
         }));
-        setAllocations(built);
+        if (!cancelled) setAllocations(built);
       } catch {
-        setAllocations([]);
+        if (!cancelled) setAllocations([]);
       }
     })();
-  }, [payment.id, payment.parentId, payment.receiptNumber, repos.ledger]);
+    return () => {
+      cancelled = true;
+    };
+  }, [payment.id, payment.parentId, payment.receiptNumber, repos.ledger, repos.payments]);
 
   const expectedTotal = payment.expectedAmount ?? 0;
   const paidTotal = payment.amount;

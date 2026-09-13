@@ -68,6 +68,7 @@ import type {
   Receipt,
   ParentFinancialProfile,
   PaymentCategory,
+  PaymentAllocation,
   AcademicCycle,
   UpdateInstallmentDueDateInput,
 } from "../../../domain/model/payment";
@@ -81,6 +82,7 @@ import type {
   ParentRow,
   StudentRow,
   PaymentRow,
+  PaymentAllocationRow,
   LedgerEntryRow,
   InstallmentRow,
 } from "../types";
@@ -235,6 +237,9 @@ function mapParentRow(r: ParentRow): Parent {
     transportDestination,
     preferredLanguage: "fr",
     avatarUrl: null,
+    // T-331: the bound web-account id — flags already-linked families in
+    // the approvals picker (the 0047 rebind guard rejects them post-submit).
+    authUserId: r.auth_user_id ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -1064,6 +1069,42 @@ export class SupabasePaymentRepository implements PaymentRepository {
   observeById(id: string): Observable<Payment | null> {
     void this.seed();
     return derived([this.cache], () => this.cache.get().find((p) => p.id === id) ?? null);
+  }
+
+  /**
+   * T-330 (58th session): the canonical per-payment coverage read —
+   * payment_allocations rows (migration 0033, written server-side by
+   * collect_and_allocate_payment). The Payment Breakdown UI's PRIMARY
+   * source; the ledger receipt-number join stays the fallback for legacy
+   * payments. Same precedence as the website's canonical module
+   * (elimtiyaz-website src/lib/canonical/payment-coverage.ts).
+   */
+  async allocationsForPayment(paymentId: string): Promise<Result<readonly PaymentAllocation[]>> {
+    try {
+      const tenantId = requireTenantId();
+      const { data, error } = await this.client
+        .from("payment_allocations")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("payment_id", paymentId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      const rows = (data ?? []) as PaymentAllocationRow[];
+      return Ok(
+        rows.map((r) => ({
+          id: r.id,
+          paymentId: r.payment_id,
+          chargeId: r.charge_id,
+          installmentId: r.installment_id,
+          category: r.category as PaymentCategory,
+          allocatedAmount: r.allocated_amount,
+          label: r.label,
+          createdAt: r.created_at,
+        })),
+      );
+    } catch (err) {
+      return Err(supabaseErrorToAppError(err as { code?: string; message: string; details?: unknown }));
+    }
   }
 
   async collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {

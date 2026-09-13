@@ -164,6 +164,16 @@ export interface Parent {
    * Mirrors the backend `parents.is_financially_restricted` column.
    */
   readonly financiallyRestricted?: boolean;
+  /**
+   * T-331 (58th session): the bound web-account id (parents.auth_user_id,
+   * migrations 0005/0044) — NULL while the family has no login channel.
+   * The approvals tab needs it to flag already-bound parents BEFORE the
+   * admin selects one (the 0047 rebind guard rejects the approval only
+   * AFTER submit otherwise — a confusing late failure).
+   * Optional in the domain so existing literals/fixtures stay valid; the
+   * Supabase mapper populates it from the row.
+   */
+  readonly authUserId?: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

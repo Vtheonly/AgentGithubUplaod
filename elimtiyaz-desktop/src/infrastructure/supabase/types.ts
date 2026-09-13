@@ -297,6 +297,27 @@ export interface PaymentRow {
   updated_at: string;
 }
 
+/**
+ * payment_allocations row (migration 0033) — the CANONICAL server-side
+ * record of what a payment covers, written by collect_and_allocate_payment
+ * (the waterfall RPC). T-330 (58th session): registered here so the desktop
+ * PaymentBreakdownCard reads the table as its PRIMARY source (website
+ * parity — same inputs, same coverage lines on both platforms).
+ */
+export interface PaymentAllocationRow {
+  id: string;
+  tenant_id: string;
+  payment_id: string;
+  /** FK to ledger_entries (the charge side of the waterfall). */
+  charge_id: string | null;
+  /** FK to installments (the tranche the allocation cleared). */
+  installment_id: string | null;
+  category: string;
+  allocated_amount: number;
+  label: string | null;
+  created_at: string;
+}
+
 export interface InstallmentRow {
   id: string;
   tenant_id: string;
@@ -556,6 +577,7 @@ export interface Database {
       parents: { Row: ParentRow; Insert: Partial<ParentRow>; Update: Partial<ParentRow> };
       students: { Row: StudentRow; Insert: Partial<StudentRow>; Update: Partial<StudentRow> };
       payments: { Row: PaymentRow; Insert: Partial<PaymentRow>; Update: Partial<PaymentRow> };
+      payment_allocations: { Row: PaymentAllocationRow; Insert: Partial<PaymentAllocationRow>; Update: Partial<PaymentAllocationRow> };
       installments: { Row: InstallmentRow; Insert: Partial<InstallmentRow>; Update: Partial<InstallmentRow> };
       ledger_entries: { Row: LedgerEntryRow; Insert: Partial<LedgerEntryRow>; Update: Partial<LedgerEntryRow> };
       expense_tickets: { Row: ExpenseTicketRow; Insert: Partial<ExpenseTicketRow>; Update: Partial<ExpenseTicketRow> };

@@ -39,6 +39,7 @@ import type {
   AcademicCycle,
   UpdateInstallmentDueDateInput,
   PaymentCategory,
+  PaymentAllocation,
 } from "../../../domain/model/payment";
 import type { AllocationResult } from "../../../domain/calc/payment/waterfall-allocator";
 import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
@@ -97,6 +98,34 @@ export class MockPaymentRepository implements PaymentRepository {
   }
   observeById(id: string): Observable<Payment | null> {
     return derived([store.payments$], () => store.payments.find((p) => p.id === id) ?? null);
+  }
+  /**
+   * T-330 mock parity: the mock store has no payment_allocations table —
+   * the mock derives the coverage lines from its OWN ledger stream with
+   * the same receipt-number join the Supabase fallback uses (the mock
+   * waterfall writes one payment ledger entry per allocation). Both modes
+   * then agree: same payment → same coverage lines (DATA-013 lesson:
+   * run BOTH modes against the same fixture when touching a repository
+   * contract).
+   */
+  async allocationsForPayment(paymentId: string): Promise<Result<readonly PaymentAllocation[]>> {
+    const payment = store.payments.find((p) => p.id === paymentId);
+    if (!payment || !payment.receiptNumber) return Ok([]);
+    const matching = store.ledger.filter(
+      (e) => e.receiptNumber === payment.receiptNumber && e.type === "payment",
+    );
+    return Ok(
+      matching.map((e) => ({
+        id: `${paymentId}-${e.id}`,
+        paymentId,
+        chargeId: null,
+        installmentId: null,
+        category: e.category,
+        allocatedAmount: Math.abs(e.amount),
+        label: (e.metadata?.field as string | undefined) ?? null,
+        createdAt: e.at,
+      })),
+    );
   }
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
     return collectPayment(ctx, input, collectedBy);

@@ -38,6 +38,7 @@ import type {
   AcademicCycle,
   PaymentCategory,
   PaymentPlan,
+  PaymentAllocation,
 } from "../model/payment";
 import type { AllocationResult } from "../calc/payment/waterfall-allocator";
 import type {
@@ -254,6 +255,24 @@ export interface PaymentRepository {
   observeByParent(parentId: string): Observable<Payment[]>;
   observeByStudent(studentId: string): Observable<Payment[]>;
   observeById(id: string): Observable<Payment | null>;
+  /**
+   * T-330 (58th session, 2026-09-13): the CANONICAL per-payment coverage
+   * read — the `payment_allocations` rows written server-side by
+   * collect_and_allocate_payment (the waterfall RPC, migration 0033).
+   *
+   * The Payment Breakdown UI consumes this as its PRIMARY source; the
+   * ledger-derived receipt-number join (the previous only source) remains
+   * the FALLBACK for legacy payments predating the table. The website
+   * portal applies the IDENTICAL precedence
+   * (src/lib/canonical/payment-coverage.ts) so the same payment produces
+   * the same coverage lines on both platforms — the owner's cross-platform
+   * consistency mandate.
+   *
+   * Optional so existing implementations (Android mirrors, test fakes)
+   * keep compiling; the Supabase + Mock repositories both implement it.
+   * RLS: payment_allocations_staff_write (0041) allows the staff SELECT.
+   */
+  allocationsForPayment?(paymentId: string): Promise<Result<readonly PaymentAllocation[]>>;
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>>;
   /**
    * BULK IMPORT FIX: Batch-collect many payments in a SINGLE Supabase

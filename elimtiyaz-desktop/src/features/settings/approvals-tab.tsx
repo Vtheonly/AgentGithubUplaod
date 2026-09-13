@@ -492,17 +492,24 @@ function DecisionModal({
     : null;
 
   const filteredParents = useMemo(() => {
-    if (!parentQuery.trim()) return parents.slice(0, 8);
-    const q = parentQuery.toLowerCase();
-    return parents
-      .filter(
-        (p) =>
-          parentDisplayName(p).toLowerCase().includes(q) ||
-          p.phone.includes(q) ||
-          p.code.toLowerCase().includes(q),
-      )
-      .slice(0, 8);
+    const match = (p: Parent): boolean => {
+      if (!parentQuery.trim()) return true;
+      const q = parentQuery.toLowerCase();
+      return (
+        parentDisplayName(p).toLowerCase().includes(q) ||
+        p.phone.includes(q) ||
+        p.code.toLowerCase().includes(q) ||
+        (p.email ?? "").toLowerCase().includes(q)
+      );
+    };
+    return parents.filter(match).slice(0, 8);
   }, [parents, parentQuery]);
+
+  // T-331: the 0047 rebind guard rejects approving onto a parent already
+  // bound to a DIFFERENT auth user — surface that BEFORE submit, not as a
+  // late server error. A selected-but-bound parent blocks confirmation.
+  const selectedParentBound =
+    !!selectedParent && !!selectedParent.authUserId;
 
   return (
     <UnifiedModal
@@ -517,6 +524,7 @@ function DecisionModal({
       onSubmit={onSubmit}
       submitLabel={isReject ? "Rejeter" : "Confirmer l'approbation"}
       submitVariant={isReject ? "destructive" : "default"}
+      submitDisabled={isApproveExisting && (selectedParentBound || !decision.targetParentId)}
       cancelLabel="Annuler"
       alert={
         isReject
@@ -546,6 +554,13 @@ function DecisionModal({
                   <p className="text-xs text-muted-foreground">
                     {selectedParent.code} · {selectedParent.phone}
                   </p>
+                  {selectedParentBound && (
+                    <p className="mt-1 text-xs font-medium text-status-danger">
+                      Ce dossier est déjà lié à un autre compte web — déliez-le
+                      d'abord via l'éditeur RBAC (garde anti-remplacement,
+                      migration 0047).
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -565,35 +580,53 @@ function DecisionModal({
                     autoFocus
                     value={parentQuery}
                     onChange={(e) => setParentQuery(e.target.value)}
-                    placeholder="Rechercher un parent (nom, code, tél)..."
+                    placeholder="Rechercher un parent (nom, code, tél, email)..."
                     className="pl-8"
                   />
                 </div>
                 {filteredParents.length > 0 && (
                   <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
-                    {filteredParents.map((p) => (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onChange({ ...decision, targetParentId: p.id })
-                          }
-                          className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-accent/5"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {parentDisplayName(p)}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground font-mono">
-                              {p.code}
-                            </p>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {p.phone}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                    {filteredParents.map((p) => {
+                      const bound = !!p.authUserId;
+                      return (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              !bound &&
+                              onChange({ ...decision, targetParentId: p.id })
+                            }
+                            disabled={bound}
+                            title={
+                              bound
+                                ? "Dossier déjà lié à un compte web — déliez-le via l'éditeur RBAC avant l'approbation (0047)"
+                                : undefined
+                            }
+                            className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-accent/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {parentDisplayName(p)}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground font-mono">
+                                {p.code}
+                              </p>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {p.phone}
+                            </span>
+                            {bound && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] text-status-warning border-status-warning/40 shrink-0"
+                              >
+                                Compte lié
+                              </Badge>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
                 {filteredParents.length === 0 && (
