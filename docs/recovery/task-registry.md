@@ -3212,3 +3212,12 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Depends on:** T-364 (the fixes the suite asserted against).
 - **Priority:** P0
 - **Next:** T-366 (closeout — this entry).
+
+### T-367 — 66th session: the portal document-upload TABLE leg (UPLOAD-104) — the row INSERT omits tenant_id, so the "fixed" upload still 403s live
+
+- **Status:** IN PROGRESS (2026-09-14, 66th session — registered BEFORE the fix per §13)
+- **Problems:** UPLOAD-104 (the `student_documents` row INSERT omits `tenant_id`; the column has NO default; the 0043 parent INSERT policy's WITH CHECK `tenant_id = current_tenant_id()` fails on NULL → SQLSTATE 42501 → PostgREST HTTP 403 — the owner's live console evidence. The t-359 e2e probe covered the STORAGE leg only; the TABLE leg was never exercised — the verification gap that let UPLOAD-101 close TESTED while the live flow still failed)
+- **Scope:** elimtiyaz-website `src/features/profile/student-documents-card.tsx` (insert payload gains `tenant_id: tenantId` — the `chat_messages` convention); NEW regression guard `src/test/t-367-insert-tenant-guard.test.ts` (payload carries tenant_id + whole-src guard on every `.from("student_documents").insert(`); hub `elimtiyaz-desktop/scripts/t-359-upload-e2e.py` extended with the TABLE leg (L: no-tenant insert → 42501/403 RED proof; M: tenant insert → 201 + parent read-back GREEN proof + zero-residue cleanup); closeout registries.
+- **Depends on:** T-360 (the storage-path fix whose tenantId prop this fix reuses).
+- **Priority:** P0 (the owner's live console evidence names this exact endpoint)
+- **Next:** live probe + gates, then closeout.
