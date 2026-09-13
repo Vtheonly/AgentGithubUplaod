@@ -2982,7 +2982,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-340 — 61st session: the ANDROID verbatim mirror — StatisticsEngine extension + Room migration 14→15 (trancheNumber + transportTier) + the executive UI + vanity-card removal
 
-- **Status:** In Progress (Kotlin mirror drafted: core/ExecutiveStatistics.kt — all 8 derivation families, ADR-002 header pins source commit 256bfa4 — + Room MIGRATION_14_15 + schema 15.json + LocalDashboardRepository wiring + vanity-card removal in StatisticsEngine/AnalyticsVisuals/DashboardKpi; gradle compile + unit tests + MigrationTestHelper test + corpus runner mirror NOT yet run → verification pending, do NOT close)
+- **Status:** TESTED (android commit 12994e7 — the FULL suite 558 tests / 0 failures / 1 pre-existing skip; ExecutiveStatisticsTest 45/45 verbatim desktop corpus; CrossPlatformEquivalenceTest asserts the executive_statistics corpus 8 families deep-equal — desktop ≡ android on every value; Room migration discipline re-pinned to v15; the WIP backup was 47a7cd7)
 - **Problems:** STATS-400 (the Android leg) · PARITY family debt (T-333 pricing-profile mirror superseded by this larger statistics parity mandate)
 - **Scope:** elimtiyaz-android — `core/StatisticsEngine.kt` extended with the T-338 derivation families VERBATIM (source commit recorded in the header per ADR-002); Room MIGRATION_14_15 (installments.tranche_number INTEGER NOT NULL DEFAULT 1; students.transport_tier TEXT NULL) + entity/DTO mapper updates + MigrationTestHelper test; DashboardViewModel/LocalDashboardRepository wiring; new Analytique cards (wave velocity, discount erosion, debt triage, family concentration, transport, services, enrollment/imbalance, triple-risk radar); vanity cards removed (YoYAndHistogramCards histogram half, HeatmapAndAgingCards heatmap half, RevenueTrendExplorerCard, DemographicsCard capacity gauges, ClassDetailScreen capacity gauges → section-imbalance + plain enrolled counts).
 - **Depends on:** T-338 (the canonical engine to mirror).
@@ -2990,7 +2990,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-341 — 61st session: cross-platform equivalence + LIVE verification — the corpus category + the SQL truth scripts + both live runners
 
-- **Status:** In Progress (corpus leg DONE — commit 84b2a65: desktop_runner 311 passed / 0 failed / 1 errored, the errored being the documented pre-existing 017_zero_payment discrepancy, unchanged; remaining: `verify_t-338.sql` server-side truth script + the live node runner diffing TS derivations vs SQL truth over the live Supabase stream + the Android runner mirror) 
+- **Status:** VERIFIED LIVE (hub commit 7c198dd — `verify_t-338.sql` server-side truth (BEGIN…ROLLBACK) + `verify_t-338_live.ts` live diff runner: **299 checks / 0 mismatches** over the production stream (1280 installments · 2060 ledger · 391 students · 905 payments); the corpus leg was 84b2a65 (311/0/1 pre-existing) and the Android runner mirror landed in android 12994e7; evidence: docs/recovery/t-338-live-verification.md)
 - **Problems:** STATS-400 (the proof leg)
 - **Scope:** hub — financial-tests corpus category `executive_statistics` (then-blocks generated from the REAL TS derivations) + the op in BOTH runners + CrossPlatformEquivalenceTest.kt extension; `elimtiyaz-desktop/scripts/verify_t-338.sql` (BEGIN/ROLLBACK server-side truth: tranche waves, remise census via metadata markers, debt triage buckets, family concentration, transport towns, sibling index, section imbalance) + a live node runner executing the TS derivations against the live Supabase stream and diffing against the SQL truth; Android LiveDatabaseEquivalenceTest extension (env-gated) when the toolchain allows.
 - **Depends on:** T-338 + T-340.
@@ -2998,7 +2998,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-342 — 61st session: closeout — registries + change-log + current-state + next-task + zips + GitHub push (owner PAT)
 
-- **Status:** Not Started (planned)
+- **Status:** Completed (this session's docs + zips + pushes: hub 6482d26 → 7c198dd, android 47a7cd7 → 12994e7, website already in sync; the change-log entry + current-state + next-task updated; zips to the download area)
 - **Problems:** process (ADR-007)
 - **Scope:** all repos — the five-question commits per repo, registry status flips with evidence, change-log entries, zips to the download area, push with the owner PAT.
 - **Depends on:** T-338..T-341.
