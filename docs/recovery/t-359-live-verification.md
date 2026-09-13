@@ -44,3 +44,7 @@ The mandate asked for a role/permission review as part of the same work. The liv
 - **Android (T-362 / UPLOAD-103):** add the tenant parameter to the upload contract, use the `{tenantId}/{entityId}/{fileName}` path, surface permanent 4xx rejections instead of swallowing them (reusing `SyncErrorClassifier`), and give uploads a 60 s timeout.
 
 Each fix's acceptance is already proven by the matching GREEN probe above; the post-fix verification re-runs the same matrix through the clients' own code paths (unit-pinned) plus this script's canonical-path checks.
+
+## Post-fix re-verification (T-363 closeout, 2026-09-14)
+
+Re-run after all three platform fixes landed: **13/13 GREEN ×2 idempotent consecutive runs** (the second run proves the cleanup leaves zero residue — the earlier `email_exists` 422 was residue from run #1, root-caused to GoTrue's admin user-delete: the `?email=` query form is SILENTLY INEFFECTIVE; the correct form is the user ID in the path — the script now resolves the id by email and deletes by id, and the quirk is recorded in AGENTS.md §15.28). The staff and parent legs behave identically to the pre-fix run: the three pre-fix path formats remain RLS-rejected (they document the old client behavior), the canonical tenant-scoped formats remain accepted, role resolution and cross-tenant denial hold, and the parents/students/student_documents counts are unchanged (261/391/0) with all probe objects removed.

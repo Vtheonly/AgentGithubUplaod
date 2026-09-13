@@ -183,12 +183,18 @@ def main():
 
     print("== PARENT LEG: test account → student-documents / attendance-justifications ==")
     # Clean any previous run residue FIRST (idempotent re-runs).
+    # NOTE (discovered live, 2026-09-14): GoTrue's admin user-delete takes
+    # the user's ID in the PATH — `DELETE …/admin/users?email=…` is silently
+    # ineffective (the first run left the auth user behind and the re-run
+    # then hit email_exists 422). Resolve the id by email, delete by id.
     sql(f"delete from public.role_assignments where user_profile_id in "
         f"(select id from public.user_profiles where email = '{TEST_EMAIL}')")
     sql(f"delete from public.user_profiles where email = '{TEST_EMAIL}'")
     sql(f"update public.parents set auth_user_id = null where auth_user_id in "
         f"(select id from auth.users where email = '{TEST_EMAIL}')")
-    gotrue("DELETE", f"/auth/v1/admin/users?email={TEST_EMAIL}")
+    residual = sql(f"select id from auth.users where email = '{TEST_EMAIL}'")
+    for row in residual:
+        gotrue("DELETE", f"/auth/v1/admin/users/{row['id']}")
 
     # Pick an UNBOUND parent with at least one non-deleted student.
     rows = sql(
@@ -291,7 +297,9 @@ def main():
     sql(f"delete from public.role_assignments where user_profile_id in "
         f"(select id from public.user_profiles where email = '{TEST_EMAIL}')")
     sql(f"delete from public.user_profiles where email = '{TEST_EMAIL}'")
-    gotrue("DELETE", f"/auth/v1/admin/users?email={TEST_EMAIL}")
+    # Delete by ID (the email-form DELETE is silently ineffective — see the
+    # residue note above).
+    gotrue("DELETE", f"/auth/v1/admin/users/{test_uid}")
     after = sql(
         "select (select count(*) from public.parents) as parents,"
         " (select count(*) from public.students where deleted_at is null) as students,"

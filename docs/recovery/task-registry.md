@@ -3160,7 +3160,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-360 — 64th session: website document-upload path fix (UPLOAD-101)
 
-- **Status:** Not Started
+- **Status:** COMPLETED (TESTED, 2026-09-14 — commit 68ad0b6 website repo: tenant-scoped path from activeKid.tenant_id; 5-test regression suite incl. the whole-src upload-path guard; gates 47 files / 612 tests / 0 + lint + strict build + tsc 0)
 - **Problems:** UPLOAD-101
 - **Scope:** `student-documents-card.tsx` UploadDocumentDialog builds `{tenantId}/{studentId}/{kind}-{ts}.{ext}` (tenant from the active StudentRow); header comment corrected (0018/0043, not "0027"); regression test source-scanning the path construction; website gates (lint + vitest + strict build).
 - **Depends on:** T-359.
@@ -3169,7 +3169,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-361 — 64th session: desktop payment-proof tenant fix + phantom bucket removal (UPLOAD-102)
 
-- **Status:** Not Started
+- **Status:** COMPLETED (TESTED, 2026-09-14 — commit 2fef316 hub repo: session.tenantId + the T-053 loud guard; phantom therapy-attachments bucket removed; 5-test regression suite; gates typecheck 0 / eslint 0 errors / 152 files / 3280 tests / 0 on the merged tree)
 - **Problems:** UPLOAD-102
 - **Scope:** `unified-payment-modal.tsx` uses `session.tenantId` with the T-053 explicit no-tenant failure (mirrors `homework-push-modal.tsx`); the unused phantom `"therapy-attachments"` member removed from `MediaBucket` (no bucket by that name exists anywhere); regression test asserting no `"mock"` literal reaches the vault call; desktop gates (typecheck + eslint + vitest).
 - **Depends on:** T-359.
@@ -3178,7 +3178,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-362 — 64th session: Android storage upload fix — tenant path + honest failure + upload timeout (UPLOAD-103)
 
-- **Status:** Not Started
+- **Status:** COMPLETED (TESTED, 2026-09-14 — commit 5adc721 android repo: contract tenantId + StorageBuckets.objectPath; null-tenant fail-closed; SyncErrorClassifier reuse (transport vs 4xx); 60 s upload timeout; honest scanner UI; 8-test suite; gates 60 files / 566 tests / 0 + lintDebug + assembleDebug green)
 - **Problems:** UPLOAD-103
 - **Scope:** `StorageRepository.uploadProof` contract gains the tenant parameter (desktop `uploadPrivateMedia` mirror); `LocalStorageRepository` uploads `{tenantId}/{entityId}/{fileName}` with a 60 s upload timeout; REUSES `SyncErrorClassifier.isTransient` so transport failures keep the sanctioned offline-first local fallback while permanent 4xx rejections (RLS) surface as `Result.Err` — never a fake success; `ProofScannerViewModel` passes `sessionManager.currentTenantId()`; unit tests for the path construction + the classifier branches; Android gates (compile + lint + test).
 - **Depends on:** T-359.
@@ -3187,7 +3187,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-363 — 64th session: closeout — registry flips + change-log + current-state + next-task + zips + push
 
-- **Status:** Not Started
+- **Status:** COMPLETED (2026-09-14 — post-fix live re-verification 13/13 GREEN ×2 idempotent runs zero residue; AGENTS.md §15.28 added (the storage-path convention rule); registry flips; change-log + current-state + next-task; zips + push with the owner PAT)
 - **Problems:** UPLOAD-101/102/103 (status flips with evidence)
 - **Scope:** registry flips, change-log, current-state, next-task, the zip set, the GitHub push with the owner PAT. COORDINATION: the 63rd session (T-351..T-358 dashboard wiring) may push concurrently — fetch → inspect → merge forward → re-run gates before every push (never force-push).
 - **Depends on:** T-359..T-362.
