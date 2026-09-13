@@ -2891,3 +2891,38 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Dependencies:** T-320..T-324 · **Affected:** hub docs + all-repo zips + GitHub push (owner PAT)
 - **Plan:** ./gradlew testDebugUnitTest + assembleDebug + lintDebug green with recorded counts; hub registry updates (problem entries UI-310..314, task flips, change-log 55th-session section, current-state, next-task); conventional commits per repo with the 5-question body; zip all three repos + push with the owner PAT; final owner report.
 
+
+### T-326 — 58th session: reconcile the four live-applied-but-uncommitted migrations (ARCH-012) — 0088/0091/0092/0093 reconstructed from live, chain zero-drift
+
+- **Status:** VERIFIED (2026-09-13) — rollback-wrapped live probe 6/6 ok (policies exact scope, bucket exact limits, has_medical_justification validates, 4 registrations intact); chain diff live 90 = local 90 both directions; append-only guard OK (+4 files, zero edits).
+- **Scope:** hub backend chain. Files: 4 new migrations + scripts/verify_t-326.sql. Commit 385311f.
+
+### T-327 — 58th session: the intentional desktop-wide portal layout (UI-315) — the app-shell flex-row fix + sticky rail + the width hierarchy
+
+- **Status:** TESTED (2026-09-13) — website suite 565/565 incl. the NEW t-214 guard suite (11 tests) pinning lg:flex-row + the sticky rail + the absent lg:pl-0; lint clean; strict build green.
+- **Scope:** website (app-shell, bottom-nav DesktopRail, top-app-bar, dashboard grid). Commit 265c2c4.
+
+### T-328 — 58th session: the guard-regression repair + i18n completion + junk removal (REG-008 website half)
+
+- **Status:** TESTED (2026-09-13) — all 6 broken guards repaired (t-199/t-210/t-213 ×2/t-211/t-149); .smartexport removed + gitignored; the 2 latent type errors fixed (REG-007 class); 12 new dictionary keys ×3 locales; every dossier/coverage string routed through t().
+- **Scope:** website. Commit 265c2c4.
+
+### T-329 — 58th session: the per-child dossier for ALL children — notes (students.medical_notes), the canonical academic history (0091 policy), financial enrollments, complete i18n
+
+- **Status:** TESTED (2026-09-13) — website suite green; the dossier dialog consumes useStudentAcademicHistories (the 0029 canonical table, parent-readable under the reconstructed 0091 policy — positive visibility probed LIVE: visible=1 for a bound family, foreign=0, fail-closed unknown=0).
+- **Scope:** website (children-info-card + portal-queries + dictionary). Commit 265c2c4.
+
+### T-330 — 58th session: payment coverage through the ONE canonical chain (PARITY-004) — website module + desktop table-read lockstep
+
+- **Status:** VERIFIED (2026-09-13) — website: src/lib/canonical/payment-coverage.ts + 10 parity tests (incl. migration 0033's 300k-split pin, table→ledger→single precedence). Desktop: PaymentRepository.allocationsForPayment (Supabase + Mock) consumed table-first by PaymentBreakdownCard + 7 contract tests; full desktop suite 3144/3144. LIVE probe: 891 payments with 1,342 allocation rows, ZERO over-allocation (+1 DZD tolerance); 12 legacy payments resolve through the ledger receipt-number join; parent RLS own=3/foreign=0.
+- **Scope:** website + desktop (financial read-side only — no write path touched). Commits 265c2c4 (website) + b4f6f22 (desktop).
+
+### T-331 — 58th session: the approvals parent-picker properly registered (REG-008 desktop half) — binding-status awareness (Parent.authUserId), pre-empted 0047 guard, email search
+
+- **Status:** TESTED (2026-09-13) — desktop suite 3144/3144 incl. the NEW t-331 suite (10 tests); typecheck + lint clean.
+- **Scope:** desktop (domain model + mapper + approvals-tab). Commit b4f6f22.
+
+### T-332 — 58th session: LIVE E2E verification of the approval → assign-to-EXISTING-parent round-trip + the closeout (registries, change-log, zips, push)
+
+- **Status:** VERIFIED (2026-09-13) — the full live round-trip 16/16 GREEN (scripts/t-332-approval-e2e.py, evidence docs/recovery/t-332-live-verification.md): website registration → 0002-trigger pending request → admin sign-in → EF approve WITH target_parent_id → request approved + parents.auth_user_id bound + profile active + parent role assigned + parent.bind audit written + ZERO duplicate parents/students/installments/payments/ledger-entries (261/391/1280/903/2056 before AND after) + the portal login path resolves the EXISTING parent + child under the user's own RLS + zero-residue cleanup. Coverage/history probes 9/9 + 1/1 GREEN (scripts/t-332-coverage-probe.py).
+- **Scope:** live backend E2E + documentation closeout.
