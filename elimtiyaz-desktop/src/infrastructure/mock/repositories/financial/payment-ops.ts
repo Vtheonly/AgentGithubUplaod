@@ -750,7 +750,7 @@ export async function adjustAccount(
     parentId,
     studentId,
     category,
-    amount, // signed: + for debit (penalty), - for credit (waiver)
+    amount, // signed: + for debit (majoration — CALC-001: no penalties), - for credit (waiver)
     type: "adjustment",
     sourceType: "adjustment",
     sourceId: adj.id,

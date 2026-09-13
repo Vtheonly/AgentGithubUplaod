@@ -1441,8 +1441,9 @@ export class SupabasePaymentRepository implements PaymentRepository {
       const nowIso = new Date().toISOString();
       const adjustmentId = `led-${nowIso}-${Math.random().toString(36).slice(2, 10)}`;
       // Overpayment credits use category=parent_credit + studentId=null + a
-      // parent-scoped accountId. Positive adjustments (penalty / late fee)
-      // use the caller-specified category (default tuition) + the
+      // parent-scoped accountId. Positive adjustments (majoration —
+      // CALC-001: penalties do not exist) use the caller-specified category
+      // (default tuition) + the
       // caller-specified studentId (default null) — this preserves the
       // canonical "negative balance implies parent_credit" invariant (INV-3).
       const isCredit = amount < 0;

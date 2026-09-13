@@ -34,7 +34,8 @@
  * -----------
  *   - `charge`         — tuition tranche invoiced, transport fee, additional service
  *   - `payment`        — cash/check/transfer received at the counter
- *   - `adjustment`     — discretionary credit (discount, waiver) or debit (penalty)
+ *   - `adjustment`     — discretionary credit (discount, waiver) or debit
+ *                        (majoration — CALC-001: penalties do not exist)
  *   - `refund`         — money returned to the parent
  *   - `reversal`       — negates a prior entry (linked via `reversesId`)
  *   - `transfer`       — moves value between accounts (e.g. reallocate a payment

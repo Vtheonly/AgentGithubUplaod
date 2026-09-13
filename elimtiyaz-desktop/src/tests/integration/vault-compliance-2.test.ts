@@ -276,7 +276,7 @@ describe("VAULT §07.02 — PENDING → UNPAID (check bounces)", () => {
 
 describe("VAULT §07.04 — adjustment reason codes (controlled list)", () => {
   it("mirrors the backend account_adjustments.reason_code CHECK constraint", () => {
-    // The 12 codes from migration 0007 — verbatim.
+    // The 12 codes from migration 0007 minus `late_fee_waiver` (CALC-001 removal).
     expect(ADJUSTMENT_REASON_CODES).toEqual([
       "sibling_discount",
       "staff_family",
@@ -288,7 +288,7 @@ describe("VAULT §07.04 — adjustment reason codes (controlled list)", () => {
       "scholarship_replacement",
       "hardship",
       "correction",
-      "late_fee_waiver",
+      // CALC-001 (owner mandate 2026-09-13): `late_fee_waiver` REMOVED — penalties do not exist.
       "other",
     ]);
     for (const code of ADJUSTMENT_REASON_CODES) {

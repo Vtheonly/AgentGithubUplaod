@@ -148,7 +148,7 @@ const PRICING: PricingConfig = {
     "2ap": 20_000,
   } as unknown as PricingConfig["registrationFeeByGrade"],
   monthlyByLevel: {},
-  latePenaltyPerDay: 100,
+  // CALC-001: `latePenaltyPerDay` removed from the model — no penalty exists.
   discounts: [
     {
       id: "d-1",
@@ -294,7 +294,7 @@ describe("servicePricingProfiles — the exhaustive tuition profile (LIVE ALIOUA
     ]);
   });
 
-  it("covers the CONDITIONS: active discounts + early-payment bonus + late penalty", () => {
+  it("covers the CONDITIONS: active discounts + early-payment bonus — and NEVER a late penalty (CALC-001)", () => {
     const conditions = profiles[0].conditions;
     const codes = conditions.map((c) => c.code);
     expect(codes).toContain("sibling_fixed");
@@ -303,9 +303,9 @@ describe("servicePricingProfiles — the exhaustive tuition profile (LIVE ALIOUA
     const early = conditions.find((c) => c.kind === "early_payment_bonus");
     expect(early?.value).toBe(5);
     expect(early?.deadline).toBe("2026-06-30");
-    const late = conditions.find((c) => c.kind === "late_penalty");
-    expect(late?.value).toBe(100);
-    expect(late?.valueType).toBe("fixed_dzd");
+    // CALC-001 (owner mandate 2026-09-13): no penalty exists at the school —
+    // the engine must never surface a late_penalty condition again.
+    expect(conditions.some((c) => (c.kind as string) === "late_penalty")).toBe(false);
   });
 
   it("covers the APPLIED DISCOUNT with provenance (the −20 000 remise)", () => {

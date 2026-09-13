@@ -15,7 +15,8 @@
  *   - Complementary services: psychology / speech therapy with semester & annual options
  *   - Additional services: free-form name → price (canteen, uniform, books, 2nd apron, clubs)
  *   - Discounts: named discount codes with percentage or fixed amount
- *   - Penalties: per-day late payment penalty
+ *   - (CALC-001, owner mandate 2026-09-13: NO penalties — the per-day late
+ *     payment penalty concept was REMOVED from the engine entirely; never re-add)
  *
  * Iteration 6 changes:
  *   - Tuition is now keyed by `GradeLevel` (14 grades) instead of `AcademicLevel` (3 levels).
@@ -46,9 +47,8 @@ export type PricingCategory =
   | "registration"
   | "monthly"
   | "discount"
-  | "penalty"
   | "additional"
-  | "complementary";
+  | "complementary"; // CALC-001: "penalty" removed — penalties do not exist
 
 export type DiscountType = "percentage" | "fixed_amount";
 
@@ -168,7 +168,8 @@ export interface PricingConfig {
    */
   readonly registrationFeeByGrade: Record<GradeLevel, number>;
   readonly monthlyByLevel: Partial<Record<AcademicLevel, number>>;
-  readonly latePenaltyPerDay: number;
+  // CALC-001 (owner mandate 2026-09-13): `latePenaltyPerDay` REMOVED from the
+  // model — no daily penalty exists at the school. Never re-add.
   readonly discounts: readonly PricingEntry[];
   readonly additionalServices: readonly PricingEntry[];
   /** Complementary services — psychology sessions, speech therapy sessions. */
@@ -211,7 +212,6 @@ export const PRICING_CATEGORY_LABELS_FR: Record<PricingCategory, string> = {
   registration: "Inscription",
   monthly: "Mensualité",
   discount: "Remise",
-  penalty: "Pénalité",
   additional: "Service additionnel",
   complementary: "Service complémentaire",
 };

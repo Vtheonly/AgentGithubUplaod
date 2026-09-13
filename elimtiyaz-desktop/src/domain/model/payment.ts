@@ -371,7 +371,8 @@ export const AGING_BUCKET_LABELS_FR: Record<AgingBucket, string> = {
  * - `"consolidated_debt"`   → Paying a custom amount toward the family's
  *                             total accumulated overdue debt across all services.
  * - `"account_adjustment"`  → Administrative credit (discount/waiver) or debit
- *                             (penalty) applied directly to the account.
+ *                             (majoration — CALC-001: penalties do not exist)
+ *                             applied directly to the account.
  */
 export type PaymentNavigationMode =
   | "single_item"
@@ -483,9 +484,12 @@ export function proofRequiredFor(method: PaymentMethod): boolean {
  * (vault §07.04: "Admin selects an approval reason code from a controlled
  * list (no free-text)").
  *
- * This list mirrors VERBATIM the backend `account_adjustments.reason_code`
- * CHECK constraint (migration 0007) so the desktop, the SQL layer and the
- * Android app share the same controlled vocabulary. The scholarship system
+ * This list mirrors the backend `account_adjustments.reason_code` CHECK
+ * constraint (migration 0007) so the desktop, the SQL layer and the
+ * Android app share the same controlled vocabulary — with ONE deliberate
+ * divergence: `late_fee_waiver` is REMOVED (CALC-001, owner mandate
+ * 2026-09-13 — penalties do not exist at the school; the SQL CHECK still
+ * permits the legacy code but no caller may propose it). The scholarship system
  * was replaced by these audited adjustments — `scholarship_replacement` is
  * the explicit code for legacy scholarship-style relief.
  */
@@ -500,7 +504,6 @@ export const ADJUSTMENT_REASON_CODES = [
   "scholarship_replacement",
   "hardship",
   "correction",
-  "late_fee_waiver",
   "other",
 ] as const;
 
@@ -517,7 +520,6 @@ export const ADJUSTMENT_REASON_LABELS_FR: Record<AdjustmentReasonCode, string> =
   scholarship_replacement: "Remplacement bourse (supprimée)",
   hardship: "Difficulté sociale",
   correction: "Correction d'erreur",
-  late_fee_waiver: "Annulation pénalité de retard",
   other: "Autre (préciser en note)",
 };
 

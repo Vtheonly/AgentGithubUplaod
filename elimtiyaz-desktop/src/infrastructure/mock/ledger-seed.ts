@@ -270,8 +270,8 @@ export function buildSeedLedger(): LedgerEntry[] {
     parentId: "par-005",
     studentId: null,
     category: "tuition",
-    amount: 2000, // debit: late penalty
-    reason: "Pénalité retard — 20 jours × 100 DZD/jour",
+    amount: 2000, // debit: majoration (CALC-001: penalties do not exist — relabeled 2026-09-13)
+    reason: "Majoration — régularisation dossier (20 jours de retard de règlement)",
     sourceType: "adjustment",
     sourceId: "adj-002",
     actorId: "usr-fin-001",

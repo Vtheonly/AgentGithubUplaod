@@ -10,8 +10,10 @@
  * exactly this gap for the price half.
  *
  * Adapter pattern of the T-238/T-239/T-240 ports onto the canonical tables:
- *   - pricing_configs            → registrationFee / latePenaltyPerDay /
- *                                  secondApronFee (0006 §1)
+ *   - pricing_configs            → registrationFee / secondApronFee (0006 §1;
+ *                                  CALC-001: latePenaltyPerDay REMOVED —
+ *                                  penalties do not exist, the column is
+ *                                  inert legacy data and is never read)
  *   - grade_level_tuition        → tuitionByGradeLevel (joined via
  *                                  academic_levels.grade_code) (0006 §2)
  *   - transport_destinations     → transportByDestination (by code) (0006 §3)
@@ -70,7 +72,6 @@ interface ConfigRow {
   id: string;
   tenant_id: string;
   registration_fee: number | string;
-  late_penalty_per_day: number | string;
   second_apron_fee: number | string;
   is_active: boolean;
 }
@@ -165,7 +166,7 @@ export async function readDbPricingConfig(
   // 1. Active pricing config row (tenant-scoped).
   const { data: cfgRows } = await client
     .from("pricing_configs")
-    .select("id, tenant_id, registration_fee, late_penalty_per_day, second_apron_fee, is_active")
+    .select("id, tenant_id, registration_fee, second_apron_fee, is_active")
     .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .limit(1);
@@ -367,7 +368,6 @@ export async function readDbPricingConfig(
     registrationFee: cfg ? num(cfg.registration_fee) : seed.registrationFee,
     registrationFeeByGrade,
     monthlyByLevel,
-    latePenaltyPerDay: cfg ? num(cfg.late_penalty_per_day) : seed.latePenaltyPerDay,
     discounts: discountsAll,
     additionalServices: additionalAll,
     complementaryServices: complementaryAll,
@@ -410,7 +410,7 @@ export class SupabasePricingRepository implements PricingRepository {
     const tenantId = requireTenantId();
     const { data, error } = await this.client
       .from("pricing_configs")
-      .select("id, tenant_id, registration_fee, late_penalty_per_day, second_apron_fee, is_active")
+      .select("id, tenant_id, registration_fee, second_apron_fee, is_active")
       .eq("tenant_id", tenantId)
       .eq("is_active", true)
       .limit(1);
@@ -428,7 +428,6 @@ export class SupabasePricingRepository implements PricingRepository {
         academic_year_id: (await this.currentAcademicYearId()) as string,
         label: `Tarification ${new Date().getFullYear()}`,
         registration_fee: defaultPricingConfig.registrationFee,
-        late_penalty_per_day: defaultPricingConfig.latePenaltyPerDay,
         second_apron_fee: defaultPricingConfig.secondApronFee,
         is_active: true,
       })
@@ -489,19 +488,8 @@ export class SupabasePricingRepository implements PricingRepository {
     }
   }
 
-  async updateLatePenalty(amountPerDay: number, _updatedBy: string): Promise<Result<PricingConfig>> {
-    try {
-      const cfgId = await this.activeConfigId();
-      const { error } = await this.client
-        .from("pricing_configs")
-        .update({ late_penalty_per_day: amountPerDay })
-        .eq("id", cfgId);
-      if (error) throw error;
-      return this.afterWrite();
-    } catch (e) {
-      return Err(Errors.unknown(e as Error));
-    }
-  }
+  // CALC-001 (owner mandate 2026-09-13): updateLatePenalty REMOVED —
+  // penalties do not exist at the school. Never re-add.
 
   async updateSecondApronFee(amount: number, _updatedBy: string): Promise<Result<PricingConfig>> {
     if (amount < 0) {

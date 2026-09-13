@@ -61,10 +61,7 @@ export class MockPricingRepository implements PricingRepository {
     return Ok(this.commit({ ...this.config, monthlyByLevel: { ...this.config.monthlyByLevel, [level]: amount } }, updatedBy));
   }
 
-  async updateLatePenalty(amountPerDay: number, updatedBy: string): Promise<Result<PricingConfig>> {
-    await delay(160);
-    return Ok(this.commit({ ...this.config, latePenaltyPerDay: amountPerDay }, updatedBy));
-  }
+  // CALC-001 (owner mandate 2026-09-13): updateLatePenalty REMOVED — penalties do not exist.
 
   async addDiscount(input: { label: string; amount: number; discountType: DiscountType; discountCode?: DiscountCode }, updatedBy: string): Promise<Result<PricingConfig>> {
     await delay(180);

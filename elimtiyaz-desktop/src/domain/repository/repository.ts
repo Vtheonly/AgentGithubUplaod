@@ -331,7 +331,8 @@ export interface PaymentRepository {
    *     `parent_credit` account with `studentId = null` (parent-scoped).
    *     This preserves INV-3 ("negative balance on non-parent_credit
    *     account is a reconciler violation").
-   *   - If `amount > 0` (debit, e.g. late fee / penalty): the adjustment
+   *   - If `amount > 0` (debit, e.g. a majoration / remise cancellation —
+   *     CALC-001: penalties do not exist): the adjustment
    *     is written to the caller-specified `category` (default `tuition`)
    *     and `studentId` (default `null`). When `studentId` is provided,
    *     the accountId is student-scoped; otherwise it is parent-scoped.
@@ -656,7 +657,7 @@ export interface PricingRepository {
 
   updateRegistration(amount: number, updatedBy: string): Promise<Result<PricingConfig>>;
   updateMonthly(level: import("../model/student").AcademicLevel, amount: number, updatedBy: string): Promise<Result<PricingConfig>>;
-  updateLatePenalty(amountPerDay: number, updatedBy: string): Promise<Result<PricingConfig>>;
+  // CALC-001 (2026-09-13): updateLatePenalty REMOVED — penalties do not exist.
   addDiscount(input: { label: string; amount: number; discountType: DiscountType; discountCode?: DiscountCode }, updatedBy: string): Promise<Result<PricingConfig>>;
   removeDiscount(id: string, updatedBy: string): Promise<Result<PricingConfig>>;
   addAdditionalService(input: { label: string; amount: number }, updatedBy: string): Promise<Result<PricingConfig>>;

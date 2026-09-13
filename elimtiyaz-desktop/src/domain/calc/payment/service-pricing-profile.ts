@@ -108,7 +108,7 @@ export interface CatalogReferenceNode {
 
 /** A condition attached to the price (a rule that can modify it). */
 export interface PriceConditionNode {
-  readonly kind: "discount_rule" | "early_payment_bonus" | "late_penalty";
+  readonly kind: "discount_rule" | "early_payment_bonus"; // CALC-001: "late_penalty" removed — penalties do not exist
   readonly code: string | null;
   readonly label: string;
   readonly value: number;
@@ -545,15 +545,10 @@ export function servicePricingProfiles(
         isActive: true,
       });
     }
-    conditions.push({
-      kind: "late_penalty",
-      code: null,
-      label: "Pénalité de retard",
-      value: pricingConfig.latePenaltyPerDay,
-      valueType: "fixed_dzd",
-      deadline: null,
-      isActive: true,
-    });
+    // CALC-001 (owner mandate 2026-09-13): the late-penalty condition is
+    // REMOVED from the engine — no daily penalty exists at the school and
+    // `pricing_configs.late_penalty_per_day` is inert legacy data. Never
+    // re-add it (parity with the website port, same removal).
 
     /* APPLIED DISCOUNTS — the service's credit adjustments (and the debit
      * cancellations the honest construction nets out). */

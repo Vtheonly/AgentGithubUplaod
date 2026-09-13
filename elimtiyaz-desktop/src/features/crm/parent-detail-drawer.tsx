@@ -1437,7 +1437,7 @@ function AdjustAccountModal({
         <FormField
           label="Montant (DZD)"
           required
-          hint="Négatif = remise / crédit. Positif = pénalité / débit."
+          hint="Négatif = remise / crédit. Positif = majoration / débit."
         >
           <MoneyInput value={amount} onChange={setAmount} />
         </FormField>
@@ -1801,11 +1801,9 @@ function ServicePricingCard({
                     {c.deadline && <span className="text-muted-foreground"> · avant le {c.deadline}</span>}
                   </span>
                   <span className="font-mono font-semibold">
-                    {c.kind === "late_penalty"
-                      ? `${formatDzdPlain(c.value)} DZD / jour de retard`
-                      : c.valueType === "percentage"
-                        ? `${c.value} % du prix`
-                        : `${formatDzdPlain(c.value)} DZD`}
+                    {c.valueType === "percentage"
+                      ? `${c.value} % du prix`
+                      : `${formatDzdPlain(c.value)} DZD`}
                   </span>
                 </div>
               ))}

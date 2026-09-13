@@ -132,8 +132,9 @@ export function createPaymentEntry(input: {
 }
 
 /**
- * Factory for adjustment entries. Adjustments can be positive (penalty)
- * or negative (discount/waiver).
+ * Factory for adjustment entries. Adjustments can be positive
+ * (majoration — CALC-001: penalties do not exist) or negative
+ * (discount/waiver).
  */
 export function createAdjustmentEntry(input: {
   tenantId: string;

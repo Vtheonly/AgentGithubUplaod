@@ -311,7 +311,7 @@ export const defaultPricingConfig: PricingConfig = {
     cem: 6_800,
     lycee: 7_800,
   },
-  latePenaltyPerDay: 0, // CALC-001: no daily penalty exists at the school
+  // CALC-001: `latePenaltyPerDay` REMOVED from the seed — no daily penalty exists at the school.
   discounts,
   additionalServices,
   complementaryServices,

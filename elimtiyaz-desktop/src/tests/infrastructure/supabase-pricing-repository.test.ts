@@ -12,9 +12,9 @@
  *      (tranches-sum ±1 DZD, no negatives), UPDATE of the existing row,
  *      INSERT when the grade row is missing, and the observe() stream
  *      re-emits after the write.
- *   3. updateRegistration()/updateLatePenalty()/updateSecondApronFee():
- *      UPDATE the pricing_configs row (second apron keeps its negative
- *      validation).
+ *   3. updateRegistration()/updateSecondApronFee(): UPDATE the
+ *      pricing_configs row (second apron keeps its negative validation).
+ *      (CALC-001: updateLatePenalty was REMOVED — penalties do not exist.)
  *   4. updateMonthly(): routed through the audited upsert_setting RPC
  *      (system_settings — the 0006 tables carry no monthly columns).
  *   5. addDiscount/removeDiscount: DB stores positive amounts; fixed
@@ -161,7 +161,8 @@ function seedDb(): void {
         id: CONFIG_ID,
         tenant_id: TENANT,
         registration_fee: 5000,
-        late_penalty_per_day: 100,
+        // CALC-001: late_penalty_per_day column still exists in the live DB but is
+        // inert legacy data — the repository never reads or writes it anymore.
         second_apron_fee: 2000,
         is_active: true,
       },
@@ -253,7 +254,6 @@ describe("T-307 — readDbPricingConfig mapping", () => {
       installments: [60000, 70000, 75000],
     });
     expect(config.registrationFee).toBe(5000);
-    expect(config.latePenaltyPerDay).toBe(100);
     expect(config.secondApronFee).toBe(2000);
   });
 
@@ -361,12 +361,8 @@ describe("T-307 — top-level fees and monthly", () => {
     expect(fakeClient.tables["pricing_configs"][0].registration_fee).toBe(6000);
   });
 
-  it("updateLatePenalty UPDATEs pricing_configs.late_penalty_per_day", async () => {
-    const repo = new SupabasePricingRepository(fakeClient);
-    const r = await repo.updateLatePenalty(150, "usr-1");
-    expect(r.ok).toBe(true);
-    expect(fakeClient.tables["pricing_configs"][0].late_penalty_per_day).toBe(150);
-  });
+  // CALC-001 (owner mandate 2026-09-13): the updateLatePenalty test was REMOVED
+  // with the method itself — penalties do not exist at the school. Never re-add.
 
   it("updateSecondApronFee rejects negatives (mock parity) and updates on valid input", async () => {
     const repo = new SupabasePricingRepository(fakeClient);

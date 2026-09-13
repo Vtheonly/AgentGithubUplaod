@@ -300,7 +300,7 @@ export const CORE_TOOLS_DEFINITIONS: ToolDefinition[] = [
     function: {
       name: "propose_account_adjustment",
       description:
-        "Proposer une remise, régularisation ou pénalité financière pour un parent. Génère une carte de validation humaine — JAMAIS d'écriture directe. Le parent, le montant (plafonné) et le motif (≥ 3 caractères) sont validés avant création.",
+        "Proposer une remise, régularisation ou majoration financière pour un parent. Génère une carte de validation humaine — JAMAIS d'écriture directe. Le parent, le montant (plafonné) et le motif (≥ 3 caractères) sont validés avant création. (CALC-001: aucune pénalité n'existe à l'école.)",
       parameters: {
         type: "object",
         properties: {

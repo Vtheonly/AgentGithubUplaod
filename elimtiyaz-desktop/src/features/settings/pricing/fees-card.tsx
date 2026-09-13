@@ -1,8 +1,10 @@
 /**
- * Fees card — Frais fixes & pénalités.
+ * Fees card — Frais fixes.
  *
  * Registration fee, monthly fees per level (primaire / cem / lycee),
- * late penalty per day, and 2nd apron surcharge.
+ * and 2nd apron surcharge. (CALC-001, owner mandate 2026-09-13: the
+ * late-penalty-per-day editor was REMOVED — penalties do not exist at
+ * the school. Never re-add.)
  *
  * Extracted from `pricing-tab.tsx` (iteration 6-a). Behavior preserved
  * exactly — only file location + import paths changed.
@@ -34,7 +36,6 @@ export function FeesCard() {
   const [monthlyPrimaire, setMonthlyPrimaire] = useState(config.monthlyByLevel.primaire ?? 0);
   const [monthlyCem, setMonthlyCem] = useState(config.monthlyByLevel.cem ?? 0);
   const [monthlyLycee, setMonthlyLycee] = useState(config.monthlyByLevel.lycee ?? 0);
-  const [penalty, setPenalty] = useState(config.latePenaltyPerDay);
   const [secondApron, setSecondApron] = useState(config.secondApronFee);
 
   useEffect(() => {
@@ -42,7 +43,6 @@ export function FeesCard() {
     setMonthlyPrimaire(config.monthlyByLevel.primaire ?? 0);
     setMonthlyCem(config.monthlyByLevel.cem ?? 0);
     setMonthlyLycee(config.monthlyByLevel.lycee ?? 0);
-    setPenalty(config.latePenaltyPerDay);
     setSecondApron(config.secondApronFee);
   }, [config]);
 
@@ -63,11 +63,7 @@ export function FeesCard() {
     }
     ok("Mensualités enregistrées");
   }
-  async function savePenalty() {
-    const r = await repos.pricing.updateLatePenalty(penalty, actorId);
-    if (r.ok) ok("Pénalité de retard enregistrée");
-    else fail("Échec", r.error.userMessage);
-  }
+  // CALC-001 (owner mandate 2026-09-13): savePenalty REMOVED — penalties do not exist.
   async function saveSecondApron() {
     const r = await repos.pricing.updateSecondApronFee(secondApron, actorId);
     if (r.ok) ok("2ème tablier enregistré");
@@ -79,10 +75,10 @@ export function FeesCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Wallet className="size-5 text-primary" />
-          Frais fixes & pénalités
+          Frais fixes
         </CardTitle>
         <CardDescription>
-          Frais d'inscription, mensualités par palier, pénalité de retard, 2ème tablier.
+          Frais d'inscription, mensualités par palier, 2ème tablier.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -115,16 +111,8 @@ export function FeesCard() {
         </div>
 
         <div className="rounded-lg border border-border bg-surface-panel/50 p-4 space-y-3">
-          <FormField label="Pénalité de retard par jour (DA)" required>
-            <MoneyInput value={penalty} onChange={setPenalty} disabled={!canEdit} />
-          </FormField>
-          <Button size="sm" variant="default" disabled={!canEdit} onClick={savePenalty}>
-            <Save className="size-3.5 mr-1.5" />
-            Enregistrer
-          </Button>
-        </div>
-
-        <div className="rounded-lg border border-border bg-surface-panel/50 p-4 space-y-3">
+          {/* CALC-001 (owner mandate 2026-09-13): the late-penalty editor was REMOVED —
+           * penalties do not exist at the school. Never re-add. */}
           <FormField label="2ème tablier (DA)" required>
             <MoneyInput value={secondApron} onChange={setSecondApron} disabled={!canEdit} />
           </FormField>
