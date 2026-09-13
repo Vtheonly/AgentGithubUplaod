@@ -1,6 +1,6 @@
 {
   "id": "analytics_visuals_tranche_waves",
-  "description": "PARITY-003/T-292: the T1/T2/T3 tranche-wave collection-health meters (regex ^\\s*Tranche\\s*([1-3])\\b; 'Année complète' and 'Tranche 10' must not match; pct = min(100, round(paid/due*100)); isNextTarget = the first wave with a remaining balance; paid includes uncleared checks). Both runners must derive identical waves.",
+  "description": "PARITY-003/T-292: the T1/T2/T3 tranche-wave collection-health meters (regex ^\\s*Tranche\\s*([1-3])\\b; 'Année complète' and 'Tranche 10' must not match; pct = min(100, round(paid/due*100)); isNextTarget = the first wave with a remaining balance; paid includes uncleared checks). Both runners must derive identical waves. [T-339/T-341: the collection heatmap and the capacity fill-rate slice were REMOVED with the vanity statistics — the executive_statistics corpus category carries the replacements.]",
   "category": "analytics_visuals",
   "tags": [
     "parity-003",
@@ -146,39 +146,6 @@
         "transfer": 0
       }
     ],
-    "heatmap": {
-      "monthLabels": [],
-      "monthKeys": [],
-      "rows": [
-        {
-          "day": "Dim",
-          "rowTotal": 0,
-          "cells": []
-        },
-        {
-          "day": "Lun",
-          "rowTotal": 0,
-          "cells": []
-        },
-        {
-          "day": "Mar",
-          "rowTotal": 0,
-          "cells": []
-        },
-        {
-          "day": "Mer",
-          "rowTotal": 0,
-          "cells": []
-        },
-        {
-          "day": "Jeu",
-          "rowTotal": 0,
-          "cells": []
-        }
-      ],
-      "max": 0,
-      "monthTotals": []
-    },
     "yoy": {
       "points": [],
       "totalCurrent": 0,
@@ -262,8 +229,7 @@
           "count": 0,
           "percent": 0
         }
-      ],
-      "capacity": []
+      ]
     }
   }
 }

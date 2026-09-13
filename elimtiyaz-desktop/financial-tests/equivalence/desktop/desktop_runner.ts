@@ -53,7 +53,6 @@ import {
 } from "../../equivalence/android_mirror/kotlin_mirror_engine";
 import {
   derivePaymentStats,
-  deriveAmountHistogram,
   deriveCategoryMix,
   deriveMethodMix,
   derivePareto,
@@ -67,8 +66,16 @@ import {
   deriveWeeklyRhythmFor,
   deriveTrancheWavesFor,
   deriveDemographicsFor,
-  deriveCollectionHeatmap as deriveCollectionHeatmapBridge,
   deriveYearOverYear as deriveYearOverYearBridge,
+  // T-341 (STATS-400) — the executive-statistics derivations
+  deriveTrancheWaves as deriveExecutiveTrancheWaves,
+  deriveDiscountErosion,
+  deriveDebtTriage,
+  deriveFamilyConcentration,
+  deriveTransportYield,
+  deriveServiceYield,
+  deriveEnrollmentDynamics,
+  deriveTripleRiskSummary,
 } from "./analytics_bridge";
 import {
   crossCheckBalanceSum,
@@ -796,7 +803,8 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
         .map((p) => toAnalyticsPayment(p));
 
       const stats = derivePaymentStats(slice);
-      const histogram = deriveAmountHistogram(slice);
+      // T-341 (STATS-400): the amount HISTOGRAM output was REMOVED with the
+      // vanity statistics (owner kill list) — the corpus op no longer emits it.
       const categoryMix = deriveCategoryMix(slice);
       const methodMix = deriveMethodMix(slice);
 
@@ -858,7 +866,6 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
             ? { label: stats.bestMonth.label, amount: dzdToCentimes(stats.bestMonth.amount) }
             : null,
         },
-        histogram: histogram.map((b) => ({ label: b.label, count: b.count, amount: dzdToCentimes(b.amount) })),
         categoryMix: categoryMix.map((m) => ({
           key: m.key, label: m.label, amount: dzdToCentimes(m.amount), count: m.count, percent: m.percent,
         })),
@@ -893,11 +900,9 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
       const allPayments = (given.payments ?? []).map((p) => toAnalyticsPayment(p));
       const weeklyRhythm = deriveWeeklyRhythmFor(allPayments, range);
 
-      // (b) Collection heatmap — over the paid slice + the same range.
-      const paidSlice = (given.payments ?? [])
-        .filter((p) => p.status === "paid")
-        .map((p) => toAnalyticsPayment(p));
-      const heatmap = deriveCollectionHeatmapBridge(paidSlice, range);
+      // T-341 (STATS-400): the collection HEATMAP output was REMOVED with
+      // the vanity statistics (owner kill list) — school parents pay when
+      // the tranche is DUE, not on a lucky weekday.
 
       // (c) YoY — the scenario's current/previous monthly series (DZD).
       const current = ((when.currentRevenue as { label: string; amountDzd: number }[] | undefined) ?? [])
@@ -927,7 +932,6 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
           id: c.id,
           name: c.name,
           gradeCode: (c as { grade_code?: string | null }).grade_code ?? null,
-          capacity: (c as { capacity?: number | null }).capacity ?? null,
         })),
         currentYear,
       );
@@ -939,21 +943,6 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
           check: dzdToCentimes(r.check),
           transfer: dzdToCentimes(r.transfer),
         })),
-        heatmap: {
-          monthLabels: heatmap.monthLabels,
-          monthKeys: heatmap.monthKeys,
-          rows: heatmap.rows.map((r) => ({
-            day: r.day,
-            rowTotal: dzdToCentimes(r.rowTotal),
-            cells: r.cells.map((c) => ({
-              amount: dzdToCentimes(c.amount),
-              count: c.count,
-              level: c.level,
-            })),
-          })),
-          max: dzdToCentimes(heatmap.max),
-          monthTotals: heatmap.monthTotals.map(dzdToCentimes),
-        },
         yoy: {
           points: yoy.points.map((p) => ({
             label: p.label,
@@ -979,8 +968,284 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
           grade: demographics.grade,
           gender: demographics.gender,
           age: demographics.age,
-          capacity: demographics.capacity,
         },
+      };
+    }
+
+
+    // ── T-341 (61st session, STATS-400): the executive-statistics derivation
+    // op. Runs the SAME canonical desktop derivations the Executive Command
+    // Center renders (tranche-wave velocity / discount erosion / debt triage /
+    // family concentration / transport yield / service yield / enrollment
+    // dynamics + section imbalance / triple-risk summary) over the
+    // scenario's installments + ledger + students + parents + classes +
+    // payments with a PINNED `now`. The Android runner mirrors this op
+    // through core/StatisticsEngine — the comparator then proves the two
+    // platforms produce IDENTICAL numbers (the owner's unified-calculation
+    // mandate).
+    case "deriveExecutiveStats": {
+      const now = (when.now as string) ?? "2026-09-10T00:00:00Z";
+      const nowEpochMs = Date.parse(now);
+      const topN = (when.topN as number | undefined) ?? 10;
+
+      // Installments (centimes → DZD domain Installment).
+      const installments = (given.installments ?? []).map((i) => ({
+        id: i.id,
+        parentId: i.parentId,
+        studentId: (i as { studentId?: string | null }).studentId ?? null,
+        category: (i as { category?: string }).category ?? "tuition",
+        label: i.label ?? "",
+        trancheNumber: ((i as { trancheNumber?: number }).trancheNumber ?? 1) as 1 | 2 | 3,
+        amountDue: centimesToDzd(i.amountDue),
+        amountPaid: centimesToDzd(i.amountPaid ?? 0),
+        amountPending: centimesToDzd(i.amountPending ?? 0),
+        dueDate: i.dueDate,
+        paidDate: null,
+        status: i.status,
+        academicCycle: undefined,
+        paymentPlan: "tranches" as const,
+        isCustomSchedule: false,
+        customSchedule: false,
+        customScheduleNote: null,
+      }));
+
+      // Ledger entries (centimes → DZD domain LedgerEntry).
+      const ledger = (given.ledgerEntries ?? []).map((e, idx) => ({
+        id: (e as { id?: string }).id ?? `led-${idx}`,
+        tenantId: "t1",
+        accountId: `parent:${e.parentId}:category:${e.category ?? "tuition"}`,
+        parentId: e.parentId,
+        studentId: null,
+        category: (e as { category?: string }).category ?? "tuition",
+        amount: centimesToDzd(e.amount),
+        type: (e as { type?: string }).type ?? "adjustment",
+        sourceType: "bulk_import" as const,
+        sourceId: "run-1",
+        method: null,
+        receiptNumber: null,
+        paymentStatus: null,
+        reversesId: null,
+        description: (e as { description?: string }).description ?? "",
+        actorId: "system",
+        actorName: "System",
+        at: now,
+        metadata: ((e as { metadata?: Record<string, unknown> }).metadata ?? {}) as Record<string, unknown>,
+      }));
+
+      // Students (scenario shape → domain Student).
+      const students = (given.students ?? []).map((s) => ({
+        id: s.id,
+        tenantId: "t1",
+        code: `ELV-${s.id}`,
+        parentId: s.parentId,
+        firstName: s.id,
+        lastName: "Test",
+        displayName: null,
+        gender: (s as { gender?: string }).gender ?? "unspecified",
+        birthDate: (s as { birthDate?: string }).birthDate ?? "2015-01-01",
+        enrollmentDate: "2025-09-01",
+        level: "primaire" as const,
+        gradeYear: 1,
+        gradeLevel: (s as { gradeLevel?: string }).gradeLevel ?? "1ap",
+        classId: (s as { classId?: string | null }).classId ?? null,
+        photoUrl: null,
+        medicalNotes: null,
+        transportTier: (s as { transportTier?: string | null }).transportTier ?? null,
+        status: (s as { status?: string }).status ?? "active",
+        paymentPlan: "tranches" as const,
+        createdAt: now,
+        updatedAt: now,
+      }));
+
+      // Parents.
+      const parents = (given.parents ?? [{ id: "par-001", name: "Famille Demo" }]).map((p) => ({
+        id: p.id,
+        tenantId: "t1",
+        code: `PAR-${p.id}`,
+        firstName: "",
+        lastName: p.name,
+        displayName: p.name,
+        phone: "0",
+        email: null,
+        address: null,
+        cityTier: null,
+        authUserId: null,
+        activationCode: null,
+        status: "active" as const,
+        notes: null,
+        createdAt: now,
+        updatedAt: now,
+      }));
+
+      // Classes (scenario shape → domain AcademicClass).
+      const classes = (given.classes ?? []).map((c) => ({
+        id: c.id,
+        tenantId: "t1",
+        academicYearId: "ay-1",
+        academicLevelId: "lvl-1",
+        code: c.id,
+        name: c.name,
+        gradeCode: ((c as { grade_code?: string | null }).grade_code ?? "1ap"),
+        level: ((c as { level?: string }).level ?? "primaire"),
+        gradeYear: 1,
+        section: (c as { section?: string }).section ?? "A",
+        room: null,
+        capacity: null,
+        enrolledCount: (c as { enrolledCount?: number }).enrolledCount ?? 0,
+        homeroomTeacherId: null,
+        homeroomTeacherName: null,
+        notes: null,
+        academicYear: "2026-2027",
+        isActive: (c as { isActive?: boolean }).isActive ?? true,
+      }));
+
+      // Payments (centimes → DZD domain Payment).
+      const payments = (given.payments ?? []).map((p) => toAnalyticsPayment(p));
+
+      // (1) Tranche waves.
+      const waves = deriveExecutiveTrancheWaves(installments, nowEpochMs);
+      // (2) Discount erosion.
+      const erosion = deriveDiscountErosion(ledger);
+      // (3) Debt triage.
+      const triage = deriveDebtTriage(installments, nowEpochMs);
+      // (4) Family concentration.
+      const concentration = deriveFamilyConcentration({ installments, parents, students, topN, nowEpochMs });
+      // (5) Transport yield.
+      const transport = deriveTransportYield({ students, installments });
+      // (6) Service yield.
+      const services = deriveServiceYield(payments, {
+        therapy_psychology: "Psychologie",
+        therapy_speech: "Orthophonie",
+        extracurricular: "Activité parascolaire",
+        canteen: "Cantine",
+        uniform: "Uniforme",
+        books: "Livres",
+        second_apron: "2ème Tablier",
+        other: "Autre",
+      });
+      // (7) Enrollment dynamics.
+      const dynamics = deriveEnrollmentDynamics({ students, parents, classes });
+      // (8) Triple-risk summary (a minimal risk-profile projection: the
+      // corpus carries the raw risk vectors; the op reduces them with the
+      // SAME categorization thresholds the engine uses).
+      const riskProfiles = ((when.riskProfiles as { gpa: number | null; unexcusedAbsences: number; attendanceRate: number; debtAmount: number }[] | undefined) ?? []).map((r, idx) => {
+        const gpa = r.gpa;
+        const hasAcademicAlert = gpa !== null && gpa < 10;
+        const hasAttendanceAlert = r.unexcusedAbsences >= 3 || r.attendanceRate < 0.85;
+        const hasFinancialTension = r.debtAmount >= 25_000;
+        const riskCategory =
+          hasAcademicAlert && hasAttendanceAlert && hasFinancialTension ? "triple_critical"
+          : hasAcademicAlert ? "academic_alert"
+          : hasAttendanceAlert ? "attendance_alert"
+          : hasFinancialTension ? "financial_tension"
+          : "healthy";
+        return { studentId: `st-${idx}`, riskCategory } as { studentId: string; riskCategory: string };
+      });
+      const riskSummary = deriveTripleRiskSummary(riskProfiles as never);
+
+      return {
+        waves: waves.map((w) => ({
+          key: `${w.category}#${w.wave}`,
+          category: w.category,
+          wave: w.wave,
+          installmentCount: w.installmentCount,
+          paidCount: w.paidCount,
+          familyCount: w.familyCount,
+          debtorFamilyCount: w.debtorFamilyCount,
+          dueTotal: dzdToCentimes(w.dueTotal),
+          paidTotal: dzdToCentimes(w.paidTotal),
+          remainingTotal: dzdToCentimes(w.remainingTotal),
+          collectedPct: w.collectedPct,
+          clearedPct: w.clearedPct,
+          dueDate: w.dueDate,
+          phase: w.phase,
+        })),
+        erosion: {
+          remiseCount: erosion.remiseCount,
+          remiseTotal: dzdToCentimes(erosion.remiseTotal),
+          cancelCount: erosion.cancelCount,
+          cancelTotal: dzdToCentimes(erosion.cancelTotal),
+          netRemiseTotal: dzdToCentimes(erosion.netRemiseTotal),
+          grossCharges: dzdToCentimes(erosion.grossCharges),
+          stickerTotal: dzdToCentimes(erosion.stickerTotal),
+          erosionPct: erosion.erosionPct,
+          averageRemise: dzdToCentimes(erosion.averageRemise),
+          maxRemise: dzdToCentimes(erosion.maxRemise),
+          minRemise: dzdToCentimes(erosion.minRemise),
+          remiseFamilyCount: erosion.remiseFamilyCount,
+        },
+        triage: {
+          buckets: triage.buckets.map((b) => ({
+            bucket: b.bucket,
+            amount: dzdToCentimes(b.amount),
+            installmentCount: b.installmentCount,
+            familyCount: b.familyCount,
+            share: b.share,
+          })),
+          totalOutstanding: dzdToCentimes(triage.totalOutstanding),
+          callList: triage.callList.map((c) => ({
+            parentId: c.parentId,
+            outstanding: dzdToCentimes(c.outstanding),
+            worstDaysOverdue: c.worstDaysOverdue,
+          })),
+        },
+        concentration: {
+          totalOutstanding: dzdToCentimes(concentration.totalOutstanding),
+          debtorFamilyCount: concentration.debtorFamilyCount,
+          topFamilies: concentration.topFamilies.map((f) => ({
+            parentId: f.parentId,
+            parentName: f.parentName,
+            outstanding: dzdToCentimes(f.outstanding),
+            childCount: f.childCount,
+            shareOfTotalDebt: f.shareOfTotalDebt,
+            worstDaysOverdue: f.worstDaysOverdue,
+          })),
+          topTotal: dzdToCentimes(concentration.topTotal),
+          topConcentrationPct: concentration.topConcentrationPct,
+        },
+        transport: {
+          riders: transport.riders,
+          nonRiders: transport.nonRiders,
+          unresolvedRawValues: transport.unresolvedRawValues,
+          routes: transport.routes.map((r) => ({
+            destination: r.destination,
+            riders: r.riders,
+            dueTotal: dzdToCentimes(r.dueTotal),
+            paidTotal: dzdToCentimes(r.paidTotal),
+            remainingTotal: dzdToCentimes(r.remainingTotal),
+            collectedPct: r.collectedPct,
+          })),
+          dueTotal: dzdToCentimes(transport.dueTotal),
+          paidTotal: dzdToCentimes(transport.paidTotal),
+          remainingTotal: dzdToCentimes(transport.remainingTotal),
+          collectedPct: transport.collectedPct,
+        },
+        services: services.map((s) => ({
+          category: s.category,
+          label: s.label,
+          paymentCount: s.paymentCount,
+          revenue: dzdToCentimes(s.revenue),
+          studentCount: s.studentCount,
+        })),
+        dynamics: {
+          totalStudents: dynamics.totalStudents,
+          totalFamilies: dynamics.totalFamilies,
+          siblingIndex: dynamics.siblingIndex,
+          multiChildFamilyCount: dynamics.multiChildFamilyCount,
+          multiChildFamilyPct: dynamics.multiChildFamilyPct,
+          familySizes: dynamics.familySizes,
+          imbalances: dynamics.imbalances.map((i) => ({
+            gradeLabel: i.gradeLabel,
+            sectionCount: i.sectionCount,
+            sections: i.sections,
+            minEnrolled: i.minEnrolled,
+            maxEnrolled: i.maxEnrolled,
+            averageEnrolled: i.averageEnrolled,
+            spread: i.spread,
+            imbalanced: i.imbalanced,
+          })),
+        },
+        riskSummary,
       };
     }
 

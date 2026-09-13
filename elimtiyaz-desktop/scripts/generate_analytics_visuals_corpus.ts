@@ -24,7 +24,6 @@ import {
   deriveWeeklyRhythmFor,
   deriveTrancheWavesFor,
   deriveDemographicsFor,
-  deriveCollectionHeatmap,
   deriveYearOverYear,
   toAnalyticsPayment,
 } from "../financial-tests/equivalence/desktop/analytics_bridge";
@@ -64,11 +63,9 @@ for (const file of files) {
   );
   const weeklyRhythm = deriveWeeklyRhythmFor(allPayments, range);
 
-  // (b) heatmap — paid slice
-  const paidSlice = ((given.payments as { status: string }[]) ?? [])
-    .filter((p) => p.status === "paid")
-    .map((p) => toAnalyticsPayment(p as Parameters<typeof toAnalyticsPayment>[0]));
-  const heatmap = deriveCollectionHeatmap(paidSlice, range);
+  // T-339/T-341 (STATS-400): the collection HEATMAP derivation was REMOVED
+  // with the vanity statistics (owner kill list) — the generator no longer
+  // emits it and the scenario then-blocks were purged of it.
 
   // (c) YoY
   const current = (when.currentRevenue ?? []).map((r) => ({ label: r.label, amount: r.amountDzd }));
@@ -92,11 +89,10 @@ for (const file of files) {
       birthDate: s.birthDate ?? null,
       classId: s.classId ?? null,
     })),
-    ((given.classes as { id: string; name: string; grade_code?: string | null; capacity?: number | null }[]) ?? []).map((c) => ({
+    ((given.classes as { id: string; name: string; grade_code?: string | null }[]) ?? []).map((c) => ({
       id: c.id,
       name: c.name,
       gradeCode: c.grade_code ?? null,
-      capacity: c.capacity ?? null,
     })),
     currentYear,
   );
@@ -108,17 +104,6 @@ for (const file of files) {
       check: dzdToCentimes(r.check),
       transfer: dzdToCentimes(r.transfer),
     })),
-    heatmap: {
-      monthLabels: heatmap.monthLabels,
-      monthKeys: heatmap.monthKeys,
-      rows: heatmap.rows.map((r) => ({
-        day: r.day,
-        rowTotal: dzdToCentimes(r.rowTotal),
-        cells: r.cells.map((c) => ({ amount: dzdToCentimes(c.amount), count: c.count, level: c.level })),
-      })),
-      max: dzdToCentimes(heatmap.max),
-      monthTotals: heatmap.monthTotals.map(dzdToCentimes),
-    },
     yoy: {
       points: yoy.points.map((p) => ({
         label: p.label,
@@ -144,7 +129,6 @@ for (const file of files) {
       grade: demographics.grade,
       gender: demographics.gender,
       age: demographics.age,
-      capacity: demographics.capacity,
     },
   };
 

@@ -9,11 +9,16 @@
  * React/recharts — its PURE body is extracted verbatim here (source commit
  * b6fbbcd, T-257) with the chart palette reduced to the shape the runner
  * needs. `collectionRateFromTotals` mirrors insights-rail.tsx:59-61.
+ *
+ * T-339/T-341 (61st session, STATS-400): `deriveAmountHistogram` and
+ * `deriveCollectionHeatmap` were REMOVED with the vanity statistics (the
+ * owner's kill list) — the corpus ops no longer emit them, and the
+ * executive-statistics derivations (the replacements) are re-exported
+ * below for the NEW `deriveExecutiveStats` op.
  */
 import type { Payment, PaymentCategory, PaymentMethod } from "../../../src/domain/model/payment";
 import {
   derivePaymentStats,
-  deriveAmountHistogram,
   deriveCategoryMix,
   deriveMethodMix,
   derivePareto,
@@ -23,8 +28,22 @@ import { daysBetweenFloor } from "../../../src/domain/calc/shared/dates";
 import { agingBucketFromDays } from "../../../src/domain/calc/payment/queries";
 import type { DebtByAgingBucket } from "../../../src/domain/model/operations";
 
-export { derivePaymentStats, deriveAmountHistogram, deriveCategoryMix, deriveMethodMix, derivePareto, deriveAgingComposition };
+export { derivePaymentStats, deriveCategoryMix, deriveMethodMix, derivePareto, deriveAgingComposition };
 export { daysBetweenFloor as daysBetweenFloorFor, agingBucketFromDays as agingBucketFor };
+
+// T-341: the executive-statistics canonical derivations (pure TS — the
+// corpus op `deriveExecutiveStats` exercises the SAME code the desktop
+// Executive Command Center renders).
+export {
+  deriveTrancheWaves,
+  deriveDiscountErosion,
+  deriveDebtTriage,
+  deriveFamilyConcentration,
+  deriveTransportYield,
+  deriveServiceYield,
+  deriveEnrollmentDynamics,
+  deriveTripleRiskSummary,
+} from "../../../src/features/dashboard/components/analytics/executive-statistics";
 
 /** CanonicalPayment (centimes) → desktop Payment (DZD) for the analytics slice. */
 export function toAnalyticsPayment(p: {
@@ -114,18 +133,17 @@ export function collectionRateFromTotals(annualRevenue: number, outstanding: num
 }
 
 // ============================================================================
-// PARITY-003 / T-292 — the visual-parity derivations (5 new families).
+// PARITY-003 / T-292 — the visual-parity derivations.
 // Same extraction discipline as deriveRecoveryFunnel above: the pure bodies
 // are taken VERBATIM from their desktop sources so the corpus exercises the
 // SAME code the desktop renders.
 // ============================================================================
 
 import {
-  deriveCollectionHeatmap,
   deriveYearOverYear,
 } from "../../../src/features/dashboard/components/analytics/analytics-derivations";
 
-export { deriveCollectionHeatmap, deriveYearOverYear };
+export { deriveYearOverYear };
 
 /** School week + bin constants re-exported for the runner/scenarios. */
 export const SCHOOL_WEEK_ROWS_BRIDGE = [
@@ -248,7 +266,6 @@ export interface DemographicsBridge {
   grade: DemographicSliceBridge[];
   gender: DemographicSliceBridge[];
   age: DemographicSliceBridge[];
-  capacity: DemographicSliceBridge[];
 }
 
 /**
@@ -257,12 +274,12 @@ export interface DemographicsBridge {
  * demographics(): grade from the student's CLASS (GRADE_LEVEL_LABELS_FR →
  * class name → "Non assigné"), gender (Garçons/Filles/Non spécifié only
  * when > 0), age buckets (< 6 / 6–8 / 9–11 / 12–14 / 15–17 / 18+ ans,
- * year-only arithmetic), capacity (cap ≤ 0/null → 30,
- * percent = round(count/cap×100)). totalStudents = students.length || 1.
+ * year-only arithmetic). totalStudents = students.length || 1.
+ * T-339: the CAPACITY slice was REMOVED (no fake ceilings — STATS-400).
  */
 export function deriveDemographicsFor(
   students: readonly { gender: string; birthDate?: string | null; classId?: string | null }[],
-  classes: readonly { id: string; name: string; gradeCode?: string | null; capacity?: number | null }[],
+  classes: readonly { id: string; name: string; gradeCode?: string | null }[],
   currentYear: number,
 ): DemographicsBridge {
   const totalStudents = students.length || 1;
@@ -270,15 +287,9 @@ export function deriveDemographicsFor(
   const classMap = new Map(
     classes.map((c) => [
       c.id,
-      { name: c.name ?? c.id, grade_code: c.gradeCode ?? null, capacity: c.capacity && c.capacity > 0 ? c.capacity : 30 },
-    ] as const),
+      { name: c.name ?? c.id, grade_code: c.gradeCode ?? null } as const,
+    ]),
   );
-  const classStudentCounts = new Map<string, number>();
-  for (const s of students) {
-    if (s.classId) {
-      classStudentCounts.set(s.classId, (classStudentCounts.get(s.classId) ?? 0) + 1);
-    }
-  }
 
   // Grade distribution (from the student's class)
   const gradeCounts = new Map<string, number>();
@@ -344,12 +355,9 @@ export function deriveDemographicsFor(
     percent: Math.round((b.count / totalStudents) * 100),
   }));
 
-  // Capacity distribution
-  const capacity = classes.map((c) => {
-    const count = classStudentCounts.get(c.id) ?? 0;
-    const cap = c.capacity && c.capacity > 0 ? c.capacity : 30;
-    return { label: c.name ?? c.id, count, percent: Math.round((count / cap) * 100) };
-  });
+  // T-339 (STATS-400): the capacity fill-rate slice was REMOVED — no fake
+  // ceilings. The section-imbalance intelligence lives in the executive
+  // statistics op (deriveExecutiveStats → deriveEnrollmentDynamics).
 
-  return { grade, gender, age, capacity };
+  return { grade, gender, age };
 }
