@@ -2929,17 +2929,17 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-333 — 59th session: the exhaustive per-service pricing profile on the website (DATA-016) — canonical derivation + pricing-catalog reads + the expandable detail card
 
-- **Status:** IN_PROGRESS (2026-09-13, 59th session)
+- **Status:** TESTED (2026-09-13) — website suite 43 files / 585 tests / 0 failures incl. the 20-test profile suite (the LIVE ALIOUAT vector); lint clean; strict build green; tsc 0 (66 pre-existing REG-007-class test-fixture errors repaired so tsc is now a usable gate); t-057 port-honesty list updated. Commits 11cd8e5 + the T-333/T-333a pair.
 - **Scope:** website (src/lib/canonical/service-pricing-profile.ts NEW + portal-queries pricing-catalog hook + typed schema extension + financial-view per-service card detail + dictionary keys ×3 + tests).
 - **Depends on:** T-330 (payment-coverage canonical chain — unchanged), T-168 (byService derivation — extended additively), CALC-001 real price matrix (the live catalog).
 
 ### T-334 — 59th session: the desktop verbatim half (DATA-016) — domain/calc/payment/service-pricing-profile.ts + the parent-detail-drawer per-service detail
 
-- **Status:** IN_PROGRESS (2026-09-13, 59th session)
+- **Status:** TESTED (2026-09-13) — desktop suite 143 files / 3162 tests / 0 failures incl. the 18-test profile suite (the SAME vectors); tsc 0; eslint 0 errors. TuitionPricing/TransportPricing +installmentMonths (mapped verbatim by SupabasePricingRepository); the drawer's Par-service view renders the 7-section exhaustive card. Commits b8f22-style + a4a454a (T-334a ledger-honest construction).
 - **Scope:** desktop (domain/calc/payment/service-pricing-profile.ts NEW + parent-detail-drawer Facturation per-service expansion + tests pinning the same fixtures as the website suite).
 - **Depends on:** T-333 (the shared profile shape), PricingConfig repository (T-047/supabase-pricing-repository).
 
 ### T-335 — 59th session: LIVE verification + closeout (registries, change-log, zips, push)
 
-- **Status:** IN_PROGRESS (2026-09-13, 59th session)
+- **Status:** VERIFIED (2026-09-13) — scripts/t-335-live-verification.py 21/21 GREEN: the 6 pricing-catalog tables read through PostgREST+RLS with an authenticated JWT (the exact usePricingCatalog path); the ALIOUAT profile derives LIVE with EVERY field (year 2026-2027, 4am/4AM/cem, class 4ème Année Moyenne, catalog 340 000 + tranches 136k/102k/102k months 9/12/4, conditions sibling+full_annual+5%≤2026-06-30+100/day, FI 132k paid / V2 99k partial-14k / 2V 119k unpaid, provenance run_msp3foah_c254f9, construction gross 350k − remise 20k + cancel 20k = net 350k, delta +10k). Zero-residue (read-only).
 - **Scope:** live probe (parent JWT reads the pricing catalog under RLS; the ALIOUAT family's tuition profile derives exhaustively: year, level 4am, catalog 340 000 vs devis 350 000, FI/V2/2V schedule, remise −20 000, provenance) + full suites both repos + docs + commits + push + zip.
