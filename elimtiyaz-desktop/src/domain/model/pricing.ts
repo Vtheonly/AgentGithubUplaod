@@ -118,6 +118,15 @@ export interface TuitionPricing {
   readonly annualAmount: number;
   /** Exactly 3 tranches — `installments[0]` is due at registration, etc. */
   readonly installments: readonly [number, number, number];
+  /**
+   * T-334 (59th session): the per-tranche DUE MONTHS (1–12) as stored on
+   * grade_level_tuition.tranche_*_month — the live grid carries THREE
+   * variants (9/1/5, 9/12/3, 9/12/4). Optional: when absent the canonical
+   * Prices.md template [9, 12, 3] (Sept 15 / Dec 15 / Mar 15) applies — the
+   * same fallback the due-date templates use. Consumed by the exhaustive
+   * per-service pricing profile (calc/payment/service-pricing-profile.ts).
+   */
+  readonly installmentMonths?: readonly [number, number, number];
 }
 
 /**
@@ -131,6 +140,8 @@ export interface TuitionPricing {
 export interface TransportPricing {
   readonly annualAmount: number;
   readonly installments: readonly [number, number, number];
+  /** T-334: per-tranche due months (transport_destinations.tranche_*_month). */
+  readonly installmentMonths?: readonly [number, number, number];
 }
 
 /** Complementary service with semester & annual pricing options. */

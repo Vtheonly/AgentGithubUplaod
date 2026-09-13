@@ -54,6 +54,9 @@ import {
   HandCoins,
   Package,
   ArrowLeftRight,
+  ChevronDown,
+  ChevronUp,
+  Scale,
   type LucideIcon,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
@@ -97,7 +100,12 @@ import {
   type AdjustmentProvenance,
   type ChildBillingBreakdown,
   type TrancheCoverageNode,
+  type ServiceTotalNode,
 } from "../../domain/calc/payment/billing-breakdown";
+import {
+  servicePricingProfiles,
+  type ServicePricingProfile,
+} from "../../domain/calc/payment/service-pricing-profile";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { ActivationCodeModal } from "./activation-code-modal";
 import { EditParentModal } from "./edit-parent-modal";
@@ -163,6 +171,10 @@ export function ParentDetailDrawer({
   );
   const classes = useObservable(() => repos.classes.observe(), []);
   const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
+  // T-334 (DATA-016): the pricing catalog — feeds the exhaustive per-service
+  // pricing profile rendered in the Finances tab's "Par service" view
+  // (identical derivation to the website's T-333 module).
+  const pricingConfig = useObservable(() => repos.pricing.observe(), []);
 
   // T-252 — the payment-terminal context drives the modal. The main action
   // opens the consolidated family debt; the per-tranche 1-click buttons open
@@ -532,6 +544,7 @@ export function ParentDetailDrawer({
           ledgerEntries={ledgerEntries}
           classes={classes}
           academicYears={academicYears}
+          pricingConfig={pricingConfig}
           canAdjust={canAdjust}
           onAdjust={() => setAdjustOpen(true)}
           onDownloadStatement={() => void handleDownloadStatement(p)}
@@ -666,6 +679,7 @@ function FinancesTab({
   onAdjust,
   onDownloadStatement,
   onCollectTranche,
+  pricingConfig,
 }: {
   profile: ParentFinancialProfile | null | undefined;
   outstanding: number;
@@ -676,6 +690,8 @@ function FinancesTab({
   ledgerEntries: readonly LedgerEntry[];
   classes: readonly import("../../domain/model/academic").AcademicClass[];
   academicYears: readonly import("../../domain/model/academic").AcademicYear[];
+  /** T-334: the pricing catalog — feeds the exhaustive per-service profile. */
+  pricingConfig: import("../../domain/model/pricing").PricingConfig | null | undefined;
   canAdjust: boolean;
   onAdjust: () => void;
   onDownloadStatement: () => void;
@@ -729,6 +745,32 @@ function FinancesTab({
   const classifiedAdjustments = useMemo(
     () => (profile ? classifyAdjustmentHistory(profile.adjustments) : []),
     [profile],
+  );
+
+  // T-334 (DATA-016) — the exhaustive per-service pricing profiles: every
+  // minute detail of what each price covers (year, level, catalog reference,
+  // conditions, applied discounts, the tranche framework, the explicit price
+  // construction + provenance). Output-shape-identical to the website's
+  // T-333 derivation so both platforms render the same profile.
+  const serviceProfiles = useMemo(
+    () =>
+      pricingConfig
+        ? servicePricingProfiles({
+            ledgerEntries,
+            installments,
+            students,
+            pricingConfig,
+            classLabelOf: (studentId) => {
+              const s = students.find((x) => x.id === studentId);
+              const cls = s?.classId ? classes.find((c) => c.id === s.classId) : null;
+              return cls?.name ?? null;
+            },
+            academicYearContext:
+              academicYears.find((y) => y.isCurrent && !y.isArchived)?.code ?? null,
+            fallbackAcademicYear: breakdown.academicYear,
+          })
+        : [],
+    [ledgerEntries, installments, students, pricingConfig, classes, academicYears, breakdown.academicYear],
   );
 
   const recon = breakdown.reconciliation;
@@ -1077,43 +1119,14 @@ function FinancesTab({
               ))}
             </div>
           ) : (
-            /* VIEW 2: Consolidated by Service — T-168 share % + child attribution */
+            /* VIEW 2: Consolidated by Service — T-168 share % + child attribution
+             * + T-334 (DATA-016): the exhaustive pricing profile expander */
             <div className="space-y-2">
               {breakdown.byService.map((s) => {
                 const SvcIcon = serviceIconOf(s.category);
+                const profile = serviceProfiles.find((p) => p.category === s.category) ?? null;
                 return (
-                  <div key={s.category} className="rounded-md border border-border bg-muted/10 p-2.5 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded bg-primary/10 text-primary shrink-0">
-                        <SvcIcon className="h-4 w-4" />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground text-sm leading-tight">{s.label}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {s.count} élément(s) rattaché(s) pour l'année {breakdown.academicYear}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="font-mono font-bold text-sm text-primary block">{formatDzdPlain(s.amount)}</span>
-                        <span className="text-[10px] text-muted-foreground">{s.sharePct} % du total</span>
-                      </div>
-                    </div>
-                    {/* Share of total bar */}
-                    <div className="h-1.5 rounded bg-border overflow-hidden">
-                      <div
-                        className="h-full bg-primary/70 rounded"
-                        style={{ width: `${Math.min(100, s.sharePct)}%` }}
-                      />
-                    </div>
-                    {/* Per-child attribution inside this service */}
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-0.5">
-                      {s.childAttribution.map((a) => (
-                        <span key={`${s.category}-${a.studentId ?? "famille"}`} className="text-[10px] text-muted-foreground">
-                          {a.studentName} : <strong className="text-foreground font-mono">{formatDzdPlain(a.amount)}</strong>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  <ServicePricingCard key={s.category} svc={s} profile={profile} />
                 );
               })}
               {breakdown.unattributedItems.length > 0 && (
@@ -1595,4 +1608,319 @@ function levelLabel(level: string): string {
   if (level === "cem") return "CEM";
   if (level === "lycee") return "Lycée";
   return level;
+}
+/* ─── T-334 (DATA-016): the exhaustive per-service pricing card ─────────── */
+
+/** French month labels for the catalog tranche due-months. */
+const PROFILE_MONTHS_FR = [
+  "janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+];
+
+const PROVENANCE_LABEL_FR: Record<string, string> = {
+  excel_import: "Import Excel",
+  current_year_wizard: "Saisie année en cours",
+  reconciliation: "Réconciliation",
+  manual: "Saisie manuelle",
+  unknown: "Origine non documentée",
+};
+
+function ProfileChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+function ProfileLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function ProfileAmountRow({
+  label, amount, strong, tone,
+}: {
+  label: string;
+  amount: number;
+  strong?: boolean;
+  tone?: "success" | "danger" | "muted";
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className={strong ? "font-semibold text-foreground" : "text-muted-foreground"}>{label}</span>
+      <span
+        className={`font-mono ${strong ? "font-bold text-sm" : ""} ${
+          tone === "success" ? "text-status-success" : tone === "danger" ? "text-status-danger" : tone === "muted" ? "text-muted-foreground" : ""
+        }`}
+      >
+        {formatDzdPlain(amount)} DZD
+      </span>
+    </div>
+  );
+}
+
+/**
+ * T-334 — the exhaustive per-service pricing card: the aggregate header
+ * (unchanged T-168 look) + the expandable "tout ce que couvre ce prix"
+ * detail rendered from the canonical ServicePricingProfile (the same
+ * derivation the website's portal consumes — T-333).
+ */
+function ServicePricingCard({
+  svc,
+  profile,
+}: {
+  svc: ServiceTotalNode;
+  profile: ServicePricingProfile | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const SvcIcon = serviceIconOf(svc.category);
+
+  return (
+    <div className="rounded-md border border-border bg-muted/10 p-2.5 space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="flex h-7 w-7 items-center justify-center rounded bg-primary/10 text-primary shrink-0">
+          <SvcIcon className="h-4 w-4" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-foreground text-sm leading-tight">{profile?.label ?? svc.label}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {svc.count} élément(s) · année couverte : {profile?.academicYear ?? "—"}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <span className="font-mono font-bold text-sm text-primary block">{formatDzdPlain(svc.amount)}</span>
+          <span className="text-[10px] text-muted-foreground">{svc.sharePct} % du total</span>
+        </div>
+      </div>
+      <div className="h-1.5 rounded bg-border overflow-hidden">
+        <div
+          className="h-full bg-primary/70 rounded"
+          style={{ width: `${Math.min(100, svc.sharePct)}%` }}
+        />
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-0.5">
+        {svc.childAttribution.map((a: { studentId: string | null; studentName: string; amount: number }) => (
+          <span key={`${svc.category}-${a.studentId ?? "famille"}`} className="text-[10px] text-muted-foreground">
+            {a.studentName} : <strong className="text-foreground font-mono">{formatDzdPlain(a.amount)}</strong>
+          </span>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-center gap-1.5 rounded border border-border/60 bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {open ? "Masquer le détail exhaustif" : "Détail exhaustif — tout ce que couvre ce prix"}
+      </button>
+
+      {open && (
+        <div className="space-y-3 rounded border border-border/60 bg-background p-2.5 text-xs">
+          {/* 1 — Couverture par enfant */}
+          <div>
+            <ProfileLabel>Couverture par enfant</ProfileLabel>
+            <div className="space-y-1.5">
+              {(profile?.childCoverage ?? []).map((c) => (
+                <div key={c.studentId ?? "famille"} className="rounded border border-border/50 bg-muted/20 p-2 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{c.studentName}{c.studentCode ? ` · ${c.studentCode}` : ""}</span>
+                    <span className="font-mono font-bold">{formatDzdPlain(c.amount)} DZD</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {c.gradeLevelLabel && <ProfileChip>Niveau : {c.gradeLevelLabel}</ProfileChip>}
+                    {c.cycle && <ProfileChip>Cycle : {c.cycle}</ProfileChip>}
+                    {c.classLabel && <ProfileChip>Classe : {c.classLabel}</ProfileChip>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 2 — Tarif officiel (catalogue) */}
+          <div>
+            <ProfileLabel>Tarif officiel (catalogue)</ProfileLabel>
+            {(profile?.catalog ?? []).length === 0 ? (
+              <p className="text-muted-foreground">Référence catalogue non mappable.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {(profile?.catalog ?? []).map((ref, i) => (
+                  <div key={`${ref.kind}-${ref.studentId ?? "f"}-${i}`} className="rounded border border-border/50 bg-muted/20 p-2 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold">
+                        {ref.kind === "tuition_by_grade"
+                          ? "Scolarité — tarif du niveau"
+                          : ref.kind === "transport_by_destination"
+                            ? "Transport — tarif de la zone"
+                            : ref.kind === "registration_fee"
+                              ? "Frais d'inscription"
+                              : ref.kind === "additional_service"
+                                ? "Service additionnel"
+                                : "Service complémentaire"}{" "}
+                        · {ref.scopeLabel}
+                      </span>
+                      {ref.annualAmount != null && (
+                        <span className="font-mono font-bold">{formatDzdPlain(ref.annualAmount)} DZD</span>
+                      )}
+                    </div>
+                    {ref.tranches.length > 0 && (
+                      <div className="grid grid-cols-3 gap-1">
+                        {ref.tranches.map((tr) => (
+                          <div key={tr.n} className="rounded bg-background border border-border/50 px-1.5 py-1">
+                            <p className="text-[9px] text-muted-foreground">
+                              T{tr.n} · échéance {PROFILE_MONTHS_FR[tr.dueMonth - 1] ?? tr.dueMonth}
+                            </p>
+                            <p className="font-mono text-[10px] font-semibold">{formatDzdPlain(tr.amount)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {ref.unitAmount != null && <ProfileChip>Prix unitaire : {formatDzdPlain(ref.unitAmount)} DZD</ProfileChip>}
+                      {ref.semesterAmount != null && <ProfileChip>Par semestre : {formatDzdPlain(ref.semesterAmount)} DZD</ProfileChip>}
+                      {ref.billingModel && <ProfileChip>Facturation : {ref.billingModel}</ProfileChip>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 3 — Conditions applicables */}
+          <div>
+            <ProfileLabel>Conditions applicables</ProfileLabel>
+            <div className="space-y-1">
+              {(profile?.conditions ?? []).map((c, i) => (
+                <div key={`${c.kind}-${c.code ?? i}`} className="flex flex-wrap items-center justify-between gap-2 rounded border border-border/50 bg-muted/20 px-2 py-1">
+                  <span className="min-w-0 flex-1">
+                    {c.label}
+                    {c.deadline && <span className="text-muted-foreground"> · avant le {c.deadline}</span>}
+                  </span>
+                  <span className="font-mono font-semibold">
+                    {c.kind === "late_penalty"
+                      ? `${formatDzdPlain(c.value)} DZD / jour de retard`
+                      : c.valueType === "percentage"
+                        ? `${c.value} % du prix`
+                        : `${formatDzdPlain(c.value)} DZD`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 4 — Éléments facturés */}
+          <div>
+            <ProfileLabel>Éléments facturés ({profile?.items.length ?? 0})</ProfileLabel>
+            <div className="space-y-1.5">
+              {(profile?.items ?? []).map((item) => (
+                <div key={item.id} className="rounded border border-border/50 bg-muted/20 p-2 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 font-medium">{item.description || "—"}</span>
+                    <span className="font-mono font-bold">{formatDzdPlain(item.amount)} DZD</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <ProfileChip>{item.studentName}</ProfileChip>
+                    {item.academicYear && <ProfileChip>{item.academicYear}</ProfileChip>}
+                    {item.gradeLevelCode && <ProfileChip>Niveau : {item.gradeLevelCode}</ProfileChip>}
+                    {item.trancheNumber != null && <ProfileChip>Tranche {item.trancheNumber}</ProfileChip>}
+                    {item.destination && <ProfileChip>Zone : {item.destination}</ProfileChip>}
+                    {item.paymentPlan && <ProfileChip>Plan : {item.paymentPlan}</ProfileChip>}
+                    <ProfileChip>{PROVENANCE_LABEL_FR[item.provenance.source] ?? item.provenance.source}</ProfileChip>
+                    {item.provenance.importRunId && <ProfileChip>run {item.provenance.importRunId}</ProfileChip>}
+                    {item.provenance.reconciliation && <ProfileChip>récon. {item.provenance.reconciliation}</ProfileChip>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 5 — Remises appliquées */}
+          <div>
+            <ProfileLabel>Remises appliquées</ProfileLabel>
+            {(profile?.appliedDiscounts ?? []).length === 0 ? (
+              <p className="text-muted-foreground">Aucune remise appliquée sur ce service.</p>
+            ) : (
+              <div className="space-y-1">
+                {(profile?.appliedDiscounts ?? []).map((d) => (
+                  <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-status-success/30 bg-status-success/5 px-2 py-1">
+                    <span className="min-w-0 flex-1">{d.label} · {d.studentName}</span>
+                    <span className="font-mono font-semibold text-status-success">− {formatDzdPlain(d.amount)} DZD</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 6 — Échéancier */}
+          <div>
+            <ProfileLabel>Échéancier de paiement (cadre des tranches)</ProfileLabel>
+            {(profile?.installmentPlan ?? []).length === 0 ? (
+              <p className="text-muted-foreground">Aucun échéancier physique — devis global.</p>
+            ) : (
+              <div className="space-y-1">
+                {(profile?.installmentPlan ?? []).map((tr) => {
+                  const settled = tr.status === "paid" || tr.remaining <= 0;
+                  return (
+                    <div
+                      key={tr.installmentId}
+                      className={`rounded border p-2 space-y-0.5 ${
+                        settled ? "border-status-success/40 bg-status-success/5" : "border-border/50 bg-muted/20"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold">{tr.studentName} · {tr.label}</span>
+                        <span className={`font-mono text-[10px] ${settled ? "text-status-success" : "text-status-warning"}`}>
+                          {formatDzdPlain(tr.amountPaid)} / {formatDzdPlain(tr.amountDue)} DZD
+                          {tr.remaining > 0 && <span className="text-status-danger font-bold"> · reste {formatDzdPlain(tr.remaining)}</span>}
+                        </span>
+                      </div>
+                      {tr.dueDate && (
+                        <p className="text-[10px] text-muted-foreground">Échéance : {tr.dueDate}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 7 — Construction du prix */}
+          <div>
+            <ProfileLabel>Construction du prix</ProfileLabel>
+            <div className="space-y-1 rounded border border-border/50 bg-muted/20 p-2">
+              {profile?.construction.catalogAnnual != null ? (
+                <ProfileAmountRow label="Tarif catalogue (référence)" amount={profile.construction.catalogAnnual} tone="muted" />
+              ) : (
+                <p className="text-muted-foreground">Référence catalogue non mappable.</p>
+              )}
+              <ProfileAmountRow label="Devis brut facturé" amount={profile?.construction.billedGross ?? 0} />
+              {(profile?.construction.discountsTotal ?? 0) > 0 && (
+                <ProfileAmountRow label="− Remises appliquées" amount={profile?.construction.discountsTotal ?? 0} tone="success" />
+              )}
+              <ProfileAmountRow label="= Net facturé" amount={profile?.construction.billedNet ?? 0} strong />
+              {profile?.construction.deltaVsCatalog != null && Math.abs(profile.construction.deltaVsCatalog) > 0 && (
+                <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-1">
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <Scale className="h-3 w-3" /> Écart vs tarif catalogue
+                  </span>
+                  <span
+                    className={`font-mono font-bold ${
+                      profile.construction.deltaVsCatalog > 0 ? "text-status-danger" : "text-status-success"
+                    }`}
+                  >
+                    {profile.construction.deltaVsCatalog > 0 ? "+" : "−"}{" "}
+                    {formatDzdPlain(Math.abs(profile.construction.deltaVsCatalog))} DZD
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

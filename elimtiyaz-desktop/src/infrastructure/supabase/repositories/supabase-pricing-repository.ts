@@ -84,6 +84,10 @@ interface TuitionRow {
   tranche_2_amount: number | string;
   tranche_3_amount: number | string;
   registration_fee?: number | null;
+  /** T-334: per-tranche due months — the live grid carries 3 variants. */
+  tranche_1_month?: number;
+  tranche_2_month?: number;
+  tranche_3_month?: number;
 }
 
 interface LevelRow {
@@ -99,6 +103,10 @@ interface TransportRow {
   tranche_1_amount: number | string;
   tranche_2_amount: number | string;
   tranche_3_amount: number | string;
+  /** T-334: per-tranche due months. */
+  tranche_1_month?: number;
+  tranche_2_month?: number;
+  tranche_3_month?: number;
 }
 
 interface ComplementaryRow {
@@ -176,7 +184,7 @@ export async function readDbPricingConfig(
   if (cfg) {
     const { data: tRows } = await client
       .from("grade_level_tuition")
-      .select("id, pricing_config_id, academic_level_id, annual_amount, tranche_1_amount, tranche_2_amount, tranche_3_amount, registration_fee")
+      .select("id, pricing_config_id, academic_level_id, annual_amount, tranche_1_amount, tranche_2_amount, tranche_3_amount, registration_fee, tranche_1_month, tranche_2_month, tranche_3_month")
       .eq("pricing_config_id", cfg.id);
     tuitionRows = (tRows ?? []) as TuitionRow[];
   }
@@ -196,6 +204,13 @@ export async function readDbPricingConfig(
         num(row.tranche_2_amount),
         num(row.tranche_3_amount),
       ],
+      // T-334: the live grid's per-tranche due months (9/1/5, 9/12/3, 9/12/4
+      // all exist live) — mapped verbatim for the exhaustive pricing profile.
+      ...(row.tranche_1_month != null &&
+      row.tranche_2_month != null &&
+      row.tranche_3_month != null
+        ? { installmentMonths: [row.tranche_1_month, row.tranche_2_month, row.tranche_3_month] as const }
+        : {}),
     };
     // CALC-001: per-grade FI (migration 0088 additive column; falls back to
     // the real workbook matrix when the row predates the column).
@@ -212,7 +227,7 @@ export async function readDbPricingConfig(
   if (cfg) {
     const { data: dRows } = await client
       .from("transport_destinations")
-      .select("id, pricing_config_id, code, annual_amount, tranche_1_amount, tranche_2_amount, tranche_3_amount")
+      .select("id, pricing_config_id, code, annual_amount, tranche_1_amount, tranche_2_amount, tranche_3_amount, tranche_1_month, tranche_2_month, tranche_3_month")
       .eq("pricing_config_id", cfg.id);
     transportRows = (dRows ?? []) as TransportRow[];
   }
@@ -226,6 +241,11 @@ export async function readDbPricingConfig(
         num(row.tranche_2_amount),
         num(row.tranche_3_amount),
       ],
+      ...(row.tranche_1_month != null &&
+      row.tranche_2_month != null &&
+      row.tranche_3_month != null
+        ? { installmentMonths: [row.tranche_1_month, row.tranche_2_month, row.tranche_3_month] as const }
+        : {}),
     };
   }
   for (const d of TRANSPORT_DESTINATIONS) {
