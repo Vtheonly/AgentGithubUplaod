@@ -2961,3 +2961,45 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Scope (planned):** hub migration 0094 (`alter publication supabase_realtime add table` for `notifications`, `chat_messages`, `installments`, `payments`, `homework`, `assessments` — idempotent membership guards per the 0085 pattern; RLS already scopes delivered events per subscriber) + website `useGradesRealtime(studentId)` hook (the useHomeworkRealtime pattern) consumed in the academic view if instant grade updates are wanted. Re-run scripts/realtime-probe.mjs as the RED→GREEN control.
 - **Depends on:** nothing (additive; zero RLS change — the 0085 security analysis applies: events are filtered by each subscriber's SELECT policies).
 - **Priority:** P2 (the T-033 fallback keeps data stale-bounded; the desktop matches fetch-on-mount so no parity gap today — this is an enhancement, not a break).
+
+## 61st session (2026-09-14) — owner mandate: "Implement the executive/actionable statistics in BOTH the mobile app and the desktop version — identical definitions, one calculation source, zero hardcoded/estimated values; remove the vanity statistics (payment-amount histogram, weekday collection heatmap, the smooth 12-month revenue spline, raw debt without aging/tranche context, the artificial class-capacity calculations)"
+
+### T-338 — 61st session: the DESKTOP canonical executive-statistics engine (STATS-400) — tranche-wave velocity, discount erosion, debt triage, family concentration, transport yield, services yield, enrollment/sibling/section-imbalance, triple-risk summary
+
+- **Status:** IMPLEMENTED → TESTED (commit 256bfa4 — 44/44 unit tests green, exact integer expectations; mirrored by Android T-340 in-flight)
+- **Problems:** STATS-400 (NEW — the vanity-vs-operational statistics gap: the current analytics tab shows passive counters and generic e-commerce visuals while the school needs collection-wave velocity, discount erosion, chronic-vs-transitory debt triage, family exposure concentration, transport/service yield, sibling index, section imbalance, and the triple-risk radar front-and-center)
+- **Scope:** hub desktop — NEW `src/features/dashboard/components/analytics/executive-statistics.ts` (the pure derivation family: deriveTrancheWaves / deriveDiscountErosion / deriveDebtTriage / deriveFamilyExposure / deriveTransportYield / deriveServiceYield / deriveEnrollmentDynamics / deriveTripleRiskSummary) + domain model additive fields (`Installment.trancheNumber`, mapped from the live `tranche_number` column in the supabase + mock mappers) + the domain-level transport-town normalizer (the excel destination-mapper alias table lifted to `src/domain/calc/pricing/transport.ts`, excel mapper delegating to it — one alias table, no duplicate) + unit tests.
+- **Depends on:** nothing (pure additive derivation layer over existing repository contracts: installments.observe(), ledger.observe(), students/parents/classes.observe(), payments.observe()).
+- **Priority:** P0
+
+### T-339 — 61st session: the DESKTOP dashboard restructure — vanity statistics removed, the executive command-center UI wired to the engine
+
+- **Status:** TESTED (commit 66e69b7 — full suite 144 files / 3198 tests / 0 failures; tsc --noEmit 0 errors; eslint 0 errors; AI capability suite asserts capacity_fill GONE)
+- **Problems:** STATS-400 (the UI leg) · UI-307 partial supersession (the Power BI visuals that are vanity get removed: AmountHistogramCard, CollectionHeatmapCard, RevenueTrendExplorer)
+- **Scope:** hub desktop — analytics-tab restructure (new "Pilotage" executive mode first, triple-risk front-and-center; remove AmountHistogramCard + CollectionHeatmapCard + RevenueTrendExplorer; keep YoY/mixes/Pareto/aging-composition which are real-data); overview-tab hero replaced by the tranche-wave velocity view (the staircase, not the smooth spline); KPI debt contextualized (chronic >45j share); ClassCapacityAnalyzer DELETED + see-details-modal capacity section removed; demographics().capacity slice removed from the DashboardRepository contract + both mock/supabase implementations + all consumers; the X/Y capacity badges (teacher-dashboard `${enrolledCount}/${capacity}` → `X élèves inscrits`; academic-year-detail-drawer `X/Y élèves` → `X élèves inscrits` + the fake-30 totalCapacity/capacityRate removed); dashboard tests updated.
+- **Depends on:** T-338 (the engine).
+- **Priority:** P0
+
+### T-340 — 61st session: the ANDROID verbatim mirror — StatisticsEngine extension + Room migration 14→15 (trancheNumber + transportTier) + the executive UI + vanity-card removal
+
+- **Status:** In Progress (Kotlin mirror drafted: core/ExecutiveStatistics.kt — all 8 derivation families, ADR-002 header pins source commit 256bfa4 — + Room MIGRATION_14_15 + schema 15.json + LocalDashboardRepository wiring + vanity-card removal in StatisticsEngine/AnalyticsVisuals/DashboardKpi; gradle compile + unit tests + MigrationTestHelper test + corpus runner mirror NOT yet run → verification pending, do NOT close)
+- **Problems:** STATS-400 (the Android leg) · PARITY family debt (T-333 pricing-profile mirror superseded by this larger statistics parity mandate)
+- **Scope:** elimtiyaz-android — `core/StatisticsEngine.kt` extended with the T-338 derivation families VERBATIM (source commit recorded in the header per ADR-002); Room MIGRATION_14_15 (installments.tranche_number INTEGER NOT NULL DEFAULT 1; students.transport_tier TEXT NULL) + entity/DTO mapper updates + MigrationTestHelper test; DashboardViewModel/LocalDashboardRepository wiring; new Analytique cards (wave velocity, discount erosion, debt triage, family concentration, transport, services, enrollment/imbalance, triple-risk radar); vanity cards removed (YoYAndHistogramCards histogram half, HeatmapAndAgingCards heatmap half, RevenueTrendExplorerCard, DemographicsCard capacity gauges, ClassDetailScreen capacity gauges → section-imbalance + plain enrolled counts).
+- **Depends on:** T-338 (the canonical engine to mirror).
+- **Priority:** P0
+
+### T-341 — 61st session: cross-platform equivalence + LIVE verification — the corpus category + the SQL truth scripts + both live runners
+
+- **Status:** In Progress (corpus leg DONE — commit 84b2a65: desktop_runner 311 passed / 0 failed / 1 errored, the errored being the documented pre-existing 017_zero_payment discrepancy, unchanged; remaining: `verify_t-338.sql` server-side truth script + the live node runner diffing TS derivations vs SQL truth over the live Supabase stream + the Android runner mirror) 
+- **Problems:** STATS-400 (the proof leg)
+- **Scope:** hub — financial-tests corpus category `executive_statistics` (then-blocks generated from the REAL TS derivations) + the op in BOTH runners + CrossPlatformEquivalenceTest.kt extension; `elimtiyaz-desktop/scripts/verify_t-338.sql` (BEGIN/ROLLBACK server-side truth: tranche waves, remise census via metadata markers, debt triage buckets, family concentration, transport towns, sibling index, section imbalance) + a live node runner executing the TS derivations against the live Supabase stream and diffing against the SQL truth; Android LiveDatabaseEquivalenceTest extension (env-gated) when the toolchain allows.
+- **Depends on:** T-338 + T-340.
+- **Priority:** P0
+
+### T-342 — 61st session: closeout — registries + change-log + current-state + next-task + zips + GitHub push (owner PAT)
+
+- **Status:** Not Started (planned)
+- **Problems:** process (ADR-007)
+- **Scope:** all repos — the five-question commits per repo, registry status flips with evidence, change-log entries, zips to the download area, push with the owner PAT.
+- **Depends on:** T-338..T-341.
+- **Priority:** P1
