@@ -25,12 +25,16 @@
  */
 import { getSupabaseClient, isSupabaseConfigured } from "../supabase/supabase-client";
 
-/** Buckets defined by migration 0018 (all private). */
+/**
+ * Buckets defined by migration 0018 (all private) — the vault call sites'
+ * union. T-361: the phantom "therapy-attachments" member was REMOVED — no
+ * such bucket exists in the 0018 chain or the live project; a caller using
+ * it would fail with "Bucket not found" at the first production upload.
+ */
 export type MediaBucket =
   | "payment-proofs"
   | "student-documents"
   | "expense-receipts"
-  | "therapy-attachments"
   | "homework-attachments";
 
 export interface UploadMediaResult {

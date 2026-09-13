@@ -348,12 +348,26 @@ export function UnifiedPaymentModal({
     setProofFileName(file?.name ?? null);
     setProofVaultPath(null);
     if (!file) return;
+    // T-361 (UPLOAD-102): the vault path is TENANT-scoped — the payment_proofs
+    // policies (0018) require folder[1] = current_tenant_id(). The previous
+    // hardcoded `tenantId: "mock"` literal was RLS-rejected on EVERY
+    // production upload (live RED proof, t-359 check B), which blocked
+    // check/transfer collection entirely (both methods REQUIRE a proof).
+    // Same guard as the homework-push modal (T-053 / TENANT-103).
+    const workingTenantId = session?.tenantId;
+    if (!workingTenantId) {
+      toast.showError(
+        "Aucun établissement actif — sélectionnez un établissement dans la barre supérieure (compte admin global) ou reconnectez-vous.",
+      );
+      setProofFileName(null);
+      return;
+    }
     setProofUploading(true);
     try {
       const uploaded = await uploadPrivateMedia({
         bucket: "payment-proofs",
         entityId: effectiveParentId ?? "unknown-parent",
-        tenantId: "mock",
+        tenantId: workingTenantId,
         file,
       });
       setProofVaultPath(uploaded.path);
