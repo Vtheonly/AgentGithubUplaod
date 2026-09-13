@@ -58,6 +58,14 @@ class FakeQuery {
     this.isInsert = true;
     return this;
   }
+  upsert(payload: Row | Row[], _opts?: { ignoreDuplicates?: boolean }) {
+    // IMPORT-107: bulkCollect now writes via .upsert(..., { ignoreDuplicates:
+    // true }) (ON CONFLICT DO NOTHING on the (tenant, payment_number) identity).
+    // The fail-fast contract this suite pins is orthogonal to the dedupe —
+    // the fake treats an upsert exactly like an insert (the insertError hook
+    // still fires; no conflict simulation is needed here).
+    return this.insert(payload);
+  }
   update(_payload: Row) {
     // Not used by the code paths under test anymore (fallback removed);
     // kept for surface compatibility.

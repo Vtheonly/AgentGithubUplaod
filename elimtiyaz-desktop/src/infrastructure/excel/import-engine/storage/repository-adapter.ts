@@ -216,16 +216,40 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     const failures: string[] = [];
     // Flush ledger entries.
     if (this.pendingLedgerEntries.length > 0 && this.deps.ledger) {
-      try {
-        if (typeof this.deps.ledger.bulkAppend === "function") {
-          await this.deps.ledger.bulkAppend(this.pendingLedgerEntries);
-        } else {
-          await this.deps.ledger.appendMany(this.pendingLedgerEntries);
+      // IMPORT-107 (re-import idempotency): the canonical identity of an
+      // imported ledger entry is (tenant, source_type, source_id) — the
+      // migration-0027 `upsert_ledger_entry_from_import` contract, enforced
+      // live by the `ledger_entries_source_uidx` unique index. The DIRECT
+      // repository flush (bulkAppend / appendMany) used to skip that
+      // contract entirely: every re-import re-appended the ENTIRE financial
+      // history (mock: the local ledger doubled — every charge and payment,
+      // so every dashboard balance doubled; Supabase: the unique index
+      // rejected every chunk and the error was swallowed). Dedupe the
+      // pending batch against the CURRENT ledger stream first so a
+      // re-import of the same file is a no-op, exactly like the RPC path.
+      const existingKeys = this.collectExistingImportLedgerKeys();
+      const newLedgerEntries = this.pendingLedgerEntries.filter(
+        (e) => e.sourceType == null || e.sourceId == null || !existingKeys.has(`${e.sourceType}|${e.sourceId}`),
+      );
+      if (newLedgerEntries.length > 0) {
+        try {
+          const result =
+            typeof this.deps.ledger.bulkAppend === "function"
+              ? await this.deps.ledger.bulkAppend(newLedgerEntries)
+              : await this.deps.ledger.appendMany(newLedgerEntries);
+          // A silent Err here would resurrect the exact silent-partial-
+          // application defect the atomic contract forbids (the same
+          // T-012 fix applied to bulkCollect) — honour the Result.
+          if (result && result.ok === false) {
+            failures.push(
+              `écritures du journal (${newLedgerEntries.length}): ${result.error?.message ?? "erreur inconnue"}`,
+            );
+          }
+        } catch (e) {
+          failures.push(
+            `écritures du journal (${newLedgerEntries.length}): ${e instanceof Error ? e.message : String(e)}`,
+          );
         }
-      } catch (e) {
-        failures.push(
-          `écritures du journal (${this.pendingLedgerEntries.length}): ${e instanceof Error ? e.message : String(e)}`,
-        );
       }
       this.pendingLedgerEntries = [];
     }
@@ -794,8 +818,32 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       `${input.firstName} ${input.lastName}`.trim(),
     );
     if (!result.ok) return null;
-    const match = result.value.find((s) => s.parentId === parent.id);
-    return match ?? null;
+    // IMPORT-109: EXACT identity match. The repository search is
+    // substring-based, so a query like "LINA BELGRIMAT" ALSO matches a
+    // sibling named "MILINA BELGRIMAT" ("miLINA BELGRIMAT" contains the
+    // query as a substring). Matching the FIRST result by store order then
+    // cross-wired the two siblings on re-import (MILINA renamed to LINA
+    // via updateStudent, a duplicate MILINA created, and each row's
+    // financial entries re-buffered against the WRONG student's id). The
+    // match must be exact and order-independent:
+    //   1. parentId + displayName (the importer stores NOM verbatim in
+    //      displayName — the canonical row identity);
+    //   2. fallback: parentId + exact (firstName, lastName).
+    const byDisplayName = result.value.find(
+      (s) =>
+        s.parentId === parent.id &&
+        input.displayName != null &&
+        s.displayName === input.displayName,
+    );
+    if (byDisplayName) return byDisplayName;
+    return (
+      result.value.find(
+        (s) =>
+          s.parentId === parent.id &&
+          s.firstName === input.firstName &&
+          s.lastName === input.lastName,
+      ) ?? null
+    );
   }
 
   private extractPhone(record: ImportRecord): string {
@@ -809,28 +857,33 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   }
 
   /**
-   * List existing bulk-import ledger entries for a parent. Used by
-   * `persistFinancialEntries` to dedupe re-imports — if an entry with the
-   * same (studentId, field) already exists, it's skipped rather than
-   * appended again.
+   * IMPORT-107: collect the (sourceType|sourceId) identity keys of every
+   * bulk-import ledger entry currently visible in the ledger stream.
    *
    * The LedgerRepository interface doesn't expose a synchronous "list"
    * method, but every implementation's `observe()` returns an Observable
-   * whose `.get()` returns the current cached array. We use that.
+   * whose `.get()` returns the current cached array (mock: the store-backed
+   * SubjectBehavior — always current; Supabase: the client cache — may be
+   * lazy, in which case this returns an empty set and the DB-level guard
+   * (`ledger_entries_source_uidx` + `bulkAppend`'s ignore-duplicates) is
+   * the authoritative dedupe).
    */
-  private async listExistingImportEntriesForParent(parentId: string): Promise<LedgerEntry[]> {
-    if (!this.deps.ledger) return [];
+  private collectExistingImportLedgerKeys(): Set<string> {
+    const keys = new Set<string>();
+    if (!this.deps.ledger) return keys;
     try {
-      const obs = this.deps.ledger.observeByParent(parentId);
+      const obs = this.deps.ledger.observe();
       const all = typeof obs.get === "function" ? obs.get() : [];
-      return all.filter(
-        (e) => e.sourceType === "bulk_import" && e.metadata?.field,
-      );
+      for (const e of all) {
+        if (e.sourceType != null && e.sourceId != null) {
+          keys.add(`${e.sourceType}|${e.sourceId}`);
+        }
+      }
     } catch {
-      // If the observable isn't available (e.g. in tests with a stub
-      // repository), skip dedup — append everything.
-      return [];
+      // Dedupe unavailable — fall through with an empty set; the
+      // DB-level unique index still guards the Supabase path.
     }
+    return keys;
   }
 
   // ── Financial persistence ─────────────────────────────────────────────
@@ -871,11 +924,16 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * (`upsertEtatRecord`) adds them to `pendingLedgerEntries`, and the
    * actual write happens ONCE in `commitTransaction` via `bulkAppend`.
    *
-   * Dedup note: re-import idempotency is now handled at the DB level by
-   * the `upsert_ledger_entry_from_import` RPC's identity match on
-   * `(tenant, source_type, source_id)`. The old client-side dedup
-   * (`listExistingImportEntriesForParent`) was slow (fetched all entries
-   * per parent) and is no longer needed.
+   * Dedup note (IMPORT-107): re-import idempotency is enforced at THREE
+   * levels — (1) this adapter's flush dedupes the pending batch against
+   * the current ledger stream by (sourceType, sourceId) identity;
+   * (2) the DB-level `upsert_ledger_entry_from_import` RPC matches on
+   * (tenant, source_type, source_id) for the sync-queue path; (3) the
+   * live `ledger_entries_source_uidx` unique index + `bulkAppend`'s
+   * ignore-duplicates guard the direct Supabase insert. Payments dedupe
+   * by deterministic receiptNumber and installments by
+   * (parent, student, category, trancheNumber) — all three financial
+   * streams are now re-import-safe.
    */
   private buildFinancialEntries(
     record: ImportRecord,

@@ -1384,9 +1384,17 @@ export class SupabasePaymentRepository implements PaymentRepository {
       const inserted: Payment[] = [];
       for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
         const chunk = rows.slice(i, i + CHUNK_SIZE);
+        // IMPORT-107: `ignoreDuplicates: true` → ON CONFLICT DO NOTHING.
+        // The (tenant_id, payment_number) unique constraint is the
+        // canonical payment identity: a re-import of the same workbook
+        // carries the same deterministic IMP-… receipt numbers, so the
+        // already-imported rows are SKIPPED (a clean no-op) instead of
+        // hard-failing the whole batch with a unique violation and
+        // blocking the re-import. The chained .select() returns ONLY the
+        // rows actually inserted, so the cache stays truthful.
         const { data, error } = await this.client
           .from("payments")
-          .insert(chunk as never)
+          .upsert(chunk as never, { ignoreDuplicates: true })
           .select("id, tenant_id, payment_number, receipt_number, parent_id, student_id, amount, method, status, category, installment_id, proof_path, notes, collected_by, collected_at, created_at, updated_at");
         if (error) {
           // T-012: abort the whole batch — report the failing row range so
@@ -1686,12 +1694,17 @@ export class SupabaseLedgerRepository implements LedgerRepository {
    * calls this method once at the end of the import. For a 390-row workbook
    * with ~22 entries per row, this turns ~8,580 RPC calls into 1 INSERT.
    *
-   * Note: this does NOT call the `upsert_ledger_entry_from_import` RPC —
-   * it uses a direct `INSERT INTO ledger_entries (...) VALUES (...), (...)`
-   * which is faster but skips the idempotency check. Re-importing the same
-   * Excel file will create duplicates unless the caller dedupes first.
-   * The importer already dedupes via `existingKeys` in
-   * `persistFinancialEntries`.
+   * IMPORT-107 (idempotent + atomic): this does NOT call the
+   * `upsert_ledger_entry_from_import` RPC — it uses a direct
+   * `INSERT ... ON CONFLICT DO NOTHING` via `ignoreDuplicates: true`.
+   * The 0027 `ledger_entries_source_uidx` unique index on (tenant_id,
+   * source_type, source_id) is the canonical identity arbiter: re-imported
+   * entries (same sourceId, fresh entry_number) are SKIPPED instead of
+   * either duplicating (old plain-INSERT behavior) or hard-failing every
+   * chunk. The import adapter also pre-dedupes its pending batch against
+   * the ledger stream, so the DB guard is defense-in-depth. Chunk errors
+   * are returned as Err — the import's atomic contract requires a flush
+   * failure to FAIL the import, not be swallowed.
    */
   async bulkAppend(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>> {
     if (entries.length === 0) return Ok([]);
@@ -1724,20 +1737,46 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       }));
       // Insert in chunks of 500 to avoid hitting PostgREST's payload limit.
       const CHUNK_SIZE = 500;
+      const inserted: LedgerEntry[] = [];
       for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-        const chunk = rows.slice(i, i + CHUNK_SIZE);
-        const { error } = await this.client
+        const chunkRows = rows.slice(i, i + CHUNK_SIZE);
+        const chunkEntries = entries.slice(i, i + CHUNK_SIZE);
+        // IMPORT-107 (re-import idempotency + atomicity): the 0027 schema
+        // enforces `ledger_entries_source_uidx` on (tenant, source_type,
+        // source_id) — the canonical identity of an imported entry. A plain
+        // INSERT would hard-fail every re-imported chunk against that index.
+        // `ignoreDuplicates: true` emits `ON CONFLICT DO NOTHING` (any
+        // unique arbiter — imported rows carry fresh entry_numbers/ids, so
+        // the only realistic conflict IS the source identity), and the
+        // chained `.select()` returns ONLY the rows actually inserted.
+        const { data, error } = await this.client
           .from("ledger_entries")
-          .insert(chunk as never);
+          .upsert(chunkRows as never, { ignoreDuplicates: true })
+          .select();
         if (error) {
-          console.warn(`[SupabaseLedger] bulk insert chunk ${i} failed:`, error.message);
-          // Don't throw — continue with the next chunk so a single bad row
-          // doesn't kill the entire import.
+          // Loud failure — the Excel import's atomic contract ("tout réussit
+          // ou tout échoue") requires a flush failure to FAIL the import.
+          // The previous console.warn-and-continue swallowed chunk errors
+          // and reported success with silently-missing financial data.
+          return Err(Errors.server(`bulkAppend chunk ${i}: ${error.message}`));
+        }
+        // Update the in-memory cache with ONLY the rows that were actually
+        // inserted — the previous unconditional `[...entries, ...list]`
+        // polluted the cache with phantom rows on every rejected chunk,
+        // doubling every ledger-derived total in the UI until refresh.
+        const insertedSourceIds = new Set(
+          ((data as Array<{ source_id?: string | null }> | null) ?? [])
+            .map((r) => r.source_id)
+            .filter((sid): sid is string => sid != null),
+        );
+        for (const e of chunkEntries) {
+          if (e.sourceId == null || insertedSourceIds.has(e.sourceId)) {
+            inserted.push(e);
+          }
         }
       }
-      // Update the in-memory cache.
-      this.cache.update((list) => [...entries, ...list]);
-      return Ok(entries);
+      this.cache.update((list) => [...inserted, ...list]);
+      return Ok(inserted);
     } catch (e) {
       console.warn("[SupabaseLedger] bulkAppend error:", e);
       // Fall back to appendMany (loop) which calls the RPC one by one.

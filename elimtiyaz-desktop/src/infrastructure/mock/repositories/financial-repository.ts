@@ -130,6 +130,80 @@ export class MockPaymentRepository implements PaymentRepository {
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
     return collectPayment(ctx, input, collectedBy);
   }
+  /**
+   * IMPORT-108 (mock parity with SupabasePaymentRepository.bulkCollect):
+   * the Excel importer's payment flush. Contract mirrors the Supabase
+   * implementation — INSERT payments rows ONLY:
+   *   - NO ledger entries (the importer writes the canonical bulk_import
+   *     ledger entries separately via bulkAppend — the generic collect()
+   *     writes its own ledger entry, so the previous per-row fallback
+   *     double-booked every imported payment in the ledger);
+   *   - NO waterfall allocation (the importer's installments already carry
+   *     amountPaid from the workbook — collect()'s allocator would add the
+   *     amount a SECOND time);
+   *   - the DETERMINISTIC receiptNumber is honoured when present (IMP-…
+   *     from the importer — the idempotency key; collect() ignores it and
+   *     auto-generates REC-…, which made re-imports duplicate payments);
+   *   - idempotent: rows whose receiptNumber already exists are returned
+   *     as-is (the store's (tenant, payment_number) uniqueness analogue).
+   */
+  async bulkCollect(
+    inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>,
+  ): Promise<Result<readonly Payment[]>> {
+    const inserted: Payment[] = [];
+    for (const { input, collectedBy } of inputs) {
+      const receiptNumber = input.receiptNumber ?? `REC-${new Date().getFullYear()}-${String(store.payments.length + 1).padStart(6, "0")}`;
+      const existing = store.payments.find((p) => p.receiptNumber === receiptNumber);
+      if (existing) {
+        inserted.push(existing);
+        continue;
+      }
+      const seq = store.payments.length + 1;
+      const status = input.method === "cash" ? "paid" : "pending";
+      const now = nowIso();
+      const payment: Payment = {
+        // Globally-unique id (the plain `pay-003` sequence collides after
+        // deletions — see collect()'s note): random suffix.
+        id: `pay-${String(seq).padStart(3, "0")}-${Math.random().toString(36).slice(2, 8)}`,
+        tenantId: TENANT_ID,
+        receiptNumber,
+        parentId: input.parentId,
+        studentId: input.studentId,
+        amount: input.amount,
+        method: input.method,
+        status,
+        category: input.category,
+        installmentId: input.installmentId,
+        proofUrl: input.proofUrl ?? null,
+        notes: input.notes ?? null,
+        checkNumber: input.checkNumber?.trim() || null,
+        checkBankName: input.checkBankName?.trim() || null,
+        checkIssueDate: input.checkIssueDate || null,
+        checkClearanceDate: input.checkClearanceDate || null,
+        transferReference: input.transferReference?.trim() || null,
+        transferSourceBank: input.transferSourceBank?.trim() || null,
+        collectedBy,
+        collectedAt: input.collectedAt ?? now,
+        createdAt: now,
+        updatedAt: now,
+      };
+      store.payments.unshift(payment);
+      inserted.push(payment);
+    }
+    if (inserted.length > 0) {
+      store.notifyPayments();
+      appendAudit({
+        action: "payment.bulk_import",
+        entityType: "payment",
+        entityId: inserted[0].id,
+        actorId: inputs[0]?.collectedBy ?? "excel-import",
+        actorName: "Excel Import",
+        diff: { before: null, after: { count: inserted.length } },
+        note: `Import Excel — ${inserted.length} paiement(s) en lot`,
+      });
+    }
+    return Ok(inserted);
+  }
   refund(id: string, reason: string, actorId?: string, actorName?: string): Promise<Result<Payment>> {
     return refundPayment(ctx, id, reason, actorId, actorName);
   }

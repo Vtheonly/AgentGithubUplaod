@@ -69,6 +69,11 @@ function makeClient(opts: {
         }
         return q;
       };
+      // IMPORT-107: bulkCollect writes via .upsert(..., { ignoreDuplicates:
+      // true }) now — the receipt-allocation contract this suite pins is
+      // orthogonal to the dedupe, so the fake routes upsert through insert.
+      q.upsert = (payload: Row | Row[], _opts?: { ignoreDuplicates?: boolean }) =>
+        (q.insert as (p: Row | Row[]) => typeof q)(payload) as unknown as typeof q;
       q.then = (resolve: unknown) =>
         Promise.resolve(q.__outcome ?? { data: null, error: null }).then(resolve as never);
       return q;
