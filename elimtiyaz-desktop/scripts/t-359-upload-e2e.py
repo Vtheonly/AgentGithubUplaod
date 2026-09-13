@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 t-359-upload-e2e.py — LIVE end-to-end verification of the cross-platform
-upload flow (T-359 / UPLOAD-101 / UPLOAD-102 / UPLOAD-103).
+upload flow (T-359 / UPLOAD-101 / UPLOAD-102 / UPLOAD-103, and since T-367
+/ UPLOAD-104 the TABLE leg too).
 
 Proves, against the LIVE Supabase project, that:
 
@@ -27,6 +28,21 @@ Proves, against the LIVE Supabase project, that:
   ROLE/PERMISSION leg (the RLS role resolution the policies depend on):
     I. current_tenant_id() resolves for the test parent (user_profiles path);
     J. has_role('parent') resolves via role_assignments (tenant-scoped).
+
+  TABLE leg (T-367 / UPLOAD-104 — added 2026-09-14, 66th session: the row
+  INSERT the 64th session never probed — the gap that let UPLOAD-101 close
+  TESTED while the owner's live portal still got `rest/v1/student_documents
+  → 403` on every upload):
+    L.  the PRE-FIX row payload (NO tenant_id — the exact website shape) is
+        RLS-REJECTED by the 0043 parent INSERT WITH CHECK (SQLSTATE 42501 →
+        HTTP 403, the owner's console signature);
+    M0. the storage upload for the table leg is accepted (the T-360 leg);
+    M.  the FIXED row payload (tenant_id included — the T-367 one-line fix
+        mirrored verbatim) is ACCEPTED (HTTP 201);
+    M2. the parent READS the new row back under their own JWT (the 0043
+        parent SELECT policy leg);
+    N.  a CROSS-TENANT tenant_id in the payload is still RLS-rejected — the
+        fix must not weaken the WITH CHECK.
 
 Zero-residue cleanup at the end (storage objects removed, parent unbound,
 role/profile/auth rows removed BY EMAIL — audit rows are kept, append-only).
@@ -142,15 +158,36 @@ def storage_remove_service(bucket, path):
     )
 
 
-def check(name, ok, detail=""):
-    results.append((name, bool(ok), detail))
-    print(f"  [{'OK ' if ok else 'FAIL'}] {name}" + (f" — {detail}" if detail else ""))
+def doc_insert(jwt, payload):
+    """INSERT a student_documents row through the SAME PostgREST endpoint
+    the website's UploadDocumentDialog uses (rest/v1/student_documents)."""
+    return http(
+        "POST", f"{SUPABASE_URL}/rest/v1/student_documents",
+        {"apikey": ANON_KEY, "Authorization": f"Bearer {jwt}",
+         "Content-Type": "application/json"},
+        payload, timeout=60,
+    )
 
 
 def is_rls_reject(status, body):
     """A storage RLS policy denial: 403 + 'row-level security' in the error."""
     text = json.dumps(body) if not isinstance(body, bytes) else str(body)
     return status in (403, 400) and ("row-level security" in text or "policy" in text.lower())
+
+
+def is_postgrest_rls_reject(status, body):
+    """A PostgREST table-INSERT RLS denial: 42501 (mapped to HTTP 403 by
+    PostgREST) with the 'row-level security policy' message — the exact
+    signature of the owner's live console evidence (UPLOAD-104)."""
+    text = json.dumps(body) if not isinstance(body, bytes) else str(body)
+    return status in (403, 400) and (
+        '"code":"42501"' in text.replace(" ", "") or "row-level security" in text
+    )
+
+
+def check(name, ok, detail=""):
+    results.append((name, bool(ok), detail))
+    print(f"  [{'OK ' if ok else 'FAIL'}] {name}" + (f" — {detail}" if detail else ""))
 
 
 def main():
@@ -290,9 +327,81 @@ def main():
     check("K. cross-tenant prefix RLS-rejected",
           is_rls_reject(st, body), f"HTTP {st} {str(body)[:140]}")
 
+    # ------------------------------------------------------------------
+    # TABLE LEG (T-367 / UPLOAD-104 — added 66th session 2026-09-14): the
+    # row INSERT through PostgREST, the exact endpoint+payload shape the
+    # website's UploadDocumentDialog sends. The 64th session's probe
+    # stopped at the storage leg; this leg closes that verification gap.
+    # ------------------------------------------------------------------
+    print("== TABLE LEG (T-367 / UPLOAD-104): the student_documents row INSERT ==")
+    prof = sql(f"select id from public.user_profiles where email = '{TEST_EMAIL}'")
+    profile_id = prof[0]["id"] if prof else None
+    check("L0. parent user_profiles row resolved (uploaded_by semantics)",
+          bool(profile_id), str(prof[:1]))
+
+    table_path = f"{TENANT_ID}/{target_student}/contract-{ts}.png"
+    row_base = {
+        "student_id": target_student,
+        "kind": "contract",
+        "file_name": f"t367-e2e-{ts}.png",
+        "storage_path": table_path,
+        "mime_type": "image/png",
+        "size_bytes": 95,
+        "uploaded_by": profile_id,
+        "description": None,
+    }
+
+    # L — the PRE-FIX payload (no tenant_id): the exact website shape that
+    #     produced the owner's live `rest/v1/student_documents → 403`.
+    st, body = doc_insert(parent_jwt, row_base)
+    check("L. pre-fix row insert (NO tenant_id) RLS-rejected 42501/403",
+          is_postgrest_rls_reject(st, body), f"HTTP {st} {str(body)[:140]}")
+
+    # M0 — the storage upload for the table leg (the complete two-step flow:
+    #      storage first, then the row).
+    st, body = storage_upload(parent_jwt, "student-documents", table_path)
+    check("M0. storage upload for the table leg accepted", st in (200, 201),
+          f"HTTP {st} {str(body)[:140]}")
+
+    # M — the FIXED payload (tenant_id included): the T-367 one-line fix
+    #     mirrored verbatim (`tenant_id: tenantId` — the chat_messages
+    #     convention).
+    fixed_row = dict(row_base)
+    fixed_row["tenant_id"] = TENANT_ID
+    st, body = doc_insert(parent_jwt, fixed_row)
+    check("M. fixed row insert (tenant_id included) accepted", st == 201,
+          f"HTTP {st} {str(body)[:140]}")
+
+    # M2 — the parent reads the new row back under their own JWT (the 0043
+    #      parent SELECT policy: own child + own tenant).
+    st, body = http(
+        "GET",
+        f"{SUPABASE_URL}/rest/v1/student_documents"
+        f"?storage_path=eq.{table_path}&select=id,tenant_id,uploaded_by,kind",
+        {"apikey": ANON_KEY, "Authorization": f"Bearer {parent_jwt}"},
+        timeout=60,
+    )
+    ok = (
+        st == 200 and isinstance(body, list) and len(body) == 1
+        and body[0]["tenant_id"] == TENANT_ID
+        and body[0]["uploaded_by"] == profile_id
+    )
+    check("M2. parent reads the new row back (SELECT policy)", ok,
+          f"HTTP {st} {str(body)[:140]}")
+
+    # N — a CROSS-TENANT tenant_id must STILL be rejected: the fix supplies
+    #     the caller's tenant; it must not widen the WITH CHECK.
+    cross_row = dict(row_base)
+    cross_row["tenant_id"] = "00000000-0000-0000-0000-000000000009"
+    st, body = doc_insert(parent_jwt, cross_row)
+    check("N. cross-tenant row insert RLS-rejected (policy intact)",
+          is_postgrest_rls_reject(st, body), f"HTTP {st} {str(body)[:140]}")
+
     print("== CLEANUP ==")
     storage_remove_service("student-documents", good_path)
     storage_remove_service("attendance-justifications", g_path)
+    storage_remove_service("student-documents", table_path)
+    sql(f"delete from public.student_documents where storage_path = '{table_path}'")
     sql(f"update public.parents set auth_user_id = null where id = '{target_parent}'")
     sql(f"delete from public.role_assignments where user_profile_id in "
         f"(select id from public.user_profiles where email = '{TEST_EMAIL}')")
