@@ -3148,3 +3148,47 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Scope:** registry flips, change-log, current-state, next-task, the zip set, the GitHub push with the owner PAT. COORDINATION: the 62nd session (MATIERE-500, T-345..T-349) is running CONCURRENTLY — fetch → inspect → merge forward → re-run the full gates before push (never force-push).
 - **Depends on:** T-350..T-357.
 - **Priority:** P1
+
+### T-359 — 64th session: register the cross-platform upload-defect family + the LIVE RED/GREEN evidence script (UPLOAD-101/102/103)
+
+- **Status:** COMPLETED (TESTED + live-verified, 2026-09-14 — `scripts/t-359-upload-e2e.py` 13/13 GREEN: the three tenant-less/mock-tenant paths RLS-rejected live, the canonical tenant-scoped paths accepted, role resolution + cross-tenant denial + zero-residue cleanup all verified; evidence `docs/recovery/t-359-live-verification.md`)
+- **Problems:** UPLOAD-101, UPLOAD-102, UPLOAD-103
+- **Scope:** the live end-to-end proof that the three client-side upload defects are real (tenant-less / mock-tenant paths → RLS 403) AND that the canonical tenant-scoped paths pass on the SAME accounts: `elimtiyaz-desktop/scripts/t-359-upload-e2e.py` (staff leg + parent leg + role-resolution leg + cross-tenant denial guard + zero-residue cleanup; secrets env-only per §15.12). Backend census recorded: all 10 buckets + 24 storage policies exist and are correctly configured — the defects are CLIENT-side path/tenant bugs, NOT missing buckets.
+- **Depends on:** nothing (independent of the concurrent 63rd-session dashboard scope).
+- **Priority:** P0
+- **Next:** T-360.
+
+### T-360 — 64th session: website document-upload path fix (UPLOAD-101)
+
+- **Status:** Not Started
+- **Problems:** UPLOAD-101
+- **Scope:** `student-documents-card.tsx` UploadDocumentDialog builds `{tenantId}/{studentId}/{kind}-{ts}.{ext}` (tenant from the active StudentRow); header comment corrected (0018/0043, not "0027"); regression test source-scanning the path construction; website gates (lint + vitest + strict build).
+- **Depends on:** T-359.
+- **Priority:** P0
+- **Next:** T-361.
+
+### T-361 — 64th session: desktop payment-proof tenant fix + phantom bucket removal (UPLOAD-102)
+
+- **Status:** Not Started
+- **Problems:** UPLOAD-102
+- **Scope:** `unified-payment-modal.tsx` uses `session.tenantId` with the T-053 explicit no-tenant failure (mirrors `homework-push-modal.tsx`); the unused phantom `"therapy-attachments"` member removed from `MediaBucket` (no bucket by that name exists anywhere); regression test asserting no `"mock"` literal reaches the vault call; desktop gates (typecheck + eslint + vitest).
+- **Depends on:** T-359.
+- **Priority:** P0
+- **Next:** T-362.
+
+### T-362 — 64th session: Android storage upload fix — tenant path + honest failure + upload timeout (UPLOAD-103)
+
+- **Status:** Not Started
+- **Problems:** UPLOAD-103
+- **Scope:** `StorageRepository.uploadProof` contract gains the tenant parameter (desktop `uploadPrivateMedia` mirror); `LocalStorageRepository` uploads `{tenantId}/{entityId}/{fileName}` with a 60 s upload timeout; REUSES `SyncErrorClassifier.isTransient` so transport failures keep the sanctioned offline-first local fallback while permanent 4xx rejections (RLS) surface as `Result.Err` — never a fake success; `ProofScannerViewModel` passes `sessionManager.currentTenantId()`; unit tests for the path construction + the classifier branches; Android gates (compile + lint + test).
+- **Depends on:** T-359.
+- **Priority:** P0
+- **Next:** T-363.
+
+### T-363 — 64th session: closeout — registry flips + change-log + current-state + next-task + zips + push
+
+- **Status:** Not Started
+- **Problems:** UPLOAD-101/102/103 (status flips with evidence)
+- **Scope:** registry flips, change-log, current-state, next-task, the zip set, the GitHub push with the owner PAT. COORDINATION: the 63rd session (T-351..T-358 dashboard wiring) may push concurrently — fetch → inspect → merge forward → re-run gates before every push (never force-push).
+- **Depends on:** T-359..T-362.
+- **Priority:** P1
