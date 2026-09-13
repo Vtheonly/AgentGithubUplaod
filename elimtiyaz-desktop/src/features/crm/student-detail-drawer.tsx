@@ -1,7 +1,7 @@
 /**
  * StudentDetailDrawer — slide-over panel showing a student's complete profile.
  *
- * Plan §04.05 / §04.06 / §04.07: 5-tab slide-over — Infos / Académique /
+ * Plan §04.05 / §04.06 / §04.07: 5-tab slide-over — Infos / Pédagogique /
  * Présences / Paiements / Documents.
  *
  * Phase 4B refactor: now built on the shared `<EntityDetailDrawer<T>>` primitive
@@ -10,7 +10,8 @@
  *
  * Tab semantics:
  *   - Infos       → identity card + family links (parent drawer bidirectional nav)
- *   - Académique  → grade book per term (D1/D2/Examen/Moy) + academic history
+ *   - Pédagogique → grade book per term (D1/D2/Examen/Moy) + academic history
+ *                   + class summary banner with deep-link to the class space
  *   - Présences   → attendance summary with 3+ absence alert badge (plan §09.03)
  *   - Paiements   → individual share + family balance
  *   - Documents   → uploaded attachments (vault §04.06: medical certificates,
@@ -21,12 +22,13 @@
  * previously student records were read-only after registration.
  */
 import { useState } from "react";
-import {
-  GraduationCap, Calendar, Wallet, Info, Pencil,
-} from "lucide-react";
+import { GraduationCap, Calendar, Wallet, Info, Pencil } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
-import { EntityDetailDrawer, type EntityDrawerTab } from "../../shared/ui/entity-drawer";
+import {
+  EntityDetailDrawer,
+  type EntityDrawerTab,
+} from "../../shared/ui/entity-drawer";
 import { LEVEL_LABELS_FR, type Student } from "../../domain/model/student";
 import { InfoTab } from "./student-detail/info-tab";
 import { AcademicTab } from "./student-detail/academic-tab";
@@ -55,18 +57,25 @@ export function StudentDetailDrawer({
 
   // When closed or no student selected, keep the drawer mounted but entity=null
   // so the EntityDetailDrawer renders its empty portal and animations work.
-  const entity: Student | null = (open && studentId && student) ? student : null;
+  const entity: Student | null = open && studentId && student ? student : null;
 
   const tabs: readonly EntityDrawerTab<Student>[] = [
     {
       id: "info",
       label: "Infos",
-      content: () => <InfoTab studentId={studentId ?? ""} onOpenParent={onOpenParent} />,
+      content: () => (
+        <InfoTab studentId={studentId ?? ""} onOpenParent={onOpenParent} />
+      ),
     },
     {
       id: "academic",
-      label: "Académique",
-      content: () => <AcademicTab studentId={studentId ?? ""} />,
+      label: "Pédagogique",
+      content: () => (
+        <AcademicTab
+          studentId={studentId ?? ""}
+          onClose={() => onOpenChange(false)}
+        />
+      ),
     },
     {
       id: "attendance",
@@ -76,7 +85,9 @@ export function StudentDetailDrawer({
     {
       id: "payments",
       label: "Paiements",
-      content: () => <PaymentsTab studentId={studentId ?? ""} onOpenParent={onOpenParent} />,
+      content: () => (
+        <PaymentsTab studentId={studentId ?? ""} onOpenParent={onOpenParent} />
+      ),
     },
     // FIX (vault §04.06): the required Documents section of the Student
     // Profile Drawer — uploaded attachments (medical certificates,
@@ -96,9 +107,12 @@ export function StudentDetailDrawer({
         entity={entity}
         widthClass="max-w-lg"
         title={(s) => `${s.firstName} ${s.lastName}`}
-        subtitle={(s) => `${s.code} · ${LEVEL_LABELS_FR[s.level]} · Année ${s.gradeYear}`}
+        subtitle={(s) =>
+          `${s.code} · ${LEVEL_LABELS_FR[s.level]} · Année ${s.gradeYear}`
+        }
         avatar={(s) => ({
-          initials: `${s.firstName[0] ?? ""}${s.lastName[0] ?? ""}`.toUpperCase(),
+          initials:
+            `${s.firstName[0] ?? ""}${s.lastName[0] ?? ""}`.toUpperCase(),
         })}
         tabs={() => tabs}
         actions={() => [

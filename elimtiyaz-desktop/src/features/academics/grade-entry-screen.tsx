@@ -92,12 +92,67 @@ export function GradeEntryScreen({
     [classId],
   );
   const subjects = useObservable(() => repos.subjects.observe(), []);
+  const classSubjects = useObservable(
+    () => repos.subjects.observeByClass(classId ?? ""),
+    [classId],
+  );
   const classAssessments = useObservable(
     () => repos.grades.observeForClass(classId ?? ""),
     [classId],
   );
 
-  const subject = subjects.find((s) => s.id === subjectId);
+  // FIX (subject picker — the screen used to lock on the subjectId from the
+  // URL/props with no way to switch, e.g. stuck on "Anglais"). Keep an
+  // internal active subject so the teacher can switch matière in-place:
+  // embedded hosts (onExit) stay in the overlay, routed usage navigates so
+  // the URL stays shareable.
+  const [activeSubjectId, setActiveSubjectId] = useState<string | undefined>(
+    subjectId,
+  );
+  useEffect(() => {
+    setActiveSubjectId(subjectId);
+  }, [subjectId]);
+  const effectiveSubjectId = activeSubjectId ?? subjectId;
+
+  // Same catalogue rule as ClassDetailPage / ClassGradesTab: assigned
+  // class-subjects first, else level-filtered, else the full directory — so
+  // the switcher never shows an empty list while entry stays possible.
+  const availableSubjects = useMemo(() => {
+    if (classSubjects.length > 0) {
+      return classSubjects.map((cs) => {
+        const s = subjects.find((sub) => sub.id === cs.subjectId);
+        return {
+          id: cs.subjectId,
+          name: s?.name ?? cs.subjectId,
+          code: s?.code ?? "",
+          coefficient: cs.coefficient || s?.coefficient || 1,
+        };
+      });
+    }
+    const level = cls?.level as
+      | import("../../domain/model/student").AcademicLevel
+      | undefined;
+    const levelSubjs = level
+      ? subjects.filter((s) => s.level === level)
+      : [];
+    return (levelSubjs.length > 0 ? levelSubjs : subjects).map((s) => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      coefficient: s.coefficient,
+    }));
+  }, [classSubjects, subjects, cls?.level]);
+
+  const handleSubjectChange = (nextId: string) => {
+    if (!nextId || nextId === effectiveSubjectId) return;
+    if (onExit) {
+      setActiveSubjectId(nextId);
+    } else {
+      navigate(`/academics/class/${classId}/grades/${nextId}`);
+    }
+  };
+
+  const subject = subjects.find((s) => s.id === effectiveSubjectId);
   const [term, setTerm] = useState<AcademicTerm>("T1");
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
@@ -126,13 +181,20 @@ export function GradeEntryScreen({
   // observables re-emit without relevant changes.
   const lastInitKeyRef = useRef("");
   useEffect(() => {
-    const initKey = `${subjectId}|${term}|${students.map((s) => s.id).join(",")}|${classAssessments.length}`;
+    const initKey = `${effectiveSubjectId}|${term}|${students.map((s) => s.id).join(",")}|${classAssessments.length}`;
     if (students.length === 0 || initKey === lastInitKeyRef.current) return;
     lastInitKeyRef.current = initKey;
+    // When the effective subject has no directory row yet (e.g. a stale
+    // assignment id), fall back to the first available subject so the screen
+    // never dead-ends on "Matière introuvable" without a way out.
+    if (!subject && availableSubjects.length > 0 && !effectiveSubjectId) {
+      setActiveSubjectId(availableSubjects[0].id);
+      return;
+    }
     setRows(
       students.map((s) => {
         const existing = classAssessments.find(
-          (a) => a.studentId === s.id && a.subjectId === subjectId && a.term === term,
+          (a) => a.studentId === s.id && a.subjectId === effectiveSubjectId && a.term === term,
         );
         return {
           studentId: s.id,
@@ -145,7 +207,7 @@ export function GradeEntryScreen({
         };
       }),
     );
-  }, [students, classAssessments, subjectId, term]);
+  }, [students, classAssessments, effectiveSubjectId, subject, term, availableSubjects]);
 
   function updateRow(
     studentId: string,
@@ -205,7 +267,7 @@ export function GradeEntryScreen({
   }, [rows]);
 
   async function save() {
-    if (!session || !classId || !subjectId) return;
+    if (!session || !classId || !effectiveSubjectId) return;
     if (readOnly) {
       toast.showWarning("Saisie bloquée", readOnlyReason ?? "");
       return;
@@ -223,7 +285,7 @@ export function GradeEntryScreen({
 
         payload.push({
           studentId: r.studentId,
-          subjectId,
+          subjectId: effectiveSubjectId,
           classId,
           term,
           academicYear: cls?.academicYear ?? "2025-2026",
@@ -245,7 +307,7 @@ export function GradeEntryScreen({
         // FIX (edit semantics): report whether this was a pure save or an
         // overwrite of previously entered marks.
         const previouslyEntered = classAssessments.filter(
-          (a) => a.subjectId === subjectId && a.term === term,
+          (a) => a.subjectId === effectiveSubjectId && a.term === term,
         ).length;
         toast.showSuccess(
           previouslyEntered > 0 ? "Notes mises à jour" : "Notes enregistrées",
@@ -260,10 +322,10 @@ export function GradeEntryScreen({
     }
   }
 
-  if (!cls || !subject) {
+  if (!cls) {
     return (
       <div className="flex flex-col h-full">
-        <PageHeader title="Matière introuvable" />
+        <PageHeader title="Classe introuvable" />
         <Button
           variant="outline"
           onClick={() =>
@@ -273,6 +335,48 @@ export function GradeEntryScreen({
         >
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
+      </div>
+    );
+  }
+
+  // Stale subjectId (e.g. a removed assignment): offer the catalogue instead
+  // of a dead-end "Matière introuvable" with no way to pick another matière.
+  if (!subject) {
+    return (
+      <div className="flex flex-col h-full">
+        <PageHeader
+          title="Saisie des Notes"
+          description={`${cls.name} · choisissez une matière pour commencer la saisie`}
+          actions={
+            <Button variant="outline" size="sm" onClick={exitToClass}>
+              <ArrowLeft className="h-4 w-4" /> Annuler
+            </Button>
+          }
+        />
+        <div className="mx-6 mb-3 max-w-md space-y-1">
+          <Label className="text-xs text-muted-foreground">Matière</Label>
+          <Select
+            value={effectiveSubjectId ?? ""}
+            onValueChange={handleSubjectChange}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Choisir une matière…" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableSubjects.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name} {s.code ? `(${s.code})` : ""} · Coef.{" "}
+                  {s.coefficient}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {availableSubjects.length === 0 && (
+          <p className="mx-6 text-sm text-muted-foreground">
+            Aucune matière disponible. Contactez le responsable pédagogique.
+          </p>
+        )}
       </div>
     );
   }
@@ -294,6 +398,25 @@ export function GradeEntryScreen({
       />
 
       <div className="flex items-end gap-3 px-6 pb-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Matière</Label>
+          <Select
+            value={effectiveSubjectId ?? ""}
+            onValueChange={handleSubjectChange}
+          >
+            <SelectTrigger className="h-9 w-64">
+              <SelectValue placeholder="Choisir une matière…" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableSubjects.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name} {s.code ? `(${s.code})` : ""} · Coef.{" "}
+                  {s.coefficient}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Trimestre</Label>
           <Select

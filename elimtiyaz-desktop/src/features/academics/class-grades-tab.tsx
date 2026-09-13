@@ -198,12 +198,14 @@ export function ClassGradesTab({ classId }: { classId: string }) {
             <div className="flex justify-end pt-2">
               <Button
                 size="sm"
+                variant="outline"
                 onClick={() => {
-                  const firstSubj = levelSubjects[0]?.id;
-                  if (firstSubj) navigate(`/academics/class/${classId}/grades/${firstSubj}`);
+                  // Go back to the class Notes tab so the teacher picks a
+                  // matière there — never silently jump to the first subject.
+                  navigate(`/academics/class/${classId}?tab=notes`);
                 }}
               >
-                <Plus className="h-4 w-4 mr-1" /> Saisir d'autres notes
+                <Plus className="h-4 w-4 mr-1" /> Choisir une autre matière
               </Button>
             </div>
           </div>

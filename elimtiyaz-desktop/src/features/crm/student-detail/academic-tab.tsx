@@ -1,5 +1,5 @@
 /**
- * Tab 2 — Académique (grade book per term + academic history).
+ * Tab 2 — Pédagogique (grade book per term + academic history + class summary).
  *
  * Iteration 9 — Bulletin PDF download (spec §5.2): generated exclusively
  * inside the Student Profile Drawer (StudentDetailDrawer) or Class Detail
@@ -26,12 +26,21 @@
  *      are rendered for archived years (append-only rule).
  */
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Download, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  FileText,
+  School,
+  ArrowRight,
+} from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useToast } from "../../../app/providers/toast-provider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
+import { Badge } from "../../../shared/ui/badge";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { generateBulletinPdf, downloadPdf } from "../../../infrastructure/receipt-pdf";
 import {
@@ -40,6 +49,7 @@ import {
   calculateAttendanceRate,
 } from "../../../domain/model/academic";
 import {
+  GRADE_LEVEL_LABELS_FR,
   LEVEL_LABELS_FR,
   PROMOTION_DECISION_LABELS_FR,
   type AcademicHistoryEntry,
@@ -47,9 +57,10 @@ import {
 import type { AcademicTerm } from "../../../domain/model/academic";
 import { TERMS } from "./types";
 
-export function AcademicTab({ studentId }: { studentId: string }) {
+export function AcademicTab({ studentId, onClose }: { studentId: string; onClose?: () => void }) {
   const repos = useRepositories();
   const toast = useToast();
+  const navigate = useNavigate();
   const [term, setTerm] = useState<AcademicTerm>("T1");
   const [downloading, setDownloading] = useState(false);
   const [expandedYear, setExpandedYear] = useState<string | null>(null);
@@ -63,6 +74,10 @@ export function AcademicTab({ studentId }: { studentId: string }) {
   const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
   const history = student?.academicHistory ?? [];
   const subjects = useObservable(() => repos.subjects.observe(), []);
+  const classes = useObservable(() => repos.classes.observe(), []);
+  const assignedClass = student?.classId
+    ? (classes.find((c) => c.id === student.classId) ?? null)
+    : null;
 
   // §04.07 — attendance rate per academic year, observed once over the
   // student's full tenure and filtered per expanded year (hooks cannot be
@@ -104,6 +119,19 @@ export function AcademicTab({ studentId }: { studentId: string }) {
    * grades, GPA, and academic history. Generated entirely client-side
    * via pdf-lib.
    */
+  function handleNavigateToPedagogique() {
+    if (onClose) onClose();
+    if (assignedClass) {
+      navigate(`/academics/class/${assignedClass.id}?studentId=${studentId}`);
+    } else {
+      navigate(`/academics`);
+      toast.showInfo(
+        "Orientation pédagogique",
+        "Cet élève n'a pas encore de classe assignée. Choisissez une classe pour l'affecter.",
+      );
+    }
+  }
+
   async function handleDownloadBulletin() {
     if (!student) {
       toast.showWarning("Élève introuvable", "Impossible de générer le bulletin.");
@@ -115,16 +143,13 @@ export function AcademicTab({ studentId }: { studentId: string }) {
     }
     setDownloading(true);
     try {
-      const klass = student.classId
-        ? repos.classes.observe().get().find((c) => c.id === student.classId)
-        : null;
       const pdfBytes = await generateBulletinPdf({
         student,
         term,
         assessments: termAssessments,
         gpa,
-        subjects: repos.subjects.observe().get(),
-        className: klass?.name,
+        subjects,
+        className: assignedClass?.name,
       });
       const fileName = `bulletin-${student.code}-${term}-${new Date().toISOString().slice(0, 10)}.pdf`;
       downloadPdf(pdfBytes, fileName);
@@ -138,6 +163,58 @@ export function AcademicTab({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Pedagogical summary + deep-link to the student's class space */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <School className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-sm text-foreground">
+                  {assignedClass ? assignedClass.name : "Classe non assignée"}
+                </span>
+                {assignedClass?.room && (
+                  <Badge variant="outline" className="text-[10px]">
+                    Salle {assignedClass.room}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {student?.gradeLevel
+                  ? (GRADE_LEVEL_LABELS_FR[student.gradeLevel] ?? student.gradeLevel)
+                  : student?.level
+                    ? LEVEL_LABELS_FR[student.level]
+                    : "—"}{" "}
+                · Année scolaire {assignedClass?.academicYear ?? "2025-2026"}
+              </p>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={handleNavigateToPedagogique}
+              className="h-8 gap-1 text-xs shrink-0"
+            >
+              Plus de détails <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50 text-xs">
+            <div>
+              <span className="text-muted-foreground">Enseignant responsable :</span>{" "}
+              <span className="font-medium text-foreground">
+                {assignedClass?.homeroomTeacherName ?? "Non désigné"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Moyenne {term} :</span>{" "}
+              <span className="font-mono font-bold text-primary">
+                {gpa !== null ? `${gpa.toFixed(2)} / 20` : "En attente"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm flex items-center justify-between">

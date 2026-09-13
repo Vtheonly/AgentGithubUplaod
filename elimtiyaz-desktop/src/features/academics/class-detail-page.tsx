@@ -1,8 +1,8 @@
 // ============================================================================
 // FILE: src/features/academics/class-detail-page.tsx
 // ============================================================================
-import { useState, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -27,6 +27,7 @@ import {
   type AcademicLevel,
 } from "../../domain/model/student";
 import { PageHeader } from "../../shared/layout/page-header";
+import { cn } from "../../shared/ui/cn";
 import { Card, CardContent } from "../../shared/ui/card";
 import {
   PageTabs,
@@ -61,6 +62,18 @@ const NO_SUBJECT = "__pick__";
 
 export function ClassDetailPage() {
   const { classId } = useParams<{ classId: string }>();
+  const [searchParams] = useSearchParams();
+  const highlightedStudentId = searchParams.get("studentId");
+  const tabParam = searchParams.get("tab");
+  const initialTab =
+    tabParam === "subjects" ||
+    tabParam === "attendance" ||
+    tabParam === "grades"
+      ? tabParam
+      : tabParam === "notes"
+        ? "grades"
+        : "students";
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const navigate = useNavigate();
   const repos = useRepositories();
   const { session } = useAuth();
@@ -124,6 +137,17 @@ export function ClassDetailPage() {
       (s) => s.classId !== classId && s.status === "active",
     );
   }, [allStudents, classId]);
+
+  // Deep-link from the student drawer's Pédagogique tab: scroll the
+  // highlighted student into view once the roster has loaded.
+  useEffect(() => {
+    if (highlightedStudentId && students.length > 0) {
+      const el = document.getElementById(`student-${highlightedStudentId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [highlightedStudentId, students]);
 
   if (!cls) {
     return (
@@ -320,7 +344,8 @@ export function ClassDetailPage() {
       </div>
 
       <PageTabs
-        defaultValue="students"
+        value={activeTab}
+        onValueChange={setActiveTab}
         className="flex-1 flex flex-col px-6 pb-6 min-h-0"
       >
         <PageTabList>
@@ -399,7 +424,13 @@ export function ClassDetailPage() {
                   students.map((s) => (
                     <li
                       key={s.id}
-                      className="flex items-center gap-3 p-3 hover:bg-accent/5"
+                      id={`student-${s.id}`}
+                      className={cn(
+                        "flex items-center gap-3 p-3 transition-colors",
+                        highlightedStudentId === s.id
+                          ? "bg-primary/15 border-l-4 border-l-primary"
+                          : "hover:bg-accent/5",
+                      )}
                     >
                       <Avatar className="h-9 w-9">
                         <AvatarFallback>
@@ -430,19 +461,31 @@ export function ClassDetailPage() {
                         variant="ghost"
                         size="sm"
                         className="h-7 px-2 text-xs"
-                        disabled={!canGrade}
+                        disabled={
+                          !canGrade ||
+                          !gradeSubject ||
+                          gradeSubject === NO_SUBJECT
+                        }
                         onClick={() => {
-                          const targetSubj =
-                            gradeSubject && gradeSubject !== NO_SUBJECT
-                              ? gradeSubject
-                              : availableGradeSubjects[0]?.id;
-                          if (targetSubj) {
+                          if (
+                            gradeSubject &&
+                            gradeSubject !== NO_SUBJECT
+                          ) {
                             navigate(
-                              `/academics/class/${classId}/grades/${targetSubj}`,
+                              `/academics/class/${classId}/grades/${gradeSubject}`,
+                            );
+                          } else {
+                            toast.showWarning(
+                              "Choisissez une matière",
+                              "Sélectionnez d'abord une matière dans la liste « Choisir une matière à noter… » ci-dessus.",
                             );
                           }
                         }}
-                        title="Saisir les notes"
+                        title={
+                          gradeSubject && gradeSubject !== NO_SUBJECT
+                            ? "Saisir les notes"
+                            : "Choisissez d'abord une matière ci-dessus"
+                        }
                       >
                         <GraduationCap className="h-3.5 w-3.5" />
                       </Button>
