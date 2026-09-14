@@ -129,6 +129,17 @@
 
 ---
 
+## UNKNOWN-022 — The 4 UPLOAD-104-era orphaned binaries in the `student-documents` bucket: recover, delete, or leave as forensic residue?
+
+- **Question:** The bucket carries 4 objects with NO `student_documents` row and NO `documents_json` entry (their row-insert 403'd while the storage upload succeeded — the UPLOAD-104 era). Should they become document rows now that the metadata layer is unified (SYNC-110/T-372)?
+- **Evidence:** live census (70th session, 2026-09-14): 6 objects total — `birth_certificate-1789339995946.png`, `birth_certificate-1789340019994.png`, `birth_certificate-1789340134747.png` (3× the SAME 3 029 615-byte PNG re-uploaded while the flow was broken), `id_photo-1789341401507.jpeg` (104 115 bytes — the SAME size as the SUCCESSFUL `birth_certificate-1789341527070.jpeg` row 2 minutes later). Each orphan corresponds to a file the owner EVENTUALLY re-uploaded successfully.
+- **Why it matters:** auto-recovering them (kind parsed from the path prefix, file_name from the path tail) would mint DUPLICATE document rows for files that are already represented — the owner would see 4 extra documents. Deleting them loses nothing (the same files exist as successful rows) but destroys the forensic trail of the failed attempts. Leaving them documents the UPLOAD-104 era honestly but keeps 3 MB×3 of dead bytes.
+- **Affected components:** `student-documents` bucket only; no client reads the orphans (every list is table-driven).
+- **Blocked:** nothing hard — an owner decision (default: leave as forensic residue until the owner says otherwise).
+- **Required to resolve:** owner choice between (a) recover as rows (accepting duplicates), (b) delete the 4 objects (service-key storage API — the `storage.buckets` SQL-delete guard doesn't apply to objects), (c) leave as residue.
+
+---
+
 ## Resolved unknowns
 
 - **UNKNOWN-005 (chat product scope)** — resolved 2026-08-31, 14th session: chat is a committed
