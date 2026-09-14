@@ -152,3 +152,13 @@ export defect.)
 - The website's global reports: the portal intentionally has NO staff
   reports surface (read-mostly parent portal; ADR-014 covers its receipt +
   statement PDFs which already carry the fix).
+- **The Android's PDF layer (cross-platform check, §10):** NO WinAnsi
+  defect exists there (Android's `Canvas`/`Paint` renders Unicode natively)
+  and its account statement truncates HONESTLY by design — a "MOUVEMENTS
+  RÉCENTS" 18-row adaptive budget with the explicit "… et N autres
+  mouvements non affichés." notice (`PdfGenerator.kt`), a deliberate
+  mobile-terminal design divergence from the desktop's full pagination.
+  Not a REPT-501 defect (nothing silent); recorded here so a future agent
+  does not "fix" the divergence without an owner decision. The Android
+  receipt's notes `take(2)` without a truncation marker is the one cosmetic
+  follow-up worth a one-line change when that file is next touched.
