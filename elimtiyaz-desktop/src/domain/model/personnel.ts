@@ -1,19 +1,25 @@
+// ============================================================================
+// FILE: src/domain/model/personnel.ts
+// ============================================================================
 /**
- * Personnel / HR domain — plan §09 + iteration 8 workforce expansion.
+ * Personnel & HR Domain Model.
  *
- * 4 staff categories drive default permission templates and reporting breakdowns.
- * ReleveEntry = append-only teacher activity ledger (grades entered, homework,
- * attendance submitted, hours taught). Audit basis for payroll.
+ * Defines the core employee profile, compensation structures, salary adjustments,
+ * payment logs, and activity records.
  *
- * Iteration 8 adds:
- *   - roleId: links a personnel record to an RBAC role (plan §02.07 + new roles)
- *   - departmentId: links to the Department entity
- *   - supervisorId: links to the employee's direct manager
- *   - position: free-form job title (e.g. "Professeur de Mathématiques")
- *   - paymentMethod, bankAccount, bonuses, deductions: payroll details
- *   - documents: uploaded attachments (contract, ID, diplomas)
- *   - notes: internal HR notes
+ * BACKEND / SUPABASE MAPPING REFERENCE:
+ *   - Table `personnel`: id, tenant_id, user_id, first_name, last_name, staff_category,
+ *     role_id, department_id, supervisor_id, position, phone, email, address,
+ *     hire_date, termination_date, salary, payment_method, bank_account,
+ *     weekly_hours_target, status, emergency_contact, date_of_birth, national_id.
+ *   - Table `salary_adjustments`: id, personnel_id, type, amount_before, amount_after,
+ *     delta, reason, approved_by, approved_at.
+ *   - Table `salary_payments`: id, personnel_id, period, amount, status, payment_date,
+ *     method, receipt_number, notes, paid_by.
+ *   - Table `releve_entries`: id, personnel_id, date, hours_in, hours_out, activity,
+ *     class_id, subject_id, task_id, auto_kind, note, recorded_at.
  */
+
 import type { Role } from "../../core/rbac/roles";
 
 export type StaffCategory =
@@ -25,17 +31,23 @@ export type StaffCategory =
   | "buyer"
   | "warehouse"
   | "worker"
-  /**
-   * VAULT §09.07 — Medical & Therapy Personnel (Médical): orthophonistes,
-   * psychologists. NEVER combined into the Teaching category — therapy
-   * services have distinct billing and documentation rules. Mirrors the
-   * backend `staff_category` CHECK (migration 0009) which includes 'medical'.
-   */
   | "medical";
-export type PersonnelStatus = "active" | "on_leave" | "suspended" | "terminated" | "archived";
-export type ReleveActivity = "course" | "meeting" | "supervision" | "correction" | "task" | "delivery" | "warehouse" | "other";
 
-/** Payroll payment method (distinct from student PaymentMethod in payment.ts). */
+export type PersonnelStatus =
+  | "active"
+  | "on_leave"
+  | "suspended"
+  | "terminated"
+  | "archived";
+export type ReleveActivity =
+  | "course"
+  | "meeting"
+  | "supervision"
+  | "correction"
+  | "task"
+  | "delivery"
+  | "warehouse"
+  | "other";
 export type PayrollMethod = "cash" | "bank_transfer" | "check" | "mobile_money";
 
 export const PAYROLL_METHOD_LABELS_FR: Record<PayrollMethod, string> = {
@@ -56,28 +68,78 @@ export interface PersonnelDocument {
   readonly url: string;
 }
 
-export interface BonusAdjustment {
+/**
+ * Salary Adjustment Record.
+ * Represents an audited change to an employee's base salary or one-off bonus/deduction.
+ * MANDATORY: Every adjustment must carry a non-empty `reason`.
+ */
+export type SalaryAdjustmentType = "raise" | "cut" | "bonus" | "deduction";
+
+export const SALARY_ADJUSTMENT_TYPE_LABELS_FR: Record<
+  SalaryAdjustmentType,
+  string
+> = {
+  raise: "Augmentation de salaire",
+  cut: "Réduction de salaire",
+  bonus: "Prime exceptionnelle",
+  deduction: "Retenue / Déduction",
+};
+
+export interface SalaryAdjustment {
   readonly id: string;
-  readonly type: "bonus" | "deduction";
-  readonly label: string;
-  readonly amount: number;
-  readonly date: string;
-  readonly note: string | null;
+  readonly personnelId: string;
+  readonly type: SalaryAdjustmentType;
+  readonly amountBefore: number;
+  readonly amountAfter: number;
+  readonly delta: number; // Positive for raise/bonus, negative for cut/deduction
+  readonly reason: string; // Mandatory justification
+  readonly effectiveDate: string; // ISO date
+  readonly approvedBy: string; // Actor user ID
+  readonly approvedByName: string;
+  readonly createdAt: string; // ISO datetime
+}
+
+/**
+ * Monthly Salary Payment Record.
+ * Tracks salary disbursement lifecycle for an employee for a specific billing period (e.g., "2026-03").
+ */
+export type SalaryPaymentStatus = "paid" | "unpaid" | "pending";
+
+export const SALARY_PAYMENT_STATUS_LABELS_FR: Record<
+  SalaryPaymentStatus,
+  string
+> = {
+  paid: "Versé / Payé",
+  unpaid: "Non versé",
+  pending: "En cours de virement",
+};
+
+export interface SalaryPaymentRecord {
+  readonly id: string;
+  readonly personnelId: string;
+  readonly period: string; // YYYY-MM (e.g., "2026-03")
+  readonly baseSalary: number;
+  readonly bonusesTotal: number;
+  readonly deductionsTotal: number;
+  readonly netPaid: number;
+  readonly status: SalaryPaymentStatus;
+  readonly paymentDate: string | null; // ISO date when settled
+  readonly method: PayrollMethod;
+  readonly referenceNumber: string | null; // Receipt or bank transfer ref
+  readonly notes: string | null;
+  readonly paidBy: string | null;
+  readonly paidByName: string | null;
 }
 
 export interface Personnel {
   readonly id: string;
   readonly tenantId: string;
-  /** Iteration 9: links the personnel record to the auth user account. */
-  readonly userId: string | null;
+  readonly userId: string | null; // Bound user account
   readonly firstName: string;
   readonly lastName: string;
   readonly staffCategory: StaffCategory;
-  /** RBAC role (links to core/rbac/roles). */
   readonly roleId: Role;
-  /** Department ID (links to Department entity). */
   readonly departmentId: string | null;
-  /** Direct supervisor (personnelId). */
   readonly supervisorId: string | null;
   readonly position: string;
   readonly phone: string;
@@ -85,17 +147,28 @@ export interface Personnel {
   readonly address: string | null;
   readonly hireDate: string;
   readonly terminationDate: string | null;
-  readonly salary: number | null;
+  readonly salary: number | null; // Base monthly salary in DZD
   readonly paymentMethod: PayrollMethod | null;
   readonly bankAccount: string | null;
   readonly weeklyHoursTarget: number;
   readonly weeklyHoursLogged: number;
   readonly avatarUrl: string | null;
   readonly status: PersonnelStatus;
-  readonly bonuses: readonly BonusAdjustment[];
+  readonly salaryAdjustments?: readonly SalaryAdjustment[];
+  readonly salaryPayments?: readonly SalaryPaymentRecord[];
   readonly documents: readonly PersonnelDocument[];
-  readonly notes: readonly { id: string; authorId: string; authorName: string; body: string; createdAt: string }[];
-  readonly emergencyContact: { name: string; phone: string; relation: string } | null;
+  readonly notes: readonly {
+    id: string;
+    authorId: string;
+    authorName: string;
+    body: string;
+    createdAt: string;
+  }[];
+  readonly emergencyContact: {
+    name: string;
+    phone: string;
+    relation: string;
+  } | null;
   readonly dateOfBirth: string | null;
   readonly nationalId: string | null;
 }
@@ -110,16 +183,8 @@ export interface ReleveEntry {
   readonly activity: ReleveActivity;
   readonly classId: string | null;
   readonly subjectId: string | null;
-  /** Optional link to the workforce Task that generated this entry. */
   readonly taskId?: string | null;
-  /**
-   * VAULT §09.06 — machine-readable kind for AUTO-POPULATED entries
-   * (the Relevé is an automated operational ledger, not just a manual
-   * timesheet). Auto entries are still append-only and audit-logged;
-   * teachers cannot edit them.
-   */
   readonly autoKind?: "grade_entry" | "homework_push" | "roll_call" | null;
-  /** Human description of the activity (auto entries carry a summary). */
   readonly note?: string | null;
   readonly recordedAt: string;
 }
@@ -133,7 +198,6 @@ export const STAFF_CATEGORY_LABELS_FR: Record<StaffCategory, string> = {
   buyer: "Acheteur",
   warehouse: "Magasinier",
   worker: "Ouvrier",
-  // VAULT §09.07 — Médical & Thérapie (orthophonistes, psychologues).
   medical: "Médical / Thérapie",
 };
 
@@ -156,18 +220,25 @@ export const RELEVE_ACTIVITY_LABELS_FR: Record<ReleveActivity, string> = {
   other: "Autre",
 };
 
-/** Map an RBAC role to the default staff category (used when seeding / onboarding). */
 export function staffCategoryForRole(role: Role): StaffCategory {
   switch (role) {
-    case "teacher": return "teacher";
+    case "teacher":
+      return "teacher";
     case "super_admin":
     case "financial_officer":
-    case "manager": return "administration";
-    case "support_staff": return "support";
-    case "buyer": return "buyer";
-    case "driver": return "driver";
-    case "warehouse_worker": return "warehouse";
-    case "worker": return "worker";
-    default: return "support";
+    case "manager":
+      return "administration";
+    case "support_staff":
+      return "support";
+    case "buyer":
+      return "buyer";
+    case "driver":
+      return "driver";
+    case "warehouse_worker":
+      return "warehouse";
+    case "worker":
+      return "worker";
+    default:
+      return "support";
   }
 }

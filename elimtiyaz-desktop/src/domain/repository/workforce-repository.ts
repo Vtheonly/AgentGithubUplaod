@@ -1,14 +1,6 @@
-/**
- * Workforce repository interfaces — iteration 8 (plan §09 expansion).
- *
- * Pure abstract contracts for the new workforce entities: departments,
- * shifts/schedules, tasks, attendance, leave requests, performance reviews,
- * chat channels/messages, and onboarding state.
- *
- * Methods return Promises of Result<T> so failure modes are explicit in the
- * type system. Live data exposes an Observable<T> so React re-renders on
- * backend changes.
- */
+// ============================================================================
+// FILE: src/domain/repository/workforce-repository.ts
+// ============================================================================
 import type { Result } from "../../core/result";
 import type { Observable } from "./repository";
 import type {
@@ -22,6 +14,8 @@ import type {
   TaskComment,
   AttendanceEvent,
   AttendanceEventType,
+  StaffAbsenceRecord,
+  StaffJustificationStatus,
   LeaveRequest,
   RequestType,
   RequestStatus,
@@ -33,25 +27,27 @@ import type {
   OnboardingStep,
   OnboardingData,
 } from "../model/workforce";
-import type { Role } from "../../core/rbac/roles";
-
-/* ------------------------------------------------------------------ */
-/*  Departments                                                        */
-/* ------------------------------------------------------------------ */
+import type {
+  SalaryAdjustment,
+  SalaryAdjustmentType,
+  SalaryPaymentRecord,
+  PayrollMethod,
+} from "../model/personnel";
 
 export interface DepartmentRepository {
   observe(): Observable<Department[]>;
   observeById(id: string): Observable<Department | null>;
-  createDepartment(input: Omit<Department, "id" | "tenantId" | "createdAt" | "archivedAt">): Promise<Result<Department>>;
-  updateDepartment(id: string, updates: Partial<Department>): Promise<Result<Department>>;
+  createDepartment(
+    input: Omit<Department, "id" | "tenantId" | "createdAt" | "archivedAt">,
+  ): Promise<Result<Department>>;
+  updateDepartment(
+    id: string,
+    updates: Partial<Department>,
+  ): Promise<Result<Department>>;
   archiveDepartment(id: string): Promise<Result<Department>>;
   unarchiveDepartment(id: string): Promise<Result<Department>>;
   deleteDepartment(id: string): Promise<Result<void>>;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Shifts & schedules                                                 */
-/* ------------------------------------------------------------------ */
 
 export interface ShiftRepository {
   observe(): Observable<Shift[]>;
@@ -63,13 +59,11 @@ export interface ShiftRepository {
 export interface ScheduleRepository {
   observeByPersonnel(personnelId: string): Observable<Schedule[]>;
   observeByWeek(weekStart: string): Observable<Schedule[]>;
-  upsertSchedule(input: Omit<Schedule, "id" | "tenantId"> & { id?: string }): Promise<Result<Schedule>>;
+  upsertSchedule(
+    input: Omit<Schedule, "id" | "tenantId"> & { id?: string },
+  ): Promise<Result<Schedule>>;
   deleteSchedule(id: string): Promise<Result<void>>;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Tasks                                                              */
-/* ------------------------------------------------------------------ */
 
 export interface TaskRepository {
   observe(): Observable<Task[]>;
@@ -89,26 +83,39 @@ export interface TaskRepository {
     tags?: readonly string[];
   }): Promise<Result<Task>>;
   updateTask(id: string, updates: Partial<Task>): Promise<Result<Task>>;
-  updateTaskStatus(id: string, status: TaskStatus, actorId: string): Promise<Result<Task>>;
-  reassign(id: string, assigneeIds: readonly string[], actorId: string): Promise<Result<Task>>;
-  addComment(id: string, comment: Omit<TaskComment, "id" | "taskId" | "createdAt">): Promise<Result<TaskComment>>;
+  updateTaskStatus(
+    id: string,
+    status: TaskStatus,
+    actorId: string,
+    completionNote?: string,
+  ): Promise<Result<Task>>;
+  reviewTask(
+    id: string,
+    approved: boolean,
+    reviewerId: string,
+    reviewerName: string,
+    reviewNote?: string,
+  ): Promise<Result<Task>>;
+  reassign(
+    id: string,
+    assigneeIds: readonly string[],
+    actorId: string,
+  ): Promise<Result<Task>>;
+  addComment(
+    id: string,
+    comment: Omit<TaskComment, "id" | "taskId" | "createdAt">,
+  ): Promise<Result<TaskComment>>;
   addAttachment(id: string, attachment: TaskAttachment): Promise<Result<Task>>;
   deleteTask(id: string): Promise<Result<void>>;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Attendance                                                         */
-/* ------------------------------------------------------------------ */
-
 export interface AttendanceRepository {
-  observeByPersonnel(personnelId: string, fromDate: string, toDate: string): Observable<AttendanceEvent[]>;
+  observeByPersonnel(
+    personnelId: string,
+    fromDate: string,
+    toDate: string,
+  ): Observable<AttendanceEvent[]>;
   observeByDate(date: string): Observable<AttendanceEvent[]>;
-  /**
-   * Synchronous peek at the latest event for a personnel on a given date.
-   * T-217: promoted into the interface (it was mock-only surface the worker
-   * dashboard's clock-state memo consumes without awaiting). Both
-   * implementations answer from their local cache.
-   */
   latestFor(personnelId: string, date: string): AttendanceEvent | null;
   recordEvent(input: {
     personnelId: string;
@@ -116,11 +123,26 @@ export interface AttendanceRepository {
     eventType: AttendanceEventType;
     metadata?: { lat?: number; lng?: number; ip?: string } | null;
   }): Promise<Result<AttendanceEvent>>;
-}
 
-/* ------------------------------------------------------------------ */
-/*  Leave / absence / overtime requests                                */
-/* ------------------------------------------------------------------ */
+  // Absence & Justification Loop
+  observeAbsences(personnelId?: string): Observable<StaffAbsenceRecord[]>;
+  requestAbsenceJustification(input: {
+    absenceId: string;
+    adminNote: string;
+    requestedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>>;
+  submitAbsenceJustification(input: {
+    absenceId: string;
+    workerExplanation: string;
+    documentRef?: string | null;
+  }): Promise<Result<StaffAbsenceRecord>>;
+  reviewAbsenceJustification(input: {
+    absenceId: string;
+    decision: "accepted" | "rejected";
+    decisionNote: string;
+    decidedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>>;
+}
 
 export interface LeaveRequestRepository {
   observe(): Observable<LeaveRequest[]>;
@@ -132,26 +154,39 @@ export interface LeaveRequestRepository {
     type: RequestType;
     fromDate: string;
     toDate: string;
+    amountRequested?: number | null;
     reason: string;
   }): Promise<Result<LeaveRequest>>;
-  decide(id: string, status: RequestStatus, decidedBy: string, decidedByName: string, note?: string): Promise<Result<LeaveRequest>>;
+  decide(
+    id: string,
+    status: RequestStatus,
+    decidedBy: string,
+    decidedByName: string,
+    note?: string,
+  ): Promise<Result<LeaveRequest>>;
+  requestClarification(
+    id: string,
+    question: string,
+    requestedBy: string,
+  ): Promise<Result<LeaveRequest>>;
+  respondClarification(
+    id: string,
+    response: string,
+  ): Promise<Result<LeaveRequest>>;
   cancel(id: string): Promise<Result<LeaveRequest>>;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Performance reviews                                                */
-/* ------------------------------------------------------------------ */
-
 export interface PerformanceReviewRepository {
   observeByPersonnel(personnelId: string): Observable<PerformanceReview[]>;
-  createReview(input: Omit<PerformanceReview, "id" | "tenantId" | "reviewedAt">): Promise<Result<PerformanceReview>>;
-  updateReview(id: string, updates: Partial<PerformanceReview>): Promise<Result<PerformanceReview>>;
+  createReview(
+    input: Omit<PerformanceReview, "id" | "tenantId" | "reviewedAt">,
+  ): Promise<Result<PerformanceReview>>;
+  updateReview(
+    id: string,
+    updates: Partial<PerformanceReview>,
+  ): Promise<Result<PerformanceReview>>;
   deleteReview(id: string): Promise<Result<void>>;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Chat                                                               */
-/* ------------------------------------------------------------------ */
 
 export interface ChatRepository {
   observeChannels(personnelId: string): Observable<ChatChannel[]>;
@@ -165,10 +200,19 @@ export interface ChatRepository {
     departmentId: string | null;
     createdBy: string;
   }): Promise<Result<ChatChannel>>;
-  updateChannel(id: string, updates: Partial<ChatChannel>): Promise<Result<ChatChannel>>;
+  updateChannel(
+    id: string,
+    updates: Partial<ChatChannel>,
+  ): Promise<Result<ChatChannel>>;
   archiveChannel(id: string): Promise<Result<ChatChannel>>;
-  addMembers(id: string, memberIds: readonly string[]): Promise<Result<ChatChannel>>;
-  removeMembers(id: string, memberIds: readonly string[]): Promise<Result<ChatChannel>>;
+  addMembers(
+    id: string,
+    memberIds: readonly string[],
+  ): Promise<Result<ChatChannel>>;
+  removeMembers(
+    id: string,
+    memberIds: readonly string[],
+  ): Promise<Result<ChatChannel>>;
   sendMessage(input: {
     channelId: string;
     authorId: string;
@@ -180,30 +224,21 @@ export interface ChatRepository {
   editMessage(id: string, body: string): Promise<Result<ChatMessage>>;
   deleteMessage(id: string): Promise<Result<void>>;
   markRead(channelId: string, personnelId: string): Promise<Result<void>>;
-  /**
-   * T-100 (2026-08-31, CHAT-103): open (or re-open) the staff↔parent direct
-   * channel for a PARENT — the entry point that makes the parent portal's
-   * MessagesView non-empty. Resolves the parent's user_profiles.id from the
-   * parents.auth_user_id link, then creates the idempotent DM (canonical
-   * create_direct_channel RPC in Supabase mode). Parents without a linked
-   * account (no activation yet) return a validation error — staff must
-   * issue an activation code first.
-   */
-  openParentChannel(parentId: string, displayName: string): Promise<Result<ChatChannel>>;
+  openParentChannel(
+    parentId: string,
+    displayName: string,
+  ): Promise<Result<ChatChannel>>;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Onboarding                                                         */
-/* ------------------------------------------------------------------ */
 
 export interface OnboardingRepository {
   observe(): Observable<OnboardingState | null>;
   start(): Promise<Result<OnboardingState>>;
   advanceTo(step: OnboardingStep): Promise<Result<OnboardingState>>;
   completeStep(step: OnboardingStep): Promise<Result<OnboardingState>>;
-  updateData(updates: Partial<OnboardingData>): Promise<Result<OnboardingState>>;
+  updateData(
+    updates: Partial<OnboardingData>,
+  ): Promise<Result<OnboardingState>>;
   complete(): Promise<Result<OnboardingState>>;
   reset(): Promise<Result<OnboardingState>>;
-  /** Whether onboarding has been completed (used to gate the Personnel page). */
   isComplete(): Promise<Result<boolean>>;
 }

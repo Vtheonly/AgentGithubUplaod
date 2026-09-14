@@ -1,35 +1,29 @@
+// ============================================================================
+// FILE: src/domain/model/workforce.ts
+// ============================================================================
 /**
- * Workforce domain — iteration 8 (plan §09 expansion).
+ * Workforce Domain Model.
  *
- * Entities that turn Personnel from a directory into a full workforce
- * management system: departments, schedules/shifts, tasks, attendance,
- * leave requests, performance reviews, chat channels & messages,
- * onboarding state.
- *
- * All entities are immutable records. Mutations return new instances.
+ * Defines:
+ *   - Department org units
+ *   - Work shifts and weekly schedules
+ *   - Tasks and Review lifecycle
+ *   - Worker Attendance, Absence Logs & Bidirectional Justification Loop
+ *   - Leave and Overtime Requests
+ *   - Internal Communication Channels
  */
 
 /* ------------------------------------------------------------------ */
 /*  Departments                                                        */
 /* ------------------------------------------------------------------ */
 
-/**
- * A logical grouping of employees. Plan §09 mentions a default taxonomy:
- * Administration, Managers, Supervisors, Buyers, Drivers, Warehouse, Sales,
- * Accounting, Teachers, Security, Human Resources, Maintenance, Other.
- *
- * Departments are tenant-scoped and can be added/edited/archived by admins.
- */
 export interface Department {
   readonly id: string;
   readonly tenantId: string;
   readonly name: string;
   readonly description: string;
-  /** Color token used for avatars / chips. Must be a tailwind class suffix (e.g. "brand-blue"). */
   readonly color: string;
-  /** Head of department (personnelId). */
   readonly headId: string | null;
-  /** Parent department for nested org charts (null = top-level). */
   readonly parentId: string | null;
   readonly createdAt: string;
   readonly archivedAt: string | null;
@@ -58,8 +52,10 @@ export const DEPARTMENT_COLOR_OPTIONS: readonly DepartmentColor[] = [
   "status-info",
 ];
 
-/** Default department taxonomy (plan §09) — used by the onboarding wizard. */
-export const DEFAULT_DEPARTMENTS: readonly { name: string; color: DepartmentColor }[] = [
+export const DEFAULT_DEPARTMENTS: readonly {
+  name: string;
+  color: DepartmentColor;
+}[] = [
   { name: "Administration", color: "brand-blue-deep" },
   { name: "Managers", color: "brand-blue" },
   { name: "Teachers", color: "brand-gold" },
@@ -78,8 +74,15 @@ export const DEFAULT_DEPARTMENTS: readonly { name: string; color: DepartmentColo
 /* ------------------------------------------------------------------ */
 
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-
-export const WEEKDAYS: readonly Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+export const WEEKDAYS: readonly Weekday[] = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+];
 
 export const WEEKDAY_LABELS_FR: Record<Weekday, string> = {
   mon: "Lundi",
@@ -91,7 +94,13 @@ export const WEEKDAY_LABELS_FR: Record<Weekday, string> = {
   sun: "Dimanche",
 };
 
-export type ShiftType = "morning" | "afternoon" | "evening" | "night" | "split" | "flexible";
+export type ShiftType =
+  | "morning"
+  | "afternoon"
+  | "evening"
+  | "night"
+  | "split"
+  | "flexible";
 
 export const SHIFT_TYPE_LABELS_FR: Record<ShiftType, string> = {
   morning: "Matin",
@@ -102,46 +111,45 @@ export const SHIFT_TYPE_LABELS_FR: Record<ShiftType, string> = {
   flexible: "Flexible",
 };
 
-/**
- * A shift template — defines the working hours for a given weekday + shift type.
- * Multiple shifts can apply to the same weekday (e.g. morning + evening).
- */
 export interface Shift {
   readonly id: string;
   readonly tenantId: string;
   readonly label: string;
   readonly weekday: Weekday;
   readonly shiftType: ShiftType;
-  /** Local time "HH:mm". */
-  readonly startTime: string;
-  /** Local time "HH:mm". */
-  readonly endTime: string;
-  /** Break duration in minutes. */
+  readonly startTime: string; // HH:mm
+  readonly endTime: string; // HH:mm
   readonly breakMinutes: number;
   readonly color: string;
 }
 
-/**
- * A schedule assigns one or more shifts to an employee for a given week.
- * Schedules are immutable; weekly revisions create new schedule records.
- */
 export interface Schedule {
   readonly id: string;
   readonly tenantId: string;
   readonly personnelId: string;
-  /** ISO date of the Monday that starts the schedule's week. */
-  readonly weekStart: string;
+  readonly weekStart: string; // ISO date of Monday
   readonly shiftIds: readonly string[];
-  /** Target hours for the week (override of personnel.weeklyHoursTarget). */
   readonly weeklyHoursTarget: number;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Tasks                                                              */
+/*  Tasks & Review Lifecycle                                           */
 /* ------------------------------------------------------------------ */
 
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
-export type TaskStatus = "pending" | "assigned" | "in_progress" | "blocked" | "completed" | "cancelled";
+
+/**
+ * Task Status Lifecycle:
+ *   pending -> assigned -> in_progress -> needs_review -> completed
+ *   (or cancelled at any point)
+ */
+export type TaskStatus =
+  | "pending"
+  | "assigned"
+  | "in_progress"
+  | "needs_review"
+  | "completed"
+  | "cancelled";
 
 export const TASK_PRIORITY_LABELS_FR: Record<TaskPriority, string> = {
   low: "Basse",
@@ -152,10 +160,10 @@ export const TASK_PRIORITY_LABELS_FR: Record<TaskPriority, string> = {
 
 export const TASK_STATUS_LABELS_FR: Record<TaskStatus, string> = {
   pending: "En attente",
-  assigned: "Affectée",
+  assigned: "Assignée",
   in_progress: "En cours",
-  blocked: "Bloquée",
-  completed: "Terminée",
+  needs_review: "À valider (par l'Admin)",
+  completed: "Terminée & Validée",
   cancelled: "Annulée",
 };
 
@@ -164,7 +172,6 @@ export interface TaskAttachment {
   readonly filename: string;
   readonly mimeType: string;
   readonly sizeBytes: number;
-  /** Mock: data URL or relative path. Real impl: object-storage URL. */
   readonly url: string;
 }
 
@@ -185,28 +192,32 @@ export interface Task {
   readonly priority: TaskPriority;
   readonly status: TaskStatus;
   readonly departmentId: string | null;
-  /** Employee(s) assigned to the task. Empty = unassigned. */
   readonly assigneeIds: readonly string[];
-  /** Who created the task. */
   readonly createdBy: string;
   readonly createdByName: string;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly dueDate: string | null;
   readonly completedAt: string | null;
+  readonly completedBy: string | null;
+  readonly completionNote?: string | null;
+  readonly reviewedBy?: string | null;
+  readonly reviewNote?: string | null;
   readonly attachments: readonly TaskAttachment[];
   readonly comments: readonly TaskComment[];
-  /** Optional progress percentage 0–100. */
-  readonly progress: number;
-  /** Tags for filtering (free-form). */
+  readonly progress: number; // 0..100
   readonly tags: readonly string[];
 }
 
 /* ------------------------------------------------------------------ */
-/*  Attendance                                                         */
+/*  Attendance, Absences & Justifications                              */
 /* ------------------------------------------------------------------ */
 
-export type AttendanceEventType = "clock_in" | "clock_out" | "break_start" | "break_end";
+export type AttendanceEventType =
+  | "clock_in"
+  | "clock_out"
+  | "break_start"
+  | "break_end";
 
 export const ATTENDANCE_EVENT_LABELS_FR: Record<AttendanceEventType, string> = {
   clock_in: "Pointage d'arrivée",
@@ -219,32 +230,90 @@ export interface AttendanceEvent {
   readonly id: string;
   readonly tenantId: string;
   readonly personnelId: string;
-  readonly date: string;
-  readonly timestamp: string;
+  readonly date: string; // YYYY-MM-DD
+  readonly timestamp: string; // ISO datetime
   readonly eventType: AttendanceEventType;
-  /** Optional geo or IP metadata (mock leaves null). */
   readonly metadata: { lat?: number; lng?: number; ip?: string } | null;
 }
 
+/**
+ * Absence Justification Workflow Status for Personnel:
+ *   - `none`: No justification request issued
+ *   - `requested`: Super Admin issued a request for justification to worker
+ *   - `submitted`: Worker submitted explanation / medical certificate
+ *   - `accepted`: Super Admin approved the justification (absence marked excused)
+ *   - `rejected`: Super Admin rejected the justification (unexcused / deduction applied)
+ */
+export type StaffJustificationStatus =
+  | "none"
+  | "requested"
+  | "submitted"
+  | "accepted"
+  | "rejected";
+
+export const STAFF_JUSTIFICATION_STATUS_LABELS_FR: Record<
+  StaffJustificationStatus,
+  string
+> = {
+  none: "Non requise",
+  requested: "Justification demandée par l'admin",
+  submitted: "Justification soumise (à examiner)",
+  accepted: "Justification acceptée",
+  rejected: "Justification rejetée",
+};
+
+export interface StaffAbsenceRecord {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly personnelId: string;
+  readonly personnelName: string;
+  readonly date: string; // YYYY-MM-DD
+  readonly durationHours: number;
+  readonly isExcused: boolean;
+  readonly justificationStatus: StaffJustificationStatus;
+  readonly adminRequestNote?: string | null; // What the admin asked
+  readonly requestedAt?: string | null;
+  readonly requestedBy?: string | null;
+  readonly workerExplanation?: string | null; // What the worker explained
+  readonly workerSubmittedAt?: string | null;
+  readonly documentRef?: string | null;
+  readonly decisionNote?: string | null; // Admin approval/rejection note
+  readonly decidedAt?: string | null;
+  readonly decidedBy?: string | null;
+}
+
 /* ------------------------------------------------------------------ */
-/*  Leave / absence / overtime requests                                */
+/*  Leave & Spending Requests                                          */
 /* ------------------------------------------------------------------ */
 
-export type RequestType = "leave" | "absence" | "overtime" | "shift_swap" | "remote";
-export type RequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type RequestType =
+  | "leave"
+  | "absence"
+  | "overtime"
+  | "shift_swap"
+  | "remote"
+  | "spending_reimbursement";
+export type RequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "clarification_requested"
+  | "cancelled";
 
 export const REQUEST_TYPE_LABELS_FR: Record<RequestType, string> = {
   leave: "Congé",
-  absence: "Absence",
+  absence: "Absence autorisée",
   overtime: "Heures supplémentaires",
   shift_swap: "Échange de poste",
   remote: "Télétravail",
+  spending_reimbursement: "Remboursement / Frais",
 };
 
 export const REQUEST_STATUS_LABELS_FR: Record<RequestStatus, string> = {
   pending: "En attente",
   approved: "Approuvée",
   rejected: "Refusée",
+  clarification_requested: "Justification demandée",
   cancelled: "Annulée",
 };
 
@@ -257,16 +326,19 @@ export interface LeaveRequest {
   readonly status: RequestStatus;
   readonly fromDate: string;
   readonly toDate: string;
+  readonly amountRequested?: number | null; // For spending/reimbursement
   readonly reason: string;
   readonly createdAt: string;
   readonly decidedAt: string | null;
   readonly decidedBy: string | null;
   readonly decidedByName: string | null;
   readonly decisionNote: string | null;
+  readonly clarificationRequest?: string | null;
+  readonly clarificationResponse?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Performance reviews                                                */
+/*  Performance & Communication                                        */
 /* ------------------------------------------------------------------ */
 
 export interface PerformanceReview {
@@ -274,8 +346,8 @@ export interface PerformanceReview {
   readonly tenantId: string;
   readonly personnelId: string;
   readonly personnelName: string;
-  readonly period: string; // e.g. "2025-Q4" or "2025"
-  readonly rating: number; // 0–5
+  readonly period: string;
+  readonly rating: number;
   readonly strengths: string;
   readonly improvements: string;
   readonly goals: string;
@@ -283,10 +355,6 @@ export interface PerformanceReview {
   readonly reviewerName: string;
   readonly reviewedAt: string;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Chat                                                               */
-/* ------------------------------------------------------------------ */
 
 export type ChannelType = "direct" | "group" | "department" | "announcement";
 
@@ -303,14 +371,11 @@ export interface ChatChannel {
   readonly type: ChannelType;
   readonly name: string;
   readonly description: string | null;
-  /** Member personnel IDs. For direct channels, exactly 2. */
   readonly memberIds: readonly string[];
-  /** Department ID for department-type channels. */
   readonly departmentId: string | null;
   readonly createdBy: string;
   readonly createdAt: string;
   readonly archivedAt: string | null;
-  /** Last message preview (denormalized for list rendering). */
   readonly lastMessageAt: string | null;
   readonly lastMessagePreview: string | null;
 }
@@ -324,14 +389,12 @@ export interface ChatMessage {
   readonly createdAt: string;
   readonly editedAt: string | null;
   readonly attachments: readonly TaskAttachment[];
-  /** IDs of personnel who have read the message. */
   readonly readBy: readonly string[];
-  /** Optional voice note duration in seconds (mock only — no audio storage). */
   readonly voiceNoteSeconds: number | null;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Onboarding                                                         */
+/*  Onboarding Wizard State                                            */
 /* ------------------------------------------------------------------ */
 
 export type OnboardingStep =
@@ -367,17 +430,27 @@ export interface OnboardingState {
   readonly completedAt: string | null;
   readonly currentStep: OnboardingStep;
   readonly completedSteps: ReadonlySet<OnboardingStep>;
-  /** Wizard-collected data (added to as the user advances). */
   readonly data: OnboardingData;
 }
 
 export interface OnboardingData {
-  readonly departments: readonly { name: string; color: string; headId: string | null }[];
+  readonly departments: readonly {
+    name: string;
+    color: string;
+    headId: string | null;
+  }[];
   readonly roles: readonly { role: string; count: number }[];
   readonly employeeCount: number;
   readonly adminIds: readonly string[];
-  readonly managerAssignments: readonly { departmentName: string; managerId: string }[];
-  readonly workingHours: { start: string; end: string; weekdays: readonly string[] };
+  readonly managerAssignments: readonly {
+    departmentName: string;
+    managerId: string;
+  }[];
+  readonly workingHours: {
+    start: string;
+    end: string;
+    weekdays: readonly string[];
+  };
   readonly shiftTypes: readonly string[];
   readonly permissionOverrides: Record<string, readonly string[]>;
 }
