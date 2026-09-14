@@ -36,6 +36,7 @@ import type {
   TaskComment,
   AttendanceEvent,
   AttendanceEventType,
+  StaffAbsenceRecord,
   LeaveRequest,
   RequestType,
   RequestStatus,
@@ -48,6 +49,7 @@ import type {
   OnboardingData,
   Weekday,
 } from "../../../domain/model/workforce";
+import type { AttendanceRepository } from "../../../domain/repository/workforce-repository";
 
 const nowIso = () => new Date().toISOString();
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -275,13 +277,17 @@ const SEED_TASKS: Task[] = [
     priority: "high",
     status: "in_progress",
     departmentId: "dept-buyers",
-    assigneeIds: [],
+    assigneeIds: ["per-012"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-01T08:00:00.000Z",
     updatedAt: "2025-09-15T10:00:00.000Z",
     dueDate: "2025-09-30",
     completedAt: null,
+    completedBy: null,
+    completionNote: null,
+    reviewedBy: null,
+    reviewNote: null,
     attachments: [],
     comments: [],
     progress: 35,
@@ -295,13 +301,17 @@ const SEED_TASKS: Task[] = [
     priority: "urgent",
     status: "assigned",
     departmentId: "dept-drivers",
-    assigneeIds: [],
+    assigneeIds: ["per-011"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-10T08:00:00.000Z",
     updatedAt: "2025-09-10T08:00:00.000Z",
     dueDate: "2025-09-20",
     completedAt: null,
+    completedBy: null,
+    completionNote: null,
+    reviewedBy: null,
+    reviewNote: null,
     attachments: [],
     comments: [],
     progress: 0,
@@ -315,13 +325,17 @@ const SEED_TASKS: Task[] = [
     priority: "medium",
     status: "pending",
     departmentId: "dept-warehouse",
-    assigneeIds: [],
+    assigneeIds: ["per-013"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-12T08:00:00.000Z",
     updatedAt: "2025-09-12T08:00:00.000Z",
     dueDate: "2025-09-25",
     completedAt: null,
+    completedBy: null,
+    completionNote: null,
+    reviewedBy: null,
+    reviewNote: null,
     attachments: [],
     comments: [],
     progress: 0,
@@ -335,13 +349,17 @@ const SEED_TASKS: Task[] = [
     priority: "high",
     status: "pending",
     departmentId: "dept-teachers",
-    assigneeIds: [],
+    assigneeIds: ["per-002"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-15T08:00:00.000Z",
     updatedAt: "2025-09-15T08:00:00.000Z",
     dueDate: "2025-12-15",
     completedAt: null,
+    completedBy: null,
+    completionNote: null,
+    reviewedBy: null,
+    reviewNote: null,
     attachments: [],
     comments: [],
     progress: 0,
@@ -355,17 +373,45 @@ const SEED_TASKS: Task[] = [
     priority: "medium",
     status: "completed",
     departmentId: "dept-workers",
-    assigneeIds: [],
+    assigneeIds: ["per-015"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-08-01T08:00:00.000Z",
     updatedAt: "2025-08-10T15:00:00.000Z",
     dueDate: "2025-08-15",
     completedAt: "2025-08-10T15:00:00.000Z",
+    completedBy: "per-015",
+    completionNote: "Entretien complet réalisé avec la société externe.",
+    reviewedBy: "system",
+    reviewNote: "Travail conforme, clôturé.",
     attachments: [],
     comments: [],
     progress: 100,
     tags: ["maintenance", "été"],
+  },
+  {
+    id: "task-006",
+    tenantId: TENANT_ID,
+    title: "Nettoyage fin de semaine bloc B",
+    description: "Nettoyage approfondi des couloirs et sanitaires du bloc B.",
+    priority: "low",
+    status: "needs_review",
+    departmentId: "dept-workers",
+    assigneeIds: ["per-015"],
+    createdBy: "system",
+    createdByName: "Système",
+    createdAt: "2025-09-18T08:00:00.000Z",
+    updatedAt: "2025-09-19T16:30:00.000Z",
+    dueDate: "2025-09-19",
+    completedAt: "2025-09-19T16:30:00.000Z",
+    completedBy: "per-015",
+    completionNote: "Trois couloirs et quatre sanitaires nettoyés, produits recharge commandés.",
+    reviewedBy: null,
+    reviewNote: null,
+    attachments: [],
+    comments: [],
+    progress: 100,
+    tags: ["maintenance", "nettoyage"],
   },
 ];
 
@@ -426,6 +472,10 @@ class MockTaskRepository implements TaskRepository {
       updatedAt: ts,
       dueDate: input.dueDate,
       completedAt: null,
+      completedBy: null,
+      completionNote: null,
+      reviewedBy: null,
+      reviewNote: null,
       attachments: input.attachments ?? [],
       comments: [],
       progress: 0,
@@ -448,10 +498,18 @@ class MockTaskRepository implements TaskRepository {
     return Ok(after);
   }
 
-  async updateTaskStatus(id: string, status: TaskStatus, actorId: string): Promise<Result<Task>> {
+  async updateTaskStatus(id: string, status: TaskStatus, actorId: string, completionNote?: string): Promise<Result<Task>> {
     let updates: Partial<Task> = { status, updatedAt: nowIso() };
-    if (status === "completed") {
-      updates = { ...updates, completedAt: nowIso(), progress: 100 };
+    if (status === "completed" || status === "needs_review") {
+      // The review lifecycle: submitting for validation or completing both
+      // stamp the completion trail (the 74d3ebb contract / migration 0095).
+      updates = {
+        ...updates,
+        completedAt: nowIso(),
+        completedBy: actorId,
+        ...(completionNote !== undefined ? { completionNote } : {}),
+        ...(status === "completed" ? { progress: 100 } : {}),
+      };
     } else if (status === "in_progress") {
       const current = this.items.find((t) => t.id === id);
       if (current && current.progress === 0) {
@@ -463,6 +521,38 @@ class MockTaskRepository implements TaskRepository {
       audit({ action: "task.status_change", entityType: "task", entityId: id, actorId, note: status });
     }
     return result;
+  }
+
+  async reviewTask(
+    id: string,
+    approved: boolean,
+    reviewerId: string,
+    reviewerName: string,
+    reviewNote?: string,
+  ): Promise<Result<Task>> {
+    const idx = this.items.findIndex((t) => t.id === id);
+    if (idx === -1) return Err(Errors.notFound("task", id));
+    const before = this.items[idx];
+    const after: Task = {
+      ...before,
+      status: approved ? "completed" : "in_progress",
+      reviewedBy: reviewerId,
+      reviewNote: reviewNote ?? null,
+      progress: approved ? 100 : Math.max(before.progress, 50),
+      updatedAt: nowIso(),
+    };
+    this.items = [...this.items.slice(0, idx), after, ...this.items.slice(idx + 1)];
+    this.notifyAll();
+    audit({
+      action: approved ? "task.review_approved" : "task.review_rejected",
+      entityType: "task",
+      entityId: id,
+      actorId: reviewerId,
+      actorName: reviewerName,
+      note: reviewNote ?? undefined,
+      diff: { before, after },
+    });
+    return Ok(after);
   }
 
   async reassign(id: string, assigneeIds: readonly string[], actorId: string): Promise<Result<Task>> {
@@ -504,13 +594,62 @@ class MockTaskRepository implements TaskRepository {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Workforce Attendance                                               */
+/*  Workforce Attendance + the Absence & Justification Loop           */
 /* ------------------------------------------------------------------ */
 
-class MockWorkforceAttendanceRepository {
+// The 74d3ebb demo seed — mapped onto the REAL per-* personnel corpus
+// (per-002 = Sofiane Larbi, Professeur de Français) so the loop renders
+// end-to-end in mock mode (the dead parallel mock's "pers-002" referenced
+// a non-existent id — see WORKFORCE-500 evidence item 4c).
+const SEED_ABSENCES: StaffAbsenceRecord[] = [
+  {
+    id: "abs-001",
+    tenantId: TENANT_ID,
+    personnelId: "per-002",
+    personnelName: "Sofiane Larbi",
+    date: "2025-09-22",
+    durationHours: 4,
+    isExcused: false,
+    justificationStatus: "requested",
+    adminRequestNote:
+      "Absence constatée le lundi matin. Merci de fournir un justificatif médical.",
+    requestedAt: "2025-09-22T14:00:00.000Z",
+    requestedBy: "system",
+    workerExplanation: null,
+    workerSubmittedAt: null,
+    documentRef: null,
+    decisionNote: null,
+    decidedAt: null,
+    decidedBy: null,
+  },
+  {
+    id: "abs-002",
+    tenantId: TENANT_ID,
+    personnelId: "per-015",
+    personnelName: "Omar Boudjelal",
+    date: "2025-09-19",
+    durationHours: 2,
+    isExcused: true,
+    justificationStatus: "accepted",
+    adminRequestNote: "Absence du vendredi après-midi — justificatif requis.",
+    requestedAt: "2025-09-19T16:00:00.000Z",
+    requestedBy: "system",
+    workerExplanation: "Rendez-vous médical — certificat joint.",
+    workerSubmittedAt: "2025-09-20T09:30:00.000Z",
+    documentRef: "tenant-demo/absences/certificat-omar.pdf",
+    decisionNote: "Justificatif accepté.",
+    decidedAt: "2025-09-20T11:00:00.000Z",
+    decidedBy: "system",
+  },
+];
+
+class MockWorkforceAttendanceRepository implements AttendanceRepository {
   private readonly byPersonnel = new Map<string, SubjectBehavior<AttendanceEvent[]>>();
   private readonly byDate = new Map<string, SubjectBehavior<AttendanceEvent[]>>();
   private items: AttendanceEvent[] = [];
+
+  private readonly absencesSubject = new SubjectBehavior<StaffAbsenceRecord[]>(SEED_ABSENCES);
+  private absences: StaffAbsenceRecord[] = SEED_ABSENCES;
 
   private ensurePersonnelSubject(id: string, from: string, to: string): SubjectBehavior<AttendanceEvent[]> {
     const key = `${id}|${from}|${to}`;
@@ -539,11 +678,89 @@ class MockWorkforceAttendanceRepository {
     this.byDate.forEach((s, date) => s.set(this.items.filter((e) => e.date === date)));
   }
 
+  private notifyAbsences(): void {
+    this.absencesSubject.set(this.absences);
+  }
+
   observeByPersonnel(personnelId: string, fromDate: string, toDate: string): Observable<AttendanceEvent[]> {
     return this.ensurePersonnelSubject(personnelId, fromDate, toDate);
   }
   observeByDate(date: string): Observable<AttendanceEvent[]> {
     return this.ensureDateSubject(date);
+  }
+
+  observeAbsences(personnelId?: string): Observable<StaffAbsenceRecord[]> {
+    if (personnelId) {
+      return new SubjectBehavior<StaffAbsenceRecord[]>(
+        this.absences.filter((a) => a.personnelId === personnelId),
+      );
+    }
+    return this.absencesSubject;
+  }
+
+  async requestAbsenceJustification(input: {
+    absenceId: string;
+    adminNote: string;
+    requestedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    const idx = this.absences.findIndex((a) => a.id === input.absenceId);
+    if (idx === -1) return Err(Errors.notFound("staff_absence", input.absenceId));
+    const before = this.absences[idx];
+    const after: StaffAbsenceRecord = {
+      ...before,
+      justificationStatus: "requested",
+      adminRequestNote: input.adminNote,
+      requestedAt: nowIso(),
+      requestedBy: input.requestedBy,
+    };
+    this.absences = [...this.absences.slice(0, idx), after, ...this.absences.slice(idx + 1)];
+    this.notifyAbsences();
+    audit({ action: "absence.justification_requested", entityType: "staff_absence", entityId: input.absenceId, actorId: input.requestedBy, note: input.adminNote, diff: { before, after } });
+    return Ok(after);
+  }
+
+  async submitAbsenceJustification(input: {
+    absenceId: string;
+    workerExplanation: string;
+    documentRef?: string | null;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    const idx = this.absences.findIndex((a) => a.id === input.absenceId);
+    if (idx === -1) return Err(Errors.notFound("staff_absence", input.absenceId));
+    const before = this.absences[idx];
+    const after: StaffAbsenceRecord = {
+      ...before,
+      justificationStatus: "submitted",
+      workerExplanation: input.workerExplanation,
+      workerSubmittedAt: nowIso(),
+      documentRef: input.documentRef ?? null,
+    };
+    this.absences = [...this.absences.slice(0, idx), after, ...this.absences.slice(idx + 1)];
+    this.notifyAbsences();
+    audit({ action: "absence.justification_submitted", entityType: "staff_absence", entityId: input.absenceId, note: input.workerExplanation, diff: { before, after } });
+    return Ok(after);
+  }
+
+  async reviewAbsenceJustification(input: {
+    absenceId: string;
+    decision: "accepted" | "rejected";
+    decisionNote: string;
+    decidedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    const idx = this.absences.findIndex((a) => a.id === input.absenceId);
+    if (idx === -1) return Err(Errors.notFound("staff_absence", input.absenceId));
+    const before = this.absences[idx];
+    const after: StaffAbsenceRecord = {
+      ...before,
+      justificationStatus: input.decision,
+      isExcused: input.decision === "accepted",
+      decisionNote: input.decisionNote,
+      decidedAt: nowIso(),
+      decidedBy: input.decidedBy,
+    };
+    this.absences = [...this.absences.slice(0, idx), after, ...this.absences.slice(idx + 1)];
+    this.notifyAbsences();
+    audit({ action: `absence.justification_${input.decision}`, entityType: "staff_absence", entityId: input.absenceId, actorId: input.decidedBy, note: input.decisionNote, diff: { before, after } });
+    return Ok(after);
   }
 
   async recordEvent(input: {
@@ -584,18 +801,59 @@ class MockLeaveRequestRepository implements LeaveRequestRepository {
     {
       id: "lr-001",
       tenantId: TENANT_ID,
-      personnelId: "EMP-2025-001",
-      personnelName: "Karim Benali",
+      personnelId: "per-002",
+      personnelName: "Sofiane Larbi",
       type: "leave" as RequestType,
       status: "pending" as RequestStatus,
       fromDate: "2025-10-15",
       toDate: "2025-10-20",
+      amountRequested: null,
       reason: "Congé annuel",
       createdAt: "2025-09-20T10:00:00.000Z",
       decidedAt: null,
       decidedBy: null,
       decidedByName: null,
       decisionNote: null,
+      clarificationRequest: null,
+      clarificationResponse: null,
+    },
+    {
+      id: "lr-002",
+      tenantId: TENANT_ID,
+      personnelId: "per-013",
+      personnelName: "Rachid Hadj",
+      type: "spending_reimbursement" as RequestType,
+      status: "pending" as RequestStatus,
+      fromDate: "2025-09-18",
+      toDate: "2025-09-18",
+      amountRequested: 4500,
+      reason: "Achat urgent de câbles HDMI et rallonges électriques pour la salle polyvalente.",
+      createdAt: "2025-09-18T16:00:00.000Z",
+      decidedAt: null,
+      decidedBy: null,
+      decidedByName: null,
+      decisionNote: null,
+      clarificationRequest: null,
+      clarificationResponse: null,
+    },
+    {
+      id: "lr-003",
+      tenantId: TENANT_ID,
+      personnelId: "per-015",
+      personnelName: "Omar Boudjelal",
+      type: "overtime" as RequestType,
+      status: "clarification_requested" as RequestStatus,
+      fromDate: "2025-09-24",
+      toDate: "2025-09-24",
+      amountRequested: null,
+      reason: "Heures supplémentaires pour la préparation de la rentrée.",
+      createdAt: "2025-09-23T09:00:00.000Z",
+      decidedAt: null,
+      decidedBy: null,
+      decidedByName: null,
+      decisionNote: null,
+      clarificationRequest: "Merci de préciser les heures exactes prévues.",
+      clarificationResponse: null,
     },
   ];
 
@@ -613,6 +871,7 @@ class MockLeaveRequestRepository implements LeaveRequestRepository {
     type: RequestType;
     fromDate: string;
     toDate: string;
+    amountRequested?: number | null;
     reason: string;
   }): Promise<Result<LeaveRequest>> {
     const req: LeaveRequest = {
@@ -624,12 +883,15 @@ class MockLeaveRequestRepository implements LeaveRequestRepository {
       status: "pending",
       fromDate: input.fromDate,
       toDate: input.toDate,
+      amountRequested: input.amountRequested ?? null,
       reason: input.reason,
       createdAt: nowIso(),
       decidedAt: null,
       decidedBy: null,
       decidedByName: null,
       decisionNote: null,
+      clarificationRequest: null,
+      clarificationResponse: null,
     };
     this.items = [req, ...this.items];
     this.subjects.set(this.items);
@@ -658,6 +920,43 @@ class MockLeaveRequestRepository implements LeaveRequestRepository {
   async cancel(id: string): Promise<Result<LeaveRequest>> {
     return this.decide(id, "cancelled", "system", "Système", "Annulé par l'employé");
   }
+
+  async requestClarification(
+    id: string,
+    question: string,
+    requestedBy: string,
+  ): Promise<Result<LeaveRequest>> {
+    const idx = this.items.findIndex((r) => r.id === id);
+    if (idx === -1) return Err(Errors.notFound("leave_request", id));
+    const before = this.items[idx];
+    const after: LeaveRequest = {
+      ...before,
+      status: "clarification_requested",
+      clarificationRequest: question,
+    };
+    this.items = [...this.items.slice(0, idx), after, ...this.items.slice(idx + 1)];
+    this.subjects.set(this.items);
+    audit({ action: "leave.clarification_requested", entityType: "leave_request", entityId: id, actorId: requestedBy, note: question, diff: { before, after } });
+    return Ok(after);
+  }
+
+  async respondClarification(
+    id: string,
+    response: string,
+  ): Promise<Result<LeaveRequest>> {
+    const idx = this.items.findIndex((r) => r.id === id);
+    if (idx === -1) return Err(Errors.notFound("leave_request", id));
+    const before = this.items[idx];
+    const after: LeaveRequest = {
+      ...before,
+      status: "pending",
+      clarificationResponse: response,
+    };
+    this.items = [...this.items.slice(0, idx), after, ...this.items.slice(idx + 1)];
+    this.subjects.set(this.items);
+    audit({ action: "leave.clarification_responded", entityType: "leave_request", entityId: id, note: response, diff: { before, after } });
+    return Ok(after);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -670,8 +969,8 @@ class MockPerformanceReviewRepository implements PerformanceReviewRepository {
     {
       id: "pr-001",
       tenantId: TENANT_ID,
-      personnelId: "EMP-2025-001",
-      personnelName: "Karim Benali",
+      personnelId: "per-002",
+      personnelName: "Sofiane Larbi",
       period: "2024",
       rating: 4.2,
       strengths: "Ponctualité, maîtrise de la discipline, bonne relation avec les élèves.",

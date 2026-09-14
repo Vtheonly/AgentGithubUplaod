@@ -15,13 +15,34 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
 import { SubjectBehavior } from "../subject-behavior";
-import type { Personnel, ReleveEntry, ReleveActivity } from "../../../domain/model/personnel";
+import type {
+  Personnel,
+  ReleveEntry,
+  ReleveActivity,
+  SalaryAdjustment,
+  SalaryAdjustmentType,
+  SalaryPaymentRecord,
+  PayrollMethod,
+} from "../../../domain/model/personnel";
 import type { AuditEntry, AuditLogFilter, AuditLogQueryResult, AttributedActivityEvent, AttributedActivityStream } from "../../../domain/model/audit";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 
 // ============================================================================
 // Personnel
 // ============================================================================
+
+/**
+ * The in-memory payroll ledger (T-369) — mirrors the canonical Supabase
+ * semantics: adjustments are immutable appended rows; payments are unique
+ * per (personnel, period) and idempotently re-recorded.
+ */
+const salaryAdjustmentsStore: SalaryAdjustment[] = [];
+const salaryPaymentsStore: SalaryPaymentRecord[] = [];
+const salaryPaymentsSubject = new SubjectBehavior<SalaryPaymentRecord[]>([]);
+
+function nextAdjustmentId(): string {
+  return `adj-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
 
 export class MockPersonnelRepository implements PersonnelRepository {
   observe(): Observable<Personnel[]> {
@@ -75,6 +96,179 @@ export class MockPersonnelRepository implements PersonnelRepository {
     store.personnel = store.personnel.filter((p) => p.id !== id);
     store.notifyPersonnel();
     return Ok(undefined);
+  }
+
+  /**
+   * T-369 — mirrors the canonical `adjust_personnel_salary` RPC semantics
+   * (migration 0095): raise/cut move the base salary (cut floors at 0);
+   * bonus/deduction are one-offs that leave it unchanged; the reason is
+   * mandatory (min 5 chars, the DB CHECK); the adjustment row is immutable
+   * history; the master audit log records personnel.salary_adjusted.
+   */
+  async adjustSalary(input: {
+    personnelId: string;
+    type: SalaryAdjustmentType;
+    amount: number;
+    reason: string;
+    effectiveDate?: string;
+    actorId: string;
+    actorName: string;
+  }): Promise<Result<SalaryAdjustment>> {
+    const idx = store.personnel.findIndex((p) => p.id === input.personnelId);
+    if (idx < 0) return Err(Errors.notFound("Personnel", input.personnelId));
+    if (!(input.amount > 0)) {
+      return Err(Errors.validation("Le montant de l'ajustement doit être positif."));
+    }
+    if (!input.reason || input.reason.trim().length < 5) {
+      return Err(
+        Errors.validation(
+          "A formal justification of at least 5 characters is mandatory",
+          "Un motif formel (5 caractères minimum) est obligatoire.",
+        ),
+      );
+    }
+
+    const before = store.personnel[idx];
+    const amountBefore = before.salary ?? 0;
+    let amountAfter = amountBefore;
+    let signedDelta = 0;
+    switch (input.type) {
+      case "raise":
+        amountAfter = amountBefore + input.amount;
+        signedDelta = input.amount;
+        break;
+      case "cut":
+        amountAfter = Math.max(0, amountBefore - input.amount);
+        signedDelta = amountAfter - amountBefore; // the ACTUAL change (floored cuts record the real reduction — the 0095 row invariant)
+        break;
+      case "bonus":
+        signedDelta = input.amount;
+        break;
+      case "deduction":
+        signedDelta = -input.amount;
+        break;
+    }
+
+    const adjustment: SalaryAdjustment = {
+      id: nextAdjustmentId(),
+      personnelId: input.personnelId,
+      type: input.type,
+      amountBefore,
+      amountAfter,
+      delta: signedDelta,
+      reason: input.reason.trim(),
+      effectiveDate: input.effectiveDate ?? nowIso().slice(0, 10),
+      approvedBy: input.actorId,
+      approvedByName: input.actorName,
+      createdAt: nowIso(),
+    };
+    salaryAdjustmentsStore.unshift(adjustment);
+
+    if (input.type === "raise" || input.type === "cut") {
+      const after = { ...before, salary: amountAfter, salaryAdjustments: [adjustment, ...(before.salaryAdjustments ?? [])] };
+      store.personnel[idx] = after;
+      store.notifyPersonnel();
+    } else {
+      // One-offs keep the base but still surface in the employee's history.
+      const after = { ...before, salaryAdjustments: [adjustment, ...(before.salaryAdjustments ?? [])] };
+      store.personnel[idx] = after;
+      store.notifyPersonnel();
+    }
+
+    appendAudit({
+      action: "personnel.salary_adjusted",
+      entityType: "personnel",
+      entityId: input.personnelId,
+      actorId: input.actorId,
+      actorName: input.actorName,
+      diff: { before: { salary: amountBefore }, after: { salary: amountAfter, type: input.type, reason: input.reason.trim() } },
+      note: `Ajustement (${input.type}: ${signedDelta} DZD)`,
+    });
+
+    return Ok(adjustment);
+  }
+
+  /**
+   * T-369 — mirrors the canonical `record_salary_disbursement` RPC: unique
+   * per (personnel, period), idempotent re-record, the period's one-off
+   * bonuses/deductions netted into the payout.
+   */
+  async recordSalaryPayment(input: {
+    personnelId: string;
+    period: string;
+    method: PayrollMethod;
+    referenceNumber?: string | null;
+    notes?: string | null;
+    actorId: string;
+    actorName: string;
+  }): Promise<Result<SalaryPaymentRecord>> {
+    const person = store.personnel.find((p) => p.id === input.personnelId);
+    if (!person) return Err(Errors.notFound("Personnel", input.personnelId));
+    if (!/^\d{4}-\d{2}$/.test(input.period)) {
+      return Err(Errors.validation("La période doit être au format AAAA-MM."));
+    }
+
+    // The period's one-offs (effective within the month — the RPC's window).
+    const monthStart = `${input.period}-01`;
+    const nextMonth = (() => {
+      const [y, m] = input.period.split("-").map(Number);
+      const d = new Date(Date.UTC(y, m, 1));
+      return d.toISOString().slice(0, 10);
+    })();
+    const periodAdjustments = salaryAdjustmentsStore.filter(
+      (a) => a.personnelId === input.personnelId && a.effectiveDate >= monthStart && a.effectiveDate < nextMonth,
+    );
+    const bonusesTotal = periodAdjustments
+      .filter((a) => a.type === "bonus")
+      .reduce((sum, a) => sum + a.delta, 0);
+    const deductionsTotal = -periodAdjustments
+      .filter((a) => a.type === "deduction")
+      .reduce((sum, a) => sum + a.delta, 0);
+    const baseSalary = person.salary ?? 0;
+    const netPaid = Math.max(0, baseSalary + bonusesTotal - deductionsTotal);
+
+    const payment: SalaryPaymentRecord = {
+      id: `pay-${input.period}-${input.personnelId}`,
+      personnelId: input.personnelId,
+      period: input.period,
+      baseSalary,
+      bonusesTotal,
+      deductionsTotal,
+      netPaid,
+      status: "paid",
+      paymentDate: nowIso().slice(0, 10),
+      method: input.method,
+      referenceNumber: input.referenceNumber?.trim() || null,
+      notes: input.notes?.trim() || null,
+      paidBy: input.actorId,
+      paidByName: input.actorName,
+    };
+
+    const existingIdx = salaryPaymentsStore.findIndex(
+      (p) => p.personnelId === input.personnelId && p.period === input.period,
+    );
+    if (existingIdx >= 0) {
+      salaryPaymentsStore[existingIdx] = payment; // idempotent re-record
+    } else {
+      salaryPaymentsStore.unshift(payment);
+    }
+    salaryPaymentsSubject.set([...salaryPaymentsStore]);
+
+    appendAudit({
+      action: "personnel.salary_disbursed",
+      entityType: "personnel",
+      entityId: input.personnelId,
+      actorId: input.actorId,
+      actorName: input.actorName,
+      diff: { after: { period: input.period, net_paid: netPaid, method: input.method } },
+      note: `Versement de paie ${input.period} (${netPaid} DZD)`,
+    });
+
+    return Ok(payment);
+  }
+
+  observeSalaryPayments(): Observable<SalaryPaymentRecord[]> {
+    return salaryPaymentsSubject;
   }
 }
 

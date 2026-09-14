@@ -10,11 +10,13 @@
  * lived in memory only (wiped on restart) while the canonical `tasks` /
  * `task_comments` / `task_attachments` tables (migration 0010) sat empty.
  *
- * Tables (migration 0010 + 0074):
- *   `tasks` — title / description / status (the domain union verbatim) /
- *   priority (domain union) / department_id (FK) / assignee_ids (jsonb array
- *   of user_profiles.id strings) / due_date / completed_at / progress (0–100)
- *   / tags / created_by + created_by_name (0074) / timestamps.
+ * Tables (migration 0010 + 0074 + 0095):
+ *   `tasks` — title / description / status (the domain union verbatim; the
+ *   0095 widening added needs_review) / priority (domain union) /
+ *   department_id (FK) / assignee_ids (jsonb array of user_profiles.id
+ *   strings) / due_date / completed_at / progress (0–100) / tags /
+ *   created_by + created_by_name (0074) / completed_by + completion_note +
+ *   reviewed_by + review_note (0095 — the review lifecycle) / timestamps.
  *   `task_comments` — task_id (FK cascade) / author_id + author_name (0074) /
  *   body / timestamps.
  *   `task_attachments` — task_id (FK cascade) / file_name / storage_path /
@@ -31,15 +33,19 @@
  *      mapped into the domain aggregates.
  *   5. createTask: status = assigneeIds.length ? 'assigned' : 'pending'
  *      (mock parity); progress 0; completedAt null.
- *   6. updateTaskStatus: completed → completed_at=now + progress=100;
+ *   6. updateTaskStatus: completed/needs_review → completed_at=now +
+ *      completed_by=actor + completion_note; completed → progress=100;
  *      in_progress with progress 0 → 10 (mock parity).
- *   7. reassign: assignee_ids + status assigned/pending (mock parity).
- *   8. addComment: INSERT into task_comments (author verified by the 0019
+ *   7. reviewTask (0095): approved → status completed + progress 100;
+ *      rejected → status in_progress + progress floor 50; reviewed_by +
+ *      review_note stamped.
+ *   8. reassign: assignee_ids + status assigned/pending (mock parity).
+ *   9. addComment: INSERT into task_comments (author verified by the 0019
  *      policy) + cache refresh; returns the mapped comment.
- *   9. addAttachment: INSERT into task_attachments with storage_path =
+ *  10. addAttachment: INSERT into task_attachments with storage_path =
  *      attachment.url (the contract's url field; a REAL object-storage
  *      upload is a future EF/UI feature — no UI caller today).
- *  10. deleteTask: HARD delete (mock parity) — task_comments and
+ *  11. deleteTask: HARD delete (mock parity) — task_comments and
  *      task_attachments cascade.
  *
  * Reactive reads follow the shared Supabase pattern: SubjectBehavior cache +
@@ -105,6 +111,10 @@ interface TaskTableRow {
   assignee_ids: string[] | null;
   due_date: string | null;
   completed_at: string | null;
+  completed_by: string | null;
+  completion_note: string | null;
+  reviewed_by: string | null;
+  review_note: string | null;
   progress: number;
   tags: string[] | null;
   created_by: string | null;
@@ -162,6 +172,10 @@ function mapRow(row: TaskTableRow): Task {
     updatedAt: row.updated_at,
     dueDate: row.due_date,
     completedAt: row.completed_at,
+    completedBy: row.completed_by ?? null,
+    completionNote: row.completion_note ?? null,
+    reviewedBy: row.reviewed_by ?? null,
+    reviewNote: row.review_note ?? null,
     attachments,
     comments,
     progress: row.progress ?? 0,
@@ -281,6 +295,10 @@ export class SupabaseTaskRepository implements TaskRepository {
     if (updates.assigneeIds !== undefined) patch.assignee_ids = [...updates.assigneeIds];
     if (updates.dueDate !== undefined) patch.due_date = updates.dueDate || null;
     if (updates.completedAt !== undefined) patch.completed_at = updates.completedAt;
+    if (updates.completedBy !== undefined) patch.completed_by = isUuid(updates.completedBy ?? "") ? updates.completedBy : null;
+    if (updates.completionNote !== undefined) patch.completion_note = updates.completionNote || null;
+    if (updates.reviewedBy !== undefined) patch.reviewed_by = isUuid(updates.reviewedBy ?? "") ? updates.reviewedBy : null;
+    if (updates.reviewNote !== undefined) patch.review_note = updates.reviewNote || null;
     if (updates.progress !== undefined) {
       patch.progress = Math.min(100, Math.max(0, Math.round(updates.progress)));
     }
@@ -298,19 +316,49 @@ export class SupabaseTaskRepository implements TaskRepository {
     return Ok(mapRow(data as unknown as TaskTableRow));
   }
 
-  async updateTaskStatus(id: string, status: TaskStatus, actorId: string): Promise<Result<Task>> {
-    // Mock parity: completed stamps completed_at + progress 100; in_progress
-    // bumps a 0 progress to 10.
+  async updateTaskStatus(id: string, status: TaskStatus, actorId: string, completionNote?: string): Promise<Result<Task>> {
+    // Mock parity + the 0095 review lifecycle: completed AND needs_review both
+    // stamp the completion trail (completed_at / completed_by); completed bumps
+    // progress to 100; in_progress bumps a 0 progress to 10.
     const existing = await this.fetchRow(id);
     if (!existing) return Err(Errors.notFound("Task", id));
     let updates: Partial<Task> = { status, updatedAt: nowIso() };
-    if (status === "completed") {
-      updates = { ...updates, completedAt: nowIso(), progress: 100 };
+    if (status === "completed" || status === "needs_review") {
+      updates = {
+        ...updates,
+        completedAt: nowIso(),
+        completedBy: isUuid(actorId) ? actorId : existing.created_by,
+        ...(completionNote !== undefined ? { completionNote } : {}),
+        ...(status === "completed" ? { progress: 100 } : {}),
+      };
     } else if (status === "in_progress" && (existing.progress ?? 0) === 0) {
       updates = { ...updates, progress: 10 };
     }
     void actorId; // audit trail is server-side (0014); the actor reaches the DB through the session JWT.
     return this.updateTask(id, updates);
+  }
+
+  async reviewTask(
+    id: string,
+    approved: boolean,
+    reviewerId: string,
+    reviewerName: string,
+    reviewNote?: string,
+  ): Promise<Result<Task>> {
+    // The 0095 review lifecycle: an approval closes the task (completed,
+    // progress 100); a rejection reopens it for rework (in_progress, progress
+    // floored at 50 — mock parity). The reviewer trail lands in
+    // reviewed_by/review_note.
+    const existing = await this.fetchRow(id);
+    if (!existing) return Err(Errors.notFound("Task", id));
+    void reviewerName; // display name preserved for contract parity; the audit log is server-side.
+    return this.updateTask(id, {
+      status: approved ? "completed" : "in_progress",
+      reviewedBy: isUuid(reviewerId) ? reviewerId : null,
+      reviewNote: reviewNote ?? null,
+      progress: approved ? 100 : Math.max(existing.progress ?? 0, 50),
+      updatedAt: nowIso(),
+    });
   }
 
   async reassign(id: string, assigneeIds: readonly string[], actorId: string): Promise<Result<Task>> {

@@ -9,12 +9,14 @@
  * submitted by workers lived in memory only and were wiped on restart,
  * while the canonical `leave_requests` table (migration 0010) sat empty.
  *
- * Table (migration 0010 + 0072):
- *   `leave_requests` — personnel_id (FK), leave_type (0072-widened: the
- *   domain RequestType union + the legacy categories), start_date,
- *   end_date, reason, status (pending|approved|rejected|cancelled),
- *   reviewed_by (uuid, no FK), reviewed_by_name (0072), reviewed_at,
- *   decision_note, created_at, updated_at.
+ * Table (migration 0010 + 0072 + 0095):
+ *   `leave_requests` — personnel_id (FK), leave_type (0072-widened + 0095
+ *   adding spending_reimbursement: the domain RequestType union + the legacy
+ *   categories), start_date, end_date, reason, status (0095-widened:
+ *   +clarification_requested), reviewed_by (uuid, no FK), reviewed_by_name
+ *   (0072), reviewed_at, decision_note, amount_requested +
+ *   clarification_request + clarification_response (0095 — the two-way
+ *   clarification loop + the reimbursement amount), created_at, updated_at.
  *
  * MAPPING NOTES (documented):
  *   1. `type` (domain RequestType) is stored DIRECTLY as `leave_type` —
@@ -36,6 +38,15 @@
  *      manager/super_admin only (the decide path). The mock's cancel() has
  *      NO UI caller — a worker-side cancel would surface the RLS forbidden
  *      error (honest) rather than silently bypass the server semantics.
+ *   6. The clarification loop (0095): requestClarification (manager) →
+ *      status clarification_requested + clarification_request;
+ *      respondClarification (worker) → status pending +
+ *      clarification_response. The 0019 UPDATE policy is manager-only — the
+ *      WORKER's respondClarification write is honestly RLS-rejected today
+ *      (documented divergence; widening it needs its own registered task
+ *      with a role-scoped policy — see WORKFORCE-500 resolution notes).
+ *   7. `amountRequested` ↔ `amount_requested` (0095) — persisted for the
+ *      spending_reimbursement kind.
  *
  * Reactive reads follow the shared Supabase pattern: SubjectBehavior cache +
  * T-034/CROSS-104 freshness policy + refresh after every successful write.
@@ -73,6 +84,9 @@ interface LeaveRequestTableRow {
   end_date: string;
   reason: string | null;
   status: string;
+  amount_requested: number | null;
+  clarification_request: string | null;
+  clarification_response: string | null;
   reviewed_by: string | null;
   reviewed_by_name: string | null;
   reviewed_at: string | null;
@@ -82,7 +96,13 @@ interface LeaveRequestTableRow {
   personnel: PersonnelEmbed | null;
 }
 
-const REQUEST_STATUSES: readonly string[] = ["pending", "approved", "rejected", "cancelled"];
+const REQUEST_STATUSES: readonly string[] = [
+  "pending",
+  "approved",
+  "rejected",
+  "clarification_requested",
+  "cancelled",
+];
 
 function mapRow(row: LeaveRequestTableRow): LeaveRequest {
   const embed = row.personnel;
@@ -98,12 +118,15 @@ function mapRow(row: LeaveRequestTableRow): LeaveRequest {
     status: (REQUEST_STATUSES.includes(row.status) ? row.status : "pending") as RequestStatus,
     fromDate: row.start_date,
     toDate: row.end_date,
+    amountRequested: row.amount_requested != null ? Number(row.amount_requested) : null,
     reason: row.reason ?? "",
     createdAt: row.created_at,
     decidedAt: row.reviewed_at,
     decidedBy: row.reviewed_by,
     decidedByName: row.reviewed_by_name,
     decisionNote: row.decision_note,
+    clarificationRequest: row.clarification_request ?? null,
+    clarificationResponse: row.clarification_response ?? null,
   };
 }
 
@@ -144,6 +167,7 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
     type: RequestType;
     fromDate: string;
     toDate: string;
+    amountRequested?: number | null;
     reason: string;
   }): Promise<Result<LeaveRequest>> {
     if (!isUuid(input.personnelId)) {
@@ -168,6 +192,8 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
         start_date: input.fromDate,
         end_date: input.toDate,
         reason: input.reason.trim() || null,
+        // 0095: the reimbursement amount (spending_reimbursement kind).
+        amount_requested: input.amountRequested ?? null,
         status: "pending",
       })
       .select(SELECT)
@@ -216,6 +242,62 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
     // is manager/super_admin only — a worker-side cancel is honestly
     // rejected by RLS (the UI exposes no worker-cancel button today).
     return this.decide(id, "cancelled", "system", "Système", "Annulé par l'employé");
+  }
+
+  async requestClarification(
+    id: string,
+    question: string,
+    requestedBy: string,
+  ): Promise<Result<LeaveRequest>> {
+    void requestedBy; // audit trail is server-side (0014); the actor reaches the DB through the session JWT.
+    if (!question.trim()) {
+      return Err(Errors.validation(
+        "A clarification question is required",
+        "Une question de clarification est requise.",
+      ));
+    }
+    const { data, error } = await this.client
+      .from("leave_requests")
+      .update({
+        status: "clarification_requested",
+        clarification_request: question.trim(),
+        updated_at: nowIso(),
+      })
+      .eq("id", id)
+      .eq("tenant_id", getTenantId())
+      .select(SELECT)
+      .single();
+    if (error) return Err(supabaseErrorToAppError(error));
+    if (!data) return Err(Errors.notFound("LeaveRequest", id));
+    await this.refresh();
+    return Ok(mapRow(data as unknown as LeaveRequestTableRow));
+  }
+
+  async respondClarification(
+    id: string,
+    response: string,
+  ): Promise<Result<LeaveRequest>> {
+    if (!response.trim()) {
+      return Err(Errors.validation(
+        "A clarification response is required",
+        "Une réponse est requise.",
+      ));
+    }
+    const { data, error } = await this.client
+      .from("leave_requests")
+      .update({
+        status: "pending",
+        clarification_response: response.trim(),
+        updated_at: nowIso(),
+      })
+      .eq("id", id)
+      .eq("tenant_id", getTenantId())
+      .select(SELECT)
+      .single();
+    if (error) return Err(supabaseErrorToAppError(error));
+    if (!data) return Err(Errors.notFound("LeaveRequest", id));
+    await this.refresh();
+    return Ok(mapRow(data as unknown as LeaveRequestTableRow));
   }
 
   // --------------------------------------------------------------------------

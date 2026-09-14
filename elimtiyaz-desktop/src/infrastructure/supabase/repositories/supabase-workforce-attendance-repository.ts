@@ -12,12 +12,26 @@
  * while the canonical `workforce_attendance_events` table (migration 0010)
  * sat empty.
  *
- * Table (migration 0010):
+ * T-369 (68th session, 2026-09-14) — the ABSENCE & JUSTIFICATION loop
+ * (the 74d3ebb Personnel & Workforce UI commit): `observeAbsences` /
+ * `requestAbsenceJustification` / `submitAbsenceJustification` /
+ * `reviewAbsenceJustification` on the canonical `staff_absences` table
+ * (migration 0095). The DB's state-transition trigger
+ * (enforce_staff_absence_justification_flow) enforces the loop
+ * none→requested→submitted→accepted|rejected server-side; the repository
+ * maps each domain call onto exactly one legal transition.
+ *
+ * Table (migration 0010 + 0095):
  *   `workforce_attendance_events` — personnel_id (FK) / event_type (CHECK:
  *   clock_in|break_start|break_end|clock_out — the domain union VERBATIM,
  *   no fold needed) / event_at (timestamptz, default now()) / latitude /
  *   longitude (numeric(9,6)) / note / recorded_by (user_profiles.id by
  *   convention, no FK) / created_at.
+ *   `staff_absences` (0095) — personnel_id (FK) / date / duration_hours /
+ *   is_excused / justification_status (none|requested|submitted|accepted|
+ *   rejected — the DB trigger enforces the loop) / admin_request_note /
+ *   requested_at / requested_by / worker_explanation / worker_submitted_at /
+ *   document_ref / decision_note / decided_at / decided_by.
  *
  * MAPPING NOTES (documented):
  *   1. `eventType` ↔ `event_type` — domain union verbatim (0010 CHECK).
@@ -45,9 +59,12 @@
  * every successful write. The cache is a rolling window (500 rows,
  * event_at DESC) — punch events are low-volume per tenant.
  *
- * RLS (0019): SELECT requires tenant + (staff roles OR own-personnel);
- * INSERT requires tenant. The 0010 audit trail note applies — audit is
- * server-side (0014); the actor reaches the DB through recorded_by.
+ * RLS (0019 + 0095): SELECT requires tenant + (staff roles OR own-personnel);
+ * INSERT requires tenant (attendance events) / staff roles (absences — the
+ * admin records an observed absence); UPDATE for staff roles OR the worker's
+ * own absence (the justification submit path). The 0010 audit trail note
+ * applies — audit is server-side (0014); the actor reaches the DB through
+ * recorded_by / requested_by / decided_by.
  *
  * Wiring: `getSupabaseRepositories()` (supabase-repositories.ts) overrides
  * the mock `workforceAttendance` entry with this class.
@@ -60,7 +77,12 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior, derived } from "../../mock/subject-behavior";
-import type { AttendanceEvent, AttendanceEventType } from "../../../domain/model/workforce";
+import type {
+  AttendanceEvent,
+  AttendanceEventType,
+  StaffAbsenceRecord,
+  StaffJustificationStatus,
+} from "../../../domain/model/workforce";
 import { getTenantId, isUuid, getActorId } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
@@ -103,9 +125,78 @@ function mapRow(row: AttendanceEventTableRow): AttendanceEvent {
 
 const SELECT = "id, tenant_id, personnel_id, event_type, event_at, latitude, longitude, note, recorded_by, created_at";
 
+// ---------------------------------------------------------------------------
+// staff_absences (0095 — the absence & justification loop)
+// ---------------------------------------------------------------------------
+
+interface PersonnelEmbed {
+  first_name: string | null;
+  last_name: string | null;
+}
+
+interface StaffAbsenceRow {
+  id: string;
+  tenant_id: string;
+  personnel_id: string;
+  date: string;
+  duration_hours: number;
+  is_excused: boolean;
+  justification_status: string;
+  admin_request_note: string | null;
+  requested_at: string | null;
+  requested_by: string | null;
+  worker_explanation: string | null;
+  worker_submitted_at: string | null;
+  document_ref: string | null;
+  decision_note: string | null;
+  decided_at: string | null;
+  decided_by: string | null;
+  personnel: PersonnelEmbed | null;
+}
+
+const JUSTIFICATION_STATUSES: readonly string[] = [
+  "none",
+  "requested",
+  "submitted",
+  "accepted",
+  "rejected",
+];
+
+const ABSENCE_SELECT = "*, personnel(first_name, last_name)";
+
+function mapAbsenceRow(row: StaffAbsenceRow): StaffAbsenceRecord {
+  const embed = row.personnel;
+  const personnelName = embed
+    ? `${embed.first_name ?? ""} ${embed.last_name ?? ""}`.trim() || "Personnel inconnu"
+    : "Personnel inconnu";
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    personnelId: row.personnel_id,
+    personnelName,
+    date: row.date,
+    durationHours: Number(row.duration_hours),
+    isExcused: row.is_excused,
+    justificationStatus: (JUSTIFICATION_STATUSES.includes(row.justification_status)
+      ? row.justification_status
+      : "none") as StaffJustificationStatus,
+    adminRequestNote: row.admin_request_note ?? null,
+    requestedAt: row.requested_at ?? null,
+    requestedBy: row.requested_by ?? null,
+    workerExplanation: row.worker_explanation ?? null,
+    workerSubmittedAt: row.worker_submitted_at ?? null,
+    documentRef: row.document_ref ?? null,
+    decisionNote: row.decision_note ?? null,
+    decidedAt: row.decided_at ?? null,
+    decidedBy: row.decided_by ?? null,
+  };
+}
+
 export class SupabaseWorkforceAttendanceRepository implements AttendanceRepository {
   private readonly cache = new SubjectBehavior<AttendanceEvent[]>([]);
   private readonly freshness = new CacheFreshness();
+  private readonly absencesCache = new SubjectBehavior<StaffAbsenceRecord[]>([]);
+  private readonly absencesFreshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -186,6 +277,122 @@ export class SupabaseWorkforceAttendanceRepository implements AttendanceReposito
   }
 
   // --------------------------------------------------------------------------
+  // Absence & Justification Loop (staff_absences, migration 0095)
+  // --------------------------------------------------------------------------
+
+  observeAbsences(personnelId?: string): Observable<StaffAbsenceRecord[]> {
+    this.seedAbsences();
+    if (personnelId) {
+      return derived([this.absencesCache], () =>
+        this.absencesCache.get().filter((a) => a.personnelId === personnelId),
+      );
+    }
+    return this.absencesCache;
+  }
+
+  async requestAbsenceJustification(input: {
+    absenceId: string;
+    adminNote: string;
+    requestedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    if (!input.adminNote.trim()) {
+      return Err(
+        Errors.validation(
+          "An admin note is required when requesting a justification",
+          "Un message est requis pour demander une justification.",
+        ),
+      );
+    }
+    // none → requested (the 0095 trigger enforces the transition server-side).
+    const { data, error } = await this.client
+      .from("staff_absences")
+      .update({
+        justification_status: "requested",
+        admin_request_note: input.adminNote.trim(),
+        requested_at: new Date().toISOString(),
+        requested_by: isUuid(input.requestedBy) ? input.requestedBy : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.absenceId)
+      .eq("tenant_id", getTenantId())
+      .select(ABSENCE_SELECT)
+      .single();
+    if (error) return Err(supabaseErrorToAppError(error));
+    if (!data) return Err(Errors.notFound("StaffAbsence", input.absenceId));
+    await this.refreshAbsences();
+    return Ok(mapAbsenceRow(data as unknown as StaffAbsenceRow));
+  }
+
+  async submitAbsenceJustification(input: {
+    absenceId: string;
+    workerExplanation: string;
+    documentRef?: string | null;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    if (!input.workerExplanation.trim()) {
+      return Err(
+        Errors.validation(
+          "An explanation is required",
+          "Une explication est requise.",
+        ),
+      );
+    }
+    // requested → submitted (the 0095 trigger enforces the transition).
+    const { data, error } = await this.client
+      .from("staff_absences")
+      .update({
+        justification_status: "submitted",
+        worker_explanation: input.workerExplanation.trim(),
+        worker_submitted_at: new Date().toISOString(),
+        document_ref: input.documentRef?.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.absenceId)
+      .eq("tenant_id", getTenantId())
+      .select(ABSENCE_SELECT)
+      .single();
+    if (error) return Err(supabaseErrorToAppError(error));
+    if (!data) return Err(Errors.notFound("StaffAbsence", input.absenceId));
+    await this.refreshAbsences();
+    return Ok(mapAbsenceRow(data as unknown as StaffAbsenceRow));
+  }
+
+  async reviewAbsenceJustification(input: {
+    absenceId: string;
+    decision: "accepted" | "rejected";
+    decisionNote: string;
+    decidedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    if (!input.decisionNote.trim()) {
+      return Err(
+        Errors.validation(
+          "A decision note is required",
+          "Un motif de décision est requis.",
+        ),
+      );
+    }
+    // submitted → accepted|rejected (is_excused flips only on accepted —
+    // the 0095 trigger enforces both invariants server-side).
+    const { data, error } = await this.client
+      .from("staff_absences")
+      .update({
+        justification_status: input.decision,
+        is_excused: input.decision === "accepted",
+        decision_note: input.decisionNote.trim(),
+        decided_at: new Date().toISOString(),
+        decided_by: isUuid(input.decidedBy) ? input.decidedBy : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.absenceId)
+      .eq("tenant_id", getTenantId())
+      .select(ABSENCE_SELECT)
+      .single();
+    if (error) return Err(supabaseErrorToAppError(error));
+    if (!data) return Err(Errors.notFound("StaffAbsence", input.absenceId));
+    await this.refreshAbsences();
+    return Ok(mapAbsenceRow(data as unknown as StaffAbsenceRow));
+  }
+
+  // --------------------------------------------------------------------------
   // Internals
   // --------------------------------------------------------------------------
 
@@ -193,6 +400,29 @@ export class SupabaseWorkforceAttendanceRepository implements AttendanceReposito
     if (!this.freshness.shouldReseed()) return;
     this.freshness.markSeeded();
     void this.refresh();
+  }
+
+  private seedAbsences(): void {
+    if (!this.absencesFreshness.shouldReseed()) return;
+    this.absencesFreshness.markSeeded();
+    void this.refreshAbsences();
+  }
+
+  private async refreshAbsences(): Promise<void> {
+    try {
+      const { data, error } = await this.client
+        .from("staff_absences")
+        .select(ABSENCE_SELECT)
+        .eq("tenant_id", getTenantId())
+        .order("date", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      this.absencesCache.set(
+        ((data ?? []) as unknown as StaffAbsenceRow[]).map(mapAbsenceRow),
+      );
+    } catch {
+      // Silently degrade to the current cache.
+    }
   }
 
   private async refresh(): Promise<void> {

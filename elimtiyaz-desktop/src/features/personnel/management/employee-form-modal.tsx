@@ -239,7 +239,6 @@ export function EmployeeFormModal({
         dateOfBirth: data.dateOfBirth || null,
         nationalId: data.nationalId?.trim() || null,
         status: data.status as PersonnelStatus,
-        bonuses: [],
         documents: [],
         notes: [],
         emergencyContact,

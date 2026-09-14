@@ -51,7 +51,7 @@ const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "dan
   pending: "neutral",
   assigned: "info",
   in_progress: "warning",
-  blocked: "danger",
+  needs_review: "info",
   completed: "success",
   cancelled: "neutral",
 };
@@ -272,7 +272,7 @@ export function ManagerDashboard() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="in_progress">En cours</SelectItem>
-                        <SelectItem value="blocked">Bloquée</SelectItem>
+                        <SelectItem value="needs_review">À valider</SelectItem>
                         <SelectItem value="completed">Terminée</SelectItem>
                       </SelectContent>
                     </Select>

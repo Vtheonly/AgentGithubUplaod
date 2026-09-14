@@ -42,6 +42,21 @@
  *   7. Departments: `parentId` has no DB column (org-chart nesting is not
  *      persisted); `color` tailwind tokens map to the brand palette hex
  *      values (tailwind.config.cjs).
+ *
+ * T-369 (68th session, 2026-09-14) — the PAYROLL SURFACE (the 74d3ebb
+ * Personnel & Workforce UI commit + migration 0095):
+ *   - `adjustSalary` — the canonical `adjust_personnel_salary` RPC
+ *     (SECURITY DEFINER, role/tenant-guarded, audited server-side; the
+ *     client never computes the next base itself — WORKFORCE-500's core
+ *     defect). The returned adjustment maps to the domain record; the
+ *     personnel caches refresh after the RPC.
+ *   - `recordSalaryPayment` — the canonical `record_salary_disbursement`
+ *     RPC (idempotent per tenant+personnel+period; the period's one-offs
+ *     netted server-side).
+ *   - `observeSalaryPayments` — the `salary_payments` table through the
+ *     shared reactive-cache pattern.
+ *   - `salaryAdjustments` / `salaryPayments` on reads — the PostgREST
+ *     embeds `salary_adjustments(*)` / `salary_payments(*)` (0095 FKs).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
@@ -59,9 +74,13 @@ import type {
   Personnel,
   PersonnelStatus,
   StaffCategory,
+  SalaryAdjustment,
+  SalaryAdjustmentType,
+  SalaryPaymentRecord,
+  PayrollMethod,
 } from "../../../domain/model/personnel";
 import type { Department } from "../../../domain/model/workforce";
-import type { PersonnelRow, DepartmentRow, RoleRow } from "../types";
+import type { DepartmentRow, RoleRow } from "../types";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
@@ -179,6 +198,45 @@ export class RoleLookup {
 }
 
 // ============================================================================
+// Payroll row ↔ domain mapping (0095)
+// ============================================================================
+
+function mapAdjustmentRow(row: Record<string, any>): SalaryAdjustment {
+  return {
+    id: row.id,
+    personnelId: row.personnel_id,
+    type: row.type as SalaryAdjustmentType,
+    amountBefore: Number(row.amount_before ?? 0),
+    amountAfter: Number(row.amount_after ?? 0),
+    delta: Number(row.delta ?? 0),
+    reason: row.reason ?? "",
+    effectiveDate: row.effective_date ?? "",
+    approvedBy: row.approved_by ?? "",
+    approvedByName: row.approved_by_name ?? "",
+    createdAt: row.created_at ?? "",
+  };
+}
+
+function mapPaymentRow(row: Record<string, any>): SalaryPaymentRecord {
+  return {
+    id: row.id,
+    personnelId: row.personnel_id,
+    period: row.period,
+    baseSalary: Number(row.base_salary ?? 0),
+    bonusesTotal: Number(row.bonuses_total ?? 0),
+    deductionsTotal: Number(row.deductions_total ?? 0),
+    netPaid: Number(row.net_paid ?? 0),
+    status: row.status ?? "unpaid",
+    paymentDate: row.payment_date ?? null,
+    method: row.method as PayrollMethod,
+    referenceNumber: row.reference_number ?? null,
+    notes: row.notes ?? null,
+    paidBy: row.paid_by ?? null,
+    paidByName: row.paid_by_name ?? null,
+  };
+}
+
+// ============================================================================
 // Personnel row ↔ domain mapping
 // ============================================================================
 
@@ -236,6 +294,18 @@ function mapPersonnelRow(
 
   const dbCategory = (row.staff_category ?? "support") as keyof typeof CATEGORY_FROM_DB;
 
+  // T-369: the payroll embeds (0095) — adjustments newest-first, payments
+  // by period descending. Nested rows carry numeric as strings; map through
+  // Number() for the domain's number fields.
+  const salaryAdjustments = ((row.salary_adjustments ?? []) as Record<string, unknown>[])
+    .slice()
+    .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
+    .map(mapAdjustmentRow);
+  const salaryPayments = ((row.salary_payments ?? []) as Record<string, unknown>[])
+    .slice()
+    .sort((a, b) => String(b.period ?? "").localeCompare(String(a.period ?? "")))
+    .map(mapPaymentRow);
+
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -260,7 +330,8 @@ function mapPersonnelRow(
     weeklyHoursLogged: 0,
     avatarUrl: null,
     status,
-    bonuses: (row.bonuses_json ?? []) as Personnel["bonuses"],
+    salaryAdjustments,
+    salaryPayments,
     documents: (row.documents_json ?? []) as Personnel["documents"],
     notes,
     emergencyContact,
@@ -308,7 +379,6 @@ function personnelToPatch(
         : null;
   }
   if (p.bankAccount !== undefined) patch.bank_account = p.bankAccount;
-  if (p.bonuses !== undefined) patch.bonuses_json = p.bonuses;
   if (p.documents !== undefined) patch.documents_json = p.documents;
   if (p.notes !== undefined) {
     // JSON-encoded array in the text `notes` column (round-trips via the
@@ -344,6 +414,9 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
   private readonly roles: RoleLookup;
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  // T-369: the payroll disbursement ledger (salary_payments, 0095).
+  private readonly paymentsCache = new SubjectBehavior<SalaryPaymentRecord[]>([]);
+  private readonly paymentsFreshness = new CacheFreshness();
 
   constructor(
     private readonly client: SupabaseClient,
@@ -358,7 +431,10 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
       await this.roles.load();
       const { data, error } = await this.client
         .from("personnel")
-        .select("*")
+        // T-369: the payroll embeds — adjustments + payments ride every read
+        // (RLS restricts them to the finance roles + own records server-side;
+        // non-privileged readers simply receive empty nested arrays).
+        .select("*, salary_adjustments(*), salary_payments(*)")
         .eq("tenant_id", getTenantId())
         .is("deleted_at", null)
         .order("last_name", { ascending: true });
@@ -500,6 +576,133 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
     return Ok(undefined);
+  }
+
+  // --------------------------------------------------------------------------
+  // T-369 — the payroll surface (migration 0095 canonical RPCs)
+  // --------------------------------------------------------------------------
+
+  async adjustSalary(input: {
+    personnelId: string;
+    type: SalaryAdjustmentType;
+    amount: number;
+    reason: string;
+    effectiveDate?: string;
+    actorId: string;
+    actorName: string;
+  }): Promise<Result<SalaryAdjustment>> {
+    if (!isUuid(input.personnelId)) {
+      return Err(Errors.validation(
+        "personnel.adjustSalary requires a personnel UUID (the Supabase personnel table key)",
+        "Profil personnel introuvable — reconnectez-vous.",
+      ));
+    }
+    if (!(input.amount > 0)) {
+      return Err(Errors.validation(
+        "The adjustment amount must be positive",
+        "Le montant de l'ajustement doit être positif.",
+      ));
+    }
+    if (!input.reason || input.reason.trim().length < 5) {
+      // Mirrors the 0095 DB CHECK (length(trim(reason)) >= 5) — fail loud
+      // BEFORE the round-trip.
+      return Err(Errors.validation(
+        "A formal justification of at least 5 characters is mandatory",
+        "Un motif formel (5 caractères minimum) est obligatoire.",
+      ));
+    }
+
+    // The canonical atomic RPC — the client NEVER computes the next base
+    // itself (the 74d3ebb blueprint's rule; the pre-T-369 UI did exactly
+    // that, see WORKFORCE-500 evidence item 2).
+    const { data, error } = await this.client.rpc("adjust_personnel_salary", {
+      p_personnel_id: input.personnelId,
+      p_type: input.type,
+      p_delta: input.amount,
+      p_reason: input.reason.trim(),
+      p_effective_date: input.effectiveDate ?? null,
+      p_actor_name: input.actorName,
+    });
+    if (error) return Err(supabaseErrorToAppError(error));
+
+    const adjustmentRow = (data as Record<string, any>)?.adjustment as
+      | Record<string, any>
+      | undefined;
+    if (!adjustmentRow) {
+      return Err(Errors.validation(
+        "adjust_personnel_salary returned no adjustment row",
+        "La réponse du serveur est invalide.",
+      ));
+    }
+
+    await this.refresh();
+    await this.refreshPayments();
+    return Ok(mapAdjustmentRow(adjustmentRow));
+  }
+
+  async recordSalaryPayment(input: {
+    personnelId: string;
+    period: string;
+    method: PayrollMethod;
+    referenceNumber?: string | null;
+    notes?: string | null;
+    actorId: string;
+    actorName: string;
+  }): Promise<Result<SalaryPaymentRecord>> {
+    if (!isUuid(input.personnelId)) {
+      return Err(Errors.validation(
+        "personnel.recordSalaryPayment requires a personnel UUID",
+        "Profil personnel introuvable — reconnectez-vous.",
+      ));
+    }
+    if (!/^\d{4}-\d{2}$/.test(input.period)) {
+      return Err(Errors.validation(
+        "The payroll period must be YYYY-MM",
+        "La période doit être au format AAAA-MM.",
+      ));
+    }
+
+    // The canonical idempotent RPC (unique per tenant+personnel+period; the
+    // period's bonuses/deductions netted server-side from salary_adjustments).
+    const { data, error } = await this.client.rpc("record_salary_disbursement", {
+      p_personnel_id: input.personnelId,
+      p_period: input.period,
+      p_method: input.method,
+      p_reference_number: input.referenceNumber?.trim() || null,
+      p_notes: input.notes?.trim() || null,
+      p_actor_name: input.actorName,
+    });
+    if (error) return Err(supabaseErrorToAppError(error));
+
+    await this.refreshPayments();
+    await this.refresh();
+    return Ok(mapPaymentRow(data as Record<string, any>));
+  }
+
+  observeSalaryPayments(): Observable<SalaryPaymentRecord[]> {
+    if (!this.paymentsFreshness.shouldReseed()) return this.paymentsCache;
+    this.paymentsFreshness.markSeeded();
+    void this.refreshPayments();
+    return this.paymentsCache;
+  }
+
+  private async refreshPayments(): Promise<void> {
+    try {
+      const { data, error } = await this.client
+        .from("salary_payments")
+        .select("*")
+        .eq("tenant_id", getTenantId())
+        .order("period", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      this.paymentsCache.set(
+        ((data ?? []) as Record<string, any>[]).map(mapPaymentRow),
+      );
+    } catch {
+      // Silently degrade to the current cache (RLS: non-finance readers see
+      // only their own rows — the UI's paid/unpaid statuses are the finance
+      // roles' surface anyway).
+    }
   }
 
   /** Map a freshly written row, refresh the caches, and return the domain object. */

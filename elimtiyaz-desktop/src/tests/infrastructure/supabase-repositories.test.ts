@@ -796,7 +796,6 @@ describe("SupabasePersonnelRepository", () => {
       dateOfBirth: null,
       nationalId: null,
       status: "active",
-      bonuses: [],
       documents: [],
       notes: [],
       emergencyContact: null,

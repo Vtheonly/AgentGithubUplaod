@@ -21,7 +21,7 @@
  * taken path; this applies effects for the SUCCEEDED action nodes only.
  */
 import { store, appendAudit, nowIso } from "./mock-store";
-import { mockTaskRepository } from "../workforce";
+import { mockTaskRepository } from "../workforce/index";
 import { Role } from "../../../core/rbac/roles";
 import { AuditActions } from "../../../core/audit-actions";
 import { resolveTemplate, type ConditionContext } from "../../../domain/calc/workflow/condition-evaluator";

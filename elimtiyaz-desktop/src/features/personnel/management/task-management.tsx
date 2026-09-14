@@ -68,7 +68,6 @@ const STATUS_TONES: Record<
   assigned: "info",
   in_progress: "warning",
   needs_review: "info",
-  blocked: "danger",
   completed: "success",
   cancelled: "neutral",
 };

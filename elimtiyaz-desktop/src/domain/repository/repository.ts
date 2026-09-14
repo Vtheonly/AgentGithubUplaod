@@ -56,7 +56,15 @@ import type {
   CreateCalendarEventInput,
 } from "../model/calendar";
 import type { Expense, SubmitExpenseInput } from "../model/expense";
-import type { Personnel, ReleveEntry, ReleveActivity } from "../model/personnel";
+import type {
+  Personnel,
+  ReleveEntry,
+  ReleveActivity,
+  SalaryAdjustment,
+  SalaryAdjustmentType,
+  SalaryPaymentRecord,
+  PayrollMethod,
+} from "../model/personnel";
 import type { AttributedActivityEvent, AttributedActivityStream, AuditEntry, AuditLogFilter, AuditLogQueryResult } from "../model/audit";
 import type { PricingConfig, PricingEntry, PricingCategory, DiscountType, DiscountCode } from "../model/pricing";
 import type { LedgerEntry, ParentLedgerSummary } from "../model/ledger";
@@ -569,6 +577,45 @@ export interface PersonnelRepository {
   createPersonnel(input: Omit<Personnel, "id" | "tenantId" | "weeklyHoursLogged">): Promise<Result<Personnel>>;
   updatePersonnel(id: string, updates: Partial<Personnel>): Promise<Result<Personnel>>;
   deletePersonnel(id: string): Promise<Result<void>>;
+  /**
+   * T-369 (74d3ebb commit / migration 0095) — the payroll surface.
+   *
+   * Salary adjustments are AUDITED, IMMUTABLE events: every raise/cut/
+   * bonus/deduction carries a mandatory reason (min 5 chars, mirroring the
+   * DB CHECK) and produces a permanent salary_adjustments row. raise/cut move
+   * the base salary; bonus/deduction are one-offs that leave it unchanged.
+   * In Supabase mode this goes through the canonical atomic RPC
+   * `adjust_personnel_salary` (role-guarded, tenant-guarded, audit-logged
+   * server-side); the mock mirrors the same semantics in memory.
+   */
+  adjustSalary(input: {
+    personnelId: string;
+    type: SalaryAdjustmentType;
+    amount: number;
+    reason: string;
+    effectiveDate?: string;
+    actorId: string;
+    actorName: string;
+  }): Promise<Result<SalaryAdjustment>>;
+  /**
+   * T-369 — records (or idempotently re-records) a monthly payroll payout.
+   * Supabase mode: the canonical `record_salary_disbursement` RPC (unique per
+   * tenant+personnel+period; the period's bonuses/deductions derived from
+   * salary_adjustments server-side). Mock: the same semantics in memory.
+   */
+  recordSalaryPayment(input: {
+    personnelId: string;
+    period: string;
+    method: PayrollMethod;
+    referenceNumber?: string | null;
+    notes?: string | null;
+    actorId: string;
+    actorName: string;
+  }): Promise<Result<SalaryPaymentRecord>>;
+  /** T-369 — the payroll disbursement ledger (drives the Payroll tab's paid/
+   * unpaid statuses per period; RLS restricts reads to the finance roles +
+   * own records server-side). */
+  observeSalaryPayments(): Observable<SalaryPaymentRecord[]>;
 }
 
 export interface ReleveRepository {

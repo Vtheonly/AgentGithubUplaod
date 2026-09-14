@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import {
   ClipboardList, CheckCircle2, CalendarClock, Clock,
   Plus, PlayCircle, StopCircle, PauseCircle, RotateCcw,
-  AlertCircle, MessageSquare,
+  MessageSquare,
 } from "lucide-react";
 import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
@@ -44,7 +44,7 @@ const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "dan
   pending: "neutral",
   assigned: "info",
   in_progress: "warning",
-  blocked: "danger",
+  needs_review: "info",
   completed: "success",
   cancelled: "neutral",
 };
@@ -297,18 +297,18 @@ export function WorkerDashboard() {
                   )}
                   {task.status === "in_progress" && (
                     <>
-                      <Button size="sm" variant="outline" onClick={() => updateTaskStatus(task.id, "blocked")}>
-                        <AlertCircle className="size-4" /> Bloquer
+                      <Button size="sm" variant="outline" onClick={() => updateTaskStatus(task.id, "needs_review")}>
+                        <CheckCircle2 className="size-4" /> Soumettre pour validation
                       </Button>
                       <Button size="sm" onClick={() => updateTaskStatus(task.id, "completed")}>
                         <CheckCircle2 className="size-4" /> Terminer
                       </Button>
                     </>
                   )}
-                  {task.status === "blocked" && (
-                    <Button size="sm" onClick={() => updateTaskStatus(task.id, "in_progress")}>
-                      <PlayCircle className="size-4" /> Reprendre
-                    </Button>
+                  {task.status === "needs_review" && (
+                    <span className="text-[10px] text-muted-foreground italic">
+                      En attente de validation par l'administration
+                    </span>
                   )}
                 </li>
               ))}

@@ -53,7 +53,6 @@ import {
   PAYROLL_METHOD_LABELS_FR,
   STAFF_CATEGORY_LABELS_FR,
   type Personnel,
-  type SalaryAdjustment,
   type SalaryAdjustmentType,
   type PayrollMethod,
 } from "../../../domain/model/personnel";
@@ -91,8 +90,28 @@ export function PayrollManagement() {
   const [historyModalWorker, setHistoryModalWorker] = useState<Personnel | null>(null);
   const [downloading, setDownloading] = useState(false);
 
-  // In-memory payment statuses simulation for current period
-  const [paidWorkerIds, setPaidWorkerIds] = useState<Set<string>>(new Set(["pers-001"]));
+  // T-369: the payroll ledger is the REACTIVE repository stream — the paid/
+  // unpaid statuses per period come from the canonical salary_payments rows
+  // (mock store in mock mode; the 0095 table + record_salary_disbursement
+  // RPC in Supabase mode). The pre-T-369 local `useState<Set<string>>` was a
+  // client-side simulation that never persisted (WORKFORCE-500 evidence 2).
+  const salaryPayments = useObservable(() => repos.personnel.observeSalaryPayments(), []);
+  const paidWorkerIds = useMemo(
+    () =>
+      new Set(
+        salaryPayments
+          .filter((p) => p.period === period && p.status === "paid")
+          .map((p) => p.personnelId),
+      ),
+    [salaryPayments, period],
+  );
+  const totalPaidAmount = useMemo(
+    () =>
+      salaryPayments
+        .filter((p) => p.period === period && p.status === "paid")
+        .reduce((sum, p) => sum + p.netPaid, 0),
+    [salaryPayments, period],
+  );
 
   const activeStaff = useMemo(
     () => allPersonnel.filter((p) => p.status === "active"),
@@ -104,12 +123,7 @@ export function PayrollManagement() {
     [activeStaff],
   );
 
-  const totalPaidAmount = useMemo(
-    () => activeStaff.filter((p) => paidWorkerIds.has(p.id)).reduce((sum, p) => sum + (p.salary ?? 0), 0),
-    [activeStaff, paidWorkerIds],
-  );
-
-  const totalUnpaidAmount = totalPayrollBudget - totalPaidAmount;
+  const totalUnpaidAmount = Math.max(0, totalPayrollBudget - totalPaidAmount);
 
   const filteredStaff = useMemo(() => {
     return activeStaff.filter((p) => {
@@ -130,73 +144,57 @@ export function PayrollManagement() {
       return;
     }
 
-    const currentBase = adjustModalWorker.salary ?? 0;
-    let nextBase = currentBase;
-    let signedDelta = adjustAmount;
-
-    if (adjustType === "raise") {
-      nextBase = currentBase + adjustAmount;
-      signedDelta = adjustAmount;
-    } else if (adjustType === "cut") {
-      nextBase = Math.max(0, currentBase - adjustAmount);
-      signedDelta = -adjustAmount;
-    } else if (adjustType === "bonus") {
-      signedDelta = adjustAmount;
-    } else if (adjustType === "deduction") {
-      signedDelta = -adjustAmount;
-    }
-
-    const adjustmentRecord: SalaryAdjustment = {
-      id: `adj-${Date.now()}`,
+    // T-369: the adjustment goes through the canonical repository path —
+    // `adjust_personnel_salary` (Supabase mode: the atomic, role-guarded,
+    // audit-logged RPC; the server computes the next base, floors cuts at 0,
+    // and writes the immutable salary_adjustments row + the master audit
+    // entry). The pre-T-369 client-side computation + embedded-array write
+    // is the WORKFORCE-500 defect being fixed here.
+    const res = await repos.personnel.adjustSalary({
       personnelId: adjustModalWorker.id,
       type: adjustType,
-      amountBefore: currentBase,
-      amountAfter: nextBase,
-      delta: signedDelta,
+      amount: adjustAmount,
       reason: adjustReason.trim(),
-      effectiveDate: new Date().toISOString().slice(0, 10),
-      approvedBy: session.userId,
-      approvedByName: session.displayName ?? "Super Admin",
-      createdAt: new Date().toISOString(),
-    };
-
-    const existingAdjustments = adjustModalWorker.salaryAdjustments ?? [];
-    const res = await repos.personnel.updatePersonnel(adjustModalWorker.id, {
-      salary: nextBase,
-      salaryAdjustments: [adjustmentRecord, ...existingAdjustments],
+      actorId: session.userId,
+      actorName: session.displayName ?? "Super Admin",
     });
 
     if (res.ok) {
-      // Audit log
-      await repos.audit.log({
-        action: "personnel.salary_adjusted",
-        entityType: "personnel",
-        entityId: adjustModalWorker.id,
-        actorId: session.userId,
-        actorName: session.displayName ?? "Super Admin",
-        tenantId: session.tenantId,
-        diff: {
-          before: { salary: currentBase },
-          after: { salary: nextBase, type: adjustType, reason: adjustReason.trim() },
-        },
-        note: `Ajustement de salaire (${SALARY_ADJUSTMENT_TYPE_LABELS_FR[adjustType]}) pour ${adjustModalWorker.firstName} ${adjustModalWorker.lastName} : ${adjustReason.trim()}`,
-      });
-
-      toast.showSuccess("Rémunération ajustée", `Nouveau salaire : ${formatDzdPlain(nextBase)} DA. Motif tracé dans l'audit.`);
+      toast.showSuccess(
+        "Rémunération ajustée",
+        `${SALARY_ADJUSTMENT_TYPE_LABELS_FR[res.value.type]} enregistrée (${res.value.delta > 0 ? "+" : ""}${formatDzdPlain(res.value.delta)} DA). Motif tracé dans l'audit.`,
+      );
       setAdjustModalWorker(null);
       setAdjustReason("");
+    } else {
+      toast.showError("Ajustement refusé", res.error.userMessage);
     }
   }
 
-  function handleRecordDisbursement() {
-    if (!payModalWorker) return;
-    setPaidWorkerIds((prev) => new Set(prev).add(payModalWorker.id));
-    toast.showSuccess(
-      "Salaire marqué comme payé",
-      `Versement de ${formatDzdPlain(payModalWorker.salary ?? 0)} DA enregistré pour ${payModalWorker.firstName} ${payModalWorker.lastName}.`,
-    );
-    setPayModalWorker(null);
-    setPayRefNumber("");
+  async function handleRecordDisbursement() {
+    if (!payModalWorker || !session) return;
+    // T-369: through the canonical `record_salary_disbursement` path —
+    // persisted (idempotent per person+period), with the period's one-off
+    // bonuses/deductions netted server-side.
+    const res = await repos.personnel.recordSalaryPayment({
+      personnelId: payModalWorker.id,
+      period,
+      method: payMethod,
+      referenceNumber: payRefNumber || null,
+      actorId: session.userId,
+      actorName: session.displayName ?? "Super Admin",
+    });
+
+    if (res.ok) {
+      toast.showSuccess(
+        "Salaire marqué comme payé",
+        `Versement de ${formatDzdPlain(res.value.netPaid)} DA enregistré pour ${payModalWorker.firstName} ${payModalWorker.lastName} (${period}).`,
+      );
+      setPayModalWorker(null);
+      setPayRefNumber("");
+    } else {
+      toast.showError("Versement refusé", res.error.userMessage);
+    }
   }
 
   async function handleDownloadWorkerPayslip(p: Personnel) {
