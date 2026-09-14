@@ -3,7 +3,7 @@
  * seeded with the data from seed-data.ts.
  */
 import { appendAudit } from "./repositories/mock-store";
-import { setWorkforceAuditSink } from "./workforce";
+import { setWorkforceAuditSink } from "./workforce/index";
 import { setOperationsAuditSink } from "./operations";
 
 // Re-export all singleton repository instances.
@@ -63,7 +63,7 @@ export {
   mockPerformanceReviewRepository,
   mockChatRepository,
   mockOnboardingRepository,
-} from "./workforce";
+} from "./workforce/index";
 
 // Re-export operations singletons
 export {
@@ -77,26 +77,46 @@ export {
 // ---------------------------------------------------------------------------
 // Audit sink wiring
 // ---------------------------------------------------------------------------
-setWorkforceAuditSink((input) => {
-  appendAudit({
-    action: input.action,
-    entityType: input.entityType,
-    entityId: input.entityId,
-    actorId: input.actorId ?? "system",
-    actorName: input.actorName ?? "Système",
-    diff: input.diff ?? null,
-    note: input.note ?? null,
-  });
-});
+setWorkforceAuditSink(
+  (input: {
+    action: string;
+    entityType: string;
+    entityId: string;
+    actorId?: string;
+    actorName?: string;
+    diff?: { before?: unknown; after?: unknown } | null;
+    note?: string | null;
+  }) => {
+    appendAudit({
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      actorId: input.actorId ?? "system",
+      actorName: input.actorName ?? "Système",
+      diff: input.diff ?? null,
+      note: input.note ?? null,
+    });
+  },
+);
 
-setOperationsAuditSink((input) => {
-  appendAudit({
-    action: input.action,
-    entityType: input.entityType,
-    entityId: input.entityId,
-    actorId: input.actorId ?? "system",
-    actorName: input.actorName ?? "Système",
-    diff: input.diff ?? null,
-    note: input.note ?? null,
-  });
-});
+setOperationsAuditSink(
+  (input: {
+    action: string;
+    entityType: string;
+    entityId: string;
+    actorId?: string;
+    actorName?: string;
+    diff?: { before?: unknown; after?: unknown } | null;
+    note?: string | null;
+  }) => {
+    appendAudit({
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      actorId: input.actorId ?? "system",
+      actorName: input.actorName ?? "Système",
+      diff: input.diff ?? null,
+      note: input.note ?? null,
+    });
+  },
+);

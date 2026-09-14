@@ -46,7 +46,8 @@ import { useClassPlacementStudio } from "../hooks/use-class-placement-studio";
 import { ClassCardDropzone } from "./class-card-dropzone";
 import { StudentPlacementCard } from "./student-placement-card";
 import { CreateSectionDialog } from "./create-section-dialog";
-import type { ClassDraft, PlacementCandidate } from "../../../domain/calc/academics/class-placement";
+import type { ClassDraft } from "../../../domain/calc/academics/class-placement";
+import { PROVENANCE_LABELS_FR } from "../../../domain/calc/academics/class-placement";
 
 type StudioViewMode = "board" | "matrix" | "analytics" | "review";
 

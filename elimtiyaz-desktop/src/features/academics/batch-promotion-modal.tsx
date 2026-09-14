@@ -4,8 +4,11 @@ import {
   CheckCircle2,
   RotateCcw,
   AlertCircle,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { useBatchPromotion } from "./hooks/use-batch-promotion";
+import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
@@ -47,6 +50,7 @@ export function BatchPromotionModal({
   } = useBatchPromotion(classId);
 
   const [filter, setFilter] = useState<"all" | "promoted" | "repeated">("all");
+  const [placementOpen, setPlacementOpen] = useState(false);
 
   const filteredCandidates = candidates.filter((c: PromotionCandidate) => {
     if (filter === "promoted")
@@ -282,38 +286,28 @@ export function BatchPromotionModal({
             financiers restent rattachés à leurs années respectives.
           </span>
         </div>
+
+        <div className="text-[11px] text-muted-foreground bg-primary/5 p-2.5 rounded-md border border-primary/20 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary shrink-0" />
+            <span>
+              Après avoir validé la promotion, lancez l'atelier pour créer les classes de l'année cible et répartir les élèves promus et redoublants.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs border-primary/40 text-primary shrink-0"
+            onClick={() => setPlacementOpen(true)}
+          >
+            Atelier de Répartition <ArrowRight className="h-3 w-3 ml-1" />
+          </Button>
+        </div>
       </div>
+      <ClassPlacementStudioModal
+        open={placementOpen}
+        onOpenChange={setPlacementOpen}
+      />
     </UnifiedModal>
   );
 }
-
-
-
-import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
-import { Sparkles, ArrowRight } from "lucide-react";
-
-// In BatchPromotionModal:
-const [placementOpen, setPlacementOpen] = useState(false);
-
-// Inside the render, add to the footer or post-execution info banner:
-<div className="text-[11px] text-muted-foreground bg-primary/5 p-2.5 rounded-md border border-primary/20 flex items-center justify-between gap-2">
-  <div className="flex items-center gap-2">
-    <Sparkles className="h-4 w-4 text-primary shrink-0" />
-    <span>
-      Après avoir validé la promotion, lancez l'atelier pour créer les classes de l'année cible et répartir les élèves promus et redoublants.
-    </span>
-  </div>
-  <Button
-    size="sm"
-    variant="outline"
-    className="h-7 text-xs border-primary/40 text-primary shrink-0"
-    onClick={() => setPlacementOpen(true)}
-  >
-    Atelier de Répartition <ArrowRight className="h-3 w-3 ml-1" />
-  </Button>
-</div>
-
-<ClassPlacementStudioModal
-  open={placementOpen}
-  onOpenChange={setPlacementOpen}
-/>

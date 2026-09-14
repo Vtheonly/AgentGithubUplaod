@@ -13,6 +13,7 @@ import {
   Filter,
   School,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -44,6 +45,7 @@ import {
   type AcademicLevel,
 } from "../../domain/model/student";
 import type { AcademicClass } from "../../domain/model/academic";
+import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
 
@@ -59,6 +61,9 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
   const [presetGradeLevel, setPresetGradeLevel] = useState<GradeLevel | null>(
     null,
   );
+  const [placementStudioOpen, setPlacementStudioOpen] = useState(false);
+  const [selectedGradeForPlacement, setSelectedGradeForPlacement] =
+    useState<GradeLevel | null>(null);
 
   const classesByGrade = GRADE_LEVELS.reduce(
     (acc, grade) => {
@@ -115,16 +120,30 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
               ))}
             </div>
           </div>
-          {canCreate && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openCreateForGrade()}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Nouvelle classe
-            </Button>
-          )}
+          {canCreate ? (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                onClick={() => {
+                  setSelectedGradeForPlacement(null);
+                  setPlacementStudioOpen(true);
+                }}
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                Constitution des Classes & Répartition
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openCreateForGrade()}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Nouvelle classe
+              </Button>
+            </div>
+          ) : null}
           <span className="text-xs text-muted-foreground font-mono">
             {classes.length} classe(s) active(s) au total
           </span>
@@ -160,20 +179,38 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
                     </Badge>
                   </h3>
                 </div>
-                {canCreate && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openCreateForGrade(gradeCode);
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    Ajouter une classe à ce niveau
-                  </Button>
-                )}
+                <div className="flex items-center gap-1">
+                  {canCreate && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-primary hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedGradeForPlacement(gradeCode);
+                        setPlacementStudioOpen(true);
+                      }}
+                      title={`Répartir les élèves de ${label}`}
+                    >
+                      <Users className="h-3.5 w-3.5 mr-1" />
+                      Répartir ({gradeCode.toUpperCase()})
+                    </Button>
+                  )}
+                  {canCreate && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCreateForGrade(gradeCode);
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Ajouter une classe à ce niveau
+                    </Button>
+                  )}
+                </div>
               </div>
               {!isCollapsed && (
                 <CardContent className="p-4">
@@ -252,6 +289,11 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
         open={createClassOpen}
         onOpenChange={setCreateClassOpen}
         presetGradeCode={presetGradeLevel}
+      />
+      <ClassPlacementStudioModal
+        open={placementStudioOpen}
+        onOpenChange={setPlacementStudioOpen}
+        presetGradeLevel={selectedGradeForPlacement}
       />
     </div>
   );
@@ -445,79 +487,3 @@ function CreateClassModal({
     </UnifiedModal>
   );
 }
-
-
-// Inside src/features/academics/grade-levels-class-view.tsx:
-// Add import:
-import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
-import { Sparkles, Users } from "lucide-react";
-
-// Inside GradeLevelsClassView component:
-const [placementStudioOpen, setPlacementStudioOpen] = useState(false);
-const [selectedGradeForPlacement, setSelectedGradeForPlacement] = useState<GradeLevel | null>(null);
-
-// In the top filter bar, add a prominent action:
-{canCreate && (
-  <div className="flex items-center gap-2">
-    <Button
-      size="sm"
-      variant="default"
-      className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-      onClick={() => {
-        setSelectedGradeForPlacement(null);
-        setPlacementStudioOpen(true);
-      }}
-    >
-      <Sparkles className="h-3.5 w-3.5 mr-1" />
-      Constitution des Classes & Répartition
-    </Button>
-    <Button
-      size="sm"
-      variant="outline"
-      className="h-7 text-xs"
-      onClick={() => openCreateForGrade()}
-    >
-      <Plus className="h-3.5 w-3.5 mr-1" />
-      Nouvelle classe
-    </Button>
-  </div>
-)}
-
-// In each accordion header for a level (e.g. 3AP):
-{canCreate && (
-  <div className="flex items-center gap-1">
-    <Button
-      size="sm"
-      variant="ghost"
-      className="h-7 text-xs text-primary hover:bg-primary/10"
-      onClick={(e) => {
-        e.stopPropagation();
-        setSelectedGradeForPlacement(gradeCode);
-        setPlacementStudioOpen(true);
-      }}
-      title={`Répartir les élèves de ${label}`}
-    >
-      <Users className="h-3.5 w-3.5 mr-1" />
-      Répartir ({gradeCode.toUpperCase()})
-    </Button>
-    <Button
-      size="sm"
-      variant="outline"
-      className="h-7 text-xs"
-      onClick={(e) => {
-        e.stopPropagation();
-        openCreateForGrade(gradeCode);
-      }}
-    >
-      <Plus className="h-3.5 w-3.5 mr-1" />
-      Ajouter classe
-    </Button>
-  </div>
-)}
-
-// At the bottom of GradeLevelsClassView:
-<ClassPlacementStudioModal
-  open={placementStudioOpen}
-  onOpenChange={setPlacementStudioOpen}
-  presetGradeLevel={selectedGradeForPlacement}
-/>

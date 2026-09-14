@@ -3,7 +3,11 @@
 // ============================================================================
 import { Ok, Err } from "../../core/result";
 import { Errors } from "../../core/app-error";
-import { mockObservable } from "./mock-observable";
+import { SubjectBehavior } from "./subject-behavior";
+
+function mockObservable<T>(value: T) {
+  return new SubjectBehavior(value);
+}
 import type {
   Department,
   Shift,
@@ -736,12 +740,13 @@ export const mockChatRepository: ChatRepository = {
   },
   async sendMessage(input) {
     const msg: ChatMessage = {
+      ...input,
+      attachments: input.attachments ?? [],
       id: `msg-${Date.now()}`,
       createdAt: new Date().toISOString(),
       editedAt: null,
       readBy: [input.authorId],
       voiceNoteSeconds: input.voiceNoteSeconds ?? null,
-      ...input,
     };
     mockChatMessages = [...mockChatMessages, msg];
     const cIdx = mockChatChannels.findIndex((c) => c.id === input.channelId);

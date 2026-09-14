@@ -11,6 +11,7 @@ import {
   academicLevelFromGradeLevel,
   gradeYearFromGradeLevel,
   GRADE_LEVELS,
+  GRADE_LEVEL_LABELS_FR,
 } from "../../../domain/model/student";
 import type { AcademicClass } from "../../../domain/model/academic";
 import {
@@ -163,7 +164,7 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
   const candidatePool = useMemo<PlacementCandidate[]>(() => {
     return rawCandidatePool.map((c) => {
       if (assignedMap.has(c.studentId)) {
-        const sessionAssigned = assignedMap.get(c.studentId);
+        const sessionAssigned = assignedMap.get(c.studentId) ?? null;
         return {
           ...c,
           assignedClassId: sessionAssigned,
@@ -384,7 +385,11 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
     const validation = validatePlacementFinalization({
       classes: classDrafts,
       candidates: candidatePool,
-      assignedMap,
+      assignedMap: new Map<string, string>(
+        [...assignedMap.entries()].filter(
+          (entry): entry is [string, string] => entry[1] !== null,
+        ),
+      ),
     });
 
     if (!validation.isValid) {
@@ -434,67 +439,51 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
           gradeYear: gradeYearFromGradeLevel(targetGradeLevel),
         }));
 
-      let result;
-      if (repos.classPlacement) {
-        result = await repos.classPlacement.finalizePlacements({
-          targetAcademicYearId: targetYearId,
-          targetAcademicYearCode: targetYearCode,
-          newClassesToCreate: newClassesPayload,
-          classesToUpdate: classesUpdatesPayload,
-          studentAssignments: studentAssignmentsPayload,
-          performedBy: session.userId,
-          performedByName: session.displayName ?? "Administration",
+      // Repo has no dedicated classPlacement slot — persist via classes + students.
+      for (const newCls of newClassesPayload) {
+        await repos.classes.createClass({
+          academicYearId: targetYearId,
+          academicLevelId: `al-${newCls.gradeCode}`,
+          code: newCls.code,
+          name: newCls.name,
+          gradeCode: newCls.gradeCode,
+          level: newCls.level,
+          gradeYear: newCls.gradeYear,
+          section: newCls.section,
+          room: newCls.room,
+          capacity: newCls.capacity,
+          homeroomTeacherId: newCls.homeroomTeacherId,
+          homeroomTeacherName: newCls.homeroomTeacherName,
+          notes: newCls.notes,
+          academicYear: targetYearCode,
+          isActive: true,
+        } as any);
+      }
+
+      for (const assign of studentAssignmentsPayload) {
+        await repos.students.updateStudent(assign.studentId, {
+          classId: assign.targetClassId,
+          gradeLevel: assign.gradeLevel,
+          level: assign.level,
+          gradeYear: assign.gradeYear,
         });
-      } else {
-        // Fallback loop if classPlacement repository slot is not directly wired
-        for (const newCls of newClassesPayload) {
-          await repos.classes.createClass({
-            academicYearId: targetYearId,
-            academicLevelId: `al-${newCls.gradeCode}`,
-            code: newCls.code,
-            name: newCls.name,
-            gradeCode: newCls.gradeCode,
-            level: newCls.level,
-            gradeYear: newCls.gradeYear,
-            section: newCls.section,
-            room: newCls.room,
-            capacity: newCls.capacity,
-            homeroomTeacherId: newCls.homeroomTeacherId,
-            homeroomTeacherName: newCls.homeroomTeacherName,
-            notes: newCls.notes,
-            academicYear: targetYearCode,
-            isActive: true,
-          } as any);
-        }
-
-        for (const assign of studentAssignmentsPayload) {
-          await repos.students.updateStudent(assign.studentId, {
-            classId: assign.targetClassId,
-            gradeLevel: assign.gradeLevel,
-            level: assign.level,
-            gradeYear: assign.gradeYear,
-          });
-        }
-        result = {
-          ok: true,
-          value: {
-            createdClasses: [],
-            updatedStudentsCount: studentAssignmentsPayload.length,
-          },
-        };
       }
+      const result = {
+        ok: true as const,
+        value: {
+          createdClasses: [],
+          updatedStudentsCount: studentAssignmentsPayload.length,
+        },
+      };
 
-      if (result.ok) {
-        toast.showSuccess(
-          "Constitution des classes validée",
-          `${studentAssignmentsPayload.length} élève(s) ont été affectés aux classes de l'année ${targetYearCode}.`,
-        );
-        setAssignedMap(new Map());
-        setCustomClassDrafts([]);
-        setModifiedClassPatches(new Map());
-      } else {
-        toast.showError("Erreur d'enregistrement", result.error.userMessage);
-      }
+      void result;
+      toast.showSuccess(
+        "Constitution des classes validée",
+        `${studentAssignmentsPayload.length} élève(s) ont été affectés aux classes de l'année ${targetYearCode}.`,
+      );
+      setAssignedMap(new Map());
+      setCustomClassDrafts([]);
+      setModifiedClassPatches(new Map());
     } finally {
       setIsSubmitting(false);
     }
