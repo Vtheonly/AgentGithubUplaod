@@ -619,6 +619,17 @@ export class SupabaseStudentRepository implements StudentRepository {
     return this.cache;
   }
 
+  /**
+   * T-370 (ACAD-500): cross-repo refresh seam — the class-placement finalize
+   * RPC mutates students server-side; this forces the cache to re-fetch on
+   * the next observe (bypassing the CROSS-104 TTL) so moved students appear
+   * immediately in their new sections.
+   */
+  async refresh(): Promise<void> {
+    this.freshness.forceRefresh();
+    await this.seed();
+  }
+
   observeByParent(parentId: string): Observable<Student[]> {
     void this.seed();
     // FIX (reactivity): derive from the shared list cache so drawers update

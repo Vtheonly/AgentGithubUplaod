@@ -38,6 +38,7 @@ import type {
 import type {
   PromotionRepository,
   AcademicYearRepository,
+  ClassPlacementRepository,
 } from "../../domain/repository/academic-repository";
 import type { ClubRepository } from "../../domain/repository/club-repository";
 import type {
@@ -96,6 +97,7 @@ import {
   mockCalendarRepository,
   mockOverdueAlertGenerator,
   mockPromotionRepository,
+  mockClassPlacementRepository,
   mockAcademicYearRepository,
   mockClubRepository,
   mockPsychologyRepository,
@@ -132,6 +134,8 @@ export interface Repositories {
   readonly attendance: AttendanceRepository;
   readonly homework: HomeworkRepository;
   readonly promotion: PromotionRepository;
+  /** T-370 (ACAD-500): the atomic Class Formation & Placement finalize. */
+  readonly classPlacement: ClassPlacementRepository;
   readonly academicYears: AcademicYearRepository;
   readonly clubs: ClubRepository;
   readonly psychology: PsychologyRepository;
@@ -188,6 +192,7 @@ export const mockRepositories: Repositories = {
   attendance: mockAttendanceRepository,
   homework: mockHomeworkRepository,
   promotion: mockPromotionRepository,
+  classPlacement: mockClassPlacementRepository,
   academicYears: mockAcademicYearRepository,
   clubs: mockClubRepository,
   psychology: mockPsychologyRepository,

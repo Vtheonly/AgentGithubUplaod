@@ -18,6 +18,7 @@ export {
   mockAttendanceRepository,
   mockHomeworkRepository,
   mockPromotionRepository,
+  mockClassPlacementRepository,
 } from "./repositories/academic-repository";
 export { mockAcademicYearRepository } from "./repositories/academic-year-repository";
 export { mockClubRepository } from "./repositories/club-repository";

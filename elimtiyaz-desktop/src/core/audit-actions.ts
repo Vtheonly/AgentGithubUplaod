@@ -57,6 +57,13 @@ export const AuditActions = {
   SchoolYearDelete: "school_year.delete",
   SchoolYearSetCurrent: "school_year.set_current",
 
+  /**
+   * T-370 (ACAD-500): the atomic Class Formation & Student Placement batch
+   * finalize — matches the server RPC's write_audit_log action (migration
+   * 0096). Wire-protocol: never rename without a migration.
+   */
+  ClassPlacementFinalize: "class.placement_finalize",
+
   // Clubs (plan §05.07)
   ClubCreate: "club.create",
   ClubUpdate: "club.update",
