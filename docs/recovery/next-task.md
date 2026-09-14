@@ -2,6 +2,10 @@
 
 > Single starting point for "what should I work on next?" When you start a task, set it `In Progress` in `task-registry.md` and identify it here. When you finish, move it to Completed, append evidence to `change-log.md`, and update this file's recommendation.
 
+## 70th session (2026-09-14, CLOSED) — the account↔employee linkage mandate COMPLETE: T-371 / WORKFORCE-501
+
+The Admin-Settings accounts are now linked to employees at creation (migration 0097 applied live atomically + the EF redeployed), the account-creation workflow is redesigned around the employee picker (Settings → Comptes), the employee sees their own profile/tasks/responsibilities at sign-in (the ProfilePage dossier + the RLS-verified self-reads), and the tasks id-space split-brain is repaired (assignment keys on the ACCOUNT id — the space the schema/RLS always mandated). Gates: tsc 0 / eslint 0 errors / 161 files 3373 tests / build GREEN; LIVE: verify_t-371.sql 8/8 + the REST E2E 22/22 (zero residue). The live chain is 0095→0096→0097→0098 (0098 = the concurrent agent's student-documents task). Residuals: link real employee accounts through the new UI (owner action); post-creation binding from the employee directory is a natural follow-up task.
+
 ## How to select the next task safely
 
 1. Open `task-registry.md` and read the **Progress summary** and the current **Ready** section.
