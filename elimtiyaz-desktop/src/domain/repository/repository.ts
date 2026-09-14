@@ -113,6 +113,16 @@ export interface CreateAccountInput {
    * changePassword path, so this loop is closed).
    */
   initialPassword?: string;
+  /**
+   * T-371 (WORKFORCE-501) — the employee record this account belongs to.
+   * When set, the backend binds personnel.user_id to the new profile IN
+   * the creation transaction (one atomic RPC), so the employee's own
+   * profile / tasks / responsibilities resolve from the very first
+   * sign-in. The selected employee must be active, in-tenant and not
+   * already bound to another account (the EF/RPC guard; this contract
+   * surfaces the rejection as an Err).
+   */
+  personnelId?: string;
 }
 
 /** Result of a successful account creation. */
@@ -125,6 +135,29 @@ export interface CreatedAccount {
    * log (SEC-100 lesson).
    */
   initialPassword: string;
+  /**
+   * T-371 — the bound employee, echoed once so the admin's confirmation
+   * panel can show the association that was just created. Absent/null for
+   * unlinked accounts (parents, students, …).
+   */
+  personnelCode?: string | null;
+  /** T-371 — "Prénom Nom" of the bound employee, for display only. */
+  personnelName?: string | null;
+}
+
+/** One row of the admin's accounts overview (T-371). */
+export interface AccountOverviewEntry {
+  /** user_profiles.id — the id tasks/assignee_ids key on. */
+  profileId: string;
+  email: string;
+  displayName: string | null;
+  status: string;
+  /** Primary role code (first active assignment), when resolvable. */
+  role: Role | null;
+  /** The bound employee id (personnel.user_id match), when any. */
+  personnelId: string | null;
+  personnelCode: string | null;
+  personnelName: string | null;
 }
 
 /**
@@ -138,6 +171,13 @@ export interface CreatedAccount {
  */
 export interface UserAccountRepository {
   createAccount(input: CreateAccountInput): Promise<Result<CreatedAccount>>;
+  /**
+   * T-371 — the accounts overview for the admin's verification surface:
+   * every login account in the tenant with its role and its bound employee
+   * (the association state the redesigned workflow creates). Read-only;
+   * SuperAdmin-visible under RLS in Supabase mode.
+   */
+  listAccounts(): Promise<Result<AccountOverviewEntry[]>>;
 }
 
 export interface ParentRepository {

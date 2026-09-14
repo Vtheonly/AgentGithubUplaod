@@ -67,6 +67,13 @@ export interface ScheduleRepository {
 
 export interface TaskRepository {
   observe(): Observable<Task[]>;
+  /**
+   * T-371 (WORKFORCE-501) id-space note: the argument is the ACCOUNT id
+   * (user_profiles.id) — the id space `tasks.assignee_ids` stores per the
+   * 0010 schema + 0019 RLS (`assignee_ids @> current_user_profile_id`).
+   * The legacy parameter NAME (`personnelId`) is kept to avoid a breaking
+   * rename across every consumer; pass the signed-in user's profile id.
+   */
   observeByAssignee(personnelId: string): Observable<Task[]>;
   observeByDepartment(departmentId: string): Observable<Task[]>;
   observeById(id: string): Observable<Task | null>;

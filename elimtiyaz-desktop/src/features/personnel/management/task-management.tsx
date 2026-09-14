@@ -87,9 +87,14 @@ export function TaskManagement() {
 
   const me = useObservable(
     () => repos.personnel.observeByUserId(currentUserId),
-    [currentUserId],
+    [currentUserId, repos.personnel],
   );
-  const myPersonnelId = me?.id ?? currentUserId;
+  // T-371 (WORKFORCE-501) — assignee_ids stores ACCOUNT ids
+  // (user_profiles.id per 0010/0019), so the self-filter matches on the
+  // account id: me.userId when the dossier resolves, the session account id
+  // otherwise. (The pre-T-371 personnel-id fallback never matched a row
+  // under the schema's id space — the split-brain this task repairs.)
+  const myAccountId = me?.userId ?? currentUserId;
 
   const allTasks = useObservable(() => repos.tasks.observe(), []);
   const departments = useObservable(() => repos.departments.observe(), []);
@@ -104,8 +109,8 @@ export function TaskManagement() {
 
   const displayedTasks = useMemo(() => {
     if (isSuperAdmin) return allTasks;
-    return allTasks.filter((t) => t.assigneeIds.includes(myPersonnelId));
-  }, [allTasks, isSuperAdmin, myPersonnelId]);
+    return allTasks.filter((t) => t.assigneeIds.includes(myAccountId));
+  }, [allTasks, isSuperAdmin, myAccountId]);
 
   const filtered = useMemo(() => {
     return displayedTasks.filter((t) => {
@@ -198,7 +203,11 @@ export function TaskManagement() {
       header: "Assigné(s)",
       accessor: (t) => t.assigneeIds.length,
       cell: (t) => {
-        const assignees = personnel.filter((p) => t.assigneeIds.includes(p.id));
+        // T-371 — assignee_ids holds ACCOUNT ids; resolve names through
+        // the personnel rows bound to those accounts (personnel.userId).
+        const assignees = personnel.filter(
+          (p) => p.userId !== null && t.assigneeIds.includes(p.userId),
+        );
         if (assignees.length === 0) {
           return (
             <span className="text-xs text-muted-foreground">Non assignée</span>

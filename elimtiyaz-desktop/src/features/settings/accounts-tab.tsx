@@ -1,99 +1,41 @@
 /**
- * AccountsTab — admin-created login accounts (T-079).
+ * AccountsTab — admin-created login accounts, redesigned (T-079 + T-371).
  *
- * Owner request: "Implement the functionality in the desktop app that
- * allows an admin to create accounts for other users so they can log in
- * with their own accounts."
+ * T-079 (original): a login account could only originate from a web
+ * self-signup reviewed in the "Inscriptions" tab; this tab gave the
+ * SuperAdmin a direct provisioning path (create the account, hand the
+ * initial credentials out-of-band, the user signs in and changes the
+ * password).
  *
- * Before T-079 a login account could ONLY originate from a web
- * self-signup reviewed in the "Inscriptions" tab. This tab gives the
- * SuperAdmin a direct provisioning path: create the account, hand the
- * initial credentials to the user out-of-band, and the user signs in
- * with their own email + password (then changes the password — the
- * changePassword path works since T-003).
+ * T-371 (WORKFORCE-501, the redesign): the account is now associated with
+ * the selected EMPLOYEE from the moment it is created — the new
+ * CreateAccountModal puts the employee picker first, prefills the identity
+ * from the personnel record, and the backend binds personnel.user_id in the
+ * creation transaction. This tab gained the verification surface:
+ *   - the credentials panel shows the LINKED EMPLOYEE (code + name) so the
+ *     admin can confirm the association before handing the credentials over;
+ *   - the "Comptes & rattachements" overview lists every account with its
+ *     role and its bound employee (or the absence of one).
  *
- * RBAC: SuperAdmin ONLY. The create-user-account Edge Function enforces
- * the same gate server-side (deliberately narrower than the approvals
- * workflow, whose assign_role surface is the registered SEC-107
- * escalation — support_staff must NOT be able to mint privileged
- * accounts).
- *
- * Mock parity: with VITE_USE_SUPABASE=false the account is minted into
- * the in-memory seedAccounts (the new user can sign in immediately in
- * dev/demo); with Supabase configured the request goes through the EF,
- * which creates the auth.users row via the Admin API (service role never
- * ships in the client, plan §12.05).
+ * RBAC: SuperAdmin ONLY. The Edge Function enforces the same gate
+ * server-side (deliberately narrower than the approvals workflow, whose
+ * assign_role surface is the registered SEC-107 escalation).
  */
 
-import { useState } from "react";
-import { z } from "zod";
+import { useCallback, useEffect, useState } from "react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { Role, ROLE_LABELS_FR } from "../../core/rbac/roles";
-import type { CreatedAccount } from "../../domain/repository/repository";
+import type {
+  AccountOverviewEntry,
+  CreatedAccount,
+} from "../../domain/repository/repository";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
-import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
-import { UserPlus, Users, KeyRound, ShieldAlert, Copy, Check } from "lucide-react";
-
-/* ------------------------------------------------------------------ */
-/* Form schema + fields                                                */
-/* ------------------------------------------------------------------ */
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const CreateAccountSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email requis")
-    .regex(EMAIL_RE, "Adresse email invalide"),
-  fullName: z.string().optional(),
-  phone: z.string().optional(),
-  role: z
-    .string()
-    .min(1, "Rôle requis")
-    .refine((v) => v in ROLE_LABELS_FR, "Rôle inconnu"),
-  password: z
-    .string()
-    .optional()
-    .refine(
-      (v) => !v || (v.length >= 8 && /[a-z]/.test(v) && /[A-Z]/.test(v) && /\d/.test(v)),
-      "Au moins 8 caractères, une majuscule, une minuscule et un chiffre",
-    ),
-});
-
-type CreateAccountFormData = z.infer<typeof CreateAccountSchema>;
-
-/** Staff roles first (desktop access), then the web-portal roles. */
-const ROLE_OPTIONS = [
-  Role.SupportStaff,
-  Role.FinancialOfficer,
-  Role.Teacher,
-  Role.Manager,
-  Role.Buyer,
-  Role.Driver,
-  Role.WarehouseWorker,
-  Role.Worker,
-  Role.SuperAdmin,
-  Role.Parent,
-  Role.Student,
-].map((role) => ({ value: role, label: ROLE_LABELS_FR[role] }));
-
-const CREATE_FIELDS: readonly AutoFormField[] = [
-  { name: "email", label: "Email de connexion", type: "email", required: true, placeholder: "prenom.nom@elimtiyaz.dz" },
-  { name: "fullName", label: "Nom complet", type: "text", placeholder: "Prénom Nom" },
-  { name: "phone", label: "Téléphone", type: "tel", placeholder: "+213 …" },
-  { name: "role", label: "Rôle", type: "select", required: true, options: ROLE_OPTIONS, placeholder: "Sélectionner un rôle…" },
-  {
-    name: "password",
-    label: "Mot de passe initial",
-    type: "password",
-    wide: true,
-    placeholder: "••••••••",
-    help: "Laissez vide pour générer un mot de passe conforme. Min. 8 caractères avec majuscule, minuscule et chiffre.",
-  },
-];
+import { StatusChip } from "../../shared/ui/status-chip";
+import { CreateAccountModal } from "./create-account-modal";
+import { UserPlus, Users, KeyRound, ShieldAlert, Copy, Check, Link2, Unlink, RefreshCw } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
@@ -102,11 +44,43 @@ const CREATE_FIELDS: readonly AutoFormField[] = [
 export function AccountsTab() {
   const repos = useRepositories();
   const { session } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { showError } = useToast();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [credentials, setCredentials] = useState<CreatedAccount | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const [accounts, setAccounts] = useState<AccountOverviewEntry[] | null>(null);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+
+  const refreshAccounts = useCallback(async () => {
+    setLoadingAccounts(true);
+    const result = await repos.userAccounts.listAccounts();
+    if (result.ok) {
+      setAccounts(result.value);
+    } else {
+      setAccounts(null);
+      showError(
+        "Chargement impossible",
+        result.error.userMessage ?? result.error.message,
+      );
+    }
+    setLoadingAccounts(false);
+  }, [repos.userAccounts, showError]);
+
+  useEffect(() => {
+    // SuperAdmin-only surface — the list is RLS-gated server-side too.
+    if (session?.role === Role.SuperAdmin) {
+      void refreshAccounts();
+    }
+  }, [session?.role, refreshAccounts]);
+
+  function handleCreated(account: CreatedAccount): void {
+    setCredentials(account);
+    setCopied(false);
+    // The overview must show the new account + its linkage immediately.
+    void refreshAccounts();
+  }
 
   // RBAC gate — the Edge Function enforces the same rule server-side.
   if (!session || session.role !== Role.SuperAdmin) {
@@ -124,33 +98,12 @@ export function AccountsTab() {
     );
   }
 
-  async function handleSubmit(data: CreateAccountFormData): Promise<void> {
-    const result = await repos.userAccounts.createAccount({
-      email: data.email,
-      fullName: data.fullName || undefined,
-      phone: data.phone || undefined,
-      role: data.role as Role,
-      initialPassword: data.password || undefined,
-    });
-
-    if (result.ok) {
-      setCredentials(result.value);
-      setCopied(false);
-      showSuccess(
-        "Compte créé",
-        `${result.value.email} peut maintenant se connecter.`,
-      );
-      return; // AutoFormModal closes on resolve
-    }
-
-    // Keep the modal open (AutoFormModal only closes when onSubmit resolves).
-    showError("Création impossible", result.error.userMessage ?? result.error.message);
-    throw new Error(result.error.message);
-  }
-
   function copyCredentials(): void {
     if (!credentials) return;
-    const text = `El-Imtiyaz — Identifiants\nEmail : ${credentials.email}\nMot de passe initial : ${credentials.initialPassword}`;
+    const linked = credentials.personnelCode
+      ? `\nEmployé lié : ${credentials.personnelName ?? ""} (${credentials.personnelCode})`
+      : "";
+    const text = `El-Imtiyaz — Identifiants\nEmail : ${credentials.email}\nMot de passe initial : ${credentials.initialPassword}${linked}`;
     navigator.clipboard
       ?.writeText(text)
       .then(() => {
@@ -173,10 +126,13 @@ export function AccountsTab() {
                 Comptes utilisateurs
               </CardTitle>
               <CardDescription>
-                Créez un compte de connexion pour un membre du personnel ou un parent.
-                L'utilisateur se connecte ensuite avec son propre email et mot de passe,
-                puis change son mot de passe à la première connexion. Les inscriptions
-                venues du site web restent dans l'onglet « Inscriptions ».
+                Créez un compte rattaché à un membre du personnel — la fiche
+                employé pilote le formulaire et le compte est lié à
+                l'employé dès sa création : à la connexion, il retrouve son
+                profil, ses tâches et ses responsabilités. Pour un parent ou
+                un élève, choisissez le mode « Autre utilisateur ». Les
+                inscriptions venues du site web restent dans l'onglet «
+                Inscriptions ».
               </CardDescription>
             </div>
             <Button onClick={() => setCreateOpen(true)}>
@@ -201,6 +157,21 @@ export function AccountsTab() {
                   <span className="text-muted-foreground">Rôle : </span>
                   <span className="font-medium">{ROLE_LABELS_FR[credentials.role]}</span>
                 </div>
+                {credentials.personnelCode ? (
+                  <div className="sm:col-span-2 flex items-center gap-1.5">
+                    <Link2 className="h-4 w-4 text-status-success" />
+                    <span className="text-muted-foreground">Employé lié : </span>
+                    <span className="font-medium">
+                      {credentials.personnelName ?? "—"}
+                    </span>
+                    <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                      {credentials.personnelCode}
+                    </code>
+                    <span className="text-xs text-muted-foreground">
+                      (profil, tâches et responsabilités visibles dès sa connexion)
+                    </span>
+                  </div>
+                ) : null}
                 <div className="sm:col-span-2">
                   <span className="text-muted-foreground">Mot de passe initial : </span>
                   <code className="font-mono bg-muted px-2 py-1 rounded select-all">
@@ -233,15 +204,90 @@ export function AccountsTab() {
         </CardContent>
       </Card>
 
-      <AutoFormModal
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Link2 className="h-4 w-4" />
+                Comptes &amp; rattachements
+              </CardTitle>
+              <CardDescription>
+                Tous les comptes du tenant avec leur rôle et l'employé lié —
+                l'état de l'association créée par le workflow ci-dessus.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void refreshAccounts()}>
+              <RefreshCw className={"h-4 w-4" + (loadingAccounts ? " animate-spin" : "")} />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {accounts === null ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {loadingAccounts ? "Chargement…" : "Aucun compte lisible."}
+            </p>
+          ) : accounts.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Aucun compte dans ce tenant.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="py-2 pr-3 font-medium">Email</th>
+                    <th className="py-2 pr-3 font-medium">Nom</th>
+                    <th className="py-2 pr-3 font-medium">Rôle</th>
+                    <th className="py-2 pr-3 font-medium">Employé lié</th>
+                    <th className="py-2 font-medium">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accounts.map((a) => (
+                    <tr key={a.profileId} className="border-b last:border-b-0">
+                      <td className="py-2 pr-3">{a.email}</td>
+                      <td className="py-2 pr-3">{a.displayName ?? "—"}</td>
+                      <td className="py-2 pr-3">
+                        {a.role ? ROLE_LABELS_FR[a.role] : "—"}
+                      </td>
+                      <td className="py-2 pr-3">
+                        {a.personnelId ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Link2 className="h-3.5 w-3.5 text-status-success" />
+                            <span>
+                              {a.personnelName ?? "—"}{" "}
+                              <code className="font-mono text-[11px] text-muted-foreground">
+                                {a.personnelCode}
+                              </code>
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                            <Unlink className="h-3.5 w-3.5" />
+                            non lié
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2">
+                        <StatusChip
+                          label={a.status === "active" ? "Actif" : a.status}
+                          tone={a.status === "active" ? "success" : "warning"}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <CreateAccountModal
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="Créer un compte"
-        description="Le compte sera actif immédiatement avec le rôle choisi. Un email de confirmation n'est pas requis — l'utilisateur peut se connecter dès que vous lui avez transmis ses identifiants."
-        schema={CreateAccountSchema}
-        fields={CREATE_FIELDS}
-        onSubmit={handleSubmit}
-        submitLabel="Créer le compte"
+        onCreated={handleCreated}
       />
     </div>
   );
