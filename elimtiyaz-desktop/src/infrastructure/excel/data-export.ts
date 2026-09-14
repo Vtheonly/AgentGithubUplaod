@@ -207,16 +207,25 @@ function buildLedgerSheet(ledger: readonly LedgerEntry[]): SheetSpec {
  * (counts, totals, sanity checks). Always the first sheet.
  */
 function buildSummarySheet(data: ExportData): SheetSpec {
+  // T-368 (REPT-505): the canonical ledger sign convention (domain/calc/
+  // ledger/balance.ts:71): payments/refunds are NEGATIVE credits — display
+  // totals use absolute values, the outstanding is the SIGNED sum of all
+  // entries. The old formula (`charged + adjusted − paid`) assumed positive
+  // payments and inflated "Solde global en attente" by 2×|paid| on every
+  // export of real (negative-payment) ledger data.
   const totalCharged = data.ledger
     .filter((e) => e.type === "charge")
     .reduce((sum, e) => sum + e.amount, 0);
   const totalPaid = data.ledger
     .filter((e) => e.type === "payment")
-    .reduce((sum, e) => sum + e.amount, 0);
+    .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+  const totalRefunded = data.ledger
+    .filter((e) => e.type === "refund")
+    .reduce((sum, e) => sum + Math.abs(e.amount), 0);
   const totalAdjusted = data.ledger
     .filter((e) => e.type === "adjustment")
     .reduce((sum, e) => sum + e.amount, 0);
-  const outstanding = totalCharged + totalAdjusted - totalPaid;
+  const outstanding = data.ledger.reduce((sum, e) => sum + e.amount, 0);
 
   return {
     name: "Résumé",
@@ -235,7 +244,8 @@ function buildSummarySheet(data: ExportData): SheetSpec {
       { metric: "— Totaux financiers (DZD) —", value: "" },
       { metric: "Total facturé (charges)", value: totalCharged },
       { metric: "Total encaissé (paiements)", value: totalPaid },
-      { metric: "Total ajustements (remises/remboursements)", value: totalAdjusted },
+      { metric: "Total remboursements", value: totalRefunded },
+      { metric: "Total ajustements (remises/majorations, signé)", value: totalAdjusted },
       { metric: "Solde global en attente", value: outstanding },
     ],
   };

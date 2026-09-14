@@ -14,6 +14,14 @@
  *     without recorded evidence"), advertising an unimplemented format
  *     in the UI is the same class of dishonesty. The XLSX format remains
  *     (it's the only one actually implemented for this report).
+ *
+ * T-368 (67th session, REPT-503/504): the T-088 gap is now filled by a
+ * REAL implementation instead of a badge removal — every global report
+ * gains an honest PDF button (the global-reports.ts twins over the same
+ * reactive streams), plus the owner-mandated "Export complet" card: the
+ * ENTIRE application's data + statistics in one multi-sheet workbook
+ * (full-export.ts — 13 sheets, one per domain, RLS-scoped by the
+ * repositories themselves).
  */
 import { useState } from "react";
 import {
@@ -25,6 +33,7 @@ import {
   Loader2,
   FileText,
   Download,
+  Database,
 } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useToast } from "../../../app/providers/toast-provider";
@@ -34,6 +43,16 @@ import { AuditActions } from "../../../core/audit-actions";
 import {
   exportRevenueReport, exportOutstandingDebtReport, exportStudentRoster,
 } from "../../../infrastructure/excel/reports";
+import { exportFullWorkbook } from "../../../infrastructure/excel/full-export";
+import {
+  generateRevenueReportPdf,
+  generateOutstandingDebtReportPdf,
+  generateStudentRosterPdf,
+  generatePersonnelDirectoryPdf,
+  generateExpensesByCategoryPdf,
+} from "../../../infrastructure/receipt-pdf/global-reports";
+import { downloadPdf } from "../../../infrastructure/receipt-pdf/download";
+import type { PricingConfig } from "../../../domain/model/pricing";
 import { Card, CardContent } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
 import { Badge } from "../../../shared/ui/badge";
@@ -58,33 +77,63 @@ export function ReportsTab() {
   const expenses = useObservable(() => repos.expenses.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
 
+  // T-368 (REPT-503): the full-export streams (same reactive pattern).
+  const installments = useObservable(() => repos.installments.observe(), []);
+  const ledger = useObservable(() => repos.ledger.observe(), []);
+  const classes = useObservable(() => repos.classes.observe(), []);
+  const subjects = useObservable(() => repos.subjects.observe(), []);
+  const assessments = useObservable(() => repos.grades.observeAll(), []);
+  // The analytics-tab range convention: full history for the export.
+  const attendance = useObservable(
+    () => repos.attendance.observeAll("2020-01-01", "2030-12-31"),
+    [],
+  );
+  const pricing = useObservable(() => repos.pricing.observe(), []);
+
+  // T-368 (REPT-503): the full-export contract takes `PricingConfig | null` —
+  // an unseeded/empty pricing stream (Supabase async seed) yields null so
+  // the Services sheet renders honestly empty instead of a fake catalog.
+  const pricingValue: PricingConfig | null =
+    pricing &&
+    (Object.keys(pricing.tuitionByGradeLevel ?? {}).length > 0 ||
+      Object.keys(pricing.monthlyByLevel ?? {}).length > 0 ||
+      (pricing.registrationFee ?? 0) > 0)
+      ? pricing
+      : null;
+
   // Iteration 9: ONLY macro / organization-level aggregate reports.
   // Entity-specific reports (relevé-enseignant, releve-notes, bulletins,
   // paiements-jour) have been relocated to their respective profile drawers.
-  // T-088: "PDF" format removed from "Revenu mensuel" — the handler was
-  // a "Bientôt disponible" toast (a fake feature). XLSX is the only
-  // actually-implemented format for this report.
+  // T-088 removed the dishonest "PDF" badge (a fake feature); T-368 fills
+  // the gap with the REAL global-reports PDF twins + the export complet.
   const reports = [
+    {
+      code: "export-complet",
+      title: "Export complet (toutes données)",
+      desc: "Excel 13 feuilles: parents, élèves, personnel, paiements, tranches, journal, dépenses, notes, présences, créances, classes, services + statistiques.",
+      icon: Database,
+      formats: ["XLSX"] as const,
+    },
     {
       code: "revenu-mensuel",
       title: "Revenu mensuel",
-      desc: "Excel multi-feuilles: synthèse, par méthode, par catégorie, transactions.",
+      desc: "Synthèse, par méthode, par catégorie, transactions — Excel multi-feuilles et PDF.",
       icon: TrendingUp,
-      formats: ["XLSX"] as const,
+      formats: ["XLSX", "PDF"] as const,
     },
     {
       code: "creances-agees",
       title: "Créances par tranche d'âge",
-      desc: "XLSX: famille, élève, montant, tranche 0-30/31-60/61-90+.",
+      desc: "Famille, montant, tranche 0-30/31-60/61-90+ — Excel et PDF.",
       icon: AlertTriangle,
-      formats: ["XLSX"] as const,
+      formats: ["XLSX", "PDF"] as const,
     },
     {
       code: "effectifs-niveau",
       title: "Effectifs par niveau",
-      desc: "XLSX: répartition Primaire / CEM / Lycée, code par code.",
+      desc: "Répartition Primaire / CEM / Lycée, registre complet — Excel et PDF.",
       icon: Users,
-      formats: ["XLSX"] as const,
+      formats: ["XLSX", "PDF"] as const,
     },
     {
       code: "journal-audit",
@@ -96,16 +145,16 @@ export function ReportsTab() {
     {
       code: "depenses-categorie",
       title: "Dépenses par catégorie",
-      desc: "XLSX: agrégat mensuel par catégorie contrôlée.",
+      desc: "Agrégat par catégorie + tickets — Excel et PDF.",
       icon: Wallet,
-      formats: ["XLSX"] as const,
+      formats: ["XLSX", "PDF"] as const,
     },
     {
       code: "annuaire-personnel",
       title: "Annuaire du personnel",
-      desc: "XLSX: nom, catégorie, contact, statut.",
+      desc: "Nom, catégorie, contact, statut — Excel et PDF.",
       icon: Users,
-      formats: ["XLSX"] as const,
+      formats: ["XLSX", "PDF"] as const,
     },
   ];
 
@@ -118,7 +167,30 @@ export function ReportsTab() {
     setExporting(`${code}-${format}`);
     try {
       let exportedRows: number | null = null;
-      if (code === "revenu-mensuel" && format === "XLSX") {
+      let fileName = "";
+      if (code === "export-complet" && format === "XLSX") {
+        // T-368 (REPT-503): the owner-mandated full-application export —
+        // every domain stream + the computed statistics, one workbook.
+        fileName = await exportFullWorkbook({
+          parents,
+          students,
+          personnel,
+          payments,
+          installments,
+          ledger,
+          expenses,
+          assessments,
+          subjects,
+          attendance,
+          debtSummaries,
+          classes,
+          pricing: pricingValue,
+          exportedAt: new Date().toISOString(),
+        });
+        exportedRows =
+          parents.length + students.length + payments.length + ledger.length + installments.length;
+        toast.showSuccess("Export complet généré", fileName);
+      } else if (code === "revenu-mensuel" && format === "XLSX") {
         // T-351 (DASH-406): the REACTIVE payments stream (never a `.get()`
         // race on an unseeded cache).
         const today = new Date();
@@ -129,7 +201,20 @@ export function ReportsTab() {
           to: today.toISOString().slice(0, 10),
         });
         exportedRows = payments.length;
-      } else if (code === "creances-agees") {
+      } else if (code === "revenu-mensuel" && format === "PDF") {
+        // T-368 (REPT-504): the PDF twin — SAME reactive stream.
+        const today = new Date();
+        const from = new Date(today);
+        from.setMonth(from.getMonth() - 12);
+        const bytes = await generateRevenueReportPdf(payments, {
+          from: from.toISOString().slice(0, 10),
+          to: today.toISOString().slice(0, 10),
+        });
+        fileName = `el-imtiyaz-revenu-${new Date().toISOString().slice(0, 10)}.pdf`;
+        downloadPdf(bytes, fileName);
+        exportedRows = payments.length;
+        toast.showSuccess("Rapport PDF généré", fileName);
+      } else if (code === "creances-agees" && format === "XLSX") {
         const rows = debtSummaries
           .filter((d) => d.outstandingAmount > 0)
           .map((d) => ({
@@ -144,10 +229,32 @@ export function ReportsTab() {
           }));
         await exportOutstandingDebtReport(rows, "xlsx");
         exportedRows = rows.length;
-      } else if (code === "effectifs-niveau") {
+      } else if (code === "creances-agees" && format === "PDF") {
+        const debtRows = debtSummaries
+          .filter((d) => d.outstandingAmount > 0)
+          .map((d) => ({
+            parentCode: parents.find((p) => p.id === d.parentId)?.code ?? d.parentId,
+            parentName: d.parentName,
+            parentPhone: d.parentPhone || parents.find((p) => p.id === d.parentId)?.phone || "",
+            bucket: d.bucket as string,
+            daysOverdue: d.daysOverdue,
+            outstandingAmount: d.outstandingAmount,
+          }));
+        const bytes = await generateOutstandingDebtReportPdf(debtRows);
+        fileName = `el-imtiyaz-creances-${new Date().toISOString().slice(0, 10)}.pdf`;
+        downloadPdf(bytes, fileName);
+        exportedRows = debtRows.length;
+        toast.showSuccess("Rapport PDF généré", fileName);
+      } else if (code === "effectifs-niveau" && format === "XLSX") {
         await exportStudentRoster(students);
         exportedRows = students.length;
-      } else if (code === "annuaire-personnel") {
+      } else if (code === "effectifs-niveau" && format === "PDF") {
+        const bytes = await generateStudentRosterPdf(students);
+        fileName = `el-imtiyaz-effectifs-${new Date().toISOString().slice(0, 10)}.pdf`;
+        downloadPdf(bytes, fileName);
+        exportedRows = students.length;
+        toast.showSuccess("Rapport PDF généré", fileName);
+      } else if (code === "annuaire-personnel" && format === "XLSX") {
         if (personnel.length === 0) {
           toast.showWarning("Aucun personnel", "Rien à exporter.");
           return;
@@ -186,7 +293,17 @@ export function ReportsTab() {
         );
         toast.showSuccess("Export XLSX", `${personnel.length} personnel(s) exporté(s).`);
         return;
-      } else if (code === "depenses-categorie") {
+      } else if (code === "annuaire-personnel" && format === "PDF") {
+        if (personnel.length === 0) {
+          toast.showWarning("Aucun personnel", "Rien à exporter.");
+          return;
+        }
+        const bytes = await generatePersonnelDirectoryPdf(personnel);
+        fileName = `annuaire-personnel-${new Date().toISOString().slice(0, 10)}.pdf`;
+        downloadPdf(bytes, fileName);
+        exportedRows = personnel.length;
+        toast.showSuccess("Rapport PDF généré", fileName);
+      } else if (code === "depenses-categorie" && format === "XLSX") {
         const { exportToXlsx } = await import("../../../infrastructure/excel/export-engine");
         // T-351 (DASH-406): the reactive expenses stream.
         const byCategory = new Map<string, number>();
@@ -209,6 +326,12 @@ export function ReportsTab() {
         );
         toast.showSuccess("Export XLSX", `${byCategory.size} catégories exportées.`);
         return;
+      } else if (code === "depenses-categorie" && format === "PDF") {
+        const bytes = await generateExpensesByCategoryPdf(expenses);
+        fileName = `depenses-categorie-${new Date().toISOString().slice(0, 10)}.pdf`;
+        downloadPdf(bytes, fileName);
+        exportedRows = expenses.length;
+        toast.showSuccess("Rapport PDF généré", fileName);
       } else {
         // T-088: the old "Bientôt disponible" toast for unimplemented
         // reports was dead-feature dishonesty. Each report card now
@@ -218,7 +341,9 @@ export function ReportsTab() {
         toast.showError("Export non implémenté", `Le rapport "${code}" en format ${format} n'est pas encore implémenté.`);
         return;
       }
-      toast.showSuccess("Export généré", `Le rapport ${code} a été téléchargé.`);
+      if (code !== "export-complet") {
+        toast.showSuccess("Export généré", `Le rapport ${code} a été téléchargé.`);
+      }
       // VAULT §12.01 — system exports (PDF / XLSX / CSV) are tracked audit
       // events, attributed to the exporting user.
       if (exportedRows !== null) {
@@ -230,7 +355,7 @@ export function ReportsTab() {
           actorName: session?.displayName ?? "Session courante",
           tenantId: session?.tenantId ?? "mock",
           diff: { before: null, after: { report: code, format, rows: exportedRows } },
-          note: `Export ${format} — rapport « ${code} » (${exportedRows} ligne(s))`,
+          note: `Export ${format} — rapport « ${code} » (${exportedRows} ligne(s))${fileName ? ` → ${fileName}` : ""}`,
         });
       }
     } catch (e) {
@@ -253,7 +378,10 @@ export function ReportsTab() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {reports.map((r) => {
           const Icon = r.icon;
-          const isReady = ["revenu-mensuel", "creances-agees", "effectifs-niveau", "annuaire-personnel", "depenses-categorie"].includes(r.code);
+          const isReady = [
+            "export-complet", "revenu-mensuel", "creances-agees", "effectifs-niveau",
+            "annuaire-personnel", "depenses-categorie",
+          ].includes(r.code);
           return (
             <Card key={r.code} className="hover:border-primary/50 transition-colors">
               <CardContent className="flex items-start justify-between p-4">
