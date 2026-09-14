@@ -445,3 +445,79 @@ function CreateClassModal({
     </UnifiedModal>
   );
 }
+
+
+// Inside src/features/academics/grade-levels-class-view.tsx:
+// Add import:
+import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
+import { Sparkles, Users } from "lucide-react";
+
+// Inside GradeLevelsClassView component:
+const [placementStudioOpen, setPlacementStudioOpen] = useState(false);
+const [selectedGradeForPlacement, setSelectedGradeForPlacement] = useState<GradeLevel | null>(null);
+
+// In the top filter bar, add a prominent action:
+{canCreate && (
+  <div className="flex items-center gap-2">
+    <Button
+      size="sm"
+      variant="default"
+      className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+      onClick={() => {
+        setSelectedGradeForPlacement(null);
+        setPlacementStudioOpen(true);
+      }}
+    >
+      <Sparkles className="h-3.5 w-3.5 mr-1" />
+      Constitution des Classes & Répartition
+    </Button>
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-7 text-xs"
+      onClick={() => openCreateForGrade()}
+    >
+      <Plus className="h-3.5 w-3.5 mr-1" />
+      Nouvelle classe
+    </Button>
+  </div>
+)}
+
+// In each accordion header for a level (e.g. 3AP):
+{canCreate && (
+  <div className="flex items-center gap-1">
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 text-xs text-primary hover:bg-primary/10"
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedGradeForPlacement(gradeCode);
+        setPlacementStudioOpen(true);
+      }}
+      title={`Répartir les élèves de ${label}`}
+    >
+      <Users className="h-3.5 w-3.5 mr-1" />
+      Répartir ({gradeCode.toUpperCase()})
+    </Button>
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-7 text-xs"
+      onClick={(e) => {
+        e.stopPropagation();
+        openCreateForGrade(gradeCode);
+      }}
+    >
+      <Plus className="h-3.5 w-3.5 mr-1" />
+      Ajouter classe
+    </Button>
+  </div>
+)}
+
+// At the bottom of GradeLevelsClassView:
+<ClassPlacementStudioModal
+  open={placementStudioOpen}
+  onOpenChange={setPlacementStudioOpen}
+  presetGradeLevel={selectedGradeForPlacement}
+/>
