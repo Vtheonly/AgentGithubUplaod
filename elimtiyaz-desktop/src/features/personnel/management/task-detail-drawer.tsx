@@ -163,8 +163,10 @@ export function TaskDetailDrawer({
   ];
 
   const tabs = (t: Task): readonly EntityDrawerTab<Task>[] => {
+    // T-371 — assignee_ids holds ACCOUNT ids (user_profiles.id per
+    // 0010/0019); resolve names through personnel.userId.
     const assigneeNames = personnel
-      .filter((p) => t.assigneeIds.includes(p.id))
+      .filter((p) => p.userId !== null && t.assigneeIds.includes(p.userId))
       .map((p) => `${p.firstName} ${p.lastName}`);
 
     return [
