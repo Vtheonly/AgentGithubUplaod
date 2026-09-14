@@ -192,3 +192,93 @@ export interface PromotionRepository {
     performedByName: string;
   }): Promise<Result<{ promotedStudents: Student[]; updatedCount: number }>>;
 }
+
+// ============================================================================
+// Class Formation & Student Placement (T-370 / ACAD-500 — the 9ddde68
+// "Constitution des Classes & Répartition des Élèves" workflow)
+//
+// The contract mirrors the canonical server RPC `fn_finalize_class_placements`
+// (migration 0096): ONE atomic call that (A) creates the newly drafted
+// sections, (B) applies patches to existing sections of the target year,
+// (C) assigns students to their target sections, and (D) writes ONE
+// `class.placement_finalize` audit entry. The client NEVER creates classes
+// or moves students one-by-one on this path — the sequential loop the
+// 08f7f13 follow-up shipped was the ACAD-500 defect (draft-ID pointer
+// corruption, silent Result swallowing, dropped class patches).
+// ============================================================================
+
+/** A new class section drafted in the studio, to be created by the finalize. */
+export interface ClassPlacementNewClass {
+  /**
+   * The studio's temporary draft id (e.g. "draft-cls-…"). The RPC maps it to
+   * the real UUID it creates, so student assignments may reference the draft
+   * id as their target — the mapping is resolved server-side INSIDE the same
+   * transaction (INV-1 of the 9ddde68 spec §7: no orphaned pointers).
+   */
+  readonly clientDraftId: string;
+  /** Deterministic class code, unique within (tenant, academic_year). */
+  readonly code: string;
+  /** Display name, e.g. "3ème AP - Section B". */
+  readonly name: string;
+  /** Grade level code, e.g. "3ap" — resolves the academic_level FK. */
+  readonly gradeCode: GradeLevel;
+  /** Section label, e.g. "Section B" (fallback "A"). */
+  readonly section: string;
+  readonly room: string | null;
+  readonly capacity: number | null;
+  readonly homeroomTeacherId: string | null;
+  readonly homeroomTeacherName: string | null;
+}
+
+/** A patch to an EXISTING class of the target academic year. */
+export interface ClassPlacementClassPatch {
+  /** The existing class id (repository id — never a draft id). */
+  readonly id: string;
+  readonly room?: string | null;
+  readonly capacity?: number | null;
+  readonly homeroomTeacherId?: string | null;
+  readonly homeroomTeacherName?: string | null;
+}
+
+/** One student → target-section assignment. */
+export interface ClassPlacementStudentAssignment {
+  readonly studentId: string;
+  /** Target class id — a real id OR a `clientDraftId` of a new class above. */
+  readonly targetClassId: string;
+  /** The grade the student is placed into (integrity-checked vs the class). */
+  readonly gradeLevel: GradeLevel;
+  readonly level: AcademicLevel;
+  readonly gradeYear: number;
+}
+
+export interface FinalizeClassPlacementsInput {
+  /** Target year id when known (the RPC also resolves by code). */
+  readonly targetAcademicYearId: string | null;
+  /** Target year code, e.g. "2026-2027". */
+  readonly targetAcademicYearCode: string;
+  readonly newClasses: readonly ClassPlacementNewClass[];
+  readonly classesToUpdate: readonly ClassPlacementClassPatch[];
+  readonly studentAssignments: readonly ClassPlacementStudentAssignment[];
+  readonly performedBy: string;
+  readonly performedByName: string;
+}
+
+export interface FinalizeClassPlacementsResult {
+  readonly targetYearId: string;
+  readonly createdClassesCount: number;
+  readonly updatedClassesCount: number;
+  readonly assignedStudentsCount: number;
+}
+
+export interface ClassPlacementRepository {
+  /**
+   * Atomically finalize a placement session: create the new sections, apply
+   * the existing-section patches, assign the students, and write ONE audit
+   * entry — the whole batch commits or rolls back together. Historical
+   * records (academic histories, assessments, attendance) are never touched
+   * (INV-1 of the 9ddde68 spec).
+   */
+  finalizePlacements(
+    input: FinalizeClassPlacementsInput,
+  ): Promise<Result<FinalizeClassPlacementsResult>>;
+}

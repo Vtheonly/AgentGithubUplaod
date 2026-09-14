@@ -68,6 +68,7 @@ import { SupabaseInventoryRepository } from "./repositories/supabase-inventory-r
 import {
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
+  SupabaseClassPlacementRepository,
   SupabaseSubjectRepository,
   SupabaseGradeRepository,
   SupabaseAttendanceRepository,
@@ -136,6 +137,14 @@ export function getSupabaseRepositories(): Repositories {
   const attendance = new SupabaseAttendanceRepository(client);
   const homework = new SupabaseHomeworkRepository(client);
   const promotion = new SupabasePromotionRepository(client);
+  // T-370 (ACAD-500) — the Class Placement Studio finalize: ONE atomic RPC
+  // (fn_finalize_class_placements, migration 0096) over the classes +
+  // students repositories (refreshed after a successful batch).
+  const classPlacement = new SupabaseClassPlacementRepository(
+    client,
+    classes,
+    students,
+  );
 
   // DESKTOP-1 — Audit: Settings → Journal d'audit now queries the real
   // `audit_logs` table (migration 0014) and every `log()` call appends via
@@ -310,6 +319,7 @@ export function getSupabaseRepositories(): Repositories {
     attendance,
     homework,
     promotion,
+    classPlacement, // T-370 — the atomic placement finalize RPC
     audit,
     notifications,
     personnel,
@@ -364,6 +374,7 @@ export {
   SupabaseDashboardRepository,
   SupabaseAcademicYearRepository,
   SupabaseClassRepository,
+  SupabaseClassPlacementRepository,
   SupabaseSubjectRepository,
   SupabaseGradeRepository,
   SupabaseAttendanceRepository,

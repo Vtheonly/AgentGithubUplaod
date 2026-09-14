@@ -399,36 +399,51 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
 
     setIsSubmitting(true);
     try {
-      // 1. Prepare new classes payload
+      // T-370 (ACAD-500): ONE atomic repository call — the whole batch
+      // (section creations + existing-section patches + student assignments
+      // + the class.placement_finalize audit entry) commits or rolls back
+      // together server-side. This replaces the 08f7f13 sequential
+      // classes+students loop whose defects were: students pointed at
+      // "draft-cls-…" ids that never existed (the created classes' real ids
+      // were discarded), every repository Result silently swallowed, and
+      // the existing-class patches computed but never persisted.
+      const newDraftIds = new Set(
+        classDrafts.filter((d) => d.isNew).map((d) => d.id),
+      );
+
       const newClassesPayload = classDrafts
         .filter((d) => d.isNew)
         .map((d) => ({
+          clientDraftId: d.id,
           code: `CLS-${d.gradeCode.toUpperCase()}-${d.section.replace(/\s+/g, "").toUpperCase()}-${Date.now().toString(36).slice(-3)}`,
           name: d.name,
           gradeCode: d.gradeCode,
-          level: d.level,
-          gradeYear: d.gradeYear,
           section: d.section,
           room: d.room,
           capacity: d.capacity,
           homeroomTeacherId: d.homeroomTeacherId,
           homeroomTeacherName: d.homeroomTeacherName,
-          notes: d.notes,
         }));
 
-      // 2. Prepare classes updates
+      // Patches to EXISTING classes only (the repository contract requires
+      // real class ids here — a draft id is a contract violation the server
+      // rejects).
       const classesUpdatesPayload = Array.from(
         modifiedClassPatches.entries(),
-      ).map(([id, patch]) => ({
-        id,
-        room: patch.room,
-        capacity: patch.capacity,
-        homeroomTeacherId: patch.homeroomTeacherId,
-        homeroomTeacherName: patch.homeroomTeacherName,
-        notes: patch.notes,
-      }));
+      )
+        .filter(([id]) => !newDraftIds.has(id))
+        .map(([id, patch]) => ({
+          id,
+          ...(patch.room !== undefined ? { room: patch.room } : {}),
+          ...(patch.capacity !== undefined ? { capacity: patch.capacity } : {}),
+          ...(patch.homeroomTeacherId !== undefined
+            ? { homeroomTeacherId: patch.homeroomTeacherId }
+            : {}),
+          ...(patch.homeroomTeacherName !== undefined
+            ? { homeroomTeacherName: patch.homeroomTeacherName }
+            : {}),
+        }));
 
-      // 3. Prepare student assignments
       const studentAssignmentsPayload = candidatePool
         .filter((c) => c.assignedClassId !== null)
         .map((c) => ({
@@ -439,47 +454,31 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
           gradeYear: gradeYearFromGradeLevel(targetGradeLevel),
         }));
 
-      // Repo has no dedicated classPlacement slot — persist via classes + students.
-      for (const newCls of newClassesPayload) {
-        await repos.classes.createClass({
-          academicYearId: targetYearId,
-          academicLevelId: `al-${newCls.gradeCode}`,
-          code: newCls.code,
-          name: newCls.name,
-          gradeCode: newCls.gradeCode,
-          level: newCls.level,
-          gradeYear: newCls.gradeYear,
-          section: newCls.section,
-          room: newCls.room,
-          capacity: newCls.capacity,
-          homeroomTeacherId: newCls.homeroomTeacherId,
-          homeroomTeacherName: newCls.homeroomTeacherName,
-          notes: newCls.notes,
-          academicYear: targetYearCode,
-          isActive: true,
-        } as any);
+      const result = await repos.classPlacement.finalizePlacements({
+        targetAcademicYearId: targetYearEntity?.id ?? null,
+        targetAcademicYearCode: targetYearCode,
+        newClasses: newClassesPayload,
+        classesToUpdate: classesUpdatesPayload,
+        studentAssignments: studentAssignmentsPayload,
+        performedBy: session.userId,
+        performedByName: session.displayName,
+      });
+
+      if (!result.ok) {
+        // Honest failure surfacing (the WEAK-019/DATA-013 family rule): the
+        // batch either committed atomically or NOTHING landed — never a
+        // partial success with a congratulatory toast.
+        toast.showError(
+          "Échec de la constitution des classes",
+          result.error.userMessage,
+        );
+        return;
       }
 
-      for (const assign of studentAssignmentsPayload) {
-        await repos.students.updateStudent(assign.studentId, {
-          classId: assign.targetClassId,
-          gradeLevel: assign.gradeLevel,
-          level: assign.level,
-          gradeYear: assign.gradeYear,
-        });
-      }
-      const result = {
-        ok: true as const,
-        value: {
-          createdClasses: [],
-          updatedStudentsCount: studentAssignmentsPayload.length,
-        },
-      };
-
-      void result;
       toast.showSuccess(
         "Constitution des classes validée",
-        `${studentAssignmentsPayload.length} élève(s) ont été affectés aux classes de l'année ${targetYearCode}.`,
+        `${result.value.assignedStudentsCount} élève(s) affecté(s), ` +
+          `${result.value.createdClassesCount} section(s) créée(s) pour l'année ${targetYearCode}.`,
       );
       setAssignedMap(new Map());
       setCustomClassDrafts([]);
@@ -493,7 +492,7 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
     candidatePool,
     assignedMap,
     targetGradeLevel,
-    targetYearId,
+    targetYearEntity,
     targetYearCode,
     modifiedClassPatches,
     repos,

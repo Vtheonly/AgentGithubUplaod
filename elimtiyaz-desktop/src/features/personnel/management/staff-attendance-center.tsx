@@ -80,7 +80,11 @@ export function StaffAttendanceCenter() {
     () => repos.personnel.observeByUserId(currentUserId),
     [currentUserId],
   );
-  const myPersonnelId = me?.id ?? currentUserId;
+  // T-374 (WORKFORCE-502): NO user_profiles.id fallback — that key is NOT a
+  // personnel.id. The previous `me?.id ?? currentUserId` fallback made a
+  // profile-less user's punch INSERT a foreign personnel_id → 23503 → 409
+  // (live console evidence 2026-09-14). No linked personnel record ⇒ NO punch.
+  const myPersonnelId = me?.id ?? null;
 
   const allAbsences = useObservable(
     () => repos.workforceAttendance.observeAbsences(),
@@ -90,7 +94,9 @@ export function StaffAttendanceCenter() {
   // For Admin: show all absences; For Worker: show personal absences
   const displayedAbsences = useMemo(() => {
     if (isSuperAdmin) return allAbsences;
-    return allAbsences.filter((a) => a.personnelId === myPersonnelId);
+    return myPersonnelId
+      ? allAbsences.filter((a) => a.personnelId === myPersonnelId)
+      : [];
   }, [allAbsences, isSuperAdmin, myPersonnelId]);
 
   const [search, setSearch] = useState("");
@@ -115,7 +121,9 @@ export function StaffAttendanceCenter() {
   const [clockTick, setClockTick] = useState(0);
   const latestEvent = useMemo(() => {
     void clockTick;
-    return repos.workforceAttendance.latestFor(myPersonnelId, todayIso);
+    return myPersonnelId
+      ? repos.workforceAttendance.latestFor(myPersonnelId, todayIso)
+      : null;
   }, [repos.workforceAttendance, myPersonnelId, todayIso, clockTick]);
 
   const clockState = useMemo(() => {
@@ -130,6 +138,16 @@ export function StaffAttendanceCenter() {
   }, [latestEvent]);
 
   async function handleRecordClock(eventType: AttendanceEventType) {
+    // T-374: a user without a linked personnel record must never reach the
+    // INSERT (the 23503/409 path) — refuse with guidance, and surface the
+    // repository's failure honestly (the old path was silent on error).
+    if (!myPersonnelId) {
+      toast.showError(
+        "Pointage indisponible",
+        "Aucune fiche personnel n'est rattachée à votre compte — contactez l'administration.",
+      );
+      return;
+    }
     const res = await repos.workforceAttendance.recordEvent({
       personnelId: myPersonnelId,
       date: todayIso,
@@ -140,6 +158,11 @@ export function StaffAttendanceCenter() {
       toast.showSuccess(
         "Pointage enregistré",
         "Votre présence a été mise à jour en temps réel.",
+      );
+    } else {
+      toast.showError(
+        "Erreur de pointage",
+        res.error.userMessage,
       );
     }
   }

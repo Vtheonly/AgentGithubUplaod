@@ -6,6 +6,9 @@ import type {
   HomeworkRepository,
   PromotionRepository,
   GradeEntryInput,
+  ClassPlacementRepository,
+  FinalizeClassPlacementsInput,
+  FinalizeClassPlacementsResult,
 } from "../../../domain/repository/academic-repository";
 import type { Observable } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
@@ -26,6 +29,10 @@ import type {
   AttendanceStatus,
 } from "../../../domain/model/academic";
 import type { Student, AcademicLevel } from "../../../domain/model/student";
+import {
+  academicLevelFromGradeLevel,
+  gradeYearFromGradeLevel,
+} from "../../../domain/model/student";
 import {
   createAcademicHistoryEntry,
   type PromotionCandidate,
@@ -935,6 +942,236 @@ export class MockPromotionRepository implements PromotionRepository {
   }
 }
 
+// ============================================================================
+// Class Placement (T-370 / ACAD-500 — the 9ddde68 "Constitution des Classes"
+// workflow). Mirrors the canonical fn_finalize_class_placements RPC
+// (migration 0096): validate EVERYTHING first, then mutate — the batch is
+// atomic (any validation failure leaves the store untouched), new-section
+// draft ids are mapped to the created ids BEFORE students are pointed at
+// them, existing-class patches are applied, and ONE audit entry records the
+// whole batch. NO parallel store: this operates on the SAME shared `store`
+// every other mock repository uses.
+// ============================================================================
+export class MockClassPlacementRepository implements ClassPlacementRepository {
+  async finalizePlacements(
+    input: FinalizeClassPlacementsInput,
+  ): Promise<Result<FinalizeClassPlacementsResult>> {
+    await delay(220);
+
+    // ── Validation pass (atomicity: nothing mutates until every check passed)
+    // Target year resolution — by id first, then by code/label (the RPC's
+    // resolution order).
+    const targetYear =
+      store.academicYears.find(
+        (y) => input.targetAcademicYearId && y.id === input.targetAcademicYearId,
+      ) ??
+      store.academicYears.find(
+        (y) =>
+          y.code === input.targetAcademicYearCode ||
+          y.label === input.targetAcademicYearCode,
+      );
+    if (!targetYear) {
+      return Err(Errors.validation(
+        `L'année scolaire cible « ${input.targetAcademicYearCode} » n'existe pas (créez-la dans Années scolaires d'abord).`,
+      ));
+    }
+
+    // New classes: mandatory name/gradeCode/code + code uniqueness in year.
+    for (const draft of input.newClasses) {
+      if (!draft.name?.trim()) {
+        return Err(Errors.validation(
+          "Une nouvelle section doit porter un nom.",
+        ));
+      }
+      if (!draft.gradeCode) {
+        return Err(Errors.validation(
+          `La nouvelle section « ${draft.name} » n'a pas de niveau.`,
+        ));
+      }
+      if (!draft.code?.trim()) {
+        return Err(Errors.validation(
+          `La nouvelle section « ${draft.name} » n'a pas de code.`,
+        ));
+      }
+      const inYear = (c: AcademicClass) =>
+        c.academicYearId === targetYear.id || c.academicYear === targetYear.code;
+      const duplicateExisting = store.classes.some(
+        (c) => c.code === draft.code && inYear(c),
+      );
+      const duplicateInBatch = input.newClasses.some(
+        (d) => d.code === draft.code && d.clientDraftId !== draft.clientDraftId,
+      );
+      if (duplicateExisting || duplicateInBatch) {
+        return Err(Errors.validation(
+          `Le code de classe « ${draft.code} » existe déjà pour l'année ${targetYear.code}.`,
+        ));
+      }
+    }
+
+    // Existing-class patches: the id must be an EXISTING class of the target
+    // year (a draft id here is a contract violation — the hook filters).
+    for (const patch of input.classesToUpdate) {
+      const existing = store.classes.find((c) => c.id === patch.id);
+      if (!existing) {
+        return Err(Errors.notFound("Class", patch.id));
+      }
+      if (
+        existing.academicYearId !== targetYear.id &&
+        existing.academicYear !== targetYear.code
+      ) {
+        return Err(Errors.validation(
+          `La classe « ${existing.name } » n'appartient pas à l'année ${targetYear.code}.`,
+        ));
+      }
+    }
+
+    // Student assignments: target must resolve (draft map or existing class),
+    // grade must match, student must exist.
+    const draftIds = new Set(input.newClasses.map((d) => d.clientDraftId));
+    for (const assignment of input.studentAssignments) {
+      if (!draftIds.has(assignment.targetClassId)) {
+        const target = store.classes.find(
+          (c) => c.id === assignment.targetClassId,
+        );
+        if (!target) {
+          return Err(Errors.notFound("Class", assignment.targetClassId));
+        }
+        if (target.gradeCode !== assignment.gradeLevel) {
+          return Err(Errors.validation(
+            `L'affectation de l'élève ${assignment.studentId} (${assignment.gradeLevel}) ne correspond pas au niveau de la classe « ${target.name} » (${target.gradeCode}).`,
+          ));
+        }
+      } else {
+        // DRAFT target (parity with the RPC's Step C grade-integrity check:
+        // the server checks the CREATED class's grade_code, which comes from
+        // the draft's gradeCode — the mock must reject the same mismatch,
+        // not just existing-class targets).
+        const draft = input.newClasses.find(
+          (d) => d.clientDraftId === assignment.targetClassId,
+        )!;
+        if (draft.gradeCode !== assignment.gradeLevel) {
+          return Err(Errors.validation(
+            `L'affectation de l'élève ${assignment.studentId} (${assignment.gradeLevel}) ne correspond pas au niveau de la nouvelle section « ${draft.name} » (${draft.gradeCode}).`,
+          ));
+        }
+      }
+      if (!store.students.some((s) => s.id === assignment.studentId)) {
+        return Err(Errors.notFound("Student", assignment.studentId));
+      }
+    }
+
+    // ── Mutation pass (every check above passed — apply the whole batch)
+    const createdIdMap = new Map<string, string>();
+    let createdClassesCount = 0;
+    for (const draft of input.newClasses) {
+      const cls: AcademicClass = {
+        id: `cls-${Date.now().toString(36)}-${createdClassesCount}`,
+        tenantId: TENANT_ID,
+        academicYearId: targetYear.id,
+        // Mock-layer id convention (the Supabase layer resolves the real
+        // academic_levels FK server-side — each layer keeps its own id
+        // convention; the CONTRACT is identical).
+        academicLevelId: `al-${draft.gradeCode}`,
+        code: draft.code,
+        name: draft.name,
+        gradeCode: draft.gradeCode,
+        // level/gradeYear are DERIVED from gradeCode (the canonical
+        // helpers) — same as mapClassRow on the Supabase side; the RPC
+        // never receives them.
+        level: academicLevelFromGradeLevel(draft.gradeCode),
+        gradeYear: gradeYearFromGradeLevel(draft.gradeCode),
+        section: draft.section || "A",
+        room: draft.room,
+        capacity: draft.capacity,
+        enrolledCount: 0,
+        homeroomTeacherId: draft.homeroomTeacherId,
+        homeroomTeacherName: draft.homeroomTeacherName,
+        notes: null,
+        academicYear: targetYear.code,
+        isActive: true,
+      };
+      store.classes.push(cls);
+      createdIdMap.set(draft.clientDraftId, cls.id);
+      createdClassesCount += 1;
+    }
+
+    let updatedClassesCount = 0;
+    for (const patch of input.classesToUpdate) {
+      const idx = store.classes.findIndex((c) => c.id === patch.id);
+      if (idx >= 0) {
+        store.classes[idx] = {
+          ...store.classes[idx],
+          ...(patch.room !== undefined ? { room: patch.room } : {}),
+          ...(patch.capacity !== undefined ? { capacity: patch.capacity } : {}),
+          ...(patch.homeroomTeacherId !== undefined
+            ? { homeroomTeacherId: patch.homeroomTeacherId }
+            : {}),
+          ...(patch.homeroomTeacherName !== undefined
+            ? { homeroomTeacherName: patch.homeroomTeacherName }
+            : {}),
+        };
+        updatedClassesCount += 1;
+      }
+    }
+
+    let assignedStudentsCount = 0;
+    for (const assignment of input.studentAssignments) {
+      const finalClassId =
+        createdIdMap.get(assignment.targetClassId) ?? assignment.targetClassId;
+      const idx = store.students.findIndex((s) => s.id === assignment.studentId);
+      if (idx >= 0) {
+        store.students[idx] = {
+          ...store.students[idx],
+          classId: finalClassId,
+          gradeLevel: assignment.gradeLevel,
+          level: assignment.level,
+          gradeYear: assignment.gradeYear,
+          updatedAt: nowIso(),
+        };
+        assignedStudentsCount += 1;
+      }
+    }
+
+    // Recompute enrolled counts (the students.class_id histogram).
+    for (const cls of store.classes) {
+      const count = store.students.filter(
+        (s) => s.classId === cls.id && s.status === "active",
+      ).length;
+      const idx = store.classes.indexOf(cls);
+      store.classes[idx] = { ...cls, enrolledCount: count };
+    }
+
+    store.classes$.set([...store.classes]);
+    store.notifyStudents();
+
+    // ONE audit entry for the whole batch (INV-5 of the 9ddde68 spec).
+    appendAudit({
+      action: AuditActions.ClassPlacementFinalize,
+      entityType: "class",
+      entityId: targetYear.code,
+      actorId: input.performedBy,
+      actorName: input.performedByName,
+      diff: {
+        before: null,
+        after: {
+          target_academic_year: targetYear.code,
+          classes_created: createdClassesCount,
+          classes_updated: updatedClassesCount,
+          students_assigned: assignedStudentsCount,
+        },
+      },
+      note: `Constitution des classes effectuée pour ${targetYear.code} : ${createdClassesCount} classe(s) créée(s), ${updatedClassesCount} mise(s) à jour, ${assignedStudentsCount} élève(s) affecté(s).`,
+    });
+
+    return Ok({
+      targetYearId: targetYear.id,
+      createdClassesCount,
+      updatedClassesCount,
+      assignedStudentsCount,
+    });
+  }
+}
+
 // Singletons
 export const mockClassRepository: ClassRepository = new MockClassRepository();
 export const mockSubjectRepository: SubjectRepository =
@@ -946,5 +1183,7 @@ export const mockHomeworkRepository: HomeworkRepository =
   new MockHomeworkRepository();
 export const mockPromotionRepository: PromotionRepository =
   new MockPromotionRepository();
+export const mockClassPlacementRepository: ClassPlacementRepository =
+  new MockClassPlacementRepository();
 
 export type { Observable };

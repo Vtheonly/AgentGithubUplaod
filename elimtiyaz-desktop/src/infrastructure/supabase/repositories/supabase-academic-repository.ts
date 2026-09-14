@@ -6,6 +6,7 @@ import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import type { SupabaseStudentRepository } from "./supabase-shared-repositories";
 import type { Observable } from "../../../domain/repository/repository";
 import type {
   AcademicClass,
@@ -42,6 +43,9 @@ import type {
   HomeworkRepository,
   PromotionRepository,
   GradeEntryInput,
+  ClassPlacementRepository,
+  FinalizeClassPlacementsInput,
+  FinalizeClassPlacementsResult,
 } from "../../../domain/repository/academic-repository";
 import type { PromotionCandidate } from "../../../domain/calc/academics/promotion";
 import { createAcademicHistoryEntry } from "../../../domain/calc/academics/promotion";
@@ -301,7 +305,14 @@ export class SupabaseClassRepository implements ClassRepository {
     this.refresh();
   }
 
-  private async refresh(): Promise<void> {
+  /**
+   * T-370 (ACAD-500): this is now PUBLIC — the class-placement finalize RPC
+   * mutates classes server-side, and `SupabaseClassPlacementRepository`
+   * triggers this refresh after a successful batch so the studio's parent
+   * view (Niveaux & Classes) reflects the created sections immediately,
+   * instead of waiting for the CROSS-104 TTL/focus policy.
+   */
+  async refresh(): Promise<void> {
     try {
       const [{ data, error }, enrolled] = await Promise.all([
         this.client
@@ -1359,6 +1370,11 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
 
   observeForClass(classId: string): Observable<Homework[]> {
     const sub = new SubjectBehavior<Homework[]>([]);
+    // T-373 (ACAD-501): the "no class selected yet" state passes ""
+    // (homework-history-tab.tsx `classId || ""`). A literal
+    // `.eq("class_id", "")` against the UUID column is a guaranteed HTTP 400
+    // (22P02 — live console evidence 2026-09-14). Stable empty stream instead.
+    if (!classId) return sub;
     const fetchHomework = async () => {
       const { data } = await this.client
         .from("homework")
@@ -1374,6 +1390,9 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
 
   observeByTeacher(teacherId: string): Observable<Homework[]> {
     const sub = new SubjectBehavior<Homework[]>([]);
+    // T-373 (ACAD-501): teacher_id is a UUID column — the same empty-id
+    // guard as observeForClass (no server round-trip, stable empty stream).
+    if (!teacherId) return sub;
     const fetchTeacherHomework = async () => {
       const { data } = await this.client
         .from("homework")
@@ -1581,6 +1600,116 @@ export class SupabasePromotionRepository implements PromotionRepository {
     return Ok({
       promotedStudents: (rows ?? []).map(mapStudentRow),
       updatedCount: updatedIds.length,
+    });
+  }
+}
+
+// ============================================================================
+// 7. CLASS PLACEMENT REPOSITORY (T-370 / ACAD-500 — the 9ddde68 workflow)
+//
+// ONE atomic RPC call — `fn_finalize_class_placements` (migration 0096):
+// creates the drafted sections, maps client draft ids to the created UUIDs,
+// applies the existing-class patches, assigns the students (grade-integrity
+// checked server-side), and writes ONE `class.placement_finalize` audit
+// entry. The whole batch commits or rolls back together. This replaces the
+// 08f7f13 non-atomic classes+students loop (the ACAD-500 defect family:
+// draft-ID pointer corruption, silent Result swallowing, dropped patches).
+// ============================================================================
+export class SupabaseClassPlacementRepository implements ClassPlacementRepository {
+  constructor(
+    private readonly client: SupabaseClient,
+    /** Refreshed after a successful batch (the created sections appear). */
+    private readonly classes: SupabaseClassRepository,
+    /** Refreshed after a successful batch (the moved students appear). */
+    private readonly students: SupabaseStudentRepository,
+  ) {}
+
+  async finalizePlacements(
+    input: FinalizeClassPlacementsInput,
+  ): Promise<Result<FinalizeClassPlacementsResult>> {
+    // ── Client-side pre-validation (honest failures with named entities —
+    // the server's uuid-cast errors are cryptic). Mock-era ids cannot be
+    // finalized server-side; naming the student is honest, silently
+    // skipping it is the exact defect this task repairs.
+    for (const assignment of input.studentAssignments) {
+      if (!isUuid(assignment.studentId)) {
+        return Err(Errors.validation(
+          `classPlacement.finalizePlacements requires student UUIDs (got "${assignment.studentId}")`,
+          "Données d'élève incohérentes (identifiant local) — resynchronisez ou vérifiez la fiche de l'élève.",
+        ));
+      }
+    }
+    for (const patch of input.classesToUpdate) {
+      if (!isUuid(patch.id)) {
+        return Err(Errors.validation(
+          `classPlacement.finalizePlacements: existing-class patch id must be a UUID (got "${patch.id}")`,
+          "Classe ciblée introuvable — resynchronisez les classes et réessayez.",
+        ));
+      }
+    }
+
+    const { data, error } = await this.client.rpc("fn_finalize_class_placements", {
+      p_target_year_id: input.targetAcademicYearId,
+      p_target_year_code: input.targetAcademicYearCode,
+      p_new_classes: input.newClasses.map((d) => ({
+        clientDraftId: d.clientDraftId,
+        code: d.code,
+        name: d.name,
+        gradeCode: d.gradeCode,
+        section: d.section,
+        room: d.room,
+        capacity: d.capacity,
+        homeroomTeacherId: isUuid(d.homeroomTeacherId) ? d.homeroomTeacherId : null,
+        homeroomTeacherName: d.homeroomTeacherName,
+      })),
+      p_updated_classes: input.classesToUpdate.map((p) => ({
+        id: p.id,
+        ...(p.room !== undefined ? { room: p.room } : {}),
+        ...(p.capacity !== undefined ? { capacity: p.capacity } : {}),
+        ...(p.homeroomTeacherId !== undefined
+          ? { homeroomTeacherId: isUuid(p.homeroomTeacherId) ? p.homeroomTeacherId : null }
+          : {}),
+        ...(p.homeroomTeacherName !== undefined
+          ? { homeroomTeacherName: p.homeroomTeacherName }
+          : {}),
+      })),
+      p_student_assignments: input.studentAssignments.map((a) => ({
+        studentId: a.studentId,
+        targetClassId: a.targetClassId,
+        gradeLevel: a.gradeLevel,
+        level: a.level,
+        gradeYear: a.gradeYear,
+      })),
+      p_actor_profile_id: isUuid(input.performedBy) ? input.performedBy : null,
+      p_actor_name: input.performedByName || null,
+      p_tenant_id: getTenantId(),
+    });
+    if (error) return Err(supabaseErrorToAppError(error));
+
+    const row = (data ?? {}) as {
+      ok?: boolean;
+      targetYearId?: string;
+      createdClassesCount?: number;
+      updatedClassesCount?: number;
+      assignedStudentsCount?: number;
+    };
+    if (!row.ok) {
+      return Err(Errors.server(
+        "fn_finalize_class_placements returned no confirmation payload",
+      ));
+    }
+
+    // The batch committed — refresh BOTH affected caches so the studio's
+    // parent views reflect the new sections and moved students immediately.
+    await this.classes.refresh();
+    await this.students.refresh();
+
+    return Ok({
+      targetYearId: row.targetYearId ?? "",
+      createdClassesCount: row.createdClassesCount ?? input.newClasses.length,
+      updatedClassesCount: row.updatedClassesCount ?? input.classesToUpdate.length,
+      assignedStudentsCount:
+        row.assignedStudentsCount ?? input.studentAssignments.length,
     });
   }
 }
