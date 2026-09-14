@@ -277,7 +277,7 @@ const SEED_TASKS: Task[] = [
     priority: "high",
     status: "in_progress",
     departmentId: "dept-buyers",
-    assigneeIds: ["per-012"],
+    assigneeIds: ["usr-buy-001"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-01T08:00:00.000Z",
@@ -301,7 +301,7 @@ const SEED_TASKS: Task[] = [
     priority: "urgent",
     status: "assigned",
     departmentId: "dept-drivers",
-    assigneeIds: ["per-011"],
+    assigneeIds: ["usr-drv-001"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-10T08:00:00.000Z",
@@ -325,7 +325,7 @@ const SEED_TASKS: Task[] = [
     priority: "medium",
     status: "pending",
     departmentId: "dept-warehouse",
-    assigneeIds: ["per-013"],
+    assigneeIds: ["usr-whw-001"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-12T08:00:00.000Z",
@@ -349,7 +349,7 @@ const SEED_TASKS: Task[] = [
     priority: "high",
     status: "pending",
     departmentId: "dept-teachers",
-    assigneeIds: ["per-002"],
+    assigneeIds: ["usr-tea-001"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-15T08:00:00.000Z",
@@ -373,7 +373,7 @@ const SEED_TASKS: Task[] = [
     priority: "medium",
     status: "completed",
     departmentId: "dept-workers",
-    assigneeIds: ["per-015"],
+    assigneeIds: ["usr-wrk-001"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-08-01T08:00:00.000Z",
@@ -397,7 +397,7 @@ const SEED_TASKS: Task[] = [
     priority: "low",
     status: "needs_review",
     departmentId: "dept-workers",
-    assigneeIds: ["per-015"],
+    assigneeIds: ["usr-wrk-001"],
     createdBy: "system",
     createdByName: "Système",
     createdAt: "2025-09-18T08:00:00.000Z",
@@ -423,6 +423,9 @@ class MockTaskRepository implements TaskRepository {
   observe(): Observable<Task[]> { return this.subjects; }
 
   observeByAssignee(personnelId: string): Observable<Task[]> {
+    // T-371: the parameter is the ACCOUNT id (user_profiles.id) — the id
+    // space assignee_ids stores per 0010/0019. The legacy parameter NAME is
+    // kept for contract compatibility; see the workforce-repository doc.
     return new SubjectBehavior<Task[]>(this.items.filter((t) => t.assigneeIds.includes(personnelId)));
   }
 

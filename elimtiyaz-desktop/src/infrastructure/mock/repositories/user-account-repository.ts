@@ -17,6 +17,7 @@
  * is configured (see repository-provider.tsx).
  */
 import type {
+  AccountOverviewEntry,
   CreateAccountInput,
   CreatedAccount,
   UserAccountRepository,
@@ -25,7 +26,7 @@ import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { Role } from "../../../core/rbac/roles";
-import { delay } from "./mock-store";
+import { delay, store } from "./mock-store";
 import {
   seedAccounts,
   TENANT_ID,
@@ -104,6 +105,27 @@ export class MockUserAccountRepository implements UserAccountRepository {
       );
     }
 
+    // T-371 — resolve + validate the employee BEFORE minting anything, so
+    // a rejected link never leaves a half-created account behind (the
+    // Supabase path gets the same atomicity from the RPC transaction).
+    let personnelIdx = -1;
+    if (input.personnelId && input.personnelId.trim().length > 0) {
+      personnelIdx = store.personnel.findIndex(
+        (p) => p.id === input.personnelId!.trim(),
+      );
+      if (personnelIdx < 0) {
+        return Err(Errors.validation("Fiche employé introuvable"));
+      }
+      const bound = store.personnel[personnelIdx];
+      if (bound.userId) {
+        return Err(
+          Errors.conflict(
+            `Cet employé (${bound.id}) est déjà lié à un autre compte`,
+          ),
+        );
+      }
+    }
+
     const initialPassword =
       input.initialPassword && input.initialPassword.length > 0
         ? input.initialPassword
@@ -129,6 +151,24 @@ export class MockUserAccountRepository implements UserAccountRepository {
       // password, so no secret is stored here.
     });
 
+    // T-371 — bind the employee record to the fresh account id and notify
+    // the shared personnel stream, so every observeByUserId consumer (the
+    // employee dashboards, the task table, the requests center, the
+    // ProfilePage dossier) resolves "me" for the new user immediately.
+    let personnelCode: string | null = null;
+    let personnelName: string | null = null;
+    if (personnelIdx >= 0) {
+      const bound = store.personnel[personnelIdx];
+      personnelCode = bound.id; // mock ids stand in for personnel_code
+      personnelName = `${bound.firstName} ${bound.lastName}`.trim();
+      store.personnel[personnelIdx] = {
+        ...bound,
+        userId,
+        email: bound.email ?? email,
+      };
+      store.notifyPersonnel();
+    }
+
     appendAudit({
       action: AuditActions.UserAccountCreate,
       entityType: "user_account",
@@ -138,7 +178,13 @@ export class MockUserAccountRepository implements UserAccountRepository {
       diff: {
         before: null,
         // NEVER include the initial password (SEC-100).
-        after: { email, role: input.role, displayName: input.fullName ?? null },
+        after: {
+          email,
+          role: input.role,
+          displayName: input.fullName ?? null,
+          // T-371 — the linkage is part of the audit record.
+          personnelId: input.personnelId?.trim() || null,
+        },
       },
       note: `Compte créé par l'administrateur (${TENANT_ID})`,
     });
@@ -147,7 +193,36 @@ export class MockUserAccountRepository implements UserAccountRepository {
       email,
       role: input.role,
       initialPassword,
+      personnelCode,
+      personnelName,
     });
+  }
+
+  /**
+   * T-371 — the accounts overview over the shared mock stores: every seeded
+   * + minted account, joined with the personnel rows bound to it. Mock ids
+   * stand in for personnel_code (same convention as createAccount).
+   */
+  async listAccounts(): Promise<Result<AccountOverviewEntry[]>> {
+    await delay(120);
+    const byUserId = new Map<string, (typeof store.personnel)[number]>();
+    for (const p of store.personnel) {
+      if (p.userId && !byUserId.has(p.userId)) byUserId.set(p.userId, p);
+    }
+    const entries: AccountOverviewEntry[] = seedAccounts.map((a) => {
+      const bound = byUserId.get(a.userId) ?? null;
+      return {
+        profileId: a.userId,
+        email: a.email,
+        displayName: a.displayName,
+        status: "active",
+        role: a.role,
+        personnelId: bound?.id ?? null,
+        personnelCode: bound?.id ?? null,
+        personnelName: bound ? `${bound.firstName} ${bound.lastName}`.trim() : null,
+      };
+    });
+    return Ok(entries);
   }
 }
 

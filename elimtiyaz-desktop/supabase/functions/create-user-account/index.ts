@@ -52,6 +52,13 @@ interface CreateUserAccountBody {
   role: string;
   /** Optional initial password (plan §12.04 policy). Generated when absent. */
   password?: string;
+  /**
+   * T-371 (WORKFORCE-501) — the personnel row this account belongs to.
+   * When set, the admin_create_user_account RPC binds personnel.user_id to
+   * the new profile IN the creation transaction, so the employee's own
+   * profile / tasks / responsibilities resolve from the very first sign-in.
+   */
+  personnel_id?: string;
 }
 
 /** The 11-role matrix (§02.07 + §09) — mirrors desktop core/rbac/roles.ts. */
@@ -77,6 +84,19 @@ function toRequestedRole(role: string): "parent" | "student" | "staff" {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The employee context echoed in the response + audit payload (T-371). */
+interface PersonnelLink {
+  id: string;
+  personnel_code: string;
+  first_name: string;
+  last_name: string;
+  position: string | null;
+  is_active: boolean;
+  deleted_at: string | null;
+  user_id: string | null;
+}
 
 function meetsPasswordPolicy(pw: string): boolean {
   return pw.length >= 8 && /[a-z]/.test(pw) && /[A-Z]/.test(pw) && /\d/.test(pw);
@@ -190,6 +210,49 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
     );
   }
 
+  // 4b. T-371 — resolve + validate the employee to bind (when the admin
+  //     selected one). Pre-checked here for clean 4xx codes; the RPC
+  //     re-checks under FOR UPDATE as the authoritative guard.
+  let personnel: PersonnelLink | null = null;
+  if (body.personnel_id !== undefined && body.personnel_id !== null && body.personnel_id !== "") {
+    if (!UUID_RE.test(body.personnel_id)) {
+      return jsonError(
+        req,
+        400,
+        "invalid_personnel_id",
+        "personnel_id must be a UUID",
+      );
+    }
+    const { data: row, error: personnelError } = await supabase
+      .from("personnel")
+      .select("id, personnel_code, first_name, last_name, position, is_active, deleted_at, user_id")
+      .eq("id", body.personnel_id)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+
+    if (personnelError) {
+      console.error("[create-user-account] personnel lookup failed:", personnelError);
+      return jsonError(req, 500, "personnel_lookup_failed", "Failed to look up the employee record", personnelError.message);
+    }
+    if (!row || row.deleted_at) {
+      return jsonError(
+        req,
+        404,
+        "personnel_not_found",
+        "Fiche employé introuvable (supprimée ou hors du tenant)",
+      );
+    }
+    if (row.user_id) {
+      return jsonError(
+        req,
+        409,
+        "personnel_already_linked",
+        `Cet employé est déjà lié à un autre compte (${row.personnel_code})`,
+      );
+    }
+    personnel = row;
+  }
+
   // 5. Create the auth user. email_confirm=true so login works without an
   //    email round-trip; app_metadata.tenant_id is the trusted admin path
   //    (SEC-108). requested_role stays within the trigger's CHECK domain.
@@ -221,7 +284,8 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
   const authUserId = created.user.id;
 
   // 6. Activate + assign the chosen role + resolve the auto-created
-  //    approval request — one atomic RPC (migration 0044).
+  //    approval request (+ bind the selected employee, T-371) — one atomic
+  //    RPC (migrations 0044 + 0097).
   const { data: profileId, error: rpcError } = await supabase.rpc(
     "admin_create_user_account",
     {
@@ -230,6 +294,8 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       p_tenant_id: ctx.tenantId,
       p_reviewer_profile_id: ctx.userProfileId,
       p_decision_note: `Compte créé par ${ctx.email}`,
+      p_personnel_id: personnel?.id ?? null,
+      p_email: email,
     },
   );
 
@@ -248,6 +314,7 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
   }
 
   // 7. Audit trail (plan §12.01) — NEVER the password (SEC-100 lesson).
+  //    T-371: the linked employee is part of the record.
   await writeAuditLog(
     ctx.tenantId,
     "user_account.create",
@@ -262,19 +329,37 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       display_name: body.full_name?.trim() || email,
       created_via: "admin",
       password_generated: !(body.password && body.password.length > 0),
+      ...(personnel
+        ? {
+            personnel_id: personnel.id,
+            personnel_code: personnel.personnel_code,
+            personnel_name: `${personnel.first_name} ${personnel.last_name}`.trim(),
+          }
+        : {}),
     },
-    `Admin ${ctx.email} created account for ${email} (${body.role})`,
+    `Admin ${ctx.email} created account for ${email} (${body.role})` +
+      (personnel ? ` linked to ${personnel.personnel_code}` : ""),
     requestId,
   );
 
   // 8. Success — the initial password is returned ONCE. The admin conveys
   //    it out-of-band; the user changes it at first sign-in (T-003).
+  //    T-371: the bound employee echoes so the confirmation panel can show
+  //    the association the admin just created.
   return jsonOk(req, {
     auth_user_id: authUserId,
     user_profile_id: profileId,
     email,
     role: body.role,
     initial_password: password,
-    message: `Account created for ${email} — the user can now sign in.`,
+    ...(personnel
+      ? {
+          personnel_id: personnel.id,
+          personnel_code: personnel.personnel_code,
+          personnel_name: `${personnel.first_name} ${personnel.last_name}`.trim(),
+        }
+      : {}),
+    message: `Account created for ${email} — the user can now sign in.` +
+      (personnel ? ` Linked to employee ${personnel.personnel_code}.` : ""),
   });
 }));
