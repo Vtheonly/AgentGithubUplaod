@@ -8,6 +8,13 @@
  * then this service to render the PDF.
  *
  * Uses pdf-lib (MIT, no native deps, runs in browser + Node).
+ *
+ * T-368 (67th session, REPT-500/501/502): amounts render via `dzdPdf`
+ * (U+202F → ASCII space — the old raw formatDzdPlain output made
+ * Helvetica throw "WinAnsi cannot encode" on every amount >= 1 000 DZD);
+ * every drawn string is sanitized; the notes section renders ALL wrapped
+ * lines (the old slice(0, 2) silently truncated); the footer carries the
+ * true page count via stampPageFooters.
  */
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { Payment } from "../../domain/model/payment";
@@ -17,25 +24,32 @@ import {
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
 } from "../../domain/model/payment";
-import { formatDzdPlain } from "../../core/format/currency";
 import { formatDateTime } from "../../core/format/date";
 import {
   PAGE_W,
   PAGE_H,
   MARGIN,
   CONTENT_W,
+  PAGE_BOTTOM_LIMIT,
   BORDER,
   BRAND_BLUE_DEEP,
   SUCCESS,
   WARNING,
   TEXT_MUTED,
   TEXT_PRIMARY,
+  dzdPdf,
+  sanitizePdfText,
   drawHeader,
-  drawFooter,
   drawKeyValue,
   drawBox,
+  stampPageFooters,
   wrapText,
 } from "./shared";
+
+/** WinAnsi-safe label lookup (label maps miss → "—", never undefined). */
+function label(map: Record<string, string>, key: string): string {
+  return sanitizePdfText(map[key] ?? "—");
+}
 
 export async function generatePaymentReceiptPdf(
   payment: Payment,
@@ -54,7 +68,7 @@ export async function generatePaymentReceiptPdf(
   drawBox(page, MARGIN, y - 60, CONTENT_W, 60, undefined, BORDER);
   drawKeyValue(page, font, MARGIN + 15, y - 18, "Reçu N°:", payment.receiptNumber);
   drawKeyValue(page, font, MARGIN + 15, y - 36, "Date:", formatDateTime(payment.collectedAt));
-  drawKeyValue(page, font, MARGIN + 280, y - 18, "Statut:", PAYMENT_STATUS_LABELS_FR[payment.status]);
+  drawKeyValue(page, font, MARGIN + 280, y - 18, "Statut:", label(PAYMENT_STATUS_LABELS_FR, payment.status));
   drawKeyValue(page, font, MARGIN + 280, y - 36, "Référence:", payment.id.slice(0, 8).toUpperCase());
 
   y -= 90;
@@ -87,9 +101,9 @@ export async function generatePaymentReceiptPdf(
 
   // Table row
   page.drawText("Paiement comptoir", { x: MARGIN + 15, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
-  page.drawText(PAYMENT_METHOD_LABELS_FR[payment.method], { x: MARGIN + 240, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
-  page.drawText(PAYMENT_CATEGORY_LABELS_FR[payment.category], { x: MARGIN + 340, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
-  const amountStr = formatDzdPlain(payment.amount);
+  page.drawText(label(PAYMENT_METHOD_LABELS_FR, payment.method), { x: MARGIN + 240, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
+  page.drawText(label(PAYMENT_CATEGORY_LABELS_FR, payment.category), { x: MARGIN + 340, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
+  const amountStr = dzdPdf(payment.amount);
   page.drawText(amountStr, { x: MARGIN + 440, y: y - 4, size: 10, font: fontBold, color: TEXT_PRIMARY });
   page.drawLine({
     start: { x: MARGIN, y: y - 14 },
@@ -113,16 +127,18 @@ export async function generatePaymentReceiptPdf(
 
   y -= 60;
 
-  // Notes section
+  // Notes section — T-368 (REPT-501): render ALL wrapped lines (the old
+  // slice(0, 2) silently truncated long notes on a financial document).
   if (payment.notes) {
     page.drawText("NOTES", { x: MARGIN, y, size: 10, font: fontBold, color: TEXT_PRIMARY });
     y -= 16;
-    drawBox(page, MARGIN, y - 30, CONTENT_W, 30, rgb(0xfa / 255, 0xfa / 255, 0xfa / 255), BORDER);
-    const noteLines = wrapText(payment.notes, font, 10, CONTENT_W - 30);
-    noteLines.slice(0, 2).forEach((line, i) => {
+    const noteLines = wrapText(sanitizePdfText(payment.notes), font, 10, CONTENT_W - 30);
+    const boxH = Math.max(30, noteLines.length * 12 + 18);
+    drawBox(page, MARGIN, y - boxH, CONTENT_W, boxH, rgb(0xfa / 255, 0xfa / 255, 0xfa / 255), BORDER);
+    noteLines.forEach((line, i) => {
       page.drawText(line, { x: MARGIN + 15, y: y - 12 - i * 12, size: 10, font, color: TEXT_PRIMARY });
     });
-    y -= 40;
+    y -= boxH + 10;
   }
 
   // Proof section
@@ -130,18 +146,20 @@ export async function generatePaymentReceiptPdf(
     page.drawText("JUSTIFICATIF", { x: MARGIN, y, size: 10, font: fontBold, color: TEXT_PRIMARY });
     y -= 16;
     drawBox(page, MARGIN, y - 26, CONTENT_W, 26, rgb(0xfa / 255, 0xfa / 255, 0xfa / 255), BORDER);
-    page.drawText(`Fichier joint: ${payment.proofUrl}`, {
+    page.drawText(sanitizePdfText(`Fichier joint: ${payment.proofUrl}`).slice(0, 90), {
       x: MARGIN + 15, y: y - 16, size: 10, font, color: TEXT_PRIMARY,
     });
     y -= 32;
   }
 
-  // Status banner
+  // Status banner (keep above the bottom limit; the receipt is one page —
+  // if an extreme note pushed y too far, clamp instead of drawing off-page)
+  const bannerY = Math.max(y - 28, PAGE_BOTTOM_LIMIT + 28);
   const statusColor = payment.status === "paid" ? SUCCESS : payment.status === "pending" ? WARNING : TEXT_MUTED;
-  drawBox(page, MARGIN, y - 28, CONTENT_W, 28, statusColor);
-  const statusLabel = `Statut: ${PAYMENT_STATUS_LABELS_FR[payment.status].toUpperCase()}`;
+  drawBox(page, MARGIN, bannerY - 28, CONTENT_W, 28, statusColor);
+  const statusLabel = `Statut: ${sanitizePdfText((PAYMENT_STATUS_LABELS_FR[payment.status] ?? "—").toUpperCase())}`;
   page.drawText(statusLabel, {
-    x: MARGIN + 15, y: y - 18, size: 11, font: fontBold, color: rgb(1, 1, 1),
+    x: MARGIN + 15, y: bannerY - 18, size: 11, font: fontBold, color: rgb(1, 1, 1),
   });
 
   // Signature line
@@ -154,6 +172,6 @@ export async function generatePaymentReceiptPdf(
     color: BORDER,
   });
 
-  drawFooter(page, font, new Date().toISOString());
+  stampPageFooters(doc, font, new Date().toISOString());
   return doc.save();
 }

@@ -13,6 +13,7 @@
  * workflow if the school accepts it).
  */
 import { generateReportPdf, type ReportSpec } from "./report-document";
+import { dzdPdf } from "./shared";
 
 export interface PaymentPlanInput {
   readonly parentName: string;
@@ -26,7 +27,9 @@ export interface PaymentPlanInput {
   readonly schedule: readonly { installmentNumber: number; dueDate: string; amount: number; cumulative: number }[];
 }
 
-const dzd = (n: number) => n.toLocaleString("fr-FR");
+// T-368: dzdPdf = WinAnsi-safe grouping (toLocaleString emits U+202F which
+// sanitizePdfText turns into "?" glyphs inside every amount cell).
+const dzd = (n: number) => dzdPdf(n);
 
 export async function generatePaymentPlanPdf(input: PaymentPlanInput): Promise<Uint8Array> {
   const spec: ReportSpec = {

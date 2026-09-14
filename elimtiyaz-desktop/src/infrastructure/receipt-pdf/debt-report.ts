@@ -12,6 +12,7 @@
  * recomputes.
  */
 import { generateReportPdf, type ReportSpec } from "./report-document";
+import { dzdPdf } from "./shared";
 
 export interface DebtReportRow {
   readonly parentName: string;
@@ -29,7 +30,9 @@ export interface DebtReportInput {
   readonly agingBuckets: readonly { bucket: string; amount: number; debtorCount: number }[];
 }
 
-const dzd = (n: number) => n.toLocaleString("fr-FR");
+// T-368: dzdPdf = WinAnsi-safe grouping (toLocaleString emits U+202F which
+// sanitizePdfText turns into "?" glyphs inside every amount cell).
+const dzd = (n: number) => dzdPdf(n);
 
 export async function generateDebtReportPdf(input: DebtReportInput): Promise<Uint8Array> {
   const spec: ReportSpec = {

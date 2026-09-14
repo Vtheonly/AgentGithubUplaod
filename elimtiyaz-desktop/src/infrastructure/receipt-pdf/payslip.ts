@@ -12,24 +12,34 @@
  * primitives (drawHeader, drawBox, drawKeyValue, etc.).
  *
  * Uses pdf-lib (MIT, no native deps, runs in browser + Node).
+ *
+ * T-368 (67th session, REPT-500/502): amounts render via `dzdPdf` — the
+ * old path piped `formatDzdPlain` output through sanitizePdfText, turning
+ * the U+202F grouping separator into literal "?" glyphs ("65?000 DZD" on
+ * every payslip); label lookups are null-safe; footers carry the true page
+ * count. The net-pay row remains the honest gross-to-net identity the
+ * domain provides (no deduction engine exists — see unknowns; never
+ * invented here).
  */
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import type { Personnel } from "../../domain/model/personnel";
 import { STAFF_CATEGORY_LABELS_FR, PERSONNEL_STATUS_LABELS_FR } from "../../domain/model/personnel";
-import { formatDzdPlain } from "../../core/format/currency";
 import {
   PAGE_H,
   MARGIN,
   CONTENT_W,
+  PAGE_BOTTOM_LIMIT,
   BORDER,
   BRAND_BLUE_DEEP,
   TEXT_PRIMARY,
   TEXT_MUTED,
   PRIMARY_BG,
+  dzdPdf,
   sanitizePdfText,
   drawHeader,
   drawKeyValue,
   drawBox,
+  stampPageFooters,
 } from "./shared";
 
 /**
@@ -53,12 +63,12 @@ export async function generatePayslipPdf(
 
   // Identity box
   drawBox(page, MARGIN, y - 60, CONTENT_W, 60, undefined, BORDER);
-  drawKeyValue(page, font, MARGIN + 15, y - 18, sanitizePdfText("Employé:"), sanitizePdfText(`${personnel.firstName} ${personnel.lastName}`));
-  drawKeyValue(page, font, MARGIN + 15, y - 36, sanitizePdfText("Matricule:"), sanitizePdfText(personnel.id));
-  drawKeyValue(page, font, MARGIN + 280, y - 18, sanitizePdfText("Catégorie:"), sanitizePdfText(STAFF_CATEGORY_LABELS_FR[personnel.staffCategory]));
-  drawKeyValue(page, font, MARGIN + 280, y - 36, sanitizePdfText("Poste:"), sanitizePdfText(personnel.position ?? "—"));
-  drawKeyValue(page, font, MARGIN + 440, y - 18, sanitizePdfText("Période:"), sanitizePdfText(period));
-  drawKeyValue(page, font, MARGIN + 440, y - 36, sanitizePdfText("Statut:"), sanitizePdfText(PERSONNEL_STATUS_LABELS_FR[personnel.status]));
+  drawKeyValue(page, font, MARGIN + 15, y - 18, "Employé:", `${personnel.firstName} ${personnel.lastName}`);
+  drawKeyValue(page, font, MARGIN + 15, y - 36, "Matricule:", personnel.id);
+  drawKeyValue(page, font, MARGIN + 280, y - 18, "Catégorie:", STAFF_CATEGORY_LABELS_FR[personnel.staffCategory] ?? "—");
+  drawKeyValue(page, font, MARGIN + 280, y - 36, "Poste:", personnel.position ?? "—");
+  drawKeyValue(page, font, MARGIN + 440, y - 18, "Période:", period);
+  drawKeyValue(page, font, MARGIN + 440, y - 36, "Statut:", PERSONNEL_STATUS_LABELS_FR[personnel.status] ?? "—");
 
   y -= 90;
 
@@ -72,31 +82,32 @@ export async function generatePayslipPdf(
   const hoursTarget = personnel.weeklyHoursTarget * 4.33;
 
   const rows: Array<[string, string]> = [
-    [sanitizePdfText("Salaire mensuel brut"), `${formatDzdPlain(salary)} DZD`],
+    [sanitizePdfText("Salaire mensuel brut"), `${dzdPdf(salary)} DZD`],
     [sanitizePdfText("Heures hebdo. cibles"), `${personnel.weeklyHoursTarget} h`],
     [sanitizePdfText("Heures hebdo. effectuées"), `${personnel.weeklyHoursLogged} h`],
     [sanitizePdfText("Heures mensuelles cibles"), `${hoursTarget.toFixed(1)} h`],
     [sanitizePdfText("Heures mensuelles effectuées"), `${hoursWorked.toFixed(1)} h`],
-    [sanitizePdfText("Taux horaire estimé"), `${formatDzdPlain(Math.round(hourlyRate))} DZD/h`],
+    [sanitizePdfText("Taux horaire estimé"), `${dzdPdf(Math.round(hourlyRate))} DZD/h`],
     [sanitizePdfText("Date d'embauche"), personnel.hireDate],
   ];
 
-  for (const [label, value] of rows) {
+  for (const [labelText, value] of rows) {
+    if (y - 18 < PAGE_BOTTOM_LIMIT) break; // 7 fixed rows never overflow; guard stays defensive
     drawBox(page, MARGIN, y - 18, CONTENT_W, 18, undefined, BORDER);
-    page.drawText(label, { x: MARGIN + 15, y: y - 13, size: 10, font, color: TEXT_PRIMARY });
+    page.drawText(labelText, { x: MARGIN + 15, y: y - 13, size: 10, font, color: TEXT_PRIMARY });
     page.drawText(sanitizePdfText(value), { x: MARGIN + 460, y: y - 13, size: 10, font: fontBold, color: TEXT_PRIMARY });
     y -= 18;
-    if (y < 100) break;
   }
 
   y -= 20;
   // Total
   drawBox(page, MARGIN, y - 30, CONTENT_W, 30, PRIMARY_BG, BORDER);
   page.drawText(sanitizePdfText("Net à payer"), { x: MARGIN + 15, y: y - 20, size: 12, font: fontBold, color: TEXT_PRIMARY });
-  page.drawText(sanitizePdfText(`${formatDzdPlain(salary)} DZD`), { x: MARGIN + 460, y: y - 20, size: 16, font: fontBold, color: BRAND_BLUE_DEEP });
+  page.drawText(sanitizePdfText(`${dzdPdf(salary)} DZD`), { x: MARGIN + 460, y: y - 20, size: 16, font: fontBold, color: BRAND_BLUE_DEEP });
 
-  // Footer
-  page.drawText(sanitizePdfText("Document généré automatiquement par El-Imtiyaz Desktop Terminal — non officiel sans signature."), { x: MARGIN, y: 30, size: 8, font, color: TEXT_MUTED });
+  page.drawText(sanitizePdfText("Document généré automatiquement par El-Imtiyaz Desktop Terminal — non officiel sans signature."), { x: MARGIN, y: 60, size: 8, font, color: TEXT_MUTED });
+
+  stampPageFooters(doc, font, new Date().toISOString());
 
   return doc.save();
 }

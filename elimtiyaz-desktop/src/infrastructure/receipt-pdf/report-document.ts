@@ -6,13 +6,15 @@
  *
  * A reusable "titled report with sections and tables" engine over the
  * SAME drawing primitives the receipts use (./shared — drawHeader,
- * drawFooter, drawBox, drawKeyValue, sanitizePdfText). The three
+ * stampPageFooters, drawBox, drawKeyValue, sanitizePdfText). The three
  * copilot report generators (class report, debt report, payment plan)
  * are thin adapters over this builder — one table renderer, three
  * documents, zero duplication (§9: one implementation per rule).
  *
  * Multi-page: rows flow onto continuation pages automatically with a
- * compact "(suite)" header; the footer lands on the last page only.
+ * compact "(suite)" header. T-368 (REPT-501/502): the footnote flows
+ * onto a fresh page instead of being dropped, and every page carries
+ * the footer with the TRUE "Page i/N" count.
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import {
@@ -25,9 +27,9 @@ import {
   ACCENT_BG,
   BRAND_BLUE,
   drawHeader,
-  drawFooter,
   drawBox,
   sanitizePdfText,
+  stampPageFooters,
   type PdfPage,
 } from "./shared";
 
@@ -179,17 +181,23 @@ export async function generateReportPdf(spec: ReportSpec): Promise<Uint8Array> {
     cursor.y = c.y;
   }
 
-  // Footnote (last page, only if it fits without a fresh page)
+  // Footnote — T-368 (REPT-501): flows onto a fresh page when it does not
+  // fit the current one (the old `if it fits` guard silently DROPPED the
+  // footnote on long reports).
   if (spec.footnote) {
     const lines = wrapPdfText(spec.footnote, font, 8.5, CONTENT_W);
-    if (cursor.y - lines.length * 11 >= MAX_Y_BOTTOM) {
-      for (const line of lines) {
-        cursor.page.drawText(sanitizePdfText(line), { x: MARGIN, y: cursor.y, size: 8.5, font, color: TEXT_MUTED });
-        cursor.y -= 11;
-      }
+    const c = ensure(cursor, lines.length * 11 + 6);
+    for (const line of lines) {
+      c.page.drawText(sanitizePdfText(line), { x: MARGIN, y: c.y, size: 8.5, font, color: TEXT_MUTED });
+      c.y -= 11;
     }
+    cursor.page = c.page;
+    cursor.y = c.y;
   }
-  drawFooter(cursor.page, font, new Date().toISOString());
+  // T-368 (REPT-502): every page carries the contact footer + the TRUE
+  // page count (the old single drawFooter stamped "Page 1/1" on the last
+  // page only).
+  stampPageFooters(doc, font, new Date().toISOString());
 
   return doc.save();
 }
@@ -226,5 +234,12 @@ function wrapPdfText(text: string, font: PDFFont, size: number, maxWidth: number
     }
   }
   if (current) lines.push(current);
-  return lines.slice(0, 6); // notes stay compact
+  // T-368 (REPT-501): truncation stays bounded (notes are short prose) but
+  // is now HONEST — an ellipsis marks a cut instead of silently vanishing.
+  // (ASCII "..." — the sanitizer strips U+2026 before the WinAnsi encode.)
+  const MAX_LINES = 10;
+  if (lines.length > MAX_LINES) {
+    return [...lines.slice(0, MAX_LINES), "..."];
+  }
+  return lines;
 }
