@@ -315,7 +315,7 @@ export class SupabaseChatRepository implements ChatRepository {
   }
 
   observeMessages(channelId: string): Observable<ChatMessage[]> {
-    // T-371 (ACAD-501): the "no channel selected yet" state passes ""
+    // T-373 (ACAD-501): the "no channel selected yet" state passes ""
     // (chat-panel.tsx `selectedId ?? ""`). A literal `.eq("channel_id", "")`
     // is a guaranteed HTTP 400 (22P02 invalid input syntax for type uuid —
     // live console evidence 2026-09-14). Return the stable empty stream —

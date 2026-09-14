@@ -1,7 +1,7 @@
 # T-370 Live Verification — the Class Formation & Placement Studio backend (ACAD-500)
 
 **Date:** 2026-09-14 (69th session) · **Task:** T-370 · **Problem:** ACAD-500 (CLOSED TESTED)
-**Scope:** the desktop wiring against the LIVE `fn_finalize_class_placements` RPC + the 0096 migration-file reconstruction (the ARCH-011 drift closure) + the owner's console evidence round (T-371/T-372/OPS-312 cross-referenced).
+**Scope:** the desktop wiring against the LIVE `fn_finalize_class_placements` RPC + the 0096 migration-file reconstruction (the ARCH-011 drift closure) + the owner's console evidence round (T-373/T-374/OPS-312 cross-referenced — renumbered at the concurrent-merge: the 70th sessions took T-371/T-372).
 
 ---
 
@@ -13,12 +13,12 @@ The owner pasted the live app console mid-session. Every failing line, root-caus
 |---|---|---|---|
 | `backup.scheduler.start / armed` | info | normal startup (mode prod, next run 01:00Z) | not a defect |
 | `installments?…` | 500 | identical query → 200 on replay (06:21Z) | OPS-312 (transient, monitoring) |
-| `workforce_attendance_events` ×2 | 409 | **23503 FK**: wrong-key fallback (`session.userId` as personnel_id) | **T-372 / WORKFORCE-501 — fixed + live-probed 7/7** |
-| `chat_messages?channel_id=eq.&…` | 400 | empty-uuid filter (`selectedId ?? ""`) | **T-371 / ACAD-501 — fixed, 400s reproduced then guarded** |
+| `workforce_attendance_events` ×2 | 409 | **23503 FK**: wrong-key fallback (`session.userId` as personnel_id) | **T-374 / WORKFORCE-502 — fixed + live-probed 7/7** |
+| `chat_messages?channel_id=eq.&…` | 400 | empty-uuid filter (`selectedId ?? ""`) | **T-373 / ACAD-501 — fixed, 400s reproduced then guarded** |
 | `ledger_entries?…limit=2000` | 500 | identical query → 200 on replay | OPS-312 |
 | `classes?select=*,academic_years!inner(…)` ×4 | 400 | identical query → 200 on replay | OPS-312 |
 | `students?id=eq.<uuid>` ×6 | 400 | **the ACAD-500 defect itself**: finalize PATCHes with `class_id="draft-cls-A1"` → `22P02` | **T-370 — the exact production proof** |
-| `homework?class_id=eq.&…` ×2 | 400 | empty-uuid filter (`classId || ""`) | **T-371 / ACAD-501 — fixed** |
+| `homework?class_id=eq.&…` ×2 | 400 | empty-uuid filter (`classId || ""`) | **T-373 / ACAD-501 — fixed** |
 
 The `students` PATCHes were the smoking gun: the URL form (no `select=` param) is a PATCH, and the six requests map one-to-one onto the 08f7f13 non-atomic loop assigning students to NEW sections whose ids never existed. Probe B1 reproduced the exact error body: `400 {"code":"22P02","message":"invalid input syntax for type uuid: \"draft-cls-A1\""}`.
 
@@ -72,10 +72,10 @@ Run: 2026-09-14 06:40 UTC, real PostgREST + RLS + RPC path, staff JWT (owner-pin
 |---|---|
 | `npx tsc --noEmit` | 0 errors |
 | `npm run lint` | 0 errors (602 warnings — the known baseline) |
-| `npx vitest run` (FULL) | 164 files (163 passed + 1 skipped), 3377 passed, 0 failed, 5 skipped — **+27 new** (15 T-370 + 6 T-371 + 6 T-372), 3 new files |
+| `npx vitest run` (FULL) | 164 files (163 passed + 1 skipped), 3377 passed, 0 failed, 5 skipped — **+27 new** (15 T-370 + 6 T-373 + 6 T-374), 3 new files |
 
 ## 6. Cross-references
 
-- T-371 (ACAD-501): the empty-id fetch guards — `scripts/t371-console-errors-probe.sh` (the reproduction matrix), suite 6/6.
-- T-372 (WORKFORCE-501): the attendance wrong-key fallback — `scripts/t-372-attendance-probe.py` 7/7 (the 409 mechanism REPRODUCED as 23503 FK; the correct-key punch verified 201).
+- T-373 (ACAD-501): the empty-id fetch guards — `scripts/t371-console-errors-probe.sh` (the reproduction matrix), suite 6/6.
+- T-374 (WORKFORCE-502): the attendance wrong-key fallback — `scripts/t-374-attendance-probe.py` 7/7 (the 409 mechanism REPRODUCED as 23503 FK; the correct-key punch verified 201).
 - OPS-312: the transient installments/ledger/classes errors — registered OPEN (monitoring), no speculative retry.

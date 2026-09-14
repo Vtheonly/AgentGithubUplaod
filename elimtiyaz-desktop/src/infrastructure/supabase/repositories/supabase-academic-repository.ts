@@ -1370,7 +1370,7 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
 
   observeForClass(classId: string): Observable<Homework[]> {
     const sub = new SubjectBehavior<Homework[]>([]);
-    // T-371 (ACAD-501): the "no class selected yet" state passes ""
+    // T-373 (ACAD-501): the "no class selected yet" state passes ""
     // (homework-history-tab.tsx `classId || ""`). A literal
     // `.eq("class_id", "")` against the UUID column is a guaranteed HTTP 400
     // (22P02 — live console evidence 2026-09-14). Stable empty stream instead.
@@ -1390,7 +1390,7 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
 
   observeByTeacher(teacherId: string): Observable<Homework[]> {
     const sub = new SubjectBehavior<Homework[]>([]);
-    // T-371 (ACAD-501): teacher_id is a UUID column — the same empty-id
+    // T-373 (ACAD-501): teacher_id is a UUID column — the same empty-id
     // guard as observeForClass (no server round-trip, stable empty stream).
     if (!teacherId) return sub;
     const fetchTeacherHomework = async () => {

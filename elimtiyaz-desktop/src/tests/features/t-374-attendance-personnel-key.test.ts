@@ -1,5 +1,5 @@
 /**
- * T-372 (WORKFORCE-501) — the attendance punch uses the PERSONNEL key, never
+ * T-374 (WORKFORCE-502) — the attendance punch uses the PERSONNEL key, never
  * a user_profiles.id fallback.
  *
  * Live console evidence (2026-09-14 05:56 UTC): two
@@ -18,7 +18,7 @@
  * attendance center surfaces repository failures (the old path was silent).
  *
  * Pinned here as source guards (the t-361 convention) plus the live probe
- * evidence trail (scripts/t-372-attendance-probe.py).
+ * evidence trail (scripts/t-374-attendance-probe.py).
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -37,10 +37,10 @@ const ATTENDANCE_CENTER = readFileSync(
   "utf8",
 );
 
-describe("T-372 — WORKFORCE-501: no user_profiles.id fallback on the personnel key", () => {
+describe("T-374 — WORKFORCE-502: no user_profiles.id fallback on the personnel key", () => {
   it("worker-dashboard derives personnelId from the personnel record ONLY", () => {
     // The wrong-key ASSIGNMENT is gone (the exact statement form — a bare
-    // string check would trip on the T-372 documentation comments).
+    // string check would trip on the T-374 documentation comments).
     expect(
       WORKER_DASHBOARD.includes("const personnelId = me?.id ?? session?.userId"),
     ).toBe(false);

@@ -1,5 +1,5 @@
 /**
- * T-371 (ACAD-501) — the empty-id REST fetch guards.
+ * T-373 (ACAD-501) — the empty-id REST fetch guards.
  *
  * Live console evidence (2026-09-14 05:56 UTC): the app fired
  *   GET /rest/v1/chat_messages?…&channel_id=eq.&deleted_at=is.null…  → 400
@@ -54,7 +54,7 @@ function makeSpyClient() {
   return { client: client as unknown as SupabaseClient, from };
 }
 
-describe("T-371 — the empty-id fetch guards (ACAD-501)", () => {
+describe("T-373 — the empty-id fetch guards (ACAD-501)", () => {
   it("observeMessages(\"\") returns an empty stream with NO server round-trip", () => {
     const { client, from } = makeSpyClient();
     const repo = new SupabaseChatRepository(client);
@@ -99,7 +99,7 @@ describe("T-371 — the empty-id fetch guards (ACAD-501)", () => {
   });
 });
 
-describe("T-371 — source guards", () => {
+describe("T-373 — source guards", () => {
   const CHAT_REPO = readFileSync(
     join(
       SRC,

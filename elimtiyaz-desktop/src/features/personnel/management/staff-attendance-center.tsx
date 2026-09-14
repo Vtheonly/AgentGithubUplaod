@@ -80,7 +80,7 @@ export function StaffAttendanceCenter() {
     () => repos.personnel.observeByUserId(currentUserId),
     [currentUserId],
   );
-  // T-372 (WORKFORCE-501): NO user_profiles.id fallback — that key is NOT a
+  // T-374 (WORKFORCE-502): NO user_profiles.id fallback — that key is NOT a
   // personnel.id. The previous `me?.id ?? currentUserId` fallback made a
   // profile-less user's punch INSERT a foreign personnel_id → 23503 → 409
   // (live console evidence 2026-09-14). No linked personnel record ⇒ NO punch.
@@ -138,7 +138,7 @@ export function StaffAttendanceCenter() {
   }, [latestEvent]);
 
   async function handleRecordClock(eventType: AttendanceEventType) {
-    // T-372: a user without a linked personnel record must never reach the
+    // T-374: a user without a linked personnel record must never reach the
     // INSERT (the 23503/409 path) — refuse with guidance, and surface the
     // repository's failure honestly (the old path was silent on error).
     if (!myPersonnelId) {

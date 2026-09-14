@@ -111,7 +111,7 @@ export function WorkerDashboard() {
     () => repos.personnel.observeByUserId(session?.userId ?? ""),
     [session?.userId],
   );
-  // T-372 (WORKFORCE-501): NO user_profiles.id fallback — that key is NOT a
+  // T-374 (WORKFORCE-502): NO user_profiles.id fallback — that key is NOT a
   // personnel.id. The previous `me?.id ?? session?.userId` fallback made a
   // profile-less user's clock punch INSERT a foreign personnel_id → 23503
   // FK violation → HTTP 409 (live console evidence 2026-09-14, two punches).
@@ -154,7 +154,7 @@ export function WorkerDashboard() {
 
   async function recordEvent(eventType: AttendanceEventType) {
     if (!session) return;
-    // T-372: a user without a linked personnel record must never reach the
+    // T-374: a user without a linked personnel record must never reach the
     // INSERT (the 23503/409 path) — refuse with guidance instead.
     if (!personnelId) {
       toast.showError(
@@ -189,7 +189,7 @@ export function WorkerDashboard() {
 
   async function handleLeaveSubmit(data: LeaveFormData) {
     if (!session) return;
-    // T-372: same no-personnel guard as the clock punch — leave_requests
+    // T-374: same no-personnel guard as the clock punch — leave_requests
     // .personnel_id is an FK to personnel; a user_profiles.id would 409.
     if (!personnelId) {
       toast.showError(

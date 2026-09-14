@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-t-372-attendance-probe.py — LIVE root-cause probe for the workforce
-attendance 409s (T-372 / WORKFORCE-501).
+t-374-attendance-probe.py — LIVE root-cause probe for the workforce
+attendance 409s (T-374 / WORKFORCE-502).
 
 The owner's console (2026-09-14 05:56 UTC) showed TWO
 `POST /rest/v1/workforce_attendance_events` calls failing HTTP 409. The
@@ -76,7 +76,7 @@ def rest(method, path, jwt, body=None, prefer="return=representation"):
 
 def main():
     print("===================================================================")
-    print(f"T-372 ATTENDANCE 409 ROOT-CAUSE PROBE — {time.strftime('%Y-%m-%dT%H:%M:%SZ')} (UTC)")
+    print(f"T-374 ATTENDANCE 409 ROOT-CAUSE PROBE — {time.strftime('%Y-%m-%dT%H:%M:%SZ')} (UTC)")
     print("===================================================================")
 
     print("\n[P1] Admin sign-in (owner-pinned credential, OPS-310)…")
@@ -142,7 +142,7 @@ def main():
             "tenant_id": TENANT_ID,
             "personnel_code": PROBE_CODE,
             "first_name": "Probe",
-            "last_name": "T-372",
+            "last_name": "T-374",
             "staff_category": "support",
             "position": "Probe technique",
             "hire_date": "2026-01-01",
@@ -164,7 +164,7 @@ def main():
             "tenant_id": TENANT_ID,
             "personnel_id": personnel_id,
             "event_type": "clock_in",
-            "note": "T-372 probe punch",
+            "note": "T-374 probe punch",
         },
     )
     check(
@@ -204,7 +204,7 @@ def main():
         for label, _, detail in red:
             print(f"  RED - {label}: {detail}")
         sys.exit(1)
-    print("ALL GREEN — T-372 root cause CONFIRMED (23503 FK, not unique) + fix path verified")
+    print("ALL GREEN — T-374 root cause CONFIRMED (23503 FK, not unique) + fix path verified")
     print("===================================================================")
 
 
