@@ -23,6 +23,8 @@ import type {
   BatchRegistrationInput,
   BatchRegistrationResult,
   GradeLevel,
+  StudentDocument,
+  StudentDocumentDraft,
 } from "../../../domain/model/student";
 import { gradeLevelFromLevelYear } from "../../../domain/model/student";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
@@ -338,6 +340,65 @@ export class MockStudentRepository implements StudentRepository {
       diff: { before: null, after: { count: promoted.length } },
     });
     return Ok(promoted);
+  }
+
+  /**
+   * SYNC-110/T-372 — attach ONE document (mock mode: the in-memory student
+   * store; Supabase mode: the canonical `student_documents` table). Mirrors
+   * the Supabase contract: the storage path is required (the vault upload
+   * runs BEFORE this call), the id is allocated here, and the observable
+   * student stream re-emits so the Documents tab re-renders.
+   */
+  async addStudentDocument(
+    studentId: string,
+    input: StudentDocumentDraft,
+  ): Promise<Result<StudentDocument>> {
+    await delay(120);
+    const idx = store.students.findIndex((s) => s.id === studentId);
+    if (idx < 0) return Err(Errors.notFound("Student", studentId));
+    const student = store.students[idx];
+    const doc: StudentDocument = {
+      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      fileName: input.fileName,
+      category: input.category,
+      note: input.note ?? null,
+      storagePath: input.storagePath,
+      uploadedBy: input.uploadedBy,
+      uploadedAt: nowIso(),
+      mimeType: input.mimeType ?? null,
+      sizeBytes: input.sizeBytes ?? null,
+    };
+    store.students[idx] = {
+      ...student,
+      documents: [...(student.documents ?? []), doc],
+      updatedAt: nowIso(),
+    };
+    store.notifyStudents();
+    return Ok(doc);
+  }
+
+  /**
+   * SYNC-110/T-372 — remove ONE document with honest zero-match semantics
+   * (a missing id is a notFound Result, never a silent success — the same
+   * contract the Supabase DELETE probes by matched-row count, §15.30b).
+   */
+  async removeStudentDocument(studentId: string, documentId: string): Promise<Result<void>> {
+    await delay(120);
+    const idx = store.students.findIndex((s) => s.id === studentId);
+    if (idx < 0) return Err(Errors.notFound("Student", studentId));
+    const student = store.students[idx];
+    const before = student.documents ?? [];
+    const next = before.filter((d) => d.id !== documentId);
+    if (next.length === before.length) {
+      return Err(Errors.notFound("StudentDocument", documentId));
+    }
+    store.students[idx] = {
+      ...student,
+      documents: next,
+      updatedAt: nowIso(),
+    };
+    store.notifyStudents();
+    return Ok(undefined);
   }
 }
 

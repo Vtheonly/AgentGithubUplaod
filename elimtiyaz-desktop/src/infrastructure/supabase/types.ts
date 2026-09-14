@@ -243,6 +243,36 @@ export interface StudentRow {
   deleted_at: string | null;
 }
 
+/**
+ * SYNC-110/T-372 — the CANONICAL student-document row (table
+ * `student_documents`, migration 0005; staff RLS 0019; parent RLS 0043).
+ * Field-for-field identical to the web portal's `StudentDocumentRow`
+ * (`elimtiyaz-website/src/lib/types/database.ts`) — the shared store both
+ * platforms read/write. `kind` is CHECK-constrained to the 7 canonical
+ * values (the domain `StudentDocumentCategory` is its verbatim mirror).
+ */
+export interface StudentDocumentRow {
+  id: string;
+  tenant_id: string;
+  student_id: string;
+  kind:
+    | "birth_certificate"
+    | "medical_certificate"
+    | "contract"
+    | "justification_letter"
+    | "id_photo"
+    | "report_card"
+    | "other";
+  file_name: string;
+  storage_path: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  /** user_profiles.id of the uploader (NULL for backfilled/migrated rows). */
+  uploaded_by: string | null;
+  uploaded_at: string;
+  description: string | null;
+}
+
 // ============================================================================
 // Financial
 // ============================================================================

@@ -208,43 +208,46 @@ describe("§05.06 — coefficient edits trigger GPA recompute (assessment re-wei
   });
 });
 
-describe("§04.06 — student documents round-trip", () => {
+describe("§04.06 — student documents round-trip (T-372/SYNC-110: granular table-backed contract)", () => {
   const students = new MockStudentRepository();
 
-  it("persists documents via updateStudent and observes them back", async () => {
+  it("persists documents via addStudentDocument and observes them back", async () => {
     const target = store.students[0];
-    const original = target.documents ?? [];
+    const originalCount = target.documents?.length ?? 0;
 
-    const docs = [
-      {
-        id: "doc-test-1",
-        fileName: "certificat-medical-2026.pdf",
-        category: "medical" as const,
-        note: "Asthme léger",
-        uploadedBy: ACTOR.actorName,
-        uploadedAt: new Date().toISOString(),
-      },
-      {
-        id: "doc-test-2",
-        fileName: "contrat-inscription.pdf",
-        category: "contract" as const,
-        note: null,
-        uploadedBy: ACTOR.actorName,
-        uploadedAt: new Date().toISOString(),
-      },
-    ];
-    const res = await students.updateStudent(target.id, { documents: docs });
+    const draft = {
+      fileName: "certificat-medical-2026.pdf",
+      category: "medical_certificate" as const,
+      note: "Asthme léger",
+      storagePath: "tenant-001/stu-001/vault-certificat-medical.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      uploadedBy: ACTOR.actorName,
+      uploadedByProfileId: null,
+    };
+    const res = await students.addStudentDocument(target.id, draft);
     expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    // The repository allocated the id and stamped the timestamp.
+    expect(res.value.id).toBeTruthy();
+    expect(res.value.storagePath).toBe(draft.storagePath);
+    expect(res.value.uploadedAt).toBeTruthy();
 
     const observed = store.students.find((s) => s.id === target.id);
-    expect(observed?.documents).toHaveLength(2);
-    expect(observed?.documents?.[0].category).toBe("medical");
+    expect(observed?.documents).toHaveLength(originalCount + 1);
+    expect(observed?.documents?.[observed.documents.length - 1].category).toBe("medical_certificate");
+    expect(observed?.documents?.[observed.documents.length - 1].fileName).toBe(draft.fileName);
 
-    // Restore the original documents so sibling suites are unaffected.
-    const restore = await students.updateStudent(target.id, {
-      documents: original,
-    });
-    expect(restore.ok).toBe(true);
+    // Remove through the granular contract — the row count returns to the
+    // original and a second remove is an honest notFound (§15.30b).
+    const docId = res.value.id;
+    const del = await students.removeStudentDocument(target.id, docId);
+    expect(del.ok).toBe(true);
+    const after = store.students.find((s) => s.id === target.id);
+    expect(after?.documents).toHaveLength(originalCount);
+
+    const delAgain = await students.removeStudentDocument(target.id, docId);
+    expect(delAgain.ok).toBe(false);
   });
 });
 

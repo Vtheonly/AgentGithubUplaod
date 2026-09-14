@@ -6,15 +6,18 @@
  *    justification letters, contracts. |"
  *
  * Implementation notes:
- *   - Follows the descriptive-record pattern used by `PersonnelDocument`
- *     (personnel module) and `Homework.attachments`: the record stores the
- *     file name, a category, an optional note, and the uploader/timestamp.
- *     Actual binary storage is delegated to the platform storage layer
- *     (Supabase Storage in production) — this UI manages the metadata and
- *     keeps the mock/demo experience identical to the personnel module.
- *   - Persistence: `repos.students.updateStudent(id, { documents })` —
- *     the field round-trips through the mock store and the Supabase
- *     `documents_json` column (additive migration 0038).
+ *   - SYNC-110/T-372: the metadata lives in the CANONICAL `student_documents`
+ *     table (0005/0019/0043) — the SAME store the web portal reads/writes —
+ *     so every document uploaded here is visible on the website, and every
+ *     document uploaded from the website is visible here. The legacy
+ *     `students.documents_json` column (0038) is a forensic archive only.
+ *   - Writes are GRANULAR: `addStudentDocument` inserts ONE row;
+ *     `removeStudentDocument` deletes ONE row. The old full-array
+ *     `updateStudent({ documents })` write was removed (a last-write-wins
+ *     clobber that could not coexist with concurrent portal inserts).
+ *   - Binary storage is delegated to the media vault (bucket
+ *     `student-documents`, path `<tenant>/<student>/<file>` — the same
+ *     convention the portal uses); display goes through the signed-URL flow.
  */
 import { useRef, useState } from "react";
 import { FileText, Paperclip, Trash2, Upload, FileBadge, Eye } from "lucide-react";
@@ -39,10 +42,19 @@ import {
   mockVaultHas,
 } from "../../../infrastructure/storage/media-vault";
 
+/**
+ * SYNC-110/T-372 — the CANONICAL kind set (the `student_documents` CHECK
+ * constraint, 0005): the same 7 kinds the portal's upload dialog offers.
+ * The old 4-value union could not represent birth certificates, ID photos
+ * or report cards uploaded from the website.
+ */
 const CATEGORY_OPTIONS: readonly StudentDocumentCategory[] = [
-  "medical",
-  "justification",
+  "birth_certificate",
+  "medical_certificate",
   "contract",
+  "justification_letter",
+  "id_photo",
+  "report_card",
   "other",
 ];
 
@@ -51,7 +63,7 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
   const toast = useToast();
   const { session } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pendingCategory, setPendingCategory] = useState<StudentDocumentCategory>("medical");
+  const [pendingCategory, setPendingCategory] = useState<StudentDocumentCategory>("medical_certificate");
   const [pendingNote, setPendingNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -59,45 +71,55 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
   const documents = student?.documents ?? [];
   const canManage = !!session && session.permissions.has(Permission.EditStudent);
 
-  async function persist(next: readonly StudentDocument[]) {
-    setSaving(true);
-    try {
-      const result = await repos.students.updateStudent(studentId, { documents: next });
-      if (!result.ok) {
-        toast.showError("Échec de l'enregistrement", result.error.userMessage);
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function handleFilesSelected(files: FileList | null) {
     if (!files || files.length === 0) return;
     const uploadedBy = session?.displayName ?? "Session courante";
     // VAULT §12.07 — every file goes through the PRIVATE media vault
     // (signed-URL flow, never a public URL). The stored record keeps the
     // vault path; display fetches a fresh 5-minute signed URL each time.
+    // SYNC-110/T-372 — each upload persists ONE `student_documents` row
+    // (the canonical shared table) via the granular repository method.
     void (async () => {
-      const additions: StudentDocument[] = [];
+      setSaving(true);
+      let added = 0;
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         try {
           const uploaded = await uploadPrivateMedia({
             bucket: "student-documents",
             entityId: studentId,
-            tenantId: student?.tenantId ?? "mock",
+            // T-361 pattern: the WORKING tenant — the student's own tenant
+            // (NOT NULL in production), falling back to the session's
+            // working tenant while the student stream is still loading.
+            // Never a bare "mock" literal in a configured session.
+            tenantId: student?.tenantId ?? session?.tenantId ?? "mock",
             file: f,
           });
-          additions.push({
-            id: `doc-${Date.now()}-${i}`,
+          const result = await repos.students.addStudentDocument(studentId, {
             fileName: f.name,
             category: pendingCategory,
             note: pendingNote.trim() || null,
-            // Vault storage path (private bucket) — persisted for the
-            // signed-URL display flow.
             storagePath: uploaded.path,
+            mimeType: uploaded.contentType,
+            sizeBytes: uploaded.sizeBytes,
             uploadedBy,
-            uploadedAt: new Date().toISOString(),
+            uploadedByProfileId: session?.userId ?? null,
+          });
+          if (!result.ok) {
+            toast.showError("Échec de l'enregistrement", result.error.userMessage);
+            continue;
+          }
+          added++;
+          // VAULT §12.01 — sensitive-record uploads are audited.
+          void repos.audit.log({
+            action: "student.document_upload",
+            entityType: "student",
+            entityId: studentId,
+            actorId: session?.userId ?? "usr-current",
+            actorName: uploadedBy,
+            tenantId: student?.tenantId ?? "mock",
+            diff: { before: null, after: { count: 1, category: pendingCategory } },
+            note: `Document « ${STUDENT_DOCUMENT_CATEGORY_LABELS_FR[pendingCategory]} » (${f.name}) ajouté au coffre privé (store canonique partagé)`,
           });
         } catch (e) {
           toast.showError(
@@ -106,32 +128,22 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
           );
         }
       }
-      if (additions.length > 0) {
+      if (added > 0) {
         setPendingNote("");
-        await persist([...documents, ...additions]);
         toast.showSuccess(
           "Document(s) ajouté(s)",
-          `${additions.length} pièce(s) jointe(s) au dossier de l'élève (coffre privé).`,
+          `${added} pièce(s) jointe(s) au dossier de l'élève (coffre privé — visible sur le portail).`,
         );
-        // VAULT §12.01 — sensitive-record views/uploads are audited.
-        void repos.audit.log({
-          action: "student.document_upload",
-          entityType: "student",
-          entityId: studentId,
-          actorId: session?.userId ?? "usr-current",
-          actorName: uploadedBy,
-          tenantId: student?.tenantId ?? "mock",
-          diff: { before: null, after: { count: additions.length, category: pendingCategory } },
-          note: `${additions.length} document(s) « ${STUDENT_DOCUMENT_CATEGORY_LABELS_FR[pendingCategory]} » ajouté(s) au coffre privé`,
-        });
       }
       if (fileInputRef.current) fileInputRef.current.value = "";
+      setSaving(false);
     })();
   }
 
   /**
    * VAULT §12.07 — open a document via a FRESH signed URL (5-min expiry,
-   * never cached). The URL is requested on every click.
+   * never cached). The URL is requested on every click. Works for binaries
+   * uploaded from EITHER platform (the storage paths are interoperable).
    */
   async function openDocument(doc: StudentDocument) {
     const url = await freshSignedMediaUrl({
@@ -159,8 +171,18 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
     }
   }
 
+  /**
+   * SYNC-110/T-372 — granular single-row removal through the canonical
+   * table (honest zero-match semantics: the repository surfaces a notFound
+   * error instead of a silent success).
+   */
   function removeDocument(doc: StudentDocument) {
-    void persist(documents.filter((d) => d.id !== doc.id));
+    void (async () => {
+      const result = await repos.students.removeStudentDocument(studentId, doc.id);
+      if (!result.ok) {
+        toast.showError("Échec de la suppression", result.error.userMessage);
+      }
+    })();
   }
 
   return (
@@ -263,7 +285,7 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
                 <Badge variant="outline" className="text-[10px] shrink-0">
                   {STUDENT_DOCUMENT_CATEGORY_LABELS_FR[d.category]}
                 </Badge>
-                {d.category === "medical" && (
+                {d.category === "medical_certificate" && (
                   <StatusChip label="Médical" tone="info" />
                 )}
                 {canManage && (

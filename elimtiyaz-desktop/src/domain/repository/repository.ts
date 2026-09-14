@@ -15,7 +15,7 @@ import type {
   CreateParentInput,
   UpdateParentInput,
 } from "../model/parent";
-import type { Student, CreateStudentInput, UpdateStudentInput, BatchRegistrationInput, BatchRegistrationResult } from "../model/student";
+import type { Student, CreateStudentInput, UpdateStudentInput, BatchRegistrationInput, BatchRegistrationResult, StudentDocument, StudentDocumentDraft } from "../model/student";
 import type {
   AcademicClass,
   Subject,
@@ -160,6 +160,22 @@ export interface StudentRepository {
   deleteStudent(id: string): Promise<Result<void>>;
   batchRegister(input: BatchRegistrationInput): Promise<Result<BatchRegistrationResult>>;
   promote(studentIds: string[], academicYear: string): Promise<Result<Student[]>>;
+  /**
+   * SYNC-110/T-372 — attach ONE document to a student against the CANONICAL
+   * `student_documents` table (the store the web portal also reads/writes,
+   * so the document becomes visible on BOTH platforms). The caller uploads
+   * the binary to the media vault FIRST and passes the returned storage
+   * path in `input.storagePath`. Replaces the removed full-array
+   * `updateStudent({ documents })` clobber.
+   */
+  addStudentDocument(studentId: string, input: StudentDocumentDraft): Promise<Result<StudentDocument>>;
+  /**
+   * SYNC-110/T-372 — remove ONE document row (staff-only surface; the portal
+   * deliberately offers no deletion). Honest zero-match semantics: deleting
+   * an id that no longer exists returns a notFound Result, never a silent
+   * success (AGENTS.md §15.30b).
+   */
+  removeStudentDocument(studentId: string, documentId: string): Promise<Result<void>>;
 }
 
 export interface ClassRepository {

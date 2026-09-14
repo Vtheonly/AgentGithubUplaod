@@ -727,6 +727,16 @@ class FastStudentRepo implements StudentRepository {
   async promote(): Promise<Result<Student[]>> {
     return Err(Errors.server("not implemented in stub"));
   }
+  // T-372/SYNC-110: granular document contract stubs — these import-focused
+  // harnesses never exercise document flows; the methods exist to satisfy
+  // the StudentRepository contract and fail loud if ever reached.
+  async addStudentDocument(): Promise<Result<import("../../domain/model/student").StudentDocument>> {
+    return Err(Errors.server("stub: addStudentDocument not used in this harness"));
+  }
+  async removeStudentDocument(): Promise<Result<void>> {
+    return Err(Errors.server("stub: removeStudentDocument not used in this harness"));
+  }
+
 }
 
 class FastLedgerRepo implements LedgerRepository {

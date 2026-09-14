@@ -23,31 +23,44 @@ export type AcademicLevel = "primaire" | "cem" | "lycee";
 export type StudentStatus = "active" | "graduated" | "transferred" | "suspended" | "withdrawn";
 
 /**
- * Student document category (plan §04.06 — Student Profile Drawer,
- * "Documents" section: medical certificates, justification letters,
- * contracts, and other attachments).
+ * Student document category — the CANONICAL kind set of the
+ * `student_documents` table's CHECK constraint (migration 0005), shared
+ * verbatim with the web portal's `StudentDocumentKind` (SYNC-110/T-372:
+ * the desktop's old 4-value union `medical|justification|contract|other`
+ * could not even REPRESENT the kinds the website offers; the legacy values
+ * are mapped server-side by migration 0098's backfill —
+ * medical→medical_certificate, justification→justification_letter).
  */
 export type StudentDocumentCategory =
-  | "medical" // certificat médical
-  | "justification" // justificatif d'absence / lettre
+  | "birth_certificate" // acte de naissance
+  | "medical_certificate" // certificat médical
   | "contract" // contrat d'inscription
+  | "justification_letter" // justificatif d'absence / lettre
+  | "id_photo" // pièce d'identité / photo
+  | "report_card" // bulletin (année précédente)
   | "other";
 
 export const STUDENT_DOCUMENT_CATEGORY_LABELS_FR: Record<StudentDocumentCategory, string> = {
-  medical: "Certificat médical",
-  justification: "Justificatif / Lettre",
+  birth_certificate: "Acte de naissance",
+  medical_certificate: "Certificat médical",
   contract: "Contrat",
+  justification_letter: "Justificatif / Lettre",
+  id_photo: "Pièce d'identité",
+  report_card: "Bulletin",
   other: "Autre",
 };
 
 /**
  * A document attached to a student's profile (plan §04.06).
  *
- * Storage note: mirrors the `PersonnelDocument` pattern — a descriptive
- * record (file name, category, uploader, optional note). The mock store
- * keeps these in memory; the Supabase layer persists them in the additive
- * `documents_json` column on `students` (migration 0038), exactly like
- * personnel documents.
+ * Storage note (SYNC-110/T-372): the metadata lives in the CANONICAL
+ * `student_documents` table (0005; staff RLS 0019; parent RLS 0043) — the
+ * SAME store the web portal reads/writes — while the binary lives in the
+ * private `student-documents` bucket under
+ * `<tenant_id>/<student_id>/<filename>` (vault §12.07). The legacy
+ * `students.documents_json` column (0038) is a forensic archive only: no
+ * client reads or writes it after T-372 (its rows were backfilled into the
+ * table by migration 0098).
  */
 export interface StudentDocument {
   readonly id: string;
@@ -61,8 +74,38 @@ export interface StudentDocument {
    * URL (5-minute expiry, never cached).
    */
   readonly storagePath?: string | null;
+  /** Display name of the uploader (best-effort for table-backed rows). */
   readonly uploadedBy: string;
   readonly uploadedAt: string; // ISO datetime
+  /** MIME type of the stored binary (table column `mime_type`). */
+  readonly mimeType?: string | null;
+  /** Size of the stored binary in bytes (table column `size_bytes`). */
+  readonly sizeBytes?: number | null;
+}
+
+/**
+ * Input for `StudentRepository.addStudentDocument` — the granular
+ * table-backed write (SYNC-110/T-372). The caller uploads the binary to the
+ * media vault FIRST (`uploadPrivateMedia`, bucket `student-documents`), then
+ * persists the metadata row with the returned storage path. This REPLACES
+ * the old full-array `updateStudent({ documents })` write — a last-write-wins
+ * clobber that could not coexist with concurrent website inserts.
+ */
+export interface StudentDocumentDraft {
+  readonly fileName: string;
+  readonly category: StudentDocumentCategory;
+  readonly note?: string | null;
+  /** Vault storage path returned by `uploadPrivateMedia` (required — the table column is NOT NULL). */
+  readonly storagePath: string;
+  readonly mimeType?: string | null;
+  readonly sizeBytes?: number | null;
+  /** Display name for mock mode / UI fallback. */
+  readonly uploadedBy: string;
+  /**
+   * The uploader's `user_profiles.id` (the session's `userId`) — stored in
+   * the table's `uploaded_by` column. Null for mock-mode drafts.
+   */
+  readonly uploadedByProfileId?: string | null;
 }
 
 /**
@@ -329,12 +372,19 @@ export interface CreateStudentInput {
  * (`status`, `academicHistory`) — previously `updateStudent` only accepted
  * `Partial<CreateStudentInput>`, which silently excluded the student status
  * from any edit flow.
+ *
+ * SYNC-110/T-372: the `documents` field is DELIBERATELY ABSENT — the old
+ * full-array replacement write (`updateStudent(id, { documents })` →
+ * `students.documents_json`) was a last-write-wins clobber that could not
+ * coexist with concurrent website inserts against the canonical
+ * `student_documents` table. Document mutations go through the GRANULAR
+ * repository contract (`addStudentDocument` / `removeStudentDocument`); the
+ * field's removal makes the clobber path a compile-time error if anyone
+ * tries to reintroduce it.
  */
 export interface UpdateStudentInput extends Partial<CreateStudentInput> {
   readonly status?: StudentStatus;
   readonly academicHistory?: readonly AcademicHistoryEntry[];
-  /** Vault §04.06 — document attachments managed by the Documents tab. */
-  readonly documents?: readonly StudentDocument[];
 }
 
 /**

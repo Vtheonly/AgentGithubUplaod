@@ -53,6 +53,8 @@ import type {
   GradeLevel,
   BatchRegistrationInput,
   BatchRegistrationResult,
+  StudentDocument,
+  StudentDocumentDraft,
 } from "../../../domain/model/student";
 import {
   gradeLevelFromLevelYear,
@@ -81,6 +83,7 @@ import { deterministicActivationCode } from "../../../core/format/id";
 import type {
   ParentRow,
   StudentRow,
+  StudentDocumentRow,
   PaymentRow,
   PaymentAllocationRow,
   LedgerEntryRow,
@@ -245,7 +248,8 @@ function mapParentRow(r: ParentRow): Parent {
   };
 }
 
-function mapStudentRow(r: StudentRow): Student {
+/** Exported for the T-372 read-parity suite (pure row mapper). */
+export function mapStudentRow(r: StudentRow): Student {
   // Decode gradeLevel from the new `grade_level_code` column (migration 0028).
   // Fall back to "1ap" only when the column is NULL (e.g. rows created before
   // the migration was applied). The importer path always sets it via the
@@ -263,10 +267,12 @@ function mapStudentRow(r: StudentRow): Student {
   }
   const transportTier = (r as { transport_tier?: string | null }).transport_tier ?? null;
   const paymentPlan = (r as { payment_plan?: string | null }).payment_plan === "full_annual" ? "full_annual" : "tranches";
-  // vault §04.06 — descriptive document records (documents_json, migration 0038).
-  const documents = ((r as { documents_json?: unknown }).documents_json ?? null) as
-    | Student["documents"]
-    | null;
+  // SYNC-110/T-372: documents NO LONGER come from the legacy
+  // `students.documents_json` column — the canonical `student_documents`
+  // TABLE is the shared store (the web portal reads/writes it). The table
+  // rows are embedded AFTER mapping, by `embedStudentDocuments`, so that the
+  // mapper stays a pure row→domain function. The column remains as a
+  // forensic archive (backfilled into the table by migration 0098).
   return {
     id: r.id,
     tenantId: r.tenant_id,
@@ -289,10 +295,55 @@ function mapStudentRow(r: StudentRow): Student {
     transportTier,
     status: r.enrollment_status as Student["status"],
     paymentPlan,
-    ...(documents ? { documents } : {}),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
+}
+
+/**
+ * SYNC-110/T-372 — map a canonical `student_documents` row to the domain
+ * `StudentDocument`. `uploaderDisplay` is the best-effort resolved display
+ * name for the row's `uploaded_by` profile id (see resolveUploaderNames) —
+ * "—" when the id is NULL (backfilled rows) or unresolvable under RLS.
+ * Field-for-field the inverse of the website's insert payload.
+ */
+export function mapStudentDocumentRow(
+  r: StudentDocumentRow,
+  uploaderDisplay: string = "—",
+): StudentDocument {
+  return {
+    id: r.id,
+    fileName: r.file_name,
+    category: r.kind,
+    note: r.description ?? null,
+    storagePath: r.storage_path,
+    uploadedBy: uploaderDisplay,
+    uploadedAt: r.uploaded_at,
+    mimeType: r.mime_type ?? null,
+    sizeBytes: r.size_bytes != null ? Number(r.size_bytes) : null,
+  };
+}
+
+/**
+ * SYNC-110/T-372 — embed table-backed documents into the mapped students
+ * (documents ordered by uploaded_at ascending, matching the mock append
+ * order so the UI list is chronologically stable on both platforms).
+ */
+export function embedStudentDocuments(
+  students: readonly Student[],
+  rows: readonly StudentDocumentRow[],
+  uploaderNames: ReadonlyMap<string, string> = new Map(),
+): Student[] {
+  const byStudent = new Map<string, StudentDocument[]>();
+  for (const r of rows) {
+    const list = byStudent.get(r.student_id) ?? [];
+    list.push(mapStudentDocumentRow(r, uploaderNames.get(r.uploaded_by ?? "") ?? "—"));
+    byStudent.set(r.student_id, list);
+  }
+  return students.map((s) => {
+    const docs = byStudent.get(s.id);
+    return docs && docs.length > 0 ? { ...s, documents: docs } : s;
+  });
 }
 
 /** Exported for the T-103 read-side consistency suite (pure row mapper). */
@@ -593,6 +644,8 @@ export class SupabaseStudentRepository implements StudentRepository {
   private readonly cache = new SubjectBehavior<Student[]>([]);
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  /** SYNC-110/T-372 — display-name cache for `uploaded_by` profile ids. */
+  private readonly uploaderNameCache = new Map<string, string>();
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -608,10 +661,72 @@ export class SupabaseStudentRepository implements StudentRepository {
         .is("deleted_at", null)
         .order("last_name", { ascending: true });
       if (error) throw error;
-      this.cache.set((data as StudentRow[]).map(mapStudentRow));
+      const students = (data as StudentRow[]).map(mapStudentRow);
+      // SYNC-110/T-372 — the canonical `student_documents` table is the
+      // document store BOTH platforms share (the website lists documents
+      // from this exact table under the 0043 parent-select policy; staff
+      // read under the 0019 policy). One extra query per reseed, embedded
+      // into the same whole-tenant cache — matching the established
+      // repository pattern (the students list itself is one whole-tenant
+      // query). A document-fetch failure degrades to "no documents"
+      // (honest empty state) rather than blanking the student list.
+      try {
+        const docRows = await this.fetchDocumentRows(tenantId);
+        const names = await this.resolveUploaderNames(docRows);
+        this.cache.set(embedStudentDocuments(students, docRows, names));
+      } catch (docErr) {
+        console.warn("[SupabaseStudent] document fetch failed — documents degraded to empty:", docErr);
+        this.cache.set(students);
+      }
     } catch {
       this.cache.set([]);
     }
+  }
+
+  /** SYNC-110/T-372 — tenant-scoped fetch of every `student_documents` row. */
+  private async fetchDocumentRows(tenantId: string): Promise<StudentDocumentRow[]> {
+    const { data, error } = await this.client
+      .from("student_documents")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("uploaded_at", { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as StudentDocumentRow[];
+  }
+
+  /**
+   * SYNC-110/T-372 — best-effort resolution of uploader display names for
+   * `uploaded_by` profile ids (the chat-repository name-cache pattern):
+   * user_profiles first (own profile + staff-visible profiles under the
+   * 0019 select policy); unresolved/NULL ids keep the honest "—".
+   * Never throws — a name-resolution failure must not blank documents.
+   */
+  private async resolveUploaderNames(rows: readonly StudentDocumentRow[]): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    const missing = [...new Set(rows.map((r) => r.uploaded_by).filter((id): id is string => !!id && !this.uploaderNameCache.has(id)))];
+    if (missing.length > 0) {
+      try {
+        const { data } = await this.client
+          .from("user_profiles")
+          .select("id, display_name, email")
+          .in("id", missing);
+        for (const row of (data ?? []) as Array<{ id: string; display_name: string | null; email: string | null }>) {
+          const display = row.display_name || row.email || "—";
+          this.uploaderNameCache.set(row.id, display);
+          names.set(row.id, display);
+        }
+      } catch {
+        // RLS hides foreign profiles for non-admin viewers — fall through.
+      }
+    }
+    for (const r of rows) {
+      const id = r.uploaded_by;
+      if (id) {
+        const cached = this.uploaderNameCache.get(id);
+        if (cached && !names.has(id)) names.set(id, cached);
+      }
+    }
+    return names;
   }
 
   observe(): Observable<Student[]> {
@@ -744,12 +859,11 @@ export class SupabaseStudentRepository implements StudentRepository {
         patch.enrollment_status = updates.status;
         patch.is_active = updates.status === "active";
       }
-      // NEW (vault §04.06 — Documents tab): persist the descriptive document
-      // records via the additive `documents_json` column (migration 0038),
-      // mirroring the personnel `documents_json` pattern.
-      if (updates.documents !== undefined) {
-        patch.documents_json = updates.documents;
-      }
+      // SYNC-110/T-372: the `documents_json` write is REMOVED — document
+      // mutations go through addStudentDocument/removeStudentDocument
+      // against the canonical `student_documents` table (the shared store).
+      // Writing the JSON column here would re-create desktop-only invisible
+      // documents — the exact split-brain this task fixes.
       if (Object.keys(patch).length > 0) {
         const { error } = await this.client.from("students").update(patch).eq("id", id);
         if (error) throw error;
@@ -763,6 +877,105 @@ export class SupabaseStudentRepository implements StudentRepository {
     } catch (e) {
       return Err(Errors.unknown(e as Error));
     }
+  }
+
+  /**
+   * SYNC-110/T-372 — attach ONE document to a student against the CANONICAL
+   * `student_documents` table (0005; staff INSERT via the 0019
+   * student_documents_admin policy — exactly the roles the UI's EditStudent
+   * gate allows: SuperAdmin + SupportStaff; parents insert through the 0043
+   * policy from the portal). The row lands in the SAME store the website
+   * lists from, so the document is immediately visible on BOTH platforms.
+   *
+   * The binary upload happens BEFORE this call (the Documents tab runs
+   * `uploadPrivateMedia` first and passes the returned storage path); if the
+   * INSERT fails the storage object is orphaned — surfaced honestly by the
+   * returned Err (the same cross-platform characteristic as the portal's
+   * upload dialog; the t-359 e2e TABLE leg probes the full flow).
+   */
+  async addStudentDocument(
+    studentId: string,
+    input: StudentDocumentDraft,
+  ): Promise<Result<StudentDocument>> {
+    try {
+      const tenantId = requireTenantId();
+      const { data, error } = await this.client
+        .from("student_documents")
+        .insert({
+          tenant_id: tenantId,
+          student_id: studentId,
+          kind: input.category,
+          file_name: input.fileName,
+          storage_path: input.storagePath,
+          mime_type: input.mimeType ?? null,
+          size_bytes: input.sizeBytes ?? null,
+          uploaded_by: input.uploadedByProfileId ?? null,
+          description: input.note ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      const row = data as StudentDocumentRow;
+      // Best-effort uploader display name (own-profile read always works).
+      let display = "—";
+      if (row.uploaded_by) {
+        const names = await this.resolveUploaderNames([row]);
+        display = names.get(row.uploaded_by) ?? "—";
+      }
+      const doc = mapStudentDocumentRow(row, display);
+      this.embedDocument(studentId, doc);
+      return Ok(doc);
+    } catch (e) {
+      return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
+    }
+  }
+
+  /**
+   * SYNC-110/T-372 — remove ONE document row with HONEST zero-match
+   * semantics (§15.30b): the DELETE selects the matched ids, and an empty
+   * match returns notFound instead of a silent success (PostgREST answers
+   * 200 with an empty array when a DELETE matches zero rows under RLS).
+   */
+  async removeStudentDocument(studentId: string, documentId: string): Promise<Result<void>> {
+    try {
+      const tenantId = requireTenantId();
+      const { data, error } = await this.client
+        .from("student_documents")
+        .delete()
+        .select("id")
+        .eq("id", documentId)
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
+      if (error) throw error;
+      const matched = (data ?? []) as Array<{ id: string }>;
+      if (matched.length === 0) {
+        return Err(Errors.notFound("StudentDocument", documentId));
+      }
+      this.dropDocument(studentId, documentId);
+      return Ok(undefined);
+    } catch (e) {
+      return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
+    }
+  }
+
+  /** Append one document to the cached student (observable re-emits). */
+  private embedDocument(studentId: string, doc: StudentDocument): void {
+    this.cache.update((list) =>
+      list.map((s) =>
+        s.id === studentId ? { ...s, documents: [...(s.documents ?? []), doc] } : s,
+      ),
+    );
+  }
+
+  /** Drop one document from the cached student (observable re-emits). */
+  private dropDocument(studentId: string, documentId: string): void {
+    this.cache.update((list) =>
+      list.map((s) =>
+        s.id === studentId
+          ? { ...s, documents: (s.documents ?? []).filter((d) => d.id !== documentId) }
+          : s,
+      ),
+    );
   }
 
   async deleteStudent(id: string): Promise<Result<void>> {
