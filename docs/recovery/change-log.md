@@ -2,6 +2,17 @@
 
 > Chronological record of significant recovery changes. This file — not chat transcripts, not DONE/TODO notes — is the history of what has been fixed and how it was verified. Append one entry per completed task, using the template below.
 
+## 71st session (2026-09-15) — T-375 IN PROGRESS: fresh empty Supabase infrastructure verification (OPS-313 registered; NEW project census GREEN; OLD project untouched; NO secrets committed)
+
+### 2026-09-15 — T-375 — evidence collected (docs-only; no code/migration change committed yet)
+
+- **Problem IDs:** OPS-313 (NEW, OPEN — the 0096 `$function$` missing-terminator parse risk for FUTURE fresh pushes; discovered by file read, NOT by a failed push this session).
+- **Root causes:** 0096 was reverse-engineered from the live definition and committed without the `;` after the closing tag; the append-only guard therefore blocks the one-character in-place fix (verified: guard FAILED as designed, change reverted uncommitted). No data or logic defect — a provisioning-parse hazard only.
+- **Fixes:** NONE committed (deliberate). Registries updated only: problem-registry (OPS-313 OPEN) + task-registry (T-375 In Progress).
+- **Verification (NEW project `vebfehrpzajhstyhinnw` ONLY, read-only):** `supabase migration list` Local=Remote 0001–0098 (95 files, 95/95 registered); `schema_migrations` top = 0098/0097/0096/0095/0094; public tables = 83; public RLS policies = 202; storage buckets = 10; business emptiness = parents 1 / students 1 / payments 3 / tenants 1 (structural seeds only, zero business import); auth health 200 (GoTrue v2.197.0); anon REST `parents?select=id&limit=3` = `[]` (RLS holds). OLD project never linked, never applied, never written.
+- **Commits:** none yet (this entry is the pending docs commit).
+- **Residuals:** OPS-313 OPEN (runbook note or append-only follow-up migration still to ship); EF deploy matrix on the NEW project NOT run; no `.env`/client config changed; no zip/push performed.
+
 ## 70th session (2026-09-14) — the account↔employee linkage + the employee self-service view: WORKFORCE-501 (T-371) — the owner's "link the Admin-Settings account to an employee; the employee sees their own profile/tasks/responsibilities at login; redesign the account-creation workflow" mandate
 
 **The owner's mandate:** the account created in the Admin Settings (Settings → Comptes, the T-079 feature) must be LINKED to an employee — when that employee logs in they should see their own profile, tasks, responsibilities and other relevant information; the account-creation details and workflow must be redesigned so the account is properly associated with the selected employee FROM THE MOMENT IT IS CREATED.
