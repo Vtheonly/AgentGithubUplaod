@@ -2,6 +2,17 @@
 
 > Chronological record of significant recovery changes. This file — not chat transcripts, not DONE/TODO notes — is the history of what has been fixed and how it was verified. Append one entry per completed task, using the template below.
 
+## 72nd session (2026-09-16) — T-377…T-380: the fresh-clone handover completed (T-376 re-proven 12/12; OPS-313 fixed in-chain; the 14-EF fleet + secrets deployed on NEW; config parity + the credentials map) — OLD project untouched throughout
+
+### 2026-09-16 — T-377 — the session-opening re-verification: `verify_t-376.sql` 12/12 PASS on the NEW project
+
+- **Problem IDs:** OPS-314 (CLOSED by T-376; re-proven here).
+- **Why re-run:** the 71st session's closeout asked for a fresh, reproducible evidence run of the RLS-parity fix before the handover docs were finalised (the original `run376.sh` wrapper lived outside the repos on that machine and was not re-runnable from a fresh clone).
+- **Verified (NEW project `vebfehrpzajhstyhinnw`, read-only, BEGIN/ROLLBACK):** **12/12 PASS** — A1 A2 A3 (the five RLS helpers: `SECURITY DEFINER`, `search_path=public`, owner `BYPASSRLS`, 5/5 each), B1 (fast-path disjunct present, `qual_chars=172`), B2 (RLS still FORCEd on `user_profiles`/`role_assignments`/`roles`/`tenants`), C1 (`current_user_profile_id()` resolves with NO recursion — the original 54001 statement), C2 (own profile visible = 1), C3 (tenant resolves `00000000-0000-0000-0000-000000000001`), C4 (`has_role('super_admin')=true` — the bootstrap admin's role assignment IS live on NEW), C5 (tenant-scoped read works, `academic_levels_visible=14`), D1 (an unbound sub sees 0 profiles), D2 (anon sees 0 parents).
+- **Same-run state census (read-only, both projects):** NEW = 96 migrations through 0099 / 83 tables / 202 public + 24 storage policies / 100 public functions / 10 buckets / extensions identical to OLD. OLD = 95 migrations through 0098 / same tables / same policies / same functions / same buckets. `auth.users`: OLD 8 (1 owner + 7 historical probe users), NEW 1 (the bootstrap admin, profile `status=active`, super_admin assigned). NEW business tables: parents 1 / students 1 / payments 3 — all three are the migration-0063 row-242 MAMER chain-DML artefacts (the inserts ship in the migration itself; the OLD project carries the identical rows among its 261 parents), so NEW is confirmed EMPTY of business data while remaining byte-identical in structure.
+- **Admin sign-in probe (NEW):** password grant `admin@elimtiyaz.dz` → HTTP 200 with the OWNER-PINNED credential (§15.23 respected — no reset, no rotation).
+- **No fixes shipped in this entry** — evidence only; the wrapper (`run376.sh`) stays outside the repos (token-carrying, the T-091 convention).
+
 ## 71st session (2026-09-15) — T-375/T-376: fresh empty Supabase infrastructure verified AND unblocked (OPS-314 FIXED — the fresh clone's RLS recursion is gone, 30/30 authenticated paths 200; OPS-313 still OPEN; NO secrets committed)
 
 ### 2026-09-15 — T-376 — OPS-314 FIXED + VERIFIED: restore `SECURITY DEFINER` on the five RLS helpers + the `user_profiles_select_own` fast-path (migration 0099)

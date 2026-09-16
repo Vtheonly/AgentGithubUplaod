@@ -3307,3 +3307,14 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Depends on:** none.
 - **Priority:** P0 (owner mandate: exact structural AND functional equivalence).
 - **Next:** T-337 (REALTIME-105) — unchanged standing recommendation; then OPS-313 resolution.
+
+### T-377 — 72nd session (2026-09-16): re-verify the T-376 RLS-parity fix on the NEW project with fresh evidence (12/12) — the session-opening proof the owner asked for
+
+- **Status:** COMPLETE — VERIFIED (fresh `verify_t-376.sql` run against `vebfehrpzajhstyhinnw` on 2026-09-16, 12/12 PASS; evidence in change-log 72nd session)
+- **Problems:** OPS-314 (already CLOSED by T-376 — this task re-proves it holds)
+- **Scope:** NEW project ONLY (`vebfehrpzajhstyhinnw`), read-only. Run `elimtiyaz-desktop/scripts/verify_t-376.sql` via the Management SQL endpoint (`run376.sh` wrapper recreated at the session-sandbox scripts dir — token-carrying wrappers stay OUTSIDE the repos per the established convention). No DB writes (the script is BEGIN/ROLLBACK-wrapped).
+- **What was verified:** A1 5/5 helpers `SECURITY DEFINER`; A2 5/5 `search_path=public`; A3 5/5 owner `BYPASSRLS`; B1 `user_profiles_select_own` fast-path disjunct present (qual 172 chars); B2 RLS still FORCEd on 4/4 RBAC tables; C1 `current_user_profile_id()` resolves with NO recursion (profile `42e369e9-…`, sub `a148fe34-…`); C2 own profile visible; C3 tenant resolves to `00000000-…-0001`; C4 `has_role('super_admin')=true` (the bootstrap admin's role assignment is LIVE on NEW); C5 tenant-scoped read `academic_levels_visible=14`; D1 unbound sub sees 0 profiles; D2 anon sees 0 parents.
+- **Extra state census captured the same run (read-only):** migrations 96/96 through 0099; 83 public tables; 202 public + 24 storage policies; 100 public functions; extensions identical to OLD (btree_gist, pg_stat_statements, pg_trgm, pgcrypto, pgjwt, plpgsql, supabase_vault, uuid-ossp); 10 buckets byte-identical names/public flags; `auth.users` = 1 (the bootstrap admin, `status=active`, super_admin role_assignment present); business tables parents=1 / students=1 / payments=3 — ALL THREE are migration-0063 chain DML artefacts (the row-242 MAMER reconciliation inserts ship IN the migration; OLD carries the same rows among its real data), so the NEW DB is confirmed EMPTY of business data.
+- **Depends on:** T-376 (completed).
+- **Priority:** P0 (the owner's evidence requirement: do not mark verified without a fresh run).
+- **Next:** T-378 (OPS-313 — the 0096 chain-file terminator fix).
