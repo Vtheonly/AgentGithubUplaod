@@ -1,27 +1,13 @@
 // ============================================================================
-// FILE: src/features/dashboard/tabs/analytics-tab.tsx
+// FILE: elimtiyaz-desktop/src/features/dashboard/tabs/analytics-tab.tsx
 // ============================================================================
 /**
- * AnalyticsTab — the Executive Command Center + the exploration hub.
+ * AnalyticsTab — Executive Command Center + exploration hub.
  *
- * T-339 (61st session, 2026-09-14 — STATS-400): the tab's DEFAULT view is
- * now « Pilotage Exécutif » — the owner-mandated operational decision
- * triggers (tranche-wave velocity, discount erosion, debt triage with the
- * immediate call list, family concentration, transport yield, service
- * yield, sibling index + section imbalance, and the Triple-Risk radar
- * front-and-center) computed by the canonical executive-statistics
- * derivations. The vanity statistics are REMOVED (owner kill list): the
- * payment-amount histogram, the weekday collection heatmap, and the smooth
- * 12-month revenue spline (RevenueTrendExplorer) — school revenue is a
- * staircase of three waves, rendered by the WaveVelocityCard instead.
- *
- * Modes:
- *   1. « Pilotage Exécutif » (DEFAULT): ExecutiveDashboard + the
- *      operational query console (the triple-risk radar list).
- *   2. « Diagnostic Actif »: cross-domain risk matrix + pivot matrix.
- *   3. « Métriques & Flux Financiers »: the surviving REAL charts —
- *      slicers, descriptive statistics strip, YoY like-for-like,
- *      method/category mixes, debtors Pareto, aging composition.
+ * The dashboard's analytics surfaces are backed by the reactive repository
+ * streams. The Data Lineage inspector is deliberately mounted around this
+ * tab so every exposed inspection resolves from those same streams rather
+ * than a second/mock dataset.
  */
 
 import { useMemo, useState, useCallback } from "react";
@@ -43,8 +29,6 @@ import { YoYComparisonCard } from "../components/analytics/yoy-comparison-card";
 import { AgingCompositionCard } from "../components/analytics/aging-composition-card";
 import { DebtorsParetoCard } from "../components/analytics/debtors-pareto-card";
 import { ExecutiveDashboard } from "../components/analytics/executive-cards";
-
-// The cross-domain query engine (the Triple-Risk radar source).
 import {
   evaluateStudentRiskProfiles,
   type StudentRiskProfile,
@@ -52,9 +36,13 @@ import {
 import { OperationalQueryConsole } from "../components/analytics/operational-query-console";
 import { PivotMatrixCard } from "../components/analytics/pivot-matrix-card";
 import { CrossRiskCard } from "../components/analytics/cross-risk-card";
+import {
+  DataInspectorProvider,
+  InspectTrigger,
+  type InspectRequest,
+} from "../components/analytics/data-inspector";
 
 const ALL_METHODS: PaymentMethod[] = ["cash", "check", "transfer"];
-
 type ViewMode = "pilotage" | "diagnostic" | "charts";
 
 export interface AnalyticsTabProps {
@@ -63,23 +51,9 @@ export interface AnalyticsTabProps {
   academicYear: string;
   prevAcademicYear: string | null;
   debtAging: DebtByAgingBucket[];
-  /** Top-10 display slice (the drill-down tables). */
   topDebtors: DebtSummary[];
-  /**
-   * T-351 (DASH-401): the FULL reactive debt-summaries stream. The risk
-   * engine must see every debtor family — the previous top-10-only feed
-   * evaluated families ranked 11+ as debt 0. The Pareto card also consumes
-   * it (derivePareto self-limits to its top N).
-   */
   debtSummaries?: readonly DebtSummary[];
   payments: readonly Payment[];
-  /**
-   * T-353 (DASH-403): the ACADEMIC-YEAR-SCOPED installments stream (the
-   * page filters the raw tenant stream through
-   * installmentsForAcademicYear). Optional — absent = the tab's internal
-   * unscoped subscription (test back-compat); the page ALWAYS passes the
-   * scoped slice so the executive cards follow the year selector.
-   */
   installments?: readonly Installment[];
   range?: { from: string; to: string };
   onOpenStudent?: (studentId: string) => void;
@@ -101,48 +75,22 @@ export function AnalyticsTab({
   onOpenParent,
 }: AnalyticsTabProps) {
   const repos = useRepositories();
-
-  // Load operational datasets for the executive + cross-domain engines.
-  // T-339: installments (the wave stream) + ledger (the remise census)
-  // join the existing student/parent/class streams.
   const students = useObservable(() => repos.students.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
   const classes = useObservable(() => repos.classes.observe(), []);
   const subjects = useObservable(() => repos.subjects.observe(), []);
-  // T-345 (MATIERE-500/ADR-018): the context configurations.
-  const subjectConfigurations = useObservable(
-    () => repos.subjects.observeConfigurations(),
-    [],
-  );
-  // T-352 (DASH-402): the SCHOOL-WIDE streams. The previous wiring passed
-  // "" as classId/studentId to observeForClass/observeByStudent — the
-  // repositories build literal `.eq("class_id", "")` /
-  // `.eq("student_id", "")` filters (a UUID column vs an empty string —
-  // ZERO rows in Supabase mode; `classId === ""` — also zero in mock
-  // mode), so every GPA rendered "—" and calculateAttendanceRate([])
-  // defaulted every student to 100% attendance. The observeAll streams
-  // return the real tenant catalogue.
+  const subjectConfigurations = useObservable(() => repos.subjects.observeConfigurations(), []);
   const assessments = useObservable(() => repos.grades.observeAll(), []);
   const attendance = useObservable(
     () => repos.attendance.observeAll(range?.from ?? "2020-01-01", range?.to ?? "2030-12-31"),
     [range?.from, range?.to],
   );
-  // T-353 (DASH-403): the installments stream — the page's YEAR-SCOPED
-  // slice when provided (the production path); the internal subscription
-  // only as a fallback for prop-less test renders.
   const internalInstallments = useObservable(() => repos.installments.observe(), []);
   const installments = installmentsProp ?? internalInstallments;
   const ledger = useObservable(() => repos.ledger.observe(), []);
-
-  // Mode switcher: "pilotage" (the executive default) / "diagnostic" / "charts".
   const [viewMode, setViewMode] = useState<ViewMode>("pilotage");
-
-  // Slicer filters state for the charts view
   const [filters, setFilters] = useState<AnalyticsFilterState>(NO_ANALYTICS_FILTERS);
 
-  // Compute live multi-risk profiles across all school dimensions.
-  // T-351 (DASH-401): the FULL debt stream (every debtor family), not the
-  // top-10 display slice.
   const riskDebt = debtSummaries ?? topDebtors;
   const riskProfiles = useMemo<StudentRiskProfile[]>(() => {
     return evaluateStudentRiskProfiles({
@@ -176,172 +124,138 @@ export function AnalyticsTab({
   }, []);
 
   const resetFilters = useCallback(() => setFilters(NO_ANALYTICS_FILTERS), []);
-
-  const slice = useMemo(
-    () => applyAnalyticsFilters(payments, range, filters),
-    [payments, range, filters],
-  );
+  const slice = useMemo(() => applyAnalyticsFilters(payments, range, filters), [payments, range, filters]);
   const unfilteredCount = useMemo(
     () => applyAnalyticsFilters(payments, range, NO_ANALYTICS_FILTERS).length,
     [payments, range],
   );
-  const categories = useMemo(
-    () => presentCategories(payments, range),
-    [payments, range],
+  const categories = useMemo(() => presentCategories(payments, range), [payments, range]);
+  const sliceTotal = useMemo(() => slice.reduce((sum, payment) => sum + payment.amount, 0), [slice]);
+  const currentRevenueTotal = useMemo(() => revenue.reduce((sum, point) => sum + point.amount, 0), [revenue]);
+  const currentDebtTotal = useMemo(
+    () => riskDebt.reduce((sum, debt) => sum + debt.outstandingAmount, 0),
+    [riskDebt],
   );
+  const studentCount = students.length;
+
+  const inspection = (request: InspectRequest) => request;
 
   return (
-    <div className="space-y-4 pb-8" data-testid="analytics-tab">
-      {/* Top View Mode Navigation */}
-      <div className="flex items-center justify-between border-b border-border pb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setViewMode("pilotage")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
-              viewMode === "pilotage"
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Gauge className="h-3.5 w-3.5" />
-            Pilotage Exécutif
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("diagnostic")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
-              viewMode === "diagnostic"
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Search className="h-3.5 w-3.5" />
-            Diagnostic Actif
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setViewMode("charts")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
-              viewMode === "charts"
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Flux Financiers (métriques réelles)
-          </button>
-        </div>
-
-        <div className="text-xs text-muted-foreground">
-          Année active : <strong className="text-foreground font-mono">{academicYear}</strong>
-        </div>
-      </div>
-
-      {/* VIEW 0 (DEFAULT): THE EXECUTIVE COMMAND CENTER */}
-      {viewMode === "pilotage" && (
-        <div className="space-y-4">
-          <ExecutiveDashboard
-            installments={installments}
-            ledger={ledger}
-            students={students}
-            parents={parents}
-            classes={classes}
-            payments={payments}
-            riskProfiles={riskProfiles}
-            nowEpochMs={Date.now()}
-          />
-
-          {/* The radar's full actionable list — the operational console
-              (triple-risk presets, per-student drill-down). */}
-          <OperationalQueryConsole
-            profiles={riskProfiles}
-            onOpenStudent={onOpenStudent}
-            onOpenParent={onOpenParent}
-          />
-        </div>
-      )}
-
-      {/* VIEW 1: DIAGNOSTIC & OPERATIONAL QUERY CONSOLE */}
-      {viewMode === "diagnostic" && (
-        <div className="space-y-4">
-          {/* Main Query Console */}
-          <OperationalQueryConsole
-            profiles={riskProfiles}
-            onOpenStudent={onOpenStudent}
-            onOpenParent={onOpenParent}
-          />
-
-          {/* Secondary Analytical Row: Vulnerability Radar + Multi-Dimensional Pivot Matrix */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-5">
-              <CrossRiskCard profiles={riskProfiles} />
-            </div>
-
-            <div className="lg:col-span-7">
-              <PivotMatrixCard profiles={riskProfiles} classes={classes} />
-            </div>
+    <DataInspectorProvider academicYear={academicYear} range={range}>
+      <div className="space-y-4 pb-8" data-testid="analytics-tab">
+        <div className="flex items-center justify-between border-b border-border pb-3 flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={() => setViewMode("pilotage")} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "pilotage" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}>
+              <Gauge className="h-3.5 w-3.5" /> Pilotage Exécutif
+            </button>
+            <button type="button" onClick={() => setViewMode("diagnostic")} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "diagnostic" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}>
+              <Search className="h-3.5 w-3.5" /> Diagnostic Actif
+            </button>
+            <button type="button" onClick={() => setViewMode("charts")} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "charts" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}>
+              <BarChart3 className="h-3.5 w-3.5" /> Flux Financiers (métriques réelles)
+            </button>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Année active : <strong className="text-foreground font-mono">{academicYear}</strong></span>
+            <InspectTrigger request={inspection({ domain: "enrollment", title: "Effectif actif", metric: "student_count", sourceValue: studentCount })} />
           </div>
         </div>
-      )}
 
-      {/* VIEW 2: STATISTICAL CHARTS — only the REAL-data survivors of the
-          T-339 vanity purge (histogram, heatmap, and the revenue spline
-          were REMOVED per the owner's kill list). */}
-      {viewMode === "charts" && (
-        <div className="space-y-4">
-          {/* Row 0 — Slicers bar */}
-          <AnalyticsSlicers
-            filters={filters}
-            onToggleMethod={toggleMethod}
-            onToggleCategory={toggleCategory}
-            onReset={resetFilters}
-            methods={ALL_METHODS}
-            categories={categories}
-            filteredCount={slice.length}
-            filteredTotal={slice.reduce((s, p) => s + p.amount, 0)}
-            totalCount={unfilteredCount}
-          />
-
-          {/* Row 1 — Descriptive statistics strip */}
-          <StatStrip slice={slice} />
-
-          {/* Row 2 — Mix Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-6">
-              <MethodMixCard slice={slice} />
+        {viewMode === "pilotage" && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Inspection directe</span>
+              <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${academicYear}`, metric: "annual_revenue", sourceValue: currentRevenueTotal })} />
+              <InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: currentDebtTotal })} />
+              <InspectTrigger request={inspection({ domain: "academic-risk", title: "Élèves à risque pédagogique", metric: "gpa_below_10", sourceValue: riskProfiles.filter((p) => p.gpa !== null && p.gpa < 10).length })} />
+              <InspectTrigger request={inspection({ domain: "attendance", title: "Présences / absences", metric: "attendance_records", sourceValue: attendance.length })} />
+              <InspectTrigger request={inspection({ domain: "discount", title: "Remises enregistrées", metric: "discount_total", sourceValue: students.reduce((sum, student) => sum + (student.remise > 0 ? student.remise : 0), 0) })} />
             </div>
-            <div className="lg:col-span-6">
-              <CategoryMixCard slice={slice} />
+            <ExecutiveDashboard
+              installments={installments}
+              ledger={ledger}
+              students={students}
+              parents={parents}
+              classes={classes}
+              payments={payments}
+              riskProfiles={riskProfiles}
+              nowEpochMs={Date.now()}
+            />
+            <OperationalQueryConsole
+              profiles={riskProfiles}
+              onOpenStudent={onOpenStudent}
+              onOpenParent={onOpenParent}
+            />
+          </div>
+        )}
+
+        {viewMode === "diagnostic" && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Source des matrices</span>
+              <InspectTrigger request={inspection({ domain: "academic-risk", title: "Matrice de risque pédagogique", metric: "risk_profiles", sourceValue: riskProfiles.length })} />
+              <InspectTrigger request={inspection({ domain: "enrollment", title: "Roster des élèves", metric: "roster", sourceValue: students.length })} />
+            </div>
+            <OperationalQueryConsole profiles={riskProfiles} onOpenStudent={onOpenStudent} onOpenParent={onOpenParent} />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-5"><CrossRiskCard profiles={riskProfiles} /></div>
+              <div className="lg:col-span-7"><PivotMatrixCard profiles={riskProfiles} classes={classes} /></div>
             </div>
           </div>
+        )}
 
-          {/* Row 3 — YoY Comparison (like-for-like REAL months) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-12">
-              <YoYComparisonCard
-                currentYear={academicYear}
-                previousYear={prevAcademicYear}
-                revenue={revenue}
-                prevRevenue={prevRevenue}
-              />
+        {viewMode === "charts" && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Ligne de provenance active</span>
+              <span className="text-xs font-mono font-semibold text-foreground">{slice.length} PAID · {sliceTotal.toLocaleString("fr-DZ")} DZD</span>
+              <InspectTrigger request={inspection({ domain: "revenue", title: "Encaissements filtrés", metric: "filtered_paid_revenue", sourceValue: sliceTotal, filters: { from: range?.from, to: range?.to, method: filters.methods.size === 1 ? [...filters.methods][0] : undefined, category: filters.categories.size === 1 ? [...filters.categories][0] : undefined } })} />
             </div>
-          </div>
 
-          {/* Row 4 — Aging Composition (the debt context) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-12">
+            <AnalyticsSlicers
+              filters={filters}
+              onToggleMethod={toggleMethod}
+              onToggleCategory={toggleCategory}
+              onReset={resetFilters}
+              methods={ALL_METHODS}
+              categories={categories}
+              filteredCount={slice.length}
+              filteredTotal={sliceTotal}
+              totalCount={unfilteredCount}
+            />
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between"><span className="text-xs font-semibold text-foreground">Statistiques descriptives</span><InspectTrigger request={inspection({ domain: "revenue", title: "Statistiques sur les paiements filtrés", metric: "payment_stats_total", sourceValue: sliceTotal, filters: { from: range?.from, to: range?.to } })} /></div>
+              <StatStrip slice={slice} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-6 space-y-2"><div className="flex justify-end"><InspectTrigger request={inspection({ domain: "payment-method", title: "Mix des méthodes de paiement", metric: "method_mix", sourceValue: sliceTotal })} /></div><MethodMixCard slice={slice} /></div>
+              <div className="lg:col-span-6 space-y-2"><div className="flex justify-end"><InspectTrigger request={inspection({ domain: "payment-category", title: "Mix des catégories de paiement", metric: "category_mix", sourceValue: sliceTotal })} /></div><CategoryMixCard slice={slice} /></div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus mensuels ${academicYear}`, metric: "monthly_revenue", sourceValue: currentRevenueTotal })} />
+                {prevAcademicYear && <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${prevAcademicYear}`, metric: "previous_year_revenue", sourceValue: prevRevenue.reduce((sum, point) => sum + point.amount, 0) })} />}
+              </div>
+              <YoYComparisonCard currentYear={academicYear} previousYear={prevAcademicYear} revenue={revenue} prevRevenue={prevRevenue} />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                <InspectTrigger request={inspection({ domain: "debt", title: "Vieillissement des créances", metric: "debt_aging", sourceValue: debtAging.reduce((sum, bucket) => sum + bucket.amount, 0) })} />
+              </div>
               <AgingCompositionCard debtAging={debtAging} />
             </div>
-          </div>
 
-          {/* Row 5 — Debtors Pareto (T-351: the full stream — derivePareto
-              self-limits to its top N, so the curve reflects the real
-              debtor population, not the display slice) */}
-          <DebtorsParetoCard topDebtors={riskDebt as DebtSummary[]} />
-        </div>
-      )}
-    </div>
+            <div className="space-y-2">
+              <div className="flex justify-end"><InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices", metric: "debtors_pareto", sourceValue: currentDebtTotal })} /></div>
+              <DebtorsParetoCard topDebtors={riskDebt as DebtSummary[]} />
+            </div>
+          </div>
+        )}
+      </div>
+    </DataInspectorProvider>
   );
 }
