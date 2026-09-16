@@ -1,30 +1,15 @@
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/dashboard/components/recovery-funnel-card.tsx
+// ============================================================================
+
 /**
- * RecoveryFunnelCard — Screen-5-style conversion funnel (T-243, 2026-09-09).
+ * RecoveryFunnelCard — Connected Conversion Pipeline.
  *
- * Source: the owner's AI-review blueprint "The Conversion Funnel with True
- * Flow Geometry (Screen 5 Style)" — 4-column stage grid, per-stage rate
- * badges, global conversion rate in the header.
- *
- * Adaptation (documented in UI-306):
- *   - The review's DEFAULT_STAGES hardcoded admissions numbers (Demandes
- *     480 → Dossiers 395 → Inscrits 310 → Soldés 245). NO repository
- *     contract carries demande/dossier counts — rendering those numbers
- *     would be a §15.16 violation (synthesized operational data). The
- *     component is kept fully generic (`stages` prop, exactly the
- *     review's geometry) and the overview feeds it the REAL recovery
- *     pipeline derived from `debtAging` FAMILY COUNTS (debtorCount per
- *     bucket — the same canonical stream the page already loads):
- *
- *       Familles en retard → ≤ 60 j → 61–90 j → > 90 j
- *
- *     Reading: escalation depth of delinquent families. The drill-down
- *     Debt tab shows the SAME buckets in DZD amounts (table); this funnel
- *     shows FAMILY counts as an escalation pipeline — the action surface
- *     for the relance workflow (the rail's AI card links to the alerts).
- *   - Empty state: when the aging stream is empty the card says so
- *     honestly instead of drawing a fake funnel (§15.15 mirror).
+ * Displays the real delinquency depth progression as a coherent,
+ * stepped pipeline with conversion rates and family counts.
  */
-import { Filter } from "lucide-react";
+
+import { Filter, ChevronRight } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -38,20 +23,10 @@ import type { DebtByAgingBucket } from "../../../domain/model/operations";
 export interface FunnelStage {
   name: string;
   count: number;
-  /** Share of stage 1 that reached this stage, 0–100. */
   rateFromPrevious: number;
   color: string;
 }
 
-/**
- * Derive the 4-stage recovery pipeline from the REAL debtAging stream
- * (family counts per bucket — debtorCount, not DZD). Pure function —
- * exported for unit tests (T-243 suite).
- *
- * Stages: total overdue → ≤60 j → 61–90 j → >90 j. Escalation depth:
- * each later stage is the count of families THAT deep in arrears, as a
- * share of all overdue families.
- */
 export function deriveRecoveryFunnel(
   debtAging: readonly DebtByAgingBucket[],
 ): FunnelStage[] {
@@ -65,23 +40,32 @@ export function deriveRecoveryFunnel(
   if (total === 0) return [];
   const pct = (n: number) => Math.round((n / total) * 100);
   return [
-    { name: "En retard", count: total, rateFromPrevious: 100, color: chartPalette.gold },
     {
-      name: "≤ 60 j",
+      name: "Total en Retard",
+      count: total,
+      rateFromPrevious: 100,
+      color: chartPalette.gold,
+    },
+    {
+      name: "Retard Récent (≤ 60 j)",
       count: (byBucket.get("0_30") ?? 0) + (byBucket.get("31_60") ?? 0),
-      rateFromPrevious: pct((byBucket.get("0_30") ?? 0) + (byBucket.get("31_60") ?? 0)),
+      rateFromPrevious: pct(
+        (byBucket.get("0_30") ?? 0) + (byBucket.get("31_60") ?? 0),
+      ),
       color: chartPalette.primary,
     },
     {
-      name: "61–90 j",
+      name: "Retard Modéré (61–90 j)",
       count: byBucket.get("61_90") ?? 0,
       rateFromPrevious: pct(byBucket.get("61_90") ?? 0),
-      color: chartPalette.info,
+      color: chartPalette.warning,
     },
     {
-      name: "> 90 j",
+      name: "Retard Critique (> 90 j)",
       count: (byBucket.get("91_180") ?? 0) + (byBucket.get("180_plus") ?? 0),
-      rateFromPrevious: pct((byBucket.get("91_180") ?? 0) + (byBucket.get("180_plus") ?? 0)),
+      rateFromPrevious: pct(
+        (byBucket.get("91_180") ?? 0) + (byBucket.get("180_plus") ?? 0),
+      ),
       color: chartPalette.danger,
     },
   ];
@@ -89,68 +73,82 @@ export function deriveRecoveryFunnel(
 
 export function RecoveryFunnelCard({
   stages,
-  emptyLabel = "Aucune famille en retard sur la période.",
+  emptyLabel = "Aucune famille en retard sur la période sélectionnée.",
 }: {
   stages: FunnelStage[];
   emptyLabel?: string;
 }) {
   const total = stages[0]?.count ?? 0;
-  const globalRate = stages.length > 0 && stages[0].count > 0
-    ? Math.round((stages[stages.length - 1].count / stages[0].count) * 100)
-    : 0;
+  const criticalRate =
+    stages.length > 0 && stages[0].count > 0
+      ? Math.round((stages[stages.length - 1].count / stages[0].count) * 100)
+      : 0;
 
   return (
-    <Card className="h-full border-border bg-surface-panel flex flex-col justify-between">
-      <CardHeader className="pb-2 border-b border-border/50">
-        <div className="flex items-center justify-between gap-2">
+    <Card className="h-full border-border/70 bg-surface-panel shadow-sm flex flex-col justify-between">
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between">
+        <div>
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-primary" />
-            Entonnoir de Recouvrement
+            Entonnoir de Dérive des Créances
           </CardTitle>
-          {stages.length > 0 && (
-            <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-              Critique: {globalRate}%
-            </span>
-          )}
+          <CardDescription className="text-xs text-muted-foreground">
+            Distribution des foyers débiteurs selon l'ancienneté du défaut
+          </CardDescription>
         </div>
-        <CardDescription className="text-xs text-muted-foreground">
-          Profondeur de retard des familles débitrices (nombre de familles)
-        </CardDescription>
+
+        {stages.length > 0 && (
+          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-danger/10 text-status-danger border border-status-danger/20 font-semibold">
+            {criticalRate}% en phase critique
+          </span>
+        )}
       </CardHeader>
 
-      <CardContent className="pt-4 flex-1">
+      <CardContent className="p-4 flex-1 flex flex-col justify-center">
         {stages.length === 0 || total === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-8">{emptyLabel}</p>
+          <p className="text-xs text-muted-foreground text-center py-8">
+            {emptyLabel}
+          </p>
         ) : (
-          /* Dynamic stage columns — inline grid-template (NOT a bare
-             responsive grid class; the column count is data-driven, base
-             template is defined here, t-205-safe). */
-          <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}
-          >
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 items-stretch">
             {stages.map((stage, idx) => (
-              <div key={stage.name} className="flex flex-col items-center text-center space-y-2 min-w-0">
-                <span className="text-[10px] font-medium text-muted-foreground truncate w-full" title={stage.name}>
-                  {stage.name}
-                </span>
-
-                <div
-                  className="w-full rounded-md py-3 px-1 border flex flex-col items-center justify-center transition-transform hover:scale-[1.02]"
-                  style={{
-                    backgroundColor: `${stage.color}18`,
-                    borderColor: `${stage.color}40`,
-                  }}
-                >
-                  <span className="font-mono text-base font-bold text-foreground tnum">
-                    {stage.count}
+              <div
+                key={stage.name}
+                className="relative rounded-xl border border-border/70 bg-surface-elevated/40 p-3 flex flex-col justify-between space-y-2 hover:border-border transition-all"
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground truncate">
+                    Étape {idx + 1}
                   </span>
                   <span
-                    className="text-[9px] font-mono font-semibold px-1 rounded mt-0.5"
-                    style={{ color: stage.color }}
+                    className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full border"
+                    style={{
+                      color: stage.color,
+                      borderColor: `${stage.color}40`,
+                      backgroundColor: `${stage.color}15`,
+                    }}
                   >
-                    {idx === 0 ? "100%" : `${stage.rateFromPrevious.toFixed(0)}%`}
+                    {idx === 0 ? "100%" : `${stage.rateFromPrevious}%`}
                   </span>
+                </div>
+
+                <div className="space-y-0.5">
+                  <span className="text-2xl font-bold font-mono text-foreground tabular-nums block">
+                    {stage.count}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground line-clamp-1">
+                    {stage.name}
+                  </span>
+                </div>
+
+                <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${stage.rateFromPrevious}%`,
+                      backgroundColor: stage.color,
+                    }}
+                  />
                 </div>
               </div>
             ))}

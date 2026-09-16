@@ -1,14 +1,7 @@
-/**
- * AgingCompositionCard — the debt-aging composition (T-257, 38th session
- * — UI-307): a 100% stacked horizontal bar (share of outstanding per
- * aging bucket, AGING_COLORS) + the per-bucket statistical table
- * (amount / families / share) with an honest total row.
- *
- * Sibling of the Overview's recovery FUNNEL (family counts, T-243) — this
- * card answers the MONEY question (how the DZD is distributed across
- * buckets), from the same debtAging stream. Hovering a segment shows the
- * real amount + family count.
- */
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/aging-composition-card.tsx
+// ============================================================================
+
 import { useMemo, useState } from "react";
 import { Hourglass } from "lucide-react";
 import {
@@ -23,39 +16,55 @@ import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { DebtByAgingBucket } from "../../../../domain/model/operations";
 import { deriveAgingComposition } from "./analytics-derivations";
 
-export function AgingCompositionCard({ debtAging }: { debtAging: DebtByAgingBucket[] }) {
-  const segments = useMemo(() => deriveAgingComposition(debtAging), [debtAging]);
+export function AgingCompositionCard({
+  debtAging,
+}: {
+  debtAging: DebtByAgingBucket[];
+}) {
+  const segments = useMemo(
+    () => deriveAgingComposition(debtAging),
+    [debtAging],
+  );
   const [hover, setHover] = useState<string | null>(null);
   const total = segments.reduce((s, x) => s + x.amount, 0);
   const totalFamilies = segments.reduce((s, x) => s + x.debtorCount, 0);
 
   return (
-    <Card className="border-border bg-surface-panel h-full flex flex-col">
-      <CardHeader className="py-2.5 px-4 border-b border-border/50">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Hourglass className="h-3.5 w-3.5 text-primary" />
-          Structure de l'Impayé par Ancienneté
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          {segments.length > 0 ? (
-            <>
-              {formatDzd(total, { compact: true })} d'encours · {totalFamilies} fam.
-            </>
-          ) : (
-            "Répartition de l'encours par tranche de retard"
-          )}
-        </CardDescription>
+    <Card
+      className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between"
+      data-testid="aging-composition-card"
+    >
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Hourglass className="h-4 w-4 text-primary" />
+            Structure d'Ancienneté de l'Encours
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Répartition proportionnelle de la dette globale
+          </CardDescription>
+        </div>
+
+        {segments.length > 0 && (
+          <span className="text-xs font-mono font-bold text-status-danger">
+            {formatDzd(total, { compact: true })} · {totalFamilies} familles
+          </span>
+        )}
       </CardHeader>
-      <CardContent className="pt-3 flex-1 flex flex-col justify-center gap-3">
+
+      <CardContent className="p-4 space-y-4 flex-1 flex flex-col justify-center">
         {segments.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-10" data-testid="aging-empty">
-            Aucune créance ouverte sur la période.
+          <p
+            className="text-xs text-muted-foreground text-center py-10"
+            data-testid="aging-empty"
+          >
+            Aucune créance ouverte sur la période active.
           </p>
         ) : (
           <>
-            {/* The 100% stacked composition bar. */}
+            {/* 100% Stacked Bar */}
             <div
-              className="flex h-8 w-full rounded-md overflow-hidden border border-border/40"
+              className="flex h-7 w-full rounded-xl overflow-hidden border border-border/60 shadow-inner"
               data-testid="aging-stacked-bar"
             >
               {segments.map((seg) => (
@@ -63,69 +72,70 @@ export function AgingCompositionCard({ debtAging }: { debtAging: DebtByAgingBuck
                   key={seg.bucket}
                   role="progressbar"
                   aria-label={`${seg.label} : ${seg.share}%`}
-                  aria-valuenow={seg.share}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  title={`${seg.label} — ${formatDzdPlain(seg.amount)} DZD · ${seg.debtorCount} fam. · ${seg.share}%`}
                   onMouseEnter={() => setHover(seg.bucket)}
                   onMouseLeave={() => setHover(null)}
-                  className="h-full flex items-center justify-center transition-all"
+                  className="h-full flex items-center justify-center transition-all cursor-pointer"
                   style={{
                     width: `${seg.share}%`,
                     backgroundColor: AGING_COLORS[seg.bucket],
                     opacity: hover === null || hover === seg.bucket ? 1 : 0.45,
                   }}
                 >
-                  {seg.share >= 12 && (
-                    <span className="text-[10px] font-mono font-semibold text-white drop-shadow">
+                  {seg.share >= 10 && (
+                    <span className="text-[11px] font-mono font-bold text-white drop-shadow">
                       {seg.share}%
                     </span>
                   )}
                 </div>
               ))}
             </div>
-            {/* Per-bucket statistical table. */}
-            <table className="w-full text-[11px]" data-testid="aging-table">
-              <thead>
-                <tr className="text-muted-foreground border-b border-border/40">
-                  <th className="text-left font-medium py-1">Ancienneté</th>
-                  <th className="text-right font-medium py-1">Encours</th>
-                  <th className="text-right font-medium py-1">Familles</th>
-                  <th className="text-right font-medium py-1">Part</th>
-                </tr>
-              </thead>
-              <tbody>
-                {segments.map((seg) => (
-                  <tr
-                    key={seg.bucket}
-                    className={`border-b border-border/20 ${hover === seg.bucket ? "bg-primary/5" : ""}`}
-                    onMouseEnter={() => setHover(seg.bucket)}
-                    onMouseLeave={() => setHover(null)}
-                  >
-                    <td className="py-1.5 flex items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: AGING_COLORS[seg.bucket] }}
-                      />
-                      {seg.label}
-                    </td>
-                    <td className="text-right font-mono tabular-nums">
-                      {formatDzd(seg.amount, { compact: true })}
-                    </td>
-                    <td className="text-right font-mono tabular-nums">{seg.debtorCount}</td>
-                    <td className="text-right font-mono tabular-nums">{seg.share}%</td>
+
+            {/* Table Breakdown */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs" data-testid="aging-table">
+                <thead>
+                  <tr className="text-muted-foreground border-b border-border/60 text-left">
+                    <th className="py-2 px-2 font-medium">Tranche de Retard</th>
+                    <th className="py-2 px-2 text-right font-medium">
+                      Encours
+                    </th>
+                    <th className="py-2 px-2 text-right font-medium">
+                      Familles
+                    </th>
+                    <th className="py-2 px-2 text-right font-medium">Part</th>
                   </tr>
-                ))}
-                <tr className="font-semibold">
-                  <td className="py-1.5">Total</td>
-                  <td className="text-right font-mono tabular-nums">
-                    {formatDzd(total, { compact: true })}
-                  </td>
-                  <td className="text-right font-mono tabular-nums">{totalFamilies}</td>
-                  <td className="text-right font-mono tabular-nums">100%</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {segments.map((seg) => (
+                    <tr
+                      key={seg.bucket}
+                      className={`hover:bg-accent/5 transition-colors ${
+                        hover === seg.bucket ? "bg-primary/10" : ""
+                      }`}
+                      onMouseEnter={() => setHover(seg.bucket)}
+                      onMouseLeave={() => setHover(null)}
+                    >
+                      <td className="py-2 px-2 flex items-center gap-2 font-medium">
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: AGING_COLORS[seg.bucket] }}
+                        />
+                        {seg.label}
+                      </td>
+                      <td className="text-right font-mono font-bold text-foreground py-2 px-2">
+                        {formatDzd(seg.amount, { compact: true })}
+                      </td>
+                      <td className="text-right font-mono py-2 px-2">
+                        {seg.debtorCount}
+                      </td>
+                      <td className="text-right font-mono py-2 px-2 text-muted-foreground">
+                        {seg.share}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </CardContent>

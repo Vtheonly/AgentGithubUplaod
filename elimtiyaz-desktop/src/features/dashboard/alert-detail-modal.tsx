@@ -1,22 +1,7 @@
-/**
- * AlertDetailModal — detailed alert inspection drawer.
- *
- * Iteration 9 — Alert & Notification System Overhaul.
- *
- * Per spec §4.2: "Clicking any notification or alert (in the topbar or
- * notification feed) must open a dedicated detail modal/drawer displaying
- * the full context, associated entity details, and actionable options
- * rather than just marking it as read."
- *
- * This drawer surfaces:
- *   - The full title, body, type, priority, and source
- *   - The associated entity (parent, student, expense, installment…) with a
- *     deep-link to the entity's own drawer
- *   - Targeting info (broadcast / user / role)
- *   - Schedule info (immediate / scheduled trigger)
- *   - Audit info (created by, created at)
- *   - Actions: mark as read, dismiss, edit, deep-link to entity
- */
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/dashboard/alert-detail-modal.tsx
+// ============================================================================
+
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -56,17 +41,23 @@ export interface AlertDetailModalProps {
   onOpenChange: (o: boolean) => void;
 }
 
-export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModalProps) {
+export function AlertDetailModal({
+  alert,
+  open,
+  onOpenChange,
+}: AlertDetailModalProps) {
   const repos = useRepositories();
   const navigate = useNavigate();
-  // === Epic 6.1 — UnifiedPaymentModal trigger for overdue installment alerts ===
   const [collectOpen, setCollectOpen] = useState(false);
 
   const linkedEntity = useMemo(() => {
     if (!alert?.entityType || !alert?.entityId) return null;
     switch (alert.entityType) {
       case "parent": {
-        const p = repos.parents.observe().get().find((x) => x.id === alert.entityId);
+        const p = repos.parents
+          .observe()
+          .get()
+          .find((x) => x.id === alert.entityId);
         return p
           ? {
               kind: "parent" as const,
@@ -77,19 +68,34 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
           : null;
       }
       case "student": {
-        const s = repos.students.observe().get().find((x) => x.id === alert.entityId);
+        const s = repos.students
+          .observe()
+          .get()
+          .find((x) => x.id === alert.entityId);
         return s
-          ? { kind: "student" as const, label: `${s.firstName} ${s.lastName}`, subtitle: s.code, route: `/crm?student=${s.id}` }
+          ? {
+              kind: "student" as const,
+              label: `${s.firstName} ${s.lastName}`,
+              subtitle: s.code,
+              route: `/crm?student=${s.id}`,
+            }
           : null;
       }
       case "expense": {
-        const e = repos.expenses.observe().get().find((x) => x.id === alert.entityId);
+        const e = repos.expenses
+          .observe()
+          .get()
+          .find((x) => x.id === alert.entityId);
         return e
-          ? { kind: "expense" as const, label: e.title, subtitle: e.requestCode, route: `/financials?expense=${e.id}` }
+          ? {
+              kind: "expense" as const,
+              label: e.title,
+              subtitle: e.requestCode,
+              route: `/financials?expense=${e.id}`,
+            }
           : null;
       }
       case "installment": {
-        // Search across all parents to find the installment.
         const parentsList = repos.parents.observe().get();
         let found: { installment: any; parent: any } | null = null;
         for (const p of parentsList) {
@@ -111,7 +117,12 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
         };
       }
       case "homework": {
-        return { kind: "homework" as const, label: "Devoir", subtitle: alert.entityId, route: `/academics?homework=${alert.entityId}` };
+        return {
+          kind: "homework" as const,
+          label: "Devoir",
+          subtitle: alert.entityId,
+          route: `/academics?homework=${alert.entityId}`,
+        };
       }
       default:
         return null;
@@ -120,8 +131,11 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
 
   if (!alert) return null;
 
-  // === Epic 6.1 — Build the PaymentNavigationContext for installment alerts ===
-  const isInstallmentAlert = alert.entityType === "installment" && linkedEntity && (linkedEntity as any).installment;
+  const isInstallmentAlert =
+    alert.entityType === "installment" &&
+    linkedEntity &&
+    (linkedEntity as any).installment;
+
   const installmentCtx: PaymentNavigationContext | null = isInstallmentAlert
     ? (() => {
         const inst = (linkedEntity as any).installment;
@@ -129,7 +143,12 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
         const remaining = Math.max(0, inst.amountDue - inst.amountPaid);
         const isOverdue = inst.status === "overdue";
         const overdueDays = isOverdue
-          ? Math.max(0, Math.floor((Date.now() - new Date(inst.dueDate).getTime()) / 86_400_000))
+          ? Math.max(
+              0,
+              Math.floor(
+                (Date.now() - new Date(inst.dueDate).getTime()) / 86_400_000,
+              ),
+            )
           : undefined;
         return {
           parentId: inst.parentId,
@@ -140,20 +159,26 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
           targetItemId: inst.id,
           presetAmount: remaining,
           overdueDays,
-          dueWindowLabel: new Date(inst.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
-          lineItems: [{
-            itemId: inst.id,
-            category: inst.category,
-            label: inst.label,
-            grossAmount: inst.amountDue,
-            discountAmount: 0,
-            netAmount: inst.amountDue,
-            alreadyPaidAmount: inst.amountPaid,
-            remainingAmount: remaining,
-            dueDate: inst.dueDate,
-            isOverdue,
-            daysOverdue: overdueDays,
-          }],
+          dueWindowLabel: new Date(inst.dueDate).toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }),
+          lineItems: [
+            {
+              itemId: inst.id,
+              category: inst.category,
+              label: inst.label,
+              grossAmount: inst.amountDue,
+              discountAmount: 0,
+              netAmount: inst.amountDue,
+              alreadyPaidAmount: inst.amountPaid,
+              remainingAmount: remaining,
+              dueDate: inst.dueDate,
+              isOverdue,
+              daysOverdue: overdueDays,
+            },
+          ],
           allowPartial: true,
           originRoute: "dashboard.alert_detail",
         };
@@ -182,158 +207,189 @@ export function AlertDetailModal({ alert, open, onOpenChange }: AlertDetailModal
 
   return (
     <>
-    <UnifiedModal
-      open={open}
-      onOpenChange={onOpenChange}
-      variant="drawer"
-      size="md"
-      icon={Bell}
-      iconTone={priorityTone === "danger" ? "danger" : priorityTone === "warning" ? "warning" : "primary"}
-      title={alert.title}
-      description={NOTIFICATION_TYPE_LABELS_FR[alert.type]}
-      badge={
-        <Badge variant="outline" className="text-[10px]">
-          {ALERT_PRIORITY_LABELS_FR[alert.priority]}
-        </Badge>
-      }
-      footer={
-        <div className="flex items-center gap-2 w-full">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-status-danger"
-            onClick={handleDismiss}
-            title="Supprimer l'alerte"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Supprimer
-          </Button>
-          <div className="flex-1" />
-          {/* Epic 6.1 — Encaisser directly from overdue installment alert */}
-          {isInstallmentAlert && installmentCtx && (
-            <Button variant="default" size="sm" onClick={() => setCollectOpen(true)}>
-              <Wallet className="h-3.5 w-3.5" />
-              Encaisser {installmentCtx.presetAmount ? `${installmentCtx.presetAmount.toLocaleString("fr-FR")} DZD` : ""}
+      <UnifiedModal
+        open={open}
+        onOpenChange={onOpenChange}
+        variant="drawer"
+        size="md"
+        icon={Bell}
+        iconTone={
+          priorityTone === "danger"
+            ? "danger"
+            : priorityTone === "warning"
+              ? "warning"
+              : "primary"
+        }
+        title={alert.title}
+        description={NOTIFICATION_TYPE_LABELS_FR[alert.type]}
+        badge={
+          <Badge variant="outline" className="text-[10px]">
+            {ALERT_PRIORITY_LABELS_FR[alert.priority]}
+          </Badge>
+        }
+        footer={
+          <div className="flex items-center gap-2 w-full justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-status-danger hover:bg-status-danger/10 text-xs"
+              onClick={handleDismiss}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              Supprimer
             </Button>
-          )}
-          {linkedEntity && (
-            <Button variant="outline" size="sm" onClick={handleDeepLink}>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-              Ouvrir {linkedEntity.kind}
-            </Button>
-          )}
-          {!alert.readAt && (
-            <Button size="sm" onClick={handleMarkRead}>
-              <CheckCheck className="h-3.5 w-3.5" />
-              Marquer comme lue
-            </Button>
-          )}
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        {/* Priority + Source banner */}
-        <div className="flex items-center gap-2">
-          <StatusChip
-            label={`Priorité ${ALERT_PRIORITY_LABELS_FR[alert.priority]}`}
-            tone={priorityTone}
-          />
-          <StatusChip
-            label={ALERT_SOURCE_LABELS_FR[alert.source]}
-            tone="neutral"
-          />
-          <StatusChip label={alert.sourceLabel} tone="info" />
-        </div>
 
-        {/* Body */}
-        <div className="rounded-md border border-border bg-muted/20 p-3">
-          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-            {alert.body}
-          </p>
-        </div>
+            <div className="flex items-center gap-2">
+              {isInstallmentAlert && installmentCtx && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="text-xs"
+                  onClick={() => setCollectOpen(true)}
+                >
+                  <Wallet className="h-3.5 w-3.5 mr-1" />
+                  Encaisser{" "}
+                  {installmentCtx.presetAmount
+                    ? `${installmentCtx.presetAmount.toLocaleString("fr-FR")} DZD`
+                    : ""}
+                </Button>
+              )}
 
-        {/* Targeting + Schedule */}
-        <div className="grid grid-cols-2 gap-3 text-xs">
-          <div className="space-y-1">
-            <p className="text-[10px] uppercase text-muted-foreground">Cible</p>
-            {alert.targetUserId ? (
-              <div className="flex items-center gap-1.5">
-                <UserIcon className="h-3 w-3 text-muted-foreground" />
-                <span>Utilisateur précis</span>
-              </div>
-            ) : alert.targetRole ? (
-              <div className="flex items-center gap-1.5">
-                <UsersIcon className="h-3 w-3 text-muted-foreground" />
-                <span>{ROLE_LABELS_FR[alert.targetRole]}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <UsersIcon className="h-3 w-3 text-muted-foreground" />
-                <span>Tous les utilisateurs</span>
-              </div>
-            )}
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] uppercase text-muted-foreground">Déclenchement</p>
-            {alert.triggeredAt ? (
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span>{formatDateTime(alert.triggeredAt)}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span>Immédiat</span>
-              </div>
-            )}
-          </div>
-        </div>
+              {linkedEntity && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={handleDeepLink}
+                >
+                  <ArrowUpRight className="h-3.5 w-3.5 mr-1" />
+                  Ouvrir le dossier
+                </Button>
+              )}
 
-        {/* Linked entity */}
-        {linkedEntity && (
-          <>
-            <Separator />
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase text-muted-foreground">Entité liée</p>
-              <button
-                type="button"
-                onClick={handleDeepLink}
-                className="flex items-center gap-2 w-full rounded-md border border-border p-2 hover:bg-accent/10 transition-colors text-start"
-              >
-                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{linkedEntity.label}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono truncate">{linkedEntity.subtitle}</p>
-                </div>
-                <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              </button>
+              {!alert.readAt && (
+                <Button size="sm" className="text-xs" onClick={handleMarkRead}>
+                  <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                  Marquer lu
+                </Button>
+              )}
             </div>
-          </>
-        )}
-
-        {/* Audit footer */}
-        <Separator />
-        <div className="text-[10px] text-muted-foreground space-y-0.5">
-          <p>Créée par <span className="font-mono">{alert.createdBy}</span></p>
-          <p>Créée {formatRelative(alert.createdAt)} · {formatDateTime(alert.createdAt)}</p>
-          {alert.readAt && <p>Lue {formatRelative(alert.readAt)}</p>}
-        </div>
-
-        {alert.priority === "urgent" && !alert.readAt && (
-          <div className="flex items-start gap-2 rounded-md border border-status-danger/30 bg-status-danger/10 p-2 text-xs text-status-danger">
-            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <p>Cette alerte est urgente. Veuillez la traiter en priorité.</p>
           </div>
-        )}
-      </div>
-    </UnifiedModal>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <StatusChip
+              label={`Priorité ${ALERT_PRIORITY_LABELS_FR[alert.priority]}`}
+              tone={priorityTone}
+            />
+            <StatusChip
+              label={ALERT_SOURCE_LABELS_FR[alert.source]}
+              tone="neutral"
+            />
+            <StatusChip label={alert.sourceLabel} tone="info" />
+          </div>
 
-    {/* Epic 6.1 — UnifiedPaymentModal for overdue installment alerts */}
-    <UnifiedPaymentModal
-      open={collectOpen}
-      onOpenChange={setCollectOpen}
-      context={installmentCtx}
-    />
+          <div className="rounded-xl border border-border/80 bg-surface-elevated/40 p-4">
+            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+              {alert.body}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-lg border border-border/50 bg-surface-elevated/20 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Audience Cible
+              </span>
+              {alert.targetUserId ? (
+                <div className="flex items-center gap-1.5 font-medium">
+                  <UserIcon className="h-3.5 w-3.5 text-primary" />
+                  <span>Utilisateur spécifique</span>
+                </div>
+              ) : alert.targetRole ? (
+                <div className="flex items-center gap-1.5 font-medium">
+                  <UsersIcon className="h-3.5 w-3.5 text-primary" />
+                  <span>{ROLE_LABELS_FR[alert.targetRole]}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 font-medium">
+                  <UsersIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Tous les collaborateurs</span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 rounded-lg border border-border/50 bg-surface-elevated/20 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Planification
+              </span>
+              <div className="flex items-center gap-1.5 font-mono text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                <span>
+                  {alert.triggeredAt
+                    ? formatDateTime(alert.triggeredAt)
+                    : "Instantané"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {linkedEntity && (
+            <>
+              <Separator />
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                  Élément Associé
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDeepLink}
+                  className="flex items-center gap-3 w-full rounded-xl border border-border/70 p-3 hover:bg-surface-elevated/50 transition-colors text-left"
+                >
+                  <Building2 className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {linkedEntity.label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground font-mono truncate">
+                      {linkedEntity.subtitle}
+                    </p>
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </button>
+              </div>
+            </>
+          )}
+
+          {alert.priority === "urgent" && !alert.readAt && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-status-danger/40 bg-status-danger/10 p-3 text-xs text-status-danger">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                Notification critique : Cette opération requiert une
+                intervention immédiate de la direction.
+              </p>
+            </div>
+          )}
+
+          <Separator />
+          <div className="text-[11px] text-muted-foreground space-y-0.5">
+            <p>
+              Émetteur : <span className="font-mono">{alert.createdBy}</span>
+            </p>
+            <p>
+              Créée {formatRelative(alert.createdAt)} (
+              {formatDateTime(alert.createdAt)})
+            </p>
+            {alert.readAt && <p>Consultée {formatRelative(alert.readAt)}</p>}
+          </div>
+        </div>
+      </UnifiedModal>
+
+      <UnifiedPaymentModal
+        open={collectOpen}
+        onOpenChange={setCollectOpen}
+        context={installmentCtx}
+      />
     </>
   );
 }

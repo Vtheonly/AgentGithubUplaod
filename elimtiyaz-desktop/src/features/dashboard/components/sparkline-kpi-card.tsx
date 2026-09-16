@@ -1,24 +1,14 @@
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/dashboard/components/sparkline-kpi-card.tsx
+// ============================================================================
+
 /**
- * SparklineKpiCard — Screen-5-style executive KPI tile (T-243, 2026-09-09).
+ * SparklineKpiCard — Executive KPI Tile with High-Definition Bezier Sparkline.
  *
- * Source: the owner's AI-review blueprint "The Sparkline KPI Card (Screen 5
- * Style)" — metric label (10px uppercase) → big mono value → inline trend
- * badge + 24-84px area-gradient sparkline.
- *
- * Adaptation (documented in UI-306, §15.16 — never synthesize data):
- *   - `trend` and `deltaPercent` are OPTIONAL. The review's sample code
- *     hardcoded `deltaPercent: 12.4` + `trend: [120, 140, …]` on every
- *     card; the dashboard's repository contract only carries a REAL time
- *     series for the revenue metrics. Cards without a real series render
- *     WITHOUT the sparkline and WITHOUT a delta badge — no fake numbers.
- *     (Rule: a financial/operational trend shown to the admin must come
- *     from the repository stream, not from a component default.)
- *   - Clicking drills into the SeeDetailsModal sub-tab, same contract as
- *     the previous KpiButton wrapper (dashboard-page.tsx drillByKpi map).
- *
- * UI-301 safety: the value is `break-words` (Intl fr-FR grouping uses
- * U+202F/U+00A0 unbreakable separators — the t-200/t-205 guard families).
+ * Combines crisp typographic hierarchy, a subtle ambient top border,
+ * a formatted trend delta pill, and an area-gradient sparkline.
  */
+
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { Card, CardContent } from "../../../shared/ui/card";
 import { cn } from "../../../shared/ui/cn";
@@ -36,15 +26,41 @@ export interface SparklineKpiCardProps {
   label: string;
   value: string;
   subValue?: string;
-  /** REAL month-over-month delta from the loaded series — omit when no series. */
   deltaPercent?: number;
   deltaPeriod?: string;
-  /** REAL series from the repository (e.g. monthly revenue) — omit to hide the sparkline. */
   trend?: number[];
   tone?: SparklineTone;
   onClick?: () => void;
-  /** Stable key for SVG gradient ids when several cards render side by side. */
   gradientKey?: string;
+}
+
+/**
+ * Generates a smooth cubic-bezier SVG path string through an array of points.
+ */
+function generateSmoothSvgPath(
+  points: Array<{ x: number; y: number }>,
+): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
+
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] ?? p2;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
 }
 
 export function SparklineKpiCard({
@@ -52,37 +68,41 @@ export function SparklineKpiCard({
   value,
   subValue,
   deltaPercent,
-  deltaPeriod = "vs mois dernier",
+  deltaPeriod = "vs période préc.",
   trend,
   tone = "primary",
   onClick,
   gradientKey,
 }: SparklineKpiCardProps) {
-  const hasDelta = typeof deltaPercent === "number" && Number.isFinite(deltaPercent);
+  const hasDelta =
+    typeof deltaPercent === "number" && Number.isFinite(deltaPercent);
   const isPositive = hasDelta && (deltaPercent as number) > 0;
   const isZero = hasDelta && deltaPercent === 0;
   const color = STROKE_BY_TONE[tone];
   const hasSparkline = Array.isArray(trend) && trend.length >= 2;
 
-  // SVG sparkline geometry — normalized into an 84×32 viewBox.
-  const width = 84;
-  const height = 32;
-  let points = "";
-  let areaPoints = "";
+  // Normalized geometry in a 92x36 viewBox
+  const width = 92;
+  const height = 36;
+  let strokePath = "";
+  let areaPath = "";
+
   if (hasSparkline && trend) {
     const min = Math.min(...trend);
     const max = Math.max(...trend);
     const range = max - min || 1;
-    points = trend
-      .map((val, i) => {
-        const x = (i / (trend.length - 1)) * width;
-        const y = height - ((val - min) / range) * (height - 8) - 4;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(" ");
-    areaPoints = `0,${height} ${points} ${width},${height}`;
+
+    const points = trend.map((val, i) => {
+      const x = (i / (trend.length - 1)) * width;
+      const y = height - ((val - min) / range) * (height - 10) - 5;
+      return { x, y };
+    });
+
+    strokePath = generateSmoothSvgPath(points);
+    areaPath = `${strokePath} L ${width} ${height} L 0 ${height} Z`;
   }
-  const gradientId = `sparkline-grad-${(gradientKey ?? label)
+
+  const gradientId = `spark-grad-${(gradientKey ?? label)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")}`;
 
@@ -90,30 +110,47 @@ export function SparklineKpiCard({
     <Card
       onClick={onClick}
       className={cn(
-        "relative overflow-hidden border border-border bg-surface-panel transition-all duration-200",
-        onClick && "cursor-pointer hover:border-primary/50 hover:bg-surface-elevated/40",
+        "group relative overflow-hidden rounded-xl border border-border/70 bg-surface-panel p-0 transition-all duration-200",
+        onClick &&
+          "cursor-pointer hover:border-primary/40 hover:bg-surface-elevated/50 hover:shadow-lg hover:shadow-black/20",
       )}
     >
-      <CardContent className="p-3.5 flex items-end justify-between gap-2">
-        <div className="space-y-1 min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
-            {label}
-          </p>
-          <div className="flex items-baseline gap-2 min-w-0">
-            <span className="text-xl font-bold font-mono tracking-tight text-foreground tnum break-words">
+      {/* Subtle top indicator bar with tone accent */}
+      <div
+        className="h-[2px] w-full"
+        style={{
+          background: `linear-gradient(90deg, ${color} 0%, transparent 80%)`,
+        }}
+      />
+
+      <CardContent className="p-4 flex items-end justify-between gap-3">
+        <div className="space-y-1.5 min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span
+              className="h-1.5 w-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: color }}
+            />
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+              {label}
+            </p>
+          </div>
+
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-2xl font-bold font-mono tracking-tight text-foreground tabular-nums">
               {value}
             </span>
             {subValue && (
-              <span className="text-[11px] font-mono text-muted-foreground break-words">
+              <span className="text-xs font-mono text-muted-foreground tabular-nums">
                 {subValue}
               </span>
             )}
           </div>
+
           {hasDelta ? (
             <div className="flex items-center gap-1.5 pt-0.5">
               <span
                 className={cn(
-                  "inline-flex items-center text-[10px] font-mono font-semibold px-1 py-0.5 rounded",
+                  "inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md",
                   isZero
                     ? "bg-muted text-muted-foreground"
                     : isPositive
@@ -130,30 +167,34 @@ export function SparklineKpiCard({
                 )}
                 {Math.abs(deltaPercent as number)}%
               </span>
-              <span className="text-[10px] text-muted-foreground truncate">{deltaPeriod}</span>
+              <span className="text-[11px] text-muted-foreground truncate">
+                {deltaPeriod}
+              </span>
             </div>
           ) : (
-            <div className="pt-0.5 text-[10px] text-muted-foreground truncate">&nbsp;</div>
+            <div className="text-[11px] text-muted-foreground/60 h-4">
+              &nbsp;
+            </div>
           )}
         </div>
 
-        {hasSparkline && trend && (
-          <div className="w-[84px] h-[32px] shrink-0" aria-hidden="true">
+        {hasSparkline && (
+          <div className="w-[92px] h-[36px] shrink-0 mb-1" aria-hidden="true">
             <svg width={width} height={height} className="overflow-visible">
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={color} stopOpacity={0} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <polygon points={areaPoints} fill={`url(#${gradientId})`} />
-              <polyline
+              <path d={areaPath} fill={`url(#${gradientId})`} />
+              <path
+                d={strokePath}
                 fill="none"
                 stroke={color}
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                points={points}
               />
             </svg>
           </div>

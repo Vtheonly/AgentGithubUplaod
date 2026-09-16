@@ -1,30 +1,7 @@
-/**
- * SeeDetailsModal — drill-down analytics for the dashboard.
- *
- * T-088 (2026-08-30) — single-source-of-truth refactor: the modal receives
- * ALL data via the `data` prop from the page (no fetch, no drift; the 4
- * sub-tabs render from the page-level data).
- *
- * T-247 (2026-09-09, 37th session) — the owner's AI-review drill-down
- * overhaul (Screens 1–2), adapted to REAL data per §15.16:
- *   - Revenue tab: "Encaissé vs Échéancier théorique" — bars are the REAL
- *     monthly series; the dashed gold line is the DERIVED planning
- *     projection (40% Sep / 30% Déc / 30% Mar — the canonical tranche rule,
- *     `docs/domain/financial-rules.md` / the billing-breakdown synthesis)
- *     applied to totalExpected = encaissé + créances. It is labeled
- *     "théorique" everywhere and NEVER presented as collected data; when
- *     `kpis` is unavailable the projection is omitted (bars only).
- *   - Demographics tab: the gender chart is now a dual-ring DONUT with the
- *     REAL center total (Σ gender counts) + legend callouts — replacing the
- *     hollow borderless pie the review flagged. The per-class capacity
- *     gauges (already REAL from the repository contract) are kept.
- *   - Debt tab: per-bucket severity badges (Normal / Avertissement /
- *     Critique) so the aging table reads as a triage queue, not raw counts.
- *   - Chart chrome now comes from the single `DASHBOARD_THEME` source
- *     (T-243) instead of per-chart inline styles.
- *
- * Per AGENTS.md §15.9 — UI code only, no schema touch.
- */
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/dashboard/see-details-modal.tsx
+// ============================================================================
+
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import {
@@ -79,51 +56,38 @@ import {
 import { DASHBOARD_THEME, chartPalette } from "../../shared/ui/dashboard-theme";
 import type { Demographics } from "./tabs/types";
 
-/** VAULT §15.02 — the 4 operational units (never a single "Other" bucket). */
 const OPERATIONAL_UNITS: readonly {
   key: string;
   label: string;
   categories: readonly PaymentCategory[];
-  tokenName: string;
-  fallback: string;
+  color: string;
 }[] = [
   {
     key: "scolarite",
     label: "Scolarité (académique)",
     categories: ["tuition", "books", "uniform", "second_apron"],
-    tokenName: "--brand-blue",
-    fallback: "#349bd4",
+    color: "#349bd4",
   },
   {
     key: "therapy",
-    label: "Thérapie (Orthophonie / Psychologie)",
+    label: "Thérapie & Accompagnement (Orthophonie / Psy)",
     categories: ["therapy_psychology", "therapy_speech"],
-    tokenName: "--brand-gold",
-    fallback: "#eab308",
+    color: "#eab308",
   },
   {
     key: "clubs",
-    label: "Clubs & parascolaire",
+    label: "Activités & Clubs Parascolaires",
     categories: ["extracurricular"],
-    tokenName: "--status-danger",
-    fallback: "#ef4444",
+    color: "#f43f5e",
   },
   {
     key: "auxiliary",
-    label: "Services auxiliaires (Transport / Cantine)",
+    label: "Services Auxiliaires (Transport / Cantine)",
     categories: ["transport", "canteen"],
-    tokenName: "--status-success",
-    fallback: "#10b981",
+    color: "#10b981",
   },
 ];
 
-/**
- * T-247 — the canonical tranche-projection rule mirrored as month labels.
- * The due months (15 Sep / 15 Déc / 15 Mar) and the 40/30/30 split are the
- * canonical business rule (see `billing-breakdown.ts`'s synthesis + the
- * domain financial rules); the labels match `MONTH_LABELS_FR` so they align
- * with the revenue buckets element-wise.
- */
 const TRANCHE_PROJECTION_MONTHS: ReadonlyArray<{
   label: string;
   share: number;
@@ -133,14 +97,6 @@ const TRANCHE_PROJECTION_MONTHS: ReadonlyArray<{
   { label: "Mar", share: 0.3 },
 ];
 
-/**
- * Derive the theoretical échéancier projection for the revenue chart.
- *
- * PURE function (unit-testable): maps each REAL revenue point to
- * `{ label, amount, targetProjection }` where `targetProjection` =
- * share × totalExpected on the canonical tranche months, 0 elsewhere.
- * 12 consecutive month labels are unique, so label matching is safe.
- */
 export function deriveTrancheProjection(
   revenue: readonly RevenuePoint[],
   totalExpected: number,
@@ -155,30 +111,30 @@ export function deriveTrancheProjection(
   });
 }
 
-/** T-247 — aging-bucket triage severity (display-only). */
 function agingSeverity(bucket: AgingBucket): {
   label: string;
   className: string;
 } {
   if (bucket === "0_30") {
     return {
-      label: "Normal",
-      className: "bg-status-success/15 text-status-success",
+      label: "Courant",
+      className:
+        "bg-status-success/15 text-status-success border-status-success/30",
     };
   }
   if (bucket === "31_60") {
     return {
-      label: "Avertissement",
-      className: "bg-status-warning/15 text-status-warning",
+      label: "Relance",
+      className:
+        "bg-status-warning/15 text-status-warning border-status-warning/30",
     };
   }
   return {
     label: "Critique",
-    className: "bg-status-danger/15 text-status-danger",
+    className: "bg-status-danger/15 text-status-danger border-status-danger/30",
   };
 }
 
-/** Dashboard data — the same shape the OverviewTab consumes. */
 export interface DashboardData {
   kpis: DashboardKpi | null;
   revenue: RevenuePoint[];
@@ -196,22 +152,12 @@ export function SeeDetailsModal({
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  /** Pre-select the tab the user clicked from in the dashboard. */
   initialTab?: "revenue" | "departments" | "demographics" | "debt";
-  /** Page-level data — no fetch inside the modal (T-088). */
   data: DashboardData;
-  /**
-   * T-355 (DASH-405): the canonical payments stream (the page's, already
-   * range-filtered + paid-only) — feeds the Departments tab's per-unit
-   * breakdown. Optional for back-compat (absent = the honest empty state
-   * that the tab rendered before).
-   */
   payments?: readonly Payment[];
 }) {
   const { t } = useTranslation();
 
-  // VAULT §15.01 — annual revenue (PAID only) + collection-rate summary.
-  // Derived from the page-level revenue series; no re-fetch.
   const annualRevenue = useMemo(
     () => data.revenue.reduce((s, r) => s + r.amount, 0),
     [data.revenue],
@@ -221,8 +167,6 @@ export function SeeDetailsModal({
   const collectionRate =
     totalExpected > 0 ? Math.round((annualRevenue / totalExpected) * 100) : 0;
 
-  // T-247 — the theoretical échéancier line (derived planning reference,
-  // rendered ONLY when a real debt figure exists; labeled "théorique").
   const projection = useMemo(
     () =>
       data.kpis
@@ -240,16 +184,16 @@ export function SeeDetailsModal({
     <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
-      size="xl"
+      size="2xl"
       variant="dialog"
       icon={BarChart3}
       iconTone="primary"
       title={t("dashboard.seeDetails")}
-      description="Vue détaillée des indicateurs — revenus, départements, démographie, créances."
+      description="Analyse approfondie : Recouvrement, Répartition par pôle, Démographie et Débiteurs"
       hideFooter
     >
-      <PageTabs defaultValue={initialTab} variant="underline">
-        <PageTabList>
+      <PageTabs defaultValue={initialTab} variant="elevated">
+        <PageTabList className="mb-4">
           <PageTab
             value="revenue"
             label={t("dashboard.sections.revenue")}
@@ -272,64 +216,59 @@ export function SeeDetailsModal({
           />
         </PageTabList>
 
+        {/* 1. REVENUE SECTION */}
         <PageTabContent value="revenue">
           <div className="space-y-4">
-            {/* T-247 — the review's collection-rate summary (all REAL). */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-md border border-border p-3">
-                <p className="text-[10px] uppercase text-muted-foreground">
-                  Encaissé annuel
-                </p>
-                <p className="text-lg font-mono font-bold text-status-success">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                  Encaissé effectif (PAID)
+                </span>
+                <p className="text-xl font-mono font-bold text-status-success">
                   {formatDzd(annualRevenue)}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
-                  paiements PAID au guichet
+                <p className="text-[11px] text-muted-foreground">
+                  Fonds collectés et compensés
                 </p>
               </div>
-              <div className="rounded-md border border-border p-3">
-                <p className="text-[10px] uppercase text-muted-foreground">
+
+              <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
                   Créances restantes
-                </p>
-                <p className="text-lg font-mono font-bold text-status-danger">
+                </span>
+                <p className="text-xl font-mono font-bold text-status-danger">
                   {data.kpis ? formatDzd(outstanding) : "—"}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
-                  engagements à percevoir
+                <p className="text-[11px] text-muted-foreground">
+                  Engagements à percevoir
                 </p>
               </div>
-              <div className="rounded-md border border-border p-3">
-                <p className="text-[10px] uppercase text-muted-foreground">
-                  Taux de recouvrement
-                </p>
-                <p className="text-lg font-mono font-bold text-primary">
+
+              <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                  Taux d'Atteinte Annuel
+                </span>
+                <p className="text-xl font-mono font-bold text-primary">
                   {data.kpis ? `${collectionRate}%` : "—"}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
-                  encaissé / total attendu
+                <p className="text-[11px] text-muted-foreground">
+                  Encaissé sur total attendu
                 </p>
               </div>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">
-                  Encaissements vs échéancier théorique
-                  <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-                    {data.revenue.length} mois · projection 40 / 30 / 30 (Sep ·
-                    Déc · Mar)
-                  </span>
+            <Card className="border-border/70 bg-surface-panel shadow-sm">
+              <CardHeader className="py-3 px-4 border-b border-border/50">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Encaissements vs Échéancier Théorique (40% · 30% · 30%)
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Barres : encaissements réels · Ligne pointillée : échéancier
-                  théorique
-                  {data.kpis
-                    ? ` dérivé du total attendu (${formatDzdPlain(totalExpected)} DZD)`
-                    : " indisponible (KPIs non chargés)"}
+                  Barres pleines : Encaissements réels · Ligne dorée pointillée
+                  : Jalons théoriques
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-[280px]">
+              <CardContent className="p-4">
+                <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
                       data={projection}
@@ -358,9 +297,7 @@ export function SeeDetailsModal({
                         contentStyle={DASHBOARD_THEME.tooltipStyle}
                         formatter={(v: number, name: string) => [
                           `${formatDzdPlain(v)} DZD`,
-                          name === "amount"
-                            ? "Encaissé réel"
-                            : "Objectif théorique",
+                          name === "amount" ? "Encaissé" : "Jalon cible",
                         ]}
                       />
                       <Bar
@@ -368,7 +305,7 @@ export function SeeDetailsModal({
                         name="amount"
                         fill={chartPalette.primary}
                         radius={[4, 4, 0, 0]}
-                        barSize={26}
+                        barSize={24}
                       />
                       {data.kpis && (
                         <Line
@@ -378,7 +315,7 @@ export function SeeDetailsModal({
                           stroke={chartPalette.gold}
                           strokeWidth={2}
                           strokeDasharray="4 4"
-                          dot={false}
+                          dot={{ r: 3, fill: chartPalette.gold }}
                         />
                       )}
                     </ComposedChart>
@@ -389,27 +326,22 @@ export function SeeDetailsModal({
           </div>
         </PageTabContent>
 
+        {/* 2. DEPARTMENTS SECTION */}
         <PageTabContent value="departments">
-          {/* T-088: Departments derives its breakdown from the page-level
-              revenue series via the canonical `revenueByCategory` helper.
-              No more `repos.payments.observe().get()` Mock-only leak. */}
           <DepartmentsTab data={data} payments={payments} />
         </PageTabContent>
 
+        {/* 3. DEMOGRAPHICS SECTION */}
         <PageTabContent value="demographics">
           <div className="space-y-4">
-            {/* Grade Level Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">
-                  Effectifs par niveau
-                  <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-                    1AP → 3ème Année (diagramme en barres, plan §15.03)
-                  </span>
+            <Card className="border-border/70 bg-surface-panel shadow-sm">
+              <CardHeader className="py-3 px-4 border-b border-border/50">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Distribution des Effectifs par Niveau
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="h-[240px]">
+              <CardContent className="p-4">
+                <div className="h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.demographics.grade}>
                       <CartesianGrid
@@ -419,16 +351,12 @@ export function SeeDetailsModal({
                       />
                       <XAxis
                         dataKey="label"
-                        tick={{
-                          fill: "hsl(var(--muted-foreground))",
-                          fontSize: 10,
-                        }}
+                        {...DASHBOARD_THEME.axisTick}
                         axisLine={false}
                         tickLine={false}
-                        interval={0}
-                        angle={-30}
+                        angle={-25}
                         textAnchor="end"
-                        height={50}
+                        height={45}
                       />
                       <YAxis
                         {...DASHBOARD_THEME.axisTick}
@@ -438,12 +366,13 @@ export function SeeDetailsModal({
                       />
                       <RTooltip
                         contentStyle={DASHBOARD_THEME.tooltipStyle}
-                        formatter={(v: number) => [`${v} élèves`, "Effectif"]}
+                        formatter={(v: number) => [`${v} élèves`, "Inscrits"]}
                       />
                       <Bar
                         dataKey="count"
                         fill={chartPalette.primary}
                         radius={[4, 4, 0, 0]}
+                        barSize={20}
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -451,73 +380,67 @@ export function SeeDetailsModal({
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {/* Gender Donut */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Par genre</CardTitle>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="border-border/70 bg-surface-panel shadow-sm">
+                <CardHeader className="py-3 px-4 border-b border-border/50">
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Répartition par Genre
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[220px] relative flex items-center justify-center">
+                <CardContent className="p-4 flex flex-col items-center justify-center">
+                  <div className="h-[180px] w-full relative flex items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={data.demographics.gender}
                           dataKey="count"
                           nameKey="label"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={48}
-                          outerRadius={68}
+                          innerRadius={54}
+                          outerRadius={74}
                           paddingAngle={3}
                           stroke="none"
                         >
-                          {data.demographics.gender.map((g, i) => (
+                          {data.demographics.gender.map((_, i) => (
                             <Cell
-                              key={g.label}
+                              key={i}
                               fill={
                                 [
                                   chartPalette.primary,
                                   chartPalette.gold,
-                                  chartPalette.slate,
+                                  chartPalette.cyan,
                                 ][i % 3]
                               }
                             />
                           ))}
                         </Pie>
-                        <RTooltip
-                          contentStyle={DASHBOARD_THEME.tooltipStyle}
-                          formatter={(v: number) => [
-                            `${v} élèves${genderTotal > 0 ? ` (${Math.round((v / genderTotal) * 100)}%)` : ""}`,
-                            "Effectif",
-                          ]}
-                        />
+                        <RTooltip contentStyle={DASHBOARD_THEME.tooltipStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-2xl font-bold font-mono text-foreground tnum">
+                      <span className="text-2xl font-bold font-mono text-foreground">
                         {genderTotal}
                       </span>
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      <span className="text-[10px] uppercase text-muted-foreground">
                         élèves
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-around border-t border-border/50 pt-2 mt-1 text-xs">
+
+                  <div className="flex justify-center gap-6 mt-2 text-xs">
                     {data.demographics.gender.map((g, i) => (
-                      <div key={g.label} className="flex items-center gap-1.5">
+                      <div key={g.label} className="flex items-center gap-2">
                         <span
-                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          className="h-2.5 w-2.5 rounded-full"
                           style={{
-                            background: [
+                            backgroundColor: [
                               chartPalette.primary,
                               chartPalette.gold,
-                              chartPalette.slate,
+                              chartPalette.cyan,
                             ][i % 3],
                           }}
                         />
-                        <span className="text-muted-foreground truncate">
-                          {g.label} :
+                        <span className="text-muted-foreground">
+                          {g.label}:
                         </span>
                         <strong className="font-mono text-foreground">
                           {g.count}
@@ -528,15 +451,14 @@ export function SeeDetailsModal({
                 </CardContent>
               </Card>
 
-              {/* Age Distribution */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">
-                    Distribution par âge
+              <Card className="border-border/70 bg-surface-panel shadow-sm">
+                <CardHeader className="py-3 px-4 border-b border-border/50">
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Pyramide des Âges
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[220px]">
+                <CardContent className="p-4">
+                  <div className="h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.demographics.age}>
                         <CartesianGrid
@@ -556,10 +478,7 @@ export function SeeDetailsModal({
                           tickLine={false}
                           allowDecimals={false}
                         />
-                        <RTooltip
-                          contentStyle={DASHBOARD_THEME.tooltipStyle}
-                          formatter={(v: number) => [`${v} élèves`, "Effectif"]}
-                        />
+                        <RTooltip contentStyle={DASHBOARD_THEME.tooltipStyle} />
                         <Bar
                           dataKey="count"
                           fill={chartPalette.cyan}
@@ -574,46 +493,50 @@ export function SeeDetailsModal({
           </div>
         </PageTabContent>
 
+        {/* 4. DEBT SECTION */}
         <PageTabContent value="debt">
           <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">
-                  Créances par tranche d'âge
-                  <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-                    gravité par ancienneté
-                  </span>
+            <Card className="border-border/70 bg-surface-panel shadow-sm">
+              <CardHeader className="py-3 px-4 border-b border-border/50">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Structure des Retards par Ancienneté
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="py-2">Tranche</th>
-                      <th className="py-2 text-right">Montant</th>
-                      <th className="py-2 text-right">Familles</th>
-                      <th className="py-2 text-right">Gravité</th>
+              <CardContent className="p-0">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/30 text-muted-foreground text-left">
+                    <tr className="border-b border-border/60">
+                      <th className="py-2.5 px-4 font-medium">Tranche</th>
+                      <th className="py-2.5 px-4 text-right font-medium">
+                        Encours
+                      </th>
+                      <th className="py-2.5 px-4 text-right font-medium">
+                        Familles
+                      </th>
+                      <th className="py-2.5 px-4 text-right font-medium">
+                        Sévérité
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/40">
                     {data.debtAging.map((b) => {
-                      const severity = agingSeverity(b.bucket);
+                      const sev = agingSeverity(b.bucket);
                       return (
                         <tr key={b.bucket} className="hover:bg-accent/5">
-                          <td className="py-2.5">
+                          <td className="py-2.5 px-4 font-medium">
                             {AGING_BUCKET_LABELS_FR[b.bucket]}
                           </td>
-                          <td className="py-2.5 text-right font-mono">
-                            {formatDzdPlain(b.amount)}
+                          <td className="py-2.5 px-4 text-right font-mono font-bold text-foreground">
+                            {formatDzdPlain(b.amount)} DA
                           </td>
-                          <td className="py-2.5 text-right font-mono">
+                          <td className="py-2.5 px-4 text-right font-mono">
                             {b.debtorCount}
                           </td>
-                          <td className="py-2.5 text-right">
+                          <td className="py-2.5 px-4 text-right">
                             <span
-                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${severity.className}`}
+                              className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase ${sev.className}`}
                             >
-                              {severity.label}
+                              {sev.label}
                             </span>
                           </td>
                         </tr>
@@ -624,43 +547,45 @@ export function SeeDetailsModal({
               </CardContent>
             </Card>
 
-            {/* VAULT §15.05 — Debt tab: top debtors list. */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">
-                  Top débiteurs
-                  <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-                    10 familles les plus endettées
-                  </span>
+            <Card className="border-border/70 bg-surface-panel shadow-sm">
+              <CardHeader className="py-3 px-4 border-b border-border/50">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Top Débiteurs Prioritaires (10 Plus Fortes Créances)
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {data.topDebtors.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Aucune créance en cours.
+                  <p className="text-xs text-muted-foreground text-center py-6">
+                    Aucune créance enregistrée.
                   </p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead className="text-left text-xs uppercase text-muted-foreground">
-                      <tr>
-                        <th className="py-2">#</th>
-                        <th className="py-2">Famille</th>
-                        <th className="py-2 text-right">Retard</th>
-                        <th className="py-2 text-right">Créance</th>
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/30 text-muted-foreground text-left">
+                      <tr className="border-b border-border/60">
+                        <th className="py-2.5 px-4 font-medium">Rang</th>
+                        <th className="py-2.5 px-4 font-medium">Famille</th>
+                        <th className="py-2.5 px-4 text-right font-medium">
+                          Retard
+                        </th>
+                        <th className="py-2.5 px-4 text-right font-medium">
+                          Créance
+                        </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y divide-border/40">
                       {data.topDebtors.map((d, i) => (
-                        <tr key={d.parentId}>
-                          <td className="py-2 font-mono text-muted-foreground">
-                            {i + 1}
+                        <tr key={d.parentId} className="hover:bg-accent/5">
+                          <td className="py-2 px-4 font-mono text-muted-foreground">
+                            #{i + 1}
                           </td>
-                          <td className="py-2">{d.parentName}</td>
-                          <td className="py-2 text-right font-mono">
+                          <td className="py-2 px-4 font-medium text-foreground">
+                            {d.parentName}
+                          </td>
+                          <td className="py-2 px-4 text-right font-mono text-muted-foreground">
                             {d.daysOverdue} j
                           </td>
-                          <td className="py-2 text-right font-mono font-semibold text-status-danger">
-                            {formatDzdPlain(d.outstandingAmount)}
+                          <td className="py-2 px-4 text-right font-mono font-bold text-status-danger">
+                            {formatDzdPlain(d.outstandingAmount)} DA
                           </td>
                         </tr>
                       ))}
@@ -676,150 +601,91 @@ export function SeeDetailsModal({
   );
 }
 
-
-/**
- * DepartmentsTab — the per-operational-unit revenue breakdown, derived from
- * the page-level canonical payments stream (T-355, 63rd session — DASH-405).
- *
- * History: T-088 replaced a `repos.payments.observe().get()` Mock-only read
- * with an honest empty state + a comment proposing a new backend method
- * (`DashboardRepository.revenueByCategory()`). That proposal is superseded:
- * since T-243 the page ALREADY holds the canonical payments stream (one
- * subscription), so the breakdown is a PURE display aggregation of rows the
- * page already loaded — no new backend contract needed (§6 reuse-first).
- * The payments arrive already paid-only + range-filtered (the same
- * `applyAnalyticsFilters` slice the Analytics tab consumes — the ENCAISSÉ
- * definition), so the Departments total reconciles with the Revenue tab.
- */
 function DepartmentsTab({
   payments,
 }: {
   data: DashboardData;
   payments: readonly Payment[];
 }) {
-  /** Resolve a design-token CSS variable (plan §03; T-246 palette). */
-  const token = (name: string, fallback: string): string => {
-    try {
-      if (typeof document === "undefined") return fallback;
-      const v = getComputedStyle(document.documentElement)
-        .getPropertyValue(name)
-        .trim();
-      return v || fallback;
-    } catch {
-      return fallback;
-    }
-  };
-
-  // T-355: per-unit totals from the REAL payments (the page's
-  // range-filtered paid slice). Categories not claimed by any unit land
-  // in the "Autres catégories" row — never silently dropped.
   const unitsWithTotals = OPERATIONAL_UNITS.map((u) => {
     const amount = payments
       .filter((p) => u.categories.includes(p.category))
       .reduce((s, p) => s + p.amount, 0);
     return { ...u, amount };
   });
+
   const claimed = new Set(OPERATIONAL_UNITS.flatMap((u) => u.categories));
   const otherAmount = payments
     .filter((p) => !claimed.has(p.category))
     .reduce((s, p) => s + p.amount, 0);
   const grandTotal =
     unitsWithTotals.reduce((s, u) => s + u.amount, 0) + otherAmount;
-  const hasData = payments.length > 0 && grandTotal > 0;
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">
-            Revenu par unité opérationnelle
-            <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-              Scolarité / Thérapie / Clubs / Auxiliaire
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!hasData ? (
-            <div className="py-8 text-center space-y-2">
-              <p className="text-sm font-medium text-foreground">
-                Aucun revenu enregistré sur la période sélectionnée.
-              </p>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Le découpage par unité opérationnelle agrège les paiements
-                encaissés de la période (statut « payé », même fenêtre que
-                l&apos;onglet Revenu).
-              </p>
-            </div>
-          ) : (
+    <Card className="border-border/70 bg-surface-panel shadow-sm">
+      <CardHeader className="py-3 px-4 border-b border-border/50">
+        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Ventilation par Pôle Opérationnel
+        </CardTitle>
+        <CardDescription className="text-xs text-muted-foreground">
+          Répartition des encaissements effectifs par activité
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4 space-y-4">
+        {grandTotal === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-8">
+            Aucun encaissement sur cette période.
+          </p>
+        ) : (
+          <>
             <div className="space-y-3">
               {unitsWithTotals.map((u) => {
                 const pct =
-                  grandTotal > 0 ? Math.round((u.amount / grandTotal) * 100) : 0;
+                  grandTotal > 0
+                    ? Math.round((u.amount / grandTotal) * 100)
+                    : 0;
                 return (
                   <div key={u.key} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="flex items-center gap-1.5 font-medium">
                         <span
                           className="h-2 w-2 rounded-full"
-                          style={{ background: token(u.tokenName, u.fallback) }}
+                          style={{ backgroundColor: u.color }}
                         />
-                        <span className="text-muted-foreground">{u.label}</span>
-                      </div>
-                      <span className="font-mono text-foreground">
-                        {formatDzd(u.amount)}
-                        <span className="ml-2 text-muted-foreground font-sans">
-                          {pct}%
+                        {u.label}
+                      </span>
+                      <span className="font-mono font-bold text-foreground">
+                        {formatDzd(u.amount)}{" "}
+                        <span className="text-muted-foreground font-normal">
+                          ({pct}%)
                         </span>
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
                       <div
-                        className="h-full"
+                        className="h-full rounded-full"
                         style={{
                           width: `${pct}%`,
-                          background: token(u.tokenName, u.fallback),
+                          backgroundColor: u.color,
                         }}
                       />
                     </div>
                   </div>
                 );
               })}
-              {otherAmount > 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      Autres catégories
-                    </span>
-                    <span className="font-mono text-foreground">
-                      {formatDzd(otherAmount)}
-                      <span className="ml-2 text-muted-foreground font-sans">
-                        {Math.round((otherAmount / grandTotal) * 100)}%
-                      </span>
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full"
-                      style={{
-                        width: `${Math.round((otherAmount / grandTotal) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-              <div className="pt-2 border-t border-border flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Total encaissé ({payments.length} paiement
-                  {payments.length > 1 ? "s" : ""})
-                </span>
-                <span className="font-mono font-semibold text-foreground">
-                  {formatDzdPlain(grandTotal)}
-                </span>
-              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+
+            <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground">
+                Total Encaissé ({payments.length} versements)
+              </span>
+              <span className="font-mono font-bold text-base text-status-success">
+                {formatDzdPlain(grandTotal)} DA
+              </span>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

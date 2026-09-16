@@ -1,14 +1,7 @@
-/**
- * DebtorsParetoCard — the 80/20 Pareto chart (T-257, 38th session —
- * UI-307): top debtors as bars (outstanding, desc) + the cumulative-share
- * line on a right 0–100% axis. The classic recouvrement question — "how
- * many families carry most of the debt?" — answered from the REAL
- * topDebtors summary (the page's single-fetch pipeline; no re-fetch).
- *
- * The header carries the honest Pareto verdict: the minimum number of
- * families covering ≥80% of the displayed outstanding (derived, never
- * rounded up by hand), and the 80/20 callout when it applies.
- */
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/debtors-pareto-card.tsx
+// ============================================================================
+
 import { useMemo } from "react";
 import {
   ResponsiveContainer,
@@ -28,52 +21,71 @@ import {
   CardTitle,
   CardDescription,
 } from "../../../../shared/ui/card";
-import { DASHBOARD_THEME, chartPalette } from "../../../../shared/ui/dashboard-theme";
+import {
+  DASHBOARD_THEME,
+  chartPalette,
+} from "../../../../shared/ui/dashboard-theme";
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { DebtSummary } from "../../../../domain/model/payment";
 import { derivePareto } from "./analytics-derivations";
 
-export function DebtorsParetoCard({ topDebtors }: { topDebtors: DebtSummary[] }) {
+function shortName(full: string): string {
+  const trimmed = full.replace(/^Famille\s+/i, "").trim();
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 0) return trimmed;
+  const initial = parts[0].charAt(0).toUpperCase();
+  const lastName = parts[parts.length - 1];
+  return `${initial}. ${lastName}`;
+}
+
+export function DebtorsParetoCard({
+  topDebtors,
+}: {
+  topDebtors: DebtSummary[];
+}) {
   const data = useMemo(() => derivePareto(topDebtors), [topDebtors]);
   const displayedTotal = data.reduce((s, d) => s + d.amount, 0);
-
-  // The Pareto verdict — smallest prefix whose cumulative share ≥ 80%.
   const paretoCut = data.findIndex((d) => d.cumPercent >= 80) + 1;
-
-  // Short display names (first + last initial) so bars stay readable.
   const chartData = data.map((d) => ({ ...d, short: shortName(d.name) }));
 
   return (
-    <Card className="border-border bg-surface-panel h-full flex flex-col">
-      <CardHeader className="py-2.5 px-4 border-b border-border/50">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Users className="h-3.5 w-3.5 text-primary" />
-          Pareto des Débiteurs
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          {data.length > 0 ? (
-            <>
-              Top {data.length} familles · {formatDzd(displayedTotal, { compact: true })}
-              {paretoCut > 0 && (
-                <span className="ml-1 font-mono text-status-warning">
-                  · {paretoCut} fam. = 80% de l'encours affiché
-                </span>
-              )}
-            </>
-          ) : (
-            "Concentration de l'impayé par famille"
-          )}
-        </CardDescription>
+    <Card
+      className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between"
+      data-testid="debtors-pareto-card"
+    >
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Users className="h-4 w-4 text-status-danger" />
+            Distribution Pareto des Créances (Règle des 80/20)
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Concentration cumulée des impayés par tuteur
+          </CardDescription>
+        </div>
+
+        {paretoCut > 0 && (
+          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-status-warning/15 text-status-warning border border-status-warning/30">
+            {paretoCut} foyer(s) = 80% de l'encours
+          </span>
+        )}
       </CardHeader>
-      <CardContent className="pt-2 flex-1">
+
+      <CardContent className="p-4 flex-1">
         {data.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-10" data-testid="pareto-empty">
-            Aucun débiteur (aucune créance ouverte).
+          <p
+            className="text-xs text-muted-foreground text-center py-10"
+            data-testid="pareto-empty"
+          >
+            Aucun débiteur identifié sur la période active.
           </p>
         ) : (
-          <div className="h-[228px] w-full" data-testid="pareto-chart">
+          <div className="h-[230px] w-full" data-testid="pareto-chart">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 10, right: 0, bottom: 0, left: -10 }}>
+              <ComposedChart
+                data={chartData}
+                margin={{ top: 10, right: 0, bottom: 0, left: -10 }}
+              >
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={DASHBOARD_THEME.gridStroke}
@@ -85,9 +97,9 @@ export function DebtorsParetoCard({ topDebtors }: { topDebtors: DebtSummary[] })
                   axisLine={false}
                   tickLine={false}
                   interval={0}
-                  angle={-28}
+                  angle={-25}
                   textAnchor="end"
-                  height={44}
+                  height={45}
                 />
                 <YAxis
                   yAxisId="amount"
@@ -107,9 +119,16 @@ export function DebtorsParetoCard({ topDebtors }: { topDebtors: DebtSummary[] })
                 />
                 <Tooltip
                   contentStyle={DASHBOARD_THEME.tooltipStyle}
-                  formatter={(val: number, name: string, entry: { payload?: { name?: string; cumPercent?: number } }) => {
+                  formatter={(
+                    val: number,
+                    name: string,
+                    entry: { payload?: { name?: string } },
+                  ) => {
                     if (name === "amount") {
-                      return [`${formatDzdPlain(val)} DZD`, `Encours — ${entry?.payload?.name ?? ""}`];
+                      return [
+                        `${formatDzdPlain(val)} DZD`,
+                        entry?.payload?.name ?? "Dette",
+                      ];
                     }
                     return [`${val}%`, "Part cumulée"];
                   }}
@@ -119,7 +138,7 @@ export function DebtorsParetoCard({ topDebtors }: { topDebtors: DebtSummary[] })
                   dataKey="amount"
                   fill={chartPalette.danger}
                   radius={[4, 4, 0, 0]}
-                  barSize={22}
+                  barSize={20}
                 />
                 <Line
                   yAxisId="percent"
@@ -136,14 +155,4 @@ export function DebtorsParetoCard({ topDebtors }: { topDebtors: DebtSummary[] })
       </CardContent>
     </Card>
   );
-}
-
-/** "Famille BENALI Karim" → "F. BENALI" (bar labels stay compact). */
-function shortName(full: string): string {
-  const trimmed = full.replace(/^Famille\s+/i, "").trim();
-  const parts = trimmed.split(/\s+/);
-  if (parts.length === 0) return trimmed;
-  const initial = parts[0].charAt(0).toUpperCase();
-  const lastName = parts[parts.length - 1];
-  return `${initial}. ${lastName}`;
 }
