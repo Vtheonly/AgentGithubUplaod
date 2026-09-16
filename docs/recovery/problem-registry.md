@@ -5108,7 +5108,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### USER-500 — NO user-account removal capability anywhere: the accounts overview (Settings → Comptes) is create/read-only — an admin could provision accounts (T-079), link them to employees (T-371), but never remove one (owner report, 73rd session 2026-09-16: "I forgot to add the ability to remove users and students")
 
-- **Status:** CLOSED TESTED (T-381, 2026-09-16 — same-session fix: the `delete-user-account` Edge Function + `UserAccountRepository.deleteAccount` (Supabase + mock) + the AccountsTab row action; 16/16 t-381 suite; the LIVE leg is T-383)
+- **Status:** CLOSED VERIFIED (T-381 TESTED + T-383 the live legs: 28/28 on production + 28/28 on the fresh clone — docs/recovery/t-383-live-verification.md)
 - **Severity:** High (an account lifecycle with no exit path — deprovisioning required the Supabase dashboard; orphaned accounts keep RLS-visible data + sign-in ability forever)
 - **Component:** desktop Settings → Comptes (accounts-tab.tsx); UserAccountRepository; Edge Functions fleet
 - **Evidence:** `UserAccountRepository` carried only `createAccount` + `listAccounts` (repository.ts, pre-T-381); the AccountsTab table had no row action; `rg "deleteUser|deleteAccount" src/` found nothing; no EF existed for auth.users deletion (the Admin API is service-role-only — impossible from the client).

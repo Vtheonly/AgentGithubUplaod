@@ -81,10 +81,10 @@ echo "  signed in OK"
 
 ALL_EFS=(
   ai-proxy approve-signup-request bind-activation-code collect-payment
-  create-user-account expire-pending-approvals purge-expired-backups
-  refresh-materialized-views refund-payment run-overdue-scan
-  send-push-notification update-server-secret workflow-execute
-  workflow-resume-scheduler
+  create-user-account delete-user-account expire-pending-approvals
+  purge-expired-backups refresh-materialized-views refund-payment
+  run-overdue-scan send-push-notification update-server-secret
+  workflow-execute workflow-resume-scheduler
 )
 CRON_EFS=(
   expire-pending-approvals purge-expired-backups refresh-materialized-views
@@ -92,7 +92,8 @@ CRON_EFS=(
 )
 STAFF_EFS=(
   ai-proxy approve-signup-request bind-activation-code collect-payment
-  create-user-account refund-payment update-server-secret workflow-execute
+  create-user-account delete-user-account refund-payment
+  update-server-secret workflow-execute
 )
 
 echo ""

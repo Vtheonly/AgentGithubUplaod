@@ -3375,7 +3375,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-383 — 73rd session (2026-09-16): the live verification legs — deploy delete-user-account to BOTH Supabase projects + the create→verify→delete round-trip on OLD and NEW
 
-- **Status:** IN_PROGRESS
+- **Status:** COMPLETED (VERIFIED, 2026-09-16 — the EF deployed to BOTH projects; scripts/t-383-remove-users-e2e.py: 28/28 PASS on OLD hkvkefubghbbotgnteir AND 28/28 PASS on NEW vebfehrpzajhstyhinnw; the role-gate probe 403-forbidden PASS on both; the 15-EF anonymous-deny sweep 15/15 on both; zero residue (auth.users back to 8 / 1); evidence: docs/recovery/t-383-live-verification.md)
 - **Problems:** USER-500 (the live leg of T-381); the EF-fleet parity discipline (the 15th EF must land on BOTH projects — the 72nd session's census + t-379 matrix documented 14).
 - **Scope:** (a) deploy the delete-user-account EF to production `hkvkefubghbbotgnteir` AND the fresh clone `vebfehrpzajhstyhinnw`; (b) the T-004 curl matrix for the new EF on both (401 anonymous-deny + the staff-JWT validation path + the super_admin happy path); (c) the live E2E: create a probe account (create-user-account EF) → verify profile/role/personnel link → delete it (delete-user-account EF) → verify auth.users + user_profiles + role_assignments gone, personnel unbound, the guard rails (self-deletion, owner-pinned admin) refuse correctly; (d) update scripts/t-379-ef-fleet-matrix.sh to the 15-EF fleet + re-run on NEW; (e) the zero-residue census.
 - **Depends on:** T-381 (the EF), T-382 (session sequencing only).

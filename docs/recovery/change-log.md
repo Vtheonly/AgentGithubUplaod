@@ -4,6 +4,15 @@
 
 ## 73rd session (2026-09-16) — T-381…T-383: the removal surfaces + the export destination/format workflow (owner mandate; concurrent-agent-aware; OLD+NEW live verification)
 
+### 2026-09-16 — T-383 — the live verification legs VERIFIED on BOTH Supabase projects (USER-500 CLOSED VERIFIED)
+
+- **Problem IDs:** USER-500 (the live leg — CLOSED VERIFIED); the EF-fleet parity discipline.
+- **What was done:** the `delete-user-account` EF deployed to production `hkvkefubghbbotgnteir` AND the fresh clone `vebfehrpzajhstyhinnw` (the owner's "make sure it works with the old tokens" + "ensure this works with new db too"); the NEW committed harness `elimtiyaz-desktop/scripts/t-383-remove-users-e2e.py` (the t-371 conventions) ran the full matrix on BOTH projects.
+- **Verified:** **28/28 PASS on OLD + 28/28 PASS on NEW** — the anonymous-deny matrix ×3, the admin sign-in (pinned credential, no rotation), the guard rails live (self-deletion → 409 cannot_delete_self; a second super_admin aiming at `admin@elimtiyaz.dz` → 403 owner_account_protected, the OPS-310 lesson enforced server-side), the full removal round-trip (create via EF with a personnel binding → personnel/parent/role/approval verified server-side → the probe signs in → delete via EF → user_profiles gone, role_assignments cascaded, personnel.user_id SET NULL, the bound parent unbound, the pending approval expired, the auth identity gone, sign-in now 400, the `user_account.delete` audit written without the password), zero residue (auth.users back to the baselines 8 / 1). PLUS the role-gate probe (a worker caller → 403 forbidden) PASS on both, and the 15-EF anonymous-deny sweep 15/15 on both after the 15th EF landed.
+- **Fleet census impact:** the EF fleet is now **15 EFs on BOTH projects** (the 72nd-session census said 14 — `scripts/t-379-ef-fleet-matrix.sh` updated to the 15-EF ALL_EFS/STAFF_EFS lists; the full 61-probe re-run on NEW stays owner-gated on the fresh CRON_SECRET + the NEW service key, dashboard-reveal-only per §11.1 #13).
+- **Live quirks persisted (see t-383-live-verification.md):** (1) `account_approval_requests.auth_user_id` is UNIQUE and the 0002 trigger always creates the row — probe harnesses must UPDATE it back to 'pending', never INSERT a second (23505); (2) the Management API has NO user-delete route (404) — auth-user deletion goes through the GoTrue admin API `DELETE {BASE}/auth/v1/admin/users/{id}` with the service key (id in PATH, the §15.28/t-359 convention); (3) the 2-s GoTrue breathing between user creations (§11.1 #8) held on both projects.
+- **Commits:** the harness + matrix update + this evidence (see the T-383 commit).
+
 ### 2026-09-16 — T-382 — the export destination + format workflow (BKUP-500 CLOSED TESTED)
 
 - **Problem IDs:** BKUP-500 (registered BEFORE the fix per §13, CLOSED TESTED same-session).
