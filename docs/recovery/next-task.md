@@ -329,3 +329,7 @@ Suggested order for the first sessions (all P0, dependency-free):
 - The named tests exist or you know which you must write.
 - A one-paragraph implementation plan consistent with `docs/agents/workflow.md` (DISCOVER → UNDERSTAND → PLAN → VERIFY PLAN before any code).
 - Any deviation from the task's stated resolution recorded in the task entry before implementation.
+
+## Windows packaging closeout — 2026-09-16
+
+T-506 / PACK-100 is IMPLEMENTED: Windows x64 installer and portable executables were built and hashed locally. No real-Windows smoke test was possible here. Next for this owner request: run the installer/portable launch, dashboard/CRM and PDF-save smoke test on Windows, then attach evidence to T-506. Binaries remain gitignored local deliverables; the recipe and icons are tracked. The standing backend recommendation T-337 is unchanged.

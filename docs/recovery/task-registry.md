@@ -3393,3 +3393,13 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Priority:** P0 (the owner's clarified mandate).
 - **Next:** the standing P0 on production: T-337 (REALTIME-105) — the publication migration (next free number 0100); or the CALC-001 baseline repair (the 3 cross-platform mirror tests).
 - **Commit:** (this session's feat commit — see change-log).
+
+### T-506 — Windows x64 installer and portable packaging (2026-09-16)
+
+- **Status:** IMPLEMENTED — both artifacts built successfully; real-Windows launch verification remains open. Registration added at closeout (the implementation preceded registration).
+- **Problem:** PACK-100 — the checkout lacked the Windows packaging recipe and icon described in the owner's report.
+- **Dependencies:** none; existing Electron 33 / electron-builder 25 infrastructure reused.
+- **Change:** additive `dist:win` script, NSIS assisted installer and portable x64 targets, tracked resources/icon.png and icon.ico. Runtime, backend, business rules and existing scripts unchanged.
+- **Evidence:** `npm run dist:win` exit 0; installer 106974114 bytes, portable 106747735 bytes; PE installer wrappers and app.asar present. Hashes and limitations recorded in change-log.md. Baseline gates re-run at closeout on the changed tree: typecheck 0 errors; lint 0 errors (616 pre-existing warnings); FULL vitest 169 files — 3461 passed / 4 failed / 5 skipped, of which 3 are the SAME pre-existing CALC-001 cross-platform failures attributed at the 73rd/74th-session open, and 1 (ai-311 payment-plan due-date, expects 2026-10-10 got 2026-10-09) is a newly-attributed pre-existing TIMEZONE-SENSITIVE date assertion — reproduced identically in isolation on a tree this task touched zero source files of (packaging config + icons + docs only). Neither failure class is caused by this change; both are registered for the standing baseline repair.
+- **Left:** real Windows install/launch, login/dashboard/CRM and PDF-save smoke test; unsigned builds, no auto-update feed. Release binaries remain gitignored, not committed.
+- **Next:** T-506 Windows smoke test; standing backend recommendation T-337 unchanged.

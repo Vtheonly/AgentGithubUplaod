@@ -5161,3 +5161,11 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Deliberately NOT changed:** the SELECT policies (removing `deleted_at IS NULL` would resurrect soft-deleted rows in every staff list — the catastrophic non-fix); the 0086 audit trigger; the hard-delete RLS policies (parents_delete/students_delete remain super_admin-only, unused by the desktop — the soft-delete preserves financial history per the STUDENT-500 precedent).
 - **Registered residual (documented):** the RPC role gate is super_admin-only while the desktop UI permissions (DeleteParent/DeleteStudent) are RBAC-matrix-grantable — if the owner grants either permission to a non-super_admin role, the RPC gate must be widened in the same change (a one-line policy decision, not silently).
 - **Dependencies:** none. Related: PARENT-500 (the task that exposed it), STUDENT-500 (the live-broken T-381 surface this fixed), §15.36 (the AGENTS.md rule this became), §15.30b (the zero-match honesty — the debugging traps it caused), §15.27 (the claims-impersonation convention — the sub-must-be-the-AUTH-id correction).
+
+### PACK-100 — Windows distribution recipe missing from the checkout
+
+- **Task:** T-506 (owner-requested Windows packaging, 2026-09-16).
+- **Status:** IMPLEMENTED; packaging verified on Linux, Windows runtime smoke test OPEN.
+- **Evidence/root cause:** package.json originally contained only the generic build config; resources/ and release/ were absent. The supplied packaging report was not reflected in the tracked checkout.
+- **Resolution:** reuse electron-builder with NSIS installer and portable x64 targets, deterministic artifact names and a generated placeholder icon. Build exit 0; both executable artifacts and hashes recorded in change-log.md.
+- **Preserved:** app runtime, existing scripts, backend and all business behavior. No signing certificate or update service configured. Binaries are gitignored local deliverables, not source-control content.

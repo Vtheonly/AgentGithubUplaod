@@ -21,6 +21,7 @@
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron .\"",
     "electron:dev:nosandbox": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron --no-sandbox .\"",
     "electron:build": "vite build && tsc -p electron/tsconfig.json && electron-builder",
+    "dist:win": "vite build && tsc -p electron/tsconfig.json && electron-builder --win nsis portable",
     "start": "vite build && tsc -p electron/tsconfig.json && cross-env NODE_ENV=production electron .",
     "start:nosandbox": "vite build && tsc -p electron/tsconfig.json && cross-env NODE_ENV=production electron --no-sandbox ."
   },
@@ -102,11 +103,41 @@
     "appId": "com.elimtiyaz.desktop",
     "productName": "El-Imtiyaz Desktop",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "resources"
     },
     "files": [
       "dist/**/*",
       "dist-electron/**/*"
-    ]
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.ico",
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "El-Imtiyaz Desktop",
+      "artifactName": "${productName}-${version}-win-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-win-${arch}-portable.${ext}"
+    }
   }
 }
