@@ -604,49 +604,44 @@ export class SupabaseParentRepository implements ParentRepository {
 
   async deleteParent(id: string): Promise<Result<void>> {
     try {
-      // T-384 — honest zero-match semantics (§15.30b): PostgREST answers
-      // HTTP 200 with an EMPTY result when an UPDATE matches zero rows under
-      // RLS, so a bare update would report success for an unknown (or
-      // cross-tenant) id. Resolve the row FIRST.
-      const { data: existing, error: fetchErr } = await this.client
-        .from("parents")
-        .select("id")
-        .eq("id", id)
-        .is("deleted_at", null)
-        .maybeSingle();
-      if (fetchErr) throw fetchErr;
-      if (!existing) return Err(Errors.notFound("Parent", id));
-
-      // T-384 / PARENT-500 — the active-students guard (the mock's intended
-      // rule, now mirrored server-side): a parent with NON-DELETED enrolled
-      // students cannot be removed — the students' parentId would dangle at a
-      // parent the operational streams filter out (broken drawers, broken
-      // financial views). Soft-deleted students (deleted_at set) do NOT block
-      // — consistent with the mock store where removed students are gone.
-      const { count, error: countErr } = await this.client
-        .from("students")
-        .select("id", { count: "exact", head: true })
-        .eq("parent_id", id)
-        .is("deleted_at", null);
-      if (countErr) throw countErr;
-      if ((count ?? 0) > 0) {
-        return Err(
-          Errors.conflict(
-            `Parent ${id} still has ${count} active student(s)`,
-            "Impossible de supprimer ce parent : des élèves actifs lui sont encore rattachés. Retirez (ou rattachez ailleurs) ces élèves d'abord.",
-          ),
-        );
+      // T-384 / RLS-500 — the canonical soft_delete_parent RPC (migration
+      // 0100). A plain `.update({deleted_at})` is RLS-IMPOSSIBLE for every
+      // authenticated caller (live-proven 74th session): the staff SELECT
+      // policies (0019) carry `deleted_at IS NULL`, and PostgreSQL folds
+      // the applicable SELECT-policy predicates into the UPDATE's
+      // effective WITH CHECK — the new row can never satisfy them (42501).
+      // The RPC owns the whole rule set server-side: not_found for
+      // unknown/already-deleted/cross-tenant ids (§15.30b), the
+      // active-students guard (PARENT-500's core rule), the super_admin
+      // gate, and the parent.delete audit entry.
+      const { data, error } = await this.client.rpc("soft_delete_parent", {
+        p_parent_id: id,
+      });
+      if (error) throw error;
+      const env = (data ?? {}) as { ok?: boolean; code?: string; count?: number };
+      if (env.ok !== true) {
+        if (env.code === "not_found") return Err(Errors.notFound("Parent", id));
+        if (env.code === "forbidden") {
+          return Err(
+            Errors.forbidden(
+              `soft_delete_parent refused for ${id}: caller is not super_admin`,
+            ),
+          );
+        }
+        if (env.code === "active_students_exist") {
+          return Err(
+            Errors.conflict(
+              `Parent ${id} still has ${env.count ?? "?"} active student(s)`,
+              "Impossible de supprimer ce parent : des élèves actifs lui sont encore rattachés. Retirez (ou rattachez ailleurs) ces élèves d'abord.",
+            ),
+          );
+        }
+        return Err(Errors.validation(`soft_delete_parent: ${JSON.stringify(env)}`));
       }
 
-      // Soft-delete via deleted_at.
-      const { error } = await this.client
-        .from("parents")
-        .update({ deleted_at: new Date().toISOString(), is_active: false })
-        .eq("id", id);
-      if (error) throw error;
+      // RPC ok — evict the caches (reactivity: open drawers observing this
+      // parent see the deletion instead of a frozen profile).
       this.cache.update((list) => list.filter((p) => p.id !== id));
-      // FIX (reactivity): set the byId subject to null so open drawers
-      // observing this parent see the deletion instead of a frozen profile.
       this.byIdCache.get(id)?.set(null);
       this.byIdCache.delete(id);
       return Ok(undefined);
@@ -1025,11 +1020,30 @@ export class SupabaseStudentRepository implements StudentRepository {
 
   async deleteStudent(id: string): Promise<Result<void>> {
     try {
-      const { error } = await this.client
-        .from("students")
-        .update({ deleted_at: new Date().toISOString(), is_active: false })
-        .eq("id", id);
+      // T-381/T-384 / RLS-500 — the canonical soft_delete_student RPC
+      // (migration 0100). The previous plain `.update({deleted_at})` was
+      // RLS-IMPOSSIBLE for every authenticated caller (live-proven 74th
+      // session: the 0019 students_select policy folds `deleted_at IS NULL`
+      // into the UPDATE's effective WITH CHECK → 42501 on every call — the
+      // T-381 UI surface was live-broken before this fix). The RPC owns the
+      // rule set server-side: not_found, the super_admin gate, and the
+      // student.delete audit entry.
+      const { data, error } = await this.client.rpc("soft_delete_student", {
+        p_student_id: id,
+      });
       if (error) throw error;
+      const env = (data ?? {}) as { ok?: boolean; code?: string };
+      if (env.ok !== true) {
+        if (env.code === "not_found") return Err(Errors.notFound("Student", id));
+        if (env.code === "forbidden") {
+          return Err(
+            Errors.forbidden(
+              `soft_delete_student refused for ${id}: caller is not super_admin`,
+            ),
+          );
+        }
+        return Err(Errors.validation(`soft_delete_student: ${JSON.stringify(env)}`));
+      }
       this.cache.update((list) => list.filter((s) => s.id !== id));
       return Ok(undefined);
     } catch (e) {

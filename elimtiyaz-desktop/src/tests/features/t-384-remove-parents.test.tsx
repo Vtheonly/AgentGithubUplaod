@@ -16,11 +16,13 @@
  *      remove/reassign the students first; a student-free parent is removed
  *      from the observable store and audited (parent.delete, before-snapshot
  *      in the diff).
- *   B. SupabaseParentRepository.deleteParent — the behavioral wiring through
- *      a chainable PostgREST mock: resolve-first (notFound on zero rows —
- *      the §15.30b hazard), the active-students guard query (conflict), and
- *      the soft-delete payload (deleted_at + is_active=false) on the happy
- *      path.
+ *   B. SupabaseParentRepository.deleteParent — the soft_delete_parent RPC
+ *      wiring (migration 0100, T-384/RLS-500): the ok / not_found /
+ *      active_students_exist / forbidden envelopes map to the typed errors
+ *      (with the French operator instruction), and the migration source
+ *      carries the gates + the audit + the T-091 registration. The
+ *      RLS-500 lesson is pinned: NO plain `.update({deleted_at})` remains
+ *      anywhere in the Supabase repository file.
  *   C. ParentsTab UI — the Supprimer row action is permission-gated
  *      (Permission.DeleteParent), the ConfirmModal guards the destructive
  *      action, confirming routes through repos.parents.deleteParent, and
@@ -66,32 +68,6 @@ import type { Student } from "../../domain/model/student";
 /** Read a source file as text (source-guard assertions). */
 function src(rel: string): string {
   return fs.readFileSync(path.resolve(__dirname, rel), "utf8");
-}
-
-/**
- * A chainable PostgREST-mock: `from(table).select(...).eq(...).is(...)` —
- * awaited either directly (the head-count + update steps) or via
- * `.maybeSingle()` (the resolve step). Each AWAIT consumes the next queued
- * step result, so call ORDER is pinned by construction.
- */
-type Step = { data: unknown; error?: unknown; count?: number };
-function makeClient(steps: Step[]) {
-  let i = 0;
-  const consume = (): Step => steps[i++] ?? { data: null, error: null };
-  const builder: Record<string, unknown> = {};
-  const self = {
-    select: () => builder,
-    eq: () => builder,
-    is: () => builder,
-    update: () => builder,
-    maybeSingle: () => Promise.resolve(consume()),
-    then: (
-      resolve: (s: Step) => unknown,
-      reject: (e: unknown) => unknown,
-    ) => Promise.resolve(consume()).then(resolve, reject),
-  };
-  Object.assign(builder, self);
-  return { from: () => builder };
 }
 
 /* ================================================================== */
@@ -146,7 +122,7 @@ describe("T-384 A. MockParentRepository.deleteParent", () => {
     const created = await repo.createParent(makeInput());
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    MINTED.push(created.value.email);
+    MINTED.push(created.value.email ?? "");
 
     // Link an active student to the probe parent.
     const probeStudent = {
@@ -171,7 +147,7 @@ describe("T-384 A. MockParentRepository.deleteParent", () => {
     const created = await repo.createParent(makeInput());
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    MINTED.push(created.value.email);
+    MINTED.push(created.value.email ?? "");
     const targetId = created.value.id;
 
     // Precondition: no linked students.
@@ -196,7 +172,7 @@ describe("T-384 A. MockParentRepository.deleteParent", () => {
     const created = await repo.createParent(makeInput());
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    MINTED.push(created.value.email);
+    MINTED.push(created.value.email ?? "");
     const targetId = created.value.id;
 
     const probeStudent = {
@@ -220,33 +196,44 @@ describe("T-384 A. MockParentRepository.deleteParent", () => {
 });
 
 /* ================================================================== */
-/* B. SupabaseParentRepository.deleteParent — the PostgREST wiring     */
+/* B. SupabaseParentRepository.deleteParent — the RPC wiring            */
 /* ================================================================== */
 
 import { SupabaseParentRepository } from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
 
-describe("T-384 B. SupabaseParentRepository.deleteParent", () => {
-  it("resolves the row FIRST — an unknown id is notFound, nothing is updated", async () => {
-    const client = makeClient([
-      { data: null, error: null }, // resolve step → no row
-    ]);
-    const repo = new SupabaseParentRepository(
-      client as unknown as ConstructorParameters<typeof SupabaseParentRepository>[0],
-    );
-    const result = await repo.deleteParent("00000000-0000-0000-0000-000000000000");
+describe("T-384 B. SupabaseParentRepository.deleteParent — the soft_delete_parent RPC wiring", () => {
+  it("calls the canonical RPC (migration 0100) and maps the ok envelope", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { ok: true, deleted_at: "2026-09-16T00:00:00Z" }, error: null });
+    const repo = new SupabaseParentRepository({
+      rpc,
+    } as unknown as ConstructorParameters<typeof SupabaseParentRepository>[0]);
+
+    const result = await repo.deleteParent("p1");
+    expect(result.ok).toBe(true);
+    expect(rpc).toHaveBeenCalledWith("soft_delete_parent", { p_parent_id: "p1" });
+  });
+
+  it("maps not_found → ERR_NOT_FOUND (unknown / already-deleted / cross-tenant — §15.30b)", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { ok: false, code: "not_found" }, error: null });
+    const repo = new SupabaseParentRepository({
+      rpc,
+    } as unknown as ConstructorParameters<typeof SupabaseParentRepository>[0]);
+
+    const result = await repo.deleteParent("p1");
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("ERR_NOT_FOUND");
   });
 
-  it("refuses while ACTIVE students are linked (conflict + French operator message)", async () => {
-    const client = makeClient([
-      { data: { id: "p1" }, error: null }, // resolve step → row exists
-      { data: null, count: 2, error: null }, // guard step → 2 active students
-    ]);
-    const repo = new SupabaseParentRepository(
-      client as unknown as ConstructorParameters<typeof SupabaseParentRepository>[0],
-    );
+  it("maps active_students_exist → ERR_CONFLICT with the French operator instruction", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ok: false, code: "active_students_exist", count: 2 },
+      error: null,
+    });
+    const repo = new SupabaseParentRepository({
+      rpc,
+    } as unknown as ConstructorParameters<typeof SupabaseParentRepository>[0]);
+
     const result = await repo.deleteParent("p1");
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -254,31 +241,50 @@ describe("T-384 B. SupabaseParentRepository.deleteParent", () => {
     expect(result.error.userMessage).toContain("élèves actifs");
   });
 
-  it("soft-deletes a student-free parent (deleted_at + is_active=false payload)", async () => {
-    const client = makeClient([
-      { data: { id: "p1" }, error: null }, // resolve step
-      { data: null, count: 0, error: null }, // guard step → no active students
-      { data: null, error: null }, // update step
-    ]);
-    const repo = new SupabaseParentRepository(
-      client as unknown as ConstructorParameters<typeof SupabaseParentRepository>[0],
-    );
+  it("maps forbidden → ERR_FORBIDDEN (the super_admin gate)", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { ok: false, code: "forbidden" }, error: null });
+    const repo = new SupabaseParentRepository({
+      rpc,
+    } as unknown as ConstructorParameters<typeof SupabaseParentRepository>[0]);
+
     const result = await repo.deleteParent("p1");
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("ERR_FORBIDDEN");
   });
 
-  it("the implementation source: resolve → guard → update, with the deleted_at-null student filter", () => {
+  it("the migration source: both RPCs exist, super_admin-gated, tenant-scoped, guarded, audited, registered", () => {
+    const mig = src("../../../supabase/migrations/0100_soft_delete_rpcs.sql");
+    expect(mig).toContain("create or replace function public.soft_delete_parent(p_parent_id uuid)");
+    expect(mig).toContain("create or replace function public.soft_delete_student(p_student_id uuid)");
+    // The super_admin gate (the *_delete RLS mirror).
+    expect(mig).toContain("if not public.has_role('super_admin') then");
+    // The tenant scope (explicit — SECURITY DEFINER bypasses RLS).
+    expect(mig).toContain("and p.tenant_id = public.current_tenant_id()");
+    expect(mig).toContain("and s.tenant_id = public.current_tenant_id()");
+    // The active-students guard (PARENT-500's core rule) counts NON-deleted students only.
+    expect(mig).toContain("'active_students_exist'");
+    expect(mig).toContain("s.deleted_at is null");
+    // The audit entries (the wire codes).
+    expect(mig).toContain("'parent.delete'");
+    expect(mig).toContain("'student.delete'");
+    // The soft-delete payload.
+    expect(mig).toContain("set deleted_at = now(),");
+    // The T-091 embedded registration.
+    expect(mig).toContain("values ('0100', '{0100_soft_delete_rpcs.sql}', 'soft_delete_rpcs')");
+  });
+
+  it("the repositories call the RPCs — NO plain deleted_at UPDATE remains (the RLS-500 lesson)", () => {
     const code = src(
       "../../infrastructure/supabase/repositories/supabase-shared-repositories.ts",
     );
-    const resolveAt = code.indexOf("async deleteParent(id: string): Promise<Result<void>>");
-    const guardAt = code.indexOf('.from("students")\n        .select("id", { count: "exact", head: true })');
-    const filterAt = code.indexOf('.eq("parent_id", id)\n        .is("deleted_at", null)');
-    const updateAt = code.indexOf('.update({ deleted_at: new Date().toISOString(), is_active: false })');
-    expect(resolveAt).toBeGreaterThan(-1);
-    expect(guardAt).toBeGreaterThan(resolveAt);
-    expect(filterAt).toBeGreaterThan(guardAt);
-    expect(updateAt).toBeGreaterThan(filterAt);
+    // The RPC call sites.
+    expect(code).toContain('this.client.rpc("soft_delete_parent", {');
+    expect(code).toContain('this.client.rpc("soft_delete_student", {');
+    // The RLS-impossible plain-update shape must NOT return: the ONLY
+    // remaining `.update({ deleted_at: ... })` writes are forbidden.
+    const plainUpdate = /\.update\(\{\s*deleted_at:/;
+    expect(plainUpdate.test(code)).toBe(false);
   });
 });
 
