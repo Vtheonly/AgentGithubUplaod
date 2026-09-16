@@ -134,10 +134,24 @@ export class MockParentRepository implements ParentRepository {
 
   async deleteParent(id: string): Promise<Result<void>> {
     await delay(180);
-    if (store.students.some((s) => s.parentId === id)) {
-      return Err(Errors.conflict("Cannot delete parent with linked students"));
-    }
+    // T-384 — honest notFound (mirrors the Supabase resolution step; an
+    // unknown id must NOT masquerade as a successful no-op deletion).
     const before = store.parents.find((p) => p.id === id);
+    if (!before) return Err(Errors.notFound("Parent", id));
+    // T-384 / PARENT-500 — the active-students guard (this repository's
+    // long-standing rule, now the canonical one mirrored in the Supabase
+    // implementation): a parent with enrolled students cannot be removed —
+    // their parentId would dangle. (The mock store hard-removes deleted
+    // students, so every student row here IS active — parity with the
+    // Supabase `.is("deleted_at", null)` filter.)
+    if (store.students.some((s) => s.parentId === id)) {
+      return Err(
+        Errors.conflict(
+          `Cannot delete parent ${id} with linked students`,
+          "Impossible de supprimer ce parent : des élèves actifs lui sont encore rattachés. Retirez (ou rattachez ailleurs) ces élèves d'abord.",
+        ),
+      );
+    }
     store.parents = store.parents.filter((p) => p.id !== id);
     store.notifyParents();
     appendAudit({

@@ -459,12 +459,47 @@ function BatchTab({
 }
 
 // ============================================================================
-// ParentsTab — read-only DataTable<Parent> with row-level actions
+// ParentsTab — DataTable<Parent> with row-level actions
+// T-384: + the "Supprimer" row action (ConfirmModal-guarded, Permission.DeleteParent)
 // ============================================================================
 
 function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   const repos = useRepositories();
+  const toast = useToast();
+  const { session } = useAuth();
   const parents = useObservable(() => repos.parents.observe(), []);
+
+  // T-384 — the pending parent removal (ConfirmModal-guarded).
+  const [pendingDelete, setPendingDelete] = useState<Parent | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // T-384 — destructive action, permission-gated (SuperAdmin by default;
+  // the RBAC matrix editor can grant it to other roles later).
+  const canDeleteParent =
+    !!session && session.permissions.has(Permission.DeleteParent);
+
+  // T-384 — remove the parent. Repository semantics: refused with a conflict
+  // while ACTIVE students are still attached (remove/reassign them first);
+  // otherwise soft-delete (deleted_at + is_active=false) — the financial
+  // history (installments, payments, ledger) is preserved.
+  async function handleDeleteParent(): Promise<void> {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const result = await repos.parents.deleteParent(pendingDelete.id);
+      if (result.ok) {
+        toast.showSuccess(
+          "Parent supprimé",
+          `${parentDisplayName(pendingDelete)} (${pendingDelete.code}) a été retiré de l'annuaire — l'historique financier et les archives restent conservés.`,
+        );
+      } else {
+        toast.showError("Suppression échouée", result.error.userMessage);
+      }
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
+  }
 
   const columns: readonly DataTableColumn<Parent>[] = [
     {
@@ -524,6 +559,17 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
       variant: "ghost",
       onClick: (p) => onOpenParent(p.id),
     },
+    ...(canDeleteParent
+      ? [
+          {
+            label: "",
+            icon: <Trash2 className="h-4 w-4 text-status-danger" />,
+            variant: "ghost" as const,
+            onClick: (p: Parent) => setPendingDelete(p),
+            title: "Supprimer ce parent",
+          },
+        ]
+      : []),
   ];
 
   if (parents.length === 0) {
@@ -554,6 +600,21 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
           pageSize={12}
         />
       </CardContent>
+
+      {/* T-384 — the parent-removal confirmation (destructive). */}
+      <ConfirmModal
+        open={pendingDelete !== null}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+        title="Supprimer ce parent ?"
+        description={
+          pendingDelete
+            ? `${parentDisplayName(pendingDelete)} (${pendingDelete.code}) sera retiré de l'annuaire actif. L'historique financier et les archives restent conservés (suppression logique). La suppression est refusée tant que des élèves actifs lui sont rattachés. Action irréversible.`
+            : "Le parent sera retiré de l'annuaire. Action irréversible."
+        }
+        confirmLabel={deleting ? "Suppression…" : "Supprimer"}
+        destructive
+        onConfirm={handleDeleteParent}
+      />
     </Card>
   );
 }

@@ -604,6 +604,40 @@ export class SupabaseParentRepository implements ParentRepository {
 
   async deleteParent(id: string): Promise<Result<void>> {
     try {
+      // T-384 — honest zero-match semantics (§15.30b): PostgREST answers
+      // HTTP 200 with an EMPTY result when an UPDATE matches zero rows under
+      // RLS, so a bare update would report success for an unknown (or
+      // cross-tenant) id. Resolve the row FIRST.
+      const { data: existing, error: fetchErr } = await this.client
+        .from("parents")
+        .select("id")
+        .eq("id", id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      if (!existing) return Err(Errors.notFound("Parent", id));
+
+      // T-384 / PARENT-500 — the active-students guard (the mock's intended
+      // rule, now mirrored server-side): a parent with NON-DELETED enrolled
+      // students cannot be removed — the students' parentId would dangle at a
+      // parent the operational streams filter out (broken drawers, broken
+      // financial views). Soft-deleted students (deleted_at set) do NOT block
+      // — consistent with the mock store where removed students are gone.
+      const { count, error: countErr } = await this.client
+        .from("students")
+        .select("id", { count: "exact", head: true })
+        .eq("parent_id", id)
+        .is("deleted_at", null);
+      if (countErr) throw countErr;
+      if ((count ?? 0) > 0) {
+        return Err(
+          Errors.conflict(
+            `Parent ${id} still has ${count} active student(s)`,
+            "Impossible de supprimer ce parent : des élèves actifs lui sont encore rattachés. Retirez (ou rattachez ailleurs) ces élèves d'abord.",
+          ),
+        );
+      }
+
       // Soft-delete via deleted_at.
       const { error } = await this.client
         .from("parents")
