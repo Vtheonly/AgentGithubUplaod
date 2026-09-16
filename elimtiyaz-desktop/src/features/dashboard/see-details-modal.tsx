@@ -10,6 +10,9 @@ import {
   Building2,
   Users,
   AlertCircle,
+  Database,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BarChart,
@@ -35,6 +38,8 @@ import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import {
   AGING_BUCKET_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  PAYMENT_METHOD_LABELS_FR,
+  PAYMENT_STATUS_LABELS_FR,
   type PaymentCategory,
   type DebtSummary,
   type AgingBucket,
@@ -143,6 +148,18 @@ export interface DashboardData {
   topDebtors: DebtSummary[];
 }
 
+function formatPaymentDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-DZ", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function SeeDetailsModal({
   open,
   onOpenChange,
@@ -180,6 +197,27 @@ export function SeeDetailsModal({
     [data.demographics.gender],
   );
 
+  // The dashboard passes the live repository payment stream already scoped to
+  // the selected academic-year/date range. Keep the source records visible in
+  // this modal so every aggregate can be inspected instead of presenting a
+  // purely decorative chart.
+  const livePaymentTotal = useMemo(
+    () => payments.reduce((sum, payment) => sum + payment.amount, 0),
+    [payments],
+  );
+  const revenueReconciliationDifference = livePaymentTotal - annualRevenue;
+  const recentPayments = useMemo(
+    () =>
+      [...payments]
+        .sort(
+          (a, b) =>
+            new Date(b.collectedAt).getTime() -
+            new Date(a.collectedAt).getTime(),
+        )
+        .slice(0, 12),
+    [payments],
+  );
+
   return (
     <UnifiedModal
       open={open}
@@ -189,9 +227,32 @@ export function SeeDetailsModal({
       icon={BarChart3}
       iconTone="primary"
       title={t("dashboard.seeDetails")}
-      description="Analyse approfondie : Recouvrement, Répartition par pôle, Démographie et Débiteurs"
+      description="Analyse approfondie : données du dépôt, encaissements réels, démographie et débiteurs"
       hideFooter
     >
+      <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-3">
+        <div className="flex items-start gap-3">
+          <Database className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold text-foreground">
+                Données opérationnelles en direct
+              </p>
+              <span className="inline-flex items-center gap-1 rounded-full border border-status-success/30 bg-status-success/10 px-2 py-0.5 text-[10px] font-semibold text-status-success">
+                <CheckCircle2 className="h-3 w-3" />
+                Flux repository actif
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              Les versements ci-dessous sont les enregistrements réels fournis
+              par le flux <span className="font-mono">payments.observe()</span>
+              pour la période actuellement sélectionnée. Le modal ne génère
+              pas de lignes de démonstration.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <PageTabs defaultValue={initialTab} variant="elevated">
         <PageTabList className="mb-4">
           <PageTab
@@ -216,7 +277,6 @@ export function SeeDetailsModal({
           />
         </PageTabList>
 
-        {/* 1. REVENUE SECTION */}
         <PageTabContent value="revenue">
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -228,7 +288,7 @@ export function SeeDetailsModal({
                   {formatDzd(annualRevenue)}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Fonds collectés et compensés
+                  Agrégat du dashboard repository
                 </p>
               </div>
 
@@ -240,7 +300,7 @@ export function SeeDetailsModal({
                   {data.kpis ? formatDzd(outstanding) : "—"}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Engagements à percevoir
+                  Agrégat du dashboard repository
                 </p>
               </div>
 
@@ -263,8 +323,8 @@ export function SeeDetailsModal({
                   Encaissements vs Échéancier Théorique (40% · 30% · 30%)
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Barres pleines : Encaissements réels · Ligne dorée pointillée
-                  : Jalons théoriques
+                  Barres pleines : agrégat réel · Ligne pointillée : jalon
+                  théorique calculé
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4">
@@ -323,15 +383,103 @@ export function SeeDetailsModal({
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="border-border/70 bg-surface-panel shadow-sm">
+              <CardHeader className="py-3 px-4 border-b border-border/50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Versements réels derrière le chiffre
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-xs text-muted-foreground">
+                      {payments.length} enregistrement(s) reçu(s) du flux de
+                      paiements pour cette période
+                    </CardDescription>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Flux payments
+                    </div>
+                    <div className="font-mono text-sm font-bold text-foreground">
+                      {formatDzdPlain(livePaymentTotal)} DA
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {recentPayments.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    Aucun versement réel n'est disponible dans le flux pour la
+                    période sélectionnée.
+                  </div>
+                ) : (
+                  <div className="max-h-[320px] overflow-auto">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-surface-panel text-muted-foreground">
+                        <tr className="border-b border-border/60">
+                          <th className="px-4 py-2.5 text-left font-medium">Reçu</th>
+                          <th className="px-4 py-2.5 text-left font-medium">Date</th>
+                          <th className="px-4 py-2.5 text-left font-medium">Service</th>
+                          <th className="px-4 py-2.5 text-left font-medium">Statut</th>
+                          <th className="px-4 py-2.5 text-right font-medium">Montant</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {recentPayments.map((payment) => (
+                          <tr key={payment.id} className="hover:bg-accent/5">
+                            <td className="px-4 py-2.5 font-mono text-foreground">
+                              {payment.receiptNumber}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground">
+                              {formatPaymentDate(payment.collectedAt)}
+                            </td>
+                            <td className="px-4 py-2.5 text-foreground">
+                              {PAYMENT_CATEGORY_LABELS_FR[payment.category]}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground">
+                              {PAYMENT_STATUS_LABELS_FR[payment.status]}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono font-semibold">
+                              {formatDzdPlain(payment.amount)} DA
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="border-t border-border/60 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <span className="text-muted-foreground">
+                      Comparaison agrégat dashboard ↔ flux payments
+                    </span>
+                    {Math.abs(revenueReconciliationDifference) < 0.5 ? (
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-status-success">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Réconciliation exacte
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-status-warning">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Écart : {formatDzdPlain(Math.abs(revenueReconciliationDifference))} DA
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap justify-between gap-2 font-mono text-[10px] text-muted-foreground">
+                    <span>Dashboard: {formatDzdPlain(annualRevenue)} DA</span>
+                    <span>Payments: {formatDzdPlain(livePaymentTotal)} DA</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </PageTabContent>
 
-        {/* 2. DEPARTMENTS SECTION */}
         <PageTabContent value="departments">
           <DepartmentsTab data={data} payments={payments} />
         </PageTabContent>
 
-        {/* 3. DEMOGRAPHICS SECTION */}
         <PageTabContent value="demographics">
           <div className="space-y-4">
             <Card className="border-border/70 bg-surface-panel shadow-sm">
@@ -339,6 +487,9 @@ export function SeeDetailsModal({
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Distribution des Effectifs par Niveau
                 </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Agrégats fournis par le repository dashboard.
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-4">
                 <div className="h-[220px]">
@@ -493,7 +644,6 @@ export function SeeDetailsModal({
           </div>
         </PageTabContent>
 
-        {/* 4. DEBT SECTION */}
         <PageTabContent value="debt">
           <div className="space-y-4">
             <Card className="border-border/70 bg-surface-panel shadow-sm">
@@ -501,21 +651,18 @@ export function SeeDetailsModal({
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Structure des Retards par Ancienneté
                 </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Agrégats du repository dashboard pour la période sélectionnée.
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/30 text-muted-foreground text-left">
                     <tr className="border-b border-border/60">
                       <th className="py-2.5 px-4 font-medium">Tranche</th>
-                      <th className="py-2.5 px-4 text-right font-medium">
-                        Encours
-                      </th>
-                      <th className="py-2.5 px-4 text-right font-medium">
-                        Familles
-                      </th>
-                      <th className="py-2.5 px-4 text-right font-medium">
-                        Sévérité
-                      </th>
+                      <th className="py-2.5 px-4 text-right font-medium">Encours</th>
+                      <th className="py-2.5 px-4 text-right font-medium">Familles</th>
+                      <th className="py-2.5 px-4 text-right font-medium">Sévérité</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -552,6 +699,9 @@ export function SeeDetailsModal({
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Top Débiteurs Prioritaires (10 Plus Fortes Créances)
                 </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Enregistrements issus du flux de dettes observé par le dashboard.
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 {data.topDebtors.length === 0 ? (
@@ -564,12 +714,8 @@ export function SeeDetailsModal({
                       <tr className="border-b border-border/60">
                         <th className="py-2.5 px-4 font-medium">Rang</th>
                         <th className="py-2.5 px-4 font-medium">Famille</th>
-                        <th className="py-2.5 px-4 text-right font-medium">
-                          Retard
-                        </th>
-                        <th className="py-2.5 px-4 text-right font-medium">
-                          Créance
-                        </th>
+                        <th className="py-2.5 px-4 text-right font-medium">Retard</th>
+                        <th className="py-2.5 px-4 text-right font-medium">Créance</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
@@ -628,7 +774,8 @@ function DepartmentsTab({
           Ventilation par Pôle Opérationnel
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
-          Répartition des encaissements effectifs par activité
+          Répartition des encaissements effectifs par activité, calculée sur les
+          versements du flux live.
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 space-y-4">
