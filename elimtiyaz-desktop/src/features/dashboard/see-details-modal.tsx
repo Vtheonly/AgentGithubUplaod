@@ -3,16 +3,18 @@
 // ============================================================================
 
 import { useTranslation } from "react-i18next";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
-  BarChart3,
-  TrendingUp,
-  Building2,
-  Users,
   AlertCircle,
-  Database,
-  CheckCircle2,
   AlertTriangle,
+  BarChart3,
+  Building2,
+  CheckCircle2,
+  Database,
+  Plus,
+  Trash2,
+  TrendingUp,
+  Users,
 } from "lucide-react";
 import {
   BarChart,
@@ -38,7 +40,6 @@ import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import {
   AGING_BUCKET_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
-  PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   type PaymentCategory,
   type DebtSummary,
@@ -102,6 +103,27 @@ const TRANCHE_PROJECTION_MONTHS: ReadonlyArray<{
   { label: "Mar", share: 0.3 },
 ];
 
+type ManualPaymentEntry = {
+  id: string;
+  name: string;
+  dateTime: string;
+  amount: string;
+};
+
+function createManualEntry(): ManualPaymentEntry {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+
+  return {
+    id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: "",
+    dateTime: localDate,
+    amount: "",
+  };
+}
+
 export function deriveTrancheProjection(
   revenue: readonly RevenuePoint[],
   totalExpected: number,
@@ -160,6 +182,19 @@ function formatPaymentDate(value: string): string {
   }).format(date);
 }
 
+function formatManualDate(value: string): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-DZ", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function SeeDetailsModal({
   open,
   onOpenChange,
@@ -174,6 +209,7 @@ export function SeeDetailsModal({
   payments?: readonly Payment[];
 }) {
   const { t } = useTranslation();
+  const [manualEntries, setManualEntries] = useState<ManualPaymentEntry[]>([]);
 
   const annualRevenue = useMemo(
     () => data.revenue.reduce((s, r) => s + r.amount, 0),
@@ -197,10 +233,6 @@ export function SeeDetailsModal({
     [data.demographics.gender],
   );
 
-  // The dashboard passes the live repository payment stream already scoped to
-  // the selected academic-year/date range. Keep the source records visible in
-  // this modal so every aggregate can be inspected instead of presenting a
-  // purely decorative chart.
   const livePaymentTotal = useMemo(
     () => payments.reduce((sum, payment) => sum + payment.amount, 0),
     [payments],
@@ -218,6 +250,34 @@ export function SeeDetailsModal({
     [payments],
   );
 
+  const manualTotal = useMemo(
+    () =>
+      manualEntries.reduce((sum, entry) => {
+        const amount = Number(entry.amount);
+        return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
+      }, 0),
+    [manualEntries],
+  );
+
+  const addManualEntry = () => {
+    setManualEntries((current) => [...current, createManualEntry()]);
+  };
+
+  const updateManualEntry = (
+    id: string,
+    patch: Partial<Omit<ManualPaymentEntry, "id">>,
+  ) => {
+    setManualEntries((current) =>
+      current.map((entry) =>
+        entry.id === id ? { ...entry, ...patch } : entry,
+      ),
+    );
+  };
+
+  const removeManualEntry = (id: string) => {
+    setManualEntries((current) => current.filter((entry) => entry.id !== id));
+  };
+
   return (
     <UnifiedModal
       open={open}
@@ -227,32 +287,9 @@ export function SeeDetailsModal({
       icon={BarChart3}
       iconTone="primary"
       title={t("dashboard.seeDetails")}
-      description="Analyse approfondie : données du dépôt, encaissements réels, démographie et débiteurs"
+      description="Détails pratiques des encaissements, des personnes saisies et des indicateurs du dashboard"
       hideFooter
     >
-      <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-3">
-        <div className="flex items-start gap-3">
-          <Database className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-semibold text-foreground">
-                Données opérationnelles en direct
-              </p>
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-success/30 bg-status-success/10 px-2 py-0.5 text-[10px] font-semibold text-status-success">
-                <CheckCircle2 className="h-3 w-3" />
-                Flux repository actif
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              Les versements ci-dessous sont les enregistrements réels fournis
-              par le flux <span className="font-mono">payments.observe()</span>
-              pour la période actuellement sélectionnée. Le modal ne génère
-              pas de lignes de démonstration.
-            </p>
-          </div>
-        </div>
-      </div>
-
       <PageTabs defaultValue={initialTab} variant="elevated">
         <PageTabList className="mb-4">
           <PageTab
@@ -279,9 +316,9 @@ export function SeeDetailsModal({
 
         <PageTabContent value="revenue">
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
-                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1 rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Encaissé effectif (PAID)
                 </span>
                 <p className="text-xl font-mono font-bold text-status-success">
@@ -292,8 +329,8 @@ export function SeeDetailsModal({
                 </p>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
-                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+              <div className="space-y-1 rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Créances restantes
                 </span>
                 <p className="text-xl font-mono font-bold text-status-danger">
@@ -304,8 +341,8 @@ export function SeeDetailsModal({
                 </p>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
-                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+              <div className="space-y-1 rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Taux d'Atteinte Annuel
                 </span>
                 <p className="text-xl font-mono font-bold text-primary">
@@ -318,13 +355,12 @@ export function SeeDetailsModal({
             </div>
 
             <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="py-3 px-4 border-b border-border/50">
+              <CardHeader className="border-b border-border/50 px-4 py-3">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Encaissements vs Échéancier Théorique (40% · 30% · 30%)
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Barres pleines : agrégat réel · Ligne pointillée : jalon
-                  théorique calculé
+                  Barres pleines : agrégat réel · Ligne pointillée : jalon théorique calculé
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4">
@@ -349,9 +385,7 @@ export function SeeDetailsModal({
                         {...DASHBOARD_THEME.axisTick}
                         axisLine={false}
                         tickLine={false}
-                        tickFormatter={(v) =>
-                          `${Math.round(Number(v) / 1000)}k`
-                        }
+                        tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
                       />
                       <RTooltip
                         contentStyle={DASHBOARD_THEME.tooltipStyle}
@@ -385,18 +419,17 @@ export function SeeDetailsModal({
             </Card>
 
             <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="py-3 px-4 border-b border-border/50">
+              <CardHeader className="border-b border-border/50 px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Versements réels derrière le chiffre
+                      Versements réels
                     </CardTitle>
                     <CardDescription className="mt-1 text-xs text-muted-foreground">
-                      {payments.length} enregistrement(s) reçu(s) du flux de
-                      paiements pour cette période
+                      {payments.length} enregistrement(s) reçu(s) du flux de paiements pour cette période
                     </CardDescription>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="shrink-0 text-right">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                       Flux payments
                     </div>
@@ -409,8 +442,7 @@ export function SeeDetailsModal({
               <CardContent className="p-0">
                 {recentPayments.length === 0 ? (
                   <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    Aucun versement réel n'est disponible dans le flux pour la
-                    période sélectionnée.
+                    Aucun versement réel n'est disponible dans le flux pour la période sélectionnée.
                   </div>
                 ) : (
                   <div className="max-h-[320px] overflow-auto">
@@ -473,17 +505,161 @@ export function SeeDetailsModal({
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="border-border/70 bg-surface-panel shadow-sm">
+              <CardHeader className="border-b border-border/50 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Saisie manuelle
+                    </CardTitle>
+                    <CardDescription className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                      Ajoutez plusieurs personnes avec leur propre nom, date/heure et montant. Ces lignes restent locales à cette vue et ne modifient pas les données du dépôt.
+                    </CardDescription>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addManualEntry}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Ajouter une personne
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                {manualEntries.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-4 py-7 text-center">
+                    <p className="text-xs font-medium text-foreground">
+                      Aucune saisie manuelle
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Cliquez sur « Ajouter une personne » pour créer une première ligne.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {manualEntries.map((entry, index) => (
+                      <div
+                        key={entry.id}
+                        className="rounded-xl border border-border/70 bg-surface-elevated/30 p-3"
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Personne {index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeManualEntry(entry.id)}
+                            aria-label={`Supprimer la personne ${index + 1}`}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-status-danger/10 hover:text-status-danger"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.35fr)_minmax(180px,0.9fr)_minmax(130px,0.65fr)]">
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              Nom
+                            </span>
+                            <input
+                              value={entry.name}
+                              onChange={(event) =>
+                                updateManualEntry(entry.id, {
+                                  name: event.target.value,
+                                })
+                              }
+                              placeholder="Nom de la personne"
+                              className="h-9 w-full rounded-md border border-border/70 bg-background px-2.5 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/20"
+                            />
+                          </label>
+
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              Date / heure
+                            </span>
+                            <input
+                              type="datetime-local"
+                              value={entry.dateTime}
+                              onChange={(event) =>
+                                updateManualEntry(entry.id, {
+                                  dateTime: event.target.value,
+                                })
+                              }
+                              className="h-9 w-full rounded-md border border-border/70 bg-background px-2.5 text-xs text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20"
+                            />
+                          </label>
+
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              Montant (DA)
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputMode="decimal"
+                              value={entry.amount}
+                              onChange={(event) =>
+                                updateManualEntry(entry.id, {
+                                  amount: event.target.value,
+                                })
+                              }
+                              placeholder="0"
+                              className="h-9 w-full rounded-md border border-border/70 bg-background px-2.5 text-right font-mono text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/20"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 text-[10px]">
+                          <span className="text-muted-foreground">
+                            {entry.name.trim() || "Nom non renseigné"} · {formatManualDate(entry.dateTime)}
+                          </span>
+                          <span className="font-mono font-semibold text-foreground">
+                            {formatDzdPlain(Number(entry.amount) || 0)} DA
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Total des saisies manuelles
+                        </span>
+                        <p className="text-sm font-mono font-bold text-foreground">
+                          {formatDzdPlain(manualTotal)} DA
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        {manualEntries.length} personne(s) saisie(s)
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 text-[10px] leading-relaxed text-muted-foreground">
+              <div className="flex items-start gap-2">
+                <Database className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                <span>
+                  Les versements réels ci-dessus viennent du flux repository. Les lignes de saisie manuelle servent uniquement à préparer/tester des entrées dans l'interface et sont volontairement exclues de la réconciliation du dashboard. Le branchement Supabase pourra être ajouté plus tard sans changer cette séparation UI.
+                </span>
+              </div>
+            </div>
           </div>
         </PageTabContent>
 
         <PageTabContent value="departments">
-          <DepartmentsTab data={data} payments={payments} />
+          <DepartmentsTab payments={payments} />
         </PageTabContent>
 
         <PageTabContent value="demographics">
           <div className="space-y-4">
             <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="py-3 px-4 border-b border-border/50">
+              <CardHeader className="border-b border-border/50 px-4 py-3">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Distribution des Effectifs par Niveau
                 </CardTitle>
@@ -531,15 +707,15 @@ export function SeeDetailsModal({
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Card className="border-border/70 bg-surface-panel shadow-sm">
-                <CardHeader className="py-3 px-4 border-b border-border/50">
+                <CardHeader className="border-b border-border/50 px-4 py-3">
                   <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Répartition par Genre
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 flex flex-col items-center justify-center">
-                  <div className="h-[180px] w-full relative flex items-center justify-center">
+                <CardContent className="flex flex-col items-center justify-center p-4">
+                  <div className="relative flex h-[180px] w-full items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -567,7 +743,7 @@ export function SeeDetailsModal({
                         <RTooltip contentStyle={DASHBOARD_THEME.tooltipStyle} />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-2xl font-bold font-mono text-foreground">
                         {genderTotal}
                       </span>
@@ -577,7 +753,7 @@ export function SeeDetailsModal({
                     </div>
                   </div>
 
-                  <div className="flex justify-center gap-6 mt-2 text-xs">
+                  <div className="mt-2 flex justify-center gap-6 text-xs">
                     {data.demographics.gender.map((g, i) => (
                       <div key={g.label} className="flex items-center gap-2">
                         <span
@@ -590,12 +766,8 @@ export function SeeDetailsModal({
                             ][i % 3],
                           }}
                         />
-                        <span className="text-muted-foreground">
-                          {g.label}:
-                        </span>
-                        <strong className="font-mono text-foreground">
-                          {g.count}
-                        </strong>
+                        <span className="text-muted-foreground">{g.label}:</span>
+                        <strong className="font-mono text-foreground">{g.count}</strong>
                       </div>
                     ))}
                   </div>
@@ -603,7 +775,7 @@ export function SeeDetailsModal({
               </Card>
 
               <Card className="border-border/70 bg-surface-panel shadow-sm">
-                <CardHeader className="py-3 px-4 border-b border-border/50">
+                <CardHeader className="border-b border-border/50 px-4 py-3">
                   <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Pyramide des Âges
                   </CardTitle>
@@ -647,7 +819,7 @@ export function SeeDetailsModal({
         <PageTabContent value="debt">
           <div className="space-y-4">
             <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="py-3 px-4 border-b border-border/50">
+              <CardHeader className="border-b border-border/50 px-4 py-3">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Structure des Retards par Ancienneté
                 </CardTitle>
@@ -657,12 +829,12 @@ export function SeeDetailsModal({
               </CardHeader>
               <CardContent className="p-0">
                 <table className="w-full text-xs">
-                  <thead className="bg-muted/30 text-muted-foreground text-left">
+                  <thead className="bg-muted/30 text-left text-muted-foreground">
                     <tr className="border-b border-border/60">
-                      <th className="py-2.5 px-4 font-medium">Tranche</th>
-                      <th className="py-2.5 px-4 text-right font-medium">Encours</th>
-                      <th className="py-2.5 px-4 text-right font-medium">Familles</th>
-                      <th className="py-2.5 px-4 text-right font-medium">Sévérité</th>
+                      <th className="px-4 py-2.5 font-medium">Tranche</th>
+                      <th className="px-4 py-2.5 text-right font-medium">Encours</th>
+                      <th className="px-4 py-2.5 text-right font-medium">Familles</th>
+                      <th className="px-4 py-2.5 text-right font-medium">Sévérité</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -670,18 +842,16 @@ export function SeeDetailsModal({
                       const sev = agingSeverity(b.bucket);
                       return (
                         <tr key={b.bucket} className="hover:bg-accent/5">
-                          <td className="py-2.5 px-4 font-medium">
+                          <td className="px-4 py-2.5 font-medium">
                             {AGING_BUCKET_LABELS_FR[b.bucket]}
                           </td>
-                          <td className="py-2.5 px-4 text-right font-mono font-bold text-foreground">
+                          <td className="px-4 py-2.5 text-right font-mono font-bold text-foreground">
                             {formatDzdPlain(b.amount)} DA
                           </td>
-                          <td className="py-2.5 px-4 text-right font-mono">
-                            {b.debtorCount}
-                          </td>
-                          <td className="py-2.5 px-4 text-right">
+                          <td className="px-4 py-2.5 text-right font-mono">{b.debtorCount}</td>
+                          <td className="px-4 py-2.5 text-right">
                             <span
-                              className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase ${sev.className}`}
+                              className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${sev.className}`}
                             >
                               {sev.label}
                             </span>
@@ -695,7 +865,7 @@ export function SeeDetailsModal({
             </Card>
 
             <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="py-3 px-4 border-b border-border/50">
+              <CardHeader className="border-b border-border/50 px-4 py-3">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Top Débiteurs Prioritaires (10 Plus Fortes Créances)
                 </CardTitle>
@@ -705,32 +875,28 @@ export function SeeDetailsModal({
               </CardHeader>
               <CardContent className="p-0">
                 {data.topDebtors.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-6">
+                  <p className="py-6 text-center text-xs text-muted-foreground">
                     Aucune créance enregistrée.
                   </p>
                 ) : (
                   <table className="w-full text-xs">
-                    <thead className="bg-muted/30 text-muted-foreground text-left">
+                    <thead className="bg-muted/30 text-left text-muted-foreground">
                       <tr className="border-b border-border/60">
-                        <th className="py-2.5 px-4 font-medium">Rang</th>
-                        <th className="py-2.5 px-4 font-medium">Famille</th>
-                        <th className="py-2.5 px-4 text-right font-medium">Retard</th>
-                        <th className="py-2.5 px-4 text-right font-medium">Créance</th>
+                        <th className="px-4 py-2.5 font-medium">Rang</th>
+                        <th className="px-4 py-2.5 font-medium">Famille</th>
+                        <th className="px-4 py-2.5 text-right font-medium">Retard</th>
+                        <th className="px-4 py-2.5 text-right font-medium">Créance</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
                       {data.topDebtors.map((d, i) => (
                         <tr key={d.parentId} className="hover:bg-accent/5">
-                          <td className="py-2 px-4 font-mono text-muted-foreground">
-                            #{i + 1}
-                          </td>
-                          <td className="py-2 px-4 font-medium text-foreground">
-                            {d.parentName}
-                          </td>
-                          <td className="py-2 px-4 text-right font-mono text-muted-foreground">
+                          <td className="px-4 py-2 font-mono text-muted-foreground">#{i + 1}</td>
+                          <td className="px-4 py-2 font-medium text-foreground">{d.parentName}</td>
+                          <td className="px-4 py-2 text-right font-mono text-muted-foreground">
                             {d.daysOverdue} j
                           </td>
-                          <td className="py-2 px-4 text-right font-mono font-bold text-status-danger">
+                          <td className="px-4 py-2 text-right font-mono font-bold text-status-danger">
                             {formatDzdPlain(d.outstandingAmount)} DA
                           </td>
                         </tr>
@@ -747,12 +913,7 @@ export function SeeDetailsModal({
   );
 }
 
-function DepartmentsTab({
-  payments,
-}: {
-  data: DashboardData;
-  payments: readonly Payment[];
-}) {
+function DepartmentsTab({ payments }: { payments: readonly Payment[] }) {
   const unitsWithTotals = OPERATIONAL_UNITS.map((u) => {
     const amount = payments
       .filter((p) => u.categories.includes(p.category))
@@ -769,28 +930,24 @@ function DepartmentsTab({
 
   return (
     <Card className="border-border/70 bg-surface-panel shadow-sm">
-      <CardHeader className="py-3 px-4 border-b border-border/50">
+      <CardHeader className="border-b border-border/50 px-4 py-3">
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Ventilation par Pôle Opérationnel
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
-          Répartition des encaissements effectifs par activité, calculée sur les
-          versements du flux live.
+          Répartition des encaissements effectifs par activité, calculée sur les versements du flux live.
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="space-y-4 p-4">
         {grandTotal === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-8">
+          <p className="py-8 text-center text-xs text-muted-foreground">
             Aucun encaissement sur cette période.
           </p>
         ) : (
           <>
             <div className="space-y-3">
               {unitsWithTotals.map((u) => {
-                const pct =
-                  grandTotal > 0
-                    ? Math.round((u.amount / grandTotal) * 100)
-                    : 0;
+                const pct = grandTotal > 0 ? Math.round((u.amount / grandTotal) * 100) : 0;
                 return (
                   <div key={u.key} className="space-y-1">
                     <div className="flex justify-between text-xs">
@@ -803,18 +960,13 @@ function DepartmentsTab({
                       </span>
                       <span className="font-mono font-bold text-foreground">
                         {formatDzd(u.amount)}{" "}
-                        <span className="text-muted-foreground font-normal">
-                          ({pct}%)
-                        </span>
+                        <span className="font-normal text-muted-foreground">({pct}%)</span>
                       </span>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
                       <div
                         className="h-full rounded-full"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor: u.color,
-                        }}
+                        style={{ width: `${pct}%`, backgroundColor: u.color }}
                       />
                     </div>
                   </div>
@@ -822,11 +974,11 @@ function DepartmentsTab({
               })}
             </div>
 
-            <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+            <div className="flex items-center justify-between border-t border-border/60 pt-3">
               <span className="text-xs font-bold text-foreground">
                 Total Encaissé ({payments.length} versements)
               </span>
-              <span className="font-mono font-bold text-base text-status-success">
+              <span className="font-mono text-base font-bold text-status-success">
                 {formatDzdPlain(grandTotal)} DA
               </span>
             </div>
