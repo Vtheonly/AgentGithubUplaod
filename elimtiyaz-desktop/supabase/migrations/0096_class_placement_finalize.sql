@@ -299,7 +299,14 @@ BEGIN
         'assignedStudentsCount', v_assigned_students_count
     );
 END;
-$function$
+$function$;
+-- ^ terminator added 2026-09-15 (OPS-313, T-378): the committed file closed the
+-- dollar-quoted body with no `;`, so a fresh `supabase db push --include-all`
+-- concatenated the CREATE FUNCTION with the following `revoke` statement and
+-- parse-failed (42601, live-proven on the NEW project inside BEGIN/ROLLBACK).
+-- Owner-sanctioned in-place edit (the one-byte syntax fix does not change the
+-- applied semantics on any database that already carries 0096; both the OLD
+-- and NEW projects keep their existing registrations untouched).
 
 
 -- ----------------------------------------------------------------------------

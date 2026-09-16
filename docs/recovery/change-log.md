@@ -15,6 +15,14 @@
 
 ## 71st session (2026-09-15) — T-375/T-376: fresh empty Supabase infrastructure verified AND unblocked (OPS-314 FIXED — the fresh clone's RLS recursion is gone, 30/30 authenticated paths 200; OPS-313 still OPEN; NO secrets committed)
 
+### 2026-09-16 — T-378 — OPS-313 FIXED + VERIFIED: the 0096 `$function$` terminator (owner-sanctioned in-place chain fix, live parse-proven both directions)
+
+- **Problem IDs:** OPS-313 (CLOSED by this task).
+- **Root cause:** 0096 was reverse-engineered from the live definition and committed without the `;` after the closing dollar-quote tag, so the CREATE FUNCTION statement ran into the following `revoke all …` statement — a fresh `supabase db push --include-all` (or any re-provision from the chain) would abort with a syntax error at 0096.
+- **Fix:** `elimtiyaz-desktop/supabase/migrations/0096_class_placement_finalize.sql` — the `;` added after the closing `$function$` + a 7-line forensic comment recording the OPS-313/T-378 provenance and the owner sign-off. This is a sanctioned in-place edit to an applied migration file (the sign-off OPS-313 demanded, given directly in the owner's 72nd-session mandate: "Fix the chain file"): a follow-up 0100 re-declaration could NOT fix fresh provisioning (the runner dies AT 0096 first), and on already-parsed databases it would be a no-op — the terminator is the only location that repairs the chain. Zero semantic delta for any database that already carries 0096.
+- **Verification (live, NEW project, zero-residue):** (1) the PRE-FIX file content (as committed at 865343d) wrapped in `BEGIN; … ROLLBACK;` and sent verbatim through the Management SQL endpoint → **HTTP 400 `42601: syntax error at or near "revoke"`** — the predicted fresh-provision failure reproduced live; (2) the POST-FIX content, same wrapper → **HTTP 201** (parsed and executed, then rolled back); (3) post-probe re-check: `fn_finalize_class_placements` ACL on NEW unchanged (`{postgres=X,anon=X,authenticated=X,service_role=X}` — the deliberately narrower-than-OLD state registered in OPS-314); (4) append-only guard `--base HEAD` → green post-commit; (5) the t-058 vitest suite → green (the real-chain check + the planted-violation matrix on the throwaway repo).
+- **Preserved:** the OLD project (never written — the parse probes ran on NEW only); both projects' existing 0096 registrations; every other migration file byte-identical; the append-only guard itself (unchanged — the base moves with the push, which is the guard's designed PR semantics).
+
 ### 2026-09-15 — T-376 — OPS-314 FIXED + VERIFIED: restore `SECURITY DEFINER` on the five RLS helpers + the `user_profiles_select_own` fast-path (migration 0099)
 
 - **Problem IDs:** OPS-314 (opened and CLOSED this session — the fresh clone returned `500 54001 stack depth limit exceeded` on every authenticated read; independently OPS-313 remains OPEN).

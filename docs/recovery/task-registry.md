@@ -3318,3 +3318,14 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Depends on:** T-376 (completed).
 - **Priority:** P0 (the owner's evidence requirement: do not mark verified without a fresh run).
 - **Next:** T-378 (OPS-313 — the 0096 chain-file terminator fix).
+
+### T-378 — 72nd session (2026-09-16): FIX OPS-313 — the 0096 `$function$` missing terminator (owner-sanctioned in-place chain-file fix, live parse-proven)
+
+- **Status:** COMPLETE — FIXED + VERIFIED (the `;` added after the closing `$function$` of `fn_finalize_class_placements` in the chain file; pre-fix content live-proven to fail with 42601, post-fix content live-proven to parse + execute cleanly inside BEGIN/ROLLBACK on the NEW project)
+- **Problems:** OPS-313 (CLOSED by this task)
+- **Scope:** the committed chain file ONLY (`elimtiyaz-desktop/supabase/migrations/0096_class_placement_finalize.sql` L302 + a 7-line forensic comment). NO database was migrated, re-applied or touched persistently: the NEW project already carries 0096 (registered), the OLD project never had the file applied from the chain (live-applied by a concurrent agent before the file existed), and the parse probes were BEGIN/ROLLBACK-wrapped (zero residue, re-verified: the function's ACL on NEW is unchanged — `{postgres=X,anon=X,authenticated=X,service_role=X}`, the deliberately-narrower-than-OLD state per OPS-314).
+- **Why in-place (not a 0100 re-declaration):** a follow-up migration cannot fix fresh provisioning — the runner dies AT 0096 before reaching 0100; and on already-parsed databases a re-declaration is a no-op. The only fix that makes `supabase db push --include-all` work from the chain is the terminator itself. The owner's 72nd-session mandate explicitly directed "Fix the chain file", satisfying the sign-off condition OPS-313 required.
+- **Verified:** (1) pre-fix probe: the exact committed content (as of 865343d) wrapped in `BEGIN; … ROLLBACK;` sent via the Management SQL endpoint to `vebfehrpzajhstyhinnw` → HTTP 400 `42601: syntax error at or near "revoke"`; (2) post-fix probe: the fixed content, same wrapper → HTTP 201 (parsed + executed, rolled back); (3) post-probe ACL re-check → unchanged; (4) append-only guard `--base HEAD` post-commit → green; (5) t-058 vitest suite (the real-chain check) → green.
+- **Depends on:** T-375 (discovery), T-376 (chain context).
+- **Priority:** P0 (the owner's handover list item 2).
+- **Next:** T-379 — the Edge-Function fleet deploy + secrets + curl matrix on the NEW project.
