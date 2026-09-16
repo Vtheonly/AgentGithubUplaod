@@ -152,6 +152,40 @@ export async function listArchiveMetadata(): Promise<BackupArchive[]> {
   }
 }
 
+/**
+ * T-382 (BKUP-500) — list the COMPLETE records (ciphertext + IV included),
+ * newest-first. The "export the entire archive" format needs the actual
+ * encrypted payloads + their per-archive metadata, not just the table view.
+ */
+export async function listAllRecords(): Promise<VaultRecord[]> {
+  const db = await openVault();
+  try {
+    return await new Promise<VaultRecord[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).getAll();
+      req.onsuccess = () => {
+        const records = (req.result as VaultRecord[] | undefined) ?? [];
+        records.sort((a, b) =>
+          a.metadata.createdAt < b.metadata.createdAt
+            ? 1
+            : a.metadata.createdAt > b.metadata.createdAt
+              ? -1
+              : 0,
+        );
+        resolve(records);
+      };
+      req.onerror = () =>
+        reject(
+          new Error(
+            `Failed to list archive records: ${req.error?.message ?? "unknown error"}`,
+          ),
+        );
+    });
+  } finally {
+    db.close();
+  }
+}
+
 /** Delete a single archive by id. No-op if the archive does not exist. */
 export async function deleteArchive(id: string): Promise<void> {
   const db = await openVault();

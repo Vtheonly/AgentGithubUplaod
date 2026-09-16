@@ -12,7 +12,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { Role } from "../../core/rbac/roles";
-import { Card, CardContent } from "../../shared/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { AlertTriangle, RefreshCw } from "lucide-react";
@@ -33,6 +33,8 @@ import {
 } from "./configuration/category-cards";
 import type { SecretEditState, ConnectionTestResult } from "./configuration/types";
 import { categoryForKey } from "./configuration/types";
+import { ExportDialog, type ExportDialogOrigin } from "./export-dialog";
+import { Archive, FileSpreadsheet, FolderOpen } from "lucide-react";
 
 export function ConfigurationTab() {
   const { session } = useAuth();
@@ -48,6 +50,10 @@ export function ConfigurationTab() {
   const [isLoadingLocal, setIsLoadingLocal] = useState(true);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<ConnectionTestResult | null>(null);
+  // T-382 (BKUP-500): the Backend exports — Excel + Archive buttons, each
+  // opening the shared destination+format dialog (preselected per button).
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportOrigin, setExportOrigin] = useState<ExportDialogOrigin>("backend-archive");
 
   const localConfigService = useMemo(() => getLocalConfigService(), []);
   const systemConfigService = useMemo(
@@ -156,6 +162,60 @@ export function ConfigurationTab() {
         </>
       )}
 
+      {/* T-382 (BKUP-500) — the Backend exports card: ONE button per surface
+          (Excel / Archive), both opening the SAME shared dialog where the
+          user chooses the destination (OS save dialog at export time) AND
+          the format (entire archive / zipped Excel files) — the owner's
+          mandated workflow, surfaced at the Backend/Settings level. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FolderOpen className="h-4 w-4 text-primary" />
+            Exports (Excel &amp; Archive)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3 text-left"
+            data-testid="backend-export-excel"
+            onClick={() => {
+              setExportOrigin("backend-excel");
+              setExportOpen(true);
+            }}
+          >
+            <div className="flex items-start gap-2">
+              <FileSpreadsheet className="h-4 w-4 mt-0.5 text-status-success" />
+              <div>
+                <p className="text-sm font-medium">Exporter Excel…</p>
+                <p className="text-xs text-muted-foreground">
+                  Choisir l'emplacement + le format (classeur Excel seul en ZIP, ou inclus dans l'archive complète)
+                </p>
+              </div>
+            </div>
+          </Button>
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3 text-left"
+            data-testid="backend-export-archive"
+            onClick={() => {
+              setExportOrigin("backend-archive");
+              setExportOpen(true);
+            }}
+          >
+            <div className="flex items-start gap-2">
+              <Archive className="h-4 w-4 mt-0.5 text-primary" />
+              <div>
+                <p className="text-sm font-medium">Exporter l'archive…</p>
+                <p className="text-xs text-muted-foreground">
+                  Choisir l'emplacement + le format (archive complète du coffre, ou fichiers Excel seulement)
+                </p>
+              </div>
+            </div>
+          </Button>
+        </CardContent>
+      </Card>
+
       {secretEdit && (
         <SecretEditModal
           state={secretEdit}
@@ -187,6 +247,14 @@ export function ConfigurationTab() {
           onCancel={() => setSecretEdit(null)}
         />
       )}
+
+      {/* T-382 (BKUP-500): the shared destination+format export dialog. */}
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        origin={exportOrigin}
+        defaultFormat={exportOrigin === "backend-excel" ? "excel-zip" : "entire-archive"}
+      />
     </div>
   );
 }

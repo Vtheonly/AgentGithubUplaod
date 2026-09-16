@@ -54,6 +54,8 @@ import {
   type StorageCapacity,
 } from "../../infrastructure/backup/backup-scheduler";
 import { isSupabaseConfigured, getSupabaseClient } from "../../infrastructure/supabase/supabase-client";
+import { ExportDialog } from "./export-dialog";
+import { FolderOpen, HardDriveDownload } from "lucide-react";
 import {
   BACKUP_STATUS_LABELS_FR,
   BACKUP_VAULT_LABELS_FR,
@@ -182,6 +184,8 @@ export function BackupTab() {
   const [capacity, setCapacity] = useState<StorageCapacity | null>(null);
   // T-301 (OFFLINE-400): the persisted scheduler on/off preference.
   const [schedulerEnabled, setSchedulerEnabledState] = useState(() => isSchedulerEnabled());
+  // T-382 (BKUP-500): the Sync/Export area's archive-export dialog.
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     setRunLog(readRunLog());
@@ -600,6 +604,40 @@ export function BackupTab() {
           )}
         </CardContent>
       </Card>
+      {/* ---------------------------------------------------------------- */}
+      {/*  T-382 (BKUP-500) — the Sync/Export area: archive export with     */}
+      {/*  destination + format choice (the owner's mandate).               */}
+      {/* ---------------------------------------------------------------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <HardDriveDownload className="size-5 text-primary" />
+            Export / Synchronisation
+          </CardTitle>
+          <CardDescription>
+            Exportez le coffre hors de l'application : choisissez le format (archive complète ou
+            fichiers Excel seulement) puis l'emplacement dans la boîte de dialogue
+            d'enregistrement — l'archive reste chiffrée AES-256-GCM.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={() => setExportOpen(true)}
+            disabled={!canManage}
+            className="min-w-[260px]"
+            data-testid="backup-export-button"
+          >
+            <FolderOpen className="size-4" />
+            Exporter l'archive…
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Deux formats au choix : <strong>Archive complète</strong> (structure du coffre + tous
+            les fichiers associés : sauvegardes chiffrées, vecteurs d'initialisation, manifeste) ou{" "}
+            <strong>Fichiers Excel seulement</strong> (le classeur complet 13 feuilles dans un ZIP).
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -852,6 +890,15 @@ export function BackupTab() {
         confirmLabel={deleting ? "Suppression…" : "Supprimer"}
         destructive
         onConfirm={handleDelete}
+      />
+
+      {/* T-382 (BKUP-500): the archive export — destination + format chosen
+          BEFORE the export starts (the owner's mandated workflow). */}
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        origin="backups"
+        defaultFormat="entire-archive"
       />
     </div>
   );
