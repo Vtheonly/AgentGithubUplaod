@@ -4,6 +4,16 @@
 
 ## 73rd session (2026-09-16) — T-381…T-383: the removal surfaces + the export destination/format workflow (owner mandate; concurrent-agent-aware; OLD+NEW live verification)
 
+### 2026-09-16 — T-382 — the export destination + format workflow (BKUP-500 CLOSED TESTED)
+
+- **Problem IDs:** BKUP-500 (registered BEFORE the fix per §13, CLOSED TESTED same-session).
+- **What was wrong:** no export destination choice anywhere (the Electron save bridge existed but was never invoked — every export silently dropped into Downloads), no archive export existed at all, and no format choice; corollary: vite-env.d.ts declares a PHANTOM window.elImtiyaz API the preload never exposed (system-config.ts's local-file config store silently never worked — residual registered in BKUP-500).
+- **Root cause:** export features written browser-first (downloadBlob) with the Electron bridge never wired; the phantom declaration was written against a planned richer preload API that never shipped.
+- **Change:** the destination seam (export-target.ts — the REAL bridge + fallback + the honest canceled outcome), the dependency-free STORE-method ZIP writer (zip-writer.ts), the two mandated formats (archive-export.ts: the ENTIRE archive = manifest + every vault archive's byte-identical encrypted ciphertext + per-archive IVs; the ZIPPED EXCEL FILES = the 13-sheet T-368 workbook + manifest), the vault's listAllRecords(), the shared ExportDialog (both format radios + the destination explainer — chosen BEFORE the export starts), the BackupTab "Export / Synchronisation" card + the ConfigurationTab "Exports (Excel & Archive)" card (the two mandated entry points; both formats selectable from either).
+- **Verified:** tsc 0; eslint 0 errors; t-382 suite **19/19 PASS** (ZIP round-trip byte-identity incl. UTF-8 names + duplicate/invalid rejection; the destination seam bridge/fallback/cancel/IO-error; both formats incl. vault-census order + byte-identical ciphertext + real-PK xlsx + the empty-vault guard; the UI wiring incl. both entry points + preselection + the canceled path; source guards); full suite 3446 passed / 3 failed = the SAME pre-existing CALC-001 baseline. Discovery fixed mid-test: the vault ids already end in .db (VAULT §13.02) — the export names files by the raw id (no double extension).
+- **Left:** the phantom window.elImtiyaz declaration cleanup (registered as BKUP-500's residual, deliberately deferred — concurrent-agent merge safety on vite-env.d.ts).
+- **Commit:** 5b0f2cf.
+
 ### 2026-09-16 — T-381 — the users + students removal functionality (USER-500 / STUDENT-500 CLOSED TESTED)
 
 - **Problem IDs:** USER-500, STUDENT-500 (both registered BEFORE the fix per §13, CLOSED TESTED same-session).

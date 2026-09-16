@@ -3366,9 +3366,18 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-382 — 73rd session (2026-09-16): the export destination + format workflow (BKUP-500) — choose WHERE the export is saved + the export FORMAT (entire archive vs zipped Excel files) in the Backups Sync/Export area AND the Backend/Settings Excel & Archive buttons
 
-- **Status:** IN_PROGRESS
+- **Status:** COMPLETED (TESTED, 2026-09-16 — gates: tsc 0 / eslint 0 errors / 168 files / 3454 tests of which 3 failed = the SAME pre-existing CALC-001 cross-platform failures attributed at session open (+19 new t-382 tests, 0 new failures); the workflow is client-side — no DB change → no separate live leg; commit 5b0f2cf)
 - **Problems:** BKUP-500 (to be registered BEFORE the fix per §13 — the Electron save bridge exists but was never wired; every export goes to the browser download folder; NO archive export exists at all; no destination/format choice anywhere)
 - **Scope:** (a) the renderer-side save bridge (`window.elImtiyazDesktop.saveFile` — the REAL preload bridge, OS save dialog) with the browser downloadBlob fallback; (b) a dependency-free store-method ZIP writer (no zip lib in package.json); (c) the archive-export service: "entire archive" (manifest + every vault archive + per-archive metadata — the complete archive structure + associated files) and "zipped Excel files" (the generated workbook(s) inside a ZIP); (d) the shared ExportDialog (destination + format choice BEFORE the export starts); (e) the BackupTab "Export & synchronisation" card; (f) the ConfigurationTab (Backend) Excel + Archive export buttons.
 - **Depends on:** T-381 (session sequencing only — disjoint files).
 - **Priority:** P0 (the owner's explicit mandate).
 - **Next:** T-383 — live verification of both tasks on OLD + NEW Supabase.
+
+### T-383 — 73rd session (2026-09-16): the live verification legs — deploy delete-user-account to BOTH Supabase projects + the create→verify→delete round-trip on OLD and NEW
+
+- **Status:** IN_PROGRESS
+- **Problems:** USER-500 (the live leg of T-381); the EF-fleet parity discipline (the 15th EF must land on BOTH projects — the 72nd session's census + t-379 matrix documented 14).
+- **Scope:** (a) deploy the delete-user-account EF to production `hkvkefubghbbotgnteir` AND the fresh clone `vebfehrpzajhstyhinnw`; (b) the T-004 curl matrix for the new EF on both (401 anonymous-deny + the staff-JWT validation path + the super_admin happy path); (c) the live E2E: create a probe account (create-user-account EF) → verify profile/role/personnel link → delete it (delete-user-account EF) → verify auth.users + user_profiles + role_assignments gone, personnel unbound, the guard rails (self-deletion, owner-pinned admin) refuse correctly; (d) update scripts/t-379-ef-fleet-matrix.sh to the 15-EF fleet + re-run on NEW; (e) the zero-residue census.
+- **Depends on:** T-381 (the EF), T-382 (session sequencing only).
+- **Priority:** P0 (the owner's "make sure it works" + "ensure this works with new db too").
+- **Next:** the session closeout (zip + push + handover).
