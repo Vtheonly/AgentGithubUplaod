@@ -192,3 +192,47 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 **Live dual-key matrix (2026-09-01, hkvkefubghbbotgnteir):** `auth/v1/health` 200 ×2 · REST `parents` query processed ×2 (42703 column-probe, i.e. RLS-processed not key-rejected) · `grant_type=password` 200 ×2 (with the post-T-106 password). Guards: website `t-107-api-key-migration.test.ts` 4/4; desktop `api-key-format-acceptance.test.ts` 4/4.
 
 **When Supabase announces legacy-JWT retirement (future session):** (1) switch Android `.env` to the publishable value; (2) website rollback comment may then be deleted (guard test update included); (3) desktop users re-enter the key in Settings → Configuration; (4) re-run the §7 checklist; (5) update this sheet first, then ADR-009's status.
+
+## 9. The NEW empty infrastructure project — `vebfehrpzajhstyhinnw` (T-375…T-380, 2026-09-15/16 — the parallel instance)
+
+> **What this is:** a SECOND Supabase project, provisioned as an exact structural + functional clone of production (§1) with **zero business data** — the owner's "fresh empty infrastructure" mandate. Production (`hkvkefubghbbotgnteir`, §1) remains the live backend and the SOURCE OF TRUTH until the owner explicitly switches. **No client has been pointed at this project yet** — the owner switches "later" per the mandate. This section is the connection map for that switch.
+
+### 9.1 Identity & public identifiers
+
+| Field | Value |
+|---|---|
+| Project ref | `vebfehrpzajhstyhinnw` |
+| Region | `eu-west-1` (same as production) |
+| REST URL | `https://vebfehrpzajhstyhinnw.supabase.co` |
+| Publishable key (PUBLIC — ADR-009 preferred identifier) | `sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg` |
+| JWKS URL (constructed per §2.1) | `https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/.well-known/jwks.json` |
+| Legacy anon JWT | exists (dashboard → Settings → API Keys); dual-accepted per ADR-009; publishable-preferred |
+| Default `sb_secret_…` | EXISTS, masked by the API (`sb_secret_ls_Xa·······`, AGENTS.md §11.1 #13) — revealable only in the dashboard UI; NEVER in any client repo |
+| Key-set census | 4 keys, exactly production's shape: legacy anon + legacy service_role + default publishable + default secret |
+
+### 9.2 The bootstrap admin
+
+`admin@elimtiyaz.dz` with the **OWNER-PINNED password (§1)** — sign-in verified live (password grant → HTTP 200, T-377). The profile is `status=active`, the `super_admin` role_assignment exists, `has_role('super_admin')=true` (verify_t-376 C4). The admin is the ONLY auth user (1 vs production's 8 — the 7 historical probe users were production session residue, not structure).
+
+### 9.3 Secrets & configuration parity (verified T-379/T-380)
+
+- **EF secrets: 13 names, 1:1 with production.** Platform-injected `SUPABASE_*` family + owner-managed: `ALLOWED_ORIGINS` (the canonical 4-origin set, §2.2), `FIREBASE_PROJECT_ID=elimtiyaz-android`, `GROQ_API_KEY` (owner-supplied 2026-09-16, live-proven through the EF), `LOG_LEVEL=info` (allowlist-only key), `PROJECT_REF=vebfehrpzajhstyhinnw` (the update-server-secret EF's own-project pointer), and `CRON_SECRET` — **freshly generated for this instance** (the production value is an unrecoverable masked digest; a secret VALUE is per-instance configuration, not business data — the value was delivered to the owner in the session hand-off, never committed to any repo).
+- **Auth config: parity on every non-secret-gated field.** `site_url=https://elimtiyaz-website.vercel.app`, `uri_allow_list=http://localhost:3000,http://localhost:3100,https://elimtiyaz-website.vercel.app`, `external_google_client_id` copied, `external_google_skip_nonce_check=false`. The ONLY remaining diffs are the two Google-secret-gated fields (`external_google_enabled=false`, `external_google_secret` unset — the raw Google secret is unrecoverable by API; see the residual steps below).
+- **Not set, matching production's own owner residuals:** `RESEND_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_ACCESS_TOKEN` (the update-server-secret EF's Management-API credential — the sbp_ owner-token class).
+
+### 9.4 The switch procedure (when the owner decides to cut over)
+
+| Platform | How to point at `vebfehrpzajhstyhinnw` | Notes |
+|---|---|---|
+| **Desktop** | Settings → Configuration (the runtime dialog, §2): Supabase URL `https://vebfehrpzajhstyhinnw.supabase.co` + key `sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg` (or the legacy anon JWT — dual-accepted) | Per-install `userData/config.json`; no code change needed; sign in with the §9.2 admin |
+| **Website** | `.env.local`: `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the publishable value); the committed `public-config.ts` default flips ONLY at the owner's explicit cutover decision (§6 convention: update this sheet first, then `.env.example`, then the committed defaults) | The Google-OAuth residuals below must be cleared before enabling portal Google sign-in on this backend |
+| **Android** | Root `.env` (§11 Android note — NOT `app/.env`): `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`), `SUPABASE_JWKS_URL` (§9.1) | Non-empty values only (the secrets-plugin blank-literal quirk) |
+
+**Residual steps that stay OWNER-gated after the switch decision (P1):**
+1. Google OAuth on the new backend (production has it ENABLED): (a) reveal/paste the Google client secret in the dashboard (Authentication → Providers → Google — client id `259221439109-….apps.googleusercontent.com` is already configured), (b) add `https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/callback` to the Google console client's authorized redirect URIs, (c) flip `external_google_enabled`.
+2. `RESEND_API_KEY` / `FIREBASE_SERVICE_ACCOUNT_JSON` — the same standing production residuals (§4, workflow emails / real FCM sends).
+3. The real-data population itself (the fresh import / Excel corpus run) — the whole point of the empty clone.
+
+### 9.5 Structural + functional equivalence evidence (T-375…T-379)
+
+96 migrations through 0099 (production: 95 through 0098 — 0099 is the OPS-314 parity fix, NEW-only by design) · 83 public tables · 202 public + 24 storage policies · 100 public functions · extensions identical · 10 buckets identical (names + public flags) · business tables EMPTY except the migration-0063 chain-DML rows (1 parent / 1 student / 3 payments — the row-242 MAMER reconciliation artefacts that ship inside the migration itself, present on BOTH projects) · RLS recursion fixed and re-proven (`verify_t-376.sql` **12/12 PASS**, T-377) · the 14-EF fleet deployed + `t-379-ef-fleet-matrix.sh` **61/61 PASS** (anonymous-deny ×42, cron ×5, staff gates ×8, ALLOWED_ORIGINS, CRON_SECRET, live GROQ round-trip) · anon sees `[]` on every guarded table (RLS strength = production) · the production database was never written to (read-only source-of-truth diffs throughout).
