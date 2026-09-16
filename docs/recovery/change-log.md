@@ -2,6 +2,18 @@
 
 > Chronological record of significant recovery changes. This file — not chat transcripts, not DONE/TODO notes — is the history of what has been fixed and how it was verified. Append one entry per completed task, using the template below.
 
+## 73rd session (2026-09-16) — T-381…T-383: the removal surfaces + the export destination/format workflow (owner mandate; concurrent-agent-aware; OLD+NEW live verification)
+
+### 2026-09-16 — T-381 — the users + students removal functionality (USER-500 / STUDENT-500 CLOSED TESTED)
+
+- **Problem IDs:** USER-500, STUDENT-500 (both registered BEFORE the fix per §13, CLOSED TESTED same-session).
+- **What was wrong:** Settings → Comptes was create/read-only (no `deleteAccount` on `UserAccountRepository`, no EF for auth.users deletion — the Admin API is service-role-only); CRM → Élèves had no Supprimer action even though `deleteStudent` existed in both repository implementations with zero UI callers (only the import adapter's rollback used it); no `DeleteStudent` permission existed to gate a surface.
+- **Root cause:** the account workflow (T-079/T-371) grew create/list/link without a removal counterpart; the student soft-delete was implemented for the import rollback path and never surfaced.
+- **Change:** the `delete-user-account` Edge Function (super_admin gate; tenant-scoped 404s; self-deletion 409; owner-pinned-admin 403 — the OPS-310 lesson generalized; parents/students unbind; pending approvals expired; profile delete → role_assignments cascade + personnel SET NULL; auth identity LAST — a failure leaves an inert auth user, never a unique-index-corrupting orphan profile; `user_account.delete` audit without credentials); `UserAccountRepository.deleteAccount` (contract + Supabase + mock); AccountsTab row action + ConfirmModal; StudentsTab permission-gated row action (NEW `Permission.DeleteStudent`) + ConfirmModal → the unchanged soft delete; audit actions registered; `DataTableAction.title` (a11y).
+- **Verified:** tsc 0 errors; eslint 0 errors; `npx vitest run src/tests/features/t-381-remove-users-students.test.tsx` — **16/16 PASS** (mock semantics incl. the owner-pinned guard + personnel unbind + audit without credentials; Supabase EF payload + envelope mapping; StudentsTab permission gating + ConfirmModal wiring; AccountsTab row action → deleteAccount → refresh; source guards pinning the EF's gates + the profile-before-auth ordering); full suite 3427 passed / 3 failed — the SAME 3 pre-existing CALC-001 cross-platform failures attributed at session open (refund/re-pay mirror expectations, desktop commit 7355378; files untouched this session — matches the owner's note that the pasted analyze/report "may or may not be the issue").
+- **Left:** T-383 — deploy the EF to BOTH projects + the live create→verify→delete round-trip.
+- **Commit:** 3c20d2c.
+
 ## 72nd session (2026-09-16) — T-377…T-380: the fresh-clone handover completed (T-376 re-proven 12/12; OPS-313 fixed in-chain; the 14-EF fleet + secrets deployed on NEW; config parity + the credentials map) — OLD project untouched throughout
 
 ### 2026-09-16 — T-377 — the session-opening re-verification: `verify_t-376.sql` 12/12 PASS on the NEW project

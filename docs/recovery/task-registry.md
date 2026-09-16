@@ -3352,3 +3352,23 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Depends on:** T-377 (evidence base), T-379 (the EF fleet the switch depends on).
 - **Priority:** P0 (the owner's handover list items 4–5).
 - **Next:** the owner's cutover decision (point clients at `vebfehrpzajhstyhinnw` + populate fresh data per credentials.md §9.4), or on production: T-337 (REALTIME-105) — the standing P0.
+
+### T-381 — 73rd session (2026-09-16): the users + students removal functionality (USER-500 / STUDENT-500) — the missing destructive surfaces on Settings → Comptes and CRM → Élèves
+
+- **Status:** COMPLETED (TESTED, 2026-09-16 — gates: tsc 0 / eslint 0 errors / 167 files / 3435 tests of which 3 failed = the SAME pre-existing CALC-001 cross-platform failures attributed at session open (+16 new t-381 tests, 0 new failures); the LIVE leg (deploy the EF to BOTH projects + the create→verify→delete round-trip) is T-383)
+- **Problems:** USER-500 + STUDENT-500 (both registered BEFORE the fix per §13 and CLOSED TESTED same-session — see problem-registry)
+- **Scope:** (a) the `delete-user-account` Edge Function — the create mirror (T-079): super_admin gate, tenant-scoped resolution, self-deletion 409, owner-pinned-admin 403 (OPS-310 generalized), parents/students unbind, pending approval requests expired, profile delete (role_assignments cascade, personnel SET NULL), auth identity deleted LAST (the safe ordering: a failure leaves an inert auth user, never a unique-index-corrupting orphan profile), `user_account.delete` audit without credential material; (b) `UserAccountRepository.deleteAccount` contract + Supabase (functions.invoke passthrough, EF envelope mapping) + mock (personnel unbind, seedAccounts drop, owner-pinned guard, honest notFound) implementations; (c) AccountsTab — per-row Supprimer (data-testid delete-account-<id>) + ConfirmModal → deleteAccount → toast + overview refresh; (d) StudentsTab — per-row Supprimer gated by the NEW `Permission.DeleteStudent` (SuperAdmin via defaults; RBAC-matrix-grantable) + ConfirmModal → the EXISTING `deleteStudent` soft delete (deleted_at + is_active=false — financial history preserved); (e) audit actions `user_account.delete` + `student.delete` registered; (f) `DataTableAction.title` (a11y for icon-only destructive actions).
+- **What was wrong:** the accounts workflow (T-079/T-371) had create/list/link with NO removal path (deprovisioning required the dashboard); `deleteStudent` shipped dark in both repository implementations with zero UI callers (only the import adapter's rollback used it); no DeleteStudent permission existed to gate any surface.
+- **Depends on:** nothing (baseline gates at session OPEN attributed: the 3 CALC-001 cross-platform failures are pre-existing, files untouched).
+- **Priority:** P0 (the owner's explicit mandate).
+- **Next:** T-382 — the export destination + format workflow (Backups Sync/Export area + Backend/Settings Excel & Archive buttons).
+- **Commit:** 3c20d2c (feat(desktop): T-381 — remove users and students).
+
+### T-382 — 73rd session (2026-09-16): the export destination + format workflow (BKUP-500) — choose WHERE the export is saved + the export FORMAT (entire archive vs zipped Excel files) in the Backups Sync/Export area AND the Backend/Settings Excel & Archive buttons
+
+- **Status:** IN_PROGRESS
+- **Problems:** BKUP-500 (to be registered BEFORE the fix per §13 — the Electron save bridge exists but was never wired; every export goes to the browser download folder; NO archive export exists at all; no destination/format choice anywhere)
+- **Scope:** (a) the renderer-side save bridge (`window.elImtiyazDesktop.saveFile` — the REAL preload bridge, OS save dialog) with the browser downloadBlob fallback; (b) a dependency-free store-method ZIP writer (no zip lib in package.json); (c) the archive-export service: "entire archive" (manifest + every vault archive + per-archive metadata — the complete archive structure + associated files) and "zipped Excel files" (the generated workbook(s) inside a ZIP); (d) the shared ExportDialog (destination + format choice BEFORE the export starts); (e) the BackupTab "Export & synchronisation" card; (f) the ConfigurationTab (Backend) Excel + Archive export buttons.
+- **Depends on:** T-381 (session sequencing only — disjoint files).
+- **Priority:** P0 (the owner's explicit mandate).
+- **Next:** T-383 — live verification of both tasks on OLD + NEW Supabase.
