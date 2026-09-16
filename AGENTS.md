@@ -208,6 +208,10 @@ For backend / SQL / Edge-Function tasks, **live verification is required** to cl
    keep it that way. Budgets must leave room after reasoning (default
    2048 is safe).
 
+**Management-API API-key endpoints (72nd session, 2026-09-16 — live evidence):**
+
+13. **A MINTED `sb_secret_` key is NOT a gateway probe path.** `POST /v1/projects/<ref>/api-keys` with `{"type":"secret","name":"…"}` DOES create a new secret key and returns the raw value exactly ONCE (the name must be `^[a-z_][a-z0-9_]*$` — camelCase/dashes are rejected). But the data/function gateways then REJECT that key with `{"message":"Invalid API key"}` — on REST **and** Functions — even 2+ minutes after creation, and `GET /v1/projects/<ref>/api-keys` (or `/api-keys/{id}` — there is NO `/reveal` route) permanently masks EVERY secret-type key (`sb_secret_ls_Xa·······`). Consequences: (a) an EF that compares `Bearer` against the platform-injected `SUPABASE_SERVICE_ROLE_KEY` (the `send-push-notification` pattern) can only be positively probed with the project's DEFAULT sb_secret, which is revealable ONLY in the dashboard UI (Settings → API Keys) by an operator holding the dashboard login; (b) minting a fresh key to "get in" does not work — delete any experimental key immediately to restore the key-set census (the fresh-clone parity check compares the key SET, and a stray probe key is a divergence).
+
 **Live verification script convention** (since the seventh session):
 
 For each backend migration (T-061, T-031, T-029, T-071, T-079), a
