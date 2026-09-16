@@ -3288,7 +3288,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-375 — 71st session (2026-09-15): fresh empty Supabase infrastructure verification (OPS-313) — prove the NEW project is structure-identical and data-empty, OLD project untouched
 
-- **Status:** In Progress (problem OPS-313 registered; live census evidence collected; docs commit pending)
+- **Status:** COMPLETED (VERIFIED — the census + registry docs landed with commit bc5a6c4 [T-375 register empty-DB verification + OPS-313 terminator note]; OPS-313 subsequently CLOSED by T-378 [72nd session, 2026-09-16] — status flipped at the 72nd-session closeout)
 - **Problems:** OPS-313 (the 0096 terminator note — fresh-provision parse risk, no fix committed per append-only rule)
 - **Scope:** NEW project `vebfehrpzajhstyhinnw` ONLY: migration-list parity (Local=Remote 0001–0098), public table/function/policy/bucket census, business-table emptiness (seed-only rows allowed), anon RLS probe, auth health. OLD project `hkvkefubghbbotgnteir` NEVER linked/applied/probed for writes. NOT in scope: EF redeploy matrix, secret rotation, admin-user creation, client `.env` changes, zip/push delivery.
 - **Depends on:** none (read-only verification; no code change required for the verdict).
