@@ -21,6 +21,13 @@ export const AuditActions = {
    * (dev/demo). The payload NEVER contains the initial password (SEC-100).
    */
   UserAccountCreate: "user_account.create",
+  /**
+   * T-381 — admin removed a login account (the delete-user-account Edge
+   * Function live / MockUserAccountRepository dev-demo). The payload records
+   * the email, the held role and the unbound employee linkage — never any
+   * credential material (SEC-100).
+   */
+  UserAccountDelete: "user_account.delete",
   /** VAULT §12.01 — system exports (PDF / XLSX / CSV) are tracked events. */
   SystemExport: "system.export",
   /** VAULT §12.01 — sensitive record views (data access requests) are tracked. */
@@ -32,6 +39,8 @@ export const AuditActions = {
   ParentDelete: "parent.delete",
   StudentCreate: "student.create",
   StudentUpdate: "student.update",
+  /** T-381 — student removal (the soft-delete the repository contract always had, surfaced in the UI). */
+  StudentDelete: "student.delete",
   StudentPromote: "student.promote",
   BatchRegister: "crm.batch_register",
 

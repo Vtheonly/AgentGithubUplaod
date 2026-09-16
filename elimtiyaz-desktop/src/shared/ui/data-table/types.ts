@@ -18,6 +18,8 @@ export interface DataTableAction<T> {
   readonly variant?: "default" | "outline" | "ghost" | "destructive";
   readonly disabled?: (row: T) => boolean;
   readonly icon?: ReactNode;
+  /** T-381 — optional tooltip/aria text for icon-only actions (destructive buttons need a name). */
+  readonly title?: string;
 }
 
 export interface DataTableProps<T> {

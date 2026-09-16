@@ -34,8 +34,11 @@ import {
   Upload,
   ChevronDown,
   Download,
+  Trash2,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
+import { useAuth } from "../../app/providers/auth-provider";
+import { Permission } from "../../core/rbac/permissions";
 import {
   LEVEL_LABELS_FR,
   STUDENT_STATUS_LABELS_FR,
@@ -57,6 +60,7 @@ import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { DataTable, type DataTableColumn, type DataTableAction } from "../../shared/ui/data-table";
 import { EmptyState } from "../../shared/layout/state-views";
+import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { BatchRegistrationModal } from "./batch-registration-modal";
 import { ParentDetailDrawer } from "./parent-detail-drawer";
 import { StudentDetailDrawer } from "./student-detail-drawer";
@@ -555,12 +559,45 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
 }
 
 // ============================================================================
-// StudentsTab — read-only DataTable<Student>
+// StudentsTab — DataTable<Student> with row-level actions
+// T-381: + the "Supprimer" row action (ConfirmModal-guarded, Permission.DeleteStudent)
 // ============================================================================
 
 function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void }) {
   const repos = useRepositories();
+  const toast = useToast();
+  const { session } = useAuth();
   const students = useObservable(() => repos.students.observe(), []);
+
+  // T-381 — the pending student removal (ConfirmModal-guarded).
+  const [pendingDelete, setPendingDelete] = useState<Student | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // T-381 — destructive action, permission-gated (SuperAdmin by default;
+  // the RBAC matrix editor can grant it to other roles later).
+  const canDeleteStudent =
+    !!session && session.permissions.has(Permission.DeleteStudent);
+
+  // T-381 — soft-delete the student (repository sets deleted_at + is_active=false;
+  // the operational streams filter it out; the financial history is preserved).
+  async function handleDeleteStudent(): Promise<void> {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const result = await repos.students.deleteStudent(pendingDelete.id);
+      if (result.ok) {
+        toast.showSuccess(
+          "Élève supprimé",
+          `${pendingDelete.firstName} ${pendingDelete.lastName} (${pendingDelete.code}) a été retiré de l'annuaire — l'historique financier et les archives sont conservés.`,
+        );
+      } else {
+        toast.showError("Suppression échouée", result.error.userMessage);
+      }
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
+  }
 
   const columns: readonly DataTableColumn<Student>[] = [
     {
@@ -611,6 +648,17 @@ function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void })
       variant: "ghost",
       onClick: (s) => onOpenStudent(s.id),
     },
+    ...(canDeleteStudent
+      ? [
+          {
+            label: "",
+            icon: <Trash2 className="h-4 w-4 text-status-danger" />,
+            variant: "ghost" as const,
+            onClick: (s: Student) => setPendingDelete(s),
+            title: "Supprimer cet élève",
+          },
+        ]
+      : []),
   ];
 
   if (students.length === 0) {
@@ -638,6 +686,21 @@ function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void })
           pageSize={12}
         />
       </CardContent>
+
+      {/* T-381 — the student-removal confirmation (destructive). */}
+      <ConfirmModal
+        open={pendingDelete !== null}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+        title="Supprimer cet élève ?"
+        description={
+          pendingDelete
+            ? `${pendingDelete.firstName} ${pendingDelete.lastName} (${pendingDelete.code}) sera retiré de l'annuaire actif. L'historique financier, les notes et les archives restent conservés (suppression logique). Action irréversible.`
+            : "L'élève sera retiré de l'annuaire. Action irréversible."
+        }
+        confirmLabel={deleting ? "Suppression…" : "Supprimer"}
+        destructive
+        onConfirm={handleDeleteStudent}
+      />
     </Card>
   );
 }

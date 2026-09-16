@@ -34,8 +34,9 @@ import type {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { StatusChip } from "../../shared/ui/status-chip";
+import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { CreateAccountModal } from "./create-account-modal";
-import { UserPlus, Users, KeyRound, ShieldAlert, Copy, Check, Link2, Unlink, RefreshCw } from "lucide-react";
+import { UserPlus, Users, KeyRound, ShieldAlert, Copy, Check, Link2, Unlink, RefreshCw, Trash2 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
@@ -44,7 +45,7 @@ import { UserPlus, Users, KeyRound, ShieldAlert, Copy, Check, Link2, Unlink, Ref
 export function AccountsTab() {
   const repos = useRepositories();
   const { session } = useAuth();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [credentials, setCredentials] = useState<CreatedAccount | null>(null);
@@ -52,6 +53,9 @@ export function AccountsTab() {
 
   const [accounts, setAccounts] = useState<AccountOverviewEntry[] | null>(null);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  // T-381 — the pending account removal (ConfirmModal-guarded).
+  const [pendingDelete, setPendingDelete] = useState<AccountOverviewEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const refreshAccounts = useCallback(async () => {
     setLoadingAccounts(true);
@@ -80,6 +84,33 @@ export function AccountsTab() {
     setCopied(false);
     // The overview must show the new account + its linkage immediately.
     void refreshAccounts();
+  }
+
+  // T-381 — remove a login account. The repository goes through the
+  // delete-user-account Edge Function (super_admin only): profile + role
+  // assignments + the auth identity are removed, linked employees/parents
+  // are unbound. The owner-pinned admin and the caller's own account are
+  // refused server-side — both guards surface here as error toasts.
+  async function handleDeleteAccount(): Promise<void> {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const result = await repos.userAccounts.deleteAccount(pendingDelete.profileId);
+      if (result.ok) {
+        showSuccess(
+          "Compte supprimé",
+          `Le compte ${pendingDelete.email} a été retiré — profil, rôles et identité de connexion supprimés${
+            pendingDelete.personnelCode ? `, employé ${pendingDelete.personnelCode} détaché` : ""
+          }.`,
+        );
+        await refreshAccounts();
+      } else {
+        showError("Suppression échouée", result.error.userMessage ?? result.error.message);
+      }
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
   }
 
   // RBAC gate — the Edge Function enforces the same rule server-side.
@@ -240,7 +271,8 @@ export function AccountsTab() {
                     <th className="py-2 pr-3 font-medium">Nom</th>
                     <th className="py-2 pr-3 font-medium">Rôle</th>
                     <th className="py-2 pr-3 font-medium">Employé lié</th>
-                    <th className="py-2 font-medium">Statut</th>
+                    <th className="py-2 pr-3 font-medium">Statut</th>
+                    <th className="py-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -275,6 +307,24 @@ export function AccountsTab() {
                           tone={a.status === "active" ? "success" : "warning"}
                         />
                       </td>
+                      <td className="py-2">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* T-381 — remove the login account (ConfirmModal
+                              guarded; the EF enforces the super_admin gate +
+                              the self/owner-pinned-admin guards again). */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-status-danger hover:text-status-danger"
+                            onClick={() => setPendingDelete(a)}
+                            title="Supprimer ce compte"
+                            aria-label={`Supprimer le compte ${a.email}`}
+                            data-testid={`delete-account-${a.profileId}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -288,6 +338,28 @@ export function AccountsTab() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={handleCreated}
+      />
+
+      {/* T-381 — the account-removal confirmation (destructive; the EF's
+          guards are the server-side backstop, this is the UX backstop). */}
+      <ConfirmModal
+        open={pendingDelete !== null}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+        title="Supprimer ce compte ?"
+        description={
+          pendingDelete
+            ? `Le compte ${pendingDelete.email} (${
+                pendingDelete.role ? ROLE_LABELS_FR[pendingDelete.role] : "rôle inconnu"
+              }) sera définitivement supprimé : profil, rôles et identité de connexion.${
+                pendingDelete.personnelCode
+                  ? ` L'employé lié (${pendingDelete.personnelName ?? ""} — ${pendingDelete.personnelCode}) sera détaché de ce compte.`
+                  : ""
+              } Les données métier (parents, élèves, paiements) sont conservées. Action irréversible.`
+            : "Le compte sera définitivement supprimé. Action irréversible."
+        }
+        confirmLabel={deleting ? "Suppression…" : "Supprimer"}
+        destructive
+        onConfirm={handleDeleteAccount}
       />
     </div>
   );

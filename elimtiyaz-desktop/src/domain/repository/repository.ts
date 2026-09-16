@@ -178,6 +178,15 @@ export interface UserAccountRepository {
    * SuperAdmin-visible under RLS in Supabase mode.
    */
   listAccounts(): Promise<Result<AccountOverviewEntry[]>>;
+  /**
+   * T-381 — permanently remove a login account. The Supabase
+   * implementation goes through the delete-user-account Edge Function
+   * (super_admin only): profile + role assignments + auth identity are
+   * removed, linked employees/parents are unbound. The owner-pinned admin
+   * (admin@elimtiyaz.dz) and the caller's own account are refused by the
+   * EF's guard rails.
+   */
+  deleteAccount(profileId: string): Promise<Result<void>>;
 }
 
 export interface ParentRepository {

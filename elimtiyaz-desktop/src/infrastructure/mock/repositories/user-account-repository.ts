@@ -199,7 +199,7 @@ export class MockUserAccountRepository implements UserAccountRepository {
   }
 
   /**
-   * T-371 — the accounts overview over the shared mock stores: every seeded
+   * T-381 — the accounts overview over the shared mock stores: every seeded
    * + minted account, joined with the personnel rows bound to it. Mock ids
    * stand in for personnel_code (same convention as createAccount).
    */
@@ -223,6 +223,65 @@ export class MockUserAccountRepository implements UserAccountRepository {
       };
     });
     return Ok(entries);
+  }
+
+  /**
+   * T-381 — remove a mock account: unbind the employee row (the service
+   * mirror of the live EF's ON DELETE SET NULL cascade), drop the
+   * seedAccounts entry, audit WITHOUT any credential material. The dev/demo
+   * equivalent of the delete-user-account Edge Function's semantics.
+   */
+  async deleteAccount(profileId: string): Promise<Result<void>> {
+    await delay(150);
+    const id = profileId.trim();
+    const idx = seedAccounts.findIndex((a) => a.userId === id);
+    if (idx < 0) {
+      return Err(Errors.notFound("UserAccount", id));
+    }
+    const account = seedAccounts[idx];
+
+    // The owner-pinned admin is untouchable (the live EF's OPS-310 guard,
+    // mirrored — the owner's identity belongs to the owner).
+    if (account.email.toLowerCase() === "admin@elimtiyaz.dz") {
+      return Err(
+        Errors.validation(
+          "Le compte administrateur propriétaire ne peut pas être supprimé",
+        ),
+      );
+    }
+
+    // Unbind the employee row (the live FK is ON DELETE SET NULL — 0009).
+    let unboundPersonnelId: string | null = null;
+    for (let i = 0; i < store.personnel.length; i++) {
+      if (store.personnel[i].userId === id) {
+        unboundPersonnelId = store.personnel[i].id;
+        store.personnel[i] = { ...store.personnel[i], userId: null };
+      }
+    }
+    if (unboundPersonnelId) store.notifyPersonnel();
+
+    seedAccounts.splice(idx, 1);
+
+    appendAudit({
+      action: AuditActions.UserAccountDelete,
+      entityType: "user_account",
+      entityId: account.email,
+      actorId: "admin",
+      actorName: "Administrateur (mock)",
+      diff: {
+        before: {
+          email: account.email,
+          role: account.role,
+          displayName: account.displayName,
+        },
+        after: null,
+      },
+      note: `Compte supprimé par l'administrateur${
+        unboundPersonnelId ? ` (employé ${unboundPersonnelId} détaché)` : ""
+      }`,
+    });
+
+    return Ok(undefined);
   }
 }
 

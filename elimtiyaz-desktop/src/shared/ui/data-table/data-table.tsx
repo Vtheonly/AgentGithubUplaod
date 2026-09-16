@@ -61,6 +61,8 @@ export function DataTable<T>(props: DataTableProps<T>): ReactNode {
                 size="sm"
                 disabled={a.disabled?.(row.original)}
                 onClick={(e) => { e.stopPropagation(); a.onClick(row.original); }}
+                title={a.title}
+                aria-label={a.title}
               >
                 {a.icon}
                 {a.label}

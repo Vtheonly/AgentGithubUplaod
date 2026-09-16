@@ -16,6 +16,9 @@
  * This repository performs the same client-side validation as the EF
  * (fast feedback, avoids a needless round-trip) and maps the EF's JSON
  * envelope ({ data } | { error: { code, message } }) to Result<AppError>.
+ *
+ * T-381 — deleteAccount goes through the delete-user-account Edge Function
+ * (the create mirror; same super_admin gate, same envelope mapping).
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -30,7 +33,6 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { Role } from "../../../core/rbac/roles";
 import { supabaseErrorToAppError } from "../supabase-client";
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** All wire roles accepted by the EF (the 11-role matrix, §02.07 + §09). */
@@ -222,6 +224,36 @@ export class SupabaseUserAccountRepository implements UserAccountRepository {
       };
     });
     return Ok(entries);
+  }
+
+  /**
+   * T-381 — remove a login account through the delete-user-account Edge
+   * Function (the create mirror): profile + role assignments + auth
+   * identity, with linked employees/parents unbound server-side. The EF
+   * refuses the caller's own account and the owner-pinned admin; those
+   * rejections surface here as validation/conflict errors from the
+   * EF's JSON envelope.
+   */
+  async deleteAccount(profileId: string): Promise<Result<void>> {
+    const id = profileId.trim();
+    if (id.length === 0) {
+      return Err(Errors.validation("Identifiant de compte manquant"));
+    }
+
+    const { data, error } = await this.client.functions.invoke(
+      "delete-user-account",
+      { body: { profile_id: id } },
+    );
+
+    if (error) {
+      return Err(supabaseErrorToAppError(error));
+    }
+    if (data?.error) {
+      // EF-level rejection (self-deletion, owner-pinned admin protection,
+      // not found, …).
+      return Err(Errors.server(data.error.message ?? "Suppression du compte échouée"));
+    }
+    return Ok(undefined);
   }
 }
 

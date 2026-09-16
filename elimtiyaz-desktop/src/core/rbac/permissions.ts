@@ -20,6 +20,8 @@ export enum Permission {
   DeleteParent = "delete_parent",
   CreateStudent = "create_student",
   EditStudent = "edit_student",
+  /** T-381 — remove a student (the soft-delete the repository always had, now surfaced). */
+  DeleteStudent = "delete_student",
   PromoteStudent = "promote_student",
 
   // Academic
@@ -158,6 +160,7 @@ export const PERMISSION_LABELS_FR: Record<Permission, string> = {
   [Permission.DeleteParent]: "Supprimer un parent",
   [Permission.CreateStudent]: "Créer un élève",
   [Permission.EditStudent]: "Modifier un élève",
+  [Permission.DeleteStudent]: "Supprimer un élève",
   [Permission.PromoteStudent]: "Promouvoir un élève",
   [Permission.ViewAcademics]: "Consulter la pédagogie",
   [Permission.EnterGrades]: "Saisir des notes",
