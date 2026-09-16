@@ -3293,4 +3293,17 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Scope:** NEW project `vebfehrpzajhstyhinnw` ONLY: migration-list parity (Local=Remote 0001–0098), public table/function/policy/bucket census, business-table emptiness (seed-only rows allowed), anon RLS probe, auth health. OLD project `hkvkefubghbbotgnteir` NEVER linked/applied/probed for writes. NOT in scope: EF redeploy matrix, secret rotation, admin-user creation, client `.env` changes, zip/push delivery.
 - **Depends on:** none (read-only verification; no code change required for the verdict).
 - **Priority:** P0 (owner mandate: exact structure, zero business data, old DB intact).
-- **Next:** T-337 (REALTIME-105) — unchanged standing recommendation (T-375 is an ops verification, not a code task).
+- **Next:** T-376 (OPS-314) — the RLS recursion blocker discovered on the NEW project while running this verification.
+
+### T-376 — 71st session (2026-09-15): FIX the fresh-clone RLS recursion (`54001 stack depth limit exceeded`) — restore `SECURITY DEFINER` on the five RLS helpers + the `user_profiles_select_own` fast-path (OPS-314)
+
+- **Status:** COMPLETE — FIXED + VERIFIED (migration `0099_rls_helper_security_definer_parity.sql` applied to the NEW project; docs updated; commit pending)
+- **Problems:** OPS-314 (opened and CLOSED in this task)
+- **Scope:** NEW project `vebfehrpzajhstyhinnw` ONLY. OLD project `hkvkefubghbbotgnteir` read-only (source-of-truth definition dumps via the Management SQL endpoint; no DDL, no writes, never linked).
+- **What was wrong:** the fresh clone accepted authenticated logins but EVERY authenticated read returned `500 54001 stack depth limit exceeded` (or `401` with no token), so the desktop app rendered empty with a wall of 401s. Two chain-vs-live divergences: the five RLS helpers in `0003_rbac.sql` lacked `SECURITY DEFINER` + `search_path`, and `user_profiles_select_own` in `0019_rls_policies.sql` lacked the leading `auth_user_id = auth.uid()` disjunct. With `relforcerowsecurity=true` on the RBAC tables this produced unbounded recursion through the policy predicates of all 83 guarded tables.
+- **What was changed:** (1) new append-only migration `0099_rls_helper_security_definer_parity.sql` recreating the five helpers exactly as LIVE (`security definer` + `set search_path to 'public'`) and recreating `user_profiles_select_own` with the LIVE predicate; (2) `docs/recovery/problem-registry.md` OPS-314; (3) this registry entry; (4) `docs/recovery/change-log.md`. `0003`/`0019` deliberately NOT edited (§15.9 append-only / ADR-001 — they remain forensic evidence).
+- **Verified:** append-only guard OK (96 files, +1 new); `supabase migration list` NEW `0099` applied (Local=Remote through 0099); `pg_proc` helper `secdef`/`search_path` `MATCH_OLD: True` vs production; `user_profiles_select_own` predicate `POLICY_MATCH: True` vs production; **30/30 authenticated REST paths return 200** (the exact paths from the owner's failing console); anon still `[]` on protected probes (RLS strength unchanged).
+- **Remaining (NOT part of this task):** OPS-313 (`0096` missing `;` terminator — fresh `db push --include-all` parse risk); `fn_finalize_class_placements` ACL (`=X/postgres` PUBLIC EXECUTE present on OLD, absent on NEW — NEW is the safer state, deliberately NOT widened, see change-log); Edge Functions deploy matrix on the NEW project; admin-user/bootstrap runbook; client connection switch. `auth.users` on NEW = 1 (the admin created for this test).
+- **Depends on:** none.
+- **Priority:** P0 (owner mandate: exact structural AND functional equivalence).
+- **Next:** T-337 (REALTIME-105) — unchanged standing recommendation; then OPS-313 resolution.
