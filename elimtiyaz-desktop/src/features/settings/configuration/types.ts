@@ -18,6 +18,8 @@ export interface ConnectionTestResult {
   connected: boolean;
   error?: string;
   tenantCount?: number;
+  /** OPS-318/Task-29 honesty (T-392): a 200-with-0-rows probe note — reachable + key accepted ≠ data access (the probe runs as anon). */
+  note?: string;
 }
 
 /** Build the env-var name (UPPER_SNAKE) from a dotted setting key. */

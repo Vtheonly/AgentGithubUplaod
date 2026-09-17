@@ -47,6 +47,18 @@ function normalizeSupabaseUrl(value: unknown): string | undefined {
   }
 }
 
+/**
+ * OPS-318 (T-392): the shared URL-normalization seam. Every place that
+ * stores or probes a user-supplied Supabase URL must go through this
+ * function — `LocalConfigService.validateConnection` previously built
+ * `${url}/rest/v1/…` from the RAW input, so a trailing space survived
+ * the `startsWith("https://")` check and became the owner's
+ * `…supabase.co%20/rest/v1/tenants` ERR_NAME_NOT_RESOLVED request.
+ * Re-exported for the config validation path (never a second client —
+ * TASK 2 invariant holds: this is pure string handling, no SDK state).
+ */
+export { normalizeSupabaseUrl };
+
 function normalizePublicKey(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -179,7 +191,7 @@ export function describeSupabaseConnection(): {
   return {
     url: supabaseUrl,
     host,
-    isProductionBuild,
+    isProductionBuild: isProductionDesktopBuild,
     useSupabase,
     configured: isSupabaseConfigured(),
     keyFormat,

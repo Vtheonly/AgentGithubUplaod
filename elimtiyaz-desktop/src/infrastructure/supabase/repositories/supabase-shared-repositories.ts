@@ -205,6 +205,75 @@ export function isUuid(value: string | null | undefined): value is string {
 }
 
 // ============================================================================
+// OPS-317 (T-392) — seed-diagnostics registry
+// ============================================================================
+
+/**
+ * The classified reason the last observable-cache seed degraded to empty.
+ *
+ * OPS-317: the repository `seed()` catch blocks used to discard the error
+ * ENTIRELY (`catch { this.cache.set([]) }`), which made AUTH-302's anon
+ * state (RLS-filtered `200 []` reads) indistinguishable from an empty
+ * database. The honest-empty degradation stays (the UI contract does not
+ * change) — but the REASON becomes observable: recorded here, logged once
+ * per failure, and rendered by the Supabase diagnostics screen (T-393).
+ */
+export interface SeedDiagnostic {
+  /** The observable being seeded ("parents", "students", …). */
+  source: string;
+  /** Milliseconds since epoch of the failed seed. */
+  at: number;
+  /** AppError-style code — "ERR_UNAUTHORIZED", "ERR_NETWORK", … or "UNKNOWN". */
+  code: string;
+  /** SAFE one-line message (HTTP status + Supabase code when present; never tokens). */
+  message: string;
+  /** True when the failure is a network/offline class (honest offline empty). */
+  networkClass: boolean;
+}
+
+const seedDiagnostics: SeedDiagnostic[] = [];
+const MAX_SEED_DIAGNOSTICS = 20;
+
+function classifySeedError(err: unknown): { code: string; message: string; networkClass: boolean } {
+  const e = err as { code?: string; message?: string } | null;
+  const code = e?.code ?? "UNKNOWN";
+  const rawMessage = typeof e?.message === "string" ? e.message : String(err ?? "unknown error");
+  // Keep the message short and free of any credential material (keys never
+  // appear in Supabase error bodies, but defensive truncation costs nothing).
+  const message = rawMessage.slice(0, 300);
+  const networkClass =
+    code === "ERR_NETWORK" || code === "ERR_OFFLINE" || code === "ERR_TIMEOUT" ||
+    /network|fetch failed|Failed to fetch|timeout/i.test(rawMessage);
+  return { code, message, networkClass };
+}
+
+/** Record a seed degradation (OPS-317). Never throws. */
+function recordSeedError(source: string, err: unknown): void {
+  try {
+    const { code, message, networkClass } = classifySeedError(err);
+    seedDiagnostics.push({ source, at: Date.now(), code, message, networkClass });
+    if (seedDiagnostics.length > MAX_SEED_DIAGNOSTICS) {
+      seedDiagnostics.splice(0, seedDiagnostics.length - MAX_SEED_DIAGNOSTICS);
+    }
+    // One warn line per failure — the console gets the reason the list is
+    // empty instead of a silent `200 []`.
+    console.warn(`[SupabaseSeed] ${source} degraded to empty cache — ${code}: ${message}`);
+  } catch {
+    /* diagnostics must never break the degradation path */
+  }
+}
+
+/** The recorded seed degradations (newest last) — consumed by the diagnostics screen (T-393). */
+export function getSeedDiagnostics(): readonly SeedDiagnostic[] {
+  return seedDiagnostics;
+}
+
+/** Test seam: clear the registry between unit tests. */
+export function __resetSeedDiagnosticsForTests(): void {
+  seedDiagnostics.length = 0;
+}
+
+// ============================================================================
 // Row → domain mappers
 // ============================================================================
 
@@ -438,7 +507,11 @@ export class SupabaseParentRepository implements ParentRepository {
       if (error) throw error;
       this.cache.set((data as ParentRow[]).map(mapParentRow));
     } catch (e) {
-      // Silently degrade to empty cache — UI shows "no parents".
+      // OPS-317 (T-392): still the honest empty cache (the UI contract does
+      // not change) — but the classified reason is now recorded + logged so
+      // an anon-session read (AUTH-302: 200 [] under RLS) is distinguishable
+      // from an actually-empty tenant.
+      recordSeedError("parents", e);
       this.cache.set([]);
     }
   }
@@ -479,7 +552,11 @@ export class SupabaseParentRepository implements ParentRepository {
         .maybeSingle();
       if (error) throw error;
       this.byIdCache.get(id)?.set(data ? mapParentRow(data as ParentRow) : null);
-    } catch { /* ignore */ }
+    } catch (e) {
+      // OPS-317 (T-392): record + log instead of a bare ignore — a failing
+      // by-id read is the AUTH-302 symptom surface (`parents?id=eq.… → []`).
+      recordSeedError(`parents:${id}`, e);
+    }
   }
 
   async search(query: string): Promise<Result<Parent[]>> {
@@ -707,7 +784,11 @@ export class SupabaseStudentRepository implements StudentRepository {
         console.warn("[SupabaseStudent] document fetch failed — documents degraded to empty:", docErr);
         this.cache.set(students);
       }
-    } catch {
+    } catch (e) {
+      // OPS-317 (T-392): the students seed's honest-empty degradation now
+      // records the classified reason (auth vs RLS vs network) + logs it —
+      // the children list going empty is the owner's reported symptom.
+      recordSeedError("students", e);
       this.cache.set([]);
     }
   }

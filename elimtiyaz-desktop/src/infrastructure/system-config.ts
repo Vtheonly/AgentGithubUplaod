@@ -34,6 +34,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Ok, Err, type Result } from "../core/result";
 import { Errors } from "../core/app-error";
+// OPS-318 (T-392): the shared URL-normalization seam — the probe URL and the
+// persisted local config must never carry whitespace around the host (the
+// `%20/rest/v1/…` request class). Pure string handling; no SDK state.
+import { normalizeSupabaseUrl } from "./supabase/supabase-client";
 
 // ============================================================================
 // Types
@@ -395,22 +399,41 @@ export class LocalConfigService {
   /**
    * Validate the Supabase URL + anon key by attempting a simple query.
    * Returns Ok if the connection works, Err with details if not.
+   *
+   * OPS-318 (T-392): the probe URL is now built from the NORMALIZED input
+   * (the shared `normalizeSupabaseUrl` seam the canonical client uses) — a
+   * trailing space/newline previously survived the format check and became
+   * the `…supabase.co%20/rest/v1/tenants` ERR_NAME_NOT_RESOLVED request
+   * (the handed-over Root-Problem-2 artifact). The response is also
+   * classified honestly: an HTTP 200 with an EMPTY array means the gateway
+   * + key are valid but the PROBE runs as `anon` (RLS hides tenant rows) —
+   * it is NOT proof of data access (the Task-29 trap); the note says so.
    */
-  async validateConnection(url: string, anonKey: string): Promise<Result<{ connected: boolean; tenantCount?: number; error?: string }>> {
-    if (!url || !anonKey) {
+  async validateConnection(url: string, anonKey: string): Promise<Result<{
+    connected: boolean;
+    tenantCount?: number;
+    error?: string;
+    note?: string;
+  }>> {
+    // OPS-318: normalize FIRST — trim + URL-parse + strip trailing slash.
+    const normalizedUrl = normalizeSupabaseUrl(url);
+    const normalizedKey = typeof anonKey === "string" ? anonKey.trim() : "";
+
+    if (!normalizedUrl || !normalizedKey) {
       return Err(Errors.validation("URL and anon key are required"));
     }
 
-    if (!url.startsWith("https://") || !url.includes(".supabase.co")) {
+    if (!normalizedUrl.startsWith("https://") || !normalizedUrl.includes(".supabase.co")) {
       return Err(Errors.validation("URL must be https://xxxx.supabase.co format"));
     }
 
     try {
-      // Test connection by fetching the public tenants table (RLS allows SuperAdmin)
-      const response = await fetch(`${url}/rest/v1/tenants?select=id&limit=1`, {
+      // Test connection by fetching the tenants table with the anon key
+      // (apikey header — the gateway resolves the anon role; RLS then hides
+      // the rows, which the classification below reports honestly).
+      const response = await fetch(`${normalizedUrl}/rest/v1/tenants?select=id&limit=1`, {
         headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
+          apikey: normalizedKey,
         },
       });
 
@@ -423,9 +446,16 @@ export class LocalConfigService {
       }
 
       const data = await response.json();
+      const rows = Array.isArray(data) ? data.length : 0;
       return Ok({
         connected: true,
-        tenantCount: Array.isArray(data) ? data.length : 0,
+        tenantCount: rows,
+        // Task-29 honesty (T-392): a 200 (even with 0 rows) proves the URL +
+        // key are accepted — it does NOT prove authenticated data access.
+        note:
+          rows === 0
+            ? "Point d'entrée joignable et clé acceptée (0 ligne visible : la sonde est anonyme — connectez-vous pour accéder aux données)."
+            : undefined,
       });
     } catch (err) {
       return Ok({
@@ -437,11 +467,22 @@ export class LocalConfigService {
 
   /**
    * Save the Supabase connection settings + restart the app.
+   *
+   * OPS-318 (T-392): the URL/key are normalized through the shared seam
+   * BEFORE persisting — an untrimmed value previously round-tripped into
+   * `el-imtiyaz.local-config`/userData config.json (the canonical client
+   * tolerated it, but every future validateConnection reproduced the
+   * `%20` artifact).
    */
   async saveConnectionAndRestart(url: string, anonKey: string, useSupabase: boolean): Promise<Result<void>> {
+    const normalizedUrl = normalizeSupabaseUrl(url);
+    const normalizedKey = typeof anonKey === "string" ? anonKey.trim() : "";
+    if (!normalizedUrl) {
+      return Err(Errors.validation("URL must be https://xxxx.supabase.co format"));
+    }
     const config: LocalConfig = {
-      supabase_url: url,
-      supabase_anon_key: anonKey,
+      supabase_url: normalizedUrl,
+      supabase_anon_key: normalizedKey || undefined,
       supabase_use_supabase: useSupabase,
     };
 

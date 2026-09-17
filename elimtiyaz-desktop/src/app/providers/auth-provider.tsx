@@ -33,6 +33,7 @@ import { getSyncQueueStore } from "../../infrastructure/sync/sync-queue-store";
 import { isExpired } from "../../core/rbac/session";
 import { Permission } from "../../core/rbac/permissions";
 import { Role } from "../../core/rbac/roles";
+import { isNetworkError } from "../../core/app-error";
 import { useRepositories } from "./repository-provider";
 import { AuditActions } from "../../core/audit-actions";
 import { logger } from "../../core/logger";
@@ -104,7 +105,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const s = ensureSuperAdminPermissions(res.value);
             setSession(s);
             persistSession(s);
+          } else if (!res.ok) {
+            // T-392 (AUTH-302): an AUTH-CLASS failure (no SDK session to
+            // refresh / the refresh grant was rejected — 401, invalid
+            // refresh token, suspended profile) means the stored domain
+            // session has NO backing Supabase JWT. Keeping it "logged in"
+            // made every subsequent REST call silently run as `anon`:
+            // RLS answers 200 [] (a SELECT under RLS never 4xx-es on auth
+            // loss) and the repositories' seed() degraded every list to
+            // empty — the owner's "connection works but no data" state.
+            // Evict honestly (sign-in screen with the real reason).
+            // A NETWORK-class failure (offline start / timeout) KEEPS the
+            // session: the SDK retries the refresh when connectivity
+            // returns and reads degrade to the honest empty state with
+            // the reason recorded (OPS-317).
+            const authClassFailure = !isNetworkError(res.error);
+            if (authClassFailure || isExpired(stored)) {
+              logger.warn(
+                "Evicting the stored session: the Supabase session could not be restored",
+                { code: res.error.code },
+              );
+              clearSession();
+              setSession(null);
+            }
           } else if (isExpired(stored)) {
+            // Ok(null) — the repository has no session to report (mock
+            // mode's refreshSession contract). Previous behaviour kept.
             clearSession();
             setSession(null);
           }

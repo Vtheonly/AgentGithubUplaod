@@ -118,7 +118,13 @@ export function ConfigurationTab() {
           if (result.ok) {
             setConnectionTestResult(result.value);
             if (result.value.connected) {
-              showSuccess("Connexion Supabase réussie!", `Tenant(s) trouvé(s): ${result.value.tenantCount ?? 0}`);
+              // OPS-318/Task-29 (T-392): surface the honest note — a 200 from
+              // the anon probe proves reachability + key acceptance, NOT
+              // authenticated data access (0 rows = RLS hiding them).
+              const detail = result.value.note
+                ? `Tenant(s) trouvé(s): ${result.value.tenantCount ?? 0} — ${result.value.note}`
+                : `Tenant(s) trouvé(s): ${result.value.tenantCount ?? 0}`;
+              showSuccess("Connexion Supabase réussie!", detail);
             } else {
               showError(`Échec connexion: ${result.value.error}`);
             }
