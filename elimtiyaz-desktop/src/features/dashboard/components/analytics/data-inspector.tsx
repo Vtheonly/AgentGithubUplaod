@@ -17,7 +17,6 @@ import {
   ArrowDownUp,
   ArrowUpRight,
   CheckCircle2,
-  ClipboardSearch,
   Download,
   FileSpreadsheet,
   FileText,
@@ -571,7 +570,7 @@ export function DataInspectorProvider({
         onOpenChange={(open) => { if (!open) setExpanded(false); }}
         variant="drawer"
         size="xl"
-        icon={ClipboardSearch}
+        icon={Search}
         iconTone="primary"
         title={resolved?.request.title ?? "Inspection de données"}
         description="Vue forensique — enregistrements live, contributeurs et rapprochement mathématique"
@@ -647,7 +646,7 @@ export function InspectTrigger({
       className={`inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/10 ${compact ? "" : "px-2.5 py-1.5"}`}
       title={label}
     >
-      <ClipboardSearch className="h-3 w-3" />
+      <Search className="h-3 w-3" />
       {label}
     </button>
   );
