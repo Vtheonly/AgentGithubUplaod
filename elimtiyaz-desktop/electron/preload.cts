@@ -14,6 +14,13 @@ export interface PickFileResult {
   error?: string;
 }
 
+export interface ExternalOpenResult {
+  ok: true;
+} | {
+  ok: false;
+  error: string;
+};
+
 const api = {
   window: {
     minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
@@ -22,6 +29,10 @@ const api = {
     toggleFullscreen: (): Promise<boolean> => ipcRenderer.invoke("window:toggle-fullscreen"),
     isFullscreen: (): Promise<boolean> => ipcRenderer.invoke("window:is-fullscreen"),
     close: (): Promise<void> => ipcRenderer.invoke("window:close"),
+  },
+  shell: {
+    openExternal: (url: string): Promise<ExternalOpenResult> =>
+      ipcRenderer.invoke("shell:open-external", url) as Promise<ExternalOpenResult>,
   },
   saveFile: (fileName: string, bytes: Uint8Array | number[]): Promise<SaveFileResult> =>
     ipcRenderer.invoke("vault:save-file", { fileName, bytes }) as Promise<SaveFileResult>,
