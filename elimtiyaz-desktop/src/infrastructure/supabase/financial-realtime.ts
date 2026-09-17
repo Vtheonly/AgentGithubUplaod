@@ -22,7 +22,11 @@
  * Supabase client as the rest of the application.
  */
 
-import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import type {
+  RealtimeChannel,
+  Session as SupabaseSession,
+  SupabaseClient,
+} from "@supabase/supabase-js";
 import type { Repositories } from "../../app/providers/repository-provider";
 import type { DebtRepository, Observable } from "../../domain/repository/repository";
 import type { DebtSummary } from "../../domain/model/payment";
@@ -100,33 +104,13 @@ export function buildCanonicalDebtSummary(
       const summary = computeParentSummary(
         parentEntries,
         parent.id,
-        parentDisplayName({
-          id: parent.id,
-          tenantId: "",
-          code: "",
-          firstName: parent.firstName,
-          lastName: parent.lastName,
-          displayName: parent.displayName,
-          gender: "unspecified",
-          phone: parent.phone,
-          whatsapp: null,
-          email: null,
-          occupation: null,
-          address: null,
-          cityTier: null,
-          transportDestination: null,
-          preferredLanguage: "fr",
-          avatarUrl: null,
-          authUserId: null,
-          createdAt: "",
-          updatedAt: "",
-        }),
+        parentDisplayName(parent),
         dueDateMap,
       );
       const daysOverdue = maxDaysOverdueFromLedger(parentEntries);
       return {
         parentId: parent.id,
-        parentName: parent.displayName ?? `${parent.firstName} ${parent.lastName}`.trim(),
+        parentName: parentDisplayName(parent),
         parentPhone: parent.phone,
         studentCount: students.filter((student) => student.parentId === parent.id).length,
         outstandingAmount: summary.totalOutstanding,
@@ -388,10 +372,11 @@ export async function startFinancialRealtime(): Promise<void> {
       refreshTimer = null;
     };
 
-    const arm = async () => {
+    const arm = async (sessionFromEvent?: SupabaseSession | null) => {
       if (armed) return;
-      const { data } = await client.auth.getSession();
-      if (!data.session || !getTenantId()) return;
+      const session =
+        sessionFromEvent ?? (await client.auth.getSession()).data.session;
+      if (!session || !getTenantId()) return;
       armed = true;
 
       channel = client.channel(`desktop-finance-realtime-${Date.now()}`);
@@ -420,9 +405,9 @@ export async function startFinancialRealtime(): Promise<void> {
       await refreshAll();
     };
 
-    const { data: authListener } = client.auth.onAuthStateChange((_event, session) => {
+    client.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        void arm();
+        void arm(session);
       } else {
         disarm();
       }
@@ -430,15 +415,10 @@ export async function startFinancialRealtime(): Promise<void> {
 
     try {
       const { data } = await client.auth.getSession();
-      if (data.session) await arm();
+      if (data.session) await arm(data.session);
     } catch {
       // Auth state listener remains installed and will arm after login.
     }
-
-    // Keep the subscription alive for the renderer lifetime. `runtimeStarted`
-    // prevents duplicate listeners when this module is imported through more
-    // than one application seam.
-    void authListener;
   } catch (error) {
     // A realtime enhancement must never prevent the desktop from starting.
     console.warn(
