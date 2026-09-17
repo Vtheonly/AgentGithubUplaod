@@ -3439,3 +3439,13 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Priority:** P1 (history-integrity heal — the "migration history is misleading" class the owner's original report called out).
 - **Next:** the standing T-337 (REALTIME-105, next free migration 0101); the CALC-001 baseline repair; the concurrent agent's T-385 i18n burn-down.
 - **Commit:** (this session's heal commit — see change-log.)
+
+### T-388 — 77th session (2026-09-17): the full 3-language i18n coverage of the DESKTOP terminal (I18N-501) — the owner's review finding: untranslated English, incomplete Arabic, and the Arabic font to replace
+
+- **Status:** IN PROGRESS (registered 2026-09-17 — 77th session)
+- **Problems:** I18N-501 (registered BEFORE the fix per §13)
+- **Owner mandate:** "Are you sure you translated the entire desktop? I can still see a lot of English text, and in the Arabic version, many things are still not translated. Also, fix the Arabic font and choose a better one that looks clean and professional." (the T-385 mandate covered the portal; this is the desktop half)
+- **Plan (the burn-down, 3,643 findings / 174 files / 2,924 unique texts):** (1) TOOLING — the desktop port of the T-385 scanner (scripts/i18n/scan-hardcoded-strings.mjs) + the unique-string collector (collect-unique-strings.mjs) + a codemod (apply-i18n.mjs) that rewrites findings to `t()` calls with interpolation params and injects `useTranslation` where missing; (2) TRANSLATIONS — the 2,924 unique texts get fr/ar/en values (fr = the source where French; fr authored where the source is English), authored in batches with a domain glossary (tranche=installment, bulletin=report card, …), merged append-only into fr.ts/ar.ts + the NEW en.ts; (3) THE en LOCALE — i18n.ts supportedLngs, AppLocale, user-preferences-provider validation, the language-switcher's third option (its own hardcoded labels migrated too); (4) THE FONT — Noto Sans Arabic (Google Fonts CDN, fails offline in Electron) replaced by IBM Plex Sans Arabic bundled locally via @font-face, wired through index.css + tailwind.config.cjs; (5) the burn-down guard (scanner 0 + parity fr/ar/en + no duplicate keys) in the vitest suite; (6) per-area iterations (auth/shell → dashboard → crm → financials → academics → personnel → workflow → routing → settings → profile → shared), each: typecheck + tests + scanner count shrinking + conventional commit + PUSH + MERGE (concurrent-agent-safe: dictionary edits append-only, feature files are i18n-only edits).
+- **Scope decisions:** registered in I18N-501 (PDFs/Excel stay French; domain/core/infrastructure literals out of scope; particle-engine excluded; brand nouns untranslated).
+- **Left:** everything — see the plan.
+- **Next:** this task.
