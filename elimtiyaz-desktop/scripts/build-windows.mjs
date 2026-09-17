@@ -3,18 +3,11 @@
 /**
  * Reproducible Windows packaging entry point.
  *
- * This script intentionally delegates the actual packaging to the existing
- * electron-builder configuration in package.json. It adds a preflight and a
- * post-build verification layer so a successful command means the expected
- * Windows artifacts and packaged application payload were actually emitted.
+ * This script delegates the actual packaging to electron-builder and adds
+ * preflight/post-build checks so a successful command means the expected
+ * Windows artifacts and the correct live backend binding were emitted.
  *
- * Usage:
- *   npm run package:win
- *
- * The first run automatically performs `npm ci` when node_modules is missing.
- * The production Windows build is explicitly bound to the canonical El-Imtiyaz
- * Supabase project. The public Supabase key is resolved from the same production
- * Vite env loading rules used by `vite build`, but is never printed.
+ * Supabase secret/service-role keys are never read or packaged here.
  */
 
 import { createHash } from "node:crypto";
@@ -29,7 +22,7 @@ const packagePath = join(projectDir, "package.json");
 const lockPath = join(projectDir, "package-lock.json");
 const releaseDir = join(projectDir, "release");
 
-const CANONICAL_SUPABASE_URL = "https://hkvkefubghbbotgnteir.supabase.co";
+const CANONICAL_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase.co";
 
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
@@ -84,12 +77,10 @@ function assertPayloadContainsText(rootPath, expectedText, label) {
   fail(`${label} was not found in the generated renderer payload.`);
 }
 
-async function verifyCanonicalSupabase(url, anonKey) {
+async function verifyCanonicalSupabase(url, publicKey) {
   try {
     const response = await fetch(`${url}/rest/v1/tenants?select=id&limit=1`, {
-      headers: {
-        apikey: anonKey,
-      },
+      headers: { apikey: publicKey },
     });
     if (!response.ok) {
       fail(
@@ -148,7 +139,6 @@ for (const requiredPattern of ["dist/**/*", "dist-electron/**/*"]) {
 
 const iconPath = join(projectDir, build.win?.icon ?? "resources/icon.ico");
 assertFile(iconPath, "Windows application icon");
-
 assertFile(join(projectDir, "electron", "main.cts"), "Electron main process source");
 assertFile(join(projectDir, "electron", "preload.cts"), "Electron preload source");
 assertFile(join(projectDir, "vite.config.ts"), "Vite configuration");
@@ -158,52 +148,55 @@ if (!existsSync(join(projectDir, "node_modules"))) {
   run(npm, ["ci"]);
 }
 
-// Resolve Vite's production env using Vite itself so .env, .env.local,
-// .env.production, and .env.production.local follow the same precedence as
-// the subsequent `vite build`. Existing process.env values keep highest priority.
+// Resolve the public key from the project's actual environment conventions.
+// Prefer VITE_* values used by the renderer; also support the canonical
+// SUPABASE_* names used by the shared deployment configuration.
 const { loadEnv } = await import("vite");
 const viteEnv = loadEnv("production", projectDir, "VITE_");
-const resolvedAnonKey = viteEnv.VITE_SUPABASE_ANON_KEY?.trim();
+const allEnv = loadEnv("production", projectDir, "");
+const resolvedPublicKey = (
+  viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  viteEnv.VITE_SUPABASE_ANON_KEY ??
+  allEnv.SUPABASE_PUBLISHABLE_KEY ??
+  allEnv.SUPABASE_ANON_KEY ??
+  process.env.SUPABASE_PUBLISHABLE_KEY ??
+  process.env.SUPABASE_ANON_KEY
+)?.trim();
 
-if (!resolvedAnonKey) {
+if (!resolvedPublicKey) {
   fail(
-    "VITE_SUPABASE_ANON_KEY could not be resolved from the production Vite environment. " +
-      "Configure the public Supabase key in the local production env before packaging.",
+    "No public Supabase key could be resolved. Set SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY " +
+      "or the VITE_* equivalent before packaging.",
   );
 }
 
-if (/^(?:changeme|change-me|your[-_]?key|placeholder|replace[-_]?me)$/i.test(resolvedAnonKey)) {
-  fail("VITE_SUPABASE_ANON_KEY still contains a placeholder value. The Windows package was not built.");
+if (/^(?:changeme|change-me|your[-_]?key|placeholder|replace[-_]?me)$/i.test(resolvedPublicKey)) {
+  fail("The resolved public Supabase key is still a placeholder. The Windows package was not built.");
 }
 
 console.log(`\n[package:win] Supabase target: ${CANONICAL_SUPABASE_URL}`);
 console.log("[package:win] Supabase mode : forced production / live Supabase");
 console.log("[package:win] Public key   : resolved (value hidden)");
 
-await verifyCanonicalSupabase(CANONICAL_SUPABASE_URL, resolvedAnonKey);
+await verifyCanonicalSupabase(CANONICAL_SUPABASE_URL, resolvedPublicKey);
 console.log("[package:win] Canonical Supabase preflight: OK");
 
 const buildEnv = {
   ...process.env,
   VITE_SUPABASE_URL: CANONICAL_SUPABASE_URL,
-  VITE_SUPABASE_ANON_KEY: resolvedAnonKey,
+  VITE_SUPABASE_PUBLISHABLE_KEY: resolvedPublicKey,
+  VITE_SUPABASE_ANON_KEY: resolvedPublicKey,
   VITE_USE_SUPABASE: "true",
   VITE_DESKTOP_PRODUCTION: "true",
 };
 
-// Remove stale release output so verification can never accidentally pass
-// because an older EXE is still present.
 rmSync(releaseDir, { recursive: true, force: true });
-
-// The existing dist:win command is the canonical build pipeline:
-// Vite renderer -> Electron TypeScript -> electron-builder Windows targets.
 run(npm, ["run", "dist:win", "--", "--publish", "never"], buildEnv);
 
 const version = pkg.version;
 const productName = pkg.productName ?? build.productName ?? "El-Imtiyaz Desktop";
 const expectedSetup = `${productName}-${version}-win-x64-setup.exe`;
 const expectedPortable = `${productName}-${version}-win-x64-portable.exe`;
-
 const setupPath = join(releaseDir, expectedSetup);
 const portablePath = join(releaseDir, expectedPortable);
 const unpackedDir = join(releaseDir, "win-unpacked");
@@ -219,13 +212,10 @@ assertFile(asarPath, "packaged ASAR archive");
 const setupSize = statSync(setupPath).size;
 const portableSize = statSync(portablePath).size;
 const asarSize = statSync(asarPath).size;
-
 if (setupSize < 5 * 1024 * 1024) fail(`NSIS installer is unexpectedly small (${setupSize} bytes).`);
 if (portableSize < 5 * 1024 * 1024) fail(`Portable executable is unexpectedly small (${portableSize} bytes).`);
 if (asarSize < 512 * 1024) fail(`ASAR archive is unexpectedly small (${asarSize} bytes).`);
 
-// Verify that build-stage payloads exist before packaging and that no .env file
-// was accidentally copied into either of the packaged source trees.
 for (const payload of ["dist", "dist-electron"]) {
   assertDir(join(projectDir, payload), `Build payload ${payload}`);
 }
@@ -233,9 +223,6 @@ for (const payload of ["dist", "dist-electron"]) {
 const forbiddenEnvNames = new Set([".env", ".env.local", ".env.production", ".env.development"]);
 for (const payload of ["dist", "dist-electron"]) {
   const payloadText = relative(projectDir, join(projectDir, payload));
-  // The packaging file allow-list already excludes project-root .env files.
-  // This explicit path check catches accidental generated env files in the
-  // directories that are intentionally packaged.
   for (const name of forbiddenEnvNames) {
     if (existsSync(join(projectDir, payload, name))) {
       fail(`Refusing to package a generated secret file: ${payloadText}/${name}`);
@@ -243,9 +230,6 @@ for (const payload of ["dist", "dist-electron"]) {
   }
 }
 
-// The canonical project URL must actually be present in the built renderer.
-// This catches a future packaging regression where the enforced build env is
-// accidentally dropped before Vite substitutes import.meta.env values.
 assertPayloadContainsText(
   join(projectDir, "dist"),
   CANONICAL_SUPABASE_URL,
@@ -273,7 +257,7 @@ console.log("  - Electron main/preload: dist-electron/**/*");
 console.log("  - Production npm dependencies: electron-builder application dependency packaging");
 console.log("  - Electron/Chromium runtime: provided by electron-builder");
 console.log("  - Windows icon: resources/icon.ico");
-console.log("  - Canonical Supabase production project enforced at build time");
+console.log(`  - Canonical Supabase production project: ${CANONICAL_SUPABASE_URL}`);
 console.log("  - No generated .env files in packaged payloads");
 console.log("");
 console.log("Output directory: release/");
