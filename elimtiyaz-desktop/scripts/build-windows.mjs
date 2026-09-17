@@ -89,7 +89,6 @@ async function verifyCanonicalSupabase(url, anonKey) {
     const response = await fetch(`${url}/rest/v1/tenants?select=id&limit=1`, {
       headers: {
         apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
       },
     });
     if (!response.ok) {
