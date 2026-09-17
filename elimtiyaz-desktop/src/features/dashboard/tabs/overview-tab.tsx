@@ -3,18 +3,14 @@
 // ============================================================================
 
 /**
- * OverviewTab — The 3-Zone Executive Operational Overview.
+ * OverviewTab — The executive operational overview.
  *
- * Architecture:
- *   Zone A (8 cols):
- *     Row 1: 4 Sparkline KPI Cards
- *     Row 2: Wave Velocity Milestone Cockpit
- *     Row 3: Recovery Funnel + Weekly Rhythm
- *     Row 4: Operational Calendar
- *   Zone B (4 cols):
- *     Insights Rail (Smart Copilot + Recovery Gauge + Priority Relances)
+ * The dashboard widgets keep their existing data and business logic. The
+ * layout editor only controls presentation order and widget dimensions.
  */
 
+import { useState } from "react";
+import { LayoutDashboard, Settings2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SparklineKpiCard } from "../components/sparkline-kpi-card";
 import {
@@ -40,6 +36,7 @@ import type {
   Installment,
 } from "../../../domain/model/payment";
 import { formatDzd } from "../../../core/format/currency";
+import { DashboardLayoutEditor } from "../dashboard-layout-editor";
 import type { Demographics } from "./types";
 
 export interface DashboardData {
@@ -66,6 +63,7 @@ export function OverviewTab({
   onGoToAlerts: () => void;
 }) {
   const { t } = useTranslation();
+  const [editing, setEditing] = useState(false);
   const { kpis, revenue, debtAging, topDebtors } = data;
 
   const nowEpochMs = Date.now();
@@ -94,11 +92,15 @@ export function OverviewTab({
     (debtAging.find((b) => b.bucket === "180_plus")?.debtorCount ?? 0);
   const outstanding = kpis?.outstandingDebt ?? 0;
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-8">
-      {/* ZONE A: PRIMARY ANALYTICAL STAGE (8 COLS) */}
-      <div className="lg:col-span-8 space-y-4">
-        {/* Row 1: Sparkline KPIs */}
+  const items = [
+    {
+      id: "kpis",
+      label: "Indicateurs clés",
+      w: 12,
+      h: 1,
+      minW: 6,
+      maxW: 12,
+      content: (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <SparklineKpiCard
             label={t("dashboard.kpi.totalStudents")}
@@ -110,9 +112,7 @@ export function OverviewTab({
           />
           <SparklineKpiCard
             label={t("dashboard.kpi.monthlyRevenue")}
-            value={
-              kpis ? formatDzd(kpis.monthlyRevenue, { compact: true }) : "—"
-            }
+            value={kpis ? formatDzd(kpis.monthlyRevenue, { compact: true }) : "—"}
             deltaPercent={momDelta}
             trend={trendSeries}
             tone="success"
@@ -135,30 +135,68 @@ export function OverviewTab({
           />
           <SparklineKpiCard
             label="Assiduité Globale"
-            value={
-              kpis ? `${Math.round(kpis.attendanceRateToday * 100)}%` : "—"
-            }
+            value={kpis ? `${Math.round(kpis.attendanceRateToday * 100)}%` : "—"}
             tone="primary"
             gradientKey="attendance-today"
             onClick={() => onDrillDown("staff")}
           />
         </div>
-
-        {/* Row 2: Milestone Wave Velocity */}
-        <WaveVelocityCard waves={waves} variant="hero" />
-
-        {/* Row 3: Funnel & Weekly Rhythm */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <RecoveryFunnelCard stages={funnelStages} />
-          <WeeklyOperatingRhythm payments={payments} range={range} />
-        </div>
-
-        {/* Row 4: Operational Calendar */}
-        <DashboardCalendar />
-      </div>
-
-      {/* ZONE B: CONTEXTUAL COMMAND RAIL (4 COLS) */}
-      <div className="lg:col-span-4">
+      ),
+    },
+    {
+      id: "wave-velocity",
+      label: "Vitesse des tranches",
+      w: 8,
+      h: 2,
+      minW: 6,
+      maxW: 12,
+      minH: 1,
+      maxH: 3,
+      content: <WaveVelocityCard waves={waves} variant="hero" />,
+    },
+    {
+      id: "recovery-funnel",
+      label: "Funnel de recouvrement",
+      w: 4,
+      h: 2,
+      minW: 3,
+      maxW: 12,
+      minH: 1,
+      maxH: 3,
+      content: <RecoveryFunnelCard stages={funnelStages} />,
+    },
+    {
+      id: "weekly-rhythm",
+      label: "Rythme hebdomadaire",
+      w: 4,
+      h: 2,
+      minW: 3,
+      maxW: 12,
+      minH: 1,
+      maxH: 3,
+      content: <WeeklyOperatingRhythm payments={payments} range={range} />,
+    },
+    {
+      id: "calendar",
+      label: "Calendrier opérationnel",
+      w: 8,
+      h: 2,
+      minW: 4,
+      maxW: 12,
+      minH: 1,
+      maxH: 4,
+      content: <DashboardCalendar />,
+    },
+    {
+      id: "insights",
+      label: "Rail contextuel",
+      w: 4,
+      h: 2,
+      minW: 3,
+      maxW: 12,
+      minH: 1,
+      maxH: 4,
+      content: (
         <InsightsRail
           achieved={annualRevenue}
           outstanding={outstanding}
@@ -167,7 +205,38 @@ export function OverviewTab({
           topDebtors={topDebtors}
           onNavigateAlerts={onGoToAlerts}
         />
+      ),
+    },
+  ];
+
+  return (
+    <div className="pb-8">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <LayoutDashboard className="h-3.5 w-3.5" />
+          <span>Vue opérationnelle personnalisable</span>
+        </div>
+        <button
+          type="button"
+          aria-pressed={editing}
+          onClick={() => setEditing((value) => !value)}
+          className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+            editing
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-surface-panel text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          {editing ? "Terminer la personnalisation" : "Personnaliser le tableau de bord"}
+        </button>
       </div>
+
+      <DashboardLayoutEditor
+        storageKey="overview"
+        items={items}
+        editing={editing}
+        onSave={() => setEditing(false)}
+      />
     </div>
   );
 }
