@@ -3,10 +3,11 @@
 // ============================================================================
 
 /**
- * OverviewTab — The executive operational overview.
+ * OverviewTab — executive operational overview.
  *
- * The dashboard widgets keep their existing data and business logic. The
- * layout editor only controls presentation order and widget dimensions.
+ * Every visible dashboard widget is a first-class layout item. The layout
+ * editor owns only presentation state; all existing data and business logic
+ * remain unchanged.
  */
 
 import { LayoutDashboard } from "lucide-react";
@@ -20,22 +21,11 @@ import { WeeklyOperatingRhythm } from "../components/weekly-operating-rhythm";
 import { InsightsRail } from "../components/insights-rail";
 import { DashboardCalendar } from "../dashboard-calendar";
 import { WaveVelocityCard } from "../components/analytics/executive-cards";
-import {
-  deriveTrancheWaves,
-  deriveDebtTriage,
-} from "../components/analytics/executive-statistics";
-import type {
-  DashboardKpi,
-  RevenuePoint,
-  DebtByAgingBucket,
-} from "../../../domain/model/operations";
-import type {
-  DebtSummary,
-  Payment,
-  Installment,
-} from "../../../domain/model/payment";
+import { deriveTrancheWaves, deriveDebtTriage } from "../components/analytics/executive-statistics";
+import type { DashboardKpi, RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
+import type { DebtSummary, Payment, Installment } from "../../../domain/model/payment";
 import { formatDzd } from "../../../core/format/currency";
-import { DashboardLayoutEditor } from "../dashboard-layout-editor";
+import { DashboardLayoutEditor, type DashboardLayoutItem } from "../dashboard-layout-editor";
 import type { Demographics } from "./types";
 
 export interface DashboardData {
@@ -54,7 +44,6 @@ export function OverviewTab({
   onDrillDown,
   onGoToAlerts,
   editing,
-  onEditingChange,
 }: {
   data: DashboardData;
   payments: readonly Payment[];
@@ -63,7 +52,6 @@ export function OverviewTab({
   onDrillDown: (kpi: string) => void;
   onGoToAlerts: () => void;
   editing: boolean;
-  onEditingChange: (editing: boolean) => void;
 }) {
   const { t } = useTranslation();
   const { kpis, revenue, debtAging, topDebtors } = data;
@@ -71,21 +59,13 @@ export function OverviewTab({
   const nowEpochMs = Date.now();
   const waves = deriveTrancheWaves(installments, nowEpochMs);
   const triage = deriveDebtTriage(installments, nowEpochMs);
-  const chronicAmount =
-    triage.buckets.find((b) => b.bucket === "chronic")?.amount ?? 0;
-  const chronicFamilies =
-    triage.buckets.find((b) => b.bucket === "chronic")?.familyCount ?? 0;
-
+  const chronicAmount = triage.buckets.find((b) => b.bucket === "chronic")?.amount ?? 0;
+  const chronicFamilies = triage.buckets.find((b) => b.bucket === "chronic")?.familyCount ?? 0;
   const annualRevenue = revenue.reduce((s, r) => s + r.amount, 0);
-  const trendSeries =
-    revenue.length >= 2 ? revenue.map((r) => r.amount) : undefined;
+  const trendSeries = revenue.length >= 2 ? revenue.map((r) => r.amount) : undefined;
   const last = revenue.length >= 2 ? revenue[revenue.length - 1] : null;
   const prev = revenue.length >= 2 ? revenue[revenue.length - 2] : null;
-  const momDelta =
-    last && prev && prev.amount > 0
-      ? Math.round(((last.amount - prev.amount) / prev.amount) * 100)
-      : undefined;
-
+  const momDelta = last && prev && prev.amount > 0 ? Math.round(((last.amount - prev.amount) / prev.amount) * 100) : undefined;
   const funnelStages = deriveRecoveryFunnel(debtAging);
   const overdueFamilies = debtAging.reduce((s, b) => s + b.debtorCount, 0);
   const deepOverdueFamilies =
@@ -94,110 +74,164 @@ export function OverviewTab({
     (debtAging.find((b) => b.bucket === "180_plus")?.debtorCount ?? 0);
   const outstanding = kpis?.outstandingDebt ?? 0;
 
-  const items = [
+  const items: DashboardLayoutItem[] = [
     {
-      id: "kpis",
-      label: "Indicateurs clés",
-      w: 12,
-      h: 1,
-      minW: 6,
-      maxW: 12,
+      id: "kpi-students",
+      label: "Élèves / foyers",
+      x: 0,
+      y: 0,
+      w: 3,
+      h: 4,
+      minW: 2,
+      maxW: 6,
+      minH: 3,
+      maxH: 8,
       content: (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <SparklineKpiCard
-            label={t("dashboard.kpi.totalStudents")}
-            value={kpis ? String(kpis.totalStudents) : "—"}
-            subValue={kpis ? `${kpis.totalParents} foyers` : undefined}
-            tone="primary"
-            gradientKey="students"
-            onClick={() => onDrillDown("students")}
-          />
-          <SparklineKpiCard
-            label={t("dashboard.kpi.monthlyRevenue")}
-            value={kpis ? formatDzd(kpis.monthlyRevenue, { compact: true }) : "—"}
-            deltaPercent={momDelta}
-            trend={trendSeries}
-            tone="success"
-            gradientKey="monthly-revenue"
-            onClick={() => onDrillDown("monthlyRevenue")}
-          />
-          <SparklineKpiCard
-            label={t("dashboard.kpi.outstandingDebt")}
-            value={kpis ? formatDzd(outstanding, { compact: true }) : "—"}
-            subValue={
-              chronicAmount > 0
-                ? `${formatDzd(chronicAmount, { compact: true })} urgents (${chronicFamilies} f.)`
-                : debtAging.length > 0
-                  ? `${overdueFamilies} f. en retard`
-                  : undefined
-            }
-            tone="danger"
-            gradientKey="outstanding-debt"
-            onClick={() => onDrillDown("outstandingDebt")}
-          />
-          <SparklineKpiCard
-            label="Assiduité Globale"
-            value={kpis ? `${Math.round(kpis.attendanceRateToday * 100)}%` : "—"}
-            tone="primary"
-            gradientKey="attendance-today"
-            onClick={() => onDrillDown("staff")}
-          />
-        </div>
+        <SparklineKpiCard
+          label={t("dashboard.kpi.totalStudents")}
+          value={kpis ? String(kpis.totalStudents) : "—"}
+          subValue={kpis ? `${kpis.totalParents} foyers` : undefined}
+          tone="primary"
+          gradientKey="students"
+          onClick={() => onDrillDown("students")}
+        />
+      ),
+    },
+    {
+      id: "kpi-revenue",
+      label: "Chiffre d’affaires mensuel",
+      x: 3,
+      y: 0,
+      w: 3,
+      h: 4,
+      minW: 2,
+      maxW: 6,
+      minH: 3,
+      maxH: 8,
+      content: (
+        <SparklineKpiCard
+          label={t("dashboard.kpi.monthlyRevenue")}
+          value={kpis ? formatDzd(kpis.monthlyRevenue, { compact: true }) : "—"}
+          deltaPercent={momDelta}
+          trend={trendSeries}
+          tone="success"
+          gradientKey="monthly-revenue"
+          onClick={() => onDrillDown("monthlyRevenue")}
+        />
+      ),
+    },
+    {
+      id: "kpi-debt",
+      label: "Créances ouvertes",
+      x: 6,
+      y: 0,
+      w: 3,
+      h: 4,
+      minW: 2,
+      maxW: 6,
+      minH: 3,
+      maxH: 8,
+      content: (
+        <SparklineKpiCard
+          label={t("dashboard.kpi.outstandingDebt")}
+          value={kpis ? formatDzd(outstanding, { compact: true }) : "—"}
+          subValue={
+            chronicAmount > 0
+              ? `${formatDzd(chronicAmount, { compact: true })} urgents (${chronicFamilies} f.)`
+              : debtAging.length > 0
+                ? `${overdueFamilies} f. en retard`
+                : undefined
+          }
+          tone="danger"
+          gradientKey="outstanding-debt"
+          onClick={() => onDrillDown("outstandingDebt")}
+        />
+      ),
+    },
+    {
+      id: "kpi-attendance",
+      label: "Assiduité globale",
+      x: 9,
+      y: 0,
+      w: 3,
+      h: 4,
+      minW: 2,
+      maxW: 6,
+      minH: 3,
+      maxH: 8,
+      content: (
+        <SparklineKpiCard
+          label="Assiduité Globale"
+          value={kpis ? `${Math.round(kpis.attendanceRateToday * 100)}%` : "—"}
+          tone="primary"
+          gradientKey="attendance-today"
+          onClick={() => onDrillDown("staff")}
+        />
       ),
     },
     {
       id: "wave-velocity",
       label: "Vitesse des tranches",
+      x: 0,
+      y: 5,
       w: 8,
-      h: 2,
-      minW: 6,
+      h: 8,
+      minW: 5,
       maxW: 12,
-      minH: 1,
-      maxH: 3,
+      minH: 6,
+      maxH: 16,
       content: <WaveVelocityCard waves={waves} variant="hero" />,
     },
     {
       id: "recovery-funnel",
       label: "Funnel de recouvrement",
+      x: 8,
+      y: 5,
       w: 4,
-      h: 2,
+      h: 8,
       minW: 3,
       maxW: 12,
-      minH: 1,
-      maxH: 3,
+      minH: 6,
+      maxH: 16,
       content: <RecoveryFunnelCard stages={funnelStages} />,
     },
     {
       id: "weekly-rhythm",
       label: "Rythme hebdomadaire",
+      x: 0,
+      y: 14,
       w: 4,
-      h: 2,
+      h: 8,
       minW: 3,
       maxW: 12,
-      minH: 1,
-      maxH: 3,
+      minH: 6,
+      maxH: 16,
       content: <WeeklyOperatingRhythm payments={payments} range={range} />,
     },
     {
       id: "calendar",
       label: "Calendrier opérationnel",
+      x: 4,
+      y: 14,
       w: 8,
-      h: 2,
+      h: 8,
       minW: 4,
       maxW: 12,
-      minH: 1,
-      maxH: 4,
+      minH: 6,
+      maxH: 20,
       content: <DashboardCalendar />,
     },
     {
       id: "insights",
       label: "Rail contextuel",
-      w: 4,
-      h: 2,
-      minW: 3,
+      x: 0,
+      y: 23,
+      w: 12,
+      h: 7,
+      minW: 4,
       maxW: 12,
-      minH: 1,
-      maxH: 4,
+      minH: 5,
+      maxH: 20,
       content: (
         <InsightsRail
           achieved={annualRevenue}
@@ -217,13 +251,7 @@ export function OverviewTab({
         <LayoutDashboard className="h-3.5 w-3.5" />
         <span>Vue opérationnelle personnalisable</span>
       </div>
-
-      <DashboardLayoutEditor
-        storageKey="overview"
-        items={items}
-        editing={editing}
-        onSave={() => onEditingChange(false)}
-      />
+      <DashboardLayoutEditor storageKey="overview" items={items} editing={editing} />
     </div>
   );
 }
