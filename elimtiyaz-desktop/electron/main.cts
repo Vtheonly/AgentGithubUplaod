@@ -102,6 +102,19 @@ ipcMain.handle("window:close", () => {
   mainWindow?.close();
 });
 
+ipcMain.handle("shell:open-external", async (_event, url: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "mailto:") {
+      return { ok: false, error: "External URL scheme is not allowed." };
+    }
+    await shell.openExternal(parsed.toString());
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
 ipcMain.handle("vault:save-file", async (_event, payload: {
   fileName: string;
   bytes: number[] | Uint8Array;
