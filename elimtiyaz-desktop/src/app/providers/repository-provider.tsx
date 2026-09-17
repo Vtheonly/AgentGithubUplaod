@@ -237,17 +237,25 @@ export const mockRepositories: Repositories = {
 const RepositoryContext = createContext<Repositories>(mockRepositories);
 
 function selectDefaultRepositories(): Repositories {
-  const wantSupabase = useSupabase && isSupabaseConfigured();
-  if (!wantSupabase) return mockRepositories;
+  if (!useSupabase) return mockRepositories;
+
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      "Supabase is enabled but the production connection is not configured. " +
+        "Refusing to fall back to mock repositories."
+    );
+  }
 
   try {
     return getSupabaseRepositories();
   } catch (err) {
     console.error(
-      "[RepositoryProvider] Failed to initialize Supabase repositories, falling back to mock:",
+      "[RepositoryProvider] Failed to initialize Supabase repositories; mock fallback is disabled:",
       err,
     );
-    return mockRepositories;
+    throw err instanceof Error
+      ? err
+      : new Error(String(err));
   }
 }
 
