@@ -68,7 +68,7 @@ function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: 
 const localConfig = readLocalConfigSync();
 const localConfigIsExplicitlyEnabled = localConfig.useSupabase === true;
 const localConfigMatchesProductionProject =
-  !localConfig.url || !envSupabaseUrl || localConfig.url.trim() === envSupabaseUrl.trim();
+  !!localConfig.url && !!envSupabaseUrl && localConfig.url.trim() === envSupabaseUrl.trim();
 const useLocalProductionConfig =
   isProductionDesktopBuild &&
   localConfigIsExplicitlyEnabled &&
