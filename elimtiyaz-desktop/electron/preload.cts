@@ -14,12 +14,14 @@ export interface PickFileResult {
   error?: string;
 }
 
-export interface ExternalOpenResult {
-  ok: true;
-} | {
-  ok: false;
-  error: string;
-};
+export type ExternalOpenResult =
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
 
 const api = {
   window: {
