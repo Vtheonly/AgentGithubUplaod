@@ -3,10 +3,9 @@
 /**
  * Reproducible Windows packaging entry point.
  *
- * This script delegates the actual packaging to the existing electron-builder
- * configuration and adds preflight/post-build checks so a successful command
- * means the expected Windows artifacts and the correct live backend binding
- * were emitted.
+ * This script delegates the actual packaging to electron-builder and adds
+ * preflight/post-build checks so a successful command means the expected
+ * Windows artifacts and the correct live backend binding were emitted.
  *
  * Supabase secret/service-role keys are never read or packaged here.
  */
@@ -149,19 +148,25 @@ if (!existsSync(join(projectDir, "node_modules"))) {
   run(npm, ["ci"]);
 }
 
-// Resolve the public key using the same production Vite environment that the
-// renderer build will use. Prefer the modern publishable key; retain legacy
-// anon-key compatibility for existing installations.
+// Resolve the public key from the project's actual environment conventions.
+// Prefer VITE_* values used by the renderer; also support the canonical
+// SUPABASE_* names used by the shared deployment configuration.
 const { loadEnv } = await import("vite");
 const viteEnv = loadEnv("production", projectDir, "VITE_");
+const allEnv = loadEnv("production", projectDir, "");
 const resolvedPublicKey = (
-  viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY ?? viteEnv.VITE_SUPABASE_ANON_KEY
+  viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  viteEnv.VITE_SUPABASE_ANON_KEY ??
+  allEnv.SUPABASE_PUBLISHABLE_KEY ??
+  allEnv.SUPABASE_ANON_KEY ??
+  process.env.SUPABASE_PUBLISHABLE_KEY ??
+  process.env.SUPABASE_ANON_KEY
 )?.trim();
 
 if (!resolvedPublicKey) {
   fail(
-    "No public Supabase key could be resolved from the production Vite environment. " +
-      "Set VITE_SUPABASE_PUBLISHABLE_KEY (preferred) or VITE_SUPABASE_ANON_KEY before packaging.",
+    "No public Supabase key could be resolved. Set SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY " +
+      "or the VITE_* equivalent before packaging.",
   );
 }
 
@@ -186,8 +191,6 @@ const buildEnv = {
 };
 
 rmSync(releaseDir, { recursive: true, force: true });
-
-// Canonical pipeline: Vite renderer -> Electron TypeScript -> electron-builder.
 run(npm, ["run", "dist:win", "--", "--publish", "never"], buildEnv);
 
 const version = pkg.version;
