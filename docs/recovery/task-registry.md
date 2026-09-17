@@ -3497,8 +3497,8 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ### T-394 — 79th session (2026-09-18): the final root-cause report (handed-over Task 30) + registry/closeout + the delivery zip
 
-- **Status:** IN PROGRESS (registered 2026-09-18, 79th session)
+- **Status:** COMPLETE — VERIFIED (2026-09-18, 79th session: `docs/audits/supabase-root-cause-report-2026-09-18.md` — the 15-row PASS/FAIL table (14 PASS incl. the three fixed this session, 0 FAIL, 1 honest NOT PROVEN for the EXE install/launch matrix with the §4 owner runbook), the pasted-audit verdict table (RP3–RP6 disproven/disambiguated), the commit ledger, the 30-task mapping, and the remaining-open register (REALTIME-105, the EXE matrix, the pre-existing failing set). The EXE build legs WERE proven in-sandbox: the production renderer bundle (VITE_DESKTOP_PRODUCTION=true → exit 0; canonical URL ×2, 0 old-project refs, 0 secrets, the diagnostics screen included) + the Electron main compile (tsc exit 0). The delivery zip built + pushed per the owner mandate.)
 - **Problems:** the handed-over list's final-report contract (PASS/FAIL per area with exact error/file/object/root cause/fix/verification for every FAIL)
 - **Plan:** `docs/audits/supabase-root-cause-report-2026-09-18.md` — the 14-row PASS/FAIL table (Configuration, Network, Authentication, Tenant resolution, RLS, Parents, Students read, Students insert, Students update, RPCs, Schema, Data migration, Realtime, Storage, Production EXE) with evidence links; honest NOT-PROVEN rows where this sandbox cannot execute the leg (the Windows EXE install/launch matrix — documented with the exact runbook for the owner); registry + change-log + current-state + next-task updates; zip + push per the owner mandate.
-- **Left:** execution (after T-391/392/393 land).
+- **Left:** none (the report + the runbook are the deliverables; the zip + push follow this commit).
 - **Next:** the standing T-337 (REALTIME-105) / T-388 (the concurrent i18n burn-down).
