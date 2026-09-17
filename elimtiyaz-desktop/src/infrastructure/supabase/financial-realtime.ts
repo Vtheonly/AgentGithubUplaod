@@ -38,10 +38,8 @@ import { computeParentSummary } from "../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap, maxDaysOverdueFromLedger } from "../../domain/calc/ledger/overdue";
 import { agingBucketFromDays } from "../../domain/calc/payment/queries";
 import { SubjectBehavior } from "../mock/subject-behavior";
-import {
-  getSupabaseRepositories,
-  getTenantId,
-} from "./supabase-repositories";
+import { getSupabaseRepositories } from "./supabase-repositories";
+import { getTenantId } from "./repositories/supabase-shared-repositories";
 import {
   getSupabaseClient,
   isSupabaseConfigured,
