@@ -1,14 +1,13 @@
 /**
  * Supabase client singleton.
  *
- * Reads URL + public API key in this priority order:
- *   1. Electron userData/config.json (set via Settings → Configuration tab)
- *   2. localStorage fallback (browser dev mode)
- *   3. Vite env vars (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_SUPABASE_PUBLISHABLE_KEY)
+ * Development may read a local configuration, but packaged production builds
+ * are deliberately locked to the canonical production project. This prevents
+ * an old Electron userData/localStorage configuration from silently selecting
+ * an old public key or stale Supabase session after a project migration.
  *
- * The public key field accepts BOTH public formats (legacy anon JWT and
- * modern sb_publishable_...). The service_role/secret key is never used
- * in the renderer.
+ * The renderer only ever uses a PUBLIC Supabase key. Secret/service-role keys
+ * must never be bundled into the desktop application.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -23,16 +22,10 @@ function readEnv(name: string): string | undefined {
 }
 
 const CANONICAL_PRODUCTION_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase.co";
-/**
- * Canonical PUBLIC publishable key for the NEW project. This is the ONLY key
- * allowed in the renderer bundle — a public client identifier protected by
- * RLS, never a secret/service-role key (see docs/operations/credentials.md).
- * Baked in as the deterministic fallback so a production build never depends
- * on a stray shell env var; explicit Vite env values still take precedence
- * below.
- */
 const CANONICAL_PRODUCTION_PUBLIC_KEY =
   "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
+const CANONICAL_PROJECT_REF = "vebfehrpzajhstyhinnw";
+
 const envSupabaseUrl = readEnv("VITE_SUPABASE_URL");
 const envSupabasePublishableKey = readEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
 const envSupabaseAnonKey = readEnv("VITE_SUPABASE_ANON_KEY");
@@ -58,31 +51,27 @@ function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: 
 }
 
 const localConfig = readLocalConfigSync();
-const localConfigIsExplicitlyEnabled = localConfig.useSupabase === true;
-const localConfigMatchesProductionProject =
-  !!localConfig.url && localConfig.url.trim() === CANONICAL_PRODUCTION_SUPABASE_URL;
-const useLocalProductionConfig =
-  isProductionDesktopBuild &&
-  localConfigIsExplicitlyEnabled &&
-  localConfigMatchesProductionProject &&
-  !!localConfig.anonKey;
+
+/**
+ * Production is intentionally independent from persisted desktop settings.
+ * A user can have an old config.json/localStorage value from before the DB
+ * migration; allowing that value to override the production key makes the
+ * packaged app appear disconnected even though the build itself is correct.
+ */
+const productionSupabaseUrl = CANONICAL_PRODUCTION_SUPABASE_URL;
+const productionSupabaseKey = CANONICAL_PRODUCTION_PUBLIC_KEY;
 
 export const supabaseUrl = isProductionDesktopBuild
-  ? (envSupabaseUrl && envSupabaseUrl.trim() !== CANONICAL_PRODUCTION_SUPABASE_URL
-      ? (() => { throw new Error(
-          "VITE_SUPABASE_URL does not match the canonical NEW project (vebfehrpzajhstyhinnw). Refusing to start a production build against the wrong backend.",
-        ); })()
-      : CANONICAL_PRODUCTION_SUPABASE_URL)
+  ? productionSupabaseUrl
   : (localConfig.url ?? envSupabaseUrl);
 
 export const supabaseAnonKey = isProductionDesktopBuild
-  ? (useLocalProductionConfig ? localConfig.anonKey : envPublicKey)
+  ? productionSupabaseKey
   : (localConfig.anonKey ?? envPublicKey);
 
 /**
- * Packaged production builds are always Supabase-backed and always point at
- * the canonical production project. Development builds retain the existing
- * explicit mock-mode option for local testing.
+ * Packaged production builds are always live-Supabase builds. Development
+ * retains the existing explicit mock-mode option for local testing.
  */
 export const useSupabase = isProductionDesktopBuild
   ? true
@@ -105,13 +94,17 @@ export function getSupabaseClient(): SupabaseClient {
         "Supabase client requested but URL/public key are not configured."
       );
     }
+
     _client = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storage: window.localStorage,
-        storageKey: "el-imtiyaz.supabase.session",
+        // Scope the persisted session to the NEW project. This prevents a JWT
+        // issued by the previous Supabase project from being restored after
+        // the production backend migration.
+        storageKey: `el-imtiyaz.supabase.session.${CANONICAL_PROJECT_REF}`,
       },
       realtime: {
         params: { eventsPerSecond: 10 },
@@ -156,7 +149,7 @@ export function describeSupabaseConnection(): {
   return {
     url: supabaseUrl,
     host,
-    isProductionBuild: isProductionDesktopBuild,
+    isProductionBuild,
     useSupabase,
     configured: isSupabaseConfigured(),
     keyFormat,
