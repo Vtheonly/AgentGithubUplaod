@@ -58,7 +58,7 @@ export function LoginScreen() {
               wrapper around the renderer-side ParticleEngine. Particles
               form the EI monogram and react to the cursor.
             */}
-            <ParticleCanvas mode="logo" density={2} fillRatio={0.7} />
+            <ParticleCanvas mode="logo" density={1} fillRatio={0.85} />
           </div>
 
           <p className="text-xs text-muted-foreground">
