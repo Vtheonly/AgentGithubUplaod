@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -91,7 +92,7 @@ export function DashboardLayoutEditor({
 
   const startDrag = (id: string, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!editing) return;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
     dragId.current = id;
   };
 
@@ -126,12 +127,14 @@ export function DashboardLayoutEditor({
 
   const persist = () => {
     localStorage.setItem(STORAGE_PREFIX + storageKey, JSON.stringify(sizes));
+    localStorage.setItem(STORAGE_PREFIX + storageKey + ":order", JSON.stringify(order));
     setDirty(false);
     onSave?.();
   };
 
   const reset = () => {
     localStorage.removeItem(STORAGE_PREFIX + storageKey);
+    localStorage.removeItem(STORAGE_PREFIX + storageKey + ":order");
     setSizes({});
     setOrder(items.map((item) => item.id));
     setDirty(false);
@@ -171,7 +174,7 @@ export function DashboardLayoutEditor({
               key={item.id}
               onPointerUp={(event) => endDrag(item.id, event)}
               className={`dashboard-layout-editor-item relative min-w-0 ${editing ? "rounded-xl ring-1 ring-primary/20 bg-surface-background/80" : ""}`}
-              style={{ "--dashboard-layout-w": colSpan, minHeight } as React.CSSProperties}
+              style={{ "--dashboard-layout-w": colSpan, minHeight } as CSSProperties}
             >
               {editing && (
                 <>
