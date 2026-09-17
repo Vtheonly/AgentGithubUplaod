@@ -39,6 +39,7 @@ import {
   UserPlus,
   SlidersHorizontal,
   RefreshCw,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "../../app/providers/auth-provider";
 import { Role } from "../../core/rbac/roles";
@@ -57,6 +58,9 @@ import { SyncTab } from "./sync-tab";
 import { AIConfigTab } from "./ai-config-tab";
 import { BackupTab as BackupTabImpl } from "./backup-tab";
 import { LockedFeaturesTab } from "./locked-features-tab";
+// T-393 (handed-over Task 21): the deterministic Supabase diagnostics screen —
+// self-contained module, French labels internal (no dictionary files touched).
+import { SupabaseDiagnosticsTab } from "./supabase-diagnostics";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -65,7 +69,7 @@ import { LockedFeaturesTab } from "./locked-features-tab";
 /** All valid Settings tab IDs. Used to validate the ?tab= query param. */
 const VALID_TABS = [
   "general", "pricing", "audit", "rbac", "approvals", "accounts",
-  "config", "sync", "ai", "backup", "locked",
+  "config", "diagnostics", "sync", "ai", "backup", "locked",
 ] as const;
 
 type SettingsTabId = (typeof VALID_TABS)[number];
@@ -121,6 +125,7 @@ export function SettingsPage() {
           <PageTab value="approvals" label="Inscriptions" icon={UserCheck} />
           <PageTab value="accounts" label="Comptes" icon={UserPlus} />
           <PageTab value="config" label="Configuration" icon={SlidersHorizontal} />
+          <PageTab value="diagnostics" label="Diagnostic Supabase" icon={Activity} />
           <PageTab value="sync" label="Synchronisation" icon={RefreshCw} />
           <PageTab value="ai" label={t("settings.ai")} icon={Bot} />
           <PageTab value="backup" label={t("settings.backup")} icon={Database} />
@@ -153,6 +158,10 @@ export function SettingsPage() {
 
         <PageTabContent value="config" scrollable>
           <ConfigurationTab />
+        </PageTabContent>
+
+        <PageTabContent value="diagnostics" scrollable>
+          <SupabaseDiagnosticsTab />
         </PageTabContent>
 
         <PageTabContent value="sync" scrollable>
