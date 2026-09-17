@@ -10,7 +10,7 @@ import {
   FileText,
   Bell,
   BarChart3,
-  Layers,
+  Settings2,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -38,6 +38,7 @@ import { OverviewTab } from "./tabs/overview-tab";
 import { AnalyticsTab } from "./tabs/analytics-tab";
 import { AlertsTab } from "./tabs/alerts-tab";
 import { ReportsTab } from "./tabs/reports-tab";
+import { DashboardTabLayoutEditor } from "./dashboard-tab-layout-editor";
 import {
   type SeeDetailsTab,
   type Demographics,
@@ -91,6 +92,7 @@ export function DashboardPage() {
   const [seeDetailsTab, setSeeDetailsTab] = useState<SeeDetailsTab>("revenue");
   const [tab, setTab] = useState<DashboardTab>("overview");
   const [unreadAlerts, setUnreadAlerts] = useState(0);
+  const [layoutEditing, setLayoutEditing] = useState(false);
 
   const [yearRange, setYearRange] = useState<AcademicYearRange>(() => ({
     academicYear: "2025-2026",
@@ -238,6 +240,16 @@ export function DashboardPage() {
         description="Cockpit institutionnel — pilotage académique, logistique et financier"
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={layoutEditing ? "default" : "outline"}
+              className="gap-1 shadow-sm text-xs"
+              aria-pressed={layoutEditing}
+              onClick={() => setLayoutEditing((value) => !value)}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              {layoutEditing ? "Terminer la personnalisation" : "Personnaliser le tableau de bord"}
+            </Button>
             <AcademicYearSelector
               value={yearRange}
               onChange={setYearRange}
@@ -296,30 +308,50 @@ export function DashboardPage() {
             range={yearRange.range}
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
+            editing={layoutEditing}
+            onEditingChange={setLayoutEditing}
           />
         </PageTabContent>
 
         <PageTabContent value="analytics">
-          <AnalyticsTab
-            revenue={data.revenue}
-            prevRevenue={prevRevenue}
-            academicYear={yearRange.academicYear}
-            prevAcademicYear={loadablePrevYear}
-            debtAging={data.debtAging}
-            topDebtors={topDebtors}
-            debtSummaries={debtSummaries}
-            payments={payments}
-            installments={scopedInstallments}
-            range={yearRange.range}
-          />
+          <DashboardTabLayoutEditor
+            storageKey="analytics"
+            editing={layoutEditing}
+            onEditingChange={setLayoutEditing}
+          >
+            <AnalyticsTab
+              revenue={data.revenue}
+              prevRevenue={prevRevenue}
+              academicYear={yearRange.academicYear}
+              prevAcademicYear={loadablePrevYear}
+              debtAging={data.debtAging}
+              topDebtors={topDebtors}
+              debtSummaries={debtSummaries}
+              payments={payments}
+              installments={scopedInstallments}
+              range={yearRange.range}
+            />
+          </DashboardTabLayoutEditor>
         </PageTabContent>
 
         <PageTabContent value="alerts">
-          <AlertsTab />
+          <DashboardTabLayoutEditor
+            storageKey="alerts"
+            editing={layoutEditing}
+            onEditingChange={setLayoutEditing}
+          >
+            <AlertsTab />
+          </DashboardTabLayoutEditor>
         </PageTabContent>
 
         <PageTabContent value="reports">
-          <ReportsTab />
+          <DashboardTabLayoutEditor
+            storageKey="reports"
+            editing={layoutEditing}
+            onEditingChange={setLayoutEditing}
+          >
+            <ReportsTab />
+          </DashboardTabLayoutEditor>
         </PageTabContent>
       </PageTabs>
 
