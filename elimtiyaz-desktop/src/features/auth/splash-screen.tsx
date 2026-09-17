@@ -100,9 +100,9 @@ export function SplashScreen({
             source: { url: INTRO_LOGO_SRC },
             canvasWidth: width,
             canvasHeight: height,
-            // Lower density for the splash — keeps the particle count tractable
-            // for low-end GPUs while preserving the recognisable monogram shape.
-            density: 3,
+            // Lower density for the splash — produces a higher particle count
+            // for a fuller initial brand animation while preserving the shape.
+            density: 1,
             luminanceThreshold: 128,
             fillRatio: 0.75,
             palette: DEFAULT_PALETTE,
@@ -115,7 +115,7 @@ export function SplashScreen({
       } catch (err) {
         if (disposed) return;
         // Static asset missing/unloadable (or no canvas support in jsdom) —
-        // retry with the built-in monogram; if that also fails the splash
+        // retry with the built-in EI monogram; if that also fails the splash
         // still completes via the brand overlay + duration timer.
         try {
           await engine.initialize({
@@ -123,7 +123,7 @@ export function SplashScreen({
               source: { fallback: true },
               canvasWidth: width,
               canvasHeight: height,
-              density: 3,
+              density: 1,
               luminanceThreshold: 128,
               fillRatio: 0.75,
               palette: DEFAULT_PALETTE,
