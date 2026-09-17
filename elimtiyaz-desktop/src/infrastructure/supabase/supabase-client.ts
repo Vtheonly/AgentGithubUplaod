@@ -26,9 +26,38 @@ const CANONICAL_PRODUCTION_PUBLIC_KEY =
   "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
 const CANONICAL_PROJECT_REF = "vebfehrpzajhstyhinnw";
 
-const envSupabaseUrl = readEnv("VITE_SUPABASE_URL");
-const envSupabasePublishableKey = readEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
-const envSupabaseAnonKey = readEnv("VITE_SUPABASE_ANON_KEY");
+function normalizeSupabaseUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return undefined;
+    }
+
+    // Keep the origin/path supplied by configuration, but never allow
+    // whitespace around the host to become an encoded %20 in requests.
+    parsed.hash = "";
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizePublicKey(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+const envSupabaseUrl = normalizeSupabaseUrl(readEnv("VITE_SUPABASE_URL"));
+const envSupabasePublishableKey = normalizePublicKey(
+  readEnv("VITE_SUPABASE_PUBLISHABLE_KEY"),
+);
+const envSupabaseAnonKey = normalizePublicKey(readEnv("VITE_SUPABASE_ANON_KEY"));
 const envPublicKey =
   envSupabasePublishableKey ?? envSupabaseAnonKey ?? CANONICAL_PRODUCTION_PUBLIC_KEY;
 const isProductionDesktopBuild = readEnv("VITE_DESKTOP_PRODUCTION") === "true";
@@ -39,8 +68,8 @@ function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: 
     if (raw) {
       const config = JSON.parse(raw);
       return {
-        url: config.supabase_url,
-        anonKey: config.supabase_anon_key,
+        url: normalizeSupabaseUrl(config.supabase_url),
+        anonKey: normalizePublicKey(config.supabase_anon_key),
         useSupabase: config.supabase_use_supabase,
       };
     }
@@ -63,19 +92,20 @@ const productionSupabaseKey = CANONICAL_PRODUCTION_PUBLIC_KEY;
 
 export const supabaseUrl = isProductionDesktopBuild
   ? productionSupabaseUrl
-  : (localConfig.url ?? envSupabaseUrl);
+  : (localConfig.url ?? envSupabaseUrl ?? CANONICAL_PRODUCTION_SUPABASE_URL);
 
 export const supabaseAnonKey = isProductionDesktopBuild
   ? productionSupabaseKey
   : (localConfig.anonKey ?? envPublicKey);
 
 /**
- * Packaged production builds are always live-Supabase builds. Development
- * retains the existing explicit mock-mode option for local testing.
+ * Live Supabase is the default whenever the application has a Supabase
+ * configuration. Development can still explicitly opt into mock mode by
+ * setting VITE_USE_SUPABASE=false or the local configuration toggle.
  */
 export const useSupabase = isProductionDesktopBuild
   ? true
-  : (localConfig.useSupabase ?? (readEnv("VITE_USE_SUPABASE") === "true"));
+  : (localConfig.useSupabase ?? (readEnv("VITE_USE_SUPABASE") !== "false"));
 
 if (!supabaseUrl || !supabaseAnonKey) {
   if (useSupabase) {
