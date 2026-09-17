@@ -42,5 +42,9 @@ const api = {
     ipcRenderer.invoke("vault:pick-file") as Promise<PickFileResult>,
 };
 
+// Keep both names compatible with the existing renderer contract. The
+// renderer currently uses `window.elImtiyaz`, while the original preload
+// exposed `window.elImtiyazDesktop`.
+contextBridge.exposeInMainWorld("elImtiyaz", api);
 contextBridge.exposeInMainWorld("elImtiyazDesktop", api);
 export type ElImtiyazDesktopApi = typeof api;
