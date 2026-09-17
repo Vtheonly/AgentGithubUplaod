@@ -6,7 +6,7 @@
  */
 export const ar = {
   app: {
-    name: "الإمتiaz",
+    name: "الإمتياز",
     tagline: "منصة إدارة المؤسسات التربوية",
   },
   auth: {
@@ -28,6 +28,10 @@ export const ar = {
     workflow: "الأتمتة",
     routing: "الجولات",
     settings: "الإعدادات",
+  },
+  language: {
+    switcher: "تغيير اللغة",
+    label: "اللغة",
   },
   common: {
     search: "بحث",

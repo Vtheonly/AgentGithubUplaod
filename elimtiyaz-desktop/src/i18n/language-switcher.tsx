@@ -1,16 +1,22 @@
 /**
- * LanguageSwitcher — iteration 7 (P3-O), updated iteration 15.
+ * LanguageSwitcher — iteration 7 (P3-O), updated iteration 15 + T-388.
  *
  * Topbar dropdown that switches the application language between
- * French (default) and Arabic (RTL).
+ * French (default), Arabic (RTL) and English (T-388).
  *
  * Iteration 15: language state now lives in the unified
  * `UserPreferencesContext` (app/providers/user-preferences-provider.tsx) so the
  * Settings → General tab and this Topbar dropdown stay in sync. The unified
  * `localStorage["el-imtiyaz:prefs"]` key is the single source of truth — the
  * legacy `el-imtiyaz:locale` key is no longer written (theme-engine era).
+ *
+ * T-388: English joins the switcher (AppLocale + supportedLngs + en resource),
+ * and the switcher's own chrome labels are dictionary-backed (language.switcher
+ * / language.label) — they were hardcoded French before. The native language
+ * NAMES stay in their own language by convention (Français / العربية / English).
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useUserPreferences, type AppLocale } from "../app/providers/user-preferences-provider";
 import { Globe, Check } from "lucide-react";
 import {
@@ -25,10 +31,14 @@ import {
 const LOCALE_LABELS: Record<AppLocale, { label: string; native: string; flag: string }> = {
   fr: { label: "Français", native: "Français", flag: "FR" },
   ar: { label: "Arabic", native: "العربية", flag: "AR" },
+  en: { label: "English", native: "English", flag: "EN" },
 };
+
+const LOCALE_ORDER: AppLocale[] = ["fr", "ar", "en"];
 
 export function LanguageSwitcher() {
   const { locale, setLocale } = useUserPreferences();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const current: AppLocale = locale;
 
@@ -43,8 +53,8 @@ export function LanguageSwitcher() {
         <button
           type="button"
           className="flex h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
-          aria-label="Changer de langue"
-          title="Langue"
+          aria-label={t("language.switcher")}
+          title={t("language.label")}
         >
           <Globe className="h-4 w-4" />
           <span className="hidden text-xs font-medium sm:inline">
@@ -53,9 +63,9 @@ export function LanguageSwitcher() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Langue</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("language.label")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {(Object.keys(LOCALE_LABELS) as AppLocale[]).map((l) => (
+        {LOCALE_ORDER.map((l) => (
           <DropdownMenuItem
             key={l}
             onClick={() => handleChange(l)}

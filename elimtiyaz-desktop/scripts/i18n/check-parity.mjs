@@ -12,10 +12,10 @@ import ts from "typescript";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..", "..");
 
-function loadDict(rel) {
+function loadDict(rel, varName) {
   try {
     const src = readFileSync(join(ROOT, rel), "utf8");
-    const name = rel.split("/").pop().replace(".ts", "");
+    const name = varName ?? rel.split("/").pop().replace(".ts", "");
     const stripped = src.replace("export const", "const").replace(/as const;/, ";");
     const js = ts.transpileModule(stripped + `\nmodule.exports = ${name};\n`, {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
@@ -37,9 +37,19 @@ function flatten(obj, prefix = "", out = {}) {
   return out;
 }
 
-const fr = flatten(loadDict("src/i18n/fr.ts") ?? {});
-const ar = flatten(loadDict("src/i18n/ar.ts") ?? {});
-const en = flatten(loadDict("src/i18n/en.ts") ?? {});
+// T-388: each locale = hand-maintained base + generated dictionary, merged
+function loadLocale(base) {
+  const b = flatten(loadDict(`src/i18n/${base}.ts`, base) ?? {});
+  const g = flatten(loadDict(`src/i18n/gen/${base}.ts`, `gen${base[0].toUpperCase()}${base.slice(1)}`) ?? {});
+  if (Object.keys(g).length === 0) {
+    console.log(`  ⚠ gen/${base}.ts loaded EMPTY — check the gen emission (var must be gen${base[0].toUpperCase()}${base.slice(1)})`);
+  }
+  return { ...g, ...b }; // base wins on collision (hand-maintained is authoritative)
+}
+
+const fr = loadLocale("fr");
+const ar = loadLocale("ar");
+const en = loadLocale("en");
 
 function diff(a, b, la, lb) {
   const missing = Object.keys(a).filter((k) => !(k in b));

@@ -22,7 +22,7 @@ import {
 import type { CustomThemePalette } from "../../core/theme/theme-types";
 
 export type AppTheme = string; // can be "dark", "light", "emerald", "amethyst", or custom ID
-export type AppLocale = "fr" | "ar";
+export type AppLocale = "fr" | "ar" | "en";
 
 export interface UserPreferences {
   theme: AppTheme;
@@ -58,7 +58,7 @@ function loadPreferences(): UserPreferences {
       const parsed = JSON.parse(raw) as Partial<UserPreferences>;
       return {
         theme: typeof parsed.theme === "string" ? parsed.theme : DEFAULTS.theme,
-        locale: parsed.locale === "fr" || parsed.locale === "ar" ? parsed.locale : DEFAULTS.locale,
+        locale: parsed.locale === "fr" || parsed.locale === "ar" || parsed.locale === "en" ? parsed.locale : DEFAULTS.locale,
         timezone: typeof parsed.timezone === "string" ? parsed.timezone : DEFAULTS.timezone,
         currency: typeof parsed.currency === "string" ? parsed.currency : DEFAULTS.currency,
       };

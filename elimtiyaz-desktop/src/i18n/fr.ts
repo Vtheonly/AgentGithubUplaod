@@ -26,6 +26,10 @@ export const fr = {
     routing: "Tournées",
     settings: "Paramètres",
   },
+  language: {
+    switcher: "Changer de langue",
+    label: "Langue",
+  },
   common: {
     search: "Rechercher",
     add: "Ajouter",
