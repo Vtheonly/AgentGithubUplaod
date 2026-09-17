@@ -67,8 +67,7 @@ function useExternalWhatsAppHandoff(): void {
         const parsed = new URL(href);
         if (
           parsed.protocol === "https:" &&
-          parsed.hostname.toLowerCase() === "wa.me" &&
-          window.elImtiyaz?.shell?.openExternal
+          parsed.hostname.toLowerCase() === "wa.me"
         ) {
           const phone = parsed.pathname.replace(/^\/+/, "");
           const message = parsed.searchParams.get("text") ?? undefined;
@@ -79,12 +78,20 @@ function useExternalWhatsAppHandoff(): void {
             return null;
           }
 
-          void window.elImtiyaz.shell.openExternal(normalizedUrl).then((result) => {
-            if (!result.ok) {
-              console.error("[WhatsApp] External browser open failed:", result.error);
-            }
-          });
-          return null;
+          const desktopApi = window.elImtiyaz;
+
+          if (desktopApi?.shell?.openExternal) {
+            void desktopApi.shell.openExternal(normalizedUrl).then((result) => {
+              if (!result.ok) {
+                console.error("[WhatsApp] External browser open failed:", result.error);
+              }
+            });
+            return null;
+          }
+
+          // Browser/Vite fallback: still open the normalized URL rather than
+          // the malformed original URL (for example `wa.me/+213...`).
+          return originalOpen.call(window, normalizedUrl, target, features);
         }
       } catch {
         // Preserve the browser's original semantics for non-URL values or
