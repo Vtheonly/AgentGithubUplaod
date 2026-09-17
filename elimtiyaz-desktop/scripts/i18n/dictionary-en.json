@@ -1,0 +1,1127 @@
+{
+ "app.name": {
+  "fr": "El-Imtiyaz",
+  "en": "El-Imtiyaz",
+  "ar": "الإمتiaz"
+ },
+ "app.tagline": {
+  "fr": "Plateforme de gestion scolaire",
+  "en": "School Management Platform",
+  "ar": "منصة إدارة المؤسسات التربوية"
+ },
+ "auth.title": {
+  "fr": "Connexion",
+  "en": "Login",
+  "ar": "تسجيل الدخول"
+ },
+ "auth.subtitle": {
+  "fr": "Accédez à votre espace de travail",
+  "en": "Access your workspace",
+  "ar": "ادخل إلى مساحة العمل الخاصة بك"
+ },
+ "auth.email": {
+  "fr": "Adresse e-mail",
+  "en": "Email address",
+  "ar": "البريد الإلكتروني"
+ },
+ "auth.password": {
+  "fr": "Mot de passe",
+  "en": "Password",
+  "ar": "كلمة المرور"
+ },
+ "auth.signIn": {
+  "fr": "Se connecter",
+  "en": "Sign in",
+  "ar": "تسجيل الدخول"
+ },
+ "auth.signOut": {
+  "fr": "Se déconnecter",
+  "en": "Sign out",
+  "ar": "تسجيل الخروج"
+ },
+ "auth.signingIn": {
+  "fr": "Connexion en cours…",
+  "en": "Signing in…",
+  "ar": "جاري الدخول…"
+ },
+ "auth.invalidCredentials": {
+  "fr": "Identifiants invalides.",
+  "en": "Invalid credentials.",
+  "ar": "بيانات الدخول غير صحيحة."
+ },
+ "nav.dashboard": {
+  "fr": "Tableau de bord",
+  "en": "Dashboard",
+  "ar": "لوحة التحكم"
+ },
+ "nav.crm": {
+  "fr": "Élèves & Parents",
+  "en": "Students & Parents",
+  "ar": "التلاميذ والأولياء"
+ },
+ "nav.academics": {
+  "fr": "Pédagogie",
+  "en": "Academics",
+  "ar": "التربية"
+ },
+ "nav.financials": {
+  "fr": "Finances",
+  "en": "Finances",
+  "ar": "المالية"
+ },
+ "nav.personnel": {
+  "fr": "Personnel",
+  "en": "Staff",
+  "ar": "الموظفون"
+ },
+ "nav.workflow": {
+  "fr": "Automatisations",
+  "en": "Automations",
+  "ar": "الأتمتة"
+ },
+ "nav.routing": {
+  "fr": "Tournées",
+  "en": "Routes",
+  "ar": "الجولات"
+ },
+ "nav.settings": {
+  "fr": "Paramètres",
+  "en": "Settings",
+  "ar": "الإعدادات"
+ },
+ "common.search": {
+  "fr": "Rechercher",
+  "en": "Search",
+  "ar": "بحث"
+ },
+ "common.add": {
+  "fr": "Ajouter",
+  "en": "Add",
+  "ar": "إضافة"
+ },
+ "common.edit": {
+  "fr": "Modifier",
+  "en": "Edit",
+  "ar": "تعديل"
+ },
+ "common.delete": {
+  "fr": "Supprimer",
+  "en": "Delete",
+  "ar": "حذف"
+ },
+ "common.save": {
+  "fr": "Enregistrer",
+  "en": "Save",
+  "ar": "حفظ"
+ },
+ "common.cancel": {
+  "fr": "Annuler",
+  "en": "Cancel",
+  "ar": "إلغاء"
+ },
+ "common.confirm": {
+  "fr": "Confirmer",
+  "en": "Confirm",
+  "ar": "تأكيد"
+ },
+ "common.close": {
+  "fr": "Fermer",
+  "en": "Close",
+  "ar": "إغلاق"
+ },
+ "common.yes": {
+  "fr": "Oui",
+  "en": "Yes",
+  "ar": "نعم"
+ },
+ "common.no": {
+  "fr": "Non",
+  "en": "No",
+  "ar": "لا"
+ },
+ "common.loading": {
+  "fr": "Chargement…",
+  "en": "Loading…",
+  "ar": "جاري التحميل…"
+ },
+ "common.noData": {
+  "fr": "Aucun élément",
+  "en": "No items",
+  "ar": "لا توجد عناصر"
+ },
+ "common.retry": {
+  "fr": "Réessayer",
+  "en": "Try again",
+  "ar": "إعادة المحاولة"
+ },
+ "common.export": {
+  "fr": "Exporter",
+  "en": "Export",
+  "ar": "تصدير"
+ },
+ "common.import": {
+  "fr": "Importer",
+  "en": "Import",
+  "ar": "استيراد"
+ },
+ "common.filter": {
+  "fr": "Filtrer",
+  "en": "Filter",
+  "ar": "تصفية"
+ },
+ "common.all": {
+  "fr": "Tous",
+  "en": "All",
+  "ar": "الكل"
+ },
+ "common.actions": {
+  "fr": "Actions",
+  "en": "Actions",
+  "ar": "إجراءات"
+ },
+ "common.details": {
+  "fr": "Détails",
+  "en": "Details",
+  "ar": "تفاصيل"
+ },
+ "common.view": {
+  "fr": "Consulter",
+  "en": "View",
+  "ar": "عرض"
+ },
+ "common.back": {
+  "fr": "Retour",
+  "en": "Back",
+  "ar": "رجوع"
+ },
+ "common.next": {
+  "fr": "Suivant",
+  "en": "Next",
+  "ar": "التالي"
+ },
+ "common.previous": {
+  "fr": "Précédent",
+  "en": "Previous",
+  "ar": "السابق"
+ },
+ "dashboard.title": {
+  "fr": "Tableau de bord",
+  "en": "Dashboard",
+  "ar": "لوحة التحكم"
+ },
+ "dashboard.overview": {
+  "fr": "Vue d'ensemble",
+  "en": "Overview",
+  "ar": "نظرة عامة"
+ },
+ "dashboard.alerts": {
+  "fr": "Alertes",
+  "en": "Alerts",
+  "ar": "تنبيهات"
+ },
+ "dashboard.reports": {
+  "fr": "Rapports",
+  "en": "Reports",
+  "ar": "تقارير"
+ },
+ "dashboard.analytics": {
+  "fr": "Analytique",
+  "en": "Analytics",
+  "ar": "تحليلات"
+ },
+ "dashboard.seeDetails": {
+  "fr": "Voir les détails",
+  "en": "View details",
+  "ar": "عرض التفاصيل"
+ },
+ "dashboard.kpi.totalStudents": {
+  "fr": "Élèves",
+  "en": "Students",
+  "ar": "التلاميذ"
+ },
+ "dashboard.kpi.totalParents": {
+  "fr": "Parents",
+  "en": "Parents",
+  "ar": "الأولياء"
+ },
+ "dashboard.kpi.totalStaff": {
+  "fr": "Personnel",
+  "en": "Staff",
+  "ar": "الموظفون"
+ },
+ "dashboard.kpi.monthlyRevenue": {
+  "fr": "Revenu mensuel",
+  "en": "Monthly revenue",
+  "ar": "الدخل الشهري"
+ },
+ "dashboard.kpi.outstandingDebt": {
+  "fr": "Créances en retard",
+  "en": "Overdue receivables",
+  "ar": "ديون متأخرة"
+ },
+ "dashboard.kpi.pendingExpenses": {
+  "fr": "Dépenses en attente",
+  "en": "Pending expenses",
+  "ar": "مصاريف معلقة"
+ },
+ "dashboard.kpi.attendanceRate": {
+  "fr": "Taux de présence",
+  "en": "Attendance rate",
+  "ar": "معدل الحضور"
+ },
+ "dashboard.kpi.overdueAlerts": {
+  "fr": "Alertes en retard",
+  "en": "Overdue alerts",
+  "ar": "تنبيهات متأخرة"
+ },
+ "dashboard.charts.revenue": {
+  "fr": "Revenu (12 derniers mois)",
+  "en": "Revenue (last 12 months)",
+  "ar": "الدخل (آخر 12 شهرًا)"
+ },
+ "dashboard.charts.debtAging": {
+  "fr": "Créances par tranche d'âge",
+  "en": "Receivables by age group",
+  "ar": "الديون حسب الفئة العمرية"
+ },
+ "dashboard.charts.demographics": {
+  "fr": "Répartition démographique",
+  "en": "Demographic distribution",
+  "ar": "التوزيع الديموغرافي"
+ },
+ "dashboard.charts.gradeDistribution": {
+  "fr": "Répartition par niveau",
+  "en": "Distribution by grade level",
+  "ar": "التوزيع حسب المستوى"
+ },
+ "dashboard.charts.genderDistribution": {
+  "fr": "Répartition par genre",
+  "en": "Distribution by gender",
+  "ar": "التوزيع حسب الجنس"
+ },
+ "dashboard.sections.revenue": {
+  "fr": "Revenu",
+  "en": "Revenue",
+  "ar": "الدخل"
+ },
+ "dashboard.sections.departments": {
+  "fr": "Départements",
+  "en": "Departments",
+  "ar": "الأقسام"
+ },
+ "dashboard.sections.demographics": {
+  "fr": "Démographie",
+  "en": "Demographics",
+  "ar": "الديموغرافيا"
+ },
+ "dashboard.sections.debt": {
+  "fr": "Créances",
+  "en": "Receivables",
+  "ar": "الديون"
+ },
+ "settings.title": {
+  "fr": "Paramètres",
+  "en": "Settings",
+  "ar": "الإعدادات"
+ },
+ "settings.general": {
+  "fr": "Général",
+  "en": "General",
+  "ar": "عام"
+ },
+ "settings.audit": {
+  "fr": "Journal d'audit",
+  "en": "Audit log",
+  "ar": "سجل التدقيق"
+ },
+ "settings.rbac": {
+  "fr": "Matrice RBAC",
+  "en": "RBAC Matrix",
+  "ar": "مصفوفة RBAC"
+ },
+ "settings.ai": {
+  "fr": "Configuration IA",
+  "en": "AI Configuration",
+  "ar": "تكوين الذكاء الاصطناعي"
+ },
+ "settings.backup": {
+  "fr": "Sauvegardes",
+  "en": "Backups",
+  "ar": "النسخ الاحتياطية"
+ },
+ "settings.locked": {
+  "fr": "Fonctionnalités verrouillées",
+  "en": "Locked features",
+  "ar": "الميزات المقفلة"
+ },
+ "settings.pricing": {
+  "fr": "Tarification",
+  "en": "Pricing",
+  "ar": "التسعير"
+ },
+ "settings.appearance": {
+  "fr": "Apparence",
+  "en": "Appearance",
+  "ar": "المظهر"
+ },
+ "settings.language": {
+  "fr": "Langue",
+  "en": "Language",
+  "ar": "اللغة"
+ },
+ "settings.theme": {
+  "fr": "Thème",
+  "en": "Theme",
+  "ar": "السمة"
+ },
+ "settings.notifications": {
+  "fr": "Notifications",
+  "en": "Notifications",
+  "ar": "الإشعارات"
+ },
+ "settings.auditFilter.action": {
+  "fr": "Action",
+  "en": "Action",
+  "ar": "الإجراء"
+ },
+ "settings.auditFilter.entity": {
+  "fr": "Entité",
+  "en": "Entity",
+  "ar": "الكيان"
+ },
+ "settings.auditFilter.actor": {
+  "fr": "Acteur",
+  "en": "Actor",
+  "ar": "الفاعل"
+ },
+ "settings.auditFilter.from": {
+  "fr": "Depuis",
+  "en": "From",
+  "ar": "من"
+ },
+ "settings.auditFilter.to": {
+  "fr": "Jusqu'à",
+  "en": "Until",
+  "ar": "إلى"
+ },
+ "settings.noAuditEntries": {
+  "fr": "Aucune entrée d'audit ne correspond aux filtres.",
+  "en": "No audit entries match the filters.",
+  "ar": "لا توجد إدخالات تدقيق مطابقة للمرشحات."
+ },
+ "crm.batchRegistration": {
+  "fr": "Inscription groupée",
+  "en": "Group registration",
+  "ar": "تسجيل جماعي"
+ },
+ "crm.parentDetail": {
+  "fr": "Détail parent",
+  "en": "Parent details",
+  "ar": "تفاصيل ولي الأمر"
+ },
+ "crm.studentDetail": {
+  "fr": "Détail élève",
+  "en": "Student details",
+  "ar": "تفاصيل التلميذ"
+ },
+ "crm.adjustAccount": {
+  "fr": "Ajuster le compte",
+  "en": "Adjust account",
+  "ar": "تعديل الحساب"
+ },
+ "financials.counterPayment": {
+  "fr": "Encaissement",
+  "en": "Counter payment",
+  "ar": "تحصيل"
+ },
+ "financials.expenseSubmit": {
+  "fr": "Nouvelle dépense",
+  "en": "New expense",
+  "ar": "مصروف جديد"
+ },
+ "financials.expenseDetail": {
+  "fr": "Détail dépense",
+  "en": "Expense details",
+  "ar": "تفاصيل المصروف"
+ },
+ "financials.installmentSchedule": {
+  "fr": "Tranches",
+  "en": "Installments",
+  "ar": "الأقساط"
+ },
+ "academics.classDetail": {
+  "fr": "Détail classe",
+  "en": "Class details",
+  "ar": "تفاصيل الفصل"
+ },
+ "academics.rollCall": {
+  "fr": "Appel",
+  "en": "Roll call",
+  "ar": "نداء الحضور"
+ },
+ "academics.gradeEntry": {
+  "fr": "Saisie des notes",
+  "en": "Grade entry",
+  "ar": "إدخال الدرجات"
+ },
+ "academics.homeworkPush": {
+  "fr": "Diffuser un devoir",
+  "en": "Assign homework",
+  "ar": "إرسال واجب"
+ },
+ "status.enabled": {
+  "fr": "Activé",
+  "en": "Enabled",
+  "ar": "مفعّل"
+ },
+ "status.disabled": {
+  "fr": "Désactivé",
+  "en": "Disabled",
+  "ar": "معطّل"
+ },
+ "status.locked": {
+  "fr": "Verrouillé",
+  "en": "Locked",
+  "ar": "مقفل"
+ },
+ "status.comingSoon": {
+  "fr": "Bientôt disponible",
+  "en": "Coming soon",
+  "ar": "قريبًا"
+ },
+ "comingSoon.title": {
+  "fr": "Module en cours de développement",
+  "en": "Module in development",
+  "ar": "وحدة قيد التطوير"
+ },
+ "comingSoon.description": {
+  "fr": "Ce module est scaffoldé conformément au plan d'affaires. L'implémentation complète arrive dans une prochaine itération.",
+  "en": "This module is scaffolded according to the business plan. Full implementation will arrive in a future iteration.",
+  "ar": "تم تجهيز هذه الوحدة وفقًا لخطة العمل. التنفيذ الكامل قريبًا."
+ },
+ "comingSoon.learnMore": {
+  "fr": "En savoir plus",
+  "en": "Learn more",
+  "ar": "اعرف المزيد"
+ },
+ "toast.saved": {
+  "fr": "Enregistré avec succès",
+  "en": "Saved successfully",
+  "ar": "تم الحفظ بنجاح"
+ },
+ "toast.error": {
+  "fr": "Une erreur s'est produite",
+  "en": "An error occurred",
+  "ar": "حدث خطأ"
+ },
+ "toast.deleted": {
+  "fr": "Supprimé avec succès",
+  "en": "Deleted successfully",
+  "ar": "تم الحذف بنجاح"
+ },
+ "toast.confirmed": {
+  "fr": "Action confirmée",
+  "en": "Action confirmed",
+  "ar": "تم تأكيد الإجراء"
+ },
+ "ai.title": {
+  "fr": "Intelligence artificielle",
+  "en": "Artificial Intelligence",
+  "ar": "الذكاء الاصطناعي"
+ },
+ "ai.config": {
+  "fr": "Configuration IA",
+  "en": "AI Configuration",
+  "ar": "تكوين الذكاء الاصطناعي"
+ },
+ "ai.groqKey": {
+  "fr": "Clé API Groq",
+  "en": "Groq API Key",
+  "ar": "مفتاح Groq API"
+ },
+ "ai.openrouterKey": {
+  "fr": "Clé API OpenRouter (repli)",
+  "en": "OpenRouter API Key (fallback)",
+  "ar": "مفتاح OpenRouter API (احتياطي)"
+ },
+ "ai.defaultProvider": {
+  "fr": "Fournisseur par défaut",
+  "en": "Default provider",
+  "ar": "المزود الافتراضي"
+ },
+ "ai.defaultModel": {
+  "fr": "Modèle par défaut",
+  "en": "Default Model",
+  "ar": "النموذج الافتراضي"
+ },
+ "ai.fallbackModel": {
+  "fr": "Modèle de repli (optionnel)",
+  "en": "Fallback Model (Optional)",
+  "ar": "نموذج احتياطي (اختياري)"
+ },
+ "ai.test": {
+  "fr": "Tester",
+  "en": "Test",
+  "ar": "اختبار"
+ },
+ "ai.save": {
+  "fr": "Enregistrer",
+  "en": "Save",
+  "ar": "حفظ"
+ },
+ "ai.clear": {
+  "fr": "Effacer",
+  "en": "Clear",
+  "ar": "مسح"
+ },
+ "ai.configured": {
+  "fr": "Configuré",
+  "en": "Configured",
+  "ar": "مُكوّن"
+ },
+ "ai.notConfigured": {
+  "fr": "Non configuré",
+  "en": "Not Configured",
+  "ar": "غير مُكوّن"
+ },
+ "ai.encryptionNote": {
+  "fr": "Les clés API sont chiffrées avec AES-256-GCM avant d'être stockées localement.",
+  "en": "API keys are encrypted with AES-256-GCM before being stored locally.",
+  "ar": "تُشفّر مفاتيح API باستخدام AES-256-GCM قبل تخزينها محليًا."
+ },
+ "ai.testing": {
+  "fr": "Test en cours…",
+  "en": "Testing…",
+  "ar": "جارٍ الاختبار…"
+ },
+ "ai.testOk": {
+  "fr": "Provider reachable",
+  "en": "Provider reachable",
+  "ar": "المزود متاح"
+ },
+ "ai.customKey": {
+  "fr": "Clé API personnalisée (optionnel)",
+  "en": "Custom API Key (Optional)",
+  "ar": "مفتاح API مخصص (اختياري)"
+ },
+ "ai.customBaseUrl": {
+  "fr": "URL de base (OpenAI-compatible)",
+  "en": "Base URL (OpenAI-compatible)",
+  "ar": "عنوان URL الأساسي (متوافق مع OpenAI)"
+ },
+ "ai.discoverModels": {
+  "fr": "Découvrir les modèles",
+  "en": "Discover Models",
+  "ar": "اكتشاف النماذج"
+ },
+ "ai.discovering": {
+  "fr": "Découverte…",
+  "en": "Discovering…",
+  "ar": "جارٍ الاكتشاف…"
+ },
+ "ai.inferenceTest": {
+  "fr": "Tester l'inférence",
+  "en": "Test Inference",
+  "ar": "اختبار الاستدلال"
+ },
+ "ai.inferenceOk": {
+  "fr": "Connexion réussie",
+  "en": "Connection Successful",
+  "ar": "نجح الاتصال"
+ },
+ "ai.sampling": {
+  "fr": "Paramètres d'échantillonnage",
+  "en": "Sampling Parameters",
+  "ar": "معلمات أخذ العينات"
+ },
+ "ai.temperature": {
+  "fr": "Température",
+  "en": "Temperature",
+  "ar": "درجة الحرارة"
+ },
+ "ai.topP": {
+  "fr": "Top P",
+  "en": "Top P",
+  "ar": "Top P"
+ },
+ "ai.maxTokens": {
+  "fr": "Tokens max",
+  "en": "Max Tokens",
+  "ar": "الحد الأقصى للرموز"
+ },
+ "ai.modelsFound": {
+  "fr": "modèles découverts",
+  "en": "models discovered",
+  "ar": "نماذج مكتشفة"
+ },
+ "ai.narrative.title": {
+  "fr": "Narratif de bulletin",
+  "en": "Report Card Narrative",
+  "ar": "تعليق التقرير الفصلي"
+ },
+ "ai.narrative.generate": {
+  "fr": "Générer",
+  "en": "Generate",
+  "ar": "توليد"
+ },
+ "ai.narrative.regenerate": {
+  "fr": "Régénérer",
+  "en": "Regenerate",
+  "ar": "إعادة التوليد"
+ },
+ "ai.narrative.approve": {
+  "fr": "Approuver",
+  "en": "Approve",
+  "ar": "اعتماد"
+ },
+ "ai.narrative.reject": {
+  "fr": "Rejeter",
+  "en": "Reject",
+  "ar": "رفض"
+ },
+ "ai.narrative.loading": {
+  "fr": "Génération en cours…",
+  "en": "Generating…",
+  "ar": "جارٍ التوليد…"
+ },
+ "ai.narrative.teacherNotes": {
+  "fr": "Notes de l'enseignant",
+  "en": "Teacher's Notes",
+  "ar": "ملاحظات المعلّم"
+ },
+ "ai.narrative.studentInfo": {
+  "fr": "Élève",
+  "en": "Student",
+  "ar": "التلميذ"
+ },
+ "ai.narrative.gradesSummary": {
+  "fr": "Résumé des notes",
+  "en": "Grade Summary",
+  "ar": "ملخص النقط"
+ },
+ "ai.narrative.attendanceRate": {
+  "fr": "Taux de présence",
+  "en": "Attendance Rate",
+  "ar": "معدل الحضور"
+ },
+ "ai.narrative.generatedNarrative": {
+  "fr": "Narratif généré",
+  "en": "Generated Narrative",
+  "ar": "التعليق المُولّد"
+ },
+ "ai.narrative.reviewMandatory": {
+  "fr": "Revue enseignant obligatoire avant publication",
+  "en": "Teacher review required before publication",
+  "ar": "مراجعة المعلّم إلزامية قبل النشر"
+ },
+ "ai.narrative.rejectReason": {
+  "fr": "Motif du rejet",
+  "en": "Reason for Rejection",
+  "ar": "سبب الرفض"
+ },
+ "ai.drafting.title": {
+  "fr": "Assistant de rédaction",
+  "en": "Writing Assistant",
+  "ar": "مساعد التحرير"
+ },
+ "ai.drafting.typeLabel": {
+  "fr": "Type de brouillon",
+  "en": "Draft Type",
+  "ar": "نوع المسودة"
+ },
+ "ai.drafting.recipient": {
+  "fr": "Destinataire (optionnel)",
+  "en": "Recipient (Optional)",
+  "ar": "المستلم (اختياري)"
+ },
+ "ai.drafting.keyPoints": {
+  "fr": "Points clés (un par ligne)",
+  "en": "Key Points (one per line)",
+  "ar": "النقاط الأساسية (واحدة لكل سطر)"
+ },
+ "ai.drafting.generate": {
+  "fr": "Générer",
+  "en": "Generate",
+  "ar": "توليد"
+ },
+ "ai.drafting.copy": {
+  "fr": "Copier",
+  "en": "Copy",
+  "ar": "نسخ"
+ },
+ "ai.drafting.download": {
+  "fr": "Télécharger PDF",
+  "en": "Download PDF",
+  "ar": "تنزيل PDF"
+ },
+ "ai.drafting.send": {
+  "fr": "Envoyer",
+  "en": "Send",
+  "ar": "إرسال"
+ },
+ "ai.drafting.warning": {
+  "fr": "L'IA peut halluciner. Relisez avant d'envoyer.",
+  "en": "AI may hallucinate. Proofread before sending.",
+  "ar": "قد يهلوس الذكاء الاصطناعي. راجع قبل الإرسال."
+ },
+ "ai.drafting.generatedDraft": {
+  "fr": "Brouillon généré",
+  "en": "Draft Generated",
+  "ar": "المسودة المُولّدة"
+ },
+ "ai.drafting.type.convocation": {
+  "fr": "Convocation",
+  "en": "Summon",
+  "ar": "استدعاء"
+ },
+ "ai.drafting.type.parent_alert": {
+  "fr": "Alerte parent",
+  "en": "Parent Alert",
+  "ar": "تنبيه ولي الأمر"
+ },
+ "ai.drafting.type.policy_notice": {
+  "fr": "Note de politique",
+  "en": "Policy Note",
+  "ar": "ملاحظة سياسة"
+ },
+ "ai.anomaly.title": {
+  "fr": "Explication de l'anomalie",
+  "en": "Anomaly Explanation",
+  "ar": "شرح الشذوذ"
+ },
+ "ai.anomaly.signals": {
+  "fr": "Signaux détectés",
+  "en": "Signals Detected",
+  "ar": "الإشارات المكتشفة"
+ },
+ "ai.anomaly.summary": {
+  "fr": "Synthèse IA",
+  "en": "AI Summary",
+  "ar": "خلاصة الذكاء الاصطناعي"
+ },
+ "ai.anomaly.requestJustification": {
+  "fr": "Demander une justification",
+  "en": "Request Justification",
+  "ar": "طلب تبرير"
+ },
+ "ai.anomaly.signalNotVerdict": {
+  "fr": "L'IA fournit un signal, l'humain décide toujours.",
+  "en": "AI provides a signal, the human always decides.",
+  "ar": "الذكاء الاصطناعي يقدّم إشارة، والإنسان يقرّر دائمًا."
+ },
+ "ai.anomaly.signal.duplicate": {
+  "fr": "Duplication",
+  "en": "Duplication",
+  "ar": "تكرار"
+ },
+ "ai.anomaly.signal.new_vendor": {
+  "fr": "Nouveau fournisseur",
+  "en": "New Provider",
+  "ar": "مورّد جديد"
+ },
+ "ai.anomaly.signal.budget_overrun": {
+  "fr": "Dépassement budgétaire",
+  "en": "Budget Overrun",
+  "ar": "تجاوز الميزانية"
+ },
+ "ai.anomaly.signal.missing_proof": {
+  "fr": "Justificatif manquant",
+  "en": "Missing justification",
+  "ar": "إثبات مفقود"
+ },
+ "ai.anomaly.justificationComment": {
+  "fr": "Commentaire de demande de justification",
+  "en": "Justification request comment",
+  "ar": "تعليق طلب التبرير"
+ },
+ "workflow.title": {
+  "fr": "Automatisations",
+  "en": "Automations",
+  "ar": "الأتمتة"
+ },
+ "workflow.editor": {
+  "fr": "Éditeur",
+  "en": "Editor",
+  "ar": "المحرر"
+ },
+ "workflow.runs": {
+  "fr": "Exécutions",
+  "en": "Executions",
+  "ar": "التنفيذات"
+ },
+ "workflow.new": {
+  "fr": "Nouveau workflow",
+  "en": "New workflow",
+  "ar": "سير عمل جديد"
+ },
+ "workflow.deploy": {
+  "fr": "Déployer",
+  "en": "Deploy",
+  "ar": "نشر"
+ },
+ "workflow.save": {
+  "fr": "Enregistrer",
+  "en": "Save",
+  "ar": "حفظ"
+ },
+ "workflow.saved": {
+  "fr": "Workflow enregistré",
+  "en": "Workflow saved",
+  "ar": "تم حفظ سير العمل"
+ },
+ "workflow.cycleDetected": {
+  "fr": "Cycle détecté — impossible de sauvegarder",
+  "en": "Cycle detected — unable to save",
+  "ar": "تم اكتشاف دورة — لا يمكن الحفظ"
+ },
+ "workflow.deployed": {
+  "fr": "Workflow déployé",
+  "en": "Workflow deployed",
+  "ar": "تم نشر سير العمل"
+ },
+ "workflow.execute": {
+  "fr": "Exécuter",
+  "en": "Execute",
+  "ar": "تنفيذ"
+ },
+ "workflow.executed": {
+  "fr": "Workflow exécuté",
+  "en": "Workflow executed",
+  "ar": "تم تنفيذ سير العمل"
+ },
+ "workflow.retried": {
+  "fr": "Nouvelle exécution lancée",
+  "en": "New execution started",
+  "ar": "تم إطلاق تنفيذ جديد"
+ },
+ "workflow.status.draft": {
+  "fr": "Brouillon",
+  "en": "Draft",
+  "ar": "مسودة"
+ },
+ "workflow.status.deployed": {
+  "fr": "Déployé",
+  "en": "Deployed",
+  "ar": "منشور"
+ },
+ "workflow.status.disabled": {
+  "fr": "Désactivé",
+  "en": "Disabled",
+  "ar": "معطّل"
+ },
+ "workflow.runStatus.running": {
+  "fr": "En cours",
+  "en": "In progress",
+  "ar": "جارٍ التنفيذ"
+ },
+ "workflow.runStatus.succeeded": {
+  "fr": "Réussi",
+  "en": "Success",
+  "ar": "ناجح"
+ },
+ "workflow.runStatus.failed": {
+  "fr": "Échec",
+  "en": "Failure",
+  "ar": "فشل"
+ },
+ "workflow.runStatus.timeout": {
+  "fr": "Expiré",
+  "en": "Expired",
+  "ar": "انتهى الوقت"
+ },
+ "workflow.nodeType.trigger": {
+  "fr": "Déclencheur",
+  "en": "Trigger",
+  "ar": "مُطلِق"
+ },
+ "workflow.nodeType.condition": {
+  "fr": "Condition",
+  "en": "Condition",
+  "ar": "شرط"
+ },
+ "workflow.nodeType.action": {
+  "fr": "Action",
+  "en": "Action",
+  "ar": "إجراء"
+ },
+ "workflow.nodeType.delay": {
+  "fr": "Délai",
+  "en": "Delay",
+  "ar": "تأخير"
+ },
+ "workflow.nodeType.transform": {
+  "fr": "Transformation",
+  "en": "Transformation",
+  "ar": "تحويل"
+ },
+ "workflow.noWorkflows": {
+  "fr": "Aucun workflow. Créez-en un pour commencer.",
+  "en": "No workflow. Create one to start.",
+  "ar": "لا توجد سير عمل. أنشئ واحدًا للبدء."
+ },
+ "workflow.selectWorkflow": {
+  "fr": "Sélectionnez un workflow dans la liste pour l'éditer.",
+  "en": "Select a workflow from the list to edit.",
+  "ar": "اختر سير عمل من القائمة لتحريره."
+ },
+ "workflow.runDetail": {
+  "fr": "Détail de l'exécution",
+  "en": "Execution details",
+  "ar": "تفاصيل التنفيذ"
+ },
+ "workflow.nodeResults": {
+  "fr": "Résultats par nœud",
+  "en": "Results by node",
+  "ar": "النتائج حسب العقدة"
+ },
+ "workflow.retry": {
+  "fr": "Réessayer",
+  "en": "Retry",
+  "ar": "إعادة المحاولة"
+ },
+ "backup.title": {
+  "fr": "Sauvegardes",
+  "en": "Backups",
+  "ar": "النسخ الاحتياطية"
+ },
+ "backup.lastBackup": {
+  "fr": "Dernière sauvegarde",
+  "en": "Last backup",
+  "ar": "آخر نسخة احتياطية"
+ },
+ "backup.runNow": {
+  "fr": "Sauvegarder maintenant",
+  "en": "Save now",
+  "ar": "نسخ احتياطي الآن"
+ },
+ "backup.archives": {
+  "fr": "Archives",
+  "en": "Archives",
+  "ar": "الأرشيف"
+ },
+ "backup.restore": {
+  "fr": "Restaurer",
+  "en": "Restore",
+  "ar": "استعادة"
+ },
+ "backup.delete": {
+  "fr": "Supprimer",
+  "en": "Delete",
+  "ar": "حذف"
+ },
+ "backup.restoreConfirmTitle": {
+  "fr": "Restaurer la sauvegarde ?",
+  "en": "Restore the backup?",
+  "ar": "استعادة النسخة الاحتياطية؟"
+ },
+ "backup.restoreConfirmDescription": {
+  "fr": "Cette action remplacera les données actuelles. Irréversible.",
+  "en": "This action will replace current data. Irreversible.",
+  "ar": "سيستبدل هذا الإجراء البيانات الحالية. لا يمكن التراجع."
+ },
+ "backup.deleteConfirmTitle": {
+  "fr": "Supprimer l'archive ?",
+  "en": "Delete the archive?",
+  "ar": "حذف الأرشيف؟"
+ },
+ "backup.deleteConfirmDescription": {
+  "fr": "L'archive sera définitivement supprimée du coffre. Action irréversible.",
+  "en": "The archive will be permanently deleted from the vault. Irreversible action.",
+  "ar": "سيتم حذف الأرشيف نهائيًا من الخزنة. إجراء لا يمكن التراجع عنه."
+ },
+ "backup.purge": {
+  "fr": "Purge",
+  "en": "Purge",
+  "ar": "تنظيف"
+ },
+ "backup.purgeAuto": {
+  "fr": "Purge automatique",
+  "en": "Auto purge",
+  "ar": "تنظيف تلقائي"
+ },
+ "backup.nextScheduled": {
+  "fr": "Prochaine exécution",
+  "en": "Next execution",
+  "ar": "التنفيذ التالي"
+ },
+ "backup.purgeNow": {
+  "fr": "Purger maintenant",
+  "en": "Purge now",
+  "ar": "تنظيف الآن"
+ },
+ "backup.empty": {
+  "fr": "Aucune sauvegarde. Cliquez sur 'Sauvegarder maintenant' pour créer la première.",
+  "en": "No backups. Click 'Save now' to create the first one.",
+  "ar": "لا توجد نسخ احتياطية. انقر على 'نسخ احتياطي الآن' لإنشاء الأولى."
+ },
+ "backup.size": {
+  "fr": "Taille",
+  "en": "Size",
+  "ar": "الحجم"
+ },
+ "backup.status.encrypted": {
+  "fr": "Chiffrée",
+  "en": "Encrypted",
+  "ar": "مشفّرة"
+ },
+ "backup.status.restored": {
+  "fr": "Restaurée",
+  "en": "Restored",
+  "ar": "مُستعادة"
+ },
+ "backup.status.corrupted": {
+  "fr": "Corrompue",
+  "en": "Corrupted",
+  "ar": "تالفة"
+ },
+ "backup.status.purged": {
+  "fr": "Purgée",
+  "en": "Purged",
+  "ar": "منظَّفة"
+ },
+ "backup.vault.local": {
+  "fr": "Local (IndexedDB)",
+  "en": "Local (IndexedDB)",
+  "ar": "محلي (IndexedDB)"
+ },
+ "backup.vault.offsite": {
+  "fr": "Hors-site (S3)",
+  "en": "Off-site (S3)",
+  "ar": "خارج الموقع (S3)"
+ },
+ "backup.retention": {
+  "fr": "Rétention 365 jours",
+  "en": "Retention 365 days",
+  "ar": "احتفاظ 365 يومًا"
+ },
+ "backup.running": {
+  "fr": "Sauvegarde en cours…",
+  "en": "Backup in progress…",
+  "ar": "جارٍ النسخ الاحتياطي…"
+ },
+ "backup.restoring": {
+  "fr": "Restauration en cours…",
+  "en": "Restoration in progress…",
+  "ar": "جارٍ الاستعادة…"
+ },
+ "backup.success": {
+  "fr": "Sauvegarde créée avec succès",
+  "en": "Backup created successfully",
+  "ar": "تم إنشاء النسخة الاحتياطية بنجاح"
+ },
+ "backup.restoreSuccess": {
+  "fr": "Restauration réussie",
+  "en": "Restoration successful",
+  "ar": "تمت الاستعادة بنجاح"
+ },
+ "backup.deleteSuccess": {
+  "fr": "Archive supprimée avec succès",
+  "en": "Archive deleted successfully",
+  "ar": "تم حذف الأرشيف بنجاح"
+ },
+ "backup.purgeSuccess": {
+  "fr": "Purge terminée avec succès",
+  "en": "Purge completed successfully",
+  "ar": "اكتمل التنظيف بنجاح"
+ }
+}

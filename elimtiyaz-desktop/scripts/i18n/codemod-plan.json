@@ -1,0 +1,1242 @@
+{
+ "files": [
+  {
+   "rel": "src/app/providers/ai-copilot-provider.tsx",
+   "edits": 19,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/academic-year-detail-drawer.tsx",
+   "edits": 106,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/batch-promotion-modal.tsx",
+   "edits": 25,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/class-attendance-tab.tsx",
+   "edits": 15,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/class-detail-page.tsx",
+   "edits": 53,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/class-grades-tab.tsx",
+   "edits": 21,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/class-subjects-tab.tsx",
+   "edits": 27,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/clubs/club-detail-drawer.tsx",
+   "edits": 40,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/clubs/clubs-tab.tsx",
+   "edits": 36,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/grade-entry-screen.tsx",
+   "edits": 47,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/grade-levels-class-view.tsx",
+   "edits": 31,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/homework-history-tab.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/homework-push-modal.tsx",
+   "edits": 17,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/hooks/use-batch-promotion.ts",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/hooks/use-class-placement-studio.ts",
+   "edits": 13,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/justifications-tab.tsx",
+   "edits": 13,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/narrative-generator-modal.tsx",
+   "edits": 13,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/placement/class-card-dropzone.tsx",
+   "edits": 16,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/placement/class-placement-studio-modal.tsx",
+   "edits": 60,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/placement/create-section-dialog.tsx",
+   "edits": 14,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/placement/student-placement-card.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/roll-call-screen.tsx",
+   "edits": 17,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/school-years-tab.tsx",
+   "edits": 38,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/subject-configurations-panel.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/subjects-directory-tab.tsx",
+   "edits": 13,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/teachers-tab.tsx",
+   "edits": 31,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/therapy/ortho-followup-detail-drawer.tsx",
+   "edits": 60,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/therapy/orthophonie-tab.tsx",
+   "edits": 30,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/therapy/psych-followup-detail-drawer.tsx",
+   "edits": 56,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/therapy/psychology-tab.tsx",
+   "edits": 36,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/academics/therapy/therapy-attachments-card.tsx",
+   "edits": 8,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/ai/artifact-renderer.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/ai/chart-svg.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/ai/copilot-drawer.tsx",
+   "edits": 16,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/auth/login-screen.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/auth/splash-screen.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/activation-code-modal.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/batch-registration/step1-parent.tsx",
+   "edits": 27,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/batch-registration/step2-students.tsx",
+   "edits": 39,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/batch-registration/step3-billing.tsx",
+   "edits": 22,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/batch-registration/step4-review.tsx",
+   "edits": 18,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/batch-registration-modal.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/crm-page.tsx",
+   "edits": 41,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/edit-parent-modal.tsx",
+   "edits": 22,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/edit-student-modal.tsx",
+   "edits": 28,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/excel-import-modal.tsx",
+   "edits": 78,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/parent-detail-drawer.tsx",
+   "edits": 177,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/student-detail/academic-tab.tsx",
+   "edits": 52,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/student-detail/attendance-tab.tsx",
+   "edits": 12,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/student-detail/documents-tab.tsx",
+   "edits": 21,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/student-detail/info-tab.tsx",
+   "edits": 21,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/crm/student-detail/payments-tab.tsx",
+   "edits": 15,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/academic-year-selector.tsx",
+   "edits": 7,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/alert-creator-modal.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/alert-detail-modal.tsx",
+   "edits": 11,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/calendar-event-creator-modal.tsx",
+   "edits": 3,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/aging-composition-card.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/analytics-slicers.tsx",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/cross-risk-card.tsx",
+   "edits": 12,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/data-inspector.tsx",
+   "edits": 29,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/debtors-pareto-card.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/executive-cards.tsx",
+   "edits": 72,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/mix-cards.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/operational-query-console.tsx",
+   "edits": 85,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/pivot-matrix-card.tsx",
+   "edits": 14,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/stat-strip.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/analytics/yoy-comparison-card.tsx",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/insights-rail.tsx",
+   "edits": 22,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/recovery-funnel-card.tsx",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/sparkline-kpi-card.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/components/weekly-operating-rhythm.tsx",
+   "edits": 3,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/dashboard-calendar.tsx",
+   "edits": 11,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/dashboard-page.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/see-details-modal.tsx",
+   "edits": 72,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/tabs/alerts-tab.tsx",
+   "edits": 30,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/tabs/analytics-tab.tsx",
+   "edits": 10,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/tabs/overview-tab.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/dashboard/tabs/reports-tab.tsx",
+   "edits": 23,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/anomaly-explainer-modal.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/cash-flow-radar.tsx",
+   "edits": 13,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/cross-service-matrix.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/debt-meter.tsx",
+   "edits": 10,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/expense-detail-drawer.tsx",
+   "edits": 41,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/expense-submit-modal.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/financial-query-console.tsx",
+   "edits": 28,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/financials-page.tsx",
+   "edits": 43,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/installment-schedule-tab.tsx",
+   "edits": 33,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/payment-breakdown-card.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/payment-detail-drawer.tsx",
+   "edits": 38,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/payment-slider.tsx",
+   "edits": 16,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/receipts-tab.tsx",
+   "edits": 20,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/financials/unified-payment-modal.tsx",
+   "edits": 88,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/administrator-dashboard.tsx",
+   "edits": 3,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/buyer-dashboard.tsx",
+   "edits": 11,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/driver-dashboard.tsx",
+   "edits": 12,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/manager-dashboard.tsx",
+   "edits": 23,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/role-dashboard-layout.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/role-dashboard-router.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/teacher-dashboard.tsx",
+   "edits": 20,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/warehouse-worker-dashboard.tsx",
+   "edits": 24,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/dashboards/worker-dashboard.tsx",
+   "edits": 33,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/chat-panel.tsx",
+   "edits": 29,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/department-management.tsx",
+   "edits": 35,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/employee-directory.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/employee-form-modal.tsx",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/employee-profile-drawer.tsx",
+   "edits": 28,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/payroll-management.tsx",
+   "edits": 70,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/requests-management.tsx",
+   "edits": 44,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/staff-attendance-center.tsx",
+   "edits": 54,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/task-detail-drawer.tsx",
+   "edits": 24,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/task-form-modal.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/management/task-management.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/onboarding-wizard.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/admins-step.tsx",
+   "edits": 3,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/departments-step.tsx",
+   "edits": 7,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/done-step.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/employees-step.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/managers-step.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/permissions-step.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/review-step.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/roles-step.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/shift-types-step.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/welcome-step.tsx",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/onboarding/steps/working-hours-step.tsx",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/personnel-detail-drawer.tsx",
+   "edits": 19,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/personnel-page.tsx",
+   "edits": 5,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/releve-tab.tsx",
+   "edits": 20,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/personnel/workflow-monitor-tab.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/profile/change-password-modal.tsx",
+   "edits": 4,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/profile/profile-page.tsx",
+   "edits": 36,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/routing/routing-page.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/accounts-tab.tsx",
+   "edits": 35,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/ai-config-tab.tsx",
+   "edits": 44,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/approvals-tab.tsx",
+   "edits": 46,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/audit-log-tab.tsx",
+   "edits": 34,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/backup-tab.tsx",
+   "edits": 112,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/configuration/connection-card.tsx",
+   "edits": 18,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/configuration/secret-edit-modal.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/configuration/setting-row.tsx",
+   "edits": 18,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/configuration/settings-card.tsx",
+   "edits": 3,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/configuration-tab.tsx",
+   "edits": 13,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/conflict-resolver-modal.tsx",
+   "edits": 16,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/create-account-modal.tsx",
+   "edits": 27,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/export-dialog.tsx",
+   "edits": 14,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/general-tab.tsx",
+   "edits": 28,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/locked-features-tab.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/pricing/additional-services-card.tsx",
+   "edits": 9,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/pricing/complementary-services-card.tsx",
+   "edits": 14,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/pricing/discounts-card.tsx",
+   "edits": 13,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/pricing/fees-card.tsx",
+   "edits": 10,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/pricing/transport-card.tsx",
+   "edits": 15,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/pricing/tuition-card.tsx",
+   "edits": 20,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/pricing-tab.tsx",
+   "edits": 2,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/rbac-matrix-editor.tsx",
+   "edits": 17,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/settings-page.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/sync-tab.tsx",
+   "edits": 58,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/settings/theme-editor-modal.tsx",
+   "edits": 33,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/workflow/dag-canvas.tsx",
+   "edits": 35,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/workflow/node-inspector-drawer.tsx",
+   "edits": 77,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/workflow/node-palette.tsx",
+   "edits": 3,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/workflow/test-studio-drawer.tsx",
+   "edits": 29,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/workflow/workflow-page.tsx",
+   "edits": 46,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/features/workflow/workflow-run-detail-drawer.tsx",
+   "edits": 10,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/layout/sidebar.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/layout/state-views.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/layout/tenant-switcher.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/layout/topbar.tsx",
+   "edits": 14,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/ui/auto-form/auto-form-modal.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/ui/data-table/data-table.tsx",
+   "edits": 3,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/ui/entity-drawer/entity-detail-drawer.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/ui/money-input.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/ui/unified-modal/modal-shell.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/ui/unified-modal/parts.tsx",
+   "edits": 1,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  },
+  {
+   "rel": "src/shared/ui/unified-modal.tsx",
+   "edits": 0,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": [
+    {
+     "line": 282,
+     "kind": "jsx-text",
+     "text": "Traitement…",
+     "key": "shared.ui.UnifiedModal.k1"
+    }
+   ]
+  },
+  {
+   "rel": "src/shared/ui/wizard/wizard.tsx",
+   "edits": 6,
+   "injections": 0,
+   "manual": [],
+   "moduleLevel": []
+  }
+ ],
+ "totals": {
+  "edits": 3738,
+  "injections": 0,
+  "manual": 0,
+  "moduleLevel": 1
+ }
+}
