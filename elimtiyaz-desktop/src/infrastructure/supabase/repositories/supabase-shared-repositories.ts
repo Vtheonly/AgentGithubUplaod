@@ -200,7 +200,7 @@ function toIsoDate(d: string | Date | null | undefined): string | null {
  * mock layer (e.g. "per-001", "cls-003") are NOT valid Postgres UUIDs — use
  * this guard before sending a value to a `uuid` column / RPC parameter.
  */
-export function isUuid(value: string | null | undefined): boolean {
+export function isUuid(value: string | null | undefined): value is string {
   return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 

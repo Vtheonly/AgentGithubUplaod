@@ -18,12 +18,41 @@
  *                   SyncQueueDispatcher.pushHomework — no import RPC exists)
  *   everything else → throws (the entry is marked failed, never silently
  *                   "synced").
+ *
+ * SYNC-300 (T-387): every uuid/date/timestamp-typed RPC argument passes
+ * through blankToNull/uuidOrNull BEFORE the call — `??` does NOT convert ""
+ * to null, and PostgREST rejects blank/non-uuid strings with HTTP 400
+ * (22P02 / 22007) BEFORE the SECURITY DEFINER body ever runs (the server-side
+ * NULLIF/TRIM normalization cannot save a failed parameter CAST).
  */
 import type { SyncQueueEntry } from "./sync-types";
 import {
   deterministicParentCode,
   deterministicStudentCode,
+  isUuid,
 } from "../supabase/repositories/supabase-shared-repositories";
+
+/**
+ * SYNC-300: blank strings are REJECTED by PostgREST's cast to typed RPC
+ * parameters — `p_class_id: ""` answers HTTP 400 `22P02 invalid input
+ * syntax for type uuid: ""` (a date/timestamp param answers 22007). The
+ * `??` coalescing operator only converts null/undefined, NEVER "" — so a
+ * payload field that arrived as an empty string sailed straight into the
+ * RPC call and failed the whole queue entry. Normalize BEFORE the rpc().
+ */
+function blankToNull(value: string | null | undefined): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+/**
+ * SYNC-300: a `uuid`-typed RPC parameter additionally requires a WELL-FORMED
+ * UUID — mock-layer ids ("cls-003", "staff-1") and free-text junk fail the
+ * same 22P02 cast. Reuses the exported `isUuid` guard (the line-1268
+ * convention in supabase-shared-repositories.ts: `isUuid(v) ? v : null`).
+ */
+function uuidOrNull(value: string | null | undefined): string | null {
+  return isUuid(value) ? value : null;
+}
 
 /**
  * Default push handler — calls the appropriate Supabase upsert RPC for the
@@ -139,10 +168,10 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           p_last_name: (p.lastName as string) ?? (p.last_name as string) ?? "",
           p_display_name: (p.displayName as string) ?? (p.display_name as string) ?? null,
           p_middle_name: null,
-          p_date_of_birth: (p.birthDate as string) ?? (p.date_of_birth as string) ?? null,
+          p_date_of_birth: blankToNull((p.birthDate as string) ?? (p.date_of_birth as string)),
           p_gender: (p.gender as string) === "unspecified" ? null : (p.gender as string) ?? null,
           p_grade_level_id: null,
-          p_class_id: (p.classId as string) ?? (p.class_id as string) ?? null,
+          p_class_id: uuidOrNull((p.classId as string) ?? (p.class_id as string)),
           p_enrollment_date: null,
           p_enrollment_status: "active",
           p_medical_notes: (p.medicalNotes as string) ?? (p.medical_notes as string) ?? null,
@@ -174,8 +203,8 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           p_category: (p.category as string) ?? "other",
           p_status: (p.status as string) ?? null,
           p_proof_path: (p.proofUrl as string) ?? (p.proof_path as string) ?? null,
-          p_collected_at: (p.collectedAt as string) ?? (p.collected_at as string) ?? null,
-          p_collected_by: (p.collectedBy as string) ?? (p.collected_by as string) ?? null,
+          p_collected_at: blankToNull((p.collectedAt as string) ?? (p.collected_at as string)),
+          p_collected_by: uuidOrNull((p.collectedBy as string) ?? (p.collected_by as string)),
           p_notes: (p.notes as string) ?? null,
         });
         if (error) throw error;
@@ -200,7 +229,7 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           p_reverses_id: (p.reversesId as string) ?? (p.reverses_id as string) ?? null,
           p_actor_id: (p.actorId as string) ?? (p.actor_id as string) ?? entry.actorId,
           p_actor_name: (p.actorName as string) ?? (p.actor_name as string) ?? "System",
-          p_at: (p.at as string) ?? null,
+          p_at: blankToNull(p.at as string | null),
           p_metadata: (p.metadata as Record<string, unknown>) ?? null,
         });
         if (error) throw error;
@@ -222,8 +251,8 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           p_amount_due: (p.amountDue as number) ?? (p.amount_due as number) ?? null,
           p_amount_paid: (p.amountPaid as number) ?? (p.amount_paid as number) ?? null,
           p_amount_pending: (p.amountPending as number) ?? (p.amount_pending as number) ?? null,
-          p_due_date: (p.dueDate as string) ?? (p.due_date as string) ?? null,
-          p_paid_date: (p.paidDate as string) ?? (p.paid_date as string) ?? null,
+          p_due_date: blankToNull((p.dueDate as string) ?? (p.due_date as string)),
+          p_paid_date: blankToNull((p.paidDate as string) ?? (p.paid_date as string)),
           p_status: (p.status as string) ?? "unpaid",
           p_academic_cycle: (p.academicCycle as string) ?? (p.academic_cycle as string) ?? null,
           p_academic_year: (p.academicYear as string) ?? (p.academic_year as string) ?? null,
@@ -237,13 +266,13 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
         const { error } = await client.rpc("upsert_attendance_from_import", {
           p_tenant_id: entry.tenantId,
           p_student_id: (p.studentId as string) ?? (p.student_id as string),
-          p_record_date: (p.recordDate as string) ?? (p.record_date as string) ?? (p.date as string),
+          p_record_date: blankToNull((p.recordDate as string) ?? (p.record_date as string) ?? (p.date as string)),
           p_status: (p.status as string) ?? "present",
-          p_class_id: (p.classId as string) ?? (p.class_id as string) ?? null,
+          p_class_id: uuidOrNull((p.classId as string) ?? (p.class_id as string)),
           p_session: (p.session as string) ?? "morning",
           p_arrival_time: (p.arrivalTime as string) ?? (p.arrival_time as string) ?? null,
           p_note: (p.note as string) ?? null,
-          p_recorded_by: (p.recordedBy as string) ?? (p.recorded_by as string) ?? entry.actorId,
+          p_recorded_by: uuidOrNull((p.recordedBy as string) ?? (p.recorded_by as string) ?? entry.actorId),
         });
         if (error) throw error;
         break;
@@ -257,12 +286,12 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
           p_subject_id: (p.subjectId as string) ?? (p.subject_id as string),
           p_term: (p.term as number) ?? 1,
           p_academic_year: (p.academicYear as string) ?? (p.academic_year as string) ?? "",
-          p_class_id: (p.classId as string) ?? (p.class_id as string) ?? null,
+          p_class_id: uuidOrNull((p.classId as string) ?? (p.class_id as string)),
           p_devoir1: (p.devoir1 as number) ?? null,
           p_devoir2: (p.devoir2 as number) ?? null,
           p_examen: (p.examen as number) ?? null,
           p_coefficient: (p.coefficient as number) ?? 1,
-          p_entered_by: entry.actorId,
+          p_entered_by: uuidOrNull(entry.actorId),
         });
         if (error) throw error;
         break;

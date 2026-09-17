@@ -812,8 +812,19 @@ export interface Database {
           p_enrollment_status?: string;
           p_medical_notes?: string | null;
           p_is_active?: boolean;
+          // Migration 0028 (T-387 / SYNC-300 census: the live pg_proc
+          // signature has carried these three since 0037 re-declared the
+          // RPC — the generated types were BEHIND the chain; both the
+          // push handler and createStudent send them, and the live
+          // signature accepts them with defaults).
+          p_grade_level_code?: string | null;
+          p_transport_tier?: string | null;
+          p_payment_plan?: string;
         };
-        Returns: { student_id: string; student_code: string; was_inserted: boolean }[];
+        // Migration 0031 — output columns renamed to out_* (same convention
+        // as upsert_parent_from_import above; aligned with the live pg_proc
+        // RETURNS TABLE in 0037).
+        Returns: { out_student_id: string; out_student_code: string; out_was_inserted: boolean }[];
       };
       upsert_payment_from_import: {
         Args: Record<string, unknown>;
