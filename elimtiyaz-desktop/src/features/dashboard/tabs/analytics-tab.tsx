@@ -19,9 +19,11 @@ import { useObservable } from "../../../shared/hooks/use-observable";
 import {
   applyAnalyticsFilters,
   presentCategories,
+  deriveOutstandingDebt,
   NO_ANALYTICS_FILTERS,
   type AnalyticsFilterState,
 } from "../components/analytics/analytics-derivations";
+import { deriveDiscountErosion, SERVICE_CATEGORIES } from "../components/analytics/executive-statistics";
 import { AnalyticsSlicers } from "../components/analytics/analytics-slicers";
 import { StatStrip } from "../components/analytics/stat-strip";
 import { MethodMixCard, CategoryMixCard } from "../components/analytics/mix-cards";
@@ -137,11 +139,31 @@ export function AnalyticsTab({
     [riskDebt],
   );
   const studentCount = students.length;
+  // T-389 (INSPECT-500): the year-scoped outstanding debt — the SAME
+  // derivation the inspector's resolution replays (status ≠ paid + year
+  // billing window + INV-4 remaining), so the "Créances {année}" trigger's
+  // displayed number and its lineage share ONE definition.
+  const yearOutstandingDebt = useMemo(
+    () => deriveOutstandingDebt(installments, academicYear),
+    [installments, academicYear],
+  );
+  // T-389 (INSPECT-500): the remise total from the LEDGER adjustment
+  // stream (deriveDiscountErosion's identification contract) — replaces
+  // the broken `student.remise` read (the field does not exist on Student;
+  // the total was always 0).
+  const remiseTotal = useMemo(
+    () => deriveDiscountErosion(ledger).remiseTotal,
+    [ledger],
+  );
+  const absenceCount = useMemo(
+    () => attendance.filter((r) => r.status === "absent_excused" || r.status === "absent_unexcused").length,
+    [attendance],
+  );
 
   const inspection = (request: InspectRequest) => request;
 
   return (
-    <DataInspectorProvider academicYear={academicYear} range={range}>
+    <DataInspectorProvider academicYear={academicYear} range={range} riskProfiles={riskProfiles}>
       <div className="space-y-4 pb-8" data-testid="analytics-tab">
         <div className="flex items-center justify-between border-b border-border pb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -166,10 +188,15 @@ export function AnalyticsTab({
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Inspection directe</span>
               <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${academicYear}`, metric: "annual_revenue", sourceValue: currentRevenueTotal })} />
-              <InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: currentDebtTotal })} />
+              <InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: yearOutstandingDebt, filters: { scope: "academic-year" } })} />
+              <InspectTrigger request={inspection({ domain: "debt", title: "Créances toutes années (Pareto)", metric: "outstanding_debt_all_years", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />
+              <InspectTrigger request={inspection({ domain: "tranche", title: `Vague 1 — reste dû ${academicYear}`, metric: "tranche_1_remaining", sourceValue: deriveOutstandingDebt(installments.filter((i) => i.trancheNumber === 1), academicYear), filters: { trancheNumber: 1, mode: "remaining", scope: "academic-year" } })} />
+              <InspectTrigger request={inspection({ domain: "transport", title: `Restes dûs transport ${academicYear}`, metric: "transport_remaining", sourceValue: deriveOutstandingDebt(installments.filter((i) => i.category === "transport"), academicYear), filters: { transportMode: "remaining" } })} />
+              <InspectTrigger request={inspection({ domain: "service", title: "Encaissements services (hors scolarité/transport)", metric: "service_payments", sourceValue: applyAnalyticsFilters(payments, range, { methods: new Set(), categories: new Set(SERVICE_CATEGORIES) }).reduce((s, p) => s + p.amount, 0), filters: { from: range?.from, to: range?.to, categories: SERVICE_CATEGORIES } })} />
               <InspectTrigger request={inspection({ domain: "academic-risk", title: "Élèves à risque pédagogique", metric: "gpa_below_10", sourceValue: riskProfiles.filter((p) => p.gpa !== null && p.gpa < 10).length })} />
-              <InspectTrigger request={inspection({ domain: "attendance", title: "Présences / absences", metric: "attendance_records", sourceValue: attendance.length })} />
-              <InspectTrigger request={inspection({ domain: "discount", title: "Remises enregistrées", metric: "discount_total", sourceValue: students.reduce((sum, student) => sum + (student.remise > 0 ? student.remise : 0), 0) })} />
+              <InspectTrigger request={inspection({ domain: "attendance", title: "Enregistrements de présence", metric: "attendance_records", sourceValue: attendance.length, filters: { attendanceMode: "records" } })} />
+              <InspectTrigger request={inspection({ domain: "attendance", title: "Absences enregistrées", metric: "absence_count", sourceValue: absenceCount, filters: { attendanceMode: "absences" } })} />
+              <InspectTrigger request={inspection({ domain: "discount", title: "Remises négociées (grand livre)", metric: "discount_total", sourceValue: remiseTotal })} />
             </div>
             <ExecutiveDashboard
               installments={installments}
@@ -209,7 +236,7 @@ export function AnalyticsTab({
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Ligne de provenance active</span>
               <span className="text-xs font-mono font-semibold text-foreground">{slice.length} PAID · {sliceTotal.toLocaleString("fr-DZ")} DZD</span>
-              <InspectTrigger request={inspection({ domain: "revenue", title: "Encaissements filtrés", metric: "filtered_paid_revenue", sourceValue: sliceTotal, filters: { from: range?.from, to: range?.to, method: filters.methods.size === 1 ? [...filters.methods][0] : undefined, category: filters.categories.size === 1 ? [...filters.categories][0] : undefined } })} />
+              <InspectTrigger request={inspection({ domain: "revenue", title: "Encaissements filtrés", metric: "filtered_paid_revenue", sourceValue: sliceTotal, filters: { from: range?.from, to: range?.to, methods: [...filters.methods], categories: [...filters.categories] } })} />
             </div>
 
             <AnalyticsSlicers
@@ -244,13 +271,18 @@ export function AnalyticsTab({
 
             <div className="space-y-2">
               <div className="flex flex-wrap justify-end gap-2">
-                <InspectTrigger request={inspection({ domain: "debt", title: "Vieillissement des créances", metric: "debt_aging", sourceValue: debtAging.reduce((sum, bucket) => sum + bucket.amount, 0) })} />
+                <InspectTrigger request={inspection({ domain: "debt", title: "Vieillissement des créances (total)", metric: "debt_aging", sourceValue: debtAging.reduce((sum, bucket) => sum + bucket.amount, 0), filters: { scope: "academic-year" } })} />
+                <InspectTrigger request={inspection({ domain: "debt", title: "Créances 0–30 j", metric: "debt_aging_0_30", sourceValue: debtAging.find((b) => b.bucket === "0_30")?.amount ?? 0, filters: { agingBucket: "0_30", scope: "academic-year" } })} />
+                <InspectTrigger request={inspection({ domain: "debt", title: "Créances 31–60 j", metric: "debt_aging_31_60", sourceValue: debtAging.find((b) => b.bucket === "31_60")?.amount ?? 0, filters: { agingBucket: "31_60", scope: "academic-year" } })} />
+                <InspectTrigger request={inspection({ domain: "debt", title: "Créances 61–90 j", metric: "debt_aging_61_90", sourceValue: debtAging.find((b) => b.bucket === "61_90")?.amount ?? 0, filters: { agingBucket: "61_90", scope: "academic-year" } })} />
+                <InspectTrigger request={inspection({ domain: "debt", title: "Créances 91–180 j", metric: "debt_aging_91_180", sourceValue: debtAging.find((b) => b.bucket === "91_180")?.amount ?? 0, filters: { agingBucket: "91_180", scope: "academic-year" } })} />
+                <InspectTrigger request={inspection({ domain: "debt", title: "Créances > 180 j", metric: "debt_aging_180_plus", sourceValue: debtAging.find((b) => b.bucket === "180_plus")?.amount ?? 0, filters: { agingBucket: "180_plus", scope: "academic-year" } })} />
               </div>
               <AgingCompositionCard debtAging={debtAging} />
             </div>
 
             <div className="space-y-2">
-              <div className="flex justify-end"><InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices", metric: "debtors_pareto", sourceValue: currentDebtTotal })} /></div>
+              <div className="flex justify-end"><InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices (toutes années)", metric: "debtors_pareto", sourceValue: currentDebtTotal, filters: { scope: "all" } })} /></div>
               <DebtorsParetoCard topDebtors={riskDebt as DebtSummary[]} />
             </div>
           </div>

@@ -57,6 +57,8 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
 } from "../../../../domain/model/payment";
+import type { LedgerEntry } from "../../../../domain/model/ledger";
+import { isRemiseAdjustment } from "./executive-statistics";
 import type { Student } from "../../../../domain/model/student";
 import { GRADE_LEVEL_LABELS_FR } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
@@ -203,6 +205,15 @@ function Student360Modal({
     () => repos.debt.observeSummary(),
     [],
   );
+  // T-389 (INSPECT-500): the remise lives on the LEDGER (negative
+  // adjustment entries — the T-103/DATA-008 rule), NOT on the Student
+  // model (`student.remise` is a CreateStudentInput-only field; reading
+  // it on the read side was always undefined — the always-"Aucune remise"
+  // bug this fixes).
+  const ledger = useObservable<readonly LedgerEntry[]>(
+    () => repos.ledger.observe(),
+    [],
+  );
 
   const student = useMemo<Student | null>(
     () =>
@@ -335,7 +346,23 @@ function Student360Modal({
     0,
   );
 
-  const discount = student?.remise ?? 0;
+  // T-389 (INSPECT-500): remise derived from the ledger adjustment stream
+  // via the shared identification contract (isRemiseAdjustment) — the
+  // student-scoped entries first, then the family-scoped ones when the
+  // student carries none of its own.
+  const remise = useMemo(() => {
+    if (!student) return { studentScoped: 0, familyScoped: 0 };
+    let studentScoped = 0;
+    let familyScoped = 0;
+    for (const entry of ledger) {
+      if (!isRemiseAdjustment(entry)) continue;
+      if (entry.parentId !== student.parentId) continue;
+      if (entry.studentId === student.id) studentScoped += -entry.amount;
+      else if (entry.studentId === null) familyScoped += -entry.amount;
+    }
+    return { studentScoped, familyScoped };
+  }, [ledger, student]);
+  const discount = remise.studentScoped > 0 ? remise.studentScoped : remise.familyScoped;
   const riskLabel =
     profile?.riskCategory === "healthy"
       ? "Profil régulier"
@@ -537,7 +564,7 @@ function Student360Modal({
                   label="Remise"
                   value={
                     discount > 0
-                      ? `${formatDzdPlain(discount)} DA`
+                      ? `${formatDzdPlain(discount)} DA${remise.studentScoped > 0 ? "" : " (portée famille)"}`
                       : "Aucune remise enregistrée"
                   }
                 />
