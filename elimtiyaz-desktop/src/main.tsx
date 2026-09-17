@@ -22,6 +22,7 @@ import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/600.css";
 import "./index.css";
 import "./i18n/i18n";
+import { startFinancialRealtime } from "./infrastructure/supabase/financial-realtime";
 
 // Iteration 15: synchronously apply stored theme + locale on app startup so
 // the dir="rtl" attribute and the data-theme attribute are both set BEFORE
@@ -42,6 +43,10 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Finance uses repository Observables rather than TanStack Query, so keep its
+// cache freshness and Supabase Realtime bridge outside the query client.
+void startFinancialRealtime();
 
 const container = document.getElementById("root");
 if (!container) {
