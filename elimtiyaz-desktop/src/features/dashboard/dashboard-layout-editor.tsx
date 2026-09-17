@@ -35,6 +35,17 @@ function readLayout(storageKey: string): StoredLayout {
   }
 }
 
+function readOrder(storageKey: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + storageKey + ":order");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) && parsed.every((id) => typeof id === "string") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function DashboardLayoutEditor({
   storageKey,
   items,
@@ -48,7 +59,7 @@ export function DashboardLayoutEditor({
   onSave?: () => void;
   onReset?: () => void;
 }) {
-  const [order, setOrder] = useState(() => items.map((item) => item.id));
+  const [order, setOrder] = useState(() => readOrder(storageKey) ?? items.map((item) => item.id));
   const [sizes, setSizes] = useState<StoredLayout>(() => readLayout(storageKey));
   const dragId = useRef<string | null>(null);
   const resizeState = useRef<{ id: string; x: number; y: number; w: number; h: number } | null>(null);
