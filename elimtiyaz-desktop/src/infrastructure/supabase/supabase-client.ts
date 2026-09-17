@@ -35,6 +35,7 @@ function readEnv(name: string): string | undefined {
 
 const envSupabaseUrl = readEnv("VITE_SUPABASE_URL");
 const envSupabaseAnonKey = readEnv("VITE_SUPABASE_ANON_KEY");
+const isProductionDesktopBuild = readEnv("VITE_DESKTOP_PRODUCTION") === "true";
 
 /**
  * Read the Supabase URL + anon key from local config (Electron userData or
@@ -65,15 +66,33 @@ function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: 
 }
 
 const localConfig = readLocalConfigSync();
+const localConfigIsExplicitlyEnabled = localConfig.useSupabase === true;
+const localConfigMatchesProductionProject =
+  !localConfig.url || !envSupabaseUrl || localConfig.url.trim() === envSupabaseUrl.trim();
+const useLocalProductionConfig =
+  isProductionDesktopBuild &&
+  localConfigIsExplicitlyEnabled &&
+  localConfigMatchesProductionProject &&
+  !!localConfig.anonKey;
 
-export const supabaseUrl = localConfig.url ?? envSupabaseUrl;
-export const supabaseAnonKey = localConfig.anonKey ?? envSupabaseAnonKey;
+export const supabaseUrl = isProductionDesktopBuild
+  ? (useLocalProductionConfig ? localConfig.url : envSupabaseUrl)
+  : (localConfig.url ?? envSupabaseUrl);
+
+export const supabaseAnonKey = isProductionDesktopBuild
+  ? (useLocalProductionConfig ? localConfig.anonKey : envSupabaseAnonKey)
+  : (localConfig.anonKey ?? envSupabaseAnonKey);
 
 /**
  * Whether the Supabase adapter should be used instead of the mock layer.
- * Priority: local config > env var.
+ *
+ * Packaged production builds are always Supabase-backed. Development builds
+ * retain the existing local-config > env-var behavior for deliberate mock-mode
+ * testing.
  */
-export const useSupabase = localConfig.useSupabase ?? (readEnv("VITE_USE_SUPABASE") === "true");
+export const useSupabase = isProductionDesktopBuild
+  ? true
+  : (localConfig.useSupabase ?? (readEnv("VITE_USE_SUPABASE") === "true"));
 
 if (!supabaseUrl || !supabaseAnonKey) {
   // Only throw if Supabase is explicitly enabled
