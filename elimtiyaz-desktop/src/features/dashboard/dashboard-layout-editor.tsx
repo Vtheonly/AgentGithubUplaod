@@ -32,7 +32,7 @@ type DragState = {
   startPointerY: number;
   startX: number;
   startY: number;
-  cellWidth: number;
+  columnStep: number;
   rowStep: number;
   pointerId: number;
 };
@@ -43,7 +43,7 @@ type ResizeState = {
   startPointerY: number;
   startW: number;
   startH: number;
-  cellWidth: number;
+  columnStep: number;
   rowStep: number;
   pointerId: number;
 };
@@ -79,6 +79,7 @@ function readStoredLayout(storageKey: string): StoredLayout {
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
     const result: StoredLayout = {};
     for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
       if (!value || typeof value !== "object") continue;
@@ -107,11 +108,11 @@ function writeStoredLayout(storageKey: string, layout: StoredLayout) {
   try {
     localStorage.setItem(STORAGE_PREFIX + storageKey, JSON.stringify(layout));
   } catch {
-    // Local persistence is optional; the in-memory editor remains usable.
+    // The editor remains usable when local persistence is unavailable.
   }
 }
 
-function rectsOverlap(a: LayoutRect, b: LayoutRect) {
+function overlaps(a: LayoutRect, b: LayoutRect) {
   return (
     a.x < b.x + b.w &&
     a.x + a.w > b.x &&
@@ -121,98 +122,84 @@ function rectsOverlap(a: LayoutRect, b: LayoutRect) {
 }
 
 function resolveCollisions(layout: StoredLayout, movedId: string): StoredLayout {
-  const next: StoredLayout = Object.fromEntries(
+  const result: StoredLayout = Object.fromEntries(
     Object.entries(layout).map(([id, rect]) => [id, { ...rect }]),
   );
 
-  // Preserve the moved item exactly, then push overlapping items downward.
-  // A bounded pass handles cascades without creating an infinite loop.
   for (let pass = 0; pass < 100; pass += 1) {
     let changed = false;
-    const entries = Object.entries(next).sort(([, a], [, b]) => {
+    const ordered = Object.entries(result).sort(([, a], [, b]) => {
       if (a.y !== b.y) return a.y - b.y;
       return a.x - b.x;
     });
 
-    for (let i = 0; i < entries.length; i += 1) {
-      const [idA, a] = entries[i];
-      for (let j = i + 1; j < entries.length; j += 1) {
-        const [idB, b] = entries[j];
-        if (!rectsOverlap(a, b)) continue;
+    for (let i = 0; i < ordered.length; i += 1) {
+      const [idA, a] = ordered[i];
+      for (let j = i + 1; j < ordered.length; j += 1) {
+        const [idB, b] = ordered[j];
+        if (!overlaps(a, b)) continue;
 
-        const pushedId = idB === movedId ? idA : idB === movedId ? idA : idB;
-        if (pushedId === movedId) {
-          const fallback = idA === movedId ? b : a;
-          if (idA === movedId) {
-            fallback.y = a.y + a.h;
-          }
-          continue;
+        const pushId = idA === movedId ? idB : idB === movedId ? idA : idB;
+        if (pushId === movedId) continue;
+        const pushed = result[pushId];
+        const nextY = Math.max(pushed.y, a.y + a.h);
+        if (pushed.y !== nextY) {
+          pushed.y = nextY;
+          changed = true;
         }
-
-        const target = next[pushedId];
-        target.y = Math.max(target.y, a.y + a.h);
-        changed = true;
       }
     }
 
     if (!changed) break;
   }
 
-  return next;
+  return result;
 }
 
 function buildInitialLayout(items: DashboardLayoutItem[], stored: StoredLayout): StoredLayout {
   const result: StoredLayout = {};
   let cursorX = 0;
   let cursorY = 0;
-  let currentRowHeight = 0;
+  let rowHeight = 0;
 
-  items.forEach((item, index) => {
-    const storedRect = stored[item.id];
+  for (const item of items) {
     const defaultW = clamp(item.w ?? GRID_COLUMNS, item.minW ?? 1, item.maxW ?? GRID_COLUMNS);
     const defaultH = clamp(item.h ?? DEFAULT_HEIGHT, item.minH ?? 1, item.maxH ?? 40);
 
-    if (storedRect) {
-      result[item.id] = sanitizeRect(storedRect, item);
-      return;
+    if (stored[item.id]) {
+      result[item.id] = sanitizeRect(stored[item.id], item);
+      continue;
     }
 
-    const explicit = item.x !== undefined || item.y !== undefined;
-    if (explicit) {
+    if (item.x !== undefined || item.y !== undefined) {
       result[item.id] = sanitizeRect(
-        {
-          x: item.x ?? 0,
-          y: item.y ?? cursorY,
-          w: defaultW,
-          h: defaultH,
-        },
+        { x: item.x ?? 0, y: item.y ?? cursorY, w: defaultW, h: defaultH },
         item,
       );
-      return;
+      continue;
     }
 
-    if (cursorX > 0 && cursorX + defaultW > GRID_COLUMNS) {
+    if (cursorX + defaultW > GRID_COLUMNS && cursorX > 0) {
       cursorX = 0;
-      cursorY += currentRowHeight + 1;
-      currentRowHeight = 0;
+      cursorY += rowHeight + 1;
+      rowHeight = 0;
     }
 
     result[item.id] = sanitizeRect(
-      {
-        x: cursorX,
-        y: cursorY,
-        w: defaultW,
-        h: defaultH,
-      },
+      { x: cursorX, y: cursorY, w: defaultW, h: defaultH },
       item,
     );
-    cursorX = result[item.id].x + result[item.id].w + 1;
-    currentRowHeight = Math.max(currentRowHeight, result[item.id].h);
-
-    if (index === items.length - 1) return;
-  });
+    cursorX += defaultW + 1;
+    rowHeight = Math.max(rowHeight, defaultH);
+  }
 
   return result;
+}
+
+function layoutBottom(layout: StoredLayout) {
+  let bottom = 8;
+  for (const rect of Object.values(layout)) bottom = Math.max(bottom, rect.y + rect.h);
+  return bottom;
 }
 
 export function DashboardLayoutEditor({
@@ -237,23 +224,6 @@ export function DashboardLayoutEditor({
     buildInitialLayout(items, readStoredLayout(storageKey)),
   );
 
-  const itemSignature = useMemo(() => items.map((item) => item.id).join("|"), [items]);
-
-  useEffect(() => {
-    setLayout((previous) => {
-      const stored = readStoredLayout(storageKey);
-      const next = buildInitialLayout(items, stored);
-      const merged: StoredLayout = {};
-      for (const item of items) {
-        merged[item.id] = sanitizeRect(
-          previous[item.id] ?? next[item.id],
-          item,
-        );
-      }
-      return merged;
-    });
-  }, [itemSignature, storageKey, items]);
-
   useEffect(() => {
     if (!dirty) return;
     const timer = window.setTimeout(() => writeStoredLayout(storageKey, layout), 250);
@@ -265,6 +235,8 @@ export function DashboardLayoutEditor({
       dragState.current = null;
       resizeState.current = null;
       setActiveId(null);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
       return;
     }
 
@@ -273,14 +245,16 @@ export function DashboardLayoutEditor({
       if (drag && event.pointerId === drag.pointerId) {
         const dx = event.clientX - drag.startPointerX;
         const dy = event.clientY - drag.startPointerY;
-        const nextX = Math.round(drag.startX + dx / drag.cellWidth);
-        const nextY = Math.round(drag.startY + dy / drag.rowStep);
         setLayout((previous) => {
-          const item = items.find((entry) => entry.id === drag.id);
-          if (!item) return previous;
+          const item = items.find((candidate) => candidate.id === drag.id);
           const current = previous[drag.id];
+          if (!item || !current) return previous;
           const moved = sanitizeRect(
-            { ...current, x: nextX, y: nextY },
+            {
+              ...current,
+              x: drag.startX + Math.round(dx / drag.columnStep),
+              y: drag.startY + Math.round(dy / drag.rowStep),
+            },
             item,
           );
           return resolveCollisions({ ...previous, [drag.id]: moved }, drag.id);
@@ -294,20 +268,18 @@ export function DashboardLayoutEditor({
         const dx = event.clientX - resize.startPointerX;
         const dy = event.clientY - resize.startPointerY;
         setLayout((previous) => {
-          const item = items.find((entry) => entry.id === resize.id);
-          if (!item) return previous;
+          const item = items.find((candidate) => candidate.id === resize.id);
+          const current = previous[resize.id];
+          if (!item || !current) return previous;
           const resized = sanitizeRect(
             {
-              ...previous[resize.id],
-              w: resize.startW + Math.round(dx / resize.cellWidth),
+              ...current,
+              w: resize.startW + Math.round(dx / resize.columnStep),
               h: resize.startH + Math.round(dy / resize.rowStep),
             },
             item,
           );
-          return resolveCollisions(
-            { ...previous, [resize.id]: resized },
-            resize.id,
-          );
+          return resolveCollisions({ ...previous, [resize.id]: resized }, resize.id);
         });
         setDirty(true);
       }
@@ -316,7 +288,7 @@ export function DashboardLayoutEditor({
     const onPointerUp = (event: PointerEvent) => {
       if (dragState.current?.pointerId === event.pointerId) dragState.current = null;
       if (resizeState.current?.pointerId === event.pointerId) resizeState.current = null;
-      setActiveId(null);
+      if (!dragState.current && !resizeState.current) setActiveId(null);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
@@ -331,26 +303,36 @@ export function DashboardLayoutEditor({
     };
   }, [editing, items]);
 
+  function measureSteps() {
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const widthWithoutGaps = rect.width - GRID_GAP * (GRID_COLUMNS - 1);
+    const columnWidth = widthWithoutGaps / GRID_COLUMNS;
+    return {
+      columnStep: columnWidth + GRID_GAP,
+      rowStep: ROW_HEIGHT + GRID_GAP,
+    };
+  }
+
   function startDrag(item: DashboardLayoutItem, event: ReactPointerEvent<HTMLButtonElement>) {
     if (!editing) return;
-    const grid = gridRef.current;
-    if (!grid) return;
+    const steps = measureSteps();
+    if (!steps) return;
+    const current = layout[item.id];
+    if (!current) return;
     event.preventDefault();
     event.stopPropagation();
-
-    const rect = grid.getBoundingClientRect();
-    const contentWidth = rect.width - GRID_GAP * (GRID_COLUMNS - 1);
-    const cellWidth = contentWidth / GRID_COLUMNS + GRID_GAP;
     dragState.current = {
       id: item.id,
       startPointerX: event.clientX,
       startPointerY: event.clientY,
-      startX: layout[item.id]?.x ?? 0,
-      startY: layout[item.id]?.y ?? 0,
-      cellWidth,
-      rowStep: ROW_HEIGHT + GRID_GAP,
+      startX: current.x,
+      startY: current.y,
+      columnStep: steps.columnStep,
+      rowStep: steps.rowStep,
       pointerId: event.pointerId,
     };
+    resizeState.current = null;
     setActiveId(item.id);
     document.body.style.userSelect = "none";
     document.body.style.cursor = "grabbing";
@@ -358,25 +340,23 @@ export function DashboardLayoutEditor({
 
   function startResize(item: DashboardLayoutItem, event: ReactPointerEvent<HTMLButtonElement>) {
     if (!editing) return;
-    const grid = gridRef.current;
-    if (!grid) return;
+    const steps = measureSteps();
+    if (!steps) return;
+    const current = layout[item.id];
+    if (!current) return;
     event.preventDefault();
     event.stopPropagation();
-
-    const rect = grid.getBoundingClientRect();
-    const contentWidth = rect.width - GRID_GAP * (GRID_COLUMNS - 1);
-    const cellWidth = contentWidth / GRID_COLUMNS + GRID_GAP;
-    const current = layout[item.id] ?? sanitizeRect({ x: 0, y: 0, w: item.w ?? 12, h: item.h ?? DEFAULT_HEIGHT }, item);
     resizeState.current = {
       id: item.id,
       startPointerX: event.clientX,
       startPointerY: event.clientY,
       startW: current.w,
       startH: current.h,
-      cellWidth,
-      rowStep: ROW_HEIGHT + GRID_GAP,
+      columnStep: steps.columnStep,
+      rowStep: steps.rowStep,
       pointerId: event.pointerId,
     };
+    dragState.current = null;
     setActiveId(item.id);
     document.body.style.userSelect = "none";
     document.body.style.cursor = "nwse-resize";
@@ -389,33 +369,28 @@ export function DashboardLayoutEditor({
   }
 
   function reset() {
-    const next = buildInitialLayout(items, {});
     try {
       localStorage.removeItem(STORAGE_PREFIX + storageKey);
     } catch {
-      // Ignore persistence failures; reset still applies in memory.
+      // Ignore persistence failures.
     }
-    setLayout(next);
+    setLayout(buildInitialLayout(items, {}));
     setDirty(false);
     onReset?.();
   }
 
-  const contentHeight = useMemo(() => {
-    let maxBottom = 8;
-    for (const rect of Object.values(layout)) maxBottom = Math.max(maxBottom, rect.y + rect.h);
-    return maxBottom;
-  }, [layout]);
+  const contentRows = useMemo(() => layoutBottom(layout), [layout]);
 
   return (
     <>
       {editing && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-          <span>Mode personnalisation actif — chaque bloc possède sa propre poignée de déplacement et son propre redimensionnement.</span>
+          <span>Mode personnalisation actif — chaque bloc a une poignée de déplacement et un coin de redimensionnement.</span>
           <div className="flex items-center gap-1.5 shrink-0">
             <button type="button" onClick={reset} className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-panel px-2 py-1 hover:bg-muted">
               <RotateCcw className="h-3 w-3" /> Réinitialiser
             </button>
-            <button type="button" onClick={persistNow} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50" disabled={!dirty}>
+            <button type="button" onClick={persistNow} disabled={!dirty} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50">
               <Save className="h-3 w-3" /> Enregistrer
             </button>
           </div>
@@ -424,15 +399,17 @@ export function DashboardLayoutEditor({
 
       <div
         ref={gridRef}
-        className={`dashboard-layout-editor-grid relative grid gap-3 pb-8 ${editing ? "rounded-xl border border-dashed border-primary/30 bg-[linear-gradient(to_right,hsl(var(--primary)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary)/0.06)_1px,transparent_1px)] bg-[size:8.333%_32px] p-2" : ""}`}
+        className={`relative grid grid-cols-12 gap-3 pb-8 ${editing ? "rounded-xl border border-dashed border-primary/30 bg-[linear-gradient(to_right,hsl(var(--primary)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary)/0.06)_1px,transparent_1px)] bg-[size:8.333%_32px] p-2" : ""}`}
         style={{
-          gridTemplateColumns: `repeat(${GRID_COLUMNS}, minmax(0, 1fr))`,
           gridAutoRows: `${ROW_HEIGHT}px`,
-          minHeight: `${contentHeight * ROW_HEIGHT + Math.max(0, contentHeight - 1) * GRID_GAP + 16}px`,
+          minHeight: `${contentRows * ROW_HEIGHT + Math.max(0, contentRows - 1) * GRID_GAP + 16}px`,
         }}
       >
         {items.map((item) => {
-          const rect = layout[item.id] ?? sanitizeRect({ x: 0, y: 0, w: item.w ?? 12, h: item.h ?? DEFAULT_HEIGHT }, item);
+          const rect = layout[item.id] ?? sanitizeRect(
+            { x: 0, y: 0, w: item.w ?? GRID_COLUMNS, h: item.h ?? DEFAULT_HEIGHT },
+            item,
+          );
           const isActive = activeId === item.id;
           return (
             <div
@@ -441,8 +418,9 @@ export function DashboardLayoutEditor({
               style={{
                 gridColumn: `${rect.x + 1} / span ${rect.w}`,
                 gridRow: `${rect.y + 1} / span ${rect.h}`,
-              }}
+              } as CSSProperties}
               data-dashboard-layout-id={item.id}
+              data-dashboard-layout-label={item.label}
             >
               {editing && (
                 <>
