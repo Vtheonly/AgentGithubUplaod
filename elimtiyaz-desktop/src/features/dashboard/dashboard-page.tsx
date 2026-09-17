@@ -33,12 +33,12 @@ import {
   AcademicYearSelector,
   type AcademicYearRange,
   computeDateRange,
+  getLatestAcademicYear,
 } from "./academic-year-selector";
 import { OverviewTab } from "./tabs/overview-tab";
 import { AnalyticsTab } from "./tabs/analytics-tab";
 import { AlertsTab } from "./tabs/alerts-tab";
 import { ReportsTab } from "./tabs/reports-tab";
-import { DashboardTabLayoutEditor } from "./dashboard-tab-layout-editor";
 import {
   type SeeDetailsTab,
   type Demographics,
@@ -69,6 +69,8 @@ const EMPTY_DEMOGRAPHICS: Demographics = {
   age: [],
 };
 
+const DEFAULT_ACADEMIC_YEAR = getLatestAcademicYear(AVAILABLE_ACADEMIC_YEARS);
+
 export function DashboardPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
@@ -81,10 +83,7 @@ export function DashboardPage() {
     demographics: EMPTY_DEMOGRAPHICS,
     topDebtors: [],
   });
-
-  const [debtSummaries, setDebtSummaries] = useState<readonly DebtSummary[]>(
-    [],
-  );
+  const [debtSummaries, setDebtSummaries] = useState<readonly DebtSummary[]>([]);
   const [payments, setPayments] = useState<readonly Payment[]>([]);
   const [installments, setInstallments] = useState<readonly Installment[]>([]);
   const [prevRevenue, setPrevRevenue] = useState<RevenuePoint[]>([]);
@@ -95,20 +94,26 @@ export function DashboardPage() {
   const [layoutEditing, setLayoutEditing] = useState(false);
 
   const [yearRange, setYearRange] = useState<AcademicYearRange>(() => ({
-    academicYear: "2025-2026",
-    range: computeDateRange("2025-2026", "ytd"),
+    academicYear: DEFAULT_ACADEMIC_YEAR,
+    range: computeDateRange(DEFAULT_ACADEMIC_YEAR, "ytd"),
     preset: "ytd",
   }));
 
-  // Unified data pipeline
+  useEffect(() => {
+    if (AVAILABLE_ACADEMIC_YEARS.includes(yearRange.academicYear)) return;
+    const latest = getLatestAcademicYear(AVAILABLE_ACADEMIC_YEARS);
+    setYearRange({
+      academicYear: latest,
+      range: computeDateRange(latest, "ytd"),
+      preset: "ytd",
+    });
+  }, [yearRange.academicYear]);
+
   useEffect(() => {
     void (async () => {
       const [k, rev, debt, demo] = await Promise.all([
         repos.dashboard.kpisForRange(yearRange.academicYear, yearRange.range),
-        repos.dashboard.revenueForRange(
-          yearRange.academicYear,
-          yearRange.range,
-        ),
+        repos.dashboard.revenueForRange(yearRange.academicYear, yearRange.range),
         repos.dashboard.debtByAgingForRange(
           yearRange.academicYear,
           yearRange.range,
@@ -203,8 +208,8 @@ export function DashboardPage() {
     return unsub;
   }, [repos.notifications, session]);
 
-  function openSeeDetails(tab: SeeDetailsTab = "revenue") {
-    setSeeDetailsTab(tab);
+  function openSeeDetails(tabName: SeeDetailsTab = "revenue") {
+    setSeeDetailsTab(tabName);
     setSeeDetailsOpen(true);
   }
 
@@ -225,6 +230,15 @@ export function DashboardPage() {
   };
 
   const dataProp = useMemo(() => data, [data]);
+  const layoutSupported = tab === "overview" || tab === "analytics";
+
+  const handleTabChange = (nextValue: string) => {
+    const nextTab = nextValue as DashboardTab;
+    setTab(nextTab);
+    if (nextTab === "alerts" || nextTab === "reports") {
+      setLayoutEditing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-surface-background">
@@ -240,16 +254,20 @@ export function DashboardPage() {
         description="Cockpit institutionnel — pilotage académique, logistique et financier"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={layoutEditing ? "default" : "outline"}
-              className="gap-1 shadow-sm text-xs"
-              aria-pressed={layoutEditing}
-              onClick={() => setLayoutEditing((value) => !value)}
-            >
-              <Settings2 className="h-3.5 w-3.5" />
-              {layoutEditing ? "Terminer la personnalisation" : "Personnaliser le tableau de bord"}
-            </Button>
+            {layoutSupported && (
+              <Button
+                size="sm"
+                variant={layoutEditing ? "default" : "outline"}
+                className="gap-1 shadow-sm text-xs"
+                aria-pressed={layoutEditing}
+                onClick={() => setLayoutEditing((value) => !value)}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+                {layoutEditing
+                  ? "Terminer la personnalisation"
+                  : "Personnaliser le tableau de bord"}
+              </Button>
+            )}
             <AcademicYearSelector
               value={yearRange}
               onChange={setYearRange}
@@ -272,7 +290,7 @@ export function DashboardPage() {
 
       <PageTabs
         value={tab}
-        onValueChange={(v) => setTab(v as DashboardTab)}
+        onValueChange={handleTabChange}
         className="flex-1 flex flex-col px-6 pb-6 min-h-0"
       >
         <PageTabList className="mb-2">
@@ -309,49 +327,31 @@ export function DashboardPage() {
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
             editing={layoutEditing}
-            onEditingChange={setLayoutEditing}
           />
         </PageTabContent>
 
         <PageTabContent value="analytics">
-          <DashboardTabLayoutEditor
-            storageKey="analytics"
+          <AnalyticsTab
+            revenue={data.revenue}
+            prevRevenue={prevRevenue}
+            academicYear={yearRange.academicYear}
+            prevAcademicYear={loadablePrevYear}
+            debtAging={data.debtAging}
+            topDebtors={topDebtors}
+            debtSummaries={debtSummaries}
+            payments={payments}
+            installments={scopedInstallments}
+            range={yearRange.range}
             editing={layoutEditing}
-            onEditingChange={setLayoutEditing}
-          >
-            <AnalyticsTab
-              revenue={data.revenue}
-              prevRevenue={prevRevenue}
-              academicYear={yearRange.academicYear}
-              prevAcademicYear={loadablePrevYear}
-              debtAging={data.debtAging}
-              topDebtors={topDebtors}
-              debtSummaries={debtSummaries}
-              payments={payments}
-              installments={scopedInstallments}
-              range={yearRange.range}
-            />
-          </DashboardTabLayoutEditor>
+          />
         </PageTabContent>
 
         <PageTabContent value="alerts">
-          <DashboardTabLayoutEditor
-            storageKey="alerts"
-            editing={layoutEditing}
-            onEditingChange={setLayoutEditing}
-          >
-            <AlertsTab />
-          </DashboardTabLayoutEditor>
+          <AlertsTab />
         </PageTabContent>
 
         <PageTabContent value="reports">
-          <DashboardTabLayoutEditor
-            storageKey="reports"
-            editing={layoutEditing}
-            onEditingChange={setLayoutEditing}
-          >
-            <ReportsTab />
-          </DashboardTabLayoutEditor>
+          <ReportsTab />
         </PageTabContent>
       </PageTabs>
 
