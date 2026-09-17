@@ -23,10 +23,21 @@ function readEnv(name: string): string | undefined {
 }
 
 const CANONICAL_PRODUCTION_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase.co";
+/**
+ * Canonical PUBLIC publishable key for the NEW project. This is the ONLY key
+ * allowed in the renderer bundle — a public client identifier protected by
+ * RLS, never a secret/service-role key (see docs/operations/credentials.md).
+ * Baked in as the deterministic fallback so a production build never depends
+ * on a stray shell env var; explicit Vite env values still take precedence
+ * below.
+ */
+const CANONICAL_PRODUCTION_PUBLIC_KEY =
+  "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
 const envSupabaseUrl = readEnv("VITE_SUPABASE_URL");
 const envSupabasePublishableKey = readEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
 const envSupabaseAnonKey = readEnv("VITE_SUPABASE_ANON_KEY");
-const envPublicKey = envSupabasePublishableKey ?? envSupabaseAnonKey;
+const envPublicKey =
+  envSupabasePublishableKey ?? envSupabaseAnonKey ?? CANONICAL_PRODUCTION_PUBLIC_KEY;
 const isProductionDesktopBuild = readEnv("VITE_DESKTOP_PRODUCTION") === "true";
 
 function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: boolean } {
@@ -57,7 +68,11 @@ const useLocalProductionConfig =
   !!localConfig.anonKey;
 
 export const supabaseUrl = isProductionDesktopBuild
-  ? CANONICAL_PRODUCTION_SUPABASE_URL
+  ? (envSupabaseUrl && envSupabaseUrl.trim() !== CANONICAL_PRODUCTION_SUPABASE_URL
+      ? (() => { throw new Error(
+          "VITE_SUPABASE_URL does not match the canonical NEW project (vebfehrpzajhstyhinnw). Refusing to start a production build against the wrong backend.",
+        ); })()
+      : CANONICAL_PRODUCTION_SUPABASE_URL)
   : (localConfig.url ?? envSupabaseUrl);
 
 export const supabaseAnonKey = isProductionDesktopBuild
@@ -111,6 +126,41 @@ export function getSupabaseClient(): SupabaseClient {
 
 export function isSupabaseConfigured(): boolean {
   return !!(supabaseUrl && supabaseAnonKey);
+}
+
+/**
+ * Non-secret runtime diagnostics for the production connection path.
+ * NEVER includes the API key or session tokens — URL hostname only.
+ */
+export function describeSupabaseConnection(): {
+  url: string | undefined;
+  host: string | undefined;
+  isProductionBuild: boolean;
+  useSupabase: boolean;
+  configured: boolean;
+  keyFormat: "publishable" | "anon-jwt" | "missing" | "other";
+} {
+  let host: string | undefined;
+  try {
+    host = supabaseUrl ? new URL(supabaseUrl).hostname : undefined;
+  } catch {
+    host = undefined;
+  }
+  const keyFormat = !supabaseAnonKey
+    ? "missing"
+    : supabaseAnonKey.startsWith("sb_publishable_")
+      ? "publishable"
+      : supabaseAnonKey.startsWith("eyJ")
+        ? "anon-jwt"
+        : "other";
+  return {
+    url: supabaseUrl,
+    host,
+    isProductionBuild: isProductionDesktopBuild,
+    useSupabase,
+    configured: isSupabaseConfigured(),
+    keyFormat,
+  };
 }
 
 import { Errors } from "../../core/app-error";

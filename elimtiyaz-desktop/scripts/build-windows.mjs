@@ -151,17 +151,38 @@ if (!existsSync(join(projectDir, "node_modules"))) {
 // Resolve the public key from the project's actual environment conventions.
 // Prefer VITE_* values used by the renderer; also support the canonical
 // SUPABASE_* names used by the shared deployment configuration.
+//
+// Deterministic default (publishable PUBLIC key only — safe to embed in the
+// client bundle; never a secret/service-role key): the canonical NEW project
+// vebfehrpzajhstyhinnw. An explicit env value (VITE_* file, SUPABASE_* or
+// process env) overrides this default; an explicit non-empty but FOREIGN
+// project key is a hard failure (fail-closed: never package a production
+// build against the wrong backend).
+const CANONICAL_PUBLIC_KEYS = new Set([
+  "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg",
+]);
 const { loadEnv } = await import("vite");
 const viteEnv = loadEnv("production", projectDir, "VITE_");
 const allEnv = loadEnv("production", projectDir, "");
-const resolvedPublicKey = (
+const explicitPublicKey = (
   viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY ??
   viteEnv.VITE_SUPABASE_ANON_KEY ??
   allEnv.SUPABASE_PUBLISHABLE_KEY ??
   allEnv.SUPABASE_ANON_KEY ??
   process.env.SUPABASE_PUBLISHABLE_KEY ??
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_ANON_KEY ??
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.VITE_SUPABASE_ANON_KEY
 )?.trim();
+if (explicitPublicKey && !CANONICAL_PUBLIC_KEYS.has(explicitPublicKey)) {
+  fail(
+    "Refusing to package: the configured public Supabase key does not match " +
+      "the canonical NEW project (vebfehrpzajhstyhinnw). Remove the override " +
+      "or set the canonical sb_publishable_ key.",
+  );
+}
+const resolvedPublicKey =
+  explicitPublicKey || "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
 
 if (!resolvedPublicKey) {
   fail(
