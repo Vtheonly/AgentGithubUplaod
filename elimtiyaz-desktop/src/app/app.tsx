@@ -27,6 +27,7 @@
  * (outside ToastProvider) would throw "useToast must be used within
  * <ToastProvider>" at mount.
  */
+import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { TooltipProvider } from "../shared/ui/tooltip";
 import { RepositoryProvider } from "./providers/repository-provider";
@@ -41,8 +42,67 @@ import { ModalHost } from "../shared/layout/modal-host";
 import { SplashGate } from "./splash-gate";
 import { AppShell } from "./app-shell";
 import { LoginScreen } from "../features/auth/login-screen";
+import { buildWhatsAppUrl } from "../shared/utils/whatsapp";
+
+/**
+ * Electron's renderer `window.open()` can otherwise create a new BrowserWindow
+ * instead of handing the URL to Chrome/the user's default browser. The desktop
+ * already owns a validated `shell.openExternal` IPC surface, so all wa.me
+ * opens are intercepted here and delegated to that external-browser path.
+ *
+ * This keeps existing UI call sites compatible (they may still call
+ * `window.open(...)`) while guaranteeing WhatsApp never replaces the app
+ * renderer with a black/blank embedded page.
+ */
+function useExternalWhatsAppHandoff(): void {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const originalOpen = window.open;
+
+    window.open = ((url?: string | URL, target?: string, features?: string) => {
+      const href = url instanceof URL ? url.toString() : url ?? "";
+
+      try {
+        const parsed = new URL(href);
+        if (
+          parsed.protocol === "https:" &&
+          parsed.hostname.toLowerCase() === "wa.me" &&
+          window.elImtiyaz?.shell?.openExternal
+        ) {
+          const phone = parsed.pathname.replace(/^\/+/, "");
+          const message = parsed.searchParams.get("text") ?? undefined;
+          const normalizedUrl = buildWhatsAppUrl(phone, message);
+
+          if (!normalizedUrl) {
+            console.error("[WhatsApp] Refusing invalid phone number:", phone);
+            return null;
+          }
+
+          void window.elImtiyaz.shell.openExternal(normalizedUrl).then((result) => {
+            if (!result.ok) {
+              console.error("[WhatsApp] External browser open failed:", result.error);
+            }
+          });
+          return null;
+        }
+      } catch {
+        // Preserve the browser's original semantics for non-URL values or
+        // unsupported URLs. The external handoff only owns wa.me URLs.
+      }
+
+      return originalOpen.call(window, url, target, features);
+    }) as typeof window.open;
+
+    return () => {
+      window.open = originalOpen;
+    };
+  }, []);
+}
 
 export function App() {
+  useExternalWhatsAppHandoff();
+
   return (
     <UserPreferencesProvider>
       <RepositoryProvider>
