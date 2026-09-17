@@ -9,8 +9,7 @@
  * layout editor only controls presentation order and widget dimensions.
  */
 
-import { useState } from "react";
-import { LayoutDashboard, Settings2 } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SparklineKpiCard } from "../components/sparkline-kpi-card";
 import {
@@ -54,6 +53,8 @@ export function OverviewTab({
   range,
   onDrillDown,
   onGoToAlerts,
+  editing,
+  onEditingChange,
 }: {
   data: DashboardData;
   payments: readonly Payment[];
@@ -61,9 +62,10 @@ export function OverviewTab({
   range?: { from: string; to: string };
   onDrillDown: (kpi: string) => void;
   onGoToAlerts: () => void;
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
   const { kpis, revenue, debtAging, topDebtors } = data;
 
   const nowEpochMs = Date.now();
@@ -211,31 +213,16 @@ export function OverviewTab({
 
   return (
     <div className="pb-8">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <LayoutDashboard className="h-3.5 w-3.5" />
-          <span>Vue opérationnelle personnalisable</span>
-        </div>
-        <button
-          type="button"
-          aria-pressed={editing}
-          onClick={() => setEditing((value) => !value)}
-          className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-            editing
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-surface-panel text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
-        >
-          <Settings2 className="h-3.5 w-3.5" />
-          {editing ? "Terminer la personnalisation" : "Personnaliser le tableau de bord"}
-        </button>
+      <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <LayoutDashboard className="h-3.5 w-3.5" />
+        <span>Vue opérationnelle personnalisable</span>
       </div>
 
       <DashboardLayoutEditor
         storageKey="overview"
         items={items}
         editing={editing}
-        onSave={() => setEditing(false)}
+        onSave={() => onEditingChange(false)}
       />
     </div>
   );
