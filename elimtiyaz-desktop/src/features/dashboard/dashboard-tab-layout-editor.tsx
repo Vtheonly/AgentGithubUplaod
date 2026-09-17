@@ -32,6 +32,21 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+function sameSnapshots(a: ChildSnapshot[], b: ChildSnapshot[]) {
+  if (a.length !== b.length) return false;
+  return a.every((item, index) => {
+    const other = b[index];
+    return (
+      item.id === other.id &&
+      item.element === other.element &&
+      item.rect.left === other.rect.left &&
+      item.rect.top === other.rect.top &&
+      item.rect.width === other.rect.width &&
+      item.rect.height === other.rect.height
+    );
+  });
+}
+
 export function DashboardTabLayoutEditor({
   storageKey,
   children,
@@ -61,7 +76,7 @@ export function DashboardTabLayoutEditor({
       element,
       rect: element.getBoundingClientRect(),
     }));
-    setChildrenSnapshot(snapshots);
+    setChildrenSnapshot((prev) => (sameSnapshots(prev, snapshots) ? prev : snapshots));
 
     const ids = snapshots.map((item) => item.id);
     setStored((prev) => {
