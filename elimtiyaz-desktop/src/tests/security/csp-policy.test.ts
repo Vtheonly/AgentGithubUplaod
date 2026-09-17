@@ -61,12 +61,17 @@ describe("DESK-CSP-202 — renderer CSP policy", () => {
     expect(csp).not.toContain("frame-ancestors");
   });
 
-  it("functional allowances kept: Google Fonts, inline style attributes, blob/img/connect needs", () => {
+  it("functional allowances kept: LOCAL fonts only (T-388), inline style attributes, blob/img/connect needs", () => {
     const csp = metaContent();
     // Design system renders inline style ATTRIBUTES (style-src 'unsafe-inline').
-    expect(csp).toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
-    // Google Fonts (fonts.gstatic.com) for Inter / JetBrains Mono / Noto Sans Arabic.
-    expect(csp).toContain("https://fonts.gstatic.com");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    // T-388 (I18N-501): every webfont is bundled locally via @fontsource
+    // (Inter / JetBrains Mono / IBM Plex Sans Arabic) — the Google Fonts CDN
+    // origins are GONE from the CSP (offline Electron rendered fallback
+    // fonts before). They must NOT come back.
+    expect(csp).not.toContain("fonts.googleapis.com");
+    expect(csp).not.toContain("fonts.gstatic.com");
+    expect(csp).toContain("font-src 'self' data:");
     // Media vault previews / excel+pdf export downloads (blob:), Supabase storage images.
     expect(csp).toContain("img-src 'self' data: blob: https:");
     expect(csp).toContain("worker-src 'self' blob:");

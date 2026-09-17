@@ -17,8 +17,10 @@
       - style-src 'unsafe-inline' — React/Tailwind inline style ATTRIBUTES
         are used pervasively by the design system; blocking them breaks the
         UI. style-src is not an XSS injection vector on its own.
-      - font-src / style-src include Google Fonts (Inter, JetBrains Mono,
-        Noto Sans Arabic — loaded via <link> above).
+      - font-src 'self' data: — T-388: every webfont is bundled locally
+        (@fontsource woff2 in dist/assets); the Google Fonts CDN origins are
+        REMOVED from style-src/font-src (offline Electron rendered fallback
+        fonts before — now the CSP matches the fully-local font reality).
       - connect-src https: wss: — the app connects to a USER-CONFIGURED
         Supabase project URL (Settings → Configuration; arbitrary project),
         plus localhost ws: for the Vite dev server. Outbound TLS-only.
@@ -37,15 +39,16 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: wss: ws://localhost:* http://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: wss: ws://localhost:* http://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <title>El-Imtiyaz — Plateforme de gestion scolaire</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!--
+      T-388 (I18N-501): the webfonts (Inter, JetBrains Mono, IBM Plex Sans Arabic)
+      are BUNDLED LOCALLY via @fontsource — imported from src/main.tsx, hashed into
+      dist/assets by Vite. No CDN <link> remains, so the app renders identical
+      type fully OFFLINE (the Electron file:// context where fonts.gstatic.com
+      was unreachable — the owner's Arabic font complaint).
+    -->
   </head>
   <body>
     <div id="root"></div>

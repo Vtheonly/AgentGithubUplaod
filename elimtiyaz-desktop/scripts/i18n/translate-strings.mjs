@@ -27,7 +27,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..", "..");
 const CACHE_BASE = join(__dirname, "translations-cache.json");
 const DICT_EN = join(__dirname, "dictionary-en.json");
-const BATCH = 70;
+const BATCH = parseInt(process.env.BATCH_SIZE ?? "70", 10);
+const CALL_TIMEOUT_MS = parseInt(process.env.CALL_TIMEOUT_MS ?? "420000", 10); // 7 min per LLM call
+const now = () => new Date().toISOString().slice(11, 19);
 
 // sharding for parallel runs: SHARD_INDEX=0 SHARD_COUNT=3 node translate-strings.mjs
 const SHARD_INDEX = parseInt(process.env.SHARD_INDEX ?? "0", 10);
@@ -137,13 +139,17 @@ async function translateBatch(items) {
   let lastErr = null;
   for (let attempt = 1; attempt <= 8; attempt++) {
     try {
-      const completion = await zaiInstance.chat.completions.create({
+      const p = zaiInstance.chat.completions.create({
         messages: [
           { role: "assistant", content: `${GLOSSARY}\n\n${RULES}` },
           { role: "user", content: JSON.stringify(srcList) },
         ],
         thinking: { type: "disabled" },
       });
+      const completion = await Promise.race([
+        p,
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`LLM call timeout after ${CALL_TIMEOUT_MS / 1000}s`)), CALL_TIMEOUT_MS)),
+      ]);
       const raw = completion.choices[0]?.message?.content ?? "";
       const cleaned = raw.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
       const start = cleaned.indexOf("[");
@@ -177,10 +183,15 @@ function validate(item, out) {
 // --- main -----------------------------------------------------------------------
 
 async function main() {
-  // Pass 1: the existing dictionary → English (for en.ts) — incremental
+  // Pass 1: the existing dictionary → English (for en.ts) — incremental.
+  // ONLY the unsharded run (or shard 0 when SHARD_COUNT==1) owns it: concurrent
+  // Pass-1 runs race on dictionary-en.json and triple the rate-limit pressure.
+  const ownsPass1 = SHARD_COUNT === 1 || SHARD_INDEX === 0;
   let out = existsSync(DICT_EN) ? JSON.parse(readFileSync(DICT_EN, "utf8")) : {};
-  const entries = Object.entries(frFlat).map(([k, v], i) => ({ id: 100000 + i, key: k, src: v, srcLang: detectLang(v) }))
-    .filter((e) => !out[e.key]);
+  const entries = ownsPass1
+    ? Object.entries(frFlat).map(([k, v], i) => ({ id: 100000 + i, key: k, src: v, srcLang: detectLang(v) }))
+        .filter((e) => !out[e.key])
+    : [];
   if (entries.length > 0) {
     console.log(`Pass 1: translating the existing dictionary to en (${entries.length} keys left)…`);
     for (let i = 0; i < entries.length; i += BATCH) {
@@ -217,6 +228,7 @@ async function main() {
   const remaining = items.filter((x) => !cache[x.id]);
   for (let i = 0; i < remaining.length; i += BATCH) {
     const batch = remaining.slice(i, i + BATCH);
+    console.log(`[${now()}] shard ${SHARD_INDEX} batch ${i / BATCH + 1}/${Math.ceil(remaining.length / BATCH)} START (${batch.length} strings, ids ${batch[0].id}..${batch[batch.length - 1].id})`);
     let res = null;
     for (let attempt = 1; attempt <= 3 && !res; attempt++) {
       try {
@@ -236,7 +248,7 @@ async function main() {
       if (err) bad++;
     }
     saveCache();
-    console.log(`  [shard ${SHARD_INDEX}] batch ${i / BATCH + 1}/${Math.ceil(remaining.length / BATCH)} done (${bad} flagged)`);
+    console.log(`  [${now()}] [shard ${SHARD_INDEX}] batch ${i / BATCH + 1}/${Math.ceil(remaining.length / BATCH)} done (${bad} flagged, cache ${Object.keys(cache).length})`);
   }
 
   const done = Object.keys(cache).length;

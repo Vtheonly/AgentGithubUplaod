@@ -1123,5 +1123,15 @@
   "fr": "Purge terminée avec succès",
   "en": "Purge completed successfully",
   "ar": "اكتمل التنظيف بنجاح"
+ },
+ "language.switcher": {
+  "fr": "Changer de langue",
+  "en": "Change language",
+  "ar": "تغيير اللغة"
+ },
+ "language.label": {
+  "fr": "Langue",
+  "en": "Language",
+  "ar": "اللغة"
  }
 }

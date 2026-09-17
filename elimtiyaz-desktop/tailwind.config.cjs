@@ -100,9 +100,9 @@ module.exports = {
         pill: "9999px",
       },
       fontFamily: {
-        sans: ['Inter', 'Noto Sans Arabic', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Consolas', 'monospace'],
-        arabic: ['Noto Sans Arabic', 'Inter', 'sans-serif'],
+        arabic: ['IBM Plex Sans Arabic', 'Inter', 'sans-serif'],
       },
       keyframes: {
         "fade-in": {

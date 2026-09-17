@@ -150,7 +150,9 @@
   body {
     background-color: var(--surface-background);
     color: hsl(var(--foreground));
-    font-family: "Inter", "Noto Sans Arabic", system-ui, sans-serif;
+    /* T-388: local @fontsource bundles — Arabic codepoints in LTR screens fall
+       back to IBM Plex Sans Arabic (same face the RTL layout uses, offline). */
+    font-family: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -158,7 +160,9 @@
   }
 
   [dir="rtl"] {
-    font-family: "Noto Sans Arabic", "Inter", sans-serif;
+    /* T-388 (I18N-501): IBM Plex Sans Arabic replaces Noto Sans Arabic — clean,
+     professional Arabic with matched Latin, bundled locally for offline Electron. */
+    font-family: "IBM Plex Sans Arabic", "Inter", sans-serif;
   }
 
   ::-webkit-scrollbar {
