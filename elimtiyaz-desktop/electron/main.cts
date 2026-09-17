@@ -1,64 +1,9 @@
-/**
- * El-Imtiyaz Desktop Terminal — Electron main process.
- *
- * MODULE-FORMAT NOTE (T-097, 2026-08-31): this file is named `main.cts`
- * (and the bridge `preload.cts`) ON PURPOSE. package.json has
- * `"type": "module"`, so Node/Electron treat every `.js` file under this
- * package as an ES module — but this tsconfig compiles with CommonJS-style
- * output. Emitting to a `.js` path made Electron load
- * `dist-electron/main.js` as ESM and crash at startup with
- * `ReferenceError: exports is not defined in ES module scope` (the exact
- * error the owner hit on 2026-08-31 — archived in the message of commit
- * 3f7ec01). TypeScript maps the `.cts` extension to a `.cjs` output
- * (`main.cts` → `dist-electron/main.cjs`), which Node/Electron always treat
- * as CommonJS regardless of package.json's `type` field. Do NOT rename these
- * files back to plain `.ts` without also removing `"type": "module"` from
- * package.json.
- *
- * VAULT §02.01 — "The Desktop Terminal is built with Electron 33 + Vite 6 +
- * React 18 + TypeScript 5.7 … The only node that runs backup routines,
- * parses raw `.xlsx` files, and hosts the visual DAG workflow canvas editor."
- *
- * This is the OS-level main process: it creates the BrowserWindow that hosts
- * the Vite-built renderer, wires the menu, and exposes safe IPC channels
- * (file save dialogs for PDF receipts / XLSX exports / encrypted backup
- * archives) to the preload bridge.
- *
- * Security posture:
- *   - `contextIsolation: true` + `nodeIntegration: false` (renderer never
- *     touches Node directly).
- *   - All privileged operations go through the explicitly-allowlisted
- *     `preload.ts` bridge.
- *
- * Chromium OS-level sandbox (ARCH-002, task T-010): `npm start` runs
- * `electron .` WITHOUT `--no-sandbox`. The flag was removed because it
- * disabled the Chromium sandbox — the mitigation that contains a renderer
- * exploit. If `npm start` fails on Linux with "The SUID sandbox helper
- * binary was found, but is not configured correctly", fix the HOST, do not
- * re-add the flag:
- *   - `sudo chown root:root <electron>/chrome-sandbox && sudo chmod 4755 <electron>/chrome-sandbox`
- *     (the SUID helper), or
- *   - enable unprivileged user namespaces: `sysctl -k kernel.unprivileged_userns_clone=1`
- *     (Debian-based hosts), or
- *   - run from a properly configured container/CI image that provides one of
- *     the above.
- */
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 
-/** The renderer entry — `index.html` at the Vite build root. */
 const RENDERER_DIST = path.join(__dirname, "..", "dist");
-
-/** Development server (vite dev). */
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173";
-
-// T-097: `npm start` builds the renderer then launches `electron .`
-// UNPACKAGED — `!app.isPackaged` alone would classify that as dev mode and
-// load the vite dev server URL (ERR_CONNECTION_REFUSED when no dev server
-// is running — the app opened an empty window on `npm start`). Production
-// launches (npm start) set NODE_ENV=production; real dev sessions
-// (electron:dev / dev:electron) leave NODE_ENV unset and keep dev mode.
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
 let mainWindow: BrowserWindow | null = null;
@@ -70,13 +15,14 @@ function createWindow(): void {
     minWidth: 1100,
     minHeight: 700,
     show: false,
+    frame: false,
     backgroundColor: "#242526",
     title: "El-Imtiyaz — Terminal Desktop",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // preload needs limited Node (path/fs via IPC only)
+      sandbox: false,
     },
   });
 
@@ -84,7 +30,6 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
-  // External links open in the OS browser, never in-app (security).
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: "deny" };
@@ -102,15 +47,9 @@ function createWindow(): void {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/* Application menu                                                     */
-/* ------------------------------------------------------------------ */
-
 function buildMenu(): Menu {
   const isMac = process.platform === "darwin";
-  const fileSubmenu: Electron.MenuItemConstructorOptions[] = [
-    { role: "quit" },
-  ];
+  const fileSubmenu: Electron.MenuItemConstructorOptions[] = [{ role: "quit" }];
   const viewSubmenu: Electron.MenuItemConstructorOptions[] = [
     { role: "reload" },
     { role: "forceReload" },
@@ -123,14 +62,14 @@ function buildMenu(): Menu {
   ];
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac
-      ? ([{
+      ? [{
           label: app.name,
           submenu: [
             { role: "about" },
             { type: "separator" },
             { role: "quit" },
           ] as Electron.MenuItemConstructorOptions[],
-        }])
+        }]
       : []),
     { label: "Fichier", submenu: fileSubmenu },
     { label: "Affichage", submenu: viewSubmenu },
@@ -138,16 +77,31 @@ function buildMenu(): Menu {
   return Menu.buildFromTemplate(template);
 }
 
-/* ------------------------------------------------------------------ */
-/* IPC — privileged file operations for the renderer                    */
-/* ------------------------------------------------------------------ */
+ipcMain.handle("window:minimize", () => {
+  mainWindow?.minimize();
+});
 
-/**
- * Save arbitrary bytes (PDF receipts, XLSX/CSV exports, encrypted backup
- * archives) via the OS save dialog. The renderer supplies the suggested
- * filename + bytes; the user picks the destination. Never writes without
- * explicit user consent (the dialog IS the consent).
- */
+ipcMain.handle("window:toggle-maximize", () => {
+  if (!mainWindow) return false;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+  return mainWindow.isMaximized();
+});
+
+ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
+
+ipcMain.handle("window:toggle-fullscreen", () => {
+  if (!mainWindow) return false;
+  mainWindow.setFullScreen(!mainWindow.isFullScreen());
+  return mainWindow.isFullScreen();
+});
+
+ipcMain.handle("window:is-fullscreen", () => mainWindow?.isFullScreen() ?? false);
+
+ipcMain.handle("window:close", () => {
+  mainWindow?.close();
+});
+
 ipcMain.handle("vault:save-file", async (_event, payload: {
   fileName: string;
   bytes: number[] | Uint8Array;
@@ -166,7 +120,6 @@ ipcMain.handle("vault:save-file", async (_event, payload: {
   }
 });
 
-/** Open an OS file picker and return the selected file's bytes + name. */
 ipcMain.handle("vault:pick-file", async (): Promise<{ name?: string; bytes?: number[]; canceled?: boolean; error?: string }> => {
   try {
     if (!mainWindow) return { error: "no window" };
@@ -183,10 +136,6 @@ ipcMain.handle("vault:pick-file", async (): Promise<{ name?: string; bytes?: num
     return { error: e instanceof Error ? e.message : String(e) };
   }
 });
-
-/* ------------------------------------------------------------------ */
-/* App lifecycle                                                        */
-/* ------------------------------------------------------------------ */
 
 void app.whenReady().then(() => {
   Menu.setApplicationMenu(buildMenu());
