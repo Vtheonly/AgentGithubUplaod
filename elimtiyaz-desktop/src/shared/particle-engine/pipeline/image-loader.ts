@@ -56,7 +56,16 @@ export async function loadImage(
 function loadFromUrl(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Only opt into CORS for remote http(s) assets. Same-origin public/
+    // assets (`./intro-logo.png`) load from the Vite dev server in dev and
+    // from `file://…/dist/` in the packaged Electron app, where the origin
+    // is opaque (null) — `crossOrigin = "anonymous"` would force a CORS
+    // check that can never succeed and break every static-asset load.
+    // Remote http(s) URLs keep the attribute so canvas `getImageData()`
+    // stays un-tainted when the server sends ACAO headers.
+    if (/^https?:\/\//i.test(url)) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => resolve(img);
     img.onerror = () => reject(new ImageLoadError(`Failed to load image from URL: ${url}`));
     img.src = url;

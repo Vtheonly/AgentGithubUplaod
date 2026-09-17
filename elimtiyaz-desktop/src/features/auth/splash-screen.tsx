@@ -26,6 +26,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ParticleEngine, DEFAULT_PALETTE } from "../../shared/particle-engine";
 import type { LogoMode } from "../../shared/particle-engine";
+import { INTRO_LOGO_SRC } from "../../shared/ui/particle-canvas";
 
 export function SplashScreen({
   onDone,
@@ -68,78 +69,115 @@ export function SplashScreen({
 
     let rafId = 0;
     let disposed = false;
-
-    engine
-      .initialize({
-        pipeline: {
-          source: { fallback: true },
-          canvasWidth: width,
-          canvasHeight: height,
-          // Lower density for the splash — keeps the particle count tractable
-          // for low-end GPUs while preserving the recognisable monogram shape.
-          density: 3,
-          luminanceThreshold: 128,
-          fillRatio: 0.75,
-          palette: DEFAULT_PALETTE,
-        },
-        physics: {
-          damping: 0.86,
-          stiffnessRange: [0.06, 0.10],
-          sizeRange: [1.4, 2.6],
-          colorProbabilities: [0.7, 0.18, 0.12],
-          excitationColor: [239, 242, 243],
-          excitationSpeed: 0.4,
-          relaxationSpeed: 0.08,
-          sizeExcitationMultiplier: 1.6,
-          sizeRelaxationSpeed: 0.1,
-        },
-        interaction: {
-          radius: 90,
-          force: 5,
-          pointerX: null,
-          pointerY: null,
-          active: false,
-        },
-        initialMode: "logo" as LogoMode,
-        background: "rgba(36, 37, 38, 0.22)",
-      })
-      .then(() => {
-        if (disposed) return;
-        setParticlesReady(true);
-
-        // After the logo settles, briefly morph through the other modes to
-        // showcase the engine — adds visual interest without distracting.
-        const modeTimer1 = setTimeout(() => engine.setMode("circular"), durationMs * 0.45);
-        const modeTimer2 = setTimeout(() => engine.setMode("logo"), durationMs * 0.75);
-        modeTimers.push(modeTimer1, modeTimer2);
-
-        const loop = () => {
-          if (disposed) return;
-          const frame = engine.step();
-          if (frame) {
-            // Motion-blur clear — paint a translucent background rect instead
-            // of `clearRect` to leave faint trails behind moving particles.
-            ctx.fillStyle = "rgba(36, 37, 38, 0.22)";
-            ctx.fillRect(0, 0, width, height);
-
-            for (const p of frame.particles) {
-              const [r, g, b] = p.color;
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-              ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.92)`;
-              ctx.fill();
-            }
-          }
-          rafId = requestAnimationFrame(loop);
-        };
-        rafId = requestAnimationFrame(loop);
-      })
-      .catch(() => {
-        // Engine init can fail in environments without `getImageData` (jsdom).
-        // The splash already renders the brand text overlay, so we just no-op.
-      });
-
     const modeTimers: ReturnType<typeof setTimeout>[] = [];
+
+    // Option 2 static asset (`elimtiyaz-desktop/public/intro-logo.png`,
+    // copied as-is to `dist/`). Until the file exists the load fails and we
+    // retry with the built-in EI monogram so the splash never blanks.
+    const physics = {
+      damping: 0.86,
+      stiffnessRange: [0.06, 0.1] as [number, number],
+      sizeRange: [1.4, 2.6] as [number, number],
+      colorProbabilities: [0.7, 0.18, 0.12] as [number, number, number],
+      excitationColor: [239, 242, 243] as [number, number, number],
+      excitationSpeed: 0.4,
+      relaxationSpeed: 0.08,
+      sizeExcitationMultiplier: 1.6,
+      sizeRelaxationSpeed: 0.1,
+    };
+    const interaction = {
+      radius: 90,
+      force: 5,
+      pointerX: null as number | null,
+      pointerY: null as number | null,
+      active: false,
+    };
+
+    const initWithFallback = async () => {
+      try {
+        await engine.initialize({
+          pipeline: {
+            source: { url: INTRO_LOGO_SRC },
+            canvasWidth: width,
+            canvasHeight: height,
+            // Lower density for the splash — keeps the particle count tractable
+            // for low-end GPUs while preserving the recognisable monogram shape.
+            density: 3,
+            luminanceThreshold: 128,
+            fillRatio: 0.75,
+            palette: DEFAULT_PALETTE,
+          },
+          physics,
+          interaction,
+          initialMode: "logo" as LogoMode,
+          background: "rgba(36, 37, 38, 0.22)",
+        });
+      } catch (err) {
+        if (disposed) return;
+        // Static asset missing/unloadable (or no canvas support in jsdom) —
+        // retry with the built-in monogram; if that also fails the splash
+        // still completes via the brand overlay + duration timer.
+        try {
+          await engine.initialize({
+            pipeline: {
+              source: { fallback: true },
+              canvasWidth: width,
+              canvasHeight: height,
+              density: 3,
+              luminanceThreshold: 128,
+              fillRatio: 0.75,
+              palette: DEFAULT_PALETTE,
+            },
+            physics,
+            interaction,
+            initialMode: "logo" as LogoMode,
+            background: "rgba(36, 37, 38, 0.22)",
+          });
+        } catch {
+          // Engine init can fail in environments without `getImageData` (jsdom).
+          // The splash already renders the brand text overlay, so we just no-op.
+          return;
+        }
+        if (err instanceof Error && /Failed to load image/.test(err.message)) {
+          console.warn(
+            `SplashScreen: image "${INTRO_LOGO_SRC}" failed to load, using EI monogram.`,
+            err,
+          );
+        }
+      }
+
+      if (disposed) return;
+      setParticlesReady(true);
+
+      // After the logo settles, briefly morph through the other modes to
+      // showcase the engine — adds visual interest without distracting.
+      const modeTimer1 = setTimeout(() => engine.setMode("circular"), durationMs * 0.45);
+      const modeTimer2 = setTimeout(() => engine.setMode("logo"), durationMs * 0.75);
+      modeTimers.push(modeTimer1, modeTimer2);
+
+      const loop = () => {
+        if (disposed) return;
+        const frame = engine.step();
+        if (frame) {
+          // Motion-blur clear — paint a translucent background rect instead
+          // of `clearRect` to leave faint trails behind moving particles.
+          ctx.fillStyle = "rgba(36, 37, 38, 0.22)";
+          ctx.fillRect(0, 0, width, height);
+
+          for (const p of frame.particles) {
+            const [r, g, b] = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.92)`;
+            ctx.fill();
+          }
+        }
+        rafId = requestAnimationFrame(loop);
+      };
+      rafId = requestAnimationFrame(loop);
+    };
+
+    void initWithFallback();
 
     // Mouse interaction — particles repel from the cursor with colour excitation.
     const onMouseMove = (e: MouseEvent) => {
