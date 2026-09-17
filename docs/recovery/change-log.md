@@ -18,6 +18,13 @@
 - **Deliberately NOT changed:** the canonical RPCs (0027/0031/0037/0041 — no server-side change needed; the fix is the client seam, matching the ACAD-501 precedent); the mock-mode import path; `createStudent`'s `p_class_id: input.classId ?? null` (its import caller passes explicit null — repository-adapter line 807; registered as a same-class surface in SYNC-300's entry).
 - **Commits:** the T-387 fix+docs commit (see git log); T-386 follows separately (one task per commit).
 
+### 2026-09-17 — T-386 — OPS-316 CLOSED VERIFIED (production's 0099 registration healed atomically; both projects now 97/97)
+
+- **Problem IDs:** OPS-316 (registered OPEN during T-387's probe — CLOSED VERIFIED by this task).
+- **What was done:** `elimtiyaz-desktop/scripts/apply_0099_live.sh` (the apply_0100_live.sh / T-175/MIG-TOKENS atomic pattern, §15.10) ran against production `hkvkefubghbbotgnteir`: BEGIN; the idempotent 0099 DDL (a verified no-op — verify_t-376.sql scored 12/12 on OLD BEFORE the heal, proving the helpers were already in the exact 0099 shape T-376 transcribed FROM production); the registration INSERT (the 0100-in-file column pattern `version, statements, name` + ON CONFLICT DO NOTHING); COMMIT — one Management-API call, HTTP 201.
+- **Verified (all post-heal, live on production):** migrations_applied 96→97 (the exact version-by-version parity with the chain restored — the drift was exactly `{'0099'}`); verify_t-376.sql 12/12 (the heal touched nothing structural); verify_t-387.sql 7/7 (C3 parity = 97); t-387-rpc-blank-args-e2e.py **14/14** (was 13/14 — the G3 parity check now green). NEW `vebfehrpzajhstyhinnw` untouched (already 97/97). Both projects now report the identical migration history as the canonical chain.
+- **Commits:** the T-386 heal commit (see git log).
+
 ## 74th session (2026-09-16) — T-384: the parent-removal surface (PARENT-500) — the owner's clarified "users = students AND parents" mandate
 
 ### 2026-09-16 — T-384 — the CRM → Parents Supprimer action + the both-implementation deleteParent hardening (PARENT-500 CLOSED TESTED)

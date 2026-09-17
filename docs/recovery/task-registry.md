@@ -3428,3 +3428,14 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Priority:** P0 (the owner's explicit handover task — "here is the full issue and fix… may or may not be the issue").
 - **Next:** T-386 — the OPS-316 registration heal (the production 0099 history row, discovered by this task's both-projects probe; a 10-minute atomic fix).
 - **Commit:** (this session's fix commit — see change-log.)
+
+### T-386 — 76th session (2026-09-17): the OPS-316 registration heal — production's missing 0099 schema_migrations row, applied atomically (the both-projects migration parity restored to 97/97)
+
+- **Status:** COMPLETE — VERIFIED (2026-09-17 — apply_0099_live.sh against production hkvkefubghbbotgnteir: HTTP 201; post-heal legs: migrations_applied 96→97 · verify_t-376.sql on OLD 12/12 [the five RLS helpers + the fast-path policy untouched by the idempotent re-apply] · verify_t-387.sql on OLD 7/7 [C3 parity = 97] · t-387-rpc-blank-args-e2e.py on OLD 14/14 [was 13/14 — the G3 parity check green]; NEW untouched — it already carried both the DDL and the registration)
+- **Problems:** OPS-316 (registered OPEN during T-387's both-projects probe, CLOSED VERIFIED by this task)
+- **Scope:** production's `supabase_migrations.schema_migrations` history row for 0099 ONLY. The 0099 DDL re-applied in the SAME atomic transaction is a VERIFIED no-op on production (verify_t-376 12/12 BEFORE the heal proved the helpers were already in the exact 0099 shape — T-376 transcribed them FROM production). The registration INSERT follows the 0100-in-file pattern (version, statements, name) with ON CONFLICT (version) DO NOTHING.
+- **Deliberately NOT changed:** the NEW project (already 97/97 — untouched); the 0099 migration FILE (already committed — this task ships only the live-apply script); the helpers themselves (byte-identical CREATE OR REPLACE re-run).
+- **Depends on:** T-387 (the discovery).
+- **Priority:** P1 (history-integrity heal — the "migration history is misleading" class the owner's original report called out).
+- **Next:** the standing T-337 (REALTIME-105, next free migration 0101); the CALC-001 baseline repair; the concurrent agent's T-385 i18n burn-down.
+- **Commit:** (this session's heal commit — see change-log.)
