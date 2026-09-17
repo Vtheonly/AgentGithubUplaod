@@ -50,6 +50,31 @@ const PRESET_LABELS_FR: Record<DateRangePreset, string> = {
 };
 
 /**
+ * Returns the newest academic year from the supplied list. Academic years
+ * are ordered by their ending calendar year, so 2026–2027 is newer than
+ * 2025–2026. This keeps the default aligned with the latest data without
+ * hard-coding a specific school year.
+ */
+export function getLatestAcademicYear(availableYears: readonly string[]): string {
+  let latest = "";
+  let latestEndYear = Number.NEGATIVE_INFINITY;
+
+  for (const year of availableYears) {
+    const match = /^(\d{4})-(\d{4})$/.exec(year);
+    if (!match) continue;
+    const endYear = Number(match[2]);
+    if (endYear > latestEndYear) {
+      latest = year;
+      latestEndYear = endYear;
+    }
+  }
+
+  if (latest) return latest;
+  const currentYear = new Date().getFullYear();
+  return `${currentYear}-${currentYear + 1}`;
+}
+
+/**
  * Compute the [from, to] ISO date window for an academic year + preset.
  * Used by callers to convert the selector's value into a dashboard query range.
  */
