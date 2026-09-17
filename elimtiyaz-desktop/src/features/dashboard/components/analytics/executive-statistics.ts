@@ -265,6 +265,23 @@ export interface DiscountErosion {
 }
 
 /**
+ * T-389 (INSPECT-500): the STRUCTURAL remise-identification predicate,
+ * extracted from deriveDiscountErosion so the data inspector's discount
+ * lineage uses the IDENTIFICATION CONTRACT (metadata.field === "REMISE",
+ * description fallback) rather than a second heuristic. A remise is a
+ * NEGATIVE adjustment entry (credit) — never a charge, never a cancel.
+ */
+export function isRemiseAdjustment(
+  entry: Pick<LedgerEntry, "type" | "amount" | "description"> & {
+    metadata?: Record<string, unknown>;
+  },
+): boolean {
+  if (entry.type !== "adjustment" || !(entry.amount < 0)) return false;
+  const meta = entry.metadata as Record<string, unknown> | undefined;
+  return meta?.field === "REMISE" || entry.description.startsWith("Remise sur devis");
+}
+
+/**
  * Discount erosion from the ledger adjustment stream.
  *
  * IDENTIFICATION CONTRACT (live-verified 2026-09-14): the Excel devis
@@ -274,7 +291,7 @@ export interface DiscountErosion {
  * repair writes positive cancel debits whose metadata carries
  * `reason: "double_remise_cancel"` (318 rows, +9 709 700 DZD). Both
  * markers are STRUCTURED metadata — description matching is the documented
- * fallback only.
+ * fallback only (the shared predicate: isRemiseAdjustment, T-389).
  *
  * The NET of remises and cancels is ~0 by design (the imported charges are
  * already net), so the erosion metric reports the RAW negotiated remise
@@ -299,10 +316,8 @@ export function deriveDiscountErosion(ledger: readonly LedgerEntry[]): DiscountE
     }
     if (e.type !== "adjustment") continue;
     const meta = e.metadata as Record<string, unknown> | undefined;
-    const isRemise = amount < 0 && meta?.field === "REMISE";
-    const isRemiseByDescription = amount < 0 && e.description.startsWith("Remise sur devis");
     const isCancel = meta?.reason === "double_remise_cancel";
-    if (isRemise || isRemiseByDescription) {
+    if (isRemiseAdjustment(e)) {
       remiseCount += 1;
       remiseTotal += -amount;
       remiseFamilies.add(e.parentId);

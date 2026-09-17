@@ -44,7 +44,12 @@ import {
   type PaymentMethod,
   type PaymentCategory,
   type AgingBucket,
+  type Installment,
 } from "../../../../domain/model/payment";
+// T-389 (INSPECT-500): the INV-4 canonical per-installment remaining —
+// reused (never re-implemented) so the inspector's debt math is the
+// executive-statistics math is the KPI math.
+import { installmentRemaining } from "./executive-statistics";
 
 /** French month labels, Jan→Déc (canonical order; matches the repository series). */
 export const MONTH_LABELS_FR = [
@@ -76,15 +81,30 @@ function tsOf(iso: string): number | null {
   return Number.isNaN(t) ? null : t;
 }
 
-/** Is the payment inside [range.from 00:00, range.to 23:59:59] (UTC)? */
+/**
+ * Is the payment inside the range window [from 00:00, to 00:00) (UTC)?
+ *
+ * T-389 (INSPECT-500): the upper bound is EXCLUSIVE at the to-date's
+ * midnight — the documented house convention every dashboard aggregate
+ * already uses (`SupabaseDashboardRepository.revenueForRange`'s
+ * `.lt(collected_at, toT00:00)`, the mock's `t < toMs`, and
+ * `buildWindowAnchoredBuckets`'s `cursor < toMs`). The previous
+ * inclusive-to-23:59:59 reading counted payments collected ON the `to`
+ * date that every KPI excludes — a permanent false "Écart" in the data
+ * inspector and a one-day drift between the stat strip and the KPI cards
+ * this module is documented to reconcile with (the ENCAISSÉ DEFINITION
+ * contract above). All AcademicYearSelector presets emit half-open
+ * windows ([from, next-period-start)), so the exclusive bound is the
+ * correct reading of every range this tab receives.
+ */
 export function inRange(p: Payment, range?: { from: string; to: string }): boolean {
   if (!range) return true;
   const from = tsOf(range.from);
-  const to = tsOf(`${range.to}T23:59:59Z`) ?? tsOf(range.to);
+  const to = tsOf(range.to);
   const t = Date.parse(p.collectedAt);
   if (Number.isNaN(t)) return false;
   if (from !== null && t < from) return false;
-  if (to !== null && t > to) return false;
+  if (to !== null && t >= to) return false;
   return true;
 }
 
@@ -150,6 +170,37 @@ export function installmentsForAcademicYear<T extends { dueDate: string }>(
     if (due === null) return false;
     return due >= from && due < to;
   });
+}
+
+// ============================================================================
+// T-389 (INSPECT-500) — the outstanding-debt derivation shared by the
+// dashboard KPI semantics and the data inspector
+// ============================================================================
+
+/**
+ * T-389 (INSPECT-500): the outstanding debt under the EXACT semantics the
+ * dashboard's KPI card and the aging chart use (`buildInstallmentsQuery`):
+ * installments with `status !== "paid"`, scoped to the academic year's
+ * billing window (dueDate ∈ [Sept 1, Sept 1 next)) when an academicYear is
+ * given, summed by the INV-4 remaining (amountDue − amountPaid −
+ * amountPending, clamped at 0 — uncleared pending funds reduce the
+ * outstanding). `academicYear: null` = ALL years (the debt-summaries
+ * stream's scoping — used by the Pareto card).
+ *
+ * This is the ONE definition both the displayed trigger value and the
+ * inspector's resolution consume, so the "Écart" can only be a real data
+ * drift, never a definitional one.
+ */
+export function deriveOutstandingDebt(
+  installments: readonly Installment[],
+  academicYear: string | null,
+): number {
+  const scoped = academicYear
+    ? installmentsForAcademicYear(installments, academicYear)
+    : [...installments];
+  return scoped
+    .filter((i) => i.status !== "paid")
+    .reduce((sum, i) => sum + installmentRemaining(i), 0);
 }
 
 // ============================================================================
