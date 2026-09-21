@@ -48,3 +48,37 @@
 ## 8. Timetable
 
 - No canonical implementation exists (mock-only). See SCHED-100 / UNKNOWN-011 — build-or-remove decision pending. Conflict detection, if built, must cover teacher, class AND room conflicts.
+## 9. Academic Classification: Niveau → Filière → Spécialité → Classe/Section
+
+The academic classification model must distinguish four different concepts:
+
+1. **Niveau** — the educational year/level, e.g. 1AS, 2AS, 3AS.
+2. **Filière** — the secondary-school academic stream, where applicable.
+3. **Spécialité** — a further subdivision of a filière where the Algerian structure requires one.
+4. **Classe/Section** — the concrete student group created by the school, e.g. 2AS-SC-A.
+
+These are related but are not interchangeable identifiers.
+
+### Canonical integration rule
+
+The database and all clients must consume one canonical representation. Forms, filters, statistics, class formation, promotion, imports, exports, student details, and search must not maintain separate copies of the classification rules.
+
+### Academic-year rule
+
+A student's current classification belongs to the relevant academic-year context. A future-year promotion/class-formation operation must not erase the historical classification used for a previous year.
+
+### Compatibility rule
+
+Class formation must reject an incompatible student → class assignment. A class/section must have a compatible niveau/filière/spécialité context.
+
+### Algerian secondary-school applicability
+
+The current model must represent the current supported school structure without inventing a filière for levels where it does not apply. The exact catalog of valid values belongs to the canonical academic configuration/database data, not to individual UI components.
+
+### Promotion dependency
+
+Batch promotion is upstream of class formation. Promotion must update the canonical academic level/history state in one transaction so the class-formation workflow can consume the result without a second interpretation or manual repair.
+
+### Rule against duplication
+
+If an existing academic function, resolver, repository, RPC, or schema already owns one of these rules, extend it rather than creating a second implementation. Any intentional replacement must document the old consumer, migration path, tests, and removal/deprecation step.
