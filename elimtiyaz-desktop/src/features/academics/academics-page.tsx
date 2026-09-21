@@ -13,6 +13,7 @@ import {
   FileCheck,
   Users,
   GraduationCap,
+  CalendarDays,
 } from "lucide-react";
 import { PageHeader } from "../../shared/layout/page-header";
 import {
@@ -38,6 +39,7 @@ import { SubjectsDirectoryTab } from "./subjects-directory-tab";
 import { HomeworkHistoryTab } from "./homework-history-tab";
 import { JustificationsTab } from "./justifications-tab";
 import { HomeworkPushModal } from "./homework-push-modal";
+import { TimetableTab } from "./timetable/timetable-tab";
 
 type AcademicsTab =
   | "school_years"
@@ -45,6 +47,7 @@ type AcademicsTab =
   | "teachers"
   | "subjects"
   | "promotion_cycles"
+  | "timetable"
   | "homework"
   | "justifications"
   | "clubs"
@@ -139,6 +142,12 @@ export function AcademicsPage() {
         visible: canObj.manageClasses,
       },
       {
+        value: "timetable",
+        label: "Emploi du temps",
+        icon: CalendarDays,
+        visible: canObj.viewAcademics,
+      },
+      {
         value: "school_years",
         label: "Années scolaires",
         icon: School,
@@ -207,6 +216,8 @@ export function AcademicsPage() {
         return "Cycles de promotion par année scolaire — revue et confirmation classe par classe (T-403).";
       case "homework":
         return "Historique des devoirs diffusés aux classes.";
+      case "timetable":
+        return "Génération automatique de l'emploi du temps — configuration, contraintes, essais, validation et publication.";
       case "justifications":
         return "Justificatifs d'absence soumis par les parents — examen et décision administrative.";
       case "clubs":
@@ -271,6 +282,10 @@ export function AcademicsPage() {
 
         <PageTabContent value="promotion_cycles">
           <PromotionCyclesTab />
+        </PageTabContent>
+
+        <PageTabContent value="timetable">
+          <TimetableTab />
         </PageTabContent>
 
         <PageTabContent value="homework">
