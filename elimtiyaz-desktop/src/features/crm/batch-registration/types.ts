@@ -34,6 +34,13 @@ export interface Step2Student {
   level: AcademicLevel;
   gradeYear: number;
   /**
+   * T-401: the academic stream (filières.code). `""` = untagged; resolved to
+   * `filiereCode: null` on submit.
+   */
+  filiereCode: string;
+  /** T-401: the spécialité under the filière. `""` = none. */
+  specialiteCode: string;
+  /**
    * Optional class assignment (vault §04.03 — "Assigned Academic Level &
    * Class"). `""` = unassigned; resolved to `classId: null` on submit.
    */
@@ -82,6 +89,8 @@ export const EMPTY_STUDENT: Step2Student = {
   birthDate: "",
   level: "primaire",
   gradeYear: 1,
+  filiereCode: "",
+  specialiteCode: "",
   classId: "",
   transportDestination: "",
   medicalNotes: "",

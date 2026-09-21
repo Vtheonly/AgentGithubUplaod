@@ -203,6 +203,9 @@ export function BatchRegistrationModal({
       birthDate: s.birthDate,
       level: s.level,
       gradeYear: s.gradeYear,
+      // T-401 — classification ("" → null = untagged).
+      filiereCode: s.filiereCode || null,
+      specialiteCode: s.specialiteCode || null,
       // vault §04.03 — optional class assignment ("" → null = unassigned).
       classId: s.classId || null,
       medicalNotes: s.medicalNotes.trim() || null,

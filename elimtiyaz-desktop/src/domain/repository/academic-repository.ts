@@ -224,6 +224,10 @@ export interface ClassPlacementNewClass {
   readonly gradeCode: GradeLevel;
   /** Section label, e.g. "Section B" (fallback "A"). */
   readonly section: string;
+  /** T-401: the drafted section's academic stream (filières.code; null = untagged/general). */
+  readonly filiereCode: string | null;
+  /** T-401: the drafted section's spécialité (null = none). */
+  readonly specialiteCode: string | null;
   readonly room: string | null;
   readonly capacity: number | null;
   readonly homeroomTeacherId: string | null;

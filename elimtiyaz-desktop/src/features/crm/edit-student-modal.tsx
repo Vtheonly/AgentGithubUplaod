@@ -37,6 +37,12 @@ import {
   type Student,
   type StudentStatus,
 } from "../../domain/model/student";
+import {
+  findFiliere,
+  getFilieresForGrade,
+  getSpecialitesForFiliere,
+  trackLabelFr,
+} from "../../domain/model/filiere";
 import type { Gender } from "../../domain/model/parent";
 import type { PaymentPlan } from "../../domain/model/payment";
 import {
@@ -49,6 +55,10 @@ import {
 const NO_TRANSPORT = "__none__";
 /** Sentinel for "no class assigned". */
 const NO_CLASS = "__unassigned__";
+/** Sentinel for "no filière" (untagged — the pre-0107 default). */
+const NO_FILIERE = "__general__";
+/** Sentinel for "no spécialité". */
+const NO_SPECIALITE = "__none__";
 
 export function EditStudentModal({
   studentId,
@@ -73,6 +83,8 @@ export function EditStudentModal({
   const [gender, setGender] = useState<Gender>("unspecified");
   const [birthDate, setBirthDate] = useState("");
   const [gradeLevel, setGradeLevel] = useState<GradeLevel>("1ap");
+  const [filiereCode, setFiliereCode] = useState<string>(NO_FILIERE);
+  const [specialiteCode, setSpecialiteCode] = useState<string>(NO_SPECIALITE);
   const [classId, setClassId] = useState<string>(NO_CLASS);
   const [status, setStatus] = useState<StudentStatus>("active");
   const [medicalNotes, setMedicalNotes] = useState("");
@@ -89,6 +101,8 @@ export function EditStudentModal({
     setGender(student.gender);
     setBirthDate(student.birthDate);
     setGradeLevel(student.gradeLevel);
+    setFiliereCode(student.filiereCode ?? NO_FILIERE);
+    setSpecialiteCode(student.specialiteCode ?? NO_SPECIALITE);
     setClassId(student.classId ?? NO_CLASS);
     setStatus(student.status);
     setMedicalNotes(student.medicalNotes ?? "");
@@ -98,6 +112,20 @@ export function EditStudentModal({
     setPaymentPlan(student.paymentPlan);
     setErrors({});
   }, [open, student]);
+
+  // T-401: the filières available for the selected grade (the canonical
+  // catalog, not a page-local list) + the spécialités under the selection.
+  // A stored filière outside the grade's list stays selectable (legacy
+  // data must remain visible/erasable, never silently dropped).
+  const filieresForGrade = getFilieresForGrade(gradeLevel);
+  const storedFiliere =
+    filiereCode !== NO_FILIERE && !filieresForGrade.some((f) => f.code === filiereCode)
+      ? findFiliere(filiereCode)
+      : undefined;
+  const filiereOptions = storedFiliere ? [...filieresForGrade, storedFiliere] : filieresForGrade;
+  const specialites = getSpecialitesForFiliere(
+    filiereCode === NO_FILIERE ? null : filiereCode,
+  );
 
   function validate(): boolean {
     const e: Record<string, string> = {};
@@ -122,6 +150,8 @@ export function EditStudentModal({
         level: academicLevelFromGradeLevel(gradeLevel),
         gradeYear: gradeYearFromGradeLevel(gradeLevel),
         gradeLevel,
+        filiereCode: filiereCode === NO_FILIERE ? null : filiereCode,
+        specialiteCode: specialiteCode === NO_SPECIALITE ? null : specialiteCode,
         classId: classId === NO_CLASS ? null : classId,
         medicalNotes: medicalNotes.trim() || null,
         transportTier: transportDestination === NO_TRANSPORT ? null : transportDestination,
@@ -191,6 +221,45 @@ export function EditStudentModal({
             </SelectContent>
           </Select>
         </FormField>
+        <FormField
+          label="Filière"
+          hint={
+            filieresForGrade.length <= 1
+              ? "Aucune filière pour ce niveau (cours commun)"
+              : storedFiliere
+                ? "La filière actuelle ne s'applique pas à ce niveau"
+                : undefined
+          }
+        >
+          <Select
+            value={filiereCode}
+            onValueChange={(v) => {
+              setFiliereCode(v);
+              // The spécialité depends on the filière — reset when it changes.
+              setSpecialiteCode(NO_SPECIALITE);
+            }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {filiereOptions.map((f) => (
+                <SelectItem key={f.code} value={f.code}>{f.labelFr}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+        {specialites.length > 0 && (
+          <FormField label="Spécialité" hint={`Subdivision de ${trackLabelFr(filiereCode)}`}>
+            <Select value={specialiteCode} onValueChange={setSpecialiteCode}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_SPECIALITE}>Aucune</SelectItem>
+                {specialites.map((sp) => (
+                  <SelectItem key={sp.code} value={sp.code}>{sp.labelFr}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+        )}
         <FormField label="Classe" hint="Non assignée si aucune sélection">
           <Select value={classId} onValueChange={setClassId}>
             <SelectTrigger><SelectValue /></SelectTrigger>

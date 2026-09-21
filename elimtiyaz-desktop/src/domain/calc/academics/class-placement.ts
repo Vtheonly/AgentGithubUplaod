@@ -48,6 +48,7 @@ import {
 import type { AcademicClass, Assessment, Subject } from "../../model/academic";
 import { computeOverallGpa, computeSubjectAverage } from "../../model/academic";
 import { getNextGradeProgression } from "./promotion";
+import { trackCompatible, trackIncompatibilityReason } from "../../model/filiere";
 
 /** Provenance origin of a student for the upcoming academic year placement. */
 export type StudentPlacementProvenance =
@@ -108,6 +109,10 @@ export interface ClassDraft {
   readonly gradeYear: number;
   readonly academicYearId: string;
   readonly academicYearCode: string;
+  /** T-401: the drafted section's academic stream (null = untagged/general). */
+  readonly filiereCode: string | null;
+  /** T-401: the drafted section's spécialité (null = none). */
+  readonly specialiteCode: string | null;
   readonly room: string | null;
   readonly capacity: number | null;
   readonly homeroomTeacherId: string | null;
@@ -768,6 +773,35 @@ export function validatePlacementFinalization(params: {
     warnings.push(
       `${unassignedCount} élève(s) éligible(s) restent non affecté(s) à une classe. Ils pourront être placés ultérieurement.`,
     );
+  }
+
+  // T-401: classification compatibility — the mirror of the SQL
+  // fn_track_compatible guard (0107 §3). A conflicting stream is an ERROR
+  // (the server rejects the batch with 22023); surface it client-side so
+  // the studio never builds a payload the server will refuse.
+  const classesById = new Map(params.classes.map((c) => [c.id, c] as const));
+  for (const cand of params.candidates) {
+    const targetId = params.assignedMap.get(cand.studentId) ?? cand.assignedClassId;
+    if (!targetId) continue;
+    const draft = classesById.get(targetId);
+    if (!draft) continue;
+    if (
+      !trackCompatible(
+        cand.student.filiereCode,
+        cand.student.specialiteCode,
+        draft.filiereCode,
+        draft.specialiteCode,
+        draft.gradeCode,
+      )
+    ) {
+      errors.push(
+        `${cand.studentName} : ${trackIncompatibilityReason(
+          cand.student.filiereCode,
+          draft.filiereCode,
+          draft.gradeCode,
+        )}`,
+      );
+    }
   }
 
   return {

@@ -13,6 +13,7 @@ import {
   GRADE_LEVELS,
   GRADE_LEVEL_LABELS_FR,
 } from "../../../domain/model/student";
+import { normalizeTrackCode } from "../../../domain/model/filiere";
 import type { AcademicClass } from "../../../domain/model/academic";
 import {
   buildPlacementCandidatesPool,
@@ -107,6 +108,10 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
         gradeYear: c.gradeYear,
         academicYearId: c.academicYearId,
         academicYearCode: c.academicYear,
+        // T-401: the section's classification (existing class → its own;
+        // the patch layer deliberately does not change classification).
+        filiereCode: c.filiereCode ?? null,
+        specialiteCode: c.specialiteCode ?? null,
         room: patch?.room !== undefined ? patch.room : c.room,
         capacity: patch?.capacity !== undefined ? patch.capacity : c.capacity,
         homeroomTeacherId:
@@ -278,6 +283,10 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
       homeroomTeacherId?: string | null;
       homeroomTeacherName?: string | null;
       notes?: string | null;
+      /** T-401: the new section's academic stream (null = untagged). */
+      filiereCode?: string | null;
+      /** T-401: the new section's spécialité (null = none). */
+      specialiteCode?: string | null;
     }) => {
       const level = academicLevelFromGradeLevel(targetGradeLevel);
       const gradeYear = gradeYearFromGradeLevel(targetGradeLevel);
@@ -294,6 +303,9 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
         gradeYear,
         academicYearId: targetYearId,
         academicYearCode: targetYearCode,
+        // T-401: the drafted classification (normalized: "general" → untagged).
+        filiereCode: normalizeTrackCode(input.filiereCode),
+        specialiteCode: normalizeTrackCode(input.specialiteCode),
         room: input.room ?? null,
         capacity: input.capacity ?? null,
         homeroomTeacherId: input.homeroomTeacherId ?? null,
@@ -419,6 +431,9 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
           name: d.name,
           gradeCode: d.gradeCode,
           section: d.section,
+          // T-401: the drafted classification (0107 server-side validated).
+          filiereCode: d.filiereCode,
+          specialiteCode: d.specialiteCode,
           room: d.room,
           capacity: d.capacity,
           homeroomTeacherId: d.homeroomTeacherId,

@@ -6,6 +6,7 @@ import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { normalizeTrackCode } from "../../../domain/model/filiere";
 import type { SupabaseStudentRepository } from "./supabase-shared-repositories";
 import type { Observable } from "../../../domain/repository/repository";
 import type {
@@ -404,6 +405,10 @@ export class SupabaseClassRepository implements ClassRepository {
         name: input.name,
         grade_code: input.gradeCode,
         section: input.section || "A",
+        // T-401 (0107): the class's academic classification (validated
+        // client-side by the catalog; NULL = untagged).
+        filiere_code: normalizeTrackCode(input.filiereCode),
+        specialite_code: normalizeTrackCode(input.specialiteCode),
         room: input.room,
         capacity: input.capacity ?? 30,
         // Mock-era ids ("per-001") are not UUIDs — never send them to the
@@ -1657,6 +1662,10 @@ export class SupabaseClassPlacementRepository implements ClassPlacementRepositor
         name: d.name,
         gradeCode: d.gradeCode,
         section: d.section,
+        // T-401 (0107): the drafted section's classification (catalog-validated
+        // server-side; NULL = untagged).
+        filiereCode: normalizeTrackCode(d.filiereCode),
+        specialiteCode: normalizeTrackCode(d.specialiteCode),
         room: d.room,
         capacity: d.capacity,
         homeroomTeacherId: isUuid(d.homeroomTeacherId) ? d.homeroomTeacherId : null,
@@ -1777,6 +1786,9 @@ function mapClassRow(
     code: row.code,
     name: row.name,
     gradeCode: row.grade_code as GradeLevel,
+    // T-401 (0107): the class's academic classification (NULL = untagged).
+    filiereCode: row.filiere_code ?? null,
+    specialiteCode: row.specialite_code ?? null,
     level: cycleMap[row.grade_code] ?? "primaire",
     gradeYear: row.grade_code?.includes("ap") ? parseInt(row.grade_code) : 1,
     section: row.section,

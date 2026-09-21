@@ -291,6 +291,13 @@ export interface Student {
   readonly gradeYear: number; // 1..5 (primaire) | 1..4 (cem) | 1..3 (lycee)
   /** Canonical granular grade level — preferred over `level` + `gradeYear`. */
   readonly gradeLevel: GradeLevel;
+  /**
+   * T-401: current academic stream (filières.code; null/absent = untagged).
+   * Optional like `academicHistory` so pre-0107 fixtures stay valid.
+   */
+  readonly filiereCode?: string | null;
+  /** T-401: current spécialité (null/absent = none). */
+  readonly specialiteCode?: string | null;
   readonly classId: string | null;
   readonly photoUrl: string | null;
   readonly medicalNotes: string | null;
@@ -345,6 +352,10 @@ export interface CreateStudentInput {
   readonly gradeYear: number;
   /** Optional granular grade level. If omitted, derived from `level`+`gradeYear`. */
   readonly gradeLevel?: GradeLevel;
+  /** T-401: academic stream (filieres.code). Omitted/null = untagged; "general" normalizes to untagged. */
+  readonly filiereCode?: string | null;
+  /** T-401: spécialité under the filière. Omitted/null = none. */
+  readonly specialiteCode?: string | null;
   readonly classId?: string | null;
   readonly medicalNotes?: string | null;
   readonly transportTier?: string | null;

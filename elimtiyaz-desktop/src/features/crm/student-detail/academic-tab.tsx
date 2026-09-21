@@ -55,6 +55,7 @@ import {
   PROMOTION_DECISION_LABELS_FR,
   type AcademicHistoryEntry,
 } from "../../../domain/model/student";
+import { trackLabelFr } from "../../../domain/model/filiere";
 import type { AcademicTerm } from "../../../domain/model/academic";
 import { TERMS } from "./types";
 
@@ -198,8 +199,11 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
                   ? (GRADE_LEVEL_LABELS_FR[student.gradeLevel] ?? student.gradeLevel)
                   : student?.level
                     ? LEVEL_LABELS_FR[student.level]
-                    : "—"}{" "}
-                · Année scolaire {assignedClass?.academicYear ?? "2025-2026"}
+                    : "—"}
+                {student?.filiereCode && student.filiereCode !== "general"
+                  ? ` · ${trackLabelFr(student.filiereCode)}${student.specialiteCode ? ` — ${trackLabelFr(student.specialiteCode)}` : ""}`
+                  : ""}
+                {" "}· Année scolaire {assignedClass?.academicYear ?? "2025-2026"}
               </p>
             </div>
 
@@ -408,7 +412,13 @@ function HistoryYearItem({
           />
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground pl-5">
-          <span>{LEVEL_LABELS_FR[entry.level]} · Année {entry.gradeYear}{entry.className ? ` · ${entry.className}` : ""}</span>
+          <span>
+            {LEVEL_LABELS_FR[entry.level]} · Année {entry.gradeYear}
+            {entry.filiereCode && entry.filiereCode !== "general"
+              ? ` · ${trackLabelFr(entry.filiereCode)}${entry.specialiteCode ? ` — ${trackLabelFr(entry.specialiteCode)}` : ""}`
+              : ""}
+            {entry.className ? ` · ${entry.className}` : ""}
+          </span>
           <span>Moy. {entry.gpa.toFixed(2)}{entry.rank ? ` · Rang ${entry.rank}` : ""}</span>
         </div>
       </button>

@@ -14,6 +14,7 @@ import {
   School,
   CheckCircle2,
   Sparkles,
+  GraduationCap,
 } from "lucide-react";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -45,6 +46,7 @@ import {
   type AcademicLevel,
 } from "../../domain/model/student";
 import type { AcademicClass } from "../../domain/model/academic";
+import { getFilieresForGrade, getSpecialitesForFiliere, trackLabelFr } from "../../domain/model/filiere";
 import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
@@ -177,6 +179,17 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
                     <Badge variant="outline" className="font-normal text-xs">
                       {levelClasses.length} classe(s)
                     </Badge>
+                    {Array.from(
+                      new Set(
+                        levelClasses
+                          .map((c) => c.filiereCode)
+                          .filter((f): f is string => !!f && f !== "general"),
+                      ),
+                    ).map((f) => (
+                      <Badge key={f} variant="secondary" className="font-normal text-[10px]">
+                        {trackLabelFr(f)} ({levelClasses.filter((c) => c.filiereCode === f).length})
+                      </Badge>
+                    ))}
                   </h3>
                 </div>
                 <div className="flex items-center gap-1">
@@ -254,6 +267,13 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
                               <Building2 className="h-3.5 w-3.5" />
                               Salle : {cls.room ?? "Non assignée"}
                             </p>
+                            {cls.filiereCode && cls.filiereCode !== "general" && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <GraduationCap className="h-3.5 w-3.5" />
+                                {trackLabelFr(cls.filiereCode)}
+                                {cls.specialiteCode ? ` — ${trackLabelFr(cls.specialiteCode)}` : ""}
+                              </p>
+                            )}
                           </div>
                           {cls.notes && (
                             <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded border border-border/50 line-clamp-2 italic">
@@ -322,8 +342,15 @@ function CreateClassModal({
   const [room, setRoom] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [notes, setNotes] = useState("");
+  // T-401: the new class's classification ("" = untagged / cours commun).
+  const [filiereCode, setFiliereCode] = useState("");
+  const [specialiteCode, setSpecialiteCode] = useState("");
   const [alert, setAlert] = useState<Alert | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // The canonical catalog for the selected grade — never a page-local list.
+  const filieres = getFilieresForGrade(gradeCode);
+  const specialites = getSpecialitesForFiliere(filiereCode || null);
 
   if (presetGradeCode && gradeCode !== presetGradeCode && open) {
     setGradeCode(presetGradeCode);
@@ -357,6 +384,9 @@ function CreateClassModal({
       level: derivedLevel,
       gradeYear: 1,
       section,
+      // T-401: the classification ("" → null = untagged).
+      filiereCode: filiereCode || null,
+      specialiteCode: specialiteCode || null,
       room: room.trim() || null,
       capacity: null,
       homeroomTeacherId: teacherId || null,
@@ -472,6 +502,55 @@ function CreateClassModal({
             />
           </FormField>
         </div>
+        {/* T-401 — the new class's academic classification (the canonical
+            catalog filtered by the selected grade). */}
+        {filieres.length > 1 && (
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              label="Filière"
+              hint="Cours commun si aucune sélection"
+            >
+              <Select
+                value={filiereCode || "__general__"}
+                onValueChange={(v) => {
+                  setFiliereCode(v === "__general__" ? "" : v);
+                  setSpecialiteCode("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Cours commun" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filieres.map((f) => (
+                    <SelectItem key={f.code} value={f.code}>
+                      {f.labelFr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {specialites.length > 0 && (
+              <FormField label="Spécialité">
+                <Select
+                  value={specialiteCode || "__none__"}
+                  onValueChange={(v) => setSpecialiteCode(v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucune" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Aucune —</SelectItem>
+                    {specialites.map((sp) => (
+                      <SelectItem key={sp.code} value={sp.code}>
+                        {sp.labelFr}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            )}
+          </div>
+        )}
         <FormField
           label="Notes & Observations"
           hint="Remarques spécifiques, emploi du temps, ou consignes"

@@ -42,6 +42,7 @@ import type { Assessment, Subject, AcademicClass, AttendanceRecord } from "../..
 import type { PricingConfig } from "../../domain/model/pricing";
 import { parentDisplayName } from "../../domain/model/parent";
 import { studentDisplayName } from "../../domain/model/student";
+import { trackLabelFr } from "../../domain/model/filiere";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
@@ -225,6 +226,8 @@ function buildStudentsSheet(data: FullExportData): SheetSpec {
       { header: "Niveau", key: "level", width: 14 },
       { header: "Année", key: "gradeYear", width: 8 },
       { header: "Grade level", key: "gradeLevel", width: 14 },
+      { header: "Filière", key: "filiere", width: 22 },
+      { header: "Spécialité", key: "specialite", width: 22 },
       { header: "Classe", key: "className", width: 20 },
       { header: "Transport", key: "transportTier", width: 20 },
       { header: "Statut", key: "status", width: 12 },
@@ -241,6 +244,8 @@ function buildStudentsSheet(data: FullExportData): SheetSpec {
         level: lbl(LEVEL_LABELS_FR, s.level),
         gradeYear: s.gradeYear,
         gradeLevel: s.gradeLevel,
+        filiere: s.filiereCode ? trackLabelFr(s.filiereCode) : "",
+        specialite: s.specialiteCode ? trackLabelFr(s.specialiteCode) : "",
         className: classById.get(s.classId ?? "")?.name ?? "",
         transportTier: s.transportTier ?? "",
         status: s.status,

@@ -16,6 +16,11 @@ import {
 } from "../../../shared/ui/select";
 import type { ClassDraft } from "../../../domain/calc/academics/class-placement";
 import { GRADE_LEVEL_LABELS_FR, type GradeLevel } from "../../../domain/model/student";
+import {
+  getFilieresForGrade,
+  getSpecialitesForFiliere,
+  type AcademicTrack,
+} from "../../../domain/model/filiere";
 import type { Personnel } from "../../../domain/model/personnel";
 
 interface Props {
@@ -32,7 +37,16 @@ interface Props {
     homeroomTeacherId?: string | null;
     homeroomTeacherName?: string | null;
     notes?: string | null;
+    /** T-401: the section's academic stream (null = untagged). */
+    filiereCode?: string | null;
+    /** T-401: the section's spécialité (null = none). */
+    specialiteCode?: string | null;
   }) => void;
+}
+
+/** Small helper for the spécialité field hint. */
+function filiereHasSpecialitesLabel(filiereCode: string): string {
+  return filiereCode ? "Subdivision de la filière sélectionnée" : "Sélectionnez d'abord une filière";
 }
 
 export function CreateSectionDialog({
@@ -49,10 +63,17 @@ export function CreateSectionDialog({
   const [capacity, setCapacity] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [notes, setNotes] = useState("");
+  // T-401: the section's classification ("" = untagged / cours commun).
+  const [filiereCode, setFiliereCode] = useState("");
+  const [specialiteCode, setSpecialiteCode] = useState("");
 
   const teachers = personnel.filter(
     (p) => p.staffCategory === "teacher" || p.roleId === "teacher",
   );
+
+  // T-401: the canonical catalog for this grade — never a page-local list.
+  const filieres: readonly AcademicTrack[] = getFilieresForGrade(gradeLevel);
+  const specialites = getSpecialitesForFiliere(filiereCode || null);
 
   useEffect(() => {
     if (initialDraft) {
@@ -62,6 +83,8 @@ export function CreateSectionDialog({
       setCapacity(initialDraft.capacity ? String(initialDraft.capacity) : "");
       setTeacherId(initialDraft.homeroomTeacherId || "");
       setNotes(initialDraft.notes || "");
+      setFiliereCode(initialDraft.filiereCode || "");
+      setSpecialiteCode(initialDraft.specialiteCode || "");
     } else {
       setSection("Section A");
       setCustomName("");
@@ -69,6 +92,8 @@ export function CreateSectionDialog({
       setCapacity("28");
       setTeacherId("");
       setNotes("");
+      setFiliereCode("");
+      setSpecialiteCode("");
     }
   }, [initialDraft, open]);
 
@@ -86,6 +111,9 @@ export function CreateSectionDialog({
       homeroomTeacherId: teacherId || null,
       homeroomTeacherName: selectedTeacher ? `${selectedTeacher.firstName} ${selectedTeacher.lastName}` : null,
       notes: notes.trim() || null,
+      // T-401: the classification (validated server-side against the catalog).
+      filiereCode: filiereCode || null,
+      specialiteCode: specialiteCode || null,
     });
     onOpenChange(false);
   };
@@ -158,6 +186,56 @@ export function CreateSectionDialog({
             </Select>
           </FormField>
         </div>
+
+        {/* T-401 — the section's academic classification. The canonical
+            catalog filtered by the studio's target grade. */}
+        {filieres.length > 1 && (
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              label="Filière de la section"
+              hint="Cours commun si aucune sélection"
+            >
+              <Select
+                value={filiereCode || "__general__"}
+                onValueChange={(v) => {
+                  setFiliereCode(v === "__general__" ? "" : v);
+                  setSpecialiteCode("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Cours commun" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filieres.map((f) => (
+                    <SelectItem key={f.code} value={f.code}>
+                      {f.labelFr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {specialites.length > 0 && (
+              <FormField label="Spécialité" hint={filiereHasSpecialitesLabel(filiereCode)}>
+                <Select
+                  value={specialiteCode || "__none__"}
+                  onValueChange={(v) => setSpecialiteCode(v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucune" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Aucune —</SelectItem>
+                    {specialites.map((sp) => (
+                      <SelectItem key={sp.code} value={sp.code}>
+                        {sp.labelFr}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            )}
+          </div>
+        )}
 
         <FormField label="Consignes & Aménagements pédagogiques">
           <Textarea

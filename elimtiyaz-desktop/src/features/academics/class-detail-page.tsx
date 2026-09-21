@@ -38,6 +38,7 @@ import {
 } from "../../shared/layout/page-tabs";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
+import { trackLabelFr } from "../../domain/model/filiere";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { StatusChip } from "../../shared/ui/status-chip";
 import {
@@ -388,6 +389,12 @@ export function ClassDetailPage() {
                   élève(s) inscrit(s) dans cette classe
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
+                  {cls.filiereCode && cls.filiereCode !== "general" && (
+                    <Badge variant="outline" className="font-normal">
+                      Filière : {trackLabelFr(cls.filiereCode)}
+                      {cls.specialiteCode ? ` — ${trackLabelFr(cls.specialiteCode)}` : ""}
+                    </Badge>
+                  )}
                   <Badge variant="outline">
                     Salle : {cls.room ?? "Non assignée"}
                   </Badge>
