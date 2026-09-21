@@ -10,7 +10,7 @@
  * form-state.
  */
 import { useMemo, useState } from "react";
-import { ShoppingCart, Truck, Building2, Clock, Plus, PackageCheck } from "lucide-react";
+import { ShoppingCart, Truck, Building2, Plus, PackageCheck } from "lucide-react";
 import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
@@ -81,6 +81,10 @@ export function BuyerDashboard() {
   const pendingDeliveries = useMemo(
     () => requests.filter((r) => r.status === "ordered").length,
     [requests],
+  );
+  const openAmount = useMemo(
+    () => openRequests.reduce((sum, request) => sum + request.totalAmount, 0),
+    [openRequests],
   );
 
   const supplierNameById = useMemo(() => {
@@ -155,7 +159,11 @@ export function BuyerDashboard() {
     { label: "Demandes ouvertes", value: openRequests.length, icon: ShoppingCart, trend: `${openRequests.length} en cours` },
     { label: "Livraisons en attente", value: pendingDeliveries, icon: Truck },
     { label: "Fournisseurs", value: suppliers.length, icon: Building2 },
-    { label: "Délai moyen", value: "2,4 j", icon: Clock },
+    {
+      label: "Montant des demandes ouvertes",
+      value: new Intl.NumberFormat("fr-FR").format(openAmount) + " DZD",
+      icon: ShoppingCart,
+    },
   ];
 
   const tasks: readonly DashboardTask[] = myTasks.slice(0, 5).map((t) => ({
