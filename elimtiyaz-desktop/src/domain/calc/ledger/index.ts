@@ -10,6 +10,8 @@
  *                    replayParentLedger, balanceForAccount,
  *                    totalOutstandingAcrossAccounts
  *   - `overdue`    — maxDaysOverdueFromLedger, buildOverdueDueDateMap
+ *   - `debt-aging` — computeDebtAgingAnalysis, computeDebtAgingStatus,
+ *                    resolveAcademicYearForDate (T-405, §15)
  *   - `entries`    — createChargeEntry, createPaymentEntry, createAdjustmentEntry,
  *                    createRefundEntry, createReversalEntry
  *   - `charges`    — buildTuitionChargeEntries, buildTransportChargeEntry,
@@ -18,5 +20,6 @@
 export * from "./account-id";
 export * from "./balance";
 export * from "./overdue";
+export * from "./debt-aging";
 export * from "./entries";
 export * from "./charges";
