@@ -3576,7 +3576,7 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 
 ## T-401 — Full Filière / Spécialité Integration Across the System
 
-**Status:** Ready  
+**Status:** Verified (2026-09-22, 85th session) — COMPLETE: migration 0107 (the `filieres` catalog + classification columns + `fn_track_compatible` + finalize/import/promotion integration, applied live, verify_t-401.sql 17/17); desktop domain/UI/forms/filters/export + website parity (3589/21/5 desktop with the identical pre-existing failing set; website 629/629). Residuals registered in ACAD-502 + ADR-019 (no FK, no class_id trigger, gestion spécialités unseeded, subject_configurations.direction not yet wired, staff-JWT filières probe pending). Evidence: docs/recovery/t-401-live-verification.md  
 **Priority:** P1  
 **Scope:** Desktop + canonical Supabase backend + cross-platform consumers where the academic classification is exposed.
 
