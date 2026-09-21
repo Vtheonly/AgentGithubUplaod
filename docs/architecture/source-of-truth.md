@@ -88,3 +88,12 @@ Automatic Timetable / Emploi du temps is a canonical generated scheduling domain
 - The dedicated Timetable/Emploi du temps UI is a consumer/view of the canonical generated schedule.
 - Class, teacher, and room views must not create separate schedule records or scheduling algorithms.
 - Packaged Electron generation must use the bundled solver artifact rather than developer PATH/runtime dependencies.
+
+
+### Cross-Year Debt Aging and Payment Behavior
+
+Debt status is derived from the canonical financial obligations, payment records, payment allocations, due dates, and academic-year history.
+
+The canonical analysis preserves the original obligation year and due date while also considering subsequent-year payment activity and inactivity. An old debt is not, by itself, proof of prolonged non-payment.
+
+Green/Yellow/Orange/Red are presentation states of one documented financial-status calculation. No page may invent its own thresholds or status logic.
