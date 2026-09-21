@@ -391,3 +391,7 @@ The academic chain Niveau → Filière → Spécialité → Classe/Section and t
 5. Any backend schema/RPC/RLS change requires the canonical migration chain, consumer census across Desktop/Android/Website, and live verification when credentials are available.
 6. Duplicate forms are acceptable only as presentations of the same domain contract. Duplicated business logic is prohibited.
 7. A task is not complete because one UI works: the end-to-end persistence, retrieval, filtering, statistics, placement, history, and cross-platform paths must be verified and documented.
+ 
+### 43. **Batch promotion must use a human-in-the-loop Promotion Cycle (T-403, 2026-09-21)**
+
+Batch promotion means processing a school-year cohort as one managed cycle, not blindly promoting the entire school with one click. The cycle is the scope; each class/group is reviewed and explicitly confirmed one at a time. Create a dedicated Batch Promotion Cycles area/table, normally focused on the next academic year. Remove scattered direct-promotion buttons; contextual pages may link to the cycle but must not implement independent promotion logic. The cycle UI must use the same canonical promotion domain/database contract as T-402, support per-student decisions, incomplete-notes warnings, class-level atomic confirmation, progress tracking, and final whole-cycle completion. A cycle cannot be marked complete merely because one class was processed.
