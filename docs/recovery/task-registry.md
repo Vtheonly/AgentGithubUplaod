@@ -3771,7 +3771,7 @@ The feature is complete only when an authorized user can create/open the next ac
 
 ## T-404 — Automatic Timetable Generation & Constraint Scheduling
 
-**Status:** IN_PROGRESS (2026-09-22 — backend half IMPLEMENTED+live-verified: migrations 0109/0110, 27/27 verify_t-404.sql; domain/solver/UI/packaging remaining)  
+**Status:** TESTED (2026-09-22 — all six stages landed: migrations 0109/0110 live-verified 27/27; canonical TS domain + native solver 25/25; TimetableRepository Supabase+mock 9/9; the dedicated Emploi du temps UI 7/7; packaging gates PASS incl. the Windows x64 portable .exe with the solver verified inside the packaged ASAR + clean-environment generation under `env -i`. Full evidence: docs/recovery/t-404-live-verification.md. Remaining to VERIFIED: executing the built .exe on a real Windows machine (owner action, same residual as T-506) + the NSIS setup variant on a wine-equipped host.)  
 **Priority:** P0  
 **Scope:** Desktop/Electron + canonical backend contract + timetable domain/solver integration + generated timetable viewing.
 

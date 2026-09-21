@@ -1802,7 +1802,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SCHED-100 — Timetable (Emploi du Temps) feature is structurally unimplemented: domain model + UI KPI exist but no DB table, no Supabase repository, no migration
 
-- **Category:** SCHED  |  **Severity:** Medium  |  **Status:** BLOCKED
+- **Category:** SCHED  |  **Severity:** Medium  |  **Status:** RESOLVED (2026-09-22, T-404 — TESTED; live evidence 27/27 in docs/recovery/t-404-live-verification.md)
+- **Status note (T-404 resolution):** migrations 0109/0110 created the full canonical backend (rooms, timetable_configurations, timetable_constraints, timetable_versions, timetable_entries + fn_timetable_publish + RLS + the Algerian profile seed); the Supabase TimetableRepository implements the complete contract (generation via the native ts-greedy-v1 solver behind the TimetableSolver adapter, review→approve→publish, duplicate-to-draft, live-validated manual adjustments); the dedicated Emploi du temps UI (class/teacher/room views over the ONE canonical schedule) landed as an Academics tab. Residual follow-up: the legacy mock façade (teacher.ts TimetableEntry, mock teacher-repository timetable CRUD, the academic-year drawer's "Couverture EDT" KPI reading the mock store) is superseded and its removal/rewiring is a registered follow-up.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Backend/DB, Desktop
 - **Task:** T-042 (docs/recovery/task-registry.md)
@@ -1822,7 +1823,8 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### SCHED-101 — `detectTimetableConflict` checks teacher/class overlaps but NOT room conflicts (different teachers, different classes, same room, same time)
 
-- **Category:** SCHED  |  **Severity:** Low  |  **Status:** BLOCKED
+- **Category:** SCHED  |  **Severity:** Low  |  **Status:** RESOLVED at the canonical level (2026-09-22, T-404 — the canonical validator detects teacher/class/ROOM clashes, unit-proven incl. the exact SCHED-101 shape; the DB also enforces room no-double-booking via timetable_entries_room_slot_uidx, live-verified C9b)
+- **Status note:** the LEGACY mock detectTimetableConflict remains as-is inside the superseded mock façade (removal follow-up with SCHED-100's residual); all NEW scheduling goes through the canonical engine.
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-042 (docs/recovery/task-registry.md)
@@ -1839,6 +1841,17 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Verification:** Regression test reproducing the defect (fails before fix, passes after); evidence recorded in docs/recovery/change-log.md before status moves past TESTED.
 
 ---
+
+### SCHED-102 — The legacy `SchoolDay` type hardcodes Mon–Fri as the "Algerian school week" — Algeria's school week is Sunday–Thursday
+
+- **Category:** SCHED  |  **Severity:** Low  |  **Status:** OPEN (registered 2026-09-22, T-404 session — documentation-grade; no runtime impact)
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Desktop (mock layer only)
+- **Task:** T-404 follow-up (with the SCHED-100 façade removal)
+- **Description:** `src/domain/model/teacher.ts` declares `SchoolDay = "monday"|…|"friday"` with the comment "Saturday and Sunday are excluded (Algerian school week)". Algeria's weekend is Friday + Saturday; the school week runs **Sunday → Thursday**. The canonical T-404 model (`model/timetable.ts`) is data-driven over the full 7-day week and the seeded Algerian profile (migration 0109 §10 + `algerian-profile.ts`) correctly uses Sunday–Thursday, so the legacy type only misleads future readers of the superseded mock façade.
+- **Root cause:** The original mock author copied a Western Mon–Fri week and labeled it "Algerian".
+- **Expected behavior:** When the legacy façade is removed (SCHED-100 residual), the misleading type + comment go with it; until then the canonical model is the reference.
+- **Verification:** none needed beyond the canonical suite (the fixture asserts zero Friday/Saturday entries and Sun–Thu columns in the UI test).
 
 ### STUDENT-100 — Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter)
 

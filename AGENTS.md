@@ -407,6 +407,15 @@ A packaged Electron build is mandatory. The bundled solver must not depend on th
 
 Generated timetables must be versioned and reviewed before publication. The dedicated Timetable/Emploi du temps view is the canonical presentation surface; class, teacher, and room views consume the same schedule. See T-404 in docs/recovery/task-registry.md.
 
+> IMPLEMENTED (T-404, 2026-09-22 — TESTED; ADR-020 is the architecture record,
+> migrations 0109/0110 the canonical backend, `src/domain/model/timetable.ts` +
+> `src/domain/calc/timetable/` the ONE model/constraint contract/solver adapter,
+> the `timetable` repository slot the ONE persistence path, and
+> docs/recovery/t-404-live-verification.md the evidence). The legacy mock
+> timetable façade (teacher.ts TimetableEntry + the mock teacher-repository
+> CRUD + the "Couverture EDT" KPI) is SUPERSEDED — do not extend it; its
+> removal is a registered follow-up.
+
 
 ## Cross-Year Debt Aging rule — T-405
 

@@ -98,14 +98,14 @@
 - **Blocked:** T-070.
 - **Required to resolve:** product decision.
 
-## UNKNOWN-011 — Timetable: complete the feature or remove it?
+## UNKNOWN-011 — Timetable: complete the feature or remove it? — RESOLVED (BUILD)
 
 - **Question:** The desktop has a full timetable domain model + mock CRUD + conflict detection and a UI KPI, but no table, no repository, no migration. Build it or delete the façade?
-- **Evidence:** SCHED-100, SCHED-101 (conflict detection misses room clashes).
+- **Resolution (2026-09-22):** BUILD — the owner's T-404 registration directed the full Automatic Timetable feature; implemented and TESTED (see docs/recovery/t-404-live-verification.md). The legacy façade's removal is the registered follow-up (SCHED-100 residual).
+- **Evidence:** SCHED-100 (RESOLVED), SCHED-101 (RESOLVED at the canonical level), ADR-020, migrations 0109/0110.
 - **Why it matters:** the "Couverture EDT" KPI permanently shows 0% in production mode; users may believe timetables are managed.
 - **Affected components:** desktop academics module.
-- **Blocked:** T-042.
-- **Required to resolve:** product decision.
+- **Blocked:** T-042 (now unblocked — can be closed as superseded by T-404 or repointed to the façade removal).
 
 ## UNKNOWN-020 — Overdue-alert volume: per-installment alerts or a digest?
 
