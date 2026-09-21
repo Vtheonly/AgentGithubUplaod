@@ -669,17 +669,45 @@ export class SupabaseTimetableRepository implements TimetableRepository {
       capacity: c.capacity != null ? Number(c.capacity) : null,
     }));
 
-    // Curriculum: class_subjects joined with subjects + personnel.
+    // Curriculum: class_subjects joined with subjects (+ classes!inner for
+    // the year filter). SCHED-103 (2026-09-22, live-reproduced): NO
+    // `personnel!left` embed here — class_subjects.teacher_id has been a
+    // BARE uuid since 0004 (its "FK to personnel(id), filled in 0009"
+    // comment was never honoured), and PostgREST embeds require a real FK
+    // constraint (PGRST200 → HTTP 400). Until migration 0112 lands, teacher
+    // names are resolved from the personnel fetch below — the same rows
+    // already power the `teachers` list (zero extra round-trips).
     const { data: csRows, error: csError } = await this.client
       .from("class_subjects")
       .select(
-        "class_id, subject_id, teacher_id, weekly_hours, consecutive_periods, required_room_type, subjects(code, name_fr), classes!inner(code, name, capacity, academic_year_id), personnel!left(first_name, last_name)",
+        "class_id, subject_id, teacher_id, weekly_hours, consecutive_periods, required_room_type, subjects(code, name_fr), classes!inner(code, name, capacity, academic_year_id)",
       )
       .eq("classes.academic_year_id", academicYearId)
       .eq("is_active", true);
     if (csError) return Err(supabaseErrorToAppError(csError));
 
-    const requirements: TimetableRequirement[] = (csRows ?? []).map((r: any) => ({
+    // Teachers referenced by requirements (deduplicated personnel) —
+    // fetched ONCE, reused both for the problem's teachers list and for
+    // each requirement's teacherName.
+    const rawRows = csRows ?? [];
+    const teacherIds = [
+      ...new Set(rawRows.map((r: any) => r.teacher_id).filter((t): t is string => !!t)),
+    ];
+    const teacherNameById = new Map<string, string>();
+    const teachers: Array<{ id: string; name: string }> = [];
+    if (teacherIds.length > 0) {
+      const { data: personRows } = await this.client
+        .from("personnel")
+        .select("id, first_name, last_name")
+        .in("id", teacherIds);
+      for (const p of personRows ?? []) {
+        const name = `${p.first_name} ${p.last_name}`;
+        teacherNameById.set(p.id, name);
+        teachers.push({ id: p.id, name });
+      }
+    }
+
+    const requirements: TimetableRequirement[] = rawRows.map((r: any) => ({
       classId: r.class_id,
       subjectId: r.subject_id,
       teacherId: r.teacher_id ?? null,
@@ -691,26 +719,9 @@ export class SupabaseTimetableRepository implements TimetableRepository {
           : null,
       className: r.classes?.name ?? r.classes?.code ?? r.class_id,
       subjectName: r.subjects?.name_fr ?? r.subject_id,
-      teacherName: r.personnel
-        ? `${r.personnel.first_name} ${r.personnel.last_name}`
-        : null,
+      teacherName: r.teacher_id ? (teacherNameById.get(r.teacher_id) ?? null) : null,
       classSize: r.classes?.capacity != null ? Number(r.classes.capacity) : null,
     }));
-
-    // Teachers referenced by requirements (deduplicated personnel).
-    const teacherIds = [
-      ...new Set(requirements.map((r) => r.teacherId).filter((t): t is string => !!t)),
-    ];
-    const teachers: Array<{ id: string; name: string }> = [];
-    if (teacherIds.length > 0) {
-      const { data: personRows } = await this.client
-        .from("personnel")
-        .select("id, first_name, last_name")
-        .in("id", teacherIds);
-      for (const p of personRows ?? []) {
-        teachers.push({ id: p.id, name: `${p.first_name} ${p.last_name}` });
-      }
-    }
 
     return Ok({
       configuration,
