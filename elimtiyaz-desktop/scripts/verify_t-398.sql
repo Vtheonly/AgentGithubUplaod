@@ -11,12 +11,16 @@
 -- Covers: the function shape + grants (C1/C2), the happy-path probe with
 -- the returned full rows + write counts (C3), the server-side account_id
 -- derivation vs the canonical deriveAccountId format (C4), the ledger +
--- installments landed with the resolved uuids + client source_ids (C5/C6),
--- END-TO-END IDEMPOTENCY (the same payload re-run writes ZERO new rows,
--- C7), ATOMICITY (a poisoned billing row rolls back the WHOLE registration
--- — parent and students included, C8), the out-of-range student_ref guard
--- (C9), the activation-code passthrough (C10), and the timestamp fills
--- (C11).
+-- installments landed with the resolved uuids + the OLD-PATH source_id
+-- identity (the 0103 code→uuid substitution: `reg-<uuid>-t<n>` /
+-- `<uuid>:<category>:T<n>` — C5/C6), END-TO-END IDEMPOTENCY (the same
+-- payload re-run writes ZERO new rows, C7), ATOMICITY (a poisoned billing
+-- row rolls back the WHOLE registration — parent and students included,
+-- C8), the out-of-range student_ref guard (C9), the activation-code
+-- passthrough (C10), the timestamp fills (C11), and CROSS-PATH
+-- CONVERGENCE (a re-registration whose student code differs — the old-
+-- path client shape — converges via the name fallback AND the substituted
+-- source_ids, writing ZERO duplicate charges, C12).
 --
 -- Run:  the Management API SQL endpoint with this file's content (the
 --       apply_0102_live.sh pattern), or
@@ -149,24 +153,24 @@ BEGIN
     v_pid := (SELECT id FROM public.parents WHERE parent_code = v_pcode AND deleted_at IS NULL LIMIT 1);
     v_sid := (SELECT id FROM public.students WHERE student_code = v_scode AND deleted_at IS NULL LIMIT 1);
 
-    -- C5 — the ledger rows landed with the resolved uuids + client source_ids.
+    -- C5 — the ledger rows landed with the resolved uuids + the OLD-PATH
+    --      source_id identity (the 0103 code→uuid substitution).
     SELECT count(*) INTO v_ledger_n
       FROM public.ledger_entries
-     WHERE tenant_id = v_tenant
-       AND ((source_type = 'installment' AND source_id IN ('reg-' || v_scode || '-t1', 'reg-' || v_scode || '-t2', 'reg-' || v_scode || '-t3'))
-            OR (source_type = 'manual_entry' AND source_id = 'reg-' || v_pcode || '-fee'))
-       AND parent_id = v_pid;
+     WHERE tenant_id = v_tenant AND parent_id = v_pid
+       AND ((source_type = 'installment' AND source_id IN ('reg-' || v_sid || '-t1', 'reg-' || v_sid || '-t2', 'reg-' || v_sid || '-t3'))
+            OR (source_type = 'manual_entry' AND source_id = 'reg-' || v_pid || '-fee'));
     SELECT count(*) INTO v_inst_n
       FROM public.installments
      WHERE tenant_id = v_tenant AND student_id = v_sid
-       AND source_id IN (v_scode || ':tuition:T1', v_scode || ':tuition:T2', v_scode || ':tuition:T3');
+       AND source_id IN (v_sid || ':tuition:T1', v_sid || ':tuition:T2', v_sid || ':tuition:T3');
 
     INSERT INTO t398_results
-    SELECT 'C5', 'ledger rows resolved to the server uuids (parent + student) + client source_ids',
+    SELECT 'C5', 'ledger rows: resolved uuids + the OLD-PATH source_id identity (reg-<uuid>-t<n>, 0103 substitution)',
            v_ledger_n = 4,
-           'ledger rows=' || coalesce(v_ledger_n, -1) || ' (parent_id match + 3 student + 1 fee)';
+           'ledger rows=' || coalesce(v_ledger_n, -1) || ' (parent_id match + 3 student + 1 fee; the literal code forms MUST be absent)';
     INSERT INTO t398_results
-    SELECT 'C6', 'installment rows landed with the partial-identity source_ids',
+    SELECT 'C6', 'installment rows: the bulkImportInstallments default identity (<uuid>:<cat>:T<n>)',
            v_inst_n = 3,
            'inst rows=' || coalesce(v_inst_n, -1);
 
@@ -178,7 +182,7 @@ BEGIN
            'sample=' || coalesce(max(account_id), '-')
       FROM public.ledger_entries
      WHERE tenant_id = v_tenant AND source_type = 'installment'
-       AND source_id IN ('reg-' || v_scode || '-t1', 'reg-' || v_scode || '-t2', 'reg-' || v_scode || '-t3')
+       AND source_id IN ('reg-' || v_sid || '-t1', 'reg-' || v_sid || '-t2', 'reg-' || v_sid || '-t3')
        AND student_id = v_sid;
 
     -- C11 — the timestamp fills (entry_date/at not null on the charge rows).
@@ -381,6 +385,86 @@ BEGIN
                (SELECT count(*) FROM public.parents WHERE parent_code = v_ref) = 0
                  AND position('hors limites' in coalesce(sqlerrm, '')) > 0,
                'raised: ' || coalesce(sqlerrm, '-');
+    END;
+    -- ------------------------------------------------------------------
+    -- C12 — CROSS-PATH CONVERGENCE (the 0103 substitution's purpose): a
+    --      re-registration whose student CODE differs (the old-path client
+    --      computed a uuid-based code) but whose NAME is the same converges
+    --      on the EXISTING student via the upsert's name fallback, and the
+    --      substituted source_ids match the OLD identity → ZERO duplicate
+    --      charges, ZERO duplicate tranches, ONE student.
+    -- ------------------------------------------------------------------
+    DECLARE
+      v_scode2  text := 'ELV-OLDPATH-' || v_run;
+      v_lw3     integer;
+      v_iw3     integer;
+      v_ledg3   integer;
+      v_inst3   integer;
+      v_stud3   integer;
+    BEGIN
+      SELECT * INTO v_parent, v_students, v_lw3, v_iw3
+        FROM public.register_family_batch(
+          v_tenant,
+          jsonb_build_object(
+            'parent_code', v_pcode,
+            'first_name', 'Probe', 'last_name', 'T398',
+            'display_name', null, 'primary_phone', '0554288198',
+            'secondary_phone', null, 'email', null, 'occupation', null,
+            'address', null, 'relationship', null,
+            'preferred_language', 'fr', 'is_active', true,
+            'transport_destination', null, 'city_tier', null,
+            'activation_code', 'T398ACT'),
+          -- SAME first/last name (the name-fallback convergence), DIFFERENT code.
+          jsonb_build_array(jsonb_build_object(
+            'student_code', v_scode2,
+            'first_name', 'Enfant', 'last_name', 'Probe',
+            'display_name', null, 'middle_name', null,
+            'date_of_birth', '2014-05-01', 'gender', null,
+            'grade_level_id', null, 'class_id', null,
+            'enrollment_date', null, 'enrollment_status', 'active',
+            'medical_notes', null, 'is_active', true,
+            'grade_level_code', '1am', 'transport_tier', null,
+            'payment_plan', 'tranches')),
+          -- The billing rows built from the DIFFERENT code (code tokens).
+          jsonb_build_array(
+            jsonb_build_object('student_ref', 0, 'entry_number', 'led-t398-x1', 'entry_type', 'charge',
+              'amount', 30000, 'category', 'tuition', 'description', 'Scolarité probe T1 (bis)',
+              'entry_date', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SSZ'),
+              'source_type', 'installment', 'source_id', 'reg-' || v_scode2 || '-t1',
+              'method', null, 'receipt_number', null, 'payment_status', null,
+              'reverses_id', null, 'actor_id', 'system', 'actor_name', 'verify T-398',
+              'at', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SSZ'), 'metadata', null)),
+          jsonb_build_array(
+            jsonb_build_object('student_ref', 0, 'category', 'tuition', 'tranche_number', 1,
+              'label', 'Tranche 1', 'amount_due', 30000, 'amount_paid', 0, 'amount_pending', 0,
+              'due_date', '2026-09-15', 'paid_date', null, 'status', 'unpaid',
+              'academic_cycle', null, 'payment_plan', 'tranches', 'is_custom_schedule', false,
+              'custom_schedule_note', null, 'source_type', 'bulk_import',
+              'source_id', v_scode2 || ':tuition:T1'))
+        );
+
+      SELECT count(*) INTO v_ledg3
+        FROM public.ledger_entries
+       WHERE tenant_id = v_tenant AND parent_id = v_pid AND source_id LIKE 'reg-%';
+      SELECT count(*) INTO v_inst3
+        FROM public.installments
+       WHERE tenant_id = v_tenant AND student_id = v_sid;
+      SELECT count(*) INTO v_stud3
+        FROM public.students s
+       WHERE s.parent_id = v_pid AND s.deleted_at IS NULL
+         AND s.first_name = 'Enfant' AND s.last_name = 'Probe';
+
+      INSERT INTO t398_results
+      SELECT 'C12', 'cross-path convergence: different student code, same name → 0 duplicates, 1 student, uuid-form identities',
+             v_lw3 = 0 AND v_iw3 = 0 AND v_ledg3 = 4 AND v_inst3 = 3 AND v_stud3 = 1
+               AND (SELECT count(*) FROM public.ledger_entries
+                     WHERE tenant_id = v_tenant AND parent_id = v_pid
+                       AND (source_id LIKE '%ELV-%' OR source_id LIKE '%PAR-PROBE%')) = 0,
+             'second-path writes ledger=' || coalesce(v_lw3, -1) || ' inst=' || coalesce(v_iw3, -1)
+               || ' totals ledger=' || coalesce(v_ledg3, -1) || ' inst=' || coalesce(v_inst3, -1)
+               || ' students=' || coalesce(v_stud3, -1);
+    EXCEPTION WHEN OTHERS THEN
+      INSERT INTO t398_results VALUES ('C12', 'cross-path convergence: different student code, same name → 0 duplicates, 1 student, uuid-form identities', false, sqlerrm);
     END;
 END
 $verify$;
