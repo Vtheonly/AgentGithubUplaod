@@ -2673,3 +2673,29 @@ The session's core discovery: **the chat CONVERSATION layer was complete and liv
 - **New discoveries persisted:** (a) the handed-over report's "already applied" claim was FALSE — the §15.11 session-opening chain diff is the gate, not the report; (b) NO DELETE policies exist on the touched business tables — RLS default-deny for every authenticated role incl. super_admin, PostgREST answers 200 with an empty array → zero-residue cleanup goes through the SERVICE ROLE with returned-row-COUNT assertions; (c) GoTrue's admin user-delete needs the service key in BOTH headers; (d) the create-user-account EF wraps its payload in a `data` envelope. All four codified as AGENTS.md §15.41. Registered: WORKFORCE-503 (the attendance-insert tenant-only check — hardening follow-up, deliberately unchanged).
 - **Concurrent-agent safety:** the code edits are concentrated in the migrations + the leave-requests repository + two Personnel test files + two scripts + docs — disjoint from the layout-editor/dashboard/i18n subtree; every push preceded by a fetch; main advanced only by fast-forward merges of the verified branch; the 6 tsc + 21 vitest pre-existing failures attributed at session open and deliberately LEFT ALONE (their scope).
 - **Commits:** a71484d (0104 conventions) → f4924ec (0105 worker chat) → 201bd8d (0106 + the subscription) → 3889540 (the test realignment) → 9796921 (the live evidence scripts) → the closeout commit (this entry + the registries). Every commit pushed and merged to main immediately (PR #9's commits are all in main).
+---
+
+## 2026-09-21 — T-401/T-402 registered: full academic classification + batch promotion integration
+
+### Owner mandate captured
+
+Two system-wide academic integration tasks were registered:
+
+- **T-401 — Full Filière / Spécialité Integration:** make Niveau → Filière → Spécialité → Classe/Section a single canonical academic model and integrate it across database, forms, editing, retrieval, search, filtering, statistics, class formation, imports/exports, history, validation, and all relevant platform consumers.
+- **T-402 — Full Batch Promotion Integration:** make batch promotion fully functional across all pages/workflows and platforms, using one canonical promotion model and write path, with no duplicated forms/business logic.
+
+### Required implementation order
+
+1. Discover every existing academic classification and promotion implementation before coding.
+2. Establish the canonical database/domain representation.
+3. Implement the DBA/backend migration, constraints, indexes, RLS implications, RPC/repository contract, and live verification.
+4. Integrate Desktop consumers.
+5. Integrate Android and Website consumers where the contract is exposed.
+6. Connect promotion output directly to class formation.
+7. Remove/consolidate duplicate forms and logic only after all consumers are proven against the canonical contract.
+8. Add regression + cross-platform equivalence + live end-to-end verification.
+9. Update task-registry, source-of-truth, academic-rules, boundaries, AGENTS, current-state, and next-task with evidence.
+
+### Non-negotiable completion condition
+
+Neither task may be marked complete because insertion or one promotion page works. Completion requires full persistence and consumption across the system, including database, search, filters, statistics, student/class details, class formation, academic history, imports/exports, and supported cross-platform workflows.
