@@ -97,3 +97,14 @@ Debt status is derived from the canonical financial obligations, payment records
 The canonical analysis preserves the original obligation year and due date while also considering subsequent-year payment activity and inactivity. An old debt is not, by itself, proof of prolonged non-payment.
 
 Green/Yellow/Orange/Red are presentation states of one documented financial-status calculation. No page may invent its own thresholds or status logic.
+
+**Implemented topology (T-405, 2026-09-22 — VERIFIED, financial-rules §15):**
+
+| Concept | Source of Truth | Consumers |
+|---|---|---|
+| **Debt-aging status calculation** | Desktop `src/domain/calc/ledger/debt-aging.ts` (`computeDebtAgingAnalysis`/`computeDebtAgingStatus`) — the reference; SQL mirror `compute_debt_aging_rows`/`compute_debt_aging_summary` (migration 0111); website port `src/lib/canonical/calc/ledger/debt-aging.ts` (sha-pinned) | The desktop « Suivi des Dettes » tab; the portal's DebtAgingStatusCard; dashboards/statistics/exports via the RPC; future Android mirror |
+| **Debt-aging outstanding** | Σ `GREATEST(0, amount_due − amount_paid − amount_pending)` over unpaid REAL installment rows — the SAME Créances-tab basis (INV-4 family) | Every T-405 surface |
+| **Academic-year attribution (INV-14)** | `attribute_academic_year(date, tenant)` (0111) / `resolveAcademicYearForDate` (TS) — academic_years window first, Jul1–Jun30 Algerian convention fallback | Origin-year + subsequent-year-payment classification |
+| **Payment behavior** | Non-reversed `entry_type='payment'` ledger entries (the `computeParentSummary` replay source) | Last payment, inactivity, subsequent-year activity |
+
+The staff query contract is the 0111 RPC `compute_debt_aging_summary` (gated: super_admin/financial_officer/support_staff + current tenant; anon revoked per §15.34). `mv_debt_aging` carries the extended payment-behavior columns for server-side analytics (its pre-existing ledger-basis columns are unchanged and documented as a distinct basis).
