@@ -19,6 +19,11 @@ import type {
   CreateSchoolYearInput,
   UpdateSchoolYearInput,
 } from "../calc/academics/school-year";
+import type {
+  PromotionCycle,
+  PromotionCycleClass,
+  PromotionClassConfirmResult,
+} from "../model/promotion-cycle";
 
 /**
  * Academic Year repository — full lifecycle management (plan §05.05).
@@ -285,4 +290,76 @@ export interface ClassPlacementRepository {
   finalizePlacements(
     input: FinalizeClassPlacementsInput,
   ): Promise<Result<FinalizeClassPlacementsResult>>;
+}
+// ============================================================================
+// Promotion Cycles (T-403 / migration 0108 — the human-in-the-loop
+// academic-year promotion workflow)
+//
+// ONE cycle per source academic year; each class is reviewed and confirmed
+// ONE AT A TIME through fn_confirm_promotion_cycle_class, which executes the
+// decisions through the SAME canonical execute_batch_promotion RPC the batch
+// flow uses (ONE business-logic path). The repository contract mirrors the
+// 0108 RPCs 1:1 — no client-side promotion business logic lives here.
+// ============================================================================
+
+export interface CreatePromotionCycleInput {
+  /** The year being completed (e.g. "2026-2027") — must exist in the tenant. */
+  readonly sourceAcademicYear: string;
+  /** The year being promoted into — defaults to source + 1. */
+  readonly targetAcademicYear?: string | null;
+  readonly performedBy: string;
+  readonly performedByName: string;
+}
+
+export interface ConfirmPromotionCycleClassInput {
+  readonly cycleId: string;
+  readonly classId: string;
+  /**
+   * The FINAL per-student decisions — the SAME shape execute_batch_promotion
+   * receives (built by the canonical buildPromotionReviewQueue + the
+   * reviewer's overrides; never a second algorithm).
+   */
+  readonly decisions: readonly Record<string, unknown>[];
+  /** The second-phase ack of the incomplete-notes warning. */
+  readonly acknowledgeIncompleteNotes?: boolean;
+  readonly performedBy: string;
+  readonly performedByName: string;
+}
+
+export interface PromotionCycleRepository {
+  /** List the tenant's cycles with their aggregated counts. */
+  listCycles(): Promise<Result<readonly PromotionCycle[]>>;
+
+  /** The class rows of a cycle (the review worklist). */
+  getCycleClasses(cycleId: string): Promise<Result<readonly PromotionCycleClass[]>>;
+
+  /**
+   * Create (or return the existing active) cycle for a source year — the
+   * contextual "Ouvrir le cycle de promotion" entry points call this with the
+   * class's year so every surface converges on ONE cycle per year.
+   */
+  openOrCreateCycle(input: CreatePromotionCycleInput): Promise<Result<PromotionCycle>>;
+
+  /**
+   * Confirm ONE class's decisions (the human-in-the-loop unit). Throws/Errs
+   * with the [NOTES_INCOMPLETES] marker when notes are missing and the ack
+   * was not given — the caller re-submits with acknowledgeIncompleteNotes
+   * after the user confirms the warning.
+   */
+  confirmClass(input: ConfirmPromotionCycleClassInput): Promise<Result<PromotionClassConfirmResult>>;
+
+  /** Reopen a processed class while the cycle is not completed. */
+  reopenClass(
+    cycleId: string,
+    classId: string,
+    reason: string | null,
+    performedBy: string,
+    performedByName: string,
+  ): Promise<Result<void>>;
+
+  /** Complete the whole cycle (refused while classes remain unprocessed). */
+  completeCycle(cycleId: string, performedBy: string, performedByName: string): Promise<Result<void>>;
+
+  /** Cancel the cycle (refused once completed). */
+  cancelCycle(cycleId: string, reason: string | null, performedBy: string, performedByName: string): Promise<Result<void>>;
 }

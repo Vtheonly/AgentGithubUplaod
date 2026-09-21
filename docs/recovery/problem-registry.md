@@ -80,6 +80,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | TENANT-100 | Critical | TESTED | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
 | TENANT-101 | Medium | TESTED | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
 | TENANT-103 | Medium | TESTED | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
+| ACAD-503 | High | VERIFIED | T-403 | Promotion was a ONE-SHOT per-class modal with no cycle state: no whole-year progress, no per-class review/confirm gating, no incomplete-notes warning, no reopen path — FIXED 2026-09-22 (T-403, 85th session): migration 0108 (the promotion-cycle workflow, the confirm executing through the SAME canonical RPC), live 16/16 |
 | ACAD-502 | High | VERIFIED | T-401 | NO filière/spécialité support anywhere in the schema (the ADR-018 `direction` placeholder was the only trace) — FIXED 2026-09-22 (T-401, 85th session): migration 0107 (the `filieres` catalog + classification columns + `fn_track_compatible` + formation/p/import/promotion integration), live 17/17 |
 | TENANT-106 | Critical | TESTED | T-025 | `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage) |
 | BUSINESS-001 | Critical | TESTED | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
@@ -5418,3 +5419,19 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **What was verified:** see docs/recovery/t-401-live-verification.md (the 17-check live matrix + the client-side gates).
 - **What remains unresolved (registered):** no FK classes/students → filieres; no `students.class_id` compatibility trigger (Android partial-sync safety — ADR-019 rationale); Gestion & Économie spécialités unseeded (unknowns); `subject_configurations.direction` not yet wired to `classes.filiere_code`; the filières staff-read RLS policy not yet probed with a staff JWT (supabase-admin bypass in the verify run); class-formation patches (Step B) cannot change an existing class's classification mid-formation (deliberate).
 - **Verification:** live 17/17 (verify_t-401.sql, rolled back); desktop 3589/21/5 with the identical pre-existing failing set; website 629/629.
+
+
+---
+
+### ACAD-503 — Promotion was a one-shot per-class modal: NO cycle state, NO human-in-the-loop gating, no incomplete-notes warning, no reopen path
+
+- **Category:** ACAD  |  **Severity:** High  |  **Status:** VERIFIED (2026-09-22, T-403)
+- **Repositories:** AgentGithubUplaod (desktop + canonical backend)
+- **Platforms affected:** Backend/DB, Desktop
+- **Task:** T-403 (docs/recovery/task-registry.md)
+- **Status note:** FIXED 2026-09-22 (T-403, 85th session): migration **0108** applied live + registered atomically; `verify_t-403.sql` **16/16** (the full cycle matrix: create with live class counts, the duplicate-active-cycle guard, the every-student rule, the [NOTES_INCOMPLETES] two-phase ack, the confirmed tallies + the stamped history, the re-confirm refusal, the reopen + the idempotent re-run, the completion gating, the completed-not-cancellable rule). Desktop 3608/21/5 (the failing set byte-identical to baseline).
+- **Description (what was wrong):** the entire promotion was a modal on the class-detail page (batch-promotion-modal + use-batch-promotion): each class promoted INDEPENDENTLY with no year-level state — no way to see the year's progress, no gating that each class is reviewed before finalization, no incomplete-notes warning (the T-336 honesty rule was not enforced at promotion), no reopen/audit of a confirmed class, and no completion state for the year. Nothing prevented an operator from missing classes entirely.
+- **Root cause:** T-041 built the canonical atomic EXECUTION (the RPC); the WORKFLOW layer was never modeled (the task-registry T-403 text documents the required shape).
+- **What was changed:** migration 0108 (§1 promotion_cycles — one active cycle per source year; §2 promotion_cycle_classes — the per-class review state + tallies; §3..§8 the RPCs: create/get/confirm/reopen/complete/cancel, all caller-verified, the confirm executing through execute_batch_promotion — ONE business path); the desktop promotion-cycle domain model + repository (Supabase + mock parity); the Cycles de promotion tab + cycle detail + class review modal; the canonical buildPromotionDecisionPayload extracted to the domain (one wire format, the batch repository refactored onto it); the one-shot modal + hook DELETED (the class-detail contextual « Ouvrir le cycle de promotion » converges on the cycle).
+- **What was verified:** docs/recovery/t-403-live-verification.md (the 16-check live matrix + the client gates).
+- **Verification:** live 16/16 (verify_t-403.sql, rolled back); desktop 3608/21/5 with the identical pre-existing failing set; +11 tests.

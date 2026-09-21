@@ -12,6 +12,7 @@ import {
   Stethoscope,
   FileCheck,
   Users,
+  GraduationCap,
 } from "lucide-react";
 import { PageHeader } from "../../shared/layout/page-header";
 import {
@@ -31,6 +32,7 @@ import { ClubsTab } from "./clubs/clubs-tab";
 import { PsychologyTab } from "./therapy/psychology-tab";
 import { OrthophonieTab } from "./therapy/orthophonie-tab";
 import { GradeLevelsClassView } from "./grade-levels-class-view";
+import { PromotionCyclesTab } from "./promotion-cycles/promotion-cycles-tab";
 import { TeachersTab } from "./teachers-tab";
 import { SubjectsDirectoryTab } from "./subjects-directory-tab";
 import { HomeworkHistoryTab } from "./homework-history-tab";
@@ -42,6 +44,7 @@ type AcademicsTab =
   | "classes"
   | "teachers"
   | "subjects"
+  | "promotion_cycles"
   | "homework"
   | "justifications"
   | "clubs"
@@ -130,6 +133,12 @@ export function AcademicsPage() {
         visible: canObj.viewAcademics,
       },
       {
+        value: "promotion_cycles",
+        label: "Cycles de promotion",
+        icon: GraduationCap,
+        visible: canObj.manageClasses,
+      },
+      {
         value: "school_years",
         label: "Années scolaires",
         icon: School,
@@ -194,6 +203,8 @@ export function AcademicsPage() {
         return "Cycle de vie des années scolaires — création, modification, archivage, restauration, suppression.";
       case "subjects":
         return "Catalogue des matières avec coefficients par cycle et niveau.";
+      case "promotion_cycles":
+        return "Cycles de promotion par année scolaire — revue et confirmation classe par classe (T-403).";
       case "homework":
         return "Historique des devoirs diffusés aux classes.";
       case "justifications":
@@ -256,6 +267,10 @@ export function AcademicsPage() {
 
         <PageTabContent value="subjects">
           <SubjectsDirectoryTab />
+        </PageTabContent>
+
+        <PageTabContent value="promotion_cycles">
+          <PromotionCyclesTab />
         </PageTabContent>
 
         <PageTabContent value="homework">

@@ -3648,7 +3648,7 @@ The DBA/backend owner must own the canonical schema/RPC/RLS/transaction side of 
 
 ## T-403 — Batch Promotion Cycles: Human-in-the-Loop Academic-Year Workflow
 
-**Status:** Ready  
+**Status:** Verified (2026-09-22, 85th session) — COMPLETE: migration 0108 (promotion_cycles + promotion_cycle_classes + fn_create/get/confirm/reopen/complete/cancel — the confirm executes through the SAME execute_batch_promotion RPC, ONE business path); the desktop Cycles de promotion tab + the cycle detail worklist + the per-class review modal (the canonical buildPromotionReviewQueue engine, per-student overrides, the [NOTES_INCOMPLETES] two-phase ack, the reopen path); the one-shot BatchPromotionModal + use-batch-promotion RETIRED (the class-detail contextual button opens the cycle); the mock parity; buildPromotionDecisionPayload extracted as the ONE wire format. Live verify_t-403.sql 16/16 (the full C1..C10 matrix). Desktop 3608/21/5 (failing set byte-identical). Residuals: skip/exception marking from the UI, the studio deep-link — registered in t-403-live-verification.md.  
 **Priority:** P0  
 **Scope:** Promotion UI, academic workflow, database/domain contract, class-level review, and all downstream consumers.
 
