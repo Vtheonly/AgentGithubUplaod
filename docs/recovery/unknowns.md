@@ -146,3 +146,12 @@
   cross-platform feature (owner instruction). Decision recorded in ADR-008; backend migration
   0061 applied live (verify_t-098 15/15); desktop T-099/T-100 and website T-101 landed.
   Unblocked T-037; spawned T-102 (Android chat UI scope gap).
+
+- **UNKNOWN-0XX (T-401, 2026-09-22): Gestion & Économie spécialités.** The
+  Algerian 3AS Gestion & Économie filière has spécialité subdivisions in some
+  classifications (sciences économiques / sciences de gestion — the BAC series
+  naming). The school's actual practice is UNCONFIRMED; the 0107 catalog seeds
+  only the well-established génie spécialités under Technique Mathématique. The
+  catalog is data: the school adds the rows when confirmed (the desktop UI
+  already renders any spécialité the catalog carries). Do not seed unconfirmed
+  streams — AGENTS.md §15 rule 2 (never guess business rules).

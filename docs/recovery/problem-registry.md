@@ -80,6 +80,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | TENANT-100 | Critical | TESTED | T-005 | `current_user_roles()` ignores tenant_id → cross-tenant role inheritance |
 | TENANT-101 | Medium | TESTED | T-005 | `user_profiles_admin_update` RLS policy has no tenant_id check → cross-tenant user modification |
 | TENANT-103 | Medium | TESTED | T-053 | Desktop's `getTenantId()` falls back to DEMO UUID when session is missing or user is a global admin |
+| ACAD-502 | High | VERIFIED | T-401 | NO filière/spécialité support anywhere in the schema (the ADR-018 `direction` placeholder was the only trace) — FIXED 2026-09-22 (T-401, 85th session): migration 0107 (the `filieres` catalog + classification columns + `fn_track_compatible` + formation/p/import/promotion integration), live 17/17 |
 | TENANT-106 | Critical | TESTED | T-025 | `student_academic_histories` table is INACCESSIBLE to authenticated users; desktop's batch promotion flow fails at the history upsert (extends DEAD-100 with concrete user-facing breakage) |
 | BUSINESS-001 | Critical | TESTED | T-016 | `reconcileFinancials()` runs only 4 of 6 canonical cross-checks |
 | BUSINESS-002 | Critical | TESTED | T-011 | `SupabasePaymentRepository.collect()` silently falls back to non-atomic upsert on RPC failure |
@@ -5392,3 +5393,28 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Evidence:** the 0019 insert policy has no personnel-ownership condition; the A-legs of the T-400 E2E punch only the signed-in worker's own personnel_id (the designed flow), so no exploit was exercised — this is a REGISTERED hardening follow-up, not a live-proven defect.
 - **Proposed resolution:** a future migration narrowing the INSERT `with check` to the worker's own personnel row (the `personnel.user_id = current_user_profile_id()` subquery) or a supervised-punch RPC; coordinate with the offline-punch sync path first (it may legitimately write for others).
 - **Status:** OPEN (registered; deliberately NOT changed in T-400 — no unrequested behaviour change).
+
+
+---
+
+### ACAD-502 — NO filière/spécialité support anywhere: the academic classification model (Niveau → Filière → Spécialité → Classe/Section) could not be represented at all
+
+- **Category:** ACAD  |  **Severity:** High  |  **Status:** VERIFIED (2026-09-22, T-401)
+- **Repositories:** AgentGithubUplaod (desktop + canonical backend), elimtiyaz-website
+- **Platforms affected:** Backend/DB, Desktop, Website
+- **Task:** T-401 (docs/recovery/task-registry.md)
+- **ADR:** ADR-019 (docs/decisions/ADR-019-canonical-academic-classification.md)
+- **Status note:** FIXED 2026-09-22 (T-401, 85th session; ACAD-502): migration **0107** applied live + registered atomically; `verify_t-401.sql` **17/17** on the production project (catalog seed, the six compatibility rules, finalize rejection/stamping/legacy-payload, promotion history stamping, import round-trip + preserve); desktop `filiere.test.ts` 17/17 + full suite failing set byte-identical to baseline; website 629/629.
+- **Description (what was wrong):** The schema had zero classification support. `subject_configurations.direction` (0094) defaulted `'general'` with the comment "until classes carry a real filière field" (ADR-018 residual). A student could not carry a stream, a class could not be a mathématiques section, history could not record which stream a year belonged to, and class formation could not reject an incompatible assignment (a 2AS maths student could be placed into a 2AS lettres section with no error anywhere).
+- **Root cause:** The classification concept was never modeled — the original workbook has no filière column, and the academic module (0004/0029) was built to the workbook's shape.
+- **What was changed (T-401, migration 0107 + client half):**
+  - `filieres` catalog table (filières + spécialités rows, `applicable_grades text[]`), RLS (staff read / admin manage), Algerian catalog seeded per academic tenant.
+  - `classes` / `students` / `student_academic_histories` gain `filiere_code`/`specialite_code` (NULL = untagged — every pre-0107 row stays valid by construction).
+  - `fn_track_compatible` — the ONE compatibility predicate (untagged class passes; untagged student passes; same filière passes; a differing filière applicable at the target grade is a CONFLICT; re-streaming across grades passes; a class spécialité requires an equal student spécialité).
+  - `fn_finalize_class_placements` v2: catalog-validated drafts, per-assignment compatibility (22023), tagged classes stamp the student's classification (the legitimate year-end transition).
+  - `upsert_student_from_import` + `p_filiere_code`/`p_specialite_code` (COALESCE preserve — imports never erase classification).
+  - `execute_batch_promotion` stamps the filière/spécialité into each archived history row.
+  - Desktop: `src/domain/model/filiere.ts` (the catalog mirror + `trackCompatible` + `normalizeTrackCode`), model/repository/mapper integration, student edit + batch registration + class creation + placement studio forms, class cards/badges/filters, student detail + history display, full-export columns, mock parity. Website: types + canonical models + history-timeline display + i18n keys (fr/ar/en).
+- **What was verified:** see docs/recovery/t-401-live-verification.md (the 17-check live matrix + the client-side gates).
+- **What remains unresolved (registered):** no FK classes/students → filieres; no `students.class_id` compatibility trigger (Android partial-sync safety — ADR-019 rationale); Gestion & Économie spécialités unseeded (unknowns); `subject_configurations.direction` not yet wired to `classes.filiere_code`; the filières staff-read RLS policy not yet probed with a staff JWT (supabase-admin bypass in the verify run); class-formation patches (Step B) cannot change an existing class's classification mid-formation (deliberate).
+- **Verification:** live 17/17 (verify_t-401.sql, rolled back); desktop 3589/21/5 with the identical pre-existing failing set; website 629/629.

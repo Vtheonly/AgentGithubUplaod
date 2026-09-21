@@ -50,6 +50,15 @@
 - No canonical implementation exists (mock-only). See SCHED-100 / UNKNOWN-011 — build-or-remove decision pending. Conflict detection, if built, must cover teacher, class AND room conflicts.
 ## 9. Academic Classification: Niveau → Filière → Spécialité → Classe/Section
 
+> IMPLEMENTED (T-401, migration 0107, ADR-019 — verified live 17/17, see
+> docs/recovery/t-401-live-verification.md). The `filieres` catalog is the
+> canonical data store; the desktop's `src/domain/model/filiere.ts` is its
+> mirror; `fn_track_compatible` is the ONE compatibility predicate; NULL
+> classification = untagged (the pre-0107 state); imports never erase
+> classification; promotion stamps history; class formation stamps the
+> student's classification from a tagged class (the legitimate year-end
+> re-streaming transition).
+
 The academic classification model must distinguish four different concepts:
 
 1. **Niveau** — the educational year/level, e.g. 1AS, 2AS, 3AS.

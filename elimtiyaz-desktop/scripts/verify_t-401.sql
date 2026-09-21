@@ -15,6 +15,11 @@
 
 BEGIN;
 
+-- The trusted-caller identity (service_role claims — the t-370/t-041
+-- pattern): the tenant-guarded RPCs resolve current_tenant_id()/auth.jwt()
+-- from these claims exactly the way PostgREST does.
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000000", "role": "service_role"}';
+
 create temp table t401_results (check_id text, ok boolean, detail text);
 
 -- ─── C1: catalog seeded ────────────────────────────────────────────────────
@@ -91,12 +96,12 @@ declare
     v_result jsonb;
 begin
     -- a disposable target year far in the future
-    insert into public.academic_years (tenant_id, label, code, start_date, end_date, is_current)
-    values (v_tenant, 'T401-VERIFY-2099', '2099-2100', '2099-09-01', '2100-06-30', false)
+    insert into public.academic_years (tenant_id, label, code, start_date, end_date, term_structure, is_current)
+    values (v_tenant, 'T401-VERIFY-2099', '2099-2100', '2099-09-01', '2100-06-30', 'trimester', false)
     returning id into v_year_id;
 
-    insert into public.classes (tenant_id, academic_year_id, academic_level_id, code, name, grade_code, section)
-    select v_tenant, v_year_id, al.id, 'T401-MATH-1', 'T401 Mathématiques A', '2eme_annee', 'A'
+    insert into public.classes (tenant_id, academic_year_id, academic_level_id, code, name, grade_code, section, filiere_code)
+    select v_tenant, v_year_id, al.id, 'T401-MATH-1', 'T401 Mathématiques A', '2eme_annee', 'A', 'mathematiques'
       from public.academic_levels al
      where al.tenant_id = v_tenant and al.grade_code = '2eme_annee'
     returning id into v_math_class_id;
@@ -214,8 +219,9 @@ begin
             sqlstate = '23503', 'unknown filière raised ' || sqlstate);
     end;
 
-    -- C3e: OLD-client payload (no filière keys at all) still works and
-    -- stamps nothing (the pre-0107 contract).
+    -- C3e: OLD-client payload (no filière keys at all) still works; the
+    -- classification is derived SERVER-SIDE from the tagged class (the
+    -- pre-0107 payload contract is fully preserved).
     insert into public.students (tenant_id, parent_id, student_code, first_name, last_name,
                                  date_of_birth, grade_level_code, is_active)
     values (v_tenant, v_parent, 'ELV-T401-V3', 'Legacy', md5(random()::text), '2010-01-01', '2eme_annee', true)
@@ -233,8 +239,8 @@ begin
 
     insert into t401_results
     select 'C3e_legacy_payload_ok',
-           s.filiere_code is null and s.class_id = v_math_class_id,
-           'legacy client assignment into tagged class: filière stays NULL (permissive stamp skipped)'
+           s.filiere_code = 'mathematiques' and s.class_id = v_math_class_id,
+           'legacy client assignment into tagged class: filière derived from the class = ' || coalesce(s.filiere_code, 'NULL')
       from public.students s where s.id = v_student_1;
 
     -- ─── C4: execute_batch_promotion stamps classification into history ──
@@ -245,7 +251,9 @@ begin
                 'decision', 'promoted',
                 'next_grade_code', '3eme_annee',
                 'academic_year', '2098-2099',
+                'cycle', 'lycee',
                 'grade_code', '2eme_annee',
+                'grade_year', 2,
                 'gpa', 14.5
             )
         ),
@@ -297,10 +305,12 @@ begin
            ) u
       join public.students s on s.id = u.out_student_id;
 
-    -- 'general' normalizes to NULL storage.
+    -- 'general' on an UPDATE means "not provided" — imports never erase a
+    -- stored classification (the documented preserve rule). On an INSERT it
+    -- stores NULL (untagged) rather than the literal 'general'.
     insert into t401_results
-    select 'C5c_import_general_normalizes_null',
-           s.filiere_code is null,
+    select 'C5c_import_general_preserves_classification',
+           s.filiere_code = 'sciences_experimentales',
            'after general-param import: filière=' || coalesce(s.filiere_code, 'NULL')
       from public.upsert_student_from_import(
                p_tenant_id := v_tenant,

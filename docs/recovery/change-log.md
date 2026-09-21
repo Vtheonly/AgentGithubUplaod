@@ -2,6 +2,16 @@
 
 > Chronological record of significant recovery changes. This file — not chat transcripts, not DONE/TODO notes — is the history of what has been fixed and how it was verified. Append one entry per completed task, using the template below.
 
+## 85th session (2026-09-22) — T-401: the filière/spécialité classification, end to end
+
+### 2026-09-22 — T-401 / ACAD-502 — the canonical academic classification (Niveau → Filière → Spécialité → Classe/Section): catalog, columns, compatibility guard, formation stamping, promotion history stamping, import preserve, desktop + portal integration
+
+- **Problem IDs:** ACAD-502 (CLOSED — VERIFIED).
+- **What was done:** migration **0107** (applied live atomically + registered): the tenant-scoped `filieres` catalog (10 filières + 4 génie spécialités, `applicable_grades` on the 14-code ladder, RLS staff-read/admin-manage, seeded per academic tenant); `filiere_code`/`specialite_code` on `classes`/`students`/`student_academic_histories` (NULL = untagged — backward-compatible by construction); `fn_track_compatible` (the ONE compatibility predicate — re-streaming across grades passes, a differing applicable filière is a hard conflict); `fn_finalize_class_placements` v2 (catalog-validated drafts + per-assignment compatibility 22023 + tagged classes stamp the student's classification — the legitimate year-end transition); `upsert_student_from_import` + classification params (COALESCE preserve — imports/Android syncs never erase classification); `execute_batch_promotion` stamps the archived year's classification into history. Client half: the desktop domain mirror (`src/domain/model/filiere.ts`), model/repository/mapper integration, the student edit + batch registration + class creation + placement-studio forms, class cards/badges/per-filière counts, student detail + history display, full-export columns, mock parity, 17 domain tests; the website types + canonical models + history-timeline display + fr/ar/en i18n keys.
+- **Verified:** live `verify_t-401.sql` **17/17** on the production project (rolled back, service-role claims pattern); desktop tsc = the 6-error pre-existing baseline; FULL vitest **3589/21/5** with the failing set **byte-identical** to the pre-change baseline (diff-verified); website tsc/eslint clean + vitest **629/629**.
+- **Commits:** `6e0ece0` (backend: migration + apply + verify scripts) → `a1453c5` (desktop + website client half) → the closeout (this entry + ADR-019 + the evidence doc + the registry flips). Website: `82473d5` (portal parity).
+- **New lessons:** (a) the verify-script sandbox needs `set local request.jwt.claims` service-role forging for EVERY tenant-guarded RPC (the t-370 pattern — the Management API runs as supabase_admin with no JWT and the guards correctly fail closed); (b) `academic_years.term_structure` and `student_academic_histories.cycle` are NOT NULL — sandbox fixtures must carry them; (c) 'general' on the import RPC means "not provided" on UPDATE (preserve) and NULL-storage on INSERT — a deliberate semantic, do not "fix" it into a clear.
+
 ## 83rd session (2026-09-21) — T-399 / OPS-321: the Ctrl+O test-data autofill
 
 ### 2026-09-21 — T-399 / OPS-321 — the Ctrl+O test-data autofill: ANY open form filled with realistic, validation-respecting fake data, live-proven insertable through the REAL one-round-trip registration
