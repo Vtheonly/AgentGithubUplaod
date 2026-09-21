@@ -2,6 +2,18 @@
 
 > Single starting point for "what should I work on next?" When you start a task, set it `In Progress` in `task-registry.md` and identify it here. When you finish, move it to Completed, append evidence to `change-log.md`, and update this file's recommendation.
 
+## 83rd session (2026-09-21, IN PROGRESS) — T-399: the owner's Ctrl+O test-data autofill mandate (OPS-321)
+
+The owner's new feature request (verbatim): "when i press Ctrl+O while i am on any form, it should automatically fill all fields with realistic, fake, but valid test data... the form can be submitted successfully and the data can actually be inserted into the database... this should work consistently across all forms in the application."
+
+**In progress:** T-399 — the `src/shared/devtools/test-data/` module (generators reusing the fixture pools + Rng, field classifier, the DOM autofill engine, the Ctrl+O hook + toast + i18n keys), the unit suite, and the live evidence leg (autofill-shaped data through the REAL `batchRegister`). See the task-registry entry for the full plan.
+
+**Standing recommendation (unchanged otherwise):**
+1. **OPS-319's restore surface** (the standing recommendation): `restore_parent`/`restore_student` SECURITY DEFINER RPCs (the 0100 mirror) + a Corbeille section in CRM. The deletion buttons remain a one-way door on real data.
+2. **BUSINESS-105** (the half-refund defect): widen `revert_payment_allocation`'s lookup to the `payment_id` FK + the financial equivalence suites + the corpus census.
+3. The owner's §4 EXE acceptance pass (the 2026-09-18 report's runbook — now ALSO re-check: Settings → Tests CRUD → 27/27, a registration should take ~1 s not tens of seconds, and Ctrl+O on any form).
+4. The standing T-337 (REALTIME-105, next free migration **0104**) / the CALC-001 baseline repair / the concurrent agent's 6 tsc + 21 vitest fixture drift (their subtree).
+
 ## 82nd session (2026-09-21, CLOSED) — T-398 COMPLETE — VERIFIED: the ONE-round-trip registration (368 ms live, was 10–20 s on the owner's route) + the pricing-config passthrough + the atomicity upgrade
 
 The owner's follow-up ("is there no way to make it faster????") is fully delivered (commits 5b33f04 → 4dff031 → 2551afe → de5c9aa → the closeout, all pushed+merged immediately): **T-398/PERF-502** — migrations **0102 + 0103** (`register_family_batch`, ONE SECURITY DEFINER transaction reusing the canonical upserts internally + the source_id identity-token substitution that keeps cross-path re-registrations convergent) + the client rewire (all rows built locally through the canonical TS calc engine, ONE `rpcWithIdempotentRetry` call, the wizard's pricing config passed through the input contract) + the ATOMICITY upgrade (any leg failing rolls back EVERYTHING — the DATA-019 partial-success scope decision superseded). **Live: the REAL `batchRegister` 368 ms** (was 6,984 ms original / 3,189 ms post-T-397; the owner's route projects ≈ 0.6–1.2 s, was 10–20 s); N students stay ONE round-trip. Chain **100/100** both projects (next free migration **0104** — the 81st session's "next free 0102" note is superseded). Gates: verify_t-398 12/12 ×2, the real-path e2e 17/17, the T-396 suite re-run 27/27, t-397 8/8 + t-398 4/4, tsc = the 6-error pre-existing baseline, full vitest 3549/21/5 (the failing set identical). Evidence: `docs/recovery/t-398-live-verification.md`.
