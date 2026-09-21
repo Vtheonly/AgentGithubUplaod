@@ -11,8 +11,7 @@
  * Features:
  *   - Channel type icons: direct (User), group (Users), department (Building2),
  *     announcement (Megaphone)
- *   - Message input at bottom with send + attach buttons (attach is mock —
- *     triggers a file input that does nothing functional)
+ *   - Message input at bottom with send action
  *   - New channel button → <UnifiedModal> with type / name / description / members form
  *   - Each message: avatar, author, body, timestamp, edit/delete (own only)
  *   - Read receipts: "Lu par N personnes"
@@ -20,7 +19,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import {
-  MessageSquare, Send, Paperclip, Plus, User, Users, Building2, Megaphone,
+  MessageSquare, Send, Plus, User, Users, Building2, Megaphone,
   Trash2, Pencil, Hash,
 } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
@@ -77,7 +76,15 @@ interface NewChannelForm {
   departmentId: string;
 }
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  readonly openWithPersonnelId?: string | null;
+  readonly onOpenWithPersonnelHandled?: () => void;
+}
+
+export function ChatPanel({
+  openWithPersonnelId,
+  onOpenWithPersonnelHandled,
+}: ChatPanelProps) {
   const repos = useRepositories();
   const { session } = useAuth();
   const toast = useToast();
@@ -105,6 +112,42 @@ export function ChatPanel() {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!openWithPersonnelId || !session) return;
+    const recipient = personnel.find(
+      (person) => person.id === openWithPersonnelId,
+    );
+    if (!recipient || !recipient.userId) return;
+
+    let cancelled = false;
+    void repos.chat.createChannel({
+      type: "direct",
+      name: recipient.firstName + " " + recipient.lastName,
+      description: null,
+      memberIds: [session.userId, recipient.id],
+      departmentId: null,
+      createdBy: session.userId,
+    }).then((result) => {
+      if (cancelled) return;
+      if (result.ok) {
+        setSelectedId(result.value.id);
+      } else {
+        toast.showError("Messagerie indisponible", result.error.userMessage);
+      }
+      onOpenWithPersonnelHandled?.();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    openWithPersonnelId,
+    personnel,
+    session?.userId,
+    repos.chat,
+    onOpenWithPersonnelHandled,
+    toast,
+  ]);
 
   // Auto-select the first channel when none is selected
   useEffect(() => {
@@ -394,14 +437,6 @@ export function ChatPanel() {
 
               {/* Input */}
               <div className="border-t border-border p-2 flex items-center gap-2">
-                <label className="cursor-pointer p-1.5 rounded-md hover:bg-accent/10" title="Joindre un fichier (mock)">
-                  <Paperclip className="h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={() => toast.showInfo("Pièce jointe", "Fonctionnalité bientôt disponible.")}
-                  />
-                </label>
                 <Input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -486,7 +521,9 @@ export function ChatPanel() {
               hint={form.type === "direct" ? "Sélectionnez exactement 1 personne." : "Sélectionnez les personnes à inviter."}
             >
               <div className="border border-border rounded-md max-h-44 overflow-y-auto divide-y divide-border">
-                {personnel.filter((p) => p.id !== currentUserId).map((p) => {
+                {personnel
+                  .filter((p) => p.userId !== null && p.userId !== currentUserId)
+                  .map((p) => {
                   const checked = form.memberIds.includes(p.id);
                   return (
                     <label
