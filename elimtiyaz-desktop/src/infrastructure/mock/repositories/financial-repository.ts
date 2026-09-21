@@ -42,6 +42,12 @@ import type {
   PaymentAllocation,
 } from "../../../domain/model/payment";
 import type { AllocationResult } from "../../../domain/calc/payment/waterfall-allocator";
+// T-405 (financial-rules §15) — the canonical debt-aging reference engine.
+import {
+  computeDebtAgingAnalysis,
+  DEBT_AGING_EPSILON_DZD,
+  type DebtAgingAnalysis,
+} from "../../../domain/calc/ledger/debt-aging";
 import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import {
@@ -352,6 +358,44 @@ export class MockDebtRepository implements DebtRepository {
   }
   observeParentProfile(parentId: string): Observable<ParentFinancialProfile | null> {
     return observeParentFinancialProfile(ctx, parentId);
+  }
+  /**
+   * T-405 — the mock aging surface derives REACTIVELY from the mock store
+   * through the canonical TS reference engine (`computeDebtAgingAnalysis`,
+   * financial-rules §15): same installments, same ledger entries, same
+   * academic-year windows the live RPC consumes. Debtor rows only
+   * (outstanding > 0.001 DZD), sorted by outstanding desc — the live
+   * contract's shape.
+   */
+  observeAging(): Observable<DebtAgingAnalysis[]> {
+    return derived(
+      [store.installments$, store.ledger$, store.academicYears$, store.parents$],
+      () => {
+        const years = store.academicYears.map((ay) => ({
+          code: ay.code,
+          startDate: ay.startDate,
+          endDate: ay.endDate,
+        }));
+        return store.parents
+          .map((p) =>
+            computeDebtAgingAnalysis({
+              parentId: p.id,
+              installments: store.installments,
+              ledgerEntries: store.ledger,
+              academicYears: years,
+            }),
+          )
+          .filter((a) => a.outstandingAmount > DEBT_AGING_EPSILON_DZD)
+          .sort((a, b) => b.outstandingAmount - a.outstandingAmount);
+      },
+    );
+  }
+  /** The mock derivation is reactive (derived over the store subjects) —
+   *  nothing to force; kept for interface parity with the Supabase path. */
+  async refreshAging(): Promise<void> {
+    // Reactive by construction: the derived() recomputes on every store
+    // mutation — nothing to force.
+    return Promise.resolve();
   }
   sendReminder(parentId: string): Promise<Result<void>> {
     return sendDebtReminder(ctx, parentId);

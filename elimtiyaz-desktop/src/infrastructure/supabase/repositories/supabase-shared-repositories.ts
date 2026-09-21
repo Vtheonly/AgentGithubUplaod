@@ -102,6 +102,15 @@ import {
   computeAccountBalance,
 } from "../../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
+// T-405 (financial-rules §15) — the canonical debt-aging engine (labels +
+// the client-side parity cross-check).
+import {
+  computeDebtAgingStatus,
+  type DebtAgingAnalysis,
+  type DebtAgingObligation,
+  type DebtAgingStatusLevel,
+  type DebtAgingReasonCode,
+} from "../../../domain/calc/ledger/debt-aging";
 import { reconcileLedger } from "../../../domain/calc/reconcile";
 import {
   evaluateAllSystemDiscounts,
@@ -3234,12 +3243,122 @@ function mapInstallmentRow(r: InstallmentRow): Installment {
  * the computation is straightforward and we already need to fetch the
  * entries for the parent drawer's transaction list.
  */
+
+/**
+ * T-405 — the wire shape of the 0111 `compute_debt_aging_summary` RPC
+ * (PostgREST returns the SQL column names, snake_case; the `obligations`
+ * jsonb carries camelCase keys as built server-side).
+ */
+interface DebtAgingRpcRow {
+  parent_id: string;
+  parent_name: string | null;
+  parent_phone: string | null;
+  student_ids: string[] | null;
+  outstanding_amount: number | string;
+  oldest_due_date: string | null;
+  debt_age_days: number | null;
+  origin_academic_year: string | null;
+  last_payment_at: string | null;
+  days_since_last_payment: number | null;
+  inactivity_days: number | null;
+  subsequent_year_payment_count: number | null;
+  subsequent_year_payment_total: number | string | null;
+  has_subsequent_year_payments: boolean | null;
+  obligations: readonly DebtAgingObligation[] | null;
+  status_level: string | null;
+  reason_code: string | null;
+  computed_at: string | null;
+}
+
+/**
+ * T-405 — map an RPC row to the canonical `DebtAgingAnalysis`.
+ *
+ * The FACTORS come from the server (the canonical computation); the status
+ * LABELS (level/reason wording + FR explanation) are rendered client-side
+ * per §15.2 (labels live in TS exactly once, the PARITY-001 discipline).
+ * The derivation is cross-checked against the RPC's own status_level /
+ * reason_code — a mismatch is a live client↔server parity drift we WANT
+ * surfaced (console.warn), never silently hidden. The RPC's values win for
+ * display when present.
+ */
+function mapDebtAgingRow(row: DebtAgingRpcRow): DebtAgingAnalysis {
+  const outstandingAmount = Number(row.outstanding_amount ?? 0);
+  const debtAgeDays = Number(row.debt_age_days ?? 0);
+  const inactivityDays = Number(row.inactivity_days ?? 0);
+  const hasSubsequentYearPayments = row.has_subsequent_year_payments === true;
+  const derived = computeDebtAgingStatus({
+    outstandingAmount,
+    debtAgeDays,
+    inactivityDays,
+    hasSubsequentYearPayments,
+  });
+  const rpcLevel = row.status_level as DebtAgingStatusLevel | null;
+  const rpcReason = row.reason_code as DebtAgingReasonCode | null;
+  if (rpcLevel && rpcLevel !== derived.level) {
+    console.warn(
+      `[SupabaseDebt] debt-aging parity drift for ${row.parent_id}: rpc=${rpcLevel}/${row.reason_code} ts=${derived.level}/${derived.reasonCode}`,
+    );
+  }
+  return {
+    parentId: row.parent_id,
+    outstandingAmount,
+    oldestDueDate: row.oldest_due_date ?? null,
+    debtAgeDays,
+    originAcademicYear: row.origin_academic_year ?? null,
+    lastPaymentAt: row.last_payment_at ?? null,
+    daysSinceLastPayment: row.days_since_last_payment ?? null,
+    inactivityDays,
+    subsequentYearPaymentCount: Number(row.subsequent_year_payment_count ?? 0),
+    subsequentYearPaymentTotal: Number(row.subsequent_year_payment_total ?? 0),
+    hasSubsequentYearPayments,
+    obligations: row.obligations ?? [],
+    affectedStudentIds: (row.student_ids ?? []).filter((s) => s !== null),
+    status: {
+      level: rpcLevel ?? derived.level,
+      reasonCode: rpcReason ?? derived.reasonCode,
+      explanationFr: derived.explanationFr,
+    },
+    computedAt: row.computed_at ?? new Date().toISOString(),
+  };
+}
+
 export class SupabaseDebtRepository implements DebtRepository {
   private readonly summarySubject = new SubjectBehavior<import("../../../domain/model/payment").DebtSummary[]>([]);
   private summarySeeded = false;
   private readonly profiles = new Map<string, SubjectBehavior<ParentFinancialProfile | null>>();
+  // T-405 — cross-year debt aging (financial-rules §15; migration 0111 RPC).
+  private readonly agingSubject = new SubjectBehavior<DebtAgingAnalysis[]>([]);
+  private agingSeeded = false;
 
   constructor(private readonly client: SupabaseClient) {}
+
+  observeAging(): Observable<DebtAgingAnalysis[]> {
+    void this.seedAging();
+    return this.agingSubject;
+  }
+
+  async refreshAging(): Promise<void> {
+    // The realtime bridge calls this after financial mutations (payments,
+    // allocations, due dates) — §15: recalculate when the facts change.
+    await this.seedAging(true);
+  }
+
+  private async seedAging(force = false): Promise<void> {
+    if (this.agingSeeded && !force) return;
+    this.agingSeeded = true;
+    try {
+      // The canonical server contract (0111): staff-gated + tenant-scoped
+      // server-side; the client never re-computes the factors.
+      const { data, error } = await this.client.rpc("compute_debt_aging_summary");
+      if (error) throw error;
+      const rows = (data ?? []) as DebtAgingRpcRow[];
+      this.agingSubject.set(rows.map(mapDebtAgingRow));
+    } catch (e) {
+      // Keep the last known truthful analysis on a transient failure (the
+      // realtime facade's convention) — never fabricate rows.
+      console.warn("[SupabaseDebt] seedAging failed:", (e as Error).message);
+    }
+  }
 
   observeSummary(): Observable<import("../../../domain/model/payment").DebtSummary[]> {
     // VAULT §07.06 — the Debt Dashboard (Créances tab) reads this stream.

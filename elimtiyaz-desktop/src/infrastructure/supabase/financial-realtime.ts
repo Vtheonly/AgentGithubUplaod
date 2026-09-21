@@ -36,6 +36,8 @@ import type { Student } from "../../domain/model/student";
 import { parentDisplayName } from "../../domain/model/parent";
 import { computeParentSummary } from "../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap, maxDaysOverdueFromLedger } from "../../domain/calc/ledger/overdue";
+// T-405 (financial-rules §15) — the aging record type for the delegating facade.
+import type { DebtAgingAnalysis } from "../../domain/calc/ledger/debt-aging";
 import { agingBucketFromDays } from "../../domain/calc/payment/queries";
 import { SubjectBehavior } from "../mock/subject-behavior";
 import { getSupabaseRepositories } from "./supabase-repositories";
@@ -270,6 +272,17 @@ export class RealtimeFinancialDebtRepository implements DebtRepository {
     return this.base.observeParentProfile(parentId);
   }
 
+  // T-405 — the aging surface delegates to the base repository (the
+  // 0111 canonical RPC); the realtime bridge's refreshAll() forces its
+  // re-query via refreshAging().
+  observeAging(): Observable<DebtAgingAnalysis[]> {
+    return this.base.observeAging();
+  }
+
+  async refreshAging(): Promise<void> {
+    return this.base.refreshAging();
+  }
+
   sendReminder(parentId: string) {
     return this.base.sendReminder(parentId);
   }
@@ -346,6 +359,10 @@ export async function startFinancialRealtime(): Promise<void> {
       repositories.ledger.observe();
       repositories.expenses.observe();
       await debt.refreshSummary();
+      // T-405 — the cross-year debt-aging analysis recomputes on every
+      // financial mutation (§15: recalculate when payments/allocations/
+      // due dates change).
+      await debt.refreshAging();
     };
 
     const scheduleRefresh = () => {

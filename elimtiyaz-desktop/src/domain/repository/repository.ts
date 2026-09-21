@@ -43,6 +43,8 @@ import type {
   PaymentAllocation,
 } from "../model/payment";
 import type { AllocationResult } from "../calc/payment/waterfall-allocator";
+// T-405 (financial-rules §15) — the debt-aging record type.
+import type { DebtAgingAnalysis } from "../calc/ledger/debt-aging";
 import type {
   AppNotification,
   DashboardKpi,
@@ -596,6 +598,26 @@ export interface ImportInstallmentInput {
 export interface DebtRepository {
   observeSummary(): Observable<DebtSummary[]>;
   observeParentProfile(parentId: string): Observable<ParentFinancialProfile | null>;
+  /**
+   * T-405 — cross-year debt aging & payment-behavior tracking
+   * (financial-rules §15). One row per debtor family (installment
+   * outstanding > 0.001 DZD): origin academic year, original due date,
+   * debt age (never reset by partial payments), last payment, inactivity,
+   * subsequent-year payment activity, and the canonical INV-16 status with
+   * its explanation. The outstanding amount is the SAME canonical number
+   * `observeSummary()` shows — never a second calculation.
+   *
+   * Supabase mode: the `compute_debt_aging_summary` RPC (migration 0111 —
+   * the server-side canonical contract). Mock mode: `computeDebtAgingAnalysis`
+   * (the TS reference engine) over the mock store.
+   */
+  observeAging(): Observable<DebtAgingAnalysis[]>;
+  /**
+   * Re-run the aging analysis after underlying financial facts changed
+   * (payments, allocations, due dates). The Supabase path re-queries the
+   * canonical RPC; the mock recomputes reactively (no-op).
+   */
+  refreshAging(): Promise<void>;
   sendReminder(parentId: string): Promise<Result<void>>;
   /**
    * VAULT §07.06 (Debt Dashboard — Actions) + §10.07 — "Broadcast Overdue
