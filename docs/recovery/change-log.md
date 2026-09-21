@@ -2699,3 +2699,9 @@ Two system-wide academic integration tasks were registered:
 ### Non-negotiable completion condition
 
 Neither task may be marked complete because insertion or one promotion page works. Completion requires full persistence and consumption across the system, including database, search, filters, statistics, student/class details, class formation, academic history, imports/exports, and supported cross-platform workflows.
+
+---
+
+## 2026-09-21 — T-403 added: Human-in-the-loop Batch Promotion Cycles
+
+The promotion workflow is explicitly defined as a school-year **Promotion Cycle**. The entire year's promotion is managed as one cycle, but each class/group must be reviewed and confirmed separately. A dedicated Batch Promotion Cycles table is required; scattered direct-promotion buttons must be removed/replaced with links into the cycle workflow. The cycle must support per-student edits, incomplete-notes warnings, class-level atomic confirmation, progress tracking, and explicit whole-cycle completion. T-403 must reuse T-402's canonical promotion model and backend transaction path rather than creating another promotion engine.
