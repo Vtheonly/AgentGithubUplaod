@@ -88,3 +88,9 @@
 - **Website:** consumes the same academic classification/history contract wherever academic data is exposed.
 - **Class formation:** consumes promotion results and validates student → class compatibility; it must not redefine promotion.
 - **Cross-platform rule:** a change to academic classification or promotion is a system change. All consumers must be enumerated and tested before merge.
+
+---
+
+### Batch Promotion Cycle boundary
+
+The Promotion Cycle is a workflow/orchestration layer above the canonical promotion domain. It owns cycle progress, group ordering, review state, warnings, and completion state. It must not own a second set of promotion rules or persistence semantics. Class/group confirmation must call the canonical backend/domain transaction, and the cycle must consume its result.
