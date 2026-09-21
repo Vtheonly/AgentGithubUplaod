@@ -357,3 +357,8 @@ Payment EFs never invoked (`DEAD-016`), desktop refund path unreachable (`DEAD-0
 ## 11. Known unknowns
 
 11 open questions block 13 problems — see `unknowns.md`. No agent may resolve them by assumption.
+---
+
+## Pending owner mandate — T-401/T-402 academic integration
+
+The next academic work must treat filière/spécialité and batch promotion as system-wide contracts rather than isolated UI fields. T-401 requires a full Niveau → Filière → Spécialité → Classe/Section integration through the DBA/backend and every relevant client surface. T-402 requires batch promotion to become fully functional across all pages and supported platforms, using one canonical promotion model/write path and feeding class formation directly. No duplicate forms, page-local academic taxonomies, or duplicated promotion logic are permitted.
