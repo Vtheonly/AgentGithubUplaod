@@ -45,7 +45,13 @@ import {
 } from "../../../domain/model/workforce";
 import { PERSONNEL_STATUS_LABELS_FR, type Personnel } from "../../../domain/model/personnel";
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Algiers",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
 const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
   pending: "neutral",
