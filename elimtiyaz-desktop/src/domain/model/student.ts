@@ -416,6 +416,20 @@ export interface BatchRegistrationInput {
   /** Calendar year the academic year starts (for due dates + discounts). */
   readonly academicYearStartYear?: number;
   /**
+   * T-398 (PERF-502, 2026-09-21): the pricing config the wizard ALREADY
+   * loaded (`repos.pricing.observe()` — the T-307 Supabase-backed
+   * repository seeded at app start) and used for the step-3 billing
+   * preview. Passing it through the input contract (a) kills the 5-6
+   * sequential `readDbPricingConfig` round-trips inside the write path,
+   * and (b) makes the persisted charges derive from the SAME config the
+   * parent agreed to in the preview (no drift between wizard-open and
+   * submit). Optional + backward compatible: when omitted, the
+   * Supabase repository falls back to its own DB read (the T-307
+   * convention); the mock repository ignores it (its store pricing is
+   * already the preview's source).
+   */
+  readonly pricingConfig?: import("./pricing").PricingConfig;
+  /**
    * CALC-001 — prior-year credit (REMBOURSEMENT) carried into the quote.
    * Subtracted from the family's Montant Total at intake (Devis rule).
    */

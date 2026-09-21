@@ -785,8 +785,12 @@ export class SupabaseParentRepository implements ParentRepository {
 }
 
 /**
- * Lazily construct ledger + installment repositories for the batch
- * registration billing flow (avoids circular constructor wiring).
+ * Lazily construct ledger + installment repositories (avoids circular
+ * constructor wiring).
+ *
+ * T-398 note: `batchRegister` no longer uses this helper (the single
+ * `register_family_batch` RPC writes the billing legs server-side); it
+ * remains for any future caller needing the pair.
  */
 function getBillingRepos(client: SupabaseClient): {
   ledgerRepo: SupabaseLedgerRepository;
@@ -1196,227 +1200,393 @@ export class SupabaseStudentRepository implements StudentRepository {
   async batchRegister(
     input: BatchRegistrationInput,
   ): Promise<Result<BatchRegistrationResult>> {
-    // FIX (previously always failed): the wizard was unusable in Supabase mode
-    // ("batchRegister not implemented"). Implemented as a sequential flow over
-    // the existing atomic per-entity RPCs:
-    //   1. upsert_parent_from_import        (parent)
-    //   2. upsert_student_from_import × N   (students)
-    //   3. upsert_ledger_entry_from_import × M (tuition/transport/fee charges)
-    //   4. installments importInstallment × K   (tranche schedule)
-    // Steps 3/4 failures are reported but do NOT roll back the family records
-    // (they can be regenerated); failures in 1/2 abort immediately.
+    // T-398 (PERF-502, 82nd session 2026-09-21): the ONE-round-trip
+    // registration. History: born as a sequential per-entity flow (1-student
+    // default = 21+ round-trips, the owner's 10–20 s report); T-397 rewired
+    // the billing leg onto the bulk paths (~11 round-trips, 3,189 ms live);
+    // the owner's follow-up ("is there no way to make it faster????") made
+    // the round-trip COUNT the target — at the Algeria→eu-west-1 RTT band,
+    // ~11 calls are still a 5–10 s floor. This implementation collapses the
+    // WHOLE composite into ONE `register_family_batch` RPC (migrations
+    // 0102+0103): ONE SECURITY DEFINER transaction that reuses the canonical
+    // idempotent upserts internally, resolves the identity tokens, writes
+    // the billing legs ON CONFLICT DO NOTHING, and returns the FULL parent +
+    // student rows (no follow-up fetches).
+    //
+    // ALL money amounts stay client-derived (the canonical TS calc engine —
+    // evaluateAllSystemDiscounts/splitNetTuitionByOfficialSchedule through
+    // the SAME createChargeEntry factory; the installment shapes
+    // bulkImportInstallments writes). The server only fills what the client
+    // cannot know before the single call: the uuids, the account_id string
+    // (deriveAccountId's exact format) and the source_id identity tokens
+    // (the deterministic CODES the client sends are substituted back to the
+    // uuids server-side — the 0103 continuity contract: cross-path
+    // re-registrations CONVERGE, never duplicate).
+    //
+    // ATOMICITY (the registered upgrade of the DATA-019 scope decision):
+    // ONE transaction — any leg failing rolls back EVERYTHING. The old
+    // partial-success semantics ("family created, billing missing, warn")
+    // existed only because the writes were split across calls; the mock
+    // repository has been fully atomic since birth (its snapshot rollback),
+    // and this aligns the Supabase path with it. A failure returns Err with
+    // the honest reason and ZERO rows written — the operator retries.
+    //
+    // IDEMPOTENCY (the rpcWithIdempotentRetry contract): deterministic
+    // parent/student codes converge on re-run; the billing legs conflict on
+    // the 0027 source_uidx / the 0032 partial identity index — a network
+    // retry can never duplicate anything (live-proven: verify_t-398 C7/C12).
     try {
-      const parentResult = await new SupabaseParentRepository(this.client).createParent(
-        input.parent,
-      );
-      if (!parentResult.ok) return parentResult;
+      const tenantId = requireTenantId();
+      const year = input.academicYearStartYear ?? new Date().getFullYear();
+      const includeTransport = input.includeTransport ?? true;
+      const includeRegistration = input.includeRegistration ?? true;
+      const [due1, due2, due3] = getOfficialTuitionDueDates(year);
+      const at = new Date().toISOString();
 
-      const parent = parentResult.value;
-      const created: Student[] = [];
-      for (const sInput of input.students) {
-        const r = await this.createStudent(parent.id, sInput);
-        if (!r.ok) {
-          return Err(
-            Errors.server(
-              `Parent créé (${parent.code}) mais l'élève "${sInput.firstName} ${sInput.lastName}" a échoué : ${r.error.userMessage}`,
-            ),
-          );
-        }
-        created.push(r.value);
-      }
+      // -----------------------------------------------------------------
+      // The parent wire object — createParent's EXACT derivation (the
+      // deterministic code + the 0037 activation code + the 0028
+      // transport/city fields).
+      // -----------------------------------------------------------------
+      const parentCode = deterministicParentCode(year, input.parent);
+      const activationCodeValue = deterministicActivationCode(parentCode, tenantId);
+      const transportDestination: TransportDestination | null =
+        input.parent.transportDestination ?? cityTierToDestination(input.parent.cityTier) ?? null;
+      const parentWire: Record<string, unknown> = {
+        parent_code: parentCode,
+        first_name: input.parent.firstName,
+        last_name: input.parent.lastName,
+        display_name: input.parent.displayName ?? `${input.parent.firstName} ${input.parent.lastName}`.trim(),
+        primary_phone: input.parent.phone,
+        secondary_phone: input.parent.whatsapp ?? null,
+        email: input.parent.email ?? null,
+        occupation: input.parent.occupation ?? null,
+        address: input.parent.address ?? null,
+        relationship: null,
+        preferred_language: input.parent.preferredLanguage ?? "fr",
+        is_active: true,
+        transport_destination: transportDestination ?? null,
+        city_tier: input.parent.cityTier ?? null,
+        activation_code: activationCodeValue,
+      };
 
-      // PERF-501 (T-397) + DATA-019 — the billing leg rewritten onto the
-      // BULK write paths. The previous implementation looped
-      // `ledgerRepo.append` (1 RPC per charge) + `importInstallment`
-      // (3-4 sequential round-trips per tranche) — 21+ sequential
-      // round-trips for a 1-student registration, live-measured 6,984 ms
-      // from the sandbox and mapping exactly to the owner's 10–20 s at the
-      // Algeria→eu-west-1 RTT band (the PERF-501 evidence probe). The bulk
-      // methods (the Excel importer's, live-proven since the IMPORT-110
-      // fix) write the SAME rows in ONE call each: a 1-student
-      // registration drops to ~7 round-trips regardless of tranche count.
-      //
-      // DATA-019: a billing-leg failure is NO LONGER console.warn-swallowed
-      // — the family records stay (they are correct; the charges are
-      // regenerable — the established scope decision), but the honest
-      // reason is returned as `billingWarning` and the wizard surfaces it
-      // as a visible warning instead of a bare "Inscription réussie".
-      let billingWarning: string | undefined;
-      try {
-        const { ledgerRepo, installmentRepo } = getBillingRepos(this.client);
-        const year = input.academicYearStartYear ?? new Date().getFullYear();
-        const includeTransport = input.includeTransport ?? true;
-        const includeRegistration = input.includeRegistration ?? true;
-        const [due1, due2, due3] = getOfficialTuitionDueDates(year);
-        const at = new Date().toISOString();
-        // T-307: the generated charges come from the DB pricing config (the
-        // canonical 0006 grid), NOT the hardcoded mock seed — seed fallback
-        // only when the DB read fails (the honest degraded path).
-        let billingConfig = defaultPricingConfig;
+      // -----------------------------------------------------------------
+      // The students wire array — createStudent's EXACT derivation, in
+      // payload order. The 0-based array index IS the `student_ref` the
+      // billing rows reference. NOTE: deterministicStudentCode hashes the
+      // parentCode here (the parent uuid is not known yet — one round
+      // trip); for a PRE-EXISTING student the upsert's name fallback
+      // converges on the existing row and the 0103 source_id substitution
+      // preserves the old identity (verify_t-398 C12).
+      // -----------------------------------------------------------------
+      const studentWires: Record<string, unknown>[] = input.students.map((sInput) => ({
+        student_code: deterministicStudentCode(year, parentCode, sInput),
+        first_name: sInput.firstName,
+        last_name: sInput.lastName,
+        display_name: sInput.displayName ?? `${sInput.firstName} ${sInput.lastName}`.trim(),
+        middle_name: sInput.middleName ?? null,
+        date_of_birth: sInput.birthDate ?? null,
+        gender: sInput.gender === "unspecified" ? null : sInput.gender,
+        grade_level_id: null,
+        class_id: isUuid(sInput.classId) ? sInput.classId : null, // §15.37 blank→null
+        enrollment_date: null,
+        enrollment_status: "active",
+        medical_notes: sInput.medicalNotes ?? null,
+        is_active: true,
+        grade_level_code: sInput.gradeLevel ?? null,
+        transport_tier: sInput.transportTier ?? null,
+        payment_plan: sInput.paymentPlan ?? "tranches",
+      }));
+
+      // -----------------------------------------------------------------
+      // The pricing config — the wizard's loaded config when provided
+      // (T-398: kills the 5-6 sequential readDbPricingConfig reads AND
+      // guarantees preview == persisted — the same config object the
+      // step-3 preview derived from). Fallback: the DB read (the T-307
+      // convention), then the seed (the honest degraded path).
+      // -----------------------------------------------------------------
+      let billingConfig = input.pricingConfig ?? defaultPricingConfig;
+      if (!input.pricingConfig) {
         try {
           billingConfig = await readDbPricingConfig(this.client);
         } catch {
           /* keep the seed config — the charges still generate */
         }
+      }
 
-        // BUILD all billing rows first (no awaits inside the loop) — then
-        // ONE bulk write per table.
-        const charges: LedgerEntry[] = [];
-        const installmentInputs: ImportInstallmentInput[] = [];
+      // -----------------------------------------------------------------
+      // Build ALL billing rows locally (the T-397 builders, uuid-free):
+      // the SAME createChargeEntry factory (its validation + row shape —
+      // the derived account_id from the code placeholders is discarded;
+      // the RPC derives the real one) and the SAME installment shapes
+      // bulkImportInstallments writes, with the source_id identity tokens
+      // carried as the deterministic CODES (the RPC substitutes the uuids).
+      // -----------------------------------------------------------------
+      const ledgerWire: Record<string, unknown>[] = [];
+      const installmentWire: Record<string, unknown>[] = [];
 
-        for (let i = 0; i < created.length; i++) {
-          const student = created[i];
-          const gross = tuitionForGradeLevel(billingConfig, student.gradeLevel).annualAmount;
-          if (gross > 0) {
-            const evals = evaluateAllSystemDiscounts({
-              grossTuition: gross,
-              previousGradeLevel: null,
-              currentGradeLevel: student.gradeLevel,
-              childIndex: i + 1,
-              paymentPlan: student.paymentPlan,
-              paymentDate: at,
-              academicYearStartYear: year,
-              academicYearStart: new Date(Date.UTC(year, 8, 1)).toISOString(),
-              enrollmentDate: student.enrollmentDate,
-              previousRank: null,
-            });
-            const net = Math.max(0, gross + sumDiscounts(evals));
-            const amounts =
-              student.paymentPlan === "full_annual"
-                ? [net]
-                : [...splitNetTuitionByOfficialSchedule(net)];
-            const dues = student.paymentPlan === "full_annual" ? [due1] : [due1, due2, due3];
-            for (let t = 0; t < amounts.length; t++) {
-              charges.push(
-                createChargeEntry({
-                  tenantId: requireTenantId(),
-                  parentId: parent.id,
-                  studentId: student.id,
-                  category: "tuition",
-                  amount: amounts[t],
-                  sourceType: "installment",
-                  sourceId: `reg-${student.id}-t${t + 1}`,
-                  description: `Scolarité ${year} — Tranche ${t + 1} (${student.gradeLevel})`,
-                  actorId: "system",
-                  actorName: "Inscription groupée",
-                  at,
-                  metadata: {
-                    tranche: t + 1,
-                    gradeLevel: student.gradeLevel,
-                    paymentPlan: student.paymentPlan,
-                  },
-                }),
-              );
-              installmentInputs.push({
-                parentId: parent.id,
-                studentId: student.id,
-                category: "tuition",
-                trancheNumber: (t + 1) as 1 | 2 | 3,
-                label: student.paymentPlan === "full_annual" ? "Année complète" : `Tranche ${t + 1}`,
-                amountDue: amounts[t],
-                amountPaid: 0,
-                dueDate: dues[t],
-                paidDate: null,
-                status: "unpaid",
-              });
-            }
-          }
-          if (includeTransport) {
-            const destination =
-              (student.transportTier as TransportDestination | null) ?? parent.transportDestination;
-            if (destination) {
-              const tranches = transportTranchesForDestination(billingConfig, destination);
-              for (let t = 0; t < tranches.length; t++) {
-                charges.push(
-                  createChargeEntry({
-                    tenantId: requireTenantId(),
-                    parentId: parent.id,
-                    studentId: student.id,
-                    category: "transport",
-                    amount: tranches[t].amountDue,
-                    sourceType: "installment",
-                    sourceId: `reg-${student.id}-transport-t${t + 1}`,
-                    description: `Transport ${year} — Tranche ${t + 1} (${destination})`,
-                    actorId: "system",
-                    actorName: "Inscription groupée",
-                    at,
-                    metadata: { tranche: t + 1, destination },
-                  }),
-                );
-                installmentInputs.push({
-                  parentId: parent.id,
-                  studentId: student.id,
-                  category: "transport",
-                  trancheNumber: (t + 1) as 1 | 2 | 3,
-                  label: `Transport T${t + 1}`,
-                  amountDue: tranches[t].amountDue,
-                  amountPaid: 0,
-                  dueDate: [due1, due2, due3][t],
-                  paidDate: null,
-                  status: "unpaid",
-                });
-              }
-            }
-          }
-        }
-        if (includeRegistration && billingConfig.registrationFee > 0 && created.length > 0) {
-          charges.push(
-            createChargeEntry({
-              tenantId: requireTenantId(),
-              parentId: parent.id,
-              studentId: null,
-              category: "other",
-              amount: billingConfig.registrationFee,
-              sourceType: "manual_entry",
-              sourceId: `reg-${parent.id}-fee`,
-              description: `Frais d'inscription ${year} (nouvelle famille)`,
+      for (let i = 0; i < input.students.length; i++) {
+        const sInput = input.students[i];
+        const studentCode = studentWires[i].student_code as string;
+        const gradeLevel: GradeLevel =
+          sInput.gradeLevel ?? gradeLevelFromLevelYear(sInput.level, sInput.gradeYear);
+        const gross = tuitionForGradeLevel(billingConfig, gradeLevel).annualAmount;
+        if (gross > 0) {
+          const evals = evaluateAllSystemDiscounts({
+            grossTuition: gross,
+            previousGradeLevel: null,
+            currentGradeLevel: gradeLevel,
+            childIndex: i + 1,
+            paymentPlan: sInput.paymentPlan ?? "tranches",
+            paymentDate: at,
+            academicYearStartYear: year,
+            academicYearStart: new Date(Date.UTC(year, 8, 1)).toISOString(),
+            // The pre-call equivalent of the created row's enrollment_date
+            // (the RPC defaults it to current_date — i.e. NOW): the discount
+            // evaluation sees the same "enrolled today" the old path did
+            // after its fetch round-trip.
+            enrollmentDate: at,
+            previousRank: null,
+          });
+          const net = Math.max(0, gross + sumDiscounts(evals));
+          const amounts =
+            sInput.paymentPlan === "full_annual"
+              ? [net]
+              : [...splitNetTuitionByOfficialSchedule(net)];
+          const dues = sInput.paymentPlan === "full_annual" ? [due1] : [due1, due2, due3];
+          for (let t = 0; t < amounts.length; t++) {
+            const e = createChargeEntry({
+              tenantId,
+              parentId: parentCode, // placeholder token — the RPC fills the uuid + account_id
+              studentId: null, // the RPC fills the real student uuid
+              category: "tuition",
+              amount: amounts[t],
+              sourceType: "installment",
+              sourceId: `reg-${studentCode}-t${t + 1}`,
+              description: `Scolarité ${year} — Tranche ${t + 1} (${gradeLevel})`,
               actorId: "system",
               actorName: "Inscription groupée",
               at,
-              metadata: { type: "registration_fee" },
-            }),
-          );
-        }
-
-        // ONE bulk write per table (the Excel importer's live-proven paths).
-        const billingFailures: string[] = [];
-        if (charges.length > 0) {
-          const ledgerResult = await ledgerRepo.bulkAppend(charges);
-          if (!ledgerResult.ok) {
-            billingFailures.push(
-              `écritures du grand livre (${charges.length}) : ${ledgerResult.error.message}`,
-            );
+              metadata: {
+                tranche: t + 1,
+                gradeLevel,
+                paymentPlan: sInput.paymentPlan ?? "tranches",
+              },
+            });
+            ledgerWire.push({
+              student_ref: i,
+              entry_number: e.id,
+              entry_type: e.type,
+              amount: e.amount,
+              category: e.category,
+              description: e.description,
+              entry_date: toIsoDate(e.at) ?? at,
+              source_type: e.sourceType,
+              source_id: e.sourceId,
+              method: e.method,
+              receipt_number: e.receiptNumber,
+              payment_status: e.paymentStatus,
+              reverses_id: e.reversesId,
+              actor_id: e.actorId,
+              actor_name: e.actorName,
+              at: toIsoDate(e.at),
+              metadata: e.metadata as Record<string, string | number | boolean | null> | null,
+            });
+            installmentWire.push({
+              student_ref: i,
+              category: "tuition",
+              tranche_number: (t + 1) as 1 | 2 | 3,
+              label: sInput.paymentPlan === "full_annual" ? "Année complète" : `Tranche ${t + 1}`,
+              amount_due: amounts[t],
+              amount_paid: 0,
+              amount_pending: 0,
+              due_date: dues[t],
+              paid_date: null,
+              status: "unpaid",
+              academic_cycle: null,
+              payment_plan: sInput.paymentPlan ?? "tranches",
+              is_custom_schedule: false,
+              custom_schedule_note: null,
+              source_type: "bulk_import",
+              source_id: `${studentCode}:tuition:T${t + 1}`,
+            });
           }
         }
-        if (installmentInputs.length > 0) {
-          const installmentResult = await installmentRepo.bulkImportInstallments(installmentInputs);
-          if (!installmentResult.ok) {
-            billingFailures.push(
-              `tranches (${installmentInputs.length}) : ${installmentResult.error.message}`,
-            );
+        if (includeTransport) {
+          const destination =
+            (sInput.transportTier as TransportDestination | null) ?? transportDestination;
+          if (destination) {
+            const tranches = transportTranchesForDestination(billingConfig, destination);
+            for (let t = 0; t < tranches.length; t++) {
+              const e = createChargeEntry({
+                tenantId,
+                parentId: parentCode,
+                studentId: null,
+                category: "transport",
+                amount: tranches[t].amountDue,
+                sourceType: "installment",
+                sourceId: `reg-${studentCode}-transport-t${t + 1}`,
+                description: `Transport ${year} — Tranche ${t + 1} (${destination})`,
+                actorId: "system",
+                actorName: "Inscription groupée",
+                at,
+                metadata: { tranche: t + 1, destination },
+              });
+              ledgerWire.push({
+                student_ref: i,
+                entry_number: e.id,
+                entry_type: e.type,
+                amount: e.amount,
+                category: e.category,
+                description: e.description,
+                entry_date: toIsoDate(e.at) ?? at,
+                source_type: e.sourceType,
+                source_id: e.sourceId,
+                method: e.method,
+                receipt_number: e.receiptNumber,
+                payment_status: e.paymentStatus,
+                reverses_id: e.reversesId,
+                actor_id: e.actorId,
+                actor_name: e.actorName,
+                at: toIsoDate(e.at),
+                metadata: e.metadata as Record<string, string | number | boolean | null> | null,
+              });
+              installmentWire.push({
+                student_ref: i,
+                category: "transport",
+                tranche_number: (t + 1) as 1 | 2 | 3,
+                label: `Transport T${t + 1}`,
+                amount_due: tranches[t].amountDue,
+                amount_paid: 0,
+                amount_pending: 0,
+                due_date: [due1, due2, due3][t],
+                paid_date: null,
+                status: "unpaid",
+                academic_cycle: null,
+                payment_plan: sInput.paymentPlan ?? "tranches",
+                is_custom_schedule: false,
+                custom_schedule_note: null,
+                source_type: "bulk_import",
+                source_id: `${studentCode}:transport:T${t + 1}`,
+              });
+            }
           }
         }
-        if (billingFailures.length > 0) {
-          billingWarning =
-            `La famille (${parent.code}) et les élèves sont créés, mais ` +
-            `l'écriture de la facturation a échoué — ${billingFailures.join(" ; ")}. ` +
-            "Les charges peuvent être régénérées (recréez l'inscription ou contactez l'administrateur) — " +
-            "le solde affiché sera à zéro jusqu'à la régénération.";
-        }
-      } catch (billingErr) {
-        // DATA-019: the honest degradation — the family records exist and
-        // are correct; the billing failure reason is RETURNED (and surfaced
-        // by the wizard), never console.warn-swallowed again.
-        billingWarning =
-          `La famille (${parent.code}) et les élèves sont créés, mais ` +
-          `l'écriture de la facturation a échoué — ` +
-          `${billingErr instanceof Error ? billingErr.message : String(billingErr)}. ` +
-          "Les charges peuvent être régénérées — le solde affiché sera à zéro jusqu'à la régénération.";
+      }
+      if (includeRegistration && billingConfig.registrationFee > 0 && input.students.length > 0) {
+        const e = createChargeEntry({
+          tenantId,
+          parentId: parentCode,
+          studentId: null, // family-level fee — no student ref
+          category: "other",
+          amount: billingConfig.registrationFee,
+          sourceType: "manual_entry",
+          sourceId: `reg-${parentCode}-fee`,
+          description: `Frais d'inscription ${year} (nouvelle famille)`,
+          actorId: "system",
+          actorName: "Inscription groupée",
+          at,
+          metadata: { type: "registration_fee" },
+        });
+        ledgerWire.push({
+          student_ref: null,
+          entry_number: e.id,
+          entry_type: e.type,
+          amount: e.amount,
+          category: e.category,
+          description: e.description,
+          entry_date: toIsoDate(e.at) ?? at,
+          source_type: e.sourceType,
+          source_id: e.sourceId,
+          method: e.method,
+          receipt_number: e.receiptNumber,
+          payment_status: e.paymentStatus,
+          reverses_id: e.reversesId,
+          actor_id: e.actorId,
+          actor_name: e.actorName,
+          at: toIsoDate(e.at),
+          metadata: e.metadata as Record<string, string | number | boolean | null> | null,
+        });
       }
 
-      return Ok({ parent, students: created, ...(billingWarning ? { billingWarning } : {}) });
+      // -----------------------------------------------------------------
+      // THE ONE ROUND-TRIP (with the idempotent network retry — the whole
+      // composite is idempotent: deterministic codes + ON CONFLICT).
+      // -----------------------------------------------------------------
+      const { data, error } = await rpcWithIdempotentRetry<
+        Record<string, unknown>,
+        {
+          out_parent: unknown;
+          out_students: unknown;
+          out_ledger_written: number;
+          out_installments_written: number;
+        }[]
+      >(this.client, "register_family_batch", {
+        p_tenant_id: tenantId,
+        p_parent: parentWire,
+        p_students: studentWires,
+        p_ledger_entries: ledgerWire,
+        p_installments: installmentWire,
+      });
+      if (error) throw error;
+      const row = (data as {
+        out_parent: unknown;
+        out_students: unknown;
+        out_ledger_written: number;
+        out_installments_written: number;
+      }[])[0];
+      if (!row || !row.out_parent) {
+        throw new Error("register_family_batch returned no rows");
+      }
+
+      // -----------------------------------------------------------------
+      // Map the FULL returned rows (the same mappers createParent /
+      // createStudent use after their fetches — the follow-up fetch round-
+      // trips are gone). Students come back in PAYLOAD order: zip with the
+      // inputs for the gradeLevel/level/gradeYear patches (createStudent's
+      // exact convention).
+      // -----------------------------------------------------------------
+      const parent = mapParentRow(row.out_parent as ParentRow);
+      const created: Student[] = ((row.out_students ?? []) as StudentRow[]).map((r, i) => {
+        const sInput = input.students[i];
+        const gradeLevel: GradeLevel =
+          sInput.gradeLevel ?? gradeLevelFromLevelYear(sInput.level, sInput.gradeYear);
+        const student = mapStudentRow(r);
+        return {
+          ...student,
+          gradeLevel,
+          level: sInput.level,
+          gradeYear: sInput.gradeYear,
+          transportTier: sInput.transportTier ?? null,
+        } as Student;
+      });
+
+      // Cache updates — the same conventions createStudent applies on the
+      // singleton students repository (the parent list refreshes exactly as
+      // before: the wizard's onSubmitted opens the drawer by the returned
+      // id).
+      const newIds = new Set(created.map((s) => s.id));
+      this.cache.update((list) => [
+        ...created,
+        ...list.filter((s) => !newIds.has(s.id)),
+      ]);
+
+      return Ok({ parent, students: created });
     } catch (e) {
-      return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
+      const err = e as { code?: string; message: string; details?: unknown };
+      const raw =
+        typeof err?.message === "string" && err.message.trim().length > 0
+          ? err.message
+          : supabaseErrorToAppError(err).userMessage;
+      // ATOMIC (T-398): a failure means NOTHING was written — the honest
+      // operator message says so (previously a mid-chain failure could
+      // leave the family created without billing). The full reason rides
+      // in BOTH fields: `Errors.server()`'s factory userMessage is a
+      // generic "Erreur interne du serveur." which would hide the actual
+      // cause — the owner's mandate is to SEE the real error (OPS-320).
+      const full =
+        `Inscription atomique échouée — RIEN n'a été écrit (la famille, les élèves et la facturation sont dans UNE transaction) : ${raw}`;
+      return Err({ code: "ERR_SERVER", message: full, userMessage: full });
     }
   }
 

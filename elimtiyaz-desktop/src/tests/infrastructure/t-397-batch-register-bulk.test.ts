@@ -2,24 +2,36 @@
  * T-397 / PERF-501 + DATA-019 — the batchRegister bulk rewire + the honest
  * billing warning + the idempotent-retry absorber.
  *
+ * T-398 UPDATE (82nd session, PERF-502): the call-count contract is now the
+ * ONE-round-trip pin — `batchRegister` issues EXACTLY ONE RPC
+ * (`register_family_batch`, migrations 0102+0103) and NOTHING else when the
+ * wizard passes its loaded pricing config (the t-398 passthrough): no
+ * per-entity upserts, no full-row fetches, no pricing reads, no bulk
+ * upserts. The billing content is asserted INSIDE the RPC payload.
+ *
+ * The ATOMICITY semantics (the registered upgrade of the DATA-019 scope
+ * decision): a failing billing leg is a failing RPC — the whole
+ * registration rolls back, `Ok` is impossible, the honest error says
+ * NOTHING was written (the mock repository has had these semantics since
+ * birth; the Supabase path now aligns).
+ *
  * What this suite pins (the counting-client contract):
  *
  *   A. THE CALL-COUNT CONTRACT — a 1-student default registration issues
- *      ~7 round-trips (parent RPC + fetch, student RPC + fetch, the pricing
- *      reads, ONE ledger bulk upsert, ONE installments bulk upsert) and
- *      NEVER the per-row `upsert_ledger_entry_from_import` RPC loop (the
- *      old path: 21+ sequential round-trips, the owner's 10–20 s at the
- *      Algeria→eu-west-1 RTT band).
+ *      EXACTLY 1 round-trip (register_family_batch) when pricingConfig is
+ *      passed: the per-entity upsert RPCs are NEVER called, the per-row
+ *      `upsert_ledger_entry_from_import` loop is gone, the bulk upserts are
+ *      gone (the server writes them inside the RPC).
  *   B. THE BILLING CONTENT — the same charges + tranches the per-row path
  *      wrote (tuition tranches ×3 + registration fee, transport when
- *      selected), now through the bulk payloads.
- *   C. DATA-019 — a bulk-leg failure returns Ok({ ..., billingWarning })
- *      with the honest reason (the family records stay); the wizard
- *      surfaces it (pinned at the result level here, at the toast level by
- *      the modal's own suite).
- *   D. THE IDEMPOTENT RETRY — a network-class failure on the parent upsert
- *      RPC is retried EXACTLY once and converges; a non-network error is
- *      NOT retried (a retry cannot fix validation/RLS).
+ *      selected), now inside the RPC payload (student_ref indexes +
+ *      code-based source_id identity tokens).
+ *   C. ATOMICITY — a failing RPC returns Err with the honest
+ *      "RIEN n'a été écrit" reason (no partial state is possible).
+ *   D. THE IDEMPOTENT RETRY — a network-class failure on the batch RPC is
+ *      retried EXACTLY once and converges; a non-network error is NOT
+ *      retried (a retry cannot fix validation/RLS). The createParent seam
+ *      keeps its own retry pins (unchanged method).
  *
  * Run:
  *   npx vitest run src/tests/infrastructure/t-397-batch-register-bulk.test.ts
@@ -31,6 +43,7 @@ import {
   SupabaseParentRepository,
 } from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
 import type { BatchRegistrationInput } from "../../domain/model/student";
+import { defaultPricingConfig } from "../../infrastructure/mock/pricing-seed";
 
 // The tenant the shared repositories resolve from the session fixture.
 beforeAll(() => {
@@ -59,16 +72,21 @@ interface CallLog {
 }
 
 interface MockOptions {
+  /** Fail the FIRST register_family_batch RPC with a network-class error. */
+  batchNetworkFailOnce?: boolean;
+  /** Fail the FIRST register_family_batch RPC with a non-network error. */
+  batchHardFailOnce?: boolean;
+  /** Make every register_family_batch call return an error (atomicity leg). */
+  batchAlwaysError?: { code: string; message: string };
   /** Fail the FIRST upsert_parent_from_import RPC with a network-class error. */
   parentNetworkFailOnce?: boolean;
   /** Fail the FIRST upsert_parent_from_import RPC with a non-network error. */
   parentHardFailOnce?: boolean;
-  /** Make the ledger bulk upsert return an error (the DATA-019 leg). */
-  ledgerBulkError?: { code: string; message: string };
 }
 
 function makeCountingClient(opts: MockOptions = {}) {
   const calls: CallLog = { rpc: [], upserts: [], reads: [], inserts: [] };
+  let batchRpcCalls = 0;
   let parentRpcCalls = 0;
   let idSeq = 0;
   const uuid = () => {
@@ -82,6 +100,83 @@ function makeCountingClient(opts: MockOptions = {}) {
   const client = {
     rpc: (name: string, args?: Record<string, unknown>) => {
       calls.rpc.push({ name, args });
+      if (name === "register_family_batch") {
+        batchRpcCalls += 1;
+        if (opts.batchNetworkFailOnce && batchRpcCalls === 1) {
+          return Promise.resolve({
+            data: null,
+            error: { code: "ERR_NETWORK", message: "TypeError: fetch failed" },
+          });
+        }
+        if (opts.batchHardFailOnce && batchRpcCalls === 1) {
+          return Promise.resolve({
+            data: null,
+            error: { code: "42501", message: "new row violates row-level security policy" },
+          });
+        }
+        if (opts.batchAlwaysError) {
+          return Promise.resolve({ data: null, error: opts.batchAlwaysError });
+        }
+        // Build the response the RPC shape promises: the FULL parent +
+        // student rows (payload order) + the write counts.
+        const p = (args?.p_parent ?? {}) as Record<string, unknown>;
+        const parentId = uuid();
+        const parentRow: Row = {
+          id: parentId,
+          tenant_id: args?.p_tenant_id,
+          parent_code: p.parent_code,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          primary_phone: p.primary_phone,
+          display_name: p.display_name,
+          transport_destination: p.transport_destination,
+          city_tier: p.city_tier,
+          preferred_language: p.preferred_language,
+          is_active: true,
+          deleted_at: null,
+          created_at: "2026-09-21T00:00:00Z",
+          updated_at: "2026-09-21T00:00:00Z",
+        };
+        parentRows.set(parentId, parentRow);
+        const students = ((args?.p_students ?? []) as Row[]).map((s) => {
+          const id = uuid();
+          const row: Row = {
+            id,
+            tenant_id: args?.p_tenant_id,
+            student_code: s.student_code,
+            parent_id: parentId,
+            first_name: s.first_name,
+            last_name: s.last_name,
+            display_name: s.display_name,
+            middle_name: s.middle_name,
+            date_of_birth: s.date_of_birth,
+            gender: s.gender,
+            class_id: s.class_id,
+            medical_notes: s.medical_notes,
+            grade_level_code: s.grade_level_code,
+            transport_tier: s.transport_tier,
+            payment_plan: s.payment_plan,
+            enrollment_status: s.enrollment_status,
+            is_active: true,
+            deleted_at: null,
+            created_at: "2026-09-21T00:00:00Z",
+            updated_at: "2026-09-21T00:00:00Z",
+          };
+          studentRows.set(id, row);
+          return row;
+        });
+        return Promise.resolve({
+          data: [
+            {
+              out_parent: parentRow,
+              out_students: students,
+              out_ledger_written: ((args?.p_ledger_entries ?? []) as Row[]).length,
+              out_installments_written: ((args?.p_installments ?? []) as Row[]).length,
+            },
+          ],
+          error: null,
+        });
+      }
       if (name === "upsert_parent_from_import") {
         parentRpcCalls += 1;
         if (opts.parentNetworkFailOnce && parentRpcCalls === 1) {
@@ -175,12 +270,9 @@ function makeCountingClient(opts: MockOptions = {}) {
         },
         then: (onFulfilled: (v: { data: Row[]; error: unknown }) => void, onRejected?: (e: unknown) => void) => {
           calls.reads.push(table);
-          let rows = rowsOf();
-          for (const [col, val] of conds) rows = rows.filter((r) => (r[col] ?? null) === val || String(r[col] ?? "") === String(val ?? ""));
-          // The pricing reads (pricing_configs / academic_levels /
-          // grade_level_tuition / transport_destinations /
-          // complementary_services) — empty lists make readDbPricingConfig
-          // fall back to the seed config (the honest degraded path).
+          // The pricing reads (the readDbPricingConfig FALLBACK path —
+          // only taken when pricingConfig is NOT passed): empty lists make
+          // it fall back to the seed config (the honest degraded path).
           return Promise.resolve({ data: [], error: null }).then(onFulfilled, onRejected);
         },
       };
@@ -189,11 +281,6 @@ function makeCountingClient(opts: MockOptions = {}) {
         upsert: (rows: Row[] | Row, options?: Record<string, unknown>) => {
           const list = Array.isArray(rows) ? rows : [rows];
           calls.upserts.push({ table, count: list.length, options });
-          if (table === "ledger_entries" && opts.ledgerBulkError) {
-            return {
-              select: () => Promise.resolve({ data: null, error: opts.ledgerBulkError }),
-            };
-          }
           return {
             select: () => Promise.resolve({ data: list.map((r) => ({ ...r, id: uuid() })), error: null }),
           };
@@ -237,89 +324,150 @@ const INPUT = (overrides: Partial<BatchRegistrationInput> = {}): BatchRegistrati
   ],
   includeRegistration: true,
   includeTransport: false,
+  // T-398: the wizard's loaded config — with it the write path issues ZERO
+  // pricing reads (the one-round-trip contract).
+  pricingConfig: defaultPricingConfig,
   ...overrides,
 });
 
 /* ================================================================== */
-/* A. The call-count contract                                          */
+/* A. The call-count contract — the ONE round-trip                      */
 /* ================================================================== */
 
-describe("T-397 A. batchRegister — the call-count contract (PERF-501)", () => {
-  it("writes the billing through ONE bulk call per table — never the per-row RPC loop", async () => {
+describe("T-397/T-398 A. batchRegister — the ONE-round-trip call-count contract (PERF-502)", () => {
+  it("issues EXACTLY ONE register_family_batch RPC — no upserts, no fetches, no pricing reads, no bulk writes", async () => {
     const { client, calls } = makeCountingClient();
     const repo = new SupabaseStudentRepository(client);
     const r = await repo.batchRegister(INPUT());
     expect(r.ok).toBe(true);
 
-    // The identity legs: parent RPC ×1 + fetch, student RPC ×1 + fetch.
+    // THE pin: exactly one round-trip, and it is the composite RPC.
+    expect(calls.rpc).toHaveLength(1);
+    expect(calls.rpc[0].name).toBe("register_family_batch");
+
+    // The OLD legs are GONE: no per-entity upserts (parent/student), no
+    // per-row ledger RPC loop, no bulk upserts, no full-row fetches, no
+    // pricing reads.
     const parentRpcs = calls.rpc.filter((c) => c.name === "upsert_parent_from_import").length;
     const studentRpcs = calls.rpc.filter((c) => c.name === "upsert_student_from_import").length;
-    expect(parentRpcs).toBe(1);
-    expect(studentRpcs).toBe(1);
-
-    // THE pin: the per-row ledger RPC loop is GONE.
     const ledgerRpcs = calls.rpc.filter((c) => c.name === "upsert_ledger_entry_from_import").length;
+    expect(parentRpcs).toBe(0);
+    expect(studentRpcs).toBe(0);
     expect(ledgerRpcs).toBe(0);
+    expect(calls.reads).toHaveLength(0);
+    expect(calls.upserts).toHaveLength(0);
+    expect(calls.inserts).toHaveLength(0);
 
-    // The billing went through ONE bulk upsert per table.
-    const ledgerBulk = calls.upserts.filter((u) => u.table === "ledger_entries");
-    const instBulk = calls.upserts.filter((u) => u.table === "installments");
-    expect(ledgerBulk).toHaveLength(1);
-    expect(instBulk).toHaveLength(1);
-
-    // The total round-trip count (RPCs + reads + bulk writes) — the old
-    // path measured 21+ sequential round-trips live for the same payload.
+    // The total round-trip count — the old path measured 21+ sequential
+    // round-trips live, T-397 took it to ~11, the ONE-RPC shape is 1.
     const total =
       calls.rpc.length + calls.reads.length + calls.upserts.length + calls.inserts.length;
-    expect(total).toBeLessThanOrEqual(12);
-    expect(total).toBeGreaterThanOrEqual(6);
+    expect(total).toBe(1);
   });
 
-  it("carries the same billing content the per-row path wrote (tuition ×3 + fee; transport when selected)", async () => {
+  it("carries the same billing content the per-row path wrote — INSIDE the RPC payload (tuition ×3 + fee; transport when selected)", async () => {
     const { client, calls } = makeCountingClient();
     const repo = new SupabaseStudentRepository(client);
     const r = await repo.batchRegister(INPUT());
     expect(r.ok).toBe(true);
     expect(r.ok && !r.value.billingWarning).toBe(true);
 
-    const ledgerBulk = calls.upserts.find((u) => u.table === "ledger_entries");
-    const instBulk = calls.upserts.find((u) => u.table === "installments");
+    const args = calls.rpc[0].args as {
+      p_parent: Row;
+      p_students: Row[];
+      p_ledger_entries: Row[];
+      p_installments: Row[];
+    };
+    // The identity: deterministic codes, payload order preserved.
+    expect(args.p_parent.parent_code).toMatch(/^PAR-\d{4}-/);
+    expect(args.p_students).toHaveLength(1);
+    expect(args.p_students[0].student_code).toMatch(/^ELV-\d{4}-/);
+
     // 3 tuition tranches + 1 registration fee (transport OFF in this input).
-    expect(ledgerBulk?.count).toBe(4);
-    expect(instBulk?.count).toBe(3);
+    expect(args.p_ledger_entries).toHaveLength(4);
+    expect(args.p_installments).toHaveLength(3);
+
+    // The identity-token contract (the 0103 substitution's input):
+    // student_ref indexes + code-bearing source_ids.
+    const studentCode = args.p_students[0].student_code as string;
+    for (const e of args.p_ledger_entries) {
+      if (e.student_ref === null) {
+        expect(e.source_id).toBe(`reg-${args.p_parent.parent_code}-fee`);
+      } else {
+        expect(e.student_ref).toBe(0);
+        expect(String(e.source_id)).toMatch(new RegExp(`^reg-${studentCode}(-transport)?-t[123]$`));
+      }
+    }
+    for (const inst of args.p_installments) {
+      expect(inst.student_ref).toBe(0);
+      expect(inst.source_id).toBe(`${studentCode}:tuition:T${inst.tranche_number}`);
+    }
+  });
+
+  it("maps the returned full rows to the domain models with the input patches (gradeLevel/level/gradeYear)", async () => {
+    const { client } = makeCountingClient();
+    const repo = new SupabaseStudentRepository(client);
+    const r = await repo.batchRegister(INPUT());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // The parent model (mapParentRow over the returned jsonb row).
+    expect(r.value.parent.code).toMatch(/^PAR-\d{4}-/);
+    expect(r.value.parent.phone).toBe("0554288197");
+    // The student model (mapStudentRow + the input patches — createStudent's
+    // exact convention).
+    expect(r.value.students).toHaveLength(1);
+    const s = r.value.students[0];
+    expect(s.code).toMatch(/^ELV-\d{4}-/);
+    expect(s.gradeLevel).toBe("1am");
+    expect(s.level).toBe("cem");
+    expect(s.gradeYear).toBe(1);
   });
 });
 
 /* ================================================================== */
-/* B. DATA-019 — the honest billing warning                            */
+/* B. ATOMICITY — the honest everything-or-nothing failure              */
 /* ================================================================== */
 
-describe("T-397 B. batchRegister — the DATA-019 honest billing warning", () => {
-  it("returns Ok + billingWarning (with the reason) when the ledger bulk leg fails", async () => {
+describe("T-397/T-398 B. batchRegister — the ATOMIC failure (the DATA-019 scope upgrade)", () => {
+  it("a failing RPC returns Err with the honest nothing-was-written reason (no partial state possible)", async () => {
     const { client } = makeCountingClient({
-      ledgerBulkError: { code: "42P10", message: "no unique or exclusion constraint" },
+      batchAlwaysError: { code: "23514", message: 'new row for relation "ledger_entries" violates check constraint' },
     });
     const repo = new SupabaseStudentRepository(client);
     const r = await repo.batchRegister(INPUT());
-    // The family records stay — the registration does NOT fail.
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.value.parent).toBeTruthy();
-    expect(r.value.students).toHaveLength(1);
-    // The honest warning carries the failure reason.
-    expect(r.value.billingWarning).toBeTruthy();
-    expect(r.value.billingWarning).toContain("facturation");
-    expect(r.value.billingWarning).toContain("grand livre");
-    expect(r.value.billingWarning).toContain("no unique or exclusion constraint");
+    // The atomic contract: NO Ok is possible when any leg failed — the
+    // family, the students and the billing are ONE transaction.
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.userMessage).toContain("RIEN n'a été écrit");
+    expect(r.error.userMessage).toContain("ledger_entries");
   });
 });
 
 /* ================================================================== */
-/* C. The idempotent retry                                             */
+/* C. The idempotent retry                                              */
 /* ================================================================== */
 
-describe("T-397 C. the idempotent-retry absorber (PERF-501 transient class)", () => {
-  it("retries a network-class parent-upsert failure EXACTLY once and converges", async () => {
+describe("T-397/T-398 C. the idempotent-retry absorber (PERF-501/502 transient class)", () => {
+  it("retries a network-class batch-RPC failure EXACTLY once and converges (the composite is idempotent)", async () => {
+    const { client, calls } = makeCountingClient({ batchNetworkFailOnce: true });
+    const repo = new SupabaseStudentRepository(client);
+    const r = await repo.batchRegister(INPUT());
+    expect(r.ok).toBe(true);
+    const batchRpcs = calls.rpc.filter((c) => c.name === "register_family_batch").length;
+    expect(batchRpcs).toBe(2); // failed once (network) + retried once
+  });
+
+  it("does NOT retry a non-network batch failure (RLS/validation cannot be fixed by a retry)", async () => {
+    const { client, calls } = makeCountingClient({ batchHardFailOnce: true });
+    const repo = new SupabaseStudentRepository(client);
+    const r = await repo.batchRegister(INPUT());
+    expect(r.ok).toBe(false);
+    const batchRpcs = calls.rpc.filter((c) => c.name === "register_family_batch").length;
+    expect(batchRpcs).toBe(1); // hard failure — no retry
+  });
+
+  it("retries a network-class parent-upsert failure EXACTLY once and converges (the createParent seam, unchanged)", async () => {
     const { client, calls } = makeCountingClient({ parentNetworkFailOnce: true });
     const repo = new SupabaseParentRepository(client);
     const r = await repo.createParent({
@@ -334,7 +482,7 @@ describe("T-397 C. the idempotent-retry absorber (PERF-501 transient class)", ()
     expect(parentRpcs).toBe(2); // failed once (network) + retried once
   });
 
-  it("does NOT retry a non-network failure (RLS/validation cannot be fixed by a retry)", async () => {
+  it("does NOT retry a non-network parent-upsert failure (the createParent seam, unchanged)", async () => {
     const { client, calls } = makeCountingClient({ parentHardFailOnce: true });
     const repo = new SupabaseParentRepository(client);
     const r = await repo.createParent({

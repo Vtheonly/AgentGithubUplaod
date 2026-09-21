@@ -254,6 +254,12 @@ export function BatchRegistrationModal({
       // so the repository persists the promised charges + installment schedule.
       includeRegistration,
       includeTransport,
+      // T-398 (PERF-502): the wizard's ALREADY-LOADED pricing config — the
+      // same object the step-3 preview derived from. Kills the 5-6
+      // sequential pricing reads inside the write path (the whole
+      // registration is ONE round-trip now) AND guarantees the persisted
+      // charges match the preview the parent agreed to.
+      pricingConfig: pricing,
     });
 
     if (result.ok) {
