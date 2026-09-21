@@ -82,10 +82,24 @@ const PERSONNEL: Personnel = {
   tenantId: "t1",
 };
 
+// T-400 (ea5029c): the ledger's periods are now the CURRENT Algeria-local
+// business periods (PAYROLL_PERIOD_OPTIONS[0].value), not a hard-coded
+// "2026-03" — derive the default selected period exactly like the component.
+const CURRENT_PERIOD = (() => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Algiers",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return `${year}-${month}`;
+})();
+
 const PAID_PAYMENT: SalaryPaymentRecord = {
   id: "pay-1",
   personnelId: "per-100",
-  period: "2026-03",
+  period: CURRENT_PERIOD,
   baseSalary: 65000,
   bonusesTotal: 0,
   deductionsTotal: 0,
@@ -180,11 +194,11 @@ describe("T-369 PayrollManagement UI (WORKFORCE-500)", () => {
     expect(screen.getByText("Amina Meziane")).toBeTruthy();
     expect(screen.getByText(/65 000/)).toBeTruthy();
 
-    // Nobody paid for the default period (2026-03) — "En attente".
+    // Nobody paid for the default (current) period — "En attente".
     expect(screen.getByText("En attente")).toBeTruthy();
 
-    // Now the same personnel IS paid for 2026-03 — the status flips from the
-    // REPOSITORY stream, not from local state.
+    // Now the same personnel IS paid for the current period — the status
+    // flips from the REPOSITORY stream, not from local state.
     payments = [PAID_PAYMENT];
     cleanup();
     render(<PayrollManagement />);
@@ -236,7 +250,7 @@ describe("T-369 PayrollManagement UI (WORKFORCE-500)", () => {
     expect(recordSalaryPaymentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         personnelId: "per-100",
-        period: "2026-03", // the ledger's selected period
+        period: CURRENT_PERIOD, // the ledger's selected (current) period
         method: "bank_transfer",
         actorId: "usr-admin",
         actorName: "Super Admin",

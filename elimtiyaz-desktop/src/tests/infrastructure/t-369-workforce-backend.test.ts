@@ -166,6 +166,10 @@ class FakeClient {
   tables: Record<string, Row[]> = {};
   rpcCalls: { fn: string; args: Row }[] = [];
   private rpcResponses: Record<string, Row> = {};
+  /** T-400 (0104): server-side side effects a SECURITY DEFINER RPC applies
+   *  to the fake tables when invoked — models e.g. respond_leave_clarification's
+   *  ownership-checked pending transition. */
+  rpcSideEffects: Record<string, (args: Row) => void> = {};
 
   from(tableName: string): FakeQuery {
     if (!this.tables[tableName]) this.tables[tableName] = [];
@@ -174,6 +178,7 @@ class FakeClient {
 
   rpc(fn: string, args: Row): { then<TResult1>(onFulfilled: ((value: { data: Row | null; error: null }) => TResult1) | null): Promise<TResult1> } {
     this.rpcCalls.push({ fn, args });
+    this.rpcSideEffects[fn]?.(args);
     const response = this.rpcResponses[fn] ?? {};
     return {
       then<TResult1>(onFulfilled: ((value: { data: Row | null; error: null }) => TResult1) | null): Promise<TResult1> {
@@ -582,7 +587,7 @@ describe("T-369 C1. SupabaseTaskRepository — the review lifecycle", () => {
 });
 
 describe("T-369 C2. SupabaseLeaveRequestRepository — the clarification loop + amount", () => {
-  it("C2a. requestClarification writes clarification_requested + the question; respondClarification returns to pending", async () => {
+  it("C2a. requestClarification writes clarification_requested + the question; respondClarification routes through the secured 0104 RPC", async () => {
     fakeClient.tables["leave_requests"] = [
       {
         id: "lr-uuid-1",
@@ -605,6 +610,16 @@ describe("T-369 C2. SupabaseLeaveRequestRepository — the clarification loop + 
         personnel: { first_name: "Omar", last_name: "Boudjelal" },
       },
     ];
+    // The 0104 contract: the worker's response goes through the
+    // respond_leave_clarification SECURITY DEFINER RPC (ownership-checked
+    // server-side — workers hold NO direct UPDATE right on leave_requests),
+    // then the repository re-reads the row. The side effect below models
+    // the transition the real RPC performs on the server.
+    fakeClient.rpcSideEffects["respond_leave_clarification"] = (args) => {
+      const row = fakeClient.tables["leave_requests"][0];
+      row.status = "pending";
+      row.clarification_response = (args as { p_response: string }).p_response;
+    };
     const repo = new SupabaseLeaveRequestRepository(fakeClient as unknown as SupabaseClient);
 
     const asked = await repo.requestClarification("lr-uuid-1", "Quelles heures exactes ?", ADMIN);
@@ -616,9 +631,17 @@ describe("T-369 C2. SupabaseLeaveRequestRepository — the clarification loop + 
 
     const answered = await repo.respondClarification("lr-uuid-1", "16h à 19h.");
     expect(answered.ok).toBe(true);
+    // The ONLY write path for the worker's response is the secured RPC…
+    expect(fakeClient.rpcCalls).toEqual([
+      { fn: "respond_leave_clarification", args: { p_request_id: "lr-uuid-1", p_response: "16h à 19h." } },
+    ]);
+    // …whose server-side transition (simulated) lands the row back at
+    // pending, and the re-read maps it into the domain object.
     row = fakeClient.tables["leave_requests"][0];
     expect(row.status).toBe("pending");
     expect(row.clarification_response).toBe("16h à 19h.");
+    expect(answered.ok && answered.value.status).toBe("pending");
+    expect(answered.ok && answered.value.clarificationResponse).toBe("16h à 19h.");
   });
 
   it("C2b. submit() persists amount_requested (the spending_reimbursement kind)", async () => {
