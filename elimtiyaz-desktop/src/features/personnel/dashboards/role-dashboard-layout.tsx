@@ -9,7 +9,7 @@
  */
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Bell, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import { Button } from "../../../shared/ui/button";
 import { Avatar, AvatarFallback } from "../../../shared/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../shared/ui/card";
@@ -78,9 +78,6 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
             <Clock className="size-3" />
             {new Date().toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
           </div>
-          <button className="text-muted-foreground hover:text-foreground" aria-label="Notifications">
-            <Bell className="size-4" />
-          </button>
           {actions.map((a, i) => {
             const Icon = a.icon;
             return (
