@@ -3857,7 +3857,7 @@ There must be one canonical timetable domain model and one constraint contract. 
 
 ## T-405 — Cross-Year Debt Aging & Payment-Behavior Tracking
 
-**Status:** IN PROGRESS (2026-09-22, 86th session — canonical rules documented in `docs/domain/financial-rules.md` §15 FIRST per this entry's mandate; implementation sequence: TS reference engine → SQL mirror 0111 → repository → Suivi des Dettes UI → portal port → live verification)
+**Status:** COMPLETE — **VERIFIED** (2026-09-22, 86th session: rules documented FIRST in financial-rules §15 → TS reference engine 32/32 → migration 0111 applied live → verify_t-405.sql **29/29 PASS** zero-residue on vebfehrpzajhstyhinnw → repository layer (Supabase RPC client + reactive mock + realtime recompute) 5/5 → the « Suivi des Dettes » desktop tab 5/5 → the website portal parity port 8/8 + build green. Evidence: `docs/recovery/t-405-live-verification.md`. The two archetype parents — the SAME 100 000 DZD debt from 2024-2025 — pin GREEN/active_payer (kept paying through 2025-2026, 10 subsequent-year payments) vs RED/critical_delinquency (silent since 2024-11) on BOTH the TS engine and the SQL mirror at the same pinned clock. The Android mirror remains future work (the engine + SQL contract are the porting surface).
 **Priority:** P0 — Critical  
 **Scope:** Financial domain, database/backend, statistics, search/filtering, dashboards, student/parent financial pages, academic-year history, audit, and all platform consumers.
 
