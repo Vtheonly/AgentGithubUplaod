@@ -76,3 +76,15 @@ T-401 must establish the canonical classification source before downstream UI in
 - Class confirmation = atomic commit of that group's decisions.
 - Cycle completion = verified completion of all required groups, with exceptions explicitly resolved.
 - All UI surfaces consume the same canonical promotion domain/database contract.
+
+
+### Automatic timetable contract
+
+Automatic Timetable / Emploi du temps is a canonical generated scheduling domain, not a page-local calendar.
+
+- Canonical inputs: academic year, canonical academic classification, classes/groups, subjects/modules, teachers, rooms, periods, curriculum hour/session requirements, availability, and hard/soft constraints.
+- Canonical output: versioned timetable assignments of class/group, subject, teacher, room, day, and period/session with validation and audit metadata.
+- Solver implementation is behind a TypeScript adapter; solver-specific representations are not the application source of truth.
+- The dedicated Timetable/Emploi du temps UI is a consumer/view of the canonical generated schedule.
+- Class, teacher, and room views must not create separate schedule records or scheduling algorithms.
+- Packaged Electron generation must use the bundled solver artifact rather than developer PATH/runtime dependencies.
