@@ -57,7 +57,7 @@ create or replace function public.respond_leave_clarification(
 returns uuid
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public
 as $$
 declare
   v_profile_id uuid;
@@ -110,3 +110,13 @@ $$;
 revoke all on function public.respond_leave_clarification(uuid, text) from public;
 revoke execute on function public.respond_leave_clarification(uuid, text) from anon;
 grant execute on function public.respond_leave_clarification(uuid, text) to authenticated;
+
+-- ----------------------------------------------------------------------------
+-- Registration (T-091/MIG-TOKENS pattern — the Management-API apply
+-- embeds this statement so the DDL and the registration land in ONE atomic
+-- transaction; kept here so a fresh CLI deployment registers identically.
+-- ON CONFLICT keeps it idempotent.)
+-- ----------------------------------------------------------------------------
+insert into supabase_migrations.schema_migrations (version, statements, name)
+values ('0104', '{0104_personnel_workforce_ui_parity.sql}', 'personnel_workforce_ui_parity')
+on conflict (version) do nothing;
