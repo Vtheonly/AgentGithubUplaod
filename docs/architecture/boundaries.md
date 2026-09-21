@@ -80,3 +80,11 @@
 3. **Mirrors must be verified.** Desktop TS (reference) ↔ SQL ↔ Kotlin ↔ website port: any behaviour change runs the equivalence suites (`docs/testing/cross-platform.md`) before merge.
 4. **Every mutation is audited** with actor + reason server-side.
 5. **Boundaries apply to tests too**: cross-platform equivalence tests compare platform OUTPUTS against the canonical engine — they do not bless client-side reimplementations.
+## 7. Academic classification and promotion boundary
+
+- **Database/domain:** owns the canonical academic classification, validity constraints, academic-year context, promotion transaction, history append, and authorization.
+- **Desktop:** presents and consumes the canonical contract; it must not invent a second filière/specialty taxonomy or a second promotion algorithm.
+- **Android:** mirrors the same academic contract and must persist/sync the same promotion result rather than dropping grade changes.
+- **Website:** consumes the same academic classification/history contract wherever academic data is exposed.
+- **Class formation:** consumes promotion results and validates student → class compatibility; it must not redefine promotion.
+- **Cross-platform rule:** a change to academic classification or promotion is a system change. All consumers must be enumerated and tested before merge.
