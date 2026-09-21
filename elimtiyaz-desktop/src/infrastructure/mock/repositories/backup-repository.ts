@@ -40,6 +40,7 @@ import { mockAuditRepository } from "./personnel-audit-repository";
 // circular import at module load time (the backup repository is itself one
 // of the singletons that makes up `Repositories`).
 import { mockAuthRepository } from "./auth-repository";
+import { mockTimetableRepository } from "./timetable-repository";
 import { mockUserAccountRepository } from "./user-account-repository";
 import { mockParentRepository } from "./parent-repository";
 import { mockStudentRepository } from "./student-repository";
@@ -249,6 +250,7 @@ export class MockBackupRepository implements BackupRepository {
       promotion: mockPromotionRepository,
       classPlacement: mockClassPlacementRepository,
       promotionCycles: mockPromotionCycleRepository,
+      timetable: mockTimetableRepository,
       academicYears: mockAcademicYearRepository,
       clubs: mockClubRepository,
       psychology: mockPsychologyRepository,

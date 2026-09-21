@@ -97,6 +97,10 @@ export interface ClassSubject {
   readonly teacherName: string | null;
   readonly weeklyHours: number;
   readonly coefficient: number;
+  /** T-404 (0109 §6): consecutive-period blocks (double-period labs). Default 1. */
+  readonly consecutivePeriods?: number;
+  /** T-404 (0109 §6): required room type for this subject in this class. */
+  readonly requiredRoomType?: string | null;
 }
 
 /**

@@ -78,6 +78,7 @@ import {
 import { SupabaseAuditLogRepository } from "./repositories/supabase-audit-log-repository";
 import { SupabaseNotificationRepository } from "./repositories/supabase-notification-repository";
 import { SupabasePricingRepository } from "./repositories/supabase-pricing-repository";
+import { SupabaseTimetableRepository } from "./repositories/supabase-timetable-repository";
 import {
   SupabasePersonnelRepository,
   SupabaseDepartmentRepository,
@@ -298,6 +299,14 @@ export function getSupabaseRepositories(): Repositories {
   // server-side with actor attribution.
   const pricing = new SupabasePricingRepository(client);
 
+  // T-404 (0109/0110) — the canonical Automatic Timetable repository:
+  // configurations, rooms, constraints, versioned generation (the native
+  // ts-greedy-v1 solver behind the TimetableSolver adapter), the review →
+  // approve → publish workflow (fn_timetable_publish RPC) and live-validated
+  // manual adjustments. BEFORE this the timetable slot stayed on the mock
+  // layer — SCHED-100's façade.
+  const timetable = new SupabaseTimetableRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -320,6 +329,7 @@ export function getSupabaseRepositories(): Repositories {
     homework,
     promotion,
     classPlacement, // T-370 — the atomic placement finalize RPC
+    timetable, // T-404 — the canonical timetable (0109/0110)
     audit,
     notifications,
     personnel,

@@ -124,6 +124,8 @@ import {
   mockInventoryRepository,
   mockWarehouseTaskRepository,
 } from "../../infrastructure/mock/operations";
+import { mockTimetableRepository } from "../../infrastructure/mock/repositories/timetable-repository";
+import type { TimetableRepository } from "../../domain/repository/timetable-repository";
 
 export interface Repositories {
   readonly auth: AuthRepository;
@@ -140,6 +142,8 @@ export interface Repositories {
   readonly classPlacement: ClassPlacementRepository;
   /** T-403 (0108): the human-in-the-loop promotion-cycle workflow. */
   readonly promotionCycles: PromotionCycleRepository;
+  /** T-404 (0109/0110): the canonical Automatic Timetable repository. */
+  readonly timetable: TimetableRepository;
   readonly academicYears: AcademicYearRepository;
   readonly clubs: ClubRepository;
   readonly psychology: PsychologyRepository;
@@ -198,6 +202,7 @@ export const mockRepositories: Repositories = {
   promotion: mockPromotionRepository,
   classPlacement: mockClassPlacementRepository,
   promotionCycles: mockPromotionCycleRepository,
+  timetable: mockTimetableRepository,
   academicYears: mockAcademicYearRepository,
   clubs: mockClubRepository,
   psychology: mockPsychologyRepository,

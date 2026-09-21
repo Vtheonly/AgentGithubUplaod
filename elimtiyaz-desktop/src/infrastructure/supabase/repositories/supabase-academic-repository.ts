@@ -669,6 +669,9 @@ export class SupabaseSubjectRepository implements SubjectRepository {
         teacher_name: input.teacherName,
         weekly_hours: input.weeklyHours,
         coefficient: input.coefficient,
+        // T-404 (0109 §6): consecutive blocks + required room type.
+        consecutive_periods: input.consecutivePeriods ?? 1,
+        required_room_type: input.requiredRoomType ?? null,
       })
       .select()
       .single();
@@ -1855,6 +1858,10 @@ function mapClassSubjectRow(row: Record<string, any>): ClassSubject {
     teacherName: row.teacher_name,
     weeklyHours: Number(row.weekly_hours),
     coefficient: Number(row.coefficient),
+    // T-404 (0109 §6): the two generator curriculum fields.
+    consecutivePeriods:
+      row.consecutive_periods != null ? Number(row.consecutive_periods) : 1,
+    requiredRoomType: row.required_room_type ?? null,
   };
 }
 
