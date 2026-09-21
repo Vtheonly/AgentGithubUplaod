@@ -3771,7 +3771,7 @@ The feature is complete only when an authorized user can create/open the next ac
 
 ## T-404 — Automatic Timetable Generation & Constraint Scheduling
 
-**Status:** Ready  
+**Status:** IN_PROGRESS (2026-09-22 — backend half IMPLEMENTED+live-verified: migrations 0109/0110, 27/27 verify_t-404.sql; domain/solver/UI/packaging remaining)  
 **Priority:** P0  
 **Scope:** Desktop/Electron + canonical backend contract + timetable domain/solver integration + generated timetable viewing.
 
