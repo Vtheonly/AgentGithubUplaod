@@ -3643,3 +3643,127 @@ If two pages currently collect or calculate the same promotion information diffe
 ### DBA/backend work is mandatory
 
 The DBA/backend owner must own the canonical schema/RPC/RLS/transaction side of this task. Do not solve a database defect with frontend state or a client-only workaround.
+
+---
+
+## T-403 — Batch Promotion Cycles: Human-in-the-Loop Academic-Year Workflow
+
+**Status:** Ready  
+**Priority:** P0  
+**Scope:** Promotion UI, academic workflow, database/domain contract, class-level review, and all downstream consumers.
+
+### Core rule
+
+Batch promotion is a **batch operation in scope, but not a blind one-click operation**. The system must manage a complete **promotion cycle** for one academic year at a time, while requiring human review/confirmation for each class/group before that class is finalized.
+
+The unit of workflow is:
+
+**Academic Year → Promotion Cycle → Level/Grade → Class/Group → Student decisions → Review → Confirm**
+
+Do not treat “promote this class” as the complete promotion feature.
+
+### New dedicated area: Batch Promotion Cycles
+
+Create a dedicated **Batch Promotion Cycles** section/table instead of scattering promotion actions across unrelated pages.
+
+The table must show promotion cycles, primarily the upcoming academic year, with at least:
+
+- Source academic year
+- Target academic year
+- Cycle status: Draft / In Review / Partially Processed / Completed / Cancelled
+- Levels/classes included
+- Number of students awaiting decision
+- Number promoted
+- Number repeating
+- Number deferred/exception cases where supported
+- Notes/completion warnings
+- Last updated / audit information
+- Actions to open, continue, review, or inspect the cycle
+
+The cycle page must allow the authorized user to work through the complete year's promotion process.
+
+### One cycle at a time
+
+The workflow must operate on **one source → target academic-year cycle at a time**. The system should normally surface the next academic year as the primary cycle.
+
+Within that cycle, users process the relevant levels/classes **one group at a time** so that a human remains in the loop.
+
+The system may prepare a batch of students for a class, but it must never silently finalize every class in the school from one global button.
+
+### Remove scattered promotion entry points
+
+Audit all existing promotion buttons/actions.
+
+Remove or replace UI buttons that directly execute promotion outside the Batch Promotion Cycles workflow.
+
+Existing pages may provide a contextual link such as **“Open Promotion Cycle”**, but they must not maintain independent promotion workflows or duplicate promotion business logic.
+
+### Class/group review workflow
+
+For each class/group:
+
+1. Open the class/group within the active promotion cycle.
+2. Load all students and their academic information.
+3. Show the proposed destination level/class and promotion decision.
+4. Allow the authorized user to edit individual decisions.
+5. Allow the user to identify repeaters and other supported exception cases.
+6. Show relevant notes, grades/results, attendance and other established academic evidence.
+7. Warn when required academic information is incomplete.
+8. Require explicit human confirmation for the class/group.
+9. Persist that class/group's decisions atomically.
+10. Mark the class/group as processed.
+11. Move to the next class/group.
+
+A processed class must remain auditable and reopenable according to the established authorization rules.
+
+### Incomplete grades/notes warning
+
+Before confirming a class/group, detect whether required grades/notes are missing or incomplete.
+
+Display a clear blocking or confirmation warning according to the existing academic rules, for example:
+
+> **Les notes ne sont pas encore toutes renseignées. Êtes-vous sûr de vouloir continuer ?**
+
+The warning must identify what is incomplete where practical. The user must explicitly confirm before continuing when the established rules allow continuation.
+
+Do not silently treat missing grades as zero or fabricate academic data.
+
+### Whole-cycle completion
+
+The cycle must have an explicit completion state.
+
+Completing a cycle means:
+
+- every required class/group has been reviewed or has an explicitly documented exception;
+- every student's promotion/repetition/deferment decision is resolved;
+- all required validations have passed or have an authorized override;
+- all class/group operations have been committed;
+- academic history is preserved;
+- the target-year state is internally consistent;
+- downstream class formation can consume the resulting promotion state;
+- an audit record exists for the cycle and its class/group decisions.
+
+The user should not be able to mark the whole cycle **Completed** merely because one class was processed.
+
+### Relationship to T-402
+
+T-402 remains the canonical batch-promotion implementation task. T-403 defines its required **human-in-the-loop cycle workflow** and UI structure.
+
+T-402/T-403 must share the same canonical promotion model, repository/RPC/domain logic, database transaction rules, and academic-history model. The cycle UI is a presentation/workflow layer, not a second promotion engine.
+
+### No duplicated logic
+
+Do not create:
+
+- a second promotion algorithm for the cycle page;
+- a second student-decision model;
+- separate class-level and cycle-level persistence models for the same decision;
+- page-specific promotion rules;
+- direct client-side database mutations that bypass the canonical promotion transaction.
+
+The cycle, class review, and any contextual entry point must all call the same domain/backend contract.
+
+### Definition of done
+
+The feature is complete only when an authorized user can create/open the next academic-year promotion cycle, review every relevant class one at a time, modify individual student decisions, receive incomplete-notes warnings, confirm each class, monitor cycle progress, and finally complete the entire cycle with consistent database state, preserved history, auditability, and downstream compatibility.
+
