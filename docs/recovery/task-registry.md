@@ -3853,3 +3853,123 @@ There must be one canonical timetable domain model and one constraint contract. 
 - T-401 for canonical Niveau → Filière → Spécialité → Classe/Section classification.
 - T-402/T-403 where promotion/class formation determines the academic-year class population.
 - Existing timetable discovery/problem registry entries, including SCHED-100 / UNKNOWN-011, must be read before implementation.
+
+
+## T-405 — Cross-Year Debt Aging & Payment-Behavior Tracking
+
+**Status:** Ready  
+**Priority:** P0 — Critical  
+**Scope:** Financial domain, database/backend, statistics, search/filtering, dashboards, student/parent financial pages, academic-year history, audit, and all platform consumers.
+
+### Objective
+
+Build a real financial debt-aging and payment-behavior system for outstanding balances carried from previous school years. The system must distinguish between a person who has an old outstanding debt but continued paying current/subsequent school fees and a person who has remained inactive or stopped paying altogether.
+
+This is not a visual color feature. Green/Yellow/Orange/Red are representations of an underlying canonical financial-status calculation.
+
+### Canonical analysis
+
+The calculation must use the existing financial/business rules and canonical payment/allocation model. It must consider, where applicable:
+
+- outstanding amount;
+- original due date;
+- debt age/duration;
+- payment activity;
+- payment history;
+- payments made in subsequent academic years;
+- last payment date;
+- periods of inactivity;
+- current-year obligations versus carried-forward obligations;
+- payment allocation/history needed to determine what was actually settled.
+
+Do not invent arbitrary thresholds in UI code. Status thresholds, eligibility, transitions, and exceptions must be derived from or formally added to the authoritative financial/business rules and documented before implementation.
+
+### Debt-status levels
+
+The system must expose a canonical status level such as:
+
+- **Green:** debt resolved or payment behavior is currently controlled/active according to the financial rules.
+- **Yellow/Orange:** sustained delinquency or inactivity requiring attention but not yet at the critical threshold.
+- **Red:** serious long-duration delinquency according to the authoritative financial rules.
+
+These labels are presentation. The database/domain must retain the underlying calculated factors and status reason(s), so users can understand why a person reached a level.
+
+### Critical distinction
+
+An old debt must not automatically mean severe delinquency.
+
+Example:
+- A parent has an unpaid balance originating 365+ days ago.
+- The parent nevertheless continued making payments for children during the following academic year.
+
+The system must preserve both facts and distinguish this from:
+- an equally old debt where the person stopped paying and has had prolonged inactivity.
+
+The status calculation must therefore evaluate debt age together with subsequent payment behavior and current activity.
+
+### Cross-year tracking
+
+Track financial continuity across academic years so staff can inspect:
+
+Academic Year → Original obligation → Due date → Payments/allocations → Remaining balance → Subsequent-year payment activity → Current debt age/status
+
+Historical obligations must remain attributable to their original year/due date while subsequent payments remain part of the person's actual payment history. Do not rewrite historical debt dates merely because a later payment occurred.
+
+### Integration requirements
+
+The feature must be consumed consistently by:
+
+- financial pages and debt/receivables views;
+- student/parent/person details;
+- payment history;
+- dashboards and operational statistics;
+- debt aging reports;
+- search and filtering;
+- alerts/attention workflows where applicable;
+- academic-year financial views;
+- exports/reports;
+- Android/Desktop/Website consumers where financial data is exposed.
+
+Users must be able to filter and inspect debt by age/status, amount, academic year, activity, and other supported financial dimensions without each page implementing its own calculation.
+
+### Dedicated debt tracking view
+
+Create a dedicated **Debt Aging / Suivi des Dettes** table/view showing, at minimum:
+
+- person/household;
+- affected student(s);
+- originating academic year;
+- original due date;
+- outstanding amount;
+- debt age;
+- last payment date;
+- subsequent-year payment activity;
+- inactivity duration;
+- canonical status level;
+- status reason/explanation;
+- last recalculation/update.
+
+The view must allow staff to open the underlying financial history rather than treating the status as a black box.
+
+### Calculation and data integrity
+
+- Use one canonical debt-status calculation/service.
+- No page-local color/status rules.
+- Do not treat missing payments as zero without an established financial meaning.
+- Do not reset debt age when a partial payment occurs.
+- Preserve original due dates and allocation history.
+- Separate current-year obligations from carried-forward historical debt while still analyzing the person's overall payment behavior.
+- Recalculate consistently when payments, allocations, due dates, academic-year context, or relevant financial rules change.
+- Preserve auditability of status-relevant changes.
+
+### Database/backend requirements
+
+The database/backend must own persisted financial facts, payment allocations, historical obligations, and the query contract needed to calculate/report debt aging. Any derived status must have a documented source-of-truth strategy and must not drift between Desktop, Android, Website, statistics, and reports.
+
+Before implementation, audit the existing financial schema, payment allocation logic, receivables/debt calculations, academic-year boundaries, and authoritative financial documents. Do not create a parallel debt ledger if the existing canonical financial model can support this feature.
+
+### Definition of done
+
+An authorized user can inspect a person's historical debt, see exactly when the obligation originated, how old it is, what remains outstanding, whether the person continued paying in later school years, how long they have been inactive, and the resulting rule-based status with an understandable explanation. The same calculation is used across financial pages, statistics, search/filtering, reports, and platform consumers.
+
+The feature is not complete until the distinction between "old debt but continued paying" and "old debt with prolonged non-payment" is demonstrably correct against real payment-history fixtures and the authoritative financial rules.
