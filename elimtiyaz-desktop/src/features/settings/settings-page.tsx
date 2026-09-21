@@ -40,6 +40,7 @@ import {
   SlidersHorizontal,
   RefreshCw,
   Activity,
+  FlaskConical,
 } from "lucide-react";
 import { useAuth } from "../../app/providers/auth-provider";
 import { Role } from "../../core/rbac/roles";
@@ -60,7 +61,8 @@ import { BackupTab as BackupTabImpl } from "./backup-tab";
 import { LockedFeaturesTab } from "./locked-features-tab";
 // T-393 (handed-over Task 21): the deterministic Supabase diagnostics screen —
 // self-contained module, French labels internal (no dictionary files touched).
-import { SupabaseDiagnosticsTab } from "./supabase-diagnostics";
+// T-396 (OPS-320): the CRUD integration test tab joins the same module family.
+import { SupabaseDiagnosticsTab, CrudTestTab } from "./supabase-diagnostics";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -69,7 +71,7 @@ import { SupabaseDiagnosticsTab } from "./supabase-diagnostics";
 /** All valid Settings tab IDs. Used to validate the ?tab= query param. */
 const VALID_TABS = [
   "general", "pricing", "audit", "rbac", "approvals", "accounts",
-  "config", "diagnostics", "sync", "ai", "backup", "locked",
+  "config", "diagnostics", "crud", "sync", "ai", "backup", "locked",
 ] as const;
 
 type SettingsTabId = (typeof VALID_TABS)[number];
@@ -126,6 +128,7 @@ export function SettingsPage() {
           <PageTab value="accounts" label="Comptes" icon={UserPlus} />
           <PageTab value="config" label="Configuration" icon={SlidersHorizontal} />
           <PageTab value="diagnostics" label="Diagnostic Supabase" icon={Activity} />
+          <PageTab value="crud" label="Tests CRUD" icon={FlaskConical} />
           <PageTab value="sync" label="Synchronisation" icon={RefreshCw} />
           <PageTab value="ai" label={t("settings.ai")} icon={Bot} />
           <PageTab value="backup" label={t("settings.backup")} icon={Database} />
@@ -162,6 +165,10 @@ export function SettingsPage() {
 
         <PageTabContent value="diagnostics" scrollable>
           <SupabaseDiagnosticsTab />
+        </PageTabContent>
+
+        <PageTabContent value="crud" scrollable>
+          <CrudTestTab />
         </PageTabContent>
 
         <PageTabContent value="sync" scrollable>
