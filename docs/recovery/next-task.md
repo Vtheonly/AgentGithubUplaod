@@ -428,3 +428,10 @@ T-506 / PACK-100 is IMPLEMENTED: Windows x64 installer and portable executables 
 - **T-401 (P1): Full Filière / Spécialité Integration Across the System.** Establish one canonical Niveau → Filière → Spécialité → Classe/Section model with DBA-owned persistence/validation and integrate it across every relevant UI, search, filter, statistic, placement, history, and import/export path.
 
 These tasks supersede any attempt to solve either requirement as a single-page UI patch.
+
+
+### T-404 — Automatic Timetable Generation & Constraint Scheduling
+
+T-404 is now registered as a P0 Ready task. Before implementation, read the existing timetable problem entries (including SCHED-100 / UNKNOWN-011), inspect any existing timetable mocks/contracts, and establish the canonical timetable domain model. The implementation must support school-wide automatic generation, Algerian configuration, class-specific free days, hard/soft constraints, a dedicated Timetable/Emploi du temps viewing area, versioning/manual review/publication, and a TypeScript/Node.js solver adapter.
+
+The production gate is the packaged Electron application, not development mode: bundle the solver, test the packaged app on a clean target environment, and explicitly verify the Windows x64 executable before marking the task complete.
