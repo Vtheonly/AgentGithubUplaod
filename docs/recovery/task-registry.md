@@ -3767,3 +3767,89 @@ The cycle, class review, and any contextual entry point must all call the same d
 
 The feature is complete only when an authorized user can create/open the next academic-year promotion cycle, review every relevant class one at a time, modify individual student decisions, receive incomplete-notes warnings, confirm each class, monitor cycle progress, and finally complete the entire cycle with consistent database state, preserved history, auditability, and downstream compatibility.
 
+
+
+## T-404 — Automatic Timetable Generation & Constraint Scheduling
+
+**Status:** Ready  
+**Priority:** P0  
+**Scope:** Desktop/Electron + canonical backend contract + timetable domain/solver integration + generated timetable viewing.
+
+### Objective
+
+Build a real school-wide automatic timetable generator for all academic years, levels, filières/specialties, classes, teachers, subjects/modules, rooms, days, and time periods. The generator must create valid schedules from curriculum requirements and configurable constraints rather than requiring staff to manually construct the timetable.
+
+### Mandatory capabilities
+
+- Configure academic year, school days, periods, lesson durations, breaks, and available scheduling windows.
+- Configure classes/groups, teachers, subjects/modules, rooms, capacities, room types, and teacher assignments.
+- Define how many sessions/hours each subject requires per week for each relevant level/class.
+- Support lesson duration/session length and consecutive periods for laboratory or double-period lessons.
+- Support hard constraints that must never be violated: teacher/class/room double-booking, incompatible rooms, unavailable teacher/class periods, required weekly hours, capacity limits, and other established scheduling invariants.
+- Support soft constraints/preferences with visible violation reporting: preferred periods, avoiding gaps, maximum daily lessons, preferred morning/afternoon placement, consecutive-lesson limits, and similar preferences.
+- Support class-specific free days/unavailable days. A free day may be configured as a preferred soft constraint or, where explicitly required, as a hard constraint.
+- Support teacher availability/unavailability and room availability.
+- Support an Algerian school configuration as a first-class configuration profile, while keeping the solver generic and data-driven. The profile must cover the school's configured academic levels/streams, school week, periods, breaks, subject-hour requirements, room types, and other local scheduling rules without hardcoding them into the solver.
+- Generate timetables for the whole school/year while preserving human review and adjustment.
+- Explain unsatisfied constraints and impossible schedules instead of silently producing an invalid timetable.
+- Allow manual post-generation adjustments with immediate conflict validation.
+- Keep generated schedules as versioned draft/trial runs; never overwrite the active timetable implicitly.
+- Publish/activate an explicitly reviewed timetable version.
+- Preserve audit information for generation, manual changes, review, and publication.
+
+### Solver architecture and Node.js/TypeScript requirement
+
+Node.js + TypeScript is mandatory for the El-Imtiyaz integration layer. The timetable feature must not require end users to install Node.js, Python, C++, Java, or a separate solver.
+
+Use a stable TypeScript solver-adapter contract such as TimetableSolver. Prefer a native Node/TypeScript-compatible solver when sufficiently capable and reliable. If an established external solver such as FET is selected, bundle the required platform-specific executable/runtime with Electron and invoke it through the adapter; do not expose solver installation/configuration to the end user.
+
+Never make business logic depend directly on solver-specific APIs or file paths. The canonical El-Imtiyaz model remains TypeScript/domain-owned and the adapter translates to/from the solver representation.
+
+### Packaging and reliability requirements
+
+Development success alone is not sufficient.
+
+The exact packaged Electron application must be tested with the bundled solver on clean target environments. No solver executable may be resolved from the developer PATH or from hardcoded development paths.
+
+Required validation:
+1. Development generation on the developer PC.
+2. Production build/package with every required solver binary/resource bundled.
+3. Packaged-app generation with no development runtime installed.
+4. Target-platform smoke testing, including Windows x64 for the distributable EXE.
+5. Known-good deterministic fixture generation test.
+6. Failure diagnostics when the solver cannot start or returns an invalid result.
+7. Reopen/reload test proving the generated timetable persists correctly.
+8. Version/solver-build identification for reproducibility.
+
+The final acceptance criterion is the packaged application successfully generating, validating, saving, reopening, and displaying a timetable on a clean target environment without developer-only dependencies.
+
+### New dedicated timetable viewing area
+
+Create a dedicated Timetable / Emploi du temps table/view where staff can see the generated timetable after generation.
+
+The view must support at minimum:
+- academic year;
+- class/group;
+- level/filière/specialty;
+- day and period;
+- subject/module;
+- teacher;
+- room;
+- generated version/status;
+- conflict/constraint status where relevant.
+
+Provide class-oriented timetable viewing as the primary staff view, with useful room/teacher views where the same canonical generated schedule can be inspected without creating duplicate timetable data.
+
+### Definition of done
+
+An authorized user can configure timetable inputs and constraints, generate a school-wide timetable, receive an honest valid/invalid result with conflict explanations, review it in the dedicated Timetable/Emploi du temps area, manually adjust it with live conflict checks, save/version it, and explicitly publish an approved version. The same packaged Electron application must perform generation on the target environment without requiring external runtime installation.
+
+### No duplicate model / logic rule
+
+There must be one canonical timetable domain model and one constraint contract. UI pages, room views, teacher views, class views, exports, and future Android/Website consumers must read the same generated schedule rather than maintaining independent timetable representations or algorithms.
+
+### Dependencies
+
+- T-401 for canonical Niveau → Filière → Spécialité → Classe/Section classification.
+- T-402/T-403 where promotion/class formation determines the academic-year class population.
+- Existing timetable discovery/problem registry entries, including SCHED-100 / UNKNOWN-011, must be read before implementation.
