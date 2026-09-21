@@ -3994,3 +3994,65 @@ Before implementation, audit the existing financial schema, payment allocation l
 An authorized user can inspect a person's historical debt, see exactly when the obligation originated, how old it is, what remains outstanding, whether the person continued paying in later school years, how long they have been inactive, and the resulting rule-based status with an understandable explanation. The same calculation is used across financial pages, statistics, search/filtering, reports, and platform consumers.
 
 The feature is not complete until the distinction between "old debt but continued paying" and "old debt with prolonged non-payment" is demonstrably correct against real payment-history fixtures and the authoritative financial rules.
+
+
+## T-406 — Manager Worker Group Chat & Automatic Client Contact Channels
+
+**Status:** Ready  
+**Priority:** P1  
+**Scope:** Manager workspace, worker communication, client communication, permissions, client portal activation, channel/conversation lifecycle, UI/core integration, testing.
+
+### Objective
+
+Build a fully integrated communication workflow in the Manager for both worker-to-worker group communication and client communication. The feature must use the existing authentication, authorization, Manager communication, and client-portal models rather than creating parallel permission or messaging logic.
+
+### Worker group chat
+
+Provide group channels for workers inside the Manager. Authorized workers must be able to create/open channels, participate in conversations, send messages, and reply according to the existing permission model.
+
+Fix the current permission-flow issue where creating a channel can incorrectly display a message such as **“You have permission to make this action too”** even though the user is already authorized. Channel creation, messaging, replies, and channel management must use consistent existing permission checks and must not introduce a second RBAC system.
+
+### Client communication / reply section
+
+Provide a Manager communication/reply area for contacting clients through their available client communication channel. It must support conversation history, sending replies, receiving/viewing messages where supported by the existing architecture, read/unread state, clear client identification, and permission-aware access.
+
+### Automatic channel creation when a client portal is activated
+
+Whenever a client's portal is activated, automatically create or open the corresponding client contact conversation in the Manager.
+
+The workflow is:
+
+**Activate Client Portal → Create/open the client's communication channel → Make the conversation immediately available in Manager**
+
+If the client already has a communication channel, reuse/open that existing channel. Never create duplicate client conversations for the same client.
+
+### No duplicated logic
+
+Reuse the existing permission/RBAC model, authentication identity, client identity, portal state, communication primitives, and channel/conversation data model wherever they already exist.
+
+Do not create a second permission system, duplicate client identity model, parallel conversation model, or page-specific authorization rules. If an existing function/service/query/component already provides the required capability, extend and reuse it.
+
+### Full UI and core integration testing
+
+This task must be tested as a real end-to-end workflow, not as disconnected UI mocks. Perform extensive UI and mouse-interaction testing covering:
+
+- creating worker group channels;
+- opening and switching channels;
+- sending messages;
+- replying to messages;
+- permission boundaries for authorized and unauthorized users;
+- activating a client portal;
+- automatic creation/opening of the client contact channel;
+- sending the first client message;
+- reopening an existing client conversation;
+- preventing duplicate client channels;
+- unread/read behavior where supported;
+- refresh/reload persistence;
+- navigation between Manager and client-related views;
+- verifying that UI state matches the underlying core/data state.
+
+The final implementation must prove that the Manager UI, permission system, client portal activation state, and communication logic are fully integrated and remain synchronized.
+
+### Definition of done
+
+An authorized worker can communicate with other workers through Manager group channels and communicate with clients through their Manager conversation. Creating a client portal automatically makes the correct client communication channel available without manual channel creation, existing channels are reused rather than duplicated, permissions behave consistently, and the complete workflow passes comprehensive UI, mouse-interaction, persistence, and core-integration tests.
