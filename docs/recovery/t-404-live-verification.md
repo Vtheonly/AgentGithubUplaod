@@ -111,3 +111,47 @@ T-404 packaging gate. Fixed by making `editing` optional (default `false`)
 in the four components (`dashboard-layout-editor`,
 `dashboard-tab-layout-editor`, `tabs/analytics-tab`, `tabs/overview-tab`)
 — backward compatible, 0 tsc errors project-wide after the fix.
+
+## 6. SCHED-103 addendum (2026-09-22, same day) — the live 400 from the running app
+
+The owner reported console 400s from the **running production app**: every
+curriculum load hit
+`/rest/v1/class_subjects?select=…,personnel!left(first_name,last_name)&…`.
+
+**Reproduced verbatim** (admin JWT, the exact URL):
+
+```json
+{"code":"PGRST200",
+ "details":"Searched for a foreign key relationship between 'class_subjects' and 'personnel' in the schema 'public', but no matches were found.",
+ "message":"Could not find a relationship between 'class_subjects' and 'personnel' in the schema cache"}
+```
+
+**Root cause:** `class_subjects.teacher_id` has been a BARE uuid since 0004
+(its inline "FK to personnel(id), filled in 0009" comment was never
+honoured — 0009 only created the personnel table). PostgREST embedded
+resources resolve relationships from REAL FK constraints. The mock-twin
+repository tests never parse PostgREST select strings and the §1 matrix was
+SQL-level — the embed path was never exercised live (test gap; closed by
+`t404-postgrest-smoke.sh`).
+
+| Check | Result | Evidence |
+|---|---|---|
+| Defect pinned on the verbatim URL (pre-0113) | PASS | HTTP 400 + PGRST200 (admin JWT, authenticated) |
+| App fix: curriculum query without the embed | PASS | HTTP 200, authenticated (rows=0 — the year's curriculum is not yet configured on this backend; honest empty state) |
+| loadProblem query set (config/rooms/constraints/classes) | PASS | all HTTP 200 (config rows=1 — the Algerian seed; rooms rows=1) |
+| personnel `.in(teacher_ids)` resolution path | PASS | skipped-info (no teacher assigned yet — 0 curriculum rows) |
+| Every other app embed (defect-class net) | PASS | expenses→categories, personnel→salary_*, workflow_runs→workflows, classes→academic_years — all 200 |
+| **Smoke total** | **PASS 10/10** | `bash scripts/t404-postgrest-smoke.sh` |
+| Migration 0113 (canonical FK fix; renumbered from the drafted 0112 after the parallel session's register_family_batch 0112 applied first) parse | PASS | pglast (real Postgres grammar): 6 statements; full apply payload 9 statements; JSON round-trip intact |
+| T-404 suites re-run after the fix | PASS | 41/41 (domain 25 + repository 9 + UI 7) |
+| Full-suite regression | PASS | 3681 passed / 21 failed = the byte-identical session-opening baseline (parallel session's zone) |
+| Rebuilt artifacts | PASS | production bundle (tsc 0); Windows x64 portable .exe 97,824,729 bytes, SHA256 `9330a6a93954af89da746216be304a41061f95cd913db80f46405ea0437d5456`; ASAR-verified: `personnel!left` ABSENT, `ts-greedy-v1` PRESENT |
+
+**Owner-gated residual (the T-277 precedent):** migration **0113**
+(orphan cleanup + `class_subjects_teacher_id_fkey` +
+`classes_homeroom_teacher_id_fkey`, both `ON DELETE SET NULL`,
+`NOT VALID` + `VALIDATE`) is written and ready; the sbp_ access token was
+not re-supplied this session (never persisted). Runbook:
+`SUPABASE_ACCESS_TOKEN=sbp_… bash elimtiyaz-desktop/scripts/apply_0113_live.sh`
+→ `bash elimtiyaz-desktop/scripts/t404-postgrest-smoke.sh --expect-fk`
+(P2 must flip 400 → 200; the PostgREST schema cache auto-reloads on DDL).

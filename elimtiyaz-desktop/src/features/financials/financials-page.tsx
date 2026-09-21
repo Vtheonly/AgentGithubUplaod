@@ -36,6 +36,7 @@ import {
   Bell,
   Lock,
   Brain,
+  Hourglass,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -76,6 +77,8 @@ import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
 import { ReceiptsTab } from "./receipts-tab";
 import { PaymentDetailDrawer } from "./payment-detail-drawer";
+// T-405 — the dedicated Debt Aging / Suivi des Dettes view (§15 consumer).
+import { DebtAgingTab } from "./debt-aging-tab";
 
 
 
@@ -93,7 +96,7 @@ import { CashFlowRadar } from "./cash-flow-radar";
 
 
 
-type FinanceTab = "payments" | "installments" | "debt" | "expenses" | "receipts" | "diagnostic";
+type FinanceTab = "payments" | "installments" | "debt" | "debt-aging" | "expenses" | "receipts" | "diagnostic";
 
 export function FinancialsPage() {
 
@@ -195,6 +198,8 @@ export function FinancialsPage() {
         return "Échéancier des tranches par famille — encaissement en un clic.";
       case "debt":
         return "Top 20 débiteurs familiaux + répartition par niveau scolaire.";
+      case "debt-aging":
+        return "Suivi des dettes multi-années — ancienneté, comportement de paiement et statut canonique par famille.";
       case "expenses":
         return "Demandes de dépenses — workflow Approbation → Décaissement → Justificatif.";
       case "receipts":
@@ -246,6 +251,7 @@ export function FinancialsPage() {
           <PageTab value="payments" label="Paiements" icon={CreditCard} />
           <PageTab value="installments" label="Tranches" icon={CalendarClock} />
           <PageTab value="debt" label="Créances" icon={AlertCircle} count={debtSummary.length} countTone={overdueDebt > 0 ? "danger" : "default"} />
+          <PageTab value="debt-aging" label="Suivi des Dettes" icon={Hourglass} />
           <PageTab value="expenses" label="Dépenses" icon={Send} count={pendingExpenses} countTone={pendingExpenses > 0 ? "warning" : "default"} />
           <PageTab value="receipts" label="Reçus" icon={FileCheck} />
           <PageTab value="diagnostic" label="Diagnostic & Requêtes" icon={Brain} count={diagnosticAlertCount} countTone={diagnosticAlertCount > 0 ? "warning" : "default"} />
@@ -259,6 +265,9 @@ export function FinancialsPage() {
         </PageTabContent>
         <PageTabContent value="debt">
           <DebtTab />
+        </PageTabContent>
+        <PageTabContent value="debt-aging">
+          <DebtAgingTab />
         </PageTabContent>
         <PageTabContent value="expenses">
           <ExpensesTab expenses={expenses} onOpenExpense={openExpense} />
@@ -372,6 +381,7 @@ function TabActions({
       ) : null;
     case "payments":
     case "debt":
+    case "debt-aging":
     case "receipts":
       return null;
     default:
