@@ -1,3 +1,14 @@
+## 86th session (2026-09-22) — T-407 COMPLETE — VERIFIED: the UI/mouse-interaction suites of T-401/T-402/T-403 + ACAD-504 closed (migration 0112)
+
+**T-407** delivered: the three feature suites (**32 tests**, all green) driving the REAL components with REAL pointer events — `src/tests/_helpers/radix-mouse.ts` (the §15.40 contract extracted) + the T-401 filière forms / the T-402 history card / the T-403 cycle workflow suites (the two-phase [NOTES_INCOMPLETES] ack, the override dance, the completion gating, the reopen). The suites surfaced and fixed **ACAD-504**: the batch-registration classification was DROPPED end-to-end (migration **0112** threads it through `register_family_batch` — live **6/6**, zero residue), the promotion override carried a STALE next-grade (the promoted student never advanced — `applyDecisionOverride` + the progression-derived payload), and the « Générale » sentinel family (blank trigger + the literal "general"). Gates: tsc **0 errors** (post-merge of the concurrent agent's repair), FULL vitest **3718/21/5** post-merge (byte-identical failing set), lint 0 errors. Chain head **0112** — NOTE the concurrent agent owns live 0111 (`debt_aging_analysis`, not yet pushed to git); coordinate on the chain when they push. Evidence: `docs/recovery/t-407-live-verification.md`.
+
+**Standing recommendation (updated):**
+1. The T-401..T-403 residuals stand (wire `subject_configurations.direction` to `classes.filiere_code`; the skip/exception marking from the cycle UI; the studio deep-link after completion; the Android `p_filiere_code` push; the staff-JWT `filieres` RLS probe) + NEW from T-407: the class-detail contextual cycle entry could get a full-page render test; the batch-registration wizard walk-through harness.
+2. **OPS-319's restore surface** (the standing recommendation).
+3. **BUSINESS-105** (the half-refund defect).
+4. The owner's §4 EXE acceptance pass + the Personnel matrix.
+5. The standing T-337 (REALTIME-105's PORTAL set; next free migration **0113**) / WORKFORCE-503 / the CALC-001 baseline repair / the concurrent agent's 6 tsc + 21 vitest fixture drift (their subtree).
+
 # Next Task — Selection Guide
 
 > Single starting point for "what should I work on next?" When you start a task, set it `In Progress` in `task-registry.md` and identify it here. When you finish, move it to Completed, append evidence to `change-log.md`, and update this file's recommendation.

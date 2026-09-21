@@ -46,7 +46,7 @@ import {
   type AcademicLevel,
 } from "../../domain/model/student";
 import type { AcademicClass } from "../../domain/model/academic";
-import { getFilieresForGrade, getSpecialitesForFiliere, trackLabelFr } from "../../domain/model/filiere";
+import { getFilieresForGrade, getSpecialitesForFiliere, normalizeTrackCode, trackLabelFr } from "../../domain/model/filiere";
 import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
@@ -384,9 +384,13 @@ function CreateClassModal({
       level: derivedLevel,
       gradeYear: 1,
       section,
-      // T-401: the classification ("" → null = untagged).
-      filiereCode: filiereCode || null,
-      specialiteCode: specialiteCode || null,
+      // T-407 fix: normalize through the CANONICAL normalizer — picking the
+      // catalog's « Générale » option (code "general") previously persisted
+      // the literal "general" instead of the canonical NULL (the SQL layer
+      // normalizes it away server-side, but the wire must carry the
+      // canonical form — mock mode has no server to fix it).
+      filiereCode: normalizeTrackCode(filiereCode),
+      specialiteCode: normalizeTrackCode(specialiteCode),
       room: room.trim() || null,
       capacity: null,
       homeroomTeacherId: teacherId || null,

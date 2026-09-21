@@ -3996,6 +3996,7 @@ An authorized user can inspect a person's historical debt, see exactly when the 
 The feature is not complete until the distinction between "old debt but continued paying" and "old debt with prolonged non-payment" is demonstrably correct against real payment-history fixtures and the authoritative financial rules.
 
 
+
 ## T-406 — Manager Worker Group Chat & Automatic Client Contact Channels
 
 **Status:** Ready  
@@ -4056,3 +4057,18 @@ The final implementation must prove that the Manager UI, permission system, clie
 ### Definition of done
 
 An authorized worker can communicate with other workers through Manager group channels and communicate with clients through their Manager conversation. Creating a client portal automatically makes the correct client communication channel available without manual channel creation, existing channels are reused rather than duplicated, permissions behave consistently, and the complete workflow passes comprehensive UI, mouse-interaction, persistence, and core-integration tests.
+
+## T-407 — The T-401/T-402/T-403 UI + Mouse-Interaction Integration Suite
+
+**Status:** Verified (2026-09-22, 85th session) — COMPLETE (renumbered from the drafted T-407 after the concurrent agent's T-407 manager-chat registration landed on main first): the mandate ("do so, so many UI tests and mouse interaction tests to ensure that the UI and the core logic are fully integrated throughout these tasks") delivered as three feature suites (32 tests) driving the REAL components with REAL mouse events (the §15.40 Radix dance, extracted to `src/tests/_helpers/radix-mouse.ts`): the T-401 filière forms (the edit modal's canonical catalog per grade, the spécialité dependency + reset, the wire payload, the legacy-filière preservation, the class cards' badges + breakdown counts, the create-class dialog), the T-402 history card (the decision chips' repeater distinguishability, the T-401 classification stamps on archived years, the expandable bulletin click, the honest empty state), and the T-403 cycle workflow (the tab's create/disable gating, the completion gating with the remaining-classes hint, the reopen path, the review modal's decision table, the [NOTES_INCOMPLETES] two-phase ack with the Annuler path, the per-student override dance, the threshold flip). The suite SURFACED AND FIXED ACAD-504 (the batch-registration classification drop — migration 0112, live 6/6; the promotion override's stale destination — applyDecisionOverride + the progression-derived payload; the « Générale » sentinel family — the catalog-code sentinel + normalizeTrackCode at every submit). Gates: desktop tsc 0 errors (post-merge of the concurrent agent's repair), FULL vitest 3718/21/5 post-merge (the failing set byte-identical), lint 0 errors. Chain head **0112** (the concurrent agent's live 0111 debt_aging_analysis respected — my migration renumbered from 0111 to 0112 after the live chain diff). Evidence: docs/recovery/t-407-live-verification.md  
+**Priority:** P1  
+**Scope:** Desktop UI suites + the integration defects they surfaced (migration 0112 + the wire/mock/domain fixes).
+
+### Objective
+
+The three delivered academic tasks (T-401 filière/spécialité, T-402 canonical promotion, T-403 promotion cycles) were verified at the domain/infrastructure/live-RPC layers but had NO mouse-level UI integration tests. This task closes that gap: drive every user-facing surface of the three tasks with REAL pointer-event interactions (the §15.40 contract) against the REAL components + mock repositories, assert the UI↔core-logic integration at the wire level (the repository payloads, the store end-states, the two-phase acks), and fix every defect the suites surface — reusing and extending the existing logic (never parallel implementations).
+
+### Definition of done
+
+Every T-401/402/403 user surface has a mouse-driven integration test pinning its contract (the catalog options, the dependent fields, the wire payloads, the gating states, the two-phase acks); every defect found is fixed at the canonical layer (the domain helper, the RPC thread, the mock parity) with its own verification; the full suite stays at the byte-identical failing baseline; the backend changes land as a registered migration with live evidence.
+

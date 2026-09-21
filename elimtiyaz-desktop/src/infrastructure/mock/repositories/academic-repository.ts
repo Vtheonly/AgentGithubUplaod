@@ -83,6 +83,13 @@ export class MockClassRepository implements ClassRepository {
       tenantId: TENANT_ID,
       enrolledCount: 0,
       notes: input.notes ?? null,
+      // T-407 (mock/Supabase parity): normalize the classification at the
+      // store boundary — the Supabase createClass normalizes "general" →
+      // NULL at its wire, so the mock's store must too (the create-class
+      // dialogs used to send the literal "general" when « Générale » was
+      // picked).
+      filiereCode: normalizeTrackCode(input.filiereCode),
+      specialiteCode: normalizeTrackCode(input.specialiteCode),
       isActive: true,
     };
     store.classes.push(cls);

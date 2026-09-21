@@ -1428,6 +1428,12 @@ export class SupabaseStudentRepository implements StudentRepository {
         grade_level_code: sInput.gradeLevel ?? null,
         transport_tier: sInput.transportTier ?? null,
         payment_plan: sInput.paymentPlan ?? "tranches",
+        // T-407 fix: the classification the wizard's step 2 collected was
+        // DROPPED here — the register_family_batch RPC has threaded it
+        // through to upsert_student_from_import since migration 0111.
+        // Normalize through the canonical normalizer ("general"/"" → NULL).
+        filiere_code: normalizeTrackCode(sInput.filiereCode) ?? null,
+        specialite_code: normalizeTrackCode(sInput.specialiteCode) ?? null,
       }));
 
       // -----------------------------------------------------------------
