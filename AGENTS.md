@@ -395,3 +395,23 @@ The academic chain Niveau → Filière → Spécialité → Classe/Section and t
 ### 43. **Batch promotion must use a human-in-the-loop Promotion Cycle (T-403, 2026-09-21)**
 
 Batch promotion means processing a school-year cohort as one managed cycle, not blindly promoting the entire school with one click. The cycle is the scope; each class/group is reviewed and explicitly confirmed one at a time. Create a dedicated Batch Promotion Cycles area/table, normally focused on the next academic year. Remove scattered direct-promotion buttons; contextual pages may link to the cycle but must not implement independent promotion logic. The cycle UI must use the same canonical promotion domain/database contract as T-402, support per-student decisions, incomplete-notes warnings, class-level atomic confirmation, progress tracking, and final whole-cycle completion. A cycle cannot be marked complete merely because one class was processed.
+
+
+## Automatic Timetable rule — T-404
+
+Automatic timetable generation is a system-wide domain feature, not a calendar widget. Agents implementing it MUST use the canonical academic model and a single TypeScript/Node.js timetable adapter. Do not create page-local scheduling algorithms, class/teacher/room-specific schedule stores, or solver-specific business logic.
+
+The feature must support school-wide generation from curriculum hours, lesson durations, teachers, rooms, availability, hard/soft constraints, and class-specific free days. The Algerian school configuration must be represented as data/configuration, not scattered constants.
+
+A packaged Electron build is mandatory. The bundled solver must not depend on the developer PATH, machine-specific paths, or an end-user-installed runtime. Development success alone is insufficient: the exact packaged application must be smoke-tested on a clean target environment, including the Windows x64 executable, with a known-good fixture and failure diagnostics.
+
+Generated timetables must be versioned and reviewed before publication. The dedicated Timetable/Emploi du temps view is the canonical presentation surface; class, teacher, and room views consume the same schedule. See T-404 in docs/recovery/task-registry.md.
+
+
+## Cross-Year Debt Aging rule — T-405
+
+Cross-year debt aging and payment-behavior status is a P0 critical financial domain feature. Agents MUST use the existing canonical financial/payment/allocation model and authoritative business rules. Do not create page-local debt calculations, arbitrary color thresholds, or a parallel debt ledger.
+
+The system must distinguish old outstanding debt from prolonged non-payment by analyzing debt age together with payment activity across subsequent academic years, original due date, outstanding amount, last payment, and inactivity. Green/Yellow/Orange/Red are presentation of a canonical status calculation, not the business logic.
+
+The dedicated Debt Aging / Suivi des Dettes view, financial pages, dashboards, search/filtering, reports, and all platform consumers must use the same canonical calculation. See T-405 in docs/recovery/task-registry.md.

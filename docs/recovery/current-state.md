@@ -362,3 +362,17 @@ Payment EFs never invoked (`DEAD-016`), desktop refund path unreachable (`DEAD-0
 ## Pending owner mandate — T-401/T-402 academic integration
 
 The next academic work must treat filière/spécialité and batch promotion as system-wide contracts rather than isolated UI fields. T-401 requires a full Niveau → Filière → Spécialité → Classe/Section integration through the DBA/backend and every relevant client surface. T-402 requires batch promotion to become fully functional across all pages and supported platforms, using one canonical promotion model/write path and feeding class formation directly. No duplicate forms, page-local academic taxonomies, or duplicated promotion logic are permitted.
+
+
+### T-404 registered — Automatic Timetable Generation & Constraint Scheduling
+
+A new P0 task is registered for a real school-wide automatic timetable generator. It covers curriculum/session requirements, rooms, teachers, days, periods, lesson durations, hard/soft constraints, class-specific free days, an Algerian school configuration profile, a dedicated Timetable/Emploi du temps viewing table, versioned generation, human review/manual adjustment, and publication.
+
+The implementation must remain Node.js + TypeScript at the El-Imtiyaz integration boundary. If an established solver such as FET is used, it must be isolated behind a TypeScript adapter and bundled with Electron as a platform-specific executable/runtime. Completion requires clean-target testing of the actual packaged application, including the Windows x64 executable; development-only success is not sufficient.
+
+
+### T-405 registered — Cross-Year Debt Aging & Payment-Behavior Tracking
+
+A new P0 Critical financial task is registered to track aging historical debt together with payment behavior across subsequent academic years. It explicitly distinguishes old debt with continued payment activity from old debt with prolonged non-payment, while preserving original due dates and allocation history.
+
+The feature requires one canonical rule-based status calculation, a dedicated Debt Aging / Suivi des Dettes view, and consistent use across financial pages, statistics, search/filtering, reports, and platform consumers.

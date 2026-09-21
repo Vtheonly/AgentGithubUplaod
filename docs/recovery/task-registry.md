@@ -3767,3 +3767,230 @@ The cycle, class review, and any contextual entry point must all call the same d
 
 The feature is complete only when an authorized user can create/open the next academic-year promotion cycle, review every relevant class one at a time, modify individual student decisions, receive incomplete-notes warnings, confirm each class, monitor cycle progress, and finally complete the entire cycle with consistent database state, preserved history, auditability, and downstream compatibility.
 
+
+
+## T-404 — Automatic Timetable Generation & Constraint Scheduling
+
+**Status:** IN_PROGRESS (2026-09-22 — backend half IMPLEMENTED+live-verified: migrations 0109/0110, 27/27 verify_t-404.sql; domain/solver/UI/packaging remaining)  
+**Priority:** P0  
+**Scope:** Desktop/Electron + canonical backend contract + timetable domain/solver integration + generated timetable viewing.
+
+### Objective
+
+Build a real school-wide automatic timetable generator for all academic years, levels, filières/specialties, classes, teachers, subjects/modules, rooms, days, and time periods. The generator must create valid schedules from curriculum requirements and configurable constraints rather than requiring staff to manually construct the timetable.
+
+### Mandatory capabilities
+
+- Configure academic year, school days, periods, lesson durations, breaks, and available scheduling windows.
+- Configure classes/groups, teachers, subjects/modules, rooms, capacities, room types, and teacher assignments.
+- Define how many sessions/hours each subject requires per week for each relevant level/class.
+- Support lesson duration/session length and consecutive periods for laboratory or double-period lessons.
+- Support hard constraints that must never be violated: teacher/class/room double-booking, incompatible rooms, unavailable teacher/class periods, required weekly hours, capacity limits, and other established scheduling invariants.
+- Support soft constraints/preferences with visible violation reporting: preferred periods, avoiding gaps, maximum daily lessons, preferred morning/afternoon placement, consecutive-lesson limits, and similar preferences.
+- Support class-specific free days/unavailable days. A free day may be configured as a preferred soft constraint or, where explicitly required, as a hard constraint.
+- Support teacher availability/unavailability and room availability.
+- Support an Algerian school configuration as a first-class configuration profile, while keeping the solver generic and data-driven. The profile must cover the school's configured academic levels/streams, school week, periods, breaks, subject-hour requirements, room types, and other local scheduling rules without hardcoding them into the solver.
+- Generate timetables for the whole school/year while preserving human review and adjustment.
+- Explain unsatisfied constraints and impossible schedules instead of silently producing an invalid timetable.
+- Allow manual post-generation adjustments with immediate conflict validation.
+- Keep generated schedules as versioned draft/trial runs; never overwrite the active timetable implicitly.
+- Publish/activate an explicitly reviewed timetable version.
+- Preserve audit information for generation, manual changes, review, and publication.
+
+### Solver architecture and Node.js/TypeScript requirement
+
+Node.js + TypeScript is mandatory for the El-Imtiyaz integration layer. The timetable feature must not require end users to install Node.js, Python, C++, Java, or a separate solver.
+
+Use a stable TypeScript solver-adapter contract such as TimetableSolver. Prefer a native Node/TypeScript-compatible solver when sufficiently capable and reliable. If an established external solver such as FET is selected, bundle the required platform-specific executable/runtime with Electron and invoke it through the adapter; do not expose solver installation/configuration to the end user.
+
+Never make business logic depend directly on solver-specific APIs or file paths. The canonical El-Imtiyaz model remains TypeScript/domain-owned and the adapter translates to/from the solver representation.
+
+### Packaging and reliability requirements
+
+Development success alone is not sufficient.
+
+The exact packaged Electron application must be tested with the bundled solver on clean target environments. No solver executable may be resolved from the developer PATH or from hardcoded development paths.
+
+Required validation:
+1. Development generation on the developer PC.
+2. Production build/package with every required solver binary/resource bundled.
+3. Packaged-app generation with no development runtime installed.
+4. Target-platform smoke testing, including Windows x64 for the distributable EXE.
+5. Known-good deterministic fixture generation test.
+6. Failure diagnostics when the solver cannot start or returns an invalid result.
+7. Reopen/reload test proving the generated timetable persists correctly.
+8. Version/solver-build identification for reproducibility.
+
+The final acceptance criterion is the packaged application successfully generating, validating, saving, reopening, and displaying a timetable on a clean target environment without developer-only dependencies.
+
+### New dedicated timetable viewing area
+
+Create a dedicated Timetable / Emploi du temps table/view where staff can see the generated timetable after generation.
+
+The view must support at minimum:
+- academic year;
+- class/group;
+- level/filière/specialty;
+- day and period;
+- subject/module;
+- teacher;
+- room;
+- generated version/status;
+- conflict/constraint status where relevant.
+
+Provide class-oriented timetable viewing as the primary staff view, with useful room/teacher views where the same canonical generated schedule can be inspected without creating duplicate timetable data.
+
+### Definition of done
+
+An authorized user can configure timetable inputs and constraints, generate a school-wide timetable, receive an honest valid/invalid result with conflict explanations, review it in the dedicated Timetable/Emploi du temps area, manually adjust it with live conflict checks, save/version it, and explicitly publish an approved version. The same packaged Electron application must perform generation on the target environment without requiring external runtime installation.
+
+### No duplicate model / logic rule
+
+There must be one canonical timetable domain model and one constraint contract. UI pages, room views, teacher views, class views, exports, and future Android/Website consumers must read the same generated schedule rather than maintaining independent timetable representations or algorithms.
+
+### Dependencies
+
+- T-401 for canonical Niveau → Filière → Spécialité → Classe/Section classification.
+- T-402/T-403 where promotion/class formation determines the academic-year class population.
+- Existing timetable discovery/problem registry entries, including SCHED-100 / UNKNOWN-011, must be read before implementation.
+
+
+## T-405 — Cross-Year Debt Aging & Payment-Behavior Tracking
+
+**Status:** Ready  
+**Priority:** P0 — Critical  
+**Scope:** Financial domain, database/backend, statistics, search/filtering, dashboards, student/parent financial pages, academic-year history, audit, and all platform consumers.
+
+### Objective
+
+Build a real financial debt-aging and payment-behavior system for outstanding balances carried from previous school years. The system must distinguish between a person who has an old outstanding debt but continued paying current/subsequent school fees and a person who has remained inactive or stopped paying altogether.
+
+This is not a visual color feature. Green/Yellow/Orange/Red are representations of an underlying canonical financial-status calculation.
+
+### Canonical analysis
+
+The calculation must use the existing financial/business rules and canonical payment/allocation model. It must consider, where applicable:
+
+- outstanding amount;
+- original due date;
+- debt age/duration;
+- payment activity;
+- payment history;
+- payments made in subsequent academic years;
+- last payment date;
+- periods of inactivity;
+- current-year obligations versus carried-forward obligations;
+- payment allocation/history needed to determine what was actually settled.
+
+Do not invent arbitrary thresholds in UI code. Status thresholds, eligibility, transitions, and exceptions must be derived from or formally added to the authoritative financial/business rules and documented before implementation.
+
+### Debt-status levels
+
+The system must expose a canonical status level such as:
+
+- **Green:** debt resolved or payment behavior is currently controlled/active according to the financial rules.
+- **Yellow/Orange:** sustained delinquency or inactivity requiring attention but not yet at the critical threshold.
+- **Red:** serious long-duration delinquency according to the authoritative financial rules.
+
+These labels are presentation. The database/domain must retain the underlying calculated factors and status reason(s), so users can understand why a person reached a level.
+
+### Critical distinction
+
+An old debt must not automatically mean severe delinquency.
+
+Example:
+- A parent has an unpaid balance originating 365+ days ago.
+- The parent nevertheless continued making payments for children during the following academic year.
+
+The system must preserve both facts and distinguish this from:
+- an equally old debt where the person stopped paying and has had prolonged inactivity.
+
+The status calculation must therefore evaluate debt age together with subsequent payment behavior and current activity.
+
+### Cross-year tracking
+
+Track financial continuity across academic years so staff can inspect:
+
+Academic Year → Original obligation → Due date → Payments/allocations → Remaining balance → Subsequent-year payment activity → Current debt age/status
+
+Historical obligations must remain attributable to their original year/due date while subsequent payments remain part of the person's actual payment history. Do not rewrite historical debt dates merely because a later payment occurred.
+
+### Integration requirements
+
+The feature must be consumed consistently by:
+
+- financial pages and debt/receivables views;
+- student/parent/person details;
+- payment history;
+- dashboards and operational statistics;
+- debt aging reports;
+- search and filtering;
+- alerts/attention workflows where applicable;
+- academic-year financial views;
+- exports/reports;
+- Android/Desktop/Website consumers where financial data is exposed.
+
+Users must be able to filter and inspect debt by age/status, amount, academic year, activity, and other supported financial dimensions without each page implementing its own calculation.
+
+### Dedicated debt tracking view
+
+Create a dedicated **Debt Aging / Suivi des Dettes** table/view showing, at minimum:
+
+- person/household;
+- affected student(s);
+- originating academic year;
+- original due date;
+- outstanding amount;
+- debt age;
+- last payment date;
+- subsequent-year payment activity;
+- inactivity duration;
+- canonical status level;
+- status reason/explanation;
+- last recalculation/update.
+
+The view must allow staff to open the underlying financial history rather than treating the status as a black box.
+
+### Calculation and data integrity
+
+- Use one canonical debt-status calculation/service.
+- No page-local color/status rules.
+- Do not treat missing payments as zero without an established financial meaning.
+- Do not reset debt age when a partial payment occurs.
+- Preserve original due dates and allocation history.
+- Separate current-year obligations from carried-forward historical debt while still analyzing the person's overall payment behavior.
+- Recalculate consistently when payments, allocations, due dates, academic-year context, or relevant financial rules change.
+- Preserve auditability of status-relevant changes.
+
+### No Duplication + Finance Tab Parity
+
+This feature MUST NOT duplicate any existing financial logic, calculation, data model, workflow, or feature.
+
+Before implementation, agents MUST inspect the existing **Finance / Financial tab** and identify what is already implemented and authoritative. Debt Aging / Suivi des Dettes must extend those existing financial capabilities rather than recreate them.
+
+- Reuse the existing canonical financial calculations, payment logic, allocation logic, debt/receivable logic, academic-year logic, and financial data model.
+- Do not create a second debt calculation engine, payment-history implementation, payment/allocation model, or parallel debt ledger.
+- Do not create page-specific financial calculations or duplicate an existing Finance-tab feature under another name.
+- If an existing function, service, query, component, table, view, or calculation already provides the required information, extend/reuse it instead of implementing another version.
+
+### UI Must Match the Existing Finance Tab
+
+The Debt Aging / Suivi des Dettes UI must match and extend the **actual Finance tab** already built. Agents MUST first inspect how the Finance tab calculates and displays outstanding amounts, payments, allocations, academic years, debts/receivables, workflows, components, tables, filters, and details.
+
+Where the Finance tab already has a concept, calculation, component, terminology, or workflow, T-405 MUST use the same implementation and semantics. The new UI may add debt-aging-specific information such as originating academic year, original due date, debt age, subsequent-year payment activity, last payment, inactivity duration, canonical status, and status explanation, but these must be additional views of the existing financial data and logic.
+
+If the Finance tab says a person owes a particular amount, Debt Aging MUST NOT independently calculate a different amount. If an existing financial workflow determines payment allocation, Debt Aging MUST consume that result rather than reproduce the allocation logic.
+
+**Core rule: extend the existing Finance system; do not recreate it.**
+
+### Database/backend requirements
+
+The database/backend must own persisted financial facts, payment allocations, historical obligations, and the query contract needed to calculate/report debt aging. Any derived status must have a documented source-of-truth strategy and must not drift between Desktop, Android, Website, statistics, and reports.
+
+Before implementation, audit the existing financial schema, payment allocation logic, receivables/debt calculations, academic-year boundaries, and authoritative financial documents. Do not create a parallel debt ledger if the existing canonical financial model can support this feature.
+
+### Definition of done
+
+An authorized user can inspect a person's historical debt, see exactly when the obligation originated, how old it is, what remains outstanding, whether the person continued paying in later school years, how long they have been inactive, and the resulting rule-based status with an understandable explanation. The same calculation is used across financial pages, statistics, search/filtering, reports, and platform consumers.
+
+The feature is not complete until the distinction between "old debt but continued paying" and "old debt with prolonged non-payment" is demonstrably correct against real payment-history fixtures and the authoritative financial rules.
