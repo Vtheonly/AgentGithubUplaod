@@ -2,6 +2,18 @@
 
 > Single starting point for "what should I work on next?" When you start a task, set it `In Progress` in `task-registry.md` and identify it here. When you finish, move it to Completed, append evidence to `change-log.md`, and update this file's recommendation.
 
+## 80th session (2026-09-21, CLOSED) — T-395 COMPLETE: the 'Famille SIDI — 0554288142' invisibility root-caused + the family restored live (migration 0101) + OPS-319/BUSINESS-105 registered
+
+The owner's report is fully resolved and live-verified: the row existed (the 0063/DATA-011 reconciliation family) but was soft-deleted 2026-09-16 by a manual walk of the new T-384 Supprimer buttons — the desktop filtered it correctly (NOT the AUTH-302 class, proven by the red-phase control). Migration **0101** restored the family + returned its 3 test-half-refunded payments to canonical `paid`, applied to BOTH projects (chain **98/98**, next free migration **0102** — the 79th session's "next free 0101" note is superseded). Full evidence: `docs/recovery/t-395-live-verification.md`.
+
+**Standing recommendation (updated):**
+1. **OPS-319's restore surface** (the recommended next task): `restore_parent`/`restore_student` SECURITY DEFINER RPCs (the 0100 mirror — super_admin gate, tenant scope, the active-guard inverse) + a Corbeille section in CRM reading the audit trail. The deletion buttons remain a one-way door on real data until this exists — the exact gap the owner's report exposed. The `parent.restore`/`student.restore` audit-action codes are already codified by 0101.
+2. **BUSINESS-105** (the half-refund defect): widen `revert_payment_allocation`'s original-entry lookup to the `payment_id` FK + add the import-sourced-refund scenario to the financial equivalence suites + census both projects for other half-refunds (`status='refunded'` with no reversal entry) before repairing them. Exposure: the whole 2026-08-11 import corpus.
+3. The owner's §4 EXE acceptance pass (the 2026-09-18 report's runbook) — the owner re-checks CRM → Parents: « Famille SIDI — 0554288142 » must now appear.
+4. The standing T-337 (REALTIME-105, next free migration **0102**) / the CALC-001 baseline repair.
+
+**Concurrent-agent note:** the layout-editor series (43b3332→127c775) left 6 tsc errors + 12 vitest failures in ITS test fixtures (the `editing`-prop drift) — attributed at the 80th session open per §15.14 and deliberately left to that agent's scope (merge safety). No i18n/dictionary surface was touched by T-395 (zero TS files changed).
+
 ## 79th session (2026-09-18, CLOSED) — the handed-over Supabase root-cause mandate COMPLETE: T-390..T-394 all VERIFIED
 
 The owner's handed-over task list ("El-Imtiyaz Desktop — Supabase Root Cause & Remediation", 17 September 2026) is delivered end to end: **T-390** (the access-point audit + the backend health proof — RP3–RP6 disproven), **T-391** (the live auth/tenant/RLS matrix + write round-trip, 29/29), **T-392** (AUTH-302/OPS-317/OPS-318 all fixed — commit 3e2642e, 14/14), **T-393** (the « Diagnostic Supabase » Settings tab — the 18-check PASS/FAIL/NON TESTÉ matrix with the AUTH-302 detector + the OPS-317 explainer card, 12/12 + 20/0/1 live, commit 0286f7a), **T-394** (the final report `docs/audits/supabase-root-cause-report-2026-09-18.md` — 14 PASS / 0 FAIL / 1 NOT PROVEN (the EXE install/launch matrix with the §4 owner runbook) + the delivery zip). Every commit pushed+merged immediately. The mandate's TRUE finding: the backend was healthy; the root cause was the client-side session desynchronization (AUTH-302) — now fixed AND permanently visible via the diagnostics screen.

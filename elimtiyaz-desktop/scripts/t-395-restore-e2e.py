@@ -206,8 +206,8 @@ def phase_green() -> None:
           f"status={status} code={fam[0].get('student_code') if fam else '-'}")
 
     status, rows = rest(jwt, f"payments?select=*&tenant_id=eq.{TENANT}&order=collected_at.desc")
-    fam_pay = [r for r in rows if r.get("payment_number", "").endswith(
-        tuple(f"-V2", "-V2_ALT", "-V3")) and "e1a4457a" in str(r.get("payment_number", ""))]
+    fam_pay = [r for r in rows if str(r.get("payment_number", "")).endswith(
+        ("-V2", "-V2_ALT", "-V3")) and "e1a4457a" in str(r.get("payment_number", ""))]
     total = sum(float(r.get("amount", 0)) for r in fam_pay)
     check("G1 the payments journal shows 3 paid Σ 255,000 (canonical state)",
           status == 200 and len(fam_pay) == 3
@@ -242,13 +242,20 @@ def main() -> int:
     phase = sys.argv[1] if len(sys.argv) > 1 else ""
     if phase == "--phase":
         phase = sys.argv[2] if len(sys.argv) > 2 else ""
+    if phase == "old":
+        # phase_old() re-points REF/BASE at the OLD project before any call.
+        REF_OLD = "hkvkefubghbbotgnteir"
+        print(f"t-395-restore-e2e.py — project {REF_OLD} — {phase}")
+        phase_old()
+        print(f"\nTOTAL: {len(PASSED)} PASS / {len(FAILED)} FAIL")
+        if FAILED:
+            print("FAILED LEGS:", "; ".join(FAILED))
+        return 1 if FAILED else 0
     print(f"t-395-restore-e2e.py — project {REF} — {phase or '(missing phase)'}")
     if phase == "red":
         phase_red()
     elif phase == "green":
         phase_green()
-    elif phase == "old":
-        phase_old()
     else:
         print(__doc__)
         return 2
