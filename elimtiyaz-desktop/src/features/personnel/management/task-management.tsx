@@ -79,10 +79,8 @@ export function TaskManagement() {
   const { session } = useAuth();
   const toast = useToast();
 
-  const isSuperAdmin =
-    session?.role === Role.SuperAdmin ||
-    session?.role === Role.FinancialOfficer ||
-    session?.role === Role.Manager;
+  const canManageTasks =
+    session?.role === Role.SuperAdmin || session?.role === Role.Manager;
   const currentUserId = session?.userId ?? "";
 
   const me = useObservable(
@@ -108,9 +106,9 @@ export function TaskManagement() {
   const [drawerId, setDrawerId] = useState<string | null>(null);
 
   const displayedTasks = useMemo(() => {
-    if (isSuperAdmin) return allTasks;
+    if (canManageTasks) return allTasks;
     return allTasks.filter((t) => t.assigneeIds.includes(myAccountId));
-  }, [allTasks, isSuperAdmin, myAccountId]);
+  }, [allTasks, canManageTasks, myAccountId]);
 
   const filtered = useMemo(() => {
     return displayedTasks.filter((t) => {
@@ -137,7 +135,7 @@ export function TaskManagement() {
         );
     } else if (task.status === "in_progress") {
       // If admin, mark directly completed; if worker, send for review
-      const nextStatus: TaskStatus = isSuperAdmin
+      const nextStatus: TaskStatus = canManageTasks
         ? "completed"
         : "needs_review";
       const res = await repos.tasks.updateTaskStatus(
@@ -148,8 +146,8 @@ export function TaskManagement() {
       );
       if (res.ok) {
         toast.showSuccess(
-          isSuperAdmin ? "Tâche terminée" : "Transmise pour validation",
-          isSuperAdmin
+          canManageTasks ? "Tâche terminée" : "Transmise pour validation",
+          canManageTasks
             ? "La tâche est clôturée."
             : "La direction a été notifiée pour validation.",
         );
@@ -273,13 +271,13 @@ export function TaskManagement() {
     <>
       <DashboardSection
         title={
-          isSuperAdmin
+          canManageTasks
             ? "Gestion & Supervision des Tâches"
             : "Mes Tâches & Missions"
         }
         icon={ClipboardList}
         action={
-          isSuperAdmin ? (
+          canManageTasks ? (
             <Button size="sm" onClick={() => setFormOpen(true)}>
               <Plus className="size-4" /> Assigner une tâche
             </Button>
@@ -329,7 +327,7 @@ export function TaskManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              {isSuperAdmin && (
+              {canManageTasks && (
                 <Select
                   value={departmentFilter || "all"}
                   onValueChange={(v) =>
