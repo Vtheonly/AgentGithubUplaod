@@ -283,18 +283,19 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
         "Une réponse est requise.",
       ));
     }
-    const { data, error } = await this.client
+    const { error } = await this.client.rpc("respond_leave_clarification", {
+      p_request_id: id,
+      p_response: response.trim(),
+    });
+    if (error) return Err(supabaseErrorToAppError(error));
+
+    const { data, error: readError } = await this.client
       .from("leave_requests")
-      .update({
-        status: "pending",
-        clarification_response: response.trim(),
-        updated_at: nowIso(),
-      })
+      .select(SELECT)
       .eq("id", id)
       .eq("tenant_id", getTenantId())
-      .select(SELECT)
       .single();
-    if (error) return Err(supabaseErrorToAppError(error));
+    if (readError) return Err(supabaseErrorToAppError(readError));
     if (!data) return Err(Errors.notFound("LeaveRequest", id));
     await this.refresh();
     return Ok(mapRow(data as unknown as LeaveRequestTableRow));
