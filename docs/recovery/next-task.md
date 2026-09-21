@@ -2,16 +2,14 @@
 
 > Single starting point for "what should I work on next?" When you start a task, set it `In Progress` in `task-registry.md` and identify it here. When you finish, move it to Completed, append evidence to `change-log.md`, and update this file's recommendation.
 
-## 83rd session (2026-09-21, IN PROGRESS) — T-399: the owner's Ctrl+O test-data autofill mandate (OPS-321)
+## 83rd session (2026-09-21, CLOSED) — T-399 COMPLETE — VERIFIED: the Ctrl+O test-data autofill (any form, realistic + validation-respecting, live-proven insertable)
 
-The owner's new feature request (verbatim): "when i press Ctrl+O while i am on any form, it should automatically fill all fields with realistic, fake, but valid test data... the form can be submitted successfully and the data can actually be inserted into the database... this should work consistently across all forms in the application."
+The owner's mandate is fully delivered (commits 8985457 → e8b0d75 → the closeout, every one pushed+merged immediately): **T-399/OPS-321** — `src/shared/devtools/test-data/` mounted once in `app.tsx`: Ctrl+O fills ANY open form (wizard, modals, page forms — zero per-form registration) with a coherent per-press identity (gender-consistent Algerian names from the REUSED fixture pools, a family last name, a run-unique phone in the placeholder's own format, a derived e-mail, ISO dates, in-range DZD amounts, ADR-003 codes), honoring every declared constraint, with REAL options picked for Radix Selects (never the sentinel, gender-consistent) and full safety rails (never submits, never flips switches, never touches file/disabled/readonly inputs). Unit **23/23** (generators pinned against the REAL form validators — PHONE_RE/EMAIL_RE imported from edit-parent-modal); gates: tsc 6 = the pre-existing baseline, lint 0 errors, i18n parity OK, FULL vitest **3572/21/5** (the failing set identical); **LIVE e2e ALL PASS**: the same generators' data through the REAL one-round-trip `batchRegister` in **447 ms**, every value verified against the persisted rows + the billing content + zero residue. Evidence: `docs/recovery/t-399-live-verification.md`. The two discoveries (the act-deferral trap; the Radix synthetic-event contract) are AGENTS.md §15.40.
 
-**In progress:** T-399 — the `src/shared/devtools/test-data/` module (generators reusing the fixture pools + Rng, field classifier, the DOM autofill engine, the Ctrl+O hook + toast + i18n keys), the unit suite, and the live evidence leg (autofill-shaped data through the REAL `batchRegister`). See the task-registry entry for the full plan.
-
-**Standing recommendation (unchanged otherwise):**
+**Standing recommendation (updated):**
 1. **OPS-319's restore surface** (the standing recommendation): `restore_parent`/`restore_student` SECURITY DEFINER RPCs (the 0100 mirror) + a Corbeille section in CRM. The deletion buttons remain a one-way door on real data.
 2. **BUSINESS-105** (the half-refund defect): widen `revert_payment_allocation`'s lookup to the `payment_id` FK + the financial equivalence suites + the corpus census.
-3. The owner's §4 EXE acceptance pass (the 2026-09-18 report's runbook — now ALSO re-check: Settings → Tests CRUD → 27/27, a registration should take ~1 s not tens of seconds, and Ctrl+O on any form).
+3. The owner's §4 EXE acceptance pass (the 2026-09-18 report's runbook — now ALSO re-check: Settings → Tests CRUD → 27/27, a registration ~1 s, and Ctrl+O on any form → filled → submit).
 4. The standing T-337 (REALTIME-105, next free migration **0104**) / the CALC-001 baseline repair / the concurrent agent's 6 tsc + 21 vitest fixture drift (their subtree).
 
 ## 82nd session (2026-09-21, CLOSED) — T-398 COMPLETE — VERIFIED: the ONE-round-trip registration (368 ms live, was 10–20 s on the owner's route) + the pricing-config passthrough + the atomicity upgrade
