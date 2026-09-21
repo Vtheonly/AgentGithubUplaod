@@ -138,8 +138,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 | HOMEWORK-100 | Critical | TESTED | T-023 | Desktop homework push omits `tenant_id`; INSERT always fails NOT NULL (extends WEAK-017) |
 | HOMEWORK-101 | Critical | TESTED | T-024 | Android homework sync push uses invalid UUID `"hwk-{uuid}"` as `homework.id` |
 | HOMEWORK-103 | High | TESTED (T-039, 18th session) | T-039 | Android `pullAll` doesn't pull homework/attendance/assessments; cross-platform visibility is one-way only — FIXED: academic cluster pulled with canonical mappers; live cross-device round-trip still owed |
-| SCHED-100 | Medium | BLOCKED | T-042 | Timetable (Emploi du Temps) feature is structurally unimplemented: domain model + UI KPI exist but no DB table, no Supabase repository, no migration |
-| SCHED-101 | Low | BLOCKED | T-042 | `detectTimetableConflict` checks teacher/class overlaps but NOT room conflicts (different teachers, different classes, same room, same time) |
+| SCHED-100 | Medium | RESOLVED (2026-09-22, T-404 — TESTED; live evidence 27/27; residual: legacy mock façade removal is a registered follow-up) | T-042 | Timetable (Emploi du Temps) feature is structurally unimplemented: domain model + UI KPI exist but no DB table, no Supabase repository, no migration |
+| SCHED-101 | Low | RESOLVED (2026-09-22, T-404 — canonical validator + room_slot_uidx, unit-proven) | T-042 | `detectTimetableConflict` checks teacher/class overlaps but NOT room conflicts (different teachers, different classes, same room, same time) |
+| SCHED-103 | High | MITIGATED (2026-09-22 — app fix live-verified 10/10; canonical FK migration 0112 written, apply owner-gated on the sbp_ token) | T-404 | `class_subjects.teacher_id` (and `classes.homeroom_teacher_id`) have NO FK to `personnel(id)` — the PostgREST `personnel!left` embed in the timetable problem assembly 400'd live (PGRST200) |
 | STUDENT-100 | Critical | TESTED | T-024 | Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter) |
 | CHAT-100 | Medium | TESTED | T-071 | `chat_channels_insert` RLS allows any authenticated user to create a channel with arbitrary `member_ids` (no membership validation on insert) |
 | CHAT-101 | Medium | TESTED | T-071 | `chat_messages_insert` RLS has no channel-membership check; any user can spam any channel_id they know |
@@ -1852,6 +1853,21 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Root cause:** The original mock author copied a Western Mon–Fri week and labeled it "Algerian".
 - **Expected behavior:** When the legacy façade is removed (SCHED-100 residual), the misleading type + comment go with it; until then the canonical model is the reference.
 - **Verification:** none needed beyond the canonical suite (the fixture asserts zero Friday/Saturday entries and Sun–Thu columns in the UI test).
+
+### SCHED-103 — `class_subjects.teacher_id` has no FK to `personnel(id)` → the PostgREST `personnel!left` embed in the timetable problem assembly fails live with HTTP 400 (PGRST200)
+
+- **Category:** SCHED  |  **Severity:** High  |  **Status:** MITIGATED (2026-09-22 — the app-side fix is live-verified 10/10 via `scripts/t404-postgrest-smoke.sh`; the canonical root-cause fix, migration 0112, is written + parse-validated + parse-payload-validated, apply is owner-gated on the sbp_ token — runbook in `scripts/apply_0112_live.sh` and docs/operations/credentials.md)
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Backend/DB, Desktop
+- **Task:** T-404 (follow-up)
+- **Description:** Reported from the RUNNING production desktop app (2026-09-22 console log): every Emploi du temps curriculum load failed with `HTTP 400` — reproduced verbatim (admin JWT, the exact URL): `{"code":"PGRST200","details":"Searched for a foreign key relationship between 'class_subjects' and 'personnel' in the schema 'public', but no matches were found."}`. `SupabaseTimetableRepository.loadProblem()` selected `personnel!left(first_name, last_name)` on `class_subjects` — but PostgREST embedded resources resolve relationships from REAL FK constraints, and `class_subjects.teacher_id` has been a BARE uuid since migration 0004 (its inline comment "FK to personnel(id), filled in 0009" was never honoured — 0009 only created the personnel table). `classes.homeroom_teacher_id` carries the same unfilled comment (latent, same class of defect — no current embed uses it).
+- **Root cause:** 0004 declared the teacher reference as a bare column with an aspirational "filled in 0009" comment; 0009 never added the constraint. The T-404 repository tests ran against the mock twin (which does not parse PostgREST select strings) and the 27/27 live checks were SQL-level (tables/RLS/RPC) — the PostgREST embed path was never exercised against the live backend. Gap closed by `scripts/t404-postgrest-smoke.sh` (probes every embed query shape the app sends).
+- **Current behavior:** After the app fix (below): `loadProblem` selects only `subjects(...)` + `classes!inner(...)` (both FK-backed since 0004) and resolves teacher names from the separate `personnel .in(teacher_ids)` fetch it already needed for the `teachers` list — zero extra round-trips, works on any schema state. Verified live: 200 + rows (authenticated admin).
+- **Expected behavior:** Migration 0112 adds the two missing FK constraints (class_subjects.teacher_id, classes.homeroom_teacher_id → personnel(id), ON DELETE SET NULL, NOT VALID + VALIDATE, orphan cleanup first) and re-enables personnel embeds; the PostgREST schema cache auto-reloads on DDL. The app-side derivation stays (it is the robust pattern and documents why).
+- **Proposed resolution:** OWNER RUNBOOK (the one gated step): `SUPABASE_ACCESS_TOKEN=sbp_… bash elimtiyaz-desktop/scripts/apply_0112_live.sh` then `bash elimtiyaz-desktop/scripts/t404-postgrest-smoke.sh --expect-fk` → P2 flips 400 → 200 and the post-check reports 2 validated FKs + 0 orphans.
+- **Dependencies:** none recorded
+- **Status note:** The shipped Windows x64 portable .exe (2026-09-22 rebuild, SHA256 9330a6a9…) contains the fix (ASAR-verified: `personnel!left` absent, `ts-greedy-v1` present).
+- **Verification:** `scripts/t404-postgrest-smoke.sh` 10/10 (defect pinned on the verbatim URL; fixed query 200; all other app embeds 200); full suite 3681 passed / 21 failed = the byte-identical session-opening baseline (dashboard/analytics/financial/vault — parallel session's zone); tsc 0 errors; production bundle + packaged-ASAR greps; rebuilt .exe + SHA256SUMS.
 
 ### STUDENT-100 — Android promotion sync push silently DROPS grade_level_code (RPC has no such parameter)
 
