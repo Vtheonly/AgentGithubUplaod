@@ -92,6 +92,12 @@ export function AdministratorDashboard({ role }: Props) {
   );
 
   const isFullAdmin = role === "super_admin";
+  const roleLabel =
+    role === "super_admin"
+      ? "Super Administrateur"
+      : role === "financial_officer"
+        ? "Agent Financier"
+        : "Agent de Support";
 
   const kpis: readonly DashboardKpi[] = [
     {
@@ -147,7 +153,7 @@ export function AdministratorDashboard({ role }: Props) {
 
   return (
     <RoleDashboardLayout
-      role="Super Administrateur"
+      role={roleLabel}
       actorName={session?.displayName ?? "Administrateur"}
       kpis={kpis}
       tasks={dashboardTasks}
