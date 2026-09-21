@@ -292,5 +292,16 @@ export const en = {
     restoreSuccess: "Restoration successful",
     deleteSuccess: "Archive deleted successfully",
     purgeSuccess: "Purge completed successfully"
+  },
+  devtools: {
+    autofill: {
+      title: "Test data",
+      successTitle: "Test data inserted",
+      emptyScope: "No fields to fill on this screen.",
+      nothingFilled: "No fillable field found",
+      filled: "{{count}} field(s) filled — review then submit.",
+      skippedNote: "({{count}} field(s) skipped)",
+      unexpected: "Unexpected autofill failure.",
+    },
   }
 };

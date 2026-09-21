@@ -38,6 +38,7 @@ import { AICopilotProvider } from "./providers/ai-copilot-provider";
 import { ModalProvider } from "./providers/modal-provider";
 import { UserPreferencesProvider } from "./providers/user-preferences-provider";
 import { ToastViewport } from "../shared/layout/toast-viewport";
+import { TestDataAutofill } from "../shared/devtools/test-data/use-test-data-autofill";
 import { ModalHost } from "../shared/layout/modal-host";
 import { SplashGate } from "./splash-gate";
 import { AppShell } from "./app-shell";
@@ -123,6 +124,9 @@ export function App() {
                       <AppRoutes />
                     </SplashGate>
                     <ToastViewport />
+                    {/* T-399 (OPS-321): Ctrl+O test-data autofill — live on
+                        every screen, inside ToastProvider + i18n. */}
+                    <TestDataAutofill />
                     <ModalHost />
                   </TooltipProvider>
                 </ModalProvider>

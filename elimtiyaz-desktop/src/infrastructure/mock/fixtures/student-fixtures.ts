@@ -6,8 +6,10 @@ import { gradeLevelFromLevelYear } from "../../../domain/model/student";
 import type { Parent } from "../../../domain/model/parent";
 import { makeRng, pad, type Rng } from "./rng";
 
-const FIRST_NAMES_M = ["Yacine", "Mohamed", "Bilal", "Adam", "Omar", "Anis", "Sami", "Reda", "Yasmine", "Rayan"];
-const FIRST_NAMES_F = ["Sara", "Lina", "Maya", "Inès", "Nour", "Rania", "Aya", "Lina", "Sabrina", "Manel"];
+// T-399 (83rd session): the student pools are EXPORTED so the shared
+// test-data autofill generators REUSE them (§6). Additive change only.
+export const FIRST_NAMES_M = ["Yacine", "Mohamed", "Bilal", "Adam", "Omar", "Anis", "Sami", "Reda", "Yasmine", "Rayan"];
+export const FIRST_NAMES_F = ["Sara", "Lina", "Maya", "Inès", "Nour", "Rania", "Aya", "Lina", "Sabrina", "Manel"];
 
 interface GradeBucket {
   level: AcademicLevel;

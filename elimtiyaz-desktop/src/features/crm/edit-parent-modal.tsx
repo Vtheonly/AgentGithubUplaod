@@ -34,8 +34,11 @@ import {
 /** Sentinel for "no transport zone" — Radix Select forbids empty values. */
 const NO_TRANSPORT = "__none__";
 
-const PHONE_RE = /^[+]?[0-9\s]{8,15}$/;
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// T-399 (83rd session): the validators are EXPORTED so the test-data
+// autofill suite pins its generator output against the REAL form
+// validators (never a re-typed copy — §6). Additive change only.
+export const PHONE_RE = /^[+]?[0-9\s]{8,15}$/;
+export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export function EditParentModal({
   parentId,

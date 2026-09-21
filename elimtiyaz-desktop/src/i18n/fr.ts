@@ -290,4 +290,15 @@ export const fr = {
     deleteSuccess: "Archive supprimée avec succès",
     purgeSuccess: "Purge terminée avec succès",
   },
+  devtools: {
+    autofill: {
+      title: "Données de test",
+      successTitle: "Données de test insérées",
+      emptyScope: "Aucun champ à remplir sur cet écran.",
+      nothingFilled: "Aucun champ remplissable trouvé",
+      filled: "{{count}} champ(s) rempli(s) — vérifiez puis soumettez.",
+      skippedNote: "({{count}} champ(s) ignoré(s))",
+      unexpected: "Échec inattendu du remplissage.",
+    },
+  },
 } as const;

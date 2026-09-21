@@ -293,4 +293,15 @@ export const ar = {
     deleteSuccess: "تم حذف الأرشيف بنجاح",
     purgeSuccess: "اكتمل التنظيف بنجاح",
   },
+  devtools: {
+    autofill: {
+      title: "بيانات اختبار",
+      successTitle: "تم إدراج بيانات الاختبار",
+      emptyScope: "لا توجد حقول لتعبئتها في هذه الشاشة.",
+      nothingFilled: "لم يتم العثور على أي حقل قابل للتعبئة",
+      filled: "تمت تعبئة {{count}} حقل — تحقق ثم أرسل.",
+      skippedNote: "({{count}} حقل تم تجاهله)",
+      unexpected: "فشل غير متوقع في التعبئة.",
+    },
+  },
 } as const;

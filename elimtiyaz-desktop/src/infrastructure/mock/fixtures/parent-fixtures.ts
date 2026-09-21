@@ -4,14 +4,18 @@
 import type { Parent, CreateParentInput, CityTier } from "../../../domain/model/parent";
 import { makeRng, pad, buildCode, type Rng } from "./rng";
 
-const FIRST_NAMES_FR_M = ["Karim", "Yacine", "Rachid", "Sofiane", "Hocine", "Toufik", "Nabil", "Samir"];
-const FIRST_NAMES_FR_F = ["Amina", "Fatima", "Nadia", "Salima", "Yamina", "Leila", "Nawel", "Samira"];
-const LAST_NAMES = ["Benali", "Cherif", "Mansouri", "Belkacem", "Khelifi", "Bouzid", "Saidi", "Touati", "Haddad", "Boudjelal"];
-const OCCUPATIONS = ["Ingénieur", "Médecin", "Commerçant", "Enseignante", "Pharmacienne", "Chauffeur", "Fonctionnaire", "Avocat"];
+// T-399 (83rd session): the pools are EXPORTED so the shared test-data
+// autofill generators REUSE them (§6 — no parallel name pools). Additive
+// change only; buildParent's behavior is byte-identical.
+export const FIRST_NAMES_FR_M = ["Karim", "Yacine", "Rachid", "Sofiane", "Hocine", "Toufik", "Nabil", "Samir"];
+export const FIRST_NAMES_FR_F = ["Amina", "Fatima", "Nadia", "Salima", "Yamina", "Leila", "Nawel", "Samira"];
+export const LAST_NAMES = ["Benali", "Cherif", "Mansouri", "Belkacem", "Khelifi", "Bouzid", "Saidi", "Touati", "Haddad", "Boudjelal"];
+export const OCCUPATIONS = ["Ingénieur", "Médecin", "Commerçant", "Enseignante", "Pharmacienne", "Chauffeur", "Fonctionnaire", "Avocat"];
 const CITIES_T1 = ["Oran", "Bir El Djir", "Es Senia"];
 const CITIES_T2 = ["Arzew", "Bethioua", "Boutlelis"];
 const CITIES_T3 = ["Aïn El Türck", "Mers El Kébir", "Gdyel"];
-const STREETS = ["rue des Frères Bouadou", "bd de la Soummam", "cité Es-Salem", "rue Larbi Ben M'hidi", "rue Mostaganem"];
+export const STREETS = ["rue des Frères Bouadou", "bd de la Soummam", "cité Es-Salem", "rue Larbi Ben M'hidi", "rue Mostaganem"];
+export const FIXTURE_CITIES = [...CITIES_T1, ...CITIES_T2, ...CITIES_T3];
 
 export interface ParentFixtureOptions {
   tenantId: string;
