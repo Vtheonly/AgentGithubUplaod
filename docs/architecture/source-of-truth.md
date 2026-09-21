@@ -63,3 +63,16 @@
 | **Batch promotion** | students.grade_level_code + student_academic_histories | Desktop promotion, Android sync, class formation, CRM, student details, statistics, academic history | One atomic promotion write path; legacy academic_history / promote_students remains dead and must not be revived |
 
 T-401 must establish the canonical classification source before downstream UI integration is considered complete. T-402 must make promotion consume and publish that same model.
+
+---
+
+### Batch Promotion Cycle contract
+
+**Promotion Cycle** is the workflow-level source of truth for coordinating a source academic year into a target academic year. It does not replace the canonical promotion domain model.
+
+- Cycle = one source → target academic-year operation.
+- Group/class = the human-review unit inside the cycle.
+- Student decision = promoted/repeating/deferred/other established outcome.
+- Class confirmation = atomic commit of that group's decisions.
+- Cycle completion = verified completion of all required groups, with exceptions explicitly resolved.
+- All UI surfaces consume the same canonical promotion domain/database contract.
