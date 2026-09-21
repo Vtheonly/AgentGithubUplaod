@@ -2732,3 +2732,10 @@ The promotion workflow is explicitly defined as a school-year **Promotion Cycle*
 Registered the new P0 timetable task covering school-wide automatic generation, configurable curriculum hours/session lengths, rooms, teachers, availability, hard/soft constraints, class-specific free days, Algerian configuration, a dedicated Timetable/Emploi du temps viewing area, versioned generation/manual review/publication, and Node.js + TypeScript integration.
 
 The task explicitly requires a packaged Electron implementation with a bundled solver and clean-target verification, including the Windows x64 executable, so the feature cannot be considered complete merely because it works on the developer machine.
+
+
+## T-405 registration — Cross-Year Debt Aging & Payment-Behavior Tracking
+
+Registered the P0 Critical cross-year debt feature. It covers outstanding amount, original due date, debt age, payment history, subsequent-year payment activity, inactivity duration, rule-based status levels, a dedicated debt-aging view, and system-wide financial integration.
+
+The task explicitly forbids arbitrary UI thresholds and parallel debt ledgers; status must derive from the authoritative financial model and business rules.
