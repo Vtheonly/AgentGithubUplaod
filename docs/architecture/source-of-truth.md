@@ -46,7 +46,7 @@
 | **Synchronization (Android)** | Room + `SyncSupport` → sync queue → `SyncQueueDispatcher` → `upsert_*_from_import`; `PullSyncRepository.pullAll` | A `infrastructure/sync/` | All Android writes | ⚠ Dispatcher swallows errors (CROSS-200); target architecture = canonical RPCs (ADR-005, UNKNOWN-002). |
 | **Freshness (website)** | TanStack Query + realtime hooks | W `src/app/providers/`, `src/lib/hooks/use-realtime.ts` | Portal | 2 of 4 hooks broken; no polling fallback (CACHE-100). |
 | **Excel bridge (legacy import)** | Desktop import engine → sync queue → `upsert_*_from_import` | D `src/infrastructure/excel/` | Initial data migration from workbook | Legacy workbook `Suivis clients 2026_2027.xlsx` is the historical source, not a live source of truth. |
-| **Timetable** | NONE — mock-only | D mock `teacher-repository.ts` | — | ✝ Structurally unimplemented (SCHED-100, UNKNOWN-011). |
+| **Timetable** | DB: `timetable_configurations`/`timetable_constraints`/`timetable_versions`/`timetable_entries`/`rooms` (0109/0110) + `fn_timetable_publish` | D canonical model `model/timetable.ts` + validator `calc/timetable/constraints.ts` + native solver `ts-greedy-v1` (ADR-020); Supabase `SupabaseTimetableRepository` | — | ✅ Implemented + TESTED (T-404, 2026-09-22); the legacy mock façade in teacher.ts is superseded — do not extend (SCHED-100 residual). |
 | **Multi-guardian families** | NONE — `parent_student_links` table exists, zero writers | DB (0005) | — | ✝ (DEAD-200, UNKNOWN-010). |
 
 ## How to use this registry

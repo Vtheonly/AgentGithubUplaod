@@ -47,7 +47,16 @@
 
 ## 8. Timetable
 
-- No canonical implementation exists (mock-only). See SCHED-100 / UNKNOWN-011 — build-or-remove decision pending. Conflict detection, if built, must cover teacher, class AND room conflicts.
+> IMPLEMENTED (T-404, 2026-09-22 — migrations 0109/0110, ADR-020, live-verified
+> 27/27 in docs/recovery/t-404-live-verification.md). The canonical chain:
+
+- **Inputs (data, never code):** the school week + periods + breaks live in `timetable_configurations` (the seeded Algerian profile: **Sunday→Thursday**, 6 teaching periods 08:00–15:00, Pause + Déjeuner breaks); curriculum requirements come from `class_subjects` (weekly_hours + the 0109 columns consecutive_periods + required_room_type); teachers = personnel; rooms = the `rooms` catalog (type + capacity); constraints = `timetable_constraints` rows (hard or soft, scoped school/class/teacher/room).
+- **Conflict detection covers teacher, class AND room conflicts** (SCHED-101 closed): the canonical validator (`calc/timetable/constraints.ts`) is used BOTH for post-generation evaluation and LIVE validation of manual adjustments; the DB enforces the same no-double-booking invariants with partial unique indexes.
+- **Hard constraints invalidate; soft constraints are reported**, never silently dropped. Missing curriculum hours surface as `unmet_weekly_hours` violations with French explanations; impossible schedules return unplaced blocks WITH reasons — never fabricated placements.
+- **Versioning:** draft → in_review → approved → published → archived (rejected terminal); ONE published version per academic year (DB partial unique index); published/archived versions are immutable (trigger) — adjustments happen on a duplicated draft; manual pins (`is_locked`) survive regeneration.
+- **Class-specific free days** are constraint rows (hard or soft), not classification fields; a hard free day makes any placement on that day invalid.
+- **The solver is behind the TimetableSolver adapter** (ADR-020): the default is the native TypeScript `ts-greedy-v1` bundled into the app (zero external runtime — proven under `env -i`); an external solver (e.g. FET) would join the registry without touching the domain.
+- Class, teacher and room views are projections of the SAME `timetable_entries` rows — no per-view stores.
 ## 9. Academic Classification: Niveau → Filière → Spécialité → Classe/Section
 
 > IMPLEMENTED (T-401, migration 0107, ADR-019 — verified live 17/17, see

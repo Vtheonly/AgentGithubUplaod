@@ -13,7 +13,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = join(fileURLToPath(new URL(".", import.meta.url)));
@@ -211,8 +211,46 @@ const buildEnv = {
   VITE_DESKTOP_PRODUCTION: "true",
 };
 
+// T-404 (2026-09-22) — wine-aware cross-build:
+//   * rcedit (icon/version resource edits on the exe) needs wine on Linux
+//     → skipped via signAndEditExecutable=false when wine is absent
+//     (signing was never configured; the raw exe keeps Electron defaults).
+//   * The NSIS SETUP target executes the built installer under wine to
+//     extract the uninstaller (app-builder-lib NsisTarget) → without wine
+//     ONLY the PORTABLE target is built. A wine-equipped or native-Windows
+//     host builds both via the same script (npm run package:win).
+const wineAvailable = (() => {
+  try {
+    execFileSync("which", ["wine"], { stdio: "ignore" });
+    return true;
+  } catch {
+    try {
+      execFileSync("which", ["wine64"], { stdio: "ignore" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+})();
+
 rmSync(releaseDir, { recursive: true, force: true });
-run(npm, ["run", "dist:win", "--", "--publish", "never"], buildEnv);
+if (wineAvailable) {
+  run(npm, ["run", "dist:win", "--", "--publish", "never"], buildEnv);
+} else {
+  console.log(
+    "[package:win] wine not found — building the Windows x64 PORTABLE executable only " +
+      "(signAndEditExecutable=false; the NSIS setup target requires wine to extract the " +
+      "uninstaller — run the same script on a wine-equipped or Windows host for the installer).",
+  );
+  run(npm, ["run", "build"], buildEnv);
+  run(npm, ["run", "build:electron"], buildEnv);
+  execFileSync(
+    npm,
+    ["exec", "--", "electron-builder", "--win", "portable", "--publish", "never",
+      "--config.win.signAndEditExecutable=false"],
+    { cwd: projectDir, stdio: "inherit", env: buildEnv },
+  );
+}
 
 const version = pkg.version;
 const productName = pkg.productName ?? build.productName ?? "El-Imtiyaz Desktop";
@@ -224,16 +262,18 @@ const unpackedDir = join(releaseDir, "win-unpacked");
 const unpackedExe = join(unpackedDir, `${productName}.exe`);
 const asarPath = join(unpackedDir, "resources", "app.asar");
 
-assertFile(setupPath, "Windows NSIS installer");
+if (wineAvailable) {
+  assertFile(setupPath, "Windows NSIS installer");
+  const setupSize = statSync(setupPath).size;
+  if (setupSize < 5 * 1024 * 1024) fail(`NSIS installer is unexpectedly small (${setupSize} bytes).`);
+}
 assertFile(portablePath, "Windows portable executable");
 assertDir(unpackedDir, "Windows unpacked application directory");
 assertFile(unpackedExe, "unpacked Windows executable");
 assertFile(asarPath, "packaged ASAR archive");
 
-const setupSize = statSync(setupPath).size;
 const portableSize = statSync(portablePath).size;
 const asarSize = statSync(asarPath).size;
-if (setupSize < 5 * 1024 * 1024) fail(`NSIS installer is unexpectedly small (${setupSize} bytes).`);
 if (portableSize < 5 * 1024 * 1024) fail(`Portable executable is unexpectedly small (${portableSize} bytes).`);
 if (asarSize < 512 * 1024) fail(`ASAR archive is unexpectedly small (${asarSize} bytes).`);
 
@@ -257,17 +297,67 @@ assertPayloadContainsText(
   "Canonical Supabase URL",
 );
 
-const hashes = [
-  `${sha256(setupPath)}  ${expectedSetup}`,
-  `${sha256(portablePath)}  ${expectedPortable}`,
-].join("\n") + "\n";
+// T-404 (packaging gate): the bundled native timetable solver MUST be in
+// the packaged renderer payload — generation on the target machine depends
+// on NOTHING from the developer environment (ADR-020 §4).
+assertPayloadContainsText(
+  join(projectDir, "dist"),
+  "ts-greedy-v1",
+  "Bundled native timetable solver (ts-greedy-v1)",
+);
+
+// And inside the PACKAGED ASAR archive itself (the portable .exe payload).
+{
+  const asarList = execFileSync(
+    process.execPath,
+    [join(projectDir, "node_modules", "@electron", "asar", "bin", "asar.js"), "list", asarPath],
+    { encoding: "utf8" },
+  );
+  const bundleFiles = asarList
+    .split("\n")
+    .filter((line) => /^\/dist\/assets\/index-.*\.js$/.test(line.trim()));
+  if (bundleFiles.length === 0) {
+    fail("No renderer bundle found inside the packaged ASAR archive.");
+  }
+  let solverFound = false;
+  for (const bundleFile of bundleFiles) {
+    // extract-file writes the file under its BASENAME into the cwd.
+    const extractTarget = join(releaseDir, basename(bundleFile.trim()));
+    execFileSync(
+      process.execPath,
+      [join(projectDir, "node_modules", "@electron", "asar", "bin", "asar.js"),
+        // NOTE: @electron/asar extract-file wants the path WITHOUT the
+        // leading slash (the list output includes it, extract-file does not).
+        "extract-file", asarPath, bundleFile.trim().replace(/^\//, "")],
+      { cwd: releaseDir, stdio: "ignore" },
+    );
+    if (existsSync(extractTarget) && readFileSync(extractTarget, "utf8").includes("ts-greedy-v1")) {
+      solverFound = true;
+    }
+    rmSync(extractTarget, { force: true });
+  }
+  if (!solverFound) {
+    fail("Bundled native timetable solver (ts-greedy-v1) was NOT found inside the packaged ASAR.");
+  }
+  console.log("[package:win] T-404 solver-in-ASAR check: OK");
+}
+
+const hashLines = [`${sha256(portablePath)}  ${expectedPortable}`];
+if (wineAvailable) {
+  hashLines.unshift(`${sha256(setupPath)}  ${expectedSetup}`);
+}
+const hashes = hashLines.join("\n") + "\n";
 const hashesPath = join(releaseDir, "SHA256SUMS.txt");
 writeFileSync(hashesPath, hashes, "utf8");
 
 console.log("\n============================================================");
 console.log(" WINDOWS PACKAGE VERIFIED");
 console.log("============================================================");
-console.log(`Installer : ${expectedSetup} (${Math.round(setupSize / 1024 / 1024)} MB)`);
+if (wineAvailable) {
+  console.log(`Installer : ${expectedSetup} (${Math.round(setupSize / 1024 / 1024)} MB)`);
+} else {
+  console.log("Installer : SKIPPED (wine unavailable on this host — run on a wine/Linux or Windows host for the NSIS setup.exe)");
+}
 console.log(`Portable  : ${expectedPortable} (${Math.round(portableSize / 1024 / 1024)} MB)`);
 console.log(`ASAR      : ${relative(projectDir, asarPath)} (${Math.round(asarSize / 1024 / 1024)} MB)`);
 console.log(`Checksums : ${relative(projectDir, hashesPath)}`);

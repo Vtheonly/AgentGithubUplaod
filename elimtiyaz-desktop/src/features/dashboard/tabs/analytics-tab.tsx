@@ -86,7 +86,8 @@ export interface AnalyticsTabProps {
   range?: { from: string; to: string };
   onOpenStudent?: (studentId: string) => void;
   onOpenParent?: (parentId: string) => void;
-  editing: boolean;
+  /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22). */
+  editing?: boolean;
 }
 
 export function AnalyticsTab({
@@ -102,7 +103,7 @@ export function AnalyticsTab({
   range,
   onOpenStudent,
   onOpenParent,
-  editing,
+  editing = false,
 }: AnalyticsTabProps) {
   const repos = useRepositories();
   const students = useObservable(() => repos.students.observe(), []);
