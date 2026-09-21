@@ -3962,6 +3962,27 @@ The view must allow staff to open the underlying financial history rather than t
 - Recalculate consistently when payments, allocations, due dates, academic-year context, or relevant financial rules change.
 - Preserve auditability of status-relevant changes.
 
+### No Duplication + Finance Tab Parity
+
+This feature MUST NOT duplicate any existing financial logic, calculation, data model, workflow, or feature.
+
+Before implementation, agents MUST inspect the existing **Finance / Financial tab** and identify what is already implemented and authoritative. Debt Aging / Suivi des Dettes must extend those existing financial capabilities rather than recreate them.
+
+- Reuse the existing canonical financial calculations, payment logic, allocation logic, debt/receivable logic, academic-year logic, and financial data model.
+- Do not create a second debt calculation engine, payment-history implementation, payment/allocation model, or parallel debt ledger.
+- Do not create page-specific financial calculations or duplicate an existing Finance-tab feature under another name.
+- If an existing function, service, query, component, table, view, or calculation already provides the required information, extend/reuse it instead of implementing another version.
+
+### UI Must Match the Existing Finance Tab
+
+The Debt Aging / Suivi des Dettes UI must match and extend the **actual Finance tab** already built. Agents MUST first inspect how the Finance tab calculates and displays outstanding amounts, payments, allocations, academic years, debts/receivables, workflows, components, tables, filters, and details.
+
+Where the Finance tab already has a concept, calculation, component, terminology, or workflow, T-405 MUST use the same implementation and semantics. The new UI may add debt-aging-specific information such as originating academic year, original due date, debt age, subsequent-year payment activity, last payment, inactivity duration, canonical status, and status explanation, but these must be additional views of the existing financial data and logic.
+
+If the Finance tab says a person owes a particular amount, Debt Aging MUST NOT independently calculate a different amount. If an existing financial workflow determines payment allocation, Debt Aging MUST consume that result rather than reproduce the allocation logic.
+
+**Core rule: extend the existing Finance system; do not recreate it.**
+
 ### Database/backend requirements
 
 The database/backend must own persisted financial facts, payment allocations, historical obligations, and the query contract needed to calculate/report debt aging. Any derived status must have a documented source-of-truth strategy and must not drift between Desktop, Android, Website, statistics, and reports.
