@@ -94,3 +94,13 @@
 ### Batch Promotion Cycle boundary
 
 The Promotion Cycle is a workflow/orchestration layer above the canonical promotion domain. It owns cycle progress, group ordering, review state, warnings, and completion state. It must not own a second set of promotion rules or persistence semantics. Class/group confirmation must call the canonical backend/domain transaction, and the cycle must consume its result.
+
+
+### 8. Automatic timetable boundary
+
+- Database/domain owns the canonical timetable data contract, academic-year/class compatibility, persisted versions/status, validation invariants, and audit trail.
+- TypeScript/Node.js solver layer owns translation between the canonical El-Imtiyaz timetable problem and the selected solver. It must expose a stable adapter and must not leak solver-specific data structures into UI code.
+- Electron desktop owns configuration/review UX, generation controls, conflict presentation, manual adjustments, version review, and publication actions.
+- Bundled solver is an implementation detail. It may be a native Node/TypeScript-compatible solver or a packaged external executable such as FET. It must not become the business-logic source of truth.
+- Class/teacher/room timetable views are projections of the same canonical schedule.
+- Production packaging must resolve bundled solver resources through runtime-safe packaged paths. Never depend on PATH, developer machine directories, or an end-user-installed runtime.
