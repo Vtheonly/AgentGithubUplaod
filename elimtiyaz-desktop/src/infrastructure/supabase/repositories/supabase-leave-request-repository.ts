@@ -143,8 +143,39 @@ function nowIso(): string {
 export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
   private readonly cache = new SubjectBehavior<LeaveRequest[]>([]);
   private readonly freshness = new CacheFreshness();
+  private realtimeStarted = false;
 
   constructor(private readonly client: SupabaseClient) {}
+
+  // ------------------------------------------------------------------
+  // Realtime (T-400 / 0106): the Personnel surfaces depend on live
+  // cross-session updates — a worker's submission / clarification
+  // response must reach the manager's inbox (and vice versa) without a
+  // manual reload. Mirrors the SupabaseChatRepository pattern
+  // ("desktop-chat-realtime"): postgres_changes on the table, refresh
+  // the shared cache, degrade gracefully when realtime is unavailable
+  // (the local writer's own refresh-after-write still covers its own
+  // session — the T-034/CROSS-104 freshness policy).
+  // ------------------------------------------------------------------
+  private startRealtime(): void {
+    if (this.realtimeStarted) return;
+    this.realtimeStarted = true;
+    try {
+      const channel = this.client.channel("desktop-leave-requests-realtime");
+      channel
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "leave_requests" },
+          () => {
+            void this.refresh();
+          },
+        )
+        .subscribe();
+    } catch {
+      // Realtime is an enhancement — the caches still refresh after every
+      // local mutation. (Same degrade-gracefully stance as the chat port.)
+    }
+  }
 
   observe(): Observable<LeaveRequest[]> {
     this.seed();
@@ -308,6 +339,7 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
   private seed(): void {
     if (!this.freshness.shouldReseed()) return;
     this.freshness.markSeeded();
+    this.startRealtime();
     void this.refresh();
   }
 
