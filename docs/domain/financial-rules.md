@@ -104,3 +104,43 @@
   - **Itemization conservation (INV-13):** the itemized shopping list is exhaustive — `Σ byChild.billedTotal + unattributedTotal === totalBilled` (single-child families own their family-level rows; multi-child families list them in the explicit "Famille" block). No charge row may be rendered nowhere (DATA-015).
   - **Share-percentage parity (PARITY-001):** display ratios in mirrors MUST round identically to the TS reference (`Math.round(x*100)`); Kotlin integer division truncates (90 000/700 000 → 12 vs 13) and is forbidden for cross-platform figures.
   - **`sumPendingPayments`** (status-strict, mirrors `sumPaidPayments`) is the only sanctioned way to sum uncleared cheque/transfer money for the reconciliation footer.
+
+## 15. Cross-year debt aging & payment-behavior status (T-405, 2026-09-22)
+
+T-405 adds a canonical **debt-aging / payment-behavior status** derivation on TOP of the existing finance system. It creates NO new ledger, NO new balance formula, NO new payment history — every input is an existing canonical fact:
+
+- **Outstanding per obligation** = the INV-4 family formula on REAL installment rows: `clampNonNegative(amount_due − amount_paid − amount_pending)` — the SAME number the Créances tab (`DebtRepository.observeSummary`) and the billing surfaces show. A parent's `outstandingAmount` = Σ remaining over their unpaid installments. Debt Aging MUST NOT show a different amount than the Finance tab.
+- **Original due date** = the installment's `due_date`. **Debt age** is measured from the OLDEST outstanding obligation's due date (INV-4 basis: from the due date, never the charge creation date) and is **NEVER reset by a partial payment** — age is a property of the obligation, not of the balance.
+- **Payment behavior** = the parent's non-reversed `payment` ledger entries (the same replay source as `computeParentSummary.totalPaid`). **Last payment** = MAX(`at`) over those entries. **Inactivity** = days since the last payment; a parent who has NEVER paid has inactivity measured from the oldest outstanding obligation's due date (the obligation has sat unpaid its whole life). Inactivity is clamped to the debt age only in the never-paid case (they are equal by construction there).
+- **Origin academic year** (INV-14): attributed from the obligation's due date — if the date falls inside a known `academic_years` row's `[start_date, end_date]` for the tenant, that year's label is used; otherwise the Algerian school-year calendar convention applies (a date in July–December belongs to the `YYYY-(YYYY+1)` year, January–June to the `(YYYY-1)-YYYY` year). Historical due dates MUST keep their original year attribution — a later payment never rewrites the origin year.
+- **Subsequent-year payment activity** (INV-15): a payment counts as "subsequent-year activity" when its `at` falls in an academic year STRICTLY LATER than the origin year of the parent's oldest outstanding obligation. This fact is REPORTED (count + total) and used in the status explanation; it is what separates "old debt + kept paying" from "old debt + stopped paying".
+
+### 15.1 The canonical status levels (INV-16)
+
+The status is an ordered evaluation over three factors — `outstandingAmount`, `debtAgeDays` (from the oldest outstanding due date), and `inactivityDays` — using ONLY thresholds that already exist as canonical boundaries (the aging-bucket edges 60/90/180 days from `AgingBucket`, and the 90-day delinquency convention behind `lockDelinquentAccounts`):
+
+1. `outstandingAmount ≤ 0.001 DZD` → **GREEN** *(Soldé — the debt is resolved; INV-4 epsilon).*
+2. `inactivityDays ≤ 60` → **GREEN** *(Actif — a payment landed within the last 60 days: the parent is still paying despite the outstanding balance; an old balance with continued payment is NOT delinquency).*
+3. `debtAgeDays > 180 AND inactivityDays > 180` → **RED** *(Critique — long-standing debt combined with prolonged non-payment: both the obligation and the silence are older than the 180-plus aging bucket).*
+4. `debtAgeDays > 90 AND inactivityDays > 60` → **ORANGE** *(Retard soutenu — the debt is older than the 90-day delinquency threshold AND payment has stopped: sustained delinquency requiring attention).*
+5. otherwise → **YELLOW** *(À surveiller — the account is becoming behind or inactive: a young debt without recent payment, or payment that stopped within the debt's first 90 days).*
+
+Invariants:
+
+- **INV-16a (order matters):** the rules are evaluated top-down; rule 2 dominates rules 3–5 (a parent who paid 30 days ago is GREEN even with a 2-year-old balance).
+- **INV-16b (never-paid parents):** `inactivityDays` defaults to `debtAgeDays`, so a never-payer reaches RED exactly when their debt passes 180 days.
+- **INV-16c (no amount tiers):** the status is a payment-behavior classification, not a magnitude ranking — the amount is displayed, never a status input (beyond the 0.001 epsilon). No page may add amount-based status overrides.
+- **INV-16d (explanation is part of the contract):** every computed status carries the derived factors (age, inactivity, last payment, subsequent-year activity, origin year) and a canonical reason string, so a UI can never show a bare color.
+- **INV-16e (recency, not count):** "continued paying" is measured by the LAST payment's recency — not by the number or total of payments. A single recent payment qualifies; many stale ones do not.
+
+### 15.2 Where the calculation lives
+
+One canonical calculation, mirrored per the established pattern (reference TS + SQL mirror + platform ports):
+
+- **Reference implementation:** desktop `src/domain/calc/ledger/debt-aging.ts` (`computeDebtAgingAnalysis` + `computeDebtAgingStatus`), pure and deterministic, pinned by unit fixtures that reproduce the task's two archetype parents.
+- **SQL mirror:** migration 0111 `compute_debt_aging_summary(p_tenant_id, p_as_of)` — computes the same fields server-side from `installments` + `ledger_entries` + `academic_years` so statistics, reports, and the portal consume one server contract.
+- **Platform consumers** (Desktop UI, Website portal, future Android mirror, dashboards, search/filter, exports) render the same fields and labels — Green/Yellow/Orange/Red are PRESENTATION of this one calculation; page-local thresholds, color rules, or debt recomputations are a registered defect class (the DUP family).
+
+### 15.3 Status labels (FR, canonical wording)
+
+GREEN = « Actif / Soldé » · YELLOW = « À surveiller » · ORANGE = « Retard soutenu » · RED = « Critique » — identical wording on every surface that shows a debt status.

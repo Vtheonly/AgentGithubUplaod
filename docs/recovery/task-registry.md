@@ -3857,7 +3857,7 @@ There must be one canonical timetable domain model and one constraint contract. 
 
 ## T-405 — Cross-Year Debt Aging & Payment-Behavior Tracking
 
-**Status:** Ready  
+**Status:** IN PROGRESS (2026-09-22, 86th session — canonical rules documented in `docs/domain/financial-rules.md` §15 FIRST per this entry's mandate; implementation sequence: TS reference engine → SQL mirror 0111 → repository → Suivi des Dettes UI → portal port → live verification)
 **Priority:** P0 — Critical  
 **Scope:** Financial domain, database/backend, statistics, search/filtering, dashboards, student/parent financial pages, academic-year history, audit, and all platform consumers.
 
