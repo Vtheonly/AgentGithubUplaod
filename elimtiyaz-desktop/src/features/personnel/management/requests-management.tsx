@@ -71,23 +71,57 @@ export function RequestsManagement() {
   const { session } = useAuth();
   const toast = useToast();
 
-  const isSuperAdmin =
-    session?.role === Role.SuperAdmin ||
-    session?.role === Role.FinancialOfficer;
+  const role = session?.role ?? Role.Worker;
+  const canReviewRequests =
+    role === Role.SuperAdmin ||
+    role === Role.FinancialOfficer ||
+    role === Role.Manager;
+  const isGlobalReviewer =
+    role === Role.SuperAdmin || role === Role.FinancialOfficer;
   const currentUserId = session?.userId ?? "";
 
   const me = useObservable(
     () => repos.personnel.observeByUserId(currentUserId),
     [currentUserId],
   );
-  const myPersonnelId = me?.id ?? currentUserId;
+  const myPersonnelId = me?.id ?? null;
+  const personnel = useObservable(() => repos.personnel.observe(), []);
+
+  const teamPersonnelIds = useMemo(() => {
+    if (role !== Role.Manager || !me) return new Set<string>();
+    return new Set(
+      personnel
+        .filter(
+          (member) =>
+            member.id !== me.id &&
+            (member.supervisorId === me.id ||
+              member.departmentId === me.departmentId),
+        )
+        .map((member) => member.id),
+    );
+  }, [me, personnel, role]);
 
   const allRequests = useObservable(() => repos.leaveRequests.observe(), []);
 
   const displayedRequests = useMemo(() => {
-    if (isSuperAdmin) return allRequests;
-    return allRequests.filter((r) => r.personnelId === myPersonnelId);
-  }, [allRequests, isSuperAdmin, myPersonnelId]);
+    if (isGlobalReviewer) return allRequests;
+    if (role === Role.Manager) {
+      return allRequests.filter(
+        (request) =>
+          teamPersonnelIds.has(request.personnelId) ||
+          request.personnelId === myPersonnelId,
+      );
+    }
+    return myPersonnelId
+      ? allRequests.filter((request) => request.personnelId === myPersonnelId)
+      : [];
+  }, [
+    allRequests,
+    isGlobalReviewer,
+    role,
+    teamPersonnelIds,
+    myPersonnelId,
+  ]);
 
   const [search, setSearch] = useState("");
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -110,6 +144,13 @@ export function RequestsManagement() {
 
   async function handleCreateRequest() {
     if (!reqReason.trim() || !session) return;
+    if (!myPersonnelId) {
+      toast.showError(
+        "Demande indisponible",
+        "Aucune fiche personnel n'est rattachée à votre compte — contactez l'administration.",
+      );
+      return;
+    }
     const res = await repos.leaveRequests.submit({
       personnelId: myPersonnelId,
       personnelName: session.displayName ?? "Employé",
@@ -127,6 +168,8 @@ export function RequestsManagement() {
       );
       setCreateModalOpen(false);
       setReqReason("");
+    } else {
+      toast.showError("Échec de la demande", res.error.userMessage);
     }
   }
 
@@ -149,6 +192,8 @@ export function RequestsManagement() {
         status === "approved" ? "Demande approuvée" : "Demande refusée",
         "La décision a été notifiée à l'employé.",
       );
+    } else {
+      toast.showError("Décision refusée", res.error.userMessage);
     }
   }
 
@@ -166,6 +211,8 @@ export function RequestsManagement() {
       );
       setClarifyTarget(null);
       setClarifyQuestion("");
+    } else {
+      toast.showError("Échec", res.error.userMessage);
     }
   }
 
@@ -182,6 +229,8 @@ export function RequestsManagement() {
       );
       setRespondTarget(null);
       setClarifyResponse("");
+    } else {
+      toast.showError("Échec de l'envoi", res.error.userMessage);
     }
   }
 
@@ -205,7 +254,7 @@ export function RequestsManagement() {
             <div>
               <CardTitle className="text-sm flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-primary" />
-                {isSuperAdmin
+                {canReviewRequests
                   ? "Triage des Demandes & Remboursements de Dépenses"
                   : "Mes Demandes & Notes de Frais"}
               </CardTitle>
@@ -285,7 +334,7 @@ export function RequestsManagement() {
                       </td>
                       <td className="py-2.5 px-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {isSuperAdmin && req.status === "pending" && (
+                          {canReviewRequests && req.status === "pending" && (
                             <>
                               <Button
                                 size="sm"
@@ -323,7 +372,7 @@ export function RequestsManagement() {
                             </>
                           )}
 
-                          {!isSuperAdmin &&
+                          {!canReviewRequests &&
                             req.status === "clarification_requested" && (
                               <Button
                                 size="sm"
