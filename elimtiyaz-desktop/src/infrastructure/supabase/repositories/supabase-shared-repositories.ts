@@ -2675,14 +2675,35 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
       const results: Installment[] = [];
       for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
         const chunk = rows.slice(i, i + CHUNK_SIZE);
-        // Use upsert with onConflict to handle idempotency at the DB level.
+        // IMPORT-110 (2026-09-21, live-proven by the T-396 CRUD suite):
+        // the previous `onConflict: "tenant_id,parent_id,student_id,category,tranche_number"`
+        // upsert could NEVER work against the live schema — the 0032
+        // `installments_bulk_import_identity_idx` is a PARTIAL unique index
+        // (WHERE the identity columns ARE NOT NULL), and PostgreSQL's
+        // ON CONFLICT (columns) inference cannot match partial indexes —
+        // every live call returned HTTP 400 `42P10`, and the old
+        // warn-and-continue below turned that into Ok([]) — success with
+        // ZERO rows written (a silent data-loss class the mocked-client
+        // repository tests could never catch).
+        //
+        // The fix adopts the live-proven `bulkAppend` (IMPORT-107) wire
+        // form: `ignoreDuplicates: true` emits `ON CONFLICT DO NOTHING`
+        // WITHOUT an arbiter — PostgreSQL then checks ALL unique
+        // constraints, partial indexes included. Semantics: re-imported
+        // tranches are SKIPPED (idempotent no-op) instead of updated —
+        // the ledger's IMPORT-107 philosophy; the per-row
+        // `importInstallment` (find → update-or-insert) remains the
+        // update-capable path.
         const { data, error } = await this.client
           .from("installments")
-          .upsert(chunk as never, { onConflict: "tenant_id,parent_id,student_id,category,tranche_number" })
+          .upsert(chunk as never, { ignoreDuplicates: true })
           .select("id, tenant_id, parent_id, student_id, category, tranche_number, label, amount_due, amount_paid, amount_pending, due_date, paid_date, status, academic_cycle, payment_plan, is_custom_schedule, custom_schedule_note, source_type, source_id, created_at, updated_at");
         if (error) {
-          console.warn(`[SupabaseInstallment] bulk upsert chunk ${i} failed:`, error.message);
-          continue;
+          // IMPORT-110 honest-error half: a chunk failure FAILS the bulk
+          // operation (the adapter's catch aborts the import with the
+          // "Échec de l'écriture en base" contract) — never
+          // warn-and-continue into Ok([]) again (the DATA-019 lesson).
+          return Err(Errors.server(`bulkImportInstallments chunk ${i}: ${error.message}`));
         }
         for (const row of (data ?? []) as InstallmentRow[]) {
           results.push(mapInstallmentRow(row));

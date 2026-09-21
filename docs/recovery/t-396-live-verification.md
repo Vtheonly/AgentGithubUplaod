@@ -73,7 +73,11 @@ Registered as **IMPORT-110** + fixed in the follow-up commit (the fix: `ignoreDu
 - **In the app:** Settings → **Tests CRUD** → « Lancer la suite CRUD complète ». The matrix renders live; « Copier le rapport » exports the safe text form.
 - **From the repo:** `cd elimtiyaz-desktop && npx tsx scripts/t-396-crud-live-e2e.ts` (VERBOSE=1 for the full report text).
 
-## 7. Residuals
+## 7. Residuals — CLOSED by the IMPORT-110 fix (same session)
 
-- The installments bulk leg stays RED until the IMPORT-110 fix commit lands (same session, immediately after) — the final closeout records the green 27/27 re-run.
+The IMPORT-110 fix landed in the follow-up commit (bulkImportInstallments → `ignoreDuplicates: true` + honest chunk errors + the wire-form pin in `t-import-110-bulk-installments.test.ts` 3/3). The live e2e re-run after the fix:
+
+> **27 PASS / 0 FAIL / 0 NON TESTÉ — ALL GREEN** (`npx tsx scripts/t-396-crud-live-e2e.ts`, 2026-09-21, post-fix run) — the full matrix: 2 prep + 5 insert + 4 update + 2 read + **3 bulk (incl. the installments leg now PASS: « 3/3 tranches insérées en UN seul appel »)** + 3 relation + 2 validation + 1 server-error + 4 delete + 1 cleanup, zero live residue.
+
+Remaining residuals:
 - The probe ledger/installment rows of past runs stay as the financial history of soft-deleted probe families (invisible in every UI shape — OPS-319's deleted-set gap; the audit trail is the honest record).

@@ -670,13 +670,14 @@ export async function runCrudIntegrationTests(
     updated_at: new Date().toISOString(),
   }));
   {
-    // SupabaseInstallmentRepository.bulkImportInstallments' exact wire shape.
+    // SupabaseInstallmentRepository.bulkImportInstallments' exact wire shape
+    // (the IMPORT-110 FIX: ignoreDuplicates — ON CONFLICT DO NOTHING without
+    // an arbiter — the onConflict column list could never match the 0032
+    // PARTIAL identity index and 42P10'd on every live call).
     const { value, ms } = await timed(() =>
       client
         .from("installments")
-        .upsert(bulkInstallmentRows, {
-          onConflict: "tenant_id,parent_id,student_id,category,tranche_number",
-        })
+        .upsert(bulkInstallmentRows, { ignoreDuplicates: true })
         .select("id") as PromiseLike<{
         data: Array<Record<string, unknown>> | null;
         error: SupabaseErrorLike | null;
@@ -690,7 +691,7 @@ export async function runCrudIntegrationTests(
         "Import groupé des tranches (3 lignes en 1 appel)",
         !value.error && inserted === 3 ? "pass" : "fail",
         value.error
-          ? safeErrorDetail(value.error, "POST /rest/v1/installments (upsert on-conflict identité)")
+          ? safeErrorDetail(value.error, "POST /rest/v1/installments (upsert ignore-duplicates)")
           : `${inserted}/3 tranches insérées en UN seul appel.`,
         ms,
       ),
