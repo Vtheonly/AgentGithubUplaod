@@ -76,6 +76,7 @@ export function PersonnelPage() {
   const onboarding = useObservable(() => repos.onboarding.observe(), []);
 
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [chatRecipientPersonnelId, setChatRecipientPersonnelId] = useState<string | null>(null);
 
   if (
     onboarding &&
@@ -86,17 +87,34 @@ export function PersonnelPage() {
   }
 
   const role = session?.role ?? Role.Worker;
-  const isSuperAdmin =
-    role === Role.SuperAdmin || role === Role.FinancialOfficer;
+  const isFullAdmin = role === Role.SuperAdmin;
+  const canManagePayroll =
+    isFullAdmin || role === Role.FinancialOfficer;
+  const canManageTasks =
+    isFullAdmin || role === Role.Manager;
+  const canManageAttendance =
+    isFullAdmin ||
+    role === Role.FinancialOfficer ||
+    role === Role.Manager ||
+    role === Role.SupportStaff;
+  const canReviewRequests =
+    isFullAdmin ||
+    role === Role.FinancialOfficer ||
+    role === Role.Manager;
   const isTeacher = role === Role.Teacher;
+  const hasWorkforceManagement =
+    isFullAdmin ||
+    role === Role.FinancialOfficer ||
+    role === Role.Manager ||
+    role === Role.SupportStaff;
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title={t("nav.personnel")}
         description={
-          isSuperAdmin
-            ? "Gestion intégrale des ressources humaines, rémunérations, tâches, assiduité et arbitrages."
+          hasWorkforceManagement
+            ? "Gestion des missions, assiduité, rémunérations et arbitrages adaptés à votre rôle."
             : "Espace collaborateur personnel : vos missions, assiduité, fiches de paie et communications."
         }
       />
@@ -114,7 +132,7 @@ export function PersonnelPage() {
           />
 
           {/* Admin tabs */}
-          {isSuperAdmin && (
+          {isFullAdmin && (
             <PageTab
               value="directory"
               label="Annuaire & Profils"
@@ -123,42 +141,48 @@ export function PersonnelPage() {
           )}
           <PageTab
             value="payroll"
-            label={isSuperAdmin ? "Gestion des Salaires" : "Ma Rémunération"}
+            label={canManagePayroll ? "Gestion des Salaires" : "Ma Rémunération"}
             icon={Wallet}
           />
           <PageTab
             value="tasks"
-            label={isSuperAdmin ? "Centre de Tâches" : "Mes Tâches"}
+            label={canManageTasks ? "Centre de Tâches" : "Mes Tâches"}
             icon={ListTodo}
           />
           <PageTab
             value="attendance"
             label={
-              isSuperAdmin ? "Assiduité & Justifications" : "Mon Assiduité"
+              canManageAttendance ? "Assiduité & Justifications" : "Mon Assiduité"
             }
             icon={Calendar}
           />
           <PageTab
             value="requests"
-            label={isSuperAdmin ? "Demandes & Dépenses" : "Mes Demandes"}
+            label={canReviewRequests ? "Demandes & Dépenses" : "Mes Demandes"}
             icon={Receipt}
           />
           <PageTab value="chat" label="Messagerie" icon={MessageSquare} />
 
           {/* Teacher and specialized tabs */}
-          {(isSuperAdmin || isTeacher) && (
+          {(isFullAdmin || isTeacher) && (
             <PageTab value="releve" label="Relevé d'Activité" icon={Clock} />
           )}
-          {isSuperAdmin && (
+          {isFullAdmin && (
             <PageTab value="workflows" label="Workflows" icon={Workflow} />
           )}
         </PageTabList>
 
         <PageTabContent value="dashboard">
-          <RoleDashboardRouter role={role} />
+          <RoleDashboardRouter
+            role={role}
+            onOpenChat={(personnelId) => {
+              setChatRecipientPersonnelId(personnelId);
+              setActiveTab("chat");
+            }}
+          />
         </PageTabContent>
 
-        {isSuperAdmin && (
+        {isFullAdmin && (
           <PageTabContent value="directory">
             <AdministratorEmployeeDirectory />
           </PageTabContent>
@@ -181,16 +205,19 @@ export function PersonnelPage() {
         </PageTabContent>
 
         <PageTabContent value="chat">
-          <ChatPanel />
+          <ChatPanel
+            openWithPersonnelId={chatRecipientPersonnelId}
+            onOpenWithPersonnelHandled={() => setChatRecipientPersonnelId(null)}
+          />
         </PageTabContent>
 
-        {(isSuperAdmin || isTeacher) && (
+        {(isFullAdmin || isTeacher) && (
           <PageTabContent value="releve">
             <ReleveTab />
           </PageTabContent>
         )}
 
-        {isSuperAdmin && (
+        {isFullAdmin && (
           <PageTabContent value="workflows">
             <WorkflowMonitorTab />
           </PageTabContent>
