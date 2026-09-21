@@ -2725,3 +2725,10 @@ Neither task may be marked complete because insertion or one promotion page work
 ## 2026-09-21 — T-403 added: Human-in-the-loop Batch Promotion Cycles
 
 The promotion workflow is explicitly defined as a school-year **Promotion Cycle**. The entire year's promotion is managed as one cycle, but each class/group must be reviewed and confirmed separately. A dedicated Batch Promotion Cycles table is required; scattered direct-promotion buttons must be removed/replaced with links into the cycle workflow. The cycle must support per-student edits, incomplete-notes warnings, class-level atomic confirmation, progress tracking, and explicit whole-cycle completion. T-403 must reuse T-402's canonical promotion model and backend transaction path rather than creating another promotion engine.
+
+
+## T-404 registration — Automatic Timetable Generation & Constraint Scheduling
+
+Registered the new P0 timetable task covering school-wide automatic generation, configurable curriculum hours/session lengths, rooms, teachers, availability, hard/soft constraints, class-specific free days, Algerian configuration, a dedicated Timetable/Emploi du temps viewing area, versioned generation/manual review/publication, and Node.js + TypeScript integration.
+
+The task explicitly requires a packaged Electron implementation with a bundled solver and clean-target verification, including the Windows x64 executable, so the feature cannot be considered complete merely because it works on the developer machine.
