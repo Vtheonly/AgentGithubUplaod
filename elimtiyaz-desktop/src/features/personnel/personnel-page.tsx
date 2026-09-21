@@ -95,8 +95,7 @@ export function PersonnelPage() {
   const canManageAttendance =
     isFullAdmin ||
     role === Role.FinancialOfficer ||
-    role === Role.Manager ||
-    role === Role.SupportStaff;
+    role === Role.Manager;
   const canReviewRequests =
     isFullAdmin ||
     role === Role.FinancialOfficer ||
