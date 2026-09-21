@@ -26,7 +26,13 @@ import { TeacherDashboard } from "./teacher-dashboard";
 import { WorkerDashboard } from "./worker-dashboard";
 import { ComingSoonCard } from "../../../shared/layout/coming-soon-card";
 
-export function RoleDashboardRouter({ role }: { role: Role }) {
+export function RoleDashboardRouter({
+  role,
+  onOpenChat,
+}: {
+  role: Role;
+  onOpenChat?: (personnelId: string) => void;
+}) {
   switch (role) {
     case "super_admin":
     case "financial_officer":
@@ -43,7 +49,7 @@ export function RoleDashboardRouter({ role }: { role: Role }) {
     case "teacher":
       return <TeacherDashboard />;
     case "worker":
-      return <WorkerDashboard />;
+      return <WorkerDashboard onOpenChat={onOpenChat} />;
     default:
       return (
         <ComingSoonCard
