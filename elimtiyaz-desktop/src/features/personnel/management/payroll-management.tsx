@@ -58,6 +58,32 @@ import {
 } from "../../../domain/model/personnel";
 import { generatePayslipPdf, downloadPdf } from "../../../infrastructure/receipt-pdf";
 
+const PAYROLL_PERIOD_OPTIONS = (() => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Algiers",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const currentYear = Number(parts.find((part) => part.type === "year")?.value);
+  const currentMonth = Number(parts.find((part) => part.type === "month")?.value);
+  const firstMonth = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
+
+  return Array.from({ length: 12 }, (_, offset) => {
+    const date = new Date(firstMonth);
+    date.setUTCMonth(date.getUTCMonth() - offset);
+    const value =
+      String(date.getUTCFullYear()) +
+      "-" +
+      String(date.getUTCMonth() + 1).padStart(2, "0");
+    const label = new Intl.DateTimeFormat("fr-FR", {
+      month: "long",
+      year: "numeric",
+      timeZone: "Africa/Algiers",
+    }).format(date);
+    return { value, label };
+  });
+})();
+
 export function PayrollManagement() {
   const repos = useRepositories();
   const { session } = useAuth();
@@ -74,7 +100,7 @@ export function PayrollManagement() {
     [currentUserId],
   );
 
-  const [period, setPeriod] = useState<string>("2026-03");
+  const [period, setPeriod] = useState<string>(PAYROLL_PERIOD_OPTIONS[0].value);
   const [search, setSearch] = useState("");
 
   // Modals
@@ -124,6 +150,16 @@ export function PayrollManagement() {
   );
 
   const totalUnpaidAmount = Math.max(0, totalPayrollBudget - totalPaidAmount);
+  const mySalaryPayments = useMemo(
+    () =>
+      me
+        ? salaryPayments
+            .filter((payment) => payment.personnelId === me.id)
+            .sort((a, b) => b.period.localeCompare(a.period))
+            .slice(0, 6)
+        : [],
+    [me, salaryPayments],
+  );
 
   const filteredStaff = useMemo(() => {
     return activeStaff.filter((p) => {
@@ -252,6 +288,48 @@ export function PayrollManagement() {
                 Télécharger ma fiche de paie du mois ({period})
               </Button>
             )}
+
+            <div className="border-t border-border/60 pt-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h4 className="text-sm font-semibold">Historique des versements</h4>
+                <span className="text-[10px] text-muted-foreground">Source : registre des salaires</span>
+              </div>
+              {mySalaryPayments.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  Aucun versement enregistré.
+                </p>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {mySalaryPayments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="py-2.5 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{payment.period}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {payment.paymentDate
+                            ? "Versé le " + formatDate(payment.paymentDate)
+                            : "Pas encore versé"}
+                          {payment.referenceNumber
+                            ? " · Réf. " + payment.referenceNumber
+                            : ""}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-mono font-semibold">
+                          {formatDzd(payment.netPaid)}
+                        </p>
+                        <StatusChip
+                          label={payment.status === "paid" ? "Payé" : "En attente"}
+                          tone={payment.status === "paid" ? "success" : "warning"}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -307,10 +385,11 @@ export function PayrollManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2026-03">Mars 2026</SelectItem>
-                  <SelectItem value="2026-02">Février 2026</SelectItem>
-                  <SelectItem value="2026-01">Janvier 2026</SelectItem>
-                  <SelectItem value="2025-12">Décembre 2025</SelectItem>
+                  {PAYROLL_PERIOD_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
