@@ -71,7 +71,12 @@ export function StaffAttendanceCenter() {
   const { session } = useAuth();
   const toast = useToast();
 
-  const isSuperAdmin =
+  const canManageAttendance =
+    session?.role === Role.SuperAdmin ||
+    session?.role === Role.FinancialOfficer ||
+    session?.role === Role.Manager ||
+    session?.role === Role.SupportStaff;
+  const isGlobalAttendanceManager =
     session?.role === Role.SuperAdmin ||
     session?.role === Role.FinancialOfficer;
   const currentUserId = session?.userId ?? "";
@@ -90,14 +95,40 @@ export function StaffAttendanceCenter() {
     () => repos.workforceAttendance.observeAbsences(),
     [],
   );
+  const personnel = useObservable(() => repos.personnel.observe(), []);
+  const managerTeamPersonnelIds = useMemo(() => {
+    if (session?.role !== Role.Manager || !me) return new Set<string>();
+    return new Set(
+      personnel
+        .filter(
+          (member) =>
+            member.id !== me.id &&
+            (member.supervisorId === me.id ||
+              member.departmentId === me.departmentId),
+        )
+        .map((member) => member.id),
+    );
+  }, [me, personnel, session?.role]);
 
-  // For Admin: show all absences; For Worker: show personal absences
   const displayedAbsences = useMemo(() => {
-    if (isSuperAdmin) return allAbsences;
+    if (isGlobalAttendanceManager) return allAbsences;
+    if (session?.role === Role.Manager) {
+      return allAbsences.filter(
+        (absence) =>
+          managerTeamPersonnelIds.has(absence.personnelId) ||
+          absence.personnelId === myPersonnelId,
+      );
+    }
     return myPersonnelId
-      ? allAbsences.filter((a) => a.personnelId === myPersonnelId)
+      ? allAbsences.filter((absence) => absence.personnelId === myPersonnelId)
       : [];
-  }, [allAbsences, isSuperAdmin, myPersonnelId]);
+  }, [
+    allAbsences,
+    isGlobalAttendanceManager,
+    managerTeamPersonnelIds,
+    myPersonnelId,
+    session?.role,
+  ]);
 
   const [search, setSearch] = useState("");
   const [requestModalAbsence, setRequestModalAbsence] =
@@ -117,7 +148,12 @@ export function StaffAttendanceCenter() {
   const [decisionNote, setDecisionNote] = useState("");
 
   // Quick clock in/out for workers
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Algiers",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
   const [clockTick, setClockTick] = useState(0);
   const latestEvent = useMemo(() => {
     void clockTick;
@@ -186,7 +222,7 @@ export function StaffAttendanceCenter() {
     const res = await repos.workforceAttendance.requestAbsenceJustification({
       absenceId: requestModalAbsence.id,
       adminNote: requestNote.trim(),
-      requestedBy: session.displayName ?? "Direction",
+      requestedBy: session.userId,
     });
     if (res.ok) {
       toast.showSuccess(
@@ -222,7 +258,7 @@ export function StaffAttendanceCenter() {
       absenceId: reviewModalAbsence.id,
       decision: reviewDecision,
       decisionNote: decisionNote.trim(),
-      decidedBy: session.displayName ?? "Super Admin",
+      decidedBy: session.userId,
     });
     if (res.ok) {
       toast.showSuccess(
@@ -330,12 +366,12 @@ export function StaffAttendanceCenter() {
             <div>
               <CardTitle className="text-sm flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                {isSuperAdmin
+                {canManageAttendance
                   ? "Gestion des Absences & Justifications du Personnel"
                   : "Mes Absences & Demandes de Justification"}
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                {isSuperAdmin
+                {canManageAttendance
                   ? "Suivi des absences non justifiées, émission de demandes d'explication et validation des certificats médicaux."
                   : "Consultez vos absences et répondez aux demandes d'explication émises par l'administration."}
               </CardDescription>
@@ -417,7 +453,7 @@ export function StaffAttendanceCenter() {
                       <td className="py-2.5 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Super Admin Action: Request justification */}
-                          {isSuperAdmin &&
+                          {canManageAttendance &&
                             (abs.justificationStatus === "none" ||
                               abs.justificationStatus === "rejected") && (
                               <Button
@@ -435,7 +471,7 @@ export function StaffAttendanceCenter() {
                             )}
 
                           {/* Super Admin Action: Review submitted justification */}
-                          {isSuperAdmin &&
+                          {canManageAttendance &&
                             abs.justificationStatus === "submitted" && (
                               <Button
                                 size="sm"
