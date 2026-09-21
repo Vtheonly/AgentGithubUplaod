@@ -257,10 +257,21 @@ export function BatchRegistrationModal({
     });
 
     if (result.ok) {
-      toast.showSuccess(
-        "Inscription réussie",
-        `Parent ${result.value.parent.code} + ${result.value.students.length} élève(s) créé(s) atomiquement.`,
-      );
+      // DATA-019 (T-397): the billing-persistence failure is surfaced —
+      // the family is created but the charges/tranches were NOT written;
+      // the operator must know before promising a payment schedule to the
+      // parent (previously a console.warn the UI never showed).
+      if (result.value.billingWarning) {
+        toast.showWarning(
+          "Inscription réussie MAIS échec de la facturation",
+          result.value.billingWarning,
+        );
+      } else {
+        toast.showSuccess(
+          "Inscription réussie",
+          `Parent ${result.value.parent.code} + ${result.value.students.length} élève(s) créé(s) — facturation (charges + tranches) écrite.`,
+        );
+      }
       // VAULT §02.08 — issue the activation code at enrollment time. The
       // Supabase path already persisted the SAME deterministic code via
       // `upsert_parent_from_import(p_activation_code)` (migration 0037), so

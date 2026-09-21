@@ -427,6 +427,16 @@ export interface BatchRegistrationInput {
 export interface BatchRegistrationResult {
   readonly parent: import("./parent").Parent;
   readonly students: readonly Student[];
+  /**
+   * DATA-019 (T-397, 2026-09-21): when the billing persistence leg
+   * (charges + tranches) fails or partially fails, the family records are
+   * still created (they are correct; the charges are regenerable — the
+   * established scope decision) but the failure is NO LONGER swallowed:
+   * this field carries the honest reason, and the wizard surfaces it as a
+   * visible warning ("Inscription réussie MAIS échec de persistance de la
+   * facturation"). Undefined = everything persisted.
+   */
+  readonly billingWarning?: string;
 }
 
 // `AcademicHistoryEntry` is re-exported from `./academic` at the top of this

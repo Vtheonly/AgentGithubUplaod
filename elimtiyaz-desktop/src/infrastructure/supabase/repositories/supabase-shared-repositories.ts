@@ -205,6 +205,54 @@ export function isUuid(value: string | null | undefined): value is string {
 }
 
 // ============================================================================
+// PERF-501 (T-397) — the transient-failure absorber for the idempotent
+// identity RPCs
+// ============================================================================
+
+/**
+ * PERF-501: the network/transient error class. On a high-latency route
+ * (the owner's Algeria → eu-west-1, 476–952 ms per round-trip), a single
+ * blip in a multi-call chain is the "sometimes I get a server error"
+ * report — and the identity upsert RPCs are IDEMPOTENT (the deterministic
+ * parent/student codes converge on re-run — the upsert's own contract),
+ * so one immediate retry is always safe.
+ */
+function isTransientNetworkError(err: unknown): boolean {
+  const e = err as { message?: string; code?: string | number } | null;
+  const msg = typeof e?.message === "string" ? e.message : "";
+  const code = e?.code;
+  return (
+    code === "ERR_NETWORK" ||
+    code === "ERR_TIMEOUT" ||
+    /fetch failed|Failed to fetch|network|timeout|ECONNRESET|socket hang up|aborted/i.test(msg)
+  );
+}
+
+/**
+ * PERF-501: run an IDEMPOTENT RPC with a single network-class retry.
+ * Non-network errors (validation, RLS, constraint) return immediately —
+ * a retry cannot fix them and would double-report; network-class errors
+ * get exactly ONE immediate re-invocation (the deterministic codes make
+ * the re-run converge instead of duplicating).
+ */
+export async function rpcWithIdempotentRetry<A extends Record<string, unknown>, T>(
+  client: SupabaseClient,
+  name: string,
+  args: A,
+): Promise<{ data: T | null; error: { code?: string; message: string } | null }> {
+  const first = (await client.rpc(name, args)) as {
+    data: T | null;
+    error: { code?: string; message: string } | null;
+  };
+  if (!first.error || !isTransientNetworkError(first.error)) return first;
+  const second = (await client.rpc(name, args)) as {
+    data: T | null;
+    error: { code?: string; message: string } | null;
+  };
+  return second;
+}
+
+// ============================================================================
 // OPS-317 (T-392) — seed-diagnostics registry
 // ============================================================================
 
@@ -593,7 +641,15 @@ export class SupabaseParentRepository implements ParentRepository {
       const transportDestination: TransportDestination | null =
         input.transportDestination ?? cityTierToDestination(input.cityTier) ?? null;
 
-      const { data, error } = await this.client.rpc("upsert_parent_from_import", {
+      // PERF-501 (T-397): the idempotent upsert RPC gets ONE network-class
+      // retry — the deterministic parent code makes the re-run converge
+      // (UPDATE) instead of duplicating, and a transient blip no longer
+      // fails the whole registration at call #1 (the owner's "sometimes a
+      // server error" class on the high-latency route).
+      const { data, error } = await rpcWithIdempotentRetry<
+        Record<string, unknown>,
+        { out_parent_id: string; out_parent_code: string; out_was_inserted: boolean }[]
+      >(this.client, "upsert_parent_from_import", {
         p_tenant_id: tenantId,
         p_parent_code: parentCode,
         p_first_name: input.firstName,
@@ -897,7 +953,12 @@ export class SupabaseStudentRepository implements StudentRepository {
       const gradeLevel: GradeLevel =
         input.gradeLevel ?? gradeLevelFromLevelYear(input.level, input.gradeYear);
 
-      const { data, error } = await this.client.rpc("upsert_student_from_import", {
+      // PERF-501 (T-397): same idempotent-retry seam as createParent (the
+      // deterministic student code converges on re-run).
+      const { data, error } = await rpcWithIdempotentRetry<
+        Record<string, unknown>,
+        { out_student_id: string; out_student_code: string; out_was_inserted: boolean }[]
+      >(this.client, "upsert_student_from_import", {
         p_tenant_id: tenantId,
         p_student_code: code,
         p_parent_id: parentId,
@@ -1164,9 +1225,23 @@ export class SupabaseStudentRepository implements StudentRepository {
         created.push(r.value);
       }
 
-      // Best-effort billing persistence (tuition + transport + fee charges and
-      // the installment schedule) — uses the same canonical helpers as the
-      // mock repository so both backends produce identical schedules.
+      // PERF-501 (T-397) + DATA-019 — the billing leg rewritten onto the
+      // BULK write paths. The previous implementation looped
+      // `ledgerRepo.append` (1 RPC per charge) + `importInstallment`
+      // (3-4 sequential round-trips per tranche) — 21+ sequential
+      // round-trips for a 1-student registration, live-measured 6,984 ms
+      // from the sandbox and mapping exactly to the owner's 10–20 s at the
+      // Algeria→eu-west-1 RTT band (the PERF-501 evidence probe). The bulk
+      // methods (the Excel importer's, live-proven since the IMPORT-110
+      // fix) write the SAME rows in ONE call each: a 1-student
+      // registration drops to ~7 round-trips regardless of tranche count.
+      //
+      // DATA-019: a billing-leg failure is NO LONGER console.warn-swallowed
+      // — the family records stay (they are correct; the charges are
+      // regenerable — the established scope decision), but the honest
+      // reason is returned as `billingWarning` and the wizard surfaces it
+      // as a visible warning instead of a bare "Inscription réussie".
+      let billingWarning: string | undefined;
       try {
         const { ledgerRepo, installmentRepo } = getBillingRepos(this.client);
         const year = input.academicYearStartYear ?? new Date().getFullYear();
@@ -1183,6 +1258,11 @@ export class SupabaseStudentRepository implements StudentRepository {
         } catch {
           /* keep the seed config — the charges still generate */
         }
+
+        // BUILD all billing rows first (no awaits inside the loop) — then
+        // ONE bulk write per table.
+        const charges: LedgerEntry[] = [];
+        const installmentInputs: ImportInstallmentInput[] = [];
 
         for (let i = 0; i < created.length; i++) {
           const student = created[i];
@@ -1207,7 +1287,7 @@ export class SupabaseStudentRepository implements StudentRepository {
                 : [...splitNetTuitionByOfficialSchedule(net)];
             const dues = student.paymentPlan === "full_annual" ? [due1] : [due1, due2, due3];
             for (let t = 0; t < amounts.length; t++) {
-              await ledgerRepo.append(
+              charges.push(
                 createChargeEntry({
                   tenantId: requireTenantId(),
                   parentId: parent.id,
@@ -1227,7 +1307,7 @@ export class SupabaseStudentRepository implements StudentRepository {
                   },
                 }),
               );
-              await installmentRepo.importInstallment({
+              installmentInputs.push({
                 parentId: parent.id,
                 studentId: student.id,
                 category: "tuition",
@@ -1247,7 +1327,7 @@ export class SupabaseStudentRepository implements StudentRepository {
             if (destination) {
               const tranches = transportTranchesForDestination(billingConfig, destination);
               for (let t = 0; t < tranches.length; t++) {
-                await ledgerRepo.append(
+                charges.push(
                   createChargeEntry({
                     tenantId: requireTenantId(),
                     parentId: parent.id,
@@ -1263,7 +1343,7 @@ export class SupabaseStudentRepository implements StudentRepository {
                     metadata: { tranche: t + 1, destination },
                   }),
                 );
-                await installmentRepo.importInstallment({
+                installmentInputs.push({
                   parentId: parent.id,
                   studentId: student.id,
                   category: "transport",
@@ -1280,7 +1360,7 @@ export class SupabaseStudentRepository implements StudentRepository {
           }
         }
         if (includeRegistration && billingConfig.registrationFee > 0 && created.length > 0) {
-          await ledgerRepo.append(
+          charges.push(
             createChargeEntry({
               tenantId: requireTenantId(),
               parentId: parent.id,
@@ -1297,13 +1377,44 @@ export class SupabaseStudentRepository implements StudentRepository {
             }),
           );
         }
+
+        // ONE bulk write per table (the Excel importer's live-proven paths).
+        const billingFailures: string[] = [];
+        if (charges.length > 0) {
+          const ledgerResult = await ledgerRepo.bulkAppend(charges);
+          if (!ledgerResult.ok) {
+            billingFailures.push(
+              `écritures du grand livre (${charges.length}) : ${ledgerResult.error.message}`,
+            );
+          }
+        }
+        if (installmentInputs.length > 0) {
+          const installmentResult = await installmentRepo.bulkImportInstallments(installmentInputs);
+          if (!installmentResult.ok) {
+            billingFailures.push(
+              `tranches (${installmentInputs.length}) : ${installmentResult.error.message}`,
+            );
+          }
+        }
+        if (billingFailures.length > 0) {
+          billingWarning =
+            `La famille (${parent.code}) et les élèves sont créés, mais ` +
+            `l'écriture de la facturation a échoué — ${billingFailures.join(" ; ")}. ` +
+            "Les charges peuvent être régénérées (recréez l'inscription ou contactez l'administrateur) — " +
+            "le solde affiché sera à zéro jusqu'à la régénération.";
+        }
       } catch (billingErr) {
-        console.warn("[SupabaseStudent] batchRegister billing persistence failed:", billingErr);
-        // Family records exist — surface a warning in the result note but do
-        // not fail the registration (charges can be regenerated).
+        // DATA-019: the honest degradation — the family records exist and
+        // are correct; the billing failure reason is RETURNED (and surfaced
+        // by the wizard), never console.warn-swallowed again.
+        billingWarning =
+          `La famille (${parent.code}) et les élèves sont créés, mais ` +
+          `l'écriture de la facturation a échoué — ` +
+          `${billingErr instanceof Error ? billingErr.message : String(billingErr)}. ` +
+          "Les charges peuvent être régénérées — le solde affiché sera à zéro jusqu'à la régénération.";
       }
 
-      return Ok({ parent, students: created });
+      return Ok({ parent, students: created, ...(billingWarning ? { billingWarning } : {}) });
     } catch (e) {
       return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
     }
