@@ -38,7 +38,13 @@ import {
   type TaskStatus,
 } from "../../../domain/model/workforce";
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Algiers",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
 const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
   pending: "neutral",
@@ -89,7 +95,11 @@ const leaveFields: readonly AutoFormField[] = [
   { name: "reason", label: "Motif", type: "textarea", wide: true, placeholder: "Précisez le motif de la demande…" },
 ];
 
-export function WorkerDashboard() {
+export interface WorkerDashboardProps {
+  readonly onOpenChat?: (personnelId: string) => void;
+}
+
+export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
   const repos = useRepositories();
   const { session } = useAuth();
   const toast = useToast();
