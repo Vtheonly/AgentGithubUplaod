@@ -2,6 +2,16 @@
 
 > Chronological record of significant recovery changes. This file — not chat transcripts, not DONE/TODO notes — is the history of what has been fixed and how it was verified. Append one entry per completed task, using the template below.
 
+## 85th session (2026-09-22) — T-401 + T-402: the classification, then the canonical promotion read side
+
+### 2026-09-22 — T-402 — the canonical promotion model: the desktop history-read gap CLOSED + the full promotion-path audit (ONE business path, source-guarded)
+
+- **Problem IDs:** none newly registered (the gap was documented as the T-402 task itself: Supabase mode never read `student_academic_histories` — `Student.academicHistory` was always undefined, the history card rendered empty, and the placement studio's provenance detection degraded to grade-adjacency).
+- **What was done:** (a) the 12-surface promotion-path audit (docs/recovery/t-402-live-verification.md) — exactly ONE `rpc("execute_batch_promotion"` call site per repository file, one domain engine, one history model; the dead legacy path stays dead (source-guarded); (b) the FIX: `fetchAcademicHistoryRows` + `embedAcademicHistories` + `mapAcademicHistoryRow` in `SupabaseStudentRepository.seed()` (the embedStudentDocuments pattern — one tenant query per reseed, degradation to the pre-T-402 empty state on failure, never a blanked list; ALL read paths derive from the same cache so observe/observeByParent/observeByClass/observeById/search all gain the history; `updateStudent`'s cache-merge preserves it).
+- **Verified:** live `verify_t-402.sql` **9/9** (the canonical write → the desktop's exact read wire shape, incl. 0107's classification stamp; repeaters distinguishable; the shared fail-closed validation 22023; idempotent re-run overwritten in place) + `verify_t-041.sql` regression re-run **10/10** against the 0107-replaced function; desktop tsc = the 6-error pre-existing baseline; FULL vitest **3597/21/5** with the failing set byte-identical (diff-verified); +8 new tests (`t-402-academic-history-embedding.test.ts`).
+- **Commits:** the T-402 commit (this entry + the verify script + the evidence doc + the registry flip).
+- **New lesson:** the PL/pgSQL savepoint trap in verify scripts — a caught exception rolls back EVERYTHING its DO-block did, including the sandbox setup AND the temp-table result rows of earlier checks in the same block. Structure: setup block / main block / isolated exception-expecting blocks (verify_t-402.sql now documents this in its header).
+
 ## 85th session (2026-09-22) — T-401: the filière/spécialité classification, end to end
 
 ### 2026-09-22 — T-401 / ACAD-502 — the canonical academic classification (Niveau → Filière → Spécialité → Classe/Section): catalog, columns, compatibility guard, formation stamping, promotion history stamping, import preserve, desktop + portal integration

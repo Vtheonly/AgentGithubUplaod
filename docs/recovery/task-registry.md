@@ -3609,7 +3609,7 @@ The DBA/backend owner must implement and verify the canonical database represent
 
 ## T-402 — Full Batch Promotion Integration and Unified Academic Model
 
-**Status:** Ready  
+**Status:** Verified (2026-09-22, 85th session) — COMPLETE: the full promotion-path audit recorded in docs/recovery/t-402-live-verification.md (12 surfaces; ONE canonical RPC path confirmed + source-guarded; the desktop history-read gap CLOSED via embedAcademicHistories in SupabaseStudentRepository.seed()). Live verify_t-402.sql 9/9 (write→read round-trip incl. the classification stamp, repeater distinguishability, the shared fail-closed validation, idempotent re-run) + verify_t-041 regression 10/10. Desktop 3597/21/5 (failing set byte-identical to baseline). Residuals: Android p_filiere_code push (follow-up candidate, out of scope — repo not cloned); the promotion UI entry points restructure with T-403.  
 **Priority:** P0  
 **Scope:** All promotion entry points and all downstream academic consumers across Desktop, Android, Website, and the canonical database.
 

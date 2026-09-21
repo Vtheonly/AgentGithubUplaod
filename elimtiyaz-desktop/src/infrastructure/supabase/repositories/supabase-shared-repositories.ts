@@ -62,6 +62,7 @@ import {
   gradeYearFromGradeLevel,
 } from "../../../domain/model/student";
 import { normalizeTrackCode } from "../../../domain/model/filiere";
+import type { AcademicHistoryEntry } from "../../../domain/model/academic";
 import { getNextGradeProgression } from "../../../domain/calc/academics/promotion";
 import type {
   Payment,
@@ -467,6 +468,81 @@ export function embedStudentDocuments(
   });
 }
 
+/**
+ * T-402 — the canonical `student_academic_histories` row (0029 + 0107's
+ * classification columns). The append-only promotion archive both the
+ * placement studio's provenance detection and the student drawer's
+ * "Historique académique" card consume.
+ */
+export interface StudentAcademicHistoryRecordRow {
+  id: string;
+  tenant_id: string;
+  student_id: string;
+  academic_year: string;
+  cycle: "prescolaire" | "primaire" | "cem" | "lycee";
+  grade_code: string;
+  grade_year: number | null;
+  class_id: string | null;
+  class_name: string | null;
+  gpa: number | null;
+  rank: number | null;
+  decision: "promoted" | "repeated" | "graduated" | "transferred";
+  narrative: string | null;
+  filiere_code?: string | null;
+  specialite_code?: string | null;
+  recorded_at: string;
+}
+
+/**
+ * T-402 — map a history row to the domain entry. `level` is derived from the
+ * grade code via the canonical helper (prescolaire grades map to the
+ * "primaire" AcademicLevel bucket, exactly like mapClassRow's cycleMap).
+ */
+export function mapAcademicHistoryRow(r: StudentAcademicHistoryRecordRow): AcademicHistoryEntry {
+  const gradeLevel = (r.grade_code ?? "1ap") as GradeLevel;
+  return {
+    id: r.id,
+    studentId: r.student_id,
+    academicYear: r.academic_year,
+    cycle: r.cycle,
+    level: academicLevelFromGradeLevel(gradeLevel),
+    gradeCode: gradeLevel,
+    gradeYear: r.grade_year ?? gradeYearFromGradeLevel(gradeLevel),
+    classId: r.class_id,
+    className: r.class_name,
+    gpa: Number(r.gpa ?? 0),
+    rank: r.rank ?? null,
+    decision: r.decision,
+    narrative: r.narrative,
+    filiereCode: r.filiere_code ?? null,
+    specialiteCode: r.specialite_code ?? null,
+    recordedAt: r.recorded_at,
+  };
+}
+
+/**
+ * T-402 — embed the tenant's history rows onto the cached students (the
+ * `embedStudentDocuments` pattern). Students without history keep
+ * `academicHistory` undefined (the pre-T-402 shape — honest empty state).
+ */
+export function embedAcademicHistories(
+  students: readonly Student[],
+  rows: readonly StudentAcademicHistoryRecordRow[],
+): Student[] {
+  const byStudent = new Map<string, AcademicHistoryEntry[]>();
+  for (const r of rows) {
+    const list = byStudent.get(r.student_id) ?? [];
+    list.push(mapAcademicHistoryRow(r));
+    byStudent.set(r.student_id, list);
+  }
+  return students.map((s) => {
+    const history = byStudent.get(s.id);
+    return history && history.length > 0
+      ? { ...s, academicHistory: [...history].sort((a, b) => a.academicYear.localeCompare(b.academicYear)) }
+      : s;
+  });
+}
+
 /** Exported for the T-103 read-side consistency suite (pure row mapper). */
 export function mapPaymentRow(r: PaymentRow): Payment {
   return {
@@ -840,10 +916,26 @@ export class SupabaseStudentRepository implements StudentRepository {
       // repository pattern (the students list itself is one whole-tenant
       // query). A document-fetch failure degrades to "no documents"
       // (honest empty state) rather than blanking the student list.
+      //
+      // T-402 — the canonical `student_academic_histories` table is
+      // embedded the same way: it is the promotion archive the placement
+      // studio's provenance detection and the student drawer's history
+      // card consume. Before this, Supabase mode NEVER read the table
+      // (Student.academicHistory was always undefined — the history card
+      // rendered empty and provenance fell back to grade-adjacency). A
+      // history-fetch failure degrades to "no history" (the pre-T-402
+      // state) rather than blanking the student list.
       try {
         const docRows = await this.fetchDocumentRows(tenantId);
         const names = await this.resolveUploaderNames(docRows);
-        this.cache.set(embedStudentDocuments(students, docRows, names));
+        const withDocs = embedStudentDocuments(students, docRows, names);
+        try {
+          const historyRows = await this.fetchAcademicHistoryRows(tenantId);
+          this.cache.set(embedAcademicHistories(withDocs, historyRows));
+        } catch (histErr) {
+          console.warn("[SupabaseStudent] academic-history fetch failed — history degraded to empty:", histErr);
+          this.cache.set(withDocs);
+        }
       } catch (docErr) {
         console.warn("[SupabaseStudent] document fetch failed — documents degraded to empty:", docErr);
         this.cache.set(students);
@@ -855,6 +947,22 @@ export class SupabaseStudentRepository implements StudentRepository {
       recordSeedError("students", e);
       this.cache.set([]);
     }
+  }
+
+  /**
+   * T-402 — tenant-scoped fetch of every `student_academic_histories` row
+   * (the canonical promotion archive; staff SELECT under the 0057 policy,
+   * parents read their own children under 0091 from the portal). Ordered by
+   * academic_year so each student's embedded history is chronological.
+   */
+  private async fetchAcademicHistoryRows(tenantId: string): Promise<StudentAcademicHistoryRecordRow[]> {
+    const { data, error } = await this.client
+      .from("student_academic_histories")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("academic_year", { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as StudentAcademicHistoryRecordRow[];
   }
 
   /** SYNC-110/T-372 — tenant-scoped fetch of every `student_documents` row. */
