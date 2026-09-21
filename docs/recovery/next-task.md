@@ -407,3 +407,11 @@ Suggested order for the first sessions (all P0, dependency-free):
 ## Windows packaging closeout — 2026-09-16
 
 T-506 / PACK-100 is IMPLEMENTED: Windows x64 installer and portable executables were built and hashed locally. No real-Windows smoke test was possible here. Next for this owner request: run the installer/portable launch, dashboard/CRM and PDF-save smoke test on Windows, then attach evidence to T-506. Binaries remain gitignored local deliverables; the recipe and icons are tracked. The standing backend recommendation T-337 is unchanged.
+---
+
+## Newly registered P0/P1 academic integration work
+
+- **T-402 (P0): Full Batch Promotion Integration and Unified Academic Model.** Audit and repair every promotion surface, canonical history/grade-level write, Android sync, downstream consumers, and class-formation handoff. The legacy promotion path must remain dead.
+- **T-401 (P1): Full Filière / Spécialité Integration Across the System.** Establish one canonical Niveau → Filière → Spécialité → Classe/Section model with DBA-owned persistence/validation and integrate it across every relevant UI, search, filter, statistic, placement, history, and import/export path.
+
+These tasks supersede any attempt to solve either requirement as a single-page UI patch.
