@@ -91,3 +91,18 @@ Batch promotion is upstream of class formation. Promotion must update the canoni
 ### Rule against duplication
 
 If an existing academic function, resolver, repository, RPC, or schema already owns one of these rules, extend it rather than creating a second implementation. Any intentional replacement must document the old consumer, migration path, tests, and removal/deprecation step.
+
+
+### Automatic Timetable Scheduling
+
+Timetabling consumes the canonical academic structure:
+
+Academic Year → Niveau → Filière → Spécialité → Classe/Section → Subjects/Modules
+
+For each relevant class/group, scheduling requirements may define weekly subject/session frequency, lesson duration, required room type, teacher, availability, preferred periods, and free/unavailable days.
+
+A class-specific free day is a scheduling constraint, not an academic classification field. It may be configured as a preference or an explicit hard restriction.
+
+Hard constraints make a generated timetable invalid when violated. Soft constraints may be violated only when the result reports them explicitly.
+
+Missing curriculum hours or impossible constraint combinations must never be silently converted into zero hours, omitted lessons, or fabricated assignments.
