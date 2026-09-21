@@ -29,6 +29,7 @@ import type {
   AttendanceStatus,
 } from "../../../domain/model/academic";
 import type { Student, AcademicLevel } from "../../../domain/model/student";
+import { trackCompatible, trackIncompatibilityReason, normalizeTrackCode } from "../../../domain/model/filiere";
 import {
   academicLevelFromGradeLevel,
   gradeYearFromGradeLevel,
@@ -1058,6 +1059,32 @@ export class MockClassPlacementRepository implements ClassPlacementRepository {
       if (!store.students.some((s) => s.id === assignment.studentId)) {
         return Err(Errors.notFound("Student", assignment.studentId));
       }
+      // T-401: classification compatibility — the mock mirrors the SQL
+      // fn_track_compatible guard so mock-mode parity holds.
+      const trackStudent = store.students.find((s) => s.id === assignment.studentId)!;
+      const trackClass = draftIds.has(assignment.targetClassId)
+        ? { filiereCode: input.newClasses.find((d) => d.clientDraftId === assignment.targetClassId)!.filiereCode ?? null,
+            specialiteCode: input.newClasses.find((d) => d.clientDraftId === assignment.targetClassId)!.specialiteCode ?? null,
+            gradeCode: assignment.gradeLevel }
+        : (() => { const c = store.classes.find((c) => c.id === assignment.targetClassId); return c
+            ? { filiereCode: c.filiereCode ?? null, specialiteCode: c.specialiteCode ?? null, gradeCode: c.gradeCode }
+            : null; })();
+      if (
+        trackClass &&
+        !trackCompatible(
+          trackStudent.filiereCode,
+          trackStudent.specialiteCode,
+          trackClass.filiereCode,
+          trackClass.specialiteCode,
+          trackClass.gradeCode,
+        )
+      ) {
+        return Err(Errors.validation(
+          `${trackStudent.firstName} ${trackStudent.lastName} : ${
+            trackIncompatibilityReason(trackStudent.filiereCode, trackClass.filiereCode, trackClass.gradeCode)
+              ?? "classification incompatible avec la classe cible"}`,
+        ));
+      }
     }
 
     // ── Mutation pass (every check above passed — apply the whole batch)
@@ -1081,6 +1108,10 @@ export class MockClassPlacementRepository implements ClassPlacementRepository {
         level: academicLevelFromGradeLevel(draft.gradeCode),
         gradeYear: gradeYearFromGradeLevel(draft.gradeCode),
         section: draft.section || "A",
+        // T-401: the drafted section's classification (normalized like the
+        // SQL side — "general" stores as NULL/untagged).
+        filiereCode: normalizeTrackCode(draft.filiereCode),
+        specialiteCode: normalizeTrackCode(draft.specialiteCode),
         room: draft.room,
         capacity: draft.capacity,
         enrolledCount: 0,
@@ -1126,6 +1157,14 @@ export class MockClassPlacementRepository implements ClassPlacementRepository {
           gradeLevel: assignment.gradeLevel,
           level: assignment.level,
           gradeYear: assignment.gradeYear,
+          // T-401: a tagged class stamps the student's classification (the
+          // legitimate year-end transition — mirrors the RPC's Step C).
+          ...(store.classes.find((c) => c.id === finalClassId)?.filiereCode
+            ? { filiereCode: store.classes.find((c) => c.id === finalClassId)!.filiereCode }
+            : {}),
+          ...(store.classes.find((c) => c.id === finalClassId)?.specialiteCode
+            ? { specialiteCode: store.classes.find((c) => c.id === finalClassId)!.specialiteCode }
+            : {}),
           updatedAt: nowIso(),
         };
         assignedStudentsCount += 1;

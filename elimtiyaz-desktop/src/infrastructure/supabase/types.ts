@@ -154,6 +154,10 @@ export interface ClassRow {
   homeroom_teacher_name: string | null;
   /** Grade-level code ("3ap") — added by migration 0029. */
   grade_code: string | null;
+  /** T-401 the class's academic stream (null = untagged/general) — migration 0107. */
+  filiere_code: string | null;
+  /** T-401 the class's spécialité (null = none) — migration 0107. */
+  specialite_code: string | null;
   room: string | null;
   is_active: boolean;
   created_at: string;
@@ -233,6 +237,10 @@ export interface StudentRow {
   gender: "male" | "female" | "other" | null;
   grade_level_id: string | null;
   class_id: string | null;
+  /** T-401 academic stream (filières.code; null = untagged/general) — migration 0107. */
+  filiere_code: string | null;
+  /** T-401 spécialité (null = none) — migration 0107. */
+  specialite_code: string | null;
   enrollment_date: string;
   enrollment_status: "inquiry" | "quoted" | "enrolled" | "active" | "withdrawn" | "graduated";
   medical_notes: string | null;

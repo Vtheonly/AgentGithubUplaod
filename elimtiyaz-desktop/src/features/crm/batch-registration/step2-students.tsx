@@ -23,7 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../shared/ui/select";
-import { LEVEL_YEARS, type AcademicLevel, type Gender } from "../../../domain/model/student";
+import { LEVEL_YEARS, gradeLevelFromLevelYear, type AcademicLevel, type Gender } from "../../../domain/model/student";
+import { getFilieresForGrade, getSpecialitesForFiliere } from "../../../domain/model/filiere";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import {
@@ -38,6 +39,9 @@ import { EMPTY_STUDENT } from "./types";
 /** Sentinel for "no transport" — Radix Select forbids empty-string values.
  *  FIX: `<SelectItem value="">` threw at runtime when the dropdown opened. */
 const NO_TRANSPORT = "__none__";
+/** T-401 sentinels — Radix Select forbids empty-string values. */
+const NO_FILIERE = "__general__";
+const NO_SPECIALITE = "__none__";
 
 /** Sentinel for "no class assigned" — Radix Select forbids empty-string values. */
 const NO_CLASS = "__none__";
@@ -141,6 +145,45 @@ export function Step2({
                 </SelectContent>
               </Select>
             </FormField>
+            {/* T-401 — the academic stream (filière) for this student. */}
+            <FormField label="Filière" hint="Cours commun si aucune sélection">
+              <Select
+                value={s.filiereCode || NO_FILIERE}
+                onValueChange={(v) =>
+                  update(i, { filiereCode: v === NO_FILIERE ? "" : v, specialiteCode: "" })
+                }
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_FILIERE}>Cours commun</SelectItem>
+                  {getFilieresForGrade(
+                    gradeLevelFromLevelYear(s.level, s.gradeYear),
+                  )
+                    .filter((f) => f.code !== "general")
+                    .map((f) => (
+                      <SelectItem key={f.code} value={f.code}>{f.labelFr}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {getSpecialitesForFiliere(s.filiereCode).length > 0 && (
+              <FormField label="Spécialité">
+                <Select
+                  value={s.specialiteCode || NO_SPECIALITE}
+                  onValueChange={(v) =>
+                    update(i, { specialiteCode: v === NO_SPECIALITE ? "" : v })
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_SPECIALITE}>Aucune</SelectItem>
+                    {getSpecialitesForFiliere(s.filiereCode).map((sp) => (
+                      <SelectItem key={sp.code} value={sp.code}>{sp.labelFr}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            )}
             {/* vault §04.03 — class assignment within the selected level. */}
             <FormField label="Classe" hint="Optionnel — filtré par niveau">
               <Select

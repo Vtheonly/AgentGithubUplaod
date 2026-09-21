@@ -27,6 +27,7 @@ import type {
   StudentDocumentDraft,
 } from "../../../domain/model/student";
 import { gradeLevelFromLevelYear } from "../../../domain/model/student";
+import { normalizeTrackCode } from "../../../domain/model/filiere";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
 import { dispatchStudentEnrolled } from "./workflow-event-bridge";
 import { defaultPricingConfig } from "../pricing-seed";
@@ -98,6 +99,9 @@ export class MockStudentRepository implements StudentRepository {
       level: input.level,
       gradeYear: input.gradeYear,
       gradeLevel,
+      // T-401: the academic classification (normalized like the SQL side).
+      filiereCode: normalizeTrackCode(input.filiereCode),
+      specialiteCode: normalizeTrackCode(input.specialiteCode),
       classId: input.classId ?? null,
       photoUrl: null,
       medicalNotes: input.medicalNotes ?? null,

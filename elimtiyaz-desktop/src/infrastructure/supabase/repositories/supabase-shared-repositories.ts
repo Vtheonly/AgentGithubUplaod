@@ -61,6 +61,7 @@ import {
   academicLevelFromGradeLevel,
   gradeYearFromGradeLevel,
 } from "../../../domain/model/student";
+import { normalizeTrackCode } from "../../../domain/model/filiere";
 import { getNextGradeProgression } from "../../../domain/calc/academics/promotion";
 import type {
   Payment,
@@ -406,6 +407,9 @@ export function mapStudentRow(r: StudentRow): Student {
     level: academicLevelFromGradeLevel(gradeLevel),
     gradeYear: gradeYearFromGradeLevel(gradeLevel),
     gradeLevel,
+    // T-401: the academic classification (migration 0107; NULL = untagged).
+    filiereCode: normalizeTrackCode((r as { filiere_code?: string | null }).filiere_code),
+    specialiteCode: normalizeTrackCode((r as { specialite_code?: string | null }).specialite_code),
     classId: r.class_id,
     photoUrl: null,
     medicalNotes: r.medical_notes,
@@ -986,6 +990,9 @@ export class SupabaseStudentRepository implements StudentRepository {
         p_grade_level_code: input.gradeLevel ?? null,
         p_transport_tier: input.transportTier ?? null,
         p_payment_plan: input.paymentPlan ?? "tranches",
+        // T-401 (0107): the academic classification (NULL = untagged).
+        p_filiere_code: normalizeTrackCode(input.filiereCode) ?? null,
+        p_specialite_code: normalizeTrackCode(input.specialiteCode) ?? null,
       });
       if (error) throw error;
       // NOTE: migration 0031 renamed the RPC output columns to `out_*`.
@@ -1036,6 +1043,14 @@ export class SupabaseStudentRepository implements StudentRepository {
       }
       if (updates.gradeLevel !== undefined) {
         patch.grade_level_code = updates.gradeLevel;
+      }
+      // T-401 (0107): persist the academic classification on edit. "general"
+      // normalizes to NULL (untagged) so the pre-0107 state stays canonical.
+      if (updates.filiereCode !== undefined) {
+        patch.filiere_code = normalizeTrackCode(updates.filiereCode);
+      }
+      if (updates.specialiteCode !== undefined) {
+        patch.specialite_code = normalizeTrackCode(updates.specialiteCode);
       }
       if (updates.paymentPlan !== undefined) {
         patch.payment_plan = updates.paymentPlan;

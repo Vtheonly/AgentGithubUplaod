@@ -36,6 +36,10 @@ export interface AcademicClass {
   readonly code: string; // e.g. "CLS-3AP-B"
   readonly name: string; // e.g. "3ème AP - Section B"
   readonly gradeCode: GradeLevel;
+  /** T-401: the class's academic stream (null/absent = untagged/general). */
+  readonly filiereCode?: string | null;
+  /** T-401: the class's spécialité (null/absent = none). */
+  readonly specialiteCode?: string | null;
   readonly level: AcademicLevel;
   readonly gradeYear: number;
   readonly section: string; // e.g. "Section B"
@@ -261,6 +265,10 @@ export interface AcademicHistoryEntry {
   readonly rank: number | null;
   readonly decision: PromotionDecision;
   readonly narrative: string | null;
+  /** T-401: the classification in force during the archived year (stamped by execute_batch_promotion). */
+  readonly filiereCode?: string | null;
+  /** T-401: the spécialité in force during the archived year. */
+  readonly specialiteCode?: string | null;
   readonly recordedAt?: string;
 }
 

@@ -107,6 +107,8 @@ function makeStudentRow(overrides: Partial<StudentRow> = {}): StudentRow {
     gender: null,
     grade_level_id: null,
     class_id: null,
+    filiere_code: null,
+    specialite_code: null,
     enrollment_date: "2026-09-01",
     enrollment_status: "active",
     medical_notes: null,
