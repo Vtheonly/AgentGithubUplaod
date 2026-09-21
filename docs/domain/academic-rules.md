@@ -106,3 +106,17 @@ A class-specific free day is a scheduling constraint, not an academic classifica
 Hard constraints make a generated timetable invalid when violated. Soft constraints may be violated only when the result reports them explicitly.
 
 Missing curriculum hours or impossible constraint combinations must never be silently converted into zero hours, omitted lessons, or fabricated assignments.
+
+
+### Cross-Year Debt Aging
+
+Financial debt may originate in one academic year and remain outstanding in later years. Its original due date and originating year must remain stable for aging analysis.
+
+Later payments must remain part of the person's payment history and allocations. A later-year payment does not reset the original debt age.
+
+Debt status must distinguish:
+- old debt with continued subsequent-year payment activity;
+- old debt with prolonged inactivity/non-payment;
+- resolved debt or controlled active payment behavior.
+
+Thresholds and transitions are financial/business rules and must not be invented in UI code.
