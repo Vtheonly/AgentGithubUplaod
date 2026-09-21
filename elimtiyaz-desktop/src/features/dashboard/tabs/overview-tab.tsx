@@ -43,7 +43,7 @@ export function OverviewTab({
   range,
   onDrillDown,
   onGoToAlerts,
-  editing,
+  editing = false,
 }: {
   data: DashboardData;
   payments: readonly Payment[];
@@ -51,7 +51,8 @@ export function OverviewTab({
   range?: { from: string; to: string };
   onDrillDown: (kpi: string) => void;
   onGoToAlerts: () => void;
-  editing: boolean;
+  /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22). */
+  editing?: boolean;
 }) {
   const { t } = useTranslation();
   const { kpis, revenue, debtAging, topDebtors } = data;

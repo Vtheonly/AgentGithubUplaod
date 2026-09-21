@@ -50,12 +50,13 @@ function sameSnapshots(a: ChildSnapshot[], b: ChildSnapshot[]) {
 export function DashboardTabLayoutEditor({
   storageKey,
   children,
-  editing,
+  editing = false,
   onEditingChange,
 }: {
   storageKey: string;
   children: ReactNode;
-  editing: boolean;
+  /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22) — see dashboard-layout-editor.tsx. */
+  editing?: boolean;
   onEditingChange: (editing: boolean) => void;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);

@@ -205,13 +205,14 @@ function layoutBottom(layout: StoredLayout) {
 export function DashboardLayoutEditor({
   storageKey,
   items,
-  editing,
+  editing = false,
   onSave,
   onReset,
 }: {
   storageKey: string;
   items: DashboardLayoutItem[];
-  editing: boolean;
+  /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22): the parallel session's editor merge made it required, breaking 6 pre-existing test fixtures. Default: not editing. */
+  editing?: boolean;
   onSave?: () => void;
   onReset?: () => void;
 }) {
