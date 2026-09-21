@@ -184,3 +184,54 @@ export function createAcademicHistoryEntry(
     narrative: narrative ?? null,
   };
 }
+// ============================================================================
+// T-403 — the canonical decision-payload builder (ONE wire format)
+// ============================================================================
+
+/**
+ * Build the execute_batch_promotion / fn_confirm_promotion_cycle_class
+ * decision payload from the review queue's final decisions — ONE wire
+ * format for every promotion surface (the batch flow AND the cycle
+ * workflow; both RPCs consume the same array).
+ *
+ * `completedYear` is the SOURCE year being archived (the history label).
+ * Mock-era (non-UUID) student ids are skipped — they cannot execute
+ * server-side and would fail the whole batch.
+ */
+export function buildPromotionDecisionPayload(
+  items: readonly {
+    candidate: PromotionCandidate;
+    finalDecision: PromotionDecision;
+  }[],
+  completedYear: string,
+): Record<string, unknown>[] {
+  const decisions: Record<string, unknown>[] = [];
+  for (const { candidate, finalDecision } of items) {
+    const isRealId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      candidate.student.id,
+    );
+    if (!isRealId) continue;
+
+    const history = createAcademicHistoryEntry(candidate, completedYear, null, finalDecision);
+    decisions.push({
+      student_id: candidate.student.id,
+      decision: finalDecision,
+      next_grade_code:
+        finalDecision === "promoted" ? candidate.nextGradeLevel : null,
+      academic_year: history.academicYear,
+      cycle: history.cycle,
+      grade_code: history.gradeCode,
+      grade_year: history.gradeYear,
+      class_id: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        history.classId ?? "",
+      )
+        ? history.classId
+        : null,
+      class_name: history.className,
+      gpa: history.gpa,
+      rank: history.rank,
+      narrative: history.narrative,
+    });
+  }
+  return decisions;
+}

@@ -18,6 +18,7 @@ import { AuditActions } from "../../../core/audit-actions";
 import { derived } from "../subject-behavior";
 import { computeSubjectAverageFromRecipe } from "../../../domain/calc/academics/subject-config";
 import type {
+  AcademicHistoryEntry,
   AcademicClass,
   Subject,
   SubjectConfiguration,
@@ -30,6 +31,16 @@ import type {
 } from "../../../domain/model/academic";
 import type { Student, AcademicLevel } from "../../../domain/model/student";
 import { trackCompatible, trackIncompatibilityReason, normalizeTrackCode } from "../../../domain/model/filiere";
+import type {
+  PromotionCycle,
+  PromotionCycleClass,
+  PromotionClassConfirmResult,
+} from "../../../domain/model/promotion-cycle";
+import type {
+  PromotionCycleRepository,
+  CreatePromotionCycleInput,
+  ConfirmPromotionCycleClassInput,
+} from "../../../domain/repository/academic-repository";
 import {
   academicLevelFromGradeLevel,
   gradeYearFromGradeLevel,
@@ -1226,3 +1237,306 @@ export const mockClassPlacementRepository: ClassPlacementRepository =
   new MockClassPlacementRepository();
 
 export type { Observable };
+
+// ============================================================================
+// MockPromotionCycleRepository — T-403 (mirrors the 0108 RPC semantics)
+// ============================================================================
+
+/** Recursively strip readonly (the mock mutates its in-memory state). */
+type DeepMutable<T> = { -readonly [K in keyof T]: DeepMutable<T[K]> };
+
+interface MockCycleState {
+  cycle: DeepMutable<PromotionCycle>;
+  classes: DeepMutable<PromotionCycleClass>[];
+}
+
+export class MockPromotionCycleRepository implements PromotionCycleRepository {
+  // One shared in-memory store per mock session (the mock-store pattern).
+  private static readonly cycles: MockCycleState[] = [];
+
+  static reset(): void {
+    MockPromotionCycleRepository.cycles.length = 0;
+  }
+
+  private tenantClasses(sourceYear: string): AcademicClass[] {
+    return store.classes.filter(
+      (c) => (c.academicYear === sourceYear || c.academicYearId === `ay-${sourceYear}`) && c.isActive,
+    );
+  }
+
+  private classStudentCount(classId: string): number {
+    return store.students.filter(
+      (s) => s.classId === classId && s.status === "active",
+    ).length;
+  }
+
+  async listCycles(): Promise<Result<readonly PromotionCycle[]>> {
+    await delay(120);
+    return Ok(MockPromotionCycleRepository.cycles.map((c) => c.cycle));
+  }
+
+  async getCycleClasses(cycleId: string): Promise<Result<readonly PromotionCycleClass[]>> {
+    await delay(120);
+    const found = MockPromotionCycleRepository.cycles.find((c) => c.cycle.id === cycleId);
+    if (!found) return Err(Errors.notFound("PromotionCycle", cycleId));
+    return Ok(found.classes);
+  }
+
+  async openOrCreateCycle(input: CreatePromotionCycleInput): Promise<Result<PromotionCycle>> {
+    await delay(200);
+    const existing = MockPromotionCycleRepository.cycles.find(
+      (c) => c.cycle.sourceAcademicYear === input.sourceAcademicYear && c.cycle.status !== "cancelled",
+    );
+    if (existing) return Ok(existing.cycle);
+
+    const year = store.academicYears.find(
+      (y) => y.code === input.sourceAcademicYear || y.label === input.sourceAcademicYear,
+    );
+    if (!year) {
+      return Err(Errors.validation(
+        `L'année scolaire source « ${input.sourceAcademicYear} » n'existe pas (créez-la dans Années scolaires d'abord).`,
+      ));
+    }
+    const src = year.code ?? year.label;
+    const target =
+      input.targetAcademicYear ??
+      `${Number(src.slice(0, 4)) + 1}-${Number(src.slice(0, 4)) + 2}`;
+
+    const now = nowIso();
+    const cycle: PromotionCycle = {
+      id: `pc-${Date.now().toString(36)}`,
+      sourceAcademicYear: src,
+      targetAcademicYear: target,
+      status: "draft",
+      notes: null,
+      createdByName: input.performedByName,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      completedByName: null,
+      classesTotal: 0,
+      classesProcessed: 0,
+      studentsAwaiting: 0,
+      promotedCount: 0,
+      repeatingCount: 0,
+      deferredCount: 0,
+    };
+    const classes: PromotionCycleClass[] = this.tenantClasses(src).map((c) => ({
+      id: `pcc-${c.id}`,
+      cycleId: cycle.id,
+      classId: c.id,
+      classCode: c.code,
+      className: c.name,
+      gradeCode: c.gradeCode,
+      status: "pending" as const,
+      studentsAwaiting: this.classStudentCount(c.id),
+      promotedCount: 0,
+      repeatingCount: 0,
+      deferredCount: 0,
+      exceptionNote: null,
+      processedByName: null,
+      processedAt: null,
+    }));
+    const mut = cycle as DeepMutable<PromotionCycle>;
+    mut.classesTotal = classes.length;
+    mut.studentsAwaiting = classes.reduce((sum, c) => sum + c.studentsAwaiting, 0);
+    MockPromotionCycleRepository.cycles.push({ cycle, classes });
+
+    appendAudit({
+      action: AuditActions.ClassPlacementFinalize, // closest existing code; the SQL writes promotion.cycle_create
+      entityType: "promotion_cycle",
+      entityId: cycle.id,
+      actorId: input.performedBy,
+      actorName: input.performedByName,
+      diff: { before: null, after: { source: src, target, classes: classes.length } },
+    });
+    return Ok(cycle);
+  }
+
+  async confirmClass(input: ConfirmPromotionCycleClassInput): Promise<Result<PromotionClassConfirmResult>> {
+    await delay(280);
+    const state = MockPromotionCycleRepository.cycles.find((c) => c.cycle.id === input.cycleId);
+    if (!state) return Err(Errors.notFound("PromotionCycle", input.cycleId));
+    if (state.cycle.status === "completed" || state.cycle.status === "cancelled") {
+      return Err(Errors.validation(`Le cycle ${state.cycle.sourceAcademicYear} est ${state.cycle.status} — il ne peut plus être modifié.`));
+    }
+    const classRow = state.classes.find((c) => c.classId === input.classId);
+    if (!classRow) return Err(Errors.notFound("PromotionCycleClass", input.classId));
+    if (classRow.status !== "pending" && classRow.status !== "in_review") {
+      return Err(Errors.validation(`La classe « ${classRow.className} » est déjà ${classRow.status} (rouvrez-la pour re-confirmer).`));
+    }
+
+    // Every active student of the class must have a decision.
+    const classStudents = store.students.filter(
+      (s) => s.classId === input.classId && s.status === "active",
+    );
+    const declared = new Set(
+      input.decisions.map((d) => String(d.student_id ?? "")),
+    );
+    const missing = classStudents.filter((s) => !declared.has(s.id));
+    if (missing.length > 0) {
+      return Err(Errors.validation(
+        `Chaque élève de la classe doit avoir une décision — manquants : ${missing.map((s) => `${s.firstName} ${s.lastName}`).join(", ")}`,
+      ));
+    }
+
+    // The incomplete-notes two-phase ack (the client-side mirror).
+    if (!input.acknowledgeIncompleteNotes) {
+      const incomplete = classStudents.filter(
+        (s) => !store.assessments.some(
+          (a) => a.studentId === s.id && a.devoir1 != null && a.devoir2 != null && a.examen != null,
+        ),
+      );
+      if (incomplete.length > 0) {
+        return Err(Errors.validation(
+          `[NOTES_INCOMPLETES] Les notes ne sont pas encore toutes renseignées (${incomplete.length} élève(s) : ${incomplete.map((s) => `${s.firstName} ${s.lastName}`).join(", ")}). Êtes-vous sûr de vouloir continuer ?`,
+        ));
+      }
+    }
+
+    // THE canonical execution: the same MockPromotionRepository semantics
+    // (history append + grade advance + graduation) — one business path.
+    const promoted = input.decisions.filter((d) => d.decision === "promoted").length;
+    const repeated = input.decisions.filter((d) => d.decision === "repeated").length;
+    const deferred = input.decisions.filter((d) => d.decision === "transferred" || d.decision === "graduated").length;
+
+    for (const d of input.decisions) {
+      const student = store.students.find((s) => s.id === d.student_id);
+      if (!student) continue;
+      const idx = store.students.indexOf(student);
+      const decision = d.decision as "promoted" | "repeated" | "graduated" | "transferred";
+      const next: Student = {
+        ...student,
+        ...(decision === "promoted" && typeof d.next_grade_code === "string"
+          ? { gradeLevel: d.next_grade_code as Student["gradeLevel"], classId: null }
+          : {}),
+        ...(decision === "graduated" ? { status: "graduated" as const, classId: null } : {}),
+        academicHistory: [
+          ...(student.academicHistory ?? []),
+        {
+          id: `hist-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          studentId: student.id,
+          academicYear: String(d.academic_year ?? state.cycle.sourceAcademicYear),
+          cycle: (d.cycle as AcademicHistoryEntry["cycle"]) ?? "lycee",
+          level: academicLevelFromGradeLevel((d.grade_code as Student["gradeLevel"]) ?? student.gradeLevel),
+          gradeCode: (d.grade_code as Student["gradeLevel"]) ?? student.gradeLevel,
+          gradeYear: Number(d.grade_year ?? 0),
+          classId: (d.class_id as string | null) ?? null,
+          className: (d.class_name as string | null) ?? null,
+          gpa: Number(d.gpa ?? 0),
+          rank: (d.rank as number | null) ?? null,
+          decision,
+          narrative: (d.narrative as string | null) ?? null,
+          recordedAt: nowIso(),
+        },
+        ],
+      };
+      store.students[idx] = next;
+    }
+    store.notifyStudents();
+
+    classRow.status = "processed";
+    classRow.studentsAwaiting = 0;
+    classRow.promotedCount = promoted;
+    classRow.repeatingCount = repeated;
+    classRow.deferredCount = deferred;
+    classRow.processedByName = input.performedByName;
+    classRow.processedAt = nowIso();
+
+    state.cycle.status =
+      state.cycle.status === "draft" || state.cycle.status === "in_review"
+        ? "partially_processed"
+        : state.cycle.status;
+    state.cycle.classesProcessed = state.classes.filter((c) => c.status === "processed").length;
+    state.cycle.promotedCount = state.classes.reduce((s, c) => s + c.promotedCount, 0);
+    state.cycle.repeatingCount = state.classes.reduce((s, c) => s + c.repeatingCount, 0);
+    state.cycle.deferredCount = state.classes.reduce((s, c) => s + c.deferredCount, 0);
+    state.cycle.studentsAwaiting = state.classes
+      .filter((c) => c.status !== "processed" && c.status !== "skipped")
+      .reduce((s, c) => s + c.studentsAwaiting, 0);
+    state.cycle.updatedAt = nowIso();
+
+    appendAudit({
+      action: AuditActions.ClassPlacementFinalize,
+      entityType: "promotion_cycle",
+      entityId: state.cycle.id,
+      actorId: input.performedBy,
+      actorName: input.performedByName,
+      diff: { before: null, after: { class: classRow.className, promoted, repeated, deferred } },
+    });
+
+    return Ok({
+      cycleId: state.cycle.id,
+      classId: classRow.classId,
+      className: classRow.className,
+      promoted,
+      repeated,
+      deferred,
+      incompleteNotesCount: 0,
+      incompleteNotesAcked: input.acknowledgeIncompleteNotes ?? false,
+    });
+  }
+
+  async reopenClass(
+    cycleId: string,
+    classId: string,
+    reason: string | null,
+    performedBy: string,
+    performedByName: string,
+  ): Promise<Result<void>> {
+    await delay(160);
+    const state = MockPromotionCycleRepository.cycles.find((c) => c.cycle.id === cycleId);
+    if (!state) return Err(Errors.notFound("PromotionCycle", cycleId));
+    if (state.cycle.status === "completed" || state.cycle.status === "cancelled") {
+      return Err(Errors.validation(`Le cycle ${state.cycle.sourceAcademicYear} est ${state.cycle.status}.`));
+    }
+    const classRow = state.classes.find((c) => c.classId === classId);
+    if (!classRow) return Err(Errors.notFound("PromotionCycleClass", classId));
+    if (classRow.status !== "processed" && classRow.status !== "exception" && classRow.status !== "skipped") {
+      return Err(Errors.validation(`La classe « ${classRow.className} » est ${classRow.status} — rien à rouvrir.`));
+    }
+    classRow.status = "in_review";
+    classRow.studentsAwaiting = this.classStudentCount(classId);
+    classRow.exceptionNote = null;
+    state.cycle.classesProcessed = state.classes.filter((c) => c.status === "processed").length;
+    state.cycle.updatedAt = nowIso();
+    return Ok(undefined);
+  }
+
+  async completeCycle(cycleId: string, performedBy: string, performedByName: string): Promise<Result<void>> {
+    await delay(160);
+    const state = MockPromotionCycleRepository.cycles.find((c) => c.cycle.id === cycleId);
+    if (!state) return Err(Errors.notFound("PromotionCycle", cycleId));
+    if (state.cycle.status === "completed") {
+      return Err(Errors.validation("Le cycle est déjà terminé."));
+    }
+    const pending = state.classes.filter(
+      (c) => c.status !== "processed" && c.status !== "exception" && c.status !== "skipped",
+    );
+    if (pending.length > 0) {
+      return Err(Errors.validation(
+        `Le cycle ne peut pas être terminé — classes restant à traiter : ${pending.map((c) => c.className).join(", ")}`,
+      ));
+    }
+    state.cycle.status = "completed";
+    state.cycle.completedAt = nowIso();
+    state.cycle.completedByName = performedByName;
+    state.cycle.updatedAt = nowIso();
+    return Ok(undefined);
+  }
+
+  async cancelCycle(cycleId: string, reason: string | null, performedBy: string, performedByName: string): Promise<Result<void>> {
+    await delay(160);
+    const state = MockPromotionCycleRepository.cycles.find((c) => c.cycle.id === cycleId);
+    if (!state) return Err(Errors.notFound("PromotionCycle", cycleId));
+    if (state.cycle.status === "completed") {
+      return Err(Errors.validation("Un cycle terminé ne peut pas être annulé (l'historique est immuable)."));
+    }
+    state.cycle.status = "cancelled";
+    state.cycle.notes = reason ?? state.cycle.notes;
+    state.cycle.updatedAt = nowIso();
+    return Ok(undefined);
+  }
+}
+export const mockPromotionCycleRepository: PromotionCycleRepository =
+  new MockPromotionCycleRepository();

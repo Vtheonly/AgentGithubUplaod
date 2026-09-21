@@ -6,6 +6,18 @@ import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import type {
+  PromotionCycle,
+  PromotionCycleClass,
+  PromotionClassConfirmResult,
+  PromotionCycleStatus,
+  PromotionCycleClassStatus,
+} from "../../../domain/model/promotion-cycle";
+import type {
+  PromotionCycleRepository,
+  CreatePromotionCycleInput,
+  ConfirmPromotionCycleClassInput,
+} from "../../../domain/repository/academic-repository";
 import { normalizeTrackCode } from "../../../domain/model/filiere";
 import type { SupabaseStudentRepository } from "./supabase-shared-repositories";
 import type { Observable } from "../../../domain/repository/repository";
@@ -49,7 +61,9 @@ import type {
   FinalizeClassPlacementsResult,
 } from "../../../domain/repository/academic-repository";
 import type { PromotionCandidate } from "../../../domain/calc/academics/promotion";
-import { createAcademicHistoryEntry } from "../../../domain/calc/academics/promotion";
+import { createAcademicHistoryEntry,
+  buildPromotionDecisionPayload,
+} from "../../../domain/calc/academics/promotion";
 import { currentTermWindow } from "../../../domain/calc/academics/terms";
 import { dispatchWorkflowTriggerSafe } from "./workflow-dispatch";
 import type {
@@ -1540,47 +1554,19 @@ export class SupabasePromotionRepository implements PromotionRepository {
     performedByName: string;
   }): Promise<Result<{ promotedStudents: Student[]; updatedCount: number }>> {
     const completedYear = derivePreviousAcademicYear(input.targetAcademicYear);
-    const decisions: Record<string, unknown>[] = [];
-    const updatedIds: string[] = [];
 
-    for (const item of input.candidates) {
-      const { candidate, finalDecision } = item;
-      const history = createAcademicHistoryEntry(
-        candidate,
-        completedYear,
-        null,
-        finalDecision,
-      );
-
-      const isRealId = isUuid(candidate.student.id);
-      const nextGradeLevel =
-        finalDecision === "promoted" ? candidate.nextGradeLevel : null;
-
-      // Decisions for mock-era ids cannot be executed server-side (the
-      // students do not exist in Supabase); the RPC would reject the whole
-      // batch on them, so they are filtered here (same contract as the
-      // previous implementation).
-      if (!isRealId) continue;
-
-      decisions.push({
-        student_id: candidate.student.id,
-        decision: finalDecision,
-        next_grade_code: nextGradeLevel,
-        academic_year: history.academicYear,
-        cycle: history.cycle,
-        grade_code: history.gradeCode,
-        grade_year: history.gradeYear,
-        class_id: isUuid(history.classId) ? history.classId : null,
-        class_name: history.className,
-        gpa: history.gpa,
-        rank: history.rank,
-        narrative: history.narrative,
-      });
-
-      if (finalDecision === "promoted" || finalDecision === "graduated") {
-        updatedIds.push(candidate.student.id);
-      }
-    }
+    // T-403: the payload construction moved to the canonical domain builder
+    // (ONE wire format — the cycle workflow's fn_confirm_promotion_cycle_class
+    // consumes the exact same array). Mock-era ids are filtered inside (they
+    // cannot execute server-side; the RPC would reject the whole batch).
+    const decisions = buildPromotionDecisionPayload(input.candidates, completedYear);
+    const updatedIds = input.candidates
+      .filter(
+        (item) =>
+          isUuid(item.candidate.student.id) &&
+          (item.finalDecision === "promoted" || item.finalDecision === "graduated"),
+      )
+      .map((item) => item.candidate.student.id);
 
     if (decisions.length === 0) {
       return Ok({ promotedStudents: [], updatedCount: 0 });
@@ -1994,4 +1980,239 @@ function mapStudentRow(row: Record<string, any>): Student {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// ============================================================================
+// SupabasePromotionCycleRepository — T-403 (migration 0108)
+// ============================================================================
+
+interface CycleListRow {
+  id: string;
+  source_academic_year: string;
+  target_academic_year: string;
+  status: PromotionCycleStatus;
+  notes: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  completed_by_name: string | null;
+  classes_total: number;
+  classes_processed: number;
+  students_awaiting: number;
+  promoted_count: number;
+  repeating_count: number;
+  deferred_count: number;
+}
+
+interface CycleClassRow {
+  id: string;
+  cycle_id: string;
+  class_id: string;
+  class_code: string;
+  class_name: string;
+  grade_code: string;
+  status: PromotionCycleClassStatus;
+  students_awaiting: number;
+  promoted_count: number;
+  repeating_count: number;
+  deferred_count: number;
+  exception_note: string | null;
+  processed_by_name: string | null;
+  processed_at: string | null;
+}
+
+function mapCycleRow(r: CycleListRow): PromotionCycle {
+  return {
+    id: r.id,
+    sourceAcademicYear: r.source_academic_year,
+    targetAcademicYear: r.target_academic_year,
+    status: r.status,
+    notes: r.notes,
+    createdByName: r.created_by_name,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    completedAt: r.completed_at,
+    completedByName: r.completed_by_name,
+    classesTotal: r.classes_total,
+    classesProcessed: r.classes_processed,
+    studentsAwaiting: r.students_awaiting,
+    promotedCount: r.promoted_count,
+    repeatingCount: r.repeating_count,
+    deferredCount: r.deferred_count,
+  };
+}
+
+function mapCycleClassRow(r: CycleClassRow): PromotionCycleClass {
+  return {
+    id: r.id,
+    cycleId: r.cycle_id,
+    classId: r.class_id,
+    classCode: r.class_code,
+    className: r.class_name,
+    gradeCode: r.grade_code,
+    status: r.status,
+    studentsAwaiting: r.students_awaiting,
+    promotedCount: r.promoted_count,
+    repeatingCount: r.repeating_count,
+    deferredCount: r.deferred_count,
+    exceptionNote: r.exception_note,
+    processedByName: r.processed_by_name,
+    processedAt: r.processed_at,
+  };
+}
+
+export class SupabasePromotionCycleRepository implements PromotionCycleRepository {
+  constructor(private readonly client: SupabaseClient) {}
+
+  async listCycles(): Promise<Result<readonly PromotionCycle[]>> {
+    try {
+      const { data, error } = await this.client.rpc("fn_get_promotion_cycles", {
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      const rows = (data ?? []) as unknown as CycleListRow[];
+      return Ok(rows.map(mapCycleRow));
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async getCycleClasses(cycleId: string): Promise<Result<readonly PromotionCycleClass[]>> {
+    if (!isUuid(cycleId)) return Err(Errors.validation("cycleId must be a UUID"));
+    try {
+      const { data, error } = await this.client.rpc("fn_get_promotion_cycle_classes", {
+        p_cycle_id: cycleId,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      const rows = (data ?? []) as unknown as CycleClassRow[];
+      return Ok(rows.map(mapCycleClassRow));
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async openOrCreateCycle(input: CreatePromotionCycleInput): Promise<Result<PromotionCycle>> {
+    // The 0108 RPC refuses a second ACTIVE cycle for a source year — the
+    // contextual entry points converge here (open the existing one when it
+    // exists, create it otherwise).
+    const existing = await this.listCycles();
+    if (existing.ok) {
+      const found = existing.value.find(
+        (c) =>
+          c.sourceAcademicYear === input.sourceAcademicYear && c.status !== "cancelled",
+      );
+      if (found) return Ok(found);
+    }
+    try {
+      const { data, error } = await this.client.rpc("fn_create_promotion_cycle", {
+        p_source_academic_year: input.sourceAcademicYear,
+        p_target_academic_year: input.targetAcademicYear ?? null,
+        p_actor_profile_id: isUuid(input.performedBy) ? input.performedBy : null,
+        p_actor_name: input.performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      const created = (data ?? {}) as { cycle_id?: string };
+      if (!created.cycle_id) return Err(Errors.server("fn_create_promotion_cycle returned no cycle id"));
+      const list = await this.listCycles();
+      if (!list.ok) return Err(list.error);
+      const cycle = list.value.find((c) => c.id === created.cycle_id);
+      if (!cycle) return Err(Errors.server("created promotion cycle not readable"));
+      return Ok(cycle);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async confirmClass(input: ConfirmPromotionCycleClassInput): Promise<Result<PromotionClassConfirmResult>> {
+    if (!isUuid(input.cycleId) || !isUuid(input.classId)) {
+      return Err(Errors.validation("cycleId and classId must be UUIDs"));
+    }
+    try {
+      const { data, error } = await this.client.rpc("fn_confirm_promotion_cycle_class", {
+        p_cycle_id: input.cycleId,
+        p_class_id: input.classId,
+        p_decisions: input.decisions,
+        p_ack_incomplete_notes: input.acknowledgeIncompleteNotes ?? false,
+        p_actor_profile_id: isUuid(input.performedBy) ? input.performedBy : null,
+        p_actor_name: input.performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) {
+        // The two-phase incomplete-notes ack: the server raises the
+        // [NOTES_INCOMPLETES] marker — surface it verbatim so the UI can
+        // offer the explicit confirmation.
+        return Err(supabaseErrorToAppError(error));
+      }
+      const row = (data ?? {}) as Record<string, unknown>;
+      return Ok({
+        cycleId: String(row.cycle_id ?? input.cycleId),
+        classId: String(row.class_id ?? input.classId),
+        className: String(row.class_name ?? ""),
+        promoted: Number(row.promoted ?? 0),
+        repeated: Number(row.repeated ?? 0),
+        deferred: Number(row.deferred ?? 0),
+        incompleteNotesCount: Number(row.incomplete_notes_count ?? 0),
+        incompleteNotesAcked: Boolean(row.incomplete_notes_acked),
+      });
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async reopenClass(
+    cycleId: string,
+    classId: string,
+    reason: string | null,
+    performedBy: string,
+    performedByName: string,
+  ): Promise<Result<void>> {
+    try {
+      const { error } = await this.client.rpc("fn_reopen_promotion_cycle_class", {
+        p_cycle_id: cycleId,
+        p_class_id: classId,
+        p_reason: reason,
+        p_actor_profile_id: isUuid(performedBy) ? performedBy : null,
+        p_actor_name: performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      return Ok(undefined);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async completeCycle(cycleId: string, performedBy: string, performedByName: string): Promise<Result<void>> {
+    try {
+      const { error } = await this.client.rpc("fn_complete_promotion_cycle", {
+        p_cycle_id: cycleId,
+        p_actor_profile_id: isUuid(performedBy) ? performedBy : null,
+        p_actor_name: performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      return Ok(undefined);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async cancelCycle(cycleId: string, reason: string | null, performedBy: string, performedByName: string): Promise<Result<void>> {
+    try {
+      const { error } = await this.client.rpc("fn_cancel_promotion_cycle", {
+        p_cycle_id: cycleId,
+        p_reason: reason,
+        p_actor_profile_id: isUuid(performedBy) ? performedBy : null,
+        p_actor_name: performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      return Ok(undefined);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
 }

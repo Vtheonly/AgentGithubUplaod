@@ -58,7 +58,13 @@ import { ClassAttendanceTab } from "./class-attendance-tab";
 import { ClassGradesTab } from "./class-grades-tab";
 import { NarrativeGeneratorButton } from "./narrative-generator-modal";
 import { HomeworkPushModal } from "./homework-push-modal";
-import { BatchPromotionModal } from "./batch-promotion-modal";
+import {
+  PromotionClassReviewModal,
+} from "./promotion-cycles/promotion-class-review-modal";
+import type {
+  PromotionCycle,
+  PromotionCycleClass,
+} from "../../domain/model/promotion-cycle";
 
 const NO_SUBJECT = "__pick__";
 
@@ -103,7 +109,54 @@ export function ClassDetailPage() {
   const personnel = useObservable(() => repos.personnel.observe(), []);
 
   const [homeworkOpen, setHomeworkOpen] = useState(false);
-  const [promotionOpen, setPromotionOpen] = useState(false);
+  const [openingCycle, setOpeningCycle] = useState(false);
+  const [cycleReview, setCycleReview] = useState<{
+    cycle: PromotionCycle;
+    cycleClass: PromotionCycleClass;
+  } | null>(null);
+
+  // T-403: the contextual entry point — every promotion surface converges on
+  // the ONE cycle workflow (open the existing active cycle for the class's
+  // year, or create it), then opens THIS class's review step. No second
+  // promotion engine, no one-shot out-of-cycle execution.
+  async function openPromotionCycle() {
+    if (!classId || !session) return;
+    setOpeningCycle(true);
+    try {
+      const cycleResult = await repos.promotionCycles.openOrCreateCycle({
+        sourceAcademicYear: cls?.academicYear ?? "2026-2027",
+        performedBy: session.userId,
+        performedByName: session.displayName,
+      });
+      if (!cycleResult.ok) {
+        toast.showError("Cycle indisponible", cycleResult.error.userMessage);
+        return;
+      }
+      const classesResult = await repos.promotionCycles.getCycleClasses(cycleResult.value.id);
+      if (!classesResult.ok) {
+        toast.showError("Cycle indisponible", classesResult.error.userMessage);
+        return;
+      }
+      const row = classesResult.value.find((c) => c.classId === classId);
+      if (!row) {
+        toast.showInfo(
+          "Classe hors cycle",
+          "Cette classe n'appartient pas à l'année du cycle (les classes de l'année ciblée n'entrent pas dans la promotion).",
+        );
+        return;
+      }
+      if (row.status === "processed" || row.status === "exception" || row.status === "skipped") {
+        toast.showInfo(
+          "Classe déjà traitée",
+          `« ${row.className} » est ${row.status === "processed" ? "traitée" : row.status === "exception" ? "en dérogation" : "ignorée"} dans le cycle ${cycleResult.value.sourceAcademicYear} — rouvrez-la depuis le cycle si nécessaire.`,
+        );
+        return;
+      }
+      setCycleReview({ cycle: cycleResult.value, cycleClass: row });
+    } finally {
+      setOpeningCycle(false);
+    }
+  }
   const [assignHomeroomOpen, setAssignHomeroomOpen] = useState(false);
   const [editClassOpen, setEditClassOpen] = useState(false);
   const [addStudentOpen, setAddStudentOpen] = useState(false);
@@ -351,9 +404,11 @@ export function ClassDetailPage() {
           <Button
             variant="default"
             size="sm"
-            onClick={() => setPromotionOpen(true)}
+            onClick={() => void openPromotionCycle()}
+            disabled={openingCycle}
+            title="Ouvre le cycle de promotion de l'année (la revue se fait classe par classe)"
           >
-            <Award className="h-4 w-4" /> Passage d'année (Batch Promotion)
+            <Award className="h-4 w-4" /> Ouvrir le cycle de promotion
           </Button>
         )}
       </div>
@@ -540,11 +595,22 @@ export function ClassDetailPage() {
         onOpenChange={setHomeworkOpen}
         presetClassId={classId}
       />
-      <BatchPromotionModal
-        classId={classId!}
-        open={promotionOpen}
-        onOpenChange={setPromotionOpen}
-      />
+      {cycleReview && (
+        <PromotionClassReviewModal
+          cycle={cycleReview.cycle}
+          cycleClass={cycleReview.cycleClass}
+          open={!!cycleReview}
+          onOpenChange={(o) => {
+            if (!o) setCycleReview(null);
+          }}
+          onConfirmed={() => {
+            // The students' grades/classes changed — force the reseed so the
+            // roster reflects the promotion immediately (the T-370
+            // cross-repo refresh seam — optional on the contract).
+            void (repos.students as { refresh?: () => Promise<void> }).refresh?.();
+          }}
+        />
+      )}
 
       {/* Modal: Assign Homeroom Teacher */}
       <UnifiedModal

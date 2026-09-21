@@ -51,6 +51,7 @@ import {
   mockHomeworkRepository,
   mockPromotionRepository,
   mockClassPlacementRepository,
+  mockPromotionCycleRepository,
 } from "./academic-repository";
 import { mockAcademicYearRepository } from "./academic-year-repository";
 import { mockClubRepository } from "./club-repository";
@@ -247,6 +248,7 @@ export class MockBackupRepository implements BackupRepository {
       homework: mockHomeworkRepository,
       promotion: mockPromotionRepository,
       classPlacement: mockClassPlacementRepository,
+      promotionCycles: mockPromotionCycleRepository,
       academicYears: mockAcademicYearRepository,
       clubs: mockClubRepository,
       psychology: mockPsychologyRepository,
