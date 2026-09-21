@@ -406,3 +406,12 @@ The feature must support school-wide generation from curriculum hours, lesson du
 A packaged Electron build is mandatory. The bundled solver must not depend on the developer PATH, machine-specific paths, or an end-user-installed runtime. Development success alone is insufficient: the exact packaged application must be smoke-tested on a clean target environment, including the Windows x64 executable, with a known-good fixture and failure diagnostics.
 
 Generated timetables must be versioned and reviewed before publication. The dedicated Timetable/Emploi du temps view is the canonical presentation surface; class, teacher, and room views consume the same schedule. See T-404 in docs/recovery/task-registry.md.
+
+
+## Cross-Year Debt Aging rule — T-405
+
+Cross-year debt aging and payment-behavior status is a P0 critical financial domain feature. Agents MUST use the existing canonical financial/payment/allocation model and authoritative business rules. Do not create page-local debt calculations, arbitrary color thresholds, or a parallel debt ledger.
+
+The system must distinguish old outstanding debt from prolonged non-payment by analyzing debt age together with payment activity across subsequent academic years, original due date, outstanding amount, last payment, and inactivity. Green/Yellow/Orange/Red are presentation of a canonical status calculation, not the business logic.
+
+The dedicated Debt Aging / Suivi des Dettes view, financial pages, dashboards, search/filtering, reports, and all platform consumers must use the same canonical calculation. See T-405 in docs/recovery/task-registry.md.
