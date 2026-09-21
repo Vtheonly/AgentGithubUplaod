@@ -55,3 +55,11 @@
 2. Anything marked ⚠ is a known divergent duplicate — do not copy it, and do not extend it without checking the problem-registry entry.
 3. Anything marked ✝ is dead — do not build on it.
 4. If a concept is missing or marked UNKNOWN, the correct next action is investigation + an entry in `docs/recovery/unknowns.md` — never a new parallel implementation.
+## Required additions — Academic classification and promotion
+
+| Concept | Source of Truth | Required consumers | Architectural rule |
+|---|---|---|---|
+| **Niveau → Filière → Spécialité → Classe/Section** | Canonical academic DB/domain model to be established by T-401 | Desktop, Android, Website, class formation, CRM, statistics, search, import/export | One model and one validation contract; no page-local classification enums or mapping tables |
+| **Batch promotion** | students.grade_level_code + student_academic_histories | Desktop promotion, Android sync, class formation, CRM, student details, statistics, academic history | One atomic promotion write path; legacy academic_history / promote_students remains dead and must not be revived |
+
+T-401 must establish the canonical classification source before downstream UI integration is considered complete. T-402 must make promotion consume and publish that same model.
