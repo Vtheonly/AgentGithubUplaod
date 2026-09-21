@@ -3572,3 +3572,74 @@ Opening ritual (live, sbp_ token): migration chain 79/79 = 0001–0082 ZERO DRIF
 - **Deliberately NOT changed:** the 0104 policy design (financial_officer visibility + the ownership-checked RPC — semantics preserved byte-for-byte); parents' exclusion from channel creation (0067 path untouched); RLS posture (no policy weakened anywhere — 0104's select subquery is STRICTER than 0019's: + tenant + deleted_at guards); the concurrent agent's failing subtree; tasks/workforce_attendance_events publication membership (no subscriber yet — dead weight).
 - **Depends on:** T-369/T-371 (the workforce backend + account linkage this verifies), T-099/T-100 (the chat repository this revives).
 - **Priority:** P0 (the owner's explicit mandate). **Next free migration: 0107.**
+---
+
+## T-401 — Full Filière / Spécialité Integration Across the System
+
+**Status:** Ready  
+**Priority:** P1  
+**Scope:** Desktop + canonical Supabase backend + cross-platform consumers where the academic classification is exposed.
+
+### Objective
+
+Treat **Niveau → Filière → Spécialité → Classe/Section** as one canonical academic classification model and integrate it end-to-end. This is not an insertion-form enhancement. The field must work consistently anywhere academic classification affects data, filtering, placement, search, statistics, import/export, history, or validation.
+
+### Required implementation
+
+- Establish the canonical domain representation first; do not create page-specific filière enums, labels, or mapping logic.
+- Add the required database column/relationship, constraints, indexes, migration, RLS implications, and typed client representation.
+- Define valid Algerian secondary-school combinations and applicability rules by level.
+- Integrate creation/editing, retrieval, detail views, tables, cards, filters, search, statistics, dashboards, imports/exports, and academic workflows.
+- Integrate class formation so a student can only enter a compatible class/section for the student's academic classification.
+- Keep classe/section distinct from filière; a filière describes the academic stream, while a class/section is the concrete group.
+- Preserve academic-year context where classification changes between years.
+- Verify every consumer of the changed schema across Desktop, Android, and Website before changing the contract.
+- Remove or reuse any existing duplicate classification models rather than adding another one.
+- Add regression tests for valid/invalid level → filière → spécialité → class combinations and end-to-end persistence.
+
+### Definition of done
+
+The field is not considered implemented until a value can be created, persisted, retrieved, searched, filtered, displayed, used by class formation, included in relevant statistics, imported/exported, and preserved in the correct academic-year context without any page maintaining a parallel interpretation.
+
+### DBA/backend work is mandatory
+
+The DBA/backend owner must implement and verify the canonical database representation, migration, constraints, indexes, RLS impact, queries/RPC contracts, and live round-trip verification. Frontend-only state is explicitly insufficient.
+
+---
+
+## T-402 — Full Batch Promotion Integration and Unified Academic Model
+
+**Status:** Ready  
+**Priority:** P0  
+**Scope:** All promotion entry points and all downstream academic consumers across Desktop, Android, Website, and the canonical database.
+
+### Objective
+
+Make **batch promotion fully functional end-to-end across the entire system**. Promotion must use the same canonical academic model as class formation and must not have duplicated forms, duplicated promotion rules, duplicated data transformations, or page-specific interpretations.
+
+### Required implementation
+
+- Audit every promotion UI, repository, domain function, RPC, migration, history writer, grade-level updater, class-formation consumer, and cross-platform mirror.
+- Use students.grade_level_code + student_academic_histories as the canonical promotion model; do not reconnect the dead legacy academic_history / promote_students path.
+- Make batch promotion atomic per batch, with explicit handling for promoted, repeating, deferred/override cases where the established academic rules permit them.
+- Preserve prior academic history while moving the student's current grade/class context forward.
+- Ensure the resulting grade level is consumed consistently by CRM, Pédagogie, class formation, student details, academic records, statistics, search/filtering, imports/exports, and any other dependent workflow.
+- Ensure the next class-formation step can consume the promotion result without manual data repair.
+- Ensure repeaters are represented consistently and remain distinguishable from promoted students.
+- Reuse one promotion domain model and one write path. Do not create page-specific promotion forms or business logic.
+- Audit and remove/retire duplicate implementations only after proving all consumers have moved to the canonical path.
+- Implement equivalent behavior on Android where promotion is exposed; fix the known sync gap where the grade change is currently dropped.
+- Verify the canonical database path, RLS, history append, grade-level update, and audit trail live.
+- Add cross-platform equivalence tests and end-to-end regression tests.
+
+### Definition of done
+
+Batch promotion must be executable from the intended UI, persist atomically, create the correct academic-history records, update the student's current academic level, preserve historical data, propagate correctly into class formation and all relevant pages, survive refresh/reload, and produce equivalent results across supported platforms.
+
+### No duplicate model / logic rule
+
+If two pages currently collect or calculate the same promotion information differently, consolidate them onto the canonical model. A second form is acceptable only when it is a different presentation of the same domain contract; it must not define a second business rule.
+
+### DBA/backend work is mandatory
+
+The DBA/backend owner must own the canonical schema/RPC/RLS/transaction side of this task. Do not solve a database defect with frontend state or a client-only workaround.
