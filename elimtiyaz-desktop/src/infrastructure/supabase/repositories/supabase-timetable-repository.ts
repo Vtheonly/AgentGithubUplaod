@@ -60,6 +60,7 @@ import {
   getTimetableSolver,
   GREEDY_SOLVER_ID,
 } from "../../../domain/calc/timetable/solver";
+import { createGenerationProgressForwarder } from "../../../domain/calc/timetable/generation-progress";
 
 // ============================================================================
 // Row mappers (0109 wire shapes → canonical domain)
@@ -746,6 +747,18 @@ export class SupabaseTimetableRepository implements TimetableRepository {
     if (!tenantId) {
       return Err(Errors.validation("generateTimetable: no active tenant context"));
     }
+    // T-409: REAL progress from the actual run — loading → solver → saving.
+    // The terminal 100% is emitted ONLY after the version + entries are
+    // persisted (complete()); failure paths never emit it.
+    const forwarder = options.onProgress
+      ? createGenerationProgressForwarder(options.onProgress)
+      : null;
+    options.onProgress?.({
+      stage: "loading",
+      processed: 0,
+      total: 0,
+      message: "Chargement des données…",
+    });
     const problemResult = await this.loadProblem(options.academicYearId);
     if (!problemResult.ok) return problemResult;
     const baseProblem = problemResult.value;
@@ -769,7 +782,12 @@ export class SupabaseTimetableRepository implements TimetableRepository {
     }
 
     const problem: TimetableProblem = { ...baseProblem, lockedEntries: locked };
-    const solution = solver.solve(problem);
+    // T-409: prefer the yielding drain so the renderer can repaint real
+    // progress; adapters without solveAsync fall back to the sync solve.
+    const solveOptions = forwarder?.solverOptions;
+    const solution = solver.solveAsync
+      ? await solver.solveAsync(problem, solveOptions)
+      : solver.solve(problem, solveOptions);
 
     // Version number: max + 1 for the year.
     const { data: maxRow } = await this.client
@@ -779,6 +797,8 @@ export class SupabaseTimetableRepository implements TimetableRepository {
       .order("version_number", { ascending: false })
       .limit(1);
     const versionNumber = (maxRow && maxRow.length > 0 ? Number(maxRow[0].version_number) : 0) + 1;
+
+    forwarder?.beginSaving();
 
     const now = new Date().toISOString();
     const { data: versionRow, error: versionError } = await this.client
@@ -862,6 +882,12 @@ export class SupabaseTimetableRepository implements TimetableRepository {
 
     await this.refreshVersions(options.academicYearId);
     await this.refreshEntries([version.id]);
+    // T-409: the terminal 100% — only NOW, with the trial actually persisted.
+    forwarder?.complete(
+      versionNumber,
+      solution.statistics.placedPeriods,
+      solution.statistics.requiredPeriods,
+    );
     await this.audit(
       "timetable.version_generate",
       "timetable_version",

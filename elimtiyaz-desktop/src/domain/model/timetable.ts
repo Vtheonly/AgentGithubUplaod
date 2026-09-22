@@ -485,3 +485,86 @@ export function slotAssignmentFromEntry(
     lessonGroup: entry.lessonGroup,
   };
 }
+
+// ============================================================================
+// Generation progress — the runtime-observability contract (T-409 / SCHED-111)
+// ============================================================================
+
+/**
+ * The REAL stages of a timetable generation run (T-409). The repository owns
+ * "loading" and "saving"; the solver adapter owns "preparing", "placing",
+ * "repairing" and "validating". Stage labels are presentation — the progress
+ * itself must always come from actual work performed (never a timer).
+ */
+export type TimetableGenerationStage =
+  | "loading" // Chargement des données (repository: problem load)
+  | "preparing" // Préparation des besoins (solver: requirement/block indexing)
+  | "placing" // Placement des cours (solver: block placement loop)
+  | "repairing" // Réparation / optimisation (solver: repair pass)
+  | "validating" // Validation finale (solver: canonical validator)
+  | "saving"; // Enregistrement de l'essai (repository: version + entries)
+
+export const TIMETABLE_GENERATION_STAGE_LABELS_FR: Record<
+  TimetableGenerationStage,
+  string
+> = {
+  loading: "Chargement des données",
+  preparing: "Préparation des besoins",
+  placing: "Placement des cours",
+  repairing: "Réparation / optimisation",
+  validating: "Validation finale",
+  saving: "Enregistrement de l'essai",
+};
+
+/**
+ * ONE progress event of a generation run.
+ *
+ * `processed` / `total` are CUMULATIVE REAL work units across the whole run
+ * (requirements indexed + placement blocks processed + validation), NOT
+ * timer ticks. `total` is FIXED once known; `total === 0` means "not yet
+ * known" (e.g. during the initial data load) — consumers MUST treat that as
+ * indeterminate, never as 0% of a fake denominator.
+ *
+ * The terminal 100% event is emitted by the repository ONLY after the
+ * generated version and its entries have actually been persisted.
+ */
+export interface TimetableGenerationProgress {
+  readonly stage: TimetableGenerationStage;
+  readonly processed: number;
+  readonly total: number;
+  /** Stage-local detail, e.g. "63 / 118 blocs de placement traités". */
+  readonly message: string;
+}
+
+export type TimetableProgressListener = (
+  progress: TimetableGenerationProgress,
+) => void;
+
+/**
+ * progressPercent = round(processedWorkUnits / totalWorkUnits * 100).
+ * `total <= 0` → 0 (indeterminate — the caller renders no fake percentage).
+ */
+export function timetableGenerationProgressPercent(
+  progress: TimetableGenerationProgress,
+): number {
+  if (progress.total <= 0) return 0;
+  return Math.min(
+    100,
+    Math.round((progress.processed / progress.total) * 100),
+  );
+}
+
+/**
+ * Final timetable COVERAGE — a SEPARATE metric from generation progress
+ * (T-409 §7): how complete the resulting timetable actually is.
+ * coveragePercent = round(placedPeriods / requiredPeriods * 100).
+ * `required <= 0` → 0 (nothing required — the UI renders "—", never a
+ * fabricated 100%).
+ */
+export function timetableCoveragePercent(
+  placedPeriods: number,
+  requiredPeriods: number,
+): number {
+  if (requiredPeriods <= 0) return 0;
+  return Math.min(100, Math.round((placedPeriods / requiredPeriods) * 100));
+}

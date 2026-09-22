@@ -25,6 +25,7 @@ import {
   DoorOpen,
   GitBranch,
   ListChecks,
+  Loader2,
   Plus,
   RefreshCw,
   Settings2,
@@ -55,10 +56,14 @@ import {
   ROOM_TYPES,
   TIMETABLE_CONSTRAINT_KINDS,
   TIMETABLE_DAY_LABELS_FR,
+  TIMETABLE_GENERATION_STAGE_LABELS_FR,
   TIMETABLE_VERSION_STATUS_LABELS_FR,
+  timetableCoveragePercent,
+  timetableGenerationProgressPercent,
   type Room,
   type TimetableDay,
   type TimetableConstraint,
+  type TimetableGenerationProgress,
   type TimetableScheduleEntry,
   type TimetableVersion,
 } from "../../../domain/model/timetable";
@@ -102,6 +107,12 @@ export function TimetableTab() {
   const [viewEntityId, setViewEntityId] = useState<string>("__all__");
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // T-409: REAL generation progress — the live event stream from the
+  // actual run (loading → preparing → placing → repairing → validating →
+  // saving), never a timer. Null when no generation is in flight.
+  const [genProgress, setGenProgress] = useState<TimetableGenerationProgress | null>(
+    null,
+  );
   const [adjustEntry, setAdjustEntry] = useState<TimetableScheduleEntry | null>(null);
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
   const [constraintToDelete, setConstraintToDelete] =
@@ -187,6 +198,22 @@ export function TimetableTab() {
     }
   }, [viewMode, classes, personnel, rooms]);
 
+  // T-409 / SCHED-111 — the class-first contract: "Par classe" ALWAYS has
+  // an explicit class. The selector never offers "Tout afficher"; when no
+  // valid class is selected (first open, stale id, mode switch), the FIRST
+  // class is the default. The grid is scoped strictly to this id.
+  const classViewEntityId = useMemo(() => {
+    if (viewEntityId !== "__all__" && classes.some((c) => c.id === viewEntityId)) {
+      return viewEntityId;
+    }
+    return classes[0]?.id ?? null;
+  }, [viewEntityId, classes]);
+
+  const selectedClassLabel = useMemo(() => {
+    const cls = classes.find((c) => c.id === classViewEntityId);
+    return cls ? (cls.name ?? cls.code) : null;
+  }, [classes, classViewEntityId]);
+
   const editable =
     canManage &&
     selectedVersion != null &&
@@ -202,13 +229,35 @@ export function TimetableTab() {
       return;
     }
     setBusy(true);
+    // T-409: REAL generation progress — the live event stream from the
+    // actual run (loading → preparing → placing → repairing → validating →
+    // saving), never a timer.
+    setGenProgress({
+      stage: "loading",
+      processed: 0,
+      total: 0,
+      message: "Chargement des données…",
+    });
     try {
       const result = await repos.timetable.generateTimetable(
-        { academicYearId: year.id, fromVersionId: fromVersionId ?? null },
+        {
+          academicYearId: year.id,
+          fromVersionId: fromVersionId ?? null,
+          // T-409: REAL progress from the actual run (solver work units +
+          // persistence stages — never a timer).
+          onProgress: setGenProgress,
+        },
         actor,
       );
       if (result.ok) {
-        toasts.showSuccess("Génération terminée", `${result.value.statistics.placedPeriods ?? "?"} périodes placées, ${result.value.unplacedCount} non placées (essai ${result.value.versionNumber}).`);
+        const stats = result.value.statistics as Record<string, unknown>;
+        const placed = Number(stats?.placedPeriods ?? 0);
+        const required = Number(stats?.requiredPeriods ?? 0);
+        const coverage = timetableCoveragePercent(placed, required);
+        toasts.showSuccess(
+          "Génération terminée",
+          `${placed} périodes placées, ${result.value.unplacedCount} non placées — couverture ${coverage}% (essai ${result.value.versionNumber}).`,
+        );
         setSelectedVersionId(result.value.id);
         setSubTab("trials");
       } else {
@@ -216,6 +265,7 @@ export function TimetableTab() {
       }
     } finally {
       setBusy(false);
+      setGenProgress(null);
     }
   }
 
@@ -326,6 +376,61 @@ export function TimetableTab() {
         ))}
       </div>
 
+      {/* ── T-409: REAL generation progress surface ────────────────── */}
+      {genProgress && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-sm font-medium text-foreground">
+                    Génération de l'emploi du temps
+                  </span>
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                    {TIMETABLE_GENERATION_STAGE_LABELS_FR[genProgress.stage]}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold tabular-nums text-foreground">
+                  {genProgress.total > 0
+                    ? // Real percentage from actual work units — never a
+                      // timer; held below 100% until the trial is persisted.
+                      `${timetableGenerationProgressPercent(genProgress)}%`
+                    : "…"}
+                </span>
+              </div>
+              {/* progressPercent = round(processedWorkUnits / totalWorkUnits * 100) */}
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full bg-primary transition-[width] duration-150 ${
+                    genProgress.total <= 0 ? "animate-pulse" : ""
+                  }`}
+                  style={{
+                    width: `${
+                      genProgress.total > 0
+                        ? Math.min(
+                            99,
+                            timetableGenerationProgressPercent(genProgress),
+                          )
+                        : 100
+                    }%`,
+                  }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {genProgress.message}
+                {genProgress.total > 0 && (
+                  <span className="tabular-nums">
+                    {"\u00a0("}
+                    {genProgress.processed} / {genProgress.total} unités de travail)
+                  </span>
+                )}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── SCHEDULE ─────────────────────────────────────────────────── */}
       {subTab === "schedule" && (
         <Card>
@@ -339,6 +444,13 @@ export function TimetableTab() {
                 </span>
               )}
               {selectedVersion && statusBadge(selectedVersion.status)}
+              {/* T-409: the selected class is explicit and visible in the
+                  class-first workflow. */}
+              {viewMode === "class" && selectedClassLabel && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground">
+                  Classe : {selectedClassLabel}
+                </span>
+              )}
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <Select
@@ -370,6 +482,33 @@ export function TimetableTab() {
                   <SelectItem value="room" className="text-xs">Par salle</SelectItem>
                 </SelectContent>
               </Select>
+              {/* T-409 / SCHED-111: the class projection has a MANDATORY
+                  class selector — one class at a time, NO "Tout afficher"
+                  option (a class timetable answers "what does THIS class
+                  study at each period?"). */}
+              {viewMode === "class" && (
+                <Select
+                  value={classViewEntityId ?? ""}
+                  onValueChange={(v) => setViewEntityId(v)}
+                >
+                  <SelectTrigger className="h-8 w-56 text-xs">
+                    <SelectValue placeholder="Classe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        Aucune classe
+                      </div>
+                    ) : (
+                      viewEntities.map((e) => (
+                        <SelectItem key={e.id} value={e.id} className="text-xs">
+                          {e.label}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
               {viewMode !== "class" && (
                 <Select value={viewEntityId} onValueChange={setViewEntityId}>
                   <SelectTrigger className="h-8 w-56 text-xs">
@@ -424,7 +563,15 @@ export function TimetableTab() {
                 configuration={configuration}
                 entries={entries}
                 viewMode={viewMode}
-                viewEntityId={viewEntityId === "__all__" ? null : viewEntityId}
+                viewEntityId={
+                  viewMode === "class"
+                    ? // T-409: the class projection is ALWAYS scoped to the
+                      // selected class — never null (never "all classes").
+                      classViewEntityId
+                    : viewEntityId === "__all__"
+                      ? null
+                      : viewEntityId
+                }
                 names={names}
                 editable={editable}
                 onEntryClick={(e) => editable && setAdjustEntry(e)}
@@ -548,6 +695,15 @@ export function TimetableTab() {
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                           <span>
                             {placed}/{required} périodes placées
+                          </span>
+                          {/* T-409: final COVERAGE — a separate metric from
+                              generation progress (a finished computation can
+                              legitimately produce an incomplete timetable). */}
+                          <span>
+                            couverture{" "}
+                            {required > 0
+                              ? `${timetableCoveragePercent(placed, required)}%`
+                              : "—"}
                           </span>
                           {v.unplacedCount > 0 && (
                             <span className="text-status-danger">

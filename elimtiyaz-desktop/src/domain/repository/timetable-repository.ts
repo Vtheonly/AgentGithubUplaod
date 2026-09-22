@@ -27,6 +27,7 @@ import type {
   TimetableConstraintScope,
   TimetableConstraintSeverity,
   TimetableDay,
+  TimetableProgressListener,
   TimetableScheduleEntry,
   TimetableVersion,
   TimetableVersionStatus,
@@ -104,6 +105,13 @@ export interface GenerateTimetableOptions {
    * as manual pins (T-404: manual adjustments survive regeneration).
    */
   readonly fromVersionId?: string | null;
+  /**
+   * REAL-TIME generation progress (T-409 / SCHED-111): receives the run's
+   * actual stages (loading → preparing → placing → repairing → validating
+   * → saving) with cumulative REAL work-unit counters — never a timer.
+   * The terminal 100% is emitted only after the version is persisted.
+   */
+  readonly onProgress?: TimetableProgressListener;
 }
 
 export interface MoveTimetableEntryInput {

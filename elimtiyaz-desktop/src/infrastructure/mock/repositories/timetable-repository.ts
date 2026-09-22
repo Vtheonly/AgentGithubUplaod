@@ -47,6 +47,7 @@ import {
   getTimetableSolver,
   GREEDY_SOLVER_ID,
 } from "../../../domain/calc/timetable/solver";
+import { createGenerationProgressForwarder } from "../../../domain/calc/timetable/generation-progress";
 import { algerianDefaultConfiguration } from "../../../domain/calc/timetable/algerian-profile";
 
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
@@ -411,6 +412,18 @@ export class MockTimetableRepository implements TimetableRepository {
     actor: ActorContext,
     problem?: TimetableProblem,
   ): Promise<Result<TimetableVersion>> {
+    // T-409: REAL progress — the same emission policy as the Supabase
+    // repository (loading → solver → saving; terminal 100% only after the
+    // version + entries are persisted).
+    const forwarder = options.onProgress
+      ? createGenerationProgressForwarder(options.onProgress)
+      : null;
+    options.onProgress?.({
+      stage: "loading",
+      processed: 0,
+      total: 0,
+      message: "Chargement des données…",
+    });
     if (!problem) {
       return Err(
         Errors.validation(
@@ -430,10 +443,10 @@ export class MockTimetableRepository implements TimetableRepository {
       : [];
     const locked = lockedSource.map((e) => slotAssignmentFromEntry(e));
 
-    const solution: TimetableSolution = solver.solve({
-      ...problem,
-      lockedEntries: locked,
-    });
+    const solveOptions = forwarder?.solverOptions;
+    const solution: TimetableSolution = solver.solveAsync
+      ? await solver.solveAsync({ ...problem, lockedEntries: locked }, solveOptions)
+      : solver.solve({ ...problem, lockedEntries: locked }, solveOptions);
 
     const now = new Date().toISOString();
     const versionNumber =
@@ -475,6 +488,8 @@ export class MockTimetableRepository implements TimetableRepository {
     };
     store.versions.push(version);
 
+    forwarder?.beginSaving();
+
     const periodByIndex = new Map(
       problem.configuration.periods.map((p) => [p.index, p]),
     );
@@ -511,6 +526,12 @@ export class MockTimetableRepository implements TimetableRepository {
 
     this.notifyVersions(options.academicYearId);
     this.notifyEntries();
+    // T-409: the terminal 100% — only NOW, with the trial actually persisted.
+    forwarder?.complete(
+      version.versionNumber,
+      solution.statistics.placedPeriods,
+      solution.statistics.requiredPeriods,
+    );
     return Ok(version);
   }
 
