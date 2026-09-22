@@ -1,3 +1,20 @@
+# T-408 — Academic Setup Creation Integrity is the next repair task
+
+**T-408 / ACAD-505** is registered **READY / P0 Critical**. It covers the current academic setup failures as one contract: the class dialog fabricates academicLevelId instead of resolving the real UUID; teacher creation remains mock-backed in Supabase mode; and subject creation lacks a canonical validated curriculum catalogue/provisioning workflow.
+
+The implementation must fix all three together, not patch one modal in isolation. Read docs/recovery/t-408-academic-setup-creation.md, the ACAD-505 problem entry, the existing academic source-of-truth rules, T-313/ACAD-104 evidence, and the Android consumer contracts before coding.
+
+### Selection order
+
+1. **T-408 / ACAD-505** — academic setup creation integrity.
+2. T-405 residuals — Android debt-aging mirror and DATA-020 reconciliation.
+3. T-401/T-402/T-403 remaining academic integration follow-ups.
+4. OPS-319 / BUSINESS-105 and the standing owner-gated verification work.
+
+### T-408 starting constraints
+
+Do not reopen ACAD-104 as the class root cause without reproducing it. Do not synthesize UUIDs. Do not accept a mock teacher write as production success. Do not create a second subject identity store. Validate the requested Algerian curriculum reference against current official sources before production seeding. Re-check the live migration chain before any schema work.
+
 ## 86th session (2026-09-22) — T-407 COMPLETE — VERIFIED: the UI/mouse-interaction suites of T-401/T-402/T-403 + ACAD-504 closed (migration 0112)
 
 **T-407** delivered: the three feature suites (**32 tests**, all green) driving the REAL components with REAL pointer events — `src/tests/_helpers/radix-mouse.ts` (the §15.40 contract extracted) + the T-401 filière forms / the T-402 history card / the T-403 cycle workflow suites (the two-phase [NOTES_INCOMPLETES] ack, the override dance, the completion gating, the reopen). The suites surfaced and fixed **ACAD-504**: the batch-registration classification was DROPPED end-to-end (migration **0112** threads it through `register_family_batch` — live **6/6**, zero residue), the promotion override carried a STALE next-grade (the promoted student never advanced — `applyDecisionOverride` + the progression-derived payload), and the « Générale » sentinel family (blank trigger + the literal "general"). Gates: tsc **0 errors** (post-merge of the concurrent agent's repair), FULL vitest **3718/21/5** post-merge (byte-identical failing set), lint 0 errors. Chain head **0112** — NOTE the concurrent agent owns live 0111 (`debt_aging_analysis`, not yet pushed to git); coordinate on the chain when they push. Evidence: `docs/recovery/t-407-live-verification.md`.
