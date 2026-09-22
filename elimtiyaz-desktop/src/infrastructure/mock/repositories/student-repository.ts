@@ -137,6 +137,17 @@ export class MockStudentRepository implements StudentRepository {
     const after: Student = {
       ...before,
       ...updates,
+      // T-407 (mock/Supabase parity): normalize the classification at the
+      // store boundary — the Supabase layer normalizes "general" → NULL at
+      // its wire (updateStudent's patch), so the mock's store (its wire)
+      // must too, or mock mode drifts from production on every « Générale »
+      // selection (the edit modal used to send the literal "general").
+      ...(updates.filiereCode !== undefined
+        ? { filiereCode: normalizeTrackCode(updates.filiereCode) }
+        : {}),
+      ...(updates.specialiteCode !== undefined
+        ? { specialiteCode: normalizeTrackCode(updates.specialiteCode) }
+        : {}),
       level: newLevel,
       gradeYear: newYear,
       gradeLevel: newGradeLevel,
@@ -248,6 +259,12 @@ export class MockStudentRepository implements StudentRepository {
           photoUrl: null,
           medicalNotes: sInput.medicalNotes ?? null,
           transportTier: sInput.transportTier ?? null,
+          // T-407 fix: the classification the wizard's step 2 collected was
+          // silently DROPPED here (the Supabase createStudent path persists
+          // it since 0107 — mock/production divergence). Normalize through
+          // the canonical normalizer ("" / "general" → NULL = untagged).
+          filiereCode: normalizeTrackCode(sInput.filiereCode),
+          specialiteCode: normalizeTrackCode(sInput.specialiteCode),
           status: "active",
           paymentPlan: sInput.paymentPlan ?? "tranches",
           createdAt: nowIso(),

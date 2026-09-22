@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0112_class_subjects_teacher_fk.sql — SCHED-103 (T-404 follow-up)
+-- 0113_class_subjects_teacher_fk.sql — SCHED-103 (T-404 follow-up)
 -- ============================================================================
 -- Closes the root cause of the live PGRST200 defect (2026-09-22, reported
 -- from the running desktop app): every Emploi du temps curriculum load
@@ -44,7 +44,7 @@
 --     guards — supabase-academic-repository writes teacher_id only when
 --     isUuid() passes).
 --
--- POST-CONDITIONS (asserted by scripts/apply_0112_live.sh):
+-- POST-CONDITIONS (asserted by scripts/apply_0113_live.sh):
 --   * pg_constraint contains class_subjects_teacher_id_fkey and
 --     classes_homeroom_teacher_id_fkey, both convalidated = true.
 --   * Zero orphaned teacher_id / homeroom_teacher_id values remain.

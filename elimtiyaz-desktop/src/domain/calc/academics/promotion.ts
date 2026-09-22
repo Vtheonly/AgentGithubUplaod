@@ -135,9 +135,25 @@ export function buildPromotionReviewQueue(input: {
       yearlyGpa: gpa,
       isPassing: isPass,
       suggestedDecision,
-      nextGradeLevel: suggestedDecision === "promoted" ? progression.nextGradeCode : student.gradeLevel,
-      nextAcademicLevel: suggestedDecision === "promoted" ? progression.nextLevel : student.level,
-      nextGradeYear: suggestedDecision === "promoted" ? progression.nextGradeYear : student.gradeYear,
+      // T-407 fix: a GRADUATED candidate has NO next grade — null, exactly
+      // like the promoted student whose progression ends (3eme_annee →
+      // GRADUATED). Previously a graduating candidate kept its OWN grade
+      // here, so the review modal's destination badge rendered « 3eme
+      // année » instead of « Fin de scolarité » for the graduating class
+      // (the only consumer that displays the field; the wire payload has
+      // always sent null for non-promoted decisions — unchanged).
+      nextGradeLevel:
+        suggestedDecision === "promoted" || suggestedDecision === "graduated"
+          ? progression.nextGradeCode
+          : student.gradeLevel,
+      nextAcademicLevel:
+        suggestedDecision === "promoted" || suggestedDecision === "graduated"
+          ? progression.nextLevel
+          : student.level,
+      nextGradeYear:
+        suggestedDecision === "promoted" || suggestedDecision === "graduated"
+          ? progression.nextGradeYear
+          : student.gradeYear,
     };
   });
 
@@ -184,6 +200,31 @@ export function createAcademicHistoryEntry(
     narrative: narrative ?? null,
   };
 }
+/**
+ * Apply a reviewer's override to a candidate (T-407). The DESTINATION
+ * fields must follow the FINAL decision: a repeat→promu override must
+ * carry the NEXT grade, never the stale own-grade destination the
+ * suggestion computed (previously an overridden promotion left the
+ * student in the SAME grade while the history recorded « promoted » —
+ * a real data-integrity bug the cycle-review UI tests surfaced).
+ */
+export function applyDecisionOverride(
+  candidate: PromotionCandidate,
+  decision: PromotionDecision,
+): PromotionCandidate {
+  if (candidate.overrideDecision === decision) return candidate;
+  const progression = getNextGradeProgression(candidate.student.gradeLevel);
+  const advancing = decision === "promoted" || decision === "graduated";
+  return {
+    ...candidate,
+    overrideDecision: decision,
+    suggestedDecision: decision,
+    nextGradeLevel: advancing ? progression.nextGradeCode : candidate.student.gradeLevel,
+    nextAcademicLevel: advancing ? progression.nextLevel : candidate.student.level,
+    nextGradeYear: advancing ? progression.nextGradeYear : candidate.student.gradeYear,
+  };
+}
+
 // ============================================================================
 // T-403 — the canonical decision-payload builder (ONE wire format)
 // ============================================================================
@@ -216,8 +257,14 @@ export function buildPromotionDecisionPayload(
     decisions.push({
       student_id: candidate.student.id,
       decision: finalDecision,
+      // T-407: derive the destination from the STUDENT'S OWN progression —
+      // never from the candidate's pre-override destination field (a
+      // repeat→promu override previously carried the student's CURRENT
+      // grade as the next grade, so the promotion never advanced them).
       next_grade_code:
-        finalDecision === "promoted" ? candidate.nextGradeLevel : null,
+        finalDecision === "promoted"
+          ? getNextGradeProgression(candidate.student.gradeLevel).nextGradeCode
+          : null,
       academic_year: history.academicYear,
       cycle: history.cycle,
       grade_code: history.gradeCode,

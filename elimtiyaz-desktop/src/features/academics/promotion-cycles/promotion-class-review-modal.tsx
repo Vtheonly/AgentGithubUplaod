@@ -33,6 +33,7 @@ import { useAuth } from "../../../app/providers/auth-provider";
 import {
   buildPromotionReviewQueue,
   buildPromotionDecisionPayload,
+  applyDecisionOverride,
   type PromotionCandidate,
 } from "../../../domain/calc/academics/promotion";
 import {
@@ -110,8 +111,12 @@ export function PromotionClassReviewModal({
     () =>
       reviewQueue.candidates.map((c) => {
         const override = overrides.get(c.student.id);
+        // T-407: the CANONICAL override application — the destination
+        // fields follow the FINAL decision (a repeat→promu override must
+        // carry the NEXT grade; previously the stale own-grade destination
+        // left the promoted student in the same grade).
         if (!override) return c;
-        return { ...c, overrideDecision: override, suggestedDecision: override };
+        return applyDecisionOverride(c, override);
       }),
     [reviewQueue, overrides],
   );

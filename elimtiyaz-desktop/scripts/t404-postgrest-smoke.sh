@@ -17,8 +17,8 @@
 # needed (auth via the documented admin account):
 #   P1. Admin sign-in (JWT acquisition).
 #   P2. The user-reported production URL (verbatim from the console log)
-#       — pre-0112: expected HTTP 400 PGRST200 (the defect, PINNED).
-#         post-0112 (`--expect-fk`): must flip to HTTP 200.
+#       — pre-0113: expected HTTP 400 PGRST200 (the defect, PINNED).
+#         post-0113 (`--expect-fk`): must flip to HTTP 200.
 #   P3. The FIXED loadProblem curriculum query (no personnel embed — the
 #       SCHED-103 app-side fix) → HTTP 200 + REAL row count (authenticated).
 #   P4. The other loadProblem queries: timetable_configurations, rooms,
@@ -28,7 +28,7 @@
 #       → all HTTP 200 (regression net for the same defect class).
 #
 # OWNER RUNBOOK (the one gated step — same pattern as the T-277 runbook):
-#   SUPABASE_ACCESS_TOKEN=sbp_… bash scripts/apply_0112_live.sh
+#   SUPABASE_ACCESS_TOKEN=sbp_… bash scripts/apply_0113_live.sh
 #   then re-run with:  bash scripts/t404-postgrest-smoke.sh --expect-fk
 #   (P2 flips 400 → 200 and the FK state check reports landed.)
 #
@@ -77,7 +77,7 @@ probe() { # probe <url> <jwt> → prints "HTTP_CODE BODY"
 
 echo "==================================================================="
 echo "T-404 / SCHED-103 POSTGREST EMBED SMOKE — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-echo "expect-fk mode: ${EXPECT_FK} (1 = migration 0112 asserted landed)"
+echo "expect-fk mode: ${EXPECT_FK} (1 = migration 0113 asserted landed)"
 echo "==================================================================="
 
 # ---------------------------------------------------------------------------
@@ -99,9 +99,9 @@ OLD_URL="${REST}/class_subjects?select=class_id%2Csubject_id%2Cteacher_id%2Cweek
 OLD_PROBE=$(probe "$OLD_URL" "$ADMIN_JWT")
 OLD_CODE=$(echo "$OLD_PROBE" | tail -1); OLD_BODY=$(echo "$OLD_PROBE" | head -n -1)
 if [ "$EXPECT_FK" = "1" ]; then
-  check "class_subjects + personnel!left embed" "200" "$OLD_CODE" "(post-0112: FK resolves the embed)"
+  check "class_subjects + personnel!left embed" "200" "$OLD_CODE" "(post-0113: FK resolves the embed)"
 else
-  check "class_subjects + personnel!left embed" "400" "$OLD_CODE" "(pre-0112: PGRST200 pinned as the defect)"
+  check "class_subjects + personnel!left embed" "400" "$OLD_CODE" "(pre-0113: PGRST200 pinned as the defect)"
   echo "$OLD_BODY" | head -c 300; echo ""
 fi
 
@@ -163,8 +163,8 @@ echo ""
 echo "==================================================================="
 echo "RESULT: ${PASS} pass / ${FAIL} fail"
 if [ "$EXPECT_FK" = "0" ]; then
-  echo "Pre-0112 expectations: P2 = 400 is the PINNED DEFECT (evidence, not a"
-  echo "test failure IF it is the only non-200). After the owner applies 0112"
+  echo "Pre-0113 expectations: P2 = 400 is the PINNED DEFECT (evidence, not a"
+  echo "test failure IF it is the only non-200). After the owner applies 0113"
   echo "(runbook above), re-run with --expect-fk — P2 must be 200."
 fi
 echo "==================================================================="

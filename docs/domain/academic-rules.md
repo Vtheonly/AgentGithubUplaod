@@ -39,6 +39,8 @@
 
 - Canonical record: `student_academic_histories` (append-only; gpa, rank, narrative, decision) + advancing `students.grade_level_code`. Legacy `academic_history` table (0004) is superseded — the dead `promote_students` SQL RPC that writes it must not be wired (ACAD-100).
 - Promotion must be atomic per batch (4-step flow with admin overrides per the original vault §06.04 spec).
+- An admin/reviewer OVERRIDE that changes the decision must carry the DESTINATION the final decision implies (a repeat→promu override sends the student's next grade, derived from the student's own progression — never the pre-suggestion's stale destination; ACAD-504/T-407, `applyDecisionOverride` + the progression-derived payload).
+- The whole-year promotion runs as a human-in-the-loop CYCLE (T-403): one active cycle per source year, each class reviewed and confirmed one at a time, the confirm executing through the ONE canonical `execute_batch_promotion` RPC; incomplete notes trigger the two-phase ack (never treated as zero).
 - ⚠ Current blockers: the history table's RLS policy is inert (TENANT-106) and Android's sync drops the grade change (STUDENT-100).
 
 ## 7. Bulletins (report cards)

@@ -55,8 +55,19 @@ import {
 const NO_TRANSPORT = "__none__";
 /** Sentinel for "no class assigned". */
 const NO_CLASS = "__unassigned__";
-/** Sentinel for "no filière" (untagged — the pre-0107 default). */
-const NO_FILIERE = "__general__";
+/**
+ * Sentinel for "no filière" — the CATALOG'S OWN untagged code ("Générale"
+ * is a real catalog entry applicable at every grade), never a foreign
+ * token. T-407 fix: the previous "__general__" token matched NO SelectItem
+ * (every untagged — pre-0107 — student rendered a BLANK trigger), and
+ * picking the real « Générale » option set the state to the catalog code
+ * "general", which the submit mapping then persisted as the literal
+ * "general" instead of the canonical NULL. With the catalog code as the
+ * sentinel BOTH defects close: the trigger shows « Générale » for untagged
+ * students, and the submit mapping produces NULL (the SQL/mock layers
+ * normalize "general" → NULL, but the UI must send the canonical form).
+ */
+const NO_FILIERE = "general";
 /** Sentinel for "no spécialité". */
 const NO_SPECIALITE = "__none__";
 

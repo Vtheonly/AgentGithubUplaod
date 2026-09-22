@@ -38,7 +38,6 @@ import { useObservable } from "../../shared/hooks/use-observable";
 import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
-import { useSupabase } from "../../infrastructure/supabase/supabase-client";
 import {
   GRADE_LEVELS,
   GRADE_LEVEL_LABELS_FR,
@@ -47,7 +46,7 @@ import {
   type AcademicLevel,
 } from "../../domain/model/student";
 import type { AcademicClass } from "../../domain/model/academic";
-import { getFilieresForGrade, getSpecialitesForFiliere, trackLabelFr } from "../../domain/model/filiere";
+import { getFilieresForGrade, getSpecialitesForFiliere, normalizeTrackCode, trackLabelFr } from "../../domain/model/filiere";
 import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
@@ -394,24 +393,6 @@ function CreateClassModal({
       setSubmitting(false);
       return;
     }
-    // Same defect class: the year hook falls back to the mock-era
-    // "ay-2025-2026" id when no year is flagged current — never send it to
-    // the live uuid column (mock mode keeps its own id convention).
-    if (
-      useSupabase &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        currentYear.id,
-      )
-    ) {
-      setAlert({
-        tone: "error",
-        title: "Année scolaire introuvable",
-        description:
-          "Aucune année scolaire active (is_current) n'existe — créez ou activez une année dans Paramètres → Années scolaires avant de créer une classe.",
-      });
-      setSubmitting(false);
-      return;
-    }
 
     const result = await repos.classes.createClass({
       academicYearId: currentYear.id,
@@ -422,9 +403,13 @@ function CreateClassModal({
       level: derivedLevel,
       gradeYear: 1,
       section,
-      // T-401: the classification ("" → null = untagged).
-      filiereCode: filiereCode || null,
-      specialiteCode: specialiteCode || null,
+      // T-407 fix: normalize through the CANONICAL normalizer — picking the
+      // catalog's « Générale » option (code "general") previously persisted
+      // the literal "general" instead of the canonical NULL (the SQL layer
+      // normalizes it away server-side, but the wire must carry the
+      // canonical form — mock mode has no server to fix it).
+      filiereCode: normalizeTrackCode(filiereCode),
+      specialiteCode: normalizeTrackCode(specialiteCode),
       room: room.trim() || null,
       capacity: null,
       homeroomTeacherId: teacherId || null,

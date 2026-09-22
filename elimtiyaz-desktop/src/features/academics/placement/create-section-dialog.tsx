@@ -19,6 +19,7 @@ import { GRADE_LEVEL_LABELS_FR, type GradeLevel } from "../../../domain/model/st
 import {
   getFilieresForGrade,
   getSpecialitesForFiliere,
+  normalizeTrackCode,
   type AcademicTrack,
 } from "../../../domain/model/filiere";
 import type { Personnel } from "../../../domain/model/personnel";
@@ -111,9 +112,13 @@ export function CreateSectionDialog({
       homeroomTeacherId: teacherId || null,
       homeroomTeacherName: selectedTeacher ? `${selectedTeacher.firstName} ${selectedTeacher.lastName}` : null,
       notes: notes.trim() || null,
-      // T-401: the classification (validated server-side against the catalog).
-      filiereCode: filiereCode || null,
-      specialiteCode: specialiteCode || null,
+      // T-407 fix: normalize through the CANONICAL normalizer — picking the
+      // catalog's « Générale » option (code "general") previously persisted
+      // the literal "general" instead of the canonical NULL (the SQL layer
+      // normalizes it away server-side, but the wire must carry the
+      // canonical form — mock mode has no server to fix it).
+      filiereCode: normalizeTrackCode(filiereCode),
+      specialiteCode: normalizeTrackCode(specialiteCode),
     });
     onOpenChange(false);
   };
