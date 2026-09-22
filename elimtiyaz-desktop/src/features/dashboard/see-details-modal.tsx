@@ -40,6 +40,7 @@ import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import {
   AGING_BUCKET_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   PAYMENT_STATUS_LABELS_FR,
   type PaymentCategory,
   type DebtSummary,
@@ -466,7 +467,7 @@ export function SeeDetailsModal({
                               {formatPaymentDate(payment.collectedAt)}
                             </td>
                             <td className="px-4 py-2.5 text-foreground">
-                              {PAYMENT_CATEGORY_LABELS_FR[payment.category]}
+                              {paymentCategoryLabelFr(payment.category)}
                             </td>
                             <td className="px-4 py-2.5 text-muted-foreground">
                               {PAYMENT_STATUS_LABELS_FR[payment.status]}
@@ -916,14 +917,16 @@ export function SeeDetailsModal({
 function DepartmentsTab({ payments }: { payments: readonly Payment[] }) {
   const unitsWithTotals = OPERATIONAL_UNITS.map((u) => {
     const amount = payments
-      .filter((p) => u.categories.includes(p.category))
+      .filter((p) => p.category !== null && u.categories.includes(p.category))
       .reduce((s, p) => s + p.amount, 0);
     return { ...u, amount };
   });
 
   const claimed = new Set(OPERATIONAL_UNITS.flatMap((u) => u.categories));
+  // ADR-023: multi-service (null-category) payments have no unit match —
+  // they fall into the residual bucket like any unclaimed category.
   const otherAmount = payments
-    .filter((p) => !claimed.has(p.category))
+    .filter((p) => p.category === null || !claimed.has(p.category))
     .reduce((s, p) => s + p.amount, 0);
   const grandTotal =
     unitsWithTotals.reduce((s, u) => s + u.amount, 0) + otherAmount;

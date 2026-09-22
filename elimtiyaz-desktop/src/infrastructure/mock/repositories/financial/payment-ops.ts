@@ -125,6 +125,8 @@ export async function collectPayment(
   const ledgerEntry: LedgerEntry = {
     id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
     tenantId,
+    // ADR-023 (BUSINESS-106): null category → the synthetic cross-category
+    // account `parent:{id}:category:all` (mirrors the SQL RPC's booking).
     accountId: deriveAccountId(input.parentId, input.category, input.studentId),
     parentId: input.parentId,
     studentId: input.studentId,
@@ -137,7 +139,7 @@ export async function collectPayment(
     receiptNumber: payment.receiptNumber,
     paymentStatus: status,
     reversesId: null,
-    description: `Encaissement ${payment.receiptNumber} — ${input.method} (${input.category})`,
+    description: `Encaissement ${payment.receiptNumber} — ${input.method} (${input.category ?? "multi-services"})`,
     actorId: collectedBy,
     actorName: "Session courante",
     at: payment.collectedAt,
@@ -251,7 +253,9 @@ export async function collectPayment(
     id: payment.id,
     amount: payment.amount,
     method: payment.method,
-    category: payment.category,
+    // ADR-023: the bridge's category is a display string — null becomes
+    // the multi-service label.
+    category: payment.category ?? "multi_services",
   }, collectedBy).catch(() => {
     /* the bridge audit-logs its own failures */
   });
@@ -449,7 +453,7 @@ export async function markPaymentCleared(
   actorId: string,
   actorName: string = "Session courante",
 ): Promise<Result<Payment>> {
-  const { store, appendAudit, nowIso, delay } = ctx;
+  const { store, appendAudit, nowIso, delay, tenantId } = ctx;
   await delay(200);
   const idx = store.payments.findIndex((p) => p.id === id);
   if (idx < 0) return Err(Errors.notFound("Payment", id));
@@ -509,6 +513,38 @@ export async function markPaymentCleared(
     store.notifyInstallments();
   }
 
+  // BUSINESS-107 (T-411 / migration 0115 parity): cleared funds that could
+  // NOT move (every tranche at capacity) become a parent_credit entry —
+  // previously the excess silently vanished from every read surface.
+  if (clearResult.overflowCredit > 0.005) {
+    const overflowEntry: LedgerEntry = {
+      id: `led-${nowIso()}-${Math.random().toString(36).slice(2, 10)}`,
+      tenantId,
+      accountId: `parent:${before.parentId}:category:parent_credit`,
+      parentId: before.parentId,
+      studentId: null,
+      category: "parent_credit",
+      amount: -clearResult.overflowCredit,
+      type: "adjustment",
+      sourceType: "adjustment",
+      sourceId: `credit-${before.id}`,
+      method: null,
+      receiptNumber: null,
+      paymentStatus: null,
+      reversesId: null,
+      description: `Crédit parent (excédent de compensation — paiement ${before.receiptNumber})`,
+      actorId,
+      actorName,
+      at: nowIso(),
+      metadata: Object.freeze({
+        sourcePaymentId: before.id,
+        overflowCredit: clearResult.overflowCredit,
+      }),
+    };
+    store.ledger = [...store.ledger, overflowEntry];
+    store.notifyLedger();
+  }
+
   appendAudit({
     action: "payment.mark_cleared",
     entityType: "payment",
@@ -521,6 +557,7 @@ export async function markPaymentCleared(
         status: "paid",
         clearedInstallments: clearResult.clears.length,
         totalCleared: clearResult.totalCleared,
+        overflowCredit: clearResult.overflowCredit,
       },
     },
     note: `Compensation bancaire confirmée pour ${before.receiptNumber} — ${before.method} de ${before.amount.toLocaleString("fr-FR")} DZD`,

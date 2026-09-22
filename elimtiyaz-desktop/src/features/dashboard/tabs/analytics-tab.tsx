@@ -196,9 +196,9 @@ export function AnalyticsTab({
     });
   }, []);
 
-  const toggleCategory = useCallback((category: PaymentCategory) => {
+  const toggleCategory = useCallback((category: PaymentCategory | null) => {
     setFilters((prev) => {
-      const categories = new Set(prev.categories);
+      const categories = new Set<PaymentCategory | null>(prev.categories);
       if (categories.has(category)) categories.delete(category);
       else categories.add(category);
       return { ...prev, categories };

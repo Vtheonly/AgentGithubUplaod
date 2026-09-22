@@ -21,6 +21,7 @@ import { formatDate } from "../../core/format/date";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   PAYMENT_STATUS_LABELS_FR,
   AGING_BUCKET_LABELS_FR,
 } from "../../domain/model/payment";
@@ -75,7 +76,8 @@ export async function exportRevenueReport(
   // Sheet 3 — By Category
   const byCategory: Record<string, { count: number; total: number }> = {};
   for (const p of paid) {
-    const k = p.category;
+    // ADR-023: null = multi-service — its own bucket, labeled canonically.
+    const k = p.category ?? "__multi__";
     byCategory[k] ??= { count: 0, total: 0 };
     byCategory[k].count += 1;
     byCategory[k].total += p.amount;
@@ -112,7 +114,7 @@ export async function exportRevenueReport(
         date: formatDate(p.collectedAt),
         receipt: p.receiptNumber,
         method: PAYMENT_METHOD_LABELS_FR[p.method],
-        category: PAYMENT_CATEGORY_LABELS_FR[p.category],
+        category: paymentCategoryLabelFr(p.category),
         status: PAYMENT_STATUS_LABELS_FR[p.status],
         amount: p.amount,
       })),

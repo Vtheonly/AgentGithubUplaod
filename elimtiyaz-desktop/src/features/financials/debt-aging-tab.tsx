@@ -417,8 +417,11 @@ export function DebtAgingTab() {
             lineItems: [
               {
                 itemId: `debt-aging-${collectFor.parentId}`,
-                category: "other",
-                label: "Solde familial consolidé (suivi des dettes)",
+                // ADR-023 (BUSINESS-106): NULL category = cross-category —
+                // the collection allocates across ALL of the family's
+                // tranches (the old "other" booked parent_credit only).
+                category: null,
+                label: "Solde familial consolidé (toutes catégories)",
                 grossAmount: collectFor.amount,
                 discountAmount: 0,
                 netAmount: collectFor.amount,

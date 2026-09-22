@@ -33,13 +33,17 @@ function chronologically(a: Installment, b: Installment): number {
 export function allocatePaymentToInstallments(
   installments: readonly Installment[],
   paymentAmount: number,
-  categoryFilter?: Installment["category"],
+  categoryFilter?: Installment["category"] | null,
   paymentStatus: "paid" | "pending" = "paid",
 ): AllocationResult {
   if (paymentAmount <= 0) {
     return { allocations: [], unallocatedAmount: 0, totalAllocated: 0, paymentAmount };
   }
 
+  // ADR-023 (BUSINESS-106): `null` categoryFilter = the canonical
+  // cross-category scope (financial-rules §4 — NULL/absent = ALL
+  // categories), identical to the SQL waterfall's
+  // `AND (p_category IS NULL OR category = p_category)`.
   const eligible = installments
     .filter((i) => i.status !== "paid")
     .filter((i) => (categoryFilter ? i.category === categoryFilter : true))
@@ -52,19 +56,18 @@ export function allocatePaymentToInstallments(
 
   for (const ins of eligible) {
     if (remaining <= 0) break;
-    // EQUIVALENCE FIX (finding A-0042-PENDING-CAPACITY, scenario
-    // fin-024-double-pending-collection-capacity): the pending-funds
-    // waterfall must subtract the tranche's EXISTING uncleared allocation
-    // from its remaining capacity. Using amountDue - amountPaid for both
-    // branches let a second pending payment push amountPending BEYOND
-    // amountDue — when both checks later cleared, amountPaid exceeded
-    // amountDue and the excess money vanished (no parent credit). The
-    // backend RPC (collect_and_allocate_payment, canonical 0034) already
-    // computed capacity as amountDue - amountPaid - amountPending; the
-    // canonical engine now mirrors it (INV-6/INV-7).
-    const insRemaining = cleared
-      ? clampNonNegative(ins.amountDue - ins.amountPaid)
-      : clampNonNegative(ins.amountDue - ins.amountPaid - (ins.amountPending ?? 0));
+    // INV-4 / BUSINESS-107 (finance UI audit FA-03): the canonical per-
+    // tranche capacity is `due − paid − pending` for BOTH branches. The
+    // A-0042 fix covered the pending branch only; the cleared branch kept
+    // `due − paid`, so a cheque pending on a tranche followed by a CASH
+    // payment over-allocated it (paid + pending > due) and the later
+    // clearance then pushed amount_paid beyond amount_due with the excess
+    // vanishing (no parent_credit booking). Both the TS reference and the
+    // SQL twin (migration 0115) now subtract amount_pending everywhere,
+    // matching the INV-4 family and the backend RPC.
+    const insRemaining = clampNonNegative(
+      ins.amountDue - ins.amountPaid - (ins.amountPending ?? 0),
+    );
     if (insRemaining <= 0) continue;
     const allocate = Math.min(remaining, insRemaining);
     let newAmountPaid = ins.amountPaid;
@@ -105,11 +108,16 @@ export function allocatePaymentToInstallments(
 export function isOverpayment(
   installments: readonly Installment[],
   paymentAmount: number,
-  categoryFilter?: Installment["category"],
+  categoryFilter?: Installment["category"] | null,
 ): boolean {
   const totalRemaining = installments
     .filter((i) => i.status !== "paid")
     .filter((i) => (categoryFilter ? i.category === categoryFilter : true))
-    .reduce((s, i) => s + clampNonNegative(i.amountDue - i.amountPaid), 0);
+    // INV-4 (BUSINESS-107): capacity includes pending, matching the
+    // allocator's cleared branch.
+    .reduce(
+      (s, i) => s + clampNonNegative(i.amountDue - i.amountPaid - (i.amountPending ?? 0)),
+      0,
+    );
   return paymentAmount > totalRemaining + 0.001;
 }

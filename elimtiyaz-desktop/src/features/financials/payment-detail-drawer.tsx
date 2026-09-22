@@ -32,6 +32,7 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   type Payment,
 } from "../../domain/model/payment";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
@@ -166,7 +167,7 @@ export function PaymentDetailDrawer({
   const metadata = (p: Payment): readonly EntityDrawerMetaItem[] => [
     { label: "Reçu", value: p.receiptNumber },
     { label: "Méthode", value: PAYMENT_METHOD_LABELS_FR[p.method] },
-    { label: "Catégorie", value: PAYMENT_CATEGORY_LABELS_FR[p.category] },
+    { label: "Catégorie", value: paymentCategoryLabelFr(p.category) },
     { label: "Statut", value: PAYMENT_STATUS_LABELS_FR[p.status] },
     { label: "Encaissé le", value: formatDate(p.collectedAt) },
   ];

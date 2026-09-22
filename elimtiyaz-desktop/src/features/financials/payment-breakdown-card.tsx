@@ -30,6 +30,7 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   type Payment,
   type PaymentAllocation,
 } from "../../domain/model/payment";
@@ -109,7 +110,7 @@ export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
         {/* Payment summary line */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            {PAYMENT_METHOD_LABELS_FR[payment.method]} · {PAYMENT_CATEGORY_LABELS_FR[payment.category]}
+            {PAYMENT_METHOD_LABELS_FR[payment.method]} · {paymentCategoryLabelFr(payment.category)}
           </span>
           <span className="font-mono font-bold text-base">{formatDzdPlain(paidTotal)}</span>
         </div>
@@ -125,7 +126,7 @@ export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
                 <div key={a.id} className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[10px]">
-                      {PAYMENT_CATEGORY_LABELS_FR[a.category]}
+                      {paymentCategoryLabelFr(a.category)}
                     </Badge>
                     <span>{a.label ?? a.category}</span>
                   </span>
@@ -137,9 +138,9 @@ export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-2">
                   <Badge variant="outline" className="text-[10px]">
-                    {PAYMENT_CATEGORY_LABELS_FR[payment.category]}
+                    {paymentCategoryLabelFr(payment.category)}
                   </Badge>
-                  <span>{PAYMENT_CATEGORY_LABELS_FR[payment.category]}</span>
+                  <span>{paymentCategoryLabelFr(payment.category)}</span>
                 </span>
                 <span className="font-mono">{formatDzdPlain(paidTotal)}</span>
               </div>

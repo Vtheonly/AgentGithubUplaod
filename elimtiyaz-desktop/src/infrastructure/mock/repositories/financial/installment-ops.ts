@@ -219,7 +219,7 @@ export async function allocatePaymentAcrossInstallments(
   parentId: string,
   paymentAmount: number,
   paymentId: string,
-  categoryFilter?: PaymentCategory,
+  categoryFilter?: PaymentCategory | null,
   actorId: string = "usr-current",
   actorName: string = "Session courante",
   paymentStatus: "paid" | "pending" = "paid",

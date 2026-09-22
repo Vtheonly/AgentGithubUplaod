@@ -23,6 +23,7 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
 } from "../../domain/model/payment";
 import { formatDateTime } from "../../core/format/date";
 import {
@@ -102,7 +103,7 @@ export async function generatePaymentReceiptPdf(
   // Table row
   page.drawText("Paiement comptoir", { x: MARGIN + 15, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
   page.drawText(label(PAYMENT_METHOD_LABELS_FR, payment.method), { x: MARGIN + 240, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
-  page.drawText(label(PAYMENT_CATEGORY_LABELS_FR, payment.category), { x: MARGIN + 340, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
+  page.drawText(paymentCategoryLabelFr(payment.category), { x: MARGIN + 340, y: y - 4, size: 10, font, color: TEXT_PRIMARY });
   const amountStr = dzdPdf(payment.amount);
   page.drawText(amountStr, { x: MARGIN + 440, y: y - 4, size: 10, font: fontBold, color: TEXT_PRIMARY });
   page.drawLine({

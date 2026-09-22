@@ -155,7 +155,10 @@ describe("T-330 — PaymentBreakdownCard applies the canonical precedence", () =
     // tuition + 50000 transport. The website's payment-coverage.test.ts
     // pins the SAME vector via paymentCoverageLines — this guard pins that
     // the desktop card renders allocations from the same two sources.
-    expect(CARD).toContain("PAYMENT_CATEGORY_LABELS_FR[a.category]");
+    // T-411/ADR-023: the per-allocation label goes through the canonical
+    // null-aware resolver (a multi-service allocation line renders
+    // "Multi-services", never a crash on the nullable category).
+    expect(CARD).toContain("paymentCategoryLabelFr(a.category)");
     expect(CARD).toContain("formatDzdPlain(a.allocatedAmount)");
     expect(CARD).toContain("payment.excessAmount ??");
     expect(CARD).toContain("payment.expectedAmount ?? 0");

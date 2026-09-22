@@ -22,11 +22,16 @@ import type { PaymentCategory } from "@/domain/model/payment";
  */
 export function deriveAccountId(
   parentId: string,
-  category: PaymentCategory,
+  category: PaymentCategory | null,
   studentId: string | null = null,
 ): string {
   // Use a delimiter that cannot appear in IDs themselves.
-  const parts = ["parent", parentId, "category", category];
+  // ADR-023 (BUSINESS-106): a NULL category (multi-service payment) maps
+  // to the synthetic cross-category account `parent:{id}:category:all` —
+  // the same account id the SQL RPC books for `p_category IS NULL`. It
+  // never receives charges, so per-category balances are unaffected; the
+  // parent-level replay (Σ signed balances) picks it up correctly.
+  const parts = ["parent", parentId, "category", category ?? "all"];
   if (studentId) parts.push("student", studentId);
   return parts.join(":");
 }

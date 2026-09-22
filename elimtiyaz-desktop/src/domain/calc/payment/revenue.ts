@@ -55,10 +55,12 @@ export function revenueByMonth(
 export function revenueByCategory(
   payments: readonly Payment[],
   now: Date = new Date(),
-): ReadonlyArray<{ category: PaymentCategory; amount: number }> {
+): ReadonlyArray<{ category: PaymentCategory | null; amount: number }> {
   const monthStart = startOfMonth(now).getTime();
   const monthEnd = endOfMonthExclusive(now).getTime();
-  const totals = new Map<PaymentCategory, number>();
+  // ADR-023: a NULL-category payment is multi-service — it keeps its own
+  // bucket (callers label it via paymentCategoryLabelFr).
+  const totals = new Map<PaymentCategory | null, number>();
   for (const p of payments) {
     if (p.status !== "paid") continue;
     const t = toEpochMs(p.collectedAt);

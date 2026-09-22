@@ -78,7 +78,14 @@ export interface LedgerEntry {
   readonly accountId: string;
   readonly parentId: string;
   readonly studentId: string | null;
-  readonly category: PaymentCategory;
+  /**
+   * ADR-023 (BUSINESS-106): `null` = a multi-service entry (payment
+   * collected across the family's whole balance). Never matches a
+   * concrete-category filter — which is exactly right for a cross-category
+   * payment entry (it is not a parent_credit adjustment, not a tuition
+   * payment, …). Mirrors the SQL column after migration 0115.
+   */
+  readonly category: PaymentCategory | null;
   /** Signed amount in DZD. Positive = debit (parent owes more). Negative = credit. */
   readonly amount: number;
   readonly type: LedgerEntryType;

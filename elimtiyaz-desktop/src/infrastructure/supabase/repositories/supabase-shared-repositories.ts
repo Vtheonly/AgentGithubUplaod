@@ -566,7 +566,11 @@ export function mapPaymentRow(r: PaymentRow): Payment {
     // check / failed transfer). Previously coerced to "pending", which
     // made a bounced payment indistinguishable from an uncleared one.
     status: r.status as Payment["status"],
-    category: (r.category ?? "other") as Payment["category"],
+    // ADR-023 (BUSINESS-106): NULL category = multi-service payment —
+    // preserved as null (rendered "Multi-services" via
+    // paymentCategoryLabelFr). The old `?? "other"` coercion mislabeled
+    // cross-category collections.
+    category: (r.category ?? null) as Payment["category"],
     installmentId: r.installment_id,
     proofUrl: r.proof_path,
     notes: r.notes,
@@ -1901,7 +1905,15 @@ export class SupabasePaymentRepository implements PaymentRepository {
         p_student_id: input.studentId ?? null,
         p_amount: input.amount,
         p_method: input.method,
-        p_category: input.category ?? "tuition",
+        // ADR-023 (BUSINESS-106): null category = the canonical
+        // cross-category scope (financial-rules §4). The RPC waterfall's
+        // `AND (p_category IS NULL OR category = p_category)` then
+        // allocates across ALL of the family's tranches instead of
+        // locking the collection into one category and booking the rest
+        // as parent_credit. The previous `?? "tuition"` coercion was the
+        // CRITICAL defect: consolidated collections could never clear a
+        // multi-service balance.
+        p_category: input.category ?? null,
         p_installment_id: input.installmentId ?? null,
         p_proof_path: input.proofUrl ?? null,
         p_notes: input.notes ?? null,

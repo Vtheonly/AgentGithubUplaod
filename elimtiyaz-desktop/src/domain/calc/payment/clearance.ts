@@ -32,6 +32,13 @@ export interface ClearAllocationResult {
   readonly totalCleared: number;
   readonly unclearedAmount: number;
   readonly requestedAmount: number;
+  /**
+   * BUSINESS-107 (T-411): cleared funds that could NOT move because every
+   * tranche is already at capacity (due − paid). The SQL twin books this
+   * as a `parent_credit` adjustment; the mock repository does the same.
+   * Previously this excess silently vanished from every read surface.
+   */
+  readonly overflowCredit: number;
 }
 
 function chronologically(a: Installment, b: Installment): number {
@@ -55,11 +62,11 @@ function chronologically(a: Installment, b: Installment): number {
 export function clearPendingAllocation(
   installments: readonly Installment[],
   clearAmount: number,
-  categoryFilter?: Installment["category"],
+  categoryFilter?: Installment["category"] | null, /* ADR-023: null = cross-category */
   now: Date = new Date(),
 ): ClearAllocationResult {
   if (clearAmount <= 0) {
-    return { clears: [], totalCleared: 0, unclearedAmount: 0, requestedAmount: clearAmount };
+    return { clears: [], totalCleared: 0, unclearedAmount: 0, requestedAmount: clearAmount, overflowCredit: 0 };
   }
 
   const eligible = installments
@@ -75,7 +82,13 @@ export function clearPendingAllocation(
     if (remaining <= 0) break;
     const pending = ins.amountPending ?? 0;
     if (pending <= 0) continue;
-    const moved = Math.min(remaining, pending);
+    // BUSINESS-107 (INV-4): cap the pending→paid move at the tranche's
+    // remaining capacity (due − paid), mirroring migration 0115's SQL
+    // guard — pre-fix data could carry paid + pending > due, and the
+    // uncapped move pushed amount_paid beyond amount_due.
+    const capacity = Math.max(0, ins.amountDue - ins.amountPaid);
+    const moved = Math.min(remaining, pending, capacity);
+    if (moved <= 0) continue;
     const newAmountPaid = ins.amountPaid + moved;
     const newAmountPending = Math.max(0, pending - moved);
     const newStatus = reevaluateInstallmentStatus(newAmountPaid, ins.amountDue, ins.dueDate, now);
@@ -96,5 +109,6 @@ export function clearPendingAllocation(
     totalCleared,
     unclearedAmount: Math.max(0, remaining),
     requestedAmount: clearAmount,
+    overflowCredit: Math.max(0, remaining),
   };
 }

@@ -54,6 +54,7 @@ import type {
 } from "../../../../domain/model/payment";
 import {
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
 } from "../../../../domain/model/payment";
@@ -101,7 +102,7 @@ function paymentDescription(
     ? installments.find((item) => item.id === payment.installmentId)
     : undefined;
   if (installment) return installment.label;
-  return PAYMENT_CATEGORY_LABELS_FR[payment.category];
+  return paymentCategoryLabelFr(payment.category);
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -332,7 +333,7 @@ function Student360Modal({
   const services = useMemo(() => {
     const categories = new Set<string>();
     studentPayments.forEach((payment) =>
-      categories.add(PAYMENT_CATEGORY_LABELS_FR[payment.category]),
+      categories.add(paymentCategoryLabelFr(payment.category)),
     );
     studentInstallments.forEach((item) =>
       categories.add(PAYMENT_CATEGORY_LABELS_FR[item.category]),

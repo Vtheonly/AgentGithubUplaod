@@ -53,6 +53,7 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
+  paymentCategoryLabelFr,
   type PaymentMethod,
   type PaymentCategory,
   type Payment,
@@ -63,7 +64,7 @@ import {
 import type { Parent } from "../../domain/model/parent";
 import { parentDisplayName } from "../../domain/model/parent";
 import { allocatePaymentToInstallments } from "../../domain/calc/payment/waterfall-allocator";
-import { currentTrancheLabel } from "../../domain/calc/payment/queries";
+import { currentTrancheLabel, installmentRemaining } from "../../domain/calc/payment/queries";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
 import { PaymentSlider, type PaymentTrancheSpec, type PaymentSliderMode } from "./payment-slider";
 import { DebtMeter } from "./debt-meter";
@@ -123,7 +124,12 @@ export function UnifiedPaymentModal({
   // === Form state ===
   const [amount, setAmount] = useState<number>(0);
   const [method, setMethod] = useState<PaymentMethod>("cash");
-  const [category, setCategory] = useState<PaymentCategory>("tuition");
+  // ADR-023 (BUSINESS-106): the category state is NULLABLE — `null` is the
+  // canonical cross-category scope ("the family's whole balance", financial-
+  // rules §4). Consolidated-debt contexts pin it to null so `collect()` sends
+  // `p_category = NULL` and the server waterfall allocates across every
+  // category instead of locking into one and booking the rest as credit.
+  const [category, setCategory] = useState<PaymentCategory | null>(null);
   const [proofFileName, setProofFileName] = useState<string | null>(null);
   // VAULT §12.07 — proof uploads go through the private media vault
   // (signed-URL flow); `proofVaultPath` is the persisted storage path.
@@ -192,7 +198,7 @@ export function UnifiedPaymentModal({
         setFallbackStudentId(null);
         setAmount(0);
         setMethod("cash");
-        setCategory("tuition");
+        setCategory(null);
         setProofFileName(null);
         setProofVaultPath(null);
         setNotes("");
@@ -219,8 +225,17 @@ export function UnifiedPaymentModal({
         setAmount(context.presetAmount);
       }
       // Derive category from the first line item, if available.
+      // ADR-023 (BUSINESS-106): consolidated-debt line items carry
+      // `category: null` = cross-category — the scope IS the whole
+      // balance, so the selector stays pinned to "Multi-services".
       if (context.lineItems.length > 0) {
         setCategory(context.lineItems[0].category);
+      } else if (context.mode === "consolidated_debt") {
+        // No line items (e.g. the Diagnostic console preset through
+        // CounterPaymentModal): the intended scope is still the whole
+        // family balance — cross-category, NOT the old silent "tuition"
+        // default (the FA-02 defect).
+        setCategory(null);
       }
     }
   }, [open, context]);
@@ -242,6 +257,12 @@ export function UnifiedPaymentModal({
   }, [debouncedQuery, open, context, repos.parents]);
 
   // === Auto-suggest oldest unpaid installment amount when no preset (tuition/transport) ===
+  // DATA-028/FA-18 (T-411): the suggested amount now uses the canonical
+  // INV-4 remaining (`installmentRemaining` = due − paid − pending) — the
+  // old `amountDue − amountPaid` form over-collected when an uncleared
+  // cheque sat on the oldest tranche. Cross-category (null) mode never
+  // auto-suggests — the amount is the operator's choice against the whole
+  // balance.
   useEffect(() => {
     if (!open) return;
     if (context?.presetAmount) return;
@@ -250,7 +271,7 @@ export function UnifiedPaymentModal({
       .filter((i) => i.category === category && i.status !== "paid")
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     if (matching.length > 0 && amount === 0) {
-      setAmount(matching[0].amountDue - matching[0].amountPaid);
+      setAmount(installmentRemaining(matching[0]));
     }
   }, [installments, category, amount, context, open]);
 
@@ -260,14 +281,14 @@ export function UnifiedPaymentModal({
       return context.lineItems.map(lineItemToTrancheSpec);
     }
     // Fallback: derive from installments, filtered by category.
-    // T-060 (BUSINESS-005): the modal ALWAYS sends a concrete category to
-    // collect() (the server filters `category = p_category` exactly), so the
-    // derived tranche list must use the same exact filter for every
-    // category — the old "other categories = no filter" ternary made the
-    // slider show tranches the collection would never touch.
+    // T-060 (BUSINESS-005): a CONCRETE category means the collection is
+    // exact-category (the server filters `category = p_category`), so the
+    // derived tranche list uses the same exact filter. ADR-023: a NULL
+    // category (cross-category / consolidated) shows EVERY open tranche —
+    // the collection will allocate across all of them.
     const eligible = installments
       .filter((i) => i.status !== "paid")
-      .filter((i) => i.category === category)
+      .filter((i) => (category ? i.category === category : true))
       .slice()
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, 6);
@@ -296,28 +317,27 @@ export function UnifiedPaymentModal({
   );
 
   // === Live waterfall allocation preview ===
-  // T-060 (BUSINESS-005): preview ≡ actual. The collection sends
-  // p_category = category (exact match server-side per migration 0040), so
-  // the preview applies the SAME exact filter and hands the allocator the
-  // SAME concrete categoryFilter — for EVERY category, not only
-  // tuition/transport. The old "other categories = unfiltered preview"
-  // ternary showed a waterfall across all categories while the actual
-  // collection filtered to the chosen one.
+  // T-060 (BUSINESS-005): preview ≡ actual — the preview applies the SAME
+  // category scope the collection will send. ADR-023 (BUSINESS-106): a
+  // NULL category previews the CROSS-CATEGORY waterfall (every open
+  // tranche, oldest first) exactly as `p_category = NULL` will allocate
+  // server-side.
   const allocationPreview = useMemo(() => {
     if (!effectiveParentId) return null;
     const eligible = installments
       .filter((i) => i.status !== "paid")
-      .filter((i) => i.category === category);
+      .filter((i) => (category ? i.category === category : true));
     return allocatePaymentToInstallments(eligible, amount, category);
   }, [installments, amount, category, effectiveParentId]);
 
   const overpayingNow = allocationPreview ? allocationPreview.unallocatedAmount > 0.5 : false;
   const focusedTrancheLabel = useMemo(() => {
     if (!effectiveParentId) return null;
-    // T-060 (BUSINESS-005): same exact-category filter as the actual collection.
+    // T-060 + ADR-023: same category scope as the actual collection
+    // (null = cross-category → every open tranche).
     const eligible = installments
       .filter((i) => i.status !== "paid")
-      .filter((i) => i.category === category);
+      .filter((i) => (category ? i.category === category : true));
     return currentTrancheLabel(eligible, category);
   }, [installments, category, effectiveParentId]);
 
@@ -701,9 +721,14 @@ export function UnifiedPaymentModal({
               <FormField label="Catégorie" required>
                 <select
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as PaymentCategory)}
+                  value={category ?? ""}
+                  onChange={(e) =>
+                    setCategory(e.target.value === "" ? null : (e.target.value as PaymentCategory))
+                  }
                 >
+                  {/* ADR-023: the cross-category option — allocate across every
+                      open tranche (the counter default). */}
+                  <option value="">Multi-services (toutes catégories)</option>
                   {Object.entries(PAYMENT_CATEGORY_LABELS_FR).map(([k, label]) => (
                     <option key={k} value={k}>{label}</option>
                   ))}
@@ -1120,7 +1145,7 @@ export function UnifiedPaymentModal({
               </div>
               <div className="flex justify-between border-b border-border/40 pb-1">
                 <span className="text-muted-foreground">Catégorie</span>
-                <span>{PAYMENT_CATEGORY_LABELS_FR[receiptPayment.category]}</span>
+                <span>{paymentCategoryLabelFr(receiptPayment.category)}</span>
               </div>
               <div className="flex justify-between border-b border-border/40 pb-1">
                 <span className="text-muted-foreground">Date &amp; heure</span>

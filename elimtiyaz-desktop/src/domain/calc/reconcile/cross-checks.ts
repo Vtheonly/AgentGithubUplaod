@@ -199,7 +199,9 @@ export function crossCheckInstallmentPayments(
   // Build a per-installment ledger attribution: for each installment,
   // sum the absolute value of cleared payment entries that map to it,
   // plus the absolute value of credit adjustments on its account.
-  const accountKey = (parentId: string, category: string, studentId: string | null) =>
+  // ADR-023: a multi-service payment entry carries category NULL — its
+  // account key must still group deterministically (the ":all" bucket).
+  const accountKey = (parentId: string, category: string | null, studentId: string | null) =>
     `${parentId}|${category}|${studentId ?? ""}`;
 
   // Group cleared payment credits + credit adjustments by account key.

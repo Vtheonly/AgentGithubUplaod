@@ -22,6 +22,7 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
 } from "../../domain/model/payment";
 import { formatDate } from "../../core/format/date";
 import {
@@ -129,7 +130,7 @@ export async function generateAccountStatementPdf(
     page.drawText(formatDate(p.collectedAt), { x: MARGIN + 10, y, size: 9, font, color: TEXT_PRIMARY });
     page.drawText(sanitizePdfText(p.receiptNumber), { x: MARGIN + 80, y, size: 9, font, color: TEXT_PRIMARY });
     page.drawText(label(PAYMENT_METHOD_LABELS_FR, p.method), { x: MARGIN + 180, y, size: 9, font, color: TEXT_PRIMARY });
-    page.drawText(label(PAYMENT_CATEGORY_LABELS_FR, p.category), { x: MARGIN + 260, y, size: 9, font, color: TEXT_PRIMARY });
+    page.drawText(paymentCategoryLabelFr(p.category), { x: MARGIN + 260, y, size: 9, font, color: TEXT_PRIMARY });
     page.drawText(label(PAYMENT_STATUS_LABELS_FR, p.status), { x: MARGIN + 350, y, size: 9, font, color: TEXT_PRIMARY });
     page.drawText(dzdPdf(p.amount), { x: MARGIN + 460, y, size: 9, font: fontBold, color: TEXT_PRIMARY });
     y -= ROW_H;

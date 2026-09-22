@@ -45,6 +45,7 @@ import type {
 } from "../../../../domain/model/payment";
 import {
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   AGING_BUCKET_LABELS_FR,
@@ -124,7 +125,7 @@ export interface InspectRequest {
     /** Single-category filter (backward compatible). */
     category?: PaymentCategory;
     /** Multi-select categories (T-389). */
-    categories?: readonly PaymentCategory[];
+    categories?: readonly (PaymentCategory | null)[]; // ADR-023: null = multi-service
     trancheNumber?: 1 | 2 | 3;
     mode?: "collected" | "remaining";
     classId?: string;
@@ -325,8 +326,11 @@ function matchesMethodFilters(p: Payment, f: InspectRequest["filters"]): boolean
 }
 
 function matchesCategoryFilters(p: Payment, f: InspectRequest["filters"]): boolean {
+  // ADR-023: a multi-service (null-category) payment matches only when no
+  // category filter is active — it belongs to no single category.
   if (f?.category && p.category !== f.category) return false;
-  if (f?.categories && f.categories.length > 0 && !f.categories.includes(p.category)) return false;
+  if (f?.categories && f.categories.length > 0 && p.category !== null && !f.categories.includes(p.category)) return false;
+  if (f?.categories && f.categories.length > 0 && p.category === null) return false;
   return true;
 }
 
@@ -347,7 +351,7 @@ function categoryFilterLabel(f: InspectRequest["filters"]): string {
   ];
   const deduped = [...new Set(categories)];
   if (deduped.length === 0) return "";
-  return ` · catégories [${deduped.map((c) => PAYMENT_CATEGORY_LABELS_FR[c]).join(", ")}]`;
+  return ` · catégories [${deduped.map((c) => paymentCategoryLabelFr(c)).join(", ")}]`;
 }
 
 /**
@@ -414,7 +418,7 @@ export function buildResolution(
         className: student?.classId ? classMap.get(student.classId)?.name ?? "—" : "—",
         amount: payment.amount,
         date: payment.collectedAt,
-        description: installment?.label ?? PAYMENT_CATEGORY_LABELS_FR[payment.category],
+        description: installment?.label ?? paymentCategoryLabelFr(payment.category),
         status: PAYMENT_STATUS_LABELS_FR[payment.status],
         reference: payment.receiptNumber,
         method: PAYMENT_METHOD_LABELS_FR[payment.method],
@@ -423,7 +427,7 @@ export function buildResolution(
         category: payment.category,
         sourceTable: "payments",
         sourceId: payment.id,
-        detail: `${PAYMENT_CATEGORY_LABELS_FR[payment.category]}${installment ? ` · ${installment.label}` : ""}${payment.installmentId ? "" : " · sans tranche rattachée"}`,
+        detail: `${paymentCategoryLabelFr(payment.category)}${installment ? ` · ${installment.label}` : ""}${payment.installmentId ? "" : " · sans tranche rattachée"}`,
       });
     }
     steps.push(`Fenêtre : paiements collectés entre ${range ? `${range.from}T00:00 inclus et ${range.to}T00:00 EXCLU (convention [from, to))` : "— sans fenêtre : tout l'historique —"}.`);
@@ -736,7 +740,7 @@ export function buildResolution(
         category: entry.category,
         sourceTable: "ledger_entries",
         sourceId: entry.id,
-        detail: `Remise ${fmt(-entry.amount)} DZD · ${PAYMENT_CATEGORY_LABELS_FR[entry.category]}${entry.studentId ? "" : " · portée famille"}`,
+        detail: `Remise ${fmt(-entry.amount)} DZD · ${paymentCategoryLabelFr(entry.category)}${entry.studentId ? "" : " · portée famille"}`,
       });
     }
     steps.push(`Source : flux « ledger_entries » — écritures d'ajustement NÉGATIVES (crédits) uniquement.`);

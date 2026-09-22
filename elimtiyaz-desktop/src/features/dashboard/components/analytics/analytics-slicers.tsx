@@ -9,7 +9,7 @@ import {
   type PaymentMethod,
   type PaymentCategory,
 } from "../../../../domain/model/payment";
-import { PAYMENT_CATEGORY_LABELS_FR } from "../../../../domain/model/payment";
+import { PAYMENT_CATEGORY_LABELS_FR, paymentCategoryLabelFr } from "../../../../domain/model/payment";
 import {
   hasActiveFilters,
   type AnalyticsFilterState,
@@ -19,10 +19,11 @@ import { formatDzd } from "../../../../core/format/currency";
 export interface AnalyticsSlicersProps {
   filters: AnalyticsFilterState;
   onToggleMethod: (method: PaymentMethod) => void;
-  onToggleCategory: (category: PaymentCategory) => void;
+  onToggleCategory: (category: PaymentCategory | null) => void;
   onReset: () => void;
   methods: PaymentMethod[];
-  categories: PaymentCategory[];
+  /** ADR-023: null = the multi-service bucket (labeled via the canonical helper). */
+  categories: (PaymentCategory | null)[];
   filteredCount: number;
   filteredTotal: number;
   totalCount: number;
@@ -132,7 +133,7 @@ export function AnalyticsSlicers({
             {categories.map((c) => (
               <Chip
                 key={c}
-                label={PAYMENT_CATEGORY_LABELS_FR[c]}
+                label={paymentCategoryLabelFr(c)}
                 active={filters.categories.has(c)}
                 onClick={() => onToggleCategory(c)}
               />

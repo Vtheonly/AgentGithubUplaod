@@ -57,10 +57,12 @@ export async function generateRevenueReportPdf(
     m.count += 1;
     m.total += p.amount;
     byMethod.set(p.method, m);
-    const c = byCategory.get(p.category) ?? { count: 0, total: 0 };
+    // ADR-023: null = multi-service — its own bucket.
+    const catKey = p.category ?? "multi-services";
+    const c = byCategory.get(catKey) ?? { count: 0, total: 0 };
     c.count += 1;
     c.total += p.amount;
-    byCategory.set(p.category, c);
+    byCategory.set(catKey, c);
   }
 
   const sorted = [...paid].sort(

@@ -28,6 +28,7 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   type Payment,
 } from "../../domain/model/payment";
 import { formatDzdPlain } from "../../core/format/currency";
@@ -121,7 +122,7 @@ export function ReceiptsTab() {
     {
       header: "Catégorie",
       accessor: "category",
-      cell: (p) => PAYMENT_CATEGORY_LABELS_FR[p.category],
+      cell: (p) => paymentCategoryLabelFr(p.category),
     },
     {
       header: "Montant",

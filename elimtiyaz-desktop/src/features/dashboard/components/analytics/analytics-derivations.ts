@@ -39,6 +39,7 @@ import type { RevenuePoint, DebtByAgingBucket } from "../../../../domain/model/o
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   AGING_BUCKET_LABELS_FR,
   type Payment,
   type PaymentMethod,
@@ -210,8 +211,10 @@ export function deriveOutstandingDebt(
 export interface AnalyticsFilterState {
   /** Empty set = ALL methods included (no method filter). */
   methods: ReadonlySet<PaymentMethod>;
-  /** Empty set = ALL categories included (no category filter). */
-  categories: ReadonlySet<PaymentCategory>;
+  /** Empty set = ALL categories included (no category filter). ADR-023:
+   *  null = the multi-service bucket (a payment collected across the whole
+   *  balance — its own toggleable chip, like any concrete category). */
+  categories: ReadonlySet<PaymentCategory | null>;
 }
 
 export const NO_ANALYTICS_FILTERS: AnalyticsFilterState = {
@@ -237,6 +240,8 @@ export function applyAnalyticsFilters(
     if (p.status !== "paid") return false;
     if (!inRange(p, range)) return false;
     if (filters.methods.size > 0 && !filters.methods.has(p.method)) return false;
+    // ADR-023: null = the multi-service bucket — a Set that includes null
+    // passes multi-service payments; an active filter without it excludes them.
     if (filters.categories.size > 0 && !filters.categories.has(p.category)) return false;
     return true;
   });
@@ -246,12 +251,13 @@ export function applyAnalyticsFilters(
 export function presentCategories(
   payments: readonly Payment[],
   range: { from: string; to: string } | undefined,
-): PaymentCategory[] {
-  const set = new Set<PaymentCategory>();
+): (PaymentCategory | null)[] {
+  const set = new Set<PaymentCategory | null>();
   for (const p of applyAnalyticsFilters(payments, range, NO_ANALYTICS_FILTERS)) {
     set.add(p.category);
   }
-  return [...set].sort((a, b) => PAYMENT_CATEGORY_LABELS_FR[a].localeCompare(PAYMENT_CATEGORY_LABELS_FR[b], "fr"));
+  // ADR-023: null = multi-service — labeled via the canonical helper.
+  return [...set].sort((a, b) => paymentCategoryLabelFr(a).localeCompare(paymentCategoryLabelFr(b), "fr"));
 }
 
 // ============================================================================
@@ -338,7 +344,7 @@ export interface MixSlice {
 }
 
 /** Mix derivation shared by the method donut and the category ranking. */
-function deriveMix<K extends string>(
+function deriveMix<K extends string | null>(
   slice: readonly Payment[],
   keyOf: (p: Payment) => K,
   labelOf: (k: K) => string,
@@ -354,7 +360,7 @@ function deriveMix<K extends string>(
   const total = [...agg.values()].reduce((s, v) => s + v.amount, 0);
   return [...agg.entries()]
     .map(([key, v]) => ({
-      key,
+      key: key ?? "__multi__",
       label: labelOf(key),
       amount: v.amount,
       count: v.count,
@@ -376,7 +382,7 @@ export function deriveCategoryMix(
   slice: readonly Payment[],
   topN = 6,
 ): MixSlice[] {
-  const all = deriveMix(slice, (p) => p.category, (k) => PAYMENT_CATEGORY_LABELS_FR[k]);
+  const all = deriveMix(slice, (p) => p.category, (k) => paymentCategoryLabelFr(k));
   if (all.length <= topN) return all;
   const head = all.slice(0, topN);
   const tail = all.slice(topN);

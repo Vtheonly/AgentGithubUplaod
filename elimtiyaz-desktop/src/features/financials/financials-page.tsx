@@ -50,6 +50,7 @@ import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
   PAYMENT_CATEGORY_LABELS_FR,
+  paymentCategoryLabelFr,
   AGING_BUCKET_LABELS_FR,
   sumPaidPayments,
   monthlyRevenue,
@@ -538,7 +539,7 @@ function PaymentsTab({
       header: "Catégorie",
       accessor: "category",
       cell: (p) => (
-        <span className="text-xs text-muted-foreground">{PAYMENT_CATEGORY_LABELS_FR[p.category]}</span>
+        <span className="text-xs text-muted-foreground">{paymentCategoryLabelFr(p.category)}</span>
       ),
     },
     {
@@ -971,8 +972,13 @@ function DebtTab() {
                 presetAmount: collectFor.amount,
                 lineItems: [{
                   itemId: `debt-${collectFor.parentId}`,
-                  category: "other",
-                  label: "Solde familial consolidé",
+                  // ADR-023 (BUSINESS-106): NULL category = the canonical
+                  // cross-category scope — the collection allocates across
+                  // ALL of the family's tranches. The old `"other"` locked
+                  // the waterfall into a category with zero installments and
+                  // booked the whole amount as parent_credit.
+                  category: null,
+                  label: "Solde familial consolidé (toutes catégories)",
                   grossAmount: collectFor.amount,
                   discountAmount: 0,
                   netAmount: collectFor.amount,

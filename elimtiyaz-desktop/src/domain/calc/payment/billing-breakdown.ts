@@ -427,7 +427,15 @@ interface MutableChildBreakdown {
 export function computeParentBillingBreakdown(
   input: BillingBreakdownInput,
 ): ParentBillingBreakdown {
-  const chargeEntries = input.ledgerEntries.filter((e) => e.type === "charge");
+  // ADR-023 (BUSINESS-106): ledger `category` is nullable (NULL = a
+  // multi-service PAYMENT entry). CHARGE entries are per-service by
+  // construction — the predicate narrows the type without changing which
+  // rows are charge entries in practice (a null-category charge cannot
+  // exist; the guard is explicit so drift fails loudly here, not silently).
+  const chargeEntries = input.ledgerEntries.filter(
+    (e): e is typeof e & { category: Exclude<typeof e.category, null> } =>
+      e.type === "charge" && e.category !== null,
+  );
 
   const academicYear =
     input.academicYear ??
@@ -620,7 +628,8 @@ export function computeParentBillingBreakdown(
 }
 
 function summarizeByService(
-  chargeEntries: readonly LedgerEntry[],
+  // ADR-023: callers pass the narrowed concrete-category charge entries.
+  chargeEntries: readonly (LedgerEntry & { category: PaymentCategory })[],
   totalBilled: number,
   studentCount: number,
   studentNameOf: (studentId: string | null) => string,

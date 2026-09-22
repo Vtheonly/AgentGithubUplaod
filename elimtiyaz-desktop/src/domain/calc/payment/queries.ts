@@ -72,7 +72,7 @@ export function agingBucketFromDays(daysOverdue: number): AgingBucket {
  */
 export function currentTrancheLabel(
   installments: readonly Installment[],
-  categoryFilter?: Installment["category"],
+  categoryFilter?: Installment["category"] | null,
 ): string | null {
   const matching = installments
     .filter((i) => i.status !== "paid")

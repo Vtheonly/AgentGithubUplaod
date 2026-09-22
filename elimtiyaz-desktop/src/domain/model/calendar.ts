@@ -57,7 +57,8 @@ export interface PaymentCalendarEvent extends CalendarEventBase {
   readonly parentName: string;
   readonly amount: number;
   readonly method: PaymentMethod;
-  readonly category: PaymentCategory;
+  /** ADR-023: null = a multi-service payment (render via paymentCategoryLabelFr). */
+  readonly category: PaymentCategory | null;
   readonly collectedBy: string;
 }
 

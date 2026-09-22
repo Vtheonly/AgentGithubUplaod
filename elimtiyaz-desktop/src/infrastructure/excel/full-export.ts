@@ -121,7 +121,12 @@ function buildSummarySheet(data: FullExportData): SheetSpec {
 
   const byCategory = new Map<string, number>();
   for (const e of data.ledger) {
-    if (e.type === "charge") byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
+    // ADR-023: charge entries always carry a concrete category; the guard
+    // keeps the map key a stable string if a null ever appears.
+    if (e.type === "charge") {
+      const k = e.category ?? "other";
+      byCategory.set(k, (byCategory.get(k) ?? 0) + e.amount);
+    }
   }
 
   const rows: Array<Record<string, string | number>> = [

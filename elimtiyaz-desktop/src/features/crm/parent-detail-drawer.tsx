@@ -590,8 +590,11 @@ export function ParentDetailDrawer({
                 presetAmount: outstandingTotal,
                 lineItems: [{
                   itemId: `parent-debt-${entity!.id}`,
-                  category: "other",
-                  label: "Solde familial consolidé",
+                  // ADR-023 (BUSINESS-106): NULL category = cross-category —
+                  // the collection allocates across ALL of the family's
+                  // tranches (the old "other" booked parent_credit only).
+                  category: null,
+                  label: "Solde familial consolidé (toutes catégories)",
                   grossAmount: outstandingTotal,
                   discountAmount: 0,
                   netAmount: outstandingTotal,

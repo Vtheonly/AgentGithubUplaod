@@ -735,7 +735,8 @@ export function deriveServiceYield(
   const acc = new Map<PaymentCategory, { revenue: number; paymentCount: number; students: Set<string> }>();
   for (const p of payments) {
     if (p.status !== "paid") continue;
-    if (!SERVICE_CATEGORIES.includes(p.category)) continue;
+    // ADR-023: null (multi-service) payments belong to no service row.
+    if (p.category === null || !SERVICE_CATEGORIES.includes(p.category)) continue;
     let a = acc.get(p.category);
     if (!a) {
       a = { revenue: 0, paymentCount: 0, students: new Set() };

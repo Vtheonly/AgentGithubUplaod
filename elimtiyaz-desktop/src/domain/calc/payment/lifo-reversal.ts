@@ -40,7 +40,7 @@ function reverseChronologically(a: Installment, b: Installment): number {
 export function revertPaymentAllocation(
   installments: readonly Installment[],
   reversalAmount: number,
-  categoryFilter?: Installment["category"],
+  categoryFilter?: Installment["category"] | null, /* ADR-023: null = cross-category */
   originalWasPending: boolean = false,
   now: Date = new Date(),
 ): RevertAllocationResult {

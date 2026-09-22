@@ -103,7 +103,14 @@ export interface Payment {
   readonly amount: number;
   readonly method: PaymentMethod;
   readonly status: PaymentStatus;
-  readonly category: PaymentCategory;
+  /**
+   * ADR-023 (BUSINESS-106): `null` = a MULTI-SERVICE payment collected
+   * against the family's whole balance — the waterfall allocated across
+   * every category (see `payment_allocations` for the per-category truth).
+   * Concrete categories keep T-060's exact-category semantics. Render via
+   * `paymentCategoryLabelFr` (null → "Multi-services"), never the raw map.
+   */
+  readonly category: PaymentCategory | null;
   readonly installmentId: string | null;
   readonly proofUrl: string | null;
   readonly notes: string | null;
@@ -157,7 +164,12 @@ export interface PaymentAllocation {
   readonly paymentId: string;
   readonly chargeId: string | null;
   readonly installmentId: string | null;
-  readonly category: PaymentCategory;
+  /**
+   * ADR-023: null = the multi-service bucket (only produced by the ledger
+   * fallback for NULL-category payments; the `payment_allocations` table
+   * itself always stores a concrete category per row).
+   */
+  readonly category: PaymentCategory | null;
   readonly allocatedAmount: number;
   readonly label: string | null;
   readonly createdAt: string;
@@ -357,6 +369,19 @@ export const PAYMENT_CATEGORY_LABELS_FR: Record<PaymentCategory, string> = {
   other: "Autre",
 };
 
+/**
+ * ADR-023 (BUSINESS-106): the NULL-category label resolver. A payment
+ * collected against the family's whole balance carries `category: null`
+ * ("Multi-services") — every display site MUST use this helper instead of
+ * indexing `PAYMENT_CATEGORY_LABELS_FR[payment.category]` directly, which
+ * is a type error once `Payment.category` became nullable.
+ */
+export function paymentCategoryLabelFr(category: PaymentCategory | null | undefined): string {
+  return category === null || category === undefined
+    ? "Multi-services"
+    : PAYMENT_CATEGORY_LABELS_FR[category];
+}
+
 export const AGING_BUCKET_LABELS_FR: Record<AgingBucket, string> = {
   "0_30": "0–30 j",
   "31_60": "31–60 j",
@@ -399,7 +424,14 @@ export type PaymentNavigationMode =
  */
 export interface PaymentLineItem {
   readonly itemId: string;
-  readonly category: PaymentCategory;
+  /**
+   * ADR-023 (BUSINESS-106): `null` = the cross-category scope — "the
+   * family's whole balance across all services". Every consolidated-debt
+   * entry point (Créances, Suivi des Dettes, CRM drawer, Diagnostic)
+   * MUST set `null` so the collection sends the canonical `p_category =
+   * NULL` (financial-rules §4) instead of a decorative single category.
+   */
+  readonly category: PaymentCategory | null;
   readonly label: string;
   readonly grossAmount: number;
   readonly discountAmount: number;
@@ -445,7 +477,14 @@ export interface CollectPaymentInput {
   readonly studentId: string | null;
   readonly amount: number;
   readonly method: PaymentMethod;
-  readonly category: PaymentCategory;
+  /**
+   * ADR-023 (BUSINESS-106): `null` = cross-category collection (the
+   * canonical `p_category = NULL`, financial-rules §4 — the waterfall
+   * allocates across ALL categories and the payments row is stored with
+   * a NULL category = "Multi-services"). Concrete categories retain
+   * T-060's exact-category waterfall restriction.
+   */
+  readonly category: PaymentCategory | null;
   readonly installmentId: string | null;
   readonly proofUrl?: string | null;
   readonly notes?: string | null;
