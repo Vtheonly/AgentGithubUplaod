@@ -16,8 +16,14 @@
  *      `!viewEntityId → return entries` fallback).
  *   C. Every class-mode lesson cell shows Subject + Teacher + Room.
  *   D. Empty periods remain visible.
- *   E. The teacher "Tout afficher" projection STACKS concurrent lessons
- *      instead of overwriting them (same canonical entries).
+ *   E. (SUPERSEDED by T-410 / SCHED-112) The teacher projection with NO
+ *      selected teacher now renders the SAME honest empty state — the
+ *      universal all-classes mixed grid ("Tout afficher") was removed
+ *      from the product by the owner's explicit instruction ("I do NOT
+ *      want one universal timetable for the entire school"). The stacking
+ *      LIST-cells remain as anomaly tolerance, verified by E2: a teacher
+ *      projection that legitimately contains TWO concurrent entries
+ *      (manual-adjustment defect) SHOWS both, overwriting nothing.
  *   F. The real solver output (the T-404 fixture, 3 classes × 16 periods)
  *      renders one class's complete weekly grid with zero foreign entries.
  */
@@ -363,11 +369,13 @@ describe("T-409 — empty periods remain visible", () => {
 });
 
 // ============================================================================
-// E. Teacher "Tout afficher" — concurrent lessons STACK (same canonical data)
+// E. (T-410 revision) Teacher projection with NO entity — the honest empty
+//    state; the universal mixed grid is gone. E2: a teacher projection that
+//    contains two concurrent entries SHOWS both (stacking = no overwrite).
 // ============================================================================
 
-describe("T-409 — the teacher 'Tout afficher' projection stacks concurrent lessons", () => {
-  it("shows ALL THREE classes' lessons at monday S3 (nothing overwritten)", () => {
+describe("T-410 — the teacher projection without a selected teacher renders the honest empty state", () => {
+  it("shows 'Sélectionnez un enseignant' — NEVER the all-classes mixed grid", () => {
     render(
       <TimetableGrid
         configuration={overlapConfig}
@@ -378,18 +386,41 @@ describe("T-409 — the teacher 'Tout afficher' projection stacks concurrent les
         editable={false}
       />,
     );
-    // The old single-entry cell map kept only the LAST entry; the fixed
-    // cell map renders every concurrent lesson. (Teacher-mode labels are
-    // "subject · class" — match on the subject prefix.)
-    expect(screen.getAllByText(/^Mathématiques ·/)).toHaveLength(
-      SHARED_SLOTS.length + 1,
+    expect(screen.getByText("Sélectionnez un enseignant")).toBeTruthy();
+    // The universal mixed grid rendered every class's lesson — the empty
+    // state renders NONE of them.
+    expect(screen.queryAllByText(/^Mathématiques ·/)).toHaveLength(0);
+    expect(screen.queryAllByText(/^Sciences physiques ·/)).toHaveLength(0);
+    expect(screen.queryAllByText(/^Histoire-Géographie ·/)).toHaveLength(0);
+  });
+});
+
+describe("T-410 — a teacher projection with concurrent entries stacks them (no overwrite)", () => {
+  it("shows BOTH lessons when one teacher's cell holds two entries (anomaly tolerance)", () => {
+    // A data-anomaly shape (a real solve never produces this; a manual
+    // adjustment could): at monday P3, tch-math is attached to cls-b's
+    // Sciences lesson IN ADDITION to cls-a's Maths lesson. The rendering
+    // contract is SHOW BOTH, never overwrite.
+    const anomalyEntries = overlapEntries.map((e) =>
+      e.classId === "cls-b" && e.day === "monday" && e.periodIndex === 3
+        ? { ...e, teacherId: "tch-math" }
+        : e,
     );
-    expect(screen.getAllByText(/^Sciences physiques ·/)).toHaveLength(
-      SHARED_SLOTS.length,
+    render(
+      <TimetableGrid
+        configuration={overlapConfig}
+        entries={anomalyEntries}
+        viewMode="teacher"
+        viewEntityId="tch-math"
+        names={overlapNames}
+        editable={false}
+      />,
     );
-    expect(screen.getAllByText(/^Histoire-Géographie ·/)).toHaveLength(
-      SHARED_SLOTS.length,
-    );
+    // tch-math's week: his own 4 Maths lessons (3 shared slots + the
+    // class-A-only thursday) PLUS the anomalous concurrent Sciences lesson
+    // at monday P3 — the old single-entry cell map would have dropped one.
+    expect(screen.getAllByText(/^Mathématiques ·/)).toHaveLength(4);
+    expect(screen.getAllByText(/^Sciences physiques ·/)).toHaveLength(1);
   });
 });
 
