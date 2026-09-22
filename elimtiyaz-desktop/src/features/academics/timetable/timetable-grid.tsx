@@ -42,13 +42,47 @@ export interface TimetableGridProps {
   readonly onEntryClick?: (entry: TimetableScheduleEntry) => void;
 }
 
-/** Deterministic pastel palette per subject id (stable across renders). */
-function subjectHue(subjectId: string): string {
-  let h = 0;
+/**
+ * High-contrast subject palette.
+ *
+ * Keep the mapping deterministic so the same subject keeps the same visual
+ * identity across renders and across the class/teacher/room projections.
+ * Each swatch carries its own readable foreground/border instead of relying
+ * on the global muted text color, which was too low-contrast on pastel cards.
+ */
+type SubjectColor = Readonly<{
+  background: string;
+  foreground: string;
+  border: string;
+}>;
+
+const SUBJECT_COLORS: readonly SubjectColor[] = [
+  { background: "#dbeafe", foreground: "#1e3a8a", border: "#93c5fd" },
+  { background: "#ccfbf1", foreground: "#115e59", border: "#5eead4" },
+  { background: "#dcfce7", foreground: "#166534", border: "#86efac" },
+  { background: "#fef3c7", foreground: "#92400e", border: "#fcd34d" },
+  { background: "#ffedd5", foreground: "#9a3412", border: "#fdba74" },
+  { background: "#fee2e2", foreground: "#991b1b", border: "#fca5a5" },
+  { background: "#fce7f3", foreground: "#9d174d", border: "#f9a8d4" },
+  { background: "#ede9fe", foreground: "#5b21b6", border: "#c4b5fd" },
+  { background: "#e0e7ff", foreground: "#3730a3", border: "#a5b4fc" },
+  { background: "#cffafe", foreground: "#155e75", border: "#67e8f9" },
+  { background: "#ecfccb", foreground: "#3f6212", border: "#bef264" },
+  { background: "#f3e8ff", foreground: "#6b21a8", border: "#d8b4fe" },
+  { background: "#e2e8f0", foreground: "#334155", border: "#94a3b8" },
+  { background: "#d1fae5", foreground: "#065f46", border: "#6ee7b7" },
+  { background: "#fae8ff", foreground: "#86198f", border: "#e879f9" },
+  { background: "#fef9c3", foreground: "#854d0e", border: "#fde047" },
+  { background: "#dbeafe", foreground: "#1e40af", border: "#60a5fa" },
+  { background: "#ccfbf1", foreground: "#134e4a", border: "#2dd4bf" },
+] as const;
+
+function subjectColor(subjectId: string): SubjectColor {
+  let hash = 0;
   for (let i = 0; i < subjectId.length; i++) {
-    h = (h * 31 + subjectId.charCodeAt(i)) % 360;
+    hash = (hash * 31 + subjectId.charCodeAt(i)) >>> 0;
   }
-  return `hsl(${h} 60% 88%)`;
+  return SUBJECT_COLORS[hash % SUBJECT_COLORS.length];
 }
 
 function hhmm(minutes: number): string {
@@ -168,30 +202,35 @@ export function TimetableGrid({
                     key={`${day}-${period.index}`}
                     className="border-b border-l border-border p-1 min-w-[120px]"
                   >
-                    {entry ? (
-                      <button
-                        type="button"
-                        onClick={() => onEntryClick?.(entry)}
-                        className={cn(
-                          "flex min-h-[52px] w-full flex-col justify-center gap-0.5 rounded-md border px-2 py-1 text-left transition-colors",
-                          editable
-                            ? "cursor-pointer border-transparent hover:border-primary/40"
-                            : "cursor-default border-transparent",
-                        )}
-                        style={{ backgroundColor: subjectHue(entry.subjectId) }}
-                        title={`${label(entry)} — ${subLabel(entry)}${
-                          entry.isLocked ? " (épinglé)" : ""
-                        }`}
-                      >
-                        <span className="truncate text-[11px] font-semibold text-foreground">
-                          {label(entry)}
-                          {entry.isLocked ? " *" : ""}
-                        </span>
-                        <span className="truncate text-[10px] text-muted-foreground">
-                          {subLabel(entry)}
-                        </span>
-                      </button>
-                    ) : (
+                    {entry ? (() => {
+                      const colors = subjectColor(entry.subjectId);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onEntryClick?.(entry)}
+                          className={cn(
+                            "flex min-h-[52px] w-full flex-col justify-center gap-0.5 rounded-md border px-2 py-1 text-left transition-[filter,box-shadow]",
+                            editable
+                              ? "cursor-pointer hover:brightness-95 hover:shadow-sm"
+                              : "cursor-default",
+                          )}
+                          style={{
+                            backgroundColor: colors.background,
+                            color: colors.foreground,
+                            borderColor: colors.border,
+                          }}
+                          title={`${label(entry)} — ${subLabel(entry)}${entry.isLocked ? " (épinglé)" : ""}`}
+                        >
+                          <span className="truncate text-[11px] font-semibold text-inherit">
+                            {label(entry)}
+                            {entry.isLocked ? " *" : ""}
+                          </span>
+                          <span className="truncate text-[10px] font-medium text-inherit opacity-80">
+                            {subLabel(entry)}
+                          </span>
+                        </button>
+                      );
+                    })() : (
                       <div className="flex min-h-[52px] w-full items-center justify-center text-[10px] text-muted-foreground/40">
                         —
                       </div>
