@@ -4254,3 +4254,38 @@ The current `TimetableSolver.solve(problem)` adapter exposes only the final solu
 **Full bug report:** `docs/recovery/t-409-timetable-class-first.md` (§14 = the implementation record)
 
 **Left:** owner UI testing against the live FAKE timetable dataset from T-408 (the class selector + the live progress surface in the packaged app); the standing solver-quality follow-ups (SCHED-107 + SCHED-110, one pass) and SCHED-108 (moveEntry's pre-existing-violation filtering) remain open and unchanged. VERIFIED additionally requires the packaged-app smoke test per the T-404 packaging-gate convention.
+
+## T-410 — Per-Class Timetables: Each Class an Independently Validated Timetable — TESTED (P0)
+
+**Registered:** 2026-09-22  
+**Problem:** SCHED-112 (RESOLVED — this task)  
+**Related:** T-404, T-409 / SCHED-111, ADR-020, ADR-021, ADR-022  
+**Implemented:** 2026-09-22 (the 93rd session) — the ClassTimetableReport contract + the per-class report builder (solver build v1.2.0, `statistics.perClass`) + the per-class UI surfaces (status strip, per-class table with per-class Examiner, entity-mandatory teacher/room selectors); 27 new regression tests green (incl. the owner's exact 3×5AP + 2×2AM five-class fixture). Implementation record: `docs/recovery/t-410-per-class-timetables.md` §7.
+
+### Owner-reported defect (the T-409 follow-up)
+
+"I want an **actual separate timetable for each class**, not one universal timetable that combines every room and every teacher. 3 classes of 5AP + 2 classes of 2AM = 5 classes total → **5 completely separate timetables** — each internally complete and conflict-free (no teacher conflicts, no room conflicts, no overlapping lessons, no unnecessary gaps, all required weekly hours, every subject scheduled, a valid teacher and an appropriate room for every lesson, all constraints satisfied) — while still respecting shared teachers and rooms across the school."
+
+Verified against the code (not assumed): T-409's class VIEW was correctly scoped, but validation remained ONE school-wide aggregate (a class could be broken with no per-class status anywhere), the trials panel showed only global numbers, and the teacher/room selectors still offered "Tout afficher" — the universal all-classes mixed grid the owner rejects.
+
+### Required outcome
+
+- N classes → N per-class reports, each validated INDEPENDENTLY against the owner's nine-point checklist, derived from the ONE canonical validator (attribution layer, never a second engine).
+- Shared-resource clashes attributed to EVERY participating class (both sides see the conflict, the other class named).
+- Per-class completeness visible in the staff UI: a per-class status strip in class mode + a per-class table (own coverage / conflicts / gaps / status / Examiner) in the trials panel + the "X/Y classes complètes" rollup.
+- NO universal mixed grid anywhere: teacher/room projections are entity-mandatory (no "Tout afficher"); a null entity renders the honest empty state.
+- No new store, no new engine, no per-class versions (ADR-020/T-404/T-409 boundaries); pre-T-410 versions read back as "no per-class data" (never "all classes fine").
+
+### Acceptance
+
+- The five-class fixture (3×5AP + 2×2AM, shared teachers) produces exactly 5 reports; each counts only its own entries; Σ per-class placed = all entries.
+- A teacher/room clash appears in BOTH classes' reports; a class's own overlap appears only in its own.
+- Missing hours / unscheduled subject / missing teacher / missing room / unplaced block flip ONLY the concerned class to "incomplete".
+- Gaps (holes between a class's lessons) are counted and reported per class.
+- solve/solveAsync produce byte-identical perClass reports; the T-409 progress event sequence is unchanged.
+- The per-class Examiner opens THAT class's own weekly grid (zero foreign entries).
+- The teacher selector offers NO "Tout afficher" and defaults to the first teacher.
+
+**Full record:** `docs/recovery/t-410-per-class-timetables.md` (§7 = the implementation record)
+
+**Left:** owner UI testing of the per-class surfaces on the live FAKE dataset (packaged app must be rebuilt to carry T-410), then purge; the published LIVE v2 predates T-410 → no per-class table on it until a new trial is generated (honest absence, by design); the standing solver follow-ups (SCHED-107 + SCHED-110 one pass; SCHED-108; SCHED-109) and ACAD-510 unchanged.
