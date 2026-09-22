@@ -271,6 +271,18 @@ function CreateOrthoFollowUpModal({
     if (!session) return;
     setSubmitting(true);
     setAlert(null);
+    // T-408 (ACAD-509): no synthetic year context — block with a clean
+    // error when no academic year is flagged current.
+    if (!currentYear.id || !currentYear.code) {
+      setAlert({
+        tone: "error",
+        title: "Aucune année scolaire active",
+        description:
+          "Définissez l'année scolaire courante avant d'ouvrir un suivi.",
+      });
+      setSubmitting(false);
+      return;
+    }
     const th = personnel.find((p) => p.id === therapistId);
     if (!th) {
       setAlert({
@@ -324,6 +336,20 @@ function CreateOrthoFollowUpModal({
     if (!session) return;
     setSubmitting(true);
     setAlert(null);
+    // T-408 (ACAD-509): no synthetic year context (the "ay-2025-2026"
+    // fallback was removed from the hook).
+    const yearId = currentYear.id;
+    const yearCode = currentYear.code;
+    if (!yearId || !yearCode) {
+      setAlert({
+        tone: "error",
+        title: "Aucune année scolaire active",
+        description:
+          "Définissez l'année scolaire courante avant d'ouvrir un suivi.",
+      });
+      setSubmitting(false);
+      return;
+    }
     const th = personnel.find((p) => p.id === therapistId);
     if (!th) {
       setAlert({ tone: "error", title: "Orthophoniste requis", description: "Veuillez sélectionner un orthophoniste." });
@@ -340,8 +366,8 @@ function CreateOrthoFollowUpModal({
         parentConsent,
         parentConsentDate: parentConsent ? parentConsentDate : null,
         notes: notes.trim() || null,
-        academicYearId: currentYear.id,
-        academicYearCode: currentYear.code,
+        academicYearId: yearId,
+        academicYearCode: yearCode,
       },
       session.userId,
       session.displayName,

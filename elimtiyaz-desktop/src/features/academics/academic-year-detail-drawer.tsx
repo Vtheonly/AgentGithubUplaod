@@ -209,6 +209,13 @@ function OverviewTab({ year }: { year: AcademicYear }) {
   const allStudents = useObservable(() => repos.students.observe(), []);
   const allSubjects = useObservable(() => repos.subjects.observe(), []);
   const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+  // T-408 (ACAD-509): subjects are YEAR-AGNOSTIC identity (ADR-018) — the
+  // year scoping comes from subject_configurations (the contextual layer),
+  // never the removed mock-era subject.academicYearId denormalization.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const teachers = useObservable(
     () => repos.teachers.observeByAcademicYear(year.id),
     [],
@@ -224,8 +231,13 @@ function OverviewTab({ year }: { year: AcademicYear }) {
   );
 
   const yearSubjects = useMemo(
-    () => allSubjects.filter((s) => s.academicYearId === year.id),
-    [allSubjects, year.id],
+    () =>
+      allSubjects.filter((s) =>
+        subjectConfigurations.some(
+          (c) => c.subjectId === s.id && c.academicYearId === year.id,
+        ),
+      ),
+    [allSubjects, subjectConfigurations, year.id],
   );
 
   // Combine teachers registered in TeacherRepository with Personnel teachers
@@ -1007,6 +1019,13 @@ function TeachersSubTab({
 function SubjectsSubTab({ year }: { year: AcademicYear }) {
   const repos = useRepositories();
   const allSubjects = useObservable(() => repos.subjects.observe(), []);
+  // T-408 (ACAD-509): the ADR-018 contextual layer — the subjects OF a year
+  // derive from subject_configurations, not the removed mock-era
+  // subject.academicYearId denormalization.
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const assignments = useObservable(
     () => repos.teachers.observeAssignmentsByAcademicYear(year.id),
     [],
@@ -1018,9 +1037,18 @@ function SubjectsSubTab({ year }: { year: AcademicYear }) {
   const [search, setSearch] = useState("");
   const [cycleFilter, setCycleFilter] = useState<string>("all");
 
+  // T-408 (ACAD-509): ADR-018 derivation — the subjects OF a year are the
+  // identities carrying at least one subject_configurations row in that
+  // year (the contextual layer), never the removed mock-era
+  // subject.academicYearId denormalization.
   const yearSubjects = useMemo(
-    () => allSubjects.filter((s) => s.academicYearId === year.id),
-    [allSubjects, year.id],
+    () =>
+      allSubjects.filter((s) =>
+        subjectConfigurations.some(
+          (c) => c.subjectId === s.id && c.academicYearId === year.id,
+        ),
+      ),
+    [allSubjects, subjectConfigurations, year.id],
   );
 
   const filtered = yearSubjects.filter((s) => {

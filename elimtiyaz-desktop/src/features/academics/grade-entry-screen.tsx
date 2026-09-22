@@ -26,6 +26,7 @@ import {
   computeSubjectAverageFromRecipe,
 } from "../../domain/calc/academics/subject-config";
 import type { GradeEntryInput } from "../../domain/repository/academic-repository";
+import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
 import { PageHeader } from "../../shared/layout/page-header";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -94,6 +95,12 @@ export function GradeEntryScreen({
     () => repos.classes.observeById(classId ?? ""),
     [classId],
   );
+  // T-408 (ACAD-509): the year context for the persisted
+  // assessments.academic_year column comes from the CLASS's canonical year
+  // (mapClassRow derives it from the joined academic_years row) — falling
+  // back to the CURRENT year, never the removed stale "2025-2026" literal
+  // (a fake year string written to a real column).
+  const currentYear = useCurrentAcademicYear();
   const students = useObservable(
     () => repos.students.observeByClass(classId ?? ""),
     [classId],
@@ -346,7 +353,8 @@ export function GradeEntryScreen({
           subjectId: effectiveSubjectId,
           classId,
           term,
-          academicYear: cls?.academicYear ?? "2025-2026",
+          academicYear:
+            cls?.academicYear ?? currentYear.code ?? "",
           devoir1: d1,
           devoir2: d2,
           examen: ex,
