@@ -27,12 +27,27 @@
  *
  * Impossibility is HONEST: unplaced blocks carry a French reason
  * (conflict explanation contract); the status is partial/invalid.
+ *
+ * T-409 — REAL-TIME PROGRESS + YIELDING BOUNDARY:
+ *  The algorithm core is a GENERATOR (`solveGreedySteps`) that yields at
+ *  every genuine work-unit boundary (one requirement indexed, one block
+ *  placed/retried, the validation pass). `solve` drains it synchronously
+ *  (backward compatible); `solveAsync` drains it behind a yielding
+ *  boundary (setTimeout macrotasks) so the renderer can repaint between
+ *  work units. Both drains execute the IDENTICAL step sequence — the
+ *  solution and the progress-event sequence are byte-for-byte the same
+ *  (deterministic, never timer-driven). Work units = requirements indexed
+ *  + placement blocks processed + 1 validation pass; the repair pass
+ *  re-processes existing blocks and advances the stage-local message
+ *  without inflating the fixed denominator.
  */
 
 import type {
   Room,
   TimetableDay,
+  TimetableGenerationStage,
   TimetableProblem,
+  TimetableProgressListener,
   TimetableRequirement,
   TimetableSlotAssignment,
   TimetableSolution,
@@ -46,7 +61,7 @@ import {
   requiredPeriodsFor,
   validateTimetable,
 } from "../constraints";
-import type { TimetableSolver } from "./solver-types";
+import type { TimetableSolver, TimetableSolveOptions } from "./solver-types";
 
 // ============================================================================
 // Busy grids — O(1) slot lookups
@@ -182,7 +197,17 @@ interface LessonBlock {
 }
 
 export const GREEDY_SOLVER_ID = "ts-greedy-v1";
-export const GREEDY_SOLVER_BUILD = "v1.0.0+20260922";
+// v1.1.0 — same deterministic OUTPUT as v1.0.0; adds the T-409 progress
+// channel + the solveAsync yielding boundary (instrumentation only).
+export const GREEDY_SOLVER_BUILD = "v1.1.0+20260922";
+
+/** Drain cadence for solveAsync: yield to the renderer every N work units. */
+const ASYNC_YIELD_EVERY = 20;
+
+/** One macrotask — lets the renderer paint between solver work units. */
+function yieldToRenderer(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 export function createGreedySolver(): TimetableSolver {
   return {
@@ -191,15 +216,41 @@ export function createGreedySolver(): TimetableSolver {
     description:
       "Solveur natif TypeScript (constructif déterministe + réparation) — aucune dépendance externe.",
 
-    solve(problem: TimetableSolutionProblem): TimetableSolution {
-      return solveGreedy(problem);
+    solve(problem: TimetableProblem, options?: TimetableSolveOptions): TimetableSolution {
+      const steps = solveGreedySteps(problem, options?.onProgress);
+      for (;;) {
+        const r = steps.next();
+        if (r.done) return r.value;
+      }
+    },
+
+    async solveAsync(
+      problem: TimetableProblem,
+      options?: TimetableSolveOptions,
+    ): Promise<TimetableSolution> {
+      const steps = solveGreedySteps(problem, options?.onProgress);
+      let sinceYield = 0;
+      for (;;) {
+        const r = steps.next();
+        if (r.done) return r.value;
+        // Yielding boundary (T-409 §9): the SAME deterministic step
+        // sequence as solve(), interleaved with macrotasks so React can
+        // repaint the real progress between chunks. Never a fake timer.
+        if (++sinceYield >= ASYNC_YIELD_EVERY) {
+          sinceYield = 0;
+          await yieldToRenderer();
+        }
+      }
     },
   };
 }
 
 type TimetableSolutionProblem = TimetableProblem;
 
-function solveGreedy(problem: TimetableProblem): TimetableSolution {
+function* solveGreedySteps(
+  problem: TimetableSolutionProblem,
+  onProgress?: TimetableProgressListener,
+): Generator<void, TimetableSolution> {
   const config = problem.configuration;
   const periods = teachingPeriods(config);
   const days = [...config.schoolDays];
@@ -280,7 +331,29 @@ function solveGreedy(problem: TimetableProblem): TimetableSolution {
   }
 
   // ── Step 2: build the block list. ───────────────────────────────────────
+  // T-409: the progress denominator is FIXED before the first event — a
+  // counting pass over the SAME canonical blockSplit (no second
+  // implementation). Work units: requirements indexed + blocks processed
+  // + 1 validation pass.
+  const requirementsTotal = problem.requirements.length;
+  let totalBlocks = 0;
+  for (const req of problem.requirements) {
+    totalBlocks += blockSplit(
+      requiredPeriodsFor(req, periodMinutesValue),
+      req.consecutivePeriods,
+    ).length;
+  }
+  const totalUnits = requirementsTotal + totalBlocks + 1;
+  const emitProgress = (
+    stage: TimetableGenerationStage,
+    processed: number,
+    message: string,
+  ): void => {
+    onProgress?.({ stage, processed, total: totalUnits, message });
+  };
+
   const blocks: LessonBlock[] = [];
+  let requirementsProcessed = 0;
   for (const req of problem.requirements) {
     const requiredPeriods = requiredPeriodsFor(req, periodMinutesValue);
     for (const blockPeriods of blockSplit(requiredPeriods, req.consecutivePeriods)) {
@@ -290,6 +363,13 @@ function solveGreedy(problem: TimetableProblem): TimetableSolution {
         priority: blockPriority(req, blockPeriods),
       });
     }
+    requirementsProcessed++;
+    emitProgress(
+      "preparing",
+      requirementsProcessed,
+      `Préparation des besoins — ${requirementsProcessed} / ${requirementsTotal} exigences traitées`,
+    );
+    yield; // work-unit boundary (T-409)
   }
   // Deterministic total order: priority desc, then classId/subjectId.
   blocks.sort((a, b) => {
@@ -465,16 +545,31 @@ function solveGreedy(problem: TimetableProblem): TimetableSolution {
     return `Aucun créneau libre compatible (jours/périodes, enseignant, salle) pour ${req.subjectName} — ${req.className} (${block.periods} période(s)).`;
   };
 
+  let blocksProcessed = 0;
   for (const block of blocks) {
     const reason = tryPlaceBlock(block);
     if (reason) {
       unplaced.push({ requirement: block.requirement, blockPeriods: block.periods, reason });
     }
+    blocksProcessed++;
+    emitProgress(
+      "placing",
+      requirementsTotal + blocksProcessed,
+      `${blocksProcessed} / ${blocks.length} blocs de placement traités`,
+    );
+    yield; // work-unit boundary (T-409)
   }
 
   // ── Step 4: single repair pass for unplaced blocks (room contention). ──
   if (unplaced.length > 0) {
+    emitProgress(
+      "repairing",
+      requirementsTotal + blocks.length,
+      `Réparation / optimisation — ${unplaced.length} bloc(s) à replacer`,
+    );
+    yield;
     const stillUnplaced: TimetableUnplacedBlock[] = [];
+    let repairedCount = 0;
     for (const u of unplaced) {
       const block: LessonBlock = {
         requirement: u.requirement,
@@ -486,12 +581,25 @@ function solveGreedy(problem: TimetableProblem): TimetableSolution {
       // settled occasionally finds gaps). Honest failure otherwise.
       const reason = tryPlaceBlock(block);
       if (reason) stillUnplaced.push(u);
+      repairedCount++;
+      emitProgress(
+        "repairing",
+        requirementsTotal + blocks.length,
+        `Réparation — ${repairedCount} / ${unplaced.length} blocs réessayés`,
+      );
+      yield;
     }
     unplaced.length = 0;
     unplaced.push(...stillUnplaced);
   }
 
   // ── Step 5: canonical validation (authoritative violation report). ─────
+  emitProgress(
+    "validating",
+    requirementsTotal + blocks.length,
+    "Validation finale du résultat…",
+  );
+  yield;
   const violations: TimetableViolation[] = validateTimetable(problem, entries);
   const hardCount = violations.filter((v) => v.severity === "hard").length;
   const softCount = violations.length - hardCount;
@@ -510,6 +618,9 @@ function solveGreedy(problem: TimetableProblem): TimetableSolution {
   } else {
     status = "invalid";
   }
+
+  emitProgress("validating", totalUnits, "Validation finale terminée");
+  yield;
 
   return {
     status,

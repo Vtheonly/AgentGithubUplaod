@@ -1,6 +1,8 @@
-**Important clarification added to T-409:** timetable generation is **school-wide**. A single generation run must attempt to create and persist a timetable for **every eligible class**; the class selector is only for inspecting/filtering the generated result. Classes that cannot be fully scheduled must be explicitly reported, never silently omitted.
+**T-409 is now IMPLEMENTED and TESTED** (2026-09-22, the 92nd session — SCHED-111 RESOLVED): the class-first contract (mandatory class selector, strict classId scoping, stacking cells, honest empty state) + the ADR-021 real-work-unit progress channel (solver generator + `solveAsync` yielding drain + the shared repository emission policy) + 32 regression tests green + live probe 14/14 (`scripts/t-409-live-class-first-probe.py` — the old renderer key dropped 89/118 of the LIVE published entries). Remaining for T-409 VERIFIED: the owner's packaged-app UI testing on the live FAKE dataset + the packaging smoke gate. See `docs/recovery/t-409-timetable-class-first.md` §14.
 
-# 2026-09-22 — T-409 is the immediate timetable follow-up
+**Important clarification for T-409 (honored by the implementation):** timetable generation is **school-wide**. A single generation run attempts every eligible class and persists all placeable entries into the same version; the class selector is only for inspecting the generated result. Classes that cannot be fully scheduled are explicitly reported (unplaced reasons), never silently omitted.
+
+# 2026-09-22 — T-409 was the immediate timetable follow-up (now TESTED)
 
 **T-409 — Class-First Timetable Presentation & Real-Time Generation Progress (P0)** is now the immediate follow-up to T-404. The primary “Par classe” grid currently mixes classes and overwrites same-slot entries, while generation exposes only a spinner with no real progress calculation. Full report: `docs/recovery/t-409-timetable-class-first.md`. Problem: SCHED-111.
 
@@ -13,12 +15,12 @@
 1. **The Android equivalence run — the sole remaining gate.** The 90th/91st sessions changed zero shared contracts (scripts + docs only in the 91st), but the Definition-of-Done names the Android gate; provision the JDK/SDK per AGENTS.md §11 and run the suite + the financial equivalence harness.
 2. ~~The owner's real data setup~~ — **superseded by the 91st session (2026-09-22): the owner authorized clearly-marked FAKE test data and the complete chain ran live through the canonical repositories — `scripts/t-408-fake-academic-e2e.ts` 80/80 GREEN (8 teachers, 5 classes, 52 class_subjects, 118 weekly hours, 9 rooms, 3 constraints, generation → review → approval → the FIRST live publish → the portal view → the interaction suite incl. the T-404 pin-survival contract).** The FAKE dataset PERSISTS live for the owner's own timetable UI testing; the purge tool (`scripts/t-408-fake-data-purge.py`, verified 5× zero-residue) removes it when testing is done. The real-staff swap-in is now a formality through the same canonical paths.
 
-### Selection order (updated by the 91st session)
+### Selection order (updated by the 92nd session)
 
 1. **The Android equivalence run** (T-408's last VERIFIED gate — the JDK/SDK recipe in AGENTS.md §11).
-2. **The solver pass (SCHED-107 + SCHED-110 together)** — the room-fit rule keys on the class's NOMINAL capacity (labs smaller than the class maximum are dead capacity) + the greedy's no-backtracking corner case (one unplaced single-period block at ≥90% class occupancy). SCHED-108 (moveEntry blocked by unmet hours — at minimum surface the violation messages) rides the same file.
-3. **ACAD-510** (`classes.notes` silently dropped — add the column + the insert patch, or remove the field).
-4. **The owner's own testing of the timetable UI with the live FAKE dataset** (then purge with `--execute`); SCHED-109's owner-facing « Dépublier » action is the natural productization if unpublishing is ever needed outside the purge.
+2. **The owner's packaged-app UI testing of the T-409 class-first view + progress surface** on the live FAKE dataset (then purge with `--execute`) + the packaging smoke gate for T-409 VERIFIED.
+3. **The solver pass (SCHED-107 + SCHED-110 together)** — the room-fit rule keys on the class's NOMINAL capacity (labs smaller than the class maximum are dead capacity) + the greedy's no-backtracking corner case (one unplaced single-period block at ≥90% class occupancy). SCHED-108 (moveEntry blocked by unmet hours — at minimum surface the violation messages) rides the same file.
+4. **ACAD-510** (`classes.notes` silently dropped — add the column + the insert patch, or remove the field).
 5. DATA-021 / DATA-022 · the per-filière BAC coefficients at 2AS/3AS · T-405 residuals · OPS-319 / BUSINESS-105 · the standing owner-gated verification work (unchanged).
 
 ### The standing T-408 completion constraints (preserved for the close-out agent)

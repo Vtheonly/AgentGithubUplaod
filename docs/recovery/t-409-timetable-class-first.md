@@ -275,3 +275,55 @@ This is a presentation/runtime-observability correction on top of T-404's existi
 The current primary timetable can display a mixed and lossy schedule, which makes the operator-facing result unreliable for class-level use.
 
 The generation process is also opaque because the UI exposes only a busy indicator instead of real progress.
+
+---
+
+## 14. Implementation record — T-409 (2026-09-22, the 92nd session)
+
+**Status:** TESTED (32/32 new regression tests green; full suite 3781 passed / the byte-identical pre-existing 21 failures, none timetable-related; tsc 0 errors; lint 0 errors; live read-only probe 14/14). **Problem SCHED-111: RESOLVED.**
+
+### 14.1 What was wrong (source-level confirmation)
+
+All three §2 root causes were confirmed verbatim in the code before the fix:
+
+- `timetable-tab.tsx`: `viewMode = "class"` default, entity selector rendered only for `viewMode !== "class"`, and `viewEntityId === "__all__" ? null : viewEntityId` passed to the grid.
+- `timetable-grid.tsx`: `if (!viewEntityId) return entries` (the class view received EVERY class) and a `Map<string, entry>` keyed `` `${day}#${periodIndex}` `` (the class dimension absent — last entry wins).
+- `solver-types.ts`: `solve(problem)` final-result-only; the repositories called it synchronously behind a boolean `busy` spinner.
+
+### 14.2 What was changed
+
+**Class-first presentation (SCHED-111a):**
+
+1. `timetable-tab.tsx` — the class mode ALWAYS renders a mandatory class selector (no « Tout afficher »); `classViewEntityId` derives the effective class (explicit selection or the first class); the header carries an explicit `Classe : X` badge; the grid receives the class id — never null in class mode.
+2. `timetable-grid.tsx` — the class projection filters STRICTLY by `classId`; a null entity in class mode renders the honest « Sélectionnez une classe » empty state (the old `return entries` fallback is gone); visual cells hold a **LIST** of entries (concurrent lessons STACK — nothing is overwritten in ANY projection, including teacher/room « Tout afficher »).
+3. Coverage is displayed as a separate metric: per-trial « couverture N% » + the completion toast; empty periods stay visible (« — »).
+
+**Real-time generation progress (SCHED-111b, ADR-021):**
+
+4. `model/timetable.ts` — the canonical progress contract: `TimetableGenerationStage` (loading/preparing/placing/repairing/validating/saving), `TimetableGenerationProgress { stage, processed, total, message }`, `TimetableProgressListener`, `timetableGenerationProgressPercent` (`total<=0` → indeterminate), `timetableCoveragePercent`, and the FR stage labels.
+5. `solver/solver-types.ts` — `solve(problem, options?: TimetableSolveOptions)` gains the optional `onProgress` channel (backward compatible); optional `solveAsync?` for yielding adapters.
+6. `solver/greedy-solver.ts` — the algorithm core is now a generator (`solveGreedySteps`) that yields at every REAL work-unit boundary (one requirement indexed, one block placed/retried, the validation pass) and emits one progress event per unit with a FIXED denominator (`requirements + blocks + 1`, counted via the same canonical `blockSplit`). `solve` drains it synchronously; `solveAsync` drains the IDENTICAL step sequence behind a macrotastk yielding boundary (every 20 units) so the renderer repaints. Build stamp v1.0.0 → **v1.1.0+20260922** (instrumentation only — output byte-identical, pinned by the determinism tests).
+7. `generation-progress.ts` (NEW, ONE shared policy) — both repositories re-base solver events onto the run denominator (+1 loading unit, +1 saving unit), hold the bar during `saving`, and emit the terminal 100% ONLY after the version + entries are persisted. Failure paths never emit it.
+8. Both repositories wire `GenerateTimetableOptions.onProgress` through the same forwarder; the Supabase repo prefers `solveAsync` (falls back to `solve` for adapters without it).
+9. `timetable-tab.tsx` — the generation progress surface: stage badge + message + work counters + the percent bar (held ≤99% while busy — the terminal 100% comes only from the persisted-completion event).
+
+**Deliberately preserved (scope boundaries §11):** the canonical model, constraint semantics, the versioning workflow, the repository contract shape, the teacher/room projections — all unchanged; no second store, no second engine.
+
+### 14.3 What was verified
+
+| Gate | Result |
+|---|---|
+| `src/tests/domain/calc/timetable/t-409-progress.test.ts` | 14/14 — real work-unit correspondence (one placing event per block, last event `processed === total`), stage order, determinism (identical event streams ×2), `solveAsync` ≡ `solve` (solution + event sequence), coverage independence (114/118 → 97), impossible-problem honesty (repair stage + unplaced reported, 100% of WORK with <100% coverage) |
+| `src/tests/features/academics/t-409-class-first-ui.test.tsx` | 11/11 — three classes at the SAME (day, period) render independently (the same coordinates show three different lessons per class); null class entity → honest empty state with ZERO lesson cells; subject + teacher + room in class cells; empty periods visible; teacher « Tout afficher » stacks all concurrent lessons; the real solver fixture renders 16/16 periods per class |
+| `src/tests/infrastructure/t-409-generation-progress.test.ts` | 3/3 — the repository lifecycle (loading → … → saving, monotonic processed, fixed denominator = census + 2, terminal 100% only as the LAST event with the coverage message); the failure path emits NO terminal state; determinism with progress attached |
+| `src/tests/features/academics/t-409-class-first-workflow.test.tsx` | 4/4 — the REAL TimetableTab (mock repositories, canonical generation path): the class selector is always present in class mode, offers NO « Tout afficher », defaults to the first class with the `Classe : X` badge, and switching classes re-scopes the grid strictly by classId (16 → 14 lessons, the remapped-curriculum proof) |
+| Pre-existing T-404 timetable suites | 41/41 still green (the generator refactor changed no output) |
+| Full desktop suite | 3781 passed / 21 failed — the byte-identical pre-existing baseline failures (analytics-visuals, dashboard-3zone, vault-compliance, ai-review-screens, t-390-realtime, t-134, Tier4/ScenarioRunner cross-platform, t-355/t-356) — none timetable-related, none introduced by T-409 |
+| `npm run typecheck` / `eslint` (changed files) | 0 errors / 0 errors (warnings only: the pre-existing `any` in the Supabase repo + the ResizeObserver stub convention) |
+| Live probe `scripts/t-409-live-class-first-probe.py` (read-only, Management API) | **14/14** — 112 live (day, period) slots carry MULTI-class lessons; the OLD renderer key would silently drop **89/118 entries (75%)** of the live published version (and 89–90 on every draft); 5 distinct classes per version (school-wide generation); `statistics.placedPeriods/requiredPeriods` persisted (118/118 → coverage 100%) |
+
+### 14.4 What remains unresolved
+
+- **Owner UI testing** on the live FAKE timetable dataset (the packaged app's class selector + progress surface) — the dataset persists from T-408's 91st session; purge with `scripts/t-408-fake-data-purge.py --execute` when done.
+- **VERIFIED status** additionally requires the packaged-app smoke test (the T-404 packaging-gate convention) — the yield boundary is in-app logic, but the convention stands.
+- Unchanged standing follow-ups (NOT T-409 scope): SCHED-107 + SCHED-110 (one solver pass), SCHED-108 (moveEntry pre-existing-violation filtering), SCHED-109 (owner-facing unpublish), ACAD-510 (`classes.notes`).

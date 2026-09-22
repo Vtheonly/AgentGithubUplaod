@@ -4183,11 +4183,12 @@ The owner's live console reports decoded into five concrete defects in the acade
 - ADR-018 (the identity-vs-context subject architecture the catalog seeds).
 
 
-## T-409 — Class-First Timetable Presentation & Real-Time Generation Progress — OPEN (P0)
+## T-409 — Class-First Timetable Presentation & Real-Time Generation Progress — TESTED (P0)
 
 **Registered:** 2026-09-22  
-**Problem:** SCHED-111  
-**Related:** T-404, ADR-020
+**Problem:** SCHED-111 (RESOLVED — this task)  
+**Related:** T-404, ADR-020, ADR-021  
+**Implemented:** 2026-09-22 (the 92nd session) — class-first contract + the ADR-021 progress channel; 32 new regression tests green; live read-only probe 14/14 (`scripts/t-409-live-class-first-probe.py` — the old renderer key would have dropped 89/118 entries of the LIVE published version). Implementation record: `docs/recovery/t-409-timetable-class-first.md` §14.
 
 ### Owner-reported defect
 
@@ -4250,6 +4251,6 @@ The current `TimetableSolver.solve(problem)` adapter exposes only the final solu
 - Regression tests cover the class collision and progress calculation.
 - No timetable business rules or canonical storage are duplicated.
 
-**Full bug report:** `docs/recovery/t-409-timetable-class-first.md`
+**Full bug report:** `docs/recovery/t-409-timetable-class-first.md` (§14 = the implementation record)
 
-**Left:** implementation, regression coverage, generation-progress verification, and owner UI testing against the FAKE timetable dataset from T-408.
+**Left:** owner UI testing against the live FAKE timetable dataset from T-408 (the class selector + the live progress surface in the packaged app); the standing solver-quality follow-ups (SCHED-107 + SCHED-110, one pass) and SCHED-108 (moveEntry's pre-existing-violation filtering) remain open and unchanged. VERIFIED additionally requires the packaged-app smoke test per the T-404 packaging-gate convention.

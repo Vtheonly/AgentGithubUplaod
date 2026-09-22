@@ -10,6 +10,19 @@
  * TimetableScheduleEntry rows (ADR-020 §8: "Class, teacher and room
  * timetable views are projections of the same canonical schedule").
  *
+ * T-409 / SCHED-111 — CLASS-FIRST rendering contract:
+ *   - The class view is filtered STRICTLY by the selected `classId`; a
+ *     null entity in class mode renders the honest empty state, NEVER
+ *     the flattened multi-class grid (the old defect returned ALL
+ *     entries when no entity was selected).
+ *   - A visual schedule position is contextual: (class A, day, period)
+ *     and (class B, day, period) are DIFFERENT positions. Cells hold a
+ *     LIST of entries — concurrent lessons stack, nothing is silently
+ *     overwritten (the old single-entry Map kept only the LAST entry).
+ *     In the class projection the strict classId filter guarantees a
+ *     single-class weekly grid; teacher/room projections keep their
+ *     "Tout afficher" option with honest stacking.
+ *
  * Manual adjustment: clicking a cell opens the adjustment dialog with LIVE
  * validation feedback (the repository's canonical engine).
  */
@@ -113,21 +126,39 @@ export function TimetableGrid({
   );
 
   const projected = useMemo(() => {
-    if (!viewEntityId) return entries;
+    // T-409 / SCHED-111: the class view is ALWAYS scoped to ONE class. A
+    // null entity in class mode is the honest EMPTY projection — never
+    // "every class at once" (the old `!viewEntityId → return entries`
+    // fallback was the cross-class overwrite root cause).
     switch (viewMode) {
       case "class":
-        return entries.filter((e) => e.classId === viewEntityId);
+        return viewEntityId
+          ? entries.filter((e) => e.classId === viewEntityId)
+          : [];
       case "teacher":
-        return entries.filter((e) => e.teacherId === viewEntityId);
+        return viewEntityId
+          ? entries.filter((e) => e.teacherId === viewEntityId)
+          : entries;
       case "room":
-        return entries.filter((e) => e.roomId === viewEntityId);
+        return viewEntityId
+          ? entries.filter((e) => e.roomId === viewEntityId)
+          : entries;
     }
   }, [entries, viewMode, viewEntityId]);
 
+  // T-409 / SCHED-111: a visual cell holds a LIST of entries — entries
+  // APPEND, they can never overwrite one another. In the class projection
+  // the strict filter above guarantees at most ONE lesson per (day,
+  // period) — a class's weekly grid; in the teacher/room "Tout afficher"
+  // projection, concurrent lessons stack instead of the old behaviour
+  // where the LAST entry silently replaced every earlier one.
   const cellEntries = useMemo(() => {
-    const map = new Map<string, TimetableScheduleEntry>();
+    const map = new Map<string, TimetableScheduleEntry[]>();
     for (const e of projected) {
-      map.set(`${e.day}#${e.periodIndex}`, e);
+      const key = `${e.day}#${e.periodIndex}`;
+      const list = map.get(key);
+      if (list) list.push(e);
+      else map.set(key, [e]);
     }
     return map;
   }, [projected]);
@@ -141,6 +172,23 @@ export function TimetableGrid({
         </p>
         <p className="text-xs text-muted-foreground">
           Définissez les jours d'école et les périodes dans l'onglet Configuration.
+        </p>
+      </div>
+    );
+  }
+
+  // T-409: the class projection without a selected class renders the
+  // honest empty state — the mixed all-classes grid is NEVER shown.
+  if (viewMode === "class" && !viewEntityId) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border p-10 text-center">
+        <CalendarDays className="h-8 w-8 text-muted-foreground opacity-50" />
+        <p className="text-sm font-medium text-foreground">
+          Sélectionnez une classe
+        </p>
+        <p className="text-xs text-muted-foreground">
+          L'emploi du temps par classe affiche une classe à la fois — choisissez
+          une classe pour afficher son emploi du temps hebdomadaire complet.
         </p>
       </div>
     );
@@ -193,7 +241,7 @@ export function TimetableGrid({
                 </div>
               </td>
               {days.map((day) => {
-                const entry = cellEntries.get(`${day}#${period.index}`);
+                const cell = cellEntries.get(`${day}#${period.index}`);
                 const breakAfter = configuration.breaks.find(
                   (b) => b.afterPeriodIndex === period.index,
                 );
@@ -202,33 +250,40 @@ export function TimetableGrid({
                     key={`${day}-${period.index}`}
                     className="border-b border-l border-border p-1 min-w-[120px]"
                   >
-                    {entry ? (() => {
-                      const colors = subjectColor(entry.subjectId);
+                    {cell && cell.length > 0 ? (() => {
                       return (
-                        <button
-                          type="button"
-                          onClick={() => onEntryClick?.(entry)}
-                          className={cn(
-                            "flex min-h-[52px] w-full flex-col justify-center gap-0.5 rounded-md border px-2 py-1 text-left transition-[filter,box-shadow]",
-                            editable
-                              ? "cursor-pointer hover:brightness-95 hover:shadow-sm"
-                              : "cursor-default",
-                          )}
-                          style={{
-                            backgroundColor: colors.background,
-                            color: colors.foreground,
-                            borderColor: colors.border,
-                          }}
-                          title={`${label(entry)} — ${subLabel(entry)}${entry.isLocked ? " (épinglé)" : ""}`}
-                        >
-                          <span className="truncate text-[11px] font-semibold text-inherit">
-                            {label(entry)}
-                            {entry.isLocked ? " *" : ""}
-                          </span>
-                          <span className="truncate text-[10px] font-medium text-inherit opacity-80">
-                            {subLabel(entry)}
-                          </span>
-                        </button>
+                        <div className="flex flex-col gap-1">
+                          {cell.map((entry) => {
+                            const colors = subjectColor(entry.subjectId);
+                            return (
+                              <button
+                                key={`${entry.id}-${entry.lessonGroup}`}
+                                type="button"
+                                onClick={() => onEntryClick?.(entry)}
+                                className={cn(
+                                  "flex min-h-[52px] w-full flex-col justify-center gap-0.5 rounded-md border px-2 py-1 text-left transition-[filter,box-shadow]",
+                                  editable
+                                    ? "cursor-pointer hover:brightness-95 hover:shadow-sm"
+                                    : "cursor-default",
+                                )}
+                                style={{
+                                  backgroundColor: colors.background,
+                                  color: colors.foreground,
+                                  borderColor: colors.border,
+                                }}
+                                title={`${label(entry)} — ${subLabel(entry)}${entry.isLocked ? " (épinglé)" : ""}`}
+                              >
+                                <span className="truncate text-[11px] font-semibold text-inherit">
+                                  {label(entry)}
+                                  {entry.isLocked ? " *" : ""}
+                                </span>
+                                <span className="truncate text-[10px] font-medium text-inherit opacity-80">
+                                  {subLabel(entry)}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       );
                     })() : (
                       <div className="flex min-h-[52px] w-full items-center justify-center text-[10px] text-muted-foreground/40">

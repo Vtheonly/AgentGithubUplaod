@@ -18,7 +18,19 @@
 import type {
   TimetableProblem,
   TimetableSolution,
+  TimetableProgressListener,
 } from "../../../model/timetable";
+
+/** Optional per-solve behaviour — T-409 (the progress channel). */
+export interface TimetableSolveOptions {
+  /**
+   * REAL incremental progress from the solver's actual work units
+   * (requirement indexing, block placement, repair, validation).
+   * The event sequence is DETERMINISTIC for a deterministic solver: the
+   * same problem emits the same sequence. Never timer-based.
+   */
+  readonly onProgress?: TimetableProgressListener;
+}
 
 export interface TimetableSolver {
   /** Stable solver identifier (persisted on every version for reproducibility). */
@@ -32,8 +44,22 @@ export interface TimetableSolver {
    * an impossible schedule is REPORTED (status "invalid"/"partial" +
    * unplaced reasons + violations), not silently truncated. Only
    * programming errors throw.
+   *
+   * T-409: `options.onProgress` (optional) receives real work-unit
+   * progress. Backward compatible — existing `solve(problem)` callers
+   * are unaffected.
    */
-  solve(problem: TimetableProblem): TimetableSolution;
+  solve(problem: TimetableProblem, options?: TimetableSolveOptions): TimetableSolution;
+  /**
+   * OPTIONAL non-blocking variant (T-409): the SAME deterministic
+   * algorithm as `solve`, executed behind a yielding boundary so the
+   * renderer can repaint between work units. Implementations that cannot
+   * yield simply omit it — callers fall back to `solve`.
+   */
+  solveAsync?(
+    problem: TimetableProblem,
+    options?: TimetableSolveOptions,
+  ): Promise<TimetableSolution>;
 }
 
 // ============================================================================
