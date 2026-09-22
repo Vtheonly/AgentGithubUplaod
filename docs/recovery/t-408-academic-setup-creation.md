@@ -54,6 +54,26 @@ Desktop remains the reference client for current academic logic and the hub rema
 
 Any shared-model change requires a consumer census across Desktop, Supabase SQL/RPC/RLS/PostgREST, Android Room/sync/DTOs, and Website canonical academic reads.
 
+### E. Remove fake academic data and synthetic identifiers everywhere
+
+T-408 is not complete if the UI/backend still appears functional only because of fake, seed, placeholder, or mock academic records.
+
+- Remove hardcoded/fabricated class records from production academic setup surfaces. A displayed class must represent a real persisted class or an explicitly isolated test fixture.
+- Remove synthetic/fabricated IDs for classes, teachers, subjects/matières, modules, and related academic entities. Database foreign keys and domain identifiers must come from canonical persisted records.
+- Production Supabase paths must not silently fall back to mock repositories, in-memory stores, demo fixtures, or static arrays for teachers, classes, or subjects/matières.
+- Mock repositories and fixtures may remain only behind explicit test-only boundaries and must never be reachable through production provider wiring.
+- Audit academic setup cards, selectors, dropdowns, counts, dashboards, and defaults for fake records that can make a failed persistence path look successful.
+
+### F. Unify module / subject / matière into one concept
+
+The concepts **module**, **subject**, and **matière** must not remain three competing academic identities. In this system they must resolve to one canonical subject concept unless a proven domain requirement demonstrates that a genuinely different entity exists.
+
+- **subject** is the canonical domain/database identity for a matière/module.
+- UI labels such as “Matière”, “Module”, and “Subject” may vary by language or context, but they must map to the same canonical subject identity and must not create separate tables, IDs, repositories, or business rules.
+- **subject_configurations** is contextual configuration of that canonical subject (academic year, level, direction/filière where applicable, coefficient, passing grade, grading recipe, extracurricular state, and related context); it is not a second subject/module identity.
+- Inventory every existing module/matière model, type, repository, array, seed record, form payload, and join. Consolidate or explicitly adapt it to the canonical subject contract rather than adding another parallel model.
+- Prove the mapping consistently across Desktop, Supabase, Android, Website, imports/exports, grades, timetable, class-subject assignment, reports, and curriculum provisioning.
+
 ## Verification
 
 ### Desktop
@@ -94,9 +114,11 @@ The owner supplied the following requested coverage; it is a reference dataset f
 
 ## Non-negotiable constraints
 
-- Never synthesize database UUIDs.
-- Never accept production success from a mock-only teacher write.
+- Never synthesize database UUIDs or fabricate academic IDs.
+- Never accept production success from mock-only teachers, classes, subjects/matières, or module data.
+- Never leave fake/hardcoded academic records or mock fallbacks reachable from production provider wiring.
 - Never make a page-local curriculum array the canonical source of truth.
+- Never treat module, subject, and matière as separate academic identities without a documented domain reason.
 - Never duplicate the existing subject identity model without an explicit architectural reason.
 - Never silently convert backend rejection into fake success.
 - Never call the curriculum official before current official-source validation.
