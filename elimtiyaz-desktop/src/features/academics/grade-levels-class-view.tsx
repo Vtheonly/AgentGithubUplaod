@@ -375,6 +375,23 @@ function CreateClassModal({
     const teacher = personnel.find((p) => p.id === teacherId);
     const code = `CLS-${gradeCode.toUpperCase()}-${section.replace(/\s+/g, "").toUpperCase()}-${Date.now().toString(36).slice(-3)}`;
 
+    // T-408 (ACAD-509): the year context is canonical data too. BEFORE this
+    // the payload carried the stale literal `academicYear: "2025-2026"`
+    // (workstream A: "remove stale literal-year payload assumptions") and a
+    // missing current year fell back to the synthetic "ay-2025-2026" id —
+    // the ACAD-506 defect class one layer up. Fail loud with a clean error
+    // when no academic year is flagged current; never fabricate one.
+    if (!currentYear.id || !currentYear.code) {
+      setAlert({
+        tone: "error",
+        title: "Aucune année scolaire active",
+        description:
+          "Aucune année scolaire n'est définie comme active. Définissez l'année courante dans Années scolaires avant de créer une classe.",
+      });
+      setSubmitting(false);
+      return;
+    }
+
     // T-408 (ACAD-506): resolve the REAL academic_levels uuid for the grade.
     // BEFORE this the payload faked `academicLevelId: \`al-${gradeCode}\`` — a
     // mock-era string that the live uuid column rejects (22P02 → HTTP 400,
@@ -417,7 +434,10 @@ function CreateClassModal({
         ? `${teacher.firstName} ${teacher.lastName}`
         : null,
       notes: notes.trim() || null,
-      academicYear: "2025-2026",
+      // T-408 (ACAD-509): the display year comes from the CANONICAL current
+      // year — never the stale "2025-2026" literal (Supabase persists via
+      // academic_year_id; mock mode stores this derived code).
+      academicYear: currentYear.code,
       isActive: true,
     } as Omit<AcademicClass, "id" | "tenantId" | "enrolledCount">);
 

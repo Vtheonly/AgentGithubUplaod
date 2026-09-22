@@ -203,6 +203,17 @@ export function TeachersTab({ canManage }: { canManage: boolean }) {
     const p = personnel.find((pers) => pers.id === selectedPersonnelId);
     if (!p) return;
 
+    // T-408 (ACAD-509): no synthetic year context — a missing current year
+    // blocks teacher registration with a clean error instead of fabricating
+    // the removed "ay-2025-2026" fallback id/code.
+    if (!currentYear.id || !currentYear.code) {
+      toast.showError(
+        "Aucune année scolaire active",
+        "Définissez l'année scolaire courante avant d'enregistrer un enseignant.",
+      );
+      return;
+    }
+
     const res = await repos.teachers.createTeacher(
       {
         personnelId: p.id,

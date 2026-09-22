@@ -1483,7 +1483,10 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
     const subjectName =
       (subjectRes.data as { name_fr?: string } | null)?.name_fr ?? "Matière";
     const yearRow = yearRes.data as { code?: string | null; label?: string | null } | null;
-    const academicYear = yearRow?.code ?? yearRow?.label ?? "2025-2026";
+    // T-408 (ACAD-509): no fabricated year code — an unresolvable current
+    // year maps to the honest empty string, never the stale "2025-2026"
+    // literal.
+    const academicYear = yearRow?.code ?? yearRow?.label ?? "";
 
     const { data, error } = await this.client
       .from("homework")
@@ -1811,11 +1814,10 @@ function mapClassRow(
     homeroomTeacherName: row.homeroom_teacher_name,
     notes: row.notes ?? null,
     // The joined year's `code` is NULL on the live seeded year (0029 column) —
-    // fall back to its label before the static mock default.
-    academicYear:
-      row.academic_years?.code ??
-      row.academic_years?.label ??
-      "2025-2026",
+    // fall back to its label. T-408 (ACAD-509): the static "2025-2026" mock
+    // default is REMOVED — a class without a resolvable year renders an
+    // honest empty string, never a fabricated year code.
+    academicYear: row.academic_years?.code ?? row.academic_years?.label ?? "",
     isActive: row.is_active,
   };
 }
@@ -1867,8 +1869,14 @@ function mapSubjectRow(row: Record<string, any>): Subject {
     isActive: row.is_active,
     teacherId: row.teacher_id ?? null,
     teacherName: row.teacher_name ?? null,
-    academicYearId: row.academic_year_id ?? "ay-2025-2026",
-    academicYearCode: row.academic_year_code ?? "2025-2026",
+    // T-408 (ACAD-509): subjects are YEAR-AGNOSTIC identity (ADR-018 — the
+    // table has no academic_year_id column; the year context lives in
+    // subject_configurations). The mock-era "ay-2025-2026"/"2025-2026"
+    // fallbacks fabricated a year scoping that does not exist — year-scoped
+    // consumers must derive from subject_configurations instead (the
+    // academic-year drawer now does).
+    academicYearId: row.academic_year_id ?? "",
+    academicYearCode: row.academic_year_code ?? "",
   };
 }
 

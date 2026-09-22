@@ -166,6 +166,16 @@ export function SubjectConfigurationsPanel() {
 
   async function handleSubmit(data: ConfigFormData) {
     if (!editing) return;
+    // T-408 (ACAD-509): no synthetic year context — a configuration write
+    // without a real current year is blocked with a clean error (the
+    // "ay-2025-2026" fallback id was removed from the hook).
+    if (!currentYear.id) {
+      toast.showError(
+        "Aucune année scolaire active",
+        "Définissez l'année scolaire courante avant de configurer les matières.",
+      );
+      return;
+    }
     const weights = [
       data.recipeD1,
       data.recipeD2,
@@ -213,7 +223,7 @@ export function SubjectConfigurationsPanel() {
       <div className="flex items-center gap-2">
         <Settings2 className="size-4 text-primary" />
         <h3 className="text-sm font-semibold">
-          Configurations par niveau — {currentYear.code}
+          Configurations par niveau — {currentYear.code ?? "—"}
         </h3>
         <Badge variant="outline" className="font-mono text-[10px]">
           {yearConfigurations.length} ligne(s)
@@ -314,7 +324,7 @@ export function SubjectConfigurationsPanel() {
         onOpenChange={(o) => !o && setEditing(null)}
         title={
           editing
-            ? `${editing.subject.name} — ${editing.levelLabel} (${currentYear.code})`
+            ? `${editing.subject.name} — ${editing.levelLabel} (${currentYear.code ?? "année active"})`
             : ""
         }
         description="Configuration de la matière pour ce niveau et cette année scolaire (ADR-018)."

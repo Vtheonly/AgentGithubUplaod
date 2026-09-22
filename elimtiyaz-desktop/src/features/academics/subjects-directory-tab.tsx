@@ -196,6 +196,11 @@ export function SubjectsDirectoryTab() {
 
   async function handleSubmit(data: SubjectFormData) {
     const level = data.cycle as AcademicLevel;
+    // T-408 (ACAD-509): subjects are YEAR-AGNOSTIC identity (ADR-018) —
+    // the payload's year fields are legacy display denormalization. With no
+    // current year flagged they map to the honest empty values (the removed
+    // fallback fabricated "ay-2025-2026"/"2025-2026"); persistence of the
+    // identity itself stays allowed.
     const payload = {
       name: data.name.trim(),
       code: data.code.trim().toUpperCase(),
@@ -208,8 +213,8 @@ export function SubjectsDirectoryTab() {
       isActive: true,
       teacherId: null,
       teacherName: null,
-      academicYearId: currentYear.id,
-      academicYearCode: currentYear.code,
+      academicYearId: currentYear.id ?? "",
+      academicYearCode: currentYear.code ?? "",
     };
 
     if (editingSubject) {

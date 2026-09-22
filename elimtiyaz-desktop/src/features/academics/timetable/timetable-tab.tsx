@@ -115,19 +115,24 @@ export function TimetableTab() {
   );
 
   // ── Data ────────────────────────────────────────────────────────────────
+  // T-408 (ACAD-509): the year context is canonical data — the synthetic
+  // "ay-2025-2026" fallback was removed from the hook. READS fall back to
+  // "" (matches no row in either implementation → the honest empty state);
+  // WRITES are blocked by the no-year banner below.
+  const yearId = year.id ?? "";
   const configuration = useObservable(
-    () => repos.timetable.observeConfiguration(year.id),
-    [year.id],
+    () => repos.timetable.observeConfiguration(yearId),
+    [yearId],
   );
   const rooms = useObservable(() => repos.timetable.observeRooms(), []) ?? [];
   const constraints =
-    useObservable(() => repos.timetable.observeConstraints(year.id), [year.id]) ?? [];
+    useObservable(() => repos.timetable.observeConstraints(yearId), [yearId]) ?? [];
   const versions =
-    useObservable(() => repos.timetable.observeVersions(year.id), [year.id]) ?? [];
+    useObservable(() => repos.timetable.observeVersions(yearId), [yearId]) ?? [];
   const publishedEntries =
     useObservable(
-      () => repos.timetable.observePublishedEntries(year.id),
-      [year.id],
+      () => repos.timetable.observePublishedEntries(yearId),
+      [yearId],
     ) ?? [];
   const classes = useObservable(() => repos.classes.observe(), []) ?? [];
   const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
@@ -189,6 +194,13 @@ export function TimetableTab() {
 
   // ── Actions ─────────────────────────────────────────────────────────────
   async function generate(fromVersionId?: string): Promise<void> {
+    if (!year.id) {
+      toasts.showError(
+        "Aucune année scolaire active",
+        "Définissez l'année scolaire courante avant de générer l'emploi du temps.",
+      );
+      return;
+    }
     setBusy(true);
     try {
       const result = await repos.timetable.generateTimetable(
@@ -273,6 +285,20 @@ export function TimetableTab() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* T-408 (ACAD-509): honest no-year guard — every timetable write
+          surface is unreachable until an academic year is flagged current
+          (never the removed synthetic "ay-2025-2026" fallback). */}
+      {!year.id && (
+        <div className="rounded-md border border-dashed border-border p-6 text-center">
+          <p className="text-sm font-medium text-foreground">
+            Aucune année scolaire active
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Définissez l'année scolaire courante dans Années scolaires avant de
+            configurer ou générer l'emploi du temps.
+          </p>
+        </div>
+      )}
       {/* ── Sub-tabs ─────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-1.5">
         {(
@@ -306,7 +332,7 @@ export function TimetableTab() {
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 py-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <CalendarClock className="h-4 w-4 text-primary" />
-              Emploi du temps — {year.code}
+              Emploi du temps — {year.code ?? "année active"}
               {selectedVersion && (
                 <span className="text-xs font-normal text-muted-foreground">
                   v{selectedVersion.versionNumber}
@@ -379,7 +405,7 @@ export function TimetableTab() {
                 <CalendarDays className="h-10 w-10 text-muted-foreground opacity-40" />
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    Aucun emploi du temps généré pour {year.code}
+                    Aucun emploi du temps généré pour {year.code ?? "l'année active"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Configurez les salles et les contraintes, puis lancez la génération
@@ -576,7 +602,7 @@ export function TimetableTab() {
       )}
 
       {/* ── CONFIGURATION ────────────────────────────────────────────── */}
-      {subTab === "configuration" && (
+      {subTab === "configuration" && year.id && (
         <ConfigurationPanel
           configuration={configuration}
           academicYearId={year.id}
@@ -648,9 +674,9 @@ export function TimetableTab() {
               Contraintes ({constraints.length})
             </CardTitle>
             <ConstraintCreateButton
-              canManage={canManage}
+              canManage={canManage && !!year.id}
               actor={actor}
-              academicYearId={year.id}
+              academicYearId={year.id ?? ""}
               classes={classes.map((c) => ({ id: c.id, label: c.name ?? c.code }))}
               teachers={personnel
                 .filter((p) => p.staffCategory === "teacher")

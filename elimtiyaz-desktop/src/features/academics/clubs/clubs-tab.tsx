@@ -103,6 +103,16 @@ export function ClubsTab({ canManage }: { canManage: boolean }) {
 
   async function handleCreateSubmit(data: z.infer<typeof CreateClubSchema>) {
     if (!session) return;
+    // T-408 (ACAD-509): no synthetic year context — block with a clean
+    // error when no academic year is flagged current (the fallback pair
+    // "ay-2025-2026"/"2025-2026" was removed from the hook).
+    if (!currentYear.id || !currentYear.code) {
+      toast.showError(
+        "Aucune année scolaire active",
+        "Définissez l'année scolaire courante avant de créer un club.",
+      );
+      return;
+    }
     const supervisorId = data.supervisorId || null;
     const supervisor = supervisorId ? personnel.find((p) => p.id === supervisorId) : null;
     const input: CreateClubInput = {
