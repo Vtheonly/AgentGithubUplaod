@@ -1,3 +1,5 @@
+**Important clarification added to T-409:** timetable generation is **school-wide**. A single generation run must attempt to create and persist a timetable for **every eligible class**; the class selector is only for inspecting/filtering the generated result. Classes that cannot be fully scheduled must be explicitly reported, never silently omitted.
+
 # 2026-09-22 — T-409 is the immediate timetable follow-up
 
 **T-409 — Class-First Timetable Presentation & Real-Time Generation Progress (P0)** is now the immediate follow-up to T-404. The primary “Par classe” grid currently mixes classes and overwrites same-slot entries, while generation exposes only a spinner with no real progress calculation. Full report: `docs/recovery/t-409-timetable-class-first.md`. Problem: SCHED-111.
