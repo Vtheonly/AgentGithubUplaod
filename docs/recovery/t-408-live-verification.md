@@ -71,3 +71,14 @@ Rolled-back transactions against the production DB (the inspect-live-db conventi
 - Tamazight: identity-only (configure where taught).
 - The 0112 false-registration ROOT CAUSE is unidentified; the guard is AGENTS.md §15 rule 45 (verify catalog state, never trust the version table).
 - The .exe rebuild + ASAR verification: see the change-log 88th-session entry (the packaging gates re-run).
+
+## 10. The cross-session numbering reconciliation (post-merge)
+
+The concurrent T-407 session (the T-401/402/403 UI + mouse suites + ACAD-504) landed on origin/main mid-flight, taking: the task number (T-407 — mine renumbered **T-408**), migration **0112** (their `register_family_batch_classification` — their migration's EMBEDDED self-registration had landed live while their DDL never did: a HALF-LANDED apply, the discovery behind the originally-diagnosed "false registration"), and they renamed the SCHED-103 FK migration to **0113** (colliding with my drafted catalog number — mine renumbered **0114**; my AGENTS rule renumbered 45 → **46**).
+
+The atomic reconciliation (`scripts/apply_chain_reconciliation_0112_0114.sh`, HTTP 201):
+1. THEIR 0112 DDL completed live (their rollback-only verification made whole — post-apply `verify_t-407.sql` **6/6 PASS**: the classification lands, 'general' → NULL, the idempotent re-run updates, out_students exposes it, the billing legs unaffected, the old-wire back-compat).
+2. MY catalog registration row renamed '0113' → '0114' (with statements/name metadata) in the same transaction.
+3. The FK migration registered as '0113' (its body was already live from the FK recovery).
+
+**Final chain (live, with metadata):** 0111 debt_aging_analysis · 0112 register_family_batch_classification · 0113 class_subjects_teacher_fk · **0114 algerian_curriculum_catalog**. FK smoke re-run **10/10**; my matrix re-verified GREEN (BEM exact, 127 configs / 14 levels, 0 missing year codes, FKs 2/2, 0 orphans, 0 published-leak). The merged-tree gates: tsc 0; my t-408 suite 18/18; their t-407-t401/t403 suites pass (the CreateClassModal test fixed by moving the year-uuid guard from the dialog into `SupabaseClassRepository.createClass` — the enforcement point); FULL vitest **3740 passed / 21 failed** (the byte-identical baseline; the transient 22nd was the t-058 append-only check on the uncommitted tree — 6/6 after the merge commit).

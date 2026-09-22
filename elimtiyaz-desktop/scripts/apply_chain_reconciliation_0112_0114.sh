@@ -70,7 +70,7 @@ rm -f "$PAYLOAD"
 
 echo ""
 echo "Post-check:"
-SQL_TEXT="SELECT (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version IN ('0112','0113','0114')) AS chain_rows, (SELECT pg_get_functiondef(oid) LIKE '%p_filiere_code%' FROM pg_proc WHERE proname='register_family_batch') AS classification_live, (SELECT count(*) FROM pg_constraint WHERE conname IN ('class_subjects_teacher_id_fkey','classes_homeroom_teacher_id_fkey') AND convalidated) AS fks, (SELECT count(*) FROM public.subjects WHERE code='ARABE') AS catalog" python3 -c "
+SQL_TEXT="SELECT (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version IN ('0112','0113','0114')) AS chain_rows, (SELECT pg_get_functiondef(oid) LIKE '%v_s.filiere_code%' FROM pg_proc WHERE proname='register_family_batch') AS classification_live, (SELECT count(*) FROM pg_constraint WHERE conname IN ('class_subjects_teacher_id_fkey','classes_homeroom_teacher_id_fkey') AND convalidated) AS fks, (SELECT count(*) FROM public.subjects WHERE code='ARABE') AS catalog" python3 -c "
 import json, os
 print(json.dumps({'query': os.environ['SQL_TEXT']}))
 " > /tmp/reconcile_post.json
