@@ -185,3 +185,56 @@ The production provider-wiring census (T-408 rule E): in Supabase mode EVERY aca
 ### Status
 
 T-408 remains **TESTED** (advanced by this session: the E/F workstreams complete, the umbrella ACAD-505 truth-synced in the problem registry). VERIFIED is gated on the Android equivalence run and the real-personnel teacher E2E named above.
+
+---
+
+## The 91st session — the owner-authorized FAKE test data + the remaining live E2E (the teacher gate closed)
+
+**The owner's mandate (2026-09-22, verbatim intent):** "Do the rest of the tests. For now, create clearly marked fake test data: fake teacher names, class names, and subjects, with something like `FAKE` in their names so they can be easily identified, queried, tagged, and removed from the database later. Create enough fake classes, teachers, subjects/matières, and related academic records so I can properly test the timetable functionality and its interactions with the rest of the academic system."
+
+This closes the FIRST of the two remaining VERIFIED gates — the live teacher/class/curriculum/timetable E2E — with disposable, clearly-marked rows instead of the owner's real staff (the live personnel table still holds zero active rows; the real-staff swap-in remains a formality the owner can run any time through the SAME canonical paths this harness drives).
+
+### The FAKE-marker convention (now AGENTS.md §15.50)
+
+Every seeded row carries the ASCII marker `FAKE` in a stable, queryable column: personnel first_name/last_name, classes code/name, subjects code (`FAKE-*`), rooms code, timetable_versions label, and — because timetable_constraints has no name column — the `params` JSONB tag `{"_fake": true}`. class_subjects and timetable_entries are derived (class_id / version_id joins). The dataset:
+
+| Entity | Rows | Detail |
+|---|---|---|
+| personnel (teachers) | 8 | FAKE Ahmed FAKE-Benali … FAKE Sonia FAKE-Cherif — created as NON-teaching so `createTeacher` exercises the canonical staff_category flip |
+| teachers (registry) | 8 | the flip + the SupabaseTeacherRepository registry round-trip |
+| subjects | 2 | FAKE-ROBOTIQUE, FAKE-THEATRE (created through `createSubject`; the 14 catalog subjects are used as-is) |
+| classes | 5 | CLS-FAKE-1AM-A/B, 2AM-A, 4AM-B, 1AS-A — REAL academic_levels uuids via `getByGradeCode`, the REAL current year, homeroom = FAKE teachers (the 0112 FK) |
+| class_subjects | 52 | 118 weekly hours — the Algerian CEM/lycée curriculum mix incl. required room types (science_lab / computer_lab / sports) and one consecutive double-period block |
+| rooms | 9 | FAKE-SAL-01..06 (classroom), FAKE-LAB-SCI, FAKE-LAB-INFO, FAKE-GYM |
+| constraints | 3 | school minimize_gaps (soft), class prefer_morning (soft), teacher T7 unavailable_period (hard) — all `{"_fake": true}`-tagged |
+| timetable versions | 3 | v2 PUBLISHED (118 entries) + the manual-adjustment draft v3 + the pin-preservation regen v4 |
+
+### The E2E (scripts/t-408-fake-academic-e2e.ts — 80/80 GREEN, recorded)
+
+Every write goes through the SAME canonical repositories the desktop app wires (no raw SQL, no service key in the harness — the admin JWT + the anon key): Phase 1 seeds through `SupabasePersonnelRepository.createPersonnel` → `SupabaseTeacherRepository.createTeacher` → `SupabaseSubjectRepository.createSubject` → `SupabaseClassRepository.createClass` → `assignSubjectToClass` → `SupabaseTimetableRepository.createRoom/createConstraint`; Phase 2 runs `generateTimetable` (ts-greedy-v1) → entries==118 == total weekly hours → zero teacher/room/class double-bookings → the hard teacher-unavailability honored → required room types honored → `submitForReview` → `approveVersion` → `publishVersion` (the canonical `fn_timetable_publish` RPC — the first LIVE publish since 0109) → `v_timetable_published` 118 rows (admin) / 401 (anon); Phase 3 proves the interactions: `observeByClass` per class (the Matières-Classes tab data), the teacher registry (8/8 active), the homeroom FK round-trip, and the T-404 manual-adjustment contract (duplicateVersionToDraft → moveEntry live-validated → setEntryLocked → regenerate fromVersionId → the locked pin SURVIVES, still fully placeable).
+
+### The purge tool (scripts/t-408-fake-data-purge.py — verified 5× live)
+
+Dry-run by default; `--execute` with the service key performs the FK-safe purge with row-count asserts (§15.41b) and post-checks (zero FAKE residue; the 14 catalog subjects, 14 academic_levels, the year, the owner's own room `3`/"eee" and the owner's `Essai 1` in_review version all PRESERVED — asserted, not assumed). Audit rows intentionally stay (§15.26). Five consecutive live purges (three mid-development partial states + two full datasets) all ended `PURGE COMPLETE — zero FAKE residue`.
+
+### What the tests DISCOVERED (registered, not silently absorbed)
+
+The E2E did not just pass — it surfaced five genuine findings, each registered in the problem registry:
+
+1. **SCHED-107 — the solver's room-fit rule compares the class's NOMINAL capacity (classes.capacity) against room capacity.** Labs seeded at 24 seats rejected EVERY class of 28+ → 12 unplaced lab periods in the first run. Real schools routinely have labs smaller than the nominal class size; the fit rule should consider effective enrollment when available. Test-data impact: labs seeded at capacity 32.
+2. **SCHED-110 — the greedy solver's no-backtracking corner case.** At ≥90% class occupancy (27–29 of 30 slots) the solver deterministically left exactly ONE single-period block unplaced — the class's remaining free slots all collided with the teacher's busy slots and the eviction-repair pass did not fire for this shape. Calibrated to ≈80% occupancy (22–24h/class, teachers ≤16h) the placement is complete and deterministic. A targeted swap-repair (displace one of the teacher's OTHER lessons) is the natural improvement.
+3. **SCHED-108 — moveEntry validates the WHOLE candidate schedule, so ANY unmet weekly hour (an unplaced block) blocks ALL manual moves on that version** — the UI shows only the generic « Données invalides. » (the detailed violation messages ride `error.message`, not `userMessage`). With a complete placement the move path works perfectly (proven in Phase 3d).
+4. **SCHED-109 — there is no unpublish path in the canonical contract, and published entries are IMMUTABLE even for cleanup:** the `timetable_entries_guard_immutable` trigger P0001-rejects DELETE/UPDATE on published/archived versions even under the service role (triggers fire regardless of the RLS bypass; ON DELETE CASCADE fires them too). The purge tool's documented semantics: flip the version status to `draft` first (the moment the status changes, `v_timetable_published` stops exposing the rows), then delete.
+5. **ACAD-510 — `classes.notes` is mock-era only:** the domain model and the creation dialog carry it, but the Supabase `createClass` INSERT never sends it and the live table has no such column — the owner's class notes are silently dropped in Supabase mode (`mapClassRow` maps it from a column that does not exist).
+
+Plus two harness-level network lessons (both the documented PERF-501 transient class, now also visible at the fetch layer with the French « Connexion réseau impossible » message): the E2E carries a retry absorber and 150 ms write pacing, and its assertion reads are retried — a blipped read must never masquerade as "0 rows".
+
+### Gates (91st session)
+
+- Desktop: `tsc --noEmit` **0 errors** · eslint **0 errors** (729 pre-existing warnings; the new script contributes zero) · FULL vitest **3749 passed / 21 failed / 5 skipped** — byte-identical to the documented baseline (my changes touch `scripts/` only, outside tsconfig's include).
+- Live: the E2E above **80/80**; the purge **5/5**; the dataset PERSISTS on purpose for the owner's own UI testing of the Emploi du temps tab and its interactions.
+- Website/Android: not re-run — this session changed zero product code (scripts + docs only), no shared contract touched.
+
+### Status (updated)
+
+T-408 remains **TESTED**, with the teacher-creation E2E VERIFIED-gate **CLOSED** (the 91st session's FAKE-marked live rows through the canonical paths — 80/80). The single remaining VERIFIED gate is the **Android equivalence run** (JDK/SDK provisioning per AGENTS.md §11 — unchanged). The FAKE dataset is live for the owner's testing; `scripts/t-408-fake-data-purge.py --dry-run` lists exactly what would be removed when testing is done.

@@ -470,3 +470,15 @@ The concrete rules:
 (c) **A hardcoded selector list is fake academic data.** The dashboard's `AVAILABLE_ACADEMIC_YEARS` four-year array offered years the live `academic_years` table never contained (it holds exactly one). Selectors/dropdowns/defaults over academic records derive from the canonical repository; the default is the CURRENT year (the school's operating year), and a date-derived school-year window is the only acceptable last-resort default (a DATE computation, never a fabricated record).
 
 (d) **Probe representation headers.** A bare urllib/curl POST to PostgREST returns 201 with an EMPTY body — the created representation comes only with `Prefer: return=representation` (supabase-js sets it automatically). Live E2E probes asserting the persisted FKs must send the header or they assert nothing (`scripts/t-409-live-year-payload-probe.py` models the convention).
+
+### 50. **Live test data must be FAKE-marked, canonical-path, and purgeable — and a test dataset is a DELIVERABLE, not a residue (T-408's 91st session, 2026-09-22)**
+
+When the owner authorizes test data in the LIVE project (the "clearly marked fake test data" mandate), three rules apply:
+
+(a) **THE MARKER RULE.** Every seeded row carries the ASCII marker `FAKE` in a STABLE, QUERYABLE column — names/codes/labels for entities that have them; for tables with no name column (timetable_constraints), a JSONB tag inside `params` (`{"_fake": true}`). Derived tables (joins) purge through their parents. The marker must survive every read path the owner uses to inspect data (the class list, the teacher registry, the room picker, the version list).
+
+(b) **THE CANONICAL-PATH RULE.** The seed harness drives the SAME repositories the app wires (`SupabasePersonnelRepository.createPersonnel` → `SupabaseTeacherRepository.createTeacher` → … → `SupabaseTimetableRepository.publishVersion`) — never raw SQL inserts. A seed that bypasses the repositories proves nothing about the app's real flows and can violate wire contracts silently (the ACAD-506 lesson at dataset scale). The harness signs in as the owner admin (never the service key — the service key is reserved for the PURGE, §15.41b's RLS-default-deny surfaces).
+
+(c) **THE PURGE-TOOL RULE.** Every live test dataset ships with a purge script BEFORE the data lands (dry-run default, `--execute` gated behind the service key in env), FK-safe order, row-count asserts, post-check residue asserts, and PRESERVED-set asserts (the catalog, the owner's own rows — asserted, not assumed). Published-version cleanup goes through the documented unpublish semantics (status → draft, SCHED-109): the `timetable_entries_guard_immutable` trigger rejects DELETE/UPDATE on published/archived versions EVEN under the service role (triggers fire through the RLS bypass, and CASCADE fires them too). Audit rows ALWAYS stay (§15.26).
+
+And the testing itself must REGISTER what it finds: the 91st session's FAKE-data E2E surfaced five genuine defects (SCHED-107/108/109/110 + ACAD-510) that a green-only run would have silently absorbed. A test harness that never fails on purpose is a fixture, not a test.

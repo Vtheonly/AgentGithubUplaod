@@ -1,21 +1,21 @@
-# Next Task — T-408's VERIFIED gates + the standing recommendation
+# Next Task — T-408's LAST VERIFIED gate + the standing recommendation
 
-**T-408 is TESTED, not VERIFIED** — two named gates close it (both outside a code session's control):
+**T-408 is TESTED, one gate from VERIFIED** (the 91st session closed the teacher-E2E gate — see below):
 
-1. **The owner's real data setup** — the live personnel table holds only soft-deleted T-400 residue (0 active). The owner should create real personnel → register teachers (« Ajouter un enseignant » — the SupabaseTeacherRepository path) → assign class-subjects with weekly hours → generate + publish the timetable. The live teacher-creation E2E against a REAL row then flips T-408 to VERIFIED (the 89th session proved the policy path; the row-level proof needs real staff).
-2. **The Android equivalence run** — the 90th session's purge changed zero shared contracts, but the Definition-of-Done names the Android gate; provision the JDK/SDK per AGENTS.md §11 and run the suite + the financial equivalence harness.
+1. **The Android equivalence run — the sole remaining gate.** The 90th/91st sessions changed zero shared contracts (scripts + docs only in the 91st), but the Definition-of-Done names the Android gate; provision the JDK/SDK per AGENTS.md §11 and run the suite + the financial equivalence harness.
+2. ~~The owner's real data setup~~ — **superseded by the 91st session (2026-09-22): the owner authorized clearly-marked FAKE test data and the complete chain ran live through the canonical repositories — `scripts/t-408-fake-academic-e2e.ts` 80/80 GREEN (8 teachers, 5 classes, 52 class_subjects, 118 weekly hours, 9 rooms, 3 constraints, generation → review → approval → the FIRST live publish → the portal view → the interaction suite incl. the T-404 pin-survival contract).** The FAKE dataset PERSISTS live for the owner's own timetable UI testing; the purge tool (`scripts/t-408-fake-data-purge.py`, verified 5× zero-residue) removes it when testing is done. The real-staff swap-in is now a formality through the same canonical paths.
 
-### Selection order (updated by the 90th session)
+### Selection order (updated by the 91st session)
 
-1. **The owner-gated T-408 VERIFIED close-out** (the two items above — the teacher E2E can run the same session the owner registers staff).
-2. **DATA-021 / DATA-022** (the 90th session's registered discoveries: the therapy/club preview tenant literal; the Android billing year-label fallback — both low, both need their own small verified change).
-3. The per-filière BAC coefficients at 2AS/3AS (direction rows beyond 'general') — owner-configurable through the SubjectConfigurationsPanel; consider a follow-up migration seeding the official per-stream BAC scale.
-4. T-405 residuals — Android debt-aging mirror and DATA-020 reconciliation.
-5. OPS-319 / BUSINESS-105 and the standing owner-gated verification work (the §4 EXE acceptance pass, REALTIME-105, the parallel agent's 21-failure zone repair).
+1. **The Android equivalence run** (T-408's last VERIFIED gate — the JDK/SDK recipe in AGENTS.md §11).
+2. **The solver pass (SCHED-107 + SCHED-110 together)** — the room-fit rule keys on the class's NOMINAL capacity (labs smaller than the class maximum are dead capacity) + the greedy's no-backtracking corner case (one unplaced single-period block at ≥90% class occupancy). SCHED-108 (moveEntry blocked by unmet hours — at minimum surface the violation messages) rides the same file.
+3. **ACAD-510** (`classes.notes` silently dropped — add the column + the insert patch, or remove the field).
+4. **The owner's own testing of the timetable UI with the live FAKE dataset** (then purge with `--execute`); SCHED-109's owner-facing « Dépublier » action is the natural productization if unpublishing is ever needed outside the purge.
+5. DATA-021 / DATA-022 · the per-filière BAC coefficients at 2AS/3AS · T-405 residuals · OPS-319 / BUSINESS-105 · the standing owner-gated verification work (unchanged).
 
 ### The standing T-408 completion constraints (preserved for the close-out agent)
 
-Do not reopen ACAD-104 as the class root cause without reproducing it. Do not synthesize UUIDs. Do not accept a mock teacher write as production success. Do not create a second subject identity store. Never claim VERIFIED without recorded evidence. Re-check the live migration chain before any schema work.
+Do not reopen ACAD-104 as the class root cause without reproducing it. Do not synthesize UUIDs. Do not accept a mock teacher write as production success. Do not create a second subject identity store. Never claim VERIFIED without recorded evidence. Re-check the live migration chain before any schema work. Live test data follows §15.50 (FAKE-marked, canonical-path, purgeable).
 
 ## 86th session (2026-09-22) — T-407 COMPLETE — VERIFIED: the UI/mouse-interaction suites of T-401/T-402/T-403 + ACAD-504 closed (migration 0112)
 
