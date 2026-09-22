@@ -1,3 +1,15 @@
+# T-408 — Academic Setup Creation Integrity registered (2026-09-22)
+
+## Current-state delta
+
+A new P0 / READY academic-setup repair is registered as T-408 / ACAD-505.
+
+Current source inspection found three separate defects: (1) class creation fabricates academicLevelId values from gradeCode instead of resolving the real UUID foreign key; (2) Desktop Supabase wiring leaves teachers on MockTeacherRepository, making teacher creation memory-only; and (3) subject creation is free-form while the production academic model has subject identity plus contextual subject configuration but no comprehensive validated curriculum catalogue/provisioning flow.
+
+T-313 / ACAD-104 remains closed and is not reopened by this registration.
+
+No application code, migration, or live database state changed during registration. The implementation task is cross-platform: Desktop + canonical backend are directly affected, Android must be audited for the shared contract, and Website read compatibility must be checked where shared academic models are exposed.
+
 # Current State — Project Snapshot (2026-09-22, EIGHTY-SIXTH session — T-404 COMPLETE: the Automatic Timetable Generation & Constraint Scheduling, end to end — TESTED)
 
 ## Current state snapshot (2026-09-22, 86th session CLOSE — T-404 TESTED)
