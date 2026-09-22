@@ -408,7 +408,15 @@ Batch promotion means processing a school-year cohort as one managed cycle, not 
 
 ### 46. **Academic setup IDs and curriculum data must come from canonical contracts — never synthesize foreign keys or leave production creation on mocks (T-408 / ACAD-505, 2026-09-22)**
 
-Academic setup is an end-to-end persistence contract. Class creation must resolve academic_levels.id from grade_code; it must never manufacture identifiers such as al-1ap. A production Supabase creation path must never resolve to a mock repository that only mutates in-memory state. Subject identity belongs to subjects; contextual curriculum configuration belongs to subject_configurations; curriculum presets must be canonical, validated data rather than page-local arrays. Before seeding an “official” Algerian curriculum catalogue, independently validate the source and preserve cycle/grade/filière/spécialité applicability. Shared academic-contract changes require Desktop/Android/Website consumer census and live REST/RLS evidence. T-408 / ACAD-505 is the registered repair task.
+Academic setup is an end-to-end persistence contract. Class creation must resolve academic_levels.id from grade_code; it must never manufacture identifiers such as al-1ap. A production Supabase creation path must never resolve to a mock repository that only mutates in-memory state. Subject identity belongs to subjects; contextual curriculum configuration belongs to subject_configurations; curriculum presets must be canonical, validated data rather than page-local arrays. Before seeding an “official” Algerian curriculum catalogue, independently validate the source and preserve cycle/grade/filière/spécialité applicability. Shared academic-contract changes require Desktop/Android/Website consumer census and live REST/RLS evidence.
+
+T-408 also requires a complete cleanup of fake academic data: remove fabricated classes, fake teacher/subject/matière/module records, synthetic identifiers, hardcoded production academic arrays, demo fallbacks, and any mock/in-memory provider path reachable in production. Test fixtures are permitted only behind explicit test-only boundaries.
+
+The terms module, subject, and matière must converge on ONE canonical subject concept. They may be translated or relabeled in the UI, but must not become separate identities, tables, IDs, repositories, seed lists, or business-rule implementations. subject_configurations is the contextual configuration layer for that canonical subject, not another subject/module identity. Audit and consolidate every existing representation across Desktop, Supabase, Android, Website, grades, timetable, class-subject assignment, imports/exports, reports, and curriculum provisioning.
+
+This cleanup applies equally to fake IDs, fake classes, mock teachers, mock subjects/matières/modules, and placeholder academic data: production UI success must never depend on data that is not backed by the canonical persisted academic model.
+
+T-408 / ACAD-505 is the registered repair task.
 
 ## Automatic Timetable rule — T-404
 
