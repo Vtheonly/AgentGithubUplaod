@@ -67,6 +67,7 @@ import { SupabaseDeliveryRepository } from "./repositories/supabase-delivery-rep
 import { SupabaseInventoryRepository } from "./repositories/supabase-inventory-repository";
 import {
   SupabaseAcademicYearRepository,
+  SupabaseAcademicLevelRepository,
   SupabaseClassRepository,
   SupabaseClassPlacementRepository,
   SupabaseSubjectRepository,
@@ -79,6 +80,7 @@ import { SupabaseAuditLogRepository } from "./repositories/supabase-audit-log-re
 import { SupabaseNotificationRepository } from "./repositories/supabase-notification-repository";
 import { SupabasePricingRepository } from "./repositories/supabase-pricing-repository";
 import { SupabaseTimetableRepository } from "./repositories/supabase-timetable-repository";
+import { SupabaseTeacherRepository } from "./repositories/supabase-teacher-repository";
 import {
   SupabasePersonnelRepository,
   SupabaseDepartmentRepository,
@@ -132,6 +134,11 @@ export function getSupabaseRepositories(): Repositories {
   // attendance / homework created in the UI were never persisted and the
   // screens showed mock seed data instead of the (empty) live tables.
   const academicYears = new SupabaseAcademicYearRepository(client);
+  // T-407 (ACAD-506) — the academic_levels catalog ladder: grade_code → the
+  // REAL level uuid. BEFORE this the repository class existed but was never
+  // wired (dead code), so the class-creation dialog faked academic_level_id
+  // with a mock-era `al-<gradeCode>` string → live HTTP 400 (22P02).
+  const academicLevels = new SupabaseAcademicLevelRepository(client);
   const classes = new SupabaseClassRepository(client);
   const subjects = new SupabaseSubjectRepository(client);
   const grades = new SupabaseGradeRepository(client);
@@ -307,6 +314,15 @@ export function getSupabaseRepositories(): Repositories {
   // layer — SCHED-100's façade.
   const timetable = new SupabaseTimetableRepository(client);
 
+  // T-407 (SCHED-105) — the teachers slot: the legacy TeacherRepository
+  // contract bridged onto the CANONICAL tables (SCHED-100/ADR-020: teacher
+  // identity = personnel rows, assignments = class_subjects, timetable =
+  // the canonical 0109 tables). BEFORE this the slot stayed on
+  // mockRepositories even in Supabase mode — "Ajouter un enseignant"
+  // validated against the MOCK personnel store (live uuids rejected) and
+  // never persisted anything.
+  const teachers = new SupabaseTeacherRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -322,6 +338,7 @@ export function getSupabaseRepositories(): Repositories {
     dashboard,
     // DESKTOP-1 — newly Supabase-backed:
     academicYears,
+    academicLevels, // T-407 — grade_code → level uuid (ACAD-506)
     classes,
     subjects,
     grades,
@@ -330,6 +347,7 @@ export function getSupabaseRepositories(): Repositories {
     promotion,
     classPlacement, // T-370 — the atomic placement finalize RPC
     timetable, // T-404 — the canonical timetable (0109/0110)
+    teachers, // T-407 — personnel/class_subjects-backed (SCHED-105)
     audit,
     notifications,
     personnel,

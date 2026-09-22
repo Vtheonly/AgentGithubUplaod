@@ -4056,3 +4056,36 @@ The final implementation must prove that the Manager UI, permission system, clie
 ### Definition of done
 
 An authorized worker can communicate with other workers through Manager group channels and communicate with clients through their Manager conversation. Creating a client portal automatically makes the correct client communication channel available without manual channel creation, existing channels are reused rather than duplicated, permissions behave consistently, and the complete workflow passes comprehensive UI, mouse-interaction, persistence, and core-integration tests.
+
+---
+
+## T-407 — Academic Setup Unblocked: Subjects / Teachers / Classes + the Algerian Curriculum Catalog + the Portal Timetable
+
+**Status:** TESTED (2026-09-22, 88th session — the owner's live-reported creation failures root-caused and fixed end-to-end: ACAD-506 the class-creation 400 (mock-era `al-<code>` uuid), ACAD-507 the subject-creation phantom zod field, SCHED-105 the mock-only teachers slot, ACAD-508 the missing Algerian curriculum catalog (+ the year-code NULL repair), SCHED-106 the website's missing timetable view. Migrations APPLIED LIVE with the owner-supplied sbp_ token: 0112 DDL RECOVERY (a FALSE REGISTRATION was found — the version row existed while neither FK did; the idempotent body re-ran cleanly) + 0113 (14 identity matières, 127 context configurations with the OFFICIAL BEM scale at 4AM, the year-code backfill, v_timetable_published). Live evidence: t404-postgrest-smoke --expect-fk 10/10 (P2 400→200), verify_t-407.sql matrix GREEN, E2E class/subject creation HTTP 201 (the exact console-log URL, zero residue), portal view 200 authenticated / 401 anon. Suites: desktop 3709 passed / 21 failed = the byte-identical session-opening baseline + the NEW t-407 suite 18/18; website 640/640 (+11). tsc 0 + eslint 0 errors + production builds green on BOTH repos. Evidence: docs/recovery/t-407-live-verification.md)
+**Priority:** P0 — Critical (the owner could not set up the school: subjects, teachers, classes all failing)
+**Scope:** Desktop + canonical backend + website portal (the academic-setup chain end-to-end).
+
+### Objective
+
+The owner's live console reports decoded into five concrete defects in the academic-setup chain, plus the standing mandate that "the modules and subjects must be handled according to the Algerian system" (resolved against ADR-018 — subjects as IDENTITY configured per context — and the 62nd session's standing residual to populate the real coefficients): make subject, teacher, and class creation WORK against the live backend, seed the Algerian national curriculum catalog as data, and give the parent portal its published-timetable view.
+
+### What was done
+
+1. **The academicLevels slot** (ACAD-506) — the repository interface existed with a complete Supabase implementation that was NEVER wired (dead code since T-370). Wired: the provider slot, the Supabase set, the backup literal, and a NEW mock twin seeded with the canonical 14-row Algerian ladder (0023 §5 verbatim). The class-creation dialog resolves the REAL level uuid via `getByGradeCode` and fails loud; the mock-era `al-` payload is source-pinned out. Two latent dead-code bugs fixed in passing: `mapAcademicLevelRow` read `label_fr` (NULL live — the seed populates `year_label`), and the `useCurrentAcademicYear` mock-era fallback id is now guarded in Supabase mode.
+2. **The subject form** (ACAD-507) — `level` is derived from the cycle (as `mapSubjectRow` does on read); the phantom required field is gone; identity rows (cycle NULL, ADR-018) render "Tous cycles".
+3. **SupabaseTeacherRepository** (SCHED-105) — the legacy TeacherRepository contract bridged onto the canonical tables (SCHED-100/ADR-020; NO teachers table): personnel staff_category flips for registration (audited, idempotent, honest notFound), class_subjects-derived assignments, PUBLISHED-entries-only timetable observers, and honest redirects for the legacy write paths. This was T-047's "last high-value mock-backed slot" — the owner's report unblocked the ADR decision.
+4. **Migration 0113** (ACAD-508 + SCHED-106) — the Algerian national curriculum catalog: 14 identity matières (Arabic/French/English names), 127 per-level context configurations for the current year × all 14 levels × 'general' (the OFFICIAL BEM scale at 4AM: Arabe 5, Maths 4, PC 2, SVT 2, HG 2, FR 3, EN 2, ISL 2 — moyenne /22; standard editable defaults elsewhere), the academic_years.code backfill (the 0023 seed never set it — a crash path for `year.code.slice` consumers), and `v_timetable_published` (the parent-portal projection). The TS mirror (`algerian-curriculum.ts`) pins the catalog with migration-parity tests.
+5. **The website timetable** (SCHED-106) — `usePublishedTimetable` + `TimetableView` (the Algerian week Sun→Thu; periods derived from the published rows' minutes; subject + teacher + room + the double badge; honest empty states), the AppView + desktop-rail + Academic-header entries, 14 i18n keys × fr/ar/en.
+6. **Migration 0112 DDL recovery** — the live chain had '0112' REGISTERED while neither FK existed (a false registration; root cause unidentified — likely an interrupted run between sessions). The idempotent body re-ran atomically with the 0113 apply; the smoke flipped P2 400→200. Lesson pinned as AGENTS.md §15 rule 45.
+
+### Residuals / follow-ups
+
+- The per-filière BAC coefficients at 2AS/3AS (direction rows beyond 'general') are an owner-configurable refinement through the SubjectConfigurationsPanel — data, not code.
+- Tamazight is identity-only in the catalog (configured where the school teaches it, via the panel).
+- The 0112 false-registration ROOT CAUSE is unidentified (the recovery + the verification discipline are the guard); any future apply must verify catalog state, not trust the version table.
+- The teacher-registration flow needs real personnel first (the live personnel table currently holds only soft-deleted T-400 test residue — the owner creates real staff via the Personnel module).
+
+### Dependencies
+
+- T-404 (the canonical timetable the portal now reads; the published-only RLS from 0109/0110).
+- ADR-018 (the identity-vs-context subject architecture the catalog seeds).

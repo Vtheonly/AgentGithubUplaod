@@ -1738,7 +1738,10 @@ function mapAcademicLevelRow(row: Record<string, any>): AcademicLevelModel {
     tenantId: row.tenant_id,
     cycle: row.cycle,
     gradeCode: row.grade_code,
-    labelFr: row.label_fr,
+    // The 0023 seed populates year_label; label_fr stays NULL on live rows
+    // (T-407: this repository was dead code until the academicLevels slot
+    // was wired, so the null had never been exercised).
+    labelFr: row.label_fr ?? row.year_label,
     labelAr: row.label_ar,
     yearNumber: row.year_number,
     sortOrder: row.sort_order,

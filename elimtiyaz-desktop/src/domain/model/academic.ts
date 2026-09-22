@@ -60,7 +60,13 @@ export interface Subject {
   readonly code: string;
   readonly name: string;
   readonly nameAr: string | null;
-  readonly cycle: AcademicCycle;
+  /**
+   * T-407 (ADR-018): NULL on catalog IDENTITY rows — the subject is
+   * configured per level/year/direction via subject_configurations; the
+   * legacy cycle column is context, not identity, and is NOT authoritative
+   * once a configuration row exists.
+   */
+  readonly cycle: AcademicCycle | null;
   readonly level: AcademicLevel;
   readonly coefficient: number;
   readonly passingGrade: number;

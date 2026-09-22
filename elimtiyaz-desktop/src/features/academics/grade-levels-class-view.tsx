@@ -38,6 +38,7 @@ import { useObservable } from "../../shared/hooks/use-observable";
 import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
+import { useSupabase } from "../../infrastructure/supabase/supabase-client";
 import {
   GRADE_LEVELS,
   GRADE_LEVEL_LABELS_FR,
@@ -375,9 +376,46 @@ function CreateClassModal({
     const teacher = personnel.find((p) => p.id === teacherId);
     const code = `CLS-${gradeCode.toUpperCase()}-${section.replace(/\s+/g, "").toUpperCase()}-${Date.now().toString(36).slice(-3)}`;
 
+    // T-407 (ACAD-506): resolve the REAL academic_levels uuid for the grade.
+    // BEFORE this the payload faked `academicLevelId: \`al-${gradeCode}\`` — a
+    // mock-era string that the live uuid column rejects (22P02 → HTTP 400,
+    // the owner's console report). Fail loud when the catalog has no row for
+    // the grade — never send a fabricated id.
+    const levelResult = await repos.academicLevels.getByGradeCode(gradeCode);
+    if (!levelResult.ok || !levelResult.value) {
+      setAlert({
+        tone: "error",
+        title: "Niveau introuvable",
+        description:
+          levelResult.ok
+            ? `Le catalogue academic_levels n'a pas de ligne pour le code « ${gradeCode} » — vérifiez la migration du catalogue académique.`
+            : levelResult.error.userMessage,
+      });
+      setSubmitting(false);
+      return;
+    }
+    // Same defect class: the year hook falls back to the mock-era
+    // "ay-2025-2026" id when no year is flagged current — never send it to
+    // the live uuid column (mock mode keeps its own id convention).
+    if (
+      useSupabase &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        currentYear.id,
+      )
+    ) {
+      setAlert({
+        tone: "error",
+        title: "Année scolaire introuvable",
+        description:
+          "Aucune année scolaire active (is_current) n'existe — créez ou activez une année dans Paramètres → Années scolaires avant de créer une classe.",
+      });
+      setSubmitting(false);
+      return;
+    }
+
     const result = await repos.classes.createClass({
       academicYearId: currentYear.id,
-      academicLevelId: `al-${gradeCode}`,
+      academicLevelId: levelResult.value.id,
       code,
       name: derivedName,
       gradeCode,
