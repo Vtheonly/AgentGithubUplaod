@@ -4181,3 +4181,59 @@ The owner's live console reports decoded into five concrete defects in the acade
 
 - T-404 (the canonical timetable the portal now reads; the published-only RLS from 0109/0110).
 - ADR-018 (the identity-vs-context subject architecture the catalog seeds).
+
+
+## T-409 — Class-First Timetable Presentation & Real-Time Generation Progress — OPEN (P0)
+
+**Registered:** 2026-09-22  
+**Problem:** SCHED-111  
+**Related:** T-404, ADR-020
+
+### Owner-reported defect
+
+The timetable must be presented **per class**, not as one flattened grid containing lessons from multiple classes. A class timetable must let staff select a class and answer: **what will this class study, at which period/day, under which teacher, and in which room**.
+
+The current UI is labeled “Par classe”, but it does not expose a class selector. The class view receives the complete timetable and the renderer keys cells only by `day + periodIndex`, so entries belonging to different classes collide and overwrite each other.
+
+### Required outcome
+
+- Make the primary “Emploi du temps” workflow class-first.
+- Add a mandatory class selector for the primary schedule.
+- Render only the selected class's canonical `timetable_entries`.
+- Show subject + teacher + room in every lesson cell where available.
+- Never flatten multiple classes into one `day × period` cell.
+- Keep teacher and room views as secondary projections of the SAME canonical timetable data.
+
+### Real-time generation progress
+
+When the user starts generation, show a real progress surface instead of only a spinner.
+
+The progress must be calculated from actual solver work:
+
+`progressPercent = round(processedWorkUnits / totalWorkUnits * 100)`
+
+and updated during the real generation process. Do not simulate progress with a timer.
+
+Show final timetable coverage separately:
+
+`coveragePercent = round(placedPeriods / requiredPeriods * 100)`
+
+The UI must distinguish computation progress from final schedule coverage.
+
+### Architectural requirement
+
+The current `TimetableSolver.solve(problem)` adapter exposes only the final solution. T-409 must introduce a solver-agnostic progress mechanism without leaking greedy-solver implementation details into the UI. The runtime must remain responsive enough for progress updates to visibly render.
+
+### Acceptance
+
+- 3+ classes with overlapping periods render as independent class timetables with zero cross-class overwrites.
+- The selected class is explicit and visible.
+- Subject, teacher, and room are readable in each lesson.
+- Generation shows live, evidence-based progress.
+- Final coverage is separate from generation progress.
+- Regression tests cover the class collision and progress calculation.
+- No timetable business rules or canonical storage are duplicated.
+
+**Full bug report:** `docs/recovery/t-409-timetable-class-first.md`
+
+**Left:** implementation, regression coverage, generation-progress verification, and owner UI testing against the FAKE timetable dataset from T-408.
