@@ -128,3 +128,60 @@ The owner supplied the following requested coverage; it is a reference dataset f
 ## Completion artifact
 
 At implementation closeout, this document must contain the exact tests, live verification matrix, commit references, migration/RLS evidence when applicable, cross-platform results, and any deliberate residuals.
+---
+
+## Implementation record — the 90th session (2026-09-22): the E/F workstreams completed
+
+The 89th session delivered the creation-integrity core (ACAD-506/507/508, SCHED-105/106 — see `t-408-live-verification.md`). This session audited that implementation against the registration's full rule set and completed the two workstreams that remained: **E (remove fake academic data and synthetic identifiers everywhere)** and **F (the module/subject/matière census)**.
+
+### E. The synthetic academic-YEAR layer purged (ACAD-509)
+
+The 89th session closed the al-`<gradeCode>` uuid violation but the YEAR context kept its own synthetic layer (the full inventory is in the problem-registry ACAD-509 entry):
+
+- `useCurrentAcademicYear` fabricated `id: "ay-2025-2026"` / `code: "2025-2026"` whenever no year was flagged current — the fake id flowed into every year-scoped creation payload.
+- The class dialog carried the stale literal `academicYear: "2025-2026"` (workstream A's "remove stale literal-year payload assumptions" — now done).
+- The grade-entry payload fed the fake year to the PERSISTED `assessments.academic_year` column.
+- `mapSubjectRow` fabricated `academicYearId: "ay-2025-2026"` onto every subject row (the table has NO such column — ADR-018), which silently emptied the academic-year drawer's subject lists in Supabase mode; the drawer now derives from `subject_configurations` (the contextual layer).
+- The dashboard's hardcoded `AVAILABLE_ACADEMIC_YEARS` four-year selector (fake academic-record data — the "audit selectors/dropdowns/defaults/dashboards" item) now derives from `repos.academicYears.observeAll()` with the CURRENT year as default.
+
+Every year-scoped creation surface (class, teacher, club, subject-config, psychology, orthophonie, timetable) now guards the missing-current-year case with a clean « Aucune année scolaire active » error BEFORE building a payload; read surfaces render their honest empty state. The purge is pinned by `src/tests/features/t-408-synthetic-year-purge.test.ts` (8 source guards).
+
+### F. The module / subject / matière census (one canonical concept — CONFIRMED, no parallel model exists)
+
+Census performed across every platform and surface the registration names; **`Subject` (the `subjects` table) is the ONE canonical identity; `subject_configurations` is the ONE contextual layer; no separate module/matière ID, repository, table, seed list, or business rule exists anywhere**:
+
+| Platform | Subject identity | Context layer | Module/matière entity? | Synthetic academic IDs in production paths? |
+|---|---|---|---|---|
+| Desktop | `domain/model/academic.ts` `Subject` (UI label « Matière ») | `SubjectConfiguration` + `resolveSubjectConfiguration` (T-345/ADR-018) | NONE — "module" appears only in the software sense (i18n "Module en cours de développement", "module thérapie") | PURGED (ACAD-509; the mock-mode store keeps its `al-*`/`ay-*`/`sub-*` seeds behind the `VITE_USE_SUPABASE=false` dev boundary — unreachable from production wiring) |
+| Supabase | `public.subjects` (0004 + 0029 + 0114 catalog: 14 identities, cycle NULL) | `public.subject_configurations` (0094 + 0114: 127 rows) | NONE — `rg "create table.*module"` over the whole chain: zero hits | NONE — uuid PKs/FKs only; 0113's FK census green |
+| Android | `domain/model/Subject` + `LocalSubjectRepository` (T-348 MATIERE-500 mirror) | `SubjectConfig.kt` mirror (ADR-018) | NONE — "module" hits are Hilt DI modules (`SupabaseModule`, `RepositoryModule`, `DatabaseModule`) | NONE academic; one DISPLAY residual (BillingBreakdown's year LABEL fallback — DATA-022, registered) |
+| Website | `src/lib/canonical/model/academic.ts` `Subject` (the canonical port) | `src/lib/canonical/subject-config.ts` | NONE | NONE |
+| grades | `GradeEntryInput.subjectId` → subjects.id; coefficient snapshots from the resolver | `resolveSubjectConfiguration` (the ONE source) | — | — |
+| timetable | `timetable_entries.subject_id` → subjects.id (0109); curriculum hours from `class_subjects` | — | — | — |
+| class-subject assignment | `class_subjects.subject_id` → subjects.id (0004, FK'd 0113) | per-class coefficient/weekly-hours | — | — |
+| imports/exports | the Excel importer's academic columns resolve through the same tables | — | — | — |
+| reports | bulletins/ledger derivations read `Subject` + configurations | — | — | — |
+| curriculum provisioning | 0114 seeds `subjects` identities + `subject_configurations` contexts (idempotent, French/Arabic, the OFFICIAL BEM scale pinned) | — | — | — |
+
+The production provider-wiring census (T-408 rule E): in Supabase mode EVERY academic slot is overridden — academicYears, academicLevels, classes, subjects, grades, attendance, homework, promotion, classPlacement, timetable, teachers (the 89th session's SupabaseTeacherRepository). The mock layer is reachable ONLY through the explicit `VITE_USE_SUPABASE=false` development gate (and the provider THROWS rather than falling back when Supabase is configured-but-broken), so mock seeds cannot back a production success path.
+
+### The 90th-session verification evidence
+
+- **Desktop gates:** `tsc --noEmit` 0 errors · eslint 0 errors · FULL vitest **3749 passed / 21 failed / 5 skipped** — the 21 = the byte-identical documented baseline (10 files: the parallel agent's dashboard/analytics/financial/vault zone, attributed before this session's work began) · the new purge guards 8/8 · the 89th session's t-408 suite still 18/18 · academics features 39/39 · dashboard suites 128 pass + the 3 pre-existing t-355 failures (unchanged).
+- **Live (the t-409-live-year-payload-probe.py matrix, 8/8 GREEN, zero residue):** admin sign-in → `getByGradeCode("1ap")` resolves the REAL uuid → `useCurrentAcademicYear` resolves the REAL current year (2026-2027) → the session tenant → class creation with the EXACT year-purged payload **HTTP 201 with both FKs the real uuids and the year embed `{"code":"2026-2027"}`** → read-back 1 row → the REMOVED synthetic year id `"ay-2025-2026"` REJECTED (400, `22P02 invalid input syntax for type uuid`) → cleanup 204. (Probe convention note: PostgREST returns the created representation only with `Prefer: return=representation` — a bare urllib POST gets 201 + an empty body; the header is in the script.)
+- **Live state census (unchanged, still green):** subjects 14 · subject_configurations 127 · academic_years missing code 0 · current years 1 · classes 0 (honest — none created) · active personnel 0 (the T-400 residue). `verify_t-408.sql` re-run GREEN. Migration chain parity: local 111 files = live 111 registered.
+- **Website:** FULL suite 648/648 · `tsc --noEmit` 0 · production build green (pulled to the 89th session's head including the portal timetable).
+- **Android:** NOT run this session (no JDK toolchain provisioned; my changes touch zero Android files and zero shared contracts — the year-id wire shapes are unchanged, only the fake values stopped reaching them). The Android leg of the Definition-of-Done remains the named gate for VERIFIED, along with the live teacher E2E against a REAL personnel row (the owner must register staff first — the live table holds only soft-deleted T-400 residue).
+
+### Residuals (honest)
+
+- The per-filière BAC coefficients at 2AS/3AS: owner-configurable via the SubjectConfigurationsPanel (data, not code) — the 89th session's residual, unchanged.
+- Tamazight: identity-only (configure where taught) — unchanged.
+- The teacher E2E with real personnel rows — blocked on the owner registering staff (live personnel = 0 active).
+- The Android equivalence run — blocked on the JDK/SDK toolchain provisioning (AGENTS.md §11 recipe).
+- DATA-021 (therapy/club preview tenant literal) and DATA-022 (Android billing year-label fallback) — registered, low-severity, out of academic scope.
+- The 0112 false-registration root cause remains unidentified (the §15.46a discipline is the guard) — unchanged from the 89th session.
+
+### Status
+
+T-408 remains **TESTED** (advanced by this session: the E/F workstreams complete, the umbrella ACAD-505 truth-synced in the problem registry). VERIFIED is gated on the Android equivalence run and the real-personnel teacher E2E named above.

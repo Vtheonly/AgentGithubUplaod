@@ -1,19 +1,21 @@
-# T-408 — Academic Setup Creation Integrity is the next repair task
+# Next Task — T-408's VERIFIED gates + the standing recommendation
 
-**T-408 / ACAD-505** is registered **READY / P0 Critical**. It covers the current academic setup failures as one contract: the class dialog fabricates academicLevelId instead of resolving the real UUID; teacher creation remains mock-backed in Supabase mode; and subject creation lacks a canonical validated curriculum catalogue/provisioning workflow.
+**T-408 is TESTED, not VERIFIED** — two named gates close it (both outside a code session's control):
 
-The implementation must fix all three together, not patch one modal in isolation. Read docs/recovery/t-408-academic-setup-creation.md, the ACAD-505 problem entry, the existing academic source-of-truth rules, T-313/ACAD-104 evidence, and the Android consumer contracts before coding.
+1. **The owner's real data setup** — the live personnel table holds only soft-deleted T-400 residue (0 active). The owner should create real personnel → register teachers (« Ajouter un enseignant » — the SupabaseTeacherRepository path) → assign class-subjects with weekly hours → generate + publish the timetable. The live teacher-creation E2E against a REAL row then flips T-408 to VERIFIED (the 89th session proved the policy path; the row-level proof needs real staff).
+2. **The Android equivalence run** — the 90th session's purge changed zero shared contracts, but the Definition-of-Done names the Android gate; provision the JDK/SDK per AGENTS.md §11 and run the suite + the financial equivalence harness.
 
-### Selection order
+### Selection order (updated by the 90th session)
 
-1. **T-408 / ACAD-505** — academic setup creation integrity.
-2. T-405 residuals — Android debt-aging mirror and DATA-020 reconciliation.
-3. T-401/T-402/T-403 remaining academic integration follow-ups.
-4. OPS-319 / BUSINESS-105 and the standing owner-gated verification work.
+1. **The owner-gated T-408 VERIFIED close-out** (the two items above — the teacher E2E can run the same session the owner registers staff).
+2. **DATA-021 / DATA-022** (the 90th session's registered discoveries: the therapy/club preview tenant literal; the Android billing year-label fallback — both low, both need their own small verified change).
+3. The per-filière BAC coefficients at 2AS/3AS (direction rows beyond 'general') — owner-configurable through the SubjectConfigurationsPanel; consider a follow-up migration seeding the official per-stream BAC scale.
+4. T-405 residuals — Android debt-aging mirror and DATA-020 reconciliation.
+5. OPS-319 / BUSINESS-105 and the standing owner-gated verification work (the §4 EXE acceptance pass, REALTIME-105, the parallel agent's 21-failure zone repair).
 
-### T-408 starting constraints
+### The standing T-408 completion constraints (preserved for the close-out agent)
 
-Do not reopen ACAD-104 as the class root cause without reproducing it. Do not synthesize UUIDs. Do not accept a mock teacher write as production success. Do not create a second subject identity store. Validate the requested Algerian curriculum reference against current official sources before production seeding. Re-check the live migration chain before any schema work.
+Do not reopen ACAD-104 as the class root cause without reproducing it. Do not synthesize UUIDs. Do not accept a mock teacher write as production success. Do not create a second subject identity store. Never claim VERIFIED without recorded evidence. Re-check the live migration chain before any schema work.
 
 ## 86th session (2026-09-22) — T-407 COMPLETE — VERIFIED: the UI/mouse-interaction suites of T-401/T-402/T-403 + ACAD-504 closed (migration 0112)
 
