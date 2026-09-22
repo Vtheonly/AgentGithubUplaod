@@ -4197,6 +4197,22 @@ The current UI is labeled “Par classe”, but it does not expose a class selec
 
 ### Required outcome
 
+### School-wide generation requirement
+
+The generation operation is **not** “generate a timetable for whichever class is currently selected.” It is a school-wide generation for the selected academic year.
+
+One generation run must attempt to schedule **every eligible class** with curriculum requirements and persist all successful class entries into the same generated timetable version.
+
+The UI then provides a class selector to inspect any individual class.
+
+Requirements:
+
+- Every eligible class must be included in the generation input.
+- Every eligible class must appear in the generated timetable version when its requirements are placeable.
+- If a class cannot be fully scheduled, it must remain represented in the generation result with explicit unplaced/violation reasons; it must never disappear silently.
+- Final generation statistics must expose school-wide totals and class-level coverage.
+- Tests must use at least three classes and prove that the generated version contains entries for each fixture class.
+
 - Make the primary “Emploi du temps” workflow class-first.
 - Add a mandatory class selector for the primary schedule.
 - Render only the selected class's canonical `timetable_entries`.
