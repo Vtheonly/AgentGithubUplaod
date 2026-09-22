@@ -4091,12 +4091,14 @@ Repair academic setup as one end-to-end persistence contract rather than patchin
 2. **Do not reopen ACAD-104 as the default diagnosis.** Verify the T-313 tenant stamp but diagnose the current failure from the actual current payload and live response.
 3. **Teacher creation must not remain mock-backed in Supabase mode.** First resolve whether the canonical model is a personnel-role/year-scoped projection or requires a dedicated persistent relation. Reuse personnel, class_subjects.teacher_id, role/scoping, audit, and timetable contracts before proposing a second teacher table. Any new schema decision requires an ADR.
 4. **Subjects are identity; curriculum is context.** Keep subjects as the subject identity layer and subject_configurations as the year × academic level × direction context. Do not replace this with a page-local curriculum array.
-5. **Curriculum data must be validated before seeding.** The owner supplied a detailed Algerian curriculum reference. Treat it as the requested dataset, not independently verified Ministry truth. Validate it against current official Ministry/programme sources and record the evidence before production seeding.
-6. **No fake success.** A successful UI toast is valid only after the actual canonical repository/backend write succeeds and the row can be retrieved after reload.
-7. **UI failure paths must settle.** Every creation path must clear loading/submitting state on success, validation failure, thrown error, and transport/database error, and show a useful user-facing message.
-8. **One canonical implementation.** Desktop, Android, and Website may have adapters, but must not carry conflicting class/teacher/subject/curriculum semantics.
-9. **Live verification is required for persistence/backend work.** Re-check the live migration chain before choosing any migration number. Never edit an applied migration.
-10. **Cross-platform consumer census is mandatory.** Search Desktop, Android, Website, Supabase SQL/RPCs, typed schemas, sync DTOs, imports/exports, history, timetable/class formation, and statistics before changing shared academic models.
+5. **Module / subject / matière are one canonical subject concept.** UI terminology may vary, but all three terms must resolve to the same persisted subject identity. Do not introduce parallel module/matière tables, IDs, repositories, seed lists, or business rules.
+6. **No fake academic data in production.** Remove fabricated classes, fake teachers, fake subjects/matières/modules, synthetic IDs, demo fallbacks, and mock/in-memory production paths. Test fixtures are test-only and must not be reachable from Supabase production wiring.
+7. **Curriculum data must be validated before seeding.** The owner supplied a detailed Algerian curriculum reference. Treat it as the requested dataset, not independently verified Ministry truth. Validate it against current official Ministry/programme sources and record the evidence before production seeding.
+8. **No fake success.** A successful UI toast is valid only after the actual canonical repository/backend write succeeds and the row can be retrieved after reload.
+9. **UI failure paths must settle.** Every creation path must clear loading/submitting state on success, validation failure, thrown error, and transport/database error, and show a useful user-facing message.
+10. **One canonical implementation.** Desktop, Android, and Website may have adapters, but must not carry conflicting class/teacher/subject/curriculum semantics.
+11. **Live verification is required for persistence/backend work.** Re-check the live migration chain before choosing any migration number. Never edit an applied migration.
+12. **Cross-platform consumer census is mandatory.** Search Desktop, Android, Website, Supabase SQL/RPCs, typed schemas, sync DTOs, imports/exports, history, timetable/class formation, and statistics before changing shared academic models.
 
 ### Required workstreams
 
