@@ -42,6 +42,7 @@ import { parentDisplayName } from "../../../domain/model/parent";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
 import { calculateAttendanceRate } from "../../../domain/model/academic";
 import { computeParentSummary } from "../../../domain/calc/ledger/balance";
+import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
 
 /** Hard cap on a batch — one validation card stays reviewable by a human. */
 const MAX_BATCH_PARENTS = 10;
@@ -333,7 +334,13 @@ export async function executeWorkflowTool(
       // The outstanding amount comes from the CANONICAL summary (the
       // same engine the financial UI uses — §15.16, never re-derived).
       const entries = repos.ledger.observeByParent(parentId).get();
-      const summary = computeParentSummary(entries, parentId, parentDisplayName(parent));
+      // DUP-007 (T-411): with the due-date map (overdue must not read 0).
+      const summary = computeParentSummary(
+        entries,
+        parentId,
+        parentDisplayName(parent),
+        buildOverdueDueDateMap(entries),
+      );
       const outstanding = summary.totalOutstanding;
       if (outstanding <= 0) {
         return JSON.stringify({

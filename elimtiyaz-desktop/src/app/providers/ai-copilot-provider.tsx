@@ -45,6 +45,7 @@ import { useAuth } from "./auth-provider";
 import { logger } from "../../core/logger";
 import { evaluateStudentTermPerformance } from "../../domain/calc/academics/gpa";
 import { computeParentSummary } from "../../domain/calc/ledger/balance";
+import { buildOverdueDueDateMap } from "../../domain/calc/ledger/overdue";
 import { parentDisplayName } from "../../domain/model/parent";
 import { studentDisplayName } from "../../domain/model/student";
 import { AGING_BUCKET_LABELS_FR } from "../../domain/model/payment";
@@ -390,7 +391,13 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
             const parent = repos.parents.observeById(parentId).get();
             if (!parent) throw new Error("Parent introuvable — les données ont changé depuis la génération.");
             const entries = repos.ledger.observeByParent(parentId).get();
-            const summary = computeParentSummary(entries, parentId, parentDisplayName(parent));
+            // DUP-007 (T-411): with the due-date map (overdue must not read 0).
+            const summary = computeParentSummary(
+              entries,
+              parentId,
+              parentDisplayName(parent),
+              buildOverdueDueDateMap(entries),
+            );
             if (summary.totalOutstanding <= 0) {
               throw new Error("Le solde dû est désormais nul — le plan n'est plus pertinent.");
             }

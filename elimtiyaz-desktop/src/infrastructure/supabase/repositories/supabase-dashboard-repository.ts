@@ -51,6 +51,17 @@ export class SupabaseDashboardRepository implements DashboardRepository {
    * Mirrors the mock's documented semantics ("the academic year
    * determines which installments to consider").
    */
+  /**
+   * DUP-007 (T-411, FA-15d): the CURRENT school year derived from the
+   * clock (September rollover) — the hardcoded "2025-2026" defaults kept
+   * answering with the previous year after rollover.
+   */
+  private currentAcademicYear(): string {
+    const now = new Date();
+    const start = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    return `${start}-${start + 1}`;
+  }
+
   private academicYearWindow(academicYear: string): { from: string; to: string } | null {
     const m = /^(\d{4})-(\d{4})$/.exec(academicYear);
     if (!m) return null;
@@ -59,7 +70,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
   }
 
   async kpis(): Promise<Result<DashboardKpi>> {
-    return this.kpisForRange("2025-2026");
+    return this.kpisForRange(this.currentAcademicYear());
   }
 
   async kpisForRange(academicYear: string, range?: DateRange): Promise<Result<DashboardKpi>> {
@@ -186,7 +197,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
   }
 
   async revenueLast12Months(): Promise<Result<RevenuePoint[]>> {
-    return this.revenueForRange("2025-2026");
+    return this.revenueForRange(this.currentAcademicYear());
   }
 
   async revenueForRange(academicYear: string, range?: DateRange): Promise<Result<RevenuePoint[]>> {
@@ -241,7 +252,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
   }
 
   async debtByAging(): Promise<Result<DebtByAgingBucket[]>> {
-    return this.debtByAgingForRange("2025-2026");
+    return this.debtByAgingForRange(this.currentAcademicYear());
   }
 
   async debtByAgingForRange(academicYear: string, range?: DateRange): Promise<Result<DebtByAgingBucket[]>> {

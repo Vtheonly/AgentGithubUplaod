@@ -3393,7 +3393,9 @@ function mapDebtAgingRow(row: DebtAgingRpcRow): DebtAgingAnalysis {
 
 export class SupabaseDebtRepository implements DebtRepository {
   private readonly summarySubject = new SubjectBehavior<import("../../../domain/model/payment").DebtSummary[]>([]);
-  private summarySeeded = false;
+  // DATA-026 (T-411): the one-shot `summarySeeded` flag is replaced by the
+  // TTL + focus freshness policy (the payments-cache pattern, T-034).
+  private readonly summaryFreshness = new CacheFreshness();
   private readonly profiles = new Map<string, SubjectBehavior<ParentFinancialProfile | null>>();
   // T-405 — cross-year debt aging (financial-rules §15; migration 0111 RPC).
   private readonly agingSubject = new SubjectBehavior<DebtAgingAnalysis[]>([]);
@@ -3440,8 +3442,13 @@ export class SupabaseDebtRepository implements DebtRepository {
   }
 
   private async seedSummary(): Promise<void> {
-    if (this.summarySeeded) return;
-    this.summarySeeded = true;
+    // DATA-026 (T-411): the raw seed is no longer a one-shot — the TTL +
+    // focus freshness policy (the payments-cache pattern, T-034) lets the
+    // Créances tab track financial mutations even before the realtime
+    // bridge arms. The studentCount is now the REAL per-parent count
+    // (was hardcoded 0).
+    if (!this.summaryFreshness.shouldReseed()) return;
+    this.summaryFreshness.markSeeded();
     try {
       const tenantId = requireTenantId();
       const { data, error } = await this.client
@@ -3500,13 +3507,24 @@ export class SupabaseDebtRepository implements DebtRepository {
           ];
         }),
       );
+      // DATA-026: the REAL per-parent student count (was hardcoded 0 —
+      // every live-mode Créances row showed "0 enfant(s)").
+      const { data: studentRows, error: studentErr } = await this.client
+        .from("students")
+        .select("parent_id")
+        .eq("tenant_id", tenantId);
+      if (studentErr) throw studentErr;
+      const studentsPerParent = new Map<string, number>();
+      for (const r of (studentRows ?? []) as { parent_id: string }[]) {
+        studentsPerParent.set(r.parent_id, (studentsPerParent.get(r.parent_id) ?? 0) + 1);
+      }
       const summaries = [...byParent.entries()]
         .map(([parentId, v]) => ({
           id: `debt-${parentId}`,
           parentId,
           parentName: names.get(parentId)?.name ?? parentId,
           parentPhone: names.get(parentId)?.phone ?? "",
-          studentCount: 0,
+          studentCount: studentsPerParent.get(parentId) ?? 0,
           outstandingAmount: v.outstanding,
           daysOverdue: v.days,
           bucket: agingBucketFromDays(v.days),
@@ -3843,8 +3861,29 @@ export class SupabaseDebtRepository implements DebtRepository {
         daysOverdue: Math.max(prev?.daysOverdue ?? 0, days),
       });
     }
+    // BUSINESS-108 (T-411): read the REAL restriction flag — the hardcoded
+    // `restricted: false` made the consumer's "already restricted are
+    // skipped" branch dead code and re-restricted/re-audited every
+    // matching debtor on every run while the confirm dialog promised
+    // otherwise.
+    const debtorIds = [...byParent.keys()];
+    const restrictedSet = new Set<string>();
+    if (debtorIds.length > 0) {
+      const { data: restrictedRows, error: restrictedErr } = await this.client
+        .from("parents")
+        .select("id")
+        .in("id", debtorIds)
+        .eq("is_financially_restricted", true);
+      if (restrictedErr) {
+        console.warn("[SupabaseDebt] collectDebtors parents lookup failed:", restrictedErr.message);
+      } else {
+        for (const r of (restrictedRows ?? []) as { id: string }[]) {
+          restrictedSet.add(r.id);
+        }
+      }
+    }
     return [...byParent.entries()]
       .filter(([, v]) => v.daysOverdue > minDaysOverdue)
-      .map(([parentId, v]) => ({ parentId, ...v, restricted: false }));
+      .map(([parentId, v]) => ({ parentId, ...v, restricted: restrictedSet.has(parentId) }));
   }
 }

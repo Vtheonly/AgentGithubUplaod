@@ -158,13 +158,20 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
       // up-front — the tracked set drives BOTH alert creation AND stale
       // resolution (an installment with nothing left to collect must not
       // keep its alert alive).
+      // DATA-033 (T-411): INV-4 — the remaining includes amount_pending
+      // (an uncleared cheque on the tranche reduces what the parent owes
+      // for alerting purposes; the old due−paid form overstated overdue).
       const trackedOverdue = (overdueRows ?? []).filter((r) => {
         const row = r as unknown as OverdueInstallmentRow;
-        return Number(row.amount_due) - Number(row.amount_paid) > 0.001;
+        return (
+          Number(row.amount_due) - Number(row.amount_paid) - Number(row.amount_pending ?? 0) > 0.001
+        );
       });
       const trackedUpcoming = (upcomingRows ?? []).filter((r) => {
         const row = r as unknown as OverdueInstallmentRow;
-        return Number(row.amount_due) - Number(row.amount_paid) > 0.001;
+        return (
+          Number(row.amount_due) - Number(row.amount_paid) - Number(row.amount_pending ?? 0) > 0.001
+        );
       });
       const trackedIds = new Set(
         [...trackedOverdue, ...trackedUpcoming].map(
@@ -202,8 +209,9 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
         const priority: AlertPriority = daysOverdue > 90 ? "urgent" : daysOverdue > 30 ? "high" : "medium";
         const parent = parentMap.get(row.parent_id);
         const parentName = parent ? formatParentName(parent) : row.parent_id;
-        const remaining = Math.max(0, Number(row.amount_due) - Number(row.amount_paid));
-        if (remaining <= 0) continue; // fully paid despite status
+        // DATA-033 (T-411): INV-4 — includes amount_pending.
+        const remaining = Math.max(0, Number(row.amount_due) - Number(row.amount_paid) - Number(row.amount_pending ?? 0));
+        if (remaining <= 0) continue; // fully paid (or fully covered by uncleared funds) despite status
         const id = `ntf-overdue-${row.id}-${nowMs}`;
         const domain: AppNotification = {
           id,
@@ -248,7 +256,8 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
         const daysUntil = Math.ceil((new Date(row.due_date).getTime() - nowMs) / 86_400_000);
         const parent = parentMap.get(row.parent_id);
         const parentName = parent ? formatParentName(parent) : row.parent_id;
-        const remaining = Math.max(0, Number(row.amount_due) - Number(row.amount_paid));
+        // DATA-033 (T-411): INV-4 — includes amount_pending.
+        const remaining = Math.max(0, Number(row.amount_due) - Number(row.amount_paid) - Number(row.amount_pending ?? 0));
         if (remaining <= 0) continue;
         const id = `ntf-upcoming-${row.id}-${nowMs}`;
         const domain: AppNotification = {

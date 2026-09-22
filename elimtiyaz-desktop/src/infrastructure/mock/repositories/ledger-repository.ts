@@ -20,6 +20,7 @@ import type {
 import {
   computeAccountBalance,
   computeParentSummary,
+  buildOverdueDueDateMap,
   createReversalEntry,
 } from "../../../domain/calc/ledger";
 import {
@@ -106,7 +107,10 @@ export class MockLedgerRepository implements LedgerRepository {
     const parent = store.parents.find((p) => p.id === parentId);
     const parentName = parent ? parentDisplayName(parent) : "";
     const entries = store.ledger.filter((e) => e.parentId === parentId);
-    return Ok(computeParentSummary(entries, parentId, parentName));
+    // DATA-037 (T-411): WITH the overdue due-date map — the mock twin
+    // returned totalOverdue: 0 while the Supabase twin returned the true
+    // value (same contract, divergent semantics).
+    return Ok(computeParentSummary(entries, parentId, parentName, buildOverdueDueDateMap(entries)));
   }
 
   /**

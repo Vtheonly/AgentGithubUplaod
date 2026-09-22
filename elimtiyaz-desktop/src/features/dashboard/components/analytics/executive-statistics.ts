@@ -37,6 +37,7 @@
  */
 
 import type { Installment, Payment, PaymentCategory } from "../../../../domain/model/payment";
+import { installmentRemaining as canonicalInstallmentRemaining } from "../../../../domain/calc/payment/queries";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Student } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
@@ -75,14 +76,16 @@ export function daysBetweenFloor(earlierIso: string, laterEpochMs: number): numb
 }
 
 /**
- * INV-4 canonical per-installment remaining amount (T-284/T-285): the
- * amount the family still owes on this tranche, 0 once satisfied. Uncleared
- * non-cash funds (amountPending) do NOT reduce the remaining balance until
- * the payment clears.
+ * INV-4 per-installment remaining (T-284/T-285) — DUP-007 fix (T-411):
+ * a DISPLAY-ROUNDING delegation to the canonical helper
+ * (`calc/payment/queries.installmentRemaining`), never a second
+ * implementation. The old local twin added a `status === "paid"`
+ * short-circuit (status derives FROM the amounts per INV-4, not the other
+ * way) and its own Math.max/round — the corpus is unaffected (integer
+ * fixtures), but drift is now impossible by construction.
  */
 export function installmentRemaining(i: Pick<Installment, "amountDue" | "amountPaid" | "amountPending" | "status">): number {
-  if (i.status === "paid") return 0;
-  return Math.max(0, Math.round(i.amountDue - i.amountPaid - i.amountPending));
+  return Math.round(canonicalInstallmentRemaining(i as Installment));
 }
 
 /** Round-half-up percentage share (the PARITY-001 pinned convention). */

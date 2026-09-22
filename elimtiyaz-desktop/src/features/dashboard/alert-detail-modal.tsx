@@ -34,6 +34,7 @@ import { ROLE_LABELS_FR } from "../../core/rbac/roles";
 import { UnifiedPaymentModal } from "../../features/financials/unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
+import { installmentRemaining } from "../../domain/calc/payment/queries";
 
 export interface AlertDetailModalProps {
   alert: AppNotification | null;
@@ -91,7 +92,7 @@ export function AlertDetailModal({
               kind: "expense" as const,
               label: e.title,
               subtitle: e.requestCode,
-              route: `/financials?expense=${e.id}`,
+              route: `/financials?expenseId=${e.id}`,
             }
           : null;
       }
@@ -111,7 +112,7 @@ export function AlertDetailModal({
           kind: "installment" as const,
           label: found.installment.label,
           subtitle: `${found.installment.amountDue.toLocaleString("fr-FR")} DZD`,
-          route: `/financials?installment=${found.installment.id}`,
+          route: `/financials?installmentId=${found.installment.id}`,
           installment: found.installment,
           parent: found.parent,
         };
@@ -140,7 +141,10 @@ export function AlertDetailModal({
     ? (() => {
         const inst = (linkedEntity as any).installment;
         const parent = (linkedEntity as any).parent;
-        const remaining = Math.max(0, inst.amountDue - inst.amountPaid);
+        // DATA-034 (T-411, FA-13): the canonical INV-4 remaining — the old
+        // `due − paid` form over-prescribed when an uncleared cheque sat on
+        // the tranche (same class as the parent-detail drawer's fix).
+        const remaining = installmentRemaining(inst);
         const isOverdue = inst.status === "overdue";
         const overdueDays = isOverdue
           ? Math.max(

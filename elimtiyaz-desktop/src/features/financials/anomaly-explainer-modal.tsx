@@ -44,31 +44,12 @@ import {
   type AnomalySignal,
 } from "../../domain/model/ai";
 import type { Expense } from "../../domain/model/expense";
+import { deriveExpenseAnomalySignals } from "../../domain/calc/expense/anomaly-signals";
 
 /* ------------------------------------------------------------------ */
-/*  Mock signal builder — 3 signals per plan §11.07                    */
+/*  Signal derivation — T-411 (DATA-027): the REAL signals from the    */
+/*  expenses stream (canonical module, never fabricated constants).    */
 /* ------------------------------------------------------------------ */
-
-function buildMockSignals(expense: Expense): AnomalySignal[] {
-  return [
-    {
-      type: "duplicate",
-      description:
-        "Une dépense identique a été soumise par un autre membre du personnel il y a 2 heures.",
-      severity: "high",
-    },
-    {
-      type: "new_vendor",
-      description: `Le bénéficiaire « ${expense.payee} » n'a aucun historique de paiement dans l'établissement.`,
-      severity: "medium",
-    },
-    {
-      type: "budget_overrun",
-      description: `Montant 3× supérieur à la moyenne mensuelle de la catégorie « ${expense.category} ».`,
-      severity: "medium",
-    },
-  ];
-}
 
 function buildUserPrompt(expense: Expense, signals: AnomalySignal[]): string {
   const lines = signals.map(
@@ -79,9 +60,14 @@ function buildUserPrompt(expense: Expense, signals: AnomalySignal[]): string {
     `Bénéficiaire: ${expense.payee}\n` +
     `Catégorie: ${expense.category}\n` +
     `Montant: ${expense.amount} DA\n` +
-    `Signaux détectés:\n${lines.join("\n")}\n\n` +
-    `Rédige une synthèse courte (3-4 phrases) expliquant pourquoi cette dépense est ` +
-    `potentiellement anormale, et une recommandation actionnable pour l'approbateur. ` +
+    (signals.length > 0
+      ? `Signaux détectés:\n${lines.join("\n")}\n\n`
+      : `Aucun signal automatique détecté sur cette dépense.\n\n`) +
+    `Rédige une synthèse courte (3-4 phrases) du profil de risque de cette dépense ` +
+    (signals.length > 0
+      ? `expliquant pourquoi elle est potentiellement anormale, `
+      : `(contexte, bénéficiaire, montant vs catégorie), `) +
+    `et une recommandation actionnable pour l'approbateur. ` +
     `Termine par la mention: "L'IA fournit un signal, l'humain décide toujours."`
   );
 }
@@ -107,6 +93,10 @@ export function AnomalyExplainerModal({
     () => repos.expenses.observeById(expenseId ?? ""),
     [expenseId],
   );
+  // DATA-027 (T-411): the signals derive from the REAL expenses stream —
+  // duplicates / vendor history / category averages — never the fabricated
+  // constants the mock builder shipped for every expense.
+  const allExpenses = useObservable(() => repos.expenses.observe(), []);
 
   const [explanation, setExplanation] = useState<AnomalyExplanation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -116,7 +106,7 @@ export function AnomalyExplainerModal({
   // Reset state when the modal opens for a fresh expense.
   useEffect(() => {
     if (open && expense) {
-      const signals = buildMockSignals(expense);
+      const signals = deriveExpenseAnomalySignals(expense, allExpenses);
       setExplanation({
         expenseId: expense.id,
         signals,
@@ -126,7 +116,7 @@ export function AnomalyExplainerModal({
       void generateSummary(expense, signals);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, expenseId]);
+  }, [open, expenseId]); // (allExpenses read via closure — refreshed on open)
 
   async function generateSummary(exp: Expense, signals: AnomalySignal[]) {
     if (!session) return;
@@ -204,7 +194,8 @@ export function AnomalyExplainerModal({
 
   if (!open || !expense) return null;
 
-  const signals = explanation?.signals ?? buildMockSignals(expense);
+  const signals: readonly AnomalySignal[] =
+    explanation?.signals ?? deriveExpenseAnomalySignals(expense, allExpenses);
 
   return (
     <>
@@ -228,6 +219,14 @@ export function AnomalyExplainerModal({
             <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
               {t("ai.anomaly.signals")}
             </p>
+            {signals.length === 0 && (
+              <li className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                Aucun signal automatique détecté sur cette dépense (doublon à
+                48&nbsp;h, bénéficiaire sans historique, montant ≥ 3× la moyenne
+                de la catégorie). L'analyse IA ci-dessous reste disponible comme
+                aide à la décision.
+              </li>
+            )}
             <ul className="space-y-2">
               {signals.map((sig, i) => (
                 <li key={i} className="rounded-md border border-border p-3 space-y-1.5">

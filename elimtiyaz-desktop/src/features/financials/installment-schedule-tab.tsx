@@ -222,13 +222,22 @@ function TrancheWaveHeader({ waves }: { waves: TrancheWave[] }) {
   );
 }
 
-export function InstallmentScheduleTab() {
+export function InstallmentScheduleTab({
+  initialCategory,
+}: {
+  /**
+   * T-411 (audit §H.3): the CrossServiceMatrix row-click target — the
+   * tab opens with this category pre-filtered instead of ignoring the
+   * click's context.
+   */
+  initialCategory?: string | null;
+} = {}) {
   const repos = useRepositories();
   const { session } = useAuth();
   const toast = useToast();
   const parents = useObservable(() => repos.parents.observe(), []);
   const [rows, setRows] = useState<Row[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>(initialCategory ?? "all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [collectFor, setCollectFor] = useState<Row | null>(null);
   const [editDueDateFor, setEditDueDateFor] = useState<Row | null>(null);

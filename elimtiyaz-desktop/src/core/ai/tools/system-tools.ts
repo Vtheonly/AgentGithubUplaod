@@ -52,6 +52,7 @@
 import type { Repositories } from "../../../app/providers/repository-provider";
 import type { ToolDefinition, ActionProposal } from "../agent-types";
 import { computeParentSummary } from "../../../domain/calc/ledger/balance";
+import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
 import { currentTermWindow } from "../../../domain/calc/academics/terms";
 import { calculateAttendanceRate } from "../../../domain/model/academic";
@@ -431,7 +432,14 @@ export async function executeCoreTool(
         const parentName = parentDisplayName(parent);
 
         // Canonical engine — the SAME computation the financial UI uses.
-        const summary = computeParentSummary(entries, parentId, parentName);
+        // DUP-007 (T-411): WITH the overdue due-date map — omitting it
+        // silently reported total_overdue as 0 (WEAK-007 class).
+        const summary = computeParentSummary(
+          entries,
+          parentId,
+          parentName,
+          buildOverdueDueDateMap(entries),
+        );
         return JSON.stringify({
           parent_name: parentName,
           parent_code: parent.code,
@@ -535,8 +543,11 @@ export async function executeCoreTool(
           .sort((a, b) => b.collectedAt.localeCompare(a.collectedAt))
           .slice(0, 15);
 
+        // DUP-007 (T-411, FA-15c): status-strict PAID only — the canonical
+        // `sumPaidPayments` semantics. The old form included
+        // pending_clearance (uncleared funds) in the "paid" total.
         const totalPaid = payments
-          .filter((p) => p.status === "paid" || p.status === "pending_clearance")
+          .filter((p) => p.status === "paid")
           .reduce((s, p) => s + p.amount, 0);
 
         return JSON.stringify({

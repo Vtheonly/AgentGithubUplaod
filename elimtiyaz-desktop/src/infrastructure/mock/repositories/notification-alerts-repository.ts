@@ -168,7 +168,7 @@ export class MockOverdueAlertGenerator implements OverdueAlertGenerator {
       const priority: AlertPriority = daysOverdue > 90 ? "urgent" : daysOverdue > 30 ? "high" : "medium";
       const parent = store.parents.find((p) => p.id === ins.parentId);
       const parentName = parent ? parentDisplayName(parent) : ins.parentId;
-      const remaining = Math.max(0, ins.amountDue - ins.amountPaid);
+      const remaining = Math.max(0, ins.amountDue - ins.amountPaid - (ins.amountPending ?? 0)); // DATA-033: INV-4
       const notification: AppNotification = {
         id: `ntf-overdue-${ins.id}-${Date.now()}`,
         title: `Tranche en retard — ${parentName}`,
@@ -212,7 +212,7 @@ export class MockOverdueAlertGenerator implements OverdueAlertGenerator {
       const daysUntil = Math.ceil((new Date(ins.dueDate).getTime() - nowMs) / 86_400_000);
       const parent = store.parents.find((p) => p.id === ins.parentId);
       const parentName = parent ? parentDisplayName(parent) : ins.parentId;
-      const remaining = Math.max(0, ins.amountDue - ins.amountPaid);
+      const remaining = Math.max(0, ins.amountDue - ins.amountPaid - (ins.amountPending ?? 0)); // DATA-033: INV-4
       const notification: AppNotification = {
         id: `ntf-upcoming-${ins.id}-${Date.now()}`,
         title: `Échéance proche — ${parentName}`,

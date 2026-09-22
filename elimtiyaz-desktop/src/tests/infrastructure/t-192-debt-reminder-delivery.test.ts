@@ -77,6 +77,18 @@ function makeFakeClient(opts: FakeOpts): { client: unknown; rpcCalls: Array<{ fn
       return { data: null, error: null };
     }),
     from: vi.fn((table: string) => {
+      if (table === "parents") {
+        // T-411 (BUSINESS-108): collectDebtors now reads the REAL
+        // is_financially_restricted flag — no debtor is pre-restricted
+        // in this fixture.
+        return {
+          select: () => ({
+            in: () => ({
+              eq: async () => ({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
       if (table !== "installments") throw new Error(`unexpected table ${table}`);
       return {
         select: () => ({

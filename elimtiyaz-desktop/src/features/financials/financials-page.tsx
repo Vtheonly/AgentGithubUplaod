@@ -139,18 +139,39 @@ export function FinancialsPage() {
   // had no inspection UI, and the global-search deep link
   // `/financials?paymentId=…` was ignored entirely.
   const [paymentDetailId, setPaymentDetailId] = useState<string | null>(null);
+  // DATA-036 (T-411): the CrossServiceMatrix row-click target — the
+  // installments tab opens with this category pre-filtered.
+  const [installmentCategoryFilter, setInstallmentCategoryFilter] = useState<string | null>(null);
 
   // FIX (deep link): `/financials?paymentId=…` opens the payment drawer on
   // the payments tab, then cleans the param.
+  // DATA-036 (T-411): `?expenseId=…` (global search + alert detail) opens
+  // the expense drawer on the expenses tab; `?installmentId=…` (alert
+  // detail) routes to the installments tab. The emitters were normalized
+  // to these two spellings — the old `?expense=` / `?installment=` forms
+  // silently landed on the default tab (audit FA-16).
   useEffect(() => {
     const paymentId = searchParams.get("paymentId");
+    const expenseId = searchParams.get("expenseId");
+    const installmentId = searchParams.get("installmentId");
     if (paymentId) {
       setTab("payments");
       setPaymentDetailId(paymentId);
+    }
+    if (expenseId) {
+      setTab("expenses");
+      setExpenseDetailId(expenseId);
+    }
+    if (installmentId) {
+      setTab("installments");
+    }
+    if (paymentId || expenseId || installmentId) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete("paymentId");
+          next.delete("expenseId");
+          next.delete("installmentId");
           return next;
         },
         { replace: true },
@@ -160,7 +181,15 @@ export function FinancialsPage() {
 
   const totalToday = sumPaidPayments(payments);
   const pendingExpenses = expenses.filter((e) => e.status === "submitted").length;
+  // DATA-025 (T-411): TWO named figures, one basis each — the TOTAL
+  // outstanding (§15 installment basis, incl. not-yet-due tranches) and
+  // the PAST-DUE subset (daysOverdue > 0 — the actionable "en retard").
+  // The old single "Créances en retard" label showed the TOTAL (live
+  // probe: 41 of 51 unpaid rows were future-due).
   const overdueDebt = debtSummary.reduce((s, d) => s + d.outstandingAmount, 0);
+  const pastDueDebt = debtSummary
+    .filter((d) => d.daysOverdue > 0)
+    .reduce((s, d) => s + d.outstandingAmount, 0);
   const monthlyRev = monthlyRevenue(payments);
 
   // Diagnostic Hub — live cross-domain derivations (pure engine, memoised).
@@ -247,8 +276,8 @@ export function FinancialsPage() {
           <button type="button" onClick={() => setTab("payments")} title="Voir le journal des paiements" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
             <KpiCard label="Revenu mensuel" value={formatDzd(monthlyRev, { compact: true })} icon={<TrendingUp className="h-5 w-5" />} tone="info" />
           </button>
-          <button type="button" onClick={() => setTab("debt")} title="Voir les créances en retard" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
-            <KpiCard label="Créances en retard" value={formatDzd(overdueDebt, { compact: true })} icon={<AlertTriangle className="h-5 w-5" />} tone="danger" />
+          <button type="button" onClick={() => setTab("debt")} title={`Encours total (toutes créances, y compris non échues) — dont ${formatDzd(pastDueDebt)} échues (en retard)`} className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
+            <KpiCard label="Encours total créances" value={formatDzd(overdueDebt, { compact: true })} hint={`dont ${formatDzd(pastDueDebt, { compact: true })} échues`} icon={<AlertTriangle className="h-5 w-5" />} tone="danger" />
           </button>
           <button type="button" onClick={() => setTab("expenses")} title="Voir les dépenses en attente" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
             <KpiCard label="Dépenses en attente" value={pendingExpenses} icon={<Receipt className="h-5 w-5" />} tone="warning" />
@@ -275,7 +304,7 @@ export function FinancialsPage() {
           <PaymentsTab payments={payments} onOpenPayment={setPaymentDetailId} />
         </PageTabContent>
         <PageTabContent value="installments">
-          <InstallmentScheduleTab />
+          <InstallmentScheduleTab initialCategory={installmentCategoryFilter} />
         </PageTabContent>
         <PageTabContent value="debt">
           <DebtTab />
@@ -308,7 +337,13 @@ export function FinancialsPage() {
               <div className="lg:col-span-7">
                 <CrossServiceMatrix
                   services={servicePerformance}
-                  onFilterService={() => setTab("installments")}
+                  onFilterService={(category) => {
+                    // H.3 fix (T-411): the row click now APPLIES the
+                    // service filter on the installments tab (the callback
+                    // previously ignored its argument — a silent no-op).
+                    setInstallmentCategoryFilter(category);
+                    setTab("installments");
+                  }}
                 />
               </div>
               <div className="lg:col-span-5">
@@ -681,6 +716,11 @@ function DebtTab() {
   const toast = useToast();
   const { session } = useAuth();
   const debt = useObservable(() => repos.debt.observeSummary(), []);
+  // DATA-025: the past-due subset (daysOverdue > 0) — the actionable
+  // "échu" figure, distinct from the total encours.
+  const pastDueDebt = debt
+    .filter((d) => d.daysOverdue > 0)
+    .reduce((s, d) => s + d.outstandingAmount, 0);
   const students = useObservable(() => repos.students.observe(), []);
   const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
   const [reminding, setReminding] = useState<string | null>(null);
@@ -866,12 +906,12 @@ function DebtTab() {
           <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase text-muted-foreground">Créances totales</p>
+                <p className="text-xs uppercase text-muted-foreground">Encours total (toutes créances)</p>
                 <p className="break-words text-2xl font-mono font-bold text-status-danger">
                   {formatDzd(debtNow)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Il y a 30 jours : {formatDzd(debtPrevMonth)}
+                  Dont échues (en retard) : {formatDzd(pastDueDebt)} · Il y a 30 jours : {formatDzd(debtPrevMonth)}
                 </p>
               </div>
               {debtTrend && (
