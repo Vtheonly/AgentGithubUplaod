@@ -409,6 +409,26 @@ export class SupabaseClassRepository implements ClassRepository {
         ),
       );
     }
+    // T-408 (ACAD-506, the §15.46b rule): BOTH uuid references must be REAL
+    // Supabase uuids — a mock-era id ("al-1ap" / "ay-2025-2026") in a uuid
+    // column is a guaranteed 22P02 → HTTP 400. The repository is the
+    // enforcement point (mock mode never reaches it).
+    if (!isUuid(input.academicLevelId)) {
+      return Err(
+        Errors.validation(
+          `createClass: academicLevelId "${input.academicLevelId}" is not a Supabase uuid`,
+          "Niveau académique introuvable — le catalogue academic_levels n'a pas de ligne pour ce niveau (vérifiez la migration du catalogue).",
+        ),
+      );
+    }
+    if (!isUuid(input.academicYearId)) {
+      return Err(
+        Errors.validation(
+          `createClass: academicYearId "${input.academicYearId}" is not a Supabase uuid`,
+          "Aucune année scolaire active (is_current) n'existe — créez ou activez une année dans Paramètres → Années scolaires avant de créer une classe.",
+        ),
+      );
+    }
     const { data, error } = await this.client
       .from("classes")
       .insert({
@@ -1738,7 +1758,10 @@ function mapAcademicLevelRow(row: Record<string, any>): AcademicLevelModel {
     tenantId: row.tenant_id,
     cycle: row.cycle,
     gradeCode: row.grade_code,
-    labelFr: row.label_fr,
+    // The 0023 seed populates year_label; label_fr stays NULL on live rows
+    // (T-407: this repository was dead code until the academicLevels slot
+    // was wired, so the null had never been exercised).
+    labelFr: row.label_fr ?? row.year_label,
     labelAr: row.label_ar,
     yearNumber: row.year_number,
     sortOrder: row.sort_order,

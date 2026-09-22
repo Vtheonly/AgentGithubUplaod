@@ -375,9 +375,28 @@ function CreateClassModal({
     const teacher = personnel.find((p) => p.id === teacherId);
     const code = `CLS-${gradeCode.toUpperCase()}-${section.replace(/\s+/g, "").toUpperCase()}-${Date.now().toString(36).slice(-3)}`;
 
+    // T-408 (ACAD-506): resolve the REAL academic_levels uuid for the grade.
+    // BEFORE this the payload faked `academicLevelId: \`al-${gradeCode}\`` — a
+    // mock-era string that the live uuid column rejects (22P02 → HTTP 400,
+    // the owner's console report). Fail loud when the catalog has no row for
+    // the grade — never send a fabricated id.
+    const levelResult = await repos.academicLevels.getByGradeCode(gradeCode);
+    if (!levelResult.ok || !levelResult.value) {
+      setAlert({
+        tone: "error",
+        title: "Niveau introuvable",
+        description:
+          levelResult.ok
+            ? `Le catalogue academic_levels n'a pas de ligne pour le code « ${gradeCode} » — vérifiez la migration du catalogue académique.`
+            : levelResult.error.userMessage,
+      });
+      setSubmitting(false);
+      return;
+    }
+
     const result = await repos.classes.createClass({
       academicYearId: currentYear.id,
-      academicLevelId: `al-${gradeCode}`,
+      academicLevelId: levelResult.value.id,
       code,
       name: derivedName,
       gradeCode,

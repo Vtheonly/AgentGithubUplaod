@@ -4058,6 +4058,10 @@ The final implementation must prove that the Manager UI, permission system, clie
 
 An authorized worker can communicate with other workers through Manager group channels and communicate with clients through their Manager conversation. Creating a client portal automatically makes the correct client communication channel available without manual channel creation, existing channels are reused rather than duplicated, permissions behave consistently, and the complete workflow passes comprehensive UI, mouse-interaction, persistence, and core-integration tests.
 
+---
+
+
+
 ## T-407 — The T-401/T-402/T-403 UI + Mouse-Interaction Integration Suite
 
 **Status:** Verified (2026-09-22, 85th session) — COMPLETE (renumbered from the drafted T-407 after the concurrent agent's T-407 manager-chat registration landed on main first): the mandate ("do so, so many UI tests and mouse interaction tests to ensure that the UI and the core logic are fully integrated throughout these tasks") delivered as three feature suites (32 tests) driving the REAL components with REAL mouse events (the §15.40 Radix dance, extracted to `src/tests/_helpers/radix-mouse.ts`): the T-401 filière forms (the edit modal's canonical catalog per grade, the spécialité dependency + reset, the wire payload, the legacy-filière preservation, the class cards' badges + breakdown counts, the create-class dialog), the T-402 history card (the decision chips' repeater distinguishability, the T-401 classification stamps on archived years, the expandable bulletin click, the honest empty state), and the T-403 cycle workflow (the tab's create/disable gating, the completion gating with the remaining-classes hint, the reopen path, the review modal's decision table, the [NOTES_INCOMPLETES] two-phase ack with the Annuler path, the per-student override dance, the threshold flip). The suite SURFACED AND FIXED ACAD-504 (the batch-registration classification drop — migration 0112, live 6/6; the promotion override's stale destination — applyDecisionOverride + the progression-derived payload; the « Générale » sentinel family — the catalog-code sentinel + normalizeTrackCode at every submit). Gates: desktop tsc 0 errors (post-merge of the concurrent agent's repair), FULL vitest 3718/21/5 post-merge (the failing set byte-identical), lint 0 errors. Chain head **0112** (the concurrent agent's live 0111 debt_aging_analysis respected — my migration renumbered from 0111 to 0112 after the live chain diff). Evidence: docs/recovery/t-407-live-verification.md  
@@ -4074,12 +4078,12 @@ Every T-401/402/403 user surface has a mouse-driven integration test pinning its
 
 ## T-408 — Academic Setup Creation Integrity: Classes + Teachers + Standard Curriculum Catalogue
 
-**Status:** READY (2026-09-22)  
-**Problem:** ACAD-505  
+**Status:** TESTED (2026-09-22, 89th session — IMPLEMENTED, live legs E2E-proven. The registration's mandatory rules were followed verbatim: (1) the class dialog resolves the REAL academic_levels uuid through `repos.academicLevels.getByGradeCode` (the repository the registration itself identified as the canonical lookup — previously dead code, now wired); (2) the current failure was diagnosed from the LIVE payload + response (the 22P02 reproduction inside a rolled-back transaction — NOT an ACAD-104 reopening); (3) the teacher model resolved to the PERSONNEL-role projection (SCHED-100/ADR-020 — NO teachers table; the NEW SupabaseTeacherRepository bridges the legacy contract onto personnel + class_subjects + the published canonical timetable); (4/5) subjects stayed identity + subject_configurations context — migration 0114 seeds the Algerian national catalog (14 identity matières with French/Arabic names + 127 context configurations, the OFFICIAL BEM scale at 4AM: Arabe 5, Maths 4, PC 2, SVT 2, HG 2, FR 3, EN 2, ISL 2 — moyenne /22) and NO second module/matière model was introduced (ADR-018's one-subject-concept held). Live: the atomic apply + the chain reconciliation (their concurrent 0112/0113 renumbering navigated); verify_t-408 GREEN; the FK smoke --expect-fk 10/10; E2E class + subject creation HTTP 201 (the exact console-log URL, zero residue); the portal view 200-authenticated/401-anon. Suites: desktop t-408 18/18 + FULL 3740/21-baseline + tsc 0 + eslint 0 + build; website 640/640 + tsc 0 + lint + build. Evidence: docs/recovery/t-408-live-verification.md)  
+**Problem:** ACAD-505 (the umbrella registration) — closed by ACAD-506 (class uuid), ACAD-507 (phantom zod field), SCHED-105 (mock-only teachers), ACAD-508 (the missing catalog + the year-code NULL), SCHED-106 (the portal timetable)  
 **Priority:** P0 — Critical  
-**Dependencies:** Existing academic contracts must be reused. The teacher persistence model must be resolved and documented before implementation.  
+**Dependencies:** Existing academic contracts must be reused. The teacher persistence model must be resolved and documented before implementation.  *(Resolved: the personnel-role projection — no new table, no ADR needed beyond the existing SCHED-100/ADR-020 record.)*  
 **Affected:** Desktop, canonical Supabase backend, Android academic consumers, Website read-side compatibility where shared academic models are exposed.  
-**Task document:** docs/recovery/t-408-academic-setup-creation.md
+**Task document:** docs/recovery/t-408-academic-setup-creation.md (the registration + constraints) · docs/recovery/t-408-live-verification.md (the implementation evidence)
 
 ### Objective
 
@@ -4148,3 +4152,32 @@ T-408 is complete only when:
 - Live REST/RLS round-trips prove class, teacher, subject, and curriculum configuration persistence.
 - No synthetic UUIDs, fake-success wrappers, page-local canonical curriculum logic, duplicate teacher persistence model, or unverified “official curriculum” claim remains.
 - Evidence is recorded in the task document and all recovery registries are truth-synced.
+
+### Implementation record (the 89th session — the registration delivered)
+
+*The implementation entry (drafted as T-407, renumbered to the concurrent session's T-408 registration — one task, one number, the registration's rules followed verbatim).*
+
+#### Objective
+
+The owner's live console reports decoded into five concrete defects in the academic-setup chain, plus the standing mandate that "the modules and subjects must be handled according to the Algerian system" (resolved against ADR-018 — subjects as IDENTITY configured per context — and the 62nd session's standing residual to populate the real coefficients): make subject, teacher, and class creation WORK against the live backend, seed the Algerian national curriculum catalog as data, and give the parent portal its published-timetable view.
+
+### What was done
+
+1. **The academicLevels slot** (ACAD-506) — the repository interface existed with a complete Supabase implementation that was NEVER wired (dead code since T-370). Wired: the provider slot, the Supabase set, the backup literal, and a NEW mock twin seeded with the canonical 14-row Algerian ladder (0023 §5 verbatim). The class-creation dialog resolves the REAL level uuid via `getByGradeCode` and fails loud; the mock-era `al-` payload is source-pinned out. Two latent dead-code bugs fixed in passing: `mapAcademicLevelRow` read `label_fr` (NULL live — the seed populates `year_label`), and the `useCurrentAcademicYear` mock-era fallback id is now guarded in Supabase mode.
+2. **The subject form** (ACAD-507) — `level` is derived from the cycle (as `mapSubjectRow` does on read); the phantom required field is gone; identity rows (cycle NULL, ADR-018) render "Tous cycles".
+3. **SupabaseTeacherRepository** (SCHED-105) — the legacy TeacherRepository contract bridged onto the canonical tables (SCHED-100/ADR-020; NO teachers table): personnel staff_category flips for registration (audited, idempotent, honest notFound), class_subjects-derived assignments, PUBLISHED-entries-only timetable observers, and honest redirects for the legacy write paths. This was T-047's "last high-value mock-backed slot" — the owner's report unblocked the ADR decision.
+4. **Migration 0113** (ACAD-508 + SCHED-106) — the Algerian national curriculum catalog: 14 identity matières (Arabic/French/English names), 127 per-level context configurations for the current year × all 14 levels × 'general' (the OFFICIAL BEM scale at 4AM: Arabe 5, Maths 4, PC 2, SVT 2, HG 2, FR 3, EN 2, ISL 2 — moyenne /22; standard editable defaults elsewhere), the academic_years.code backfill (the 0023 seed never set it — a crash path for `year.code.slice` consumers), and `v_timetable_published` (the parent-portal projection). The TS mirror (`algerian-curriculum.ts`) pins the catalog with migration-parity tests.
+5. **The website timetable** (SCHED-106) — `usePublishedTimetable` + `TimetableView` (the Algerian week Sun→Thu; periods derived from the published rows' minutes; subject + teacher + room + the double badge; honest empty states), the AppView + desktop-rail + Academic-header entries, 14 i18n keys × fr/ar/en.
+6. **Migration 0112 DDL recovery** — the live chain had '0112' REGISTERED while neither FK existed (a false registration; root cause unidentified — likely an interrupted run between sessions). The idempotent body re-ran atomically with the 0113 apply; the smoke flipped P2 400→200. Lesson pinned as AGENTS.md §15 rule 45.
+
+### Residuals / follow-ups
+
+- The per-filière BAC coefficients at 2AS/3AS (direction rows beyond 'general') are an owner-configurable refinement through the SubjectConfigurationsPanel — data, not code.
+- Tamazight is identity-only in the catalog (configured where the school teaches it, via the panel).
+- The 0112 false-registration ROOT CAUSE is unidentified (the recovery + the verification discipline are the guard); any future apply must verify catalog state, not trust the version table.
+- The teacher-registration flow needs real personnel first (the live personnel table currently holds only soft-deleted T-400 test residue — the owner creates real staff via the Personnel module).
+
+### Dependencies
+
+- T-404 (the canonical timetable the portal now reads; the published-only RLS from 0109/0110).
+- ADR-018 (the identity-vs-context subject architecture the catalog seeds).

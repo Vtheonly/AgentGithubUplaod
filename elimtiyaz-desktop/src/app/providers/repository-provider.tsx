@@ -38,6 +38,7 @@ import type {
 import type {
   PromotionRepository,
   AcademicYearRepository,
+  AcademicLevelRepository,
   ClassPlacementRepository,
   PromotionCycleRepository,
 } from "../../domain/repository/academic-repository";
@@ -101,6 +102,7 @@ import {
   mockClassPlacementRepository,
   mockPromotionCycleRepository,
   mockAcademicYearRepository,
+  mockAcademicLevelRepository,
   mockClubRepository,
   mockPsychologyRepository,
   mockOrthophonieRepository,
@@ -145,6 +147,10 @@ export interface Repositories {
   /** T-404 (0109/0110): the canonical Automatic Timetable repository. */
   readonly timetable: TimetableRepository;
   readonly academicYears: AcademicYearRepository;
+  /** T-407 (ACAD-506): the academic_levels catalog ladder — resolves
+   * grade_code → the REAL level uuid (classes.academic_level_id) that the
+   * class-creation dialog previously faked with a mock-era `al-<code>` id. */
+  readonly academicLevels: AcademicLevelRepository;
   readonly clubs: ClubRepository;
   readonly psychology: PsychologyRepository;
   readonly orthophonie: OrthophonieRepository;
@@ -204,6 +210,7 @@ export const mockRepositories: Repositories = {
   promotionCycles: mockPromotionCycleRepository,
   timetable: mockTimetableRepository,
   academicYears: mockAcademicYearRepository,
+  academicLevels: mockAcademicLevelRepository,
   clubs: mockClubRepository,
   psychology: mockPsychologyRepository,
   orthophonie: mockOrthophonieRepository,
