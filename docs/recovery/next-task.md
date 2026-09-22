@@ -1,3 +1,9 @@
+# 2026-09-22 — T-409 is the immediate timetable follow-up
+
+**T-409 — Class-First Timetable Presentation & Real-Time Generation Progress (P0)** is now the immediate follow-up to T-404. The primary “Par classe” grid currently mixes classes and overwrites same-slot entries, while generation exposes only a spinner with no real progress calculation. Full report: `docs/recovery/t-409-timetable-class-first.md`. Problem: SCHED-111.
+
+---
+
 # Next Task — T-408's LAST VERIFIED gate + the standing recommendation
 
 **T-408 is TESTED, one gate from VERIFIED** (the 91st session closed the teacher-E2E gate — see below):
