@@ -61,6 +61,7 @@ import {
   requiredPeriodsFor,
   validateTimetable,
 } from "../constraints";
+import { buildClassTimetableReports } from "../class-reports";
 import type { TimetableSolver, TimetableSolveOptions } from "./solver-types";
 
 // ============================================================================
@@ -197,9 +198,13 @@ interface LessonBlock {
 }
 
 export const GREEDY_SOLVER_ID = "ts-greedy-v1";
-// v1.1.0 — same deterministic OUTPUT as v1.0.0; adds the T-409 progress
-// channel + the solveAsync yielding boundary (instrumentation only).
-export const GREEDY_SOLVER_BUILD = "v1.1.0+20260922";
+// v1.2.0 — same deterministic placement OUTPUT as v1.1.0; the validation
+// stage now also builds the PER-CLASS timetable reports (T-410 / SCHED-112:
+// each class validated independently — completeness, attributed conflicts,
+// gaps, missing teacher/room) into statistics.perClass. No progress-event
+// change: the reports are computed inside the existing validation work
+// unit, so the T-409 event sequence and denominator are unchanged.
+export const GREEDY_SOLVER_BUILD = "v1.2.0+20260922";
 
 /** Drain cadence for solveAsync: yield to the renderer every N work units. */
 const ASYNC_YIELD_EVERY = 20;
@@ -604,6 +609,17 @@ function* solveGreedySteps(
   const hardCount = violations.filter((v) => v.severity === "hard").length;
   const softCount = violations.length - hardCount;
 
+  // T-410 / SCHED-112: EACH class's timetable validated INDEPENDENTLY — the
+  // per-class reports are derived from the canonical validator's output +
+  // the class's own entries (a thin attribution layer, never a second
+  // engine). Computed inside the SAME validation work unit: the T-409
+  // progress contract (fixed denominator, event sequence) is unchanged.
+  const perClass = buildClassTimetableReports(problem, {
+    entries,
+    violations,
+    unplaced,
+  });
+
   const requiredTotal = blocks.reduce((sum, b) => sum + b.periods, 0);
   const placedTotal = entries.length - problem.lockedEntries.length;
   const classesScheduled = new Set(
@@ -637,6 +653,7 @@ function* solveGreedySteps(
       hardViolationCount: hardCount,
       softViolationCount: softCount,
       unplacedCount: unplaced.length,
+      perClass,
     },
   };
 }

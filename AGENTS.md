@@ -436,6 +436,17 @@ Generated timetables must be versioned and reviewed before publication. The dedi
 > timetable façade (teacher.ts TimetableEntry + the mock teacher-repository
 > CRUD + the "Couverture EDT" KPI) is SUPERSEDED — do not extend it; its
 > removal is a registered follow-up.
+>
+> PER-CLASS RULE (T-410 / SCHED-112, 2026-09-22 — TESTED; ADR-022): every
+> generated timetable is validated and presented PER CLASS — N classes → N
+> independent `ClassTimetableReport`s (the owner's nine-point checklist),
+> derived from the ONE canonical validator (attribution layer, never a
+> second engine), persisted in `statistics.perClass` (solver build v1.2.0+)
+> and read back absence-tolerantly. Every projection (class/teacher/room)
+> is entity-mandatory — the universal all-classes mixed grid ("Tout
+> afficher") is REMOVED from the product surface; a null selection renders
+> the honest empty state. Shared-resource clashes are attributed to EVERY
+> participating class with the other class named.
 
 
 ## Cross-Year Debt Aging rule — T-405
@@ -488,3 +499,13 @@ And the testing itself must REGISTER what it finds: the 91st session's FAKE-data
 (a) **THE VISUAL-KEY TRAP.** The timetable grid keyed its cells by `day + periodIndex` while the class view fed it EVERY class's entries: `(class A, monday, S3)` and `(class B, monday, S3)` collapsed into one visual position and a `Map` silently kept only the LAST entry — on the LIVE published version, 89 of 118 entries (75% of the timetable) were invisible. Rules: (1) a "select an entity" view NEVER treats a null/absent selection as "show everything" — it renders the honest empty state (§15.49a applied to projections); (2) a cell that can receive concurrent entities holds a LIST and stacks them — a single-slot `Map` value is an information-destroying overwrite waiting for the first collision; (3) the primary workflow's selector is MANDATORY (the class view always exposes the class selector; the "Tout afficher" option belongs to the secondary projections only).
 
 (b) **THE FAKE-PROGRESS TRAP.** A boolean busy flag or a timer-advanced bar tells the operator nothing real. Long-running computation exposes progress through a WORK-UNIT contract (ADR-021): discrete algorithm steps with a FIXED denominator, emitted at the moment each unit completes, drained behind a yielding boundary (`solveAsync`) so the renderer can repaint — and the terminal 100% is emitted by the PERSISTENCE layer only after the result is actually saved (failure paths never emit it). `total === 0` means indeterminate — never render a fabricated percentage. Coverage of the RESULT (`placed/required`) is a SEPARATE metric from progress of the WORK; never conflate them.
+
+### 52. **An aggregate verdict is not an entity verdict — per-entity reports must be DERIVED from the one canonical engine, and a shared-resource clash belongs to EVERY participating entity (T-410 / SCHED-112, 2026-09-22, 93rd session)**
+
+(a) **THE AGGREGATE-VISIBILITY TRAP.** "112/118 périodes placées, couverture 97%" answered the SCHOOL's health while ONE class could be missing hours, an unscheduled subject, its teacher, or its room — with no per-class status anywhere in the product. When the owner's contract is about INDIVIDUAL entities ("each class's timetable must be internally complete and conflict-free"), validation visibility must be projected PER ENTITY, not only aggregated: a thin attribution/aggregation layer over the ONE canonical validator's output (never a second engine — the per-class checklist reuses the canonical requirement math and re-derives no rule), persisted alongside the aggregate (`statistics.perClass`) and read back ABSENCE-TOLERANTLY (pre-upgrade rows → `[]`, rendered as "no per-class data", never "all entities fine").
+
+(b) **THE BOTH-SIDES-ATTRIBUTION RULE.** A shared-resource clash (teacher/room double-booking between classes A and B) is a defect of BOTH timetables: attribute it to every participating entity, and REWRITE each side's message to name the other ("…affecté en même temps à A et à B…") — a message that names neither side forces the operator to re-derive the conflict by hand. The same applies to teacher-scope aggregates (an overloaded teacher's verdict concerns every class that teacher serves).
+
+(c) **THE UNIVERSAL-VIEW RETIREMENT.** T-409 kept "Tout afficher" on the secondary projections as "honest stacking"; the owner then rejected the mixed view outright ("I do NOT want one universal timetable for the entire school"). A hand-down that preserves an affordance the owner never asked for is not a fix — when the domain contract is "one entity, one timetable", EVERY projection is entity-mandatory and a null selection renders the honest empty state. Keep the LIST-cell stacking as ANOMALY TOLERANCE (a defect shows both entries, overwrites nothing) but remove the null→all-entries path from the product surface entirely.
+
+(d) **GAPS ≠ INCONSISTENCIES.** Holes in an entity's day (free teaching periods strictly between its first and last lesson) are QUALITY warnings — reported with a count per entity, but they do not flip completeness; missing hours, unscheduled subjects, missing teacher/room assignments, and hard constraint violations do. Mirroring the canonical hard/soft scale instead of inventing a third severity keeps one semantics across every layer.
