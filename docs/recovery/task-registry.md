@@ -4289,3 +4289,28 @@ Verified against the code (not assumed): T-409's class VIEW was correctly scoped
 **Full record:** `docs/recovery/t-410-per-class-timetables.md` (§7 = the implementation record)
 
 **Left:** owner UI testing of the per-class surfaces on the live FAKE dataset (packaged app must be rebuilt to carry T-410), then purge; the published LIVE v2 predates T-410 → no per-class table on it until a new trial is generated (honest absence, by design); the standing solver follow-ups (SCHED-107 + SCHED-110 one pass; SCHED-108; SCHED-109) and ACAD-510 unchanged.
+
+## T-411 — Finance UI Unification: single-source the Financials derivations, repair the consolidated-collection semantics, and reconcile the cross-tab metrics — OPEN (P0)
+
+**Registered:** 2026-09-23 (the 94th session — the inspection-only Finance UI audit)  
+**Problem:** DUP-006, BUSINESS-106, BUSINESS-107, BUSINESS-108, DATA-020 (residual), DATA-023, DATA-024, DATA-025, DATA-026, DATA-027, DATA-028, DATA-029, DATA-032 (all registered OPEN by the audit)  
+**Related:** audit report `docs/audits/finance-ui-architecture-audit-2026-09-23.md` (sections A–J = the complete map, duplication matrix, bug list with evidence, preservation checklist §I and target architecture §J) / T-060 (BUSINESS-005), T-103 (DATA-008), T-164/166/167/168 (billing-breakdown), T-330 (payment coverage), T-333 (pricing profiles), T-354 (DASH-404), T-405 (§15 debt aging), ADR-002, ADR-004, ADR-010  
+**Status:** OPEN — registered by an audit-only session; ZERO code was changed. The audit's preservation checklist (§I) and target architecture (§J) are the binding inputs: every capability listed there must survive.
+
+### Scope (from the audit's §J recommendations — in dependency order)
+
+1. **Register the queued sub-findings** (audit FA-12, FA-13, FA-14, FA-15a-d, FA-16, FA-20 — the overdue-generator `due−paid` formulas, the alert-modal preset, the unpaginated payments seed, the analytics/AI parallel derivations, the dead deep links, the mock ledger summary divergence) as their own problem entries before touching code (§13 order).
+2. **Consolidated collection semantics (BUSINESS-106, CRITICAL):** + an ADR — cross-category mode for consolidated contexts (`p_category NULL` canonical semantics or an explicit multi-category RPC contract); fix the three entry points (CRM drawer / DebtTab / Diagnostic console) and the Diagnostic's silent `"tuition"` default.
+3. **Waterfall INV-4 alignment (BUSINESS-107):** cleared-branch capacity `due−paid−pending` in TS + a NEW migration for the SQL twin + the `mark_payment_cleared` overflow→credit guard, behind the cross-platform equivalence suites.
+4. **Diagnostic engine re-based on canonical inputs (DUP-006, DATA-023, DATA-024, DATA-029):** consume `DebtAgingAnalysis`, `ParentFinancialProfile`/`displayParentCredit`, `payment_allocations`, and the canonical `tranche_number` wave derivation; keep the analytical taxonomy/presets/AI prompts intact (audit §H).
+5. **Metric semantics (DATA-025, DATA-026 + DATA-020 residual):** name and label the two outstanding bases; overdue-only vs total on the Créances KPI (owner decision); fold the raw seedSummary into the bridge's canonical derivation; the honest `restricted` read (BUSINESS-108).
+6. **Anomaly honesty (DATA-027)** and **registration-pricing unification (DATA-028)** — each its own sub-task/commit.
+7. **Portal parity family (DATA-032)** — website-side sub-task (its own commit sequence per the website repo rules).
+
+### Acceptance gates
+
+- Every fix preserves the §I checklist capabilities (no feature removal).
+- The canonical engines remain the only derivations (source-guard tests where applicable, the T-385/T-214 pattern).
+- The equivalence suites + typecheck + lint green on every platform touched; live verification per §11.1 for any migration.
+- Owner decisions recorded (consolidated-category form; overdue-KPI labeling; payroll-in-treasury; recovery-factor) before the corresponding implementation.
+
