@@ -4072,3 +4072,77 @@ The three delivered academic tasks (T-401 filière/spécialité, T-402 canonical
 
 Every T-401/402/403 user surface has a mouse-driven integration test pinning its contract (the catalog options, the dependent fields, the wire payloads, the gating states, the two-phase acks); every defect found is fixed at the canonical layer (the domain helper, the RPC thread, the mock parity) with its own verification; the full suite stays at the byte-identical failing baseline; the backend changes land as a registered migration with live evidence.
 
+## T-408 — Academic Setup Creation Integrity: Classes + Teachers + Standard Curriculum Catalogue
+
+**Status:** READY (2026-09-22)  
+**Problem:** ACAD-505  
+**Priority:** P0 — Critical  
+**Dependencies:** Existing academic contracts must be reused. The teacher persistence model must be resolved and documented before implementation.  
+**Affected:** Desktop, canonical Supabase backend, Android academic consumers, Website read-side compatibility where shared academic models are exposed.  
+**Task document:** docs/recovery/t-408-academic-setup-creation.md
+
+### Objective
+
+Repair academic setup as one end-to-end persistence contract rather than patching three modal symptoms independently. The task covers class creation, teacher creation, subject creation, curriculum catalogue/provisioning, contextual subject configuration, submit/error/loading behavior, persistence, retrieval after reload, and cross-platform parity.
+
+### Mandatory implementation rules
+
+1. **Class IDs are canonical data.** Never synthesize academic_level_id values from labels/codes. Resolve the real UUID from academic_levels.grade_code through the existing repository/domain contract.
+2. **Do not reopen ACAD-104 as the default diagnosis.** Verify the T-313 tenant stamp but diagnose the current failure from the actual current payload and live response.
+3. **Teacher creation must not remain mock-backed in Supabase mode.** First resolve whether the canonical model is a personnel-role/year-scoped projection or requires a dedicated persistent relation. Reuse personnel, class_subjects.teacher_id, role/scoping, audit, and timetable contracts before proposing a second teacher table. Any new schema decision requires an ADR.
+4. **Subjects are identity; curriculum is context.** Keep subjects as the subject identity layer and subject_configurations as the year × academic level × direction context. Do not replace this with a page-local curriculum array.
+5. **Curriculum data must be validated before seeding.** The owner supplied a detailed Algerian curriculum reference. Treat it as the requested dataset, not independently verified Ministry truth. Validate it against current official Ministry/programme sources and record the evidence before production seeding.
+6. **No fake success.** A successful UI toast is valid only after the actual canonical repository/backend write succeeds and the row can be retrieved after reload.
+7. **UI failure paths must settle.** Every creation path must clear loading/submitting state on success, validation failure, thrown error, and transport/database error, and show a useful user-facing message.
+8. **One canonical implementation.** Desktop, Android, and Website may have adapters, but must not carry conflicting class/teacher/subject/curriculum semantics.
+9. **Live verification is required for persistence/backend work.** Re-check the live migration chain before choosing any migration number. Never edit an applied migration.
+10. **Cross-platform consumer census is mandatory.** Search Desktop, Android, Website, Supabase SQL/RPCs, typed schemas, sync DTOs, imports/exports, history, timetable/class formation, and statistics before changing shared academic models.
+
+### Required workstreams
+
+**A. Class creation**
+- Resolve the real academic_levels.id from the selected grade code.
+- Validate active tenant, academic-year, and level context before INSERT.
+- Preserve T-401 filière/specialité normalization and compatibility rules.
+- Remove stale literal-year payload assumptions.
+- Test exact REST payload, persisted FK, reload, and clean failure when the level relation is invalid/missing.
+
+**B. Teacher creation**
+- Trace TeacherRepository, personnel, class_subjects.teacher_id, timetable, teacher dashboard, and all consumers.
+- Resolve and document the production persistence model before coding.
+- Remove the Supabase-mode mock repository leak.
+- Ensure create/read/update/archive semantics persist across reload/restart.
+- Preserve personnel identity, role scoping, academic-year semantics, auditability, and timetable/class-subject consumers.
+- Add a regression guard that fails if production Supabase wiring points teachers back to the mock repository.
+
+**C. Subject and curriculum catalogue**
+- Keep subjects as canonical identity and subject_configurations as contextual configuration.
+- Introduce only the minimum canonical catalogue/provisioning representation required; do not duplicate subject identity.
+- Provide selectable presets appropriate to cycle/grade and, for lycée, filière/spécialité.
+- Preserve French/Arabic labels, deterministic codes, applicability, coefficient, passing grade, extracurricular state, grading recipe, and subject-code semantics.
+- Make provisioning idempotent and collision-safe.
+- Cover Primaire, CEM, Lycée tronc commun, and the requested secondary streams/specialities.
+
+### Owner-supplied curriculum reference to validate
+
+- **Primaire (1AP–5AP):** Arabe, Éducation islamique, Éducation civique, Mathématiques, Éducation scientifique et technologique, Français, Anglais, Histoire/Géographie, Éducation artistique, EPS, optional Amazighe.
+- **CEM (1AM–4AM):** Arabe, Français, Anglais, Mathématiques, Sciences de la nature et de la vie, Sciences physiques et technologie, Histoire/Géographie, Éducation islamique, Éducation civique, Informatique/TIC, Éducation artistique/musicale, EPS, optional Amazighe.
+- **Lycée tronc commun:** separate requested coverage for Sciences et Technologies and Lettres, including common languages/humanities plus Mathématiques, SNV, Sciences physiques, Technologie/Informatique, Islamic education, EPS, and optional Amazighe as applicable.
+- **Lycée streams:** Sciences Expérimentales, Mathématiques, Technique Mathématique with Génie Mécanique/Génie Civil/Génie Électrique/Génie des Procédés, Gestion et Économie, Lettres et Philosophie, Langues Étrangères with Spanish/German/Italian choices, and Arts with Cinéma/audiovisuel, Théâtre, Arts plastiques and Musique, together with their requested common subjects.
+- **French + Arabic:** preserve the full owner-supplied labels and applicability constraints in the evidence after validation.
+
+### Definition of done
+
+T-408 is complete only when:
+
+- Class creation uses a real academic_levels UUID, persists, reloads, and never synthesizes al-* IDs.
+- Invalid/missing level context produces a clean error and zero partial/mock row.
+- Teacher creation in Supabase mode is persistent, reload-safe, auditable, and no longer mock-backed.
+- Subject creation supports a validated preset/catalogue flow plus intentional custom creation where allowed.
+- Curriculum provisioning is grade/cycle/filière/spécialité aware, idempotent, French/Arabic aware, and coherent with subject_configurations.
+- Existing class formation, promotion, timetable, grades, reports, exports/imports, student details, and parent academic reads remain compatible.
+- Desktop focused suites and full gate pass, with any pre-existing failures separated from new failures.
+- Android tests/equivalence and Website tests/build pass for affected shared contracts.
+- Live REST/RLS round-trips prove class, teacher, subject, and curriculum configuration persistence.
+- No synthetic UUIDs, fake-success wrappers, page-local canonical curriculum logic, duplicate teacher persistence model, or unverified “official curriculum” claim remains.
+- Evidence is recorded in the task document and all recovery registries are truth-synced.
