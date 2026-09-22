@@ -168,4 +168,26 @@ describe("T-408 (ACAD-509) — the synthetic academic-year purge (source guards)
     // Subjects).
     expect(drawer.match(/subjectConfigurations\.some/g)?.length).toBe(2);
   });
+
+  it("the dashboard year selector derives from the canonical academic_years repository (no hardcoded year list)", () => {
+    const types = readFileSync(
+      join(ROOT, "features/dashboard/tabs/types.ts"),
+      "utf8",
+    );
+    // The fake four-year list is gone.
+    expect(stripComments(types)).not.toContain("AVAILABLE_ACADEMIC_YEARS = [");
+
+    const page = stripComments(
+      readFileSync(
+        join(ROOT, "features/dashboard/dashboard-page.tsx"),
+        "utf8",
+      ),
+    );
+    // The years come from the repository observable…
+    expect(page).toContain("repos.academicYears.observeAll()");
+    // …the default prefers the CURRENT year (the school's operating year)…
+    expect(page).toContain("y.isCurrent && !y.isArchived");
+    // …and no hardcoded list remains at the selector prop.
+    expect(page).not.toContain("availableYears={AVAILABLE_ACADEMIC_YEARS}");
+  });
 });

@@ -14,12 +14,14 @@ import {
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
+import { useObservable } from "../../shared/hooks/use-observable";
 import type {
   DashboardKpi,
   RevenuePoint,
   DebtByAgingBucket,
 } from "../../domain/model/operations";
 import type { DebtSummary } from "../../domain/model/payment";
+import type { AcademicYear } from "../../domain/model/academic";
 import { PageHeader } from "../../shared/layout/page-header";
 import {
   PageTabs,
@@ -42,7 +44,6 @@ import { ReportsTab } from "./tabs/reports-tab";
 import {
   type SeeDetailsTab,
   type Demographics,
-  AVAILABLE_ACADEMIC_YEARS,
 } from "./tabs/types";
 import type { Payment, Installment } from "../../domain/model/payment";
 import {
@@ -69,12 +70,26 @@ const EMPTY_DEMOGRAPHICS: Demographics = {
   age: [],
 };
 
-const DEFAULT_ACADEMIC_YEAR = getLatestAcademicYear(AVAILABLE_ACADEMIC_YEARS);
+/** Stable empty default — keeps hook dependencies referentially stable. */
+const NO_YEARS: readonly AcademicYear[] = [];
 
 export function DashboardPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
+
+  // T-408 (ACAD-509): the selectable academic years derive from the
+  // CANONICAL academic_years repository — the previous hardcoded
+  // four-year list (2023-2024…2026-2027) was fake selector data: years
+  // the live database never contained. The default is the CURRENT year
+  // (the school's operating year), falling back to the latest configured
+  // year, then to the date-derived school-year window.
+  const academicYears =
+    useObservable(() => repos.academicYears.observeAll(), []) ?? NO_YEARS;
+  const availableYears = useMemo(
+    () => academicYears.map((y) => y.code).filter((c): c is string => !!c),
+    [academicYears],
+  );
 
   const [data, setData] = useState<DashboardData>({
     kpis: null,
@@ -94,22 +109,32 @@ export function DashboardPage() {
   const [layoutEditing, setLayoutEditing] = useState(false);
 
   const [yearRange, setYearRange] = useState<AcademicYearRange>(() => ({
-    academicYear: DEFAULT_ACADEMIC_YEAR,
-    range: computeDateRange(DEFAULT_ACADEMIC_YEAR, "ytd"),
+    academicYear: "",
+    range: undefined,
     preset: "ytd",
   }));
 
+  // T-408 (ACAD-509): resolve the default year from the CANONICAL years —
+  // current year first, then the latest configured year, then the
+  // date-derived school-year window (getLatestAcademicYear's fallback for
+  // an empty/unresolved repository — a DATE computation, never a fabricated
+  // academic record). Runs once years settle; keeps a valid selection.
   useEffect(() => {
-    if (AVAILABLE_ACADEMIC_YEARS.includes(yearRange.academicYear)) return;
-    const latest = getLatestAcademicYear(AVAILABLE_ACADEMIC_YEARS);
+    if (yearRange.academicYear && availableYears.includes(yearRange.academicYear)) {
+      return;
+    }
+    const current = academicYears.find((y) => y.isCurrent && !y.isArchived);
+    const next = current?.code ?? getLatestAcademicYear(availableYears);
+    if (!next || next === yearRange.academicYear) return;
     setYearRange({
-      academicYear: latest,
-      range: computeDateRange(latest, "ytd"),
+      academicYear: next,
+      range: computeDateRange(next, "ytd"),
       preset: "ytd",
     });
-  }, [yearRange.academicYear]);
+  }, [availableYears, academicYears, yearRange.academicYear]);
 
   useEffect(() => {
+    if (!yearRange.academicYear || !yearRange.range) return;
     void (async () => {
       const [k, rev, debt, demo] = await Promise.all([
         repos.dashboard.kpisForRange(yearRange.academicYear, yearRange.range),
@@ -154,7 +179,7 @@ export function DashboardPage() {
 
   const prevYearCode = previousAcademicYear(yearRange.academicYear);
   const loadablePrevYear =
-    prevYearCode && AVAILABLE_ACADEMIC_YEARS.includes(prevYearCode)
+    prevYearCode && availableYears.includes(prevYearCode)
       ? prevYearCode
       : null;
 
@@ -271,7 +296,7 @@ export function DashboardPage() {
             <AcademicYearSelector
               value={yearRange}
               onChange={setYearRange}
-              availableYears={AVAILABLE_ACADEMIC_YEARS}
+              availableYears={availableYears}
             />
             {tab === "overview" && (
               <Button

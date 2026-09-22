@@ -46,5 +46,7 @@ function tokenOr(name: string, fallback: string): string {
   }
 }
 
-/** Academic years selectable via the AcademicYearSelector in the page header. */
-export const AVAILABLE_ACADEMIC_YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
+// T-408 (ACAD-509): AVAILABLE_ACADEMIC_YEARS — the hardcoded four-year
+// selector list — is REMOVED. The selectable years derive from the CANONICAL
+// academic_years repository in DashboardPage (the current year defaults the
+// selection); a static list offered years the live database never contained.
