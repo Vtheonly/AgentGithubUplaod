@@ -50,7 +50,7 @@ export function CashFlowRadar({
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-lg border border-border bg-surface-elevated/40">
             <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-              Flux Net Opérationnel
+              Flux Opérationnel (hors masse salariale)
             </span>
             <div className="flex items-baseline gap-1 mt-1">
               <span
@@ -138,10 +138,10 @@ export function CashFlowRadar({
         <div className="p-2.5 rounded-md bg-muted/20 border border-border/60 text-xs text-muted-foreground flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             <ShieldCheck className="h-4 w-4 text-primary" />
-            Rentrées prévues sous 30j (estimé) :
+            Rentrées prévues à 30 j (échues ≤ 30 j + à échoir ≤ 30 j) :
           </span>
           <strong className="font-mono text-foreground text-sm">
-            +{formatDzdPlain(treasury.recoverableDebt30d)} DA
+            +{formatDzdPlain(treasury.expectedInflow30d)} DA
           </strong>
         </div>
       </CardContent>

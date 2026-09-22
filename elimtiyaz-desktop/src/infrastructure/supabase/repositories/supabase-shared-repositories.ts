@@ -1806,6 +1806,9 @@ export class SupabasePaymentRepository implements PaymentRepository {
   private readonly cache = new SubjectBehavior<Payment[]>([]);
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  // T-411 (DATA-029): the allocations stream state.
+  private readonly allocationsCache = new SubjectBehavior<readonly PaymentAllocation[]>([]);
+  private readonly allocationsFreshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -1880,6 +1883,54 @@ export class SupabasePaymentRepository implements PaymentRepository {
       );
     } catch (err) {
       return Err(supabaseErrorToAppError(err as { code?: string; message: string; details?: unknown }));
+    }
+  }
+
+  /**
+   * T-411 (DATA-029): the page-level allocations stream for the Diagnostic
+   * tab's per-service matrix — the canonical attribution source. Paginated
+   * at 1000/page (§15.29c — PostgREST caps every response at 1000 rows);
+   * cached in a behavior subject and re-seeded on the freshness policy so
+   * the matrix tracks collections without a page reload.
+   */
+  observeAllocations(): Observable<readonly PaymentAllocation[]> {
+    void this.seedAllocations();
+    return this.allocationsCache;
+  }
+
+  private async seedAllocations(): Promise<void> {
+    if (!this.allocationsFreshness.shouldReseed()) return;
+    this.allocationsFreshness.markSeeded();
+    try {
+      const tenantId = requireTenantId();
+      const rows: PaymentAllocationRow[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await this.client
+          .from("payment_allocations")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const page = (data ?? []) as PaymentAllocationRow[];
+        rows.push(...page);
+        if (page.length < pageSize) break;
+      }
+      this.allocationsCache.set(
+        rows.map((r) => ({
+          id: r.id,
+          paymentId: r.payment_id,
+          chargeId: r.charge_id,
+          installmentId: r.installment_id,
+          category: (r.category ?? "other") as PaymentAllocation["category"],
+          allocatedAmount: r.allocated_amount,
+          label: r.label,
+          createdAt: r.created_at,
+        })),
+      );
+    } catch {
+      this.allocationsCache.set([]);
     }
   }
 

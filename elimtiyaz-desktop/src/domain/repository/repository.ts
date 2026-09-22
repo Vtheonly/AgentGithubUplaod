@@ -379,6 +379,15 @@ export interface PaymentRepository {
    * RLS: payment_allocations_staff_write (0041) allows the staff SELECT.
    */
   allocationsForPayment?(paymentId: string): Promise<Result<readonly PaymentAllocation[]>>;
+  /**
+   * T-411 (DATA-029): the page-level stream of EVERY payment allocation —
+   * the canonical per-service attribution source the Diagnostic tab's
+   * CrossServiceMatrix consumes (where the waterfall actually put the
+   * money, not the payment row's category). Optional like
+   * `allocationsForPayment`; the Supabase implementation paginates at
+   * 1000/page (§15.29c), the mock derives from its ledger stream.
+   */
+  observeAllocations?(): Observable<readonly PaymentAllocation[]>;
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>>;
   /**
    * BULK IMPORT FIX: Batch-collect many payments in a SINGLE Supabase

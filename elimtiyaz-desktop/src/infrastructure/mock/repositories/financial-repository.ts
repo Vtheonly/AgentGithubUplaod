@@ -133,6 +133,36 @@ export class MockPaymentRepository implements PaymentRepository {
       })),
     );
   }
+  /**
+   * T-411 (DATA-029) mock parity: the page-level allocations stream,
+   * derived from the SAME ledger receipt-join as `allocationsForPayment`
+   * (the mock waterfall writes one payment ledger entry per allocation —
+   * a cross-category payment books a single entry, which is the mock's
+   * honest equivalent of the allocation row). Reactive on ledger changes.
+   */
+  observeAllocations(): Observable<readonly PaymentAllocation[]> {
+    return derived([store.ledger$, store.payments$], () => {
+      const receiptByPaymentId = new Map(
+        store.payments.filter((p) => p.receiptNumber).map((p) => [p.id, p.receiptNumber as string]),
+      );
+      return store.ledger
+        .filter((e) => e.type === "payment" && e.receiptNumber)
+        .map((e) => ({
+          id: `alloc-${e.id}`,
+          paymentId:
+            // the ledger entry's sourceId IS the payment id for collects
+            (e.sourceType === "payment" ? e.sourceId : null) ??
+            [...receiptByPaymentId.entries()].find(([, r]) => r === e.receiptNumber)?.[0] ??
+            "",
+          chargeId: null,
+          installmentId: null,
+          category: e.category,
+          allocatedAmount: Math.abs(e.amount),
+          label: (e.metadata?.field as string | undefined) ?? null,
+          createdAt: e.at,
+        }));
+    });
+  }
   collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
     return collectPayment(ctx, input, collectedBy);
   }

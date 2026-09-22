@@ -2,7 +2,18 @@
 // FILE: src/domain/calc/payment/financial-query-engine.ts
 // ============================================================================
 /**
- * Financial Query & Diagnostic Engine.
+ * Financial Query & Diagnostic Engine — T-411 re-base (DUP-006, 95th
+ * session 2026-09-23).
+ *
+ * CLASSIFICATION (audit §H, binding): this module is an ANALYTICAL layer —
+ * classifications, thresholds, presets and prompts. It is a CONSUMER of the
+ * canonical engines, never a second implementation of them (AGENTS.md
+ * §15.53a):
+ *   - balances/credits   ← computeParentSummary + displayParentCredit (ADR-010)
+ *   - per-tranche remaining ← installmentRemaining (INV-4)
+ *   - tranche waves      ← the canonical tranche_number grouping (T-354)
+ *   - per-service cleared ← payment_allocations (T-330 chain, DATA-029)
+ *   - debt status        ← the DebtSummary stream (§15 installment basis)
  *
  * Provides deep analytical queries and correlations across:
  *   - Cash Flow & Treasury (Cleared payments vs Disbursed expenses)
@@ -12,7 +23,7 @@
  *   - Immediate Offset Candidates (Available parent credit + open debt)
  *   - Delinquency Triage (Chronic vs Transitory overdue balances)
  *
- * All functions are pure, total, and derive exclusively from canonical models.
+ * All functions are pure and total.
  */
 
 import type {
@@ -20,6 +31,7 @@ import type {
   Installment,
   DebtSummary,
   PaymentCategory,
+  PaymentAllocation,
 } from "../../model/payment";
 import type { LedgerEntry } from "../../model/ledger";
 import type { Expense } from "../../model/expense";
@@ -27,12 +39,13 @@ import type { Parent } from "../../model/parent";
 import type { Student } from "../../model/student";
 import { parentDisplayName } from "../../model/parent";
 import { installmentRemaining } from "./queries";
+import { computeParentSummary, displayParentCredit } from "../ledger/balance";
 
 export type FinancialAnomalyType =
   | "service_leakage" // Paid tuition but defaulted on auxiliary services
   | "pending_check_risk" // Check/transfer pending > 15 days
   | "unabsorbed_credit" // Parent has credit balance but also open debt
-  | "early_default_critical" // Tranche 1 (Sept) still unpaid past Dec
+  | "early_default_critical" // Initial tuition tranche (T1/FI) still unpaid past 60 days
   | "large_cash_volume" // Single cash payment > 150,000 DA
   | "healthy";
 
@@ -48,7 +61,7 @@ export interface FamilyFinancialDiagnosis {
   daysOverdue: number;
   pendingChecksAmount: number;
   tuitionPaid: boolean;
-  auxiliaryDebt: number; // Transport, Canteen, etc.
+  auxiliaryDebt: number; // Transport, therapy, etc.
   anomalies: FinancialAnomalyType[];
   anomalySummary: string;
   recommendedAction: string;
@@ -71,7 +84,14 @@ export interface TreasuryHealthSnapshot {
   totalDisbursedOutflow: number;
   netOperatingCashFlow: number;
   bankFloatPending: number;
-  recoverableDebt30d: number; // Estimated cash-in next 30 days
+  /**
+   * T-411 (FA-07 fix): the honest 30-day inflow forecast — (a) outstanding
+   * on debt already overdue by ≤ 30 days PLUS (b) the INV-4 remaining of
+   * tranches falling due within the next 30 days. NO recovery factor: the
+   * previous ×0.85 multiplier was an undocumented constant (DUP-006
+   * evidence) and has been removed.
+   */
+  expectedInflow30d: number;
   t1CollectionRate: number;
   t2CollectionRate: number;
   t3CollectionRate: number;
@@ -89,7 +109,7 @@ export const FINANCIAL_PRESETS: FinancialPresetQuery[] = [
   {
     id: "service_leakage",
     title: "Fuite de Revenus Services",
-    description: "Scolarité payée mais Transport / Cantine impayés",
+    description: "Scolarité payée mais Transport / services annexes impayés",
     badgeTone: "warning",
     filter: (f) => f.anomalies.includes("service_leakage"),
   },
@@ -110,7 +130,7 @@ export const FINANCIAL_PRESETS: FinancialPresetQuery[] = [
   {
     id: "early_default_critical",
     title: "Défaut Lourd (Tranche 1 Bloquée)",
-    description: "Tranche initiale de rentrée toujours impayée",
+    description: "Tranche initiale de scolarité toujours impayée",
     badgeTone: "danger",
     filter: (f) => f.anomalies.includes("early_default_critical"),
   },
@@ -132,6 +152,12 @@ export const FINANCIAL_PRESETS: FinancialPresetQuery[] = [
 
 /**
  * Builds diagnostic profiles for all families with active financial activity.
+ *
+ * T-411 re-base: balance/credit fields come from the CANONICAL ledger replay
+ * (`computeParentSummary` + `displayParentCredit`, ADR-010) instead of the
+ * raw `parent_credit` filter (DATA-024); the debt fallback uses
+ * `installmentRemaining` (INV-4); T1 detection groups by the canonical
+ * `trancheNumber` (DATA-023).
  */
 export function evaluateFamilyFinancialDiagnoses(params: {
   parents: readonly Parent[];
@@ -172,20 +198,6 @@ export function evaluateFamilyFinancialDiagnoses(params: {
     paymentsByParent.set(p.parentId, list);
   }
 
-  const creditByParent = new Map<string, number>();
-  for (const e of ledgerEntries) {
-    if (
-      e.category === "parent_credit" &&
-      e.type === "adjustment" &&
-      e.amount < 0
-    ) {
-      creditByParent.set(
-        e.parentId,
-        (creditByParent.get(e.parentId) ?? 0) + Math.abs(e.amount),
-      );
-    }
-  }
-
   const nowMs = Date.now();
   const fifteenDaysMs = 15 * 24 * 60 * 60 * 1000;
 
@@ -195,13 +207,25 @@ export function evaluateFamilyFinancialDiagnoses(params: {
     const pPayments = paymentsByParent.get(parent.id) ?? [];
     const pStudents = studentsByParent.get(parent.id) ?? [];
 
-    const totalDue = pInsts.reduce((s, i) => s + i.amountDue, 0);
-    const totalPaid = pInsts.reduce((s, i) => s + i.amountPaid, 0);
+    // ── Canonical replay (INV-1 / ADR-010) — DATA-024 fix ──────────────
+    // The credit is the DISPLAY derivation over the canonical aggregates,
+    // never a raw `parent_credit` filter (no reversal exclusion there).
+    const summary = computeParentSummary(ledgerEntries, parent.id, parentDisplayName(parent));
+    const unallocatedCredit = displayParentCredit(
+      summary.totalOutstanding,
+      summary.totalUnallocatedCredit,
+    );
+
+    // Net due / paid on the ledger basis — the SAME numbers the CRM
+    // dossier's Finances tab shows (cross-tab reconciliation, audit §G).
+    const totalDue = summary.totalCharged + summary.totalAdjusted;
+    const totalPaid = summary.totalPaid;
+    // Debt on the §15 installment basis (the Créances number); the
+    // fallback uses the canonical INV-4 helper, never `due − paid`.
     const totalDebt = pDebt
       ? pDebt.outstandingAmount
-      : Math.max(0, totalDue - totalPaid);
+      : pInsts.reduce((s, i) => s + installmentRemaining(i), 0);
     const daysOverdue = pDebt ? pDebt.daysOverdue : 0;
-    const unallocatedCredit = creditByParent.get(parent.id) ?? 0;
 
     // Check for pending non-cash payments older than 15 days
     const pendingChecks = pPayments.filter(
@@ -226,10 +250,13 @@ export function evaluateFamilyFinancialDiagnoses(params: {
       0,
     );
 
-    // Early default: Is T1 (due September/October) still unpaid?
+    // Early default: is the INITIAL TUITION tranche (canonical wave 1 —
+    // the inscription/FI tranche) still unpaid? DATA-023 fix: group by the
+    // canonical `trancheNumber`, never the label text (the retired
+    // `label.includes("1")` hack matched transport rows and probe labels).
     const t1Unpaid = tuitionInsts.some(
       (i) =>
-        i.label.includes("1") &&
+        i.trancheNumber === 1 &&
         (i.status === "overdue" || installmentRemaining(i) > 0),
     );
 
@@ -266,7 +293,7 @@ export function evaluateFamilyFinancialDiagnoses(params: {
     if (t1Unpaid && daysOverdue > 60) {
       anomalies.push("early_default_critical");
       anomalyNotes.push(
-        "Tranche 1 initiale toujours impayée (retard critique)",
+        "Tranche 1 initiale (scolarité) toujours impayée (retard critique)",
       );
     }
 
@@ -288,7 +315,7 @@ export function evaluateFamilyFinancialDiagnoses(params: {
         "Convoquer le parent pour mise en place d'un échéancier négocié.";
     } else if (anomalies.includes("service_leakage")) {
       recommendedAction =
-        "Relancer spécifiquement pour le transport / cantine.";
+        "Relancer spécifiquement pour le transport / services annexes.";
     } else if (totalDebt > 40_000) {
       recommendedAction = "Relance téléphonique prioritaire P1.";
     }
@@ -314,40 +341,82 @@ export function evaluateFamilyFinancialDiagnoses(params: {
 }
 
 /**
- * Computes performance, collection rate, and debt breakdown by service category.
+ * Computes performance, collection rate, and debt breakdown by service
+ * category.
+ *
+ * T-411 re-base (DATA-029): per-service CLEARED and PENDING derive from the
+ * canonical `payment_allocations` (the T-330 chain — where the waterfall
+ * actually put the money), joined to the payment's status for the
+ * cleared/pending split. The previous `payments.category` attribution
+ * misfiled cross-category collections and counted overpayment-turned-credit
+ * as in-category cleared. The category list is trimmed to the ACTIVE
+ * services (CALC-001 retired canteen/uniform/books/extracurricular).
  */
 export function computeCrossServicePerformance(params: {
   installments: readonly Installment[];
   payments: readonly Payment[];
+  allocations: readonly PaymentAllocation[];
 }): ServicePerformanceRow[] {
-  const { installments, payments } = params;
+  const { installments, payments, allocations } = params;
 
   const categories: { key: PaymentCategory; label: string }[] = [
     { key: "tuition", label: "Scolarité Annuelle" },
     { key: "transport", label: "Transport Scolaire" },
-    { key: "canteen", label: "Restauration & Cantine" },
-    { key: "uniform", label: "Uniformes & Tabliers" },
     { key: "therapy_psychology", label: "Accompagnement Psychologique" },
     { key: "therapy_speech", label: "Orthophonie" },
-    { key: "extracurricular", label: "Clubs & Activités" },
-    { key: "books", label: "Manuels & Fournitures" },
+    { key: "second_apron", label: "2ème Tablier" },
+    { key: "other", label: "Autres Services" },
   ];
+
+  // Canonical attribution: allocation rows carry the CONCRETE category the
+  // waterfall satisfied; the payment's status splits cleared vs pending.
+  const paymentStatusById = new Map(payments.map((p) => [p.id, p.status]));
+  const clearedByCategory = new Map<PaymentCategory, number>();
+  const pendingByCategory = new Map<PaymentCategory, number>();
+  for (const a of allocations) {
+    // A null-category allocation (ledger-fallback derivation for a
+    // cross-category payment) has no per-service attribution by definition.
+    if (a.category === null) continue;
+    const status = paymentStatusById.get(a.paymentId);
+    if (status === "paid") {
+      clearedByCategory.set(
+        a.category,
+        (clearedByCategory.get(a.category) ?? 0) + a.allocatedAmount,
+      );
+    } else if (status === "pending" || status === "pending_clearance") {
+      pendingByCategory.set(
+        a.category,
+        (pendingByCategory.get(a.category) ?? 0) + a.allocatedAmount,
+      );
+    }
+  }
+  // Fallback for legacy payments predating the allocations table (or mock
+  // stores without derived allocations): the payment-row category, only
+  // when NO allocation row exists for that payment.
+  const paymentsWithAllocations = new Set(allocations.map((a) => a.paymentId));
+  for (const p of payments) {
+    if (paymentsWithAllocations.has(p.id)) continue;
+    if (p.category === null) continue; // multi-service rows have allocations
+    if (p.status === "paid") {
+      clearedByCategory.set(
+        p.category,
+        (clearedByCategory.get(p.category) ?? 0) + p.amount,
+      );
+    } else if (p.status === "pending" || p.status === "pending_clearance") {
+      pendingByCategory.set(
+        p.category,
+        (pendingByCategory.get(p.category) ?? 0) + p.amount,
+      );
+    }
+  }
 
   return categories
     .map(({ key, label }) => {
       const catInsts = installments.filter((i) => i.category === key);
-      const catPayments = payments.filter(
-        (p) => p.category === key && p.status === "paid",
-      );
-      const catPending = payments.filter(
-        (p) =>
-          p.category === key &&
-          (p.status === "pending" || p.status === "pending_clearance"),
-      );
 
       const totalBilled = catInsts.reduce((s, i) => s + i.amountDue, 0);
-      const totalCleared = catPayments.reduce((s, p) => s + p.amount, 0);
-      const totalPending = catPending.reduce((s, p) => s + p.amount, 0);
+      const totalCleared = clearedByCategory.get(key) ?? 0;
+      const totalPending = pendingByCategory.get(key) ?? 0;
 
       const outstandingDebt = catInsts.reduce(
         (s, i) => s + installmentRemaining(i),
@@ -382,6 +451,12 @@ export function computeCrossServicePerformance(params: {
 
 /**
  * Computes treasury liquidity and tranche recovery health.
+ *
+ * T-411: tranche rates group by the canonical `trancheNumber` (DATA-023);
+ * the 30-day forecast is the honest sum of (a) overdue ≤ 30 j outstanding +
+ * (b) INV-4 remaining of tranches due within 30 days — NO recovery factor
+ * (FA-07). The operating flow EXCLUDES payroll (salary_payments never
+ * enters ledger_entries) — the radar labels this explicitly (FA-08).
  */
 export function computeTreasuryHealth(params: {
   payments: readonly Payment[];
@@ -405,14 +480,29 @@ export function computeTreasuryHealth(params: {
 
   const netOperatingCashFlow = totalClearedInflow - totalDisbursedOutflow;
 
-  // 30-day projected cash-in (debts with <= 30 days overdue + tranches due in next 30 days)
-  const recoverableDebt30d = debtSummaries
-    .filter((d) => d.daysOverdue <= 30)
-    .reduce((s, d) => s + d.outstandingAmount * 0.85, 0);
+  // Honest 30-day inflow forecast (FA-07 — the ×0.85 factor is REMOVED):
+  // (a) outstanding on debt already overdue by ≤ 30 days (the §15 stream's
+  //     daysOverdue; 0 = not yet due → belongs to (b) when due within 30 d);
+  // (b) the INV-4 remaining of not-yet-due tranches falling due within the
+  //     next 30 days.
+  const now = Date.now();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const overdueOutstanding30d = debtSummaries
+    .filter((d) => d.daysOverdue > 0 && d.daysOverdue <= 30)
+    .reduce((s, d) => s + d.outstandingAmount, 0);
+  const upcomingDue30d = installments
+    .filter((i) => i.status !== "paid")
+    .filter((i) => {
+      const due = new Date(i.dueDate).getTime();
+      return due >= now && due < now + thirtyDaysMs;
+    })
+    .reduce((s, i) => s + installmentRemaining(i), 0);
+  const expectedInflow30d = Math.round(overdueOutstanding30d + upcomingDue30d);
 
-  // Tranche collection rates (T1, T2, T3)
-  const computeTrancheRate = (prefix: string) => {
-    const tInsts = installments.filter((i) => i.label.includes(prefix));
+  // Tranche collection rates (T1, T2, T3) — the canonical `trancheNumber`
+  // grouping (T-354/DASH-404), NEVER the label text.
+  const computeTrancheRate = (wave: 1 | 2 | 3) => {
+    const tInsts = installments.filter((i) => i.trancheNumber === wave);
     const due = tInsts.reduce((s, i) => s + i.amountDue, 0);
     const paid = tInsts.reduce((s, i) => s + i.amountPaid, 0);
     return due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
@@ -423,9 +513,9 @@ export function computeTreasuryHealth(params: {
     totalDisbursedOutflow,
     netOperatingCashFlow,
     bankFloatPending,
-    recoverableDebt30d: Math.round(recoverableDebt30d),
-    t1CollectionRate: computeTrancheRate("1"),
-    t2CollectionRate: computeTrancheRate("2"),
-    t3CollectionRate: computeTrancheRate("3"),
+    expectedInflow30d,
+    t1CollectionRate: computeTrancheRate(1),
+    t2CollectionRate: computeTrancheRate(2),
+    t3CollectionRate: computeTrancheRate(3),
   };
 }

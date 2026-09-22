@@ -117,6 +117,18 @@ export function FinancialsPage() {
   const students = useObservable(() => repos.students.observe(), []);
   const installments = useObservable(() => repos.installments.observe(), []);
   const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
+  // T-411 (DATA-029): the canonical per-service attribution stream —
+  // payment_allocations (where the waterfall actually put the money).
+  // Fakes/test repos without the optional method get a constant-empty
+  // stream (the matrix then falls back to the payment-row attribution).
+  const paymentAllocations = useObservable(
+    () =>
+      repos.payments.observeAllocations?.() ?? {
+        subscribe: () => () => {},
+        get: () => [],
+      },
+    [],
+  );
 
   const [tab, setTab] = useState<FinanceTab>("payments");
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -167,8 +179,9 @@ export function FinancialsPage() {
     return computeCrossServicePerformance({
       installments,
       payments,
+      allocations: paymentAllocations,
     });
-  }, [installments, payments]);
+  }, [installments, payments, paymentAllocations]);
 
   const treasuryHealth = useMemo(() => {
     return computeTreasuryHealth({
