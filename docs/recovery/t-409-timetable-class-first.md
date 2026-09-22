@@ -101,7 +101,7 @@ The generated data may be correct while the primary presentation is incorrect.
 
 The primary timetable workflow must be:
 
-**Emploi du temps → Select a class → Display the complete weekly timetable for that class**
+**Generate the school-wide timetable → produce a timetable for every eligible class → select any class to inspect its complete weekly timetable**
 
 The screen should clearly show:
 
@@ -244,9 +244,10 @@ If the solver blocks the renderer long enough that React cannot paint progress u
 
 ### Regression tests
 
-Use at least three classes with overlapping periods.
+Use at least three classes with overlapping periods and at least one requirement from each class.
 
-Prove that:
+Prove that the generation result contains timetable entries for all eligible fixture classes, and separately prove that:
+
 
 `(class A, day, period) != (class B, day, period)`
 
