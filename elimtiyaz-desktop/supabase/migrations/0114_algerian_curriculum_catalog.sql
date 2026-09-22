@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0113_algerian_curriculum_catalog.sql — T-407 (ACAD-508 + SCHED-106)
+-- 0114_algerian_curriculum_catalog.sql — T-408 (ACAD-508 + SCHED-106)
 -- ============================================================================
 -- The Algerian national curriculum catalog, the missing data layer behind
 -- the owner's mandate ("the modules and subjects must be handled according
@@ -176,7 +176,7 @@ LEFT JOIN public.personnel p ON p.id = e.teacher_id
 LEFT JOIN public.rooms r ON r.id = e.room_id
 WHERE e.tenant_id = public.current_tenant_id();
 COMMENT ON VIEW public.v_timetable_published IS
-    'T-407 (SCHED-106): parent-portal projection of the ONE canonical published timetable (0109/0110). SECURITY DEFINER semantics expose ONLY published-entry name projections — parents cannot SELECT personnel/rooms directly under RLS; the view never exposes staff-only rows, drafts or trials.';
+    'T-408 (SCHED-106): parent-portal projection of the ONE canonical published timetable (0109/0110). SECURITY DEFINER semantics expose ONLY published-entry name projections — parents cannot SELECT personnel/rooms directly under RLS; the view never exposes staff-only rows, drafts or trials.';
 
 -- The view runs with definer (owner) privileges: grant SELECT to
 -- authenticated tenants only — anon gets nothing.

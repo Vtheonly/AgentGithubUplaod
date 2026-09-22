@@ -376,7 +376,7 @@ function CreateClassModal({
     const teacher = personnel.find((p) => p.id === teacherId);
     const code = `CLS-${gradeCode.toUpperCase()}-${section.replace(/\s+/g, "").toUpperCase()}-${Date.now().toString(36).slice(-3)}`;
 
-    // T-407 (ACAD-506): resolve the REAL academic_levels uuid for the grade.
+    // T-408 (ACAD-506): resolve the REAL academic_levels uuid for the grade.
     // BEFORE this the payload faked `academicLevelId: \`al-${gradeCode}\`` — a
     // mock-era string that the live uuid column rejects (22P02 → HTTP 400,
     // the owner's console report). Fail loud when the catalog has no row for

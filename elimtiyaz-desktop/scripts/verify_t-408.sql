@@ -1,5 +1,5 @@
 -- ============================================================================
--- verify_t-407.sql — live verification of migration 0113 (+ the 0112 DDL
+-- verify_t-408.sql — live verification of migration 0114 (+ the 0112 DDL
 -- recovery). Run via the Supabase Management API (the inspect-live-db.sh
 -- convention). Every query MUST return the expected shape/value.
 -- ============================================================================

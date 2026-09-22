@@ -1,5 +1,5 @@
 #!/bin/bash
-# T-407 (2026-09-22): apply migration 0112 DDL RECOVERY + migration 0113
+# T-408 (2026-09-22): apply migration 0112 DDL RECOVERY + migration 0113
 # (the Algerian curriculum catalog + the year-code repair + the portal
 # timetable view) live with their schema_migrations registrations in ONE
 # atomic transaction — the T-175/MIG-TOKENS pattern (AGENTS.md §15 rule 10).
@@ -40,9 +40,9 @@ echo ""
 PAYLOAD=$(mktemp /tmp/apply_t407.XXXXXX.sql)
 {
   echo "BEGIN;"
-  cat "${MIG_DIR}/0112_class_subjects_teacher_fk.sql"
-  echo "INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('0112') ON CONFLICT (version) DO NOTHING;"
-  cat "${MIG_DIR}/0113_algerian_curriculum_catalog.sql"
+  cat "${MIG_DIR}/0113_class_subjects_teacher_fk.sql"
+  echo "INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('0113') ON CONFLICT (version) DO NOTHING;"
+  cat "${MIG_DIR}/0114_algerian_curriculum_catalog.sql"
   echo "INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('0113') ON CONFLICT (version) DO NOTHING;"
   echo "COMMIT;"
 } > "$PAYLOAD"

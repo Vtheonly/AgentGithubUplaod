@@ -2,7 +2,7 @@
 // FILE: src/infrastructure/supabase/repositories/supabase-teacher-repository.ts
 // ============================================================================
 /**
- * SupabaseTeacherRepository — T-407 (SCHED-105).
+ * SupabaseTeacherRepository — T-408 (SCHED-105).
  *
  * The legacy TeacherRepository contract bridged onto the CANONICAL tables,
  * per SCHED-100's resolution and ADR-020 (no `teachers` table — teacher

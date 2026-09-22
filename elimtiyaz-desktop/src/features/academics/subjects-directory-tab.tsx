@@ -33,7 +33,7 @@ const SubjectSchema = z.object({
   name: z.string().min(2, "Nom requis (min. 2 caractères)"),
   code: z.string().min(2, "Code requis (min. 2 caractères)"),
   cycle: z.enum(["prescolaire", "primaire", "cem", "lycee"]),
-  // T-407 (ACAD-507): `level` is DERIVED from the cycle (the repository's
+  // T-408 (ACAD-507): `level` is DERIVED from the cycle (the repository's
   // mapSubjectRow does exactly this on read) — it was previously a required
   // zod field that NO form field ever rendered, so every subject-creation
   // submit failed an INVISIBLE validation and nothing reached the server.
@@ -142,7 +142,7 @@ export function SubjectsDirectoryTab() {
     },
     {
       header: "Cycle",
-      // T-407 (ADR-018): a catalog IDENTITY row has NO cycle (it is configured
+      // T-408 (ADR-018): a catalog IDENTITY row has NO cycle (it is configured
       // per level via subject_configurations) — render "Tous cycles" instead
       // of the misleading derived default.
       accessor: (s) =>
@@ -261,7 +261,7 @@ export function SubjectsDirectoryTab() {
     ? {
         name: editingSubject.name,
         code: editingSubject.code,
-        // T-407 (ADR-018): identity rows can be cycle-less — the edit form
+        // T-408 (ADR-018): identity rows can be cycle-less — the edit form
         // falls back to the derived level so the select always has a value.
         cycle: editingSubject.cycle ?? editingSubject.level,
         level: editingSubject.level,

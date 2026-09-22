@@ -2,7 +2,7 @@
 // FILE: src/infrastructure/mock/repositories/academic-level-repository.ts
 // ============================================================================
 /**
- * MockAcademicLevelRepository — T-407 (ACAD-506).
+ * MockAcademicLevelRepository — T-408 (ACAD-506).
  *
  * The mock twin of `SupabaseAcademicLevelRepository`, seeded with the SAME
  * canonical 14-row Algerian ladder as migration 0023 §5 (prescolaire_1..2,

@@ -2,7 +2,7 @@
 // FILE: src/domain/calc/academics/algerian-curriculum.ts
 // ============================================================================
 /**
- * The Algerian national curriculum catalog — T-407 (ACAD-508).
+ * The Algerian national curriculum catalog — T-408 (ACAD-508).
  *
  * DATA, NOT CODE — the TypeScript mirror of migration 0113 §2/§3 (the
  * `subjects` identity rows + the `subject_configurations` context rows

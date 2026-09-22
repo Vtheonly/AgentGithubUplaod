@@ -1,6 +1,6 @@
-# T-407 — Live Verification Evidence (88th session, 2026-09-22)
+# T-408 — Live Verification Evidence (88th session, 2026-09-22)
 
-**Task:** T-407 — Academic Setup Unblocked (subjects / teachers / classes) + the Algerian curriculum catalog + the portal timetable.
+**Task:** T-408 — Academic Setup Unblocked (subjects / teachers / classes) + the Algerian curriculum catalog + the portal timetable.
 **Problems closed:** ACAD-506, ACAD-507, ACAD-508, SCHED-105, SCHED-106 (+ SCHED-103 flipped MITIGATED → RESOLVED).
 **Backend:** vebfehrpzajhstyhinnw (eu-west-1), owner-supplied sbp_ Management token (never persisted; used for the atomic applies below).
 
@@ -29,11 +29,11 @@ Rolled-back transactions against the production DB (the inspect-live-db conventi
 
 ## 3. The atomic live apply (HTTP 201)
 
-`SUPABASE_ACCESS_TOKEN=sbp_… bash scripts/apply_0112_recovery_0113_live.sh` — one transaction: the 0112 idempotent body (orphan cleanup + both FKs NOT VALID→VALIDATE) + its `ON CONFLICT DO NOTHING` registration + the 0113 body (§1 identities, §2 configurations, §3 the year-code backfill, §4 `v_timetable_published`) + its registration. Pre-checked with a full dry-run in a rolled-back transaction (both FKs visible inside the transaction; no errors).
+`SUPABASE_ACCESS_TOKEN=sbp_… bash scripts/apply_0113_fk_0114_catalog_live.sh` — one transaction: the 0112 idempotent body (orphan cleanup + both FKs NOT VALID→VALIDATE) + its `ON CONFLICT DO NOTHING` registration + the 0113 body (§1 identities, §2 configurations, §3 the year-code backfill, §4 `v_timetable_published`) + its registration. Pre-checked with a full dry-run in a rolled-back transaction (both FKs visible inside the transaction; no errors).
 
 **Post-check (verbatim):** `fks_validated: 2, catalog_rows: 14, years_missing_code: 0, portal_view: 1`.
 
-## 4. verify_t-407.sql matrix (all GREEN live)
+## 4. verify_t-408.sql matrix (all GREEN live)
 
 - C1: 14 identity matières, all cycle NULL, all domain 'scolarite'.
 - C2 (the 4AM BEM scale, verbatim): ANGLAIS 2, ARABE 5, EDU_ISLAM 2, FRANCAIS 3, HIST_GEO 2, MATHS 4, PHYSIQUE 2, SVT 2 (+ the coefficient-1 EPS/Art/Info rows).
@@ -62,7 +62,7 @@ Rolled-back transactions against the production DB (the inspect-live-db conventi
 
 ## 8. Suites and gates
 
-- Desktop: t-407-academic-setup.test.ts **18/18**; FULL suite **3709 passed / 21 failed** = the byte-identical session-opening baseline (10 files: the parallel agent's dashboard/analytics/financial/vault zone); `tsc --noEmit` **0**; eslint **0 errors**; vite production build green.
+- Desktop: t-408-academic-setup.test.ts **18/18**; FULL suite **3709 passed / 21 failed** = the byte-identical session-opening baseline (10 files: the parallel agent's dashboard/analytics/financial/vault zone); `tsc --noEmit` **0**; eslint **0 errors**; vite production build green.
 - Website: t-407-portal-timetable.test.tsx **11/11**; FULL suite **640/640** (629 baseline + 11); `tsc --noEmit` **0**; eslint clean; next production build green.
 
 ## 9. Residuals (honest)

@@ -2,7 +2,7 @@
 // FILE: src/tests/infrastructure/t-407-academic-setup.test.ts
 // ============================================================================
 /**
- * T-407 — the academic-setup unblock tests (ACAD-506/507/508 + SCHED-105):
+ * T-408 — the academic-setup unblock tests (ACAD-506/507/508 + SCHED-105):
  *
  *   1. SupabaseTeacherRepository (SCHED-105) — the legacy TeacherRepository
  *      contract bridged onto the canonical tables: createTeacher flips the
@@ -270,7 +270,7 @@ afterEach(() => {
 // 1. SupabaseTeacherRepository (SCHED-105)
 // ============================================================================
 
-describe("T-407 — SupabaseTeacherRepository (the personnel bridge)", () => {
+describe("T-408 — SupabaseTeacherRepository (the personnel bridge)", () => {
   it("createTeacher flips the personnel row to teaching staff (audited, idempotent)", async () => {
     const client = seedTeacherTables();
     const repo = new SupabaseTeacherRepository(client as unknown as SupabaseClient);
@@ -417,7 +417,7 @@ describe("T-407 — SupabaseTeacherRepository (the personnel bridge)", () => {
 // 2. The academic-level resolution (ACAD-506)
 // ============================================================================
 
-describe("T-407 — the academic-level catalog (ACAD-506)", () => {
+describe("T-408 — the academic-level catalog (ACAD-506)", () => {
   it("the mock twin serves the canonical 14-row Algerian ladder", () => {
     const repo = new MockAcademicLevelRepository();
     const levels = repo.observeAll().get();
@@ -454,8 +454,8 @@ describe("T-407 — the academic-level catalog (ACAD-506)", () => {
     expect(provider).toMatch(/academicLevels:\s*AcademicLevelRepository/);
     expect(provider).toMatch(/academicLevels:\s*mockAcademicLevelRepository/);
     const supabaseSet = read("infrastructure/supabase/supabase-repositories.ts");
-    expect(supabaseSet).toMatch(/academicLevels,\s*\/\/\s*T-407/);
-    expect(supabaseSet).toMatch(/teachers,\s*\/\/\s*T-407/);
+    expect(supabaseSet).toMatch(/academicLevels,\s*\/\/\s*T-408/);
+    expect(supabaseSet).toMatch(/teachers,\s*\/\/\s*T-408/);
   });
 });
 
@@ -463,7 +463,7 @@ describe("T-407 — the academic-level catalog (ACAD-506)", () => {
 // 3. The subject form fix (ACAD-507)
 // ============================================================================
 
-describe("T-407 — the subject form phantom field (ACAD-507)", () => {
+describe("T-408 — the subject form phantom field (ACAD-507)", () => {
   it("the SubjectSchema derives level from the cycle (no bare required level field)", () => {
     // The schema must NOT contain a bare required `level: z.enum([...])`
     // (the invisible validation that blocked every submit), and the payload
@@ -485,7 +485,7 @@ describe("T-407 — the subject form phantom field (ACAD-507)", () => {
 // 4. The Algerian curriculum catalog (ACAD-508)
 // ============================================================================
 
-describe("T-407 — the Algerian curriculum catalog (ACAD-508)", () => {
+describe("T-408 — the Algerian curriculum catalog (ACAD-508)", () => {
   it("defines the 14 national matières as IDENTITY rows (unique codes)", () => {
     expect(ALGERIAN_SUBJECTS.length).toBe(14);
     const codes = new Set(ALGERIAN_SUBJECTS.map((s) => s.code));
@@ -534,7 +534,7 @@ describe("T-407 — the Algerian curriculum catalog (ACAD-508)", () => {
 
   it("the migration SQL mirrors the TS catalog (parity spot checks)", () => {
     const migration = readRoot(
-      "supabase/migrations/0113_algerian_curriculum_catalog.sql",
+      "supabase/migrations/0114_algerian_curriculum_catalog.sql",
     );
     for (const subject of ALGERIAN_SUBJECTS) {
       expect(migration).toContain(`'${subject.code}'`);
