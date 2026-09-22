@@ -1,3 +1,15 @@
+## 2026-09-22 — T-408 / ACAD-505 registered: Academic Setup Creation Integrity
+
+### Registration only — no implementation
+
+- **Problem:** ACAD-505 — current academic setup defects spanning class UUID resolution, teacher persistence, and curriculum catalogue/provisioning.
+- **Task:** T-408 — Academic Setup Creation Integrity: Classes + Teachers + Standard Curriculum Catalogue.
+- **Status:** READY / P0 Critical.
+- **Evidence:** current main-branch source inspection of the class dialog, academic repository, repository-provider wiring, teacher mock repository, subject creation UI, academic schema/configuration migrations, and T-313/ACAD-104 evidence.
+- **Changed:** added docs/recovery/t-408-academic-setup-creation.md; registered ACAD-505; added T-408 to the authoritative task registry; updated next-task/current-state; added AGENTS.md rule 46.
+- **Not changed:** no Desktop/Android/Website source, no Supabase migration, no RLS policy, no live row, and no application behavior.
+- **Next:** implement T-408 only after the implementation agent re-reads the task/problem evidence and re-checks the live migration chain.
+
 # Recovery Change Log
 
 > Chronological record of significant recovery changes. This file — not chat transcripts, not DONE/TODO notes — is the history of what has been fixed and how it was verified. Append one entry per completed task, using the template below.
