@@ -4290,9 +4290,9 @@ Verified against the code (not assumed): T-409's class VIEW was correctly scoped
 
 **Left:** owner UI testing of the per-class surfaces on the live FAKE dataset (packaged app must be rebuilt to carry T-410), then purge; the published LIVE v2 predates T-410 → no per-class table on it until a new trial is generated (honest absence, by design); the standing solver follow-ups (SCHED-107 + SCHED-110 one pass; SCHED-108; SCHED-109) and ACAD-510 unchanged.
 
-## T-411 — Finance UI Unification: single-source the Financials derivations, repair the consolidated-collection semantics, and reconcile the cross-tab metrics — OPEN (P0)
+## T-411 — Finance UI Unification: single-source the Financials derivations, repair the consolidated-collection semantics, and reconcile the cross-tab metrics — IN_PROGRESS (P0)
 
-**Registered:** 2026-09-23 (the 94th session — the inspection-only Finance UI audit)  
+**Registered:** 2026-09-23 (the 94th session — the inspection-only Finance UI audit) · **Started:** 2026-09-23 (95th session — Phase 0 registry pass complete: FA-12/13/14/15/16/20 registered as DATA-033/034/035/036/DUP-007/DATA-037)  
 **Problem:** DUP-006, BUSINESS-106, BUSINESS-107, BUSINESS-108, DATA-020 (residual), DATA-023, DATA-024, DATA-025, DATA-026, DATA-027, DATA-028, DATA-029, DATA-032 (all registered OPEN by the audit)  
 **Related:** audit report `docs/audits/finance-ui-architecture-audit-2026-09-23.md` (sections A–J = the complete map, duplication matrix, bug list with evidence, preservation checklist §I and target architecture §J) / T-060 (BUSINESS-005), T-103 (DATA-008), T-164/166/167/168 (billing-breakdown), T-330 (payment coverage), T-333 (pricing profiles), T-354 (DASH-404), T-405 (§15 debt aging), ADR-002, ADR-004, ADR-010  
 **Status:** OPEN — registered by an audit-only session; ZERO code was changed. The audit's preservation checklist (§I) and target architecture (§J) are the binding inputs: every capability listed there must survive.
