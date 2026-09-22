@@ -346,6 +346,130 @@ export interface TimetableSolutionStatistics {
   readonly hardViolationCount: number;
   readonly softViolationCount: number;
   readonly unplacedCount: number;
+  /**
+   * T-410 / SCHED-112 — ONE report per class: each class's timetable
+   * validated INDEPENDENTLY (the class's own completeness, its attributed
+   * conflicts, its gaps, its missing teacher/room periods). Present in
+   * every solution from solver build v1.2.0; ABSENT in versions persisted
+   * before T-410 (consumers must treat absence as "no per-class data",
+   * never as "all classes fine").
+   */
+  readonly perClass?: readonly ClassTimetableReport[];
+}
+
+// ============================================================================
+// Per-class timetable reports — T-410 / SCHED-112 (the owner contract:
+// "N classes → N separate timetables, each internally complete and
+// conflict-free, while still respecting shared teachers/rooms")
+// ============================================================================
+
+/**
+ * The per-class checklist keys (the owner's verification list). The report
+ * builder derives every item from the canonical validator + the class's own
+ * entries — presentation keys only, never a second constraint engine.
+ */
+export type ClassTimetableChecklistKey =
+  | "teacher_conflicts" // no teacher conflicts (attributed, both sides)
+  | "room_conflicts" // no room conflicts (attributed, both sides)
+  | "overlaps" // no overlapping lessons for THIS class
+  | "gaps" // no unnecessary/unexplained holes in the class's days
+  | "weekly_hours" // the class gets ALL its required weekly hours
+  | "subjects_scheduled" // every required subject/session actually placed
+  | "teacher_assigned" // every lesson of the class has a teacher
+  | "room_assigned" // every lesson of the class has a room
+  | "constraints"; // the class's timetable satisfies applicable constraints
+
+export const CLASS_TIMETABLE_CHECKLIST_KEYS: readonly ClassTimetableChecklistKey[] =
+  [
+    "teacher_conflicts",
+    "room_conflicts",
+    "overlaps",
+    "gaps",
+    "weekly_hours",
+    "subjects_scheduled",
+    "teacher_assigned",
+    "room_assigned",
+    "constraints",
+  ];
+
+export const CLASS_TIMETABLE_CHECKLIST_LABELS_FR: Record<
+  ClassTimetableChecklistKey,
+  string
+> = {
+  teacher_conflicts: "Aucun conflit d'enseignant",
+  room_conflicts: "Aucun conflit de salle",
+  overlaps: "Aucun chevauchement de cours",
+  gaps: "Aucun trou inutile dans la journée",
+  weekly_hours: "Heures hebdomadaires complètes",
+  subjects_scheduled: "Toutes les matières programmées",
+  teacher_assigned: "Un enseignant pour chaque cours",
+  room_assigned: "Une salle pour chaque cours",
+  constraints: "Contraintes respectées",
+};
+
+/** One item of a class's checklist — `ok` + the count driving it. */
+export interface ClassTimetableChecklistItem {
+  readonly key: ClassTimetableChecklistKey;
+  readonly ok: boolean;
+  /** The count the verdict is derived from (conflicts, gaps, missing…). */
+  readonly count: number;
+  /** French explanation, e.g. "22/26 périodes requises placées". */
+  readonly message: string;
+}
+
+/** A violation attributed to ONE class's timetable (shared-resource clashes
+ *  are attributed to EVERY participating class — both sides see the clash). */
+export interface ClassTimetableIssue {
+  readonly severity: "hard" | "soft";
+  readonly kind: string;
+  readonly message: string;
+}
+
+export type ClassTimetableStatus = "complete" | "incomplete";
+
+export const CLASS_TIMETABLE_STATUS_LABELS_FR: Record<
+  ClassTimetableStatus,
+  string
+> = {
+  complete: "Complet",
+  incomplete: "Incomplet",
+};
+
+/**
+ * ONE class's timetable as an independent, validated object: its own placed
+ * periods, its own coverage, its own attributed conflicts, its own gaps.
+ * `placedPeriods` counts ALL the class's entries INCLUDING locked pins
+ * (the global statistics.placedPeriods excludes locked pins — do not diff
+ * them naively).
+ */
+export interface ClassTimetableReport {
+  readonly classId: string;
+  readonly classCode: string;
+  readonly className: string;
+  readonly status: ClassTimetableStatus;
+  readonly placedPeriods: number;
+  readonly requiredPeriods: number;
+  readonly coveragePercent: number;
+  readonly hardIssueCount: number;
+  readonly softIssueCount: number;
+  /** Free teaching periods strictly between the class's first and last
+   *  lesson of a day (holes), summed over the week. */
+  readonly gapPeriods: number;
+  readonly issues: readonly ClassTimetableIssue[];
+  readonly checklist: readonly ClassTimetableChecklistItem[];
+}
+
+/**
+ * Read the per-class reports from PERSISTED version statistics —
+ * absence-tolerant: versions generated before T-410 (and any malformed
+ * row) yield [], which consumers render as "no per-class data", never
+ * as "all classes fine".
+ */
+export function readClassTimetableReports(
+  statistics: Readonly<Record<string, unknown>> | null | undefined,
+): ClassTimetableReport[] {
+  const raw = statistics?.["perClass"];
+  return Array.isArray(raw) ? (raw as ClassTimetableReport[]) : [];
 }
 
 export interface TimetableSolution {

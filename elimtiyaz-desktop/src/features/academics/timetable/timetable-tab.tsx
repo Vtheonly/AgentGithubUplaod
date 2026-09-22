@@ -53,11 +53,13 @@ import { useCurrentAcademicYear } from "../hooks/use-current-academic-year";
 import { TimetableGrid, type TimetableViewMode } from "./timetable-grid";
 import { TimetableEntryDialog } from "./timetable-entry-dialog";
 import {
+  CLASS_TIMETABLE_STATUS_LABELS_FR,
   ROOM_TYPES,
   TIMETABLE_CONSTRAINT_KINDS,
   TIMETABLE_DAY_LABELS_FR,
   TIMETABLE_GENERATION_STAGE_LABELS_FR,
   TIMETABLE_VERSION_STATUS_LABELS_FR,
+  readClassTimetableReports,
   timetableCoveragePercent,
   timetableGenerationProgressPercent,
   type Room,
@@ -209,10 +211,58 @@ export function TimetableTab() {
     return classes[0]?.id ?? null;
   }, [viewEntityId, classes]);
 
+  // T-410 / SCHED-112 — the SAME entity-mandatory contract for the teacher
+  // and room projections: every selector offers ONLY individual entities
+  // (NO "Tout afficher" — the owner's contract is one timetable per
+  // class/teacher/room, never the universal all-classes mixed grid). A
+  // stale or absent selection falls back to the FIRST entity.
+  const teacherViewEntityId = useMemo(() => {
+    const teachers = personnel.filter((p) => p.staffCategory === "teacher");
+    if (
+      viewEntityId !== "__all__" &&
+      teachers.some((p) => p.id === viewEntityId)
+    ) {
+      return viewEntityId;
+    }
+    return teachers[0]?.id ?? null;
+  }, [viewEntityId, personnel]);
+
+  const roomViewEntityId = useMemo(() => {
+    if (viewEntityId !== "__all__" && rooms.some((r) => r.id === viewEntityId)) {
+      return viewEntityId;
+    }
+    return rooms[0]?.id ?? null;
+  }, [viewEntityId, rooms]);
+
+  // The resolved projection entity (never "__all__"; null only when the
+  // mode has no entities at all — the grid then renders its honest empty
+  // state, never the mixed grid).
+  const projectedViewEntityId =
+    viewMode === "class"
+      ? classViewEntityId
+      : viewMode === "teacher"
+        ? teacherViewEntityId
+        : roomViewEntityId;
+
   const selectedClassLabel = useMemo(() => {
     const cls = classes.find((c) => c.id === classViewEntityId);
     return cls ? (cls.name ?? cls.code) : null;
   }, [classes, classViewEntityId]);
+
+  // T-410 / SCHED-112: the SELECTED CLASS's own validation report (from
+  // the version's per-class statistics — each class validated
+  // independently). Null when the version predates T-410 (honest absence)
+  // or the class has no report.
+  const selectedClassReport = useMemo(() => {
+    if (!selectedVersion || viewMode !== "class" || !classViewEntityId) {
+      return null;
+    }
+    return (
+      readClassTimetableReports(
+        selectedVersion.statistics as Record<string, unknown>,
+      ).find((r) => r.classId === classViewEntityId) ?? null
+    );
+  }, [selectedVersion, viewMode, classViewEntityId]);
 
   const editable =
     canManage &&
@@ -332,6 +382,12 @@ export function TimetableTab() {
       : [];
     return list;
   };
+
+  // T-410 / SCHED-112: the version's PER-CLASS timetable reports (each
+  // class validated independently at generation time). Empty for versions
+  // generated before T-410 — honest absence, never "all classes fine".
+  const perClassReportsOf = (v: TimetableVersion) =>
+    readClassTimetableReports(v.statistics as Record<string, unknown>);
 
   return (
     <div className="flex flex-col gap-3">
@@ -510,17 +566,31 @@ export function TimetableTab() {
                 </Select>
               )}
               {viewMode !== "class" && (
-                <Select value={viewEntityId} onValueChange={setViewEntityId}>
+                <Select
+                  value={projectedViewEntityId ?? ""}
+                  onValueChange={(v) => setViewEntityId(v)}
+                >
                   <SelectTrigger className="h-8 w-56 text-xs">
-                    <SelectValue placeholder="Tout" />
+                    <SelectValue
+                      placeholder={
+                        viewMode === "teacher" ? "Enseignant" : "Salle"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__all__" className="text-xs">Tout afficher</SelectItem>
-                    {viewEntities.map((e) => (
-                      <SelectItem key={e.id} value={e.id} className="text-xs">
-                        {e.label}
-                      </SelectItem>
-                    ))}
+                    {viewEntities.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        {viewMode === "teacher"
+                          ? "Aucun enseignant"
+                          : "Aucune salle"}
+                      </div>
+                    ) : (
+                      viewEntities.map((e) => (
+                        <SelectItem key={e.id} value={e.id} className="text-xs">
+                          {e.label}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               )}
@@ -539,6 +609,83 @@ export function TimetableTab() {
             </div>
           </CardHeader>
           <CardContent className="pb-4">
+            {/* T-410 / SCHED-112: the SELECTED CLASS's own validation strip —
+                each class timetable is an independent, validated object
+                (completeness + conflicts + gaps), not a cell inside one
+                school-wide aggregate. */}
+            {viewMode === "class" && selectedClassReport && (
+              <div
+                className={`mb-3 rounded-md border p-3 ${
+                  selectedClassReport.status === "complete"
+                    ? "border-status-success/30 bg-status-success/5"
+                    : "border-status-warning/40 bg-status-warning/5"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      selectedClassReport.status === "complete"
+                        ? "bg-status-success/15 text-status-success"
+                        : "bg-status-warning/15 text-status-warning"
+                    }`}
+                  >
+                    {CLASS_TIMETABLE_STATUS_LABELS_FR[selectedClassReport.status]}
+                  </span>
+                  <span className="text-[11px] font-medium text-foreground">
+                    {`${selectedClassReport.placedPeriods}/${selectedClassReport.requiredPeriods} périodes requises`}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    couverture{" "}
+                    {selectedClassReport.requiredPeriods > 0
+                      ? `${selectedClassReport.coveragePercent}%`
+                      : "—"}
+                  </span>
+                  <span
+                    className={`text-[11px] ${
+                      selectedClassReport.hardIssueCount > 0
+                        ? "text-status-danger"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {selectedClassReport.hardIssueCount} problème(s) strict(s)
+                  </span>
+                  {selectedClassReport.softIssueCount > 0 && (
+                    <span className="text-[11px] text-status-warning">
+                      {selectedClassReport.softIssueCount} préférence(s) non
+                      respectée(s)
+                    </span>
+                  )}
+                  {selectedClassReport.gapPeriods > 0 && (
+                    <span className="text-[11px] text-status-warning">
+                      {selectedClassReport.gapPeriods} trou(s) dans la semaine
+                    </span>
+                  )}
+                </div>
+                {selectedClassReport.issues.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {selectedClassReport.issues.slice(0, 6).map((issue, i) => (
+                      <li
+                        key={i}
+                        className={`rounded border-l-2 px-2 py-1 text-[11px] ${
+                          issue.severity === "hard"
+                            ? "border-status-danger bg-status-danger/5"
+                            : "border-status-warning bg-status-warning/5"
+                        }`}
+                      >
+                        {issue.message}
+                      </li>
+                    ))}
+                    {selectedClassReport.issues.length > 6 && (
+                      <li className="px-2 text-[10px] text-muted-foreground">
+                        + {selectedClassReport.issues.length - 6} autre(s)
+                        problème(s) — voir la liste complète dans Essais &
+                        publication.
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            )}
             {versions.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border p-12 text-center">
                 <CalendarDays className="h-10 w-10 text-muted-foreground opacity-40" />
@@ -564,13 +711,10 @@ export function TimetableTab() {
                 entries={entries}
                 viewMode={viewMode}
                 viewEntityId={
-                  viewMode === "class"
-                    ? // T-409: the class projection is ALWAYS scoped to the
-                      // selected class — never null (never "all classes").
-                      classViewEntityId
-                    : viewEntityId === "__all__"
-                      ? null
-                      : viewEntityId
+                  // T-409 + T-410: EVERY projection is scoped to ONE
+                  // explicitly selected entity — class, teacher or room.
+                  // The universal all-classes mixed grid is never rendered.
+                  projectedViewEntityId
                 }
                 names={names}
                 editable={editable}
@@ -705,6 +849,15 @@ export function TimetableTab() {
                               ? `${timetableCoveragePercent(placed, required)}%`
                               : "—"}
                           </span>
+                          {/* T-410: the per-class rollup — how many of this
+                              trial's class timetables are internally
+                              complete and conflict-free. */}
+                          {perClassReportsOf(v).length > 0 && (
+                            <span>
+                              {perClassReportsOf(v).filter((r) => r.status === "complete").length}
+                              /{perClassReportsOf(v).length} classes complètes
+                            </span>
+                          )}
                           {v.unplacedCount > 0 && (
                             <span className="text-status-danger">
                               {v.unplacedCount} bloc(s) non placé(s)
@@ -724,6 +877,106 @@ export function TimetableTab() {
                             <span>publiée le {new Date(v.publishedAt).toLocaleDateString("fr-FR")}</span>
                           )}
                         </div>
+                        {/* T-410 / SCHED-112 — THE OWNER CONTRACT: N classes
+                            → N separate timetables. Each class of this trial
+                            with its OWN independent validation: own coverage,
+                            own attributed conflicts, own gaps, own status.
+                            "Examiner" opens that class's own weekly grid. */}
+                        {perClassReportsOf(v).length > 0 && (
+                          <div className="mt-2 overflow-hidden rounded-md border border-border">
+                            <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-1.5">
+                              <span className="text-[11px] font-semibold text-foreground">
+                                Emplois du temps par classe ({
+                                  perClassReportsOf(v).length
+                                })
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                chaque classe est validée indépendamment
+                              </span>
+                            </div>
+                            <div className="max-h-72 overflow-y-auto">
+                              <table className="w-full text-[11px]">
+                                <thead>
+                                  <tr className="border-b border-border text-left text-[10px] font-medium text-muted-foreground">
+                                    <th className="px-3 py-1.5">Classe</th>
+                                    <th className="px-2 py-1.5">Périodes</th>
+                                    <th className="px-2 py-1.5">Couverture</th>
+                                    <th className="px-2 py-1.5">Problèmes</th>
+                                    <th className="px-2 py-1.5">Trous</th>
+                                    <th className="px-2 py-1.5">Statut</th>
+                                    <th className="px-2 py-1.5"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {perClassReportsOf(v).map((r) => (
+                                    <tr
+                                      key={r.classId}
+                                      className="border-b border-border/60 last:border-b-0"
+                                    >
+                                      <td className="px-3 py-1.5 font-medium text-foreground">
+                                        {r.className}
+                                      </td>
+                                      <td className="px-2 py-1.5 tabular-nums text-muted-foreground">
+                                        {r.placedPeriods}/{r.requiredPeriods}
+                                      </td>
+                                      <td className="px-2 py-1.5 tabular-nums text-muted-foreground">
+                                        {r.requiredPeriods > 0
+                                          ? `${r.coveragePercent}%`
+                                          : "—"}
+                                      </td>
+                                      <td className="px-2 py-1.5 text-muted-foreground">
+                                        {r.hardIssueCount > 0 && (
+                                          <span className="text-status-danger">
+                                            {r.hardIssueCount} strict(s)
+                                          </span>
+                                        )}
+                                        {r.hardIssueCount > 0 &&
+                                          r.softIssueCount > 0 &&" / "}
+                                        {r.softIssueCount > 0 && (
+                                          <span className="text-status-warning">
+                                            {r.softIssueCount} préf.
+                                          </span>
+                                        )}
+                                        {r.hardIssueCount === 0 &&
+                                          r.softIssueCount === 0 &&
+                                          "—"}
+                                      </td>
+                                      <td className="px-2 py-1.5 tabular-nums text-muted-foreground">
+                                        {r.gapPeriods > 0 ? r.gapPeriods : "—"}
+                                      </td>
+                                      <td className="px-2 py-1.5">
+                                        <span
+                                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                            r.status === "complete"
+                                              ? "bg-status-success/15 text-status-success"
+                                              : "bg-status-warning/15 text-status-warning"
+                                          }`}
+                                        >
+                                          {CLASS_TIMETABLE_STATUS_LABELS_FR[r.status]}
+                                        </span>
+                                      </td>
+                                      <td className="px-2 py-1.5 text-right">
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 text-[10px]"
+                                          onClick={() => {
+                                            setSelectedVersionId(v.id);
+                                            setViewMode("class");
+                                            setViewEntityId(r.classId);
+                                            setSubTab("schedule");
+                                          }}
+                                        >
+                                          Examiner
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
                         {(v.unplacedCount > 0 || violationsOf(v).length > 0) && (
                           <details className="mt-2">
                             <summary className="cursor-pointer text-[11px] font-medium text-primary">

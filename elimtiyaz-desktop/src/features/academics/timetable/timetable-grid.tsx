@@ -19,9 +19,16 @@
  *     and (class B, day, period) are DIFFERENT positions. Cells hold a
  *     LIST of entries — concurrent lessons stack, nothing is silently
  *     overwritten (the old single-entry Map kept only the LAST entry).
- *     In the class projection the strict classId filter guarantees a
- *     single-class weekly grid; teacher/room projections keep their
- *     "Tout afficher" option with honest stacking.
+ *
+ * T-410 / SCHED-112 — EVERY projection is scoped to ONE entity: a null
+ *   entity renders the honest "select an entity" empty state in ALL
+ *   three modes. The universal all-classes mixed grid (the old teacher /
+ *   room "Tout afficher" fallback `: entries`) is GONE from the product
+ *   surface — the owner's contract is N classes → N separate timetables
+ *   (+ per-teacher / per-room projections), never one school-wide grid
+ *   where every class, teacher and room is mixed together. The LIST-cell
+ *   stacking stays as anomaly tolerance: if data defects ever put two
+ *   entries in one entity's cell, both render — nothing is overwritten.
  *
  * Manual adjustment: clicking a cell opens the adjustment dialog with LIVE
  * validation feedback (the repository's canonical engine).
@@ -43,7 +50,7 @@ export interface TimetableGridProps {
   readonly configuration: TimetableConfiguration | null;
   readonly entries: readonly TimetableScheduleEntry[];
   readonly viewMode: TimetableViewMode;
-  /** The selected class/teacher/room id for the projection (null = all). */
+  /** The selected class/teacher/room id for the projection. */
   readonly viewEntityId: string | null;
   readonly names: {
     readonly classes: ReadonlyMap<string, string>;
@@ -130,6 +137,11 @@ export function TimetableGrid({
     // null entity in class mode is the honest EMPTY projection — never
     // "every class at once" (the old `!viewEntityId → return entries`
     // fallback was the cross-class overwrite root cause).
+    // T-410 / SCHED-112: the SAME contract now holds for the teacher and
+    // room projections — a projection is ALWAYS one entity's weekly
+    // timetable. The universal all-entries mixed grid is gone: the owner
+    // requires N classes → N separate timetables, and the teacher / room
+    // views project exactly one teacher's / one room's week.
     switch (viewMode) {
       case "class":
         return viewEntityId
@@ -138,20 +150,20 @@ export function TimetableGrid({
       case "teacher":
         return viewEntityId
           ? entries.filter((e) => e.teacherId === viewEntityId)
-          : entries;
+          : [];
       case "room":
         return viewEntityId
           ? entries.filter((e) => e.roomId === viewEntityId)
-          : entries;
+          : [];
     }
   }, [entries, viewMode, viewEntityId]);
 
-  // T-409 / SCHED-111: a visual cell holds a LIST of entries — entries
-  // APPEND, they can never overwrite one another. In the class projection
-  // the strict filter above guarantees at most ONE lesson per (day,
-  // period) — a class's weekly grid; in the teacher/room "Tout afficher"
-  // projection, concurrent lessons stack instead of the old behaviour
-  // where the LAST entry silently replaced every earlier one.
+  // T-409 + T-410: a visual cell holds a LIST of entries — entries
+  // APPEND, they can never overwrite one another. With every projection
+  // scoped to ONE entity (T-410) a cell normally holds ONE lesson; the
+  // LIST rendering stays as anomaly tolerance so a data defect (e.g. a
+  // teacher clash introduced by a manual adjustment) SHOWS both lessons
+  // instead of silently hiding one.
   const cellEntries = useMemo(() => {
     const map = new Map<string, TimetableScheduleEntry[]>();
     for (const e of projected) {
@@ -177,18 +189,24 @@ export function TimetableGrid({
     );
   }
 
-  // T-409: the class projection without a selected class renders the
+  // T-409 + T-410: ANY projection without a selected entity renders the
   // honest empty state — the mixed all-classes grid is NEVER shown.
-  if (viewMode === "class" && !viewEntityId) {
+  if (!viewEntityId) {
+    const entityLabel =
+      viewMode === "class"
+        ? "une classe"
+        : viewMode === "teacher"
+          ? "un enseignant"
+          : "une salle";
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border p-10 text-center">
         <CalendarDays className="h-8 w-8 text-muted-foreground opacity-50" />
         <p className="text-sm font-medium text-foreground">
-          Sélectionnez une classe
+          Sélectionnez {entityLabel}
         </p>
         <p className="text-xs text-muted-foreground">
-          L'emploi du temps par classe affiche une classe à la fois — choisissez
-          une classe pour afficher son emploi du temps hebdomadaire complet.
+          Chaque emploi du temps est affiché individuellement — choisissez{" "}
+          {entityLabel} pour afficher son emploi du temps hebdomadaire complet.
         </p>
       </div>
     );
