@@ -1490,7 +1490,17 @@ export class SupabaseStudentRepository implements StudentRepository {
             enrollmentDate: at,
             previousRank: null,
           });
-          const net = Math.max(0, gross + sumDiscounts(evals));
+          // DATA-028 (T-411, FA-17): the negotiated remise is no longer
+          // silently dropped. The wizard's step-3 devis promised
+          // `fi + scolarité + transport − remise`; the persisted charges
+          // now subtract it from the net BEFORE the official split (the
+          // sticker-price case records it without subtracting — the
+          // workbook's SEDIKI convention, mirrored from compute-billing).
+          // The tranche-structure unification (V2-targeted vs the
+          // official split) remains the registered owner decision.
+          const negotiatedRemise = Math.max(0, Number(sInput.remise) || 0);
+          const remiseAppliedToDevis = sInput.chargeStickerPrice ? 0 : negotiatedRemise;
+          const net = Math.max(0, gross + sumDiscounts(evals) - remiseAppliedToDevis);
           const amounts =
             sInput.paymentPlan === "full_annual"
               ? [net]
@@ -1513,6 +1523,11 @@ export class SupabaseStudentRepository implements StudentRepository {
                 tranche: t + 1,
                 gradeLevel,
                 paymentPlan: sInput.paymentPlan ?? "tranches",
+                // DATA-028: the negotiated remise travels with the charge
+                // (negotiatedRemise = what was agreed; appliedToDevis = 0
+                // in the sticker-price case by convention).
+                remise: negotiatedRemise,
+                remiseAppliedToDevis,
               },
             });
             ledgerWire.push({
@@ -1817,13 +1832,26 @@ export class SupabasePaymentRepository implements PaymentRepository {
     this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
-      const { data, error } = await this.client
-        .from("payments")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("collected_at", { ascending: false });
-      if (error) throw error;
-      this.cache.set((data as PaymentRow[]).map(mapPaymentRow));
+      // DATA-035 (T-411, FA-14): PAGINATED — PostgREST caps every response
+      // at 1000 rows (§15.29c); the previous single unpaginated select
+      // silently truncated the journal/KPIs/diagnostic caches in
+      // high-volume environments. 1000/page via .range(), same as the
+      // realtime bridge's fetchAllPages.
+      const rows: PaymentRow[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await this.client
+          .from("payments")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("collected_at", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const page = (data ?? []) as PaymentRow[];
+        rows.push(...page);
+        if (page.length < pageSize) break;
+      }
+      this.cache.set(rows.map(mapPaymentRow));
     } catch {
       this.cache.set([]);
     }
