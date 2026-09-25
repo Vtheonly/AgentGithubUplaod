@@ -48,6 +48,7 @@
 | **Excel bridge (legacy import)** | Desktop import engine → sync queue → `upsert_*_from_import` | D `src/infrastructure/excel/` | Initial data migration from workbook | Legacy workbook `Suivis clients 2026_2027.xlsx` is the historical source, not a live source of truth. |
 | **Timetable** | DB: `timetable_configurations`/`timetable_constraints`/`timetable_versions`/`timetable_entries`/`rooms` (0109/0110) + `fn_timetable_publish` | D canonical model `model/timetable.ts` + validator `calc/timetable/constraints.ts` + native solver `ts-greedy-v1` (ADR-020); Supabase `SupabaseTimetableRepository` | — | ✅ Implemented + TESTED (T-404, 2026-09-22); the legacy mock façade in teacher.ts is superseded — do not extend (SCHED-100 residual). |
 | **Multi-guardian families** | NONE — `parent_student_links` table exists, zero writers | DB (0005) | — | ✝ (DEAD-200, UNKNOWN-010). |
+| **Payroll forecast (T-412 / ADR-024)** | `computePayrollForecast` — desktop `src/domain/calc/payroll/payroll-forecast.ts` (pure, read-side over `personnel` + `salary_payments`) | D calc engine; NO backend surface by design | Personnel « Paiements du Personnel à Venir » · Finance pre-payroll funding card (`computeTreasuryHealth.payroll` pass-through) · Statistics `derivePayrollCostTrend` | One canonical calculation shared by all three consumers (parity suite pins it); `salary_payments` stays out of `ledger_entries` — the historical operating flow keeps the T-411 « hors masse salariale » basis. Rules: financial-rules §16. |
 
 ## How to use this registry
 

@@ -144,3 +144,28 @@ One canonical calculation, mirrored per the established pattern (reference TS + 
 ### 15.3 Status labels (FR, canonical wording)
 
 GREEN = « Actif / Soldé » · YELLOW = « À surveiller » · ORANGE = « Retard soutenu » · RED = « Critique » — identical wording on every surface that shows a debt status.
+
+## 16. Personnel payroll cash-flow forecast & pre-payroll funding requirements (T-412 / ADR-024, 2026-09-25)
+
+T-412 adds the canonical **payroll forecast** — a READ-SIDE projection over the existing payroll facts (`personnel` + `salary_payments`, the T-369 persistence surface). It creates NO new tables, NO new ledger semantics, NO waterfall interaction: `salary_payments` stays OUT of `ledger_entries` and the historical "Flux Net Opérationnel (hors masse salariale)" basis is UNCHANGED (the T-411/FA-08 label is preserved — moving payroll into the ledger basis remains a separate owner decision requiring its own ADR + migration + equivalence run).
+
+**The ONE canonical calculation** is `src/domain/calc/payroll/payroll-forecast.ts` (`computePayrollForecast`) — every surface (Personnel's « Paiements du Personnel à Venir », Finance's pre-payroll funding card, Statistics' monthly/quarterly trend) is a CONSUMER of its output; page-local forecast math is a registered defect class (§15.53a). The parity suite `src/tests/domain/calc/t-412-cross-page-parity.test.ts` pins the three views to identical values from identical inputs.
+
+### 16.1 The semantic vocabulary (binding, FR labels included)
+
+- **Vague de paie (payroll wave)** — one monthly payroll period `YYYY-MM`. The "current" period derives in **Africa/Algiers** (the Payroll tab's selector convention).
+- **Eligibility (the PayrollManagement basis, reused)** — `status = "active"` AND `salary > 0` AND hired on/before the period's last day AND not terminated before the period's first day. The forecast's current-period expected payroll therefore EQUALS the Payroll tab's « Masse Salariale » KPI (same basis by construction). Note: `on_leave` staff are NOT on this basis (the tab's KPI excludes them) — including them is an owner decision, not a silent change.
+- **Masse salariale attendue (expected payroll)** — Σ current base salaries of the eligible staff. Future one-off bonuses/deductions are unknowable before their `salary_adjustments` rows exist — the projection is CURRENT-salary-only, and every surface renders that limitation.
+- **Date de paiement canonique (canonical payment date)** — the LAST CALENDAR DAY of the period month (leap-safe). Actual `salary_payments.payment_date` overrides it for historical evidence.
+- **Fonds requis (required cash)** — the expected payroll that must be available before the payment date.
+- **Fonds sécurisés (secured/reserved)** — Σ `net_paid` of the period's `paid` + `pending` disbursement rows (committed funds; a pending bank transfer is reserved but not yet an actual outflow).
+- **Besoin de financement restant (remaining funding requirement)** — `max(0, expected − secured)`. This is THE "required funds before each payroll date" figure (full expected for future waves — nothing is secured yet).
+- **Disponibilité (readiness)** — `settled` (secured ≥ expected) / `partial` (0 < secured < expected) / `unfunded` (secured = 0 AND the canonical date has passed) / `upcoming` (secured = 0, date ahead).
+
+### 16.2 Invariants
+
+- **INV-17a (one engine):** Personnel, Finance and Statistics derive their payroll-forecast figures from the SAME `computePayrollForecast` output object; the Finance treasury block is a VERBATIM pass-through of the totals (the only derived value is `coverage30d` = `round(expectedInflow30d / requiredCash30d × 100)`, a presentation of two canonical numbers against each other — the inflow figure itself is NOT modified).
+- **INV-17b (real data only):** historical waves carry ACTUALS from `salary_payments` (no anachronistic projection onto past rosters); months without recorded disbursements read as 0 in the trend; empty inputs → empty outputs → honest empty states (§15.49a).
+- **INV-17c (the overdue carry-over):** periods between the LAST RECORDED disbursement and the current period surface as phase `overdue` (readiness `unfunded`) — a missed payroll is never silently dropped. Guards: requires existing disbursement history (a fresh install fabricates nothing), capped by the history window (default 12 months), per-period eligibility. The amount is the today's-roster projection (the documented limitation applies).
+- **INV-17d (reactive restatement):** the forecast is a pure function of the two canonical streams — personnel/salary/status/schedule changes restate every consumer automatically.
+- **INV-17e (mid-month hires):** a hire landing on/before a period's last day is owed that FULL period (the tab's budget does not prorate — neither does the forecast); a termination removes the person from every period starting AFTER the termination date.
