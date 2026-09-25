@@ -62,6 +62,7 @@ function makeRequestRow(overrides: Partial<AccountApprovalRequestRow> = {}): Acc
     phone: null,
     full_name: "Nouveau Parent",
     notes_from_user: null,
+    student_application: null,
     target_parent_id: null,
     target_student_id: null,
     status: "pending",
@@ -251,7 +252,10 @@ describe("T-264 / OPS-309 — source guards (the t-126 scan precedent)", () => {
     // Call sites end with `.single();` on their own line; the doc comment
     // legitimately MENTIONS `.single()` in prose (no trailing semicolon).
     expect(repoSource).not.toMatch(/^[ \t]*\.single\(\);/m);
-    expect(repoSource.match(/^[ \t]*\.maybeSingle\(\);/gm) ?? []).toHaveLength(5);
+    // T-413: 7 lookup sites now — the 5 original parent-side lookups plus the
+    // activation-code STUDENT lookup and the application-payload student
+    // name lookup (both .maybeSingle(), the same OPS-309 contract).
+    expect(repoSource.match(/^[ \t]*\.maybeSingle\(\);/gm) ?? []).toHaveLength(7);
   });
 
   it("the four not-yet-bound null filters are preserved verbatim (binding semantics, not noise)", () => {

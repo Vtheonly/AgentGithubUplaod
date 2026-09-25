@@ -71,9 +71,13 @@ describe("T-331 — the picker pre-empts the 0047 rebind guard", () => {
 
   it("a selected-but-bound parent blocks the confirmation", () => {
     expect(TAB).toContain("const selectedParentBound =");
+    // T-413: the submit gate now spans the parent picker AND the student
+    // branches — the parent leg keeps the same T-331 semantics inside the
+    // multi-branch expression.
     expect(TAB).toMatch(
-      /submitDisabled=\{isApproveExisting && \(selectedParentBound \|\| !decision\.targetParentId\)\}/,
+      /isApproveExisting && \(selectedParentBound \|\| !decision\.targetParentId\)/,
     );
+    expect(TAB).toMatch(/studentNewInvalid/);
   });
 
   it("the warning cites the unbind path (RBAC editor, 0047)", () => {

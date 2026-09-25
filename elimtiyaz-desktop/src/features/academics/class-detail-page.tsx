@@ -56,6 +56,7 @@ import { Permission } from "../../core/rbac/permissions";
 import { ClassSubjectsTab } from "./class-subjects-tab";
 import { ClassAttendanceTab } from "./class-attendance-tab";
 import { ClassGradesTab } from "./class-grades-tab";
+import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
 import { NarrativeGeneratorButton } from "./narrative-generator-modal";
 import { HomeworkPushModal } from "./homework-push-modal";
 import {
@@ -529,6 +530,7 @@ export function ClassDetailPage() {
                             ` · Notes médicales : ${s.medicalNotes}`}
                         </p>
                       </div>
+                      <StudentActionsMenu student={s} />
                       <NarrativeGeneratorButton
                         student={s}
                         classId={classId!}

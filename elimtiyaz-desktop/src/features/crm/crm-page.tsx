@@ -45,6 +45,7 @@ import {
 } from "../../domain/model/student";
 import type { Parent } from "../../domain/model/parent";
 import { parentDisplayName } from "../../domain/model/parent";
+import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
 import type { Student } from "../../domain/model/student";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { PageHeader } from "../../shared/layout/page-header";
@@ -629,6 +630,9 @@ function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void })
   const toast = useToast();
   const { session } = useAuth();
   const students = useObservable(() => repos.students.observe(), []);
+  // T-413: the family names for the 3-dot menu subtitles (the canonical
+  // parents repository — the same stream the parents tab consumes).
+  const parentsList = useObservable(() => repos.parents.observe(), []) ?? [];
 
   // T-381 — the pending student removal (ConfirmModal-guarded).
   const [pendingDelete, setPendingDelete] = useState<Student | null>(null);
@@ -699,6 +703,23 @@ function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void })
         />
       ),
       sortable: true,
+    },
+    {
+      // T-413: the standardized 3-dot cross-section menu ("Ouvrir dans…") —
+      // the same component on every student reference in the application.
+      header: "",
+      accessor: (s) => s.id,
+      cell: (s) => (
+        <StudentActionsMenu
+          student={s}
+          parentName={
+            parentsList.find((p) => p.id === s.parentId)
+              ? parentDisplayName(parentsList.find((p) => p.id === s.parentId)!)
+              : null
+          }
+        />
+      ),
+      sortable: false,
     },
   ];
 

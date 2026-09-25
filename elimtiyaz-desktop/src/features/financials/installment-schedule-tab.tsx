@@ -60,6 +60,7 @@ import {
   totalOutstanding,
 } from "../../domain/model/payment";
 import { Card, CardContent } from "../../shared/ui/card";
+import { Users, X } from "lucide-react";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
@@ -224,6 +225,7 @@ function TrancheWaveHeader({ waves }: { waves: TrancheWave[] }) {
 
 export function InstallmentScheduleTab({
   initialCategory,
+  initialFamilyId,
 }: {
   /**
    * T-411 (audit §H.3): the CrossServiceMatrix row-click target — the
@@ -231,6 +233,12 @@ export function InstallmentScheduleTab({
    * click's context.
    */
   initialCategory?: string | null;
+  /**
+   * T-413: the StudentActionsMenu's "Finance de la famille" target — the
+   * tab opens with this family's rows pre-filtered (the parent the
+   * referenced student belongs to). The filter is clearable in place.
+   */
+  initialFamilyId?: string | null;
 } = {}) {
   const repos = useRepositories();
   const { session } = useAuth();
@@ -239,6 +247,8 @@ export function InstallmentScheduleTab({
   const [rows, setRows] = useState<Row[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>(initialCategory ?? "all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  // T-413: the family scope ("all" = every family).
+  const [familyFilter, setFamilyFilter] = useState<string>(initialFamilyId ?? "all");
   const [collectFor, setCollectFor] = useState<Row | null>(null);
   const [editDueDateFor, setEditDueDateFor] = useState<Row | null>(null);
   const [regenerateFor, setRegenerateFor] = useState<{ parentId: string; parentName: string } | null>(null);
@@ -277,8 +287,10 @@ export function InstallmentScheduleTab({
     let list = rows;
     if (categoryFilter !== "all") list = list.filter((i) => i.category === categoryFilter);
     if (statusFilter !== "all") list = list.filter((i) => i.status === statusFilter);
+    // T-413: the family scope (the StudentActionsMenu deep link).
+    if (familyFilter !== "all") list = list.filter((i) => i.parentId === familyFilter);
     return list;
-  }, [rows, categoryFilter, statusFilter]);
+  }, [rows, categoryFilter, statusFilter, familyFilter]);
 
   const totals = useMemo(() => {
     // TIER 4 FIX (bypass #2) — delegate to canonical helpers from
@@ -495,8 +507,28 @@ export function InstallmentScheduleTab({
   return (
     <Card>
       <CardContent className="pt-3 space-y-3">
-        {/* Toolbar with category + status filters + overdue scan */}
+        {/* Toolbar with category + status + family filters + overdue scan */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* T-413: the family scope (the StudentActionsMenu deep link —
+              /financials?familyId=…). */}
+          {familyFilter !== "all" && (
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/5 px-2.5 h-9 text-sm">
+              <Users className="h-3.5 w-3.5 text-primary" />
+              <span className="max-w-[180px] truncate">
+                {parents.find((p) => p.id === familyFilter)
+                  ? parentDisplayName(parents.find((p) => p.id === familyFilter)!)
+                  : "Famille"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setFamilyFilter("all")}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Retirer le filtre famille"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          )}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-44 h-9">
               <SelectValue placeholder="Catégorie" />

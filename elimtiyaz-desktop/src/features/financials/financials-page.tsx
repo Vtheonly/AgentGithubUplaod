@@ -167,6 +167,9 @@ export function FinancialsPage() {
   // DATA-036 (T-411): the CrossServiceMatrix row-click target — the
   // installments tab opens with this category pre-filtered.
   const [installmentCategoryFilter, setInstallmentCategoryFilter] = useState<string | null>(null);
+  // T-413: the 3-dot menu's "Finance de la famille" target — the
+  // installments tab opens with this family (parent) pre-filtered.
+  const [installmentFamilyFilter, setInstallmentFamilyFilter] = useState<string | null>(null);
 
   // FIX (deep link): `/financials?paymentId=…` opens the payment drawer on
   // the payments tab, then cleans the param.
@@ -182,6 +185,9 @@ export function FinancialsPage() {
     const expenseId = searchParams.get("expenseId");
     const installmentId = searchParams.get("installmentId");
     const tabParam = searchParams.get("tab");
+    // T-413: `/financials?familyId=…` — the StudentActionsMenu's "Finance de
+    // la famille" target (the installments tab, family-scoped).
+    const familyId = searchParams.get("familyId");
     if (paymentId) {
       setTab("payments");
       setPaymentDetailId(paymentId);
@@ -192,6 +198,10 @@ export function FinancialsPage() {
     }
     if (installmentId) {
       setTab("installments");
+    }
+    if (familyId) {
+      setTab("installments");
+      setInstallmentFamilyFilter(familyId);
     }
     if (
       tabParam === "payments" ||
@@ -204,13 +214,14 @@ export function FinancialsPage() {
     ) {
       setTab(tabParam);
     }
-    if (paymentId || expenseId || installmentId || tabParam) {
+    if (paymentId || expenseId || installmentId || tabParam || familyId) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete("paymentId");
           next.delete("expenseId");
           next.delete("installmentId");
+          next.delete("familyId");
           next.delete("tab");
           return next;
         },
@@ -359,7 +370,10 @@ export function FinancialsPage() {
           <PaymentsTab payments={payments} onOpenPayment={setPaymentDetailId} />
         </PageTabContent>
         <PageTabContent value="installments">
-          <InstallmentScheduleTab initialCategory={installmentCategoryFilter} />
+          <InstallmentScheduleTab
+            initialCategory={installmentCategoryFilter}
+            initialFamilyId={installmentFamilyFilter}
+          />
         </PageTabContent>
         <PageTabContent value="debt">
           <DebtTab />

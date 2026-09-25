@@ -76,6 +76,19 @@ export interface PendingApprovalWithDetails extends AccountApprovalRequestRow {
   } | null;
 }
 
+/** T-413: the approve_student_application composite RPC's wire result. */
+export interface StudentApprovalResult {
+  request_id: string;
+  status: string;
+  auth_user_id: string;
+  target_parent_id: string | null;
+  target_student_id: string | null;
+  student_code?: string;
+  created_student?: boolean;
+  assigned_role?: string;
+  message?: string;
+}
+
 export class SupabaseApprovalRepository {
   constructor(private readonly client: SupabaseClient) {}
 
@@ -106,7 +119,9 @@ export class SupabaseApprovalRepository {
 
   /**
    * For a given approval request, find a matching parent (by activation_code,
-   * email, national_id, or phone). Returns the parent record if found.
+   * email, national_id, or phone) AND a matching student (T-413: by the
+   * activation code's student_id, then by the application's student name
+   * within any matched family). Returns the records if found.
    *
    * T-264 / OPS-309 (2026-09-10): every lookup here uses `.maybeSingle()` —
    * NOT `.single()`. Zero-row results are the COMMON case (most pending
@@ -140,6 +155,22 @@ export class SupabaseApprovalRepository {
 
         if (parent) {
           return { parent_match: parent, student_match: null };
+        }
+      }
+      // T-413 (STUDENT-100): the code may point at a STUDENT (the 0005
+      // activation_codes.student_id column exists exactly for student-login
+      // activation). The dead `student_match` field is now populated — the
+      // admin gets the bind-existing-student flow pre-targeted.
+      if (codeRow?.student_id) {
+        const { data: student } = await this.client
+          .from("students")
+          .select("id, student_code, first_name, last_name")
+          .eq("id", codeRow.student_id)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        if (student) {
+          return { parent_match: null, student_match: student };
         }
       }
     }
@@ -183,6 +214,26 @@ export class SupabaseApprovalRepository {
 
       if (parent) {
         return { parent_match: parent, student_match: null };
+      }
+    }
+
+    // T-413 (STUDENT-100): the application payload's student identity —
+    // match it against the CANONICAL students table (never a local/mock
+    // dataset) so the admin sees when the applying child ALREADY exists
+    // (a returning family whose sibling record predates the portal).
+    const applicant = request.student_application?.student;
+    if (applicant?.first_name && applicant?.last_name) {
+      const { data: student } = await this.client
+        .from("students")
+        .select("id, student_code, first_name, last_name")
+        .ilike("first_name", applicant.first_name)
+        .ilike("last_name", applicant.last_name)
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle();
+
+      if (student) {
+        return { parent_match: null, student_match: student };
       }
     }
 
@@ -275,12 +326,118 @@ export class SupabaseApprovalRepository {
     });
 
     if (error) {
+      const structured = await structuredEdgeFunctionError(error);
+      if (structured) {
+        return Err(Errors.server(structured.message ?? "Rejection failed"));
+      }
       return Err(supabaseErrorToAppError(error));
     }
     if (data?.error) {
       return Err(Errors.server(data.error.message ?? "Rejection failed"));
     }
     return Ok(undefined);
+  }
+
+  /**
+   * T-413 (STUDENT-100): approve a pending request, binding it to an
+   * EXISTING student — the composite approve_student_application RPC
+   * (migration 0116) performs the binding with the 0047 rebind guard +
+   * audit, reusing approve_account_request internally.
+   */
+  async approveWithExistingStudent(
+    requestId: string,
+    targetStudentId: string,
+    decisionNote?: string,
+    assignRole?: string,
+  ): Promise<Result<StudentApprovalResult>> {
+    const { data, error } = await this.client.functions.invoke("approve-signup-request", {
+      body: {
+        request_id: requestId,
+        action: "approve",
+        target_student_id: targetStudentId,
+        decision_note: decisionNote,
+        assign_role: assignRole,
+      },
+    });
+
+    if (error) {
+      const structured = await structuredEdgeFunctionError(error);
+      if (structured) {
+        return Err(Errors.server(structured.message ?? "Approval failed"));
+      }
+      return Err(supabaseErrorToAppError(error));
+    }
+    if (data?.error) {
+      return Err(Errors.server(data.error.message ?? "Approval failed"));
+    }
+    return Ok(data.data as StudentApprovalResult);
+  }
+
+  /**
+   * T-413 (STUDENT-100): approve a pending request, CREATING the student —
+   * the composite approve_student_application RPC (migration 0116) creates
+   * the canonical student record (ELV code, class enrollment,
+   * student_academic_histories entry), resolves or creates the parent, and
+   * activates the account, all in ONE server-side transaction (§15.39).
+   *
+   * The parent resolution mirrors the EF's existing semantics: EITHER an
+   * existing family (targetParentId) OR a new parent payload (newParent).
+   */
+  async approveWithNewStudent(
+    requestId: string,
+    newStudent: {
+      first_name: string;
+      middle_name?: string;
+      last_name: string;
+      date_of_birth: string;
+      gender?: "male" | "female" | "other";
+      grade_level_code?: string;
+      class_id?: string;
+      medical_notes?: string;
+    },
+    parent:
+      | { kind: "existing"; targetParentId: string }
+      | {
+          kind: "new";
+          newParent: {
+            first_name: string;
+            last_name: string;
+            primary_phone: string;
+            email?: string;
+            national_id?: string;
+            address?: string;
+            city?: string;
+            relationship?: string;
+          };
+        },
+    decisionNote?: string,
+    assignRole?: string,
+  ): Promise<Result<StudentApprovalResult>> {
+    const { data, error } = await this.client.functions.invoke("approve-signup-request", {
+      body: {
+        request_id: requestId,
+        action: "approve",
+        create_new_student: true,
+        new_student: newStudent,
+        ...(parent.kind === "existing"
+          ? { target_parent_id: parent.targetParentId }
+          : { create_new_parent: true, new_parent: parent.newParent }),
+        decision_note: decisionNote,
+        assign_role: assignRole,
+      },
+    });
+
+    if (error) {
+      const structured = await structuredEdgeFunctionError(error);
+      if (structured) {
+        return Err(Errors.server(structured.message ?? "Approval failed"));
+      }
+      return Err(supabaseErrorToAppError(error));
+    }
+    if (data?.error) {
+      return Err(Errors.server(data.error.message ?? "Approval failed"));
+    }
+    return Ok(data.data as StudentApprovalResult);
   }
 
   /**

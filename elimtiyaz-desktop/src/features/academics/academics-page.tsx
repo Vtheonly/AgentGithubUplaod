@@ -3,6 +3,7 @@
 // ============================================================================
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import {
   School,
   BookOpen,
@@ -14,6 +15,7 @@ import {
   Users,
   GraduationCap,
   CalendarDays,
+  Search,
 } from "lucide-react";
 import { PageHeader } from "../../shared/layout/page-header";
 import {
@@ -40,10 +42,12 @@ import { HomeworkHistoryTab } from "./homework-history-tab";
 import { JustificationsTab } from "./justifications-tab";
 import { HomeworkPushModal } from "./homework-push-modal";
 import { TimetableTab } from "./timetable/timetable-tab";
+import { StudentsDirectoryTab } from "./students-directory-tab";
 
 type AcademicsTab =
   | "school_years"
   | "classes"
+  | "students_directory"
   | "teachers"
   | "subjects"
   | "promotion_cycles"
@@ -58,10 +62,15 @@ export function AcademicsPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<AcademicsTab>("classes");
   const [homeworkOpen, setHomeworkOpen] = useState(false);
+  // T-413: the "Open in Pédagogie" deep link — the student directory opens
+  // with the referenced student pre-selected (the /crm?studentId convention).
+  const [directoryStudentId, setDirectoryStudentId] = useState<string | null>(null);
 
   const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+  const students = useObservable(() => repos.students.observe(), []) ?? [];
   const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
   const clubs = useObservable(() => repos.clubs.observe(), []) ?? [];
   const psychFollowUps = useObservable(
@@ -77,6 +86,26 @@ export function AcademicsPage() {
     [],
   ) ?? [];
   const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
+
+  // T-413: consume the /academics?studentId=… deep link (the 3-dot menu's
+  // "Ouvrir dans Pédagogie" target) — switch to the students directory with
+  // the canonical student pre-selected, then clean the param.
+  useMemo(() => {
+    const sid = searchParams.get("studentId");
+    if (sid) {
+      setTab("students_directory");
+      setDirectoryStudentId(sid);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("studentId");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+    return null;
+  }, [searchParams, setSearchParams]);
 
   const canObj = useMemo(() => {
     return {
@@ -119,6 +148,13 @@ export function AcademicsPage() {
         label: "Niveaux & Classes",
         icon: School,
         count: classes.length,
+        visible: canObj.viewAcademics,
+      },
+      {
+        value: "students_directory",
+        label: "Annuaire élèves",
+        icon: Search,
+        count: students.length,
         visible: canObj.viewAcademics,
       },
       {
@@ -194,6 +230,7 @@ export function AcademicsPage() {
   }, [
     canObj,
     classes.length,
+    students.length,
     teacherCount,
     subjects.length,
     clubs,
@@ -206,6 +243,8 @@ export function AcademicsPage() {
     switch (active) {
       case "classes":
         return "Organisation par niveaux scolaires & classes indépendantes — création et affectation des enseignants.";
+      case "students_directory":
+        return "Annuaire des élèves du dossier central — recherche par nom, code, famille ou classe, et navigation transversale (T-413).";
       case "teachers":
         return "Gestion du corps enseignant, affectations aux classes et matières.";
       case "school_years":
@@ -266,6 +305,10 @@ export function AcademicsPage() {
 
         <PageTabContent value="classes">
           <GradeLevelsClassView canCreate={canObj.manageClasses} />
+        </PageTabContent>
+
+        <PageTabContent value="students_directory">
+          <StudentsDirectoryTab initialStudentId={directoryStudentId} />
         </PageTabContent>
 
         <PageTabContent value="teachers">
