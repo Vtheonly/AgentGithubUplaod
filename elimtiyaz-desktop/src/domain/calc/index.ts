@@ -7,6 +7,9 @@
  *   - `ledger/`     — Account ID derivation, balance computation, entry
  *                     factories, charge builders, overdue helpers
  *   - `payment/`    — Payment/installment sums, overdue, aging, revenue
+ *   - `payroll/`    — Personnel payroll cash-flow forecast (T-412 / ADR-024):
+ *                     the ONE canonical calculation shared by Personnel,
+ *                     Finance and Statistics
  *   - `pricing/`    — Tuition/transport/discount lookups + tranche schedules
  *   - `reconcile/`  — Ledger integrity checks + cross-entity validation
  *
@@ -22,5 +25,6 @@
 export * from "./shared";
 export * from "./ledger";
 export * from "./payment";
+export * from "./payroll";
 export * from "./pricing";
 export * from "./reconcile";
