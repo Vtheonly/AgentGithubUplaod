@@ -3,7 +3,11 @@
 // ============================================================================
 /**
  * Canonical Personnel Payroll Cash-Flow Forecast — T-412 (96th session,
- * 2026-09-25). ADR-024.
+ * 2026-09-25). ADR-024. Second-round verification repairs (98th session,
+ * 2026-09-26): WORKFORCE-505 (the projected-wave eligibility gate now derives
+ * per-period — a future-hired roster gets its future waves) and WORKFORCE-506
+ * (the overdue carry-over anchors on the last PRE-current recorded period —
+ * current-period disbursements can no longer mask earlier missed payrolls).
  *
  * This is the ONE canonical payroll/payment forecasting calculation for the
  * whole platform (AGENTS.md §15.53a — every analytical surface is a CONSUMER
@@ -316,22 +320,32 @@ export function computePayrollForecast(params: {
   const projectedPeriods: string[] = [];
 
   // OVERDUE CARRY-OVER (the honest missed-payroll signal): the periods
-  // between the LAST RECORDED disbursement and the current period carry no
-  // salary_payments rows — data-driven evidence that those payrolls were
-  // never disbursed through the system. They surface as phase "overdue"
-  // (readiness "unfunded", canonical date passed) so the funding requirement
-  // they represent is NOT silently lost. Guards: emitted ONLY when some
-  // disbursement history exists at all (a fresh install with zero history
-  // cannot know when payroll started — nothing is fabricated, §15.49a);
-  // capped by the history window; skipped when no staff is eligible for the
-  // period (nothing reconstructable → nothing claimed). The amount is the
-  // today's-roster projection — same convention as every projected wave
-  // (documented limitation, ADR-024 / financial-rules §16).
+  // between the LAST RECORDED PRE-CURRENT disbursement and the current
+  // period carry no salary_payments rows — data-driven evidence that those
+  // payrolls were never disbursed through the system. They surface as phase
+  // "overdue" (readiness "unfunded", canonical date passed) so the funding
+  // requirement they represent is NOT silently lost. Guards: emitted ONLY
+  // when some disbursement history exists at all (a fresh install with zero
+  // history cannot know when payroll started — nothing is fabricated,
+  // §15.49a); capped by the history window; skipped when no staff is
+  // eligible for the period (nothing reconstructable → nothing claimed). The
+  // amount is the today's-roster projection — same convention as every
+  // projected wave (documented limitation, ADR-024 / financial-rules §16).
+  //
+  // WORKFORCE-506 (98th session): the gap anchor is the last recorded
+  // period STRICTLY BEFORE the current period — NEVER the maximum of all
+  // recorded periods. The 96th-session form (`recordedPeriods.at(-1)`)
+  // included in-flight CURRENT-period rows, so a single disbursement
+  // recorded for the current payroll silently HID every earlier missed
+  // month (July gap + partial-October row → August/September obligations
+  // vanished from every total). The current period's own rows join through
+  // `paymentsByPeriod` below and must never mask the history behind them.
   const recordedPeriods = [...paymentsByPeriod.keys()].sort();
-  const lastRecordedPeriod = recordedPeriods.at(-1) ?? null;
+  const lastRecordedBeforeCurrent =
+    recordedPeriods.filter((p) => p < currentPeriod).at(-1) ?? null;
   const historyFloor = addPeriodMonths(currentPeriod, -historyMonths);
-  if (lastRecordedPeriod && lastRecordedPeriod < currentPeriod) {
-    let cursor = addPeriodMonths(lastRecordedPeriod, 1);
+  if (lastRecordedBeforeCurrent) {
+    let cursor = addPeriodMonths(lastRecordedBeforeCurrent, 1);
     while (cursor < currentPeriod) {
       if (cursor >= historyFloor) projectedPeriods.push(cursor);
       cursor = addPeriodMonths(cursor, 1);
@@ -342,77 +356,80 @@ export function computePayrollForecast(params: {
     projectedPeriods.push(addPeriodMonths(currentPeriod, offset));
   }
 
-  const hasAnyEligibleStaff = personnel.some((p) =>
-    isEligibleFor(p, currentPeriod),
-  );
-
+  // WORKFORCE-505 (98th session): there is deliberately NO outer
+  // "hasAnyEligibleStaff" gate here. The 96th-session form keyed that gate
+  // on CURRENT-period eligibility, which suppressed every wave whenever the
+  // roster's staff were all hired from a future month onward (the natural
+  // pre-academic-year state). The per-period guard below
+  // (`eligible.length === 0 → continue`) already prevents fabrication for
+  // every individual period, so an outer gate adds nothing but the
+  // suppression — an all-ineligible roster still yields zero waves and the
+  // same honest empty state.
   const waves: PayrollWave[] = [];
 
-  if (hasAnyEligibleStaff) {
-    for (const period of projectedPeriods) {
-      const eligible = personnel.filter((p) => isEligibleFor(p, period));
-      if (eligible.length === 0) continue; // nothing reconstructable → skip
-      const rows = paymentsByPeriod.get(period) ?? [];
-      const secured = securedOf(rows);
-      const expectedPayroll = eligible.reduce((s, p) => s + (p.salary ?? 0), 0);
-      const remaining = Math.max(0, expectedPayroll - secured);
-      const phase: PayrollWavePhase =
-        period === currentPeriod
-          ? "current"
-          : period < currentPeriod
-            ? "overdue"
-            : "upcoming";
-      // Actual date when known (the current period may already carry real
-      // disbursements); otherwise the canonical convention.
-      const paymentDate =
-        actualPaymentDateOf(rows) ?? canonicalPayrollPaymentDate(period);
-      const paymentDateMs = Date.parse(`${paymentDate}T23:59:59Z`);
+  for (const period of projectedPeriods) {
+    const eligible = personnel.filter((p) => isEligibleFor(p, period));
+    if (eligible.length === 0) continue; // nothing reconstructable → skip
+    const rows = paymentsByPeriod.get(period) ?? [];
+    const secured = securedOf(rows);
+    const expectedPayroll = eligible.reduce((s, p) => s + (p.salary ?? 0), 0);
+    const remaining = Math.max(0, expectedPayroll - secured);
+    const phase: PayrollWavePhase =
+      period === currentPeriod
+        ? "current"
+        : period < currentPeriod
+          ? "overdue"
+          : "upcoming";
+    // Actual date when known (the current period may already carry real
+    // disbursements); otherwise the canonical convention.
+    const paymentDate =
+      actualPaymentDateOf(rows) ?? canonicalPayrollPaymentDate(period);
+    const paymentDateMs = Date.parse(`${paymentDate}T23:59:59Z`);
 
-      let readiness: PayrollReadiness;
-      if (expectedPayroll > 0 && secured >= expectedPayroll) {
-        readiness = "settled";
-      } else if (secured > 0) {
-        readiness = "partial";
-      } else if (paymentDateMs < nowMs) {
-        readiness = "unfunded";
-      } else {
-        readiness = "upcoming";
-      }
-
-      // Per-personnel breakdown behind this wave's total.
-      const disbursedByPersonnel = new Map<string, number>();
-      for (const r of rows) {
-        if (r.status === "paid" || r.status === "pending") {
-          disbursedByPersonnel.set(
-            r.personnelId,
-            (disbursedByPersonnel.get(r.personnelId) ?? 0) + (r.netPaid || 0),
-          );
-        }
-      }
-      const breakdown: PayrollObligationEntry[] = eligible.map((p) => ({
-        personnelId: p.id,
-        displayName: `${p.firstName} ${p.lastName}`.trim() || p.id,
-        position: p.position,
-        staffCategory: p.staffCategory,
-        baseSalary: p.salary ?? 0,
-        paymentMethod: p.paymentMethod,
-        disbursedForPeriod: disbursedByPersonnel.get(p.id) ?? 0,
-      }));
-
-      waves.push({
-        period,
-        phase,
-        paymentDate,
-        personnelCount: eligible.length,
-        expectedPayroll,
-        requiredCash: expectedPayroll,
-        securedAmount: secured,
-        remainingFundingRequirement: remaining,
-        actualPaid: actualPaidOf(rows),
-        readiness,
-        breakdown,
-      });
+    let readiness: PayrollReadiness;
+    if (expectedPayroll > 0 && secured >= expectedPayroll) {
+      readiness = "settled";
+    } else if (secured > 0) {
+      readiness = "partial";
+    } else if (paymentDateMs < nowMs) {
+      readiness = "unfunded";
+    } else {
+      readiness = "upcoming";
     }
+
+    // Per-personnel breakdown behind this wave's total.
+    const disbursedByPersonnel = new Map<string, number>();
+    for (const r of rows) {
+      if (r.status === "paid" || r.status === "pending") {
+        disbursedByPersonnel.set(
+          r.personnelId,
+          (disbursedByPersonnel.get(r.personnelId) ?? 0) + (r.netPaid || 0),
+        );
+      }
+    }
+    const breakdown: PayrollObligationEntry[] = eligible.map((p) => ({
+      personnelId: p.id,
+      displayName: `${p.firstName} ${p.lastName}`.trim() || p.id,
+      position: p.position,
+      staffCategory: p.staffCategory,
+      baseSalary: p.salary ?? 0,
+      paymentMethod: p.paymentMethod,
+      disbursedForPeriod: disbursedByPersonnel.get(p.id) ?? 0,
+    }));
+
+    waves.push({
+      period,
+      phase,
+      paymentDate,
+      personnelCount: eligible.length,
+      expectedPayroll,
+      requiredCash: expectedPayroll,
+      securedAmount: secured,
+      remainingFundingRequirement: remaining,
+      actualPaid: actualPaidOf(rows),
+      readiness,
+      breakdown,
+    });
   }
 
   // ── Historical waves (real disbursements only — no fabrication) ─────────
