@@ -38,6 +38,7 @@ import {
   deriveServiceYield,
   deriveEnrollmentDynamics,
   deriveTripleRiskSummary,
+  derivePayrollCostTrend,
   SERVICE_CATEGORIES,
 } from "../components/analytics/executive-statistics";
 import {
@@ -56,6 +57,10 @@ import { MethodMixCard, CategoryMixCard } from "../components/analytics/mix-card
 import { YoYComparisonCard } from "../components/analytics/yoy-comparison-card";
 import { AgingCompositionCard } from "../components/analytics/aging-composition-card";
 import { DebtorsParetoCard } from "../components/analytics/debtors-pareto-card";
+// T-412 — the Statistics planning view of the canonical payroll forecast
+// (ADR-024): the SAME computation as Personnel and Finance.
+import { PayrollCostTrendCard } from "../components/analytics/payroll-cost-trend-card";
+import { computePayrollForecast } from "../../../domain/calc/payroll/payroll-forecast";
 import {
   evaluateStudentRiskProfiles,
   type StudentRiskProfile,
@@ -126,6 +131,26 @@ export function AnalyticsTab({
   const internalInstallments = useObservable(() => repos.installments.observe(), []);
   const installments = installmentsProp ?? internalInstallments;
   const ledger = useObservable(() => repos.ledger.observe(), []);
+  // T-412 (ADR-024): the canonical payroll forecast's two input streams
+  // (the T-411 observeAllocations optional-method pattern — fakes/test
+  // repos without the payroll surface get a constant-empty stream and the
+  // trend card renders its honest empty state).
+  const payrollPersonnel = useObservable(
+    () =>
+      repos.personnel?.observe?.() ?? {
+        subscribe: () => () => {},
+        get: () => [],
+      },
+    [],
+  );
+  const salaryPayments = useObservable(
+    () =>
+      repos.personnel?.observeSalaryPayments?.() ?? {
+        subscribe: () => () => {},
+        get: () => [],
+      },
+    [],
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("pilotage");
   const [filters, setFilters] = useState<AnalyticsFilterState>(NO_ANALYTICS_FILTERS);
 
@@ -185,6 +210,21 @@ export function AnalyticsTab({
   const riskSummary = useMemo(
     () => deriveTripleRiskSummary(riskProfiles),
     [riskProfiles],
+  );
+  // T-412 — ONE canonical forecast → the Statistics trend projection (the
+  // Personnel waves and the Finance treasury block read the same object).
+  const payrollForecast = useMemo(
+    () =>
+      computePayrollForecast({
+        personnel: payrollPersonnel,
+        salaryPayments,
+        now: new Date(),
+      }),
+    [payrollPersonnel, salaryPayments],
+  );
+  const payrollTrend = useMemo(
+    () => derivePayrollCostTrend(payrollForecast),
+    [payrollForecast],
   );
 
   const toggleMethod = useCallback((method: PaymentMethod) => {
@@ -679,6 +719,29 @@ export function AnalyticsTab({
             <InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices (toutes années)", metric: "debtors_pareto", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />
           </div>
           <DebtorsParetoCard topDebtors={riskDebt as DebtSummary[]} />
+        </div>
+      ),
+    },
+    {
+      id: "charts-payroll-trend",
+      label: "Coûts du Personnel — Réalisé vs Projeté & Besoin de Financement",
+      x: 0,
+      y: 58,
+      w: 12,
+      h: 11,
+      minW: 6,
+      maxW: 12,
+      minH: 8,
+      maxH: 22,
+      content: (
+        <div className="h-full space-y-2">
+          {/* T-412 — the canonical monthly/quarterly personnel-cost &
+              funding-requirement trend (same calculation as Personnel and
+              Finance). No InspectTrigger here: the inspector's domain union
+              is a closed lineage contract (data-inspector-lineage.ts) — the
+              card labels its own figures and the parity suite pins the
+              values instead. */}
+          <PayrollCostTrendCard trend={payrollTrend} />
         </div>
       ),
     },

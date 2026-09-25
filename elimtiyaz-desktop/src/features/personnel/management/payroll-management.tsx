@@ -57,6 +57,9 @@ import {
   type PayrollMethod,
 } from "../../../domain/model/personnel";
 import { generatePayslipPdf, downloadPdf } from "../../../infrastructure/receipt-pdf";
+// T-412 — the canonical forecast section (upcoming personnel payments /
+// pre-payroll funding requirements), driven by computePayrollForecast.
+import { UpcomingPersonnelPayments } from "./upcoming-payroll-payments";
 
 const PAYROLL_PERIOD_OPTIONS = (() => {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -364,6 +367,12 @@ export function PayrollManagement() {
           <span className="text-[10px] text-muted-foreground">{activeStaff.length - paidWorkerIds.size} en attente</span>
         </Card>
       </div>
+
+      {/* T-412 — Upcoming Personnel Payments: the canonical payroll-wave
+          forecast (expected payroll / payment date / required cash /
+          secured / remaining funding requirement + the per-personnel
+          breakdown). Same calculation as Finance and Statistics. */}
+      <UpcomingPersonnelPayments />
 
       {/* Main Staff Payroll Ledger */}
       <Card>

@@ -937,3 +937,128 @@ export function deriveTripleRiskSummary(
     tripleCriticalPct: sharePct(tripleCriticalCount, total),
   };
 }
+
+// ============================================================================
+// 10. Payroll cost & funding-requirement trend (T-412 / ADR-024, 96th session)
+// ============================================================================
+
+// The canonical payroll forecast — this derivation is a pure PROJECTION of
+// its output (the §15.53a analytical-layer rule: a consumer, never a second
+// engine; the Personnel and Finance pages read the SAME forecast).
+import type { PayrollForecast } from "../../../../domain/calc/payroll/payroll-forecast";
+import {
+  periodQuarter,
+  periodLabelFr,
+} from "../../../../domain/calc/payroll/payroll-forecast";
+
+/** One month (or quarter) of the personnel-cost / funding-requirement trend. */
+export interface PayrollTrendPoint {
+  /** YYYY-MM (monthly) or YYYY-Qn (quarterly aggregation). */
+  readonly period: string;
+  readonly label: string;
+  readonly phase: "historical" | "overdue" | "current" | "upcoming";
+  /** Real disbursements (Σ net_paid of paid rows — 0 for future points). */
+  readonly actualPaid: number;
+  /** Projected expected payroll (Σ current base salaries — 0 for pure history). */
+  readonly projectedCost: number;
+  /** Remaining funding requirement at that point (max(0, expected − secured)). */
+  readonly fundingRequirement: number;
+}
+
+export interface PayrollCostTrend {
+  /** Chronological monthly points (the forecast's waves, one per period). */
+  readonly monthly: readonly PayrollTrendPoint[];
+  /** Quarterly aggregation of the monthly points (label "T3 2026"). */
+  readonly quarterly: readonly PayrollTrendPoint[];
+  readonly totals: {
+    /** Σ actual payroll outflow across the history window. */
+    readonly actualTotal: number;
+    /** Σ projected cost across the projected horizon (overdue + current + upcoming). */
+    readonly projectedTotal: number;
+    /** The largest single-period funding requirement in the trend. */
+    readonly maxFundingRequirement: number;
+    /** The steady-state monthly planning figure (next full month). */
+    readonly projectedMonthlyPayroll: number;
+  };
+}
+
+/**
+ * Quarterly aggregation priority — the MOST URGENT member wins: an overdue
+ * wave (a missed payroll) dominates its quarter, then the in-flight current
+ * period, then a planned upcoming one; a fully-settled historical quarter
+ * is the lowest priority. (Aggregation order, NOT chronology.)
+ */
+const PHASE_PRIORITY: Record<PayrollTrendPoint["phase"], number> = {
+  historical: 0,
+  upcoming: 1,
+  current: 2,
+  overdue: 3,
+};
+
+/**
+ * Projects the canonical payroll forecast into the Statistics trend shape:
+ * monthly AND quarterly personnel-cost + funding-requirement series with
+ * historical actuals vs projected costs clearly separated. Pure — no clock,
+ * no IO; every number is a read-back of the forecast's own fields.
+ */
+export function derivePayrollCostTrend(
+  forecast: PayrollForecast,
+): PayrollCostTrend {
+  const monthly: PayrollTrendPoint[] = forecast.waves.map((w) => ({
+    period: w.period,
+    label: periodLabelFr(w.period),
+    phase: w.phase,
+    actualPaid: w.actualPaid,
+    projectedCost: w.phase === "historical" ? 0 : w.expectedPayroll,
+    fundingRequirement: w.remainingFundingRequirement,
+  }));
+
+  // Quarterly aggregation: group the monthly points by year + quarter; the
+  // phase is the MOST URGENT member's (a quarter containing an overdue wave
+  // is itself flagged); amounts are plain sums.
+  const quarterMap = new Map<string, PayrollTrendPoint>();
+  for (const point of monthly) {
+    const q = periodQuarter(point.period);
+    const key = `${point.period.slice(0, 4)}-Q${q}`;
+    const existing = quarterMap.get(key);
+    if (!existing) {
+      quarterMap.set(key, {
+        period: key,
+        label: `T${q} ${point.period.slice(0, 4)}`,
+        phase: point.phase,
+        actualPaid: point.actualPaid,
+        projectedCost: point.projectedCost,
+        fundingRequirement: point.fundingRequirement,
+      });
+    } else {
+      const phase: PayrollTrendPoint["phase"] =
+        PHASE_PRIORITY[point.phase] > PHASE_PRIORITY[existing.phase]
+          ? point.phase
+          : existing.phase;
+      quarterMap.set(key, {
+        ...existing,
+        phase,
+        actualPaid: existing.actualPaid + point.actualPaid,
+        projectedCost: existing.projectedCost + point.projectedCost,
+        fundingRequirement: existing.fundingRequirement + point.fundingRequirement,
+      });
+    }
+  }
+  const quarterly = [...quarterMap.values()].sort((a, b) =>
+    a.period < b.period ? -1 : a.period > b.period ? 1 : 0,
+  );
+
+  return {
+    monthly,
+    quarterly,
+    totals: {
+      actualTotal: monthly.reduce((s, p) => s + p.actualPaid, 0),
+      projectedTotal: monthly.reduce((s, p) => s + p.projectedCost, 0),
+      maxFundingRequirement: monthly.reduce(
+        (m, p) => Math.max(m, p.fundingRequirement),
+        0,
+      ),
+      projectedMonthlyPayroll: forecast.totals.projectedMonthlyPayroll,
+    },
+  };
+}

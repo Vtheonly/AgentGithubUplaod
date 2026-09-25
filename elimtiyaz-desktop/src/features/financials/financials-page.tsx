@@ -93,6 +93,10 @@ import {
 import { FinancialQueryConsole } from "./financial-query-console";
 import { CrossServiceMatrix } from "./cross-service-matrix";
 import { CashFlowRadar } from "./cash-flow-radar";
+// T-412 — the pre-payroll funding requirements (the canonical forecast's
+// Finance consumer) + the engine itself.
+import { PayrollFundingCard } from "./payroll-funding-card";
+import { computePayrollForecast } from "../../domain/calc/payroll/payroll-forecast";
 
 
 
@@ -129,6 +133,27 @@ export function FinancialsPage() {
       },
     [],
   );
+  // T-412 (ADR-024): the canonical payroll forecast's two input streams.
+  // Same optional-method pattern as observeAllocations — fakes/test repos
+  // without the payroll surface get a constant-empty stream, and the
+  // forecast then honestly reports no payroll obligations (the funding
+  // card renders nothing — §15.49a).
+  const payrollPersonnel = useObservable(
+    () =>
+      repos.personnel?.observe?.() ?? {
+        subscribe: () => () => {},
+        get: () => [],
+      },
+    [],
+  );
+  const salaryPayments = useObservable(
+    () =>
+      repos.personnel?.observeSalaryPayments?.() ?? {
+        subscribe: () => () => {},
+        get: () => [],
+      },
+    [],
+  );
 
   const [tab, setTab] = useState<FinanceTab>("payments");
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -150,10 +175,13 @@ export function FinancialsPage() {
   // detail) routes to the installments tab. The emitters were normalized
   // to these two spellings — the old `?expense=` / `?installment=` forms
   // silently landed on the default tab (audit FA-16).
+  // T-412: `?tab=<financeTab>` routes cross-page links to a specific tab
+  // (the Personnel forecast section links to the Diagnostic tab).
   useEffect(() => {
     const paymentId = searchParams.get("paymentId");
     const expenseId = searchParams.get("expenseId");
     const installmentId = searchParams.get("installmentId");
+    const tabParam = searchParams.get("tab");
     if (paymentId) {
       setTab("payments");
       setPaymentDetailId(paymentId);
@@ -165,13 +193,25 @@ export function FinancialsPage() {
     if (installmentId) {
       setTab("installments");
     }
-    if (paymentId || expenseId || installmentId) {
+    if (
+      tabParam === "payments" ||
+      tabParam === "installments" ||
+      tabParam === "debt" ||
+      tabParam === "debt-aging" ||
+      tabParam === "expenses" ||
+      tabParam === "receipts" ||
+      tabParam === "diagnostic"
+    ) {
+      setTab(tabParam);
+    }
+    if (paymentId || expenseId || installmentId || tabParam) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete("paymentId");
           next.delete("expenseId");
           next.delete("installmentId");
+          next.delete("tab");
           return next;
         },
         { replace: true },
@@ -212,14 +252,29 @@ export function FinancialsPage() {
     });
   }, [installments, payments, paymentAllocations]);
 
+  // T-412 (ADR-024) — the canonical payroll forecast: ONE computation fed
+  // from the two canonical streams, consumed by the treasury snapshot (the
+  // funding card's figures are the snapshot's pass-through — parity by
+  // construction with the Personnel and Statistics views).
+  const payrollForecast = useMemo(
+    () =>
+      computePayrollForecast({
+        personnel: payrollPersonnel,
+        salaryPayments,
+        now: new Date(),
+      }),
+    [payrollPersonnel, salaryPayments],
+  );
+
   const treasuryHealth = useMemo(() => {
     return computeTreasuryHealth({
       payments,
       installments,
       expenses,
       debtSummaries: debtSummary,
+      payroll: payrollForecast,
     });
-  }, [payments, installments, expenses, debtSummary]);
+  }, [payments, installments, expenses, debtSummary, payrollForecast]);
 
   const diagnosticAlertCount = useMemo(
     () => financialDiagnoses.filter((d) => d.anomalies.length > 0 && !d.anomalies.includes("healthy")).length,
@@ -346,8 +401,13 @@ export function FinancialsPage() {
                   }}
                 />
               </div>
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-5 space-y-4">
                 <CashFlowRadar treasury={treasuryHealth} />
+                {/* T-412 — the pre-payroll funding requirements (expected
+                    payroll / required cash / secured / remaining funding
+                    requirement / 30-day treasury impact). Renders nothing
+                    when the canonical forecast has no payroll obligations. */}
+                <PayrollFundingCard treasury={treasuryHealth} />
               </div>
             </div>
           </div>
