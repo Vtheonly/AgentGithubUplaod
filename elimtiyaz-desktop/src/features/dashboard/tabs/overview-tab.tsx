@@ -218,7 +218,10 @@ export function OverviewTab({
       h: 8,
       minW: 4,
       maxW: 12,
-      minH: 6,
+      // h: 8 is the collision-free budget: the row below (insights, y=23)
+      // starts right after this widget, and the calendar's own sheet must
+      // fit in the 8 rows × 32px + 12px gaps box without spilling into it.
+      minH: 8,
       maxH: 20,
       content: <DashboardCalendar />,
     },

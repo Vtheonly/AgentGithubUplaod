@@ -222,7 +222,17 @@ export function DashboardLayoutEditor({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [layout, setLayout] = useState<StoredLayout>(() =>
-    buildInitialLayout(items, readStoredLayout(storageKey)),
+    // Load-time healing: a stored rect can be stale — e.g. a widget whose
+    // default height was later raised would already overlap its neighbour in
+    // the persisted grid (rows are fixed tracks, so two items sharing a track
+    // render on top of each other). `resolveCollisions` is the SAME resolver
+    // the drag/resize handlers use; the sentinel id means "nothing is being
+    // dragged", i.e. push whichever of the two sits lower. For a clean layout
+    // this is a no-op.
+    resolveCollisions(
+      buildInitialLayout(items, readStoredLayout(storageKey)),
+      "__load__",
+    ),
   );
 
   useEffect(() => {

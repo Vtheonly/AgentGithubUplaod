@@ -58,6 +58,60 @@ const MONTHS_FR = [
   "Décembre",
 ];
 
+/**
+ * Local calendar date key (YYYY-MM-DD).
+ * `Date.prototype.toISOString()` is UTC-based: in Algeria (UTC+1) every date
+ * built between 00:00 and 01:00 local lands on the PREVIOUS day, which made the
+ * "today" highlight and the initial selection drift. Never use it for a
+ * calendar cell.
+ */
+export function toDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export interface MonthSheetCell {
+  /** ISO date (YYYY-MM-DD) this cell points at. */
+  readonly date: string;
+  /** Day number to display — may belong to the previous/next month. */
+  readonly day: number;
+  /** False = leading/trailing day borrowed from the adjacent month. */
+  readonly inMonth: boolean;
+}
+
+/**
+ * Build the visible sheet of a month calendar: a FIXED 6-week (42 cell),
+ * Monday-first grid.
+ *
+ * Adjacent-month days are rendered (dimmed) instead of leaving blank voids, so
+ * the widget reads like an actual month calendar and its height never jumps
+ * between 5 and 6 rows while paging through months.
+ */
+export function buildMonthSheet(year: number, month: number): MonthSheetCell[] {
+  const firstOfMonth = new Date(year, month, 1);
+  const lastOfMonth = new Date(year, month + 1, 0);
+  // getDay() is Sunday=0 → shift so Monday=0 (WEEKDAYS_FR starts on Monday).
+  const startOffset = (firstOfMonth.getDay() + 6) % 7;
+  const cells: MonthSheetCell[] = [];
+
+  for (let back = startOffset; back > 0; back--) {
+    const d = new Date(year, month, 1 - back);
+    cells.push({ date: toDateKey(d), day: d.getDate(), inMonth: false });
+  }
+  for (let day = 1; day <= lastOfMonth.getDate(); day++) {
+    cells.push({
+      date: toDateKey(new Date(year, month, day)),
+      day,
+      inMonth: true,
+    });
+  }
+  let trailingDay = 1;
+  while (cells.length < 42) {
+    const d = new Date(year, month + 1, trailingDay++);
+    cells.push({ date: toDateKey(d), day: d.getDate(), inMonth: false });
+  }
+  return cells;
+}
+
 const KIND_ICONS: Record<CalendarEventKind, typeof Wallet> = {
   payment_received: Wallet,
   audit_log: ScrollText,
@@ -86,12 +140,11 @@ export function DashboardCalendar() {
   const toast = useToast();
   const { session } = useAuth();
   const today = new Date();
+  const todayKey = toDateKey(today);
   const [cursor, setCursor] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
-  const [selectedDate, setSelectedDate] = useState(
-    today.toISOString().slice(0, 10),
-  );
+  const [selectedDate, setSelectedDate] = useState(() => toDateKey(today));
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [monthEventCounts, setMonthEventCounts] = useState<Map<string, number>>(
     new Map(),
@@ -102,17 +155,46 @@ export function DashboardCalendar() {
   const yearMonth = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
 
   useEffect(() => {
-    const unsub = repos.calendar
-      .observeForMonth(yearMonth)
-      .subscribe((monthEvents) => {
-        const counts = new Map<string, number>();
-        for (const e of monthEvents) {
-          counts.set(e.date, (counts.get(e.date) ?? 0) + 1);
+    // The sheet always shows leading/trailing days from the adjacent months, so
+    // the day-dot counters must cover those months too — otherwise a day from
+    // the previous/next month silently renders as "no activity".
+    const monthKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const visibleMonths = [
+      monthKey(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1)),
+      yearMonth,
+      monthKey(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)),
+    ];
+    const countsByMonth = new Map<string, Map<string, number>>();
+    const unsubs: Array<() => void> = [];
+
+    const publish = () => {
+      const merged = new Map<string, number>();
+      for (const perDay of countsByMonth.values()) {
+        for (const [date, count] of perDay) {
+          merged.set(date, (merged.get(date) ?? 0) + count);
         }
-        setMonthEventCounts(counts);
-      });
-    return unsub;
-  }, [repos.calendar, yearMonth]);
+      }
+      setMonthEventCounts(merged);
+    };
+
+    for (const month of visibleMonths) {
+      unsubs.push(
+        repos.calendar.observeForMonth(month).subscribe((monthEvents) => {
+          const counts = new Map<string, number>();
+          for (const e of monthEvents) {
+            counts.set(e.date, (counts.get(e.date) ?? 0) + 1);
+          }
+          countsByMonth.set(month, counts);
+          publish();
+        }),
+      );
+    }
+
+    return () => {
+      for (const unsub of unsubs) unsub();
+    };
+  }, [repos.calendar, yearMonth, cursor]);
 
   useEffect(() => {
     const unsub = repos.calendar
@@ -123,25 +205,10 @@ export function DashboardCalendar() {
     return unsub;
   }, [repos.calendar, selectedDate]);
 
-  const monthGrid = useMemo(() => {
-    const firstOfMonth = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-    const lastOfMonth = new Date(
-      cursor.getFullYear(),
-      cursor.getMonth() + 1,
-      0,
-    );
-    const startOffset = (firstOfMonth.getDay() + 6) % 7;
-    const totalDays = lastOfMonth.getDate();
-    const cells: Array<{ date: string | null; day: number }> = [];
-
-    for (let i = 0; i < startOffset; i++) cells.push({ date: null, day: 0 });
-    for (let d = 1; d <= totalDays; d++) {
-      const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      cells.push({ date: dateStr, day: d });
-    }
-    while (cells.length % 7 !== 0) cells.push({ date: null, day: 0 });
-    return cells;
-  }, [cursor]);
+  const monthGrid = useMemo(
+    () => buildMonthSheet(cursor.getFullYear(), cursor.getMonth()),
+    [cursor],
+  );
 
   function prevMonth() {
     setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
@@ -152,7 +219,15 @@ export function DashboardCalendar() {
   function goToToday() {
     const now = new Date();
     setCursor(new Date(now.getFullYear(), now.getMonth(), 1));
-    setSelectedDate(now.toISOString().slice(0, 10));
+    setSelectedDate(toDateKey(now));
+  }
+  /** Selecting a borrowed (adjacent-month) day pages the calendar to it. */
+  function selectDate(date: string) {
+    setSelectedDate(date);
+    const [year, month] = date.split("-").map(Number);
+    if (year !== cursor.getFullYear() || month - 1 !== cursor.getMonth()) {
+      setCursor(new Date(year, month - 1, 1));
+    }
   }
 
   async function handleDelete() {
@@ -172,7 +247,7 @@ export function DashboardCalendar() {
   const canManageEvents = !!session;
 
   return (
-    <Card className="rounded-xl border border-border/70 bg-surface-panel shadow-sm overflow-hidden">
+    <Card className="h-full flex flex-col rounded-xl border border-border/70 bg-surface-panel shadow-sm overflow-hidden">
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-4 w-4 text-primary" />
@@ -190,8 +265,11 @@ export function DashboardCalendar() {
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </Button>
-          <span className="text-xs font-bold text-foreground px-1">
-            {MONTHS_FR[cursor.getMonth()]} {cursor.getFullYear()}
+          <span className="px-1.5 text-sm font-bold tracking-wide text-foreground whitespace-nowrap">
+            {MONTHS_FR[cursor.getMonth()]}{" "}
+            <span className="font-semibold text-muted-foreground">
+              {cursor.getFullYear()}
+            </span>
           </span>
           <Button
             variant="ghost"
@@ -212,75 +290,106 @@ export function DashboardCalendar() {
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Month grid (7 cols) */}
-        <div className="lg:col-span-7 space-y-2">
-          <div className="grid grid-cols-7 gap-1 text-center">
-            {WEEKDAYS_FR.map((d) => (
-              <span
-                key={d}
-                className="text-[10px] font-bold uppercase text-muted-foreground py-1"
-              >
-                {d}
-              </span>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1">
-            {monthGrid.map((cell, i) => {
-              if (!cell.date) {
-                return (
-                  <div
-                    key={i}
-                    className="h-10 rounded-lg bg-surface-elevated/10"
-                  />
-                );
-              }
-
-              const isSelected = cell.date === selectedDate;
-              const isToday = cell.date === today.toISOString().slice(0, 10);
-              const count = monthEventCounts.get(cell.date) ?? 0;
-
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => cell.date && setSelectedDate(cell.date)}
-                  className={`relative h-10 rounded-lg text-xs font-mono transition-all flex flex-col items-center justify-center ${
-                    isSelected
-                      ? "bg-primary text-primary-foreground font-bold shadow-sm ring-1 ring-primary"
-                      : isToday
-                        ? "bg-primary/10 text-primary font-bold border border-primary/40"
-                        : "bg-surface-elevated/30 text-foreground hover:bg-surface-elevated/80 border border-border/30"
+      <CardContent className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        {/* Month sheet (7 cols) — a real calendar page: an attached weekday
+            header, a hairline grid, borrowed adjacent-month days instead of
+            blank voids, weekend shading and a today marker. */}
+        <div className="lg:col-span-7 min-h-0 flex flex-col">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/60 bg-surface-panel">
+            <div className="grid grid-cols-7 gap-px border-b border-border/60 bg-border/50">
+              {WEEKDAYS_FR.map((d, di) => (
+                <div
+                  key={d}
+                  className={`bg-surface-elevated/40 py-1 text-center text-[10px] font-bold uppercase tracking-wide ${
+                    di >= 5 ? "text-muted-foreground/70" : "text-muted-foreground"
                   }`}
                 >
-                  <span>{cell.day}</span>
-                  {count > 0 && (
-                    <div className="flex gap-0.5 mt-0.5">
-                      {Array.from({ length: Math.min(count, 3) }).map(
-                        (_, di) => (
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid flex-1 min-h-0 grid-cols-7 gap-px bg-border/50">
+              {monthGrid.map((cell, index) => {
+                const isSelected = cell.date === selectedDate;
+                const isToday = cell.date === todayKey;
+                const count = monthEventCounts.get(cell.date) ?? 0;
+                const isWeekend = index % 7 >= 5;
+
+                const skin = isSelected
+                  ? "bg-primary text-primary-foreground"
+                  : !cell.inMonth
+                    ? "bg-surface-elevated/20 text-muted-foreground/60 hover:bg-surface-elevated/40"
+                    : isToday
+                      ? "bg-primary/10 text-primary hover:bg-primary/20"
+                      : isWeekend
+                        ? "bg-surface-elevated/30 hover:bg-surface-elevated/60"
+                        : "bg-surface-panel hover:bg-surface-elevated/50";
+
+                return (
+                  <button
+                    key={cell.date}
+                    type="button"
+                    onClick={() => selectDate(cell.date)}
+                    aria-current={isToday ? "date" : undefined}
+                    aria-pressed={isSelected}
+                    aria-label={`${cell.date}${count > 0 ? ` — ${count} événement(s)` : ""}`}
+                    className={`flex min-h-[34px] flex-col gap-1 p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${skin}`}
+                  >
+                    <span className="flex items-center justify-between gap-1">
+                      <span
+                        className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] leading-none ${
+                          isToday && !isSelected
+                            ? "bg-primary font-bold text-primary-foreground"
+                            : isSelected
+                              ? "font-bold"
+                              : cell.inMonth
+                                ? "font-semibold text-foreground"
+                                : "font-medium text-muted-foreground/60"
+                        }`}
+                      >
+                        {cell.day}
+                      </span>
+                      {count > 0 && (
+                        <span
+                          className={`text-[9px] font-bold leading-none ${
+                            isSelected ? "text-primary-foreground/90" : "text-primary"
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </span>
+
+                    {count > 0 && (
+                      <span className="mt-auto flex flex-wrap items-center gap-0.5">
+                        {Array.from({ length: Math.min(count, 4) }).map((_, di) => (
                           <span
                             key={di}
-                            className={`h-1 w-1 rounded-full ${
-                              isSelected ? "bg-white" : "bg-primary"
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              isSelected
+                                ? "bg-primary-foreground"
+                                : cell.inMonth
+                                  ? "bg-primary"
+                                  : "bg-muted-foreground/60"
                             }`}
                           />
-                        ),
-                      )}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+                        ))}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Daily Activity Panel (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col rounded-xl border border-border/70 bg-surface-elevated/20 overflow-hidden min-h-[260px]">
+        <div className="lg:col-span-5 flex flex-col rounded-xl border border-border/70 bg-surface-elevated/20 overflow-hidden min-h-[230px]">
           <div className="flex items-center justify-between p-3 border-b border-border/50 bg-surface-panel/40">
             <div>
               <p className="text-xs font-bold text-foreground">
-                {selectedDate === today.toISOString().slice(0, 10)
+                {selectedDate === todayKey
                   ? "Aujourd'hui"
                   : new Date(selectedDate).toLocaleDateString("fr-FR", {
                       weekday: "short",
