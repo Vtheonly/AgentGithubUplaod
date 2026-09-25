@@ -4314,3 +4314,24 @@ Verified against the code (not assumed): T-409's class VIEW was correctly scoped
 - The equivalence suites + typecheck + lint green on every platform touched; live verification per §11.1 for any migration.
 - Owner decisions recorded (consolidated-category form; overdue-KPI labeling; payroll-in-treasury; recovery-factor) before the corresponding implementation.
 
+
+## T-412 — Personnel Payroll Cash-Flow Forecast & Pre-Payroll Funding Requirements — IN_PROGRESS (P0)
+
+**Registered:** 2026-09-25 (96th session — the owner's T-412 mandate: "Personnel payroll-wave forecasting, required funds before each payroll date, 30 employees → 30M DZD example, integration with Statistics monthly financial diagrams, ONE canonical calculation shared by Personnel and Statistics, real payroll/personnel data only, tests for multiple waves and changing personnel/payroll totals, dependency on the T-411 finance architecture and payroll-in-treasury decision")
+**Problem:** WORKFORCE-504 (registered BEFORE any fix per §13; renumbered same-session — the drafted WORKFORCE-501 collided with the concurrent 70th session's personnel-linkage umbrella, the §15.43-class duplicate-ID hazard) · DUP-006 residual (the FA-08 payroll-in-treasury owner option — resolved by ADR-024 in the read-side direction)
+**Related:** T-369 (the payroll persistence surface: salary_payments + salary_adjustments + the canonical RPCs) · T-400 (personnel E2E) · T-411 (the canonical finance architecture + the treasury "hors masse salariale" labeling) · ADR-024 (NEW) · ADR-010/023 (display + collection semantics this feature must respect)
+
+### Scope
+
+1. **ONE canonical payroll/payment forecasting calculation** (`src/domain/calc/payroll/payroll-forecast.ts`) — pure, total, consumed by Personnel, Finance AND Statistics; no page-local forecast math anywhere (the §15.53a analytical-layer rule).
+2. **Personnel — "Paiements du Personnel à Venir" section** (the Payroll tab): payroll waves with personnel count, expected payroll, payment date, required amount, readiness; the per-personnel breakdown behind each wave.
+3. **Finance — pre-payroll funding requirements** (the Diagnostic tab): expected payroll, required cash before each payroll date, secured/reserved funds, remaining funding requirement, treasury impact (30-day coverage), clearly distinguished from the T-411 "hors masse salariale" historical flow.
+4. **Statistics — monthly/quarterly personnel-cost and funding-requirement trends** (the dashboard Analytics tab): historical actuals vs projected, from the SAME canonical engine.
+5. **Tests**: multi-wave forecasts, changing personnel/payroll totals, personnel-status/salary changes, the 30×1M DZD = 30M DZD required-cash example, and the Personnel/Finance/Statistics parity suite.
+
+### Acceptance gates
+
+- ONE engine; parity test proving the three surfaces produce identical values from identical inputs.
+- Real data only (the personnel + salary_payments streams); zero fabricated numbers; honest empty states (§15.49a).
+- Existing finance/personnel/statistics functionality preserved (T-411 semantics untouched — the historical operating flow keeps its labeled payroll exclusion).
+- tsc / eslint / FULL vitest at the pre-change baseline (failing set byte-identical; only the concurrent agent's pre-existing failures remain).
