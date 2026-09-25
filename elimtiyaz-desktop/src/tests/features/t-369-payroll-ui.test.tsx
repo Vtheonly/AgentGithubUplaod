@@ -192,7 +192,11 @@ describe("T-369 PayrollManagement UI (WORKFORCE-500)", () => {
     render(<PayrollManagement />);
 
     expect(screen.getByText("Amina Meziane")).toBeTruthy();
-    expect(screen.getByText(/65 000/)).toBeTruthy();
+    // T-412 realignment: the base salary now appears BOTH in the staff ledger
+    // cell AND in the canonical forecast section's next-funding figure (the
+    // 1-person payroll ⇒ both surfaces derive the same 65 000 DA — parity by
+    // construction). getAllByText keeps this assertion intent-preserving.
+    expect(screen.getAllByText(/65 000/).length).toBeGreaterThanOrEqual(1);
 
     // Nobody paid for the default (current) period — "En attente".
     expect(screen.getByText("En attente")).toBeTruthy();
