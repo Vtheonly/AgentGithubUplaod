@@ -14,7 +14,7 @@ import type {
 } from "./academic";
 import { PROMOTION_DECISION_LABELS_FR } from "./academic";
 
-export type { Gender } from "./parent";
+export type { Gender, CreateParentInput } from "./parent";
 export type { PaymentPlan } from "./payment";
 export type { AcademicHistoryEntry, PromotionDecision };
 export { PROMOTION_DECISION_LABELS_FR };
