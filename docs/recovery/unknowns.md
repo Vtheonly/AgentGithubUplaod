@@ -155,3 +155,10 @@
   catalog is data: the school adds the rows when confirmed (the desktop UI
   already renders any spécialité the catalog carries). Do not seed unconfirmed
   streams — AGENTS.md §15 rule 2 (never guess business rules).
+
+
+## UNKNOWN-024 — Should a student-bound portal account see the FAMILY's financial surfaces? (T-413, 2026-09-26, 97th session)
+
+The T-413 student-bound portal resolution deliberately scopes a student login to: their own student row (self-scoped childrenList) + the family row (the context header, via `parents_student_sees_own`). The FINANCIAL rows (installments/payments/ledger) remain parent-role-gated (0019) — a student sees honest empty financial tabs, while the parent's own portal owns the billing surfaces.
+
+This is the safe default (the parents are the billing entity per plan §04), but the owner may want students to see the family's installments (e.g., teenage students checking their own tranche status). That would require extending the installments/payments/ledger SELECT policies with the student-self path (the is_own_parent_via_student pattern) — an owner decision, not an assumption. Registered during T-413; blocked on the owner's word.

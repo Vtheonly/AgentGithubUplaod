@@ -1,3 +1,15 @@
+# 2026-09-26 — T-413 EXECUTED (Phases 1-4): the student approval/enrollment/portal/messaging synchronization + the cross-section navigation
+
+**The 97th session delivered the complete T-413 mandate:** migration 0116 (applied live, the `approve_student_application` composite + the RLS-guarded self-attach + the student portal/messaging policies), the EF's student-enrollment path (STUDENT-102 guard + the reclassification), the desktop ApprovalsTab student flows, the Pedagogy « Annuaire élèves » search, the standardized 3-dot `StudentActionsMenu`, the `/financials?familyId=` deep link, and the website legs (the student-bound resolution + the enrollment application form). STUDENT-100..104 all RESOLVED/TESTED with live evidence: `t-413-apply.py --verify` 19/19 + `t-413-student-e2e.py` 20/20 zero-residue + the full gates (desktop 3 939 green / failing set byte-identical to baseline; website 657/657 + build). **New knowledge: AGENTS.md §15.55** (the GoTrue metadata-timing trap — every signup lands 'parent', the student path is the approval-time reclassification; the mutual-RLS recursion pattern; the zero-row read-back rule).
+
+## Standing recommendation (updated by the 97th session)
+
+1. **T-413's VERIFIED gates:** (a) the owner's packaged-app UI pass over the changed surfaces (the ApprovalsTab student modals, the Pedagogy directory + the 3-dot menu, the installments family chip); (b) the financial-visibility-for-students owner decision (the billing surfaces stay parent-role-gated — see unknowns); (c) the Android consideration (additive only).
+2. **T-412's VERIFIED gates** (the concurrent session's payroll forecast — unchanged: the owner's packaged-app pass).
+3. The standing items: OPS-319's restore surface + BUSINESS-105; the T-408/T-409/T-410 gates (the Android equivalence run, the owner timetable testing, the solver follow-ups); REALTIME-105's PORTAL set (next free migration **0117**).
+
+---
+
 # 2026-09-25 — T-412 EXECUTED (Phases 0-5): the personnel payroll cash-flow forecast is IMPLEMENTED / TESTED
 
 **The 96th session delivered the full T-412 directive:** ONE canonical payroll/payment forecasting calculation (`src/domain/calc/payroll/payroll-forecast.ts`, ADR-024 — read-side commitments, `salary_payments` stays out of `ledger_entries`, the T-411 « hors masse salariale » basis preserved) consumed by all three pages: Personnel's « Paiements du Personnel à Venir » (waves + per-personnel breakdown + cross-page links), Finance's pre-payroll funding card (expected payroll / required cash / secured-reserved / remaining requirement / the 30-day coverage) and Statistics' monthly-quarterly personnel-cost trend. 47 new tests green (incl. the owner's 30 employees → 30M DZD example and the three-page parity suite); the FULL failing set stayed byte-identical to the pre-change baseline. WORKFORCE-504 RESOLVED/TESTED. **Remaining for VERIFIED:** the owner's packaged-app UI pass over the three new surfaces.

@@ -5873,3 +5873,46 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Expected:** ONE canonical payroll/payment forecasting calculation shared by Personnel (operational), Finance (cash-management) and Statistics (planning); payroll waves with personnel count, expected payroll, payment date, required amount and readiness; the detailed per-personnel breakdown behind each forecast; expected payroll / required cash / secured-reserved / remaining funding requirement clearly distinguished; automatic reflection of personnel, salary, status and payment-schedule changes (reactive streams); historical-vs-projected information without turning Personnel into a duplicate financial dashboard.
 - **Root cause:** T-369 built the payroll WRITE surface (salary_payments persistence) but no READ-SIDE forecast derivation was ever registered; the T-411 audit correctly labeled the treasury payroll gap (FA-08) but deferred it to an owner decision that was never taken.
 - **Fix plan (T-412):** a new canonical calc module (`src/domain/calc/payroll/payroll-forecast.ts` — pure, total) + three consumers (Personnel section / Finance treasury extension / Statistics trend) + parity tests. ADR-024 fixes the architecture: payroll surfaces as a READ-SIDE forecast commitment; `salary_payments` stays OUT of `ledger_entries` (the historical "Flux Net Opérationnel (hors masse salariale)" basis is unchanged — that basis change remains a separate owner decision).
+
+
+### STUDENT-100 — Approving a student application NEVER created a student: the approval flow could only bind an EXISTING student, no create/enroll path existed in ANY layer, and the Pedagogy section had no student search at all (the owner's T-413 mandate, 2026-09-25 — the 97th session)
+
+- **Category:** CRM / ACAD  |  **Severity:** Critical  |  **Status:** RESOLVED / TESTED (T-413 Phases 1-3 — migration 0116 applied live + verified 19/19; the EF deployed + live-E2E 20/20 zero-residue; the desktop repository + ApprovalsTab + the Pedagogy « Annuaire élèves » + the 3-dot StudentActionsMenu; 44 new desktop tests + 36 neighbourhood tests green)
+- **Repositories:** AgentGithubUplaod (desktop + backend), elimtiyaz-website
+- **Platforms affected:** Desktop (ApprovalsTab, CRM, Academics/Pédagogie, Financials), Website (pending applicants), Backend (migration chain)
+- **Task:** T-413
+- **Description (what was wrong):** the complete student-application approval flow was bind-only: `approve_account_request` (0005/0047) sets `students.auth_user_id` only when the admin ALREADY knows a student id; the approve-signup-request EF had no create-student branch; the desktop ApprovalsTab rendered parent-only buttons even for « Élève »-badge requests; `findPotentialMatches` never populated its own `student_match` field; and the Academics/Pédagogie section had NO student search (only CRM + the Cmd+K palette). An approved applicant's child therefore never existed in `students` — invisible in CRM, Pedagogy, class rosters, Finance and Messaging (the owner's exact report: "approved and given portal access but cannot subsequently be found in the student-management/Pedagogy area").
+- **Root cause:** the 0005 approval RPC predates the enrollment requirement — every layer above inherited the bind-only gap; the Academics page predates the cross-section mandate.
+- **What was fixed:** migration 0116's `approve_student_application` composite RPC (bind-or-create: the deterministic parent code, the ELV student code, class enrollment, the canonical student_academic_histories entry, account activation — REUSING `approve_account_request` internally per §6); the EF's `create_new_student` path (ONE server-side round trip, §15.39); the desktop student matching + the ApprovalsTab student flows (bind-existing via canonical search / create + enroll with the level-scoped class picker + the family resolution); the Pedagogy « Annuaire élèves » (canonical search: name / ELV code / family / class / level); the standardized 3-dot `StudentActionsMenu` (CRM / Pédagogie / the family dossier / the family finance / the class view) mounted on the CRM students table, the class roster, and the directory rows.
+
+### STUDENT-101 — No STUDENT-102 guard: a student-role approval without a student binding sailed through — the PARENT-102 "active but unbound" limbo, student edition
+
+- **Category:** SEC / CRM  |  **Severity:** High  |  **Status:** RESOLVED / TESTED (T-413 — the EF guard with the staff-override escape + the RPC-level re-check; live-proven: the 400 `missing_target_student` + the audit entry)
+- **Task:** T-413
+- **Description:** the EF's PARENT-102 guard (T-132) refuses parent approvals without a binding, but the student-role twin did not exist — approving a student request with neither `target_student_id` nor a create path activated the account bound to nothing (unrecoverable: no longer pending, never bindable).
+- **Root cause:** the 0047 guard family was written for the parent flow only.
+- **What was fixed:** the STUDENT-102 guard in the EF (with the same staff-override escape) + the STUDENT-101 re-check INSIDE the RPC (defence in depth — live-verified T3).
+
+### STUDENT-102 — The website had NO structured student-application surface: a pending applicant could only wait; the admin received only an email + free-text notes
+
+- **Category:** PORTAL / CRM  |  **Severity:** High  |  **Status:** RESOLVED / TESTED (T-413 — migration 0116 §1/§2 (the `student_application` column + the RLS-guarded self-attach with the column-guard trigger) + the website's `StudentApplicationForm` on the pending screen, tri-lingual)
+- **Task:** T-413
+- **Description:** the portal's pending screen offered only the activation-code path or waiting; the enrollment details (child names, DOB, level) had no channel to the desktop approval; the approval could not pre-fill the student-creation form.
+- **Root cause:** the portal was deliberately read-mostly (plan §02.08); the enrollment application was never designed as a portal write surface.
+- **What was fixed:** the `account_approval_requests.student_application` jsonb column + the own-pending SELECT/UPDATE policies + the `account_approval_self_update_guard` trigger (a self-update may ONLY touch the payload; the service-role/DBA/staff bypasses) + the website form (reads the own pending request, PATCHes the one column, treats the zero-row "success" as an error, re-resolves the session). Live-proven: E2E7/E2E8 + the website 9-test suite.
+
+### STUDENT-103 — Student-bound portal access was DEAD: the website auth-provider resolved ONLY parents; an approved student stayed on the "pending" wall forever; RLS gave students no path to their own parent row
+
+- **Category:** PORTAL / SEC  |  **Severity:** Critical  |  **Status:** RESOLVED / TESTED (T-413 — migration 0116 §4 `parents_student_sees_own` via the `is_own_parent_via_student` SECURITY DEFINER helper + the auth-provider student resolution; live-proven E2E steps 7a/7b)
+- **Task:** T-413
+- **Description:** a student whose `students.auth_user_id` the approval bound was active in auth, could pass `students_student_self` RLS, yet the portal showed the activation wall (the provider's parent-row lookup returned null → "pending"); and no parents policy let them read their own family row.
+- **Root cause:** the provider was parent-only by design; the RLS pair (parents_student_sees_own) never existed. **The first fix attempt introduced a live-caught 42P17 infinite recursion** (parents↔students mutual policy subqueries — the OPS-314 class) — the E2E caught it before commit (see §15.55).
+- **What was fixed:** the recursion-safe helper (the 0067 `profile_has_staff_role` pattern) + the provider's student leg (self-scoped childrenList + the family row; the billing surfaces stay parent-role-gated by design — an owner decision for the financial-visibility question).
+
+### STUDENT-104 — Messaging eligibility gap: `open_parent_admin_channel` gated on the parent role — an approved student account could never reach the Administrator through the sanctioned user↔admin channel
+
+- **Category:** MSG  |  **Severity:** Medium  |  **Status:** RESOLVED / TESTED (T-413 — migration 0116 §5 extends the gate to `r.code in ('parent','student')`; live-proven E2E step 8: the student JWT opened the DM channel)
+- **Task:** T-413
+- **Description:** ADR-012's user side was parent-only; the approved student (a system user with their own auth account) had no path to the administration channel despite the 0067 chat RLS already permitting non-staff↔staff direct channels.
+- **Root cause:** the 0067 gate predates student accounts being first-class portal users.
+- **What was fixed:** the gate extension (staff exclusion unchanged; the deterministic DM code unchanged — the same channel `create_direct_channel` resolves).
