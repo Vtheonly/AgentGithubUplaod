@@ -40,6 +40,9 @@ import type { Student } from "../../model/student";
 import { parentDisplayName } from "../../model/parent";
 import { installmentRemaining } from "./queries";
 import { computeParentSummary, displayParentCredit } from "../ledger/balance";
+// T-412 (ADR-024): the canonical payroll forecast — the treasury impact is a
+// CONSUMER of its totals, never a second derivation.
+import type { PayrollForecast } from "../payroll/payroll-forecast";
 
 export type FinancialAnomalyType =
   | "service_leakage" // Paid tuition but defaulted on auxiliary services
@@ -95,6 +98,42 @@ export interface TreasuryHealthSnapshot {
   t1CollectionRate: number;
   t2CollectionRate: number;
   t3CollectionRate: number;
+  /**
+   * T-412 (ADR-024): the PRE-PAYROLL FUNDING REQUIREMENTS — the read-side
+   * payroll commitment projection, passed as the ALREADY-COMPUTED canonical
+   * forecast (this engine never re-derives it). `undefined` when the caller
+   * provides no payroll input (every pre-T-412 call site keeps the exact
+   * previous shape). The HISTORICAL operating flow above keeps its T-411
+   * "hors masse salariale" basis (FA-08) — this block is the FORWARD
+   * commitment side only.
+   */
+  payroll?: {
+    /** The nearest wave still needing funding (null when all secured). */
+    nextFundingPeriod: string | null;
+    /** Expected payroll of that wave (masse salariale attendue, DZD). */
+    expectedPayrollNextWave: number;
+    /** The canonical (or actual) payment date of that wave, ISO. */
+    nextPaymentDate: string | null;
+    /** Personnel count behind that wave. */
+    personnelCount: number;
+    /** Secured/reserved funds for the CURRENT period (paid + pending rows). */
+    securedCurrentPeriod: number;
+    /** Remaining funding requirement of the nearest wave (DZD). */
+    remainingNextWave: number;
+    /** Σ remaining requirements of waves due within 30 days (DZD). */
+    requiredCash30d: number;
+    /** Σ remaining requirements across the whole projected horizon (DZD). */
+    totalRemainingFunding: number;
+    /** Steady-state planning figure: next full month's expected payroll. */
+    projectedMonthlyPayroll: number;
+    /**
+     * Treasury impact — the T-411 30-day inflow forecast set against the
+     * 30-day payroll funding requirement (a coverage ratio; ≥100 means the
+     * expected collections cover the pre-payroll requirement). `null` when
+     * there is no 30-day payroll requirement to cover (honest absence).
+     */
+    coverage30d: number | null;
+  };
 }
 
 export interface FinancialPresetQuery {
@@ -457,14 +496,23 @@ export function computeCrossServicePerformance(params: {
  * (b) INV-4 remaining of tranches due within 30 days — NO recovery factor
  * (FA-07). The operating flow EXCLUDES payroll (salary_payments never
  * enters ledger_entries) — the radar labels this explicitly (FA-08).
+ *
+ * T-412 (ADR-024): the OPTIONAL `payroll` parameter carries the canonical
+ * forecast (computePayrollForecast's output — never re-derived here). When
+ * present, the snapshot gains the pre-payroll funding-requirement block:
+ * expected payroll, required cash, secured/reserved, remaining requirement
+ * and the 30-day treasury-impact coverage. The historical operating flow's
+ * payroll exclusion is UNCHANGED (that basis change stays a separate owner
+ * decision — see ADR-024 clause 2).
  */
 export function computeTreasuryHealth(params: {
   payments: readonly Payment[];
   installments: readonly Installment[];
   expenses: readonly Expense[];
   debtSummaries: readonly DebtSummary[];
+  payroll?: PayrollForecast;
 }): TreasuryHealthSnapshot {
-  const { payments, installments, expenses, debtSummaries } = params;
+  const { payments, installments, expenses, debtSummaries, payroll } = params;
 
   const totalClearedInflow = payments
     .filter((p) => p.status === "paid")
@@ -508,6 +556,32 @@ export function computeTreasuryHealth(params: {
     return due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
   };
 
+  // T-412 — the pre-payroll funding block, projected VERBATIM from the
+  // canonical forecast's totals (a pure pass-through: the parity suite pins
+  // this equality). The coverage ratio is the only derived value here — a
+  // presentation of the two canonical numbers against each other.
+  const payrollBlock: TreasuryHealthSnapshot["payroll"] = payroll
+    ? {
+        nextFundingPeriod:
+          payroll.totals.nextFundingWave?.period ?? null,
+        expectedPayrollNextWave:
+          payroll.totals.nextFundingWave?.expectedPayroll ?? 0,
+        nextPaymentDate:
+          payroll.totals.nextFundingWave?.paymentDate ?? null,
+        personnelCount: payroll.totals.nextFundingWave?.personnelCount ?? 0,
+        securedCurrentPeriod: payroll.totals.securedCurrentPeriod,
+        remainingNextWave:
+          payroll.totals.nextFundingWave?.remainingFundingRequirement ?? 0,
+        requiredCash30d: payroll.totals.requiredCash30d,
+        totalRemainingFunding: payroll.totals.totalRemainingFunding,
+        projectedMonthlyPayroll: payroll.totals.projectedMonthlyPayroll,
+        coverage30d:
+          payroll.totals.requiredCash30d > 0
+            ? Math.round((expectedInflow30d / payroll.totals.requiredCash30d) * 100)
+            : null,
+      }
+    : undefined;
+
   return {
     totalClearedInflow,
     totalDisbursedOutflow,
@@ -517,5 +591,6 @@ export function computeTreasuryHealth(params: {
     t1CollectionRate: computeTrancheRate(1),
     t2CollectionRate: computeTrancheRate(2),
     t3CollectionRate: computeTrancheRate(3),
+    ...(payrollBlock ? { payroll: payrollBlock } : {}),
   };
 }
