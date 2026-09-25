@@ -162,3 +162,14 @@
 The T-413 student-bound portal resolution deliberately scopes a student login to: their own student row (self-scoped childrenList) + the family row (the context header, via `parents_student_sees_own`). The FINANCIAL rows (installments/payments/ledger) remain parent-role-gated (0019) — a student sees honest empty financial tabs, while the parent's own portal owns the billing surfaces.
 
 This is the safe default (the parents are the billing entity per plan §04), but the owner may want students to see the family's installments (e.g., teenage students checking their own tranche status). That would require extending the installments/payments/ledger SELECT policies with the student-self path (the is_own_parent_via_student pattern) — an owner decision, not an assumption. Registered during T-413; blocked on the owner's word.
+
+
+## UNKNOWN-025 — The payroll-calendar convention: should INTERIOR disbursement gaps surface as missed payrolls? (T-412 second round / WORKFORCE-506, 2026-09-26, 98th session)
+
+The T-412 overdue carry-over (financial-rules §16 / INV-17c) surfaces the TRAILING gap — months without `salary_payments` rows between the last PRE-current recorded period and the current period (the WORKFORCE-506 repair). INTERIOR gaps — months without rows BETWEEN two older recorded periods (e.g. rows exist for 2026-05 and 2026-09 but not 2026-06..08) — deliberately do NOT surface.
+
+The conservative choice is intentional: distinguishing "no payroll was due that month" (e.g. a school that does not pay salaries in July/August) from "payroll was missed but never recorded" requires the school's payroll-calendar convention, which the repository does not document. Surfacing every interior gap by default could fabricate false funding requirements for legitimately payroll-free summer months.
+
+**The owner should decide:** (a) payroll runs 12 months a year → interior gaps should surface as overdue (a one-line engine change + tests); (b) payroll runs on a school calendar (e.g. September–June) → the engine needs the no-payroll month set (a documented convention, potentially a `system_settings` key) before surfacing interior gaps; (c) leave conservative (the current state). Registered during the T-412 second round; blocked on the owner's word.
+
+Related: UNKNOWN-020's sibling class (`on_leave` staff in the eligibility basis — financial-rules §16.1's standing note) is the OTHER payroll-basis owner decision pending since the 96th session.

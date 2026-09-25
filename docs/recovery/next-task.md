@@ -1,3 +1,18 @@
+# 2026-09-26 — T-412 SECOND ROUND COMPLETE (98th session): T-412 → VERIFIED; the issue-#10 audit-traceability chain verified and recorded
+
+**The 98th session delivered the owner's issue-#11 second-verification mandate:** a deeper second round that re-ran every first-round gate (all reproduced) + a NEW 23-test white-box boundary suite which found and fixed **two genuine defects the first round missed** — WORKFORCE-505 (the eligibility gate keyed on CURRENT-period eligibility — a future-hired roster produced NO forecast waves) and WORKFORCE-506 (the overdue gap anchored on the last recorded period INCLUDING current rows — one current-period disbursement silently hid every earlier missed payroll; live-proven fixed). Final gates: **70/70 T-412 tests** · tsc 0 · eslint 0 · FULL vitest 3 962/25-baseline-identical · **live read-only 6/6** · **live E2E 15/15 zero-residue** (the complete loop through the canonical `record_salary_disbursement` RPC). Full record: `docs/recovery/t-412-second-round-verification.md`.
+
+**The issue-#10 audit-traceability mandate:** the complete chain re-traced and recorded in **`docs/audits/finance-audit-traceability-2026-09-26.md`** — Issue #10 → `e53943c` → `docs/audits/finance-ui-architecture-audit-2026-09-23.md` (485 lines, A–K, 20 findings — content re-verified) → the 12 registry entries → T-411's 7 commits → `t-411-live-verification.md`. **The chain is COMPLETE.** Both GitHub issues (#10 and #11) closed with the evidence.
+
+## Standing recommendation (updated by the 98th session)
+
+1. **T-413's VERIFIED gates** (unchanged): (a) the owner's packaged-app UI pass over the changed surfaces (the ApprovalsTab student modals, the Pedagogy directory + the 3-dot menu, the installments family chip); (b) the financial-visibility-for-students owner decision (UNKNOWN-024); (c) the Android consideration (additive only).
+2. **T-412's standing visual convention** (the only layer left): the owner's packaged-app UI pass over the three forecast surfaces — every machine-verifiable layer is green (70/70 + live 6/6 + live E2E 15/15).
+3. **The two payroll owner decisions:** UNKNOWN-025 (the payroll-calendar convention for interior gaps — WORKFORCE-506's documented limitation) + the `on_leave` eligibility basis (financial-rules §16.1's standing note).
+4. The standing items: OPS-319's restore surface + BUSINESS-105; the T-408/T-409/T-410 gates (the Android equivalence run, the owner timetable testing, the solver follow-ups); REALTIME-105's PORTAL set (next free migration **0117**).
+
+---
+
 # 2026-09-26 — T-413 EXECUTED (Phases 1-4): the student approval/enrollment/portal/messaging synchronization + the cross-section navigation
 
 **The 97th session delivered the complete T-413 mandate:** migration 0116 (applied live, the `approve_student_application` composite + the RLS-guarded self-attach + the student portal/messaging policies), the EF's student-enrollment path (STUDENT-102 guard + the reclassification), the desktop ApprovalsTab student flows, the Pedagogy « Annuaire élèves » search, the standardized 3-dot `StudentActionsMenu`, the `/financials?familyId=` deep link, and the website legs (the student-bound resolution + the enrollment application form). STUDENT-100..104 all RESOLVED/TESTED with live evidence: `t-413-apply.py --verify` 19/19 + `t-413-student-e2e.py` 20/20 zero-residue + the full gates (desktop 3 939 green / failing set byte-identical to baseline; website 657/657 + build). **New knowledge: AGENTS.md §15.55** (the GoTrue metadata-timing trap — every signup lands 'parent', the student path is the approval-time reclassification; the mutual-RLS recursion pattern; the zero-row read-back rule).
@@ -5,7 +20,7 @@
 ## Standing recommendation (updated by the 97th session)
 
 1. **T-413's VERIFIED gates:** (a) the owner's packaged-app UI pass over the changed surfaces (the ApprovalsTab student modals, the Pedagogy directory + the 3-dot menu, the installments family chip); (b) the financial-visibility-for-students owner decision (the billing surfaces stay parent-role-gated — see unknowns); (c) the Android consideration (additive only).
-2. **T-412's VERIFIED gates** (the concurrent session's payroll forecast — unchanged: the owner's packaged-app pass).
+2. **T-412's VERIFIED gates** (the concurrent session's payroll forecast — now VERIFIED by the 98th session's second round: every machine-verifiable layer green; the owner's packaged-app UI pass remains the standing visual convention).
 3. The standing items: OPS-319's restore surface + BUSINESS-105; the T-408/T-409/T-410 gates (the Android equivalence run, the owner timetable testing, the solver follow-ups); REALTIME-105's PORTAL set (next free migration **0117**).
 
 ---
