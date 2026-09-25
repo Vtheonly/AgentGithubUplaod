@@ -1,3 +1,11 @@
+# 2026-09-25 — T-412 EXECUTED (Phases 0-5): the personnel payroll cash-flow forecast is IMPLEMENTED / TESTED
+
+**The 96th session delivered the full T-412 directive:** ONE canonical payroll/payment forecasting calculation (`src/domain/calc/payroll/payroll-forecast.ts`, ADR-024 — read-side commitments, `salary_payments` stays out of `ledger_entries`, the T-411 « hors masse salariale » basis preserved) consumed by all three pages: Personnel's « Paiements du Personnel à Venir » (waves + per-personnel breakdown + cross-page links), Finance's pre-payroll funding card (expected payroll / required cash / secured-reserved / remaining requirement / the 30-day coverage) and Statistics' monthly-quarterly personnel-cost trend. 47 new tests green (incl. the owner's 30 employees → 30M DZD example and the three-page parity suite); the FULL failing set stayed byte-identical to the pre-change baseline. WORKFORCE-504 RESOLVED/TESTED. **Remaining for VERIFIED:** the owner's packaged-app UI pass over the three new surfaces.
+
+**T-412's follow-ups (registered, honest):** (a) the owner decision on `on_leave` staff in the payroll-eligibility basis (financial-rules §16.1 — currently active-only, matching the Payroll tab's KPI); (b) an Android mirror of the forecast engine only if/when the Android app grows a payroll/treasury surface (no shared contract changed this session — the read-side engine is desktop TS).
+
+---
+
 # 2026-09-23 — T-411 EXECUTED (Phases 0-5): the Finance UI unification is IMPLEMENTED / TESTED
 
 **The 95th session delivered the full T-411 directive:** ADR-023 (the cross-category collection semantics) + migration 0115 (applied live, round-trip 7/7 — BUSINESS-106 CRITICAL and BUSINESS-107 HIGH both fixed end-to-end), the diagnostic engine re-based on the canonical engines (DUP-006/DATA-023/024/029), the tab/metric rationalization (DATA-025/026, BUSINESS-108), the REAL anomaly signals (DATA-027), the INV-4 family (DATA-033/034/037, DUP-007), the deep links (DATA-036), the pagination (DATA-035), the remise threading (DATA-028's data-loss half) and the portal parity family (DATA-032 B1-B9). 18 problems flipped RESOLVED/TESTED with recorded evidence; the desktop failing set stayed byte-identical to the 21-test baseline. Evidence: `docs/recovery/t-411-live-verification.md`.
