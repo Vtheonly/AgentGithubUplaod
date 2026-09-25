@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import {
   ChevronRight,
   LayoutDashboard,
@@ -107,6 +108,32 @@ export function DashboardPage() {
   const [tab, setTab] = useState<DashboardTab>("overview");
   const [unreadAlerts, setUnreadAlerts] = useState(0);
   const [layoutEditing, setLayoutEditing] = useState(false);
+
+  // T-412: `/?tab=<dashboardTab>` routes cross-page links to a specific
+  // dashboard tab (the Personnel payroll-forecast section links to the
+  // Statistics analytics view). Mount-time only — it never fights the
+  // operator's own tab switches afterwards.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const wanted = searchParams.get("tab");
+    if (
+      wanted === "overview" ||
+      wanted === "analytics" ||
+      wanted === "alerts" ||
+      wanted === "reports"
+    ) {
+      setTab(wanted);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("tab");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [yearRange, setYearRange] = useState<AcademicYearRange>(() => ({
     academicYear: "",

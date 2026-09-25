@@ -23,7 +23,7 @@
  * `computePayrollForecast`'s totals. No page-local forecast math.
  */
 import { Landmark, ShieldAlert, Users } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useInRouterContext } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -42,7 +42,9 @@ export function PayrollFundingCard({
 }: {
   treasury: TreasuryHealthSnapshot;
 }) {
-  const navigate = useNavigate();
+  // Router-optional navigation (the bare-mounted-suite convention): the
+  // navigating Button is a CHILD rendered only inside a Router context.
+  const inRouter = useInRouterContext();
   const payroll = treasury.payroll;
 
   // Honest absence: no payroll input (a pre-T-412 call site) or no eligible
@@ -168,17 +170,35 @@ export function PayrollFundingCard({
             <Users className="h-3 w-3" />
             {payroll.personnelCount} employés derrière la prochaine vague
           </span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs"
-            onClick={() => navigate("/personnel")}
-            data-testid="link-personnel-payroll"
-          >
-            Détail des vagues — Personnel
-          </Button>
+          {inRouter ? (
+            <PersonnelLinkButton />
+          ) : (
+            <a
+              href="/personnel"
+              className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
+              data-testid="link-personnel-payroll"
+            >
+              Détail des vagues — Personnel
+            </a>
+          )}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** SPA-navigation variant (rendered only inside a Router context). */
+function PersonnelLinkButton() {
+  const navigate = useNavigate();
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-7 text-xs"
+      onClick={() => navigate("/personnel")}
+      data-testid="link-personnel-payroll"
+    >
+      Détail des vagues — Personnel
+    </Button>
   );
 }

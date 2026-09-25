@@ -370,3 +370,122 @@ describe("T-412 parity — restatement on a recorded disbursement", () => {
     ).toBe(10_000_000);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 6. The Statistics leg (Phase 4) — derivePayrollCostTrend over the SAME
+//    canonical forecast object. The three pages' figures are pinned equal.
+// ---------------------------------------------------------------------------
+
+import {
+  derivePayrollCostTrend,
+} from "../../../features/dashboard/components/analytics/executive-statistics";
+
+describe("T-412 parity — the Statistics trend (derivePayrollCostTrend)", () => {
+  it("monthly points project the forecast's waves VERBATIM (period/phase/figures)", () => {
+    const forecast = computePayrollForecast({
+      personnel: thirtyEmployees(),
+      salaryPayments: [
+        makePayment({ period: "2026-07", personnelId: "per-1", netPaid: 900_000 }),
+        makePayment({ period: "2026-08", personnelId: "per-1", netPaid: 950_000 }),
+        makePayment({ personnelId: "per-1", netPaid: 1_000_000 }),
+      ],
+      now: NOW,
+    });
+    const trend = derivePayrollCostTrend(forecast);
+
+    expect(trend.monthly).toHaveLength(forecast.waves.length);
+    for (const point of trend.monthly) {
+      const wave = forecast.waves.find((w) => w.period === point.period)!;
+      expect(point.phase).toBe(wave.phase);
+      expect(point.actualPaid).toBe(wave.actualPaid);
+      expect(point.projectedCost).toBe(
+        wave.phase === "historical" ? 0 : wave.expectedPayroll,
+      );
+      expect(point.fundingRequirement).toBe(wave.remainingFundingRequirement);
+    }
+  });
+
+  it("Σ monthly funding requirements === totals.totalRemainingFunding (the Statistics planning figure = the Finance block)", () => {
+    const forecast = computePayrollForecast({
+      personnel: thirtyEmployees(),
+      salaryPayments: [],
+      now: NOW,
+    });
+    const trend = derivePayrollCostTrend(forecast);
+    expect(
+      trend.monthly.reduce((s, p) => s + p.fundingRequirement, 0),
+    ).toBe(forecast.totals.totalRemainingFunding);
+    // ...and the treasury snapshot carries the SAME total.
+    const snapshot = computeTreasuryHealth({ ...financeFixtures(), payroll: forecast });
+    expect(snapshot.payroll!.totalRemainingFunding).toBe(
+      trend.totals.projectedTotal === 0
+        ? forecast.totals.totalRemainingFunding // degenerate guard
+        : forecast.totals.totalRemainingFunding,
+    );
+  });
+
+  it("quarterly aggregation sums the months (no re-derivation) and flags an overdue quarter", () => {
+    const forecast = computePayrollForecast({
+      personnel: thirtyEmployees(),
+      salaryPayments: [
+        // Last recorded disbursement = July → August AND September surface
+        // as overdue carry-over waves (the honest missed-payroll signal).
+        makePayment({ period: "2026-07", personnelId: "per-1", netPaid: 900_000 }),
+      ],
+      now: new Date("2026-10-03T12:00:00Z"),
+    });
+    const trend = derivePayrollCostTrend(forecast);
+
+    const q3 = trend.quarterly.find((q) => q.period === "2026-Q3")!;
+    expect(q3.label).toBe("T3 2026");
+    // July actual + Aug/Sep overdue projections all inside Q3.
+    const q3Months = trend.monthly.filter((m) => m.period.startsWith("2026-0"));
+    expect(q3.actualPaid).toBe(
+      q3Months.filter((m) => m.period === "2026-07").reduce((s, m) => s + m.actualPaid, 0),
+    );
+    expect(q3.phase).toBe("overdue"); // the most urgent member's phase
+    // The quarterly sums equal the monthly sums (pure aggregation).
+    for (const q of trend.quarterly) {
+      const months = trend.monthly.filter(
+        (m) => `${m.period.slice(0, 4)}-Q${Math.floor((Number(m.period.slice(5, 7)) - 1) / 3) + 1}` === q.period,
+      );
+      expect(q.fundingRequirement).toBe(
+        months.reduce((s, m) => s + m.fundingRequirement, 0),
+      );
+      expect(q.projectedCost).toBe(
+        months.reduce((s, m) => s + m.projectedCost, 0),
+      );
+    }
+  });
+
+  it("the 30-employee example: the Statistics trend's peak requirement = the Finance block = the Personnel wave", () => {
+    const forecast = computePayrollForecast({
+      personnel: thirtyEmployees(),
+      salaryPayments: [],
+      now: NOW,
+    });
+    const trend = derivePayrollCostTrend(forecast);
+    const snapshot = computeTreasuryHealth({ ...financeFixtures(), payroll: forecast });
+
+    expect(trend.totals.maxFundingRequirement).toBe(30_000_000);
+    expect(snapshot.payroll!.remainingNextWave).toBe(30_000_000);
+    expect(forecast.totals.nextFundingWave?.remainingFundingRequirement).toBe(30_000_000);
+    expect(trend.totals.projectedMonthlyPayroll).toBe(
+      forecast.totals.projectedMonthlyPayroll,
+    );
+  });
+
+  it("honest empty state: no personnel → empty monthly/quarterly series, zeroed totals", () => {
+    const forecast = computePayrollForecast({
+      personnel: [],
+      salaryPayments: [],
+      now: NOW,
+    });
+    const trend = derivePayrollCostTrend(forecast);
+    expect(trend.monthly).toEqual([]);
+    expect(trend.quarterly).toEqual([]);
+    expect(trend.totals.actualTotal).toBe(0);
+    expect(trend.totals.projectedTotal).toBe(0);
+    expect(trend.totals.maxFundingRequirement).toBe(0);
+  });
+});
