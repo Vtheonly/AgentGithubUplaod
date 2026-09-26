@@ -16,10 +16,12 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: ["./src/test/setup.ts"],
+    // T-419 (ADR-029): src/tests is the ONE Vitest root — the former second
+    // root src/test/ (cross-platform + setup.ts) was absorbed 2026-09-27
+    // (depth-preserving move: every relative import kept resolving).
+    setupFiles: ["./src/tests/_helpers/setup.ts"],
     include: [
       "src/tests/**/*.test.{ts,tsx}",
-      "src/test/**/*.test.{ts,tsx}",
       "src/**/*.test.{ts,tsx}",
     ],
     coverage: {
@@ -33,7 +35,7 @@ export default defineConfig({
       ],
       exclude: [
         "src/**/*.test.{ts,tsx}",
-        "src/test/**",
+        "src/tests/**",
       ],
     },
   },
