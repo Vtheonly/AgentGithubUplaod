@@ -4417,3 +4417,29 @@ Fix the complete student onboarding and synchronization flow so approved student
 - Importing the new workbook through its config produces canonical parents/students/payments/installments/ledger entries through the SAME repositories + sync-queue path as the old workbook (no parallel financial system) — pinned by an equivalence test.
 - Historical pricing preservation: activating a new config never mutates another year's config rows (DB-level guarantee + test); financial balances still replay from the ledger (INV-1 untouched — `real-school-corpus.test.ts` stays green).
 - Profile matching NOT implemented — only the documented extension points (interfaces + no-op defaults).
+
+
+## T-415 — Test and Harden Backup, Restore, Sync, and Recovery (issue #13) — IN_PROGRESS (P0)
+
+**Registered:** 2026-09-26 (the 99th session — the owner's GitHub issue #13 mandate: "a comprehensive test and hardening task for the repository's backup, restore, synchronization, and recovery systems... make the backup/restore system highly reliable before relying on it operationally, with particular attention to both local/offline backups and Supabase database backups". Originally drafted as T-414 in the same minute the concurrent session registered its T-414 (issue #14 — price configuration + import engine) — renumbered to T-415 per the §15.54a collision discipline, the T-371/T-372 pattern)
+**Problem:** BKUP-501 (the dead server-side metadata pipeline), BKUP-502 (the restore/inspect integrity-order divergence), BKUP-503 (the dead BackupStatus transitions) — registered BEFORE any fix per §13 order; further IDs to be registered as the suites discover them
+**Related:** issue #13 (GitHub) · T-294..T-302 (OFFLINE-400: the backup/restore/staging stack these tests harden) · T-171 (SYNC-200 recovery surface) · T-298/T-305 (the 3-way conflict guard + basePayload arming) · T-382/T-383 (BKUP-500: the archive export) · migrations 0013/0019/0022/0027 (backup_archives + RLS + purge RPC + sync_queue) · ADR-002 (server-canonical writes) · T-414 (the concurrent session's task — unrelated scope, no shared files in the execution phase)
+
+### Scope (from the issue #13 mandate)
+
+1. **The comprehensive test suite** — unit + integration + failure-injection + repeated backup→restore→verify cycles covering: local backup creation/restoration, corrupted/incomplete/truncated archives, wrong passphrase, missing archives, multi-version recovery (older known-good restorable when a newer version fails), last-known-good preservation (a failed operation NEVER silently destroys state), interrupted operations, audit-trail completeness (what/when/which-version/success-or-failure/why/recovery action).
+2. **Sync/conflict hardening** — the realistic scenario matrix: two operators on the same record, offline local edits + remote edits, near-simultaneous updates, interrupted/partial drains, failed-then-retried syncs, version conflicts (remote moves again after a resolve), stale-local pushes, Supabase-unavailable drains — every path deterministic and recoverable, no silent loss.
+3. **BKUP-501 fix** — wire the server-side metadata mirror: `SupabaseBackupRepository` (runBackup/restore/delete/purge mirror `backup_archives` rows — ciphertext NEVER leaves the local vault per plan §13.03; observe() reads the server table so Supabase mode stops listing the 3 fake seed archives).
+4. **BKUP-502 + BKUP-503 fixes** — align the restore integrity order with inspectArchive (checksum before decompression); implement the BackupStatus transitions on the vault records (restored / corrupted-on-integrity-failure, never on a wrong passphrase).
+5. **Live Supabase verification** — the `backup_archives` probe round-trip (insert → read-back → status transitions → purge RPC → zero residue), audit_logs append-only probe, sync_queue + mark_sync_queue_processed probe, upsert-RPC idempotency probe, and the read-only full-database integrity sweep (FK/constraint/relationship verification across the schema).
+
+### Acceptance gates
+
+- The FULL vitest failing set stays **byte-identical to the documented 25-failure baseline** (no regression; only new green suites added; the concurrent T-414's +16 tests ride along in the baseline).
+- Every discovered defect is registered in problem-registry BEFORE the fix, fixed in the underlying implementation (never by weakening a test), and pinned by regression coverage.
+- tsc --noEmit 0 errors; eslint 0 errors on every changed file.
+- Live verification script GREEN with zero residue (probe rows only — §15.38: never exercise destructive surfaces against REAL rows).
+- The restore path never mutates operational state on any failure path (proven by test).
+- Documentation per §12/§13: registry, problem-registry, change-log, next-task, current-state, unknowns + AGENTS.md rule if a permanent agent safeguard emerges.
+
+**Status:** IN_PROGRESS (99th session, 2026-09-26 — Phase 0: registration; the suites + fixes follow in the session's commits)
