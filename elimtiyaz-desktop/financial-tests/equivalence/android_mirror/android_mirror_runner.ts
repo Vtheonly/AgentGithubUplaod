@@ -240,6 +240,11 @@ interface OperationResult {
   totalAllocated?: number;
   paymentAmount?: number;
   error?: string;
+  // T-419 / TEST-308: the backend_runner.ts SKIPPED convention — an op this
+  // runner does not implement is a REPORTED non-run, never an error and
+  // never a silent pass (issue #22 §20/§31).
+  skipped?: boolean;
+  reason?: string;
 }
 
 function runOperation(scenario: CanonicalScenario): OperationResult {
@@ -577,7 +582,25 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
     }
 
     default:
-      return { error: `Unknown operation type: ${when.type}` };
+      // T-419 (2026-09-27): the TS mirror runner implements the FINANCIAL
+      // engine surface (the Kotlin LedgerEngine port). The app-layer /
+      // analytics / academic ops exist in the DESKTOP runner and the REAL
+      // Kotlin runner (android/AndroidEquivalenceRunner.kt implements
+      // computeSubjectAverage, computeOverallGpa, deriveAnalyticsStats,
+      // deriveAnalyticsVisuals, …) but were never ported into THIS runner.
+      // Report them as SKIPPED with the reason (the backend_runner.ts
+      // convention — excluded from pass/fail totals, never silently green)
+      // instead of ERROR, which polluted the tier-4 comparison with 35
+      // not-implemented "errors" that are a coverage boundary, not a
+      // divergence. Registered as the mirror-op-coverage gap (PARITY-005).
+      return {
+        skipped: true,
+        reason:
+          `Operation "${when.type}" is not implemented in the TS mirror runner ` +
+          `(the financial-ledger port). The REAL Kotlin runner covers it ` +
+          `(android/AndroidEquivalenceRunner.kt); porting it here is the ` +
+          `registered PARITY-005 follow-up.`,
+      };
   }
 }
 
@@ -612,7 +635,8 @@ function runAll(scenarios: CanonicalScenario[], outputDir: string): void {
   let passed = 0;
   let failed = 0;
   let errored = 0;
-  const results: Array<{ id: string; status: "pass" | "fail" | "error"; durationMs: number }> = [];
+  let skipped = 0;
+  const results: Array<{ id: string; status: "pass" | "fail" | "error" | "skipped"; durationMs: number }> = [];
 
   for (const scenario of scenarios) {
     const start = Date.now();
@@ -636,7 +660,11 @@ function runAll(scenarios: CanonicalScenario[], outputDir: string): void {
       };
       fs.writeFileSync(outputFile, JSON.stringify(output, null, 2));
 
-      if (result.error) {
+      if (result.skipped) {
+        skipped++;
+        results.push({ id: scenario.id, status: "skipped", durationMs });
+        console.log(`  − ${scenario.id} — skipped: ${String(result.reason).slice(0, 100)}`);
+      } else if (result.error) {
         errored++;
         results.push({ id: scenario.id, status: "error", durationMs });
         console.error(`  ✗ ${scenario.id} — error: ${result.error}`);
@@ -667,7 +695,7 @@ function runAll(scenarios: CanonicalScenario[], outputDir: string): void {
   }
 
   console.log("");
-  console.log(`Android mirror runner: ${passed} passed, ${failed} failed, ${errored} errored (of ${scenarios.length} total)`);
+  console.log(`Android mirror runner: ${passed} passed, ${failed} failed, ${errored} errored, ${skipped} skipped (of ${scenarios.length} total)`);
   console.log(`Results written to: ${outputDir}`);
 
   const summaryFile = path.join(outputDir, "_summary.json");
@@ -676,7 +704,7 @@ function runAll(scenarios: CanonicalScenario[], outputDir: string): void {
     engineVersion: "1.0.0",
     ranAt: new Date().toISOString(),
     scenarioCount: scenarios.length,
-    passed, failed, errored,
+    passed, failed, errored, skipped,
     results,
   }, null, 2));
 }

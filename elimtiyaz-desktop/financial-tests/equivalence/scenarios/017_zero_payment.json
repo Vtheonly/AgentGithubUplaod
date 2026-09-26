@@ -62,12 +62,7 @@
     "paymentId": "pay-001"
   },
   "then": {
-    "allocations": [],
-    "unallocatedAmount": 0,
-    "totalAllocated": 0,
-    "totalPaid": 0,
-    "totalPending": 0,
-    "totalOutstanding": 10000000,
-    "_comment": "Zero-amount payment: the waterfall allocator returns early with no allocations. No state change. Both engines must agree on this no-op behavior."
+    "error": "Payment amount must be > 0 (got 0)",
+    "_comment": "T-419 / TEST-308 (2026-09-27): the canonical behaviour for a zero-amount payment is REJECTION on every platform — desktop entry factory (src/domain/calc/ledger/entries.ts require input.amount > 0), the SQL RPC collect_and_allocate_payment (migration 0034: 'Validate amount > 0 (matches canonical require(amount > 0))'), and the Kotlin mirror all reject identically. The previous then-block expected a no-op success state (totalOutstanding 10000000, no allocations) — a stale expectation contradicting the scenario's own description; corrected per issue #22 section 1/2 (audit the tests themselves; trace expectations to the canonical contract)."
   }
 }

@@ -27,6 +27,18 @@
  *   - Status codes: compared verbatim. Both engines use the same wire codes.
  *   - Violation codes: compared verbatim.
  *
+ * Error-equivalence semantics (T-419 / TEST-308, 2026-09-27 — aligned with
+ * triple_comparator.ts):
+ *   - Both sides errored  → agreement at the result level (pairwise
+ *     semantics: error PRESENCE is the contract; message text may differ
+ *     in formatting between platforms).
+ *   - Canonical `then.error` (string) → the rejection IS the canonical
+ *     expectation: each side must have errored with exactly that message.
+ *   - Engines errored while `then` declares success values → ONE clean
+ *     `canonical (error-vs-success)` discrepancy (a stale expectation or
+ *     a behaviour divergence) — never NaN-garbage deltas (an error result
+ *     carries no numeric fields to diff).
+ *
  * Usage:
  *   npx tsx comparison/comparator.ts
  *   npx tsx comparison/comparator.ts --strict   # treat warnings as errors
@@ -159,7 +171,11 @@ function deepCompare(
   // Primitives.
   if (typeof nd !== "object") {
     if (nd !== na) {
-      const delta = typeof nd === "number" && typeof na === "number" ? nd - na : undefined;
+      // T-419 / TEST-308: a numeric delta is only meaningful when finite —
+      // NaN operands (an artifact of error results, not a measurement) must
+      // never render as a "delta" in reports or regression artifacts.
+      const rawDelta = typeof nd === "number" && typeof na === "number" ? nd - na : undefined;
+      const delta = rawDelta !== undefined && Number.isFinite(rawDelta) ? rawDelta : undefined;
       out.push({ path, desktopValue: nd, androidValue: na, delta });
     }
     return;
@@ -327,6 +343,54 @@ function checkCanonicalExpected(
 ): boolean {
   // Verify both results match the canonical expected values.
   // Skip keys that start with `_` (comments).
+  //
+  // T-419 / TEST-308 (2026-09-27): the ERROR-EXPECTATION contract.
+  // When the canonical expectation declares `"error": "<message>"`, the
+  // scenario's canonical behaviour IS the rejection: both engines must
+  // have errored with exactly that message (the triple_comparator
+  // all-error-equivalence semantics, now expressed pairwise per-side).
+  // When the engines errored but the expectation declares SUCCESS values
+  // (the stale-`then` case the baseline exposed on 017_zero_payment), we
+  // report ONE clean discrepancy naming the divergence — never the NaN
+  // garbage the numeric paths produced on error results (undefined → NaN).
+  const desktopError = desktopResult?.error;
+  const androidError = androidResult?.error;
+  const expectedError = canonical.error;
+
+  if (typeof expectedError === "string") {
+    let met = true;
+    if (desktopError !== expectedError) {
+      discrepancies.push({
+        path: "canonical.error (desktop)",
+        desktopValue: desktopError ?? "no error",
+        androidValue: androidError ?? "no error",
+      });
+      met = false;
+    }
+    if (androidError !== expectedError) {
+      discrepancies.push({
+        path: "canonical.error (android)",
+        desktopValue: desktopError ?? "no error",
+        androidValue: androidError ?? "no error",
+      });
+      met = false;
+    }
+    return met;
+  }
+
+  if (desktopError !== undefined || androidError !== undefined) {
+    // Engines errored but the canonical expectation declares success
+    // values — a genuine expectation/behaviour divergence (stale `then`).
+    // Report it once, cleanly; the numeric fields of an error result are
+    // absent and MUST NOT be diffed (the TEST-308 NaN artifact).
+    discrepancies.push({
+      path: "canonical (error-vs-success)",
+      desktopValue: desktopError ?? "no error",
+      androidValue: androidError ?? "no error",
+    });
+    return false;
+  }
+
   let met = true;
   for (const [k, expected] of Object.entries(canonical)) {
     if (k.startsWith("_")) continue;   // comment key

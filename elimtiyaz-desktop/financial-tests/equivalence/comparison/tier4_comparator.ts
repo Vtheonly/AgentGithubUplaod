@@ -6,10 +6,23 @@
  * (date formats, key ordering, severity case, DZD vs centimes in violation
  * messages) — never financial differences.
  *
- * This comparator replaces the legacy `comparison/comparator.ts` (which
- * compared against the never-executed Android runner) with a real
- * cross-platform comparison: desktop engine (DZD, TypeScript) vs. Kotlin
- * mirror engine (centimes Long, TypeScript port of Kotlin source).
+ * This comparator diffs the desktop engine against the Kotlin MIRROR
+ * (the TS port) — the in-repo layer of the Tier-4 surface. The REAL
+ * Kotlin verification is the Android repo's AndroidEquivalenceTest reading
+ * the same corpus (docs/testing/cross-platform.md §2.1); `comparator.ts`
+ * compares the desktop results against those real-Android results when a
+ * run exists. The three comparators keep DISTINCT scopes (ADR-029 decision 6).
+ *
+ * T-419 / TEST-308+PARITY-005 (2026-09-27): the comparison loop is now
+ * SKIP- and ERROR-aware (previously `deepDiff` ran on raw results):
+ *   - a side reporting `{skipped: true, reason}` (an op the TS mirror
+ *     runner does not implement — the REAL Kotlin runner covers them)
+ *     counts as SKIPPED and is reported with its reason — never as a
+ *     discrepancy, never silently dropped (issue #22 §20);
+ *   - both sides erroring with the SAME message = all-error equivalence
+ *     (the triple_comparator rule — e.g. the zero-payment boundary family);
+ *   - one side erroring while the other succeeds = ONE clean ERROR-level
+ *     discrepancy (error-vs-success), not a field-by-field garbage diff.
  *
  * Output:
  *   - Console: pass/fail counts + delta summary
@@ -38,7 +51,7 @@ interface ResultFile {
   tags?: string[];
   description: string;
   operationType: string;
-  result: Record<string, unknown>;
+  result: Record<string, unknown> & { error?: string; skipped?: boolean; reason?: string };
   expected: Record<string, unknown>;
   durationMs: number;
   timestamp: string;
@@ -378,9 +391,10 @@ function loadResults(dir: string): Map<string, ResultFile> {
 function compare(
   desktop: Map<string, ResultFile>,
   android: Map<string, ResultFile>,
-): { discrepancies: Discrepancy[]; passedScenarios: Set<string> } {
+): { discrepancies: Discrepancy[]; passedScenarios: Set<string>; skippedScenarios: Map<string, string> } {
   const discrepancies: Discrepancy[] = [];
   const passedScenarios = new Set<string>();
+  const skippedScenarios = new Map<string, string>();
   const allIds = new Set([...desktop.keys(), ...android.keys()]);
 
   for (const id of allIds) {
@@ -398,6 +412,43 @@ function compare(
         severity: "ERROR",
         reason: `Result file missing on ${d ? "android_mirror" : "desktop"} side`,
       });
+      continue;
+    }
+
+    // T-419: skip-aware comparison — a side that cannot run the op reports
+    // {skipped, reason}; the scenario is NOT compared (reported as skipped).
+    const dSkipped = d.result.skipped === true;
+    const aSkipped = a.result.skipped === true;
+    if (dSkipped || aSkipped) {
+      const reason =
+        (aSkipped ? a.result.reason : undefined) ??
+        (dSkipped ? d.result.reason : undefined) ??
+        "skipped";
+      skippedScenarios.set(id, String(reason));
+      continue;
+    }
+
+    // T-419: error-aware comparison (the TEST-308 all-error rule, ported
+    // from triple_comparator.ts — pairwise per-side).
+    const dError = d.result.error;
+    const aError = a.result.error;
+    if (dError !== undefined || aError !== undefined) {
+      if (dError !== undefined && aError !== undefined && dError === aError) {
+        // All-error equivalence: both engines reject identically.
+        passedScenarios.add(id);
+      } else {
+        discrepancies.push({
+          scenarioId: id,
+          category: d.category,
+          operationType: d.operationType,
+          path: "error (error-vs-success)",
+          desktopValue: dError ?? "no error",
+          androidValue: aError ?? "no error",
+          delta: null,
+          severity: "ERROR",
+          reason: "one engine errored while the other produced a result",
+        });
+      }
       continue;
     }
 
@@ -424,7 +475,7 @@ function compare(
     }
   }
 
-  return { discrepancies, passedScenarios };
+  return { discrepancies, passedScenarios, skippedScenarios };
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────
@@ -445,7 +496,7 @@ const androidResults = loadResults(androidDir);
 console.log(`Loaded ${desktopResults.size} desktop results, ${androidResults.size} android_mirror results`);
 console.log("=".repeat(60));
 
-const { discrepancies, passedScenarios } = compare(desktopResults, androidResults);
+const { discrepancies, passedScenarios, skippedScenarios } = compare(desktopResults, androidResults);
 
 const errorCount = discrepancies.filter((d) => d.severity === "ERROR").length;
 const warningCount = discrepancies.filter((d) => d.severity === "WARNING").length;
@@ -454,6 +505,7 @@ const totalScenarios = new Set([...desktopResults.keys(), ...androidResults.keys
 console.log("");
 console.log("─".repeat(60));
 console.log(`Scenarios passed (equivalent): ${passedScenarios.size} / ${totalScenarios}`);
+console.log(`Scenarios skipped (op not implemented on one side — reported, never silent): ${skippedScenarios.size}`);
 console.log(`Discrepancies: ${discrepancies.length} (${errorCount} errors, ${warningCount} warnings)`);
 console.log("─".repeat(60));
 
@@ -480,6 +532,14 @@ const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const reportPath = path.join(reportsDir, `tier4_equivalence_report_${timestamp}.md`);
 const discrepanciesPath = path.join(reportsDir, `tier4_discrepancies_${timestamp}.json`);
 
+// T-419 / TEST-308: `JSON.stringify(undefined)` returns undefined (not a
+// string) — calling .slice on it crashed the report writer (the crash that
+// kept this comparator's output from ever landing). Undefined-safe render.
+function safeJson(v: unknown): string {
+  const s = JSON.stringify(v);
+  return (s ?? String(v)).slice(0, 60);
+}
+
 const reportContent = `# Tier 4 Cross-Platform Equivalence Report
 
 **Generated:** ${new Date().toISOString()}
@@ -491,7 +551,8 @@ const reportContent = `# Tier 4 Cross-Platform Equivalence Report
 
 - Total scenarios compared: ${totalScenarios}
 - Scenarios with full equivalence: ${passedScenarios.size}
-- Scenarios with discrepancies: ${totalScenarios - passedScenarios.size}
+- Scenarios SKIPPED (op not implemented on one side — reported, never silent): ${skippedScenarios.size}
+- Scenarios with discrepancies: ${totalScenarios - passedScenarios.size - skippedScenarios.size}
 - Total discrepancies: ${discrepancies.length}
   - Errors (delta > 1 centime or non-numeric mismatch): ${errorCount}
   - Warnings (delta ≤ 1 centime): ${warningCount}
@@ -516,7 +577,7 @@ ${
 ${discrepancies
   .map(
     (d) =>
-      `| ${d.scenarioId} | ${d.path} | ${JSON.stringify(d.desktopValue).slice(0, 60)} | ${JSON.stringify(d.androidValue).slice(0, 60)} | ${d.delta ?? "—"} | ${d.severity} |`,
+      `| ${d.scenarioId} | ${d.path} | ${safeJson(d.desktopValue)} | ${safeJson(d.androidValue)} | ${d.delta ?? "—"} | ${d.severity} |`,
   )
   .join("\n")}`
 }
