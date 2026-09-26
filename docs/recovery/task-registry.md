@@ -4371,3 +4371,30 @@ Fix the complete student onboarding and synchronization flow so approved student
 **Left (the VERIFIED gate):** the owner's packaged-app UI pass over the changed surfaces (the ApprovalsTab student modals, the Pedagogy directory + the 3-dot menu, the installments family chip) + the Android consideration (the student_application column + the composite RPC are additive; no existing Android contract changed) + the financial-visibility-for-students owner decision (see unknowns).
 
 **Full record:** `docs/recovery/t-413-live-verification.md`
+
+
+## T-414 — Price Configuration & Generic Excel Import System (per-year pricing + config-driven import engine) — IN_PROGRESS (P0)
+
+**Registered:** 2026-09-26 (the 99th session — the owner's issue #14 mandate)  
+**Problem:** PRICING-500 (Task 1 — the single-config pricing surface vs the per-year DB model) · IMPORT-111 (Task 2 — hardcoded header-only schemas, no config repository, the 2027-2026 format unimportable)  
+**Related:** ADR-017 (the workbook price matrix + the catalog-drives-FUTURE-only rule) · ADR-002 (canonical financial engine — imported financial data must flow through the existing ledger) · migration 0006/0089 (the per-year pricing tables) · T-105 (the import engine) · T-307 (the pricing repository port) · T-334 (per-tranche due months) · the Excel deep-analysis evidence (`Excel/excel_deep_inspection_report.md`, `Excel/full_descbrtion.md`)
+
+### The mandate (the owner's issue #14 brief)
+
+**Task 1 — Price Configuration.** Independent, complete price configurations per academic year (tuition, registration, transport, installments, all payment-related settings); admins create/manage per-year configs, set ONE active; the ACTIVE config is the source of truth for new payments/invoices/parent charges/calculations; previous configs preserved unchanged; historical records keep the prices applicable at their time; switching the active config happens when moving to a new academic year. Historical financial data must never be silently recalculated with newer prices.
+
+**Task 2 — Excel Import Configuration & Generic Import Engine.** Deep comparison of the old (`Suivis clients 2026_2027.xlsx`) and new (`2027-2026.xlsx`) workbooks BEFORE any design; a configuration describing the NEW format (sheet mappings, column/field mappings, transformations, normalization, types, formula-derived values, entity identification, relationships, transaction/financial info, required/optional, validation); ONE generic importer driven by a CENTRALIZED repository of import configurations (register/load/identify/select/validate/version/resolve/manage) — never a per-format hardcoded importer; different formats flow into the SAME canonical model and the EXISTING financial ledger (no second financial system); profile/entity matching stays a FUTURE extension point (interfaces only — explicitly NOT implemented).
+
+### Scope
+
+1. **Deep Excel comparison (documentation-first):** the field-by-field old↔new mapping (identical / renamed / repositioned / added / removed / informational), formula equivalence (P=R+S+T+U+W+X+Y and Q=L-P identical; L = FI+tuition+transport−remise same logic with year-specific constants; CREANCE SEPT genuinely new), written into `docs/architecture/excel-format-comparison-2026-2027-vs-2027-2026.md` BEFORE the import configuration is designed.
+2. **Task 1 (PRICING-500):** migration 0117 (one-active-per-tenant partial unique index + `set_active_pricing_config` + `create_pricing_config_for_year` RPCs, atomic registration); `PricingRepository` contract extension (`listConfigs` / `activateConfig` / `createConfigForYear` / `readForYear`); Supabase + mock parity; the Settings → Tarification year-config bar (create/activate/view); `observe()` = the ACTIVE config (calculation source of truth), historical configs read-only; ADR-025 (the per-year price configuration architecture).
+3. **Task 2 (IMPORT-111):** the Import Configuration repository (`src/infrastructure/excel/import-config/`) — versioned `ImportConfigDocument` data documents + registry (register/validate/resolve/detect/select) + the 2026-2027 AND 2027-2026 ETAT configs (+ REF/DEVIS/BON wrapped for the old workbook); engine schemas become registry-backed (engine code unchanged); column-letter addressing for headerless columns; header-signature disambiguation between same-named sheets; storage adapter extended for PSY3–14 / COURS SUP / LIVRES / CLUB / SORTIES through the EXISTING payment/ledger paths; `EntityMatcher` + extension-point interfaces (profile matching NOT implemented).
+4. **Testing:** config registry unit tests; new-format import tests against the REAL `2027-2026.xlsx`; per-year pricing mock-repository tests + SQL verification of migration 0117 (BEGIN/ROLLBACK live probe per §11.1); the full-suite failing set byte-identical to the documented baseline (25 failures).
+
+### Acceptance gates
+
+- The 25-failure pre-existing baseline stays byte-identical; tsc 0 errors; eslint 0 errors on every changed file.
+- Importing the new workbook through its config produces canonical parents/students/payments/installments/ledger entries through the SAME repositories + sync-queue path as the old workbook (no parallel financial system) — pinned by an equivalence test.
+- Historical pricing preservation: activating a new config never mutates another year's config rows (DB-level guarantee + test); financial balances still replay from the ledger (INV-1 untouched — `real-school-corpus.test.ts` stays green).
+- Profile matching NOT implemented — only the documented extension points (interfaces + no-op defaults).
