@@ -1,3 +1,25 @@
+## 2026-09-26 — The 100th session — T-416 LIVE-VERIFIED: the issue-#12 Purge Button closed end to end (0120 + 0121 applied live; 22/22; PURGE-502/503 caught & fixed)
+
+### The live legs (the owner supplied the credentials — "do it yourself, do all the remaining migration")
+
+- **Migration 0120 applied + registered** on `vebfehrpzajhstyhinnw` (atomic, the T-091 block) — the live-0118 `(text,boolean)` overload dropped; exactly ONE canonical `purge_student_parent_domain(text,boolean,uuid)` remains (the PURGE-500 reconciliation, census-verified).
+- **Migration 0121 created + applied + registered** (the 0119 whole-function-replacement precedent): (a) **PURGE-502** — the `account_approval_requests` family extended with `or t.auth_user_id = any(v_auth_ids)` (the GoTrue trigger creates requests keyed by auth_user_id with no target, and 0044 resolves them without linking — the purge would have orphaned them against deleted accounts; the ADR-027 boundary refined: a request dies iff its account dies, unclaimed pre-parent signups untouched); (b) **PURGE-503** — the audit-note `jsonb_object_length(v_counts)` replaced with a `jsonb_object_keys` count (the function DOES NOT EXIST on Postgres — every real EXECUTE would have died at the audit write while every dry-run stayed green; live-caught at sandbox run 7, pinned by a guard).
+- **The live verification 22/22 GREEN** (`scripts/t-416-purge-live-verification.mjs`, EIGHT iterations — every failure a real find): the transactional sandbox 12/12 (20 FAKE probes seeded through the platform's real triggers under the real admin claims; wrong-phrase refused; dry-run 711 = 691 real + 20 probes, zero deletes; EXECUTE purged every family incl. the PURGE-502 closure; a non-domain sync_queue probe and a backup_archives probe SURVIVED; the marker-exception rollback restored the real 196/290 census with audit 1088→1088) + the authenticated PostgREST dry-run (the exact UI path: 691 = the baseline census, idempotent, wrong phrase refused) + the aftermath (the four sync/backup RPCs present; backup_archives 0→0; the service-role caller REFUSED by Gate 1).
+- **The owner's no-interference gate proven at four layers:** the 43 source guards (restructured for the two-file chain — every canonical invariant runs against BOTH bodies + the delta-discipline + the jsonb_object_length pin), the sandbox survivors, the aftermath census, and the PostgREST gate.
+
+### The discoveries (AGENTS.md §15.39 — the gated-RPC sandbox discipline)
+
+- The Management-API SQL endpoint runs as `postgres` — NOT a superuser on hosted Supabase, no JWT — a `has_role`-gated RPC correctly FAILS CLOSED for it; the sandbox installs the REAL verified admin claims (`set local request.jwt.claims`, the exact GUC PostgREST sets) to exercise the true UI-path authorization.
+- `handle_new_auth_user()` creates BOTH `user_profiles` AND a pending `account_approval_requests` on every auth.users insert — seed through the trigger, never manually.
+- Live census before seeding: `students.date_of_birth` NOT NULL; `calendar_events.kind` has no 'other'; `payment_allocations.charge_id` → `ledger_entries.id` (NOT installments).
+- PL/pgSQL: `->>'k'` (text) vs `->'k'` (jsonb) cannot share a CASE branch (42804); marker-exception reports must be regex-extracted to the last `}` (PG appends CONTEXT); `::regprocedure::text` signatures have no spaces after commas.
+- **THE BIG ONE:** a dry-run-green destructive RPC is NOT execute-proven until a rollback-wrapped sandbox runs the REAL execute path (the audit write is execute-mode-only — PURGE-503 hid behind it).
+
+### Gates + registry
+
+- Guard suite **43/43** (was 20) · append-only OK (+1 file) · eslint 0 on the changed files · FULL vitest **4 120 passed / the failing set byte-identical to the 25-failure documented baseline / +23 new green**.
+- **PURGE-500/501/502/503 → RESOLVED/TESTED** with live evidence; **T-416 → TESTED (live-verified)**; ADR-027 amended; next-task updated. **Remaining VERIFIED gate:** the owner's packaged-app pass (Settings → Zone de danger; the dry-run will show the same 691-row census) + the real execution when they choose (manual backup first — the card says so). The next free migration number is **0122**.
+
 ## 2026-09-25 — The 96th session — T-412 EXECUTED: the personnel payroll cash-flow forecast & pre-payroll funding requirements (Phases 0-5)
 
 ### Implementation — 6 desktop commits, no backend migration (read-side by design)

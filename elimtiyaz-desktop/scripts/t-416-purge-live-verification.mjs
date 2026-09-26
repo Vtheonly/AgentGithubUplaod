@@ -50,7 +50,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const MIGRATION_PATH = join(__dirname, "..", "supabase", "migrations", "0120_purge_student_parent_domain.sql");
+// The chain tail, in apply order: 0120 (the canonical RPC) + 0121 (the
+// PURGE-502 amendment — requests keyed to a purged auth account die with
+// the account). Both are idempotent; phase 1 applies only unregistered ones.
+const MIGRATION_FILES = [
+  "0120_purge_student_parent_domain.sql",
+  "0121_purge_approval_request_orphan_closure.sql",
+];
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "https://vebfehrpzajhstyhinnw.supabase.co";
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
@@ -131,8 +137,15 @@ async function phase0() {
 
   const has0118 = registry.some((r) => String(r.version) === "0118");
   record("P0.2 the unregistered live 0118 present (PURGE-500 context)", has0118, has0118 ? "0118 purge_student_parent_domain in the live registry" : "absent");
-  const has0120 = registry.some((r) => String(r.version) === "0120");
-  record("P0.3 0120 not yet applied", !has0120 || SKIP_APPLY, has0120 ? "already applied (--skip-apply expected)" : "clean");
+  const versions = new Set(registry.map((r) => String(r.version)));
+  const unapplied = MIGRATION_FILES.filter(
+    (f) => !versions.has(f.slice(0, 4)),
+  );
+  record(
+    "P0.3 the chain-tail state is known (apply phase handles both cases)",
+    true,
+    unapplied.length ? `pending: ${unapplied.join(", ")}` : `all applied (${MIGRATION_FILES.map((f) => f.slice(0, 4)).join(", ")})`,
+  );
 
   const overloads = await sqlRows(
     "select p.oid::regprocedure::text as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'purge_student_parent_domain'",
@@ -159,47 +172,112 @@ async function phase0() {
 // Phase 1 — apply migration 0120 atomically
 // ---------------------------------------------------------------------------
 async function phase1() {
-  console.log("\n== Phase 1 — apply 0120 (atomic, with its T-091 registration) ==");
+  console.log("\n== Phase 1 — apply the chain tail 0120 + 0121 (atomic, with the T-091 registrations) ==");
   if (SKIP_APPLY) {
     console.log("   (--skip-apply — verifying only)");
   } else {
-    const body = readFileSync(MIGRATION_PATH, "utf8");
-    const payload = `begin;\n${body}\ncommit;`;
-    try {
-      await sql(payload);
-      record("P1.1 apply 0120", true, "applied atomically");
-    } catch (e) {
-      record("P1.1 apply 0120", false, e.message);
-      throw e;
+    // Idempotent: re-apply every file whose version is not yet registered
+    // (0120's drop-every-overload loop + T-091 ON CONFLICT make both files
+    // safe to re-run, but skipping registered ones keeps the audit trail
+    // honest — an apply record means a real apply happened).
+    const reg = await sqlRows("select version from supabase_migrations.schema_migrations");
+    const applied = new Set(reg.map((r) => String(r.version)));
+    for (const file of MIGRATION_FILES) {
+      const version = file.slice(0, 4);
+      if (applied.has(version)) {
+        record(`P1.1 apply ${version} (${file})`, true, "already registered — skipped (idempotent)");
+        continue;
+      }
+      const body = readFileSync(join(__dirname, "..", "supabase", "migrations", file), "utf8");
+      const payload = `begin;\n${body}\ncommit;`;
+      try {
+        await sql(payload);
+        record(`P1.1 apply ${version} (${file})`, true, "applied atomically");
+      } catch (e) {
+        record(`P1.1 apply ${version} (${file})`, false, e.message);
+        throw e;
+      }
     }
   }
 
-  const reg = await sqlRows("select version, name from supabase_migrations.schema_migrations where version = '0120'");
-  record("P1.2 registry row 0120", reg.length === 1, JSON.stringify(reg));
+  const reg = await sqlRows("select version, name from supabase_migrations.schema_migrations where version in ('0120', '0121') order by version");
+  record(
+    "P1.2 registry rows 0120 + 0121",
+    reg.length === 2,
+    JSON.stringify(reg),
+  );
 
   const overloads = await sqlRows(
     "select p.oid::regprocedure::text as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'purge_student_parent_domain'",
   );
   record(
     "P1.3 exactly ONE canonical overload remains (the live-0118 reconciliation)",
-    overloads.length === 1 && /text, boolean, uuid/.test(overloads[0].sig),
+    overloads.length === 1 && /text,\s*boolean,\s*uuid/.test(overloads[0].sig),
     JSON.stringify(overloads.map((o) => o.sig)),
+  );
+
+  // The PURGE-502 amendment is live: the function body carries the
+  // auth-keyed approval predicate.
+  const bodyCheck = await sqlRows(
+    "select pg_get_functiondef(p.oid) as def from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'purge_student_parent_domain'",
+  );
+  record(
+    "P1.4 the live body carries the PURGE-502 amendment (auth-keyed approval closure)",
+    bodyCheck.length === 1 && /t\.auth_user_id\s*=\s*any\(v_auth_ids\)/.test(bodyCheck[0].def),
+    "pg_get_functiondef: " + (/t\.auth_user_id\s*=\s*any\(v_auth_ids\)/.test(bodyCheck[0]?.def ?? "") ? "predicate present" : "PREDICATE MISSING"),
   );
 }
 
 // ---------------------------------------------------------------------------
 // Phase 2 — the transactional sandbox (execute-mode evidence, zero residue)
 // ---------------------------------------------------------------------------
+/** The GoTrue password grant (the exact sign-in the desktop UI performs). */
+async function adminSignIn() {
+  if (!SERVICE_KEY) return null;
+  const grant = await rest("POST", "/auth/v1/token?grant_type=password", {
+    email: ADMIN_EMAIL,
+    password: ADMIN_PASSWORD,
+  }, { apikey: SERVICE_KEY });
+  if (grant.status !== 200 || !grant.json?.access_token) return null;
+  return grant.json;
+}
+
+/** The verified JWT payload — exactly the JSON PostgREST installs as the
+ *  request.jwt.claims GUC on every request. */
+function decodeJwtPayload(jwt) {
+  const seg = jwt.split(".")[1];
+  return Buffer.from(seg.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+}
+
 async function phase2(baseline) {
   console.log("\n== Phase 2 — the transactional sandbox (BEGIN…marker-exception rollback) ==");
 
+  // The Management-API SQL session runs as `postgres` — NOT a superuser on
+  // hosted Supabase, and with NO request.jwt.claims — so Gate 1 correctly
+  // fails closed for it (the run-5/6 live catch: every probe returned
+  // {ok:false, code:'forbidden'}). The sandbox therefore presents the REAL
+  // verified admin claims — installing the same request.jwt.claims GUC
+  // PostgREST sets per request — so the probes exercise the true UI-path
+  // authorization (has_role('super_admin') resolving the signed-in human),
+  // with the audit entry attributing the run to the admin's email.
+  const grant = await adminSignIn();
+  if (!grant) {
+    record("P2.0 the admin claims for the sandbox (GoTrue sign-in)", false, "sign-in failed — cannot exercise the gated path");
+    return false;
+  }
+  const claimsSql = decodeJwtPayload(grant.access_token).replace(/'/g, "''");
+  record("P2.0 the admin claims installed (the exact GUC PostgREST sets)", true, `${ADMIN_EMAIL} — the sandbox probes run under the real super_admin authorization`);
+
   // Deterministic, run-unique probe ids (§15.50 — every seeded row carries
   // the FAKE marker in a stable, queryable column).
+  // NOTE: the profile row is NOT pre-seeded — the live GoTrue trigger
+  // handle_new_auth_user() creates user_profiles + account_approval_requests
+  // on every auth.users insert (the first live run collided with it). Every
+  // profile reference below resolves the trigger-created row by auth_user_id.
   const tag = Date.now().toString(36);
   const root = crypto.randomUUID();
   const ids = {
     authUser: root,
-    profile: crypto.randomUUID(),
     roleAssign: crypto.randomUUID(),
     parent: crypto.randomUUID(),
     student: crypto.randomUUID(),
@@ -231,20 +309,27 @@ async function phase2(baseline) {
     -- the trailing statement — the REAL data can never be committed.
     begin;
     select 'seed';
+    -- The REAL verified admin claims — the same GUC PostgREST installs on
+    -- every request. Gate 1 resolves the signed-in super_admin human from
+    -- these claims (the console session itself is plain postgres, not a
+    -- superuser — Gate 1 correctly refused it bare).
+    set local request.jwt.claims = '${claimsSql}';
+    -- The auth.users insert fires handle_new_auth_user(): it creates BOTH
+    -- the user_profiles row (auth_user_id-keyed — the manual insert the
+    -- first live run collided with) AND a pending account_approval_requests
+    -- row keyed by the same auth_user_id (the PURGE-502 probe: the amended
+    -- family must take it down with the account).
     insert into auth.users (id, email, aud, role, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
     values ('${ids.authUser}', 'fake-t416-${tag}@el-imtiyaz.test', 'authenticated', 'authenticated', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
 
-    insert into public.user_profiles (id, auth_user_id, tenant_id, email, display_name, status)
-    values ('${ids.profile}', '${ids.authUser}', (select id from public.tenants limit 1), 'fake-t416-${tag}@el-imtiyaz.test', 'FAKE T416 Parent Portal', 'active');
-
     insert into public.role_assignments (id, tenant_id, user_profile_id, role_id)
-    values ('${ids.roleAssign}', (select id from public.tenants limit 1), '${ids.profile}', (select id from public.roles where code = 'parent' limit 1));
+    values ('${ids.roleAssign}', (select id from public.tenants limit 1), (select id from public.user_profiles where auth_user_id = '${ids.authUser}'), (select id from public.roles where code = 'parent' limit 1));
 
     insert into public.parents (id, tenant_id, parent_code, first_name, last_name, primary_phone, is_active, auth_user_id)
     values ('${ids.parent}', (select id from public.tenants limit 1), 'FAKE-T416-${tag}', 'FAKE', 'T416Parent', '+213000000000', true, '${ids.authUser}');
 
-    insert into public.students (id, tenant_id, parent_id, student_code, first_name, last_name, is_active, enrollment_status)
-    values ('${ids.student}', (select id from public.tenants limit 1), '${ids.parent}', 'FAKE-T416-${tag}', 'FAKE', 'T416Student', true, 'enrolled');
+    insert into public.students (id, tenant_id, parent_id, student_code, first_name, last_name, is_active, enrollment_status, date_of_birth)
+    values ('${ids.student}', (select id from public.tenants limit 1), '${ids.parent}', 'FAKE-T416-${tag}', 'FAKE', 'T416Student', true, 'enrolled', '2015-01-01'::date);
 
     insert into public.service_enrollments (id, tenant_id, student_id, academic_year_id, service_kind, annual_amount)
     values ('${ids.serviceEnrollment}', (select id from public.tenants limit 1), '${ids.student}', (select id from public.academic_years limit 1), 'tuition', 1000);
@@ -255,11 +340,14 @@ async function phase2(baseline) {
     insert into public.payments (id, tenant_id, payment_number, parent_id, amount, method, status)
     values ('${ids.payment}', (select id from public.tenants limit 1), 'FAKE-T416-${tag}', '${ids.parent}', 500, 'cash', 'paid');
 
-    insert into public.payment_allocations (id, tenant_id, payment_id, charge_id, installment_id, category, allocated_amount)
-    values ('${ids.allocation}', (select id from public.tenants limit 1), '${ids.payment}', '${ids.installment}', '${ids.installment}', 'tuition', 500);
-
+    -- The charge FIRST (the live FK: payment_allocations.charge_id →
+    -- ledger_entries.id — NOT installments; §57c live-schema authority),
+    -- then the allocation pointing at it.
     insert into public.ledger_entries (id, tenant_id, entry_number, parent_id, account_id, entry_type, amount, category)
     values ('${ids.ledger}', (select id from public.tenants limit 1), 'FAKE-T416-${tag}', '${ids.parent}', 'parent:${ids.parent}:category:tuition', 'charge', 1000, 'tuition');
+
+    insert into public.payment_allocations (id, tenant_id, payment_id, charge_id, installment_id, category, allocated_amount)
+    values ('${ids.allocation}', (select id from public.tenants limit 1), '${ids.payment}', '${ids.ledger}', '${ids.installment}', 'tuition', 500);
 
     insert into public.invoices (id, tenant_id, parent_id, student_id, invoice_number, due_date, amount)
     values ('${ids.invoice}', (select id from public.tenants limit 1), '${ids.parent}', '${ids.student}', 'FAKE-T416-${tag}', current_date + 30, 1000);
@@ -274,16 +362,18 @@ async function phase2(baseline) {
     values ('${ids.document}', (select id from public.tenants limit 1), '${ids.student}', 'other', 'FAKE-T416-${tag}.pdf', 'fake/${tag}.pdf');
 
     insert into public.chat_channels (id, tenant_id, code, name, channel_type, member_ids)
-    values ('${ids.channel}', (select id from public.tenants limit 1), 'FAKE-T416-${tag}', 'FAKE T416 Channel', 'direct', array['${ids.profile}']::uuid[]);
+    values ('${ids.channel}', (select id from public.tenants limit 1), 'FAKE-T416-${tag}', 'FAKE T416 Channel', 'direct', array[(select id from public.user_profiles where auth_user_id = '${ids.authUser}')]::uuid[]);
 
     insert into public.chat_messages (id, tenant_id, channel_id, author_id, body)
-    values ('${ids.message}', (select id from public.tenants limit 1), '${ids.channel}', '${ids.profile}', 'FAKE T416 message');
+    values ('${ids.message}', (select id from public.tenants limit 1), '${ids.channel}', (select id from public.user_profiles where auth_user_id = '${ids.authUser}'), 'FAKE T416 message');
 
     insert into public.notifications (id, tenant_id, kind, title, target_user_id)
     values ('${ids.notification}', (select id from public.tenants limit 1), 'info', 'FAKE T416 notification', '${ids.authUser}');
 
+    -- kind 'custom' — the live CHECK enum (payment_received | audit_log |
+    -- expense_event | follow_up_call | reminder | meeting | custom).
     insert into public.calendar_events (id, tenant_id, kind, title, start_at, end_at, target_entity_type, target_entity_id, target_name)
-    values ('${ids.calendar}', (select id from public.tenants limit 1), 'other', 'FAKE T416 event', now(), now(), 'parent', '${ids.parent}', 'FAKE T416Parent');
+    values ('${ids.calendar}', (select id from public.tenants limit 1), 'custom', 'FAKE T416 event', now(), now(), 'parent', '${ids.parent}', 'FAKE T416Parent');
 
     insert into public.sync_queue (id, tenant_id, entity, operation, payload, status)
     values ('${ids.syncDomain}', (select id from public.tenants limit 1), 'parent', 'insert', jsonb_build_object('id', '${ids.parent}', '_fake', 'T416-${tag}'), 'pending');
@@ -319,7 +409,9 @@ async function phase2(baseline) {
       -- The dry-run: counts the probes, deletes NOTHING.
       v_dry := public.purge_student_parent_domain('', true, v_tenant);
       v_ok := (v_dry->>'ok') = 'true' and (v_dry->>'mode') = 'dry_run';
-      v_report := v_report || jsonb_build_object('dry_run_mode', case when v_ok then v_dry->>'total' else v_dry end);
+      -- (->'total' keeps the branch jsonb — ->>'total' is text and a
+      -- text/jsonb CASE is a 42804; the run-4 live catch.)
+      v_report := v_report || jsonb_build_object('dry_run_mode', case when v_ok then (v_dry->'total') else v_dry end);
       if not v_ok then v_all := false; end if;
       select count(*) = 1 into v_ok from public.parents where id = '${ids.parent}';
       v_report := v_report || jsonb_build_object('dry_run_deletes_nothing', v_ok);
@@ -352,11 +444,19 @@ async function phase2(baseline) {
       if not v_ok then v_all := false; end if;
 
       -- The portal/auth closure (the auth.users delete permission proof).
+      -- The profile row is the TRIGGER-created one (resolved by auth_user_id).
       select (select count(*) from auth.users where id = '${ids.authUser}') = 0
-         and (select count(*) from public.user_profiles where id = '${ids.profile}') = 0
+         and (select count(*) from public.user_profiles where auth_user_id = '${ids.authUser}') = 0
          and (select count(*) from public.role_assignments where id = '${ids.roleAssign}') = 0
         into v_ok;
       v_report := v_report || jsonb_build_object('portal_auth_closure', v_ok);
+      if not v_ok then v_all := false; end if;
+
+      -- PURGE-502: the trigger-created approval request (auth_user_id-keyed,
+      -- target_parent_id NULL) dies WITH the purged account — no orphan.
+      select (select count(*) from public.account_approval_requests where auth_user_id = '${ids.authUser}') = 0
+        into v_ok;
+      v_report := v_report || jsonb_build_object('approval_request_auth_closure_purge502', v_ok);
       if not v_ok then v_all := false; end if;
 
       -- THE NO-INTERFERENCE PROOFS (the owner's directive).
@@ -395,7 +495,10 @@ async function phase2(baseline) {
     record("P2.1 sandbox", false, "completed WITHOUT the marker exception (unexpected — the rollback is no longer guaranteed)");
   } catch (e) {
     const msg = String(e.payload?.message ?? e.message ?? "");
-    const m = msg.match(/T416-SANDBOX-(GREEN|RED): (.*)/s);
+    // The marker report ends at its last `}` — the PG error appends a
+    // CONTEXT line after it; a bare (.*) swallows that tail and breaks
+    // the JSON.parse (the run-6 live catch).
+    const m = msg.match(/T416-SANDBOX-(GREEN|RED): (\{.*\})/s);
     if (!m) {
       record("P2.1 sandbox", false, `no marker in the error: ${msg.slice(0, 300)}`);
     } else {
@@ -408,10 +511,30 @@ async function phase2(baseline) {
       record("P2.1 sandbox verdict", sandboxOk, m[1]);
       if (report && typeof report === "object") {
         for (const [k, v] of Object.entries(report)) {
-          const ok = v === true || (typeof v === "string" && v === "true");
-          if (!ok) console.log(`   ❌ assert ${k}: ${JSON.stringify(v).slice(0, 200)}`);
+          const ok = v === true || v === "true";
+          if (!ok) {
+            // Payload-bearing asserts (execute_ok stores the delete counts,
+            // dry_run_mode stores the total) are SUCCESS evidence — the SQL
+            // `case when v_ok then <payload> else <error>` only stores the
+            // payload when the assert PASSED; a GREEN marker proves every
+            // v_ok. Printed as ✔ so the log reads true.
+            if (sandboxOk && (typeof v === "object" || typeof v === "number")) {
+              console.log(`   ✔ assert ${k} (success payload): ${JSON.stringify(v).slice(0, 200)}`);
+            } else {
+              console.log(`   ❌ assert ${k}: ${JSON.stringify(v).slice(0, 200)}`);
+            }
+          }
         }
-        console.log(`   asserts: ${Object.keys(report).length} (${Object.entries(report).filter(([, v]) => v === true || v === "true").length} green)`);
+        const greenCount = Object.entries(report).filter(([, v]) => {
+          const ok = v === true || v === "true";
+          const payload = sandboxOk && (typeof v === "object" || typeof v === "number");
+          return ok || payload;
+        }).length;
+        console.log(`   asserts: ${Object.keys(report).length} (${greenCount} green)`);
+      } else {
+        // The marker message failed to parse (PG error-message truncation)
+        // — dump the raw tail so the failing assert is still visible.
+        console.log(`   RAW REPORT (unparsed, up to 4000 chars):\n${String(m[2]).slice(0, 4000)}`);
       }
     }
   }
@@ -459,17 +582,14 @@ async function phase3(baseline) {
     return;
   }
 
-  const grant = await rest("POST", "/auth/v1/token?grant_type=password", {
-    email: ADMIN_EMAIL,
-    password: ADMIN_PASSWORD,
-  }, { apikey: SERVICE_KEY });
-  if (grant.status !== 200 || !grant.json?.access_token) {
-    record("P3.1 admin sign-in", false, `HTTP ${grant.status}: ${JSON.stringify(grant.json).slice(0, 200)}`);
+  const grant = await adminSignIn();
+  if (!grant) {
+    record("P3.1 admin sign-in", false, "sign-in failed");
     return;
   }
   record("P3.1 admin sign-in", true, `${ADMIN_EMAIL} authenticated`);
 
-  const jwt = grant.json.access_token;
+  const jwt = grant.access_token;
   const call1 = await rest("POST", "/rest/v1/rpc/purge_student_parent_domain", {
     p_confirm_phrase: "",
     p_dry_run: true,
