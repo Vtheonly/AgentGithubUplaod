@@ -17,10 +17,12 @@ import { AuditActions } from "../../../core/audit-actions";
 import { SubjectBehavior } from "../subject-behavior";
 import type {
   PricingConfig,
+  PricingConfigSummary,
   PricingEntry,
   DiscountType,
   DiscountCode,
 } from "../../../domain/model/pricing";
+import type { AcademicYear } from "../../../domain/model/academic";
 import type { AcademicLevel, GradeLevel } from "../../../domain/model/student";
 import type { TransportDestination } from "../../../domain/model/parent";
 import { defaultPricingConfig } from "../pricing-seed";
@@ -30,6 +32,16 @@ export class MockPricingRepository implements PricingRepository {
   private config: PricingConfig = defaultPricingConfig;
   private config$ = new SubjectBehavior<PricingConfig>(this.config);
 
+  // ---- T-414 (PRICING-500 / ADR-025): per-year configuration state ----
+  // One entry per academic year that has a config; `activeYearId` points at
+  // the single ACTIVE config (mirrors the 0117 one-active-per-tenant
+  // invariant). The default entry (before any listConfigs call) represents
+  // the CURRENT academic year's active config — the legacy single-config
+  // behavior preserved so existing tests/consumers are untouched.
+  private readonly yearConfigs = new Map<string, PricingConfig>();
+  private readonly yearMeta = new Map<string, { id: string; label: string; createdAt: string; updatedAt: string }>();
+  private activeYearId: string | null = null;
+
   observe(): Observable<PricingConfig> {
     return this.config$;
   }
@@ -37,6 +49,9 @@ export class MockPricingRepository implements PricingRepository {
   private commit(next: PricingConfig, updatedBy: string): PricingConfig {
     this.config = next;
     this.config$.set(next);
+    // T-414: keep the ACTIVE year's stored entry in sync — `observe()` and
+    // the year entry must be the same configuration object.
+    if (this.activeYearId) this.yearConfigs.set(this.activeYearId, next);
     appendAudit({
       action: AuditActions.SettingsUpdate,
       entityType: "pricing",
@@ -207,6 +222,149 @@ export class MockPricingRepository implements PricingRepository {
       ...this.config,
       complementaryServices: this.config.complementaryServices.filter((s) => s.id !== id),
     }, updatedBy));
+  }
+
+  // ---- T-414 (PRICING-500 / ADR-025): per-year configuration management ----
+  // Mock parity with the Supabase repository's RPC-backed methods: the
+  // year-scoped configs live in memory, one ACTIVE at a time, historical
+  // configs are read-only, and the ACTIVE config is what `observe()` (and
+  // every update method) targets.
+
+  /** Resolve the current mock year (honest null — §15.49 contract). */
+  private currentMockYear(): AcademicYear | null {
+    const years = [...store.academicYears];
+    return years.find((y) => y.isCurrent && !y.isArchived) ?? null;
+  }
+
+  /** Materialize the CURRENT year's config entry if absent (the legacy
+   *  single-config behavior maps onto year "<current>"). */
+  private ensureCurrentYearEntry(): { year: AcademicYear } | null {
+    const year = this.currentMockYear();
+    if (!year) return null;
+    if (!this.yearConfigs.has(year.id)) {
+      this.yearConfigs.set(year.id, this.config);
+      this.yearMeta.set(year.id, {
+        id: `cfg-${year.id}`,
+        label: `Tarification ${year.label}`,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      });
+      if (this.activeYearId === null) this.activeYearId = year.id;
+    }
+    return { year };
+  }
+
+  private summaries(): PricingConfigSummary[] {
+    this.ensureCurrentYearEntry();
+    const out: PricingConfigSummary[] = [];
+    for (const year of store.academicYears) {
+      if (!this.yearConfigs.has(year.id)) continue;
+      const meta = this.yearMeta.get(year.id)!;
+      out.push({
+        id: meta.id,
+        tenantId: TENANT_ID,
+        academicYearId: year.id,
+        academicYearLabel: year.label,
+        academicYearCode: year.code,
+        label: meta.label,
+        isActive: this.activeYearId === year.id,
+        isCurrentYear: year.isCurrent,
+        createdAt: meta.createdAt,
+        updatedAt: meta.updatedAt,
+      });
+    }
+    return out;
+  }
+
+  async listConfigs(): Promise<Result<readonly PricingConfigSummary[]>> {
+    await delay(60);
+    return Ok(this.summaries());
+  }
+
+  async readForYear(academicYearId: string): Promise<Result<PricingConfig>> {
+    await delay(80);
+    // The current year's entry materializes lazily from the live config
+    // (the legacy single-config behavior maps onto the current year).
+    this.ensureCurrentYearEntry();
+    const cfg = this.yearConfigs.get(academicYearId);
+    if (!cfg) {
+      return Err(Errors.notFound("Configuration de tarification pour l'année", academicYearId));
+    }
+    return Ok(cfg);
+  }
+
+  async createConfigForYear(
+    input: { academicYearId: string; label?: string; cloneFromActive: boolean },
+    updatedBy: string,
+  ): Promise<Result<PricingConfigSummary>> {
+    await delay(120);
+    const year = store.academicYears.find((y) => y.id === input.academicYearId);
+    if (!year) {
+      return Err(Errors.notFound("Année académique", input.academicYearId));
+    }
+    if (this.yearConfigs.has(year.id)) {
+      return Err(Errors.validation(
+        `duplicate pricing config for year ${year.id} (the 0006 one-config-per-year constraint)`,
+        `Une configuration de tarification existe déjà pour l'année ${year.label}`,
+      ));
+    }
+    // Seed the current year's entry first so clone-from-active has a source.
+    this.ensureCurrentYearEntry();
+    const cloneSource = input.cloneFromActive && this.activeYearId
+      ? this.yearConfigs.get(this.activeYearId)
+      : undefined;
+    // Structural clone (deep enough: the grids are rebuilt; entries arrays
+    // copied; per-grade FI records copied shallow per grade).
+    const base = cloneSource ?? defaultPricingConfig;
+    const cloned: PricingConfig = {
+      ...base,
+      tuitionByGradeLevel: { ...base.tuitionByGradeLevel },
+      transportByDestination: { ...base.transportByDestination },
+      registrationFeeByGrade: { ...base.registrationFeeByGrade },
+      monthlyByLevel: { ...base.monthlyByLevel },
+      discounts: [...base.discounts],
+      additionalServices: [...base.additionalServices],
+      complementaryServices: [...base.complementaryServices],
+    };
+    this.yearConfigs.set(year.id, cloned);
+    this.yearMeta.set(year.id, {
+      id: `cfg-${year.id}`,
+      label: input.label?.trim() ? input.label.trim() : `Tarification ${year.label}`,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+    appendAudit({
+      action: AuditActions.SettingsUpdate,
+      entityType: "pricing",
+      entityId: `cfg-${year.id}`,
+      actorId: updatedBy,
+      actorName: "Session courante",
+      diff: { before: null, after: { summary: `config créée pour ${year.label}${input.cloneFromActive ? " (clone de la config active)" : ""}` } },
+    });
+    return Ok(this.summaries().find((s) => s.academicYearId === year.id)!);
+  }
+
+  async activateConfig(configId: string, updatedBy: string): Promise<Result<void>> {
+    await delay(100);
+    const target = this.summaries().find((s) => s.id === configId);
+    if (!target) {
+      return Err(Errors.notFound("Configuration de tarification", configId));
+    }
+    if (!target.isActive) {
+      this.activeYearId = target.academicYearId;
+      // The ACTIVE config becomes the one observe() / every update targets.
+      this.config = this.yearConfigs.get(target.academicYearId)!;
+      this.config$.set(this.config);
+      appendAudit({
+        action: AuditActions.SettingsUpdate,
+        entityType: "pricing",
+        entityId: configId,
+        actorId: updatedBy,
+        actorName: "Session courante",
+        diff: { before: null, after: { summary: `config ${target.academicYearLabel} activée` } },
+      });
+    }
+    return Ok(undefined);
   }
 }
 

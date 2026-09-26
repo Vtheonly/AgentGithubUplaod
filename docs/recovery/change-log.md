@@ -2982,6 +2982,16 @@ The task explicitly forbids arbitrary UI thresholds and parallel debt ledgers; s
 
 
 ---
+## 2026-09-26 — T-414 Task 1 (99th session): the per-academic-year Price Configuration — migration 0117 live + repository/UI shipped (PRICING-500 RESOLVED/TESTED)
+
+### Implementation — Phase 0 + Task 1
+
+- **Phase 0:** T-414 registered (issue #14 — the owner's Price Configuration + Generic Excel Import mandate) + **PRICING-500** + **IMPORT-111** registered BEFORE any fix (§13; heading census run — the PRICING family is new at 500, IMPORT-111 is the next free after 110) + **ADR-025** (one ACTIVE config per tenant at the DB level; explicit atomic activation; create-then-activate year flow; observe() = the calculation source of truth; historical preservation via the INV-1 replay rule — unchanged).
+- **Task 1 (migration 0117 + domain + repos + UI):** the `pricing_configs_one_active_per_tenant` partial unique index (the previously undefined "first active row" selection is deterministic by construction) + `set_active_pricing_config` (the atomic, staff-gated, tenant-scoped, audited activation switch) + `create_pricing_config_for_year` (the new-year preparation RPC — five child grids cloned from the active config; friendly 23505 on the one-config-per-year constraint) — **applied live atomically** (chain head 0117) and **verified 9/9 GREEN** by `scripts/verify_t-414.sql` (the §11.1 BEGIN/ROLLBACK convention, zero residue). Domain `PricingConfigSummary`; the `PricingRepository` contract extended (`listConfigs`/`readForYear`/`createConfigForYear`/`activateConfig`); Supabase + mock parity (the mock's year-keyed configs with the active-pointer semantics); the Settings → Tarification year-config bar (list / create-with-clone / confirm-guarded activate / read-only historical preview — the grids below always render the ACTIVE config).
+- **Historical preservation proven live (C4):** the deactivated config's label/registration_fee/second_apron_fee/academic_year_id/child-grid counts are byte-identical after the switch; balances replay stored ledger amounts (ADR-017 §4 / INV-1) — no code path recomputes stored financial rows from the active config.
+- **Gates:** tsc 0 · eslint 0 errors on changed files · FULL vitest **3950 passed / 25 failed / 33 skipped** (failing set byte-identical to the pre-change baseline; **+16 new tests** all green) · append-only guard OK (+1 migration, head 0117) · idempotent re-application verified.
+- **Registry:** PRICING-500 → RESOLVED/TESTED with evidence (`docs/recovery/t-414-live-verification.md`); T-414 Task 1 → IMPLEMENTED / TESTED. IMPORT-111 (Task 2) → IN_PROGRESS in the same session.
+
 ## 2026-09-26 — T-412 SECOND ROUND COMPLETE (98th session): the deeper verification found and fixed 2 engine defects; T-412 → VERIFIED; the issue-#10 audit-traceability chain verified and recorded
 
 **Task:** T-412 second round (the owner's issue-#11 mandate) · **Problems:** WORKFORCE-505 + WORKFORCE-506 (registered → fixed → RESOLVED/TESTED, all same-session with recorded evidence) · **Also:** the issue-#10 audit-traceability verification
