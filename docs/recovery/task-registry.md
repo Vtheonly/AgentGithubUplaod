@@ -4591,3 +4591,30 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 - **Phase 6 COMPLETE** (this commit — the closeout): the registries truth-synced (TEST-307/308 → RESOLVED/TESTED; PARITY-005 + TEST-309 stay OPEN as the registered follow-ups), the change-log entry (the 103rd session), next-task + current-state, AGENTS.md §15.60 (the four session discoveries) + §11 + §17, and the delivery zips (the owner's hand-over request — the `deliverables/` commit that follows).
 - **Status: IMPLEMENTED / TESTED** — the VERIFIED gate is the owner's inspection of a `npm test` run (the unified summary should show: BASELINE-MATCHED, the equivalence layers, the environment-gated census with reasons, and the tier-4 REPORTED line naming PARITY-005). No production code changed (test infrastructure + docs only); the vitest failing set stayed byte-identical to the documented 25-failure baseline through every phase.
 - **Left (the registered follow-ups):** PARITY-005 (the mirror engine's verbatim re-port + the real-Kotlin gradle run — then the tier-4 comparison joins the gating set) and TEST-309 (the 24-file fakes consolidation queue).
+
+## T-420 — Excel Import Financial Integrity: the issue-#20 silent-loss repair (honest bulk-write errors + the realtime pause + the source-of-truth regression suite) — IN PROGRESS (P0)
+
+**Registered:** 2026-09-27 (the 104th session — the owner's issue-#20 mandate: "Bulk Excel Import: Incorrect Payment Status and Extremely Slow Import… the import may be incorrectly setting all students as fully paid, with no outstanding debt… Use the actual Excel file as the source of truth… Do not assume that all students are supposed to be paid")
+**Problems (registered BEFORE the fix per §13):** IMPORT-112 (the ledger bulkAppend→appendMany silent-Ok fallback) · IMPORT-113 (the installments lossy fallback) · IMPORT-114 (the swallowed rollback failure) · PERF-504 (the realtime refreshAll storm that exhausts the pool mid-import)
+**Related:** issue #20 (GitHub) · T-417/PERF-503 (the import's client-side scheduling — the 26× fix this builds on; the realtime storm is the OTHER half of the slowness) · IMPORT-106/107/108/109/110 (the import correctness lineage) · T-012/BUSINESS-100 (the bulkCollect honest-error precedent) · ADR-014 (receipt conventions — untouched)
+
+### The forensic baseline (the pre-change evidence, `docs/recovery/t-420-import-integrity-baseline.md`)
+
+- **The Excel source of truth is `Excel/2027-2026.xlsx`** (1,139 named rows — the newer, larger workbook; the logged import's checksum confirms it): **197 fully paid / 942 with outstanding balance (82.7%)**, Σ creance 193,983,800 DZD, 6 DETTES rows.
+- **The in-memory pipeline is CORRECT**: the local reproduction (t-105 stub convention) imports 1,137 students, builds 3,346 ledger entries + 2,198 payments + 5,963 installments, and matches the workbook's own Q column per student (940/942 show debt — the 2 deltas are same-name diagnostic artifacts, hand-verified).
+- **The live DB is financially EMPTY for the imported students**: ledger 7 rows (probe-era) vs ~3,346 expected; installments 0 vs ~5,963; payments 503 vs ~2,198; students 753 alive + 384 soft-deleted rollback corpses; NO run_completed audit rows for either real import run (03:03 and 18:21). With no charge entries, every account replays to balance 0 — **"fully paid, no debt" for everyone, the exact reported symptom.**
+- **The failure chain (reconstructed from logs.txt + audit_logs + row timestamps):** the realtime bridge's 75 ms-debounced full-collection re-seeds compete with the import's ~1,400 writes for the pool (PERF-504) → pool exhaustion → the ledger flush's bulkAppend throws → the appendMany fallback silently returns Ok([]) (IMPORT-112) → the payments flush's chunk 2 fails → Err → import fails → the compensating rollback soft-deletes 384 students then dies, swallowed (IMPORT-114).
+
+### The plan (each phase = one verified commit)
+
+1. **Phase 0 (this commit):** the registration — T-420 + IMPORT-112/113/114 + PERF-504 + the baseline evidence doc.
+2. **Phase 1 — honest errors on the lossy paths:** `SupabaseLedgerRepository.bulkAppend` returns Err on exceptions (no appendMany funnel); `appendMany` returns Err when any entry fails; `SupabaseInstallmentRepository.bulkImportInstallments` returns Err on exceptions (no per-row fallback). Unit pins via a mocked client (throwing upsert + error-response upsert + failing RPC) asserting Err AND the adapter-level flush failure. The mock-mode parity path stays intact (the mock repositories never fail).
+3. **Phase 2 — the realtime pause:** `pauseFinancialRealtime()/resumeFinancialRealtime()` on the bridge + the import modal wraps its commit in pause/resume (try/finally; resume performs ONE refreshAll). Interactive freshness outside imports unchanged.
+4. **Phase 3 — the rollback surfacing:** `rollbackTransaction` returns per-entity outcomes; the engine appends an explicit partial-state warning to the thrown error when deletions failed.
+5. **Phase 4 — the regression suite (the issue's own test mandate):** fully-paid / partially-paid / indebted students through a synthetic tri-state workbook AND the REAL workbook; the per-student Excel source-of-truth balance oracle (L+N−M−(P+O) vs ledger replay); the flush-failure atomicity pins (a failing bulk repo must FAIL the import — IMPORT-112/113 can never regress); the installment-status census (paid/partial/unpaid).
+6. **Phase 5 — the gates:** typecheck 0 · eslint 0 on changed files · the FULL vitest failing set byte-identical to the documented 25-failure baseline (new tests green) · the unified runner's baseline comparison.
+7. **Phase 6 — the live verification + closeout:** with the owner-supplied credentials — a probe import through the REAL Supabase client (small, run-unique, cleaned up) proving the ledger/payments/installments land and replay to the expected balances; the registries truth-synced; AGENTS.md §15 session discoveries; the delivery zips.
+
+### Status (updated per phase — each line = one verified commit)
+
+- **Phase 0 COMPLETE** (this commit): the registration + the forensic baseline.
