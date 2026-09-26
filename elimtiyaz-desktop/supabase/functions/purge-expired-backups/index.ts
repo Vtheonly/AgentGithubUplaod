@@ -104,8 +104,14 @@ Deno.serve(withAuditSurfacing(async (req: Request) => {
       continue;
     }
 
+    // T-415 (BKUP-507): the RPC returns a table of rows
+    // ({ archive_id, file_name, purged_at }) — NOT a bare string[] (the
+    // pre-fix cast silently produced objects-where-strings-were-expected,
+    // masked by the RPC never succeeding before migration 0119).
     const archiveIds: string[] = Array.isArray(purgedIds)
-      ? (purgedIds as string[]).filter(Boolean)
+      ? (purgedIds as { archive_id?: string }[])
+          .map((r) => r?.archive_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
       : [];
 
     perTenantResults.push({ tenant_id: tenant.id, archive_ids: archiveIds });

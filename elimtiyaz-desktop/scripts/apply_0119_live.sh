@@ -1,0 +1,18 @@
+#!/bin/bash
+# T-415 (2026-09-26): apply migration 0119 (the purge_expired_backups 42702
+# ambiguity fix — BKUP-507) live with registration in ONE atomic transaction
+# (the T-091/MIG-TOKENS pattern; the migration file itself also carries the
+# idempotent registration insert).
+set -euo pipefail
+SUPABASE_ACCESS_TOKEN="${SUPABASE_ACCESS_TOKEN:?Set SUPABASE_ACCESS_TOKEN}"
+PROJECT_REF="${T415_REF:-vebfehrpzajhstyhinnw}"
+MIGRATION_FILE="$(dirname "$0")/../supabase/migrations/0119_fix_purge_expired_backups_ambiguity.sql"
+PAYLOAD=$(mktemp /tmp/apply_0119.XXXXXX.sql)
+{ echo "BEGIN;"; cat "$MIGRATION_FILE"; echo "COMMIT;"; } > "$PAYLOAD"
+echo "Applying 0119 to ${PROJECT_REF} (atomic)…"
+HTTP_CODE=$(curl -s -o /tmp/apply_0119_response.json -w "%{http_code}" -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Content-Type: application/json" -A "curl/8.5.0" --data "$(python3 -c "import json; print(json.dumps({'query': open('$PAYLOAD').read()}))")")
+echo "HTTP ${HTTP_CODE}"; head -c 800 /tmp/apply_0119_response.json; echo ""; rm -f "$PAYLOAD"
+if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then exit 1; fi
+echo "Verifying registration…"
+curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Content-Type: application/json" -A "curl/8.5.0" --data '{"query": "select version, name from supabase_migrations.schema_migrations where version = '\''0119'\'';"}' | head -c 400
+echo ""
