@@ -4516,3 +4516,29 @@ Profile and optimize the FULL Excel import pipeline — file reading/parsing, va
 - **Measured post-optimization (the same instrumented stubs, the same real workbook):** identity searches **1,026 → 2**; canonical writes **preserved exactly** (createParent 253 / createStudent 390 / updateStudent 0); wall clock **149,090 → 5,642 ms** under the identical scaled profile (**26×**); the mock flush 235 s → 120 ms. Extrapolated: Supabase mode ≈ 81 sequential RTT-equivalents at 8-way (was 1,286) ≈ **40–80 s at the owner's route (was 10–20 min)**; mock mode ≈ 16 s effective (was 8+ min).
 - **Gates:** the perf suite **6/6** · the un-skipped IMPORT-106 census oracle **13/13** (390/253/1283/891/1968 + Σ 55,227,100 DZD + per-row Excel cross-checks + rollback-to-empty + re-import no-op) · t-105 6/6 · t-364 8/8 · all five import suites 37/37 · FULL vitest **25 failed / 4,122 passed / 5 skipped** (the failing set byte-identical to the documented baseline; +25 green vs the 4,097 baseline) · **tsc 0** · eslint 0 errors · no migration (the chain is untouched — client-side scheduling only, §15.4/§15.5 held).
 - **Left:** the owner's packaged-app import run (the VERIFIED gate). No backend change → no live migration gate; the Supabase path reuses the canonical per-family RPCs verbatim (only the scheduling changed).
+
+## T-418 — Branch Consolidation: merge-or-remove all 39 stale branch refs, single-active-branch model (issue #21) — IMPLEMENTED / TESTED (P0)
+
+**Registered:** 2026-09-27 (the 102nd session — the owner's issue-#21 mandate: "Merge or Remove All Existing Branches Safely… preserve every feature, fix, and change… only one active/main branch… do not delete a branch until you have confirmed that its useful changes have been successfully preserved in the final branch")
+**Problem:** OPS-322 (registered BEFORE the fix per §13 — the branch-sprawl hygiene entry)
+**Related:** ADR-028 (NEW — the branch lifecycle & consolidation policy) · issue #21 (GitHub) · AGENTS.md §15.59 (the §15.1 amendment) · the 101st session's delivery README (the prior "no deletions" reading, superseded)
+
+### The discovery that reshaped the task
+
+The forensic census (fresh clone, `git fetch --prune`, per-branch `merge-base --is-ancestor` + `rev-list --count`): **every one of the 39 non-main branch refs (36 hub + 3 website) is already an ancestor of its repository's main, with ZERO unique commits.** The merge-after-each-commit discipline of sessions 58–101 had left the branch namespace as pure label residue — nothing to merge, no conflicts to resolve. The task's real risk surface: (a) proving containment per-branch, (b) proving main healthy before AND after the ref deletions, (c) preserving the name→tip→merge-commit map in the docs tree.
+
+### The plan (3 phases)
+
+1. **Phase 0 (first commit):** register T-418 + OPS-322 (§13) + ADR-028 + the verification doc with the full 39-branch evidence table + the reusable census scripts.
+2. **Phase 1 — the deletion:** guarded batches (fresh fetch + re-census immediately before each batch) → 36 hub + 3 website refs deleted; post-deletion invariance proof (main's SHA unchanged; ls-remote = 1 head per repo).
+3. **Phase 2 — the closeout:** OPS-322 → RESOLVED/TESTED, T-418 → TESTED, change-log, next-task, current-state, AGENTS.md §15.59 + §15.1 amendment, the zips delivery (the owner's hand-over request).
+
+### The health gates on the combined main (BEFORE the deletions — all green)
+
+- Desktop: tsc **0 errors** · eslint **0 errors** (800 pre-existing warnings) · FULL vitest **4 145 passed / 25 failed / 5 skipped** — count-identical to the documented 101st-session baseline, failing set = the documented pre-existing families (no NEW failures) · append-only migration guard **OK** (117 files).
+- Website: **657/657** tests · lint **clean** · tsc **0** · production build **green**.
+- Live Supabase smoke: chain head **0121** (118 applied, the documented state incl. the historical off-repo 0118) · auth health **200** · RLS **enforcing** (anon → `[]`) · **15 Edge Functions ACTIVE**.
+
+### The evidence
+
+`docs/recovery/t-418-branch-consolidation-verification.md` — the full per-branch table (39/39 ancestors, 39/39 zero-unique, the merge-commit map), the gates, the deletion protocol, the regression sweep (main's SHA unchanged by the deletions; working tree byte-identical; git status clean throughout), and the honest boundaries (the 25 pre-existing vitest failures are unrelated and stay open under their own entries).

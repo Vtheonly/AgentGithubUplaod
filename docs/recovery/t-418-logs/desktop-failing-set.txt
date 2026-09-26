@@ -1,0 +1,25 @@
+   × Boundary: refund at exact amount (LIFO revert) > mirror: refund exactly equal to original payment reverts fully 6ms
+   × DATA-005 — desktop render sites canonicalized (source scans) > NO parent first+last composition remains in the UI tree outside the canonical helper / edit modal / tests 50ms
+   × OverviewTab — T-243 3-zone layout > renders the 4 sparkline KPI cards with REAL values 139ms
+   × OverviewTab — T-243 3-zone layout > renders the Zone B rail: gauge, AI card and relance feed from REAL data 34ms
+   × OverviewTab — T-243 3-zone layout > renders the funnel + weekly rhythm + calendar (Zone A rows 3–4) 44ms
+   × OverviewTab — T-243 3-zone layout > renders the rail's honest zero state when nothing is overdue 37ms
+   × OverviewTab — T-243 3-zone layout > renders the revenue sparkline + month-over-month delta from the REAL series 37ms
+   × OverviewTab — T-243 3-zone layout > the relance buttons route to the alerts workspace 23ms
+   × Sequence: payment → refund → re-pay (idempotency check) > mirror: after refund, a new payment can re-satisfy the installment 8ms
+   × T-034 — SupabasePaymentRepository cache freshness (CROSS-104) > DEFECT REPRODUCTION: another client's write is invisible inside the TTL but visible after it (no restart) 9ms
+   × T-034 — SupabasePaymentRepository cache freshness (CROSS-104) > a FAILED seed no longer poisons the whole session (retries after the TTL) 1ms
+   × T-034 — SupabasePaymentRepository cache freshness (CROSS-104) > repeated observes inside the TTL do NOT hammer the server (single read) 1ms
+   × T-034 — SupabasePaymentRepository cache freshness (CROSS-104) > window-focus force refresh: the next observe re-seeds even inside the TTL 1ms
+   × T-247 — SeeDetailsModal render > debt tab renders per-bucket severity badges 25ms
+   × T-247 — SeeDetailsModal render > donut center shows the REAL Σ gender counts (not a synthesized total) 41ms
+   × T-247 — SeeDetailsModal render > shows the collection-rate summary trio from REAL totals 107ms
+   × T-355 — DepartmentsTab (DASH-405: the REAL payments feed) > categories claimed by NO unit surface as 'Autres catégories' (never silently dropped) 37ms
+   × T-355 — DepartmentsTab (DASH-405: the REAL payments feed) > empty payments render the honest empty state (no fabricated zeros) 28ms
+   × T-355 — DepartmentsTab (DASH-405: the REAL payments feed) > renders the per-unit totals from the REAL payments (no more 'données par catégorie non exposées') 119ms
+   × UI-307 — AnalyticsTab render (the report page) > T-339: the DEFAULT view is the Executive Command Center (Pilotage) 141ms
+   × UI-307 — AnalyticsTab render (the report page) > aging composition renders the normalized shares + total row 80ms
+   × cross-platform scenario: refund_cleared_payment > INV-8 — cleared branch reverts amountPaid 7ms
+   × deriveRecoveryFunnel — REAL debtAging → escalation stages > derives the 4 stages from the bucket family counts 8ms
+   × §02.06 — homework attachments (private vault upload) > keeps each attachment path unique (timestamped prefix) 640ms
+   × §02.06 — homework attachments (private vault upload) > uploads a PDF attachment to the homework-attachments bucket and returns a vault path 709ms
