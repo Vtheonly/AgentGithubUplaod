@@ -2540,10 +2540,26 @@ export class SupabaseLedgerRepository implements LedgerRepository {
   }
 
   async appendMany(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>> {
+    // IMPORT-112 (T-420, 2026-09-27): HONEST ERRORS — this method previously
+    // collected only the successful `append()` results and ALWAYS returned
+    // Ok, silently dropping every failed entry. Under pool exhaustion
+    // (issue #20's live evidence) that turned a total write failure into
+    // "success with zero rows" — the import's atomic contract checks
+    // `result.ok === false` one layer up and cannot see partial-Ok.
+    // Failures now propagate as Err so `flushPendingBatches` aborts the
+    // import ("tout réussit ou tout échoue").
     const results: LedgerEntry[] = [];
+    const failures: string[] = [];
     for (const e of entries) {
       const r = await this.append(e);
       if (r.ok) results.push(r.value);
+      else failures.push(`${e.sourceId ?? e.id}: ${r.error?.message ?? "erreur inconnue"}`);
+    }
+    if (failures.length > 0) {
+      return Err(Errors.server(
+        `appendMany: ${failures.length}/${entries.length} écriture(s) du journal ont échoué — ` +
+          `premier échec: ${failures[0]}`,
+      ));
     }
     return Ok(results);
   }
@@ -2641,9 +2657,19 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       this.cache.update((list) => [...inserted, ...list]);
       return Ok(inserted);
     } catch (e) {
+      // IMPORT-112 (T-420, 2026-09-27): NO LOSSY FALLBACK. This catch
+      // previously funneled into `appendMany` — the exact silent-drop path
+      // that wrote 0 of ~3,346 ledger entries during the issue-#20 import
+      // while returning Ok (the pool-exhaustion exceptions failed every
+      // per-entry RPC, and the old appendMany dropped them all). A thrown
+      // bulk error is now an HONEST Err: the Excel import's flush
+      // (`flushPendingBatches`) sees it and fails the run — the atomic
+      // contract documented there finally holds end-to-end.
       console.warn("[SupabaseLedger] bulkAppend error:", e);
-      // Fall back to appendMany (loop) which calls the RPC one by one.
-      return this.appendMany(entries);
+      return Err(Errors.server(
+        `bulkAppend: échec de l'écriture en masse (${entries.length} écritures) — ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+      ));
     }
   }
 
@@ -3222,14 +3248,18 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
       this.cache.update((list) => [...results, ...list.filter((i) => !results.some((r) => r.id === i.id))]);
       return Ok(results);
     } catch (e) {
+      // IMPORT-113 (T-420, 2026-09-27): NO LOSSY FALLBACK. This catch
+      // previously looped `importInstallment` per input, silently dropped
+      // every failure, and returned Ok(partial) — the same silent-Ok class
+      // as IMPORT-112 (live evidence: 0 of ~5,963 import installments from
+      // the issue-#20 run). A thrown bulk error is now an honest Err; the
+      // per-row importInstallment stays the update-capable INTERACTIVE
+      // path, never a bulk fallback.
       console.warn("[SupabaseInstallment] bulkImportInstallments error:", e);
-      // Fall back to loop.
-      const results: Installment[] = [];
-      for (const input of inputs) {
-        const r = await this.importInstallment(input);
-        if (r.ok) results.push(r.value);
-      }
-      return Ok(results);
+      return Err(Errors.server(
+        `bulkImportInstallments: échec de l'écriture en masse (${inputs.length} tranches) — ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+      ));
     }
   }
   async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
