@@ -12,9 +12,9 @@
 
 **Build provenance:** both zips were built from clean working trees (`git status` clean pre-build; hub @ `670e8f659e32a4892b16d08a868f85e246036cc3`, website @ `5c530b692fcad7679dfd58cbea6409be29e3de63`). `unzip -l` spot-checks confirmed the tree structure (1865 hub files / 220 website files / 2087 combined; AGENTS.md, migration 0119, and the T-415 live-verification script all present; zero `.git` entries; zero stale zips).
 
-## The push status — BLOCKED (invalid PAT)
+## The push status — COMPLETED (with the owner's second token)
 
-The push could NOT be completed. The provided token (`ghp_8nU2…1Q2`) is **invalid — expired or revoked**. Evidence (all from this session, no guessing):
+The first supplied token (`ghp_8nU2…1Q2`) was **invalid — expired or revoked**. Evidence (all from this session, no guessing):
 
 1. **GitHub REST API** returns `401 Bad credentials` for `GET /user` — tested with BOTH `Authorization: Bearer` and `Authorization: token` header formats.
 2. **Git push** fails with GitHub's `remote: Invalid username or token. Password authentication is not supported for Git operations.` — tested with ALL FOUR credential formats (`user:token@`, `x-access-token:token@`, `token:x-oauth-basic@`, `user:Vtheonly:token@`).
@@ -22,7 +22,7 @@ The push could NOT be completed. The provided token (`ghp_8nU2…1Q2`) is **inva
 
 **Likely cause:** GitHub auto-revokes classic PATs detected by secret scanning when they appear in plain text (chats, commits, pasted configs), and classic PATs also carry expiry dates.
 
-**How to complete the push (2 minutes):** generate a fresh token — GitHub → Settings → Developer settings → Personal access tokens → **Tokens (classic)** → *Generate new token* with the `repo` scope (or a fine-grained token with Read/Write contents on `Vtheonly/AgentGithubUplaod` + `Vtheonly/elimtiyaz-website`) — then re-run the session: the zips are staged and the commit+push is a single command per repo.
+**Resolution:** the owner supplied a fresh token mid-session; the delivery commit `0dc8733` was pushed to `origin/main` (`670e8f6..0dc8733`) and the remote state verified via the API (HEAD = `0dc8733`; all six delivery files live in `deliverables/`). The website repo needed no push (no changes this session; `main` = `origin/main` @ `5c530b6`).
 
 ## The issue-#12 (Purge Button) status — NOT STARTED, next session's first task
 
