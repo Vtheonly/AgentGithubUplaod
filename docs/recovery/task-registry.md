@@ -4551,3 +4551,37 @@ The forensic census (fresh clone, `git fetch --prune`, per-branch `merge-base --
 - **Phase 2 (the closeout commit):** OPS-322 → RESOLVED/TESTED, this execution record, change-log (the 102nd session), next-task, current-state, §15.59, the zips delivery manifest.
 - **Gates re-run AFTER the deletions (the issue's explicit requirement):** desktop tsc **0 errors** + FULL vitest re-run to completion (**4 145 passed / 25 failed / 5 skipped** — count-identical to the pre-deletion run and to the documented 101st-session baseline); website FULL vitest re-run **657/657**; `git status` clean; both repos exactly one branch.
 - **Left:** the owner's branch-page confirmation (the VERIFIED gate) + the zips hand-over (the delivery commit that follows).
+
+## T-419 — The Unified Testing Architecture: recover, audit, and unify the three test systems into ONE framework with ONE entry point (issue #22) — IN_PROGRESS (P0)
+
+**Registered:** 2026-09-27 (the 103rd session — the owner's GitHub issue-#22 mandate: "Unify, Audit, and Preserve All Existing Test Suites… Do NOT rewrite… Do NOT delete existing tests simply because the structure is fragmented… Do NOT reduce coverage… one clean, unified, structured testing framework with a single execution flow")
+**Problem:** TEST-307 (the fragmented testing architecture — registered BEFORE the fix per §13), TEST-308 (the comparator all-error false positive), TEST-309 (the 24× duplicated Supabase fakes)
+**Related:** ADR-029 (NEW — the unified testing architecture) · issue #22 (GitHub) · ADR-006 (the prior framework consolidation — T-419 unifies the REMAINING split: roots + entry points) · `docs/recovery/t-419-test-unification-baseline.md` (the Phase-1 baseline evidence) · `docs/testing/unified-architecture.md` (the architecture map + migration manifest)
+
+### The mandate's hard requirements (traced to the issue's own sections)
+
+- §Critical/§28: migration over rewrite — `move → repair imports → extract shared utility → validate`; no coverage loss (the failing-set preservation contract, baseline doc §3).
+- §10/§40: one canonical testing organization, responsibility-based; no permanent `src/test` vs `src/tests` split.
+- §30: `npm test` is the ONE authoritative entry point; targeted modes are modes of one framework (§12: no "unified v2" wrapper).
+- §11/§32: the `src/test/cross-platform` suite is recovered (not deleted) and the cross-directory import is removed through architectural consolidation; real Kotlin + real backend verification remain independent layers fed by the shared corpus.
+- §16/§35/§38: the migration manifest accounts for EVERY artifact (move/merge/preserve/classify — nothing silently dropped); regression artifacts classified, not blindly deleted.
+- §20/§31: no silent skipping — environment-gated layers are explicitly reported.
+- §37: staged migration (baseline → shared support → equivalence unification → main-tree move → unified runner → duplicate cleanup → correctness audit → final verification), each stage separately gated and committed.
+
+### The design (ADR-029 — one orchestration root, layered execution)
+
+The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CONTRACT (the Android repo reads it at a fixed sibling path — ADR-006 decision 4; the Android repo is not modifiable in-session), so the unification is at the ORCHESTRATION and SUPPORT layers, not a physical mega-move: `src/tests/` becomes the ONE Vitest root (absorbing `src/test/`), the equivalence framework becomes Layer 2 of `npm test` (the unified runner), Layer 3 (real Kotlin / live backend / live E2E) is environment-gated and explicitly reported, and the shared support grows in the existing `src/tests/_helpers/` convention.
+
+### The phase plan (each phase = one verified commit, per §37)
+
+1. **Phase 0+1 (this commit):** ADR-029 + T-419 + TEST-307/308/309 registration + the baseline evidence doc (tsc 0 · vitest 4 145/25/5 = the documented baseline · equivalence 809/0/10 · comparator 818/819 with the TEST-308 false positive identified).
+2. **Phase 2:** the root unification — `git mv src/test/cross-platform src/tests/cross-platform` + `git mv src/test/setup.ts src/tests/_helpers/setup.ts` + the vitest.config include/setup/exclude updates + the AGENTS.md §11 + docs/testing path references. Gate: FULL vitest failing set byte-identical to baseline.
+3. **Phase 3:** the TEST-308 fix — `comparator.ts` gains the all-error-equivalence rule (aligned with `triple_comparator.ts`) + the NaN delta guard. Gate: comparator sanity 819/819, canonical 318/318, no false regression artifact; Tier-4 pipeline numbers unchanged.
+4. **Phase 4:** the unified runner — `scripts/run-unified-tests.mjs` (Layer 1 vitest + Layer 2 equivalence pipeline + Layer 3 env-gated reporting + the unified summary) + the package.json script rewiring (`test` → the unified runner; `test:vitest` = the Layer-1 alias). Gates: Layer 1 byte-identical; Layer 2 green; Layer 3 reasons reported; tsc 0.
+5. **Phase 5:** the shared-support consolidation pattern + the migration manifest (`docs/testing/unified-architecture.md` — the §38 table) + the Supabase-fakes census with the first consolidations where provably safe.
+6. **Phase 6:** the closeout — registries truth-synced, change-log, next-task, current-state, AGENTS.md §11 + the session-discoveries rule, the delivery zips (the owner's hand-over request).
+
+### Status
+
+- **Phase 0+1 COMPLETE** (this commit): registration + baseline evidence recorded; no code changed yet.
+- **Left:** Phases 2–6 (the physical unification, the comparator fix, the unified runner, the manifest, the closeout) — each with its own gates and commits.
