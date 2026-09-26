@@ -24,7 +24,7 @@
 import type { ImportSchema, ImportRecord, UpsertResult } from "../types";
 import type { ImportContext } from "../import-context";
 import { objectChecksum } from "../utils/checksum";
-import { StorageAdapter, type StorageRecord, type RunAuditEntry, type BatchUpsertRow, type BatchProgressCallback } from "./storage-adapter";
+import { StorageAdapter, type StorageRecord, type RunAuditEntry, type BatchUpsertRow, type BatchProgressCallback, type RollbackOutcome } from "./storage-adapter";
 import { uuid } from "../utils/id";
 import type { ParentRepository, StudentRepository, LedgerRepository, PaymentRepository, InstallmentRepository, ImportInstallmentInput } from "../../../../domain/repository/repository";
 import type { Parent, CreateParentInput, TransportDestination } from "../../../../domain/model/parent";
@@ -199,6 +199,10 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     this.initialized = true;
   }
 
+  /** IMPORT-114 (T-420): the outcome of the last rollback — surfaced by the
+   * engine so a partial compensation is never silent. */
+  private lastRollbackOutcome: RollbackOutcome | null = null;
+
   async beginTransaction(): Promise<void> {
     // Clear the batch buffers + the compensation log at the start of a run.
     this.pendingLedgerEntries = [];
@@ -206,6 +210,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     this.pendingInstallments = [];
     this.createdStudentIds = [];
     this.createdParentIds = [];
+    this.lastRollbackOutcome = null;
   }
 
   async commitTransaction(): Promise<void> {
@@ -325,20 +330,38 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // imports." Parents/students were inserted row-by-row during the run;
     // reverse them (students BEFORE parents — parents with children cannot
     // be deleted) so the database returns to its pre-import state.
+    //
+    // IMPORT-114 (T-420): the deletes stay BEST-EFFORT (a dead pool must not
+    // stop us compensating the rows it can still reach), but every failure
+    // is now COUNTED and exposed via getRollbackOutcome() — the engine
+    // appends an explicit partial-state warning to the thrown error so the
+    // user knows the database is inconsistent (live evidence: the issue-#20
+    // rollback died partway — 384 soft-deletes landed, 463 students from
+    // the "failed" import survived — and the user was told the import had
+    // been annulled).
+    let studentsDeleted = 0;
+    let failedStudents = 0;
     for (const studentId of this.createdStudentIds.reverse()) {
       try {
         await this.deps.students.deleteStudent(studentId);
+        studentsDeleted++;
       } catch {
-        // Best-effort compensation — log and continue with the rest.
+        // Best-effort compensation — count and continue with the rest.
+        failedStudents++;
       }
     }
+    let parentsDeleted = 0;
+    let failedParents = 0;
     for (const parentId of this.createdParentIds.reverse()) {
       try {
         await this.deps.parents.deleteParent(parentId);
+        parentsDeleted++;
       } catch {
         // Best-effort compensation.
+        failedParents++;
       }
     }
+    this.lastRollbackOutcome = { studentsDeleted, parentsDeleted, failedStudents, failedParents };
     // Clear the batch buffers + per-run insertion log on rollback.
     this.pendingLedgerEntries = [];
     this.pendingPayments = [];
@@ -346,6 +369,11 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     this.createdStudentIds = [];
     this.createdParentIds = [];
     this.rowsByRun.clear();
+  }
+
+  /** IMPORT-114 (T-420): what the last rollback actually achieved. */
+  getRollbackOutcome(): RollbackOutcome | null {
+    return this.lastRollbackOutcome;
   }
 
   async upsertRecord(

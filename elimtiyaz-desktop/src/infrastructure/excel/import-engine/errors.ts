@@ -22,7 +22,13 @@ export type ImportEngineErrorCode =
   | "AGGREGATED_IMPORT_ERRORS"
   | "STRICT_MODE_REJECTED"
   /** VAULT §14.02 — atomic import aborted (row errors → full rollback). */
-  | "ATOMIC_IMPORT_ABORTED";
+  | "ATOMIC_IMPORT_ABORTED"
+  /**
+   * IMPORT-114 (T-420) — the compensating rollback could not fully annul
+   * the run's created rows; the database is left in a PARTIAL state and the
+   * error message carries an explicit cleanup warning.
+   */
+  | "PARTIAL_ROLLBACK_STATE";
 
 export class ImportEngineError extends Error {
   readonly code: ImportEngineErrorCode;

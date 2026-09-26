@@ -222,10 +222,37 @@ export class ImportEngine {
         if (!options.dryRun) await this.storage.commitTransaction();
       } catch (e) {
         if (!options.dryRun) {
+          // IMPORT-114 (T-420): the rollback is best-effort and its failure
+          // must not mask the original error — but a PARTIAL compensation
+          // means the database is left inconsistent, and the user must know.
+          // Live evidence (issue #20): under pool exhaustion the compensating
+          // deletes died partway (384 of 847 students soft-deleted) while the
+          // error message claimed the import had been fully annulled.
+          let rollbackWarning: string | null = null;
           try {
             await this.storage.rollbackTransaction();
+            const outcome =
+              typeof this.storage.getRollbackOutcome === "function"
+                ? this.storage.getRollbackOutcome()
+                : null;
+            if (outcome && outcome.failedStudents + outcome.failedParents > 0) {
+              rollbackWarning =
+                ` ATTENTION : le rollback n'a PAS pu annuler ` +
+                `${outcome.failedStudents} élève(s) et ${outcome.failedParents} parent(s) créés par cet import ` +
+                `(${outcome.studentsDeleted} élève(s) et ${outcome.parentsDeleted} parent(s) supprimés) — ` +
+                `la base est dans un ÉTAT PARTIEL. Ne réimportez pas avant d'avoir inspecté/nettoyé les enregistrements orphelins.`;
+            }
           } catch {
-            // Ignore rollback failure
+            // Ignore rollback failure — the original error still propagates.
+          }
+          if (rollbackWarning) {
+            const original = e instanceof Error ? e.message : String(e);
+            const wrapped = new ImportEngineError(
+              `${original}${rollbackWarning}`,
+              "PARTIAL_ROLLBACK_STATE",
+              { originalError: e },
+            );
+            throw wrapped;
           }
         }
         throw e;

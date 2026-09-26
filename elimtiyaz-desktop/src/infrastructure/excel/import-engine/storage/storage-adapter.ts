@@ -86,6 +86,24 @@ export interface RunAuditEntry {
   readonly status: "running" | "success" | "partial" | "failed";
 }
 
+/**
+ * IMPORT-114 (T-420, 2026-09-27): the outcome of the LAST compensating
+ * rollback — what the best-effort per-entity deletes actually achieved.
+ *
+ * Live evidence (issue #20): under pool exhaustion the rollback itself died
+ * partway (384 soft-deletes succeeded, 463 students survived from a
+ * "failed" import) and the engine swallowed the failure — the user was told
+ * the import was annulled while the database kept a corrupted half-state.
+ * The engine now surfaces this: when `failedStudents + failedParents > 0`
+ * the thrown error carries an explicit partial-state warning.
+ */
+export interface RollbackOutcome {
+  readonly studentsDeleted: number;
+  readonly parentsDeleted: number;
+  readonly failedStudents: number;
+  readonly failedParents: number;
+}
+
 export abstract class StorageAdapter {
   abstract init(): Promise<void>;
   abstract beginTransaction(): Promise<void>;
@@ -155,6 +173,13 @@ export abstract class StorageAdapter {
   async listInsertedForRun(_runId: string): Promise<StorageRecord[]> {
     return [];
   }
+
+  /**
+   * IMPORT-114 (T-420): report what the LAST rollbackTransaction actually
+   * achieved. Optional — adapters whose rollback cannot partially fail
+   * (fully in-memory, transactional) may omit it. Null before any rollback.
+   */
+  getRollbackOutcome?(): RollbackOutcome | null;
 
   /** Close any open resources. */
   abstract close(): Promise<void>;
