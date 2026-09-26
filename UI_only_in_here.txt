@@ -1,3 +1,0 @@
-From this point onward, everything implemented in this commit and the work covered by this change is **UI/frontend-only**.
-
-No real backend, database, or Supabase integration is implemented at this stage. The UI, frontend state, interactions, workflows, and required frontend logic should be structured so that they can later be connected to the real backend and Supabase without requiring a redesign or rewriting the feature.
