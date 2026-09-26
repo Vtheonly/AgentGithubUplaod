@@ -432,7 +432,7 @@ describe("T-298 — the production conflictGuard with a stubbed Supabase client"
     }
   }
 
-  it("returns a conflict record when the live row diverges on a both-changed field", async () => {
+  it("a DISJOINT remote edit returns the merged-payload verdict (SYNC-108) — the remote's field rides along, never silently reverted", async () => {
     const client = stubClient({
       parent_code: "PAR-2026-A12",
       first_name: "Yacine",
@@ -466,8 +466,18 @@ describe("T-298 — the production conflictGuard with a stubbed Supabase client"
       // last_name: base "Benali" → local "LOCAL-EDITED", remote "Benali"?
       // Remote equals base on last_name → only-local changed → auto-merge.
       // occupation: base absent → remote set → only-remote changed → applied.
-      // So NO conflict here — the guard returns null (disjoint merge).
-      expect(record).toBeNull();
+      // NO conflict here — and since T-415 (SYNC-108) the disjoint remote
+      // edit rides along as the mergedPayload verdict instead of being
+      // silently reverted by a bare-local push: the guard answers with
+      // { conflict: null, mergedPayload } carrying BOTH sides' edits.
+      expect(record).not.toBeNull();
+      expect(record).toMatchObject({ conflict: null });
+      const verdict = record as unknown as {
+        conflict: null;
+        mergedPayload: Record<string, unknown>;
+      };
+      expect(verdict.mergedPayload.last_name).toBe("LOCAL-EDITED");
+      expect(verdict.mergedPayload.occupation).toBe("Server-set occupation");
     });
   });
 

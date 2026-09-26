@@ -45,6 +45,7 @@ import { _resetSyncQueueStoreForTests } from "../../infrastructure/sync/sync-que
 import type { SyncQueueEntry } from "../../infrastructure/sync/sync-types";
 import {
   computeThreeWayForEntry,
+  projectPayloadToRowShape,
 } from "../../infrastructure/sync/conflict-detector";
 
 /* ------------------------------------------------------------------ */
@@ -254,10 +255,16 @@ describe("T-305 — the armed guard fires (no silent overwrite)", () => {
     store.notifyParents();
 
     // The server row moved while this device was offline — SAME field.
-    serverRows.set(code!, {
-      ...(store.parents[0] as unknown as Record<string, unknown>),
-      firstName: "Server Edit",
-    });
+    // (T-415/SYNC-111: the fake server row is now in the REAL server shape —
+    // snake_case, exactly what PostgREST returns. The pre-T-415 camelCase
+    // fixtures masked the base-projection key-space defect.)
+    serverRows.set(
+      code!,
+      projectPayloadToRowShape("parent", {
+        ...(store.parents[0] as unknown as Record<string, unknown>),
+        firstName: "Server Edit",
+      }),
+    );
 
     const online = await reconnectAndDrain();
     const result = await online.syncNow();
@@ -269,9 +276,9 @@ describe("T-305 — the armed guard fires (no silent overwrite)", () => {
     expect(conflicts).toHaveLength(1);
     expect(conflicts[0].entity).toBe("parent");
     expect(conflicts[0].conflict).not.toBeNull();
-    expect(conflicts[0].conflict!.conflictPaths).toContain("firstName");
+    expect(conflicts[0].conflict!.conflictPaths).toContain("first_name");
     // The remote payload rides the record (the resolver's User-B side).
-    expect(conflicts[0].conflict!.remotePayload.firstName).toBe("Server Edit");
+    expect(conflicts[0].conflict!.remotePayload.first_name).toBe("Server Edit");
   });
 
   it("an armed update with NO divergence pushes normally on reconnect", async () => {
@@ -279,8 +286,12 @@ describe("T-305 — the armed guard fires (no silent overwrite)", () => {
 
     const target = store.parents[0];
     const code = (target as unknown as { code?: string }).code;
-    // The server row equals the base (nobody else touched it).
-    serverRows.set(code!, { ...(target as unknown as Record<string, unknown>) });
+    // The server row equals the base (nobody else touched it) — in the real
+    // server shape (snake_case, T-415/SYNC-111).
+    serverRows.set(
+      code!,
+      projectPayloadToRowShape("parent", { ...(target as unknown as Record<string, unknown>) }),
+    );
     // NOTE: the staged payload (post-edit) diverges from base ONLY on the
     // local side — one-side change auto-merges, no conflict.
     store.parents[0] = { ...target, firstName: "Only Local Changed" } as typeof store.parents[number];

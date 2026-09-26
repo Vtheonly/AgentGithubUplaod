@@ -53,6 +53,20 @@ export interface SyncConflictRecord {
 }
 
 /**
+ * T-415 (SYNC-108): the conflict guard's MERGED-payload verdict — no
+ * both-changed conflict, but the remote row moved on fields the local edit
+ * never touched. The drain pushes the mergedPayload (the auto-merged tree:
+ * the local edits + the remote's other-field edits) instead of the bare
+ * local payload, which would have silently reverted the remote's work.
+ */
+export interface ConflictGuardVerdict {
+  /** null on this shape — a conflict would be returned as a bare record. */
+  readonly conflict: null;
+  /** The auto-merged row to push (server-row key space). */
+  readonly mergedPayload: Record<string, unknown>;
+}
+
+/**
  * A single entry in the sync queue. Each entry represents one logical
  * mutation that needs to be pushed (or has been pushed) to Supabase.
  */
@@ -159,10 +173,17 @@ export interface SyncServiceOptions {
    * on fields BOTH sides changed (never a silent overwrite); returns null
    * when the push may proceed. The production wiring fetches the remote row
    * per entity kind and runs the pure `computeThreeWay` engine.
+   *
+   * T-415 (SYNC-108): the guard may also answer with a VERDICT —
+   * `{ conflict: null, mergedPayload }` — when there is no both-changed
+   * conflict but the remote row moved on OTHER fields: the drain pushes the
+   * mergedPayload instead of the bare local payload (which would silently
+   * revert the remote's edits). The legacy shapes (a record / null) remain
+   * fully valid.
    */
   conflictGuard?: (
     entry: SyncQueueEntry,
-  ) => Promise<SyncConflictRecord | null>;
+  ) => Promise<SyncConflictRecord | null | ConflictGuardVerdict>;
   /**
    * T-298 (OFFLINE-400): fired when the guard parks an entry in `conflict`
    * status — the production wiring writes the `sync.conflict_detected`

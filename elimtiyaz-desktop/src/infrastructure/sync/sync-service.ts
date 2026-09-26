@@ -30,6 +30,7 @@
  */
 
 import type {
+  SyncConflictRecord,
   SyncEntityKind,
   SyncOperation,
   SyncQueueEntry,
@@ -391,6 +392,14 @@ export class SyncService {
     const resolved: SyncQueueEntry = {
       ...entry,
       payload: resolvedPayload,
+      // T-415 (SYNC-109): the adjudicated remote state becomes the NEW BASE —
+      // the pre-edit base is stale (the user just decided against it), and
+      // keeping it made the next drain re-detect the SAME conflict forever
+      // (the resolve → re-park loop; only "remote" choices could terminate).
+      // With the remotePayload as the base: an UNMOVED remote equals the new
+      // base → only the local side changed → the push proceeds; a remote that
+      // genuinely moved again still diverges → a FRESH conflict fires.
+      basePayload: entry.conflict?.remotePayload ?? entry.basePayload ?? null,
       status: "pending",
       attempts: 0,
       lastAttemptAt: null,
@@ -590,18 +599,38 @@ export class SyncService {
         // never silently overwritten), the record is persisted ON the entry
         // (IndexedDB survives restarts; no parallel store), and
         // onConflictDetected fires (audit + notification in the wiring).
+        //
+        // T-415 (SYNC-108): the guard may answer with a VERDICT — no
+        // conflict, but a mergedPayload carrying the remote's non-conflicting
+        // changes. The drain then pushes the MERGED payload; pushing the
+        // bare local payload would silently revert the remote operator's
+        // edits on every field the local edit never touched. Legacy guard
+        // shapes (a bare record / null) normalize to conflict-only.
+        let mergedPayloadOverride: Record<string, unknown> | null = null;
         if (
           entryToPush.operation === "update" &&
           entryToPush.basePayload &&
           this.opts.conflictGuard
         ) {
-          let record: Awaited<ReturnType<NonNullable<SyncServiceOptions["conflictGuard"]>>> = null;
+          let outcome: Awaited<ReturnType<NonNullable<SyncServiceOptions["conflictGuard"]>>> = null;
           try {
-            record = await this.opts.conflictGuard(entryToPush);
+            outcome = await this.opts.conflictGuard(entryToPush);
           } catch {
             // A guard failure (e.g. remote fetch error) must NOT eat the
             // push — the entry proceeds (the push RPCs stay authoritative).
-            record = null;
+            outcome = null;
+          }
+          const isVerdict =
+            !!outcome &&
+            typeof outcome === "object" &&
+            "conflict" in (outcome as unknown as Record<string, unknown>);
+          const record: SyncConflictRecord | null = isVerdict
+            ? (outcome as unknown as { conflict: SyncConflictRecord | null }).conflict
+            : (outcome as SyncConflictRecord | null);
+          if (isVerdict) {
+            const merged = (outcome as unknown as { mergedPayload?: Record<string, unknown> | null })
+              .mergedPayload;
+            mergedPayloadOverride = merged && typeof merged === "object" ? merged : null;
           }
           if (record) {
             const parked: SyncQueueEntry = {
@@ -624,7 +653,14 @@ export class SyncService {
         }
 
         try {
-          await this.opts.push(entryToPush);
+          // T-415 (SYNC-108): push the MERGED payload when the guard supplied
+          // one (the stored queue entry keeps the operator's local edit —
+          // every attempt re-merges against the CURRENT remote row).
+          await this.opts.push(
+            mergedPayloadOverride
+              ? { ...entryToPush, payload: mergedPayloadOverride }
+              : entryToPush,
+          );
           const patched: SyncQueueEntry = {
             ...entryToPush,
             status: "synced",

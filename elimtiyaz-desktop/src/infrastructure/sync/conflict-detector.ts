@@ -27,6 +27,7 @@
 
 import type { SyncConflictRecord, SyncEntityKind, SyncQueueEntry } from "./sync-types";
 import { computeThreeWay, type ThreeWayResult } from "../../domain/calc/diff/three-way";
+import { deepEqual } from "../../domain/calc/diff/field-diff";
 
 /* ------------------------------------------------------------------ */
 /*  Entity key mapping — the tables + unique keys the push RPCs use    */
@@ -298,7 +299,13 @@ export async function computeThreeWayForEntry(
     // No server row (or no derivable key) → nothing to diverge from.
     return { threeWay: { merged: null, conflicts: [], autoMergedPaths: [] }, remote: null };
   }
-  const base = entry.basePayload ?? null;
+  // T-415 (SYNC-111): the base rides through the SAME alias projection as
+  // the local payload — base, local and remote all meet in the server-row
+  // key space (before this the base's aliased fields vanished from the
+  // merge and every aliased field became an added-vs-added divergence).
+  const base = entry.basePayload
+    ? projectPayloadToRowShape(entry.entity, entry.basePayload)
+    : null;
   const local = projectPayloadToRowShape(entry.entity, entry.payload);
   const threeWay = computeThreeWay(base, local, remote);
   return { threeWay, remote };
@@ -313,7 +320,11 @@ export function computeThreeWayForEntrySync(
   remote: Record<string, unknown> | null,
 ): ThreeWayResult {
   if (!remote) return { merged: null, conflicts: [], autoMergedPaths: [] };
-  const base = entry.basePayload ?? null;
+  // T-415 (SYNC-111): the resolver's render path sees the SAME projected
+  // key space the detection path did — or its three columns lie.
+  const base = entry.basePayload
+    ? projectPayloadToRowShape(entry.entity, entry.basePayload)
+    : null;
   const local = projectPayloadToRowShape(entry.entity, entry.payload);
   return computeThreeWay(base, local, remote);
 }
@@ -325,12 +336,39 @@ export function computeThreeWayForEntrySync(
 /**
  * The production conflict guard: fetch the remote row, run the 3-way,
  * return the conflict record when fields BOTH sides changed differ.
+ *
+ * T-415 (SYNC-108): when there is NO both-changed conflict but the remote
+ * row diverges from the base on OTHER fields, the verdict carries the
+ * MERGED payload (the auto-merged tree: local edits + the remote's other-
+ * field edits) — the drain pushes it instead of the bare local payload,
+ * which would have silently reverted the remote operator's edits. The
+ * legacy return shapes (a conflict record / null) remain valid — the
+ * drain normalizes both.
  */
-export async function conflictGuard(entry: SyncQueueEntry): Promise<SyncConflictRecord | null> {
+export async function conflictGuard(
+  entry: SyncQueueEntry,
+): Promise<SyncConflictRecord | null | { conflict: null; mergedPayload: Record<string, unknown> }> {
   const mapping = ENTITY_MAPPINGS[entry.entity];
   if (!mapping) return null; // No derivable key — documented no-detection.
   const { threeWay, remote } = await computeThreeWayForEntry(entry);
-  if (!remote || threeWay.conflicts.length === 0) return null;
+  if (!remote) return null;
+  if (threeWay.conflicts.length === 0) {
+    // SYNC-108 — the divergent-field auto-merge: when the merged tree
+    // differs from the projected local payload, the remote moved on fields
+    // the local edit never touched; pushing the bare local payload would
+    // revert them. Hand the merged tree to the drain instead.
+    const merged = threeWay.merged;
+    const localProjected = projectPayloadToRowShape(entry.entity, entry.payload);
+    if (
+      merged &&
+      typeof merged === "object" &&
+      !Array.isArray(merged) &&
+      !deepEqual(merged, localProjected)
+    ) {
+      return { conflict: null, mergedPayload: merged as Record<string, unknown> };
+    }
+    return null;
+  }
 
   return {
     detectedAt: new Date().toISOString(),
