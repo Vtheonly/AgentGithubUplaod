@@ -250,9 +250,32 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       // pending batch against the CURRENT ledger stream first so a
       // re-import of the same file is a no-op, exactly like the RPC path.
       const existingKeys = this.collectExistingImportLedgerKeys();
-      const newLedgerEntries = this.pendingLedgerEntries.filter(
+      let newLedgerEntries = this.pendingLedgerEntries.filter(
         (e) => e.sourceType == null || e.sourceId == null || !existingKeys.has(`${e.sourceType}|${e.sourceId}`),
       );
+      // T-420 (IMPORT-115, 2026-09-27): WITHIN-BATCH dedup — the same
+      // workbook can carry TWO rows for the same student (the real
+      // 2027-2026.xlsx has two same-family same-name pairs: the second row
+      // UPDATES the first's student per IMPORT-109, and BOTH rows' financial
+      // entries are buffered with the SAME `${studentId}:${field}`
+      // sourceIds). PostgreSQL's `ON CONFLICT DO NOTHING` — the wire form
+      // bulkAppend uses — can NOT suppress duplicates WITHIN one INSERT
+      // statement: the chunk carrying both copies dies with `duplicate key
+      // value violates unique constraint "ledger_entries_source_uidx"`
+      // (live-proven: the deterministic 2,000/1,500/4,000 truncation —
+      // chunks 1-4 landed, chunk 5 failed, and the pre-T-420 fallbacks
+      // swallowed the error into the issue-#20 "everyone fully paid"
+      // state). FIRST WINS — the exact semantics the DB would produce
+      // chunk-by-chunk, and what the cross-batch dedup above already
+      // implements for re-imports.
+      const seenLedgerKeys = new Set<string>();
+      newLedgerEntries = newLedgerEntries.filter((e) => {
+        if (e.sourceType == null || e.sourceId == null) return true;
+        const key = `${e.sourceType}|${e.sourceId}`;
+        if (seenLedgerKeys.has(key)) return false;
+        seenLedgerKeys.add(key);
+        return true;
+      });
       if (newLedgerEntries.length > 0) {
         try {
           const result =
@@ -278,17 +301,33 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // Flush payments.
     if (this.pendingPayments.length > 0 && this.deps.payments) {
       try {
+        // T-420 (IMPORT-115): WITHIN-BATCH dedup by the canonical payment
+        // identity — the deterministic receiptNumber `IMP-{studentId}-{field}`
+        // (the `(tenant_id, payment_number)` unique constraint). The same
+        // same-name merge rows that duplicate the ledger sourceIds duplicate
+        // the receiptNumbers; a chunk carrying both copies dies with an
+        // unsuppressible within-statement duplicate-key error (live-proven:
+        // the payments truncation at exactly 1,500). FIRST WINS — the DB's
+        // own chunk-by-chunk semantics.
+        const seenReceipts = new Set<string>();
+        const newPendingPayments = this.pendingPayments.filter(({ input }) => {
+          const receipt = input.receiptNumber ?? null;
+          if (receipt == null) return true;
+          if (seenReceipts.has(receipt)) return false;
+          seenReceipts.add(receipt);
+          return true;
+        });
         if (typeof this.deps.payments.bulkCollect === "function") {
-          const bulk = await this.deps.payments.bulkCollect(this.pendingPayments);
+          const bulk = await this.deps.payments.bulkCollect(newPendingPayments);
           // T-012 (BUSINESS-100): bulkCollect now fails fast and returns Err
           // instead of Ok(partial). Honour the Result so the import transaction
           // is canceled — a swallowed Err here would resurrect the exact
           // silent-partial-application defect this contract forbids.
           if (bulk && bulk.ok === false) {
-            failures.push(`paiements (${this.pendingPayments.length}): ${bulk.error?.message ?? "erreur inconnue"}`);
+            failures.push(`paiements (${newPendingPayments.length}): ${bulk.error?.message ?? "erreur inconnue"}`);
           }
         } else {
-          for (const { input, collectedBy } of this.pendingPayments) {
+          for (const { input, collectedBy } of newPendingPayments) {
             await this.deps.payments.collect(input, collectedBy);
           }
         }
@@ -302,10 +341,24 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // Flush installments.
     if (this.pendingInstallments.length > 0 && this.deps.installments) {
       try {
+        // T-420 (IMPORT-115): WITHIN-BATCH dedup by the canonical tranche
+        // identity — (tenant, parent, student, category, tranche_number),
+        // the 0032 `installments_bulk_import_identity_idx` contract. The
+        // same-name merge rows duplicate it; a chunk carrying both copies
+        // dies with the unsuppressible within-statement duplicate-key error
+        // (live-proven: the installments truncation at exactly 4,000).
+        // FIRST WINS.
+        const seenTrancheKeys = new Set<string>();
+        const newPendingInstallments = this.pendingInstallments.filter((input) => {
+          const key = `${input.parentId}|${input.studentId}|${input.category}|${input.trancheNumber}`;
+          if (seenTrancheKeys.has(key)) return false;
+          seenTrancheKeys.add(key);
+          return true;
+        });
         if (typeof this.deps.installments.bulkImportInstallments === "function") {
-          await this.deps.installments.bulkImportInstallments(this.pendingInstallments);
+          await this.deps.installments.bulkImportInstallments(newPendingInstallments);
         } else {
-          for (const input of this.pendingInstallments) {
+          for (const input of newPendingInstallments) {
             await this.deps.installments.importInstallment(input);
           }
         }
