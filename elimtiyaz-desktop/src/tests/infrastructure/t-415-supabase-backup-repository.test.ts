@@ -403,6 +403,7 @@ describe("T-415 — SupabaseBackupRepository (BKUP-501)", () => {
 
     const result = await repo.runBackup(ACTOR_UUID, "T415 No-Tenant Tester");
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
     expect(await getArchive(result.value.id)).not.toBeNull();
     expect(backupTable).toHaveLength(0);
   });

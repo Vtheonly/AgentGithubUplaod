@@ -155,7 +155,7 @@ describe("T-414 ImportConfigRegistry — the centralized configuration repositor
 
     // Duplicate field keys.
     const dupKey = base();
-    (dupKey.sheets[0] as { fields: unknown[] }).fields = [
+    (dupKey.sheets[0] as unknown as { fields: unknown[] }).fields = [
       ...dupKey.sheets[0].fields,
       { ...dupKey.sheets[0].fields[0] },
     ];
@@ -163,12 +163,12 @@ describe("T-414 ImportConfigRegistry — the centralized configuration repositor
 
     // Identity field resolving to nothing.
     const badIdentity = base();
-    (badIdentity.sheets[0] as { identity: { fields: string[] } }).identity = { fields: ["GHOST"], strategy: "upsert" };
+    (badIdentity.sheets[0] as unknown as { identity: { fields: string[]; strategy: string } }).identity = { fields: ["GHOST"], strategy: "upsert" };
     expect(validateImportConfigDocument(badIdentity).map((i) => i.message)).toContain('identity field "GHOST" resolves to no mapped field');
 
     // Invalid regex source.
     const badRegex = base();
-    (badRegex.sheets[0] as { sheetMatchers: string[] }).sheetMatchers = ["["];
+    (badRegex.sheets[0] as unknown as { sheetMatchers: string[] }).sheetMatchers = ["["];
     expect(validateImportConfigDocument(badRegex).map((i) => i.message)).toContain("invalid regex source: [");
 
     // Missing concept documentation.

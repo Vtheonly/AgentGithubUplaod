@@ -135,12 +135,14 @@ class FastStudentRepo implements StudentRepository {
       code: `ELV-${id.slice(-4)}`,
       firstName: input.firstName, lastName: input.lastName,
       displayName: input.displayName ?? null,
-      dateOfBirth: input.dateOfBirth, gender: input.gender,
-      level: input.level, gradeLevel: input.gradeLevel,
+      birthDate: input.birthDate ?? null, gender: input.gender,
+      level: input.level, gradeYear: input.gradeYear ?? 1,
+      gradeLevel: input.gradeLevel ?? "1ap",
       transportTier: input.transportTier ?? null,
-      classId: null, avatarUrl: null,
+      classId: null, photoUrl: null, medicalNotes: null,
+      status: "active", paymentPlan: input.paymentPlan ?? "tranches",
+      enrollmentDate: now.slice(0, 10),
       createdAt: now, updatedAt: now,
-      ...(input.transportDestination !== undefined ? { transportDestination: input.transportDestination } : {}),
     } as unknown as Student;
     this.rows.set(id, student);
     this.cache.set([...this.rows.values()]);
@@ -155,6 +157,18 @@ class FastStudentRepo implements StudentRepository {
     return Ok(updated);
   }
   async deleteStudent(_id: string): Promise<Result<void>> { return Ok(undefined); }
+  async batchRegister(): Promise<Result<import("../../domain/model/student").BatchRegistrationResult>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async promote(): Promise<Result<Student[]>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async addStudentDocument(): Promise<Result<import("../../domain/model/student").StudentDocument>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async removeStudentDocument(): Promise<Result<void>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
 }
 
 class FastLedgerRepo implements LedgerRepository {
@@ -176,6 +190,12 @@ class FastLedgerRepo implements LedgerRepository {
   }
   async reverse(_originalId: string, _reason: string, _actorId: string, _actorName: string): Promise<Result<LedgerEntry>> {
     return Err(Errors.notFound("LedgerEntry", _originalId));
+  }
+  async summary(_parentId: string): Promise<Result<import("../../domain/model/ledger").ParentLedgerSummary>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async reconcile(): Promise<Result<import("../../domain/calc/reconcile").ReconciliationReport>> {
+    return Err(Errors.server("not implemented in stub"));
   }
 }
 
@@ -236,11 +256,26 @@ class FastInstallmentRepo implements InstallmentRepository {
   observe(): Observable<Installment[]> { return new SubjectBehavior<Installment[]>([...this.rows.values()]); }
   observeByParent(_parentId: string): Observable<Installment[]> { return new SubjectBehavior<Installment[]>([...this.rows.values()]); }
   observeByStudent(_studentId: string): Observable<Installment[]> { return new SubjectBehavior<Installment[]>([...this.rows.values()]); }
+  observeById(id: string): Observable<Installment | null> {
+    return new SubjectBehavior<Installment | null>(this.rows.get(id) ?? null);
+  }
+  async markPaid(): Promise<Result<Installment>> { return Err(Errors.server("not implemented in stub")); }
+  async allocatePayment(): Promise<Result<import("../../domain/calc/payment/waterfall-allocator").AllocationResult>> {
+    return Err(Errors.server("not implemented in stub"));
+  }
+  async updateDueDate(): Promise<Result<Installment>> { return Err(Errors.server("not implemented in stub")); }
+  async regenerateForCycle(): Promise<Result<readonly Installment[]>> { return Err(Errors.server("not implemented in stub")); }
+  async findOverdue(): Promise<Result<readonly Installment[]>> { return Err(Errors.server("not implemented in stub")); }
+  async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
+    const result = await this.bulkImportInstallments([input]);
+    if (!result.ok) return result as Result<Installment>;
+    return Ok(result.value[0]);
+  }
   async bulkImportInstallments(inputs: readonly ImportInstallmentInput[]): Promise<Result<readonly Installment[]>> {
     const out: Installment[] = [];
     for (const input of inputs) {
       const inst = {
-        id: input.id ?? `imp-inst-${this.rows.size + 1}`,
+        id: `imp-${input.parentId}-${input.studentId}-${input.category}-${input.trancheNumber}`,
         tenantId: "test-tenant",
         parentId: input.parentId,
         studentId: input.studentId,

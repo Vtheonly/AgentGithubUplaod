@@ -37,10 +37,7 @@ import {
   _resetSyncServiceForTests,
 } from "../../infrastructure/sync/sync-service";
 import { _resetSyncQueueStoreForTests } from "../../infrastructure/sync/sync-queue-store";
-import type {
-  SyncConflictRecord,
-  SyncQueueEntry,
-} from "../../infrastructure/sync/sync-types";
+import type { SyncConflictRecord, ConflictGuardVerdict, SyncQueueEntry } from "../../infrastructure/sync/sync-types";
 import {
   conflictGuard,
   computeThreeWayForEntry,
@@ -84,7 +81,7 @@ interface MakeOpts {
   online?: boolean;
   supabaseConfigured?: boolean;
   push?: (entry: SyncQueueEntry) => Promise<void>;
-  guard?: (entry: SyncQueueEntry) => Promise<SyncConflictRecord | null | GuardOutcome>;
+  guard?: (entry: SyncQueueEntry) => Promise<SyncConflictRecord | ConflictGuardVerdict | null>;
   onConflictDetected?: (entry: SyncQueueEntry, record: SyncConflictRecord) => void | Promise<void>;
   onConflictResolved?: (
     entry: SyncQueueEntry,
@@ -118,7 +115,7 @@ function makeService(opts: MakeOpts = {}) {
 
 /** The production-shaped guard over an in-memory "server table". */
 function makeServerGuard(server: Map<string, Record<string, unknown>>) {
-  return async (entry: SyncQueueEntry): Promise<SyncConflictRecord | null | GuardOutcome> => {
+  return async (entry: SyncQueueEntry): Promise<SyncConflictRecord | ConflictGuardVerdict | null> => {
     const key = String(entry.payload.parent_code ?? entry.payload.code ?? entry.payload.id ?? "");
     const remote = server.get(key) ?? null;
     const { threeWay } = await computeThreeWayForEntry(entry, remote ?? undefined);

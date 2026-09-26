@@ -512,14 +512,20 @@ describe("T-298 — the production conflictGuard with a stubbed Supabase client"
         lastError: null,
       });
       expect(record).not.toBeNull();
-      expect(record?.conflictPaths).toEqual(["first_name"]);
-      expect(record?.conflictPreviews[0]).toMatchObject({
+      // TS narrowing: the guard's return union includes the no-conflict
+      // verdict (ConflictGuardVerdict — no conflictPaths) — narrow to the
+      // SyncConflictRecord branch before reading its fields.
+      const conflict =
+        record && "conflictPaths" in record ? record : null;
+      expect(conflict).not.toBeNull();
+      expect(conflict?.conflictPaths).toEqual(["first_name"]);
+      expect(conflict?.conflictPreviews[0]).toMatchObject({
         path: "first_name",
         base: "BaseName",
         local: "LocalName",
         remote: "ServerName",
       });
-      expect(record?.remotePayload.parent_code).toBe("PAR-2026-A12");
+      expect((conflict?.remotePayload as Record<string, unknown>).parent_code).toBe("PAR-2026-A12");
     });
   });
 
