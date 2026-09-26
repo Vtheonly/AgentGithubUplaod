@@ -45,6 +45,7 @@ import {
   listArchiveMetadata,
   deleteArchive as vaultDelete,
   purgeExpired as vaultPurge,
+  updateArchiveStatus,
 } from "./indexed-db-vault";
 import { store as mockStore } from "../mock/repositories/mock-store";
 
@@ -431,12 +432,15 @@ export async function restore(
 
     const key = await deriveBackupKey();
 
-    // 1. Decrypt — throws if GCM auth tag fails.
+    // 1. Decrypt — throws if GCM auth tag fails. NOTE: a failure here is
+    //    AMBIGUOUS (a wrong passphrase and genuine tampering are
+    //    indistinguishable), so the archive is NOT marked corrupted — only
+    //    the unambiguous checksum/parse failures below are (T-415, BKUP-503).
     let decrypted: Uint8Array;
     try {
       decrypted = await decrypt(record.ciphertext, record.iv, key);
     } catch (err) {
-      // Mark the archive as corrupted via an audit entry, then surface the error.
+      // Mark the failure via an audit entry, then surface the error.
       await repos.audit.log({
         action: "backup.restore_failed",
         entityType: "backup",
@@ -444,21 +448,22 @@ export async function restore(
         actorId,
         actorName,
         tenantId: record.metadata.tenantId,
-        note: "Échec du déchiffrement (auth tag GCM invalide — archive potentiellement corrompue)",
+        note: "Échec du déchiffrement (auth tag GCM invalide — archive potentiellement corrompue ou phrase secrète incorrecte)",
       });
       throw Errors.validation(
         "AES-GCM auth tag verification failed",
-        "L'archive est corrompue ou a été modifiée.",
+        "L'archive est corrompue ou a été modifiée, ou la phrase secrète est incorrecte.",
         { cause: err },
       );
     }
 
-    // 2. Decompress
-    const decompressed = await gzipDecompress(decrypted);
-
-    // 3. Verify SHA-256 of the ciphertext
+    // 2. Verify SHA-256 of the ciphertext — T-415 (BKUP-502): the checksum
+    //    gate runs BEFORE any decompression work (the inspectArchive order);
+    //    a drifted metadata checksum is the UNAMBIGUOUS corruption verdict,
+    //    so the archive is marked corrupted (BKUP-503).
     const actualChecksum = await sha256(record.ciphertext);
     if (actualChecksum !== record.metadata.checksum) {
+      await updateArchiveStatus(archiveId, "corrupted");
       await repos.audit.log({
         action: "backup.restore_failed",
         entityType: "backup",
@@ -466,7 +471,7 @@ export async function restore(
         actorId,
         actorName,
         tenantId: record.metadata.tenantId,
-        note: "Checksum SHA-256 invalide — bit-rot détecté",
+        note: "Checksum SHA-256 invalide — bit-rot détecté (archive marquée corrompue)",
       });
       throw Errors.validation(
         `SHA-256 mismatch: expected ${record.metadata.checksum}, got ${actualChecksum}`,
@@ -474,11 +479,25 @@ export async function restore(
       );
     }
 
-    // 4. Parse
+    // 3. Decompress — only after the integrity gates passed.
+    const decompressed = await gzipDecompress(decrypted);
+
+    // 4. Parse — unparseable/non-object content is also an unambiguous
+    //    corruption verdict (BKUP-503).
     let parsed: Record<string, unknown> | null = null;
     try {
       parsed = JSON.parse(decodeUtf8(decompressed)) as Record<string, unknown>;
     } catch (err) {
+      await updateArchiveStatus(archiveId, "corrupted");
+      await repos.audit.log({
+        action: "backup.restore_failed",
+        entityType: "backup",
+        entityId: archiveId,
+        actorId,
+        actorName,
+        tenantId: record.metadata.tenantId,
+        note: "JSON illisible après déchiffrement (archive marquée corrompue)",
+      });
       throw Errors.validation(
         "Failed to parse restored JSON",
         "L'archive est illisible (JSON invalide).",
@@ -486,6 +505,7 @@ export async function restore(
       );
     }
     if (!parsed || typeof parsed !== "object") {
+      await updateArchiveStatus(archiveId, "corrupted");
       throw Errors.validation(
         "Restored snapshot is not an object",
         "L'archive ne contient pas un instantané exploitable.",
@@ -507,6 +527,11 @@ export async function restore(
     });
     mockStore.replaceOperationalState(parsed);
     const afterCounts = snapshotCounts(parsed);
+
+    // 5b. T-415 (BKUP-503): the successful restore transitions the vault
+    // record's status to 'restored' — the recovery information lands ON the
+    // archive (the Settings list + the server mirror read it).
+    await updateArchiveStatus(archiveId, "restored");
 
     // 6. T-300 — ARM post-restore sync staging: mutations from here on
     // enqueue into the EXISTING sync queue (never a parallel queue) and
