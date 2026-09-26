@@ -3019,3 +3019,39 @@ The task explicitly forbids arbitrary UI thresholds and parallel debt ledgers; s
 - **The issue-#10 audit-traceability verification:** the complete chain re-traced and recorded in **`docs/audits/finance-audit-traceability-2026-09-26.md`** (indexed in `docs/audits/README.md`): Issue #10 (created 2026-09-22T19:32:50Z) → `e53943c` (the audit doc commit, 7 files / 668 insertions / ZERO code — the HARD RULE honored) → `afec3e1` (merge) → `1b93c7c` + `ea86daa` (the archived deliverables) → **`docs/audits/finance-ui-architecture-audit-2026-09-23.md`** (485 lines, sections A–K, 20 findings — content re-verified section-by-section) → the 12 registry entries (DUP-006, BUSINESS-106..108, DATA-023..029, DATA-032) → T-411's 7 commits (`27f3083`…`b5bdcef` + website `eba4606`) → `docs/recovery/t-411-live-verification.md` (migration 0115 live + the C1–C6 round-trip + zero residue). **The chain is COMPLETE — no missing links; the audit documentation is LOCATED and prominently indexed for every future agent.**
 - **Commits:** `33ca46c` (register 505/506) → `c566e96` (the engine fixes + the 23-test suite) → `1f9c8ca` (the live scripts) → this docs close-out.
 - **Next:** the owner's packaged-app UI pass (the standing visual convention); UNKNOWN-025 + the `on_leave` basis decision (the two payroll owner decisions); the standing T-413 gates and the pre-existing recommendations (unchanged).
+
+## 2026-09-26 — The 99th session — T-415 EXECUTED (issue #13): the backup/restore/sync/recovery test-and-harden mandate — 10 problems found & fixed, 124 new tests, migration 0119 live, the live verification 15/15
+
+### What was wrong (all registered BEFORE the fixes per §13)
+
+- **BKUP-501** — the server-side `backup_archives` metadata pipeline was dead code (live-verified zero rows); in Supabase mode the Settings list showed 3 fake seed archives.
+- **BKUP-502/503** — the restore/inspect integrity orders diverged; BackupStatus transitions never fired (recovery information never landed ON the archive).
+- **BKUP-504** — the retention sweep double-applied the 365-day window (nothing purged until archives were 730 days old).
+- **BKUP-505** — archive ids collided at second granularity (the second backup silently OVERWROTE the first).
+- **BKUP-506** — tryResult laundered typed AppErrors into ERR_UNKNOWN (the actionable passphrase guidance never reached the operator).
+- **BKUP-507** — LIVE-CAUGHT: the `purge_expired_backups` RPC failed with Postgres 42702 on EVERY call (the RETURNS TABLE OUT-parameter/column collision) — the weekly purge EF has been failing silently since deployment.
+- **SYNC-108** — divergent-field updates silently reverted the remote operator's edits (the guard's null meant "push the bare local payload").
+- **SYNC-109** — the conflict resolver could NEVER complete for local/manual choices (the stale basePayload re-detected the same conflict forever).
+- **SYNC-111** — the 3-way guard ran BASE and REMOTE in different key spaces (spurious conflicts on every aliased field of solo edits).
+
+### What was changed (5 commits)
+
+- **d4540e1** — T-415 registered (renumbered from the T-414 draft that collided with the concurrent session's T-414 — §15.54a).
+- **95495c2** — the crypto/vault suite (28) + the restore-hardening suite (26) + the BKUP-502/503/504/505/506 fixes (backup-service integrity order + status transitions; the vault's purge cutoff + updateArchiveStatus; the millisecond id suffix; the isAppError passthrough).
+- **3d624b7** — the sync/conflict matrix (26) + the SYNC-108/109/111 fixes (the ConflictGuardVerdict merged-payload contract; the adjudicated base advance; the base's alias projection) + the t-298/t-305 honest-fixture updates.
+- **681494d** — the SupabaseBackupRepository + its contract suite (10): the server metadata mirror (ciphertext NEVER in Postgres — §13.03 preserved), best-effort (a Supabase outage never blocks a local backup), observe() reads the server table.
+- **b437246** — migration 0119 (the BKUP-507 RPC fix) + the EF shape fix + the deploy + the live verification script + the evidence doc.
+
+### What was verified
+
+- **124 new tests, all green**; the FULL vitest failing set byte-identical to the documented 25-failure baseline; tsc 0 errors on every T-415-touched file; eslint 0 errors on every changed file; the append-only guard OK (+1 migration).
+- **Migration 0119 applied LIVE atomically + registered** (HTTP 201; chain head 0119). The fixed EF deployed live (401/401 smoke).
+- **The live verification 15/15 GREEN, zero residue** (`scripts/t-415-live-verification.mjs`): the backup_archives probe round-trip (insert/read-back/status transitions/purge selectivity/manual delete), the append-only audit tamper test on a REAL row, the sync_queue + mark_processed + upsert-idempotency contract (two identical pushes → one row), the six-family FK-orphan + business-key sweep (parents=196, students=290 — zero orphans, zero duplicates).
+
+### What remains
+
+The owner's packaged-app UI pass (the Settings status chips); the EF's authorized CRON path (next Sunday tick); the documented boundaries in unknowns (the cold-cache backup snapshot; the Supabase-mode restore rehydrates the OFFLINE operating layer — full server rehydration stays the Excel-import path); the unregistered live 0118 migration + the live-schema-vs-file-chain divergence handed to the next agent.
+
+### Permanent knowledge
+
+AGENTS.md **§57** — the PL/pgSQL RETURNS TABLE OUT-parameter collision class; the conflict-guard verdict contract; the live-schema-is-the-authority rule (introspect, read the live registry); the archive-id uniqueness + the tryResult AppError passthrough.
