@@ -42,6 +42,7 @@ import {
   type CustomThemePalette,
 } from "../../core/theme/theme-types";
 import { ThemeEditorModal } from "./theme-editor-modal";
+import { DangerZoneCard } from "./danger-zone-card";
 
 const TIMEZONES = [
   { value: "Africa/Algiers", label: "Alger (Africa/Algiers)" },
@@ -320,6 +321,10 @@ export function GeneralTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* ───── 4. Zone de danger (T-416 / issue #12 — the domain purge;
+           super-admin only; the card itself returns null for other roles) ───── */}
+      <DangerZoneCard />
 
       {/* Theme Creator / Color Customizer Dialog */}
       <ThemeEditorModal
