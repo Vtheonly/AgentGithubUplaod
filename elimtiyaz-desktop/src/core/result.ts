@@ -66,6 +66,13 @@ export function unwrapOr<T, E>(r: Result<T, E>, fallback: T): T {
 }
 
 function toAppError(err: unknown): AppError {
+  // T-415 (BKUP-506): an AppError-SHAPED throw passes through with its
+  // typed code + userMessage intact — tryResult must never launder a
+  // deliberate `Errors.validation()` / `Errors.notFound()` into ERR_UNKNOWN
+  // (the backup stack's actionable guidance — «Configurez la phrase secrète…»
+  // — was discarded before this guard). Structural check: AppError is a
+  // plain object, not an Error subclass, so instanceof cannot be used.
+  if (isAppError(err)) return err;
   if (err instanceof Error) {
     return {
       code: "ERR_UNKNOWN",
@@ -79,4 +86,19 @@ function toAppError(err: unknown): AppError {
     message: String(err),
     userMessage: "Une erreur inattendue s'est produite.",
   };
+}
+
+/**
+ * T-415 (BKUP-506): structural AppError guard — a plain object with a
+ * string `code` + string `message` (+ optional userMessage/cause) is the
+ * AppError shape produced by every `Errors.*` builder in app-error.ts.
+ */
+export function isAppError(err: unknown): err is AppError {
+  if (typeof err !== "object" || err === null) return false;
+  const candidate = err as Partial<AppError>;
+  return (
+    typeof candidate.code === "string" &&
+    candidate.code.length > 0 &&
+    typeof candidate.message === "string"
+  );
 }

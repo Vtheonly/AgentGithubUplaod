@@ -207,14 +207,53 @@ export async function deleteArchive(id: string): Promise<void> {
 }
 
 /**
+ * T-415 (BKUP-503): transition an archive's status on the vault record
+ * ('restored' after a successful restore; 'corrupted' for a checksum-class
+ * integrity failure). The metadata's status is the recovery information
+ * surface (the Settings list + the server-side mirror read it) — before
+ * this, archives stayed 'encrypted' forever and the dead domain values
+ * never fired.
+ */
+export async function updateArchiveStatus(
+  id: string,
+  status: BackupArchive["status"],
+): Promise<BackupArchive | null> {
+  const db = await openVault();
+  try {
+    const record = await new Promise<VaultRecord | undefined>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).get(id);
+      req.onsuccess = () => resolve(req.result as VaultRecord | undefined);
+      req.onerror = () => reject(req.error ?? new Error("updateArchiveStatus: get failed"));
+    });
+    if (!record) return null;
+    const nextMetadata: BackupArchive = { ...record.metadata, status };
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).put({ ...record, metadata: nextMetadata });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () =>
+        reject(tx.error ?? new Error("updateArchiveStatus: put failed"));
+    });
+    return nextMetadata;
+  } finally {
+    db.close();
+  }
+}
+
+/**
  * Purge all archives whose retentionExpiresAt is in the past.
  *
- * Default retention window is 365 days (BACKUP_RETENTION_DAYS). For tests,
- * the `maxAgeDays` parameter can be overridden (e.g. set to 0 to purge
- * everything immediately, or to a small negative value to purge nothing).
+ * T-415 (BKUP-504): the recorded `retentionExpiresAt` (createdAt + the
+ * 365-day window) is the AUTHORITY — an archive is purgeable the moment it
+ * expires. Previously the cutoff subtracted `maxAgeDays` AGAIN from now
+ * (now − 365d), double-applying the window: nothing was purged until an
+ * archive was 730 days old while every surface documented 365 days. The
+ * `maxAgeDays` parameter now serves only as the FALLBACK basis on createdAt
+ * for records whose retentionExpiresAt is missing or unparseable.
  *
- * Returns the IDs of the purged archives so the service layer can write
- * an audit entry per archive.
+ * @returns the IDs of the purged archives so the service layer can write
+ *          an audit entry per archive.
  */
 export async function purgeExpired(maxAgeDays: number = BACKUP_RETENTION_DAYS): Promise<string[]> {
   const db = await openVault();
@@ -226,11 +265,18 @@ export async function purgeExpired(maxAgeDays: number = BACKUP_RETENTION_DAYS): 
       req.onerror = () => reject(req.error ?? new Error("purgeExpired: getAll failed"));
     });
 
-    const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const fallbackCutoff = now - maxAgeDays * 24 * 60 * 60 * 1000;
     const toPurge = all.filter((r) => {
       const expiresAt = Date.parse(r.metadata.retentionExpiresAt);
-      if (Number.isNaN(expiresAt)) return false;
-      return expiresAt < cutoff;
+      if (!Number.isNaN(expiresAt)) {
+        // BKUP-504: the recorded expiry is the authority.
+        return expiresAt < now;
+      }
+      // Fallback: no/invalid expiry metadata — age the record out on createdAt.
+      const createdAt = Date.parse(r.metadata.createdAt);
+      if (Number.isNaN(createdAt)) return false;
+      return createdAt < fallbackCutoff;
     });
 
     if (toPurge.length === 0) return [];

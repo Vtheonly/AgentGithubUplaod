@@ -138,7 +138,34 @@ export class MockBackupRepository implements BackupRepository {
         "Cette archive de démonstration ne contient pas de données réelles — créez une nouvelle sauvegarde via « Sauvegarder maintenant ».",
       ));
     }
-    return restoreService(this.repositoriesRef, archiveId, actorId, actorName);
+    const result = await restoreService(this.repositoriesRef, archiveId, actorId, actorName);
+    if (result.ok) {
+      // T-415 (BKUP-503): the vault record's status transitioned to
+      // 'restored' — refresh this list so the Settings UI chip flips without
+      // an app restart. (Failure paths that marked 'corrupted' surface on
+      // the next list refresh — the audit entry + the thrown error already
+      // told the operator.)
+      await this.refreshFromVault(archiveId);
+    }
+    return result;
+  }
+
+  /**
+   * T-415: re-read one archive's metadata from the vault and update the
+   * in-memory list (status transitions BKUP-503). No-op when the vault has
+   * no record (e.g. seeds).
+   */
+  private async refreshFromVault(archiveId: string): Promise<void> {
+    try {
+      const { getArchive } = await import("../../backup/indexed-db-vault");
+      const record = await getArchive(archiveId);
+      if (!record) return;
+      this.archives$.update((curr) =>
+        curr.map((a) => (a.id === archiveId ? record.metadata : a)),
+      );
+    } catch {
+      // The vault read is best-effort — the restore already applied.
+    }
   }
 
   /** T-300 (OFFLINE-400): the offline point-in-time selector's read path. */
