@@ -1,3 +1,15 @@
+# Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-THIRD session — T-419: the issue-#22 unified testing architecture COMPLETE)
+
+## Current state snapshot (2026-09-27, 103rd session CLOSE — T-419 the unified testing architecture)
+
+**The owner's issue-#22 mandate is delivered: the three test systems are ONE framework with ONE entry point.** (1) **The root unification (cf507a9):** `src/test/` (the second Vitest root) absorbed into `src/tests/` — a depth-preserving git mv, the failing set byte-identical. (2) **The comparator audit (0c16713):** TEST-308 fixed (the error-expectation contract + the NaN guard; the sanity comparator now 819/819 with canonical 318/318 and zero false regression artifacts — verified with a negative test); scenario 017's stale `then` corrected to the rejection form; the tier4_comparator's never-run + crash state repaired (it completes and reports for the first time in recorded history). (3) **The unified runner (9de7834):** `npm test` = Layer 0 typecheck + Layer 1 the full vitest suite + Layer 2 the equivalence pipeline + Layer 3 the environment-gated census (explicit reasons, never silent) — with baseline-deviation detection against `scripts/test-baseline.json` (BASELINE-MATCHED vs DEVIATION); `npm run test:vitest` = the fast loop. (4) **The architecture document (b4e3ab8):** `docs/testing/unified-architecture.md` — the layer map + the complete §38 migration manifest + the correctness-audit record + the TEST-309 fakes census. **The corpus location is contractual** (the Android repo's fixed sibling path — ADR-029): unification at the orchestration + support layers, NOT a physical move that would break the real-Kotlin runner.
+
+**THE SESSION'S DISCOVERY — PARITY-005 (OPEN):** behind the never-run tier-4 gate, the Kotlin mirror engine still applies the CALC-001-REMOVED fictional discount rules (77 scenarios / 499 rows / 112 ERROR-level) and accepts zero-amount payments the desktop + SQL RPC both reject. The DESKTOP is the canonical side; the mirror (and, suspected, the real Android `DiscountEngine.kt`) is stale. The repair is the registered follow-up (the verbatim re-port + the gradle corpus run) — the tier-4 comparison runs REPORTED (non-gating) until it closes.
+
+**Application state: UNCHANGED (no production code touched — test infrastructure + docs only). The vitest failing set stayed byte-identical to the documented 25-failure baseline through every phase.** Chain: unchanged (0001–0121; next free 0122). Registry: TEST-307/308 RESOLVED/TESTED; TEST-309 OPEN (the 24-file fakes consolidation queue); PARITY-005 OPEN. Knowledge: AGENTS.md §15.60 + §11 (the unified-runner verification row) + §17 (the documentation map). The standing gates from the 101st/102nd sessions carry over (T-417/T-418's owner gates; OPS-319/BUSINESS-105; REALTIME-105's PORTAL set).
+
+---
+
 # Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-SECOND session — T-418: the issue-#21 branch consolidation COMPLETE)
 
 ## Current state snapshot (2026-09-27, 102nd session CLOSE — T-418 the branch consolidation)
