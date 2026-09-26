@@ -55,6 +55,7 @@ import { defaultPricingConfig } from "../../mock/pricing-seed";
 import { REAL_FI_BY_GRADE } from "../../../domain/calc/pricing/school-price-matrix";
 import type {
   PricingConfig,
+  PricingConfigSummary,
   DiscountType,
   DiscountCode,
 } from "../../../domain/model/pricing";
@@ -156,21 +157,41 @@ const nowIso = (): string => new Date().toISOString();
  * Exported so `SupabaseStudentRepository.batchRegister` reads THE SAME
  * config (T-307's drift fix — the billing write path previously hardcoded
  * the mock seed grid). Returns the seed-merged config; throws nothing.
+ *
+ * T-414 (PRICING-500 / ADR-025): the default read is the ACTIVE config —
+ * deterministic since migration 0117's partial unique index enforces exactly
+ * ONE active row per tenant. Pass `forConfigId` to read a SPECIFIC year's
+ * config (the read-only historical/prepared surface — `readForYear`);
+ * when that row is missing the seed config is returned unchanged (the
+ * caller's Err handling reports the missing config).
  */
 export async function readDbPricingConfig(
   client: SupabaseClient,
+  forConfigId?: string,
 ): Promise<PricingConfig> {
   const tenantId = getTenantId();
   const seed = defaultPricingConfig;
 
-  // 1. Active pricing config row (tenant-scoped).
-  const { data: cfgRows } = await client
-    .from("pricing_configs")
-    .select("id, tenant_id, registration_fee, second_apron_fee, is_active")
-    .eq("tenant_id", tenantId)
-    .eq("is_active", true)
-    .limit(1);
-  const cfg = (cfgRows?.[0] as ConfigRow | undefined) ?? null;
+  // 1. The config row: the ACTIVE one by default, or a specific year's row
+  //    (T-414 — one active per tenant is DB-enforced by 0117).
+  let cfg: ConfigRow | null;
+  if (forConfigId) {
+    const { data: cfgRows } = await client
+      .from("pricing_configs")
+      .select("id, tenant_id, registration_fee, second_apron_fee, is_active")
+      .eq("tenant_id", tenantId)
+      .eq("id", forConfigId)
+      .limit(1);
+    cfg = (cfgRows?.[0] as ConfigRow | undefined) ?? null;
+  } else {
+    const { data: cfgRows } = await client
+      .from("pricing_configs")
+      .select("id, tenant_id, registration_fee, second_apron_fee, is_active")
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true)
+      .limit(1);
+    cfg = (cfgRows?.[0] as ConfigRow | undefined) ?? null;
+  }
 
   // 2. Grade tuition + academic levels (client-side join on level id).
   const { data: levels } = await client
@@ -402,6 +423,129 @@ export class SupabasePricingRepository implements PricingRepository {
       // their own errors.
       this.seeded = true;
       return this.cache.get();
+    }
+  }
+
+  // ---- T-414 (PRICING-500 / ADR-025): per-year configuration management ----
+
+  /** Summary row shape joined with the academic year (client-side join). */
+  private summaryRows(): Promise<PricingConfigSummary[]> {
+    return (async () => {
+      const tenantId = getTenantId();
+      const [{ data: cfgRows }, { data: yearRows }] = await Promise.all([
+        this.client
+          .from("pricing_configs")
+          .select("id, tenant_id, academic_year_id, label, is_active, created_at, updated_at")
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: true }),
+        this.client
+          .from("academic_years")
+          .select("id, tenant_id, code, label, is_current")
+          .eq("tenant_id", tenantId),
+      ] as const);
+      const yearById = new Map<
+        string,
+        { code: string; label: string; isCurrent: boolean }
+      >();
+      for (const y of (yearRows ?? []) as {
+        id: string; code: string; label: string; is_current: boolean;
+      }[]) {
+        yearById.set(y.id, { code: y.code, label: y.label, isCurrent: y.is_current });
+      }
+      const out: PricingConfigSummary[] = [];
+      for (const r of (cfgRows ?? []) as {
+        id: string; tenant_id: string; academic_year_id: string;
+        label: string; is_active: boolean; created_at: string; updated_at: string;
+      }[]) {
+        const year = yearById.get(r.academic_year_id);
+        out.push({
+          id: r.id,
+          tenantId: r.tenant_id,
+          academicYearId: r.academic_year_id,
+          academicYearLabel: year?.label ?? "—",
+          academicYearCode: year?.code ?? "—",
+          label: r.label,
+          isActive: r.is_active,
+          isCurrentYear: year?.isCurrent ?? false,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        });
+      }
+      return out;
+    })();
+  }
+
+  async listConfigs(): Promise<Result<readonly PricingConfigSummary[]>> {
+    try {
+      return Ok(await this.summaryRows());
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async readForYear(academicYearId: string): Promise<Result<PricingConfig>> {
+    try {
+      // Resolve the year's config row (there is at most one — the 0006
+      // unique (tenant_id, academic_year_id) constraint).
+      const { data: cfgRows, error } = await this.client
+        .from("pricing_configs")
+        .select("id")
+        .eq("tenant_id", getTenantId())
+        .eq("academic_year_id", academicYearId)
+        .limit(1);
+      if (error) throw error;
+      const cfgId = (cfgRows?.[0] as { id: string } | undefined)?.id;
+      if (!cfgId) {
+        return Err(Errors.notFound("Configuration de tarification pour l'année", academicYearId));
+      }
+      return Ok(await readDbPricingConfig(this.client, cfgId));
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async createConfigForYear(
+    input: { academicYearId: string; label?: string; cloneFromActive: boolean },
+    _updatedBy: string,
+  ): Promise<Result<PricingConfigSummary>> {
+    try {
+      // The 0117 RPC gates staff roles + tenant + year-in-tenant +
+      // one-config-per-year, and clones the five child grids from the ACTIVE
+      // config when requested. Returns the new config id.
+      const { data: newId, error } = await this.client.rpc(
+        "create_pricing_config_for_year",
+        {
+          p_academic_year_id: input.academicYearId,
+          p_label: input.label ?? null,
+          p_clone_from_active: input.cloneFromActive,
+        },
+      );
+      if (error) throw error;
+      const summaries = await this.summaryRows();
+      const created = summaries.find((s) => s.id === (newId as string));
+      if (!created) {
+        return Err(Errors.unknown(new Error("création effectuée mais la configuration n'a pas été relue")));
+      }
+      return Ok(created);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async activateConfig(configId: string, _updatedBy: string): Promise<Result<void>> {
+    try {
+      // The 0117 RPC atomically deactivates the siblings + activates the
+      // target (SECURITY DEFINER, staff-gated, audited by the 0086 triggers).
+      const { error } = await this.client.rpc("set_active_pricing_config", {
+        p_config_id: configId,
+      });
+      if (error) throw error;
+      // observe() consumers (every financial calculation surface) refetch
+      // the NOW-active config.
+      await this.load();
+      return Ok(undefined);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
     }
   }
 

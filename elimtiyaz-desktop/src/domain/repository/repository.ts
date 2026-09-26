@@ -68,7 +68,7 @@ import type {
   PayrollMethod,
 } from "../model/personnel";
 import type { AttributedActivityEvent, AttributedActivityStream, AuditEntry, AuditLogFilter, AuditLogQueryResult } from "../model/audit";
-import type { PricingConfig, PricingEntry, PricingCategory, DiscountType, DiscountCode } from "../model/pricing";
+import type { PricingConfig, PricingConfigSummary, PricingEntry, PricingCategory, DiscountType, DiscountCode } from "../model/pricing";
 import type { LedgerEntry, ParentLedgerSummary } from "../model/ledger";
 import type { GradeLevel } from "../model/student";
 import type { TransportDestination } from "../model/parent";
@@ -870,6 +870,46 @@ export interface PricingRepository {
 
   /** Remove a complementary service. */
   removeComplementaryService(id: string, updatedBy: string): Promise<Result<PricingConfig>>;
+
+  // ---- T-414 (PRICING-500 / ADR-025, 2026-09-26): per-year configuration ----
+  // Each academic year carries its own INDEPENDENT, COMPLETE price
+  // configuration; exactly ONE config per tenant is ACTIVE and is the
+  // single source of truth for new payments / invoices / charges /
+  // calculations (`observe()` returns it). Inactive configs are historical
+  // and read-only — financial records keep the prices applicable at their
+  // time (balances replay stored ledger amounts; ADR-017 §4 / INV-1).
+
+  /** List every pricing configuration (one per academic year) for the tenant. */
+  listConfigs(): Promise<Result<readonly PricingConfigSummary[]>>;
+
+  /**
+   * Read a SPECIFIC year's configuration payload (read-only surface for
+   * viewing/auditing historical or prepared configs). Falls back to the
+   * seed grid per missing key — same shape as `observe()`'s payload.
+   */
+  readForYear(academicYearId: string): Promise<Result<PricingConfig>>;
+
+  /**
+   * Create a new configuration for an academic year (the 0006
+   * unique (tenant_id, academic_year_id) keeps one config per year).
+   * `cloneFromActive` copies the ACTIVE config's grids as the starting
+   * point (year-over-year prices are usually a delta). The new config is
+   * INACTIVE until `activateConfig` is called (ADR-025 §3: create → edit →
+   * activate).
+   */
+  createConfigForYear(input: {
+    academicYearId: string;
+    label?: string;
+    cloneFromActive: boolean;
+  }, updatedBy: string): Promise<Result<PricingConfigSummary>>;
+
+  /**
+   * Atomically switch the tenant's ACTIVE configuration (the source of
+   * truth for all NEW financial calculations). The previously active
+   * config is preserved unchanged except `is_active = false` — historical
+   * data is never re-priced.
+   */
+  activateConfig(configId: string, updatedBy: string): Promise<Result<void>>;
 }
 
 /**

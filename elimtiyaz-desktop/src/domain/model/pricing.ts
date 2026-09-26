@@ -178,6 +178,39 @@ export interface PricingConfig {
   readonly secondApronFee: number;
 }
 
+/**
+ * T-414 (PRICING-500 / ADR-025, 2026-09-26): the per-academic-year pricing
+ * configuration SUMMARY — one row per `pricing_configs` row.
+ *
+ * Each academic year carries its own INDEPENDENT, COMPLETE price
+ * configuration (tuition grid, transport grid, registration fees,
+ * services, discounts — the `PricingConfig` payload). Exactly ONE config
+ * per tenant is ACTIVE (DB-enforced by the 0117 partial unique index);
+ * the active config is the single source of truth for NEW payments,
+ * invoices, parent charges and financial calculations. Inactive configs
+ * are historical: read-only, never silently recalculated (ADR-017 §4 /
+ * INV-1 — balances replay stored ledger amounts).
+ */
+export interface PricingConfigSummary {
+  /** The `pricing_configs.id` (uuid live; `cfg-…` mock). */
+  readonly id: string;
+  readonly tenantId: string;
+  /** The academic year this configuration prices (`academic_year_id`). */
+  readonly academicYearId: string;
+  /** e.g. "2026-2027" — the year's display label. */
+  readonly academicYearLabel: string;
+  /** e.g. "2026-2027" — the year's canonical code. */
+  readonly academicYearCode: string;
+  /** Config display label, e.g. "Tarification 2026-2027". */
+  readonly label: string;
+  /** TRUE only for the tenant's single ACTIVE config (the source of truth). */
+  readonly isActive: boolean;
+  /** TRUE when the bound academic year is flagged `is_current`. */
+  readonly isCurrentYear: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Lookups & helpers — REFACTORED (iteration 1)
 //

@@ -4392,6 +4392,18 @@ Fix the complete student onboarding and synchronization flow so approved student
 3. **Task 2 (IMPORT-111):** the Import Configuration repository (`src/infrastructure/excel/import-config/`) — versioned `ImportConfigDocument` data documents + registry (register/validate/resolve/detect/select) + the 2026-2027 AND 2027-2026 ETAT configs (+ REF/DEVIS/BON wrapped for the old workbook); engine schemas become registry-backed (engine code unchanged); column-letter addressing for headerless columns; header-signature disambiguation between same-named sheets; storage adapter extended for PSY3–14 / COURS SUP / LIVRES / CLUB / SORTIES through the EXISTING payment/ledger paths; `EntityMatcher` + extension-point interfaces (profile matching NOT implemented).
 4. **Testing:** config registry unit tests; new-format import tests against the REAL `2027-2026.xlsx`; per-year pricing mock-repository tests + SQL verification of migration 0117 (BEGIN/ROLLBACK live probe per §11.1); the full-suite failing set byte-identical to the documented baseline (25 failures).
 
+### Execution status (99th session, 2026-09-26)
+
+**Task 1 — Price Configuration (PRICING-500): IMPLEMENTED / TESTED.**
+- Migration `0117_price_config_per_year.sql` — the one-active-per-tenant partial unique index + `set_active_pricing_config` + `create_pricing_config_for_year` RPCs (SECURITY DEFINER, staff-gated, tenant-scoped, audited by the 0086 triggers); **applied live atomically** (chain head 0117) and **verified 9/9 GREEN** by `scripts/verify_t-414.sql` (§11.1 BEGIN/ROLLBACK — incl. the C4 historical-preservation check: the deactivated config's prices are byte-identical after the switch).
+- Domain: `PricingConfigSummary` (`src/domain/model/pricing.ts`); `PricingRepository` contract extended (`listConfigs` / `readForYear` / `createConfigForYear` / `activateConfig` — `observe()` = the ACTIVE config, the calculation source of truth).
+- Repositories: Supabase (`summaryRows` client-side join, RPC routing, `readDbPricingConfig(forConfigId)` year-scoped branch) + mock parity (year-keyed in-memory configs, one active, historical read-only).
+- UI: `pricing-year-config-bar.tsx` — the year-config bar (list / create-with-clone / confirm-guarded activate / read-only historical preview) atop Settings → Tarification; the grids below always render the ACTIVE config.
+- Gates: tsc 0 · eslint 0 errors on changed files · FULL vitest **3950 passed / 25 failed / 33 skipped** (the failing set byte-identical to the pre-change baseline; +16 new T-414 tests: 10 mock + 6 Supabase) · append-only guard OK (+1 migration).
+- Full evidence: `docs/recovery/t-414-live-verification.md`.
+
+**Task 2 — Excel Import Configuration & Generic Import Engine (IMPORT-111): IN_PROGRESS** (the deep comparison document + the config repository + the 2027-2026 format follow in this same session).
+
 ### Acceptance gates
 
 - The 25-failure pre-existing baseline stays byte-identical; tsc 0 errors; eslint 0 errors on every changed file.

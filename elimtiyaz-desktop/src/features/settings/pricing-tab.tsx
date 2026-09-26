@@ -32,6 +32,7 @@ import { FeesCard } from "./pricing/fees-card";
 import { ComplementaryServicesCard } from "./pricing/complementary-services-card";
 import { DiscountsCard } from "./pricing/discounts-card";
 import { AdditionalServicesCard } from "./pricing/additional-services-card";
+import { PricingYearConfigBar } from "./pricing/pricing-year-config-bar";
 import type { PendingRemoval } from "./pricing/types";
 
 export function PricingTab() {
@@ -64,6 +65,10 @@ export function PricingTab() {
 
   return (
     <div className="space-y-6">
+      {/* T-414 (PRICING-500 / ADR-025): the per-year configuration bar —
+          list / create / activate academic-year price configurations. The
+          grids below always render the ACTIVE configuration. */}
+      <PricingYearConfigBar />
       <TuitionCard />
       <TransportCard />
       <FeesCard />
