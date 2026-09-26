@@ -32,6 +32,7 @@ Known gaps registered as problems: missing `src/test/setup.ts` (DEAD-012), `igno
 
 ### Desktop (`elimtiyaz-desktop`)
 - `npm run typecheck`, `npm run lint`, `npm test` before every commit.
+- **`npm test` is the UNIFIED runner** (T-419/ADR-029, issue #22 §30): Layer 0 typecheck + Layer 1 the full vitest suite (the ONE root `src/tests/`) + Layer 2 the financial-equivalence TS pipeline (generator → desktop runner → mirror runner → the tier-4 comparison [reported while PARITY-005 is open] → the sanity/canonical gate) + Layer 3 the environment-gated census with explicit reasons. Every run is compared against `scripts/test-baseline.json` — BASELINE-MATCHED (the documented 25-failure red) vs DEVIATION (new/vanished failures — the loud one). Fast inner loop: `npm run test:vitest`. The unified report lands in `test-reports/` (gitignored).
 - Financial domain changes: run the equivalence suite; add the scenario to the corpus (single framework per ADR-006).
 - Excel import changes: fixture-driven tests for chunk failure rollback (T-012 pattern).
 - Electron-specific: `--no-sandbox` removal (T-010) requires a launch smoke test on a clean host.

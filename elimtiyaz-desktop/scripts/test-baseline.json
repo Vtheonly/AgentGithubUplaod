@@ -1,0 +1,60 @@
+{
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline (the 25-failure pre-existing set, byte-identical across the 101st/102nd/103rd sessions). The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment).",
+  "_task": "T-419 Phase 4 (2026-09-27) \u2014 recorded from the 103rd-session baseline runs",
+  "testFiles": {
+    "failed": 11,
+    "passed": 212,
+    "skipped": 1,
+    "total": 224
+  },
+  "tests": {
+    "failed": 25,
+    "passed": 4145,
+    "skipped": 5,
+    "total": 4175
+  },
+  "failingFiles": [
+    "src/tests/cross-platform/ScenarioRunner.test.ts",
+    "src/tests/cross-platform/Tier4Boundary.test.ts",
+    "src/tests/cross-platform/Tier4OperationSequences.test.ts",
+    "src/tests/features/dashboard/t-355-t-356-departments-bucket-parity.test.tsx",
+    "src/tests/infrastructure/t-034-cache-freshness.test.ts",
+    "src/tests/infrastructure/t-390-financial-realtime.test.ts",
+    "src/tests/integration/vault-compliance-architecture.test.tsx",
+    "src/tests/security/t-134-parent-name-rendering.test.ts",
+    "src/tests/ui/ai-review-screens.test.tsx",
+    "src/tests/ui/analytics-visuals.test.tsx",
+    "src/tests/ui/dashboard-3zone.test.tsx"
+  ],
+  "equivalence": {
+    "desktopRunner": {
+      "passed": 809,
+      "failed": 0,
+      "errored": 10,
+      "total": 819
+    },
+    "sanityComparator": {
+      "equivalent": 819,
+      "total": 819,
+      "canonicalVerified": 318,
+      "canonicalDefined": 318,
+      "discrepancies": 0
+    },
+    "mirrorRunner": {
+      "passed": 784,
+      "failed": 0,
+      "errored": 0,
+      "skipped": 35,
+      "total": 819
+    },
+    "tier4Comparator": {
+      "equivalent": 707,
+      "skipped": 35,
+      "scenariosWithDivergences": 77,
+      "rows": 499,
+      "errors": 112,
+      "warnings": 387,
+      "knownProblem": "PARITY-005 (non-gating until repaired)"
+    }
+  }
+}

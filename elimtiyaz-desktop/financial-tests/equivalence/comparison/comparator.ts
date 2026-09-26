@@ -631,11 +631,20 @@ function writeReport(
 // CLI entry point.
 // ───────────────────────────────────────────────────────────────────────────
 
+// T-419 (ADR-029 Layer 2): optional --desktop-dir / --android-dir overrides
+// let the unified runner drive the SANITY comparison (desktop vs a temp copy
+// of the desktop results) WITHOUT polluting results/android — the real-
+// Android slot stays reserved for an actual AndroidEquivalenceRunner.kt run.
+function argValue(name: string): string | undefined {
+  const i = process.argv.indexOf(name);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
+}
+
 const args = process.argv.slice(2);
 const strict = args.includes("--strict");
 const rootDir = path.resolve(__dirname, "..");
-const desktopResultsDir = path.join(rootDir, "results", "desktop");
-const androidResultsDir = path.join(rootDir, "results", "android");
+const desktopResultsDir = argValue("--desktop-dir") ?? path.join(rootDir, "results", "desktop");
+const androidResultsDir = argValue("--android-dir") ?? path.join(rootDir, "results", "android");
 const regressionDir = path.join(rootDir, "regression");
 const reportsDir = path.join(rootDir, "reports");
 

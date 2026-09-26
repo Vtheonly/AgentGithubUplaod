@@ -85,3 +85,8 @@ postcss.config.js
 # Editor-tool state and session patch dumps must never enter the repo.
 .smartexport/
 changes.patch.txt
+
+# ─── T-419 unified test runner reports (ADR-029) ────────────────
+# The unified runner's per-run outputs (unified-report_<ts>.md/json).
+# Evidence that must persist goes into docs/recovery/, never here.
+elimtiyaz-desktop/test-reports/
