@@ -4542,3 +4542,12 @@ The forensic census (fresh clone, `git fetch --prune`, per-branch `merge-base --
 ### The evidence
 
 `docs/recovery/t-418-branch-consolidation-verification.md` — the full per-branch table (39/39 ancestors, 39/39 zero-unique, the merge-commit map), the gates, the deletion protocol, the regression sweep (main's SHA unchanged by the deletions; working tree byte-identical; git status clean throughout), and the honest boundaries (the 25 pre-existing vitest failures are unrelated and stay open under their own entries).
+
+### The execution record (the 102nd session, 2026-09-27 — Phases 0-2 COMPLETE)
+
+- **Status:** IMPLEMENTED / TESTED (VERIFIED is gated on the owner's GitHub branch-page confirmation — machine-verified already via `git ls-remote --heads`: exactly `refs/heads/main` on both repos).
+- **Phase 0 (`7cc28ed`):** T-418 + OPS-322 + ADR-028 + the 39-branch evidence table + the census/smoke scripts registered and pushed (the first push was REJECTED by GitHub push protection — the smoke script carried the `sbp_` token inline; rewritten to env-var injection and amended while local-only — §15.59d).
+- **Phase 1:** the guarded deletions — hub **36/36 deleted, 0 skipped**; website **3/3 deleted, 0 skipped**; invariance proofs green (both mains' SHAs byte-identical before/after; `git status` 0 changes throughout).
+- **Phase 2 (the closeout commit):** OPS-322 → RESOLVED/TESTED, this execution record, change-log (the 102nd session), next-task, current-state, §15.59, the zips delivery manifest.
+- **Gates re-run AFTER the deletions (the issue's explicit requirement):** desktop tsc **0 errors** + FULL vitest re-run to completion (**4 145 passed / 25 failed / 5 skipped** — count-identical to the pre-deletion run and to the documented 101st-session baseline); website FULL vitest re-run **657/657**; `git status` clean; both repos exactly one branch.
+- **Left:** the owner's branch-page confirmation (the VERIFIED gate) + the zips hand-over (the delivery commit that follows).

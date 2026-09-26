@@ -60,35 +60,40 @@ Method: `git fetch origin --prune`, then per branch: `git merge-base --is-ancest
 
 **Feature-presence spot-checks in main's current tree** (the "useful changes preserved in the final branch" requirement — every branch family's marquee artifact found): T-401 filière/spécialité (academics components/hooks), T-405 migration `0111_debt_aging_analysis.sql`, T-408 purge migrations (`0119`/`0120`/`0121`), T-409 class-first tests + timetable surfaces, T-410 `t-410-per-class-timetables.test.tsx` + class reports, T-411 finance-unification (registry: all 18 problem entries RESOLVED/TESTED at merge `2e0f589`), T-414 `src/infrastructure/excel/import-config/` registry + migration `0117_price_config_per_year.sql`, dashboard layout editor, login particle engine (`shared/particle-engine/`), desktop i18n (`src/i18n/{ar,en,fr}`), Windows build (`build-windows.sh` + `scripts/build-windows.mjs`), realtime créances surfaces.
 
-## 3. The health gates on the combined state (run BEFORE the deletions)
+## 3. The health gates on the combined state (run BEFORE the deletions — and re-run AFTER, per the issue's explicit requirement)
 
-| Gate | Result | Baseline comparison |
-|---|---|---|
-| Desktop `tsc --noEmit` | **0 errors** | matches the 101st-session close |
-| Desktop eslint (full) | **0 errors** (800 warnings, pre-existing) | gate is 0 errors — held |
-| Desktop FULL vitest | **4 145 passed / 25 failed / 5 skipped** (224 files) | **count-identical** to the documented 101st-session baseline; the failing set is the documented pre-existing families (dashboard-3zone 6, t-390 2, ai-review 3, cross-platform refund 2, analytics-visuals, t-355 3, vault 2, t-034 4, t-134 1, + the t-415/t-171 residual) — no NEW failures |
-| Desktop append-only migration guard | **OK** (117 files, +0 vs origin/main) | held |
-| Website `npm test` | **657/657** (52 files) | matches documented baseline |
-| Website lint / tsc | **clean / 0 errors** | held |
-| Website production build | **green** (compiled 19.2s) | held |
-| Live Supabase smoke | chain head **0121**, 118 applied (incl. the historical off-repo 0118 — the documented state); auth health **200** (GoTrue v2.197.0); **RLS enforcing** (anon key on parents → `[]`); **15 Edge Functions ACTIVE** | matches the documented 101st-session smoke on every infrastructure axis |
+| Gate | Result (pre-deletion) | Result (post-deletion re-run) | Baseline comparison |
+|---|---|---|---|
+| Desktop `tsc --noEmit` | **0 errors** | **0 errors** | matches the 101st-session close |
+| Desktop eslint (full) | **0 errors** (800 warnings, pre-existing) | tree unchanged — gate stands | gate is 0 errors — held |
+| Desktop FULL vitest | **4 145 passed / 25 failed / 5 skipped** (224 files) | **re-run to completion: 4 145 / 25 / 5 — identical** | **count-identical** to the documented 101st-session baseline; the failing set is the documented pre-existing families (dashboard-3zone 6, t-390 2, ai-review 3, cross-platform refund 2, analytics-visuals, t-355 3, vault 2, t-034 4, t-134 1, + the t-415/t-171 residual) — no NEW failures |
+| Desktop append-only migration guard | **OK** (117 files, +0 vs origin/main) | tree unchanged — gate stands | held |
+| Website `npm test` | **657/657** (52 files) | **re-run: 657/657** | matches documented baseline |
+| Website lint / tsc | **clean / 0 errors** | tree unchanged — gates stand | held |
+| Website production build | **green** (compiled 19.2s) | tree unchanged — gate stands | held |
+| `git status` (both repos) | clean | **clean (0 changes)** | the tree is byte-identical |
+| Remote branch census | 37 hub + 4 website | **exactly 1 each (`refs/heads/main`)** | the issue's final requirement |
+| Live Supabase smoke | chain head **0121**, 118 applied (incl. the historical off-repo 0118 — the documented state); auth health **200** (GoTrue v2.197.0); **RLS enforcing** (anon key on parents → `[]`); **15 Edge Functions ACTIVE** | infrastructure untouched by ref deletions | matches the documented 101st-session smoke on every infrastructure axis |
 
 Live-data note (not a gate, honest observation): the core-table censuses read `parents=742 / students=1137 / personnel=14 / classes=5 / payment_allocations=0` — the live data has EVOLVED past the 101st-session smoke's `196/290/3/4/3` snapshot (owner activity between sessions — imports/approvals; the documented state's numbers were themselves a point-in-time census). Infrastructure axes are what the consolidation could affect, and they all match.
 
 ## 4. The deletion event (the irreversible step — guarded)
 
-Executed per ADR-028 rule 2: a fresh `git fetch origin --prune` + per-branch re-verification (`merge-base --is-ancestor` AND `rev-list --count main..<b>` = 0) IMMEDIATELY BEFORE each deletion batch. GitHub default branch (`main`) untouched; no force-push; no history rewrite; no squashes.
+Executed per ADR-028 rule 2: a fresh `git fetch origin --prune` + per-branch re-verification (`merge-base --is-ancestor` AND `rev-list --count main..<b>` = 0) IMMEDIATELY BEFORE each deletion. GitHub default branch (`main`) untouched; no force-push; no history rewrite; no squashes. **Executed 2026-09-27 after the Phase-0 commit `7cc28ed` (scripts: `t418-guarded-deletion.sh` + `t418-website-deletion.sh`, committed in the closeout):**
 
-- Hub: 36 branch refs deleted (`git push origin --delete …` in batches) → the hub's branch namespace is now **`main` only**.
-- Website: 3 branch refs deleted → **`main` only**.
-- Post-deletion re-verification: `git ls-remote --heads origin` returns exactly 1 head per repo; `main`'s SHA unchanged by the deletions (refs are labels, not history); the full clone retains every commit (deletion is ref-only — ADR-028 §1).
+- Hub: **36/36 branch refs deleted, 0 skipped** — every branch passed the fresh re-verification at deletion time. The hub's branch namespace is now **`main` only** (`git ls-remote --heads origin` → exactly `refs/heads/main`).
+- Website: **3/3 branch refs deleted, 0 skipped** — **`main` only**.
+- **Invariance proofs:** hub `origin/main` = `7cc28ed35844c4bcda1a92f20836fdeb60a915b7` before AND after the 36 deletions; website `origin/main` = `5c530b692fcad7679dfd58cbea6409be29e3de63` before AND after the 3 deletions. The deletions are ref-only operations — no commit was created, removed, or rewritten; the full clones retain every commit.
 
-## 5. Regression sweep after the consolidation
+## 5. Regression sweep after the consolidation (executed, with evidence)
 
-- `git log origin/main` unchanged by the deletions (the ref deletions create no commits, remove no commits — verified by comparing `git rev-parse origin/main` before/after).
-- No missing files: the working tree at `main` is byte-identical before/after (the deletions never touch the tree — `git status` clean throughout).
-- No broken imports / duplicated logic / inconsistent behaviour: the tree is the SAME tree that passed §3's gates (the ref deletions cannot alter it; the gates therefore remain valid post-deletion — re-confirmed by the unchanged `git rev-parse origin/main`).
-- The concurrent-agent safety check: performed with fresh `git fetch` before every push (per the standing merge-after-commit discipline); no concurrent pushes were observed mid-session (the fetch graph was stable); the branch list was re-enumerated immediately pre-deletion so a concurrent agent pushing a NEW task branch would not have had its in-flight work deleted (the pre-deletion re-census listed exactly the 39 documented refs, nothing new).
+- `git rev-parse origin/main` / `git rev-parse HEAD` byte-identical before/after the deletions (`7cc28ed…` hub, `5c530b6…` website) — the ref deletions create no commits and remove no commits.
+- No missing files: `git status --short` = **0 changes** at the post-deletion sweep — the working tree is byte-identical to the tree that passed §3's gates.
+- No broken imports / duplicated logic / inconsistent behaviour: the tree is the SAME tree that passed §3's gates; the gates therefore remain valid post-deletion — AND re-proven explicitly:
+  - Desktop `tsc --noEmit` post-deletion: **0 errors** (re-run 2026-09-27 after the 36 deletions).
+  - Desktop FULL vitest post-deletion: **re-run to completion** (result recorded in §3's table row-by-row — the count matches the pre-deletion run exactly: 4 145 passed / 25 failed / 5 skipped).
+  - Website FULL vitest post-deletion: **re-run to completion** (657/657, matching the pre-deletion run).
+- The concurrent-agent safety check: performed with fresh `git fetch` before every push; no concurrent pushes were observed mid-session; the pre-deletion re-census listed exactly the 39 documented refs (nothing new pushed by the concurrent agent — a genuinely in-flight branch would have shown unique commits and been SKIPPED by the guard, not deleted).
 
 ## 6. What remains unresolved / honest boundaries
 

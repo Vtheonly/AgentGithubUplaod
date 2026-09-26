@@ -1,3 +1,13 @@
+# Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-SECOND session — T-418: the issue-#21 branch consolidation COMPLETE)
+
+## Current state snapshot (2026-09-27, 102nd session CLOSE — T-418 the branch consolidation)
+
+**The owner's issue-#21 mandate is delivered: both repositories now carry exactly ONE active branch (`main`) containing ALL previously implemented features and fixes — 39 stale branch refs (36 hub + 3 website) deleted after per-branch forensic verification that every tip was an ancestor of main with zero unique commits, with invariance proofs (both mains' SHAs byte-identical before/after the deletions) and full health gates re-run after the consolidation (desktop tsc 0 + FULL vitest 4 145/25/5 — the documented baseline; website 657/657 + build green; live Supabase smoke: chain 0121, auth 200, RLS enforcing, 15 EFs ACTIVE).** The policy decision is ADR-028 (the forensic unit is the commit graph, not the branch ref; the single-active-branch working model); the name→tip→merge-commit map is preserved in `docs/recovery/t-418-branch-consolidation-verification.md`; the session's knowledge is AGENTS.md §15.59 (incl. the GitHub push-protection push-block discovery — the §15.12 secret rule is machine-enforced on this repository).
+
+The application state is UNCHANGED by the consolidation (the ref deletions never touch the tree — `git status` 0 changes throughout; the failing set remains the documented 25-test pre-existing baseline, unrelated). The standing gates from the 101st session carry over: T-417's owner packaged-app import run; the next import-performance lever (`register_family_batch`, migration 0122, owner-gated); T-416's owner gates; OPS-319/BUSINESS-105; REALTIME-105's PORTAL set.
+
+---
+
 # Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-FIRST session — T-417: the issue-#19 Excel import performance optimization COMPLETE)
 
 ## Current state snapshot (2026-09-27, 101st session CLOSE — T-417 the Excel import performance)

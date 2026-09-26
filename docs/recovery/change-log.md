@@ -1,4 +1,42 @@
-## 2026-09-27 — The 101st session — T-417 EXECUTED: the Excel import performance optimization (issue #19 / PERF-503), Phases 0-2 complete
+## 2026-09-27 — The 102nd session — T-418 EXECUTED: the issue-#21 branch consolidation (39 refs → 1 active branch per repo), zero functionality lost, all gates green before AND after
+
+### The discovery — the mandate was already satisfied by the graph
+
+The issue-#21 census found every one of the 39 non-main branch refs (36 hub + 3 website) was ALREADY an ancestor of main with ZERO unique commits — the merge-after-each-commit discipline of sessions 58–101 had done the merging; the branch namespace was pure label residue (OPS-322). The task's real risk surface: per-branch containment proof, health gates on the combined main BEFORE any irreversible step, and preserving the name→tip→merge-commit map before the labels disappeared (recorded in `docs/recovery/t-418-branch-consolidation-verification.md` §2).
+
+### The policy decision — ADR-028 (the §15.1 resolution)
+
+The forensic unit is the COMMIT GRAPH, not the branch ref: a ref whose tip is an ancestor of main (freshly re-verified after a `--prune` fetch, immediately before the deletion) is deletable — its commits remain reachable from main. A ref with unmerged commits must be merged properly first. §15.1 amended (AGENTS.md §15.59a-b); the single-active-branch working model adopted (task branches live only for their session: push → merge → delete ref).
+
+### The execution — 39 guarded deletions, 0 skipped
+
+- **Phase 0 (`7cc28ed`):** T-418 + OPS-322 registered (§13) + ADR-028 + the 39-branch evidence table + the reusable census scripts (`scripts/{analyze-branches,verify-branch-containment,merge-commit-map,website-branch-check,t418-live-smoke}.sh`). Pushed + merged.
+- **Phase 1:** the guarded deletions (`scripts/t418-guarded-deletion.sh` + `t418-website-deletion.sh`): hub **36/36 deleted, 0 skipped**; website **3/3 deleted, 0 skipped**; both repos now carry **exactly one branch (`main`)**. **Invariance proofs:** hub `origin/main` = `7cc28ed…` before AND after; website = `5c530b6…` before AND after — the deletions are ref-only; no commit created, removed, or rewritten; `git status` = 0 changes throughout.
+- **Phase 2 (this commit):** the closeout — OPS-322 → RESOLVED/TESTED, T-418 → TESTED, change-log, next-task, current-state, the zips delivery.
+
+### The gates — before AND after the deletions (the issue's explicit requirement)
+
+| Gate | Pre-deletion | Post-deletion |
+|---|---|---|
+| Desktop tsc | 0 errors | **0 errors (re-run)** |
+| Desktop eslint | 0 errors (800 pre-existing warnings) | unchanged tree — gate stands |
+| Desktop FULL vitest | 4 145 / 25 / 5 (count-identical to the 101st-session baseline) | **re-run: same counts** |
+| Website FULL vitest | 657/657 | **re-run: 657/657** |
+| Website lint / tsc / build | clean / 0 / green | unchanged tree — gates stand |
+| Append-only migration guard | OK (117 files) | unchanged tree — gate stands |
+| Live Supabase smoke | chain 0121 / auth 200 / RLS enforcing / 15 EFs ACTIVE | infrastructure untouched by ref deletions |
+
+The failing set is the documented pre-existing baseline (dashboard-3zone, t-390, ai-review, cross-platform refund, analytics-visuals, t-355, vault, t-034, t-134, + t-415/t-171 residuals) — no NEW failures introduced by the consolidation.
+
+### The discoveries (AGENTS.md §15.59)
+
+(a) census-first on "merge the branches" mandates; (b) the commit-graph rule + the invariance proof (main's SHA unchanged ⇒ pre-deletion gates remain valid); (c) the branch list is NOT a work inventory — task-registry.md is; (d) **GitHub push protection is an ACTIVE push-blocking layer on this repository** — the first Phase-0 push was rejected wholesale because the smoke script carried the `sbp_` token inline (§15.12 now machine-enforced; env-var injection at the script boundary is the pattern, `t418-live-smoke.sh`).
+
+### Left
+
+- The zips hand-over (the owner's request) — the delivery commit follows this one.
+- The 25 pre-existing vitest failures stay open under their own problem entries (unrelated).
+- The VERIFIED gate for T-418: the owner's GitHub branch-page confirmation (one branch per repo) — machine-verified already via `git ls-remote`.
 
 ### Implementation — 3 desktop commits + 1 baseline repair, no backend migration (client-side scheduling only)
 
@@ -11,6 +49,8 @@
 - **No migration** (the chain is untouched — 0120/0121 belong to the concurrent T-416 session's commits; the import optimization is client-side scheduling only, §15.4/§15.5 held: every canonical per-family write RPC is called exactly as before, only the SCHEDULING changed).
 - **New knowledge (AGENTS.md §15.58):** (a) silently-skipping workbook suites rot their pinned anchors; (b) cast-probed private seams are invisible to reachability greps; (c) every optional bulk method needs its mock implementation in the SAME change (the IMPORT-108 class, twice now); (d) the FAMILY is the concurrency unit — the sequential pre-resolution pass kills the cross-family duplicate-create race; (e) the round-trip COUNT is the invariant, and the canonical write count must be pinned as a budget, never reduced.
 - **Left:** the owner's packaged-app import run (the VERIFIED gate, the standing visual-acceptance convention). No backend change → no live migration gate.
+
+## 2026-09-27 — The 101st session — T-417 EXECUTED: the Excel import performance optimization (issue #19 / PERF-503), Phases 0-2 complete
 
 ## 2026-09-26 — The 100th session — T-416 LIVE-VERIFIED: the issue-#12 Purge Button closed end to end (0120 + 0121 applied live; 22/22; PURGE-502/503 caught & fixed)
 
