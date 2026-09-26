@@ -33,6 +33,10 @@ import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useSyncActions } from "../../app/providers/sync-provider";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
+import {
+  pauseFinancialRealtime,
+  resumeFinancialRealtime,
+} from "../../infrastructure/supabase/financial-realtime";
 import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-modal";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
@@ -229,6 +233,15 @@ export function ExcelImportModal({
     setStage("committing");
     setAlert(null);
     setCommitProgress({ phase: "importing", current: 0, total: previewCtx.stats.rowsRead, label: "Lecture du fichier Excel..." });
+    // PERF-504 (T-420, issue #20): the financial realtime bridge re-seeds
+    // EIGHT full collections on every debounced realtime event — during a
+    // bulk import (≈1,400 INSERT events) that storm competes with the
+    // import's own writes for the connection pool and exhausted it live
+    // (159 statement timeouts + 166 gateway 504s → the financial flush
+    // died mid-flight). Pause the bridge for the whole commit; ONE refresh
+    // runs at resume, from a healthy pool. try/finally guarantees the
+    // resume even when the import throws.
+    pauseFinancialRealtime();
     try {
       const engine = getEngine();
       const ctx = await engine.importFile(fileBytes, fileName, {
@@ -347,6 +360,13 @@ export function ExcelImportModal({
         tone: "error",
         title: "Échec de l'import atomique",
         description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      // PERF-504 (T-420): always resume the bridge — ONE refreshAll from a
+      // healthy pool replaces the storm the import's ~1,400 realtime events
+      // would otherwise have triggered. Runs on success AND on failure.
+      await resumeFinancialRealtime().catch(() => {
+        /* the bridge is an enhancement — never surface its failure */
       });
     }
   }

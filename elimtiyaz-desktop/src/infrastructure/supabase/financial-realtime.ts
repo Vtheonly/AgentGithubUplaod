@@ -319,6 +319,61 @@ function installDebtFacade(
 let runtimeStarted = false;
 
 /**
+ * PERF-504 (T-420, 2026-09-27): the bulk-import pause seam.
+ *
+ * THE DEFECT (live evidence, issue #20): the bridge refreshes EIGHT full
+ * collections (parents + students + payments + installments + ledger +
+ * expenses + debt summary + debt aging — unlimited SELECTs on the growing
+ * tables) with a 75 ms debounce. A bulk Excel import emits ~1,400 realtime
+ * INSERT events over its lifetime, so the debounce fires refreshAll()
+ * essentially back-to-back for the WHOLE import — the UI's own re-seed
+ * storm competes with the import's writes for the transaction pooler and
+ * exhausts it (159 statement timeouts + 166 gateway 504s in the owner's
+ * logs), which is what killed the import's financial flush mid-flight
+ * (IMPORT-112/113).
+ *
+ * The seam: `pauseFinancialRealtime()` suppresses every refresh trigger
+ * (realtime events, the audit fallback, the 30 s fallback poll — and any
+ * already-scheduled debounce); `resumeFinancialRealtime()` performs
+ * exactly ONE refreshAll from a healthy pool and re-arms the bridge.
+ * Interactive freshness outside imports is UNCHANGED (a single payment
+ * still refreshes after 75 ms).
+ */
+let realtimePaused = false;
+let refreshPendingWhilePaused = false;
+let triggerFinancialRefresh: (() => Promise<void>) | null = null;
+
+/**
+ * Pause the financial realtime refresh bridge (bulk-import mode).
+ *
+ * Idempotent and safe when the bridge never started (mock mode, or Supabase
+ * not configured) — the flag is simply never read.
+ */
+export function pauseFinancialRealtime(): void {
+  realtimePaused = true;
+  refreshPendingWhilePaused = false;
+}
+
+/**
+ * Resume the bridge after a bulk import: ONE refreshAll (the import's
+ * thousands of events collapse into a single re-seed from a healthy pool),
+ * then normal debounced operation resumes.
+ */
+export async function resumeFinancialRealtime(): Promise<void> {
+  if (!realtimePaused) return;
+  realtimePaused = false;
+  if (!refreshPendingWhilePaused) return;
+  refreshPendingWhilePaused = false;
+  if (triggerFinancialRefresh) {
+    try {
+      await triggerFinancialRefresh();
+    } catch {
+      // The bridge is an enhancement — a failed refresh never propagates.
+    }
+  }
+}
+
+/**
  * Start the desktop Finance realtime bridge once for the process.
  *
  * The bridge waits for an authenticated Supabase session before arming the
@@ -341,6 +396,12 @@ export async function startFinancialRealtime(): Promise<void> {
     let armed = false;
 
     const refreshAll = async () => {
+      if (realtimePaused) {
+        // PERF-504: a bulk import owns the pool — collapse this trigger
+        // into the single post-import refresh (resumeFinancialRealtime).
+        refreshPendingWhilePaused = true;
+        return;
+      }
       if (!getTenantId()) return;
       // Reuse the existing repository freshness contract. Every financial
       // repository already listens for window focus; this forces its NEXT
@@ -365,7 +426,18 @@ export async function startFinancialRealtime(): Promise<void> {
       await debt.refreshAging();
     };
 
+    // PERF-504 (T-420): expose this runtime's refreshAll to the module-level
+    // pause/resume seam (resumeFinancialRealtime performs the ONE deferred
+    // refresh after a bulk import).
+    triggerFinancialRefresh = refreshAll;
+
     const scheduleRefresh = () => {
+      if (realtimePaused) {
+        // PERF-504: no debounce while paused — the events are recorded and
+        // satisfied by ONE refresh at resume time.
+        refreshPendingWhilePaused = true;
+        return;
+      }
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => {
         refreshTimer = null;
