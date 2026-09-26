@@ -4581,7 +4581,11 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 5. **Phase 5:** the shared-support consolidation pattern + the migration manifest (`docs/testing/unified-architecture.md` — the §38 table) + the Supabase-fakes census with the first consolidations where provably safe.
 6. **Phase 6:** the closeout — registries truth-synced, change-log, next-task, current-state, AGENTS.md §11 + the session-discoveries rule, the delivery zips (the owner's hand-over request).
 
-### Status
+### Status (updated per phase — each line = one verified commit)
 
-- **Phase 0+1 COMPLETE** (this commit): registration + baseline evidence recorded; no code changed yet.
-- **Left:** Phases 2–6 (the physical unification, the comparator fix, the unified runner, the manifest, the closeout) — each with its own gates and commits.
+- **Phase 0+1 COMPLETE** (49a1537): registration + baseline evidence recorded.
+- **Phase 2 COMPLETE** (cf507a9): the root unification — src/test absorbed into src/tests (git mv, depth-preserving); FULL vitest failing set byte-identical.
+- **Phase 3 COMPLETE** (0c16713): the comparator audit — TEST-308 fixed (error-equivalence + NaN guard + the stale 017 then-block corrected); tier4_comparator crash fixed + skip/error-aware; the mirror runner's skipped convention; **PARITY-005 registered** (the CALC-001 mirror drift — 77 scenarios / 499 rows, the first-ever completed tier-4 run).
+- **Phase 4 COMPLETE** (9de7834): the unified runner — `npm test` = Layer 0 typecheck + Layer 1 vitest + Layer 2 the equivalence pipeline + Layer 3 the environment-gated census; baseline-deviation detection (scripts/test-baseline.json); test:vitest = the fast loop.
+- **Phase 5 COMPLETE** (this commit): `docs/testing/unified-architecture.md` — the architecture map + the complete §38 migration manifest (every artifact accounted) + the correctness-audit record + the TEST-309 fakes census with the consolidation pattern.
+- **Left:** Phase 6 (the closeout: registries truth-synced, change-log, next-task, current-state, the session-discoveries rule, the delivery zips).

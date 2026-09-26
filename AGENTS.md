@@ -367,6 +367,7 @@ If evidence is insufficient — which implementation is correct, what a business
 | `docs/operations/credentials.md` | Credential & token consistency sheet (all platforms) |
 | `docs/operations/portal-google-oauth.md` | AUTH-200 owner runbook — enabling the Google OAuth provider (incl. the Management API `uri_allow_list` string quirk) |
 | `docs/testing/strategy.md` | Testing strategy per platform and layer |
+| `docs/testing/unified-architecture.md` | **The unified testing architecture** (T-419/ADR-029): the layer map, the migration manifest (issue #22 §38 — every artifact's disposition), the correctness-audit record, the shared-support/fakes census |
 | `docs/testing/cross-platform.md` | Canonical cross-platform equivalence verification |
 | `docs/agents/workflow.md` | The mandatory agent workflow (DISCOVER → … → UPDATE TASK STATUS) |
 | `docs/agents/git-workflow.md` | Git commit standard |
