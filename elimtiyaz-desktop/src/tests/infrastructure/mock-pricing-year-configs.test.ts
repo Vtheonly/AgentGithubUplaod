@@ -46,6 +46,7 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
   it("listConfigs materializes the current year's config from the legacy single-config state", async () => {
     const r = await repo.listConfigs();
     expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("listConfigs failed");
     const configs = r.value;
     expect(configs.length).toBe(1);
     const c = configs[0];
@@ -62,12 +63,15 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
       "usr-test",
     );
     expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("createConfigForYear failed");
     expect(r.value.isActive).toBe(false);
     expect(r.value.academicYearId).toBe(PAST_YEAR);
     expect(r.value.isCurrentYear).toBe(false);
 
     // Exactly one ACTIVE config remains (the current year's).
-    const list = (await repo.listConfigs()).value;
+    const listR = await repo.listConfigs();
+    if (!listR.ok) throw new Error("listConfigs failed");
+    const list = listR.value;
     expect(list.filter((c) => c.isActive)).toHaveLength(1);
     expect(list.find((c) => c.isActive)?.academicYearId).toBe(CURRENT_YEAR);
   });
@@ -83,7 +87,9 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
     );
     expect(r.ok).toBe(true);
 
-    const cloned = (await repo.readForYear(PAST_YEAR)).value as PricingConfig;
+    const clonedR = await repo.readForYear(PAST_YEAR);
+    if (!clonedR.ok) throw new Error("readForYear failed");
+    const cloned = clonedR.value as PricingConfig;
     expect(cloned.tuitionByGradeLevel["1ap"].annualAmount).toBe(333000);
     expect(cloned.tuitionByGradeLevel["1ap"].installments).toEqual([111000, 111000, 111000]);
     expect(cloned.discounts.length).toBe(activeBefore.discounts.length);
@@ -92,7 +98,9 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
     // The clone is a COPY — editing the active config afterwards never
     // reaches the cloned year's stored payload.
     await repo.updateTuitionForGradeLevel("1ap", 999000, [333000, 333000, 333000], "usr-test");
-    const clonedAfter = (await repo.readForYear(PAST_YEAR)).value as PricingConfig;
+    const clonedAfterR = await repo.readForYear(PAST_YEAR);
+    if (!clonedAfterR.ok) throw new Error("readForYear failed");
+    const clonedAfter = clonedAfterR.value as PricingConfig;
     expect(clonedAfter.tuitionByGradeLevel["1ap"].annualAmount).toBe(333000);
   });
 
@@ -108,6 +116,7 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
       "usr-test",
     );
     expect(second.ok).toBe(false);
+    if (second.ok) throw new Error("duplicate creation should have failed");
     expect(second.error.userMessage).toContain("existe déjà");
   });
 
@@ -125,7 +134,9 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
       { academicYearId: PAST_YEAR, cloneFromActive: true },
       "usr-test",
     );
-    const pastSummary = (await repo.listConfigs()).value.find((c) => c.academicYearId === PAST_YEAR)!;
+    const listB = await repo.listConfigs();
+    if (!listB.ok) throw new Error("listConfigs failed");
+    const pastSummary = listB.value.find((c) => c.academicYearId === PAST_YEAR)!;
     expect(pastSummary.isActive).toBe(false);
 
     // The ACTIVE config drives observe() before the switch.
@@ -141,19 +152,27 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
     const after = repo.observe().get();
     expect(after.tuitionByGradeLevel["1ap"].annualAmount)
       .toBe(defaultPricingConfig.tuitionByGradeLevel["1ap"].annualAmount);
-    expect(after).toEqual((await repo.readForYear(PAST_YEAR)).value);
+    const yearBRead = await repo.readForYear(PAST_YEAR);
+    if (!yearBRead.ok) throw new Error("readForYear failed");
+    expect(after).toEqual(yearBRead.value);
 
     // Exactly one ACTIVE config (the switched-to year).
-    const list = (await repo.listConfigs()).value;
+    const listC = await repo.listConfigs();
+    if (!listC.ok) throw new Error("listConfigs failed");
+    const list = listC.value;
     expect(list.filter((c) => c.isActive)).toHaveLength(1);
     expect(list.find((c) => c.isActive)?.academicYearId).toBe(PAST_YEAR);
   });
 
   it("activateConfig is idempotent for the already-active config", async () => {
-    const active = (await repo.listConfigs()).value.find((c) => c.isActive)!;
+    const listD = await repo.listConfigs();
+    if (!listD.ok) throw new Error("listConfigs failed");
+    const active = listD.value.find((c) => c.isActive)!;
     const r = await repo.activateConfig(active.id, "usr-test");
     expect(r.ok).toBe(true);
-    const list = (await repo.listConfigs()).value;
+    const listE = await repo.listConfigs();
+    if (!listE.ok) throw new Error("listConfigs failed");
+    const list = listE.value;
     expect(list.filter((c) => c.isActive)).toHaveLength(1);
   });
 
@@ -171,7 +190,9 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
       { academicYearId: PAST_YEAR, cloneFromActive: true },
       "usr-test",
     );
-    const yearB = (await repo.listConfigs()).value.find((c) => c.academicYearId === PAST_YEAR)!;
+    const listF = await repo.listConfigs();
+    if (!listF.ok) throw new Error("listConfigs failed");
+    const yearB = listF.value.find((c) => c.academicYearId === PAST_YEAR)!;
     await repo.activateConfig(yearB.id, "usr-test");
 
     // Year B is now active — edit it aggressively.
@@ -181,7 +202,9 @@ describe("T-414 mock pricing repository — per-year configuration", () => {
 
     // Year A's stored config is UNCHANGED (the prices applicable at its
     // time — never silently re-priced with the new year's numbers).
-    const yearA = (await repo.readForYear(CURRENT_YEAR)).value as PricingConfig;
+    const yearAR = await repo.readForYear(CURRENT_YEAR);
+    if (!yearAR.ok) throw new Error("readForYear failed");
+    const yearA = yearAR.value as PricingConfig;
     expect(yearA.tuitionByGradeLevel["1ap"].annualAmount).toBe(250000);
     expect(yearA.tuitionByGradeLevel["1ap"].installments).toEqual([100000, 75000, 75000]);
     expect(yearA.registrationFee).toBe(defaultPricingConfig.registrationFee);

@@ -214,6 +214,7 @@ describe("T-414 SupabasePricingRepository — per-year configuration", () => {
     const repo = new SupabasePricingRepository(fakeClient);
     const r = await repo.listConfigs();
     expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("listConfigs failed");
     const summaries = r.value;
     expect(summaries.length).toBe(2);
 
@@ -234,6 +235,7 @@ describe("T-414 SupabasePricingRepository — per-year configuration", () => {
     const repo = new SupabasePricingRepository(fakeClient);
     const r = await repo.readForYear(YEAR_HIST);
     expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("readForYear failed");
     // The historical year's own tuition row (205 000), NOT the active grid's
     // 250 000 — the per-config read branch of readDbPricingConfig.
     expect(r.value.tuitionByGradeLevel["1ap"].annualAmount).toBe(205000);
@@ -274,6 +276,7 @@ describe("T-414 SupabasePricingRepository — per-year configuration", () => {
       "usr-test",
     );
     expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("createConfigForYear failed");
     expect(r.value.id).toBe(NEW_CONFIG);
     expect(r.value.isActive).toBe(false);
     expect(r.value.academicYearCode).toBe("2026-2027");

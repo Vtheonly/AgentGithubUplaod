@@ -75,107 +75,23 @@
  * `therapy_speech` ledger entries (migration 0027 added these categories).
  */
 import type { ImportSchema } from "../types";
+import { importConfigRegistry } from "../../import-config";
 
-export const ETAT_SCHEMA: ImportSchema = {
-  name: "etat",
-  sheetMatchers: [/^ETAT/i, /^ETAT\s*\d+/i],
-  headerRow: 1,
-  // Only NOM is truly required — "import student no matter what".
-  // CLASSE, niveau, DEVIS ANNUEL are all optional with defaults so missing
-  // cells never block a row from importing.
-  requiredHeaders: ["NOM"],
-  identity: { fields: ["NEM", "NOM"], strategy: "upsert" },
-  fields: [
-    { key: "infos", header: "INFOS", type: "string", required: false },
-    { key: "email", header: "E-MAIL", type: "email", required: false },
-    { key: "nem", header: "NEM", type: "phoneList", required: false },
-    { key: "tuteur", header: "TUTEUR", type: "string", required: false },
-    { key: "nom", header: "NOM", type: "string", required: true, minLength: 2 },
-    {
-      key: "niveau",
-      header: "niveau",
-      type: "enum",
-      required: false,
-      default: "PRIM",
-      values: [
-        "PRIM", "COLG", "LYC",
-        "GS", "MS", "PS", "TPS",
-        "AUTISTE",
-        "NV2", "NV3", "NV4", "NV5",
-        "CLYC", "LYCI",
-      ],
-      tolerateUnknown: true,
-    },
-    { key: "classe", header: "CLASSE", type: "string", required: false, default: "Non assignée" },
-    {
-      key: "option",
-      header: "OPTION",
-      type: "enum",
-      required: false,
-      values: ["TRNSP", "TENSP", "TRNP", ""],
-      tolerateUnknown: true,
-    },
-    { key: "remise", header: "REMISE", type: "number", required: false, default: 0, min: 0 },
-    { key: "justification", header: "JUSTIFICATION", type: "string", required: false },
+/**
+ * T-414 (IMPORT-111 / ADR-026): this schema is now DERIVED from the
+ * central import configuration document (`import-config/configs/
+ * etat-2026-2027.ts`) — the single source of truth for the 2026/2027
+ * format's mapping. The compiled shape is functionally identical to the
+ * historical hand-written definition (fields, headers, tolerances,
+ * identity); the configuration adds `column` letters (self-documenting
+ * positional map — a no-op when the header also matches).
+ */
+const compiled = importConfigRegistry
+  .resolve("etat-2026-2027")
+  .find((s) => s.name === "etat");
 
-    // ── Pricing & balance block (L–Q) ────────────────────────────────────
-    // DEVIS ANNUEL is a formula in the real sheet (e.g. =25000+205000-J2).
-    // The ExcelParser's `normalizeCell` already extracts `result` from
-    // formula cells, so by the time the value reaches the coercer it's a
-    // plain number. When the formula has no cached result (shared formula
-    // without master), the cell value is null → falls back to default 0.
-    { key: "devisAnnuel", header: "DEVIS ANNUEL", type: "number", required: false, default: 0, min: 0 },
-    { key: "remboursement", header: "REMBOURCEMENT", type: "number", required: false, default: 0, min: 0 },
-    { key: "dettes", header: "DETTES", type: "number", required: false, default: 0, min: 0 },
-    // REGLEMENTS DETTES — single column ("debt payments made toward prior-year debts").
-    // Was wrongly typed as monthlyArray (count:12) — that read the 12 next columns
-    // as monthly data, corrupting the import.
-    { key: "reglementsDettes", header: "REGLEMENTS DETTES", type: "number", required: false, default: 0, min: 0 },
-    // P and Q are formula columns — informational only. They're not used by
-    // the storage adapter (which recomputes balances from individual entries),
-    // but we capture them so the import report can flag rows where the
-    // Excel-computed total differs from the ledger-computed total.
-    { key: "totalVersements", header: "TOTAL VERSEMENTS", type: "number", required: false, default: 0, min: 0 },
-    { key: "totalCreance", header: "TOTAL*CREANCE", type: "number", required: false, default: 0 },
+if (!compiled) {
+  throw new Error("etat-2026-2027 config: the etat sheet failed to compile");
+}
 
-    // ── Payment installments block (R–Y) ─────────────────────────────────
-    // These are the ACTUAL payment columns tracked by the school. Each is a
-    // single number representing the amount paid for that tranche. They
-    // feed the ledger as individual `payment` entries so the student's
-    // payment history is granular and matches the Excel sheet exactly.
-    { key: "fi", header: "FI", type: "number", required: false, default: 0, min: 0 },
-    { key: "v2", header: "V2", type: "number", required: false, default: 0, min: 0 },
-    { key: "v2Alt", header: "2V", type: "number", required: false, default: 0, min: 0 },
-    { key: "v3", header: "v3", type: "number", required: false, default: 0, min: 0 },
-    // DISTINATION is a text column (town name) that sits between the tuition
-    // and transport payment columns. It is NOT a payment — it determines
-    // the transport fee tier applied to the L formula.
-    { key: "distination", header: "DISTINATION", type: "string", required: false },
-    { key: "t1", header: "1T", type: "number", required: false, default: 0, min: 0 },
-    { key: "t2", header: "T2", type: "number", required: false, default: 0, min: 0 },
-    { key: "t3", header: "t3", type: "number", required: false, default: 0, min: 0 },
-
-    // ── Therapy + extra sessions block (Z–AE) ────────────────────────────
-    // These columns capture payments for therapy sessions (psychology,
-    // speech therapy) and extra support sessions. They feed the ledger as
-    // `therapy_psychology` / `therapy_speech` entries (categories added by
-    // migration 0026/0027).
-    { key: "psy1", header: "PSY1", type: "number", required: false, default: 0, min: 0 },
-    { key: "psy2", header: "PSY2", type: "number", required: false, default: 0, min: 0 },
-    { key: "orth1", header: "ORTH1", type: "number", required: false, default: 0, min: 0 },
-    { key: "orth2", header: "ORTH2", type: "number", required: false, default: 0, min: 0 },
-    { key: "eplant", header: "E-PLANT", type: "number", required: false, default: 0, min: 0 },
-    { key: "ratrapage", header: "Ratrapage", type: "number", required: false, default: 0, min: 0 },
-
-    // ── Quarterly tranches block (AF–AK) ─────────────────────────────────
-    // September / December / March quarterly payments + their outstanding
-    // balances. The amounts feed the ledger as `tuition` payments; the
-    // CREANCES columns are informational (the ledger recomputes balances).
-    { key: "septembre", header: "SEPTEMBRE", type: "number", required: false, default: 0, min: 0 },
-    { key: "creanceSeptembre", header: "CREANCES SEPTEMBRE", type: "number", required: false, default: 0 },
-    { key: "decembre", header: "DECEMBRE", type: "number", required: false, default: 0, min: 0 },
-    { key: "creanceDecembre", header: "CREANCES DECEMBRE", type: "number", required: false, default: 0 },
-    { key: "mars", header: "MARS", type: "number", required: false, default: 0, min: 0 },
-    { key: "creanceMars", header: "CREANCES MARS", type: "number", required: false, default: 0 },
-  ],
-};
+export const ETAT_SCHEMA: ImportSchema = compiled;

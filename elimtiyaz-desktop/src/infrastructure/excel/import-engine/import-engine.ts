@@ -346,7 +346,17 @@ export class ImportEngine {
     options: ImportOptions,
   ): Promise<void> {
     const sheetName = ws.name;
-    const schema = this.detector.detect(sheetName);
+    // T-414 (IMPORT-111): FORMAT disambiguation — the same sheet NAME can
+    // exist in different workbook formats ("ETAT 20262027" is in BOTH the
+    // 2026-2027 and 2027-2026 workbooks). Name-only detection returns the
+    // first match; re-detecting with the ACTUAL header row lets the
+    // registry pick the format whose header signature matches (V1 /
+    // LIVRES / CLUB / SORTIES vs NOM).
+    const nameMatch = this.detector.detect(sheetName);
+    const headerRowNumber =
+      nameMatch && nameMatch.headerRow > 0 ? nameMatch.headerRow : 1;
+    const headerRow = this.parser.readSheetHeaderRow(ws, headerRowNumber);
+    const schema = this.detector.detect(sheetName, headerRow) ?? nameMatch;
     if (!schema) {
       ctx.addWarning({
         sheet: sheetName,

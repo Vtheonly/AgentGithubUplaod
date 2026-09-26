@@ -56,6 +56,10 @@ const XLSX_CANDIDATES = [
   path.join(REPO_ROOT, "..", "Suivis clients  2026_2027.xlsx"),
   path.join(REPO_ROOT, "Suivis clients 2026_2027.xlsx"), // single space — fallback
   path.join(REPO_ROOT, "..", "Suivis clients 2026_2027.xlsx"),
+  // T-414: the hub keeps the forensic workbooks under Excel/ (the layout
+  // this repository ships with) — the suite runs wherever they live.
+  path.join(REPO_ROOT, "Excel", "Suivis clients  2026_2027.xlsx"),
+  path.join(REPO_ROOT, "..", "Excel", "Suivis clients  2026_2027.xlsx"),
 ];
 const XLSX_PATH = XLSX_CANDIDATES.find((p) => fs.existsSync(p));
 

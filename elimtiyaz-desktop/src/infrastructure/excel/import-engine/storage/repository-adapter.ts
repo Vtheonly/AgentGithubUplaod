@@ -1445,8 +1445,143 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       );
     }
 
-    
-    
+    // ── T-414 (IMPORT-111): the 2027-2026 format's expanded columns ─────
+    // PSY3…PSY14 — the expanded therapy grid (all psychology sessions,
+    // same category + expected amount as PSY1/PSY2). Driven by the
+    // canonical record keys the etat-2027-2026 configuration maps.
+    for (let n = 3; n <= 14; n++) {
+      const amount = numOrZero(record[`psy${n}`]);
+      if (amount > 0) {
+        const field = `PSY${n}`;
+        entries.push(
+          createPaymentEntry({
+            tenantId,
+            parentId,
+            studentId,
+            category: "therapy_psychology",
+            amount,
+            method: "cash",
+            receiptNumber: sid(field),
+            paymentStatus: "paid",
+            sourceType: "bulk_import",
+            sourceId: sid(field),
+            description: `Séance psychologie ${n} (${field}) — import Excel run ${runId}`,
+            actorId,
+            actorName,
+            at,
+            metadata: { field, importRunId: runId },
+          }),
+        );
+      }
+    }
+
+    // COURS SUP — supplementary tutoring payment (tuition family).
+    const coursSup = numOrZero(record.coursSup);
+    if (coursSup > 0) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "tuition",
+          amount: coursSup,
+          method: "cash",
+          receiptNumber: sid("COURS_SUP"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("COURS_SUP"),
+          description: `COURS SUP (cours de soutien) — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "COURS_SUP", importRunId: runId },
+        }),
+      );
+    }
+
+    // LIVRES — textbook payment (books — promoted from a free-text note in
+    // the 2026/2027 format to a structured column).
+    const livres = numOrZero(record.livres);
+    if (livres > 0) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "books",
+          amount: livres,
+          method: "cash",
+          receiptNumber: sid("LIVRES"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("LIVRES"),
+          description: `Livres scolaires — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "LIVRES", importRunId: runId },
+        }),
+      );
+    }
+
+    // CLUB — extracurricular club payment.
+    const club = numOrZero(record.club);
+    if (club > 0) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "extracurricular",
+          amount: club,
+          method: "cash",
+          receiptNumber: sid("CLUB"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("CLUB"),
+          description: `Club (activité extrascolaire) — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "CLUB", importRunId: runId },
+        }),
+      );
+    }
+
+    // SORTIES — school-trip payment (extracurricular).
+    const sorties = numOrZero(record.sorties);
+    if (sorties > 0) {
+      entries.push(
+        createPaymentEntry({
+          tenantId,
+          parentId,
+          studentId,
+          category: "extracurricular",
+          amount: sorties,
+          method: "cash",
+          receiptNumber: sid("SORTIES"),
+          paymentStatus: "paid",
+          sourceType: "bulk_import",
+          sourceId: sid("SORTIES"),
+          description: `Sortie scolaire — import Excel run ${runId}`,
+          actorId,
+          actorName,
+          at,
+          metadata: { field: "SORTIES", importRunId: runId },
+        }),
+      );
+    }
+
+    // NOTE (T-414): the informational columns CREANCE SEPT (×3) and
+    // TT CREANCE are DELIBERATELY not ledgered — balances are recomputed
+    // by the canonical ledger replay (INV-1), never copied from the
+    // workbook's own formulas. They remain on the raw record for the
+    // import report / audit trail.
+    void record.creanceSept;
+    void record.creanceSept2;
+    void record.creanceSept3;
+    void record.ttCreance;
+
     return entries;
   }
 
@@ -1551,6 +1686,24 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       ["SEPTEMBRE", numOrZero(record.septembre), "tuition", "Tranche septembre — Tranche 1", expectedTuitionTranches[0]],
       ["DECEMBRE", numOrZero(record.decembre), "tuition", "Tranche décembre — Tranche 2", expectedTuitionTranches[1]],
       ["MARS", numOrZero(record.mars), "tuition", "Tranche mars — Tranche 3", expectedTuitionTranches[2]],
+      // ── T-414 (IMPORT-111): the 2027-2026 format's expanded columns ──
+      // The expanded therapy grid (PSY3…PSY14) + the four ancillary
+      // services, through the SAME payment rows path (the payments tab
+      // reads `payments`, not the ledger).
+      ...Array.from({ length: 12 }, (_, i) => {
+        const n = i + 3;
+        return [
+          `PSY${n}`,
+          numOrZero(record[`psy${n}`]),
+          "therapy_psychology",
+          `Séance psychologie ${n} (PSY${n})`,
+          10_000,
+        ] as [string, number, PaymentCategory, string, number];
+      }),
+      ["COURS_SUP", numOrZero(record.coursSup), "tuition", "COURS SUP (cours de soutien)", 0],
+      ["LIVRES", numOrZero(record.livres), "books", "Livres scolaires", 0],
+      ["CLUB", numOrZero(record.club), "extracurricular", "Club (activité extrascolaire)", 0],
+      ["SORTIES", numOrZero(record.sorties), "extracurricular", "Sortie scolaire", 0],
     ];
 
     const results: Payment[] = [];

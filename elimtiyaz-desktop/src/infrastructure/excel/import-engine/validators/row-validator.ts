@@ -128,12 +128,13 @@ export class RowValidator {
 
     // 2. Check if key identifying fields for the schema are completely missing
     if (this.schema.name === "etat") {
-      const nomVal = this.lookupValue(rawRow, {
-        key: "nom",
-        header: "NOM",
-        type: "string",
-        required: true,
-      });
+      // T-414: resolve the schema's ACTUAL nom mapping (it may be
+      // positionally addressed — the 2027-2026 format's column F carries no
+      // NOM header); fall back to the classic header form.
+      const nomField =
+        this.schema.fields.find((f) => f.key === "nom") ??
+        ({ key: "nom", header: "NOM", type: "string", required: true } as FieldSpec);
+      const nomVal = this.lookupValue(rawRow, nomField);
       if (!nomVal || typeof nomVal !== "string" || nomVal.trim() === "") {
         return true; // No student name -> not a student row
       }
@@ -245,12 +246,35 @@ export class RowValidator {
     rawRow: Record<string, unknown>,
     field: FieldSpec,
   ): unknown {
+    // 0) T-414 (IMPORT-111): POSITIONAL addressing — the column letter
+    // takes PRECEDENCE over header matching (a column whose header cell is
+    // empty or shared with sibling columns can ONLY be addressed
+    // positionally). The parser emits synthetic `__col_<LETTER>` keys.
+    if (field.column) {
+      const byCol = rawRow[`__col_${field.column.toUpperCase()}`];
+      if (byCol !== undefined) return byCol;
+    }
+
     // 1) Direct exact match
     if (field.header && rawRow[field.header] !== undefined) {
       return rawRow[field.header];
     }
     if (rawRow[field.key] !== undefined) {
       return rawRow[field.key];
+    }
+
+    // 1b) T-414: config-driven header aliases — checked before the
+    // normalized-header pass and the static alias table so a mapping's own
+    // accepted spellings win.
+    if (field.aliases && field.aliases.length > 0) {
+      for (const alias of field.aliases) {
+        if (rawRow[alias] !== undefined) return rawRow[alias];
+        const aliasNorm = this.normalizeString(alias);
+        for (const [k, v] of Object.entries(rawRow)) {
+          if (k.startsWith("__")) continue;
+          if (this.normalizeString(k) === aliasNorm) return v;
+        }
+      }
     }
 
     // 2) Normalized match (case, whitespace, accents)

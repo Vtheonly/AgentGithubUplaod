@@ -62,6 +62,20 @@ export interface FieldSpec {
   /** Case transformation for `string` fields. */
   readonly uppercase?: boolean;
   readonly lowercase?: boolean;
+  /**
+   * T-414 (IMPORT-111): POSITIONAL addressing — the column LETTER ("F",
+   * "AN"). Resolves via the parser's synthetic `__col_<LETTER>` row keys.
+   * When set it takes PRECEDENCE over header matching: needed for columns
+   * whose header cell is EMPTY (the 2027-2026 format's student-name column
+   * F) or AMBIGUOUS (its three CREANCE SEPT columns share one header).
+   */
+  readonly column?: string;
+  /**
+   * T-414: config-driven header aliases — additional accepted spellings of
+   * this column's header (superseding the engine's static alias table for
+   * this field; the static table remains the fallback).
+   */
+  readonly aliases?: readonly string[];
 }
 
 /** Identity definition for upsert matching. */

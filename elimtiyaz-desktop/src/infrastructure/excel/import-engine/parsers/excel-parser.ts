@@ -57,10 +57,25 @@ export class ExcelParser {
   ): Promise<SheetInfo[]> {
     const wb = await this.open(input);
     return wb.worksheets.map((ws) => {
-      const headerRow = this.readHeaderRow(ws, 0);
-      const schema = this.detector.detect(ws.name, headerRow);
-      return { name: ws.name, rowCount: ws.rowCount, schema };
+      // T-414 (IMPORT-111): read the ACTUAL header row for detection — the
+      // previous `readHeaderRow(ws, 0)` returned synthetic column letters,
+      // which made tier-2/format detection impossible ("ETAT 20262027"
+      // exists in both supported workbook formats; only the header row
+      // distinguishes them).
+      const schema = this.detector.detect(ws.name);
+      const headerRowNumber = schema && schema.headerRow > 0 ? schema.headerRow : 1;
+      const headerRow = this.readHeaderRow(ws, headerRowNumber);
+      const detected = this.detector.detect(ws.name, headerRow);
+      return { name: ws.name, rowCount: ws.rowCount, schema: detected ?? schema };
     });
+  }
+
+  /**
+   * T-414: public header-row reader — the engine's processSheet needs the
+   * actual header cells for FORMAT disambiguation before parsing begins.
+   */
+  readSheetHeaderRow(ws: ExcelJS.Worksheet, rowNumber: number): string[] {
+    return this.readHeaderRow(ws, rowNumber);
   }
 
   private normalizeString(s: string): string {
@@ -180,13 +195,21 @@ export class ExcelParser {
 
       let isEmpty = true;
       const obj: Record<string, unknown> = {};
-      for (let c = 1; c <= headers.length; c++) {
-        const headerName = headers[c - 1];
-        if (!headerName) continue;
+      const colCount = Math.max(headers.length, ws.columnCount || 0);
+      for (let c = 1; c <= colCount; c++) {
         const cell = row.getCell(c);
         const v = this.normalizeCell(cell);
         if (v !== null && v !== "" && v !== undefined) isEmpty = false;
-        obj[headerName] = v;
+        // T-414 (IMPORT-111): POSITIONAL addressing — every column ALSO
+        // lands under its synthetic `__col_<LETTER>` key so field mappings
+        // can address columns whose header cell is EMPTY (the 2027-2026
+        // format's student-name column F) or AMBIGUOUS (three CREANCE SEPT
+        // columns share one header — only the positional keys keep them
+        // distinct). Header-keyed values are still emitted for every
+        // column that HAS a header.
+        obj[`__col_${this.colLetter(c)}`] = v;
+        const headerName = headers[c - 1];
+        if (headerName) obj[headerName] = v;
       }
 
       if (isEmpty) {

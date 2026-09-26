@@ -2982,6 +2982,19 @@ The task explicitly forbids arbitrary UI thresholds and parallel debt ledgers; s
 
 
 ---
+## 2026-09-26 — T-414 Task 2 (99th session): the generic config-driven Excel import system — the ImportConfigRegistry + the 2027-2026 format (IMPORT-111 RESOLVED/TESTED)
+
+### Implementation — the comparison FIRST, then the architecture
+
+- **The deep comparison (the mandate's order — before any design):** `docs/architecture/excel-format-comparison-2026-2027-vs-2027-2026.md`. Key findings: columns A–E/G–Y semantically identical; column F's NOM header VANISHED (positional addressing required); column S relabeled V2→V1 (the canonical key `v2` unchanged — a relabel, not a semantic change); the therapy grid expanded to PSY1–14; three CREANCE SEPT columns share ONE header (positional addressing required); COURS SUP/LIVRES/CLUB/SORTIES added; P and Q formulas byte-identical; L is the same logic with the year's price constants (the Task-1 per-year pricing concern, not a new formula); CREANCE SEPT is genuinely new and INFORMATIONAL; the statistiques sheet is a #REF!-broken dashboard (excluded).
+- **ADR-026:** configurations are versioned DATA documents; the engine stays format-agnostic; one canonical record contract; financial data through the EXISTING ledger; extension points as interfaces only (profile matching NOT implemented).
+- **The registry** (`src/infrastructure/excel/import-config/`): ImportConfigDocument + ImportConfigRegistry (register/load/identify/select/validate/version/resolve/manage — the mandate's complete capability list) + the two built-in format documents + the extension-point seams.
+- **Engine integration (additive):** FieldSpec `column`/`aliases`; `__col_<LETTER>` synthetic row keys; column-first lookup; header-row-aware format detection in processSheet/listSheets; the four legacy schemas DERIVED from the config (one source of truth; the named exports preserved).
+- **Storage adapter:** PSY3–14/COURS SUP/LIVRES/CLUB/SORTIES through the SAME payment+ledger streams; informational columns never ledgered.
+- **Tests:** +14 new (7 registry incl. validation/detection/versioning/no-op-matcher; 7 E2E incl. the CANONICAL EQUIVALENCE proof: the same student expressed in both layouts imports to identical canonical records + identical ledger totals — different spreadsheet formats, ONE financial system). The legacy real-excel-import suite re-ran 9/9 through the registry-backed engine.
+- **Gates:** tsc 0 · eslint 0 errors on changed files · FULL vitest **3973 passed / 25 failed / 24 skipped** (failing set byte-identical to the pre-change baseline; +23 passed vs the Task-1 close: 14 new + 9 legacy tests un-skipped by the Excel/ path candidate).
+- **Registry:** IMPORT-111 → RESOLVED/TESTED with evidence; T-414 → IMPLEMENTED / TESTED (both tasks).
+
 ## 2026-09-26 — T-414 Task 1 (99th session): the per-academic-year Price Configuration — migration 0117 live + repository/UI shipped (PRICING-500 RESOLVED/TESTED)
 
 ### Implementation — Phase 0 + Task 1
