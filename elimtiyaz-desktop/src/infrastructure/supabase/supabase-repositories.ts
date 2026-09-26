@@ -86,6 +86,7 @@ import {
   SupabaseDepartmentRepository,
   RoleLookup,
 } from "./repositories/supabase-personnel-repository";
+import { SupabaseBackupRepository } from "./repositories/supabase-backup-repository";
 
 /**
  * Build a Repositories object backed by Supabase for auth + approval workflow,
@@ -169,6 +170,17 @@ export function getSupabaseRepositories(): Repositories {
   const roleLookup = new RoleLookup(client);
   const personnel = new SupabasePersonnelRepository(client, roleLookup);
   const departments = new SupabaseDepartmentRepository(client);
+
+  // T-415 (BKUP-501): wire the backup repository — the local vault keeps
+  // the ciphertext (plan §13.03: backups NEVER live in Supabase), while
+  // runBackup/restore/delete/purge mirror metadata rows into the
+  // `backup_archives` table (migration 0013's designed-but-never-wired
+  // server pipeline): backup discovery, indexing, timestamps, versions and
+  // recovery information now exist server-side, and observe() reads the
+  // real table so the 3 fake demo seed archives disappear from the
+  // Supabase-mode Settings list. The mirror is best-effort — a Supabase
+  // outage never blocks a local backup.
+  const backups = new SupabaseBackupRepository(client);
 
   // T-080 (2026-08-30, ARCH-006 fix): wire the Supabase-backed overdue
   // alert generator. BEFORE this, the `overdueAlerts` slot stayed on
@@ -366,6 +378,7 @@ export function getSupabaseRepositories(): Repositories {
     deliveries, // T-239 — deliveries (T-047 port #8)
     inventory, // T-240 — inventory_items + transactions (T-047 port #9)
     pricing, // T-307 — the canonical 0006 pricing tables (T-047 port #10)
+    backups, // T-415 (BKUP-501) — vault-local ciphertext + server metadata mirror
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
@@ -391,6 +404,7 @@ export interface RepositoriesWithApprovals extends Repositories {
 
 export {
   SupabaseAuthRepository,
+  SupabaseBackupRepository, // T-415 — BKUP-501's metadata mirror
   SupabaseChatRepository,
   SupabaseApprovalRepository,
   SupabaseParentRepository,
