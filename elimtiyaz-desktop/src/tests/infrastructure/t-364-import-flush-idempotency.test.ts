@@ -261,14 +261,21 @@ describe("T-364 / IMPORT-108 — MockPaymentRepository.bulkCollect import contra
 
 // ── IMPORT-109: exact student identity matching ─────────────────────────────
 
-describe("T-364 / IMPORT-109 — findExistingStudent exact identity (LINA vs MILINA)", () => {
+describe("T-364 / IMPORT-109 — exact student identity through the batch seam (LINA vs MILINA)", () => {
   it("a re-import matches each sibling EXACTLY (no cross-wiring, no duplicate)", async () => {
     // The workbook rows: 229 "BELGRIMAT LINA" (CM2) / 230 "BELGRIMAT MILINA"
     // (CE1) — the SAME parent (phone 0661607648). The substring search for
     // "LINA BELGRIMAT" returns BOTH students; the old first-match picked
     // MILINA (store order) and renamed her to LINA.
+    //
+    // T-417 (2026-09-27): the private findExistingStudent seam this test
+    // probed was absorbed into the batch machinery (findStudentInFamily).
+    // The same IMPORT-109 invariant is now pinned through the PUBLIC
+    // upsertRecordsBatch seam: each row's UPDATE must target the sibling
+    // with the EXACT identity (stu-228 for LINA, stu-229 for MILINA), no
+    // createStudent call, no duplicate row.
     const students = new StudentSearchStub();
-    const parents = new ParentPhoneStub();
+    const parents = new ExistingParentStub();
     const lina: Student = {
       ...BASE_STUDENT,
       id: "stu-228",
@@ -288,29 +295,48 @@ describe("T-364 / IMPORT-109 — findExistingStudent exact identity (LINA vs MIL
     // Mock store order: unshift → the NEWEST (MILINA) comes FIRST in the
     // search results — the exact order that triggered the cross-wiring.
     students.rows.push(milina, lina);
+    // Record every student write so the MATCH TARGET is assertable.
+    const createdIds: string[] = [];
+    const updatedIds: string[] = [];
+    const originalCreate = students.createStudent.bind(students);
+    students.createStudent = async (
+      parentId: string,
+      input: CreateStudentInput,
+    ): Promise<Result<Student>> => {
+      const r = await originalCreate(parentId, input);
+      if (r.ok) createdIds.push(r.value.id);
+      return r;
+    };
+    const originalUpdate = students.updateStudent.bind(students);
+    students.updateStudent = async (
+      id: string,
+      updates: UpdateStudentInput,
+    ): Promise<Result<Student>> => {
+      updatedIds.push(id);
+      return originalUpdate(id, updates);
+    };
 
     const adapter = new RepositoryStorageAdapter({
       parents,
       students,
-      tenantId: "00000000-0000-0000-0000-000000000001",
+      tenantId: "00000000-0000-0000-000000000001",
     });
-    // Row 229 (LINA) — must match stu-228, NOT stu-229.
-    const matchLina = await (adapter as unknown as {
-      findExistingStudent(p: Parent, i: CreateStudentInput): Promise<Student | null>;
-    }).findExistingStudent(
-      { id: "par-155" } as Parent,
-      { firstName: "LINA", lastName: "BELGRIMAT", displayName: "BELGRIMAT LINA" } as CreateStudentInput,
+    const etatSchema = { name: "etat" } as unknown as Parameters<typeof adapter.upsertRecordsBatch>[0];
+    const results = await adapter.upsertRecordsBatch(
+      etatSchema,
+      [
+        { record: { nem: "0661607648", nom: "BELGRIMAT LINA" }, rowIndex: 229 },
+        { record: { nem: "0661607648", nom: "BELGRIMAT MILINA" }, rowIndex: 230 },
+      ],
+      ["NEM", "NOM"],
+      "run-import-109",
     );
-    expect(matchLina?.id).toBe("stu-228");
-    // Row 230 (MILINA) — must match stu-229.
-    const matchMilina = await (adapter as unknown as {
-      findExistingStudent(p: Parent, i: CreateStudentInput): Promise<Student | null>;
-    }).findExistingStudent(
-      { id: "par-155" } as Parent,
-      { firstName: "MILINA", lastName: "BELGRIMAT", displayName: "BELGRIMAT MILINA" } as CreateStudentInput,
-    );
-    expect(matchMilina?.id).toBe("stu-229");
-    // Neither search path created a duplicate.
+    // Both rows resolve to the EXISTING siblings — update, never insert.
+    expect(results.map((r) => r.action)).toEqual(["update", "update"]);
+    // Row 229 (LINA) targeted stu-228; row 230 (MILINA) targeted stu-229.
+    expect(updatedIds).toEqual(["stu-228", "stu-229"]);
+    // No createStudent call — no duplicate, no cross-wiring rename.
+    expect(createdIds).toEqual([]);
     expect(students.rows).toHaveLength(2);
   });
 });
@@ -356,8 +382,12 @@ class StudentSearchStub implements StudentRepository {
       `${s.firstName} ${s.lastName} ${s.displayName ?? ""} ${s.code}`.toLowerCase().includes(q)
     ));
   }
-  async createStudent(): Promise<Result<Student>> { return Err(Errors.server("stub")); }
-  async updateStudent(): Promise<Result<Student>> { return Err(Errors.server("stub")); }
+  async createStudent(_parentId: string, _input: CreateStudentInput): Promise<Result<Student>> {
+    return Err(Errors.server("stub"));
+  }
+  async updateStudent(_id: string, _updates: UpdateStudentInput): Promise<Result<Student>> {
+    return Err(Errors.server("stub"));
+  }
   async deleteStudent(): Promise<Result<void>> { return Err(Errors.server("stub")); }
   async batchRegister(): Promise<Result<BatchRegistrationResult>> { return Err(Errors.server("stub")); }
   async promote(): Promise<Result<Student[]>> { return Err(Errors.server("stub")); }
@@ -384,6 +414,41 @@ class ParentPhoneStub implements ParentRepository {
 
 class NoopParentRepo extends ParentPhoneStub {}
 class NoopStudentRepo extends StudentSearchStub {}
+
+/**
+ * T-417: a parent stub carrying ONE pre-existing parent — the batch's
+ * snapshot search("") must find it so the BELGRIMAT rows resolve to the
+ * EXISTING family (the re-import scenario IMPORT-109 pins).
+ */
+class ExistingParentStub extends ParentPhoneStub {
+  constructor() {
+    super();
+    this.parent = {
+      id: "par-155",
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      code: "PAR-2026-0155",
+      firstName: "",
+      lastName: "BELGRIMAT",
+      displayName: "Famille BELGRIMAT — 0661607648",
+      gender: "unspecified",
+      phone: "0661607648",
+      whatsapp: null,
+      email: null,
+      occupation: null,
+      address: null,
+      cityTier: null,
+      transportDestination: null,
+      preferredLanguage: "fr",
+      avatarUrl: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  readonly parent: Parent;
+  override async search(): Promise<Result<Parent[]>> {
+    return Ok([this.parent]);
+  }
+}
 
 class FlushLedgerStub implements LedgerRepository {
   readonly rows: LedgerEntry[];

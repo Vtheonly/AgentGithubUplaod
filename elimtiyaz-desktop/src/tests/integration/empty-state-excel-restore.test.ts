@@ -62,6 +62,12 @@ const REPO_ROOT = path.resolve(__dirname, "../../..");
 const XLSX_CANDIDATES = [
   path.join(REPO_ROOT, "Suivis clients  2026_2027.xlsx"), // double space — real file
   path.join(REPO_ROOT, "..", "Suivis clients  2026_2027.xlsx"),
+  // T-417 (2026-09-27): the repo keeps the workbook under Excel/ — the
+  // same candidates the real-excel-import suite uses. Without them these
+  // suites silently SKIP on a fresh clone (their 13 pinned-census tests
+  // contributed nothing to the suite's green state).
+  path.join(REPO_ROOT, "Excel", "Suivis clients  2026_2027.xlsx"),
+  path.join(REPO_ROOT, "..", "Excel", "Suivis clients  2026_2027.xlsx"),
 ];
 const XLSX_PATH = XLSX_CANDIDATES.find((p) => fs.existsSync(p));
 const describeOrSkip = XLSX_PATH ? describe : describe.skip;
@@ -459,9 +465,23 @@ describeOrSkip("IMPORT-106 Layer A — empty-state restore through the import pi
     const skippedIsEtat = false; // the sheet stats prove the split:
     void skippedIsEtat;
     const totalSkipped = importStatsA.rowsSkipped;
-    // Devis 187 + BON 14 = 201 skipped layout rows (2026-09-14 census).
-    expect(totalSkipped).toBe(201);
-    // And every ETAT row was imported (390 imported of 619 total rows read,
+    // Devis 188 + BON 14 = 202 skipped layout rows.
+    //
+    // T-417 (2026-09-27): this anchor was re-pinned 201 → 202 after a
+    // drift investigation. The suite had been SILENTLY SKIPPING on fresh
+    // clones (its workbook candidates missed the Excel/ location), so the
+    // 2026-09-14 anchor (Devis 187) was never re-checked after the T-414
+    // sheet-detection rework; un-skipping the suite (the Excel/ candidates
+    // above) tripped the anchor loudly. Evidence that the drift is
+    // classification-only and PRE-EXISTING at HEAD (not caused by the
+    // T-417 batch importer): stash-verified — the ORIGINAL sequential
+    // importer at HEAD produces the IDENTICAL stats (620 read / 418
+    // imported / 202 skipped / 0 rejected), and every IMPORTED census
+    // anchor is unchanged (390 students / 253 parents / 1283 ledger /
+    // 891 payments / 1968 installments / Σ totals). One additional Devis
+    // print-layout row (187 → 188) is now iterated and identity-skipped.
+    expect(totalSkipped).toBe(202);
+    // And every ETAT row was imported (390 imported of 620 total rows read,
     // 418 = 390 ETAT + 2 BON + 26 REF tracked rows).
     expect(importStatsA.rowsImported).toBe(418);
   }, TEST_TIMEOUT_MS);

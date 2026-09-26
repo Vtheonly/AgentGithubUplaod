@@ -14,6 +14,7 @@ import { JsonReporter } from "./reporters/json-reporter";
 import { ExcelReporter } from "./reporters/excel-reporter";
 import { StorageAdapter } from "./storage/storage-adapter";
 import { InMemoryAdapter } from "./storage/in-memory-adapter";
+import type { BatchUpsertRow } from "./storage/storage-adapter";
 import { defaultLogger } from "./utils/logger";
 import { ConfigurationError, ImportEngineError } from "./errors";
 import { findSchemaByName } from "./schemas";
@@ -388,6 +389,16 @@ export class ImportEngine {
       rowsRejected: 0,
     };
 
+    // PERF-503 (T-417): validated rows destined for the storage layer are
+    // BUFFERED here and written in ONE `upsertRecordsBatch` call after the
+    // sheet has been fully read. The parse/validate phase (CPU-bound, fast)
+    // stays row-by-row — warnings, rejects, ref-record inserts and identity
+    // skips are emitted during iteration exactly as before; only the
+    // storage writes (the network-bound legs) move to the batch seam.
+    // Storages that do not override the batch method get the default
+    // sequential loop inside it — byte-identical legacy behavior.
+    const batchRows: BatchUpsertRow[] = [];
+
     await this.parser.iterateRows(ws, schema, {
       onRow: async (rawRow, rowIndex) => {
         sheetResult.rowsRead += 1;
@@ -465,23 +476,7 @@ export class ImportEngine {
           return;
         }
 
-        if (!options.dryRun) {
-          const result = await this.storage.upsertRecord(
-            schema,
-            record,
-            matcher.identityFields,
-            ctx.runId,
-          );
-          if (result.action === "insert") sheetResult.rowsImported += 1;
-          else if (result.action === "update") sheetResult.rowsUpdated += 1;
-          else if (result.action === "skip") sheetResult.rowsSkipped += 1;
-          this.emit("sheet:row", {
-            sheet: sheetName,
-            row: record,
-            rowIndex,
-            action: result.action,
-          });
-        } else {
+        if (options.dryRun) {
           sheetResult.rowsImported += 1;
           this.emit("sheet:row", {
             sheet: sheetName,
@@ -489,12 +484,56 @@ export class ImportEngine {
             rowIndex,
             action: "dry-run",
           });
+          return;
         }
+
+        // Non-dry-run — deferred: written once, in bulk, after the sheet
+        // is fully read (see the batch call below).
+        batchRows.push({ record, rowIndex });
       },
       onProgress: (read, total) => {
         this.emit("sheet:progress", { sheet: sheetName, read, total });
       },
     });
+
+    // PERF-503 (T-417): the single batch write for this sheet. The adapter
+    // resolves identities against ONE in-memory snapshot (instead of
+    // ~1,000 per-row `search()` round trips) and executes the canonical
+    // per-family upsert RPCs with bounded concurrency (instead of one
+    // sequential await per row). Per-row results come back in row order,
+    // so counters and events stay exactly as the sequential path produced
+    // them.
+    if (batchRows.length > 0) {
+      const batchResults = await this.storage.upsertRecordsBatch(
+        schema,
+        batchRows,
+        matcher.identityFields,
+        ctx.runId,
+        (written, total) => {
+          // Write-phase progress — same event channel the parse phase
+          // already uses, so a UI listening to `sheet:progress` sees the
+          // storage phase too (issue #19: "Progress tracking and UI
+          // responsiveness").
+          this.emit("sheet:progress", {
+            sheet: sheetName,
+            read: written,
+            total,
+          });
+        },
+      );
+      for (let i = 0; i < batchRows.length; i++) {
+        const result = batchResults[i] ?? { action: "skip" as const };
+        if (result.action === "insert") sheetResult.rowsImported += 1;
+        else if (result.action === "update") sheetResult.rowsUpdated += 1;
+        else if (result.action === "skip") sheetResult.rowsSkipped += 1;
+        this.emit("sheet:row", {
+          sheet: sheetName,
+          row: batchRows[i].record,
+          rowIndex: batchRows[i].rowIndex,
+          action: result.action,
+        });
+      }
+    }
 
     ctx.addSheetResult(sheetResult);
     this.emit("sheet:done", { sheet: sheetName, result: sheetResult });

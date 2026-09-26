@@ -42,8 +42,14 @@ import { SubjectBehavior } from "../../infrastructure/mock/subject-behavior";
 
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const XLSX_CANDIDATES = [
-  path.join(REPO_ROOT, "Suivis clients  2026_2027.xlsx"),
+  path.join(REPO_ROOT, "Suivis clients  2026_2027.xlsx"), // double space — real file
   path.join(REPO_ROOT, "..", "Suivis clients  2026_2027.xlsx"),
+  // T-417 (2026-09-27): the repo keeps the workbook under Excel/ — the
+  // same candidates the real-excel-import suite uses. Without them these
+  // suites silently SKIP on a fresh clone (their 13 pinned-census tests
+  // contributed nothing to the suite's green state).
+  path.join(REPO_ROOT, "Excel", "Suivis clients  2026_2027.xlsx"),
+  path.join(REPO_ROOT, "..", "Excel", "Suivis clients  2026_2027.xlsx"),
 ];
 const XLSX_PATH = XLSX_CANDIDATES.find((p) => fs.existsSync(p));
 const describeOrSkip = XLSX_PATH ? describe : describe.skip;

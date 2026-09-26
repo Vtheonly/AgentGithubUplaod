@@ -376,6 +376,70 @@ export class MockInstallmentRepository implements InstallmentRepository {
     });
     return Ok(installment);
   }
+
+  /**
+   * PERF-503 (T-417) — the MOCK parity gap the Excel importer's flush was
+   * silently falling through: `MockInstallmentRepository` had NO
+   * `bulkImportInstallments`, so `RepositoryStorageAdapter`'s
+   * `typeof === "function"` guard routed every imported installment
+   * through the per-row `importInstallment` fallback — 1,962 rows ×
+   * 120 ms of simulated latency = ~4 minutes of pure sleep per import
+   * in mock mode (the exact IMPORT-108 defect class, previously fixed
+   * for payments' `bulkCollect` but never applied here).
+   *
+   * Contract — mirrors `SupabaseInstallmentRepository.bulkImportInstallments`
+   * and the per-row `importInstallment` identity semantics EXACTLY:
+   *   - identity: the deterministic `imp-<parent>-<student>-<category>-
+   *     <tranche>` id (re-imports UPDATE in place, never duplicate);
+   *   - ONE simulated round trip for the whole batch (not one per row);
+   *   - ONE audit entry for the batch (the `payment.bulk_import` pattern —
+   *     the per-row audit flood served no consumer).
+   */
+  async bulkImportInstallments(
+    inputs: readonly ImportInstallmentInput[],
+  ): Promise<Result<readonly Installment[]>> {
+    if (inputs.length === 0) return Ok([]);
+    await delay(120);
+    const upserted: Installment[] = [];
+    for (const input of inputs) {
+      const id = `imp-${input.parentId}-${input.studentId}-${input.category}-${input.trancheNumber}`;
+      const existingIdx = store.installments.findIndex((i) => i.id === id);
+      const installment: Installment = {
+        id,
+        parentId: input.parentId,
+        studentId: input.studentId,
+        category: input.category,
+        label: input.label,
+        amountDue: input.amountDue,
+        amountPaid: input.amountPaid,
+        amountPending: 0,
+        dueDate: input.dueDate,
+        paidDate: input.paidDate,
+        status: input.status,
+        academicCycle: input.academicCycle,
+        paymentPlan: input.paymentPlan ?? "tranches",
+        isCustomSchedule: false,
+        customScheduleNote: null,
+      };
+      if (existingIdx >= 0) {
+        store.installments[existingIdx] = installment;
+      } else {
+        store.installments.push(installment);
+      }
+      upserted.push(installment);
+    }
+    store.notifyInstallments();
+    appendAudit({
+      action: "installment.import_from_bulk",
+      entityType: "installment",
+      entityId: "batch",
+      actorId: inputs[0]?.actorId ?? "excel-import",
+      actorName: inputs[0]?.actorName ?? "Excel Import",
+      diff: { before: null, after: { count: upserted.length } },
+      note: `Import Excel — ${upserted.length} tranche(s) en lot`,
+    });
+    return Ok(upserted);
+  }
 }
 
 // ============================================================================

@@ -15,6 +15,34 @@
 import type { ImportSchema, ImportRecord, UpsertResult, ImportIssue, SheetResult, RunStats } from "../types";
 import type { ImportContext } from "../import-context";
 
+/**
+ * PERF-503 (T-417): one row of a batch upsert request.
+ *
+ * `rowIndex` is the 1-based worksheet row — the same value the per-row
+ * path derived from `record.__rowIndex`; carrying it explicitly lets the
+ * batch implementation report per-row errors with the exact row number
+ * without reading it back off the raw record.
+ */
+export interface BatchUpsertRow {
+  readonly record: ImportRecord;
+  readonly rowIndex: number;
+}
+
+/**
+ * PERF-503 (T-417): write-phase progress reporter.
+ *
+ * `written` counts rows whose storage write completed; `total` is the
+ * batch size; `currentRow` is a human label (the student name) for the
+ * most recently completed row. The engine re-emits this as
+ * `sheet:progress` events so the write phase is visible in the UI the
+ * same way the parse phase already is.
+ */
+export type BatchProgressCallback = (
+  written: number,
+  total: number,
+  currentRow: string,
+) => void;
+
 export interface StorageRecord {
   readonly id: string;
   readonly schemaName: string;
@@ -71,6 +99,38 @@ export abstract class StorageAdapter {
     identityKeys: readonly string[],
     runId: string,
   ): Promise<UpsertResult>;
+
+  /**
+   * PERF-503 (T-417): upsert a WHOLE sheet's validated rows in one call.
+   *
+   * This is the batch seam the engine uses when a storage adapter can
+   * process rows more efficiently than one `upsertRecord` at a time
+   * (deduplicated lookups, bounded-concurrency writes). The DEFAULT
+   * implementation is the exact legacy behavior — a sequential per-row
+   * `upsertRecord` loop — so every existing adapter (InMemoryAdapter,
+   * tests) keeps its semantics untouched; only adapters that opt in
+   * (RepositoryStorageAdapter) get the fast path.
+   *
+   * Contract (identical outcomes to the per-row path, by row index):
+   *   - returns one UpsertResult per input row, IN INPUT ORDER;
+   *   - side effects (rows written, errors recorded, audit/compensation
+   *     logs) are exactly those the sequential loop would produce;
+   *   - a thrown error aborts the batch and the engine rolls the run back
+   *     (same as a per-row throw today).
+   */
+  async upsertRecordsBatch(
+    schema: ImportSchema,
+    rows: ReadonlyArray<BatchUpsertRow>,
+    identityKeys: readonly string[],
+    runId: string,
+    _onProgress?: BatchProgressCallback,
+  ): Promise<UpsertResult[]> {
+    const results: UpsertResult[] = [];
+    for (const { record } of rows) {
+      results.push(await this.upsertRecord(schema, record, identityKeys, runId));
+    }
+    return results;
+  }
 
   /** Insert a record into a reference table (no identity check). */
   abstract insertRecord(table: string, record: ImportRecord): Promise<UpsertResult>;

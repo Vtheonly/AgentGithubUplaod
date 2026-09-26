@@ -24,7 +24,7 @@
 import type { ImportSchema, ImportRecord, UpsertResult } from "../types";
 import type { ImportContext } from "../import-context";
 import { objectChecksum } from "../utils/checksum";
-import { StorageAdapter, type StorageRecord, type RunAuditEntry } from "./storage-adapter";
+import { StorageAdapter, type StorageRecord, type RunAuditEntry, type BatchUpsertRow, type BatchProgressCallback } from "./storage-adapter";
 import { uuid } from "../utils/id";
 import type { ParentRepository, StudentRepository, LedgerRepository, PaymentRepository, InstallmentRepository, ImportInstallmentInput } from "../../../../domain/repository/repository";
 import type { Parent, CreateParentInput, TransportDestination } from "../../../../domain/model/parent";
@@ -70,6 +70,20 @@ export interface RepositoryStorageAdapterDeps {
   readonly tenantId: string;
   readonly actorId?: string;
   readonly actorName?: string;
+  /**
+   * PERF-503 (T-417): maximum number of concurrently-running family write
+   * tasks during a batch import (default 8 — comfortably under typical
+   * browser/Electron per-host HTTP limits while HTTP/2 multiplexing makes
+   * Supabase unaffected). 1 = fully sequential (the legacy behavior —
+   * useful for deterministic debugging).
+   *
+   * Concurrency is scoped to INDEPENDENT families: all rows of one family
+   * (one parent + its students) are processed strictly in row order inside
+   * their own task, so intra-family semantics (parent create-once, sibling
+   * identity resolution, duplicate-row update chains) are byte-identical
+   * to the sequential importer.
+   */
+  readonly importConcurrency?: number;
 }
 
 /**
@@ -147,6 +161,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   private initialized = false;
   /** The runId of the import currently in progress — used to tag errors. */
   private currentRunId: string | null = null;
+  /** PERF-503 (T-417): bounded-concurrency limit for batch writes. */
+  private readonly importConcurrency: number;
 
   /**
    * BULK IMPORT SPEED FIX: Batch buffers for deferred bulk writes.
@@ -175,6 +191,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   constructor(deps: RepositoryStorageAdapterDeps) {
     super();
     this.deps = deps;
+    this.importConcurrency = Math.max(1, Math.floor(deps.importConcurrency ?? 8));
   }
 
   async init(): Promise<void> {
@@ -337,14 +354,492 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     identityKeys: readonly string[],
     runId: string,
   ): Promise<UpsertResult> {
-    // Track the current runId so ensureParent / ensureStudent can tag
-    // their errors with the right run for later display in the modal.
+    // PERF-503 (T-417): the single-row entry point delegates to the batch
+    // seam with one row — ONE row-processing implementation for both entry
+    // points (the §9 no-parallel-implementations rule). The rowIndex is
+    // recovered exactly the way the legacy per-row error paths did
+    // (record.__rowIndex, defaulting to 0).
+    const rowIndex =
+      typeof (record as { __rowIndex?: number }).__rowIndex === "number"
+        ? (record as { __rowIndex: number }).__rowIndex
+        : 0;
+    const results = await this.upsertRecordsBatch(
+      schema,
+      [{ record, rowIndex }],
+      identityKeys,
+      runId,
+    );
+    return results[0] ?? { action: "skip" };
+  }
+
+  /**
+   * PERF-503 (T-417) — the batch upsert.
+   *
+   * Non-ETAT schemas (BON, Devis, REF) keep the per-row tracked upsert
+   * (in-memory, instant — no optimization needed or possible).
+   *
+   * ETAT rows go through `upsertEtatBatch`, which replaces the legacy
+   * ~1,026 per-row `search()` round trips with TWO snapshot reads +
+   * in-memory identity resolution, and replaces the sequential per-row
+   * createParent/createStudent/updateStudent awaits with a bounded-
+   * concurrency pool over INDEPENDENT families. Within one family the
+   * per-row sequence is byte-identical to the legacy importer:
+   *
+   *   1. ensureParent — find (phone → email → placeholder multi-pronged
+   *      match, incl. the "Tuteur" legacy format) or create; on create
+   *      failure record the row error and SKIP the row (the NEXT row of
+   *      the same family retries the create with its own input — the
+   *      legacy retry semantics);
+   *   2. findExistingStudent — the IMPORT-109 EXACT match (parentId +
+   *      displayName, then parentId + exact first/last name), so a
+   *      re-import UPDATES instead of duplicating;
+   *   3. createStudent / updateStudent (with the legacy update-failure
+   *      fallback that still lands financial rows against the existing
+   *      student);
+   *   4. the deferred financial buffers (ledger / payments / installments
+   *      — flushed in `commitTransaction` by the bulk methods, unchanged).
+   *
+   * The returned results are in INPUT ROW ORDER regardless of completion
+   * order, so the engine's counters and per-row events are identical to
+   * the sequential path's.
+   */
+  async upsertRecordsBatch(
+    schema: ImportSchema,
+    rows: ReadonlyArray<BatchUpsertRow>,
+    identityKeys: readonly string[],
+    runId: string,
+    onProgress?: BatchProgressCallback,
+  ): Promise<UpsertResult[]> {
     this.currentRunId = runId;
-    if (schema.name === "etat") {
-      return this.upsertEtatRecord(record, runId);
+    if (schema.name !== "etat") {
+      const results: UpsertResult[] = [];
+      for (const { record } of rows) {
+        results.push(await this.upsertTrackedRecord(schema, record, identityKeys, runId));
+      }
+      return results;
     }
-    // Non-ETAT schemas fall back to in-memory tracking (BON, Devis, REF).
-    return this.upsertTrackedRecord(schema, record, identityKeys, runId);
+    return this.upsertEtatBatch(rows, runId, onProgress);
+  }
+
+  // ── PERF-503 (T-417): the ETAT batch machinery ────────────────────────
+
+  private async upsertEtatBatch(
+    rows: ReadonlyArray<BatchUpsertRow>,
+    runId: string,
+    onProgress?: BatchProgressCallback,
+  ): Promise<UpsertResult[]> {
+    // Phase 0 — ONE snapshot of each identity store (2 search calls total,
+    // replacing the legacy per-row storm: measured 636 parent searches +
+    // 390 student searches for the real 390-row workbook).
+    //
+    // search("") returns the FULL list in both repository layers (mock:
+    // the whole store; Supabase: the seeded in-memory cache), and every
+    // legacy find predicate was EXACT equality over that list — so an
+    // in-memory filter over the snapshot is result-identical to the
+    // per-row search+find. A failing snapshot read degrades to an empty
+    // list, which is the same fallback shape the legacy per-row search
+    // Err path produced (find fails → create path).
+    const [parentsSnapshot, studentsSnapshot] = await Promise.all([
+      this.snapshotParents(),
+      this.snapshotStudents(),
+    ]);
+
+    // Students grouped per parent (search("") order preserved — the order
+    // the per-row repository search would have returned them in).
+    const studentsByParent = new Map<string, Student[]>();
+    for (const s of studentsSnapshot) {
+      const list = studentsByParent.get(s.parentId) ?? [];
+      list.push(s);
+      studentsByParent.set(s.parentId, list);
+    }
+
+    // Phase 1 — sequential pre-resolution (in-memory, no awaits): group
+    // rows into families. This MUST be sequential because a family's
+    // existence depends on every earlier row's resolution (a later row
+    // with the same phone joins the family the earlier row created — the
+    // legacy sequential semantics, preserved without the round trips).
+    //
+    // Index ordering: entries are PREPENDED (newest first), mirroring how
+    // both repository layers surface created rows in search results —
+    // snapshot parents are seeded first, run intents are prepended as
+    // rows register them.
+    const parentIndex = new BatchParentIndex((parent) => {
+      // Lazy family construction for a pre-existing parent: resolved + its
+      // snapshot students (the exact candidates the legacy per-row
+      // findExistingStudent searched).
+      const existingFamily: EtatFamily = {
+        pendingInput: null,
+        resolvedParent: parent,
+        snapshotStudents: studentsByParent.get(parent.id) ?? [],
+        createdStudents: [],
+        rowTaskIndexes: [],
+      };
+      return existingFamily;
+    });
+    // Seed the index with EVERY pre-existing parent — the batch-time
+    // equivalent of the legacy per-row `findExistingParent` search space.
+    for (const parent of parentsSnapshot) {
+      parentIndex.addExisting(parent);
+    }
+
+    const families: EtatFamily[] = [];
+    const seen = new Set<EtatFamily>();
+    const track = (family: EtatFamily): EtatFamily => {
+      if (!seen.has(family)) {
+        seen.add(family);
+        families.push(family);
+      }
+      return family;
+    };
+    const rowTasks: EtatRowTask[] = rows.map(({ record, rowIndex }) => ({
+      record,
+      rowIndex,
+      studentInput: null as unknown as CreateStudentInput,
+      action: "skip" as "insert" | "update" | "skip",
+    }));
+
+    for (let i = 0; i < rowTasks.length; i++) {
+      const task = rowTasks[i];
+      const parentInput = this.buildParentInput(task.record);
+      task.studentInput = this.buildStudentInput(task.record);
+      // resolveFamilyFor lazily binds a snapshot family on first match —
+      // track() registers EVERY family that carries rows, whether it came
+      // from the snapshot (lazily created) or from a new create intent.
+      let family = parentIndex.resolveFamilyFor(parentInput);
+      if (!family) {
+        family = track({
+          pendingInput: parentInput,
+          resolvedParent: null,
+          snapshotStudents: [],
+          createdStudents: [],
+          rowTaskIndexes: [],
+        });
+        parentIndex.registerIntent(parentInput, family);
+      } else {
+        track(family);
+      }
+      family.rowTaskIndexes.push(i);
+    }
+
+    // Phase 2 — bounded-concurrency pool over INDEPENDENT families (only
+    // families that actually carry rows — snapshot-only parents are no-ops).
+    const runnable = families.filter((f) => f.rowTaskIndexes.length > 0);
+    const total = rowTasks.length;
+    let written = 0;
+    const reportProgress = (): void => {
+      const done = ++written;
+      if (onProgress) onProgress(done, total, "");
+    };
+
+    await runPool(runnable, this.importConcurrency, async (family) => {
+      await this.processEtatFamily(family, rowTasks, runId, reportProgress);
+    });
+
+    // Errors recorded by concurrent tasks interleave in completion order;
+    // sort by rowIndex so "Première erreur" in the modal names the
+    // LOWEST failing row — the same row the sequential path would have
+    // reported first.
+    this.sortRunErrorsByRowIndex(runId);
+    this.emitThrottledImportErrorLogs(runId);
+
+    return rowTasks.map((t) => ({ action: t.action }));
+  }
+
+  /**
+   * Process ONE family's rows in row order — the legacy per-row sequence
+   * (ensureParent → findExistingStudent → create/update → financial
+   * buffering → entity tracking), with the identity lookups served from
+   * the family's in-memory indexes instead of repository searches.
+   */
+  private async processEtatFamily(
+    family: EtatFamily,
+    rowTasks: readonly EtatRowTask[],
+    runId: string,
+    onRowDone: () => void,
+  ): Promise<void> {
+    for (const taskIndex of family.rowTaskIndexes) {
+      const task = rowTasks[taskIndex];
+      const { record } = task;
+
+      // ── ensureParent (legacy semantics, index-backed) ──────────────
+      let parent: Parent | null = family.resolvedParent;
+      if (!parent && !family.pendingInput) {
+        // A snapshot-matched family always has resolvedParent — unreachable
+        // guard kept for structural safety.
+        this.recordRowError(runId, task, "Parent resolution failed (no family parent)");
+        task.action = "skip";
+        onRowDone();
+        continue;
+      }
+      if (!parent) {
+        // First row of a new family (or a retry after an earlier create
+        // failure — the legacy per-row retry semantics): create with THIS
+        // row's own input.
+        const input = family.pendingInput ?? this.buildParentInput(record);
+        const result = await this.deps.parents.createParent(input);
+        if (!result.ok) {
+          // Same per-row error recording as the legacy ensureParent: the
+          // row is skipped, the NEXT row of this family retries.
+          const errMsg = formatErrorMessage(result.error);
+          this.recordRowError(
+            runId,
+            task,
+            errMsg,
+            input.displayName ?? input.phone ?? input.lastName ?? "(unknown)",
+          );
+          task.action = "skip";
+          onRowDone();
+          continue;
+        }
+        parent = result.value;
+        family.resolvedParent = parent;
+        family.pendingInput = null;
+        // VAULT §14.02 — record the created parent for compensating rollback.
+        this.createdParentIds.push(result.value.id);
+      }
+
+      // ── findExistingStudent (IMPORT-109 EXACT match, family-scoped) ─
+      const studentInput: CreateStudentInput = task.studentInput;
+      const existing = this.findStudentInFamily(family, parent, studentInput);
+
+      let action: "insert" | "update" | "skip";
+      let studentId: string | null = null;
+      let resolvedStudent: Student | null = null;
+      if (existing) {
+        // Actually call updateStudent() so changes to grade level,
+        // transport tier, class assignment, etc. propagate on re-import
+        // (preserved verbatim from the legacy path).
+        const updateResult = await this.deps.students.updateStudent(existing.id, {
+          firstName: studentInput.firstName,
+          lastName: studentInput.lastName,
+          displayName: studentInput.displayName,
+          level: studentInput.level,
+          gradeYear: studentInput.gradeYear,
+          gradeLevel: studentInput.gradeLevel,
+          classId: studentInput.classId,
+          medicalNotes: studentInput.medicalNotes,
+          transportTier: studentInput.transportTier,
+        });
+        if (updateResult.ok) {
+          action = "update";
+          studentId = updateResult.value.id;
+          resolvedStudent = updateResult.value;
+        } else {
+          // Update failed — fall back to the existing ID so financial
+          // entries still land against the right student (legacy behavior).
+          action = "update";
+          studentId = existing.id;
+          resolvedStudent = existing;
+        }
+      } else {
+        const result = await this.deps.students.createStudent(parent.id, studentInput);
+        if (!result.ok) {
+          // Surface the student creation error (legacy pattern).
+          const errMsg = formatErrorMessage(result.error);
+          const identity =
+            studentInput.displayName ?? `${studentInput.firstName} ${studentInput.lastName}`;
+          this.recordRowError(runId, task, `Student creation failed: ${errMsg}`, identity);
+          task.action = "skip";
+          onRowDone();
+          continue;
+        }
+        action = "insert";
+        studentId = result.value.id;
+        resolvedStudent = result.value;
+        family.createdStudents.unshift(result.value);
+        // VAULT §14.02 — record the created student for compensating rollback.
+        this.createdStudentIds.push(result.value.id);
+      }
+
+      // ── deferred financial buffers (BULK IMPORT SPEED FIX, unchanged) ─
+      let ledgerEntries: LedgerEntry[] = [];
+      if (this.deps.ledger && studentId) {
+        ledgerEntries = this.buildFinancialEntries(record, parent.id, studentId, runId);
+        this.pendingLedgerEntries.push(...ledgerEntries);
+      }
+      let paymentRows: Payment[] = [];
+      if (this.deps.payments && studentId) {
+        paymentRows = this.buildPaymentRows(record, parent.id, studentId, runId);
+        for (const p of paymentRows) {
+          this.pendingPayments.push({
+            input: {
+              parentId: p.parentId,
+              studentId: p.studentId,
+              amount: p.amount,
+              method: p.method,
+              category: p.category,
+              installmentId: p.installmentId,
+              notes: p.notes,
+              receiptNumber: p.receiptNumber,
+              collectedAt: p.collectedAt,
+            },
+            collectedBy: this.deps.actorId ?? "excel-import",
+          });
+        }
+      }
+      let installmentRows: Installment[] = [];
+      if (this.deps.installments && studentId) {
+        installmentRows = this.buildInstallmentRows(record, parent.id, studentId, resolvedStudent, runId);
+        for (const inst of installmentRows) {
+          // Tranche number is parsed from the deterministic id
+          // (`imp-…-<category>-T<n>`) — NOT from the label: the BON labels
+          // ("2EME TRANCHE (V2)"…) are uppercase and would never match the
+          // old `/Tranche (\d)/` regex, silently collapsing every tuition
+          // installment onto tranche 1 (the T-105 C3 regression).
+          const trancheNum = Number(/-T(\d)$/.exec(inst.id)?.[1] ?? "1") as 1 | 2 | 3 | 4;
+          this.pendingInstallments.push({
+            parentId: inst.parentId,
+            studentId: inst.studentId ?? studentId,
+            category: inst.category,
+            trancheNumber: trancheNum,
+            label: inst.label,
+            amountDue: inst.amountDue,
+            amountPaid: inst.amountPaid,
+            dueDate: inst.dueDate,
+            paidDate: inst.paidDate,
+            status: inst.status as "unpaid" | "partial" | "paid" | "overdue" | "pending_clearance",
+            academicCycle: inst.academicCycle,
+            paymentPlan: inst.paymentPlan,
+            sourceType: "bulk_import",
+            sourceId: `imp-${inst.studentId ?? studentId}-${inst.category}-T${trancheNum}`,
+            actorId: this.deps.actorId,
+            actorName: this.deps.actorName,
+          });
+        }
+      }
+
+      // Notify progress callbacks if registered (real counts — the legacy
+      // vestige passed (0, 0, name)).
+      if (this.progressCallback) {
+        this.progressCallback(0, 0, String(record.nom ?? ""));
+      }
+
+      // ── resolved-entities list for the sync queue (unchanged shape) ──
+      const entities: Array<{
+        kind: InsertedEntityKind;
+        entity: Parent | Student | LedgerEntry | Payment | Installment;
+      }> = [{ kind: "parent", entity: parent }];
+      if (resolvedStudent) {
+        entities.push({ kind: "student", entity: resolvedStudent });
+      }
+      for (const le of ledgerEntries) {
+        entities.push({ kind: "ledger_entry", entity: le });
+      }
+      for (const p of paymentRows) {
+        entities.push({ kind: "payment", entity: p });
+      }
+      for (const i of installmentRows) {
+        entities.push({ kind: "installment", entity: i });
+      }
+      this.trackInsertedRow("etat", record, ["NEM", "NOM"], runId, entities);
+      task.action = action;
+      onRowDone();
+    }
+  }
+
+  /**
+   * IMPORT-109 EXACT match, family-scoped: parentId + displayName first,
+   * then parentId + exact (firstName, lastName). The candidate list is
+   * [created-in-this-family (newest first), …snapshot students of the
+   * parent] — the same order the repository search would return (both
+   * layers PREPEND created rows).
+   */
+  private findStudentInFamily(
+    family: EtatFamily,
+    parent: Parent,
+    input: CreateStudentInput,
+  ): Student | null {
+    const candidates: Student[] = [...family.createdStudents, ...family.snapshotStudents];
+    const byDisplayName = candidates.find(
+      (s) =>
+        s.parentId === parent.id &&
+        input.displayName != null &&
+        s.displayName === input.displayName,
+    );
+    if (byDisplayName) return byDisplayName;
+    return (
+      candidates.find(
+        (s) =>
+          s.parentId === parent.id &&
+          s.firstName === input.firstName &&
+          s.lastName === input.lastName,
+      ) ?? null
+    );
+  }
+
+  /** One snapshot read of the parents store — Err degrades to []. */
+  private async snapshotParents(): Promise<Parent[]> {
+    try {
+      const result = await this.deps.parents.search("");
+      return result.ok ? result.value : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** One snapshot read of the students store — Err degrades to []. */
+  private async snapshotStudents(): Promise<Student[]> {
+    try {
+      const result = await this.deps.students.search("");
+      return result.ok ? result.value : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Record a per-row error (the legacy errorsByRun surface, unchanged
+   * shape — { rowIndex, identity, error }).
+   */
+  private recordRowError(
+    runId: string,
+    task: EtatRowTask,
+    error: string,
+    identity?: string,
+  ): void {
+    const list = this.errorsByRun.get(runId) ?? [];
+    list.push({ rowIndex: task.rowIndex, identity: identity ?? "(unknown)", error });
+    this.errorsByRun.set(runId, list);
+  }
+
+  /** Sort a run's collected errors by rowIndex (row-order reporting parity). */
+  private sortRunErrorsByRowIndex(runId: string): void {
+    const list = this.errorsByRun.get(runId);
+    if (list && list.length > 1) {
+      list.sort((a, b) => a.rowIndex - b.rowIndex);
+    }
+  }
+
+  /**
+   * The throttled console logging the legacy per-row path performed
+   * inline — only the FIRST parent-class and FIRST student-class failure
+   * of the run log the full error (flooding the console with 390 identical
+   * errors makes DevTools unusable). Because concurrent tasks complete
+   * out of order, the throttle is applied AFTER the row-order sort, so
+   * "first" means the lowest failing row — the same row the sequential
+   * path logged.
+   */
+  private emitThrottledImportErrorLogs(runId: string): void {
+    const list = this.errorsByRun.get(runId) ?? [];
+    const firstParent = list.find((e) => !e.error.startsWith("Student creation failed"));
+    if (firstParent) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[ExcelImport] Parent creation FAILED for row ${firstParent.rowIndex} (${firstParent.identity}): ${firstParent.error}`,
+      );
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[ExcelImport] Further parent creation failures in this run will be ` +
+          `collected silently and shown in the modal. Run ID: ${runId}`,
+      );
+    }
+    const firstStudent = list.find((e) => e.error.startsWith("Student creation failed"));
+    if (firstStudent) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[ExcelImport] Student creation FAILED for row ${firstStudent.rowIndex} (${firstStudent.identity}): ${firstStudent.error}`,
+      );
+    }
   }
 
   async insertRecord(table: string, record: ImportRecord): Promise<UpsertResult> {
@@ -418,172 +913,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     }));
   }
 
-  // ── ETAT upsert ────────────────────────────────────────────────────────
-
-  private async upsertEtatRecord(
-    record: ImportRecord,
-    runId: string,
-  ): Promise<UpsertResult> {
-    const parent = await this.ensureParent(record);
-    if (!parent) {
-      return { action: "skip" };
-    }
-    const studentInput = this.buildStudentInput(record);
-    const existing = await this.findExistingStudent(parent, studentInput);
-    let action: "insert" | "update" | "skip";
-    let studentId: string | null = null;
-    let resolvedStudent: Student | null = null;
-    if (existing) {
-      // Actually call updateStudent() so changes to grade level, transport
-      // tier, class assignment, etc. propagate on re-import. The previous
-      // implementation set `action = "update"` but never called the update
-      // method — leaving the existing record unchanged.
-      const updateResult = await this.deps.students.updateStudent(existing.id, {
-        firstName: studentInput.firstName,
-        lastName: studentInput.lastName,
-        displayName: studentInput.displayName,
-        level: studentInput.level,
-        gradeYear: studentInput.gradeYear,
-        gradeLevel: studentInput.gradeLevel,
-        classId: studentInput.classId,
-        medicalNotes: studentInput.medicalNotes,
-        transportTier: studentInput.transportTier,
-      });
-      if (updateResult.ok) {
-        action = "update";
-        studentId = updateResult.value.id;
-        resolvedStudent = updateResult.value;
-      } else {
-        // Update failed — fall back to the existing ID so financial entries
-        // still land against the right student.
-        action = "update";
-        studentId = existing.id;
-        resolvedStudent = existing;
-      }
-    } else {
-      const result = await this.deps.students.createStudent(parent.id, studentInput);
-      if (!result.ok) {
-        // Surface the student creation error (same pattern as ensureParent).
-        const errMsg = formatErrorMessage(result.error);
-        const rowIndex = typeof (record as { __rowIndex?: number }).__rowIndex === "number"
-          ? (record as { __rowIndex: number }).__rowIndex
-          : 0;
-        const identity = studentInput.displayName ?? `${studentInput.firstName} ${studentInput.lastName}`;
-        const list = this.errorsByRun.get(runId) ?? [];
-        list.push({ rowIndex, identity, error: `Student creation failed: ${errMsg}` });
-        this.errorsByRun.set(runId, list);
-        // Throttle console output: only log the first student creation
-        // failure per run (same rationale as ensureParent).
-        if (list.filter((e) => e.error.startsWith("Student creation failed")).length === 1) {
-          // eslint-disable-next-line no-console
-          console.error(
-            `[ExcelImport] Student creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
-            result.error,
-          );
-        }
-        return { action: "skip" };
-      }
-      action = "insert";
-      studentId = result.value.id;
-      resolvedStudent = result.value;
-      // VAULT §14.02 — record the created student for compensating rollback.
-      this.createdStudentIds.push(result.value.id);
-    }
-    // BULK IMPORT SPEED FIX: Build the ledger entries / payments / installments
-    // and add them to the pending batch buffers. The actual Supabase writes
-    // happen ONCE at the end of the import (in `commitTransaction`) via the
-    // bulk methods (`bulkAppend`, `bulkCollect`, `bulkImportInstallments`).
-    // This turns ~18,000 individual RPC calls into ~3 bulk INSERT calls.
-    let ledgerEntries: LedgerEntry[] = [];
-    if (this.deps.ledger && studentId) {
-      ledgerEntries = this.buildFinancialEntries(record, parent.id, studentId, runId);
-      this.pendingLedgerEntries.push(...ledgerEntries);
-    }
-    // Build payment rows (deferred — flushed in commitTransaction).
-    let paymentRows: Payment[] = [];
-    if (this.deps.payments && studentId) {
-      paymentRows = this.buildPaymentRows(record, parent.id, studentId, runId);
-      // Add to pending batch — the actual collect() calls happen in
-      // commitTransaction via bulkCollect.
-      for (const p of paymentRows) {
-        this.pendingPayments.push({
-          input: {
-            parentId: p.parentId,
-            studentId: p.studentId,
-            amount: p.amount,
-            method: p.method,
-            category: p.category,
-            installmentId: p.installmentId,
-            notes: p.notes,
-            receiptNumber: p.receiptNumber,
-            collectedAt: p.collectedAt,
-          },
-          collectedBy: this.deps.actorId ?? "excel-import",
-        });
-      }
-    }
-    // Build installment rows (deferred — flushed in commitTransaction).
-    let installmentRows: Installment[] = [];
-    if (this.deps.installments && studentId) {
-      installmentRows = this.buildInstallmentRows(record, parent.id, studentId, resolvedStudent, runId);
-      // Add to pending batch — the actual importInstallment() calls happen
-      // in commitTransaction via bulkImportInstallments.
-      for (const inst of installmentRows) {
-        // Tranche number is parsed from the deterministic id
-        // (`imp-…-<category>-T<n>`) — NOT from the label: the BON labels
-        // ("2EME TRANCHE (V2)"…) are uppercase and would never match the
-        // old `/Tranche (\d)/` regex, silently collapsing every tuition
-        // installment onto tranche 1 (the T-105 C3 regression).
-        const trancheNum = Number(/-T(\d)$/.exec(inst.id)?.[1] ?? "1") as 1 | 2 | 3 | 4;
-        this.pendingInstallments.push({
-          parentId: inst.parentId,
-          studentId: inst.studentId ?? studentId,
-          category: inst.category,
-          trancheNumber: trancheNum,
-          label: inst.label,
-          amountDue: inst.amountDue,
-          amountPaid: inst.amountPaid,
-          dueDate: inst.dueDate,
-          paidDate: inst.paidDate,
-          status: inst.status as "unpaid" | "partial" | "paid" | "overdue" | "pending_clearance",
-          academicCycle: inst.academicCycle,
-          paymentPlan: inst.paymentPlan,
-          sourceType: "bulk_import",
-          sourceId: `imp-${inst.studentId ?? studentId}-${inst.category}-T${trancheNum}`,
-          actorId: this.deps.actorId,
-          actorName: this.deps.actorName,
-        });
-      }
-    }
-    // Notify progress callback if registered.
-    if (this.progressCallback) {
-      this.progressCallback(0, 0, String(record.nom ?? ""));
-    }
-    // Build the resolved-entities list for the sync queue. The sync queue's
-    // defaultPushHandler reads firstName/lastName/displayName/parentId/amount
-    // directly off payload — those fields live on the domain entities, NOT
-    // on the raw ImportRecord. Without this list, every queue push sends
-    // undefined fields to the upsert RPCs and Supabase never receives the
-    // imported data.
-    const entities: Array<{ kind: InsertedEntityKind; entity: Parent | Student | LedgerEntry | Payment | Installment }> = [
-      { kind: "parent", entity: parent },
-    ];
-    if (resolvedStudent) {
-      entities.push({ kind: "student", entity: resolvedStudent });
-    }
-    for (const le of ledgerEntries) {
-      entities.push({ kind: "ledger_entry", entity: le });
-    }
-    for (const p of paymentRows) {
-      entities.push({ kind: "payment", entity: p });
-    }
-    for (const i of installmentRows) {
-      entities.push({ kind: "installment", entity: i });
-    }
-    this.trackInsertedRow("etat", record, ["NEM", "NOM"], runId, entities);
-    return { action };
-  }
-
   /**
    * Track per-row errors so the modal can show WHY rows were skipped
    * instead of the previous opaque "X ignoré(s)" message. The key is
@@ -596,44 +925,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     return this.errorsByRun.get(runId) ?? [];
   }
 
-  private async ensureParent(record: ImportRecord): Promise<Parent | null> {
-    const input = this.buildParentInput(record);
-    const existing = await this.findExistingParent(input);
-    if (existing) return existing;
-    const result = await this.deps.parents.createParent(input);
-    if (!result.ok) {
-      const errMsg = formatErrorMessage(result.error);
-      const rowIndex = typeof (record as { __rowIndex?: number }).__rowIndex === "number"
-        ? (record as { __rowIndex: number }).__rowIndex
-        : 0;
-      const identity = input.displayName ?? input.phone ?? input.lastName ?? "(unknown)";
-      const runId = this.currentRunId ?? "unknown";
-      const list = this.errorsByRun.get(runId) ?? [];
-      list.push({ rowIndex, identity, error: errMsg });
-      this.errorsByRun.set(runId, list);
-      // Throttle console output: only the FIRST failure of each run logs
-      // the full error (with stack/object). Subsequent failures are
-      // tracked in `errorsByRun` and surfaced in the modal — flooding the
-      // console with 390 identical "column reference is ambiguous" errors
-      // makes DevTools unusable.
-      if (list.length === 1) {
-        // eslint-disable-next-line no-console
-        console.error(
-          `[ExcelImport] Parent creation FAILED for row ${rowIndex} (${identity}): ${errMsg}`,
-          result.error,
-        );
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[ExcelImport] Further parent creation failures in this run will be ` +
-          `collected silently and shown in the modal. Run ID: ${runId}`,
-        );
-      }
-      return null;
-    }
-    // VAULT §14.02 — record the created parent for compensating rollback.
-    this.createdParentIds.push(result.value.id);
-    return result.value;
-  }
 
   private buildParentInput(record: ImportRecord): CreateParentInput {
     const phone = this.extractPhone(record);
@@ -717,64 +1008,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     };
   }
 
-  /**
-   * Find an existing parent by phone first; when phone is "(inconnu)"
-   * (blank NEM), fall back to matching on (firstName, lastName, displayName)
-   * so that re-imports don't create duplicate placeholder parents.
-   *
-   * The match strategy is intentionally multi-pronged to keep imports
-   * idempotent across the migration from the old "Tuteur <LastName>" format
-   * to the new displayName-based format:
-   *   1. Exact phone match.
-   *   2. Exact (firstName, lastName) match — handles both the old placeholder
-   *      format and the new empty-firstName format.
-   *   3. Exact displayName match — the canonical idempotency key for
-   *      placeholder parents.
-   */
-  private async findExistingParent(input: CreateParentInput): Promise<Parent | null> {
-    if (input.phone && input.phone !== "(inconnu)") {
-      const result = await this.deps.parents.search(input.phone);
-      if (result.ok) {
-        const match = result.value.find((p) => p.phone === input.phone);
-        if (match) return match;
-      }
-    }
-    if (input.email) {
-      const result = await this.deps.parents.search(input.email);
-      if (result.ok) {
-        const match = result.value.find((p) => p.email === input.email);
-        if (match) return match;
-      }
-    }
-    // Placeholder parent — match by name to keep re-imports idempotent.
-    const query = input.displayName ?? input.lastName ?? input.firstName ?? "";
-    const result = await this.deps.parents.search(query);
-    if (!result.ok) return null;
-    return (
-      result.value.find(
-        (p) =>
-          p.phone === "(inconnu)" &&
-          p.firstName === input.firstName &&
-          p.lastName === input.lastName,
-      ) ??
-      result.value.find(
-        (p) =>
-          p.phone === "(inconnu)" &&
-          input.displayName !== null &&
-          p.displayName === input.displayName,
-      ) ??
-      // Backward-compat: also match the OLD placeholder format where
-      // firstName was "Tuteur". This lets a re-import upgrade an existing
-      // row to the new displayName format instead of creating a duplicate.
-      result.value.find(
-        (p) =>
-          p.phone === "(inconnu)" &&
-          p.firstName === "Tuteur" &&
-          p.lastName === input.lastName,
-      ) ??
-      null
-    );
-  }
 
   private buildStudentInput(record: ImportRecord): CreateStudentInput {
     const nameParts = splitFullName(record.nom);
@@ -810,41 +1043,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     };
   }
 
-  private async findExistingStudent(
-    parent: Parent,
-    input: CreateStudentInput,
-  ): Promise<Student | null> {
-    const result = await this.deps.students.search(
-      `${input.firstName} ${input.lastName}`.trim(),
-    );
-    if (!result.ok) return null;
-    // IMPORT-109: EXACT identity match. The repository search is
-    // substring-based, so a query like "LINA BELGRIMAT" ALSO matches a
-    // sibling named "MILINA BELGRIMAT" ("miLINA BELGRIMAT" contains the
-    // query as a substring). Matching the FIRST result by store order then
-    // cross-wired the two siblings on re-import (MILINA renamed to LINA
-    // via updateStudent, a duplicate MILINA created, and each row's
-    // financial entries re-buffered against the WRONG student's id). The
-    // match must be exact and order-independent:
-    //   1. parentId + displayName (the importer stores NOM verbatim in
-    //      displayName — the canonical row identity);
-    //   2. fallback: parentId + exact (firstName, lastName).
-    const byDisplayName = result.value.find(
-      (s) =>
-        s.parentId === parent.id &&
-        input.displayName != null &&
-        s.displayName === input.displayName,
-    );
-    if (byDisplayName) return byDisplayName;
-    return (
-      result.value.find(
-        (s) =>
-          s.parentId === parent.id &&
-          s.firstName === input.firstName &&
-          s.lastName === input.lastName,
-      ) ?? null
-    );
-  }
 
   private extractPhone(record: ImportRecord): string {
     const raw = record.nem;
@@ -2019,6 +2217,187 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     list.push(row);
     this.rowsByRun.set(runId, list);
   }
+}
+
+// ── PERF-503 (T-417): module-scope batch support types ─────────────────────
+
+/**
+ * One row of an ETAT batch, carrying the prebuilt student input and the
+ * row's resolved action (filled in as the family task processes it).
+ */
+interface EtatRowTask {
+  readonly record: ImportRecord;
+  readonly rowIndex: number;
+  studentInput: CreateStudentInput;
+  action: "insert" | "update" | "skip";
+}
+
+/**
+ * One family — the CONCURRENCY UNIT of the ETAT batch. All rows that
+ * resolve to the same parent identity are processed strictly in row
+ * order inside one family task, so every intra-family semantic of the
+ * sequential importer is preserved (parent create-once, sibling student
+ * identity resolution, duplicate-row update chains, per-row retry after
+ * a create failure).
+ *
+ * - `resolvedParent` is set for snapshot-matched families (pre-existing
+ *   parent) and for intent families once the first `createParent` lands.
+ * - `pendingInput` is the FIRST row's parent input — the one the create
+ *   uses; a later row of the same family retries with ITS OWN input when
+ *   an earlier attempt failed (the legacy per-row retry semantics).
+ * - `snapshotStudents` are the pre-existing students of the resolved
+ *   parent (search("") order); `createdStudents` are the students this
+ *   run created for the family (newest first — search parity).
+ */
+interface EtatFamily {
+  pendingInput: CreateParentInput | null;
+  resolvedParent: Parent | null;
+  readonly snapshotStudents: Student[];
+  createdStudents: Student[];
+  readonly rowTaskIndexes: number[];
+}
+
+/**
+ * The in-memory parent index behind the batch pre-resolution — ONE
+ * implementation of the legacy multi-pronged parent identity match
+ * (phone → email → placeholder name stages, incl. the legacy "Tuteur"
+ * format), served from a snapshot instead of per-row repository
+ * searches.
+ *
+ * Entries are PREPENDED as they are registered (intents) or lazily
+ * created (snapshot parents), mirroring how both repository layers
+ * surface newly created rows FIRST in search results.
+ */
+class BatchParentIndex {
+  private entries: Array<{
+    phone: string | null;
+    email: string | null;
+    firstName: string;
+    lastName: string;
+    displayName: string | null;
+    family: EtatFamily | null;
+    parent: Parent | null;
+  }> = [];
+
+  constructor(
+    private readonly makeExistingFamily: (parent: Parent) => EtatFamily,
+  ) {}
+
+  /** Register a snapshot (pre-existing) parent. */
+  addExisting(parent: Parent): void {
+    this.entries.unshift({
+      phone: parent.phone,
+      email: parent.email,
+      firstName: parent.firstName,
+      lastName: parent.lastName,
+      displayName: parent.displayName,
+      family: null, // lazily bound on first resolve
+      parent,
+    });
+  }
+
+  /** Register a pending create intent for a NEW family. */
+  registerIntent(input: CreateParentInput, family: EtatFamily): void {
+    this.entries.unshift({
+      phone: input.phone ?? null,
+      email: input.email ?? null,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      displayName: input.displayName ?? null,
+      family,
+      parent: null,
+    });
+  }
+
+  /**
+   * The legacy `findExistingParent` match strategy, verbatim:
+   *   1. exact phone match (when the input phone is real);
+   *   2. exact email match;
+   *   3. placeholder stages — (firstName, lastName) under a "(inconnu)"
+   *      phone, then exact displayName, then the legacy "Tuteur"
+   *      firstName format.
+   * Returns the bound family, or null when the row must CREATE the
+   * parent.
+   */
+  resolveFamilyFor(input: CreateParentInput): EtatFamily | null {
+    if (input.phone && input.phone !== "(inconnu)") {
+      const hit = this.entries.find((e) => e.phone === input.phone);
+      if (hit) return this.bind(hit);
+    }
+    if (input.email) {
+      const hit = this.entries.find((e) => e.email === input.email);
+      if (hit) return this.bind(hit);
+    }
+    // Placeholder parent — match by name to keep re-imports idempotent.
+    const byName = this.entries.find(
+      (e) =>
+        e.phone === "(inconnu)" &&
+        e.firstName === input.firstName &&
+        e.lastName === input.lastName,
+    );
+    if (byName) return this.bind(byName);
+    const byDisplayName = this.entries.find(
+      (e) =>
+        e.phone === "(inconnu)" &&
+        input.displayName !== null &&
+        e.displayName === input.displayName,
+    );
+    if (byDisplayName) return this.bind(byDisplayName);
+    // Backward-compat: also match the OLD placeholder format where
+    // firstName was "Tuteur".
+    const byLegacyTuteur = this.entries.find(
+      (e) =>
+        e.phone === "(inconnu)" &&
+        e.firstName === "Tuteur" &&
+        e.lastName === input.lastName,
+    );
+    if (byLegacyTuteur) return this.bind(byLegacyTuteur);
+    return null;
+  }
+
+  /** Bind a snapshot entry to its (lazily created) family. */
+  private bind(entry: { parent: Parent | null; family: EtatFamily | null }): EtatFamily | null {
+    if (entry.family) return entry.family;
+    if (entry.parent) {
+      const family = this.makeExistingFamily(entry.parent);
+      entry.family = family;
+      return family;
+    }
+    return null;
+  }
+}
+
+/**
+ * PERF-503 (T-417): a bounded-concurrency worker pool.
+ *
+ * Processes `items` through `worker` with at most `limit` workers
+ * running at any time (work-stealing over a shared cursor — JS's
+ * single-threaded event loop makes the cursor increment atomic between
+ * awaits, so no locking is needed). Workers never throw: a worker error
+ * propagates out of `runPool` after the in-flight workers settle — the
+ * caller (the engine) turns it into the atomic rollback, exactly like a
+ * legacy per-row throw.
+ */
+async function runPool<T>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  const width = Math.max(1, Math.min(limit, items.length));
+  const runners: Array<Promise<void>> = [];
+  for (let w = 0; w < width; w++) {
+    runners.push(
+      (async () => {
+        while (true) {
+          const index = cursor++;
+          if (index >= items.length) return;
+          await worker(items[index]);
+        }
+      })(),
+    );
+  }
+  await Promise.all(runners);
 }
 
 /** Compute checksums asynchronously after batching (kept for API parity). */
