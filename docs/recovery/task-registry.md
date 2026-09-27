@@ -4734,7 +4734,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 - **Status: IMPLEMENTED / TESTED / LIVE-VERIFIED.** The VERIFIED gate for the owner: a fresh packaged-app import (or simply inspecting the CRM — the live DB already carries the correct data from the definitive verification run).
 - **Left:** the owner's packaged-app pass; the concurrent session's merge (they hold the same workbook's fixes on their branch — the IMPORT-115 dedup + the honest errors are pushed to main for them).
 
-## T-424 — The Statistics-vs-Finance Unification: one source of truth for every financial surface + the Excel source-of-truth verification (the owner's report: "Tranche 1 shows not paid in Statistics while some of those payments are already shown as paid in Finance... Do not create another parallel calculation or duplicate financial logic. Fix the underlying data flow") — IN PROGRESS (P0)
+## T-424 — The Statistics-vs-Finance Unification: one source of truth for every financial surface + the Excel source-of-truth verification (the owner's report: "Tranche 1 shows not paid in Statistics while some of those payments are already shown as paid in Finance... Do not create another parallel calculation or duplicate financial logic. Fix the underlying data flow") — DONE (P0; closed under T-425's live remediation)
 
 **Registered:** 2026-09-27 (the 108th session — the owner's follow-up mandate: unify Statistics and Finance on the same source of truth, verify every displayed number against the Excel workbook, and fix the underlying data flow rather than adjusting displayed numbers; "do not assume the current Statistics or Finance calculations are correct.")
 **Problems (all registered BEFORE this fix, §13):** **DATA-041** (the import's straight column→tranche mapping attributes the 2027/2026 payments to the wrong tranches — the root data defect: T1 INSCRIPTION permanently unpaid for 1,132/1,137 students, 1,281 overpaid rows, per-student remaining matches the workbook's Q for only 236/1,138 rows) · **DATA-042** (the duplicated divergent derivations: two `deriveTrancheWaves`, two settled predicates, different wave scoping — the same rows render different numbers per surface) · **DATA-043** (the dashboard repository's unpaginated installments/payments reads — the Statistics tab reads 1,000 of 4,227 unpaid rows, the third DATA-038-class instance)
@@ -4772,7 +4772,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 ---
 
-## T-425 — The Official 3-Tranche Model: eliminate the phantom 4th tranche and re-anchor the billing structure to the owner's confirmed specification ("THERE IS NO 4TH TRANCHE — Registration (FI) + Tranche 1 (V1) + Tranche 2 (2V) + Tranche 3 (v3); Max Tuition Installments: 3; Max Transport Installments: 3") — IN PROGRESS (P0)
+## T-425 — The Official 3-Tranche Model: eliminate the phantom 4th tranche and re-anchor the billing structure to the owner's confirmed specification ("THERE IS NO 4TH TRANCHE — Registration (FI) + Tranche 1 (V1) + Tranche 2 (2V) + Tranche 3 (v3); Max Tuition Installments: 3; Max Transport Installments: 3") — DONE (P0)
 
 **Registered:** 109th session (2026-09-27), BEFORE the fix (§13). **Owner-gated live remediation** (the purge + re-import run on the owner's Supabase credentials).
 
@@ -4809,4 +4809,5 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 ### Status
 
-- **IN PROGRESS — registration landed (this commit); Phases A–C + closeout pending.**
+- **DONE — all acceptance criteria met.** No 4th tranche anywhere (0 T4 rows live; the CHECK rejects 4; no surface renders a wave 4). The official labels + schedule live (FI at T0 due at signup; V1/2V/v3 as Tranches 1/2/3 due Sept 15 / Dec 15 / Mar 15; transport unchanged). The waterfall attribution preserved (the in-memory oracle re-run under the new structure: Σremaining = 193,477,900 = the workbook's computed Q exactly; 0 overpaid rows) and LIVE-VERIFIED against the workbook's own Q column (1,130/1,138 students exact; the 7 divergences all explained — 6 school hand-overrides + 1 real payment the sheet's P formula misses; docs/recovery/t-425-official-tranche-model-verification.md). Statistics ≡ Finance per wave over the 3-wave model (the t-424 cross-surface unit invariant, extended with the no-4th-tranche pins). The suite baseline compared before/after: BASELINE-MATCHED at 18 (the T-424 Phase C registered move 25→18; no further move).
+- Commits: 55590e6 (registration) → d3f0361 (Phase A) → e7c0a60 (Phase B, migration 0124) → a62103a (Phase C, the live remediation) → the closeout. Each pushed to main individually.
