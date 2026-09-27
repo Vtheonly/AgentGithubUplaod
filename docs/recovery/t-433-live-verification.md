@@ -56,12 +56,34 @@ The 111th session authored verify_t-432.sql while 0126 was owner-gated (NOT appl
 
 ## Phase C — the purge (the owner's mandate: remove ALL existing data)
 
-(recorded below after execution)
+Driven through the REAL UI path (ADR-027): the GoTrue admin password grant → the PostgREST RPC call (the exact path the Settings "Zone de danger" card takes; the has_role('super_admin') gate resolves the signed-in owner; the audit entry attributes the run to the admin's email). Script: `elimtiyaz-desktop/scripts/t-433-purge-execute.mjs` (committed; dry-run default, --execute gated; head+exact censuses).
 
-## Phase D — the fresh WB2 import
+| Step | Evidence |
+|---|---|
+| Dry-run | HTTP 200 `{ok:true, mode:dry_run, total:14114}` — parents 741 · students 1,137 · installments 5,956 · payments 2,198 · ledger 3,342 · activation_codes 740 · payments_allocations/adjustments/discounts/service_enrollments/grades/attendance 0 |
+| EXECUTE | HTTP 200 `{ok:true, mode:executed, total:14114}` — audit_entry_id `93adcc9a-ffdc-4e2e-8b89-872fdeb7708b` |
+| Post-purge census | parents 0 · students 0 · installments 0 · payments 0 · ledger 0 · activation_codes 0 — **every domain table ZERO** |
+| The no-interference contract | tenants 1 · academic_years 1 · academic_levels 14 · subjects 16 · classes 5 · personnel 14 · backup_archives 0 (untouched) · user_profiles 1 (the owner admin — the staff-role guard) |
+| The audit growth 35,374 → 37,253 (+1,879) | 1,878 per-row `parent.delete`/`student.delete` entries (741+1,137 — the append-only triggers) + 1 `system.purge_student_parent_domain` entry — the purge is fully attributed |
+| The ADR-027 boundary residue | account_approval_requests 25 + notifications 20 survive BY DESIGN (the 0121 boundary: requests/accounts NOT claimed by any purged parent/student row stay outside the blast radius — genuinely pre-parent data; documented, not a defect) |
 
-(recorded below after execution)
+## Phase D — the fresh WB2 import (the corrected driver)
 
-## Phase E — the post-import verification
+**The discovery (the first fresh-import run):** the payments flush failed deterministically — `22P02 invalid input syntax for type uuid: "t-425-remediation"`. The T-425 driver passes a free-text actor string; the payments table's `collected_by` column is uuid-typed. The T-425 session's re-import never exercised the payments flush with FRESH payments (its 2,198 payments already existed → the payments leg was preflight-skipped) — the never-run-layer class (§15.60a), this time in a committed driver script. Registered as IMPORT-120; the corrected driver is `scripts/t-433-live-reimport.ts` (the SAME ImportEngine + the SAME repositories + the SAME audit sink — only the actor identity seam changed: `ACTOR_PROFILE_ID` = the owner admin's user_profiles.id, fail-closed on a non-uuid value).
 
-(recorded below after execution)
+**The run (after the sanctioned 0124 clear of the interrupted attempt's installments):**
+- `run_mukfqlcy_7750d1` — **91,134 ms** · 1,141 rows read · 1,139 updated (the existing corpus' upsert no-ops) · 2 skipped · 0 rejected · 73 warnings · `import.run_finished` written (the §15.61e failure signature absent)
+- The full corpus landed: parents 741 · students 1,137 · installments 5,956 · payments 2,198 (ALL with `collected_by` = the admin profile — the corrected seam) · ledger 3,342 · **Encaissé 162,713,000 DZD (the T-423 acceptance value EXACTLY)**
+
+## Phase E — the post-import verification (ALL GREEN)
+
+**The Excel oracle (`scripts/t-425-live-verify.mjs`) — identical to the T-425 documented result:**
+- 1,130 of 1,138 per-student rows match the workbook's OWN Q column exactly (±1 DZD)
+- 7 divergences — ALL the documented school hand-overrides (METAH NADA, DAHMANI FARES, LAOUAR ANES, AITHAMOUDA ANAIS, HEROUA MOSADEK, TASLGHOUA NAILA, BERDAI MAROUAN) · 1 no-live-student row (the known workbook artifact)
+- 0 overpaid rows · Encaissé 162,713,000 · Créances 194,230,700 (the installment basis, DATA-039)
+
+**The no-4th-tranche probe (`scripts/t-425-no-4th-tranche-probe.mjs`) — the official model exact:** tuition T0/FI n=1,137 Σdue 28,959,000 · T1/V1 n=1,134 Σdue 111,758,300 · T2/2V n=1,137 Σdue 96,075,000 · T3/v3 n=1,132 Σdue 96,918,500 · transport T1/T2/T3 n=472 each · **T4 rows: 0** · students with tuition rows: 1,137.
+
+**The boot-path health probe (the owner's 500-storm read family, with a REAL staff JWT):**
+- read_installments_collection → **200 in 1,733 ms** (5,956 rows) · read_payments_collection → **200 in 1,271 ms** · read_ledger_entries_collection → **200 in 1,976 ms** · read_debt_summary_collection → **200 in 482 ms** (634 debtors — the same census as the pre-purge state) · students count → **200 in 571 ms** · payments month read → **200 in 762 ms**
+- **The storm that opened the 111th session is gone end-to-end: 0126 live + the in-flight dedupe + the full corpus re-imported.**

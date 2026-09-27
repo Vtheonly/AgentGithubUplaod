@@ -4884,6 +4884,6 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 - Phase D: the fresh import — `scripts/t-425-live-reimport.ts` (the REAL ImportEngine + the REAL Supabase repositories headlessly, the WB2 workbook `Excel/2027-2026.xlsx`).
 - Phase E: the verification — the t-425 Excel oracle + the no-4th-tranche probe + the post-import census + the REST health probes (the seeds' paths).
 - Phase F: the delivery zips (all systems + the hub) + the push with the PAT + the download copies.
-**Verified:** (in progress — phases recorded in docs/recovery/t-433-live-verification.md as they land).
-**Left:** (updated at closeout).
-**Next:** (updated at closeout).
+**Verified:** Phases 0/A/B/C/D/E — ALL GREEN (docs/recovery/t-433-live-verification.md): the 0125 chain-head reconciliation (head 0125 > 0124) · migration 0126 applied LIVE (verify_t-432.sql 15/15 — C7 timings: the aging summary ~100 ms, every count single-digit ms) · the purge EXECUTED (14,114 rows; every domain table 0; the preserved set + the admin account intact; audit +1,879 fully attributed) · the fresh WB2 import landed (91 s; 741/1,137/5,956/2,198/3,342; Encaissé 162,713,000 EXACT; 100% payments attribution) · the Excel oracle (1,130/1,138 exact — the T-425 result identical) · the no-4th-tranche probe EXACT · the boot-path health probe ALL 200s (the 500-storm family gone end-to-end).
+**Left:** Phase F — the delivery zips (all systems + the hub) + the push + the download copies + the closeout gates (the full vitest baseline over the tree).
+**Next:** the session closeout (the zips + the final commit); the next session's standing items unchanged from the 111th session (SPREAD-100 · the T-429 cross-platform ports · ACAD-511 · migration 0122 reserved).
