@@ -38,7 +38,7 @@ import type { Expense } from "../../model/expense";
 import type { Parent } from "../../model/parent";
 import type { Student } from "../../model/student";
 import { parentDisplayName } from "../../model/parent";
-import { installmentRemaining } from "./queries";
+import { installmentRemaining, isInstallmentSettled } from "./queries";
 import { computeParentSummary, displayParentCredit } from "../ledger/balance";
 // T-412 (ADR-024): the canonical payroll forecast — the treasury impact is a
 // CONSUMER of its totals, never a second derivation.
@@ -279,11 +279,11 @@ export function evaluateFamilyFinancialDiagnoses(params: {
     const tuitionInsts = pInsts.filter((i) => i.category === "tuition");
     const auxInsts = pInsts.filter((i) => i.category !== "tuition");
 
+    // T-424 (DATA-042): the canonical settled predicate (INV-4) — the
+    // same rule every surface uses.
     const tuitionAllPaid =
       tuitionInsts.length > 0 &&
-      tuitionInsts.every(
-        (i) => i.status === "paid" || installmentRemaining(i) === 0,
-      );
+      tuitionInsts.every((i) => isInstallmentSettled(i));
     const auxiliaryDebt = auxInsts.reduce(
       (s, i) => s + installmentRemaining(i),
       0,
@@ -294,9 +294,7 @@ export function evaluateFamilyFinancialDiagnoses(params: {
     // canonical `trancheNumber`, never the label text (the retired
     // `label.includes("1")` hack matched transport rows and probe labels).
     const t1Unpaid = tuitionInsts.some(
-      (i) =>
-        i.trancheNumber === 1 &&
-        (i.status === "overdue" || installmentRemaining(i) > 0),
+      (i) => i.trancheNumber === 1 && !isInstallmentSettled(i),
     );
 
     // Large cash transactions
@@ -539,7 +537,8 @@ export function computeTreasuryHealth(params: {
     .filter((d) => d.daysOverdue > 0 && d.daysOverdue <= 30)
     .reduce((s, d) => s + d.outstandingAmount, 0);
   const upcomingDue30d = installments
-    .filter((i) => i.status !== "paid")
+    // T-424: the canonical settled predicate.
+    .filter((i) => !isInstallmentSettled(i))
     .filter((i) => {
       const due = new Date(i.dueDate).getTime();
       return due >= now && due < now + thirtyDaysMs;

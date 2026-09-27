@@ -59,6 +59,7 @@ import {
   inRange,
 } from "./analytics-derivations";
 import { installmentRemaining, daysBetweenFloor, isRemiseAdjustment } from "./executive-statistics";
+import { isInstallmentSettled } from "../../../../domain/calc/payment/queries";
 import type { StudentRiskProfile } from "./operational-query-engine";
 
 // ============================================================================
@@ -459,7 +460,10 @@ export function buildResolution(
     let sumPaid = 0;
     let sumPending = 0;
     for (const installment of scoped) {
-      if (installment.status === "paid") continue;
+      // T-424 (DATA-042): the canonical settled predicate — the same rule
+      // every surface uses (a tranche covered by an uncleared cheque is
+      // settled here AND in the CRM échéancier AND in Finance).
+      if (isInstallmentSettled(installment)) continue;
       if (request.domain === "tranche" && f?.trancheNumber && installment.trancheNumber !== f.trancheNumber) continue;
       const remaining = installmentRemaining(installment);
       if (request.domain === "debt" && remaining <= 0) continue;

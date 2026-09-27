@@ -55,10 +55,11 @@ import {
   // uncleared funds sat on a tranche (DATA-008).
   sumInstallmentsDue,
   sumInstallmentsPaid,
-  sumInstallmentsPending,
   installmentRemaining,
   totalOutstanding,
 } from "../../domain/model/payment";
+import { deriveTrancheWaveStats } from "../../domain/calc/payment/tranche-waves";
+import { isInstallmentSettled } from "../../domain/calc/payment/queries";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Users, X } from "lucide-react";
 import { Button } from "../../shared/ui/button";
@@ -106,7 +107,7 @@ const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "ne
  * wave cards exactly as before.
  */
 export interface TrancheWave {
-  readonly index: 1 | 2 | 3;
+  readonly index: 1 | 2 | 3 | 4;
   readonly label: string;
   /** Due-window hint from the canonical schedule (display-only). */
   readonly hint: string;
@@ -117,10 +118,16 @@ export interface TrancheWave {
   readonly isNextTarget: boolean;
 }
 
-const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: string }> = [
+const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3 | 4; label: string; hint: string }> = [
   { index: 1, label: "Tranche 1 (Septembre)", hint: "échéance 15 sep — à l'inscription" },
   { index: 2, label: "Tranche 2 (Décembre)", hint: "échéance 15 déc" },
   { index: 3, label: "Tranche 3 (Mars)", hint: "échéance 15 mars" },
+  // T-424 (DATA-042): the BON structure's 4th tuition tranche (échéance
+  // 15 juin) is a REAL wave — previously invisible to this strip while
+  // the Statistics tab rendered it (one more Statistics-vs-Finance
+  // divergence). The strip pools ALL categories per index, exactly as
+  // before; the grouping math now comes from the canonical module.
+  { index: 4, label: "Tranche 4 (Juin)", hint: "échéance 15 juin" },
 ];
 
 /**
@@ -134,27 +141,35 @@ const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: 
  * target for the highlight).
  */
 export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] {
-  const groups = new Map<1 | 2 | 3, Installment[]>();
-  for (const r of rows) {
-    // T-354: the canonical column — never the label text. Rows without a
-    // tranche number are non-wave rows (excluded, same as before).
-    const n = r.trancheNumber;
-    if (n !== 1 && n !== 2 && n !== 3) continue;
-    const list = groups.get(n) ?? [];
-    list.push(r);
-    groups.set(n, list);
+  // T-424 (DATA-042) — the grouping and the math live in the CANONICAL
+  // domain module (one derivation for Statistics AND Finance — the same
+  // rows can no longer produce different numbers per surface). This view
+  // pools the canonical per-(category, wave) rows into the strip's
+  // per-index cards: due/paid/pending are Σ over every category in the
+  // index, `pct` the amount-based collection rate, `isNextTarget` the
+  // first index still carrying a canonical remaining balance.
+  const stats = deriveTrancheWaveStats(rows, Date.now());
+  const pooled = new Map<1 | 2 | 3 | 4, { due: number; paid: number; pending: number; remaining: number }>();
+  for (const w of stats) {
+    const acc = pooled.get(w.wave) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
+    acc.due += w.dueTotal;
+    acc.paid += w.paidTotal;
+    acc.pending += w.pendingTotal;
+    acc.remaining += w.remainingTotal;
+    pooled.set(w.wave, acc);
   }
-  const firstWithRemaining = [...groups.entries()]
-    .filter(([, list]) => totalOutstanding(list) > 0)
+  const firstWithRemaining = [...pooled.entries()]
+    .filter(([, acc]) => acc.remaining > 0)
     .map(([n]) => n)
     .sort((a, b) => a - b)[0];
   return TRANCHE_WAVE_META.map(({ index, label, hint }) => {
-    const list = groups.get(index) ?? [];
-    const due = sumInstallmentsDue(list);
-    const paid = sumInstallmentsPaid(list);
-    const pending = sumInstallmentsPending(list);
-    const pct = due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
-    return { index, label, hint, due, paid, pending, pct, isNextTarget: index === firstWithRemaining };
+    const acc = pooled.get(index) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
+    const pct = acc.due > 0 ? Math.min(100, Math.round((acc.paid / acc.due) * 100)) : 0;
+    return {
+      index, label, hint,
+      due: acc.due, paid: acc.paid, pending: acc.pending, pct,
+      isNextTarget: index === firstWithRemaining,
+    };
   });
 }
 
@@ -434,7 +449,9 @@ export function InstallmentScheduleTab({
       label: "Encaisser",
       variant: "outline",
       icon: <Wallet className="size-3.5" />,
-      disabled: (i) => i.status === "paid" || installmentRemaining(i) <= 0,
+      // T-424: the canonical settled predicate (INV-4) — the same rule
+      // every surface uses.
+      disabled: (i) => isInstallmentSettled(i),
       onClick: (i) => setCollectFor(i),
     },
     {

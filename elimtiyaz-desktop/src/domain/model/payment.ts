@@ -600,6 +600,7 @@ export {
 
 export {
   installmentRemaining,
+  isInstallmentSettled,
   totalOutstanding,
   overdueAmount,
   maxDaysOverdue,

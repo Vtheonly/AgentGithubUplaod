@@ -31,6 +31,37 @@ export function installmentRemaining(installment: Installment): number {
 }
 
 /**
+ * T-424 (DATA-042) — THE canonical tranche-settled predicate, INV-4 family.
+ *
+ * A tranche is settled when its status says paid OR nothing remains to
+ * collect (`due − paid − pending` clamped at 0 — uncleared pending funds
+ * count as coverage, exactly like `installmentRemaining`). One predicate
+ * for EVERY surface (Statistics waves/inspector, the Finance wave strip,
+ * the CRM échéancier, the Diagnostic Hub) — the per-surface copies this
+ * replaces (status-only in Statistics, the inline union in the drawer)
+ * rendered DIFFERENT verdicts for the same row (an uncleared cheque
+ * covering a tranche: "settled" in the CRM, "not paid" in Statistics).
+ *
+ * Structurally typed so projections carrying the four fields
+ * (`InstallmentScheduleNode`) can use it directly.
+ */
+export function isInstallmentSettled(installment: {
+  readonly status: string | null;
+  readonly amountDue: number;
+  readonly amountPaid: number;
+  readonly amountPending?: number | null;
+}): boolean {
+  if (installment.status === "paid") return true;
+  return (
+    clampNonNegative(
+      installment.amountDue -
+        installment.amountPaid -
+        (installment.amountPending ?? 0),
+    ) === 0
+  );
+}
+
+/**
  * Total outstanding across all given installments (>= 0), INV-4 family.
  * Uncleared pending funds reduce the outstanding amount.
  */

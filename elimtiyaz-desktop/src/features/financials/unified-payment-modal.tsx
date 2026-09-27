@@ -64,6 +64,7 @@ import {
 import type { Parent } from "../../domain/model/parent";
 import { parentDisplayName } from "../../domain/model/parent";
 import { allocatePaymentToInstallments } from "../../domain/calc/payment/waterfall-allocator";
+import { isInstallmentSettled } from "../../domain/calc/payment/queries";
 import { currentTrancheLabel, installmentRemaining } from "../../domain/calc/payment/queries";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
 import { PaymentSlider, type PaymentTrancheSpec, type PaymentSliderMode } from "./payment-slider";
@@ -268,7 +269,7 @@ export function UnifiedPaymentModal({
     if (context?.presetAmount) return;
     if (category !== "tuition" && category !== "transport") return;
     const matching = installments
-      .filter((i) => i.category === category && i.status !== "paid")
+      .filter((i) => i.category === category && !isInstallmentSettled(i))
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     if (matching.length > 0 && amount === 0) {
       setAmount(installmentRemaining(matching[0]));
@@ -287,7 +288,7 @@ export function UnifiedPaymentModal({
     // category (cross-category / consolidated) shows EVERY open tranche —
     // the collection will allocate across all of them.
     const eligible = installments
-      .filter((i) => i.status !== "paid")
+      .filter((i) => !isInstallmentSettled(i))
       .filter((i) => (category ? i.category === category : true))
       .slice()
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
@@ -325,7 +326,7 @@ export function UnifiedPaymentModal({
   const allocationPreview = useMemo(() => {
     if (!effectiveParentId) return null;
     const eligible = installments
-      .filter((i) => i.status !== "paid")
+      .filter((i) => !isInstallmentSettled(i))
       .filter((i) => (category ? i.category === category : true));
     return allocatePaymentToInstallments(eligible, amount, category);
   }, [installments, amount, category, effectiveParentId]);
@@ -336,7 +337,7 @@ export function UnifiedPaymentModal({
     // T-060 + ADR-023: same category scope as the actual collection
     // (null = cross-category → every open tranche).
     const eligible = installments
-      .filter((i) => i.status !== "paid")
+      .filter((i) => !isInstallmentSettled(i))
       .filter((i) => (category ? i.category === category : true));
     return currentTrancheLabel(eligible, category);
   }, [installments, category, effectiveParentId]);

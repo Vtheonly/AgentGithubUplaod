@@ -38,6 +38,7 @@
 
 import type { Installment, Payment, PaymentCategory } from "../../../../domain/model/payment";
 import { installmentRemaining as canonicalInstallmentRemaining } from "../../../../domain/calc/payment/queries";
+import { deriveTrancheWaveStats } from "../../../../domain/calc/payment/tranche-waves";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Student } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
@@ -103,10 +104,10 @@ export interface TrancheWave {
   /** Billing category of the wave (tuition | transport | …). */
   readonly category: PaymentCategory;
   /** Canonical wave number (installments.tranche_number — never label-parsed). */
-  readonly wave: 1 | 2 | 3;
+  readonly wave: 1 | 2 | 3 | 4;
   /** Number of billed installments in this wave. */
   readonly installmentCount: number;
-  /** Number of FULLY satisfied installments (status === "paid"). */
+  /** Number of settled installments (the canonical isInstallmentSettled — T-424). */
   readonly paidCount: number;
   /** Distinct families billed in this wave. */
   readonly familyCount: number;
@@ -146,85 +147,35 @@ export function deriveTrancheWaves(
   installments: readonly Installment[],
   nowEpochMs: number,
 ): TrancheWave[] {
-  interface Acc {
-    category: PaymentCategory;
-    wave: 1 | 2 | 3;
-    installmentCount: number;
-    paidCount: number;
-    families: Set<string>;
-    debtorFamilies: Set<string>;
-    dueTotal: number;
-    paidTotal: number;
-    remainingTotal: number;
-    dueDateMin: number | null;
-    anyUnpaidOverdue: boolean;
-    anyUnpaidFuture: boolean;
-  }
-  const byWave = new Map<string, Acc>();
-  for (const i of installments) {
-    const wave = (i.trancheNumber ?? 1) as 1 | 2 | 3;
-    const key = `${i.category}#${wave}`;
-    let acc = byWave.get(key);
-    if (!acc) {
-      acc = {
-        category: i.category,
-        wave,
-        installmentCount: 0,
-        paidCount: 0,
-        families: new Set<string>(),
-        debtorFamilies: new Set<string>(),
-        dueTotal: 0,
-        paidTotal: 0,
-        remainingTotal: 0,
-        dueDateMin: null,
-        anyUnpaidOverdue: false,
-        anyUnpaidFuture: false,
-      };
-      byWave.set(key, acc);
-    }
-    acc.installmentCount += 1;
-    acc.families.add(i.parentId);
-    acc.dueTotal += Math.round(i.amountDue);
-    acc.paidTotal += Math.round(i.amountPaid);
-    const dueTs = tsOf(i.dueDate);
-    if (dueTs !== null && (acc.dueDateMin === null || dueTs < acc.dueDateMin)) {
-      acc.dueDateMin = dueTs;
-    }
-    if (i.status === "paid") {
-      acc.paidCount += 1;
-    } else {
-      const remaining = installmentRemaining(i);
-      acc.remainingTotal += remaining;
-      if (remaining > 0) acc.debtorFamilies.add(i.parentId);
-      if (dueTs !== null) {
-        if (dueTs < nowEpochMs) acc.anyUnpaidOverdue = true;
-        else acc.anyUnpaidFuture = true;
-      }
-    }
-  }
-
-  const waves: TrancheWave[] = [];
-  for (const acc of byWave.values()) {
+  // T-424 (DATA-042) — the grouping and the math live in the CANONICAL
+  // domain module (one derivation for Statistics AND Finance); this view
+  // model only adds the presentation (phase, percentages, sort order).
+  // The old local twin grouped with `(i.trancheNumber ?? 1) as 1|2|3` —
+  // silently coercing NULL-tranche rows into wave 1 — and counted
+  // `status === "paid"` only; the canonical rows exclude non-wave rows
+  // and settle via the INV-4 predicate.
+  const stats = deriveTrancheWaveStats(installments, nowEpochMs);
+  const waves: TrancheWave[] = stats.map((acc) => {
     let phase: WavePhase;
-    if (acc.anyUnpaidOverdue) phase = "overdue";
-    else if (acc.anyUnpaidFuture && acc.remainingTotal > 0) phase = "not_due";
+    if (acc.anyUnsettledOverdue) phase = "overdue";
+    else if (acc.anyUnsettledFuture && acc.remainingTotal > 0) phase = "not_due";
     else phase = "in_window";
-    waves.push({
+    return {
       category: acc.category,
       wave: acc.wave,
       installmentCount: acc.installmentCount,
-      paidCount: acc.paidCount,
-      familyCount: acc.families.size,
-      debtorFamilyCount: acc.debtorFamilies.size,
+      paidCount: acc.settledCount,
+      familyCount: acc.familyCount,
+      debtorFamilyCount: acc.debtorFamilyCount,
       dueTotal: acc.dueTotal,
       paidTotal: acc.paidTotal,
       remainingTotal: acc.remainingTotal,
       collectedPct: sharePct(acc.paidTotal, acc.dueTotal),
-      clearedPct: sharePct(acc.paidCount, acc.installmentCount),
+      clearedPct: sharePct(acc.settledCount, acc.installmentCount),
       dueDate: acc.dueDateMin !== null ? new Date(acc.dueDateMin).toISOString() : null,
       phase,
-    });
-  }
+    };
+  });
   // Stable order: tuition waves first (the payroll-critical staircase),
   // then transport, then others; wave number ascending inside a category.
   const categoryRank = (c: PaymentCategory): number => (c === "tuition" ? 0 : c === "transport" ? 1 : 2);

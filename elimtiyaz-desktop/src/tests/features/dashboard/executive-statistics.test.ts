@@ -290,11 +290,20 @@ describe("T-338 — deriveTrancheWaves", () => {
     expect(future[0].remainingTotal).toBe(50_000);
   });
 
-  it("defaults missing trancheNumber to wave 1 (legacy rows)", () => {
+  it("T-424 (DATA-042): NULL trancheNumber rows are NON-WAVE rows — excluded from every wave, never coerced into wave 1", () => {
+    // The old local twin coerced `(trancheNumber ?? 1) as 1|2|3` — silently
+    // inflating wave 1 with "Année complète" / custom-schedule rows so
+    // Statistics and Finance disagreed on the same data. The canonical rule
+    // (domain/calc/payment/tranche-waves.ts): only trancheNumber 1..4 form
+    // waves; anything else is excluded everywhere.
     const legacy = deriveTrancheWaves([
       makeInstallment({ id: "l-1", trancheNumber: undefined, amountDue: 10_000, amountPaid: 10_000, status: "paid" }),
+      makeInstallment({ id: "l-2", trancheNumber: 1, amountDue: 20_000, amountPaid: 0, status: "unpaid" }),
     ], NOW);
+    expect(legacy).toHaveLength(1);
     expect(legacy[0].wave).toBe(1);
+    expect(legacy[0].installmentCount).toBe(1);
+    expect(legacy[0].dueTotal).toBe(20_000);
   });
 
   it("empty input → empty output (honest empty state)", () => {

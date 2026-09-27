@@ -1,0 +1,149 @@
+/**
+ * T-424 (DATA-042) — THE canonical tranche-wave derivation.
+ *
+ * One grouping + one math for EVERY surface that renders per-wave tranche
+ * state. The Statistics tab (executive-statistics.ts) and the Finance
+ * Tranches tab (installment-schedule-tab.tsx) each carried their own
+ * `deriveTrancheWaves` with DIFFERENT semantics (status-count clearedPct +
+ * NULL-tranche-coerced-into-wave-1 on one side; amounts-only pct with every
+ * non-1..3 wave excluded on the other) — the same rows rendered different
+ * numbers per surface, the owner's Statistics-vs-Finance contradiction at
+ * the display layer.
+ *
+ * The canonical rules (both surfaces derive their view models from these
+ * rows — they may PRESENT differently, never COMPUTE differently):
+ *
+ *   1. Waves are `(category, trancheNumber)` pairs with trancheNumber in
+ *      1..4 (the BON structure's 4th tuition tranche is a REAL wave; rows
+ *      with a NULL or out-of-range tranche number are non-wave rows —
+ *      excluded everywhere, never silently coerced into wave 1).
+ *   2. `settledCount` follows the canonical `isInstallmentSettled`
+ *      predicate (INV-4), never a per-surface status check.
+ *   3. `remainingTotal` is the INV-4 remaining summed over the wave's rows
+ *      (settled rows contribute 0 by construction).
+ *   4. Amounts are rounded per-row exactly once (the DZD integer domain).
+ */
+import type { Installment, PaymentCategory } from "../../model/payment";
+import { installmentRemaining, isInstallmentSettled } from "./queries";
+
+/** The canonical per-wave statistics (one row per category × tranche 1..4). */
+export interface TrancheWaveStats {
+  readonly category: PaymentCategory;
+  readonly wave: 1 | 2 | 3 | 4;
+  /** Rows in the wave (non-wave rows never reach here). */
+  readonly installmentCount: number;
+  /** Rows settled per the canonical predicate. */
+  readonly settledCount: number;
+  /** Distinct families carrying a row in the wave. */
+  readonly familyCount: number;
+  /** Distinct families with an unsettled row that still owes (> 0 remaining). */
+  readonly debtorFamilyCount: number;
+  readonly dueTotal: number;
+  readonly paidTotal: number;
+  readonly pendingTotal: number;
+  readonly remainingTotal: number;
+  /** Earliest due date in the wave, epoch ms (null when no row carries one). */
+  readonly dueDateMin: number | null;
+  /** Any unsettled row already past due (the wave's "overdue" phase input). */
+  readonly anyUnsettledOverdue: boolean;
+  /** Any unsettled row not yet due (the wave's "not_due" phase input). */
+  readonly anyUnsettledFuture: boolean;
+}
+
+function tsOf(dueDate: string): number | null {
+  const t = new Date(dueDate).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * Group the installments into canonical (category, wave) statistics.
+ *
+ * @param installments the tranche rows (any scope — the caller's filtering
+ *   is part of its presentation, e.g. the Statistics tab's academic-year
+ *   window; the grouping math is not).
+ * @param nowEpochMs the "now" the overdue/future flags evaluate against.
+ */
+export function deriveTrancheWaveStats(
+  installments: readonly Installment[],
+  nowEpochMs: number,
+): TrancheWaveStats[] {
+  interface Acc {
+    category: PaymentCategory;
+    wave: 1 | 2 | 3 | 4;
+    installmentCount: number;
+    settledCount: number;
+    families: Set<string>;
+    debtorFamilies: Set<string>;
+    dueTotal: number;
+    paidTotal: number;
+    pendingTotal: number;
+    remainingTotal: number;
+    dueDateMin: number | null;
+    anyUnsettledOverdue: boolean;
+    anyUnsettledFuture: boolean;
+  }
+  const byWave = new Map<string, Acc>();
+  for (const i of installments) {
+    // Rule 1 — non-wave rows are excluded, never coerced.
+    const n = i.trancheNumber;
+    if (n !== 1 && n !== 2 && n !== 3 && n !== 4) continue;
+    const wave = n as 1 | 2 | 3 | 4;
+    const key = `${i.category}#${wave}`;
+    let acc = byWave.get(key);
+    if (!acc) {
+      acc = {
+        category: i.category,
+        wave,
+        installmentCount: 0,
+        settledCount: 0,
+        families: new Set<string>(),
+        debtorFamilies: new Set<string>(),
+        dueTotal: 0,
+        paidTotal: 0,
+        pendingTotal: 0,
+        remainingTotal: 0,
+        dueDateMin: null,
+        anyUnsettledOverdue: false,
+        anyUnsettledFuture: false,
+      };
+      byWave.set(key, acc);
+    }
+    acc.installmentCount += 1;
+    acc.families.add(i.parentId);
+    acc.dueTotal += Math.round(i.amountDue);
+    acc.paidTotal += Math.round(i.amountPaid);
+    acc.pendingTotal += Math.round(i.amountPending ?? 0);
+    const dueTs = tsOf(i.dueDate);
+    if (dueTs !== null && (acc.dueDateMin === null || dueTs < acc.dueDateMin)) {
+      acc.dueDateMin = dueTs;
+    }
+    // Rule 3 — INV-4 remaining over every row (settled rows add 0).
+    const remaining = installmentRemaining(i);
+    acc.remainingTotal += remaining;
+    // Rule 2 — the canonical settled predicate.
+    if (isInstallmentSettled(i)) {
+      acc.settledCount += 1;
+    } else {
+      if (remaining > 0) acc.debtorFamilies.add(i.parentId);
+      if (dueTs !== null) {
+        if (dueTs < nowEpochMs) acc.anyUnsettledOverdue = true;
+        else acc.anyUnsettledFuture = true;
+      }
+    }
+  }
+  return [...byWave.values()].map((acc) => ({
+    category: acc.category,
+    wave: acc.wave,
+    installmentCount: acc.installmentCount,
+    settledCount: acc.settledCount,
+    familyCount: acc.families.size,
+    debtorFamilyCount: acc.debtorFamilies.size,
+    dueTotal: acc.dueTotal,
+    paidTotal: acc.paidTotal,
+    pendingTotal: acc.pendingTotal,
+    remainingTotal: acc.remainingTotal,
+    dueDateMin: acc.dueDateMin,
+    anyUnsettledOverdue: acc.anyUnsettledOverdue,
+    anyUnsettledFuture: acc.anyUnsettledFuture,
+  }));
+}

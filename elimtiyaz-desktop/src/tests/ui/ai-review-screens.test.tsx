@@ -183,10 +183,14 @@ describe("T-248 — deriveTrancheWaves (REAL row grouping)", () => {
       mkInstallment({ label: "Année complète", trancheNumber: undefined, amountDue: 999, amountPaid: 0, status: "pending" }),
     ];
     const waves = deriveTrancheWaves(rows);
-    expect(waves).toHaveLength(3);
+    // T-424 (DATA-042): the strip renders FOUR cards — the BON structure's
+    // 4th tuition tranche (Juin) is a real wave, previously invisible to
+    // the Finance strip while Statistics rendered it.
+    expect(waves).toHaveLength(4);
     const t1 = waves[0];
     const t2 = waves[1];
     const t3 = waves[2];
+    const t4 = waves[3];
     // T1 fully collected → 100%, NOT the next target.
     expect(t1.due).toBe(100);
     expect(t1.paid).toBe(100);
@@ -199,6 +203,9 @@ describe("T-248 — deriveTrancheWaves (REAL row grouping)", () => {
     expect(t2.paid).toBe(40);
     // T3 not targeted yet.
     expect(t3.isNextTarget).toBe(false);
+    // T4 exists as a card but carries no rows here (the fixture has none).
+    expect(t4.due).toBe(0);
+    expect(t4.isNextTarget).toBe(false);
     // "Année complète" is excluded from every wave.
     expect(waves.every((w) => w.due <= 100)).toBe(true);
   });

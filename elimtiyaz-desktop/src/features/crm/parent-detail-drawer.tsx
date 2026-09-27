@@ -94,6 +94,7 @@ import {
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import { deterministicActivationCode } from "../../core/format/id";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
+import { isInstallmentSettled } from "../../domain/calc/payment/queries";
 import {
   computeParentBillingBreakdown,
   classifyAdjustmentHistory,
@@ -1864,7 +1865,9 @@ function ServicePricingCard({
             ) : (
               <div className="space-y-1">
                 {(profile?.installmentPlan ?? []).map((tr) => {
-                  const settled = tr.status === "paid" || tr.remaining <= 0;
+                  // T-424 (DATA-042): the canonical settled predicate —
+                  // the SAME rule Statistics and Finance use (INV-4).
+                  const settled = isInstallmentSettled(tr);
                   return (
                     <div
                       key={tr.installmentId}

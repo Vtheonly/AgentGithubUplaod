@@ -51,6 +51,7 @@ import {
 // reused (never re-implemented) so the inspector's debt math is the
 // executive-statistics math is the KPI math.
 import { installmentRemaining } from "./executive-statistics";
+import { isInstallmentSettled } from "../../../../domain/calc/payment/queries";
 
 /** French month labels, Jan→Déc (canonical order; matches the repository series). */
 export const MONTH_LABELS_FR = [
@@ -200,7 +201,10 @@ export function deriveOutstandingDebt(
     ? installmentsForAcademicYear(installments, academicYear)
     : [...installments];
   return scoped
-    .filter((i) => i.status !== "paid")
+    // T-424 (DATA-042): the canonical settled predicate — settled rows
+    // contribute 0 remaining by construction, but the filter follows the
+    // ONE rule so the semantics cannot drift per surface.
+    .filter((i) => !isInstallmentSettled(i))
     .reduce((sum, i) => sum + installmentRemaining(i), 0);
 }
 
