@@ -1,3 +1,25 @@
+## 2026-09-27 — The 106th session — T-422 REGISTERED & DIAGNOSED (READ-ONLY): the owner's finance-zeros report (GitHub issue #23) — the Finances page shows all zeros while the Dettes tab shows the real debts; FIVE problems registered (CACHE-103, DATA-038, PERF-505, ACAD-511, DATA-039), every fix owner-gated
+
+### The mandate (the owner's six hypotheses, changes forbidden)
+
+The owner reported: *Finances → Encaissement — every KPI 0 DZD (Encaissé, Revenu mensuel, Encours créances, dont échues, Dépenses), "Aucune tranche T1/T2/T3", "Aucune tranche ne correspond aux filtres", Page 1/1 — while the Suivi des Dettes tab shows the real debts* — and suspected a historique/prior-year import mismatch. The mandate: trace spreadsheet/import → DB → calculations → créances → tranches → paiements → historique → UI **read-only**, and decide which of six hypotheses holds (workflow correct / debts unlinked / history mismatched / data illogical / app-API-DB bug / import wrong) before proposing any change.
+
+### The evidence (`docs/recovery/t-422-finance-zeros-verification.md` + the three committed read-only scripts)
+
+- **The DB is INTACT** at the T-421-verified state (1,137 students / 741 parents / 3,342 ledger / 2,198 payments / 5,963 installments — identical across every probe round; all rows created 2026-09-26T23→00:00:45, zero written since). The import was already live-verified against the Excel source of truth by T-420/T-421.
+- **The business logic is CORRECT**: the e2e simulation reproduced the page's exact computations over the live data — Encaissé 162,713,000 DZD, Revenu mensuel 162,713,000 DZD, and the full-set Créances matches the RPC's independent 207,773,800 DZD.
+- **The live repro (measured twice — inside AND outside the 01:00 backup window)**: the payments paginated seed 4/5 OK at 6.5–19.9 s with 1× **57014 statement timeout**; the installments read 3–4/5 with 1–2× 57014; the `compute_debt_aging_summary` RPC **5/5 + 5/5 OK at 0.8–6.7 s**. Every failed read lands in a bare catch that sets the cache empty → the page renders confident zeros with zero diagnostics (CACHE-103).
+- **The success path is ALSO broken**: the unpaginated installments read caches 1,000 of 5,963 rows — ALL tranche 1 — so Tranches shows T1-only even on a good read and the Créances KPI computes 43,650,000 vs the true 207,773,800 (DATA-038 — the DATA-035 class T-411 fixed for payments only).
+- **The historique answer**: `student_academic_histories` = 0 rows (never written by any import), `academic_years` = one row (2026-2027) — no prior-year data exists to mismatch; hypothesis ③ is false as a cause (the gap is real but separate — ACAD-511, issue #18's scope).
+
+### The verdict
+
+① workflow correct **TRUE** · ② debts correctly linked **TRUE** · ③ history connected **FALSE as a cause** (nothing to connect — ACAD-511 is the separate gap) · ④ data conforms **TRUE** (T-420's per-student oracle) · ⑤ app/API/DB bug **TRUE — THE ROOT** (CACHE-103 + DATA-038, triggered by PERF-505's fragile direct reads) · ⑥ import wrong **FALSE**. **Attribution: an APP+API reliability failure on the read path — the business logic, the imported data, and the DB contents are all exonerated.** The Dettes tab survives because its path (the SECURITY DEFINER RPC + seedAging's keep-last-known convention) is structurally immune to both defects.
+
+### What was and was not changed
+
+**Nothing — by mandate.** Zero production code, zero migrations, zero RPC/RLS changes. The five problems were registered OPEN before any fix per §13; the three evidence scripts (`t-422-finance-zeros-probe.mjs`, `t-422-flakiness-meter.mjs`, `t-422-e2e-simulation.mjs`) are committed read-only tools. **The fix plan is registered and owner-gated in GitHub issue #23** (Phase A: the OPS-317 honest-degradation treatment + retry/backoff for the four financial seeds, the DATA-035 keyset pagination for installments/debtSummary, optionally seeding the Créances KPI from the fast RPC; Phase B — sbp token: SECURITY DEFINER read RPCs, the index-coverage review, the superuser EXPLAIN that names PERF-505's dominant cost) with the acceptance criteria as a checklist. Knowledge: AGENTS.md §15.63 (six discoveries — the silent-empty-cache lie, the refresh-that-wipes, the order-by truncation, the path-property rule, the error-state-as-forensic-instrument rule, the count-forms-lying rule).
+
 ## 2026-09-27 — The 104th session — T-420 EXECUTED: the issue-#20 Excel-import financial integrity (FIVE defects found and fixed: IMPORT-112/113/114/115 + PERF-504), the definitive live verification ALL GREEN — the live DB now matches the Excel source of truth
 
 ### The forensic baseline (Phase 0 — commit 07e1a30)
