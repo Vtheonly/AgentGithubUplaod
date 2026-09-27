@@ -34,7 +34,7 @@ const NOW = new Date("2026-06-15T12:00:00.000Z");
 
 const P_A = "p-archetype-a";
 const P_B = "p-archetype-b";
-const P_C = "p-orange-c";
+const P_C = "p-green-c";
 
 function makeInstallment(parentId: string, dueDate: string, amountDue = 100_000): Installment {
   return {
@@ -94,20 +94,24 @@ const ARCHETYPE_B: DebtAgingAnalysis = computeDebtAgingAnalysis({
   now: NOW,
 });
 
-const ORANGE_C: DebtAgingAnalysis = computeDebtAgingAnalysis({
+// T-429: the GREEN tier-2 fixture — due 3 days before NOW (within the
+// 5-day grace window): "À échoir / En cours", never a past-due level.
+const GREEN_C: DebtAgingAnalysis = computeDebtAgingAnalysis({
   parentId: P_C,
-  installments: [makeInstallment(P_C, "2025-11-27", 50_000)],
+  installments: [makeInstallment(P_C, "2026-06-12", 50_000)],
   ledgerEntries: [makePaymentEntry(P_C, "2026-03-01T10:00:00.000Z", -5_000)],
   academicYears: [],
   now: NOW,
 });
 
-// The archetypes at the pinned clock: A green (kept paying), B red (silence).
+// The archetypes at the pinned clock (T-429): A red DESPITE paying (the
+// decoupling — the annotation, never a mask), B red (silence), C green
+// (à échoir, within the grace window).
 // These assertions are the suite's OWN sanity gate — the engine suite pins
 // the derivation; here we pin what the UI SHOWS.
 void ARCHETYPE_A;
 void ARCHETYPE_B;
-void ORANGE_C;
+void GREEN_C;
 
 /* ── The repository / auth / router stubs ───────────────────────────────── */
 
@@ -168,7 +172,7 @@ const PARENTS: ParentModel[] = [P_A, P_B, P_C].map((pid) => ({
   deletedAt: null,
 } as unknown as ParentModel));
 
-const agingObs = obs<DebtAgingAnalysis[]>([ARCHETYPE_A, ARCHETYPE_B, ORANGE_C]);
+const agingObs = obs<DebtAgingAnalysis[]>([ARCHETYPE_A, ARCHETYPE_B, GREEN_C]);
 
 let state: Record<string, unknown>;
 
@@ -211,7 +215,7 @@ beforeEach(() => {
 });
 
 describe("T-405 — DebtAgingTab (the Suivi des Dettes view)", () => {
-  it("renders the canonical records verbatim: both archetypes, opposite statuses, same 100 000 DZD", async () => {
+  it("renders the canonical records verbatim: the T-429 tiers — A red despite paying (the decoupling), B red, C green à échoir", async () => {
     render(<DebtAgingTab />);
 
     // Both archetype families are listed with their canonical amounts —
@@ -222,19 +226,21 @@ describe("T-405 — DebtAgingTab (the Suivi des Dettes view)", () => {
     });
     expect(screen.getByText(/FAMILLE P-ARCHETYPE-A/i)).toBeTruthy();
 
-    // The OPPOSITE statuses for the identical debt — T-405's core promise.
-    expect(screen.getAllByText("Actif / Soldé").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Critique").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Retard soutenu").length).toBeGreaterThanOrEqual(1);
+    // THE T-429 DECOUPLING MADE VISIBLE: A (kept paying) and B (silence)
+    // share the RED level for the identical 608-day-old debt — a recent
+    // payment ANNOTATES, never masks; C (3 days, within grace) is green.
+    expect(screen.getAllByText(/Critique \/ Contentieux/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Soldé / À échoir").length).toBeGreaterThanOrEqual(1);
 
     // The canonical facts are displayed: origin year, subsequent-year
     // activity (Oui for A, Non for B), inactivity.
     expect(screen.getAllByText("2024-2025").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/Oui/i).length).toBeGreaterThanOrEqual(1);
 
-    // INV-16d: the explanation column — never a bare color.
-    expect(screen.getByText(/Actif — paiement il y a 10 j/i)).toBeTruthy();
-    expect(screen.getByText(/Critique — dette ancienne \(608 j\)/i)).toBeTruthy();
+    // INV-16d: the explanation column — never a bare color. A's red
+    // explanation carries the active-payer ANNOTATION (the T-429 contract).
+    expect(screen.getByText(/Payeur actif — dernier paiement il y a 10 j/i)).toBeTruthy();
+    expect(screen.getAllByText(/Critique — échéance dépassée de 608 j/i).length).toBeGreaterThanOrEqual(2); // A and B
   });
 
   it("the status KPI filter narrows the table to the selected level", async () => {
@@ -243,11 +249,13 @@ describe("T-405 — DebtAgingTab (the Suivi des Dettes view)", () => {
       expect(screen.getByText(/FAMILLE P-ARCHETYPE-A/i)).toBeTruthy();
     });
 
-    // Click the Critique KPI → only the red archetype remains.
+    // Click the Critique KPI → both red archetypes remain (A now red —
+    // the decoupling), the green C is filtered out.
     fireEvent.click(screen.getByRole("button", { name: /Critique/i }));
     await waitFor(() => {
-      expect(screen.queryByText(/FAMILLE P-ARCHETYPE-A/i)).toBeNull();
+      expect(screen.getByText(/FAMILLE P-ARCHETYPE-A/i)).toBeTruthy();
       expect(screen.getByText(/FAMILLE P-ARCHETYPE-B/i)).toBeTruthy();
+      expect(screen.queryByText(/FAMILLE P-GREEN-C/i)).toBeNull();
     });
 
     // Reset via the À surveiller filter → nothing matches (no yellow rows)

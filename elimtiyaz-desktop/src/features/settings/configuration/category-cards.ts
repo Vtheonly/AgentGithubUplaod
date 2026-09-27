@@ -7,7 +7,7 @@
  */
 import type { LucideIcon } from "lucide-react";
 import {
-  Bot, Mail, Bell, Database, HardDrive, ToggleLeft,
+  Bot, Mail, Bell, Database, HardDrive, ToggleLeft, Scale,
 } from "lucide-react";
 import type {
   SystemConfigService,
@@ -25,13 +25,23 @@ export interface CategoryCardConfig {
   readOnly?: boolean;
 }
 
-/** The 6 standard category cards rendered by ConfigurationTab. */
+/** The standard category cards rendered by ConfigurationTab. */
 export const CATEGORY_CARDS: readonly CategoryCardConfig[] = [
   {
     category: "ai",
     title: "Fournisseurs IA",
     description: "Clés API pour Groq et OpenRouter. Les clés sont stockées chiffrées et jamais envoyées au client.",
     icon: Bot,
+  },
+  {
+    // T-429 (DEBT-100, issues #24/#25 Track 5): the debt configuration —
+    // the four configurable aging thresholds the canonical debt engine
+    // consumes (migration 0125's seed: grace 5 / yellow 15 / red 60 /
+    // active-payer window 15).
+    category: "debt",
+    title: "Configuration des Créances",
+    description: "Seuils du moteur de vieillissement des créances : délai de grâce, seuils « À surveiller » et « Critique / Contentieux », fenêtre « payeur actif ». Les modifications s'appliquent au prochain calcul (aucun effet rétroactif sur les statuts déjà affichés).",
+    icon: Scale,
   },
   {
     category: "email",

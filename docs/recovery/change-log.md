@@ -1,3 +1,21 @@
+## 2026-09-27 — The 110th session (cont.) — T-429 COMPLETE: the configurable debt-configuration architecture — DEBT-100 registered, RESOLVED, TESTED, and LIVE-VERIFIED (migration 0125 applied live; the active-payer masking removed; the 4-tier thresholds configurable from the admin UI)
+
+### What was built
+
+- **The 4-tier canonical risk engine (the TS reference + the SQL mirror):** the strict no-gap hierarchy over due-date aging — green Soldé (≤ 0.001 DZD) / green À échoir (≤ grace, default 5) / yellow À surveiller (≤ 15) / orange Retard soutenu (≤ 60) / red Critique-Contentieux (> 60) — with the thresholds CONFIGURABLE per tenant (`system_settings` category `debt`, migration 0125's seed: 5/15/60/15). The active-payer rule (inactivity ≤ 60 → GREEN) is REMOVED from the status inputs (issue #24 Track 2 item 3): a payment within the configurable window (default 15 j) ANNOTATES the explanation (« Payeur actif — dernier paiement il y a N j »), never masks past-due debt.
+- **The SQL mirror's safest possible change:** 0111's `compute_debt_aging_rows` (the FACTOR engine — obligations, payment replay, attribution, subsequent-year counts) is UNTOUCHED; migration 0125 overrides ONLY the summary wrapper's status/reason columns with the configurable CASE reading `debt_aging_thresholds()`. The reason codes match the TS engine one-for-one (resolved / not_due / watch / sustained_delinquency / critical_delinquency).
+- **The admin UI:** the "Configuration des Créances" card (the settings' Configuration tab) — the four thresholds editable live.
+- **The domain rule amended:** financial-rules.md §15.1–15.3 (the T-429 amendment note + INV-16f configurability; INV-16a/b/e re-worded; the labels: green « Soldé / À échoir », red « Critique / Contentieux »).
+- **The t-405-family suites re-pinned to the new semantics (a REGISTERED expectation move, the T-424-Phase-C convention):** the domain suite (30 tests — the decoupling pinned: BOTH archetypes red, the annotation is the visible difference; the configurable-threshold boundaries), the repository suite (5 — the 0125 server codes on the wire fixtures, the drift cross-check, the degradation), the UI suite (5 — the tier chips, the filter, the drawer).
+
+### The live verification (ALL GREEN)
+
+Migration 0125 applied through the Management-API SQL endpoint (HTTP 201 — scripts/apply_0125_live.sh): the four `debt` settings seeded with the owner defaults (each value verified by key); `debt_aging_thresholds()` resolves them AND falls back to the defaults on a bare tenant; the summary's definition carries the 4-tier CASE reading the thresholds; **the live census under the new hierarchy: 634 debtors → 86 GREEN (à échoir — future-due/within-grace) / 548 YELLOW (the T1 tranche is 13 days past due — the whole school's honest current state, previously MASKED GREEN for every recent payer) / 0 ORANGE / 0 RED (this school-year's debt is young).**
+
+### The gates
+
+tsc 0 · eslint 0 errors on every changed file · the debt-aging family 40/40 (domain + repository + UI) · check:migrations append-only OK (121 files) · FULL vitest **4,222 passed / 18 failed — the failure set byte-identical to the pre-session baseline** (the t-405-family expectation moves are REGISTERED above; FAIL lists diffed: 0 differences).
+
 ## 2026-09-27 — The 110th session (cont.) — T-430 COMPLETE: the performance family — PERF-506/507/508 registered and RESOLVED/TESTED (the 741-observable fan-out → ONE bulk subscription; the modal's 9 background observables → conditional mount; the debt refresh's OFFSET walks → RPC-first ledger + keyset)
 
 ### What was fixed

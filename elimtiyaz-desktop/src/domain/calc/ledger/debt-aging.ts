@@ -37,27 +37,54 @@ import type { Installment, PaymentCategory } from "@/domain/model/payment";
 import { daysBetweenFloor } from "../shared/dates";
 
 /* ================================================================== */
-/*  Canonical thresholds (§15.1 — existing boundaries, zero new magic)  */
+/*  Canonical thresholds (§15.1 — configurable since T-429 / issue #25)  */
 /* ================================================================== */
 
 /**
- * Rule 2 window: a payment within the last 60 days = "actively paying"
- * (the 31_60 aging-bucket edge — end of the "last two months" band).
+ * T-429 (DEBT-100, issues #24/#25 Track 5): the configurable debt-aging
+ * thresholds — seeded to `public.system_settings` (category `debt`) by
+ * migration 0125 and editable from the system-settings admin UI
+ * ("Configuration des Créances"). The constants below are the DEFAULTS
+ * (the documented values the owner's audit specified); the live values
+ * are read from the settings table at analysis time.
+ *
+ * The hierarchy (strict, no gaps — §15.1 as amended by T-429):
+ *   1. outstanding ≤ 0.001                       → GREEN  (Soldé)
+ *   2. debtAgeDays ≤ gracePeriodDays (5)         → GREEN  (À échoir / En cours)
+ *   3. debtAgeDays ≤ threshold_yellow_days (15)  → YELLOW (À surveiller)
+ *   4. debtAgeDays ≤ threshold_red_days (60)     → ORANGE (Retard soutenu)
+ *   5. debtAgeDays >  threshold_red_days (60)     → RED    (Critique / Contentieux)
+ */
+export interface DebtAgingThresholds {
+  /** Days past due still counted as "en cours" (the tolerance window). */
+  readonly gracePeriodDays: number;
+  /** Past this many days late the account is "À surveiller" (yellow). */
+  readonly yellowDays: number;
+  /** Past this many days late the account is "Critique / Contentieux" (red). */
+  readonly redDays: number;
+  /**
+   * A payment within the last N days marks the parent a "payeur actif"
+   * — an ANNOTATION on the explanation, NEVER a status input (the
+   * T-429 decoupling: a recent payment must not mask past-due debt).
+   */
+  readonly activePayerGraceDays: number;
+}
+
+/** The owner-specified defaults (migration 0125's seed values). */
+export const DEFAULT_DEBT_AGING_THRESHOLDS: DebtAgingThresholds = {
+  gracePeriodDays: 5,
+  yellowDays: 15,
+  redDays: 60,
+  activePayerGraceDays: 15,
+};
+
+/**
+ * Legacy pre-T-429 window (the 60-day active-payer GREEN rule) — retained
+ * as a documented historical reference ONLY; the rule itself is REMOVED
+ * (DEBT-100/issue #24 Track 2 item 3: "A recent payment must not mask
+ * accounts that remain millions of dinars past due").
  */
 export const DEBT_AGING_ACTIVE_PAYER_WINDOW_DAYS = 60;
-
-/**
- * Rule 4 threshold: debt older than 90 days with payment stopped =
- * sustained delinquency (the 61_90 bucket edge — the same 90-day
- * convention behind `DebtRepository.lockDelinquentAccounts`).
- */
-export const DEBT_AGING_SUSTAINED_DAYS = 90;
-
-/**
- * Rule 3 threshold: both debt age AND inactivity beyond 180 days =
- * critical (the 91_180 bucket edge / the 180_plus band).
- */
-export const DEBT_AGING_CRITICAL_DAYS = 180;
 
 /** INV-4 epsilon: outstanding at or below this is "resolved". */
 export const DEBT_AGING_EPSILON_DZD = 0.001;
@@ -72,16 +99,16 @@ export type DebtAgingStatusLevel = "green" | "yellow" | "orange" | "red";
 
 /**
  * Canonical machine reason — produced identically by the TS engine and the
- * SQL mirror (0111). The FR explanation is RENDERED from this + the facts
- * by `debtAgingExplanation` so labels live in exactly one place per
- * platform (the PARITY-001 discipline).
+ * SQL mirror (0111 as amended by 0125). The FR explanation is RENDERED
+ * from this + the facts by the engine so labels live in exactly one place
+ * per platform (the PARITY-001 discipline).
  */
 export type DebtAgingReasonCode =
-  | "resolved" // outstanding <= epsilon (rule 1)
-  | "active_payer" // payment within 60 days (rule 2 — dominates 3..5)
-  | "critical_delinquency" // debt > 180d AND inactivity > 180d (rule 3)
-  | "sustained_delinquency" // debt > 90d AND inactivity > 60d (rule 4)
-  | "watch"; // becoming behind/inactive (rule 5)
+  | "resolved" // outstanding <= epsilon (tier 1)
+  | "not_due" // nothing past due beyond the grace window (tier 2)
+  | "watch" // past due, within the yellow threshold (tier 3)
+  | "sustained_delinquency" // past due, between yellow and red (tier 4)
+  | "critical_delinquency" // past due beyond the red threshold (tier 5)
 
 /** A tenant `academic_years` row, reduced to the attribution window. */
 export interface AcademicYearWindow {
@@ -195,31 +222,41 @@ export function academicYearStart(code: string): number {
 export interface DebtAgingStatusFactors {
   readonly outstandingAmount: number;
   readonly debtAgeDays: number;
+  /** INV-15 fact — an ANNOTATION since T-429 (never a status input). */
   readonly inactivityDays: number;
-  /** INV-15 fact, used in the active-payer explanation only. */
+  /** INV-15 fact, used in the active-payer annotation only. */
   readonly hasSubsequentYearPayments?: boolean;
 }
 
 /**
- * The canonical ordered evaluation (financial-rules §15.1):
+ * The canonical ordered evaluation (financial-rules §15.1 as amended by
+ * T-429 / DEBT-100 / issues #24/#25 Track 5):
  *
- *   1. outstanding ≤ 0.001 DZD                        → GREEN  (resolved)
- *   2. inactivity ≤ 60                                → GREEN  (active payer)
- *   3. debtAge > 180 AND inactivity > 180             → RED    (critical)
- *   4. debtAge > 90 AND inactivity > 60               → ORANGE (sustained)
- *   5. otherwise                                      → YELLOW (watch)
+ *   1. outstanding ≤ 0.001 DZD             → GREEN  (Soldé)
+ *   2. debtAgeDays ≤ grace (default 5)     → GREEN  (À échoir / En cours)
+ *   3. debtAgeDays ≤ yellow (default 15)   → YELLOW (À surveiller)
+ *   4. debtAgeDays ≤ red (default 60)      → ORANGE (Retard soutenu)
+ *   5. debtAgeDays > red (default 60)      → RED    (Critique / Contentieux)
  *
- * INV-16a: rule 2 dominates 3–5 — an old balance with continued payment is
- * NOT delinquency (the task's Parent A archetype). INV-16b: never-paid
- * parents default inactivity to debtAge, so they reach RED exactly when the
- * debt passes 180 days. INV-16c: no amount tiers — the amount is displayed,
- * never a status input beyond the epsilon.
+ * The status is PURELY due-date-based aging over the INV-4 remaining —
+ * the T-429 decoupling removed the pre-T-429 rule 2 (inactivity ≤ 60 →
+ * GREEN): a recent payment ANNOTATES the explanation ("payeur actif",
+ * within `activePayerGraceDays`) but never masks past-due debt. INV-16c
+ * (no amount tiers) and INV-16d (the explanation contract) are preserved.
  */
 export function computeDebtAgingStatus(
   factors: DebtAgingStatusFactors,
+  thresholds: DebtAgingThresholds = DEFAULT_DEBT_AGING_THRESHOLDS,
 ): DebtAgingStatus {
   const { outstandingAmount, debtAgeDays, inactivityDays } = factors;
   const subsequent = factors.hasSubsequentYearPayments === true;
+  // The active-payer annotation (presentation only — DEBT-100's
+  // decoupling: never a status input, never a masking rule).
+  const activePayer = inactivityDays <= thresholds.activePayerGraceDays;
+  const activePayerNote = activePayer
+    ? ` Payeur actif — dernier paiement il y a ${inactivityDays} j` +
+      (subsequent ? " ; paiements poursuivis sur les années suivantes." : ".")
+    : "";
 
   if (outstandingAmount <= DEBT_AGING_EPSILON_DZD) {
     return {
@@ -228,38 +265,43 @@ export function computeDebtAgingStatus(
       explanationFr: "Soldé — aucune créance en cours.",
     };
   }
-  if (inactivityDays <= DEBT_AGING_ACTIVE_PAYER_WINDOW_DAYS) {
+  if (debtAgeDays <= thresholds.gracePeriodDays) {
     return {
       level: "green",
-      reasonCode: "active_payer",
+      reasonCode: "not_due",
       explanationFr:
-        `Actif — paiement il y a ${inactivityDays} j malgré un encours` +
-        (subsequent
-          ? ` ancien (${debtAgeDays} j) ; paiements poursuivis durant les années suivantes.`
-          : ` (${debtAgeDays} j).`),
+        `À échoir — l'échéance n'est pas dépassée au-delà du délai de grâce ` +
+        `(${thresholds.gracePeriodDays} j ; dette de ${debtAgeDays} j).` +
+        activePayerNote,
     };
   }
-  if (debtAgeDays > DEBT_AGING_CRITICAL_DAYS && inactivityDays > DEBT_AGING_CRITICAL_DAYS) {
+  if (debtAgeDays <= thresholds.yellowDays) {
     return {
-      level: "red",
-      reasonCode: "critical_delinquency",
+      level: "yellow",
+      reasonCode: "watch",
       explanationFr:
-        `Critique — dette ancienne (${debtAgeDays} j) et inactivité prolongée (${inactivityDays} j sans paiement).`,
+        `À surveiller — échéance dépassée de ${debtAgeDays} j (seuil de ` +
+        `${thresholds.yellowDays} j ; dernière activité de paiement il y a ` +
+        `${inactivityDays} j).` + activePayerNote,
     };
   }
-  if (debtAgeDays > DEBT_AGING_SUSTAINED_DAYS && inactivityDays > DEBT_AGING_ACTIVE_PAYER_WINDOW_DAYS) {
+  if (debtAgeDays <= thresholds.redDays) {
     return {
       level: "orange",
       reasonCode: "sustained_delinquency",
       explanationFr:
-        `Retard soutenu — dette de ${debtAgeDays} j et paiements interrompus depuis ${inactivityDays} j.`,
+        `Retard soutenu — échéance dépassée de ${debtAgeDays} j (entre les ` +
+        `seuils ${thresholds.yellowDays} et ${thresholds.redDays} j ; dernier ` +
+        `paiement il y a ${inactivityDays} j).` + activePayerNote,
     };
   }
   return {
-    level: "yellow",
-    reasonCode: "watch",
+    level: "red",
+    reasonCode: "critical_delinquency",
     explanationFr:
-      `À surveiller — dette de ${debtAgeDays} j, dernier paiement il y a ${inactivityDays} j : le compte devient inactif ou en retard.`,
+      `Critique — échéance dépassée de ${debtAgeDays} j au-delà du seuil de ` +
+      `${thresholds.redDays} j ; dernier paiement il y a ${inactivityDays} j.` +
+      activePayerNote,
   };
 }
 
@@ -279,6 +321,12 @@ export interface DebtAgingAnalysisInput {
   readonly academicYears?: readonly AcademicYearWindow[];
   /** The evaluation clock (deterministic tests / as-of reports). */
   readonly now?: Date;
+  /**
+   * T-429 (DEBT-100): the configurable thresholds — read from the
+   * `system_settings` (category `debt`) rows by the caller; the DEFAULTS
+   * apply when absent (the migration-0125 seed values).
+   */
+  readonly thresholds?: DebtAgingThresholds;
 }
 
 /**
@@ -356,12 +404,15 @@ export function computeDebtAgingAnalysis(input: DebtAgingAnalysisInput): DebtAgi
     ...new Set(obligations.map((o) => o.studentId).filter((s): s is string => s !== null)),
   ];
 
-  const status = computeDebtAgingStatus({
-    outstandingAmount,
-    debtAgeDays,
-    inactivityDays,
-    hasSubsequentYearPayments: subsequentYearPaymentCount > 0,
-  });
+  const status = computeDebtAgingStatus(
+    {
+      outstandingAmount,
+      debtAgeDays,
+      inactivityDays,
+      hasSubsequentYearPayments: subsequentYearPaymentCount > 0,
+    },
+    input.thresholds,
+  );
 
   return {
     parentId: input.parentId,
@@ -387,10 +438,10 @@ export function computeDebtAgingAnalysis(input: DebtAgingAnalysisInput): DebtAgi
 /* ================================================================== */
 
 export const DEBT_AGING_STATUS_LABELS_FR: Record<DebtAgingStatusLevel, string> = {
-  green: "Actif / Soldé",
+  green: "Soldé / À échoir",
   yellow: "À surveiller",
   orange: "Retard soutenu",
-  red: "Critique",
+  red: "Critique / Contentieux",
 };
 
 /** StatusChip tone mapping for the shared UI chip (presentation only). */

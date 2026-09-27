@@ -8,7 +8,8 @@
 -- fixtures as the TS reference suite
 -- (src/tests/domain/ledger/debt-aging.test.ts): the two archetype parents
 -- (same 100 000 DZD debt, same 2024-10-15 due date — one kept paying
--- through 2025-2026 → GREEN/active_payer, one went silent →
+-- through 2025-2026 → GREEN/active_payer (the LEGACY rows() evaluation —
+-- see the T-429 note below), one went silent →
 -- RED/critical_delinquency) at the SAME pinned clock 2026-06-15T12:00Z.
 --
 -- SANDBOX: run-unique probe parents (PAR-T405-…), one probe academic year
@@ -449,3 +450,71 @@ end $gate$;
 select check_id, ok, detail from t405_results order by check_id;
 
 ROLLBACK;
+
+
+-- ----------------------------------------------------------------------------
+-- T-429 (DEBT-100) — the configurable 4-tier hierarchy amendment (0125):
+--   * compute_debt_aging_rows keeps the LEGACY status columns (history);
+--     the SURFACED contract (compute_debt_aging_summary) overrides the
+--     status/reason with the configurable hierarchy.
+--   * These checks verify the NEW architecture pieces directly:
+--     T1  the four seeded `debt` settings exist with the owner defaults;
+--     T2  debt_aging_thresholds() resolves them (with defaults on a bare
+--     tenant);
+--     T3  the summary's definition carries the 4-tier CASE (the structural
+--     probe — a full behavioral run needs a staff JWT context).
+-- ----------------------------------------------------------------------------
+do $$
+declare
+    v_tenant uuid;
+    n integer;
+    v text;
+    thresholds record;
+begin
+    select tenant_id into v_tenant from public.system_settings limit 1;
+
+    -- T1: the four seeded settings with the owner defaults.
+    select count(*) into n from public.system_settings
+     where category = 'debt' and key in (
+        'debt.grace_period_days', 'debt.threshold_yellow_days',
+        'debt.threshold_red_days', 'debt.active_payer_grace_days');
+    insert into t405_results values ('T429-T1-settings-seeded', n = 4, 'n=' || n);
+
+    select count(*) into n from public.system_settings
+     where category = 'debt'
+       and ((key = 'debt.grace_period_days' and (value #>> '{}')::int = 5)
+         or (key = 'debt.threshold_yellow_days' and (value #>> '{}')::int = 15)
+         or (key = 'debt.threshold_red_days' and (value #>> '{}')::int = 60)
+         or (key = 'debt.active_payer_grace_days' and (value #>> '{}')::int = 15));
+    insert into t405_results values ('T429-T1-defaults', n = 4, 'n=' || n);
+
+    -- T2: the threshold reader (defaults on a nonexistent tenant).
+    select * into thresholds from public.debt_aging_thresholds(
+        '00000000-0000-0000-0000-00000000dead'::uuid);
+    insert into t405_results values ('T429-T2-default-fallback',
+        thresholds.grace_period_days = 5 and thresholds.yellow_days = 15
+        and thresholds.red_days = 60 and thresholds.active_payer_grace_days = 15,
+        'grace=' || thresholds.grace_period_days || ' yellow=' || thresholds.yellow_days
+        || ' red=' || thresholds.red_days || ' active=' || thresholds.active_payer_grace_days);
+
+    if v_tenant is not null then
+        select * into thresholds from public.debt_aging_thresholds(v_tenant);
+        insert into t405_results values ('T429-T2-tenant-resolves',
+            thresholds.grace_period_days = 5 and thresholds.yellow_days = 15
+            and thresholds.red_days = 60,
+            'grace=' || thresholds.grace_period_days || ' yellow=' || thresholds.yellow_days
+            || ' red=' || thresholds.red_days);
+    end if;
+
+    -- T3: the summary's definition carries the 4-tier CASE + the seeded
+    -- thresholds (the structural probe — the behavioral run needs a staff
+    -- JWT context for the summary's role gates).
+    select pg_get_functiondef('public.compute_debt_aging_summary(timestamptz)'::regprocedure)
+      into v;
+    insert into t405_results values ('T429-T3-summary-4tier-case',
+        v like '%not_due%' and v like '%debt_aging_thresholds%'
+        and v not like '%active_payer then ''green''%',
+        'len=' || length(v));
+end
+$$;
+

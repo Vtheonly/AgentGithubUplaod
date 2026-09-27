@@ -1,19 +1,20 @@
 /**
- * Unit tests for the canonical cross-year debt-aging engine (T-405,
- * docs/domain/financial-rules.md §15).
+ * Unit tests for the canonical cross-year debt-aging engine (T-405 as
+ * amended by T-429 / DEBT-100, docs/domain/financial-rules.md §15.1).
  *
- * The two ARCHETYPE fixtures are the task's own definition of correct:
+ * THE T-429 SEMANTIC (issues #24/#25 Track 5 + Track 2 item 3): the status
+ * is PURELY due-date-based aging over the INV-4 remaining, driven by the
+ * CONFIGURABLE thresholds (defaults: grace 5 / yellow 15 / red 60 /
+ * active-payer window 15). The pre-T-429 "active payer" rule (a payment
+ * within 60 days → GREEN) is REMOVED — a recent payment ANNOTATES the
+ * explanation ("Payeur actif — dernier paiement il y a N j"), never masks
+ * past-due debt.
  *
- *   Parent A — owes 100,000 DZD originating 2024-2025 but has kept paying
- *   monthly through 2025-2026 → GREEN / active_payer (old debt + continued
- *   payment is NOT delinquency).
- *
- *   Parent B — owes 100,000 DZD originating 2024-2025 and has made no
- *   meaningful payment since → RED / critical_delinquency.
- *
- * Both have the SAME outstanding amount and the SAME origin year — the
- * status differs ONLY through payment behavior. That is the whole point of
- * T-405, pinned here so no platform mirror can regress it.
+ * The two ARCHETYPE fixtures from T-405 keep their FACTS (both owe
+ * 100,000 DZD originating 2024-2025; Parent A pays monthly, Parent B
+ * stopped) — under T-429 BOTH are RED (608 days past due); only the
+ * ANNOTATION differs. The facts sections below pin the analysis layer
+ * (unchanged by T-429); the status sections pin the new hierarchy.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -22,9 +23,9 @@ import {
   resolveAcademicYearForDate,
   academicYearStart,
   DEBT_AGING_ACTIVE_PAYER_WINDOW_DAYS,
-  DEBT_AGING_SUSTAINED_DAYS,
-  DEBT_AGING_CRITICAL_DAYS,
   DEBT_AGING_EPSILON_DZD,
+  DEFAULT_DEBT_AGING_THRESHOLDS,
+  type DebtAgingThresholds,
 } from "../../../domain/calc/ledger/debt-aging";
 import type { Installment } from "../../../domain/model/payment";
 import type { LedgerEntry, LedgerEntryType } from "../../../domain/model/ledger";
@@ -95,12 +96,10 @@ function monthlyPayerEntries(parentId: string, from: string, months: number): Le
   return entries;
 }
 
-/* ── The two archetypes ───────────────────────────────────────────── */
+/* ── The two archetypes (the FACTS are unchanged by T-429) ────────── */
 
-describe("T-405 debt aging — the two archetype parents", () => {
-  it("Parent A: old debt + continued monthly payment → GREEN / active_payer", () => {
-    // Debt originated 2024-2025 (due 2024-10-15), still 100,000 outstanding.
-    // Payments every month Sep 2025 → Jun 2026 (last: 2026-06-05, 10 days ago).
+describe("T-405 + T-429 debt aging — the two archetype parents (facts)", () => {
+  it("Parent A: old debt + continued monthly payment → the FACTS, and RED with the active-payer annotation", () => {
     const installments = [
       makeInstallment({ parentId: "p-A", id: "ins-A", amountDue: 100_000, dueDate: "2024-10-15" }),
     ];
@@ -113,29 +112,28 @@ describe("T-405 debt aging — the two archetype parents", () => {
       now: NOW,
     });
 
-    // The facts:
+    // The facts (T-405's analysis layer — unchanged):
     expect(analysis.outstandingAmount).toBe(100_000);
     expect(analysis.originAcademicYear).toBe("2024-2025");
     expect(analysis.oldestDueDate).toBe("2024-10-15");
-    // Debt age from the ORIGINAL due date (never reset): 2024-10-15 → 2026-06-15 = 608 days.
     expect(analysis.debtAgeDays).toBe(608);
     expect(analysis.lastPaymentAt).toBe(payments[payments.length - 1].at);
     expect(analysis.daysSinceLastPayment).toBe(10);
     expect(analysis.inactivityDays).toBe(10);
-    // Subsequent-year payments: Sep 2025 onwards = 2025-2026 > 2024-2025.
     expect(analysis.hasSubsequentYearPayments).toBe(true);
     expect(analysis.subsequentYearPaymentCount).toBe(10);
     expect(analysis.subsequentYearPaymentTotal).toBe(80_000);
 
-    // The status:
-    expect(analysis.status.level).toBe("green");
-    expect(analysis.status.reasonCode).toBe("active_payer");
-    expect(analysis.status.explanationFr).toContain("Actif");
+    // THE T-429 STATUS: 608 days past due is RED regardless of the payment
+    // behavior — the pre-T-429 GREEN / active_payer masking is GONE. The
+    // recent payment appears ONLY as the explanation annotation.
+    expect(analysis.status.level).toBe("red");
+    expect(analysis.status.reasonCode).toBe("critical_delinquency");
+    expect(analysis.status.explanationFr).toContain("Payeur actif"); // the annotation
+    expect(analysis.status.explanationFr).toContain("Critique");
   });
 
-  it("Parent B: same old debt, prolonged non-payment → RED / critical_delinquency", () => {
-    // Same amount, same origin year, same due date — but the last payment
-    // was 2024-11-01 (the origin year itself): ~592 days of inactivity.
+  it("Parent B: same old debt, prolonged non-payment → RED without the annotation", () => {
     const installments = [
       makeInstallment({ parentId: "p-B", id: "ins-B", amountDue: 100_000, dueDate: "2024-10-15" }),
     ];
@@ -167,10 +165,10 @@ describe("T-405 debt aging — the two archetype parents", () => {
     expect(analysis.status.level).toBe("red");
     expect(analysis.status.reasonCode).toBe("critical_delinquency");
     expect(analysis.status.explanationFr).toContain("Critique");
+    expect(analysis.status.explanationFr).not.toContain("Payeur actif"); // 591 j > the 15-j window
   });
 
-  it("the archetypes differ ONLY through payment behavior (amount/age/year equal)", () => {
-    // The invariant the task demands: identical debt facts, opposite status.
+  it("THE T-429 INVARIANT: identical debt facts → the SAME status (payment behavior no longer drives it)", () => {
     const mk = (parentId: string, payments: LedgerEntry[]) =>
       computeDebtAgingAnalysis({
         parentId,
@@ -187,14 +185,17 @@ describe("T-405 debt aging — the two archetype parents", () => {
     expect(a.outstandingAmount).toBe(b.outstandingAmount);
     expect(a.debtAgeDays).toBe(b.debtAgeDays);
     expect(a.originAcademicYear).toBe(b.originAcademicYear);
-    expect(a.status.level).not.toBe(b.status.level); // green vs red
+    // T-429: same age → same status (the T-405 "differs only through
+    // behavior" invariant is superseded by the owner's decoupling mandate).
+    expect(a.status.level).toBe(b.status.level);
+    expect(a.status.reasonCode).toBe(b.status.reasonCode);
   });
 });
 
-/* ── The ordered status evaluation (INV-16) ────────────────────────── */
+/* ── The ordered status evaluation (T-429's configurable hierarchy) ── */
 
-describe("T-405 debt aging — canonical status thresholds (§15.1)", () => {
-  it("rule 1: outstanding <= 0.001 DZD → GREEN / resolved", () => {
+describe("T-429 debt aging — the 4-tier configurable hierarchy (§15.1 as amended)", () => {
+  it("tier 1: outstanding <= 0.001 DZD → GREEN / resolved", () => {
     const s = computeDebtAgingStatus({ outstandingAmount: 0, debtAgeDays: 0, inactivityDays: 0 });
     expect(s.level).toBe("green");
     expect(s.reasonCode).toBe("resolved");
@@ -202,53 +203,49 @@ describe("T-405 debt aging — canonical status thresholds (§15.1)", () => {
     expect(sEpsilon.reasonCode).toBe("resolved");
   });
 
-  it("rule 2: inactivity <= 60 days → GREEN / active_payer even with ancient debt", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 900, inactivityDays: 60 });
+  it("tier 2: debtAge <= grace (5) → GREEN / not_due (À échoir — En cours)", () => {
+    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 5, inactivityDays: 0 });
     expect(s.level).toBe("green");
-    expect(s.reasonCode).toBe("active_payer");
-    const sEdge = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 900, inactivityDays: 0 });
-    expect(sEdge.reasonCode).toBe("active_payer");
+    expect(s.reasonCode).toBe("not_due");
+    expect(s.explanationFr).toContain("échoir");
   });
 
-  it("rule 2 boundary: inactivity 61 days with ancient debt → NOT green", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 900, inactivityDays: 61 });
-    expect(s.level).not.toBe("green");
+  it("tier 3: 5 < debtAge <= yellow (15) → YELLOW / watch", () => {
+    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 15, inactivityDays: 90 });
+    expect(s.level).toBe("yellow");
+    expect(s.reasonCode).toBe("watch");
+    const s6 = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 6, inactivityDays: 90 });
+    expect(s6.level).toBe("yellow");
   });
 
-  it("rule 3: debtAge > 180 AND inactivity > 180 → RED / critical_delinquency", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 181, inactivityDays: 181 });
+  it("tier 4: 15 < debtAge <= red (60) → ORANGE / sustained_delinquency", () => {
+    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 60, inactivityDays: 90 });
+    expect(s.level).toBe("orange");
+    expect(s.reasonCode).toBe("sustained_delinquency");
+    const s16 = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 16, inactivityDays: 90 });
+    expect(s16.level).toBe("orange");
+  });
+
+  it("tier 5: debtAge > red (60) → RED / critical_delinquency", () => {
+    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 61, inactivityDays: 0 });
     expect(s.level).toBe("red");
     expect(s.reasonCode).toBe("critical_delinquency");
   });
 
-  it("rule 3 boundary: inactivity exactly 180 with debt 400 → falls to rule 4 (ORANGE)", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 400, inactivityDays: 180 });
-    expect(s.level).toBe("orange");
-    expect(s.reasonCode).toBe("sustained_delinquency");
+  it("THE DECOUPLING: a payment 10 days ago does NOT make an ancient debt green (issue #24 Track 2 item 3)", () => {
+    // Pre-T-429 this was GREEN / active_payer — the masking the owner
+    // removed: "a recent payment must not mask accounts that remain
+    // millions of dinars past due".
+    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 730, inactivityDays: 10 });
+    expect(s.level).toBe("red");
+    expect(s.reasonCode).toBe("critical_delinquency");
+    expect(s.explanationFr).toContain("Payeur actif"); // the annotation survives
   });
 
-  it("rule 4: debtAge > 90 AND inactivity > 60 → ORANGE / sustained_delinquency", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 91, inactivityDays: 61 });
-    expect(s.level).toBe("orange");
-    expect(s.reasonCode).toBe("sustained_delinquency");
-  });
-
-  it("rule 4 boundary: debtAge exactly 90 → YELLOW (not sustained)", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 90, inactivityDays: 200 });
-    expect(s.level).toBe("yellow");
-    expect(s.reasonCode).toBe("watch");
-  });
-
-  it("rule 5: young debt + stopped paying → YELLOW / watch", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 70, inactivityDays: 70 });
-    expect(s.level).toBe("yellow");
-    expect(s.reasonCode).toBe("watch");
-  });
-
-  it("young current debt + recent payment → GREEN via rule 2", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 20, inactivityDays: 20 });
+  it("young current debt + recent payment → GREEN via tier 2 (the à-échoir window, not the payer rule)", () => {
+    const s = computeDebtAgingStatus({ outstandingAmount: 100_000, debtAgeDays: 3, inactivityDays: 3 });
     expect(s.level).toBe("green");
-    expect(s.reasonCode).toBe("active_payer");
+    expect(s.reasonCode).toBe("not_due");
   });
 
   it("INV-16c: amount magnitude never changes the level", () => {
@@ -258,39 +255,54 @@ describe("T-405 debt aging — canonical status thresholds (§15.1)", () => {
     expect(small.level).toBe("red");
   });
 
-  it("INV-16a: rule order — a payment 30 days ago dominates a 2-year-old balance", () => {
-    const s = computeDebtAgingStatus({ outstandingAmount: 150_000, debtAgeDays: 730, inactivityDays: 30 });
-    expect(s.level).toBe("green");
-    expect(s.reasonCode).toBe("active_payer");
+  it("CONFIGURABLE: custom thresholds change the boundaries (the system_settings contract)", () => {
+    const thresholds: DebtAgingThresholds = {
+      gracePeriodDays: 10,
+      yellowDays: 30,
+      redDays: 120,
+      activePayerGraceDays: 7,
+    };
+    // debtAge 12: within the custom grace (10? no — 12 > 10) → yellow? no:
+    // 12 <= 30 → yellow.
+    const s12 = computeDebtAgingStatus({ outstandingAmount: 100, debtAgeDays: 12, inactivityDays: 50 }, thresholds);
+    expect(s12.level).toBe("yellow");
+    // debtAge 31..120 → orange; > 120 → red.
+    const s60 = computeDebtAgingStatus({ outstandingAmount: 100, debtAgeDays: 60, inactivityDays: 50 }, thresholds);
+    expect(s60.level).toBe("orange");
+    const s130 = computeDebtAgingStatus({ outstandingAmount: 100, debtAgeDays: 130, inactivityDays: 50 }, thresholds);
+    expect(s130.level).toBe("red");
+    // The custom active-payer window (7) narrows the annotation.
+    const s8 = computeDebtAgingStatus({ outstandingAmount: 100, debtAgeDays: 60, inactivityDays: 8 }, thresholds);
+    expect(s8.explanationFr).not.toContain("Payeur actif");
+    const s6 = computeDebtAgingStatus({ outstandingAmount: 100, debtAgeDays: 60, inactivityDays: 6 }, thresholds);
+    expect(s6.explanationFr).toContain("Payeur actif");
+  });
+
+  it("the analysis accepts thresholds (the settings-injected path)", () => {
+    const analysis = computeDebtAgingAnalysis({
+      parentId: "p-C",
+      installments: [makeInstallment({ parentId: "p-C", dueDate: "2026-06-10" })],
+      ledgerEntries: [],
+      now: NOW,
+      thresholds: { gracePeriodDays: 3, yellowDays: 9, redDays: 30, activePayerGraceDays: 15 },
+    });
+    // due 2026-06-10 → 5 days past due at NOW: 3 < 5 <= 9 → yellow.
+    expect(analysis.debtAgeDays).toBe(5);
+    expect(analysis.status.level).toBe("yellow");
+    expect(analysis.status.reasonCode).toBe("watch");
   });
 });
 
-/* ── Debt-age semantics ───────────────────────────────────────────── */
+/* ── The analysis layer (T-405 — unchanged by T-429) ───────────────── */
 
-describe("T-405 debt aging — age & obligation semantics", () => {
-  it("debt age is measured from the OLDEST outstanding due date (INV-4 basis)", () => {
+describe("T-405 debt aging — the analysis layer (facts)", () => {
+  it("paid 5 days ago: the inactivity fact is computed, the status follows the age", () => {
     const installments = [
-      makeInstallment({ id: "new", amountDue: 50_000, dueDate: "2026-03-15" }),
-      makeInstallment({ id: "old", amountDue: 80_000, dueDate: "2024-12-15" }),
-    ];
-    const analysis = computeDebtAgingAnalysis({
-      parentId: "p-A",
-      installments,
-      ledgerEntries: [],
-      now: NOW,
-    });
-    expect(analysis.oldestDueDate).toBe("2024-12-15");
-    expect(analysis.debtAgeDays).toBe(547); // 2024-12-15 → 2026-06-15
-    expect(analysis.outstandingAmount).toBe(130_000);
-  });
-
-  it("a partial payment does NOT reset debt age (age is the obligation's)", () => {
-    // 40,000 paid on the old tranche — age still measured from 2024-10-15.
-    const installments = [
-      makeInstallment({ id: "ins-old", amountDue: 100_000, amountPaid: 40_000, dueDate: "2024-10-15" }),
+      makeInstallment({ id: "ins-2", amountDue: 100_000, amountPaid: 40_000, dueDate: "2024-10-15" }),
     ];
     const payments = [
-      makeEntry({ at: "2026-06-10T10:00:00.000Z", amount: -40_000 }),
+      ...monthlyPayerEntries("p-A", "2025-09-05T10:00:00.000Z", 9),
+      makeEntry({ id: "led-recent", at: "2026-06-10T10:00:00.000Z", amount: -5_000 }),
     ];
     const analysis = computeDebtAgingAnalysis({
       parentId: "p-A",
@@ -300,7 +312,8 @@ describe("T-405 debt aging — age & obligation semantics", () => {
     });
     expect(analysis.outstandingAmount).toBe(60_000);
     expect(analysis.debtAgeDays).toBe(608);
-    expect(analysis.status.reasonCode).toBe("active_payer"); // paid 5 days ago
+    expect(analysis.status.reasonCode).toBe("critical_delinquency"); // the age drives it
+    expect(analysis.status.explanationFr).toContain("Payeur actif"); // paid 5 days ago
   });
 
   it("canonical remaining honors amount_pending (uncleared funds reduce owed)", () => {
@@ -313,7 +326,6 @@ describe("T-405 debt aging — age & obligation semantics", () => {
       ledgerEntries: [],
       now: NOW,
     });
-    // Same formula as the Créances tab: max(0, due − paid − pending).
     expect(analysis.outstandingAmount).toBe(50_000);
   });
 
@@ -351,9 +363,9 @@ describe("T-405 debt aging — age & obligation semantics", () => {
   });
 });
 
-/* ── Payment behavior semantics ───────────────────────────────────── */
+/* ── Payment behavior semantics (facts — annotations since T-429) ──── */
 
-describe("T-405 debt aging — payment behavior semantics", () => {
+describe("T-405 debt aging — payment behavior semantics (facts)", () => {
   it("never-paid parents: inactivity defaults to debt age (INV-16b)", () => {
     const analysis = computeDebtAgingAnalysis({
       parentId: "p-N",
@@ -364,8 +376,8 @@ describe("T-405 debt aging — payment behavior semantics", () => {
     expect(analysis.lastPaymentAt).toBeNull();
     expect(analysis.daysSinceLastPayment).toBeNull();
     expect(analysis.inactivityDays).toBe(analysis.debtAgeDays); // 182 days
-    // 182 > 180 → RED exactly when the debt passes 180 days.
     expect(analysis.debtAgeDays).toBe(182);
+    // 182 > 60 (red) → critical.
     expect(analysis.status.reasonCode).toBe("critical_delinquency");
   });
 
@@ -381,16 +393,15 @@ describe("T-405 debt aging — payment behavior semantics", () => {
       ledgerEntries: payments,
       now: NOW,
     });
-    // The reversed June payment does NOT count: last = March → 106 days.
     expect(analysis.lastPaymentAt).toBe("2026-03-01T10:00:00.000Z");
     expect(analysis.inactivityDays).toBe(106);
   });
 
   it("subsequent-year payments are counted and totalled (INV-15)", () => {
     const payments = [
-      makeEntry({ id: "pay-orig", at: "2024-11-01T10:00:00.000Z", amount: -10_000 }), // origin year
-      makeEntry({ id: "pay-sub1", at: "2025-10-01T10:00:00.000Z", amount: -15_000 }), // 2025-2026
-      makeEntry({ id: "pay-sub2", at: "2026-01-15T10:00:00.000Z", amount: -5_000 }), // 2025-2026
+      makeEntry({ id: "pay-orig", at: "2024-11-01T10:00:00.000Z", amount: -10_000 }),
+      makeEntry({ id: "pay-sub1", at: "2025-10-01T10:00:00.000Z", amount: -15_000 }),
+      makeEntry({ id: "pay-sub2", at: "2026-01-15T10:00:00.000Z", amount: -5_000 }),
     ];
     const analysis = computeDebtAgingAnalysis({
       parentId: "p-A",
@@ -405,7 +416,7 @@ describe("T-405 debt aging — payment behavior semantics", () => {
 
   it("payments BEFORE the origin year are not subsequent-year activity", () => {
     const payments = [
-      makeEntry({ id: "pay-old", at: "2024-09-01T10:00:00.000Z", amount: -10_000 }), // 2024-2025 == origin
+      makeEntry({ id: "pay-old", at: "2024-09-01T10:00:00.000Z", amount: -10_000 }),
     ];
     const analysis = computeDebtAgingAnalysis({
       parentId: "p-A",
@@ -448,7 +459,6 @@ describe("T-405 debt aging — academic-year attribution", () => {
   });
 
   it("falls back to the Jul1–Jun30 school-year convention outside known rows", () => {
-    // The live tenant carries ONLY 2026-2027 — history resolves by convention.
     expect(resolveAcademicYearForDate("2024-10-15", [])).toBe("2024-2025");
     expect(resolveAcademicYearForDate("2025-03-15", [])).toBe("2024-2025");
     expect(resolveAcademicYearForDate("2025-07-01", [])).toBe("2025-2026");
@@ -471,8 +481,8 @@ describe("T-405 debt aging — academic-year attribution", () => {
   it("the analysis attributes the origin year from the oldest obligation's due date", () => {
     const years = [{ code: "2025-2026", startDate: "2025-09-01", endDate: "2026-06-30" }];
     const installments = [
-      makeInstallment({ id: "cur", amountDue: 30_000, dueDate: "2026-03-15" }), // → 2025-2026 (row)
-      makeInstallment({ id: "hist", amountDue: 70_000, dueDate: "2024-11-15" }), // → 2024-2025 (convention)
+      makeInstallment({ id: "cur", amountDue: 30_000, dueDate: "2026-03-15" }),
+      makeInstallment({ id: "hist", amountDue: 70_000, dueDate: "2024-11-15" }),
     ];
     const analysis = computeDebtAgingAnalysis({
       parentId: "p-A",
@@ -491,8 +501,6 @@ describe("T-405 debt aging — academic-year attribution", () => {
 
 describe("T-405 debt aging — Finance-tab parity", () => {
   it("outstanding equals the DebtRepository seedSummary formula for the same rows", () => {
-    // Mirrors SupabaseDebtRepository.seedSummary: Σ max(0, due−paid−pending)
-    // over installments with status != paid (remaining > 0 kept).
     const installments = [
       makeInstallment({ id: "a", amountDue: 120_000, amountPaid: 30_000, amountPending: 10_000, dueDate: "2024-12-15" }),
       makeInstallment({ id: "b", amountDue: 80_000, amountPaid: 80_000, dueDate: "2025-03-15", status: "paid" }),
@@ -504,7 +512,7 @@ describe("T-405 debt aging — Finance-tab parity", () => {
       ledgerEntries: [],
       now: NOW,
     });
-    const seedSummaryTotal = 80_000 + 60_000; // a: 120−30−10, c: 60
+    const seedSummaryTotal = 80_000 + 60_000;
     expect(analysis.outstandingAmount).toBe(seedSummaryTotal);
   });
 
@@ -520,10 +528,12 @@ describe("T-405 debt aging — Finance-tab parity", () => {
     expect(r1).toEqual(r2);
   });
 
-  it("threshold constants match the documented aging-bucket edges", () => {
-    expect(DEBT_AGING_ACTIVE_PAYER_WINDOW_DAYS).toBe(60);
-    expect(DEBT_AGING_SUSTAINED_DAYS).toBe(90);
-    expect(DEBT_AGING_CRITICAL_DAYS).toBe(180);
+  it("the T-429 defaults are the owner-specified values (migration 0125's seed)", () => {
+    expect(DEFAULT_DEBT_AGING_THRESHOLDS.gracePeriodDays).toBe(5);
+    expect(DEFAULT_DEBT_AGING_THRESHOLDS.yellowDays).toBe(15);
+    expect(DEFAULT_DEBT_AGING_THRESHOLDS.redDays).toBe(60);
+    expect(DEFAULT_DEBT_AGING_THRESHOLDS.activePayerGraceDays).toBe(15);
+    expect(DEBT_AGING_ACTIVE_PAYER_WINDOW_DAYS).toBe(60); // the documented legacy window (reference only)
     expect(DEBT_AGING_EPSILON_DZD).toBe(0.001);
   });
 });

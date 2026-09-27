@@ -54,8 +54,10 @@ const RPC_ROW_ARCHETYPE_A: Row = {
       daysOverdue: 608,
     },
   ],
-  status_level: "green",
-  reason_code: "active_payer",
+  // T-429 (migration 0125): the server's 4-tier hierarchy — the archetype
+  // (608-day-old debt) is CRITICAL regardless of the recent payment.
+  status_level: "red",
+  reason_code: "critical_delinquency",
   computed_at: "2026-06-15T12:00:00+00",
 };
 
@@ -153,23 +155,29 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
     expect(a.obligations[0].remaining).toBe(100000);
     expect(a.computedAt).toBe("2026-06-15T12:00:00+00");
 
-    // The status: server factors + client-rendered labels, RPC level wins.
-    expect(a.status.level).toBe("green");
-    expect(a.status.reasonCode).toBe("active_payer");
-    expect(a.status.explanationFr).toContain("Actif");
+    // The status (T-429): the RPC's 4-tier codes win; the explanation is
+    // client-rendered — A's carries the active-payer ANNOTATION (14 j ≤ 15).
+    expect(a.status.level).toBe("red");
+    expect(a.status.reasonCode).toBe("critical_delinquency");
+    expect(a.status.explanationFr).toContain("Critique");
+    expect(a.status.explanationFr).toContain("Payeur actif"); // the decoupling's annotation
 
-    // Archetype B — same debt, opposite behavior.
+    // Archetype B — same debt, same tier (T-429: behavior no longer drives it).
     const b = rows.find((r) => r.parentId === RPC_ROW_ARCHETYPE_B.parent_id)!;
     expect(b.status.level).toBe("red");
     expect(b.status.reasonCode).toBe("critical_delinquency");
     expect(b.status.explanationFr).toContain("Critique");
+    expect(b.status.explanationFr).not.toContain("Payeur actif"); // 591 j > the window
   });
 
   it("B: a client↔server status drift is warned and the RPC level wins", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    // The server says red; the FACTORS say green (recent payment).
+    // T-429 drift construction: a young debt (3 days — within the grace
+    // window) where the server row says red — the TS cross-check derives
+    // green/not_due, warns, and the RPC level still wins for display.
     const drifting: Row = {
       ...RPC_ROW_ARCHETYPE_B,
+      debt_age_days: 3,
       inactivity_days: 10,
       days_since_last_payment: 10,
       status_level: "red",
@@ -245,7 +253,7 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
     await repo.refreshAging();
     // The last known truthful analysis survives the transient failure.
     expect(latest).toHaveLength(1);
-    expect(latest![0].status.reasonCode).toBe("active_payer");
+    expect(latest![0].status.reasonCode).toBe("critical_delinquency"); // T-429 codes survive the transient failure
     unsub();
   });
 });

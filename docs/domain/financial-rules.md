@@ -115,35 +115,38 @@ T-405 adds a canonical **debt-aging / payment-behavior status** derivation on TO
 - **Origin academic year** (INV-14): attributed from the obligation's due date — if the date falls inside a known `academic_years` row's `[start_date, end_date]` for the tenant, that year's label is used; otherwise the Algerian school-year calendar convention applies (a date in July–December belongs to the `YYYY-(YYYY+1)` year, January–June to the `(YYYY-1)-YYYY` year). Historical due dates MUST keep their original year attribution — a later payment never rewrites the origin year.
 - **Subsequent-year payment activity** (INV-15): a payment counts as "subsequent-year activity" when its `at` falls in an academic year STRICTLY LATER than the origin year of the parent's oldest outstanding obligation. This fact is REPORTED (count + total) and used in the status explanation; it is what separates "old debt + kept paying" from "old debt + stopped paying".
 
-### 15.1 The canonical status levels (INV-16)
+### 15.1 The canonical status levels (INV-16 — as amended by T-429 / DEBT-100, 2026-09-27, GitHub issues #24/#25)
 
-The status is an ordered evaluation over three factors — `outstandingAmount`, `debtAgeDays` (from the oldest outstanding due date), and `inactivityDays` — using ONLY thresholds that already exist as canonical boundaries (the aging-bucket edges 60/90/180 days from `AgingBucket`, and the 90-day delinquency convention behind `lockDelinquentAccounts`):
+> **THE T-429 AMENDMENT (the owner's audit mandate):** the status is now a **4-TIER, PURELY DUE-DATE-BASED aging hierarchy over the INV-4 remaining, with CONFIGURABLE thresholds** (the `system_settings` category `debt`, seeded by migration 0125 — grace 5 / yellow 15 / red 60 / active-payer window 15). The pre-T-429 rule 2 (a payment within 60 days → GREEN) is **REMOVED** — a recent payment must not mask accounts that remain millions of dinars past due. The payment-behavior facts (inactivity, last payment, subsequent-year activity) remain part of the ANALYSIS and appear in the explanation as an ANNOTATION (« Payeur actif — dernier paiement il y a N j »), never as a status input.
+
+The ordered evaluation over `outstandingAmount` and `debtAgeDays` (from the oldest outstanding due date), using the configurable thresholds:
 
 1. `outstandingAmount ≤ 0.001 DZD` → **GREEN** *(Soldé — the debt is resolved; INV-4 epsilon).*
-2. `inactivityDays ≤ 60` → **GREEN** *(Actif — a payment landed within the last 60 days: the parent is still paying despite the outstanding balance; an old balance with continued payment is NOT delinquency).*
-3. `debtAgeDays > 180 AND inactivityDays > 180` → **RED** *(Critique — long-standing debt combined with prolonged non-payment: both the obligation and the silence are older than the 180-plus aging bucket).*
-4. `debtAgeDays > 90 AND inactivityDays > 60` → **ORANGE** *(Retard soutenu — the debt is older than the 90-day delinquency threshold AND payment has stopped: sustained delinquency requiring attention).*
-5. otherwise → **YELLOW** *(À surveiller — the account is becoming behind or inactive: a young debt without recent payment, or payment that stopped within the debt's first 90 days).*
+2. `debtAgeDays ≤ grace_period_days` (default 5) → **GREEN** *(À échoir / En cours — nothing is past due beyond the tolerance window).*
+3. `debtAgeDays ≤ threshold_yellow_days` (default 15) → **YELLOW** *(À surveiller — the account is behind but young).*
+4. `debtAgeDays ≤ threshold_red_days` (default 60) → **ORANGE** *(Retard soutenu — sustained delinquency requiring attention).*
+5. `debtAgeDays > threshold_red_days` (default 60) → **RED** *(Critique / Contentieux — beyond the red threshold).*
 
 Invariants:
 
-- **INV-16a (order matters):** the rules are evaluated top-down; rule 2 dominates rules 3–5 (a parent who paid 30 days ago is GREEN even with a 2-year-old balance).
-- **INV-16b (never-paid parents):** `inactivityDays` defaults to `debtAgeDays`, so a never-payer reaches RED exactly when their debt passes 180 days.
-- **INV-16c (no amount tiers):** the status is a payment-behavior classification, not a magnitude ranking — the amount is displayed, never a status input (beyond the 0.001 epsilon). No page may add amount-based status overrides.
+- **INV-16a (order matters, amended):** the tiers are evaluated top-down with NO GAPS (grace ≤ yellow ≤ red partitions the age axis); payment behavior NEVER dominates a tier.
+- **INV-16b (never-paid parents):** `inactivityDays` defaults to `debtAgeDays` (a preserved FACT); the status itself no longer reads it.
+- **INV-16c (no amount tiers):** the status is an aging classification, not a magnitude ranking — the amount is displayed, never a status input (beyond the 0.001 epsilon). No page may add amount-based status overrides.
 - **INV-16d (explanation is part of the contract):** every computed status carries the derived factors (age, inactivity, last payment, subsequent-year activity, origin year) and a canonical reason string, so a UI can never show a bare color.
-- **INV-16e (recency, not count):** "continued paying" is measured by the LAST payment's recency — not by the number or total of payments. A single recent payment qualifies; many stale ones do not.
+- **INV-16e (recency, not count — amended to an annotation):** "continued paying" is measured by the LAST payment's recency and presented as the « Payeur actif » annotation within `active_payer_grace_days` (default 15) — it QUALIFIES the explanation, never the level.
+- **INV-16f (configurability, T-429):** the thresholds live in `system_settings` (category `debt`) per tenant; the engine applies the tenant's values with the documented defaults when unseeded; the SQL mirror reads the SAME rows (`debt_aging_thresholds()`), and the desktop's "Configuration des Créances" admin card edits them.
 
 ### 15.2 Where the calculation lives
 
 One canonical calculation, mirrored per the established pattern (reference TS + SQL mirror + platform ports):
 
-- **Reference implementation:** desktop `src/domain/calc/ledger/debt-aging.ts` (`computeDebtAgingAnalysis` + `computeDebtAgingStatus`), pure and deterministic, pinned by unit fixtures that reproduce the task's two archetype parents.
-- **SQL mirror:** migration 0111 `compute_debt_aging_summary(p_tenant_id, p_as_of)` — computes the same fields server-side from `installments` + `ledger_entries` + `academic_years` so statistics, reports, and the portal consume one server contract.
+- **Reference implementation:** desktop `src/domain/calc/ledger/debt-aging.ts` (`computeDebtAgingAnalysis` + `computeDebtAgingStatus` + `DEFAULT_DEBT_AGING_THRESHOLDS`), pure and deterministic, pinned by unit fixtures that reproduce the task's two archetype parents (under T-429: BOTH archetypes are RED — the decoupling is itself pinned).
+- **SQL mirror:** migration 0111 `compute_debt_aging_summary(p_as_of)` — as amended by migration 0125 (T-429): 0111's `compute_debt_aging_rows` remains the canonical FACTOR engine (obligations, payment replay, academic-year attribution); the `compute_debt_aging_summary` wrapper overrides ONLY the status/reason columns with the configurable 4-tier hierarchy (reading `debt_aging_thresholds()`), so statistics, reports, and the portal consume one server contract. The reason codes match the TS engine one-for-one (`resolved`, `not_due`, `watch`, `sustained_delinquency`, `critical_delinquency`).
 - **Platform consumers** (Desktop UI, Website portal, future Android mirror, dashboards, search/filter, exports) render the same fields and labels — Green/Yellow/Orange/Red are PRESENTATION of this one calculation; page-local thresholds, color rules, or debt recomputations are a registered defect class (the DUP family).
 
 ### 15.3 Status labels (FR, canonical wording)
 
-GREEN = « Actif / Soldé » · YELLOW = « À surveiller » · ORANGE = « Retard soutenu » · RED = « Critique » — identical wording on every surface that shows a debt status.
+GREEN = « Soldé / À échoir » · YELLOW = « À surveiller » · ORANGE = « Retard soutenu » · RED = « Critique / Contentieux » — identical wording on every surface that shows a debt status (the T-429 wording: green covers both the resolved and the not-yet-due tiers; the reason code disambiguates).
 
 ## 16. Personnel payroll cash-flow forecast & pre-payroll funding requirements (T-412 / ADR-024, 2026-09-25; second-round repairs 2026-09-26 — WORKFORCE-505/506)
 

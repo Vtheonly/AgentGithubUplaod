@@ -51,7 +51,12 @@ export type SettingCategory =
   | "storage"
   | "backup"
   | "system"
-  | "feature_flags";
+  | "feature_flags"
+  // T-429 (DEBT-100, issues #24/#25 Track 5): the configurable debt-aging
+  // thresholds ("Configuration des Créances") — seeded by migration 0125:
+  // debt.grace_period_days (5), debt.threshold_yellow_days (15),
+  // debt.threshold_red_days (60), debt.active_payer_grace_days (15).
+  | "debt";
 
 export type SettingValueType = "string" | "number" | "boolean" | "json" | "secret";
 
