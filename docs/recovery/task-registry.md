@@ -4769,3 +4769,44 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 ### Status
 
 - **IN PROGRESS — diagnosis complete; registration landed (this commit); Phases A–F pending.**
+
+---
+
+## T-425 — The Official 3-Tranche Model: eliminate the phantom 4th tranche and re-anchor the billing structure to the owner's confirmed specification ("THERE IS NO 4TH TRANCHE — Registration (FI) + Tranche 1 (V1) + Tranche 2 (2V) + Tranche 3 (v3); Max Tuition Installments: 3; Max Transport Installments: 3") — IN PROGRESS (P0)
+
+**Registered:** 109th session (2026-09-27), BEFORE the fix (§13). **Owner-gated live remediation** (the purge + re-import run on the owner's Supabase credentials).
+
+### The owner's specification (verbatim anchors)
+
+- "The school operates strictly on **Registration Fee + 3 Tranches**."
+- Tuition: `FI` (Frais d'Inscription) | `V1` | `2V` | `v3` — **3 Only**. Transport: — | `1T` | `T2` | `t3` — **3 Only**.
+- "There is **no 4th tranche** (`V4` / `T4`) in the school's billing system."
+- The `4ème TRANCHE` label existed only in cell A19 of the old workbook's `BON ` receipt sheet — "an unmaintained receipt template… erroneously labeled the rows (Mistake: treating registration as tranche 1, or copying a 4-term template)" — **deleted** from the updated `2027-2026.xlsx`.
+- "Including registration, a parent makes **4 total standard payments** across the year (Registration + Tranche 1, Tranche 2, Tranche 3)."
+
+### The diagnosis (read-only; live census `scripts/t-425-no-4th-tranche-probe.mjs`)
+
+1. The import builds tuition as the 4-slot BON structure: T1="INSCRIPTION (FI)" (n=1,137, Σdue 28,959,000 — the registration fee occupying wave 1), T2="2EME TRANCHE (V2)" due Dec 15 (the REAL 1st versement, one term late), T3="3ème TRANCHE (2V)" due Mar 15, T4="4ème TRANCHE (v3)" due Jun 15 (n=1,137, Σdue 96,918,500 — the phantom wave).
+2. Transport is already correct (T1/T2/T3 = 1T/T2/t3, n=472 each, Sept/Dec/Mar).
+3. Migration 0090 canonized the erroneous BON labels (CHECK (1,2,3,4) + the relabels); the wave derivation (T-424 Phase B) then faithfully rendered the phantom as "a real wave… visible on the Finance strip too."
+4. Purge safety re-verified live: 0 payments with installment_id, 0 payment_allocations referencing installments (all FKs ON DELETE SET NULL) — the stale `bulk_import` installments are derived data, rebuildable by the re-import.
+
+### The plan (each phase a separate verified commit, push+merge after each)
+
+- **Commit 1 (registration):** this entry + DATA-044 + the live probe script.
+- **Commit 2 — Phase A (the model + the import):** FI → a non-wave FEE row at tranche 0 (identity `(tenant, parent, student, tuition, 0)` — protected by the 0032 partial unique index; excluded from every wave); tuition = EXACTLY 3 tranches labeled `Tranche 1 — Scolarité (V1)` / `Tranche 2 — Scolarité (2V)` / `Tranche 3 — Scolarité (v3)` on the canonical `getOfficialTuitionDueDates` schedule (Sept 15 / Dec 15 / Mar 15); the model type `0 | 1 | 2 | 3` (0 = the registration fee, non-wave); the wave derivation collapses to 1..3 (0/NULL/4+/out-of-range = non-wave — the legacy T4 rows map to ABSENT, never a wave); the Finance strip's wave-4 card deleted; the payment-row labels follow the official model.
+- **Commit 3 — Phase B (migration 0124):** clear the stale `bulk_import` installments (derived data — the purge safety is verified above) + re-tighten the CHECK to `(0, 1, 2, 3)` + the constraint comment to the official model.
+- **Commit 4 — Phase C (the live remediation + the Excel oracle):** apply 0124 to the live DB → re-import the real workbook through the corrected canonical pipeline → verify against the Excel source of truth (per-tranche due/paid, Σremaining = the workbook's own TOTAL*CREANCE per student, the wave census 1..3, NO tuition T4 rows) — the t-424 in-memory oracle re-run pins the attribution under the new structure BEFORE the live write.
+- **Commit 5 — closeout:** the registries (DATA-041/042/043/044 + T-424/T-425), the change-log (109th session), current-state, next-task, AGENTS.md §15.65, the verification doc, the delivery zips.
+
+### Acceptance criteria (the owner's checklist)
+
+- **No 4th tranche anywhere**: no surface renders a tuition wave 4; the DB CHECK rejects tranche 4; the live DB carries zero T4 rows.
+- **The official labels + schedule**: FI renders as a registration FEE (not "Tranche 1"); V1/2V/v3 render as Tranches 1/2/3 due Sept 15 / Dec 15 / Mar 15; transport unchanged.
+- **The waterfall attribution preserved**: the in-memory oracle still matches the workbook's per-student TOTAL*CREANCE (Σremaining = 193,477,900 clamped — the T-424 Phase A result) under the new structure; 0 overpaid rows.
+- **Statistics ≡ Finance per wave** (the T-424 invariant) holds over the 3-wave model.
+- The suite baseline compared before/after (any move registered, §15.60).
+
+### Status
+
+- **IN PROGRESS — registration landed (this commit); Phases A–C + closeout pending.**
