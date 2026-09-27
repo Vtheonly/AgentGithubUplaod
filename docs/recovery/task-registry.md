@@ -4733,3 +4733,39 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 - **The concurrent-session interplay (recorded for the next agent):** the other agent's live import (23:00, pre-fix code) died mid-flush on the SAME IMPORT-115 truncation; its compensating rollback soft-deleted 1,137 students and left 593 alive parents HOLDING THE PAR- CODES — which then blocked every re-import with `duplicate key value violates unique constraint "parents_tenant_id_parent_code_key"` (the soft-deleted rows keep their codes; the RPC's code generator collides). The T-420 session repaired the live state by resetting the dead domain (superuser SQL) and re-importing through the fixed code. **Standing hazard for the next agent: a failed import's rollback leaves soft-deleted parents that block re-imports until they are hard-deleted — registered below as the IMPORT-114 note's operational corollary.**
 - **Status: IMPLEMENTED / TESTED / LIVE-VERIFIED.** The VERIFIED gate for the owner: a fresh packaged-app import (or simply inspecting the CRM — the live DB already carries the correct data from the definitive verification run).
 - **Left:** the owner's packaged-app pass; the concurrent session's merge (they hold the same workbook's fixes on their branch — the IMPORT-115 dedup + the honest errors are pushed to main for them).
+
+## T-424 — The Statistics-vs-Finance Unification: one source of truth for every financial surface + the Excel source-of-truth verification (the owner's report: "Tranche 1 shows not paid in Statistics while some of those payments are already shown as paid in Finance... Do not create another parallel calculation or duplicate financial logic. Fix the underlying data flow") — IN PROGRESS (P0)
+
+**Registered:** 2026-09-27 (the 108th session — the owner's follow-up mandate: unify Statistics and Finance on the same source of truth, verify every displayed number against the Excel workbook, and fix the underlying data flow rather than adjusting displayed numbers; "do not assume the current Statistics or Finance calculations are correct.")
+**Problems (all registered BEFORE this fix, §13):** **DATA-041** (the import's straight column→tranche mapping attributes the 2027/2026 payments to the wrong tranches — the root data defect: T1 INSCRIPTION permanently unpaid for 1,132/1,137 students, 1,281 overpaid rows, per-student remaining matches the workbook's Q for only 236/1,138 rows) · **DATA-042** (the duplicated divergent derivations: two `deriveTrancheWaves`, two settled predicates, different wave scoping — the same rows render different numbers per surface) · **DATA-043** (the dashboard repository's unpaginated installments/payments reads — the Statistics tab reads 1,000 of 4,227 unpaid rows, the third DATA-038-class instance)
+**Related:** T-420 (the import whose ledger the oracle validated — the per-tranche attribution was never verified) · T-414/ADR-026 (the 2027/2026 format registration documenting the V2→V1 relabel the adapter missed) · T-423 (the read-path reliability fix that made both surfaces render their (wrong-attribution) data faithfully) · DATA-039 (the basis gap DATA-041 created) · `allocatePaymentToInstallments` + migration 0115 (the canonical INV-4 waterfall the fix REUSES)
+
+### The diagnosis (all evidence read-only; the user's warning honored — nothing was assumed from the report)
+
+1. **The live DB is internally consistent** (status ⟺ amounts on all 5,963 rows — the 0007 trigger holds) — the contradiction is NOT row-level corruption.
+2. **The Excel's own truth** (`2027-2026.xlsx`, 1,139 named rows): FI is DEAD (Σ25,000, one row); V1 (Σ108,794,100) is the first versement with the inscription folded in; P = R+S+T+U+W+X+Y on all 1,139 rows; the workbook's own créance Σmax(0,Q) = 193,477,900.
+3. **The import mapped V1 onto T2** (the 2026/2027 column convention) — every surface then faithfully renders the mis-attributed data: payments "Payé" + Tranche 1 "unpaid" (the owner's exact contradiction), 1,281 overpaid rows, créances 207,773,800 vs the workbook's 193,477,900.
+4. **The waterfall model is PROVEN** (the in-memory oracle: real ImportEngine, real workbook): pooling the payment streams and allocating oldest-tranche-first through the canonical `allocatePaymentToInstallments` (cross-category — the live collect RPC's `p_category IS NULL` semantics) matches the workbook's Q for 1,133/1,133 comparable students, Σremaining = 193,477,900 EXACTLY, 0 overpaid rows, phantom-unpaid T1s 1,132 → 58.
+
+### The plan (each phase a separate verified commit, push+merge after each)
+
+- **Commit 0 (registration):** this entry + DATA-041/042/043 + the two probe scripts (the live census + the in-memory oracle).
+- **Commit 1 — Phase A (DATA-041, the root fix):** `buildInstallmentRows` allocates the row's payment streams through the canonical `allocatePaymentToInstallments` after the T-105 due reconciliation (statuses re-derived from the allocated amounts); the tri-state PART-1 expectations updated to the waterfall semantics (Σpaid/Σdue invariants unchanged).
+- **Commit 2 — Phase B (DATA-042, the unification):** the canonical `isInstallmentSettled` (INV-4) in `domain/calc/payment/queries.ts` + the canonical `deriveTrancheWaves` in `domain/calc/payment/tranche-waves.ts` — consumed by executive-statistics, the data inspector, the Financials wave header, the CRM échéancier, and the financial-query-engine; the per-surface copies deleted.
+- **Commit 3 — Phase C (DATA-043):** the dashboard repository routed through the 0123 collection RPCs (installments + payments) with the keyset direct reads as fallback; the aging chart + KPIs then read the full collections.
+- **Commit 4 — the oracle suite:** the permanent regression — the per-tranche attribution oracle pinned to the workbook (every comparable student's Σremaining == max(0,Q); 0 overpaid rows; the T1 census), the unified-waves unit tests, the settled-predicate tests.
+- **Commit 5 — the LIVE remediation:** purge the installments (service key, --execute gated, count-asserted, FK-safe — all FKs ON DELETE SET NULL, live links 0) + re-import the real workbook through the canonical pipeline (owner admin JWT) + the live acceptance run against the Excel oracle.
+- **Commit 6 — closeout:** the registries (DATA-041/042/043 → RESOLVED), the change-log (108th session), current-state, next-task, AGENTS.md §15.65, the verification doc, the delivery zips.
+
+### Acceptance criteria (the owner's checklist)
+
+- **Statistics and Finance agree per wave** — the same rows produce the same settled/collected numbers on both surfaces (pinned by the unified-derivation tests; no per-surface copies remain).
+- **The per-tranche attribution matches the Excel** — every comparable student's Σ installment remaining == max(0, L+N−M−payments) (the oracle: 1,133/1,133 pre-remediation in-memory; the live DB post-remediation).
+- **No contradictory row states** — 0 overpaid rows (amount_paid ≤ amount_due everywhere); "Tranche 1 unpaid while its payments show paid" ceases to be producible from the data (T1-unpaid only where the family genuinely has not paid the inscription quota).
+- **The live DB carries the corrected attribution** — the purge+reimport verified against the workbook oracle; the Créances total reconciles with the workbook's own créance (193,477,900 clamped; the DATA-039 basis label still applies).
+- **The Statistics tab reads the full collections** (4,227 unpaid rows, 2,198 payments — not capped samples).
+- The suite baseline is compared before/after (any move registered, the §15.60 convention).
+
+### Status
+
+- **IN PROGRESS — diagnosis complete; registration landed (this commit); Phases A–F pending.**
