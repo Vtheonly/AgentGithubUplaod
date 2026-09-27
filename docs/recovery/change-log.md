@@ -1,3 +1,20 @@
+## 2026-09-28 — The 110th session CLOSE — T-431 COMPLETE + the Track-6/7 evaluations: the Tranches tab's academic-year scope (DASH-410) + the SPREAD-100/TECHDEBT-100 registrations + the AGENTS.md §11.1 quirk #14 (the GitHub Push Protection discovery)
+
+### What was fixed / evaluated
+
+- **DASH-410 (T-431):** the Finance Tranches tab now scopes by the academic year (the canonical `installmentsForAcademicYear` + the academic_years-driven selector, current-year default, "Toutes les années") — prior-year rows can no longer inflate the current school-year's collection metrics.
+- **SPREAD-100 (Track 6, EVALUATED-DEFERRED):** the import path is ALREADY WB2-native (etat-2027-2026.ts maps the PSY1–14 grid + the ancillary columns); the remaining domain-matrix re-derivation is a CALC-001-class equivalence task — deferred WITH the inspection-report evidence (§15.2: the equivalence run IS the establishment step).
+- **TECHDEBT-100 (Track 7, EVALUATED):** the "duplicate deriveTrancheWaves" item is STALE (fixed by T-424); the scholarship_replacement + late_penalty removals are registered with their cross-platform runbooks.
+- **AGENTS.md §11.1 quirk #14:** the GitHub Push Protection blocks sbp_ tokens embedded in scripts at PUSH time (the local commit must be amended) — the apply-script convention (the SUPABASE_ACCESS_TOKEN env var, fail-closed) is now the documented rule. Discovered live: the first T-429 push was rejected (bac03cf) and re-committed cleanly (0783cf0).
+
+### The gates
+
+tsc 0 · eslint 0 errors on every changed file · the t-430/t-431 suite 2/2 · FULL vitest **4,223 passed / 18 failed — the failure set byte-identical to the pre-session baseline** (every session task diff-verified: 4,206 → 4,223 = +17 new tests across t-426/t-427/t-430/t-431, with the t-405 family's 40 tests RE-PINNED to the T-429 semantics).
+
+### The session's final ledger (the 110th session, 6 commits + this closeout)
+
+Branch consolidation (main only, §15.59-verified) · T-426 (DATA-045/046/TIME-001/DATA-047 — the dynamic-overdue family + the aging guard + the UTC window + the honesty trio) · T-427 (DATA-048/048b — the wave-card delinquency semantics) · T-430 (PERF-506/507/508 — the performance family) · T-429 (DEBT-100 — the configurable 4-tier debt engine, migration 0125 LIVE-VERIFIED) · T-431 (DASH-410 + the evaluations). Nine problem entries resolved, three registered-open (SPREAD-100, TECHDEBT-100 b/c, the §15.10 cross-platform ports of §15.1).
+
 ## 2026-09-27 — The 110th session (cont.) — T-429 COMPLETE: the configurable debt-configuration architecture — DEBT-100 registered, RESOLVED, TESTED, and LIVE-VERIFIED (migration 0125 applied live; the active-payer masking removed; the 4-tier thresholds configurable from the admin UI)
 
 ### What was built

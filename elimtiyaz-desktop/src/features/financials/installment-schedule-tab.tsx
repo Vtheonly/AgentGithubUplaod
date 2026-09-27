@@ -60,6 +60,7 @@ import {
 } from "../../domain/model/payment";
 import { deriveTrancheWaveStats } from "../../domain/calc/payment/tranche-waves";
 import { isInstallmentOverdue, isInstallmentSettled } from "../../domain/calc/payment/queries";
+import { installmentsForAcademicYear } from "../dashboard/components/analytics/analytics-derivations";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Users, X } from "lucide-react";
 import { Button } from "../../shared/ui/button";
@@ -268,6 +269,21 @@ export function InstallmentScheduleTab({
   const { session } = useAuth();
   const toast = useToast();
   const parents = useObservable(() => repos.parents.observe(), []);
+  // T-431 (DASH-410, issue #24 Track 4 item 4): the academic-year scope.
+  // The canonical `academic_years` rows drive the selector (no fabricated
+  // years); the default is the CURRENT school year (the Sept-rollover
+  // derivation, same as the dashboard's); "all" = every year (the
+  // historical rows available for lookup).
+  const academicYears = useObservable(() => repos.academicYears.observeAll(), []) ?? [];
+  const availableYearCodes = useMemo(
+    () => academicYears.map((y) => y.code).filter((c): c is string => !!c),
+    [academicYears],
+  );
+  const [yearFilter, setYearFilter] = useState<string>(() => {
+    const now = new Date();
+    const start = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    return `${start}-${start + 1}`;
+  });
   const [rows, setRows] = useState<Row[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>(initialCategory ?? "all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -302,7 +318,13 @@ export function InstallmentScheduleTab({
   }, [parents, repos.installments]);
 
   const filtered = useMemo(() => {
-    let list = rows;
+    // T-431 (DASH-410): scope by the academic year's billing window FIRST
+    // (the canonical `installmentsForAcademicYear` — the SAME semantics the
+    // Statistics tab applies) so historical years' rows never inflate the
+    // current school-year metrics (the audit's Track-4 finding).
+    const scoped =
+      yearFilter === "all" ? rows : installmentsForAcademicYear(rows, yearFilter);
+    let list = scoped;
     if (categoryFilter !== "all") list = list.filter((i) => i.category === categoryFilter);
     // T-426 (DATA-045): the "En retard" filter option is the canonical
     // DYNAMIC predicate (the status string never says "overdue" on live
@@ -312,7 +334,7 @@ export function InstallmentScheduleTab({
     // T-413: the family scope (the StudentActionsMenu deep link).
     if (familyFilter !== "all") list = list.filter((i) => i.parentId === familyFilter);
     return list;
-  }, [rows, categoryFilter, statusFilter, familyFilter]);
+  }, [rows, yearFilter, categoryFilter, statusFilter, familyFilter]);
 
   const totals = useMemo(() => {
     // TIER 4 FIX (bypass #2) — delegate to canonical helpers from
@@ -565,6 +587,23 @@ export function InstallmentScheduleTab({
               </button>
             </span>
           )}
+          {/* T-431 (DASH-410, issue #24 Track 4 item 4): the academic-year
+              scope — the canonical academic_years codes + the current-year
+              default + "all" (the historical rows stay reachable). */}
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-40 h-9" data-testid="year-filter">
+              <SelectValue placeholder="Année scolaire" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les années</SelectItem>
+              {availableYearCodes.map((code) => (
+                <SelectItem key={code} value={code}>{code}</SelectItem>
+              ))}
+              {yearFilter !== "all" && !availableYearCodes.includes(yearFilter) && (
+                <SelectItem value={yearFilter}>{yearFilter}</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-44 h-9">
               <SelectValue placeholder="Catégorie" />

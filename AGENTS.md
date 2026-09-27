@@ -212,6 +212,20 @@ For backend / SQL / Edge-Function tasks, **live verification is required** to cl
 
 13. **A MINTED `sb_secret_` key is NOT a gateway probe path.** `POST /v1/projects/<ref>/api-keys` with `{"type":"secret","name":"…"}` DOES create a new secret key and returns the raw value exactly ONCE (the name must be `^[a-z_][a-z0-9_]*$` — camelCase/dashes are rejected). But the data/function gateways then REJECT that key with `{"message":"Invalid API key"}` — on REST **and** Functions — even 2+ minutes after creation, and `GET /v1/projects/<ref>/api-keys` (or `/api-keys/{id}` — there is NO `/reveal` route) permanently masks EVERY secret-type key (`sb_secret_ls_Xa·······`). Consequences: (a) an EF that compares `Bearer` against the platform-injected `SUPABASE_SERVICE_ROLE_KEY` (the `send-push-notification` pattern) can only be positively probed with the project's DEFAULT sb_secret, which is revealable ONLY in the dashboard UI (Settings → API Keys) by an operator holding the dashboard login; (b) minting a fresh key to "get in" does not work — delete any experimental key immediately to restore the key-set census (the fresh-clone parity check compares the key SET, and a stray probe key is a divergence).
 
+**GitHub Push Protection (110th session, 2026-09-27 — live evidence):**
+
+14. **The `sbp_` Supabase access token class is BLOCKED AT PUSH TIME by
+    GitHub's repository push protection** — a commit whose *script* embeds
+    the token (e.g. an `apply_XXXX_live.sh` with the literal) is rejected
+    with `GH013: Repository rule violations … Push cannot contain secrets`
+    AFTER the local commit exists (amend required). The repo's own
+    convention (apply_0124_live.sh) is correct: the token is read from the
+    `SUPABASE_ACCESS_TOKEN` ENVIRONMENT variable, NEVER written into the
+    file. Any new live-apply script must use
+    `: "\${SUPABASE_ACCESS_TOKEN:?…}"` (fail-closed when unexported).
+    The Management-API probe payloads in `/tmp` are fine (never pushed);
+    the repo's `scripts/` tree is scanned.
+
 **Live verification script convention** (since the seventh session):
 
 For each backend migration (T-061, T-031, T-029, T-071, T-079), a

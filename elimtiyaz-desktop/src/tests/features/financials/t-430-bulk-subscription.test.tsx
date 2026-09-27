@@ -64,6 +64,11 @@ const PARENTS = [
   { id: "p2", firstName: "Sara", lastName: "Hadj", displayName: null, phone: "0" },
 ];
 
+const YEARS = [
+  { id: "y1", code: "2026-2027", startDate: "2026-09-01", endDate: "2027-06-30", isCurrent: true, isArchived: false },
+  { id: "y0", code: "2025-2026", startDate: "2025-09-01", endDate: "2026-06-30", isCurrent: false, isArchived: false },
+];
+
 const INSTALLMENTS = [
   {
     id: "i1",
@@ -78,6 +83,25 @@ const INSTALLMENTS = [
     amountPending: 0,
     dueDate: "2026-09-15",
     status: "partial",
+    academicCycle: null,
+    createdAt: "",
+    updatedAt: "",
+  },
+  {
+    // T-431: a PRIOR-YEAR row (2025-2026's billing window) — excluded under
+    // the current-year default scope, present under "all".
+    id: "i-old",
+    tenantId: "t",
+    parentId: "p1",
+    studentId: null,
+    category: "tuition",
+    label: "Tranche ancienne 2025",
+    trancheNumber: 1,
+    amountDue: 100_000,
+    amountPaid: 0,
+    amountPending: 0,
+    dueDate: "2025-10-15",
+    status: "unpaid",
     academicCycle: null,
     createdAt: "",
     updatedAt: "",
@@ -112,6 +136,8 @@ beforeEach(() => {
   const installmentsStream = liveObs(() => INSTALLMENTS);
   state = {
     parents: { observe: () => parentsStream.observable },
+    // T-431: the academic-year scope reads the canonical years stream.
+    academicYears: { observeAll: () => liveObs(() => YEARS).observable },
     installments: {
       observe: () => {
         observeCalls += 1;
@@ -138,5 +164,18 @@ describe("T-430 (PERF-506) — the Tranches tab's bulk subscription", () => {
     // The census: exactly one bulk subscription, zero per-parent fan-out.
     expect(observeCalls).toBe(1);
     expect(observeByParentCalls).toBe(0);
+  });
+});
+
+describe("T-431 (DASH-410) — the Tranches tab's academic-year scope", () => {
+  it("the current-year default EXCLUDES prior-year rows (the 2025-2026 row never inflates the 2026-2027 metrics)", async () => {
+    render(<InstallmentScheduleTab />);
+    // The current-year rows render (the parent name join works over the
+    // scoped bulk stream).
+    expect(await screen.findByText("Amine Belkacem")).toBeTruthy();
+    // The PRIOR-YEAR row (due 2025-10-15 — the 2025-2026 window) is
+    // excluded by the default current-year scope: its distinct label
+    // never renders in the scoped table.
+    expect(screen.queryByText("Tranche ancienne 2025")).toBeNull();
   });
 });
