@@ -1,3 +1,15 @@
+## 2026-09-28 — The 112th session — T-433 (IN PROGRESS): the owner's purge + WB2 re-import mandate — ARCH-016 (the 0125 chain-head half-landing) reconciled; migration 0126 applied LIVE; the full student/parent domain purge; the fresh WB2 import; the delivery zips
+
+### The mandate
+
+The owner supplied the Supabase credentials (the sbp_ token + the service key) and directed: **purge everything (remove all existing data), then import the WB2 workbook** (`Excel/2027-2026.xlsx`, the 1,139-row corpus), then **zip all the systems and the main repo, push with the PAT, and deliver** — with the standing concurrent-agent discipline (push + merge after each commit, conflict-safe). The earlier console logs (the 500 storm + the 77/75) are already owned by T-432; this session executes the data reset the owner wants on top.
+
+### Phase 0 — the session-opening probes (read-only)
+
+- **ARCH-016 found:** the live migration head reads **0124** — migration 0125's DDL artifacts ARE live (4 debt settings · `debt_aging_thresholds()` · the 4-tier summary CASE) but the registration row never landed: the 0125 FILE lacks the self-registration insert its siblings 0123/0124/0126 carry (the T-091 pattern), so `apply_0125_live.sh`'s verbatim file post could never register it. Registered + reconciled same-session (the apply_chain_reconciliation_0125.sh precedent).
+- **The domain census (pre-purge):** parents 741 · students 1,137 (all alive) · installments 5,956 (all imp-) · payments 2,198 · ledger 3,342 · user_profiles 1 · auth.users 1 (the owner admin) · backup_archives 0 · audit_logs 35,374 — the T-425-verified state, plus the concurrent agent's 2026-09-27 17:10–17:11 re-import (a no-op over the identical corpus; the audit trail attributes it; zero foreign writes since).
+- **The purge surface verified:** `purge_student_parent_domain(text, boolean, uuid)` present (0120/0121) · the single tenant `00000000-0000-0000-0000-000000000001 : El-Imtiyaz Boumerdès` · the academic catalog intact (1 year 2026-2027 · 16 subjects · 5 classes — the purge's preserved set).
+
 ## 2026-09-28 — The 111th session — T-432 COMPLETE: the boot-storm read-performance family (PERF-509) + the wave-basis reconciliation (DATA-049) — migration 0126 (the RLS InitPlan hoist + the debt-aging attribution materialization + three read indexes) + the calendar RPC-first read + the in-flight RPC dedupe + the "dont scolarité" line; the live application owner-gated with the full runbook
 
 ### The owner's report answered end to end

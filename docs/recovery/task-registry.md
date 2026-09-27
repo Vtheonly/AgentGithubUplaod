@@ -4871,3 +4871,19 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Verified:** tsc 0 · eslint 0 errors on every changed file · check:migrations append-only OK (121 + 1) · the new suites 10/10 (4 calendar RPC tests + 5 dedupe tests + 1 tuitionPct reconciliation test) · FULL vitest 4,233 passed / 18 failed — the failure set byte-identical to the 110th-session baseline · the read-only live health probes (the DB healthy outside the storm: 200s at 0.38–1.42 s; the RPC permission gates intact).
 **Left:** the live application of 0126 (owner-gated: apply_0126_live.sh + verify_t-432.sql — the runbook + expected results in docs/recovery/t-432-live-verification.md); PERF-510 (the global boot staggering / the compute-size decision) registered as the conditional follow-up if the storm recurs post-0126.
 **Next:** the SPREAD-100 equivalence run (the WB2 matrix re-derivation) · the T-429 cross-platform ports (the website + Android mirrors of the amended §15.1) · ACAD-511 (issue #18) · migration 0122 (reserved). NOTE: the T-429 entry's "Next" line once suggested "T-432" for the Track-7 dead-code purge — that scope stays deferred under TECHDEBT-100; this T-432 is the boot-storm family (the registry is the authority).
+
+## T-433 — The owner's purge + WB2 re-import mandate: the 0125 chain-head reconciliation (ARCH-016) + migration 0126 applied LIVE (the standing owner-gated item, token now supplied) + the FULL student/parent domain purge + the fresh WB2 workbook import + the delivery zips — IN_PROGRESS (P0; the 112th session)
+
+**Problem IDs:** ARCH-016 (registered + live-reconciled this session).
+**Owner mandate (verbatim):** "I want to purge everything first and remove **all existing data**, then use the **WB2 Excel file**, which contains a large number of students and families" + the supplied Supabase credentials (sbp_ token + service key) + "Zip all the systems and the main [repo], push to github with this pat, and give them to me" + "push and merge the code after each commit and be careful of conflicts" (the concurrent-agent discipline — §15.61f) + "the pasted test files was an analyze and report where it may or may not be the issue" (the earlier 500-storm console logs treated as diagnostic context, already owned by T-432/PERF-509).
+**Scope (the runbook, §15.65f sequence):**
+- Phase 0 (done, read-only): the session-opening probes — head census (found ARCH-016: live head 0124, 0125 unregistered while its artifacts are live), the domain census (741/1,137/5,956/2,198/3,342 — the T-425 state + the concurrent agent's 17:11 re-import no-op), the purge-RPC signature + tenant + academic-catalog verification, the concurrent-agent audit check (last foreign write 2026-09-27 17:11:59 UTC).
+- Phase A: the 0125 chain-head reconciliation (apply_chain_reconciliation_0125.sh — the atomic idempotent body + registration).
+- Phase B: apply migration 0126 LIVE (apply_0126_live.sh — the 111th session's standing top recommendation) + verify_t-432.sql (C1–C7).
+- Phase C: the purge — the canonical `purge_student_parent_domain` RPC (0120/0121, ADR-027) driven through the REAL UI path (the owner's GoTrue admin sign-in → PostgREST RPC), dry-run counts first, then EXECUTE with the typed phrase — the owner's explicit mandate stands in for the ADR-27 VERIFIED gate.
+- Phase D: the fresh import — `scripts/t-425-live-reimport.ts` (the REAL ImportEngine + the REAL Supabase repositories headlessly, the WB2 workbook `Excel/2027-2026.xlsx`).
+- Phase E: the verification — the t-425 Excel oracle + the no-4th-tranche probe + the post-import census + the REST health probes (the seeds' paths).
+- Phase F: the delivery zips (all systems + the hub) + the push with the PAT + the download copies.
+**Verified:** (in progress — phases recorded in docs/recovery/t-433-live-verification.md as they land).
+**Left:** (updated at closeout).
+**Next:** (updated at closeout).
