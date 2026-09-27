@@ -3174,3 +3174,19 @@ The owner's packaged-app UI pass (the Settings status chips); the EF's authorize
 ### Permanent knowledge
 
 AGENTS.md **§57** — the PL/pgSQL RETURNS TABLE OUT-parameter collision class; the conflict-guard verdict contract; the live-schema-is-the-authority rule (introspect, read the live registry); the archive-id uniqueness + the tryResult AppError passthrough.
+
+---
+
+## 2026-09-27 — T-421: the re-import failure quartet (105th session, issue #20's follow-up log)
+
+**The mandate:** the owner's pasted follow-up log — the 23:00:40 re-import of `2027-2026.xlsx` died at the bulk flush with `ledger_entries_source_uidx` / `payments_tenant_id_payment_number_key` duplicate keys, a THIRD 409 (installments) the surfaced error never mentioned, and installments GET 500s afterwards.
+
+**Four defects found, registered BEFORE the fixes (§13), fixed and live-verified:**
+- **IMPORT-116 (CRITICAL):** cross-run re-import idempotency was a myth on the PostgREST wire — `ignoreDuplicates` arbitrates only the primary key (residue-free live proof: 23505 on all three identity constraints; 42P10 for on_conflict with partial predicates). Payments and installments had NO cross-run filter; the ledger's was cache-based (empty on a lazy cache). FIX: DB-based preflight of all three streams — keyset-paginated on the PK, retried as a unit, FAIL-CLOSED (an unreadable stream aborts the flush before any write; partial knowledge is never returned — live-hardened under the 01:00 scheduled backup's load).
+- **IMPORT-117 (CRITICAL):** the installments flush awaited `bulkImportInstallments`'s Result and dropped it — the owner's third 409 never reached the message. FIX: the Result is honored; an Err fails the import.
+- **IMPORT-118 (HIGH):** chunks are independently committed PostgREST transactions, and the failure message falsely claimed "le lot a été annulé (aucune écriture partielle)" while ~7,500 rows from earlier chunks sat orphaned in the owner's run. FIX: WithProgress bulk variants report each landed chunk; the message now states ÉTAT PARTIEL with exact landed counts (or the truthful "état intact" when nothing landed).
+- **IMPORT-119 (CRITICAL):** the compensating rollback could soft-delete PRE-EXISTING students (the upsert RPC's out_was_inserted was dropped by the repository mapping; a stale snapshot turned "creates" into upserts onto real students), and the stats miscounted upserts as inserts. FIX: createStudentTracked/createParentTracked surface the flag — only truly-created ids join the compensation log; upsert-matches count as updates.
+
+**The definitive live verification (ALL GREEN):** re-importing the real workbook over the fully-imported DB — the owner's exact scenario — is now a clean NO-OP (57 s; 0 imported / 1,139 updated / 2 skipped; preflight sets 3342/2198/5963; census identical before/after; zero writes). The fail-closed path was exercised LIVE under the scheduled backup's real load: both aborts wrote zero rows with the honest retry message.
+
+**Gates:** t-421-reimport-idempotency.test.ts 10/10; import suites 55/55; typecheck 0; eslint 0 errors; the FULL vitest failing set byte-identical to pre-change main (stash-verified). Commits: 68409b7 (registration) → 40c0b59 (Phase 1) → 8915c3e (Phase 2, live-hardened). Knowledge: AGENTS.md §15.62 (six discoveries). Registered follow-up: the single-transaction flush RPC (migration 0122, owner-gated).

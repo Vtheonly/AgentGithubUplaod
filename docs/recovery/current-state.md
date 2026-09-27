@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-FIFTH session — T-421: the issue-#20 re-import failure quartet COMPLETE, live-verified)
+
+## Current state snapshot (2026-09-27, 105th session CLOSE — T-421 the re-import safety)
+
+**The owner's follow-up log is answered end to end.** The 23:00:40 re-import failure was FOUR defects, each registered before its fix: **IMPORT-116** (cross-run re-import idempotency was a myth on the wire — PostgREST's `ignoreDuplicates` arbitrates only the primary key; residue-free live proof 23505/42P10; payments/installments had NO cross-run filter, the ledger's was cache-based), **IMPORT-117** (the installments flush Result awaited and dropped — the third 409 the error message never mentioned), **IMPORT-118** (chunks are independently committed; the false "aucune écriture partielle" claim while ~7,500 rows sat orphaned), and **IMPORT-119** (the rollback's pre-existing-student blast radius via dropped `out_was_inserted`, plus the "1,137 imported" upsert miscount).
+
+**The definitive live verification (ALL GREEN):** re-importing the real `2027-2026.xlsx` over the fully-imported DB — the owner's exact scenario — is now **a clean NO-OP**: 57 s, stats **0 imported / 1,139 updated / 2 skipped** (honest), preflight sets 3342/2198/5963 (every identity read), census IDENTICAL before/after (1137/741/3342/2198/5963), **zero rows written**. The FAIL-CLOSED path was exercised LIVE under the 01:00 scheduled backup's real load (financial queries at 4–6.5 s): both aborts wrote ZERO rows with the honest "Réessayez dans quelques minutes" message — the conditions that produced the 23:00 catastrophe now produce a harmless retry.
+
+**Gates:** t-421-reimport-idempotency.test.ts 10/10; the import suites 55/55; typecheck 0; eslint 0 errors; the FULL vitest failing set byte-identical to pre-change main (stash-verified — the same 34 environment-class UI failures exist on the untouched tree). **No migration, no RPC change, no RLS change** (client-side preflight + honest contracts only). Chain: unchanged (0001–0121; next free 0122 — the single-transaction flush RPC is REGISTERED as the owner-gated structural follow-up). Registry: IMPORT-116..119 RESOLVED — TESTED — LIVE-VERIFIED. Knowledge: AGENTS.md §15.62 (six discoveries, headlined by the PostgREST ignoreDuplicates falsity).
+
+**Standing gates:** the owner's packaged-app re-import pass (the code on main now makes it a no-op — pull + rebuild first: the owner's 23:00 build predated Phase 6); the DB's sustained financial-table slowness around the 01:00 backup window deserves an owner-side look (thin index coverage on the identity columns); PARITY-005, TEST-309, OPS-319/BUSINESS-105 unchanged from the 104th session.
+
+---
+
 # Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-FOURTH session — T-420: the issue-#20 Excel-import financial integrity COMPLETE, live-verified)
 
 ## Current state snapshot (2026-09-27, 104th session CLOSE — T-420 the import financial integrity)
