@@ -87,3 +87,18 @@ Driven through the REAL UI path (ADR-027): the GoTrue admin password grant → t
 **The boot-path health probe (the owner's 500-storm read family, with a REAL staff JWT):**
 - read_installments_collection → **200 in 1,733 ms** (5,956 rows) · read_payments_collection → **200 in 1,271 ms** · read_ledger_entries_collection → **200 in 1,976 ms** · read_debt_summary_collection → **200 in 482 ms** (634 debtors — the same census as the pre-purge state) · students count → **200 in 571 ms** · payments month read → **200 in 762 ms**
 - **The storm that opened the 111th session is gone end-to-end: 0126 live + the in-flight dedupe + the full corpus re-imported.**
+
+## Phase F — the delivery zips + the closeout gates
+
+**The gates (all green):**
+- `check:migrations` — append-only OK (121 migration files; the 0125 file deliberately NOT edited — the reconciliation is script-only)
+- `tsc --noEmit` — 0 errors
+- FULL `vitest run` — **4,233 passed / 18 failed / 5 skipped — the failure set BYTE-IDENTICAL to the 111th-session baseline** (the 9-file FAIL census diffed: zero differences; the tree's src/ is unchanged by T-433 — scripts + docs only)
+
+**The delivery zips** (`scripts/t433-build-zips.sh`, the t425 convention):
+- `deliverables/AgentGithubUplaud-T433.zip` (8.2 MB — the hub at main + this delivery commit)
+- `deliverables/elimtiyaz-website-T433.zip` (0.7 MB — the website at its green main 5c530b6)
+- `deliverables/elimtiyaz-all-systems-T433.zip` (9.0 MB — both systems; the top-level census verified EXACTLY two entries after the basename fix)
+- Copies delivered to the owner's download directory.
+
+**The zip-builder lesson:** the hub's directory name (`AgentGithubUplaod`) is visually confusable with its near-anagram (`AgentGithubUplaud`) — a hand-typed `cp` target in the first build shipped a duplicate empty top-level directory inside the all-systems archive. The fix is structural: the builder now derives the name from `basename "$HUB"` (never hand-typed). The same confusability bit this session's own shell commands repeatedly (the recurring `cd` failures) — the terminal display cannot distinguish the pair; scripts must not depend on typing it.
