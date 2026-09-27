@@ -41,7 +41,7 @@ import type { DebtAgingAnalysis } from "../../domain/calc/ledger/debt-aging";
 import { agingBucketFromDays } from "../../domain/calc/payment/queries";
 import { SubjectBehavior } from "../mock/subject-behavior";
 import { getSupabaseRepositories } from "./supabase-repositories";
-import { getTenantId } from "./repositories/supabase-shared-repositories";
+import { callCollectionRpc, getTenantId } from "./repositories/supabase-shared-repositories";
 import {
   getSupabaseClient,
   isSupabaseConfigured,
@@ -164,19 +164,54 @@ type QueryResult<T> = PromiseLike<{
   error: { message: string } | null;
 }>;
 
-/** PostgREST is paginated at 1000 rows; never rely on the first page alone. */
-async function fetchAllPages<T>(
-  build: (from: number, to: number) => QueryResult<T>,
+/**
+ * PERF-508 (T-430): the KEYSET walk — every page an index scan on the
+ * primary key (`id > lastId`), never a growing OFFSET window. Used for the
+ * debt refresh's parents/students reads (no collection RPC exists for
+ * them); the ledger goes RPC-first below.
+ */
+async function fetchAllPagesKeyset<T>(
+  build: (lastId: string) => QueryResult<T>,
 ): Promise<T[]> {
   const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const response = await build(from, from + PAGE_SIZE - 1);
+  let lastId = "";
+  for (;;) {
+    const response = await build(lastId);
     if (response.error) throw new Error(response.error.message);
     const page = response.data ?? [];
     rows.push(...page);
     if (page.length < PAGE_SIZE) break;
+    const last = page[page.length - 1] as { id?: string } | undefined;
+    if (!last?.id) break;
+    lastId = last.id;
   }
   return rows;
+}
+
+/**
+ * PERF-508 (T-430): the ledger collection — RPC FIRST
+ * (`read_ledger_entries_collection`, migration 0123: one immune jsonb
+ * round trip — SECURITY DEFINER, no per-row RLS policy chain, no
+ * 1,000-row cap) with the direct KEYSET read as the version-skew fallback
+ * (§15.62c). The display order (entry_date ascending) is restored
+ * in-memory on the fallback path.
+ */
+async function fetchLedgerCollection(
+  client: SupabaseClient,
+  tenantId: string,
+): Promise<LedgerEntryRow[]> {
+  const rpcRows = await callCollectionRpc<LedgerEntryRow>(client, "read_ledger_entries_collection");
+  if (rpcRows) return rpcRows;
+  return fetchAllPagesKeyset<LedgerEntryRow>(async (lastId) => {
+    const base = client
+      .from("ledger_entries")
+      .select("*")
+      .eq("tenant_id", tenantId);
+    const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+      .order("id", { ascending: true })
+      .limit(PAGE_SIZE);
+    return { data: (data ?? []) as LedgerEntryRow[], error: error as { message: string } | null };
+  });
 }
 
 /**
@@ -217,31 +252,41 @@ export class RealtimeFinancialDebtRepository implements DebtRepository {
     }
 
     try {
+      // PERF-508 (T-430, issues #24/#25 Track 3 item 4): the ledger read is
+      // RPC FIRST (`read_ledger_entries_collection`, migration 0123 — the
+      // SECURITY DEFINER one-round-trip path immune to the per-row RLS
+      // policy chain and the 1,000-row cap; the SAME convention the T-423
+      // financial seeds use) with the direct KEYSET read as the
+      // version-skew fallback (§15.62c). The previous OFFSET `.range()`
+      // walk (page 0..999, 1000..1999, …) re-scanned the unindexed offset
+      // window on every page of the 3,342-row ledger on EVERY realtime
+      // refresh — the audit's Track-3 pagination finding. Parents/students
+      // (no collection RPC exists for them) also walk the primary key
+      // instead of OFFSET windows.
       const [parents, students, ledgerRows] = await Promise.all([
-        fetchAllPages((from, to) =>
-          this.client
+        fetchAllPagesKeyset(async (lastId) => {
+          const base = this.client
             .from("parents")
             .select("id, first_name, last_name, display_name, primary_phone")
             .eq("tenant_id", tenantId)
-            .is("deleted_at", null)
-            .range(from, to),
-        ),
-        fetchAllPages((from, to) =>
-          this.client
+            .is("deleted_at", null);
+          const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(PAGE_SIZE);
+          return { data: (data ?? []) as Array<{ id: string; first_name?: string | null; last_name?: string | null; display_name?: string | null; primary_phone?: string | null }>, error: error as { message: string } | null };
+        }),
+        fetchAllPagesKeyset(async (lastId) => {
+          const base = this.client
             .from("students")
-            .select("parent_id")
+            .select("id, parent_id")
             .eq("tenant_id", tenantId)
-            .is("deleted_at", null)
-            .range(from, to),
-        ),
-        fetchAllPages((from, to) =>
-          this.client
-            .from("ledger_entries")
-            .select("*")
-            .eq("tenant_id", tenantId)
-            .order("entry_date", { ascending: true })
-            .range(from, to),
-        ),
+            .is("deleted_at", null);
+          const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(PAGE_SIZE);
+          return { data: (data ?? []) as Array<{ id: string; parent_id: string }>, error: error as { message: string } | null };
+        }),
+        fetchLedgerCollection(this.client, tenantId),
       ]);
 
       const parentDirectory: DebtParent[] = parents.map((row) => ({

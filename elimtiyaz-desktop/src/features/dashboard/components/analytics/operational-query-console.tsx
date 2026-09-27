@@ -1117,10 +1117,20 @@ export function OperationalQueryConsole({ profiles }: Props) {
         </CardContent>
       </Card>
 
-      <Student360Modal
-        profile={selectedProfile}
-        onClose={() => setSelectedProfile(null)}
-      />
+      {/* PERF-507 (T-430, issues #24/#25 Track 3 item 2): the 360° modal
+          mounts ONLY when a profile is selected. Its body opens 9 reactive
+          repository subscriptions (students, parents, subjects, assessments
+          2020–2035, attendance, payments, installments, debt summary,
+          ledger) — mounted unconditionally with `profile === null` they ran
+          as 9 permanent background observables on every page load (the
+          audit's measured startup cost). The modal is closed-and-unmounted
+          by construction now; `onClose` still clears the selection. */}
+      {selectedProfile !== null && (
+        <Student360Modal
+          profile={selectedProfile}
+          onClose={() => setSelectedProfile(null)}
+        />
+      )}
     </>
   );
 }

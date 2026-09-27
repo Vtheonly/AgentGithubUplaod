@@ -1,3 +1,15 @@
+## 2026-09-27 — The 110th session (cont.) — T-430 COMPLETE: the performance family — PERF-506/507/508 registered and RESOLVED/TESTED (the 741-observable fan-out → ONE bulk subscription; the modal's 9 background observables → conditional mount; the debt refresh's OFFSET walks → RPC-first ledger + keyset)
+
+### What was fixed
+
+- **PERF-506:** the Tranches tab mounts ONE tenant-wide `installments.observe()` subscription with an in-memory parent-name join — the 741 per-parent observables/subscriptions (one per family, plus a `.get()` materialization each) are gone; the per-parent API remains in the repository contract for its real consumers (the CRM échéancier, the payment modal).
+- **PERF-507:** the Student360Modal mounts only when a profile is selected — its 9 reactive subscriptions no longer run as permanent background observables on every page load.
+- **PERF-508:** the debt-realtime refresh reads the ledger RPC-first (`read_ledger_entries_collection` — the migration-0123 convention) with the keyset fallback; the parents/students walks are keyset too; the dead OFFSET helper is removed. (The audit's Track-3 item 1 — "eager tab mounting" — is STALE: Radix Tabs unmount inactive content by construction; documented, no change.)
+
+### The gates
+
+tsc 0 · eslint 0 errors on every changed file · the t-430 census suite **1/1** (observe() exactly once, observeByParent never, the rows render from the bulk stream) · the realtime suites green (t-390 + t-420-pause-seam) · the component families green (the 5 failures across analytics-visuals/ai-review-screens are the documented pre-existing baseline) · FULL vitest **4,224 passed / 18 failed — the failure set byte-identical to the baseline** (FAIL lists diffed: 0 differences; +1 = the t-430 suite).
+
 ## 2026-09-27 — The 110th session (cont.) — T-427 COMPLETE: the wave-card delinquency semantics — DATA-048/DATA-048b registered and RESOLVED/TESTED (the overdue-family gating, the phase-driven sub-labels, the remainingTotal-based closure, the pooling-basis disclosure)
 
 ### What was fixed

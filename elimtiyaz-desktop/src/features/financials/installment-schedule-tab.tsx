@@ -280,31 +280,25 @@ export function InstallmentScheduleTab({
   // VAULT §10.08 — manual triggers require a confirmation dialog (two clicks).
   const [confirmScanOpen, setConfirmScanOpen] = useState(false);
 
-  // Build the merged list by reading each parent's installments.
+  // PERF-506 (T-430, issues #24/#25 Track 3 item 3): ONE bulk collection
+  // subscription instead of N per-parent observables. The previous mount
+  // created 741 individual `observeByParent(p.id)` observables + 741
+  // subscriptions (one per family) — each `.get()` also forced a cache
+  // materialization per parent — and every per-parent refresh rebuilt the
+  // whole merged array. The tenant-wide `observe()` stream (the SAME
+  // repository contract the dashboard consumes) carries every row in one
+  // reactive pass; the parent display name is joined in memory from the
+  // parents stream. The per-parent observables REMAIN in the repository
+  // contract (the CRM échéancier + payment modal use them) — only this
+  // tab's fan-out is replaced.
   useEffect(() => {
-    const merged: Row[] = [];
-    for (const p of parents) {
-      const items = repos.installments.observeByParent(p.id).get();
-      for (const i of items) {
-        merged.push({ ...i, parentName: parentDisplayName(p) });
-      }
-    }
-    setRows(merged);
-
-    const unsubs: Array<() => void> = [];
-    for (const p of parents) {
-      const obs = repos.installments.observeByParent(p.id);
-      unsubs.push(
-        obs.subscribe((items) => {
-          setRows((curr) => {
-            const others = curr.filter((r) => r.parentId !== p.id);
-            const newRows: Row[] = items.map((i) => ({ ...i, parentName: parentDisplayName(p) }));
-            return [...others, ...newRows];
-          });
-        }),
-      );
-    }
-    return () => unsubs.forEach((u) => u());
+    const parentNameById = new Map(parents.map((p) => [p.id, parentDisplayName(p)]));
+    const toRows = (items: readonly Installment[]): Row[] =>
+      items.map((i) => ({ ...i, parentName: parentNameById.get(i.parentId) ?? i.parentId }));
+    const unsub = repos.installments.observe().subscribe((items) => {
+      setRows(toRows(items));
+    });
+    return unsub;
   }, [parents, repos.installments]);
 
   const filtered = useMemo(() => {
