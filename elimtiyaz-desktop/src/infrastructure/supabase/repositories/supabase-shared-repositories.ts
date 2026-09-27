@@ -559,6 +559,55 @@ function sortByRawColumn<R>(rows: R[], col: keyof R & string, ascending: boolean
   });
 }
 
+/**
+ * T-423 (Phase B / PERF-505): whether an RPC error means "this function is
+ * not callable HERE" (version skew — the app build newer than the applied
+ * migration chain, or a permission/permission-deny shape) rather than a
+ * transient server failure. Only the unavailable class falls back to the
+ * direct read; transient errors (timeouts, 5xx) go back through the retry
+ * ladder — the RPC is the immune path (live-measured 0.8–1.5 s at 100%),
+ * and if IT times out the direct read would fare worse on the same load.
+ */
+function isRpcUnavailableError(err: { code?: string | number; message?: string } | null | undefined): boolean {
+  if (!err) return false;
+  const code = String(err.code ?? "");
+  const msg = String(err.message ?? "");
+  return (
+    code === "PGRST202" ||
+    code === "42501" ||
+    code === "42883" ||
+    /Could not find the function|does not exist|schema cache|permission denied|forbidden|is not a function/i.test(msg)
+  );
+}
+
+/**
+ * T-423 (Phase B): call a collection RPC with the unavailable-class
+ * classification. Returns the payload on success, NULL when the RPC is
+ * unavailable (version skew — a DB without migration 0123, a client
+ * without the .rpc surface at all, a permission-deny shape) so the caller
+ * falls back to the direct read, and THROWS on every other error so the
+ * seed's retry ladder handles transient failures (the RPC is the immune
+ * path — a transient RPC failure retries the RPC, it does not silently
+ * degrade to the slower wire).
+ */
+async function callCollectionRpc<R>(
+  client: SupabaseClient,
+  fn: string,
+): Promise<R[] | null> {
+  let res: { data: R[] | null; error: { code?: string; message?: string } | null };
+  try {
+    res = await client.rpc(fn);
+  } catch (e) {
+    if (isRpcUnavailableError(e as { message?: string })) return null;
+    throw e;
+  }
+  if (res.error) {
+    if (isRpcUnavailableError(res.error)) return null;
+    throw res.error;
+  }
+  return res.data ?? [];
+}
+
 // ============================================================================
 // Row → domain mappers
 // ============================================================================
@@ -2112,11 +2161,20 @@ export class SupabasePaymentRepository implements PaymentRepository {
     // rendered 57014 timeouts as confident 0 DZD KPIs).
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
-      // DATA-035 (T-411, FA-14): PAGINATED — PostgREST caps every response
-      // at 1000 rows (§15.29c). T-423 (Phase A3 / DATA-038): converted from
-      // .range() OFFSET pagination to KEYSET on the primary key (§15.62c —
-      // every page an index scan, no OFFSET re-scan of the sorted set);
-      // the display order (collected_at desc) is restored in-memory.
+      // T-423 (Phase B / PERF-505): RPC FIRST — the SECURITY DEFINER
+      // read_payments_collection (migration 0123) bypasses the per-row RLS
+      // policy chain that makes the direct reads 6.5–19.9 s at 80–90%
+      // (live-measured, issue #23); one jsonb payload = immune to the
+      // 1,000-row cap. The direct keyset read (Phase A3) remains the
+      // version-skew fallback (the app newer than the applied chain).
+      const rpcRows = await callCollectionRpc<PaymentRow>(this.client, "read_payments_collection");
+      if (rpcRows) {
+        return sortByRawColumn(rpcRows, "collected_at", false).map(mapPaymentRow);
+      }
+      // DATA-035 (T-411, FA-14) + T-423 Phase A3 (DATA-038): KEYSET on the
+      // primary key (§15.62c — every page an index scan, no OFFSET
+      // re-scan); the display order (collected_at desc) is restored
+      // in-memory.
       const rows = await paginateKeyset<PaymentRow>(async (lastId) => {
         const base = this.client.from("payments").select("*").eq("tenant_id", tenantId);
         const { data, error } = await (lastId ? base.gt("id", lastId) : base)
@@ -2829,6 +2887,13 @@ export class SupabaseLedgerRepository implements LedgerRepository {
     // empty ledger — the receipts and diagnostic surfaces showed nothing).
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
+      // T-423 (Phase B / PERF-505): RPC FIRST — read_ledger_entries_collection
+      // (migration 0123): the full ledger in one immune round trip. Direct
+      // keyset fallback for version skew.
+      const rpcRows = await callCollectionRpc<LedgerEntryRow>(this.client, "read_ledger_entries_collection");
+      if (rpcRows) {
+        return sortByRawColumn(rpcRows, "entry_date", false).map(mapLedgerRow);
+      }
       // T-423 (Phase A3 / DATA-038 — the ledger leg of the class sweep):
       // the old `.limit(2000)` was silently capped at 1,000 rows by
       // PostgREST (live: 3,342 rows exist) — the receipts surface and the
@@ -3342,6 +3407,13 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
     // "Aucune tranche T1/T2/T3" with zero error indication.
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
+      // T-423 (Phase B / PERF-505): RPC FIRST — read_installments_collection
+      // (migration 0123): the whole schedule (all tranches, T1+T2+T3) in one
+      // immune round trip. Direct keyset fallback for version skew.
+      const rpcRows = await callCollectionRpc<InstallmentRow>(this.client, "read_installments_collection");
+      if (rpcRows) {
+        return sortByRawColumn(rpcRows, "due_date", true).map(mapInstallmentRow);
+      }
       // T-423 (Phase A3 / DATA-038): the installments seed was ONE
       // unpaginated read — the 1,000-row cap cached exactly tranche 1 of
       // 5,963 rows (live-measured: by tranche_number = [[1,1000]]), so the
@@ -4096,6 +4168,47 @@ export class SupabaseDebtRepository implements DebtRepository {
    */
   private async readSummaries(): Promise<import("../../../domain/model/payment").DebtSummary[]> {
     const tenantId = requireTenantId();
+    // T-423 (Phase B / PERF-505 + DATA-038/DATA-040): RPC FIRST —
+    // read_debt_summary_collection (migration 0123) computes the per-parent
+    // aggregates server-side over the FULL unpaid set (the §15 installment
+    // basis, byte-identical formula) in one immune round trip, replacing
+    // the three direct reads (unpaid installments + parent names + student
+    // counts) that PostgREST each capped at 1,000 rows. The RPC returns
+    // RAW display fields; every display decision (name fallback, days
+    // overdue, aging bucket) stays in this mapper.
+    const rpcRows = await callCollectionRpc<{
+      parent_id: string;
+      display_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      primary_phone: string | null;
+      outstanding_amount: number | string;
+      oldest_due_date: string;
+      student_count: number | string;
+    }>(this.client, "read_debt_summary_collection");
+    if (rpcRows) {
+      const nowMs = Date.now();
+      return rpcRows
+        .map((r) => {
+          const days = Math.max(
+            0,
+            Math.floor((nowMs - new Date(r.oldest_due_date).getTime()) / 86_400_000),
+          );
+          return {
+            id: `debt-${r.parent_id}`,
+            parentId: r.parent_id,
+            parentName:
+              r.display_name ?? `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
+            parentPhone: r.primary_phone ?? "",
+            studentCount: Number(r.student_count ?? 0),
+            outstandingAmount: Number(r.outstanding_amount ?? 0),
+            daysOverdue: days,
+            bucket: agingBucketFromDays(days),
+          };
+        })
+        .sort((a, b) => b.outstandingAmount - a.outstandingAmount);
+    }
+    // ── The version-skew fallback: the Phase A3 direct path ──────────────
     // T-423 (Phase A3 / DATA-038): the unpaid-installments read was ONE
     // unpaginated read — the 1,000-row cap aggregated over the first
     // thousand unpaid rows only (live: 4,227 unpaid exist), undercounting

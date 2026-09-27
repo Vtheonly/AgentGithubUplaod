@@ -117,7 +117,13 @@ function createFlakyClient(tables: Record<string, Row[]>) {
   return {
     client: {
       from: (t: string) => new Q(t),
-      rpc: async () => ({ data: null, error: null }),
+      // T-423 Phase B: the collection RPCs are "not deployed" in this fake
+      // (PGRST202) so the seeds exercise the DIRECT keyset fallback path —
+      // the RPC path is live-verified against the real migration 0123.
+      rpc: async (fn: string) => ({
+        data: null,
+        error: { code: "PGRST202", message: `Could not find the function ${fn}` },
+      }),
     } as unknown as SupabaseClient,
     failReads,
     state,
@@ -392,6 +398,114 @@ describe("T-423 — the OPS-317 diagnostics record the financial seeds' failures
     const entry = getSeedDiagnostics().find((d) => d.source === "installments");
     expect(entry).toBeDefined();
     expect(entry?.message).toContain("statement timeout");
+    obs.unsub();
+  });
+});
+
+describe("T-423 Phase B — the RPC-first read path (PERF-505, migration 0123)", () => {
+  /** A client whose .from() THROWS — the RPC must serve or the seed fails. */
+  function rpcOnlyClient(
+    rpcHandler: (fn: string) => { data: unknown; error: { code?: string; message: string } | null },
+  ) {
+    return {
+      rpc: async (fn: string) => rpcHandler(fn),
+      from: () => {
+        throw new Error("the direct read path must not run when the RPC serves");
+      },
+    } as unknown as SupabaseClient;
+  }
+
+  it("H: the payments seed serves from read_payments_collection (one call, no direct reads)", async () => {
+    const rpcCalls: string[] = [];
+    const client = rpcOnlyClient((fn) => {
+      rpcCalls.push(fn);
+      if (fn === "read_payments_collection") {
+        return { data: PAYMENT_ROWS, error: null };
+      }
+      return { data: null, error: { code: "PGRST202", message: `no ${fn}` } };
+    });
+    const repo = new SupabasePaymentRepository(client);
+    const obs = track(repo.observe());
+    await vi.waitFor(() => {
+      expect(obs.value()).toHaveLength(2);
+    });
+    expect(rpcCalls.filter((c) => c === "read_payments_collection")).toHaveLength(1);
+    // Order contract preserved (collected_at desc — the 09-21 row first).
+    expect(obs.value()![0].id).toBe("11111111-1111-4111-8111-111111111112");
+    expect(getSeedHealth("payments")?.state).toBe("ok");
+    obs.unsub();
+  });
+
+  it("I: a TRANSIENT RPC error retries the RPC (never silently degrades, never falls back to direct)", async () => {
+    let calls = 0;
+    const client = rpcOnlyClient((fn) => {
+      if (fn !== "read_payments_collection") {
+        return { data: null, error: { code: "PGRST202", message: `no ${fn}` } };
+      }
+      calls += 1;
+      if (calls === 1) {
+        return { data: null, error: { code: "57014", message: "canceling statement due to statement timeout" } };
+      }
+      return { data: PAYMENT_ROWS, error: null };
+    });
+    const repo = new SupabasePaymentRepository(client);
+    const obs = track(repo.observe());
+    await vi.waitFor(() => {
+      expect(obs.value()).toHaveLength(2);
+    });
+    expect(calls).toBe(2); // the retry ladder re-invoked the RPC
+    expect(getSeedHealth("payments")?.state).toBe("ok");
+    obs.unsub();
+  });
+
+  it("J: the debt seedSummary maps the RPC rows (name fallback, daysOverdue, studentCount, ordering)", async () => {
+    const client = rpcOnlyClient((fn) => {
+      if (fn === "read_debt_summary_collection") {
+        return {
+          data: [
+            {
+              parent_id: "22222222-2222-4222-8222-222222222222",
+              display_name: null,
+              first_name: "Karim",
+              last_name: "BENTEST",
+              primary_phone: "0550000099",
+              outstanding_amount: "75000.00",
+              oldest_due_date: "2026-09-01",
+              student_count: 2,
+            },
+            {
+              parent_id: "22222222-2222-4222-8222-222222222221",
+              display_name: "Famille OUAGED",
+              first_name: null,
+              last_name: null,
+              primary_phone: "0793358127",
+              outstanding_amount: "2870000.00",
+              oldest_due_date: "2026-09-15",
+              student_count: 3,
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: null, error: { code: "PGRST202", message: `no ${fn}` } };
+    });
+    const repo = new SupabaseDebtRepository(client);
+    const obs = track(repo.observeSummary());
+    await vi.waitFor(() => {
+      expect(obs.value()).toHaveLength(2);
+    });
+    const rows = obs.value()!;
+    // Sorted by outstanding desc (the RPC pre-sorts; the mapper preserves).
+    expect(rows[0].parentName).toBe("Famille OUAGED");
+    expect(rows[0].outstandingAmount).toBe(2870000);
+    expect(rows[0].studentCount).toBe(3);
+    // The name fallback + numeric casts + the days-overdue derivation.
+    expect(rows[1].parentName).toBe("Karim BENTEST");
+    expect(rows[1].outstandingAmount).toBe(75000);
+    expect(rows[1].studentCount).toBe(2);
+    expect(rows[1].daysOverdue).toBeGreaterThanOrEqual(0);
+    expect(["0_30", "31_60", "61_90", "91_180", "180_plus"]).toContain(rows[1].bucket);
+    expect(getSeedHealth("debtSummary")?.state).toBe("ok");
     obs.unsub();
   });
 });
