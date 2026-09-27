@@ -33,6 +33,7 @@ import { IMPORTED_BIRTH_DATE_PLACEHOLDER, type CreateStudentInput, type Student 
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Payment, Installment, PaymentCategory, AcademicCycle, CollectPaymentInput } from "../../../../domain/model/payment";
 import { createChargeEntry, createPaymentEntry, createAdjustmentEntry } from "../../../../domain/calc/ledger/entries";
+import { allocatePaymentToInstallments } from "../../../../domain/calc/payment/waterfall-allocator";
 import { mapNiveauCode, resolveGradeFromClasse, isAutisteTrack } from "../mappers/niveau-mapper";
 import { splitFullName } from "../mappers/name-splitter";
 import { mapExcelDestinationToCanonical } from "../mappers/destination-mapper";
@@ -2260,6 +2261,21 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // Tuition amounts PAID — from the Excel payment columns.
     // FI + SEPTEMBRE → INSCRIPTION; V2 + DECEMBRE → 2EME;
     // V2_ALT + MARS → 3ème; V3 + RATRAPAGE → 4ème.
+    // T-424 (DATA-041): these columns are the PAYMENT STREAM, not a per-
+    // tranche attribution. The 2027/2026 workbook restructured its payment
+    // columns (the config-documented V2→V1 relabel: V1 is the FIRST
+    // versement with the inscription folded INTO it — the FI column is
+    // dead: Σ25,000 across 1 row of 1,139), so mapping V1 straight onto
+    // T2 left T1 (INSCRIPTION) permanently unpaid for 1,132/1,137 students
+    // while 1,281 rows ended overpaid. The canonical semantics — the SAME
+    // `allocatePaymentToInstallments` waterfall the live
+    // `collect_and_allocate_payment` RPC implements (oldest-due-first,
+    // INV-4 capacity, cross-category when no filter is passed) — is
+    // workbook-agnostic: pooled payments fill T1 first, then T2, ... The
+    // in-memory oracle (scripts/t-424-tranche-attribution-analysis.ts)
+    // proves it matches the workbook's own TOTAL*CREANCE per student for
+    // 1,133/1,133 comparable rows (Σremaining 193,477,900 = the workbook
+    // exactly) where the straight mapping matched 236/1,138.
     const tuitionTranchePaid: readonly [number, number, number, number] = [
       numOrZero(record.fi) + numOrZero(record.septembre),
       numOrZero(record.v2) + numOrZero(record.decembre),
@@ -2327,27 +2343,29 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
     // Tuition installments — the 4-payment BON structure (INSCRIPTION /
     // 2EME / 3ème / 4ème TRANCHE) with REAL matrix amounts.
+    // T-424 (DATA-041): built UNPAID — the payment attribution happens
+    // through the canonical waterfall AFTER the T-105 due reconciliation
+    // (see below), never column-by-column.
     for (let i = 0; i < 4; i++) {
       const trancheNumber = (i + 1) as 1 | 2 | 3 | 4;
       const amountDue = netTuitionTrancheDue[i];
-      const amountPaid = tuitionTranchePaid[i];
-      if (amountDue === 0 && amountPaid === 0) continue;
+      if (amountDue === 0) continue;
       results.push(buildInstallment(
         "tuition", trancheNumber, tuitionLabels[i],
-        amountDue, amountPaid, dueDates[i],
+        amountDue, 0, dueDates[i],
       ));
     }
 
     // Transport installments (3 tranches) — REAL per-town matrix amounts.
+    // T-424: built UNPAID (same waterfall rule as tuition).
     if (hasTransport) {
       for (let i = 0; i < 3; i++) {
         const trancheNumber = (i + 1) as 1 | 2 | 3;
         const amountDue = transportTrancheDue[i];
-        const amountPaid = transportTranchePaid[i];
-        if (amountDue === 0 && amountPaid === 0) continue;
+        if (amountDue === 0) continue;
         results.push(buildInstallment(
           "transport", trancheNumber, `Tranche ${trancheNumber} — Transport (${canonicalDestination})`,
-          amountDue, amountPaid, dueDates[i],
+          amountDue, 0, dueDates[i],
         ));
       }
     }
@@ -2422,6 +2440,46 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         return t;
       });
     }
+
+    // ── T-424 / DATA-041 — the canonical waterfall attribution ──────────
+    // The row's payment streams (tuition columns + prior-debt settlements
+    // + transport columns) are POOLED and allocated oldest-tranche-first
+    // through the domain's canonical `allocatePaymentToInstallments` —
+    // the SAME INV-4 semantics as the live `collect_and_allocate_payment`
+    // RPC (cross-category: a transport versement can complete a tuition
+    // tranche, exactly as a counter payment does in the app). This makes
+    // the import's per-tranche state agree with (a) the ledger replay
+    // (Σdue = L+N−M by the T-105 reconciliation above; Σpaid = the row's
+    // payments) and therefore (b) the workbook's own TOTAL*CREANCE per
+    // student — the t-424 oracle. The straight column→tranche mapping
+    // this replaces produced "T1 INSCRIPTION permanently unpaid while its
+    // payments show paid" (the owner's report) on the 2027/2026 workbook.
+    const paymentPool = Math.round(
+      tuitionTranchePaid[0] + tuitionTranchePaid[1] +
+      tuitionTranchePaid[2] + tuitionTranchePaid[3] +
+      transportTranchePaid[0] + transportTranchePaid[1] + transportTranchePaid[2] +
+      numOrZero(record.reglementsDettes),
+    );
+    if (paymentPool > 0 && results.length > 0) {
+      const allocation = allocatePaymentToInstallments(results, paymentPool, null);
+      const byId = new Map(allocation.allocations.map((a) => [a.installmentId, a]));
+      results = results.map((t) => {
+        const a = byId.get(t.id);
+        if (!a) return t;
+        return {
+          ...t,
+          amountPaid: Math.round(a.newAmountPaid),
+          amountPending: Math.round(a.newAmountPending),
+          status: a.newStatus,
+          paidDate: a.fullySatisfied ? now.toISOString() : null,
+        };
+      });
+    }
+
+    // Drop zero-due rows the reconciliation may have emptied (the build-time
+    // skip rule's post-reconciliation twin — a 0-due/0-paid row carries no
+    // information and would render as a phantom "paid" tranche).
+    results = results.filter((t) => t.amountDue > 0 || t.amountPaid > 0);
 
     return results;
   }

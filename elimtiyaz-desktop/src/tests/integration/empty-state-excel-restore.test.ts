@@ -79,10 +79,17 @@ const PINNED = {
   parents: 253,
   ledgerEntries: 1283,
   payments: 891,
-  installments: 1968,
-  installmentsTuition: 1560,
+  // T-424/DATA-041 (2026-09-27): the canonical waterfall attribution drops
+  // zero-due tranches the T-105 reconciliation empties (2 tuition rows on
+  // this workbook: 1968→1966, tuition 1560→1558) and never attributes an
+  // overpayment to a tranche — the excess stays a ledger credit (hence the
+  // new installmentsPaidTotal pin ≠ paymentsTotal: 64 000 DZD of overpay
+  // on this workbook).
+  installments: 1966,
+  installmentsTuition: 1558,
   installmentsTransport: 408,
   paymentsTotal: 55_227_100, // == Excel Σ TOTAL VERSEMENTS
+  installmentsPaidTotal: 55_163_100, // T-424: paymentsTotal − 64 000 overpay excess (capped at Σdue per tranche)
   installmentsDueTotal: 113_518_800, // == Excel C3 Σ(devis + dettes − remboursement)
   chargesTotal: 113_518_800, // == Excel Σ(devis + dettes)
   etatRows: 390,
@@ -312,7 +319,18 @@ describeOrSkip("IMPORT-106 Layer A — empty-state restore through the import pi
     expect(ledgerPaymentTotal).toBe(-excelPayments);
     expect(ledgerChargeTotal).toBe(excelCharges);
     expect(installmentDueTotal).toBe(excelC3);
-    expect(installmentPaidTotal).toBe(excelPayments);
+    // T-424 (DATA-041) — the canonical waterfall attribution: every payment
+    // lands on a tranche UP TO that tranche's due; an overpayment's excess
+    // stays a LEDGER credit (the balance goes negative), never a tranche's
+    // amount_paid. So Σ tranche paid ≤ Σ payments, with the difference being
+    // exactly the workbook's overpay rows — and each student's Σ remaining
+    // equals max(0, their ledger balance): the installment basis and the
+    // ledger basis can no longer disagree (the Statistics-vs-Finance
+    // unification's core invariant).
+    expect(installmentPaidTotal).toBeLessThanOrEqual(excelPayments);
+    expect(installmentPaidTotal).toBe(PINNED.installmentsPaidTotal);
+    const overpaidRows = [...installmentsA.rows.values()].filter((i) => i.amountPaid > i.amountDue);
+    expect(overpaidRows, "no tranche carries amount_paid > amount_due").toEqual([]);
 
     // …AND pinned as regression anchors (workbook replacement trips these).
     expect(paymentsTotal).toBe(PINNED.paymentsTotal);
@@ -583,7 +601,9 @@ describeOrSkip("IMPORT-106 Layer B — empty-state restore through the REAL mock
     expect(s.ledger.length).toBe(PINNED.ledgerEntries);
     expect(s.payments.reduce((sum: number, p: Payment) => sum + p.amount, 0)).toBe(PINNED.paymentsTotal);
     expect(s.installments.reduce((sum: number, i: Installment) => sum + i.amountDue, 0)).toBe(PINNED.installmentsDueTotal);
-    expect(s.installments.reduce((sum: number, i: Installment) => sum + i.amountPaid, 0)).toBe(PINNED.paymentsTotal);
+    // T-424: the waterfall caps at Σdue — the overpay excess (64 000 DZD on
+  // this workbook) is the ledger credit, not tranche attribution.
+  expect(s.installments.reduce((sum: number, i: Installment) => sum + i.amountPaid, 0)).toBe(PINNED.installmentsPaidTotal);
   }, TEST_TIMEOUT_MS);
 
   it("does NOT double-book: every ledger entry is bulk_import, every payment carries its deterministic IMP- receipt", () => {

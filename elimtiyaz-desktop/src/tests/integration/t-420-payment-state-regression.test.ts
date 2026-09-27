@@ -411,15 +411,36 @@ describe("T-420 part 1 — the tri-state payment regression (synthetic, exact)",
       for (const st of r.expect.statuses) {
         expect(statuses.has(st), `${r.name}: an installment with status ${st}`).toBe(true);
       }
-      // Σ amountPaid across tranches == the imported tuition payments
-      // (FI + V1 + 2V + v3 — the tuition-family payment columns).
+      // T-424 (DATA-041) — the canonical WATERFALL attribution semantics:
+      // the row's payment streams (FI + V1 + 2V + v3 + REGLEMENTS DETTES,
+      // pooled cross-category with the transport columns) fill the tranches
+      // oldest-first through the canonical allocator, CAPPED at each
+      // tranche's due. Two consequences pinned here:
+      //   (a) the prior-debt settlement (O) IS attributed (the installment
+      //       basis and the ledger basis now agree per student — the core
+      //       of the Statistics-vs-Finance unification), and
+      //   (b) an OVERPAYMENT never inflates amount_paid beyond amount_due
+      //       (the excess is the ledger credit, not a tranche overpay).
       const tuitionPaid = insts.filter((i) => i.category === "tuition").reduce((s, i) => s + i.amountPaid, 0);
-      const expectedTuitionPaid =
+      const pool =
         (r.cells.R as number | undefined ?? 0) +
         (r.cells.S as number | undefined ?? 0) +
         (r.cells.T as number | undefined ?? 0) +
-        (r.cells.U as number | undefined ?? 0);
-      expect(tuitionPaid, `${r.name}: Σ tranche paid`).toBe(expectedTuitionPaid);
+        (r.cells.U as number | undefined ?? 0) +
+        (r.cells.O as number | undefined ?? 0);
+      const expectedTuitionPaid = Math.min(pool, tuitionDue);
+      expect(tuitionPaid, `${r.name}: Σ tranche paid (waterfall, capped at Σdue)`).toBe(expectedTuitionPaid);
+      // T-424 invariant: NO overpaid rows, ever.
+      for (const i of insts) {
+        expect(i.amountPaid <= i.amountDue, `${r.name}: tranche ${i.trancheNumber} not overpaid (${i.amountPaid} > ${i.amountDue})`).toBe(true);
+      }
+      // T-424 invariant: the installment basis and the ledger basis AGREE
+      // per student (Σ remaining == max(0, ledger balance)) — the two
+      // surfaces can no longer contradict each other.
+      const instRemaining = insts.reduce(
+        (s, i) => s + Math.max(0, i.amountDue - i.amountPaid - (i.amountPending ?? 0)), 0);
+      const ledgerBalance = entries.reduce((s, e) => s + e.amount, 0);
+      expect(instRemaining, `${r.name}: installment remaining == ledger balance (clamped)`).toBe(Math.max(0, ledgerBalance));
     }, TEST_TIMEOUT_MS);
   }
 

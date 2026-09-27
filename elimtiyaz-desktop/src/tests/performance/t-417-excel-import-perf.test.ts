@@ -470,7 +470,10 @@ describe("T-417 / PERF-503 — Excel import performance (issue #19)", () => {
     expect(repos.parents.rows.size).toBe(253);
     expect(repos.ledger.rows.length).toBe(1283);
     expect(repos.payments.rows.size).toBe(891);
-    expect(repos.installments.rows.size).toBe(1968);
+    // T-424/DATA-041: 1966 (was 1968) — the canonical waterfall attribution
+    // drops the 2 zero-due tuition tranches the T-105 reconciliation empties
+    // on this workbook (same anchor move as the IMPORT-106 suite).
+    expect(repos.installments.rows.size).toBe(1966);
     expect(ctx.stats.rowsRejected).toBe(0);
     expect(ctx.stats.rowsImported).toBe(418);
 
