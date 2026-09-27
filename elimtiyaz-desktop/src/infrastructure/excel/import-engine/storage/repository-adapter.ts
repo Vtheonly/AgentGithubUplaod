@@ -933,11 +933,12 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         installmentRows = this.buildInstallmentRows(record, parent.id, studentId, resolvedStudent, runId);
         for (const inst of installmentRows) {
           // Tranche number is parsed from the deterministic id
-          // (`imp-…-<category>-T<n>`) — NOT from the label: the BON labels
-          // ("2EME TRANCHE (V2)"…) are uppercase and would never match the
-          // old `/Tranche (\d)/` regex, silently collapsing every tuition
+          // (`imp-…-<category>-T<n>` — T0 = the registration fee) — NOT
+          // from the label: labels are free-text ("Frais d'inscription
+          // (FI)", "Tranche 1 — Scolarité (V1)"…) and would never reliably
+          // match a label regex, silently collapsing every tuition
           // installment onto tranche 1 (the T-105 C3 regression).
-          const trancheNum = Number(/-T(\d)$/.exec(inst.id)?.[1] ?? "1") as 1 | 2 | 3 | 4;
+          const trancheNum = Number(/-T(\d)$/.exec(inst.id)?.[1] ?? "1") as 0 | 1 | 2 | 3;
           this.pendingInstallments.push({
             parentId: inst.parentId,
             studentId: inst.studentId ?? studentId,
@@ -2057,8 +2058,10 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * overpayment clearly.
    */
   /**
-   * The REAL 2026/2027 schedule for an imported row — the CALC-001 matrix
-   * (per-grade FI, V2/2V/v3 tranches with the REMISE on V2 ONLY, per-town
+   * The REAL schedule for an imported row — the CALC-001 matrix (per-grade
+   * FI + the 3-tranche V1/2V/v3 schedule with the REMISE on the 1st
+   * versement ONLY — the matrix fields are still NAMED v2/tranche3/
+   * tranche4 from the BON era but ARE the V1/2V/v3 stickers; per-town
    * transport). AUTISTE rows (detected via the CLASSE column) use the
    * dedicated autism schedule (23 000 + 250 000).
    */
@@ -2114,15 +2117,16 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
     // Each entry: [field, amount, category, description, expectedAmount]
     // expectedAmount = the real expected amount for this tranche (CALC-001).
-    // Tranche labels follow the BON receipt sheet: INSCRIPTION / 2EME /
-    // 3ème / 4ème TRANCHE.
+    // T-425: the labels follow the OFFICIAL model — the registration fee
+    // (FI) + Tranches 1/2/3 (V1/2V/v3). There is no 4th tranche (the old
+    // BON receipt labels were the school's deleted template's error).
     type PaymentSpec = [string, number, PaymentCategory, string, number];
     const specs: PaymentSpec[] = [
       ["REGLEMENTS_DETTES", numOrZero(record.reglementsDettes), "tuition", "Règlement dettes antérieures", 0],
-      ["FI", numOrZero(record.fi), "tuition", "INSCRIPTION (FI) — frais d'inscription", fiExpected],
-      ["V2", numOrZero(record.v2), "tuition", "2EME TRANCHE (V2)", expectedTuitionTranches[0]],
-      ["V2_ALT", numOrZero(record.v2Alt), "tuition", "3ème TRANCHE (2V)", expectedTuitionTranches[1]],
-      ["V3", numOrZero(record.v3), "tuition", "4ème TRANCHE (v3)", expectedTuitionTranches[2]],
+      ["FI", numOrZero(record.fi), "tuition", "Frais d'inscription (FI)", fiExpected],
+      ["V2", numOrZero(record.v2), "tuition", "Tranche 1 — Scolarité (V1)", expectedTuitionTranches[0]],
+      ["V2_ALT", numOrZero(record.v2Alt), "tuition", "Tranche 2 — Scolarité (2V)", expectedTuitionTranches[1]],
+      ["V3", numOrZero(record.v3), "tuition", "Tranche 3 — Scolarité (v3)", expectedTuitionTranches[2]],
       ["T1", numOrZero(record.t1), "transport", `Tranche 1 transport (1T) — ${destination}`, expectedTransportTranches[0]],
       ["T2", numOrZero(record.t2), "transport", `Tranche 2 transport (T2) — ${destination}`, expectedTransportTranches[1]],
       ["T3", numOrZero(record.t3), "transport", `Tranche 3 transport (t3) — ${destination}`, expectedTransportTranches[2]],
@@ -2193,12 +2197,15 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
   // ── Installments persistence ─────────────────────────────────────────
   //
-  // The Excel file models tuition as the 4-payment BON structure
-  // (FI/V2/2V/v3 — the workbook's own receipt labels: INSCRIPTION, 2EME,
-  // 3ème, 4ème TRANCHE) and transport as 3 tranches (1T/T2/t3). The
-  // installer creates one `installments` row per payment, marking them
-  // paid/partial/unpaid according to the imported amounts. Due dates
-  // follow the BON rhythm: Sept 15 / Dec 15 / Mar 15 / Jun 15.
+  // T-425 (the owner's confirmed official model — DATA-044): the Excel
+  // file models tuition as the Registration + 3-Tranche structure —
+  // FI is a FEE (not a tranche; tranche 0, a non-wave row due at signup)
+  // and the tuition tranches are V1/2V/v3 due Sept 15 / Dec 15 / Mar 15
+  // (getOfficialTuitionDueDates — the canonical schedule). Transport is
+  // 3 tranches (1T/T2/t3) on the same Sept/Dec/Mar rhythm. There is NO
+  // 4th tranche — the old "4ème TRANCHE" labels came from the DELETED
+  // old workbook's erroneous BON receipt template (migration 0090
+  // canonized the error; T-425 corrects it).
 
   /**
    * BUILD INSTALLMENT ROWS (deferred write — added to pendingInstallments).
@@ -2207,11 +2214,13 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * The caller adds them to `pendingInstallments`, and the actual write
    * happens ONCE in `commitTransaction` via `bulkImportInstallments`.
    *
-   * CALC-001 REAL PRICING: the tuition schedule is the 4-payment BON
-   * structure — INSCRIPTION (FI) / 2EME TRANCHE (V2) / 3ème TRANCHE (2V) /
-   * 4ème TRANCHE (v3) — with the REMISE deducted from the 2EME (V2)
-   * tranche ONLY (workbook column-S rule `=122000-J58`). Transport
-   * tranches come from the REAL per-town matrix.
+   * CALC-001 REAL PRICING: the tuition schedule is the official
+   * Registration + 3-Tranche structure (T-425) — the registration FEE
+   * (FI, tranche 0, due at signup) + Tranches 1/2/3 (V1/2V/v3, due
+   * Sept 15 / Dec 15 / Mar 15) — with the REMISE deducted from the 1st
+   * versement (V1 — workbook column-S rule `=122000-J58`; the matrix
+   * field is still NAMED v2 from the BON era but IS the V1 sticker).
+   * Transport tranches come from the REAL per-town matrix.
    *
    * Negotiated-price rows (the school wrote custom constants in its own
    * workbook formula) are realigned by the T-105 reconciliation below,
@@ -2236,31 +2245,35 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         ? "cem"
         : "primaire";
 
-    // Due dates — the BON rhythm: INSCRIPTION at signup (Sept 15), then
-    // 2EME (Dec 15), 3ème (Mar 15), 4ème (Jun 15).
+    // Due dates — T-425: the OFFICIAL schedule (getOfficialTuitionDueDates
+    // — Sept 15 / Dec 15 / Mar 15, the same triple the batchRegister path
+    // and the Finance wave strip use). The registration fee is due at
+    // signup (Sept 15); there is no June date anymore (the old Jun 15
+    // slot was the phantom 4th tranche's).
     const academicYearStart = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-    const dueDates: readonly [string, string, string, string] = [
+    const tuitionDueDates: readonly [string, string, string] = [
       `${academicYearStart}-09-15`,
       `${academicYearStart}-12-15`,
       `${academicYearStart + 1}-03-15`,
-      `${academicYearStart + 1}-06-15`,
     ];
+    const registrationDueDate = `${academicYearStart}-09-15`;
 
     // REAL TUITION PRICES from the CALC-001 matrix — per grade (or the
-    // AUTISTE schedule). The REMISE lands on the 2EME (V2) tranche ONLY.
+    // AUTISTE schedule). The REMISE lands on the 1st versement (V1 — the
+    // matrix's v2 field) ONLY.
     const { fi: fiDue, tuitionTranches, transport: transportSchedule, destination } =
       this.realScheduleFor(record);
     const remise = numOrZero(record.remise);
-    const netTuitionTrancheDue: readonly [number, number, number, number] = [
-      fiDue,
-      Math.max(0, tuitionTranches[0] - remise), // 2EME (V2) — remise here only
-      tuitionTranches[1],                        // 3ème (2V)
-      tuitionTranches[2],                        // 4ème (v3)
+    // T-425: the official 3-tranche due vector (V1/2V/v3) — the
+    // registration fee rides SEPARATELY at tranche 0.
+    const netTuitionTrancheDue: readonly [number, number, number] = [
+      Math.max(0, tuitionTranches[0] - remise), // Tranche 1 (V1) — remise here only
+      tuitionTranches[1],                        // Tranche 2 (2V)
+      tuitionTranches[2],                        // Tranche 3 (v3)
     ];
 
-    // Tuition amounts PAID — from the Excel payment columns.
-    // FI + SEPTEMBRE → INSCRIPTION; V2 + DECEMBRE → 2EME;
-    // V2_ALT + MARS → 3ème; V3 + RATRAPAGE → 4ème.
+    // Tuition amounts PAID — from the Excel payment columns (grouped for
+    // documentation only; the waterfall below POOLS them).
     // T-424 (DATA-041): these columns are the PAYMENT STREAM, not a per-
     // tranche attribution. The 2027/2026 workbook restructured its payment
     // columns (the config-documented V2→V1 relabel: V1 is the FIRST
@@ -2276,18 +2289,19 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // proves it matches the workbook's own TOTAL*CREANCE per student for
     // 1,133/1,133 comparable rows (Σremaining 193,477,900 = the workbook
     // exactly) where the straight mapping matched 236/1,138.
-    const tuitionTranchePaid: readonly [number, number, number, number] = [
-      numOrZero(record.fi) + numOrZero(record.septembre),
-      numOrZero(record.v2) + numOrZero(record.decembre),
-      numOrZero(record.v2Alt) + numOrZero(record.mars),
-      numOrZero(record.v3) + numOrZero(record.ratrapage),
+    // T-425: the payment POOL is unchanged (the waterfall semantics —
+    // DATA-041's fix); only the tranche STRUCTURE it fills changed.
+    const tuitionTranchePaid: readonly [number, number, number] = [
+      numOrZero(record.v2) + numOrZero(record.septembre),   // the V1 column
+      numOrZero(record.v2Alt) + numOrZero(record.decembre), // the 2V column
+      numOrZero(record.v3) + numOrZero(record.mars),        // the v3 column
     ];
-    const tuitionLabels: readonly [string, string, string, string] = [
-      "INSCRIPTION (FI)",
-      "2EME TRANCHE (V2)",
-      "3ème TRANCHE (2V)",
-      "4ème TRANCHE (v3)",
+    const tuitionLabels: readonly [string, string, string] = [
+      "Tranche 1 — Scolarité (V1)",
+      "Tranche 2 — Scolarité (2V)",
+      "Tranche 3 — Scolarité (v3)",
     ];
+    const registrationLabel = "Frais d'inscription (FI)";
 
     // REAL TRANSPORT PRICES — per-town from the CALC-001 matrix.
     const hasTransport =
@@ -2309,7 +2323,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
     const buildInstallment = (
       category: PaymentCategory,
-      trancheNumber: 1 | 2 | 3 | 4,
+      trancheNumber: 0 | 1 | 2 | 3,
       label: string,
       amountDue: number,
       amountPaid: number,
@@ -2341,22 +2355,30 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       };
     };
 
-    // Tuition installments — the 4-payment BON structure (INSCRIPTION /
-    // 2EME / 3ème / 4ème TRANCHE) with REAL matrix amounts.
+    // Tuition installments — T-425 (the owner's official model): the
+    // registration FEE at tranche 0 (a non-wave row, due at signup) +
+    // EXACTLY 3 tranches (V1/2V/v3) on the official Sept/Dec/Mar schedule.
     // T-424 (DATA-041): built UNPAID — the payment attribution happens
     // through the canonical waterfall AFTER the T-105 due reconciliation
     // (see below), never column-by-column.
-    for (let i = 0; i < 4; i++) {
-      const trancheNumber = (i + 1) as 1 | 2 | 3 | 4;
+    if (fiDue > 0) {
+      results.push(buildInstallment(
+        "tuition", 0, registrationLabel,
+        fiDue, 0, registrationDueDate,
+      ));
+    }
+    for (let i = 0; i < 3; i++) {
+      const trancheNumber = (i + 1) as 1 | 2 | 3;
       const amountDue = netTuitionTrancheDue[i];
       if (amountDue === 0) continue;
       results.push(buildInstallment(
         "tuition", trancheNumber, tuitionLabels[i],
-        amountDue, 0, dueDates[i],
+        amountDue, 0, tuitionDueDates[i],
       ));
     }
 
-    // Transport installments (3 tranches) — REAL per-town matrix amounts.
+    // Transport installments (3 tranches — 1T/T2/t3) — REAL per-town
+    // matrix amounts, on the same official Sept/Dec/Mar rhythm.
     // T-424: built UNPAID (same waterfall rule as tuition).
     if (hasTransport) {
       for (let i = 0; i < 3; i++) {
@@ -2365,7 +2387,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         if (amountDue === 0) continue;
         results.push(buildInstallment(
           "transport", trancheNumber, `Tranche ${trancheNumber} — Transport (${canonicalDestination})`,
-          amountDue, 0, dueDates[i],
+          amountDue, 0, tuitionDueDates[i],
         ));
       }
     }
@@ -2402,12 +2424,23 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           };
         } else {
           results.push(buildInstallment(
-            "tuition", 1, "Tranche 1 — Scolarité", alignDelta, 0, dueDates[2],
+            "tuition", 1, "Tranche 1 — Scolarité", alignDelta, 0, tuitionDueDates[2],
           ));
         }
       } else {
+        // T-425: the negative cascade mirrors the positive branch's scope —
+        // TUITION tranches only, newest-due first (v3 → 2V → V1 → FI). The
+        // pre-T-425 code cascaded over EVERY row (transport included): with
+        // the BON due dates that was mostly masked (v3@Jun sorted first),
+        // but the official schedule (v3@Mar) puts transport T3 ahead of
+        // tuition in the date order — flooring fixed per-town transport
+        // costs for negotiated-discount rows (14 transport rows on the
+        // regression workbook). Transport is a fixed service cost; the
+        // negotiated devis delta comes off the tuition, exactly as the
+        // T-105 rule documents ("cascades backwards across tranches").
         const ordered = results
           .map((t, i) => ({ t, i }))
+          .filter(({ t }) => t.category === "tuition")
           .sort((a, b) => byDueDesc(a.t, b.t));
         for (const { t, i } of ordered) {
           if (alignDelta >= 0) break;
@@ -2454,9 +2487,17 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // student — the t-424 oracle. The straight column→tranche mapping
     // this replaces produced "T1 INSCRIPTION permanently unpaid while its
     // payments show paid" (the owner's report) on the 2027/2026 workbook.
+    // T-425: every tuition-family payment stream is POOLED (the FI column,
+    // the three versement columns, the legacy monthly columns and the
+    // catch-up) — the waterfall fills the registration fee first (its id
+    // `…-T0` sorts before `…-T1` on the Sept-15 due-date tie), then
+    // Tranches 1..3. The pool's TOTAL is byte-identical to the pre-T-425
+    // sum (the same columns, regrouped) — the waterfall oracle's
+    // Σremaining = the workbook's TOTAL*CREANCE is preserved.
     const paymentPool = Math.round(
-      tuitionTranchePaid[0] + tuitionTranchePaid[1] +
-      tuitionTranchePaid[2] + tuitionTranchePaid[3] +
+      numOrZero(record.fi) +
+      tuitionTranchePaid[0] + tuitionTranchePaid[1] + tuitionTranchePaid[2] +
+      numOrZero(record.ratrapage) +
       transportTranchePaid[0] + transportTranchePaid[1] + transportTranchePaid[2] +
       numOrZero(record.reglementsDettes),
     );

@@ -86,7 +86,7 @@ function paymentInput(receiptNumber: string, amount = 25000): CollectPaymentInpu
   };
 }
 
-function installmentInput(trancheNumber: 1 | 2 | 3 | 4 = 1): ImportInstallmentInput {
+function installmentInput(trancheNumber: 0 | 1 | 2 | 3 = 1): ImportInstallmentInput {
   return {
     parentId: "par-1",
     studentId: "stu-1",

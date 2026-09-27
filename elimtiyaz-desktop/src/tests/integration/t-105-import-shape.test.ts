@@ -428,25 +428,42 @@ describeOrSkip("T-105 — import shape invariants (real workbook)", () => {
     expect(Math.round(totalDue)).toBe(Math.round(corpusTotal));
   });
 
-  it("CALC-001 — the BON 4-payment structure with REAL per-grade amounts (ZIREG LEA)", () => {
+  it("CALC-001 + T-425 — the OFFICIAL Registration + 3-Tranche structure with REAL per-grade amounts (ZIREG LEA)", () => {
     // ZIREG LEA (ETAT l2, CE1, remise 25 500): the workbook's own row is
-    // FI 25 000 + V2/2V/v3 = 71 500 each (V2 sticker 97 000 − 25 500).
+    // FI 25 000 + V1/2V/v3 = 71 500 each (V1 sticker 97 000 − 25 500).
     // The import must reproduce EXACTLY this schedule — not the broad
     // PRIM→1ap pricing the importer used before the classe resolution fix.
+    // T-425 (the owner's confirmed model): the registration FEE (FI, a
+    // non-wave row) + EXACTLY 3 tranches (V1/2V/v3) — there is NO 4th
+    // tranche (the old "4ème TRANCHE" was the deleted BON receipt
+    // template's error).
     const zireg = [...installments.rows.values()].filter(
       (i) => i.studentId === "stu-001" && i.category === "tuition",
     );
     expect(zireg).toHaveLength(4);
     const byLabel = new Map(zireg.map((i) => [i.label, i]));
     expect([...byLabel.keys()].sort()).toEqual(
-      ["2EME TRANCHE (V2)", "3ème TRANCHE (2V)", "4ème TRANCHE (v3)", "INSCRIPTION (FI)"].sort(),
+      [
+        "Frais d'inscription (FI)",
+        "Tranche 1 — Scolarité (V1)",
+        "Tranche 2 — Scolarité (2V)",
+        "Tranche 3 — Scolarité (v3)",
+      ].sort(),
     );
-    expect(byLabel.get("INSCRIPTION (FI)")?.amountDue).toBe(25_000);
-    expect(byLabel.get("2EME TRANCHE (V2)")?.amountDue).toBe(71_500);
-    expect(byLabel.get("3ème TRANCHE (2V)")?.amountDue).toBe(71_500);
-    expect(byLabel.get("4ème TRANCHE (v3)")?.amountDue).toBe(71_500);
-    // The 4 tuition installments sum to the row's own devis (239 500 —
-    // no T-105 residual delta for this standard row).
+    expect(byLabel.get("Frais d'inscription (FI)")?.amountDue).toBe(25_000);
+    expect(byLabel.get("Tranche 1 — Scolarité (V1)")?.amountDue).toBe(71_500);
+    expect(byLabel.get("Tranche 2 — Scolarité (2V)")?.amountDue).toBe(71_500);
+    expect(byLabel.get("Tranche 3 — Scolarité (v3)")?.amountDue).toBe(71_500);
+    // The official schedule: the fee at signup (Sept 15) + the tranches on
+    // the Sept 15 / Dec 15 / Mar 15 rhythm (no June date — no phantom T4).
+    expect(byLabel.get("Frais d'inscription (FI)")?.dueDate.slice(0, 10)).toBe(`${zireg[0].dueDate.slice(0, 4)}-09-15`);
+    expect(byLabel.get("Tranche 1 — Scolarité (V1)")?.dueDate.slice(0, 10)).toBe(`${zireg[0].dueDate.slice(0, 4)}-09-15`);
+    expect(byLabel.get("Tranche 2 — Scolarité (2V)")?.dueDate.slice(0, 10)).toBe(`${zireg[0].dueDate.slice(0, 4)}-12-15`);
+    expect(byLabel.get("Tranche 3 — Scolarité (v3)")?.dueDate.slice(0, 10)).toBe(
+      `${Number(zireg[0].dueDate.slice(0, 4)) + 1}-03-15`,
+    );
+    // The registration fee + the 3 tranches sum to the row's own devis
+    // (239 500 — no T-105 residual delta for this standard row).
     expect(zireg.reduce((s, i) => s + i.amountDue, 0)).toBe(239_500);
     // Transport rows keep the 3-tranche per-town shape (MERABTI l3, DJENAT).
     const transport = [...installments.rows.values()].filter(

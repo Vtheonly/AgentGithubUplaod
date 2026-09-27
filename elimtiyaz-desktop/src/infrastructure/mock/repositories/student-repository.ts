@@ -484,11 +484,14 @@ function buildRegistrationBilling(
     if (realSchedule.scolarite > 0) {
       const remiseApplied = chargeStickerPrice ? 0 : remise;
       const v2 = Math.max(0, realSchedule.v2 - remise);
+      // T-425: the structure was already the official model (FI at tranche 0,
+      // V1/2V/v3 at 1..3 on the Sept/Dec/Mar rhythm) — the labels now say so
+      // (the old "Tranche 2 (V2)" / "Tranche 4 (v3)" carried the BON error).
       const tranches = [
         { amount: fi, num: 0 as const, label: "Frais d'inscription (FI)", due: due1 },
-        { amount: v2, num: 1 as const, label: "Tranche 2 (V2)", due: due1 },
-        { amount: realSchedule.tranche3, num: 2 as const, label: "Tranche 3 (2V)", due: due2 },
-        { amount: realSchedule.tranche4, num: 3 as const, label: "Tranche 4 (v3)", due: due3 },
+        { amount: v2, num: 1 as const, label: "Tranche 1 (V1)", due: due1 },
+        { amount: realSchedule.tranche3, num: 2 as const, label: "Tranche 2 (2V)", due: due2 },
+        { amount: realSchedule.tranche4, num: 3 as const, label: "Tranche 3 (v3)", due: due3 },
       ].filter((t) => t.amount > 0);
       for (const t of tranches) {
         const isFi = t.num === 0;

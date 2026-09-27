@@ -84,10 +84,15 @@ export interface RealTuitionSchedule {
   /** Gross annual scolarité (FI excluded, transport excluded). */
   readonly scolarite: number;
   /** Tranche 2 sticker (≈40% of scolarité) — the REMISE lands here. */
+  /**
+   * The 1st-tranche (V1) sticker — NAMED v2 from the BON era (the old
+   * receipt template counted the registration fee as tranche 1); the
+   * REMISE lands on this one only. T-425: this IS Tranche 1 (V1).
+   */
   readonly v2: number;
-  /** Tranche 3 sticker (≈30%) — fixed, never discounted. */
+  /** Tranche 2 (2V) sticker (≈30%) — fixed, never discounted. */
   readonly tranche3: number;
-  /** Tranche 4 sticker (≈30%) — fixed, never discounted. */
+  /** Tranche 3 (v3) sticker (≈30%) — fixed, never discounted. */
   readonly tranche4: number;
 }
 

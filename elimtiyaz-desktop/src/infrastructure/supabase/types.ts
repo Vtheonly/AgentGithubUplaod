@@ -390,7 +390,13 @@ export interface InstallmentRow {
   /** Optional FK to service_enrollments. NULL for bulk-imported tranches (migration 0032). */
   service_enrollment_id: string | null;
   invoice_id: string | null;
-  tranche_number: 1 | 2 | 3;
+  /**
+   * The tranche slot: T-425's official model — 0 = the registration fee
+   * (FI — a fee, NOT a tranche), 1..3 = Tranches 1/2/3 (V1/2V/v3).
+   * Legacy pre-T-425 rows may still carry the phantom 4 (the deleted BON
+   * template's error) until the re-import clears them — hence the union.
+   */
+  tranche_number: 0 | 1 | 2 | 3 | 4;
   /** Human-readable tranche label (migration 0032). */
   label?: string | null;
   /** Billing category — denormalized from service_enrollments for bulk-imported rows (migration 0032). */

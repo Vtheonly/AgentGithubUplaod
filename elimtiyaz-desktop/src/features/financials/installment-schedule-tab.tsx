@@ -103,11 +103,13 @@ const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "ne
 /**
  * T-248/T-354 — the wave derivation groups rows by the CANONICAL
  * `trancheNumber` column (never label text). Rows without a tranche
- * number ("Année complète", custom schedule lines) are excluded from the
- * wave cards exactly as before.
+ * number ("Année complète", custom schedule lines) AND the registration
+ * fee (tranche 0 — a fee, not a tranche) are excluded from the wave
+ * cards exactly as before. T-425: there are EXACTLY 3 waves — the
+ * official model (Registration + V1/2V/v3) has no 4th tranche.
  */
 export interface TrancheWave {
-  readonly index: 1 | 2 | 3 | 4;
+  readonly index: 1 | 2 | 3;
   readonly label: string;
   /** Due-window hint from the canonical schedule (display-only). */
   readonly hint: string;
@@ -118,23 +120,21 @@ export interface TrancheWave {
   readonly isNextTarget: boolean;
 }
 
-const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3 | 4; label: string; hint: string }> = [
-  { index: 1, label: "Tranche 1 (Septembre)", hint: "échéance 15 sep — à l'inscription" },
+// T-425 (the owner's confirmed official model): EXACTLY 3 tranches —
+// V1 (Sept 15) / 2V (Dec 15) / v3 (Mar 15). The registration fee (FI) is
+// due at signup but is NOT a tranche (it renders in the échéancier, never
+// in the wave strip). The old "Tranche 4 (Juin)" card was the deleted BON
+// receipt template's phantom — removed.
+const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: string }> = [
+  { index: 1, label: "Tranche 1 (Septembre)", hint: "échéance 15 sep" },
   { index: 2, label: "Tranche 2 (Décembre)", hint: "échéance 15 déc" },
   { index: 3, label: "Tranche 3 (Mars)", hint: "échéance 15 mars" },
-  // T-424 (DATA-042): the BON structure's 4th tuition tranche (échéance
-  // 15 juin) is a REAL wave — previously invisible to this strip while
-  // the Statistics tab rendered it (one more Statistics-vs-Finance
-  // divergence). The strip pools ALL categories per index, exactly as
-  // before; the grouping math now comes from the canonical module.
-  { index: 4, label: "Tranche 4 (Juin)", hint: "échéance 15 juin" },
 ];
 
 /**
  * T-248/T-354 — derive the T1/T2/T3 collection waves from REAL rows,
- * grouped by the canonical `trancheNumber` column (the DASH-404 fix: the
- * BON labels "INSCRIPTION (FI)" / "2EME TRANCHE" / "3ème TRANCHE" must
- * group like every other surface). PURE (unit-tested): per wave — due
+ * grouped by the canonical `trancheNumber` column (the DASH-404 fix:
+ * free-text labels never drive grouping). PURE (unit-tested): per wave — due
  * (Σ amountDue), paid (Σ amountPaid, cleared), pending (Σ amountPending,
  * uncleared non-cash), pct (paid/due, 0–100). `isNextTarget` marks the
  * first wave with a canonical remaining balance (the active collection
@@ -149,7 +149,7 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
   // index, `pct` the amount-based collection rate, `isNextTarget` the
   // first index still carrying a canonical remaining balance.
   const stats = deriveTrancheWaveStats(rows, Date.now());
-  const pooled = new Map<1 | 2 | 3 | 4, { due: number; paid: number; pending: number; remaining: number }>();
+  const pooled = new Map<1 | 2 | 3, { due: number; paid: number; pending: number; remaining: number }>();
   for (const w of stats) {
     const acc = pooled.get(w.wave) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
     acc.due += w.dueTotal;

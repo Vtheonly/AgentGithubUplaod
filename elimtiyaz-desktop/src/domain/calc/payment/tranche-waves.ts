@@ -14,9 +14,12 @@
  * rows — they may PRESENT differently, never COMPUTE differently):
  *
  *   1. Waves are `(category, trancheNumber)` pairs with trancheNumber in
- *      1..4 (the BON structure's 4th tuition tranche is a REAL wave; rows
- *      with a NULL or out-of-range tranche number are non-wave rows —
- *      excluded everywhere, never silently coerced into wave 1).
+ *      1..3 — T-425 (the owner's confirmed official model): tuition is
+ *      EXACTLY 3 tranches; there is NO 4th tranche (the old "4ème TRANCHE"
+ *      was the deleted BON receipt template's error). Tranche 0 (the
+ *      registration fee FI), NULL and out-of-range rows (legacy T4
+ *      included) are NON-WAVE rows — excluded everywhere, never silently
+ *      coerced into wave 1.
  *   2. `settledCount` follows the canonical `isInstallmentSettled`
  *      predicate (INV-4), never a per-surface status check.
  *   3. `remainingTotal` is the INV-4 remaining summed over the wave's rows
@@ -26,10 +29,10 @@
 import type { Installment, PaymentCategory } from "../../model/payment";
 import { installmentRemaining, isInstallmentSettled } from "./queries";
 
-/** The canonical per-wave statistics (one row per category × tranche 1..4). */
+/** The canonical per-wave statistics (one row per category × tranche 1..3). */
 export interface TrancheWaveStats {
   readonly category: PaymentCategory;
-  readonly wave: 1 | 2 | 3 | 4;
+  readonly wave: 1 | 2 | 3;
   /** Rows in the wave (non-wave rows never reach here). */
   readonly installmentCount: number;
   /** Rows settled per the canonical predicate. */
@@ -69,7 +72,7 @@ export function deriveTrancheWaveStats(
 ): TrancheWaveStats[] {
   interface Acc {
     category: PaymentCategory;
-    wave: 1 | 2 | 3 | 4;
+    wave: 1 | 2 | 3;
     installmentCount: number;
     settledCount: number;
     families: Set<string>;
@@ -84,10 +87,13 @@ export function deriveTrancheWaveStats(
   }
   const byWave = new Map<string, Acc>();
   for (const i of installments) {
-    // Rule 1 — non-wave rows are excluded, never coerced.
+    // Rule 1 — non-wave rows are excluded, never coerced. T-425: the
+    // official model has EXACTLY 3 tranches — tranche 0 (the registration
+    // fee), NULL and out-of-range numbers (the legacy phantom T4 included)
+    // never form a wave.
     const n = i.trancheNumber;
-    if (n !== 1 && n !== 2 && n !== 3 && n !== 4) continue;
-    const wave = n as 1 | 2 | 3 | 4;
+    if (n !== 1 && n !== 2 && n !== 3) continue;
+    const wave = n;
     const key = `${i.category}#${wave}`;
     let acc = byWave.get(key);
     if (!acc) {

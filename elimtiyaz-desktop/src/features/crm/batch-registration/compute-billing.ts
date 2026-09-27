@@ -99,9 +99,12 @@ export function computeBilling(input: BillingInput): Billing {
     // === Per-student devis (workbook column L): FI + scol + transport − remise ===
     const devis = fi + scolarite + transportAmount - remiseAppliedToDevis;
 
-    // === Tranches: V2 = V2_sticker − remise; 2V = v3 = fixed ===
-    // Config override wins when the admin customized the schedule; otherwise
-    // the real matrix's V2/2V/v3 stickers apply with the remise on V2.
+    // === Tranches: V1 = V1_sticker − remise; 2V = v3 = fixed ===
+    // T-425 (the official model): the three tuition tranches are V1/2V/v3
+    // (the matrix fields are still NAMED v2/tranche3/tranche4 from the BON
+    // era but ARE the V1/2V/v3 stickers). Config override wins when the
+    // admin customized the schedule; otherwise the real matrix's stickers
+    // apply with the remise on V1.
     let v2: number;
     let fixed3: number;
     let fixed4: number;
@@ -120,9 +123,9 @@ export function computeBilling(input: BillingInput): Billing {
       s.paymentPlan === "full_annual"
         ? [{ label: "Année complète", amountDue: fi + scolarite + transportAmount - remiseAppliedToDevis }]
         : [
-            { label: "Tranche 2 (V2)", amountDue: v2 },
-            { label: "Tranche 3 (2V)", amountDue: fixed3 },
-            { label: "Tranche 4 (v3)", amountDue: fixed4 },
+            { label: "Tranche 1 (V1)", amountDue: v2 },
+            { label: "Tranche 2 (2V)", amountDue: fixed3 },
+            { label: "Tranche 3 (v3)", amountDue: fixed4 },
           ];
 
     const transportTranches: BillingTranche[] = transportSchedule

@@ -7,9 +7,11 @@
  *      must use: status='paid' OR nothing remains (due − paid − pending
  *      clamped at 0 — uncleared pending funds count as coverage).
  *   2. `deriveTrancheWaveStats` — the canonical grouping (category ×
- *      tranche 1..4; NULL/out-of-range rows are NON-wave rows, never
- *      coerced into wave 1) with the settled count, the INV-4 remaining
- *      totals and the per-wave amount/pending sums.
+ *      tranche 1..3 — T-425: the official model has EXACTLY 3 tranches;
+ *      the registration fee (0), NULL and out-of-range rows (the legacy
+ *      phantom T4 included) are NON-wave rows, never coerced into wave 1)
+ *      with the settled count, the INV-4 remaining totals and the
+ *      per-wave amount/pending sums.
  *   3. THE CROSS-SURFACE CONSISTENCY INVARIANT — over the same rows, the
  *      Statistics view model (executive-statistics.deriveTrancheWaves) and
  *      the Finance view model (installment-schedule-tab.deriveTrancheWaves)
@@ -18,6 +20,9 @@
  *      counts follow the ONE predicate. This is the regression that makes
  *      the owner's report ("Tranche 1 not paid in Statistics while its
  *      payments show paid in Finance") structurally impossible.
+ *   4. THE OFFICIAL 3-TRANCHE MODEL (T-425 / DATA-044) — there is NO 4th
+ *      tranche: a legacy tranche-4 row and the registration fee (0) are
+ *      non-wave rows on EVERY surface.
  */
 import { describe, it, expect } from "vitest";
 import { isInstallmentSettled } from "../../domain/calc/payment/queries";
@@ -92,18 +97,24 @@ describe("T-424 — isInstallmentSettled (the canonical predicate)", () => {
 });
 
 describe("T-424 — deriveTrancheWaveStats (the canonical grouping)", () => {
-  it("groups by category × wave 1..4 and excludes NULL / out-of-range tranche rows", () => {
+  it("groups by category × wave 1..3 and excludes the registration fee (0), NULL and out-of-range tranche rows — T-425: there is NO 4th tranche", () => {
     const rows: Installment[] = [
       mk({ id: "1", category: "tuition", trancheNumber: 1, amountDue: 25_000, amountPaid: 25_000, status: "paid" }),
       mk({ id: "2", category: "tuition", trancheNumber: 2, amountDue: 97_000, amountPaid: 40_000, status: "partial" }),
-      mk({ id: "3", category: "tuition", trancheNumber: 4, amountDue: 71_500, amountPaid: 0, status: "unpaid", dueDate: "2027-06-15" }),
+      mk({ id: "3", category: "tuition", trancheNumber: 3, amountDue: 71_500, amountPaid: 0, status: "unpaid", dueDate: "2027-03-15" }),
       mk({ id: "4", category: "transport", trancheNumber: 1, amountDue: 30_000, amountPaid: 30_000, status: "paid" }),
       // Non-wave rows — excluded, never coerced into wave 1:
+      // T-425: the registration FEE (tranche 0 — a fee, not a tranche):
+      mk({ id: "fee", trancheNumber: 0, label: "Frais d'inscription (FI)", amountDue: 25_000 }),
       mk({ id: "5", trancheNumber: undefined, label: "Année complète", amountDue: 999_000 }),
       mk({ id: "6", trancheNumber: 7 as unknown as 1, label: "Custom (hors-vague)", amountDue: 5_000 }),
+      // T-425 (DATA-044): a LEGACY phantom tranche 4 (the deleted BON
+      // template's error) is a non-wave row — there is no 4th tranche:
+      mk({ id: "legacy-t4", trancheNumber: 4 as unknown as 1, label: "4ème TRANCHE (v3) — legacy", amountDue: 96_918_500, dueDate: "2027-06-15" }),
     ];
     const stats = deriveTrancheWaveStats(rows, NOW);
-    expect(stats).toHaveLength(4); // tuition#1, tuition#2, tuition#4, transport#1
+    expect(stats).toHaveLength(4); // tuition#1, tuition#2, tuition#3, transport#1
+    expect(stats.every((s) => s.wave >= 1 && s.wave <= 3)).toBe(true); // NO wave 4, ever
     const tuition1 = stats.find((s) => s.category === "tuition" && s.wave === 1)!;
     expect(tuition1.installmentCount).toBe(1);
     expect(tuition1.settledCount).toBe(1);
@@ -112,10 +123,11 @@ describe("T-424 — deriveTrancheWaveStats (the canonical grouping)", () => {
     const tuition2 = stats.find((s) => s.category === "tuition" && s.wave === 2)!;
     expect(tuition2.settledCount).toBe(0);
     expect(tuition2.remainingTotal).toBe(57_000);
-    expect(tuition2.anyUnsettledOverdue).toBe(true); // due 2026-12-15? no — due 2026-09-15 default → past NOW
-    const tuition4 = stats.find((s) => s.category === "tuition" && s.wave === 4)!;
-    expect(tuition4.anyUnsettledFuture).toBe(true); // due 2027-06-15 > NOW
-    // The "Année complète" and custom rows contributed nothing:
+    expect(tuition2.anyUnsettledOverdue).toBe(true); // due 2026-09-15 default → past NOW
+    const tuition3 = stats.find((s) => s.category === "tuition" && s.wave === 3)!;
+    expect(tuition3.anyUnsettledFuture).toBe(true); // due 2027-03-15 > NOW
+    // The registration fee, the "Année complète", the custom row AND the
+    // legacy T4 contributed nothing to any wave:
     const sumDue = stats.reduce((s, w) => s + w.dueTotal, 0);
     expect(sumDue).toBe(25_000 + 97_000 + 71_500 + 30_000);
   });
@@ -145,7 +157,7 @@ describe("T-424 — the cross-surface consistency invariant (Statistics ≡ Fina
     const rows: Installment[] = [];
     let n = 0;
     for (const category of categories) {
-      for (const wave of [1, 2, 3, 4] as const) {
+      for (const wave of [1, 2, 3] as const) {
         rows.push(
           mk({
             id: `x${n++}`,
@@ -159,13 +171,16 @@ describe("T-424 — the cross-surface consistency invariant (Statistics ≡ Fina
         );
       }
     }
-    // Non-wave noise must not perturb either surface:
+    // Non-wave noise must not perturb either surface — the registration
+    // fee (T-425) and a legacy phantom T4 included:
+    rows.push(mk({ id: "noise-fee", trancheNumber: 0, label: "Frais d'inscription (FI)", amountDue: 25_000 }));
     rows.push(mk({ id: "noise", trancheNumber: undefined, amountDue: 999_000 }));
+    rows.push(mk({ id: "noise-t4", trancheNumber: 4 as unknown as 1, amountDue: 96_918_500 }));
 
     const stats = deriveStatisticsWaves(rows, NOW); // Statistics view
     const fin = deriveFinanceWaves(rows); // Finance view
 
-    for (const wave of [1, 2, 3, 4] as const) {
+    for (const wave of [1, 2, 3] as const) {
       const finCard = fin.find((f) => f.index === wave)!;
       const statRows = stats.filter((s) => s.wave === wave);
       const dueTotal = statRows.reduce((s, w) => s + w.dueTotal, 0);

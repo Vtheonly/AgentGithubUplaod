@@ -103,8 +103,10 @@ export type WavePhase = "not_due" | "in_window" | "overdue";
 export interface TrancheWave {
   /** Billing category of the wave (tuition | transport | …). */
   readonly category: PaymentCategory;
-  /** Canonical wave number (installments.tranche_number — never label-parsed). */
-  readonly wave: 1 | 2 | 3 | 4;
+  /** Canonical wave number (installments.tranche_number — never label-parsed).
+   * T-425: the official model has EXACTLY 3 tranches (1..3); the
+   * registration fee (0) and the legacy phantom T4 are non-wave rows. */
+  readonly wave: 1 | 2 | 3;
   /** Number of billed installments in this wave. */
   readonly installmentCount: number;
   /** Number of settled installments (the canonical isInstallmentSettled — T-424). */

@@ -180,21 +180,27 @@ export interface Installment {
   readonly parentId: string;
   readonly studentId: string | null;
   readonly category: PaymentCategory;
-  readonly label: string; // "Tranche 1" / "Tranche 2" / "Tranche 3" / "Année complète"
+  readonly label: string; // "Tranche 1" / "Tranche 2" / "Tranche 3" / "Frais d'inscription (FI)" / "Année complète"
   /**
    * The canonical wave number from the DB `installments.tranche_number`
-   * column (1 | 2 | 3 | 4 — the BON structure's 4th tuition tranche,
-   * migration 0090's CHECK). T-338 (61st session): the executive statistics
-   * (tranche-wave collection velocity, debt triage per wave) group by
-   * THIS field — never by label parsing (labels are free-text and drift:
-   * "INSCRIPTION (FI)", "2EME TRANCHE (V2)", "Tranche 2 — Transport").
+   * column (0 | 1 | 2 | 3 — migration 0124's CHECK). T-425 (the owner's
+   * confirmed official model): tuition is EXACTLY 3 tranches —
+   *   0 = the REGISTRATION FEE (FI — a fee, NOT a tranche; a non-wave row),
+   *   1..3 = Tranches 1/2/3 (V1 / 2V / v3, due Sept 15 / Dec 15 / Mar 15),
+   * and transport is 3 tranches (1..3). There is NO 4th tranche — the old
+   * "4ème TRANCHE (v3)" was the DELETED BON receipt template's erroneous
+   * labeling (migration 0090 canonized it; T-425 corrects it). Legacy T4
+   * rows map to ABSENT (a non-wave row) until the T-425 re-import.
+   * T-338 (61st session): the executive statistics (tranche-wave collection
+   * velocity, debt triage per wave) group by THIS field — never by label
+   * parsing (labels are free-text and drift).
    * T-424 (DATA-042): a row with NO tranche number ("Année complète",
    * custom schedule lines) is a NON-WAVE row — absent here, excluded from
    * every wave everywhere, never coerced into wave 1 (the old `?? 1`
    * convention silently inflated wave 1 and made Statistics and Finance
    * disagree on the same rows).
    */
-  readonly trancheNumber?: 1 | 2 | 3 | 4;
+  readonly trancheNumber?: 0 | 1 | 2 | 3;
   readonly amountDue: number;
   /** Cleared funds applied to this tranche (cash, cleared check, cleared transfer). */
   readonly amountPaid: number;

@@ -3985,7 +3985,15 @@ function mapInstallmentRow(r: InstallmentRow): Installment {
     // ("Année complète" / custom lines), excluded from every wave on every
     // surface. The old `?? 1` coercion silently folded those rows into
     // wave 1 (live DB carries 0 NULL rows — no behavioral change there).
-    trancheNumber: (r.tranche_number ?? undefined) as 1 | 2 | 3 | 4 | undefined,
+    // T-425 (DATA-044): 0 = the registration fee (FI — a non-wave row);
+    // 1..3 = the official tranches. A legacy tranche 4 (the phantom BON
+    // slot, pre-remediation rows) maps to ABSENT too — a non-wave row on
+    // every surface until the T-425 re-import clears it, never a wave.
+    trancheNumber: (() => {
+      const n = r.tranche_number;
+      if (n === 0 || n === 1 || n === 2 || n === 3) return n;
+      return undefined;
+    })(),
     amountDue: Number(r.amount_due ?? 0),
     amountPaid: Number(r.amount_paid ?? 0),
     amountPending: Number(r.amount_pending ?? 0),

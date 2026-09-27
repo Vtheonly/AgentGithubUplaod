@@ -657,17 +657,21 @@ export interface InstallmentRepository {
  * Input for `InstallmentRepository.importInstallment` — the bulk-import
  * path that creates or updates an installment row idempotently.
  *
- * The `trancheNumber` (1–4) plus `category`, `parentId`, `studentId`
+ * The `trancheNumber` (0–3) plus `category`, `parentId`, `studentId`
  * form the identity key. Re-importing the same Excel row produces the same
  * identity key → the existing installment is updated rather than duplicated.
- * Tuition uses the 4-payment BON structure (1=INSCRIPTION/FI, 2=2EME/V2,
- * 3=3ème/2V, 4=4ème/v3 — CALC-001); transport stays 1..3.
+ * T-425 (the owner's confirmed official model): tuition is the
+ * Registration + 3-Tranche structure — 0 = the REGISTRATION FEE (FI — a
+ * fee, NOT a tranche; a non-wave row), 1..3 = Tranches 1/2/3 (V1/2V/v3 —
+ * due Sept 15 / Dec 15 / Mar 15). There is NO 4th tranche (the old
+ * "4ème TRANCHE" was the deleted BON receipt template's error); transport
+ * stays 1..3 (1T/T2/t3).
  */
 export interface ImportInstallmentInput {
   readonly parentId: string;
   readonly studentId: string;
   readonly category: PaymentCategory;
-  readonly trancheNumber: 1 | 2 | 3 | 4;
+  readonly trancheNumber: 0 | 1 | 2 | 3;
   readonly label: string;
   readonly amountDue: number;
   readonly amountPaid: number;
