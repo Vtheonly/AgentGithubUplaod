@@ -115,6 +115,13 @@ export interface TrancheWave {
   readonly familyCount: number;
   /** Distinct families that still owe on this wave. */
   readonly debtorFamilyCount: number;
+  /**
+   * T-427 (DATA-048): distinct families with an unsettled, owing,
+   * PAST-DUE row — the wave's actually-late families (the "en retard"
+   * count every presentation must use; `debtorFamilyCount` is the
+   * owing count regardless of due date).
+   */
+  readonly overdueDebtorFamilyCount: number;
   /** Σ amountDue over the wave (DZD). */
   readonly dueTotal: number;
   /** Σ amountPaid over the wave (DZD). */
@@ -169,6 +176,7 @@ export function deriveTrancheWaves(
       paidCount: acc.settledCount,
       familyCount: acc.familyCount,
       debtorFamilyCount: acc.debtorFamilyCount,
+      overdueDebtorFamilyCount: acc.overdueDebtorFamilyCount,
       dueTotal: acc.dueTotal,
       paidTotal: acc.paidTotal,
       remainingTotal: acc.remainingTotal,

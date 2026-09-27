@@ -41,6 +41,15 @@ export interface TrancheWaveStats {
   readonly familyCount: number;
   /** Distinct families with an unsettled row that still owes (> 0 remaining). */
   readonly debtorFamilyCount: number;
+  /**
+   * T-427 (DATA-048, issues #24/#25 Track 2 item 1): distinct families
+   * with an unsettled, STILL-OWING row whose due date is STRICTLY PAST —
+   * the wave's actually-late families. `debtorFamilyCount` counts every
+   * owing family regardless of due date (a future T2/T3 tranche's
+   * current balance is "non soldée", NOT "en retard"); presentations
+   * that label a count "en retard" must use THIS field.
+   */
+  readonly overdueDebtorFamilyCount: number;
   readonly dueTotal: number;
   readonly paidTotal: number;
   readonly pendingTotal: number;
@@ -77,6 +86,7 @@ export function deriveTrancheWaveStats(
     settledCount: number;
     families: Set<string>;
     debtorFamilies: Set<string>;
+    overdueDebtorFamilies: Set<string>;
     dueTotal: number;
     paidTotal: number;
     pendingTotal: number;
@@ -104,6 +114,7 @@ export function deriveTrancheWaveStats(
         settledCount: 0,
         families: new Set<string>(),
         debtorFamilies: new Set<string>(),
+        overdueDebtorFamilies: new Set<string>(),
         dueTotal: 0,
         paidTotal: 0,
         pendingTotal: 0,
@@ -131,6 +142,17 @@ export function deriveTrancheWaveStats(
       acc.settledCount += 1;
     } else {
       if (remaining > 0) acc.debtorFamilies.add(i.parentId);
+      // T-427 (DATA-048): an owing family whose row is PAST DUE is
+      // "en retard"; a future-dated owing family is only "non soldée"
+      // — the overdue wave-card count must never include future waves'
+      // current balances (the issues-#24/#25 Track-2 finding).
+      if (
+        remaining > 0 &&
+        dueTs !== null &&
+        dueTs < nowEpochMs
+      ) {
+        acc.overdueDebtorFamilies.add(i.parentId);
+      }
       if (dueTs !== null) {
         if (dueTs < nowEpochMs) acc.anyUnsettledOverdue = true;
         else acc.anyUnsettledFuture = true;
@@ -144,6 +166,7 @@ export function deriveTrancheWaveStats(
     settledCount: acc.settledCount,
     familyCount: acc.families.size,
     debtorFamilyCount: acc.debtorFamilies.size,
+    overdueDebtorFamilyCount: acc.overdueDebtorFamilies.size,
     dueTotal: acc.dueTotal,
     paidTotal: acc.paidTotal,
     pendingTotal: acc.pendingTotal,

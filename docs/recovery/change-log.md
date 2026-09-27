@@ -1,3 +1,14 @@
+## 2026-09-27 — The 110th session (cont.) — T-427 COMPLETE: the wave-card delinquency semantics — DATA-048/DATA-048b registered and RESOLVED/TESTED (the overdue-family gating, the phase-driven sub-labels, the remainingTotal-based closure, the pooling-basis disclosure)
+
+### What was fixed
+
+- **DATA-048:** the canonical `TrancheWaveStats` gains `overdueDebtorFamilyCount` (families with an unsettled, OWING, STRICTLY-PAST-DUE row); the wave card's sub-label is PHASE-DRIVEN ("Familles en retard" + the gated count on overdue waves; "Familles à échoir" on not-yet-due; "Familles non soldées" otherwise) — a future T2/T3 wave's current balances are never presented as late families; "Clôturée" now requires `remainingTotal === 0` (the INV-4 basis — the old `collectedPct >= 95` closed waves with millions outstanding).
+- **DATA-048b:** the Finance Tranches strip states its pooling basis explicitly (the dynamic "Base : toutes catégories confondues / <category>" label, driven by the tab's live category filter) — the Statistics-vs-Finance wave numbers reconcile at a glance.
+
+### The gates
+
+tsc 0 · eslint 0 errors on every changed file · the t-427 suite **7/7** (the gating truth table, the settled exclusion, the per-wave distinctness, the view-model passthrough, the 96%-not-closed render, the settled-closed render, the label-per-phase render) · the wave families green (77 passed across t-427/t-424/executive-statistics/ai-review-screens — the 3 ai-review failures are the documented baseline) · FULL vitest **4,223 passed / 18 failed — the failure set byte-identical to the baseline** (FAIL lists diffed: 0 differences; +7 = the t-427 suite).
+
 ## 2026-09-27 — The 110th session (cont.) — T-426 COMPLETE (Phases C+D): the month-window UTC harmonization (TIME-001) + the count/demographics honesty trio (DATA-047) — the task's four problem IDs all RESOLVED/TESTED, the full suite 4,216/18 BASELINE-MATCHED
 
 ### What was fixed (the second commit)

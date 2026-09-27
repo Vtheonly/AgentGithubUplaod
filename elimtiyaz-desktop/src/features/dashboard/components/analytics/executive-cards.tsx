@@ -116,7 +116,13 @@ export function WaveVelocityCard({
             >
               {tuition.map((w) => {
                 const isOverdue = w.phase === "overdue";
-                const isComplete = w.collectedPct >= 95;
+                // T-427 (DATA-048, issue #24 Track 2 item 4): a wave is
+                // "Clôturée" only when NOTHING remains to collect
+                // (`remainingTotal === 0` — the canonical INV-4 basis,
+                // consistent with isInstallmentSettled). The previous
+                // `collectedPct >= 95` marked waves with millions of DZD
+                // still outstanding as closed (a rounding-threshold lie).
+                const isComplete = w.remainingTotal === 0;
                 const statusTone = isComplete
                   ? "success"
                   : isOverdue
@@ -222,17 +228,32 @@ export function WaveVelocityCard({
                         </span>
                       </div>
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+                        {/* T-427 (DATA-048, issue #24 Track 4 item 2): the
+                            sub-label is PHASE-DRIVEN — an overdue wave counts
+                            its actually-late families (past-due, owing:
+                            overdueDebtorFamilyCount, never a future
+                            tranche's current balance); a future wave's
+                            owing families are "à échoir" / "non soldées" —
+                            the static "Familles en retard" label on T2/T3
+                            was the mislabel the audit reported. */}
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
-                          Familles en retard
+                          {isOverdue
+                            ? "Familles en retard"
+                            : w.phase === "not_due"
+                              ? "Familles à échoir"
+                              : "Familles non soldées"}
                         </span>
                         <span
                           className={`font-mono font-semibold ${
-                            w.debtorFamilyCount > 0
-                              ? "text-status-warning"
+                            (isOverdue ? w.overdueDebtorFamilyCount : w.debtorFamilyCount) > 0
+                              ? isOverdue
+                                ? "text-status-danger"
+                                : "text-status-warning"
                               : "text-muted-foreground"
                           }`}
                         >
-                          {w.debtorFamilyCount} / {w.familyCount}
+                          {isOverdue ? w.overdueDebtorFamilyCount : w.debtorFamilyCount} /{" "}
+                          {w.familyCount}
                         </span>
                       </div>
                     </div>

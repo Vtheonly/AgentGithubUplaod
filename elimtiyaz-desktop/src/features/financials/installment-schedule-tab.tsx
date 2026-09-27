@@ -178,7 +178,7 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
  * fed by `deriveTrancheWaves` (REAL rows only). Honest zero state when the
  * current filters match no tranche rows.
  */
-function TrancheWaveHeader({ waves }: { waves: TrancheWave[] }) {
+function TrancheWaveHeader({ waves, basisLabel }: { waves: TrancheWave[]; basisLabel: string }) {
   if (waves.every((w) => w.due === 0)) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-2.5 text-xs text-muted-foreground">
@@ -191,7 +191,15 @@ function TrancheWaveHeader({ waves }: { waves: TrancheWave[] }) {
     );
   }
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div className="space-y-1.5">
+      {/* T-427 (DATA-048b, issue #24 Track 4 item 3): the pooling basis is
+          EXPLICIT — the Statistics waves isolate tuition while this strip
+          pools every category in the current selection; the basis label
+          states which, so the two surfaces' numbers reconcile at a glance. */}
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        Base : {basisLabel}
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       {waves.map((w) => (
         <div
           key={w.index}
@@ -234,6 +242,7 @@ function TrancheWaveHeader({ waves }: { waves: TrancheWave[] }) {
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 }
@@ -602,7 +611,14 @@ export function InstallmentScheduleTab({
         </div>
 
         {/* T-248 — Tranche Wave header (macro T1/T2/T3 collection health) */}
-        <TrancheWaveHeader waves={waves} />
+        <TrancheWaveHeader
+          waves={waves}
+          basisLabel={
+            categoryFilter === "all"
+              ? "toutes catégories confondues (scolarité, transport, …)"
+              : (PAYMENT_CATEGORY_LABELS_FR as Record<string, string>)[categoryFilter] ?? categoryFilter
+          }
+        />
 
         {/* Totals header */}
         <div className="grid grid-cols-4 gap-2 rounded-md border bg-muted/20 p-3">
