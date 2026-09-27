@@ -240,6 +240,38 @@ export class MockPaymentRepository implements PaymentRepository {
     }
     return Ok(inserted);
   }
+
+  /**
+   * T-421 (IMPORT-118): bulkCollect with the landed-row progress callback.
+   * The mock is a single in-memory transaction, so the callback fires once
+   * with the inserted count.
+   */
+  async bulkCollectWithProgress(
+    inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>,
+    onProgress?: (landedRows: number) => void,
+  ): Promise<Result<readonly Payment[]>> {
+    const result = await this.bulkCollect(inputs);
+    if (result.ok) onProgress?.(result.value.length);
+    return result;
+  }
+
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency, mock parity with
+   * SupabasePaymentRepository.listImportPaymentNumbers): the receipt
+   * numbers of every imported payment in the store (`IMP-…` — the mock's
+   * bulkCollect keys payment identity off receiptNumber, the same
+   * canonical field the Supabase table's payment_number carries for
+   * imported rows).
+   */
+  async listImportPaymentNumbers(): Promise<Set<string>> {
+    const numbers = new Set<string>();
+    for (const p of store.payments) {
+      if (p.receiptNumber && p.receiptNumber.startsWith("IMP-")) {
+        numbers.add(p.receiptNumber);
+      }
+    }
+    return numbers;
+  }
   refund(id: string, reason: string, actorId?: string, actorName?: string): Promise<Result<Payment>> {
     return refundPayment(ctx, id, reason, actorId, actorName);
   }
@@ -439,6 +471,38 @@ export class MockInstallmentRepository implements InstallmentRepository {
       note: `Import Excel — ${upserted.length} tranche(s) en lot`,
     });
     return Ok(upserted);
+  }
+
+  /**
+   * T-421 (IMPORT-118): bulkImportInstallments with the landed-row progress
+   * callback. The mock is a single in-memory transaction.
+   */
+  async bulkImportInstallmentsWithProgress(
+    inputs: readonly ImportInstallmentInput[],
+    onProgress?: (landedRows: number) => void,
+  ): Promise<Result<readonly Installment[]>> {
+    const result = await this.bulkImportInstallments(inputs);
+    if (result.ok) onProgress?.(result.value.length);
+    return result;
+  }
+
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency, mock parity with
+   * SupabaseInstallmentRepository.listImportInstallmentIdentities): the
+   * canonical tranche identities of every IMPORTED installment in the
+   * store — `imp-…` ids are the import rows (the deterministic id the
+   * mock's bulkImportInstallments mints), keyed by the same
+   * (parent|student|category|trancheNumber) tuple the 0032 identity index
+   * enforces live.
+   */
+  async listImportInstallmentIdentities(): Promise<Set<string>> {
+    const keys = new Set<string>();
+    for (const inst of store.installments) {
+      if (inst.id.startsWith("imp-")) {
+        keys.add(`${inst.parentId}|${inst.studentId}|${inst.category}|${inst.trancheNumber}`);
+      }
+    }
+    return keys;
   }
 }
 

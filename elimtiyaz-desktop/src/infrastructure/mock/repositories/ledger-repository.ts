@@ -83,6 +83,37 @@ export class MockLedgerRepository implements LedgerRepository {
     return Ok(entries);
   }
 
+  /**
+   * T-421 (IMPORT-118): appendMany with the landed-row progress callback.
+   * The mock is a single in-memory transaction (appendMany either fully
+   * applies or throws), so the callback fires once with the full count.
+   */
+  async bulkAppendWithProgress(
+    entries: readonly LedgerEntry[],
+    onProgress?: (landedRows: number) => void,
+  ): Promise<Result<readonly LedgerEntry[]>> {
+    const result = await this.appendMany(entries);
+    if (result.ok) onProgress?.(entries.length);
+    return result;
+  }
+
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency, mock parity with
+   * SupabaseLedgerRepository.listImportLedgerSourceKeys): the
+   * `sourceType|sourceId` keys of every bulk_import ledger entry in the
+   * store. The store is always current, so this is the exact set the
+   * Supabase method would read back from the table.
+   */
+  async listImportLedgerSourceKeys(): Promise<Set<string>> {
+    const keys = new Set<string>();
+    for (const e of store.ledger) {
+      if (e.sourceType != null && e.sourceId != null) {
+        keys.add(`${e.sourceType}|${e.sourceId}`);
+      }
+    }
+    return keys;
+  }
+
   async reverse(originalId: string, reason: string, actorId: string, actorName: string): Promise<Result<LedgerEntry>> {
     await delay(120);
     const original = store.ledger.find((e) => e.id === originalId);

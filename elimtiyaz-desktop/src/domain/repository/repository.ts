@@ -198,6 +198,21 @@ export interface ParentRepository {
   createParent(input: CreateParentInput): Promise<Result<Parent>>;
   updateParent(id: string, input: UpdateParentInput): Promise<Result<Parent>>;
   deleteParent(id: string): Promise<Result<void>>;
+  /**
+   * T-421 (IMPORT-119): createParent with the UPSERT OUTCOME surfaced.
+   *
+   * The Supabase layer's createParent delegates to the idempotent
+   * `upsert_parent_from_import` RPC, which RETURNS `out_was_inserted` —
+   * information the plain Result<Parent> mapping drops. The Excel import's
+   * compensating rollback must only delete parents the run actually
+   * CREATED (an upsert that matched an existing parent must NOT push that
+   * parent into the compensation log), and the run stats must count an
+   * upsert-match as an UPDATE, not an INSERT.
+   *
+   * Optional: repositories without upsert semantics (the mock) may omit
+   * it — callers must fall back to createParent and assume wasInserted.
+   */
+  createParentTracked?(input: CreateParentInput): Promise<Result<{ parent: Parent; wasInserted: boolean }>>;
 }
 
 export interface StudentRepository {
@@ -207,6 +222,16 @@ export interface StudentRepository {
   observeById(id: string): Observable<Student | null>;
   search(query: string): Promise<Result<Student[]>>;
   createStudent(parentId: string, input: CreateStudentInput): Promise<Result<Student>>;
+  /**
+   * T-421 (IMPORT-119): createStudent with the UPSERT OUTCOME surfaced.
+   *
+   * Same contract as createParentTracked: the Supabase layer's
+   * `upsert_student_from_import` RPC returns `out_was_inserted`, and the
+   * import's rollback + stats need it (only truly-created students join
+   * createdStudentIds; an upsert-matched existing student counts as an
+   * update). Optional — callers fall back to createStudent.
+   */
+  createStudentTracked?(parentId: string, input: CreateStudentInput): Promise<Result<{ student: Student; wasInserted: boolean }>>;
   updateStudent(id: string, updates: UpdateStudentInput): Promise<Result<Student>>;
   deleteStudent(id: string): Promise<Result<void>>;
   batchRegister(input: BatchRegistrationInput): Promise<Result<BatchRegistrationResult>>;
@@ -399,6 +424,28 @@ export interface PaymentRepository {
    */
   bulkCollect?(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>>;
   /**
+   * T-421 (IMPORT-116/118): bulkCollect with per-chunk LANDED-ROW progress.
+   *
+   * `onProgress(landedRows)` fires after each successfully committed chunk
+   * with the cumulative number of rows actually inserted so far — the honest
+   * count the import's failure message reports when a LATER chunk fails
+   * (chunks before the failure are already committed; the old message
+   * falsely claimed "aucune écriture partielle"). Optional parameter —
+   * existing callers are unaffected.
+   */
+  bulkCollectWithProgress?(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>, onProgress?: (landedRows: number) => void): Promise<Result<readonly Payment[]>>;
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency): the payment_numbers of
+   * every IMPORTED payment currently in the database (`IMP-…`). The Excel
+   * import's flush preflights its pending batch against this set so a
+   * re-import of an already-imported workbook writes NOTHING instead of
+   * dying on the first all-conflicting chunk (live-proven: PostgREST's
+   * `ignoreDuplicates` only arbitrates the PRIMARY KEY — cross-run
+   * conflicts on (tenant_id, payment_number) raise 23505). Optional;
+   * callers without it fall back to writing (first-import semantics).
+   */
+  listImportPaymentNumbers?(): Promise<Set<string>>;
+  /**
    * Refund a payment (T-014 / BUSINESS-003 — canonical §7.2 contract).
    *
    * `reason` is MANDATORY (≥3 chars, user-provided — mirrored from the
@@ -573,6 +620,24 @@ export interface InstallmentRepository {
    * support bulk import.
    */
   bulkImportInstallments?(inputs: readonly ImportInstallmentInput[]): Promise<Result<readonly Installment[]>>;
+  /**
+   * T-421 (IMPORT-116/118): bulkImportInstallments with per-chunk
+   * LANDED-ROW progress — same contract as bulkCollectWithProgress.
+   * Optional parameter; existing callers unaffected.
+   */
+  bulkImportInstallmentsWithProgress?(inputs: readonly ImportInstallmentInput[], onProgress?: (landedRows: number) => void): Promise<Result<readonly Installment[]>>;
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency): the canonical tranche
+   * identities of every IMPORTED installment currently in the database,
+   * as `parentId|studentId|category|trancheNumber` keys (the 0032
+   * `installments_bulk_import_identity_idx` contract). The import's flush
+   * preflights its pending batch against this set — a re-import of
+   * already-present data writes NOTHING instead of failing on the first
+   * all-conflicting chunk (the identity index is PARTIAL, so even
+   * PostgREST's on_conflict param cannot arbitrate it — live-proven
+   * 42P10). Optional; callers without it fall back to writing.
+   */
+  listImportInstallmentIdentities?(): Promise<Set<string>>;
 }
 
 /**
@@ -936,6 +1001,26 @@ export interface LedgerRepository {
    * bulk insert (e.g. mock repository).
    */
   bulkAppend?(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>>;
+  /**
+   * T-421 (IMPORT-116/118): bulkAppend with per-chunk LANDED-ROW progress —
+   * same contract as the payments'/installments' WithProgress variants.
+   * Optional parameter; existing callers unaffected.
+   */
+  bulkAppendWithProgress?(entries: readonly LedgerEntry[], onProgress?: (landedRows: number) => void): Promise<Result<readonly LedgerEntry[]>>;
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency): the `sourceType|sourceId`
+   * identity keys of every bulk-import ledger entry currently in the
+   * DATABASE (not a cache — live rows, read back paginated). The import's
+   * flush preflights its pending batch against this set: re-imported
+   * entries (whose `${studentId}:${field}` sourceIds already exist) are
+   * skipped client-side, because the DB-level "guard" does NOT exist on
+   * the wire — PostgREST's `ignoreDuplicates` only arbitrates the primary
+   * key, so cross-run conflicts on the (partial) `ledger_entries_source_uidx`
+   * raise 23505 (live-proven; on_conflict can't express the partial-index
+   * predicate either — 42P10). Optional; callers without it fall back to
+   * the observe()-cache keys (the legacy IMPORT-107 behavior).
+   */
+  listImportLedgerSourceKeys?(): Promise<Set<string>>;
   /** Reverse a prior entry by ID. Returns the new reversal entry. */
   reverse(originalId: string, reason: string, actorId: string, actorName: string): Promise<Result<LedgerEntry>>;
   /** Compute the full parent ledger summary (computed via replay — never stored). */

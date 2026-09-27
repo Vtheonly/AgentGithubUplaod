@@ -26,6 +26,7 @@ import type { ImportContext } from "../import-context";
 import { objectChecksum } from "../utils/checksum";
 import { StorageAdapter, type StorageRecord, type RunAuditEntry, type BatchUpsertRow, type BatchProgressCallback, type RollbackOutcome } from "./storage-adapter";
 import { uuid } from "../utils/id";
+import { mapResult } from "../../../../core/result";
 import type { ParentRepository, StudentRepository, LedgerRepository, PaymentRepository, InstallmentRepository, ImportInstallmentInput } from "../../../../domain/repository/repository";
 import type { Parent, CreateParentInput, TransportDestination } from "../../../../domain/model/parent";
 import { IMPORTED_BIRTH_DATE_PLACEHOLDER, type CreateStudentInput, type Student } from "../../../../domain/model/student";
@@ -233,25 +234,74 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * Since the pipeline is documented as atomic ("BEGIN…COMMIT — tout réussit
    * ou tout échoue"), a flush failure now FAILS the import with a clear
    * message so the user knows nothing was silently dropped.
+   *
+   * T-421 (IMPORT-116 — re-import idempotency): all three pending streams
+   * are now preflighted against the DATABASE (not a cache): the ledger
+   * against `listImportLedgerSourceKeys()` (∪ the observe() cache keys —
+   * the legacy IMPORT-107 fast path), the payments against
+   * `listImportPaymentNumbers()`, the installments against
+   * `listImportInstallmentIdentities()`. Live-proven 2026-09-27:
+   * PostgREST's `ignoreDuplicates: true` only arbitrates the PRIMARY KEY,
+   * so cross-run conflicts on the financial identity constraints raise
+   * 23505 — the DB-level "ON CONFLICT guard" the IMPORT-107 comments
+   * promised does not exist on the wire. The preflight is what makes a
+   * re-import of an already-imported workbook a clean NO-OP.
+   *
+   * T-421 (IMPORT-117): the installments Result is now HONORED (the third
+   * 409 of the 23:00:40 failure was awaited and dropped — the ledger and
+   * payments legs checked their Results, the installments leg did not).
+   *
+   * T-421 (IMPORT-118 — honest partial-state reporting): each bulk method
+   * reports its per-chunk LANDED count through the WithProgress variants;
+   * the failure message states exactly what is already on disk instead of
+   * the previous (false, live-disproven) "le lot a été annulé (aucune
+   * écriture partielle)" — chunks are independently committed and the
+   * financial tables are not client-deletable.
    */
   private async flushPendingBatches(): Promise<void> {
     const failures: string[] = [];
+    // T-421 (IMPORT-118): the per-table landed-row accounting.
+    let ledgerAttempted = 0;
+    let ledgerLanded = 0;
+    let paymentsAttempted = 0;
+    let paymentsLanded = 0;
+    let installmentsAttempted = 0;
+    let installmentsLanded = 0;
+
+    // T-421 (IMPORT-116): the DB-based cross-run preflight sets. All three
+    // reads run in parallel; each degrades to an empty set (first-import
+    // semantics) when the repository doesn't implement the optional method
+    // or the read fails.
+    const [dbLedgerKeys, existingPaymentNumbers, existingInstallmentIdentities] =
+      await Promise.all([
+        typeof this.deps.ledger?.listImportLedgerSourceKeys === "function"
+          ? this.deps.ledger.listImportLedgerSourceKeys()
+          : Promise.resolve(new Set<string>()),
+        typeof this.deps.payments?.listImportPaymentNumbers === "function"
+          ? this.deps.payments.listImportPaymentNumbers()
+          : Promise.resolve(new Set<string>()),
+        typeof this.deps.installments?.listImportInstallmentIdentities === "function"
+          ? this.deps.installments.listImportInstallmentIdentities()
+          : Promise.resolve(new Set<string>()),
+      ]);
+    // The ledger preflight unions the DB keys with the in-process cache
+    // keys (the legacy IMPORT-107 filter) — the cache may hold rows a
+    // concurrent writer in THIS process just added.
+    const existingLedgerKeys = new Set<string>([
+      ...dbLedgerKeys,
+      ...this.collectExistingImportLedgerKeys(),
+    ]);
+
     // Flush ledger entries.
     if (this.pendingLedgerEntries.length > 0 && this.deps.ledger) {
       // IMPORT-107 (re-import idempotency): the canonical identity of an
       // imported ledger entry is (tenant, source_type, source_id) — the
       // migration-0027 `upsert_ledger_entry_from_import` contract, enforced
-      // live by the `ledger_entries_source_uidx` unique index. The DIRECT
-      // repository flush (bulkAppend / appendMany) used to skip that
-      // contract entirely: every re-import re-appended the ENTIRE financial
-      // history (mock: the local ledger doubled — every charge and payment,
-      // so every dashboard balance doubled; Supabase: the unique index
-      // rejected every chunk and the error was swallowed). Dedupe the
-      // pending batch against the CURRENT ledger stream first so a
-      // re-import of the same file is a no-op, exactly like the RPC path.
-      const existingKeys = this.collectExistingImportLedgerKeys();
+      // live by the `ledger_entries_source_uidx` unique index. Dedupe the
+      // pending batch against the CURRENT database state first so a
+      // re-import of the same file is a no-op.
       let newLedgerEntries = this.pendingLedgerEntries.filter(
-        (e) => e.sourceType == null || e.sourceId == null || !existingKeys.has(`${e.sourceType}|${e.sourceId}`),
+        (e) => e.sourceType == null || e.sourceId == null || !existingLedgerKeys.has(`${e.sourceType}|${e.sourceId}`),
       );
       // T-420 (IMPORT-115, 2026-09-27): WITHIN-BATCH dedup — the same
       // workbook can carry TWO rows for the same student (the real
@@ -276,12 +326,17 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         seenLedgerKeys.add(key);
         return true;
       });
+      ledgerAttempted = newLedgerEntries.length;
       if (newLedgerEntries.length > 0) {
         try {
           const result =
-            typeof this.deps.ledger.bulkAppend === "function"
-              ? await this.deps.ledger.bulkAppend(newLedgerEntries)
-              : await this.deps.ledger.appendMany(newLedgerEntries);
+            typeof this.deps.ledger.bulkAppendWithProgress === "function"
+              ? await this.deps.ledger.bulkAppendWithProgress(newLedgerEntries, (landed) => {
+                  ledgerLanded = landed;
+                })
+              : typeof this.deps.ledger.bulkAppend === "function"
+                ? await this.deps.ledger.bulkAppend(newLedgerEntries)
+                : await this.deps.ledger.appendMany(newLedgerEntries);
           // A silent Err here would resurrect the exact silent-partial-
           // application defect the atomic contract forbids (the same
           // T-012 fix applied to bulkCollect) — honour the Result.
@@ -289,6 +344,8 @@ export class RepositoryStorageAdapter extends StorageAdapter {
             failures.push(
               `écritures du journal (${newLedgerEntries.length}): ${result.error?.message ?? "erreur inconnue"}`,
             );
+          } else if (result && result.ok) {
+            ledgerLanded = result.value.length;
           }
         } catch (e) {
           failures.push(
@@ -301,34 +358,55 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // Flush payments.
     if (this.pendingPayments.length > 0 && this.deps.payments) {
       try {
-        // T-420 (IMPORT-115): WITHIN-BATCH dedup by the canonical payment
-        // identity — the deterministic receiptNumber `IMP-{studentId}-{field}`
-        // (the `(tenant_id, payment_number)` unique constraint). The same
-        // same-name merge rows that duplicate the ledger sourceIds duplicate
-        // the receiptNumbers; a chunk carrying both copies dies with an
-        // unsuppressible within-statement duplicate-key error (live-proven:
-        // the payments truncation at exactly 1,500). FIRST WINS — the DB's
-        // own chunk-by-chunk semantics.
+        // T-421 (IMPORT-116): CROSS-RUN dedup — imported payment rows carry
+        // the deterministic receiptNumber `IMP-{studentId}-{field}` (the
+        // (tenant_id, payment_number) unique constraint's value for imports).
+        // Payments previously had NO cross-run filter at all: a re-import
+        // died on its very first all-conflicting chunk (live-proven 23505 —
+        // `ignoreDuplicates` arbitrates only the primary key).
         const seenReceipts = new Set<string>();
         const newPendingPayments = this.pendingPayments.filter(({ input }) => {
           const receipt = input.receiptNumber ?? null;
-          if (receipt == null) return true;
+          if (receipt == null) return true; // server-allocated number — always new
+          if (existingPaymentNumbers.has(receipt)) return false; // already in the DB
+          // T-420 (IMPORT-115): WITHIN-BATCH dedup — the same-name merge
+          // rows that duplicate the ledger sourceIds duplicate the
+          // receiptNumbers; a chunk carrying both copies dies with an
+          // unsuppressible within-statement duplicate-key error
+          // (live-proven: the payments truncation at exactly 1,500).
+          // FIRST WINS — the DB's own chunk-by-chunk semantics.
           if (seenReceipts.has(receipt)) return false;
           seenReceipts.add(receipt);
           return true;
         });
-        if (typeof this.deps.payments.bulkCollect === "function") {
-          const bulk = await this.deps.payments.bulkCollect(newPendingPayments);
-          // T-012 (BUSINESS-100): bulkCollect now fails fast and returns Err
-          // instead of Ok(partial). Honour the Result so the import transaction
-          // is canceled — a swallowed Err here would resurrect the exact
-          // silent-partial-application defect this contract forbids.
-          if (bulk && bulk.ok === false) {
-            failures.push(`paiements (${newPendingPayments.length}): ${bulk.error?.message ?? "erreur inconnue"}`);
-          }
-        } else {
-          for (const { input, collectedBy } of newPendingPayments) {
-            await this.deps.payments.collect(input, collectedBy);
+        paymentsAttempted = newPendingPayments.length;
+        if (newPendingPayments.length > 0) {
+          // T-421: capture the optional method references once so TS narrows
+          // them (the `||` typeof guard cannot narrow through the ternary).
+          const bulkWithProgress = this.deps.payments.bulkCollectWithProgress;
+          const bulkPlain = this.deps.payments.bulkCollect;
+          if (typeof bulkWithProgress === "function" || typeof bulkPlain === "function") {
+            const bulk =
+              typeof bulkWithProgress === "function"
+                ? await bulkWithProgress.call(this.deps.payments, newPendingPayments, (landed) => {
+                    paymentsLanded = landed;
+                  })
+                : await bulkPlain!.call(this.deps.payments, newPendingPayments);
+            // T-012 (BUSINESS-100): bulkCollect fails fast and returns Err
+            // instead of Ok(partial). Honour the Result so the import
+            // transaction is canceled — a swallowed Err here would
+            // resurrect the exact silent-partial-application defect this
+            // contract forbids.
+            if (bulk && bulk.ok === false) {
+              failures.push(`paiements (${newPendingPayments.length}): ${bulk.error?.message ?? "erreur inconnue"}`);
+            } else if (bulk && bulk.ok) {
+              paymentsLanded = bulk.value.length;
+            }
+          } else {
+            for (const { input, collectedBy } of newPendingPayments) {
+              await this.deps.payments.collect(input, collectedBy);
+              paymentsLanded++;
+            }
           }
         }
       } catch (e) {
@@ -341,25 +419,51 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // Flush installments.
     if (this.pendingInstallments.length > 0 && this.deps.installments) {
       try {
-        // T-420 (IMPORT-115): WITHIN-BATCH dedup by the canonical tranche
+        // T-421 (IMPORT-116): CROSS-RUN dedup by the canonical tranche
         // identity — (tenant, parent, student, category, tranche_number),
-        // the 0032 `installments_bulk_import_identity_idx` contract. The
-        // same-name merge rows duplicate it; a chunk carrying both copies
-        // dies with the unsuppressible within-statement duplicate-key error
-        // (live-proven: the installments truncation at exactly 4,000).
-        // FIRST WINS.
+        // the 0032 `installments_bulk_import_identity_idx` contract (a
+        // PARTIAL index the PostgREST wire cannot arbitrate — live-proven
+        // 23505/42P10). Installments previously had NO cross-run filter.
         const seenTrancheKeys = new Set<string>();
         const newPendingInstallments = this.pendingInstallments.filter((input) => {
           const key = `${input.parentId}|${input.studentId}|${input.category}|${input.trancheNumber}`;
+          if (existingInstallmentIdentities.has(key)) return false; // already in the DB
+          // T-420 (IMPORT-115): WITHIN-BATCH dedup. FIRST WINS.
           if (seenTrancheKeys.has(key)) return false;
           seenTrancheKeys.add(key);
           return true;
         });
-        if (typeof this.deps.installments.bulkImportInstallments === "function") {
-          await this.deps.installments.bulkImportInstallments(newPendingInstallments);
-        } else {
-          for (const input of newPendingInstallments) {
-            await this.deps.installments.importInstallment(input);
+        installmentsAttempted = newPendingInstallments.length;
+        if (newPendingInstallments.length > 0) {
+          // T-421: capture the optional method references once so TS narrows
+          // them (the `||` typeof guard cannot narrow through the ternary).
+          const bulkWithProgress = this.deps.installments.bulkImportInstallmentsWithProgress;
+          const bulkPlain = this.deps.installments.bulkImportInstallments;
+          if (typeof bulkWithProgress === "function" || typeof bulkPlain === "function") {
+            const bulk =
+              typeof bulkWithProgress === "function"
+                ? await bulkWithProgress.call(this.deps.installments, newPendingInstallments, (landed) => {
+                    installmentsLanded = landed;
+                  })
+                : await bulkPlain!.call(this.deps.installments, newPendingInstallments);
+            // T-421 (IMPORT-117): the installments Result is now HONORED.
+            // This call site previously awaited the Result and dropped it —
+            // the third 409 of the 23:00:40 failure (visible in the
+            // browser console) never reached the surfaced error message,
+            // and had the other two legs not also failed, the import would
+            // have reported SUCCESS with the installments silently missing
+            // — the exact silent-partial-application class the atomic
+            // contract forbids.
+            if (bulk && bulk.ok === false) {
+              failures.push(`tranches (${newPendingInstallments.length}): ${bulk.error?.message ?? "erreur inconnue"}`);
+            } else if (bulk && bulk.ok) {
+              installmentsLanded = bulk.value.length;
+            }
+          } else {
+            for (const input of newPendingInstallments) {
+              await this.deps.installments.importInstallment(input);
+              installmentsLanded++;
+            }
           }
         }
       } catch (e) {
@@ -370,9 +474,24 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       this.pendingInstallments = [];
     }
     if (failures.length > 0) {
+      // T-421 (IMPORT-118): the honest end-state sentence. The old
+      // unconditional "le lot a été annulé (aucune écriture partielle)" was
+      // live-DISPROVEN (2026-09-26 23:01–23:06: ledger chunks 1–4, payment
+      // chunks 1–3 and installment chunks 1–7 were already committed when
+      // the failing chunks died — ~2,000 + ~1,500 + ~4,000 orphaned rows
+      // the operator had to repair by hand). Chunks are independent
+      // PostgREST transactions; ledger_entries and payments have NO
+      // delete policy (0019) so the compensating rollback cannot touch
+      // them. When rows landed, the message now says exactly that.
+      const landedTotal = ledgerLanded + paymentsLanded + installmentsLanded;
+      const stateSentence =
+        landedTotal > 0
+          ? `ATTENTION : ÉTAT PARTIEL — ${ledgerLanded} écriture(s) du journal, ${paymentsLanded} paiement(s) et ${installmentsLanded} tranche(s) de cet import SONT DÉJÀ ÉCRITS en base (blocs commités indépendamment ; les écritures financières sont immuables côté application et le rollback ne peut PAS les annuler). ` +
+            `Sur ${ledgerAttempted} / ${paymentsAttempted} / ${installmentsAttempted} tentées. Ne relancez pas l'import avant d'avoir inspecté/nettoyé ces lignes.`
+          : "Aucune ligne financière n'a été écrite (le premier bloc a échoué avant toute insertion) — l'état de la base est intact.";
       throw new Error(
         `Échec de l'écriture en base (flush bulk) — ${failures.join(" ; ")}. ` +
-          "L'import a été annulé : aucune donnée financière n'a été partiellement appliquée en silence.",
+          `L'import a été annulé. ${stateSentence}`,
       );
     }
   }
@@ -657,11 +776,20 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         // failure — the legacy per-row retry semantics): create with THIS
         // row's own input.
         const input = family.pendingInput ?? this.buildParentInput(record);
-        const result = await this.deps.parents.createParent(input);
-        if (!result.ok) {
+        // T-421 (IMPORT-119): the tracked create surfaces the upsert RPC's
+        // out_was_inserted. On the Supabase path createParent is an UPSERT
+        // (deterministic parent_code): when the batch snapshot missed a
+        // pre-existing parent, this "create" actually UPDATES it — and the
+        // pre-existing id must NOT join the compensation log (a later flush
+        // failure would otherwise soft-delete REAL parents).
+        const createResult =
+          typeof this.deps.parents.createParentTracked === "function"
+            ? await this.deps.parents.createParentTracked(input)
+            : mapResult(await this.deps.parents.createParent(input), (parent) => ({ parent, wasInserted: true }));
+        if (!createResult.ok) {
           // Same per-row error recording as the legacy ensureParent: the
           // row is skipped, the NEXT row of this family retries.
-          const errMsg = formatErrorMessage(result.error);
+          const errMsg = formatErrorMessage(createResult.error);
           this.recordRowError(
             runId,
             task,
@@ -672,11 +800,14 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           onRowDone();
           continue;
         }
-        parent = result.value;
+        parent = createResult.value.parent;
         family.resolvedParent = parent;
         family.pendingInput = null;
-        // VAULT §14.02 — record the created parent for compensating rollback.
-        this.createdParentIds.push(result.value.id);
+        // VAULT §14.02 — record the created parent for compensating rollback
+        // (T-421/IMPORT-119: ONLY when the run actually created it).
+        if (createResult.value.wasInserted) {
+          this.createdParentIds.push(parent.id);
+        }
       }
 
       // ── findExistingStudent (IMPORT-109 EXACT match, family-scoped) ─
@@ -713,10 +844,26 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           resolvedStudent = existing;
         }
       } else {
-        const result = await this.deps.students.createStudent(parent.id, studentInput);
-        if (!result.ok) {
+        // T-421 (IMPORT-119): the tracked create surfaces the upsert RPC's
+        // out_was_inserted. On the Supabase path createStudent is an UPSERT
+        // (deterministic student_code on (year, parentId, displayName)):
+        // when the batch snapshot is stale/empty (seed failure, freshness
+        // window, lazy cache), this "create" actually UPDATES a
+        // pre-existing student — the id must NOT join the compensation log
+        // (a later flush failure would otherwise soft-delete REAL students
+        // — the IMPORT-119 blast radius), and the run stats must count it
+        // as an UPDATE (the live 23:00:40 run misreported "1,137 imported /
+        // 2 updated" for what were 1,137 upserts).
+        const createResult =
+          typeof this.deps.students.createStudentTracked === "function"
+            ? await this.deps.students.createStudentTracked(parent.id, studentInput)
+            : mapResult(await this.deps.students.createStudent(parent.id, studentInput), (student) => ({
+                student,
+                wasInserted: true,
+              }));
+        if (!createResult.ok) {
           // Surface the student creation error (legacy pattern).
-          const errMsg = formatErrorMessage(result.error);
+          const errMsg = formatErrorMessage(createResult.error);
           const identity =
             studentInput.displayName ?? `${studentInput.firstName} ${studentInput.lastName}`;
           this.recordRowError(runId, task, `Student creation failed: ${errMsg}`, identity);
@@ -724,12 +871,20 @@ export class RepositoryStorageAdapter extends StorageAdapter {
           onRowDone();
           continue;
         }
-        action = "insert";
-        studentId = result.value.id;
-        resolvedStudent = result.value;
-        family.createdStudents.unshift(result.value);
-        // VAULT §14.02 — record the created student for compensating rollback.
-        this.createdStudentIds.push(result.value.id);
+        const created = createResult.value;
+        action = created.wasInserted ? "insert" : "update";
+        studentId = created.student.id;
+        resolvedStudent = created.student;
+        // The family's in-batch identity index gets the student regardless
+        // of insert-vs-upsert — a later same-name row of this family must
+        // find it (the IMPORT-109/115 merge semantics).
+        family.createdStudents.unshift(created.student);
+        // VAULT §14.02 — record the created student for compensating
+        // rollback (T-421/IMPORT-119: ONLY when the run actually created
+        // it — an upsert-matched pre-existing student is NOT ours to delete).
+        if (created.wasInserted) {
+          this.createdStudentIds.push(created.student.id);
+        }
       }
 
       // ── deferred financial buffers (BULK IMPORT SPEED FIX, unchanged) ─

@@ -113,6 +113,20 @@ export class MockParentRepository implements ParentRepository {
     return Ok(parent);
   }
 
+  /**
+   * T-421 (IMPORT-119): the mock REFUSES duplicate identities (the 0065
+   * deterministic-code conflict above) instead of upserting, so the tracked
+   * variant always reports wasInserted: true on the Ok path. Tests that
+   * need to simulate the Supabase upsert-match (wasInserted: false) wrap
+   * or subclass this method.
+   */
+  async createParentTracked(
+    input: CreateParentInput,
+  ): Promise<Result<{ parent: Parent; wasInserted: boolean }>> {
+    const result = await this.createParent(input);
+    return result.ok ? Ok({ parent: result.value, wasInserted: true }) : result;
+  }
+
   async updateParent(id: string, updates: UpdateParentInput): Promise<Result<Parent>> {
     await delay(180);
     const idx = store.parents.findIndex((p) => p.id === id);

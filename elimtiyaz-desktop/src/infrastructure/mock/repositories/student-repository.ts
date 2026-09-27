@@ -124,6 +124,20 @@ export class MockStudentRepository implements StudentRepository {
     return Ok(student);
   }
 
+  /**
+   * T-421 (IMPORT-119): the mock has NO upsert semantics (a plain insert —
+   * duplicates are the caller's problem), so the tracked variant always
+   * reports wasInserted: true. Tests that need to simulate the Supabase
+   * upsert-match (wasInserted: false) wrap or subclass this method.
+   */
+  async createStudentTracked(
+    parentId: string,
+    input: CreateStudentInput,
+  ): Promise<Result<{ student: Student; wasInserted: boolean }>> {
+    const result = await this.createStudent(parentId, input);
+    return result.ok ? Ok({ student: result.value, wasInserted: true }) : result;
+  }
+
   async updateStudent(id: string, updates: UpdateStudentInput): Promise<Result<Student>> {
     await delay(180);
     const idx = store.students.findIndex((s) => s.id === id);

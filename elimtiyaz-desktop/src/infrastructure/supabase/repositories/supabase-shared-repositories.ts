@@ -715,6 +715,23 @@ export class SupabaseParentRepository implements ParentRepository {
   }
 
   async createParent(input: CreateParentInput): Promise<Result<Parent>> {
+    // T-421 (IMPORT-119): the upsert outcome is part of the canonical path —
+    // one implementation (createParentTracked), the plain Result maps it away.
+    const tracked = await this.createParentTracked(input);
+    return tracked.ok ? Ok(tracked.value.parent) : tracked;
+  }
+
+  /**
+   * T-421 (IMPORT-119): createParent WITH the RPC's `out_was_inserted`.
+   *
+   * The Excel import's compensating rollback must only delete parents the
+   * run actually CREATED — an upsert that matched an existing parent (the
+   * deterministic parent_code path) returns that pre-existing id, and
+   * pushing it into the compensation log would soft-delete REAL data on a
+   * later flush failure. The run stats also need it (an upsert-match is an
+   * UPDATE, not an INSERT).
+   */
+  async createParentTracked(input: CreateParentInput): Promise<Result<{ parent: Parent; wasInserted: boolean }>> {
     try {
       const tenantId = requireTenantId();
       const year = new Date().getFullYear();
@@ -786,7 +803,7 @@ export class SupabaseParentRepository implements ParentRepository {
       // the typecheck, which silently dropped the transport destination.
       this.cache.update((list) => [parent, ...list.filter((p) => p.id !== parent.id)]);
       this.byIdCache.set(parent.id, new SubjectBehavior<Parent | null>(parent));
-      return Ok(parent);
+      return Ok({ parent, wasInserted: row.out_was_inserted === true });
     } catch (e) {
       return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
     }
@@ -1071,6 +1088,24 @@ export class SupabaseStudentRepository implements StudentRepository {
   }
 
   async createStudent(parentId: string, input: CreateStudentInput): Promise<Result<Student>> {
+    // T-421 (IMPORT-119): the upsert outcome is part of the canonical path —
+    // one implementation (createStudentTracked), the plain Result maps it away.
+    const tracked = await this.createStudentTracked(parentId, input);
+    return tracked.ok ? Ok(tracked.value.student) : tracked;
+  }
+
+  /**
+   * T-421 (IMPORT-119): createStudent WITH the RPC's `out_was_inserted`.
+   *
+   * The Excel import's compensating rollback must only delete students the
+   * run actually CREATED — when the batch identity snapshot is stale (seed
+   * failure / freshness window / lazy cache), the upsert silently converges
+   * on EXISTING students and the returned ids must NOT join the rollback's
+   * compensation log (a later flush failure would otherwise soft-delete
+   * pre-existing students). The run stats also need the flag: an
+   * upsert-match is an UPDATE, not an INSERT.
+   */
+  async createStudentTracked(parentId: string, input: CreateStudentInput): Promise<Result<{ student: Student; wasInserted: boolean }>> {
     try {
       const tenantId = requireTenantId();
       const year = new Date().getFullYear();
@@ -1137,7 +1172,7 @@ export class SupabaseStudentRepository implements StudentRepository {
         transportTier: input.transportTier ?? null,
       };
       this.cache.update((list) => [patched, ...list.filter((s) => s.id !== patched.id)]);
-      return Ok(patched);
+      return Ok({ student: patched, wasInserted: row.out_was_inserted === true });
     } catch (e) {
       return Err(supabaseErrorToAppError(e as { code?: string; message: string; details?: unknown }));
     }
@@ -2185,6 +2220,26 @@ export class SupabasePaymentRepository implements PaymentRepository {
    * importer promises never to produce.
    */
   async bulkCollect(inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>): Promise<Result<readonly Payment[]>> {
+    // T-421 (IMPORT-118): one implementation — the plain method delegates to
+    // the progress-aware variant (the callback is optional and unused here).
+    return this.bulkCollectWithProgress(inputs);
+  }
+
+  /**
+   * T-421 (IMPORT-118): bulkCollect with per-chunk LANDED-ROW progress.
+   *
+   * Each 500-row chunk is its own committed PostgREST transaction — a chunk
+   * that succeeds is IN THE DATABASE for good (payments have no delete
+   * policy under 0019). `onProgress(landedRows)` fires after every
+   * committed chunk with the cumulative landed count, so a caller whose
+   * LATER chunk fails can report exactly what is already on disk instead
+   * of falsely claiming "aucune écriture partielle". The Err message now
+   * states the landed range too.
+   */
+  async bulkCollectWithProgress(
+    inputs: ReadonlyArray<{ input: CollectPaymentInput; collectedBy: string }>,
+    onProgress?: (landedRows: number) => void,
+  ): Promise<Result<readonly Payment[]>> {
     if (inputs.length === 0) return Ok([]);
     try {
       const tenantId = requireTenantId();
@@ -2247,14 +2302,12 @@ export class SupabasePaymentRepository implements PaymentRepository {
       const inserted: Payment[] = [];
       for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
         const chunk = rows.slice(i, i + CHUNK_SIZE);
-        // IMPORT-107: `ignoreDuplicates: true` → ON CONFLICT DO NOTHING.
-        // The (tenant_id, payment_number) unique constraint is the
-        // canonical payment identity: a re-import of the same workbook
-        // carries the same deterministic IMP-… receipt numbers, so the
-        // already-imported rows are SKIPPED (a clean no-op) instead of
-        // hard-failing the whole batch with a unique violation and
-        // blocking the re-import. The chained .select() returns ONLY the
-        // rows actually inserted, so the cache stays truthful.
+        // T-421 (IMPORT-116): `ignoreDuplicates: true` only arbitrates the
+        // PRIMARY KEY on PostgREST (live-proven 23505 — cross-run conflicts
+        // on (tenant_id, payment_number) are NOT suppressed, and the payload
+        // never carries `id`). It remains useful ONLY against within-batch
+        // duplicates of the PK — the REAL re-import defense is the caller's
+        // preflight dedup against listImportPaymentNumbers().
         const { data, error } = await this.client
           .from("payments")
           .upsert(chunk as never, { ignoreDuplicates: true })
@@ -2262,21 +2315,66 @@ export class SupabasePaymentRepository implements PaymentRepository {
         if (error) {
           // T-012: abort the whole batch — report the failing row range so
           // the Excel importer can point at the offending rows and cancel
-          // the transaction ("no partial data applied").
+          // the transaction. T-421 (IMPORT-118): also state what ALREADY
+          // LANDED — chunks before this one are committed and payments have
+          // no delete policy, so the caller must know the state is partial.
+          const landed = i;
           return Err(Errors.server(
             `bulkCollect: insert of payment rows ${i + 1}–${i + chunk.length} failed: ${error.message}` +
-              " — le lot a été annulé (aucune écriture partielle).",
+              (landed > 0
+                ? ` — ATTENTION : les ${landed} premières lignes (blocs 1–${Math.floor(landed / CHUNK_SIZE)}) SONT DÉJÀ ÉCRITES en base (commités bloc par bloc, sans politique DELETE) : état PARTIEL.`
+                : " — aucun bloc n'avait encore été écrit (état intact)."),
           ));
         }
         for (const row of (data ?? []) as PaymentRow[]) {
           inserted.push(mapPaymentRow(row));
         }
+        // T-421 (IMPORT-118): the cumulative landed count AFTER this chunk.
+        onProgress?.(inserted.length);
       }
       this.cache.update((list) => [...inserted, ...list]);
       return Ok(inserted);
     } catch (e) {
       return Err(Errors.unknown(e as Error));
     }
+  }
+
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency): the payment_numbers of every
+   * IMPORTED payment currently in the database (`IMP-…` — the deterministic
+   * Excel-import receipts). Read straight from the table, PAGINATED (the
+   * project's PostgREST max-rows caps unbounded selects — a 2,198-row
+   * import would otherwise seed a 1,000-row set and silently miss the
+   * rest, letting the later chunks fail exactly the way this method exists
+   * to prevent). The set is what the import's flush preflights its pending
+   * batch against: re-imported payment rows are dropped client-side
+   * because the DB-level "ON CONFLICT guard" does not exist on this wire
+   * form (live-proven 23505).
+   */
+  async listImportPaymentNumbers(): Promise<Set<string>> {
+    const numbers = new Set<string>();
+    try {
+      const tenantId = requireTenantId();
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await this.client
+          .from("payments")
+          .select("payment_number")
+          .eq("tenant_id", tenantId)
+          .like("payment_number", "IMP-%")
+          .order("payment_number", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const page = (data ?? []) as Array<{ payment_number: string }>;
+        for (const row of page) numbers.add(row.payment_number);
+        if (page.length < PAGE) break;
+      }
+    } catch (e) {
+      // Honest degradation: an unreadable preflight returns what it has —
+      // the flush's chunk-level guard still fails fast on real conflicts.
+      console.warn("[SupabasePayment] listImportPaymentNumbers degraded:", (e as Error).message);
+    }
+    return numbers;
   }
 
   async adjust(
@@ -2586,6 +2684,22 @@ export class SupabaseLedgerRepository implements LedgerRepository {
    * failure to FAIL the import, not be swallowed.
    */
   async bulkAppend(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>> {
+    // T-421 (IMPORT-118): one implementation — the plain method delegates to
+    // the progress-aware variant.
+    return this.bulkAppendWithProgress(entries);
+  }
+
+  /**
+   * T-421 (IMPORT-118): bulkAppend with per-chunk LANDED-ROW progress —
+   * same contract as bulkCollectWithProgress. Each 500-row chunk is its own
+   * committed transaction and ledger_entries are IMMUTABLE under 0019 (no
+   * delete policy), so the caller must know exactly what landed when a
+   * later chunk fails.
+   */
+  async bulkAppendWithProgress(
+    entries: readonly LedgerEntry[],
+    onProgress?: (landedRows: number) => void,
+  ): Promise<Result<readonly LedgerEntry[]>> {
     if (entries.length === 0) return Ok([]);
     try {
       const tenantId = requireTenantId();
@@ -2620,14 +2734,14 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
         const chunkRows = rows.slice(i, i + CHUNK_SIZE);
         const chunkEntries = entries.slice(i, i + CHUNK_SIZE);
-        // IMPORT-107 (re-import idempotency + atomicity): the 0027 schema
-        // enforces `ledger_entries_source_uidx` on (tenant, source_type,
-        // source_id) — the canonical identity of an imported entry. A plain
-        // INSERT would hard-fail every re-imported chunk against that index.
-        // `ignoreDuplicates: true` emits `ON CONFLICT DO NOTHING` (any
-        // unique arbiter — imported rows carry fresh entry_numbers/ids, so
-        // the only realistic conflict IS the source identity), and the
-        // chained `.select()` returns ONLY the rows actually inserted.
+        // T-421 (IMPORT-116): the IMPORT-107 comment below was WRONG on the
+        // wire — live-proven 2026-09-27: PostgREST's `ignoreDuplicates: true`
+        // generates ON CONFLICT (<PRIMARY KEY>) DO NOTHING, and since these
+        // payloads never carry `id`, the arbiter can never fire — cross-run
+        // conflicts on the (partial) `ledger_entries_source_uidx` raise
+        // 23505, and `on_conflict` cannot express the partial-index
+        // predicate either (42P10). The REAL re-import defense is the
+        // caller's preflight dedup against listImportLedgerSourceKeys().
         const { data, error } = await this.client
           .from("ledger_entries")
           .upsert(chunkRows as never, { ignoreDuplicates: true })
@@ -2635,9 +2749,15 @@ export class SupabaseLedgerRepository implements LedgerRepository {
         if (error) {
           // Loud failure — the Excel import's atomic contract ("tout réussit
           // ou tout échoue") requires a flush failure to FAIL the import.
-          // The previous console.warn-and-continue swallowed chunk errors
-          // and reported success with silently-missing financial data.
-          return Err(Errors.server(`bulkAppend chunk ${i}: ${error.message}`));
+          // T-421 (IMPORT-118): state what already LANDED — ledger entries
+          // are immutable (no delete policy), the landed chunks cannot be
+          // compensated client-side.
+          return Err(Errors.server(
+            `bulkAppend chunk ${i}: ${error.message}` +
+              (inserted.length > 0
+                ? ` — ATTENTION : ${inserted.length} écriture(s) des blocs précédents SONT DÉJÀ ÉCRITES en base (immuables) : état PARTIEL.`
+                : " — aucun bloc n'avait encore été écrit (état intact)."),
+          ));
         }
         // Update the in-memory cache with ONLY the rows that were actually
         // inserted — the previous unconditional `[...entries, ...list]`
@@ -2653,6 +2773,8 @@ export class SupabaseLedgerRepository implements LedgerRepository {
             inserted.push(e);
           }
         }
+        // T-421 (IMPORT-118): the cumulative landed count AFTER this chunk.
+        onProgress?.(inserted.length);
       }
       this.cache.update((list) => [...inserted, ...list]);
       return Ok(inserted);
@@ -2671,6 +2793,42 @@ export class SupabaseLedgerRepository implements LedgerRepository {
           `${e instanceof Error ? e.message : String(e)}`,
       ));
     }
+  }
+
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency): the `sourceType|sourceId`
+   * identity keys of every bulk-import ledger entry currently in the
+   * DATABASE — read straight from the table, PAGINATED (PostgREST max-rows
+   * would otherwise cap the set at the first page and let later chunks
+   * conflict). Replaces the cache-based `observe().get()` preflight, which
+   * is empty whenever the in-process ledger cache is lazy (the exact hole
+   * the 23:00:40 re-import failure fell through: 3,346 entries attempted,
+   * chunk 2000 dead).
+   */
+  async listImportLedgerSourceKeys(): Promise<Set<string>> {
+    const keys = new Set<string>();
+    try {
+      const tenantId = requireTenantId();
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await this.client
+          .from("ledger_entries")
+          .select("source_type, source_id")
+          .eq("tenant_id", tenantId)
+          .eq("source_type", "bulk_import")
+          .order("source_id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const page = (data ?? []) as Array<{ source_type: string; source_id: string }>;
+        for (const row of page) keys.add(`${row.source_type}|${row.source_id}`);
+        if (page.length < PAGE) break;
+      }
+    } catch (e) {
+      // Honest degradation: return what was read — the chunk-level guard
+      // still fails fast on any conflict that slips through.
+      console.warn("[SupabaseLedger] listImportLedgerSourceKeys degraded:", (e as Error).message);
+    }
+    return keys;
   }
 
   async reverse(originalId: string, reason: string, actorId: string, actorName: string): Promise<Result<LedgerEntry>> {
@@ -3181,6 +3339,22 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
    * created by migration 0032.
    */
   async bulkImportInstallments(inputs: readonly ImportInstallmentInput[]): Promise<Result<readonly Installment[]>> {
+    // T-421 (IMPORT-118): one implementation — the plain method delegates to
+    // the progress-aware variant.
+    return this.bulkImportInstallmentsWithProgress(inputs);
+  }
+
+  /**
+   * T-421 (IMPORT-118): bulkImportInstallments with per-chunk LANDED-ROW
+   * progress — same contract as the ledger/payments variants. Chunks are
+   * independently committed; installments CAN be deleted under the 0019
+   * `installments_admin` for-all policy, but the flush never tracked what
+   * landed — now the caller knows.
+   */
+  async bulkImportInstallmentsWithProgress(
+    inputs: readonly ImportInstallmentInput[],
+    onProgress?: (landedRows: number) => void,
+  ): Promise<Result<readonly Installment[]>> {
     if (inputs.length === 0) return Ok([]);
     try {
       const tenantId = requireTenantId();
@@ -3230,6 +3404,14 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         // the ledger's IMPORT-107 philosophy; the per-row
         // `importInstallment` (find → update-or-insert) remains the
         // update-capable path.
+        //
+        // T-421 (IMPORT-116) CORRECTION: the paragraph above overstates the
+        // guarantee — live-proven 2026-09-27, PostgREST's
+        // `ignoreDuplicates: true` generates ON CONFLICT (<PRIMARY KEY>)
+        // DO NOTHING, so cross-run conflicts on the partial identity index
+        // are NOT suppressed (23505) and `on_conflict` cannot repeat the
+        // partial predicate (42P10). The REAL re-import defense is the
+        // caller's preflight dedup against listImportInstallmentIdentities().
         const { data, error } = await this.client
           .from("installments")
           .upsert(chunk as never, { ignoreDuplicates: true })
@@ -3239,11 +3421,19 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
           // operation (the adapter's catch aborts the import with the
           // "Échec de l'écriture en base" contract) — never
           // warn-and-continue into Ok([]) again (the DATA-019 lesson).
-          return Err(Errors.server(`bulkImportInstallments chunk ${i}: ${error.message}`));
+          // T-421 (IMPORT-118): also state what already LANDED.
+          return Err(Errors.server(
+            `bulkImportInstallments chunk ${i}: ${error.message}` +
+              (results.length > 0
+                ? ` — ATTENTION : ${results.length} tranche(s) des blocs précédents SONT DÉJÀ ÉCRITES en base : état PARTIEL.`
+                : " — aucun bloc n'avait encore été écrit (état intact)."),
+          ));
         }
         for (const row of (data ?? []) as InstallmentRow[]) {
           results.push(mapInstallmentRow(row));
         }
+        // T-421 (IMPORT-118): the cumulative landed count AFTER this chunk.
+        onProgress?.(results.length);
       }
       this.cache.update((list) => [...results, ...list.filter((i) => !results.some((r) => r.id === i.id))]);
       return Ok(results);
@@ -3261,6 +3451,42 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
           `${e instanceof Error ? e.message : String(e)}`,
       ));
     }
+  }
+
+  /**
+   * T-421 (IMPORT-116 — re-import idempotency): the canonical tranche
+   * identities of every bulk-import installment currently in the database,
+   * as `parentId|studentId|category|trancheNumber` keys — read straight
+   * from the table, PAGINATED (PostgREST max-rows would otherwise truncate
+   * the set). The import's flush preflights its pending batch against this
+   * set so a re-import writes NOTHING for already-present tranches (the
+   * partial identity index cannot be arbitrated on the PostgREST wire —
+   * live-proven 23505/42P10).
+   */
+  async listImportInstallmentIdentities(): Promise<Set<string>> {
+    const keys = new Set<string>();
+    try {
+      const tenantId = requireTenantId();
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await this.client
+          .from("installments")
+          .select("parent_id, student_id, category, tranche_number")
+          .eq("tenant_id", tenantId)
+          .eq("source_type", "bulk_import")
+          .order("source_id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const page = (data ?? []) as Array<{ parent_id: string; student_id: string; category: string; tranche_number: number }>;
+        for (const row of page) keys.add(`${row.parent_id}|${row.student_id}|${row.category}|${row.tranche_number}`);
+        if (page.length < PAGE) break;
+      }
+    } catch (e) {
+      // Honest degradation: return what was read — the chunk-level guard
+      // still fails fast on any conflict that slips through.
+      console.warn("[SupabaseInstallment] listImportInstallmentIdentities degraded:", (e as Error).message);
+    }
+    return keys;
   }
   async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
     try {
