@@ -35,6 +35,9 @@ BEGIN;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000000", "role": "service_role"}';
 
 create temp table t432_results (check_id text, ok boolean, detail text);
+-- §15.27: the C7 impersonation block downgrades to `authenticated` — the
+-- temp table must be granted BEFORE that block runs.
+GRANT INSERT, SELECT ON t432_results TO authenticated;
 
 -- ─── C1: the 15 hoisted policies ─────────────────────────────────────────
 do $c1$
@@ -68,11 +71,17 @@ begin
     end loop;
     insert into t432_results values ('C1-policies-present', v_missing = 0, 'missing=' || v_missing);
 
+    -- NOTE (T-433, 112th session): pg_policies.qual carries the PARSED,
+    -- pretty-printed expression — the migration file's '(select public.fn()'
+    -- normalizes to '( SELECT fn()' (keyword uppercased, schema prefix
+    -- stripped when in search_path). The first-run pattern
+    -- position('(select public.' ...) was normalization-fragile (never
+    -- validated: 0126 was not yet applied when this script was authored).
     select count(*) into v_unhoisted
       from pg_policies pol
      where pol.policyname = any(array(select split_part(x, '|', 1) from unnest(v_expected) x))
        and pol.qual is not null
-       and position('(select public.' in pol.qual) = 0;
+       and position('( SELECT ' in pol.qual) = 0;
     insert into t432_results values ('C1-initplan-hoist', v_unhoisted = 0, 'unhoisted=' || v_unhoisted);
 
     select count(*) into v_lostgate
@@ -100,7 +109,13 @@ begin
     select pg_get_functiondef('public.compute_debt_aging_rows(uuid, timestamptz)'::regprocedure)
       into v_def;
     insert into t432_results values ('C2-materialized-ay',
-        v_def like '%with ay as%' and position('attribute_academic_year' in v_def) = 0,
+        -- T-433 (112th session): the definition is read back through
+        -- pg_get_functiondef — keywords normalize to uppercase ('WITH ay AS')
+        -- and the body's COMMENTS legitimately mention the replaced helper's
+        -- name. The robust pair: the CTE marker (case-insensitive) + ZERO
+        -- REAL invocations ('public.attribute_academic_year(' — the comments
+        -- never carry the schema prefix).
+        v_def ~* 'with ay as' and position('public.attribute_academic_year(' in v_def) = 0,
         'len=' || length(v_def));
 
     -- C3: per-obligation attribution parity against the ORIGINAL helper —
@@ -192,7 +207,7 @@ begin
     insert into t432_results
     select 'C6-wave-' || wave,
            true,
-           'tuition=' || coalesce(tuition_pct, 'n/a') || '% pooled=' || pooled_pct
+           'tuition=' || coalesce(tuition_pct::text, 'n/a') || '% pooled=' || coalesce(pooled_pct::text, 'n/a')
            || '% (rows=' || rows_total || ', families=' || families || ')'
       from t432_waves;
 end $c6$;
