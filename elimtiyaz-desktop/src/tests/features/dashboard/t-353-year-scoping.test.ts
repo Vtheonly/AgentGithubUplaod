@@ -176,6 +176,13 @@ function makeClient(data: Row[] = []) {
       };
       q.in = chain;
       q.order = chain;
+      // T-424 (DATA-043): the keyset-pagination chain (§15.62c) — the
+      // dashboard repository now walks pages (gt id > last, order id,
+      // limit 1000) through the same contract the T-423 financial-seed
+      // fakes support. The fake stays RPC-less on purpose: the fallback
+      // leg is part of the tested contract (§15.64e).
+      q.gt = chain;
+      q.limit = chain;
       q.then = (resolve: unknown) =>
         Promise.resolve({ data, error: null, count: data.length }).then(resolve as never);
       return q;
@@ -189,41 +196,95 @@ function findFilters(calls: { table: string; filters: Row[] }[], table: string) 
 }
 
 describe("T-353 — SupabaseDashboardRepository.kpisForRange scopes debt by the year window", () => {
-  it("the installments query carries the due_date window filters (2025-2026)", async () => {
-    const { client, calls } = makeClient([]);
+  // T-424 (DATA-043): the installments now arrive through the FULL
+  // collection (the read_installments_collection RPC — or the keyset
+  // fallback on this RPC-less fake) and the year window is applied
+  // CLIENT-SIDE, so the wire no longer carries the due_date filters. The
+  // scoping is pinned through the RESULT: the outstanding counts only the
+  // selected year's unpaid rows.
+  const INS_2025 = {
+    id: "ins-a",
+    parent_id: "p1",
+    due_date: "2025-10-15",
+    amount_due: 100_000,
+    amount_paid: 0,
+    amount_pending: 0,
+    status: "unpaid",
+  };
+  const INS_2026 = {
+    id: "ins-b",
+    parent_id: "p1",
+    due_date: "2026-10-15",
+    amount_due: 50_000,
+    amount_paid: 0,
+    amount_pending: 0,
+    status: "unpaid",
+  };
+
+  it("the outstanding debt counts only the 2025-2026 rows (the year window, client-side)", async () => {
+    const { client } = makeClient([INS_2025, INS_2026]);
     const repo = new SupabaseDashboardRepository(client);
-    await repo.kpisForRange("2025-2026", { from: "2025-09-01", to: "2026-09-01" });
-    const installmentFilters = findFilters(calls, "installments");
-    expect(installmentFilters).toContainEqual({ col: "due_date", op: "gte", value: "2025-09-01" });
-    expect(installmentFilters).toContainEqual({ col: "due_date", op: "lt", value: "2026-09-01" });
+    const res = await repo.kpisForRange("2025-2026", { from: "2025-09-01", to: "2026-09-01" });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.value.outstandingDebt).toBe(100_000); // the 2026-2027 row is excluded
+    }
   });
 
   it("a different year produces the corresponding window (2026-2027)", async () => {
-    const { client, calls } = makeClient([]);
+    const { client } = makeClient([INS_2025, INS_2026]);
     const repo = new SupabaseDashboardRepository(client);
-    await repo.kpisForRange("2026-2027");
-    const installmentFilters = findFilters(calls, "installments");
-    expect(installmentFilters).toContainEqual({ col: "due_date", op: "gte", value: "2026-09-01" });
-    expect(installmentFilters).toContainEqual({ col: "due_date", op: "lt", value: "2027-09-01" });
+    const res = await repo.kpisForRange("2026-2027");
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.value.outstandingDebt).toBe(50_000); // only the 2026-2027 row
+    }
   });
 
-  it("an unparseable year code leaves the query unscoped (honest fallback)", async () => {
-    const { client, calls } = makeClient([]);
+  it("an unparseable year code leaves the debt unscoped (honest fallback)", async () => {
+    const { client, calls } = makeClient([INS_2025, INS_2026]);
     const repo = new SupabaseDashboardRepository(client);
-    await repo.kpisForRange("garbage");
+    const res = await repo.kpisForRange("garbage");
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.value.outstandingDebt).toBe(150_000); // every unpaid row — honest, unscoped
+    }
+    // And the honest-fallback contract holds on the wire too: no due_date
+    // filter was fabricated for a year code that cannot be parsed.
     const installmentFilters = findFilters(calls, "installments");
     expect(installmentFilters.find((f) => f.col === "due_date")).toBeUndefined();
   });
 });
 
 describe("T-353 — SupabaseDashboardRepository.debtByAgingForRange follows the same window", () => {
-  it("the aging query carries the due_date window filters (ONE year semantics for both debt aggregates)", async () => {
-    const { client, calls } = makeClient([]);
+  it("the aging buckets count only the year's rows (ONE year semantics for both debt aggregates)", async () => {
+    const { client } = makeClient([
+      {
+        id: "ins-a",
+        parent_id: "p1",
+        due_date: "2025-10-15",
+        amount_due: 100_000,
+        amount_paid: 0,
+        amount_pending: 0,
+        status: "unpaid",
+      },
+      {
+        id: "ins-b",
+        parent_id: "p2",
+        due_date: "2026-10-15", // inside the 2026-2027 window — excluded here
+        amount_due: 50_000,
+        amount_paid: 0,
+        amount_pending: 0,
+        status: "unpaid",
+      },
+    ]);
     const repo = new SupabaseDashboardRepository(client);
-    await repo.debtByAgingForRange("2025-2026");
-    const installmentFilters = findFilters(calls, "installments");
-    expect(installmentFilters).toContainEqual({ col: "due_date", op: "gte", value: "2025-09-01" });
-    expect(installmentFilters).toContainEqual({ col: "due_date", op: "lt", value: "2026-09-01" });
+    const res = await repo.debtByAgingForRange("2025-2026");
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const sum = res.value.reduce((s, b) => s + b.amount, 0);
+      expect(sum).toBe(100_000); // the out-of-year row never reaches the buckets
+    }
   });
 });
 

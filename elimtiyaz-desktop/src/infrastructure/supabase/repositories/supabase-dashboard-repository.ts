@@ -24,6 +24,8 @@ import type {
 import type { AgingBucket } from "../../../domain/model/payment";
 import { buildWindowAnchoredBuckets, daysBetweenFloor } from "../../../domain/calc/shared/dates";
 import { agingBucketFromDays } from "../../../domain/calc/payment/queries";
+import { callCollectionRpc, paginateKeyset } from "./supabase-shared-repositories";
+import type { PaymentRow, InstallmentRow } from "../types";
 import { GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER, type GradeLevel } from "../../../domain/model/student";
 
 export class SupabaseDashboardRepository implements DashboardRepository {
@@ -82,13 +84,16 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       const monthEnd = range?.to ?? new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
       const todayStr = now.toISOString().slice(0, 10);
 
-      // We omit the failing notifications query and derive overdue alerts from installments
+      // We omit the failing notifications query and derive overdue alerts from installments.
+      // T-424 (DATA-043): the payments + installments reads go through the
+      // RPC collections (full sets — the old single reads were capped at
+      // 1,000 rows: 2,198 paid payments / 4,227 unpaid installments live).
       const [
         studentsRes,
         parentsRes,
         staffRes,
-        paymentsRes,
-        installmentsRes,
+        paidPayments,
+        unpaidInstallments,
         expensesRes,
         attendanceRes,
       ] = await Promise.all([
@@ -107,14 +112,8 @@ export class SupabaseDashboardRepository implements DashboardRepository {
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
           .eq("is_active", true),
-        this.client
-          .from("payments")
-          .select("amount")
-          .eq("tenant_id", tenantId)
-          .eq("status", "paid")
-          .gte("collected_at", monthStart)
-          .lt("collected_at", monthEnd),
-        this.buildInstallmentsQuery(tenantId, academicYear),
+        this.readPaidPaymentsCollection(tenantId),
+        this.readUnpaidInstallmentsForYear(tenantId, academicYear),
         this.client
           .from("expense_tickets")
           .select("id", { count: "exact", head: true })
@@ -127,12 +126,11 @@ export class SupabaseDashboardRepository implements DashboardRepository {
           .eq("date", todayStr),
       ]);
 
-      const monthlyRevenue = (paymentsRes.data ?? []).reduce(
-        (sum, p) => sum + (Number(p.amount) || 0),
-        0,
-      );
+      const monthlyRevenue = paidPayments
+        .filter((p) => p.collected_at >= monthStart && p.collected_at < monthEnd)
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-      const allInstallments = installmentsRes.data ?? [];
+      const allInstallments = unpaidInstallments;
       const outstandingDebt = allInstallments.reduce((sum, i) => {
         const due = Number(i.amount_due) || 0;
         const paid = Number(i.amount_paid) || 0;
@@ -178,22 +176,81 @@ export class SupabaseDashboardRepository implements DashboardRepository {
   }
 
   /**
-   * T-353 (DASH-403): the unpaid-installments query, scoped to the
-   * academic year's billing window (due_date) when the year code parses.
-   * A shared builder for kpisForRange + debtByAgingForRange so the KPI
-   * outstanding and the aging chart follow the SAME year semantics.
+   * T-424 (DATA-043): the installments collection — RPC FIRST
+   * (`read_installments_collection`, migration 0123: one immune jsonb
+   * round trip — SECURITY DEFINER, no per-row RLS policy chain, no
+   * 1,000-row cap) with the direct KEYSET read as the version-skew
+   * fallback (§15.62c). The previous single unpaginated read was capped
+   * at 1,000 rows — with 4,227 unpaid installments live, the KPI
+   * `outstandingDebt` and the aging chart computed over a biased 24%
+   * sample while the Finances page (the RPC-seeded caches) showed the
+   * full collections — the Statistics-vs-Finance gap this task closes.
    */
-  private buildInstallmentsQuery(tenantId: string, academicYear: string) {
-    let query = this.client
-      .from("installments")
-      .select("parent_id, amount_due, amount_paid, amount_pending, due_date, status")
-      .eq("tenant_id", tenantId)
-      .neq("status", "paid");
-    const window = this.academicYearWindow(academicYear);
-    if (window) {
-      query = query.gte("due_date", window.from).lt("due_date", window.to);
+  private async readInstallmentsCollection(tenantId: string): Promise<
+    Array<Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">>
+  > {
+    const rpcRows = await callCollectionRpc<
+      Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">
+    >(this.client, "read_installments_collection");
+    if (rpcRows) return rpcRows;
+    return paginateKeyset(async (lastId) => {
+      const base = this.client
+        .from("installments")
+        .select("id, parent_id, amount_due, amount_paid, amount_pending, due_date, status")
+        .eq("tenant_id", tenantId);
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return { data: (data ?? []) as Array<Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">>, error: error as { message: string } | null };
+    });
+  }
+
+  /**
+   * T-424 (DATA-043): the payments collection — the same RPC-first shape
+   * (`read_payments_collection`) for the revenue reads (the KPI's monthly
+   * revenue and `revenueForRange` were equally capped at 1,000 of 2,198
+   * paid payments live).
+   */
+  private async readPaidPaymentsCollection(tenantId: string): Promise<
+    Array<Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">>
+  > {
+    const rpcRows = await callCollectionRpc<
+      Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">
+    >(this.client, "read_payments_collection");
+    if (rpcRows) {
+      return rpcRows.filter((p) => p.status === "paid");
     }
-    return query;
+    return paginateKeyset(async (lastId) => {
+      const base = this.client
+        .from("payments")
+        .select("id, amount, collected_at, status")
+        .eq("tenant_id", tenantId)
+        .eq("status", "paid");
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return { data: (data ?? []) as Array<Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">>, error: error as { message: string } | null };
+    });
+  }
+
+  /**
+   * T-353 (DASH-403): the unpaid-installments view over the FULL
+   * collection, scoped to the academic year's billing window (due_date)
+   * when the year code parses. A shared derivation for kpisForRange +
+   * debtByAgingForRange so the KPI outstanding and the aging chart follow
+   * the SAME year semantics — now over every row, not a capped sample.
+   */
+  private async readUnpaidInstallmentsForYear(
+    tenantId: string,
+    academicYear: string,
+  ): Promise<Array<Pick<InstallmentRow, "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">>> {
+    const all = await this.readInstallmentsCollection(tenantId);
+    const window = this.academicYearWindow(academicYear);
+    return all.filter((i) => {
+      if (i.status === "paid") return false;
+      if (!window) return true;
+      return i.due_date >= window.from && i.due_date < window.to;
+    });
   }
 
   async revenueLast12Months(): Promise<Result<RevenuePoint[]>> {
@@ -216,32 +273,23 @@ export class SupabaseDashboardRepository implements DashboardRepository {
           ? { from: range.from, to: range.to }
           : (this.academicYearWindow(academicYear) ?? undefined);
 
-      let query = this.client
-        .from("payments")
-        .select("amount, collected_at")
-        .eq("tenant_id", tenantId)
-        .eq("status", "paid");
-
+      // T-424 (DATA-043): the RPC payments collection (every paid row —
+      // the old single read was capped at 1,000 of 2,198 live), filtered
+      // client-side with the SAME window semantics.
+      const paid = await this.readPaidPaymentsCollection(tenantId);
+      let rows = paid.map((p) => ({
+        amount: p.amount as number | string,
+        collectedAt: p.collected_at as string,
+      }));
       if (window) {
         // EXCLUSIVE upper bound at the to-date's midnight — the house
         // convention (the mock's computeRange `t < toMs` AND the KPI's
         // `.lt(collected_at, monthEnd)`): the boundary day belongs to the
         // NEXT window, never double-counted.
-        query = query
-          .gte("collected_at", `${window.from.slice(0, 10)}T00:00:00Z`)
-          .lt("collected_at", `${window.to.slice(0, 10)}T00:00:00Z`);
+        const from = `${window.from.slice(0, 10)}T00:00:00Z`;
+        const to = `${window.to.slice(0, 10)}T00:00:00Z`;
+        rows = rows.filter((p) => p.collectedAt >= from && p.collectedAt < to);
       }
-
-      const { data, error } = await query;
-      if (error) {
-        console.warn("[SupabaseDashboard] revenue query failed:", error.message);
-        return Ok([]);
-      }
-
-      const rows = (data ?? []).map((p) => ({
-        amount: p.amount as number | string,
-        collectedAt: p.collected_at as string,
-      }));
       const buckets = buildWindowAnchoredBuckets(window, rows);
 
       return Ok(buckets.map((b) => ({ label: b.label, amount: b.amount })));
@@ -267,16 +315,13 @@ export class SupabaseDashboardRepository implements DashboardRepository {
     try {
       const now = new Date();
       // T-353 (DASH-403): the aging chart follows the academic year's
-      // billing window (same buildInstallmentsQuery as the KPI's
+      // billing window (same readUnpaidInstallmentsForYear as the KPI's
       // outstanding — ONE year semantics for both debt aggregates).
-      const { data, error } = await this.buildInstallmentsQuery(tenantId, academicYear);
+      // T-424 (DATA-043): the RPC collection read — every unpaid row, not
+      // a 1,000-row sample.
+      const rows = await this.readUnpaidInstallmentsForYear(tenantId, academicYear);
 
-      if (error) {
-        console.warn("[SupabaseDashboard] debt aging query failed:", error.message);
-        return Ok(bucketKeys.map((k) => ({ bucket: k, amount: 0, debtorCount: 0 })));
-      }
-
-      for (const row of data ?? []) {
+      for (const row of rows) {
         const due = Number(row.amount_due) || 0;
         const paid = Number(row.amount_paid) || 0;
         const pending = Number(row.amount_pending) || 0;

@@ -1,23 +1,22 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-423 Phase A3 (2026-09-27).",
-  "_task": "T-423 Phase A3 (2026-09-27) — the baseline moved by a registered, verified change: the payments seed left .range() for keyset pagination (id > last, order id, limit 1000 — §15.62c), and the t-034-cache-freshness fake supports that chain (gt/order/limit) but not .range — so all 4 of its documented environment-class failures now pass, including the updated in-cycle-retry assertion. t-034-cache-freshness.test.ts leaves the failing set; the failure count 25 → 21. Everything else byte-identical (the remaining 10 files are untouched environment-class failures).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-424 Phase C (2026-09-27).",
+  "_task": "T-424 Phase C (2026-09-27) — the baseline moved by a registered, verified change, and the stale A3 bookkeeping repaired (the json's counts said 25 while its own _task recorded the A3 move to 21 — the numbers now record the verified current reality). Moves: (1) t-355-t-356-departments-bucket-parity.test.tsx LEAVES the failing set — the owner's own 967ab35 (Sep 17) reworded the Departments tab copy ('Aucun revenu enregistré' → 'Aucun encaissement sur cette période', 'N paiements' → 'Total Encaissé (N versements)') and dropped the 'Autres catégories' row (unclaimed categories now fold into the grand total); the 3 pinned tests follow the owner's UI with their intent preserved (real-payments feed, honest empty state, never-dropped residual pinned through the total). (2) t-353-year-scoping.test.ts was NEVER in the baseline — its 3 wire-filter assertions broke against DATA-043's collection read (the year window now applied client-side) and are converted to RESULT assertions (the outstanding and the aging buckets count only the year's rows); it stays green. The failure count 25 (bookkeeping) → 18; the failing set is the remaining 9 environment-class files, byte-identical otherwise.",
   "testFiles": {
-    "failed": 11,
-    "passed": 212,
+    "failed": 9,
+    "passed": 221,
     "skipped": 1,
-    "total": 224
+    "total": 231
   },
   "tests": {
-    "failed": 25,
-    "passed": 4145,
+    "failed": 18,
+    "passed": 4206,
     "skipped": 5,
-    "total": 4175
+    "total": 4229
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",
     "src/tests/cross-platform/Tier4Boundary.test.ts",
     "src/tests/cross-platform/Tier4OperationSequences.test.ts",
-    "src/tests/features/dashboard/t-355-t-356-departments-bucket-parity.test.tsx",
     "src/tests/infrastructure/t-390-financial-realtime.test.ts",
     "src/tests/integration/vault-compliance-architecture.test.tsx",
     "src/tests/security/t-134-parent-name-rendering.test.ts",

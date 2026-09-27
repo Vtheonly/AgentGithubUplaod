@@ -100,7 +100,7 @@ describe("T-424 — deriveTrancheWaveStats (the canonical grouping)", () => {
       mk({ id: "4", category: "transport", trancheNumber: 1, amountDue: 30_000, amountPaid: 30_000, status: "paid" }),
       // Non-wave rows — excluded, never coerced into wave 1:
       mk({ id: "5", trancheNumber: undefined, label: "Année complète", amountDue: 999_000 }),
-      mk({ id: "6", trancheNumber: 7, label: "Custom", amountDue: 5_000 }),
+      mk({ id: "6", trancheNumber: 7 as unknown as 1, label: "Custom (hors-vague)", amountDue: 5_000 }),
     ];
     const stats = deriveTrancheWaveStats(rows, NOW);
     expect(stats).toHaveLength(4); // tuition#1, tuition#2, tuition#4, transport#1

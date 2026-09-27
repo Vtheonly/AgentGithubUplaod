@@ -132,20 +132,30 @@ describe("T-355 — DepartmentsTab (DASH-405: the REAL payments feed)", () => {
     expect(screen.getByText(/10 000/)).toBeInTheDocument();
     // The placeholder is GONE.
     expect(screen.queryByText(/données par catégorie non exposées/)).not.toBeInTheDocument();
-    // The grand total row: 100 000 over 4 payments.
-    expect(screen.getByText(/4 paiements/)).toBeInTheDocument();
+    // The grand total row: 100 000 over 4 versements (the owner's 967ab35
+    // copy — "Total Encaissé (N versements)" replaced the old "N paiements").
+    expect(screen.getByText(/4 versements/)).toBeInTheDocument();
     expect(screen.getByText(/100 000/)).toBeInTheDocument();
   });
 
-  it("categories claimed by NO unit surface as 'Autres catégories' (never silently dropped)", () => {
+  it("categories claimed by NO unit fold into the grand total (never silently dropped)", () => {
+    // The owner's 967ab35 UI dropped the dedicated 'Autres catégories' row:
+    // unclaimed categories (and ADR-023 null-category multi-service payments)
+    // now surface ONLY through the grand total. The never-dropped INTENT is
+    // pinned through the total: 7 000 (other) + 3 000 (tuition) = 10 000 —
+    // a silently-dropped residual would render 3 000.
     openDepartments([pay("other", 7_000, "5"), pay("tuition", 3_000, "6")]);
-    expect(screen.getByText(/Autres catégories/)).toBeInTheDocument();
-    expect(screen.getByText(/7 000/)).toBeInTheDocument();
+    expect(screen.getByText(/Total Encaissé \(2 versements\)/)).toBeInTheDocument();
+    expect(screen.getByText(/10 000/)).toBeInTheDocument();
+    // …and the claimed unit row still renders its own amount:
+    expect(screen.getByText(/3 000/)).toBeInTheDocument();
   });
 
   it("empty payments render the honest empty state (no fabricated zeros)", () => {
+    // The owner's 967ab35 copy: "Aucun encaissement sur cette période."
+    // replaced "Aucun revenu enregistré".
     openDepartments([]);
-    expect(screen.getByText(/Aucun revenu enregistré/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aucun encaissement sur cette période/i)).toBeInTheDocument();
   });
 
   it("the source wiring: the page passes the range-filtered paid slice to the modal", () => {
@@ -251,6 +261,13 @@ function makeClient(data: Row[] = []) {
       };
       q.in = chain;
       q.order = chain;
+      // T-424 (DATA-043): the keyset-pagination chain (§15.62c) — the
+      // dashboard repository now walks pages (gt id > last, order id,
+      // limit 1000) through the same contract the T-423 financial-seed
+      // fakes support. The fake stays RPC-less on purpose: the fallback
+      // leg is part of the tested contract (§15.64e).
+      q.gt = chain;
+      q.limit = chain;
       q.then = (resolve: unknown) =>
         Promise.resolve({ data, error: null, count: data.length }).then(resolve as never);
       return q;
@@ -265,13 +282,14 @@ describe("T-356 — SupabaseDashboardRepository.revenueForRange (DASH-407)", () 
       { amount: 10, collected_at: "2025-09-20T10:00:00Z" },
       { amount: 20, collected_at: "2026-08-31T10:00:00Z" },
     ];
-    const { client, calls } = makeClient(rows);
+    const { client } = makeClient(rows);
     const repo = new SupabaseDashboardRepository(client);
     const result = await repo.revenueForRange("2025-2026");
-    // The query filters by the YEAR window (not NOW-relative last-12).
-    const filters = calls[0].filters;
-    expect(filters).toContainEqual({ col: "collected_at", op: "gte", value: "2025-09-01T00:00:00Z" });
-    expect(filters).toContainEqual({ col: "collected_at", op: "lt", value: "2026-09-01T00:00:00Z" });
+    // T-424 (DATA-043): the payments arrive through the FULL collection
+    // (the RPC — or the keyset fallback on this RPC-less fake) and the
+    // YEAR window is applied client-side; the assertion is the RESULT —
+    // the series anchors to the academic-year window (not NOW-relative
+    // last-12) and BOTH fixture payments land.
     // The series: Sep 2025 → Août 2026, both payments land.
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -282,12 +300,21 @@ describe("T-356 — SupabaseDashboardRepository.revenueForRange (DASH-407)", () 
   });
 
   it("an explicit range overrides the year window (the preset semantics)", async () => {
-    const { client, calls } = makeClient([]);
+    // T-424 (DATA-043): the explicit range now filters the collection
+    // client-side — assert the window semantics through the series shape
+    // (only in-range months carry amounts).
+    const rows = [
+      { amount: 10, collected_at: "2026-01-15T10:00:00Z" }, // in range
+      { amount: 99, collected_at: "2026-04-01T10:00:00Z" }, // out of range
+    ];
+    const { client } = makeClient(rows);
     const repo = new SupabaseDashboardRepository(client);
-    await repo.revenueForRange("2025-2026", { from: "2026-01-01", to: "2026-03-31" });
-    const filters = calls[0].filters;
-    expect(filters).toContainEqual({ col: "collected_at", op: "gte", value: "2026-01-01T00:00:00Z" });
-    expect(filters).toContainEqual({ col: "collected_at", op: "lt", value: "2026-03-31T00:00:00Z" });
+    const result = await repo.revenueForRange("2025-2026", { from: "2026-01-01", to: "2026-03-31" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const total = result.value.reduce((s, b) => s + b.amount, 0);
+      expect(total).toBe(10); // the April payment is excluded
+    }
   });
 
   it("MOCK↔SUPABASE PARITY: the same fixture through both implementations yields the same series shape", async () => {

@@ -183,14 +183,18 @@ export interface Installment {
   readonly label: string; // "Tranche 1" / "Tranche 2" / "Tranche 3" / "Année complète"
   /**
    * The canonical wave number from the DB `installments.tranche_number`
-   * column (1 | 2 | 3). T-338 (61st session): the executive statistics
+   * column (1 | 2 | 3 | 4 — the BON structure's 4th tuition tranche,
+   * migration 0090's CHECK). T-338 (61st session): the executive statistics
    * (tranche-wave collection velocity, debt triage per wave) group by
    * THIS field — never by label parsing (labels are free-text and drift:
    * "INSCRIPTION (FI)", "2EME TRANCHE (V2)", "Tranche 2 — Transport").
-   * Defaults to 1 when the source row carries no number (mock fixtures,
-   * legacy rows) — the first-wave convention the import fallback uses.
+   * T-424 (DATA-042): a row with NO tranche number ("Année complète",
+   * custom schedule lines) is a NON-WAVE row — absent here, excluded from
+   * every wave everywhere, never coerced into wave 1 (the old `?? 1`
+   * convention silently inflated wave 1 and made Statistics and Finance
+   * disagree on the same rows).
    */
-  readonly trancheNumber?: 1 | 2 | 3;
+  readonly trancheNumber?: 1 | 2 | 3 | 4;
   readonly amountDue: number;
   /** Cleared funds applied to this tranche (cash, cleared check, cleared transfer). */
   readonly amountPaid: number;

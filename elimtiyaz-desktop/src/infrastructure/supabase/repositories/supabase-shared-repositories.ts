@@ -528,7 +528,8 @@ function finishSeed<R>(
  * finishSeed handle failures: a UI seed degrades honestly, it never
  * aborts a write.
  */
-async function paginateKeyset<R extends { id: string }>(
+/** T-424 (DATA-043): exported for the dashboard repository (§15.62c). */
+export async function paginateKeyset<R extends { id: string }>(
   fetchPageAfter: (lastId: string) => Promise<{ data: R[] | null; error: { message: string } | null }>,
 ): Promise<R[]> {
   const PAGE = 1000;
@@ -590,7 +591,12 @@ function isRpcUnavailableError(err: { code?: string | number; message?: string }
  * path — a transient RPC failure retries the RPC, it does not silently
  * degrade to the slower wire).
  */
-async function callCollectionRpc<R>(
+/**
+ * T-424 (DATA-043): exported for the dashboard repository — the SAME
+ * RPC-first + unavailable-classifies-to-fallback contract the financial
+ * seeds use (§15.64e: version-skew safety belongs in the read path).
+ */
+export async function callCollectionRpc<R>(
   client: SupabaseClient,
   fn: string,
 ): Promise<R[] | null> {
@@ -3975,7 +3981,11 @@ function mapInstallmentRow(r: InstallmentRow): Installment {
     label: r.label ?? `Tranche ${r.tranche_number}`,
     // T-338: carry the canonical wave number into the domain (the executive
     // statistics group by tranche_number, never by label parsing).
-    trancheNumber: (r.tranche_number ?? 1) as 1 | 2 | 3,
+    // T-424 (DATA-042): a NULL tranche_number stays ABSENT — a non-wave row
+    // ("Année complète" / custom lines), excluded from every wave on every
+    // surface. The old `?? 1` coercion silently folded those rows into
+    // wave 1 (live DB carries 0 NULL rows — no behavioral change there).
+    trancheNumber: (r.tranche_number ?? undefined) as 1 | 2 | 3 | 4 | undefined,
     amountDue: Number(r.amount_due ?? 0),
     amountPaid: Number(r.amount_paid ?? 0),
     amountPending: Number(r.amount_pending ?? 0),
