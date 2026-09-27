@@ -386,6 +386,133 @@ export function __resetSeedDiagnosticsForTests(): void {
 }
 
 // ============================================================================
+// T-423 (CACHE-103 — GitHub issue #23) — the reactive seed-health registry
+// + the whole-read retry ladder
+// ============================================================================
+
+/**
+ * T-423: whether an observable-cache source is currently degraded.
+ *
+ * OPS-317/T-392 gave the seeds a DIAGNOSTIC registry (WHY the last seed
+ * degraded — consumed on demand by the settings screen). CACHE-103 showed
+ * the missing half: the seed catch blocks also set the observable cache to
+ * `[]`, so a transient 57014 statement timeout rendered the whole Finances
+ * page as confident zeros with no reactive signal. This registry is the
+ * reactive half — one observable stream of every source's CURRENT state,
+ * which the Finances page renders as "Échec du chargement — Réessayer"
+ * (and which the regression suite pins: a failed seed must never be
+ * indistinguishable from an empty database).
+ */
+export type SeedHealthState = "ok" | "degraded";
+
+export interface SeedHealthEntry {
+  /** The observable being seeded ("payments", "installments", "ledger", "debtSummary", "allocations", …). */
+  source: string;
+  /** Current state — "degraded" means the LAST seed attempt failed and the cache holds the last known data. */
+  state: SeedHealthState;
+  /** Milliseconds since epoch of the last state change. */
+  at: number;
+  /** AppError-style code ("ERR_NETWORK", "UNKNOWN", …) — "OK" when healthy. */
+  code: string;
+  /** SAFE one-line message (never tokens) — empty when healthy. */
+  message: string;
+}
+
+const seedHealthMap = new Map<string, SeedHealthEntry>();
+const seedHealthSubject = new SubjectBehavior<readonly SeedHealthEntry[]>([]);
+
+/** T-423: the reactive stream of every tracked source's seed health. */
+export function observeSeedHealth(): Observable<readonly SeedHealthEntry[]> {
+  return seedHealthSubject;
+}
+
+/** T-423: the current health entry of one source (undefined = never seeded). */
+export function getSeedHealth(source: string): SeedHealthEntry | undefined {
+  return seedHealthMap.get(source);
+}
+
+function markSeedHealthy(source: string): void {
+  const prev = seedHealthMap.get(source);
+  if (prev?.state === "ok") return; // no emission churn on repeated successes
+  seedHealthMap.set(source, { source, state: "ok", at: Date.now(), code: "OK", message: "" });
+  seedHealthSubject.set([...seedHealthMap.values()]);
+}
+
+function markSeedDegraded(source: string, err: unknown): void {
+  const { code, message } = classifySeedError(err);
+  seedHealthMap.set(source, { source, state: "degraded", at: Date.now(), code, message });
+  seedHealthSubject.set([...seedHealthMap.values()]);
+}
+
+/** Test seam: clear the health registry between unit tests. */
+export function __resetSeedHealthForTests(): void {
+  seedHealthMap.clear();
+  seedHealthSubject.set([]);
+}
+
+/**
+ * T-423 (Phase A2): the seed-read retry ladder with backoff.
+ *
+ * Live-measured (t-422-flakiness-meter, 2026-09-27): the direct
+ * RLS-filtered financial reads succeed 80–90% per attempt (57014 statement
+ * timeouts, ~1-in-5 outside the 01:00 backup window, worse inside). A
+ * WHOLE-READ retry (a partial page set is never returned — the
+ * paginateImportPreflight semantics, §15.62) with 2 spaced retries leaves
+ * ≈0.5–5% unrecovered; after that the caller degrades HONESTLY
+ * (keep-last-known + the surfaced state) instead of fabricating an empty
+ * cache. The backoff is a module-level seam so unit tests run it at 0 ms.
+ */
+export type SeedReadOutcome<R> = { ok: true; rows: R } | { ok: false; error: unknown };
+
+let seedRetryBackoffMs: readonly number[] = [1000, 3000];
+
+/** Test seam: run the retry ladder without real delays. */
+export function __setSeedRetryBackoffForTests(ms: readonly number[]): void {
+  seedRetryBackoffMs = ms;
+}
+
+export async function readWithSeedRetry<R>(read: () => Promise<R>): Promise<SeedReadOutcome<R>> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const rows = await read();
+      return { ok: true, rows };
+    } catch (e) {
+      if (attempt >= seedRetryBackoffMs.length) {
+        return { ok: false, error: e };
+      }
+      await new Promise((resolve) => setTimeout(resolve, seedRetryBackoffMs[attempt]));
+    }
+  }
+}
+
+/**
+ * T-423 (CACHE-103): the honest finish for an observable-cache seed.
+ *
+ * SUCCESS → replace the cache (the only path allowed to change the data)
+ * and clear the source's degradation. FINAL FAILURE → keep the LAST KNOWN
+ * cache (the seedAging convention: "Keep the last known truthful analysis
+ * on a transient failure — never fabricate rows"), record the classified
+ * reason (OPS-317), and surface the degradation on the reactive health
+ * stream. A first-load failure therefore shows "no data + Échec du
+ * chargement", and a failed refresh never wipes a populated cache — the
+ * two exact defects the owner's finance-zeros report exposed.
+ */
+function finishSeed<R>(
+  source: string,
+  cache: SubjectBehavior<R>,
+  outcome: SeedReadOutcome<R>,
+): void {
+  if (outcome.ok) {
+    cache.set(outcome.rows);
+    markSeedHealthy(source);
+  } else {
+    recordSeedError(source, outcome.error);
+    markSeedDegraded(source, outcome.error);
+    // DELIBERATELY no cache.set here — the last known data survives.
+  }
+}
+
+// ============================================================================
 // Row → domain mappers
 // ============================================================================
 
@@ -1918,7 +2045,13 @@ export class SupabasePaymentRepository implements PaymentRepository {
   private async seed(): Promise<void> {
     if (!this.freshness.shouldReseed()) return;
     this.freshness.markSeeded();
-    try {
+    // T-423 (CACHE-103, GitHub issue #23): the whole read retries as a unit
+    // (Phase A2 — measured 80–90% per-attempt success on the direct reads)
+    // and a FINAL failure keeps the last known cache + surfaces the
+    // degradation on the reactive health stream — never a silent empty
+    // overwrite (the seedAging convention; the old `catch { set([]) }`
+    // rendered 57014 timeouts as confident 0 DZD KPIs).
+    const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
       // DATA-035 (T-411, FA-14): PAGINATED — PostgREST caps every response
       // at 1000 rows (§15.29c); the previous single unpaginated select
@@ -1939,10 +2072,19 @@ export class SupabasePaymentRepository implements PaymentRepository {
         rows.push(...page);
         if (page.length < pageSize) break;
       }
-      this.cache.set(rows.map(mapPaymentRow));
-    } catch {
-      this.cache.set([]);
-    }
+      return rows.map(mapPaymentRow);
+    });
+    finishSeed("payments", this.cache, outcome);
+  }
+
+  /**
+   * T-423 (CACHE-103): the Finances page's "Réessayer" — force the next
+   * seed past the TTL and await the re-read. Optional on the interface
+   * (mock/test repositories never degrade, so they need not implement it).
+   */
+  async refresh(): Promise<void> {
+    this.freshness.forceRefresh();
+    await this.seed();
   }
 
   observe(): Observable<Payment[]> {
@@ -2017,7 +2159,11 @@ export class SupabasePaymentRepository implements PaymentRepository {
   private async seedAllocations(): Promise<void> {
     if (!this.allocationsFreshness.shouldReseed()) return;
     this.allocationsFreshness.markSeeded();
-    try {
+    // T-423 (CACHE-103): the same honest-degradation treatment as the
+    // payments seed — retry as a unit, keep the last known allocation set
+    // on final failure, surface the degradation (the old bare catch set []
+    // silently).
+    const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
       const rows: PaymentAllocationRow[] = [];
       const pageSize = 1000;
@@ -2033,21 +2179,18 @@ export class SupabasePaymentRepository implements PaymentRepository {
         rows.push(...page);
         if (page.length < pageSize) break;
       }
-      this.allocationsCache.set(
-        rows.map((r) => ({
-          id: r.id,
-          paymentId: r.payment_id,
-          chargeId: r.charge_id,
-          installmentId: r.installment_id,
-          category: (r.category ?? "other") as PaymentAllocation["category"],
-          allocatedAmount: r.allocated_amount,
-          label: r.label,
-          createdAt: r.created_at,
-        })),
-      );
-    } catch {
-      this.allocationsCache.set([]);
-    }
+      return rows.map((r) => ({
+        id: r.id,
+        paymentId: r.payment_id,
+        chargeId: r.charge_id,
+        installmentId: r.installment_id,
+        category: (r.category ?? "other") as PaymentAllocation["category"],
+        allocatedAmount: r.allocated_amount,
+        label: r.label,
+        createdAt: r.created_at,
+      })) as readonly PaymentAllocation[];
+    });
+    finishSeed("allocations", this.allocationsCache, outcome);
   }
 
   async collect(input: CollectPaymentInput, collectedBy: string): Promise<Result<Payment>> {
@@ -2629,7 +2772,10 @@ export class SupabaseLedgerRepository implements LedgerRepository {
   private async seed(): Promise<void> {
     if (!this.freshness.shouldReseed()) return;
     this.freshness.markSeeded();
-    try {
+    // T-423 (CACHE-103, GitHub issue #23): retry as a unit + keep-last-known
+    // on final failure (the old bare catch rendered a 57014 timeout as an
+    // empty ledger — the receipts and diagnostic surfaces showed nothing).
+    const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("ledger_entries")
@@ -2638,10 +2784,18 @@ export class SupabaseLedgerRepository implements LedgerRepository {
         .order("entry_date", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      this.cache.set((data as LedgerEntryRow[]).map(mapLedgerRow));
-    } catch {
-      this.cache.set([]);
-    }
+      return (data as LedgerEntryRow[]).map(mapLedgerRow);
+    });
+    finishSeed("ledger", this.cache, outcome);
+  }
+
+  /**
+   * T-423 (CACHE-103): the Finances page's "Réessayer" — force the next
+   * seed past the TTL and await the re-read (optional interface method).
+   */
+  async refresh(): Promise<void> {
+    this.freshness.forceRefresh();
+    await this.seed();
   }
 
   observe(): Observable<LedgerEntry[]> {
@@ -3123,7 +3277,11 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   private async seed(): Promise<void> {
     if (!this.freshness.shouldReseed()) return;
     this.freshness.markSeeded();
-    try {
+    // T-423 (CACHE-103, GitHub issue #23): retry as a unit + keep-last-known
+    // on final failure — the installments seed feeds the Tranches tab AND
+    // the Créances KPI; the old bare catch rendered a 57014 timeout as
+    // "Aucune tranche T1/T2/T3" with zero error indication.
+    const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
       const { data, error } = await this.client
         .from("installments")
@@ -3131,10 +3289,18 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         .eq("tenant_id", tenantId)
         .order("due_date", { ascending: true });
       if (error) throw error;
-      this.cache.set((data as InstallmentRow[]).map(mapInstallmentRow));
-    } catch {
-      this.cache.set([]);
-    }
+      return (data as InstallmentRow[]).map(mapInstallmentRow);
+    });
+    finishSeed("installments", this.cache, outcome);
+  }
+
+  /**
+   * T-423 (CACHE-103): the Finances page's "Réessayer" — force the next
+   * seed past the TTL and await the re-read (optional interface method).
+   */
+  async refresh(): Promise<void> {
+    this.freshness.forceRefresh();
+    await this.seed();
   }
 
   observe(): Observable<Installment[]> {
@@ -3833,94 +3999,115 @@ export class SupabaseDebtRepository implements DebtRepository {
     // Créances tab track financial mutations even before the realtime
     // bridge arms. The studentCount is now the REAL per-parent count
     // (was hardcoded 0).
+    //
+    // T-423 (CACHE-103, GitHub issue #23): the WHOLE summary computation
+    // (unpaid installments + parent names + student counts) is one retry
+    // unit, and a final failure keeps the last known summaries (the
+    // seedAging convention) + surfaces the degradation — the old catch set
+    // `[]` silently, blanking the Top-débiteurs list and zeroing the
+    // Créances KPI.
     if (!this.summaryFreshness.shouldReseed()) return;
     this.summaryFreshness.markSeeded();
-    try {
-      const tenantId = requireTenantId();
-      const { data, error } = await this.client
-        .from("installments")
-        .select("parent_id, amount_due, amount_paid, amount_pending, due_date")
-        .eq("tenant_id", tenantId)
-        .neq("status", "paid");
-      if (error) throw error;
-      const nowMs = Date.now();
-      const byParent = new Map<string, { outstanding: number; days: number }>();
-      for (const row of (data ?? []) as {
-        parent_id: string;
-        amount_due: number | string;
-        amount_paid: number | string;
-        amount_pending: number | string;
-        due_date: string;
-      }[]) {
-        const remaining = Math.max(
-          0,
-          Number(row.amount_due ?? 0) - Number(row.amount_paid ?? 0) - Number(row.amount_pending ?? 0),
-        );
-        if (remaining <= 0) continue;
-        const days = Math.max(0, Math.floor((nowMs - new Date(row.due_date).getTime()) / 86_400_000));
-        const prev = byParent.get(row.parent_id);
-        byParent.set(row.parent_id, {
-          outstanding: (prev?.outstanding ?? 0) + remaining,
-          days: Math.max(prev?.days ?? 0, days),
-        });
-      }
-      if (byParent.size === 0) {
-        this.summarySubject.set([]);
-        return;
-      }
-      // Parent names + phone for the debtor table.
-      const parentIds = [...byParent.keys()];
-      const { data: parentRows, error: parentErr } = await this.client
-        .from("parents")
-        .select("id, first_name, last_name, display_name, primary_phone")
-        .in("id", parentIds);
-      if (parentErr) throw parentErr;
-      const names = new Map(
-        (parentRows ?? []).map((p) => {
-          const row = p as {
-            id: string;
-            first_name: string | null;
-            last_name: string | null;
-            display_name: string | null;
-            primary_phone: string | null;
-          };
-          return [
-            row.id,
-            {
-              name: row.display_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim(),
-              phone: row.primary_phone ?? "",
-            },
-          ];
-        }),
+    const outcome = await readWithSeedRetry(async () => this.readSummaries());
+    finishSeed("debtSummary", this.summarySubject, outcome);
+  }
+
+  /**
+   * T-423 (CACHE-103): the Finances page's "Réessayer" — force the next
+   * summary seed past the TTL and await the re-read (optional interface
+   * method, the refreshAging sibling for the Créances surface).
+   */
+  async refreshSummary(): Promise<void> {
+    this.summaryFreshness.forceRefresh();
+    await this.seedSummary();
+  }
+
+  /**
+   * T-423: the summary computation as ONE retryable unit — the unpaid
+   * installments read, the parent-name read and the student-count read
+   * happen on the same consistent attempt (a partial multi-read state is
+   * never cached; the paginateImportPreflight whole-unit semantics).
+   */
+  private async readSummaries(): Promise<import("../../../domain/model/payment").DebtSummary[]> {
+    const tenantId = requireTenantId();
+    const { data, error } = await this.client
+      .from("installments")
+      .select("parent_id, amount_due, amount_paid, amount_pending, due_date")
+      .eq("tenant_id", tenantId)
+      .neq("status", "paid");
+    if (error) throw error;
+    const nowMs = Date.now();
+    const byParent = new Map<string, { outstanding: number; days: number }>();
+    for (const row of (data ?? []) as {
+      parent_id: string;
+      amount_due: number | string;
+      amount_paid: number | string;
+      amount_pending: number | string;
+      due_date: string;
+    }[]) {
+      const remaining = Math.max(
+        0,
+        Number(row.amount_due ?? 0) - Number(row.amount_paid ?? 0) - Number(row.amount_pending ?? 0),
       );
-      // DATA-026: the REAL per-parent student count (was hardcoded 0 —
-      // every live-mode Créances row showed "0 enfant(s)").
-      const { data: studentRows, error: studentErr } = await this.client
-        .from("students")
-        .select("parent_id")
-        .eq("tenant_id", tenantId);
-      if (studentErr) throw studentErr;
-      const studentsPerParent = new Map<string, number>();
-      for (const r of (studentRows ?? []) as { parent_id: string }[]) {
-        studentsPerParent.set(r.parent_id, (studentsPerParent.get(r.parent_id) ?? 0) + 1);
-      }
-      const summaries = [...byParent.entries()]
-        .map(([parentId, v]) => ({
-          id: `debt-${parentId}`,
-          parentId,
-          parentName: names.get(parentId)?.name ?? parentId,
-          parentPhone: names.get(parentId)?.phone ?? "",
-          studentCount: studentsPerParent.get(parentId) ?? 0,
-          outstandingAmount: v.outstanding,
-          daysOverdue: v.days,
-          bucket: agingBucketFromDays(v.days),
-        }))
-        .sort((a, b) => b.outstandingAmount - a.outstandingAmount);
-      this.summarySubject.set(summaries);
-    } catch (e) {
-      console.warn("[SupabaseDebt] seedSummary failed:", (e as Error).message);
-      this.summarySubject.set([]);
+      if (remaining <= 0) continue;
+      const days = Math.max(0, Math.floor((nowMs - new Date(row.due_date).getTime()) / 86_400_000));
+      const prev = byParent.get(row.parent_id);
+      byParent.set(row.parent_id, {
+        outstanding: (prev?.outstanding ?? 0) + remaining,
+        days: Math.max(prev?.days ?? 0, days),
+      });
     }
+    if (byParent.size === 0) {
+      return []; // an honest EMPTY (no debtors) — a success, not a failure.
+    }
+    // Parent names + phone for the debtor table.
+    const parentIds = [...byParent.keys()];
+    const { data: parentRows, error: parentErr } = await this.client
+      .from("parents")
+      .select("id, first_name, last_name, display_name, primary_phone")
+      .in("id", parentIds);
+    if (parentErr) throw parentErr;
+    const names = new Map(
+      (parentRows ?? []).map((p) => {
+        const row = p as {
+          id: string;
+          first_name: string | null;
+          last_name: string | null;
+          display_name: string | null;
+          primary_phone: string | null;
+        };
+        return [
+          row.id,
+          {
+            name: row.display_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim(),
+            phone: row.primary_phone ?? "",
+          },
+        ];
+      }),
+    );
+    // DATA-026: the REAL per-parent student count (was hardcoded 0 —
+    // every live-mode Créances row showed "0 enfant(s)").
+    const { data: studentRows, error: studentErr } = await this.client
+      .from("students")
+      .select("parent_id")
+      .eq("tenant_id", tenantId);
+    if (studentErr) throw studentErr;
+    const studentsPerParent = new Map<string, number>();
+    for (const r of (studentRows ?? []) as { parent_id: string }[]) {
+      studentsPerParent.set(r.parent_id, (studentsPerParent.get(r.parent_id) ?? 0) + 1);
+    }
+    return [...byParent.entries()]
+      .map(([parentId, v]) => ({
+        id: `debt-${parentId}`,
+        parentId,
+        parentName: names.get(parentId)?.name ?? parentId,
+        parentPhone: names.get(parentId)?.phone ?? "",
+        studentCount: studentsPerParent.get(parentId) ?? 0,
+        outstandingAmount: v.outstanding,
+        daysOverdue: v.days,
+        bucket: agingBucketFromDays(v.days),
+      }))
+      .sort((a, b) => b.outstandingAmount - a.outstandingAmount);
   }
 
   observeParentProfile(parentId: string): Observable<ParentFinancialProfile | null> {

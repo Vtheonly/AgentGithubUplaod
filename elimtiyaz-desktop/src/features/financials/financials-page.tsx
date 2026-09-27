@@ -42,6 +42,10 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+// T-423 (CACHE-103, GitHub issue #23): the reactive seed-health stream —
+// a failed financial seed surfaces "Échec du chargement — Réessayer"
+// here instead of rendering confident zeros.
+import { observeSeedHealth, type SeedHealthEntry } from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
 import { formatDzd } from "../../core/format/currency";
 import { formatRelative, formatDateTime } from "../../core/format/date";
 import { parentDisplayName } from "../../domain/model/parent";
@@ -103,6 +107,18 @@ import { computePayrollForecast } from "../../domain/calc/payroll/payroll-foreca
 
 type FinanceTab = "payments" | "installments" | "debt" | "debt-aging" | "expenses" | "receipts" | "diagnostic";
 
+/** T-423 (CACHE-103): the financial sources this page renders — the seed-health
+ * banner keys on these names (the repository seeds' finishSeed sources). */
+const FINANCIAL_SEED_SOURCES = ["payments", "installments", "ledger", "debtSummary", "allocations"] as const;
+
+const SEED_SOURCE_LABELS_FR: Record<string, string> = {
+  payments: "paiements",
+  installments: "tranches",
+  ledger: "grand livre",
+  debtSummary: "créances",
+  allocations: "ventilations",
+};
+
 export function FinancialsPage() {
 
 
@@ -157,6 +173,33 @@ export function FinancialsPage() {
 
   const [tab, setTab] = useState<FinanceTab>("payments");
   const [paymentOpen, setPaymentOpen] = useState(false);
+  // T-423 (CACHE-103): the reactive seed-health stream — degraded financial
+  // sources surface an explicit error/retry banner, and a degraded+empty
+  // source renders "—" (unknown) on its KPI instead of a confident "0 DZD".
+  const seedHealth = useObservable(() => observeSeedHealth(), []);
+  const degradedFinancialSeeds = seedHealth.filter(
+    (h: SeedHealthEntry) => h.state === "degraded" && (FINANCIAL_SEED_SOURCES as readonly string[]).includes(h.source),
+  );
+  const isSeedDegraded = (source: string): boolean =>
+    seedHealth.some((h: SeedHealthEntry) => h.source === source && h.state === "degraded");
+  const paymentsKnown = !isSeedDegraded("payments") || payments.length > 0;
+  const debtSummaryKnown = !isSeedDegraded("debtSummary") || debtSummary.length > 0;
+  const [retryingSeeds, setRetryingSeeds] = useState(false);
+  const retryDegradedSeeds = async () => {
+    setRetryingSeeds(true);
+    try {
+      // The optional-method pattern (the observeAllocations convention) —
+      // mock/test repositories never degrade and need not implement these.
+      await Promise.all([
+        repos.payments.refresh?.(),
+        repos.installments.refresh?.(),
+        repos.ledger.refresh?.(),
+        repos.debt.refreshSummary?.(),
+      ]);
+    } finally {
+      setRetryingSeeds(false);
+    }
+  };
   const [diagnosticCollect, setDiagnosticCollect] = useState<{ parentId: string; amount: number } | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseDetailId, setExpenseDetailId] = useState<string | null>(null);
@@ -334,16 +377,71 @@ export function FinancialsPage() {
         }
       />
 
+      {/* T-423 (CACHE-103, GitHub issue #23): the honest degradation state —
+          a failed read is EXPLICIT (with the last known data kept), never a
+          silent zero. An honest error collapses the six-hypothesis
+          investigation into "this read failed" (§15.63e). */}
+      {degradedFinancialSeeds.length > 0 && (
+        <div
+          role="alert"
+          data-testid="finance-seed-degraded-banner"
+          className="mx-6 mb-3 flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <AlertTriangle className="size-4 shrink-0" />
+          <span className="font-medium">Échec du chargement des données financières</span>
+          <span className="text-destructive/80">
+            (
+            {degradedFinancialSeeds
+              .map((h: SeedHealthEntry) => SEED_SOURCE_LABELS_FR[h.source] ?? h.source)
+              .join(", ")}
+            ) — les dernières valeurs connues sont conservées. Sauvegarde planifiée ou charge en cours ?
+          </span>
+          <button
+            type="button"
+            onClick={() => void retryDegradedSeeds()}
+            disabled={retryingSeeds}
+            className="ml-auto rounded-md border border-destructive/50 px-2.5 py-1 text-xs font-medium uppercase tracking-wide hover:bg-destructive/20 disabled:opacity-50"
+          >
+            {retryingSeeds ? "Chargement…" : "Réessayer"}
+          </button>
+        </div>
+      )}
+
       <div className="px-6 pb-3">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <button type="button" onClick={() => setTab("payments")} title="Voir le journal des paiements" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
-            <KpiCard label="Encaissé (cumul)" value={formatDzd(totalToday, { compact: true })} icon={<Wallet className="h-5 w-5" />} tone="success" />
+            <KpiCard
+              label="Encaissé (cumul)"
+              value={paymentsKnown ? formatDzd(totalToday, { compact: true }) : "—"}
+              icon={<Wallet className="h-5 w-5" />}
+              tone="success"
+            />
           </button>
           <button type="button" onClick={() => setTab("payments")} title="Voir le journal des paiements" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
-            <KpiCard label="Revenu mensuel" value={formatDzd(monthlyRev, { compact: true })} icon={<TrendingUp className="h-5 w-5" />} tone="info" />
+            <KpiCard
+              label="Revenu mensuel"
+              value={paymentsKnown ? formatDzd(monthlyRev, { compact: true }) : "—"}
+              icon={<TrendingUp className="h-5 w-5" />}
+              tone="info"
+            />
           </button>
-          <button type="button" onClick={() => setTab("debt")} title={`Encours total (toutes créances, y compris non échues) — dont ${formatDzd(pastDueDebt)} échues (en retard)`} className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
-            <KpiCard label="Encours total créances" value={formatDzd(overdueDebt, { compact: true })} hint={`dont ${formatDzd(pastDueDebt, { compact: true })} échues`} icon={<AlertTriangle className="h-5 w-5" />} tone="danger" />
+          <button
+            type="button"
+            onClick={() => setTab("debt")}
+            title={`Encours des tranches (base échéancier : somme des restes dus T1–T3, y compris non échues) — dont ${formatDzd(pastDueDebt)} échues (en retard). Le solde comptable (charges − paiements) peut différer : les paiements au-delà des restes dus (avances) sont portés en excess_amount (DATA-039).`}
+            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+          >
+            <KpiCard
+              label="Encours total créances"
+              value={debtSummaryKnown ? formatDzd(overdueDebt, { compact: true }) : "—"}
+              hint={
+                debtSummaryKnown
+                  ? `base échéancier · dont ${formatDzd(pastDueDebt, { compact: true })} échues`
+                  : undefined
+              }
+              icon={<AlertTriangle className="h-5 w-5" />}
+              tone="danger"
+            />
           </button>
           <button type="button" onClick={() => setTab("expenses")} title="Voir les dépenses en attente" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
             <KpiCard label="Dépenses en attente" value={pendingExpenses} icon={<Receipt className="h-5 w-5" />} tone="warning" />

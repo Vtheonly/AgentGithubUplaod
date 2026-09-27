@@ -387,6 +387,13 @@ export interface PaymentRepository {
   observeByStudent(studentId: string): Observable<Payment[]>;
   observeById(id: string): Observable<Payment | null>;
   /**
+   * T-423 (CACHE-103, GitHub issue #23): force a re-read past the cache
+   * TTL and await it — the Finances page's "Réessayer" hook for the
+   * honest-degradation state. Optional: mock/test repositories never
+   * degrade, so they need not implement it.
+   */
+  refresh?(): Promise<void>;
+  /**
    * T-330 (58th session, 2026-09-13): the CANONICAL per-payment coverage
    * read — the `payment_allocations` rows written server-side by
    * collect_and_allocate_payment (the waterfall RPC, migration 0033).
@@ -550,6 +557,12 @@ export interface InstallmentRepository {
   observeByParent(parentId: string): Observable<Installment[]>;
   observeByStudent(studentId: string): Observable<Installment[]>;
   observeById(id: string): Observable<Installment | null>;
+  /**
+   * T-423 (CACHE-103, GitHub issue #23): force a re-read past the cache
+   * TTL and await it — the Finances page's "Réessayer" hook. Optional
+   * (the mock never degrades).
+   */
+  refresh?(): Promise<void>;
   markPaid(id: string, paymentId: string): Promise<Result<Installment>>;
   /**
    * Waterfall Allocation Engine — distribute a payment across all
@@ -671,6 +684,13 @@ export interface ImportInstallmentInput {
 
 export interface DebtRepository {
   observeSummary(): Observable<DebtSummary[]>;
+  /**
+   * T-423 (CACHE-103, GitHub issue #23): force the summary re-read past
+   * the cache TTL and await it — the Finances page's "Réessayer" hook
+   * (the refreshAging sibling for the Créances surface). Optional (the
+   * mock never degrades).
+   */
+  refreshSummary?(): Promise<void>;
   observeParentProfile(parentId: string): Observable<ParentFinancialProfile | null>;
   /**
    * T-405 — cross-year debt aging & payment-behavior tracking
@@ -989,6 +1009,12 @@ export interface LedgerRepository {
   observe(): Observable<LedgerEntry[]>;
   observeByParent(parentId: string): Observable<LedgerEntry[]>;
   observeByAccount(accountId: string): Observable<LedgerEntry[]>;
+  /**
+   * T-423 (CACHE-103, GitHub issue #23): force a re-read past the cache
+   * TTL and await it — the Finances page's "Réessayer" hook. Optional
+   * (the mock never degrades).
+   */
+  refresh?(): Promise<void>;
   append(entry: LedgerEntry): Promise<Result<LedgerEntry>>;
   appendMany(entries: readonly LedgerEntry[]): Promise<Result<readonly LedgerEntry[]>>;
   /**
