@@ -74,6 +74,12 @@ export function OverviewTab({
     (debtAging.find((b) => b.bucket === "91_180")?.debtorCount ?? 0) +
     (debtAging.find((b) => b.bucket === "180_plus")?.debtorCount ?? 0);
   const outstanding = kpis?.outstandingDebt ?? 0;
+  // T-426 (DATA-045, GitHub issue #24 Track-4): the DEDICATED overdue
+  // metric — the DZD actually past due (dynamic predicate), distinct from
+  // the card's total-receivables value. The card was previously labeled
+  // "Créances en retard" while showing the TOTAL invoiced balance
+  // (194.2M incl. future tranches) — a total presented as late debt.
+  const overdueNow = kpis?.overdueAmount ?? 0;
 
   const items: DashboardLayoutItem[] = [
     {
@@ -123,7 +129,7 @@ export function OverviewTab({
     },
     {
       id: "kpi-debt",
-      label: "Créances ouvertes",
+      label: "Encours total annuel",
       x: 6,
       y: 0,
       w: 3,
@@ -137,11 +143,13 @@ export function OverviewTab({
           label={t("dashboard.kpi.outstandingDebt")}
           value={kpis ? formatDzd(outstanding, { compact: true }) : "—"}
           subValue={
-            chronicAmount > 0
-              ? `${formatDzd(chronicAmount, { compact: true })} urgents (${chronicFamilies} f.)`
-              : debtAging.length > 0
-                ? `${overdueFamilies} f. en retard`
-                : undefined
+            overdueNow > 0
+              ? `${formatDzd(overdueNow, { compact: true })} en retard · ${overdueFamilies} f.`
+              : chronicAmount > 0
+                ? `${formatDzd(chronicAmount, { compact: true })} urgents (${chronicFamilies} f.)`
+                : debtAging.length > 0
+                  ? `${overdueFamilies} f. en retard`
+                  : undefined
           }
           tone="danger"
           gradientKey="outstanding-debt"

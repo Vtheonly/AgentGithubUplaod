@@ -70,7 +70,7 @@ export const ar = {
       totalParents: "الأولياء",
       totalStaff: "الموظفون",
       monthlyRevenue: "الدخل الشهري",
-      outstandingDebt: "ديون متأخرة",
+      outstandingDebt: "إجمالي الذمم السنوية",
       pendingExpenses: "مصاريف معلقة",
       attendanceRate: "معدل الحضور",
       overdueAlerts: "تنبيهات متأخرة",

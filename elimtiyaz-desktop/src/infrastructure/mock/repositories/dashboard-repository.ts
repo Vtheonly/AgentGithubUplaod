@@ -27,6 +27,7 @@ import { GRADE_LEVELS, GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER } 
 import {
   agingBucketFromDays,
   monthlyRevenue,
+  overdueAmount,
   revenueByMonth,
 } from "../../../domain/calc/payment";
 import {
@@ -35,6 +36,15 @@ import {
   maxDaysOverdueFromLedger,
 } from "../../../domain/calc/ledger";
 import { store, delay } from "./mock-store";
+
+/**
+ * T-426 (DATA-045): the canonical dynamic-overdue amount over the mock
+ * store's installment rows — the SAME `overdueAmount` helper the Supabase
+ * repo's KPI path uses (parity on the new `overdueAmount` KPI field).
+ */
+function overdueInstallmentAmountFromStore(): number {
+  return overdueAmount(store.installments);
+}
 
 export class MockDashboardRepository implements DashboardRepository {
   /**
@@ -75,6 +85,10 @@ export class MockDashboardRepository implements DashboardRepository {
       totalParents: store.parents.length,
       totalStaff: store.personnel.length,
       monthlyRevenue: monthlyRevenue(store.payments),
+      // T-426 (DATA-045): the mock computes the SAME canonical dynamic
+      // overdue amount as the Supabase repo (the temporal predicate over
+      // the installment rows) — parity on the new KPI field.
+      overdueAmount: overdueInstallmentAmountFromStore(),
       outstandingDebt: totalOutstanding,
       pendingExpenses: store.expenses.filter((e) => e.status === "submitted").length,
       attendanceRateToday,
@@ -242,6 +256,9 @@ export class MockDashboardRepository implements DashboardRepository {
       totalStaff: store.personnel.length,
       monthlyRevenue: monthlyRev,
       outstandingDebt: totalOutstanding,
+      // T-426 (DATA-045): the canonical dynamic-overdue amount (parity with
+      // the Supabase repo's new KPI field).
+      overdueAmount: overdueInstallmentAmountFromStore(),
       pendingExpenses: store.expenses.filter((e) => e.status === "submitted").length,
       attendanceRateToday,
       overdueAlerts: store.notifications.filter((n) => n.type === "payment_overdue" && !n.readAt).length,

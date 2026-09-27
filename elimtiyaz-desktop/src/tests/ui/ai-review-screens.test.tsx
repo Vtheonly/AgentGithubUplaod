@@ -233,6 +233,7 @@ const KPIS: DashboardKpi = {
   totalStaff: 14,
   monthlyRevenue: 300,
   outstandingDebt: 700,
+  overdueAmount: 300,
   pendingExpenses: 0,
   attendanceRateToday: 0.94,
   overdueAlerts: 0,

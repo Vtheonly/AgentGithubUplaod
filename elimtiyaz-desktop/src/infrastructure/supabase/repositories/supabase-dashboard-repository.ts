@@ -22,8 +22,8 @@ import type {
   DemographicSlice,
 } from "../../../domain/model/operations";
 import type { AgingBucket } from "../../../domain/model/payment";
-import { buildWindowAnchoredBuckets, daysBetweenFloor } from "../../../domain/calc/shared/dates";
-import { agingBucketFromDays } from "../../../domain/calc/payment/queries";
+import { buildWindowAnchoredBuckets, daysBetweenFloor, isStrictlyPast } from "../../../domain/calc/shared/dates";
+import { agingBucketFromDays, isInstallmentOverdue } from "../../../domain/calc/payment/queries";
 import { callCollectionRpc, paginateKeyset } from "./supabase-shared-repositories";
 import type { PaymentRow, InstallmentRow } from "../types";
 import { GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER, type GradeLevel } from "../../../domain/model/student";
@@ -139,7 +139,32 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       }, 0);
 
       // Overdue alerts computed directly from installments (100% reliable)
-      const overdueAlerts = allInstallments.filter((i) => i.status === "overdue").length;
+      // T-426 (DATA-045): DYNAMIC — the canonical temporal predicate, never
+      // the `status === "overdue"` string (live: ZERO rows carry that
+      // status while 874 rows are dynamically overdue). Same for the new
+      // dedicated `overdueAmount` metric (the DZD actually past due —
+      // future T2/T3 tranches are "à échoir", never "en retard").
+      const asOverdueInput = (i: {
+        status: string | null;
+        amount_due: number | string | null;
+        amount_paid: number | string | null;
+        amount_pending: number | string | null;
+        due_date: string;
+      }) => ({
+        status: i.status,
+        amountDue: Number(i.amount_due) || 0,
+        amountPaid: Number(i.amount_paid) || 0,
+        amountPending: Number(i.amount_pending) || 0,
+        dueDate: i.due_date,
+      });
+      const overdueAlerts = allInstallments.filter((i) =>
+        isInstallmentOverdue(asOverdueInput(i), now),
+      ).length;
+      const overdueAmount = allInstallments.reduce((sum, i) => {
+        const input = asOverdueInput(i);
+        if (!isInstallmentOverdue(input, now)) return sum;
+        return sum + Math.max(0, input.amountDue - input.amountPaid - input.amountPending);
+      }, 0);
 
       const attendanceRecords = attendanceRes.data ?? [];
       let attendanceRateToday = 1.0;
@@ -156,6 +181,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         totalStaff: staffRes.count ?? 0,
         monthlyRevenue,
         outstandingDebt,
+        overdueAmount,
         pendingExpenses: expensesRes.count ?? 0,
         attendanceRateToday,
         overdueAlerts,
@@ -168,6 +194,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         totalStaff: 0,
         monthlyRevenue: 0,
         outstandingDebt: 0,
+        overdueAmount: 0,
         pendingExpenses: 0,
         attendanceRateToday: 1.0,
         overdueAlerts: 0,
@@ -327,6 +354,16 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         const pending = Number(row.amount_pending) || 0;
         const remaining = Math.max(0, due - paid - pending);
         if (remaining <= 0) continue;
+
+        // DATA-046 (T-426, GitHub issue #24's Track-2 aging finding): only
+        // PAST-DUE rows age. `daysBetweenFloor` clamps a future due date to
+        // 0 days — not negative — so a not-yet-due row (a future T2/T3
+        // tranche) silently landed in the "0_30" bucket, inflating the
+        // "current" receivable band (and the KPI's overdue-family count,
+        // which sums the buckets' debtorCount) with balances that are not
+        // late at all. A future row is "à échoir" (not yet due), never
+        // aging — it is excluded from every bucket here.
+        if (!isStrictlyPast(row.due_date, now)) continue;
 
         const daysOverdue = daysBetweenFloor(row.due_date, now);
         const bucket = agingBucketFromDays(daysOverdue);

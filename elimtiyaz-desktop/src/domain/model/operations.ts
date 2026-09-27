@@ -95,6 +95,15 @@ export interface DashboardKpi {
   readonly totalStaff: number;
   readonly monthlyRevenue: number;
   readonly outstandingDebt: number;
+  /**
+   * T-426 (DATA-045): the DZD amount actually PAST DUE (the canonical
+   * dynamic-overdue predicate: not paid + due date < now + remaining > 0).
+   * Distinct from `outstandingDebt` (the TOTAL invoiced balance — includes
+   * future not-yet-due tranches). The Overview KPI card presents this as
+   * its dedicated overdue sub-metric so a total-receivables number is
+   * never mistaken for late debt.
+   */
+  readonly overdueAmount: number;
   readonly pendingExpenses: number;
   readonly attendanceRateToday: number;
   readonly overdueAlerts: number;

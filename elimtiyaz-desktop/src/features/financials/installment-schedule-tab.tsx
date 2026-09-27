@@ -59,7 +59,7 @@ import {
   totalOutstanding,
 } from "../../domain/model/payment";
 import { deriveTrancheWaveStats } from "../../domain/calc/payment/tranche-waves";
-import { isInstallmentSettled } from "../../domain/calc/payment/queries";
+import { isInstallmentOverdue, isInstallmentSettled } from "../../domain/calc/payment/queries";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Users, X } from "lucide-react";
 import { Button } from "../../shared/ui/button";
@@ -301,7 +301,11 @@ export function InstallmentScheduleTab({
   const filtered = useMemo(() => {
     let list = rows;
     if (categoryFilter !== "all") list = list.filter((i) => i.category === categoryFilter);
-    if (statusFilter !== "all") list = list.filter((i) => i.status === statusFilter);
+    // T-426 (DATA-045): the "En retard" filter option is the canonical
+    // DYNAMIC predicate (the status string never says "overdue" on live
+    // data — the option matched ZERO rows and rendered an empty table).
+    if (statusFilter === "overdue") list = list.filter((i) => isInstallmentOverdue(i));
+    else if (statusFilter !== "all") list = list.filter((i) => i.status === statusFilter);
     // T-413: the family scope (the StudentActionsMenu deep link).
     if (familyFilter !== "all") list = list.filter((i) => i.parentId === familyFilter);
     return list;
@@ -316,7 +320,11 @@ export function InstallmentScheduleTab({
     const totalDue = sumInstallmentsDue(filtered);
     const totalPaid = sumInstallmentsPaid(filtered);
     const totalRemaining = totalOutstanding(filtered);
-    const overdueCount = filtered.filter((i) => i.status === "overdue").length;
+    // T-426 (DATA-045): the "En retard" counter is the canonical DYNAMIC
+    // predicate — the static `status === "overdue"` filter matched ZERO
+    // live rows (statuses are paid/unpaid/partial) while 874 rows were
+    // dynamically overdue, so the strip always showed "0".
+    const overdueCount = filtered.filter((i) => isInstallmentOverdue(i)).length;
     return { totalDue, totalPaid, totalRemaining, overdueCount };
   }, [filtered]);
 
@@ -412,6 +420,11 @@ export function InstallmentScheduleTab({
               <AlertTriangle className="size-2.5 mr-0.5" /> Alerte auto
             </Badge>
           )}
+          {i.status !== "overdue" && isInstallmentOverdue(i) && (
+            <Badge variant="outline" className="text-[9px] text-status-danger bg-status-danger/10 w-fit">
+              <AlertTriangle className="size-2.5 mr-0.5" /> En retard
+            </Badge>
+          )}
         </div>
       ),
     },
@@ -469,7 +482,10 @@ export function InstallmentScheduleTab({
     const parent = parents.find((p) => p.id === collectFor.parentId);
     // T-103 — canonical INV-4-family remaining (due − paid − pending).
     const remaining = installmentRemaining(collectFor);
-    const isOverdue = collectFor.status === "overdue";
+    // T-426 (DATA-045): the collect modal's overdue flag is the canonical
+    // DYNAMIC predicate, never the `status` string (live statuses carry
+    // paid/unpaid/partial — the string never says "overdue").
+    const isOverdue = isInstallmentOverdue(collectFor);
     const overdueDays = isOverdue
       ? Math.max(0, Math.floor((Date.now() - new Date(collectFor.dueDate).getTime()) / 86_400_000))
       : undefined;

@@ -7,7 +7,9 @@
  * Submodules:
  *   - `sums`               — sumPaidPayments, sumInstallmentsDue, sumInstallmentsPaid
  *   - `queries`            — installmentRemaining, totalOutstanding, overdueAmount,
- *                            maxDaysOverdue, agingBucketFromDays, currentTrancheLabel
+ *                            isInstallmentOverdue (T-426 — THE dynamic-overdue
+ *                            predicate), maxDaysOverdue, agingBucketFromDays,
+ *                            currentTrancheLabel
  *   - `waterfall-allocator` — allocatePaymentToInstallments, isOverpayment
  *   - `lifo-reversal`      — revertPaymentAllocation, reevaluateInstallmentStatus
  *   - `clearance`          — clearPendingAllocation (PENDING → PAID bank clearance)

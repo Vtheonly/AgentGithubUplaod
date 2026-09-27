@@ -1,3 +1,29 @@
+## 2026-09-27 — The 110th session — T-426 OPENED (GitHub issues #24/#25, Phase 1): the branch consolidation + the DYNAMIC-overdue predicate + the aging future-row guard — DATA-045/DATA-046 registered and RESOLVED/TESTED, the t-426 unit suite green, the full-vitest failure set byte-identical to the 18-failure baseline
+
+### The mandate
+
+The owner supplied the infrastructure tokens (Supabase sbp/secret, GitHub PAT) and mandated: consolidate every branch into main (keep main only), read the audit documentation + AGENTS.md BEFORE any change, work the issues-#24/#25 consolidated task list (with the explicit caveat that the pasted audit "may or may not be the issue" — each item to be re-verified against current code + live data first), commit each unit of work separately with push+merge after each commit, stay conflict-safe against a concurrent agent, document every discovery, and deliver the zips at the end.
+
+### The session's standing discoveries (the stale-audit verification)
+
+- **The branch consolidation was a no-op by containment:** `origin/t-423-finance-zeros-fix`'s tip IS an ancestor of main (fresh `merge-base --is-ancestor` + `rev-list --count main..branch` = 0, run after a `--prune` fetch — the §15.59 protocol). The branch was deleted; only `main` remains; zero history lost.
+- **The audit's Track-1 item-1 root-cause claim is STALE on live data:** the "ÉLÈVES: 0" symptom was attributed to bulk-imported students carrying `is_active IS NULL` — the live census (read-only) shows all 1,137 alive students with `is_active = true` (0 NULL, 0 false). The plausible live mechanism for "0" is the CACHE-103-class silent-zero `catch` still present in `kpisForRange` (the fallback zeroes) — registered as T-428's scope, NOT the is_active filter.
+- **The live status census (the DATA-045 evidence):** `installments.status` = paid 2442 / unpaid 2675 / partial 839 / **overdue 0** — while the dynamic predicate counts **874** rows. Every `status === "overdue"` surface was structurally zero.
+- **Three audit items are ALREADY fixed on main** (the audit predates T-423/424/425): Track-3 item-4's OFFSET→RPC replacement (T-423's 0123 RPC-first path, migration 0123's four collection RPCs — though `financial-realtime.ts`'s debt refresh still walks OFFSET reads for the ledger: PERF-508, registered), Track-7 item-2's "duplicate deriveTrancheWaves clone" (T-424 already reduced it to a view model over the canonical derivation), and Track-3 item-1's "eager tab mounting" (Radix Tabs unmount inactive content — `forceMount` is not used; the audit's premise doesn't hold; the page-level shared loads are by-design inputs, not tab mounting).
+
+### What was fixed (T-426 Phase 1 — one commit)
+
+- **DATA-046 (Phase A):** the aging-chart future-row guard — `debtByAgingForRange` now requires `isStrictlyPast(due_date, now)` before bucketing; a future T2/T3 row contributes to NO bucket (its family is not a "0–30 days" debtor).
+- **DATA-045 (Phase B):** the canonical `isInstallmentOverdue` predicate (not paid + strictly past due + INV-4 remaining > 0 — pending uncleared funds count as coverage, mirroring `isInstallmentSettled`); `overdueAmount` re-anchored to sum it (the pre-existing helper, reused — no parallel implementation); the new `DashboardKpi.overdueAmount` dedicated overdue metric (mock parity in the SAME change); the Supabase `overdueAlerts` switched from the static string to the predicate; the Tranches tab's "En retard" counter, its "En retard" FILTER OPTION (which returned an empty table on live data), the collect-modal overdue flag, and the row badge; the Overview KPI card relabeled "Encours total annuel" (fr/en/ar — was "Créances en retard" showing the TOTAL balance) with the dedicated "X en retard · Y f." sub-metric.
+
+### The gates
+
+tsc 0 · eslint 0 errors on every changed file · the new suite `t-426-dynamic-overdue.test.ts` **7/7** (the predicate's truth table incl. the stale-status trap + the future-due trap + the pending-coverage trap; the aging future-row exclusion; the KPI's dynamic counts) · t-353 regression 22/22 · FULL vitest **4,213 passed / 18 failed — the failure set byte-identical to the pre-change baseline** (diff-verified: `FAIL` lists sorted + compared — 0 differences; +7 = the new suite) · the live census via the Management-API SQL endpoint (§11.1 conventions: file payloads, curl UA).
+
+### What is deliberately preserved
+
+The `overdueAlerts` mock semantics (the mock's notification-based count — the mock/supabase divergence predates this change and is documented in the model's field docs); the aging bucket edges (0/30/60/90/180 — the §15.1 boundaries); `daysBetweenFloor`'s clamp (now relied upon, documented); the wave derivations (untouched — T-427's scope); every write path (read-side only).
+
 ## 2026-09-27 — The 107th session — T-423 COMPLETE (GitHub issue #23 IMPLEMENTED / TESTED / LIVE-VERIFIED): the finance-zeros fix — Phases A+B landed (the honest degradation + retry, the keyset pagination class sweep, migration 0123's SECURITY DEFINER read RPCs), the acceptance criteria ALL PASS live, and PERF-505's definitive attribution is recorded
 
 ### The mandate (the owner's go-ahead with the infrastructure tokens)

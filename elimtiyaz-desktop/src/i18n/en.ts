@@ -71,7 +71,7 @@ export const en = {
       totalParents: "Parents",
       totalStaff: "Staff",
       monthlyRevenue: "Monthly revenue",
-      outstandingDebt: "Overdue receivables",
+      outstandingDebt: "Total annual receivables",
       pendingExpenses: "Pending expenses",
       attendanceRate: "Attendance rate",
       overdueAlerts: "Overdue alerts"

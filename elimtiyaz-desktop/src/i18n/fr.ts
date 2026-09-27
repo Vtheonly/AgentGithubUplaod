@@ -67,7 +67,7 @@ export const fr = {
       totalParents: "Parents",
       totalStaff: "Personnel",
       monthlyRevenue: "Revenu mensuel",
-      outstandingDebt: "Créances en retard",
+      outstandingDebt: "Encours total annuel",
       pendingExpenses: "Dépenses en attente",
       attendanceRate: "Taux de présence",
       overdueAlerts: "Alertes en retard",
