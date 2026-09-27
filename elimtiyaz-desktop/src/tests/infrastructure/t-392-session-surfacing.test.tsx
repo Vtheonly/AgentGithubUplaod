@@ -208,12 +208,16 @@ describe("T-392 / AUTH-302 — auth-provider session eviction", () => {
 // OPS-317 — the seed-error recording (honest empty, visible reason)
 // ============================================================================
 
-/** A client whose whole-tenant SELECT always fails with the given error. */
+/** A client whose whole-tenant SELECT always fails with the given error.
+ * T-423: the chain now models the keyset read (gt/order/limit — the
+ * parents/students seeds paginate on the primary key). */
 function failingSelectClient(error: { code?: string; message: string }): SupabaseClient {
   const chain = {
     eq: () => chain,
     is: () => chain,
-    order: async () => ({ data: null, error }),
+    gt: () => chain,
+    order: () => chain,
+    limit: async () => ({ data: null, error }),
   };
   const client = {
     from: (table: string) => {
@@ -273,7 +277,9 @@ describe("T-392 / OPS-317 — seed diagnostics recording", () => {
     const chain = {
       eq: () => chain,
       is: () => chain,
-      order: async () => ({ data: [], error: null }),
+      gt: () => chain,
+      order: () => chain,
+      limit: async () => ({ data: [], error: null }),
     };
     const client = { from: () => ({ select: () => chain }) } as unknown as SupabaseClient;
     const repo = new SupabaseParentRepository(client);

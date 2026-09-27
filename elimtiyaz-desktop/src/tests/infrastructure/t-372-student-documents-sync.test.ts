@@ -203,6 +203,7 @@ class FakeQuery {
   private isInsert = false;
   private isUpdate = false;
   private isDelete = false;
+  private limitClause: number | null = null;
 
   constructor(private readonly table: FakeTable) {}
 
@@ -211,9 +212,13 @@ class FakeQuery {
   update(payload: Row) { this.payload = payload; this.isUpdate = true; return this; }
   delete() { this.isDelete = true; return this; }
   eq(col: string, value: unknown) { this.filters.push((r) => r[col] === value); return this; }
+  // T-423: the keyset page-walker's predicate (id > last — uuids compare
+  // lexicographically, which matches the pagination contract in tests).
+  gt(col: string, value: unknown) { this.filters.push((r) => String(r[col]) > String(value)); return this; }
   is(col: string, value: null) { this.filters.push((r) => (value === null ? r[col] == null : r[col] === value)); return this; }
   in(col: string, values: readonly unknown[]) { this.filters.push((r) => values.includes(r[col])); return this; }
   order(col: string, opts?: { ascending?: boolean }) { this.orders.push({ col: asc_col(col), asc: opts?.ascending !== false }); return this; }
+  limit(n: number) { this.limitClause = n; return this; }
   single() { this.singleMode = "single"; return this; }
   maybeSingle() { this.singleMode = "maybe"; return this; }
 
@@ -247,6 +252,7 @@ class FakeQuery {
         return asc ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0);
       });
     }
+    if (this.limitClause != null) rows = rows.slice(0, this.limitClause);
     if (this.singleMode === "single") {
       if (rows.length !== 1) return { data: null, error: { code: "PGRST116", message: "JSON object requested" } };
       return { data: rows[0], error: null };

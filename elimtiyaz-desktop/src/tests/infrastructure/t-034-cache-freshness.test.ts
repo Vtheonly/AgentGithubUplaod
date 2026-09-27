@@ -170,13 +170,23 @@ describe("T-034 — SupabasePaymentRepository cache freshness (CROSS-104)", () =
     expect(failedObs.get()).toEqual([]);
     expect(table.reads).toBe(1);
 
-    // Server recovers + TTL elapses → the cache recovers WITHOUT a restart.
+    // T-423 (CACHE-103, GitHub issue #23): the seed now retries IN-CYCLE
+    // with backoff (1s/3s) — a transient failure no longer even waits for
+    // the TTL to recover. Advance the first backoff window: attempt 2
+    // succeeds and the cache recovers WITHOUT a restart and WITHOUT the TTL.
+    vi.advanceTimersByTime(1_000);
+    await flush();
+    expect(failedObs.get().map((p) => p.id)).toEqual(["r1"]);
+    expect(table.reads).toBe(2);
+
+    // The TTL freshness policy is unchanged: the next observe past the TTL
+    // re-seeds (a third read).
     vi.advanceTimersByTime(30_001);
     const recoveredObs = repo.observe();
     await flush();
     const recovered = recoveredObs.get();
     expect(recovered.map((p) => p.id)).toEqual(["r1"]);
-    expect(table.reads).toBe(2);
+    expect(table.reads).toBe(3);
   });
 });
 

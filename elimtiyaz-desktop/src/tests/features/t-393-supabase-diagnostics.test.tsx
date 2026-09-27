@@ -467,10 +467,14 @@ describe("T-393 B. SupabaseDiagnosticsTab — the PASS/FAIL/NON TESTÉ matrix vi
       "el-imtiyaz.session",
       JSON.stringify({ tenantId: "00000000-0000-0000-0000-000000000001", userId: "staff-1" }),
     );
+    // T-423: the chain models the keyset read (gt/order/limit — the
+    // parents seed paginates on the primary key).
     const chain = {
       eq: () => chain,
       is: () => chain,
-      order: async () => ({ data: null, error: { code: "ERR_UNAUTHORIZED", message: "JWT expired" } }),
+      gt: () => chain,
+      order: () => chain,
+      limit: async () => ({ data: null, error: { code: "ERR_UNAUTHORIZED", message: "JWT expired" } }),
     };
     const failingClient = { from: () => ({ select: () => chain }) } as unknown as SupabaseClient;
     const repo = new SupabaseParentRepository(failingClient);

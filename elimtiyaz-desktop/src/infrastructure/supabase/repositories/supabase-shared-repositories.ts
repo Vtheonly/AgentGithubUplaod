@@ -512,6 +512,53 @@ function finishSeed<R>(
   }
 }
 
+/**
+ * T-423 (Phase A3 — DATA-038/DATA-040): the keyset page-walker for the
+ * observable-cache seeds (§15.62c's wire form, exactly as
+ * paginateImportPreflight proved it live: `WHERE id > last ORDER BY id
+ * LIMIT 1000` — every page an index scan on the primary key, no OFFSET
+ * re-scan, no sort of the filtered set). The server caps every response at
+ * 1,000 rows (live-proven in T-421), so any seed over a >1,000-row table
+ * MUST walk pages this way — the previous single reads silently truncated
+ * (installments 1,000 of 5,963 = T1-only Tranches forever; students 1,000
+ * of 1,137 = 137 students missing from the CRM).
+ *
+ * Unlike paginateImportPreflight (fail-closed THROW — the import's write
+ * safety), this returns the rows and lets the caller's retry ladder +
+ * finishSeed handle failures: a UI seed degrades honestly, it never
+ * aborts a write.
+ */
+async function paginateKeyset<R extends { id: string }>(
+  fetchPageAfter: (lastId: string) => Promise<{ data: R[] | null; error: { message: string } | null }>,
+): Promise<R[]> {
+  const PAGE = 1000;
+  const rows: R[] = [];
+  let lastId = "";
+  for (;;) {
+    const { data, error } = await fetchPageAfter(lastId);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PAGE) return rows;
+    lastId = page[page.length - 1].id;
+  }
+}
+
+/**
+ * T-423 (Phase A3): restore a seed's display order after a keyset walk.
+ * The keyset pages arrive ordered by `id` (the index scan); the cache's
+ * observable order contract (collected_at desc, due_date asc, …) is
+ * restored in-memory — ISO-8601 timestamps and dates sort correctly as
+ * strings, and Array.prototype.sort is stable so ties keep the id order.
+ */
+function sortByRawColumn<R>(rows: R[], col: keyof R & string, ascending: boolean): R[] {
+  return [...rows].sort((a, b) => {
+    const av = String(a[col] ?? "");
+    const bv = String(b[col] ?? "");
+    return ascending ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
+}
+
 // ============================================================================
 // Row → domain mappers
 // ============================================================================
@@ -819,14 +866,19 @@ export class SupabaseParentRepository implements ParentRepository {
     this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
-      const { data, error } = await this.client
-        .from("parents")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .is("deleted_at", null)
-        .order("last_name", { ascending: true });
-      if (error) throw error;
-      this.cache.set((data as ParentRow[]).map(mapParentRow));
+      // T-423 (Phase A3 / DATA-040 — the class sweep): keyset-paginated for
+      // the same cap reason as the students seed (live parents = 741, under
+      // the cap today — one growth-year away from silently dropping the
+      // tail of the roster; §15.63c: census the CLASS, not the instance).
+      // last_name asc restored in-memory.
+      const parentRows = await paginateKeyset<ParentRow>(async (lastId) => {
+        const base = this.client.from("parents").select("*").eq("tenant_id", tenantId).is("deleted_at", null);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return { data: (data ?? []) as ParentRow[], error: error as { message: string } | null };
+      });
+      this.cache.set(sortByRawColumn(parentRows, "last_name", true).map(mapParentRow));
     } catch (e) {
       // OPS-317 (T-392): still the honest empty cache (the UI contract does
       // not change) — but the classified reason is now recorded + logged so
@@ -1110,14 +1162,21 @@ export class SupabaseStudentRepository implements StudentRepository {
     this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
-      const { data, error } = await this.client
-        .from("students")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .is("deleted_at", null)
-        .order("last_name", { ascending: true });
-      if (error) throw error;
-      const students = (data as StudentRow[]).map(mapStudentRow);
+      // T-423 (Phase A3 / DATA-040 — the class sweep): the students seed was
+      // ONE unpaginated read — PostgREST's 1,000-row cap silently dropped
+      // every student past the first thousand ordered by last_name (live:
+      // 1,000 of 1,137 — 137 students missing from the CRM cache, the
+      // lists, the pickers and the per-family wiring). KEYSET on the
+      // primary key (§15.62c) reads the whole roster; the display order
+      // (last_name asc) is restored in-memory.
+      const studentRows = await paginateKeyset<StudentRow>(async (lastId) => {
+        const base = this.client.from("students").select("*").eq("tenant_id", tenantId).is("deleted_at", null);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return { data: (data ?? []) as StudentRow[], error: error as { message: string } | null };
+      });
+      const students = sortByRawColumn(studentRows, "last_name", true).map(mapStudentRow);
       // SYNC-110/T-372 — the canonical `student_documents` table is the
       // document store BOTH platforms share (the website lists documents
       // from this exact table under the 0043 parent-select policy; staff
@@ -2054,25 +2113,18 @@ export class SupabasePaymentRepository implements PaymentRepository {
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
       // DATA-035 (T-411, FA-14): PAGINATED — PostgREST caps every response
-      // at 1000 rows (§15.29c); the previous single unpaginated select
-      // silently truncated the journal/KPIs/diagnostic caches in
-      // high-volume environments. 1000/page via .range(), same as the
-      // realtime bridge's fetchAllPages.
-      const rows: PaymentRow[] = [];
-      const pageSize = 1000;
-      for (let from = 0; ; from += pageSize) {
-        const { data, error } = await this.client
-          .from("payments")
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .order("collected_at", { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        const page = (data ?? []) as PaymentRow[];
-        rows.push(...page);
-        if (page.length < pageSize) break;
-      }
-      return rows.map(mapPaymentRow);
+      // at 1000 rows (§15.29c). T-423 (Phase A3 / DATA-038): converted from
+      // .range() OFFSET pagination to KEYSET on the primary key (§15.62c —
+      // every page an index scan, no OFFSET re-scan of the sorted set);
+      // the display order (collected_at desc) is restored in-memory.
+      const rows = await paginateKeyset<PaymentRow>(async (lastId) => {
+        const base = this.client.from("payments").select("*").eq("tenant_id", tenantId);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return { data: (data ?? []) as PaymentRow[], error: error as { message: string } | null };
+      });
+      return sortByRawColumn(rows, "collected_at", false).map(mapPaymentRow);
     });
     finishSeed("payments", this.cache, outcome);
   }
@@ -2777,14 +2829,21 @@ export class SupabaseLedgerRepository implements LedgerRepository {
     // empty ledger — the receipts and diagnostic surfaces showed nothing).
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
-      const { data, error } = await this.client
-        .from("ledger_entries")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("entry_date", { ascending: false })
-        .limit(2000);
-      if (error) throw error;
-      return (data as LedgerEntryRow[]).map(mapLedgerRow);
+      // T-423 (Phase A3 / DATA-038 — the ledger leg of the class sweep):
+      // the old `.limit(2000)` was silently capped at 1,000 rows by
+      // PostgREST (live: 3,342 rows exist) — the receipts surface and the
+      // per-parent ledger histories lost every entry past the first
+      // thousand. KEYSET pagination on the primary key (§15.62c) reads the
+      // whole collection; the display order (entry_date desc) is restored
+      // in-memory.
+      const rows = await paginateKeyset<LedgerEntryRow>(async (lastId) => {
+        const base = this.client.from("ledger_entries").select("*").eq("tenant_id", tenantId);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return { data: (data ?? []) as LedgerEntryRow[], error: error as { message: string } | null };
+      });
+      return sortByRawColumn(rows, "entry_date", false).map(mapLedgerRow);
     });
     finishSeed("ledger", this.cache, outcome);
   }
@@ -3283,13 +3342,20 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
     // "Aucune tranche T1/T2/T3" with zero error indication.
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
-      const { data, error } = await this.client
-        .from("installments")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("due_date", { ascending: true });
-      if (error) throw error;
-      return (data as InstallmentRow[]).map(mapInstallmentRow);
+      // T-423 (Phase A3 / DATA-038): the installments seed was ONE
+      // unpaginated read — the 1,000-row cap cached exactly tranche 1 of
+      // 5,963 rows (live-measured: by tranche_number = [[1,1000]]), so the
+      // Tranches tab showed T1-only forever and the Créances KPI computed
+      // 43.65M instead of the true 207.77M. KEYSET on the primary key
+      // (§15.62c) reads all tranches; due_date asc restored in-memory.
+      const rows = await paginateKeyset<InstallmentRow>(async (lastId) => {
+        const base = this.client.from("installments").select("*").eq("tenant_id", tenantId);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return { data: (data ?? []) as InstallmentRow[], error: error as { message: string } | null };
+      });
+      return sortByRawColumn(rows, "due_date", true).map(mapInstallmentRow);
     });
     finishSeed("installments", this.cache, outcome);
   }
@@ -4030,21 +4096,42 @@ export class SupabaseDebtRepository implements DebtRepository {
    */
   private async readSummaries(): Promise<import("../../../domain/model/payment").DebtSummary[]> {
     const tenantId = requireTenantId();
-    const { data, error } = await this.client
-      .from("installments")
-      .select("parent_id, amount_due, amount_paid, amount_pending, due_date")
-      .eq("tenant_id", tenantId)
-      .neq("status", "paid");
-    if (error) throw error;
-    const nowMs = Date.now();
-    const byParent = new Map<string, { outstanding: number; days: number }>();
-    for (const row of (data ?? []) as {
+    // T-423 (Phase A3 / DATA-038): the unpaid-installments read was ONE
+    // unpaginated read — the 1,000-row cap aggregated over the first
+    // thousand unpaid rows only (live: 4,227 unpaid exist), undercounting
+    // every parent's outstanding and the Créances KPI with it. KEYSET on
+    // the primary key (§15.62c) walks the whole unpaid set.
+    const unpaid = await paginateKeyset<{
+      id: string;
       parent_id: string;
       amount_due: number | string;
       amount_paid: number | string;
       amount_pending: number | string;
       due_date: string;
-    }[]) {
+    }>(async (lastId) => {
+      const base = this.client
+        .from("installments")
+        .select("id, parent_id, amount_due, amount_paid, amount_pending, due_date")
+        .eq("tenant_id", tenantId)
+        .neq("status", "paid");
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return {
+        data: (data ?? []) as {
+          id: string;
+          parent_id: string;
+          amount_due: number | string;
+          amount_paid: number | string;
+          amount_pending: number | string;
+          due_date: string;
+        }[],
+        error: error as { message: string } | null,
+      };
+    });
+    const nowMs = Date.now();
+    const byParent = new Map<string, { outstanding: number; days: number }>();
+    for (const row of unpaid) {
       const remaining = Math.max(
         0,
         Number(row.amount_due ?? 0) - Number(row.amount_paid ?? 0) - Number(row.amount_pending ?? 0),
@@ -4087,13 +4174,20 @@ export class SupabaseDebtRepository implements DebtRepository {
     );
     // DATA-026: the REAL per-parent student count (was hardcoded 0 —
     // every live-mode Créances row showed "0 enfant(s)").
-    const { data: studentRows, error: studentErr } = await this.client
-      .from("students")
-      .select("parent_id")
-      .eq("tenant_id", tenantId);
-    if (studentErr) throw studentErr;
+    // T-423 (Phase A3 / DATA-040): keyset-paginated — the single read was
+    // capped at 1,000 of 1,137 students (per-parent counts undercounted).
+    const studentRows = await paginateKeyset<{ id: string; parent_id: string }>(async (lastId) => {
+      const base = this.client.from("students").select("id, parent_id").eq("tenant_id", tenantId);
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return {
+        data: (data ?? []) as { id: string; parent_id: string }[],
+        error: error as { message: string } | null,
+      };
+    });
     const studentsPerParent = new Map<string, number>();
-    for (const r of (studentRows ?? []) as { parent_id: string }[]) {
+    for (const r of studentRows) {
       studentsPerParent.set(r.parent_id, (studentsPerParent.get(r.parent_id) ?? 0) + 1);
     }
     return [...byParent.entries()]

@@ -1,6 +1,6 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline (the 25-failure pre-existing set, byte-identical across the 101st/102nd/103rd sessions). The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment).",
-  "_task": "T-419 Phase 4 (2026-09-27) \u2014 recorded from the 103rd-session baseline runs",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-423 Phase A3 (2026-09-27).",
+  "_task": "T-423 Phase A3 (2026-09-27) — the baseline moved by a registered, verified change: the payments seed left .range() for keyset pagination (id > last, order id, limit 1000 — §15.62c), and the t-034-cache-freshness fake supports that chain (gt/order/limit) but not .range — so all 4 of its documented environment-class failures now pass, including the updated in-cycle-retry assertion. t-034-cache-freshness.test.ts leaves the failing set; the failure count 25 → 21. Everything else byte-identical (the remaining 10 files are untouched environment-class failures).",
   "testFiles": {
     "failed": 11,
     "passed": 212,
@@ -18,7 +18,6 @@
     "src/tests/cross-platform/Tier4Boundary.test.ts",
     "src/tests/cross-platform/Tier4OperationSequences.test.ts",
     "src/tests/features/dashboard/t-355-t-356-departments-bucket-parity.test.tsx",
-    "src/tests/infrastructure/t-034-cache-freshness.test.ts",
     "src/tests/infrastructure/t-390-financial-realtime.test.ts",
     "src/tests/integration/vault-compliance-architecture.test.tsx",
     "src/tests/security/t-134-parent-name-rendering.test.ts",

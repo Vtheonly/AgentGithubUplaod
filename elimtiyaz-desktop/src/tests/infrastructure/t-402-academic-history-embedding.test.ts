@@ -58,14 +58,18 @@ class FakeQuery {
   private forceError = false;
   private payload: Row | null = null;
   private isUpdate = false;
+  private limitClause: number | null = null;
   constructor(private readonly table: FakeTable) {}
   select(_cols: string) { return this; }
   insert(payload: Row) { this.payload = payload; return this; }
   update(payload: Row) { this.payload = payload; this.isUpdate = true; return this; }
   eq(col: string, value: unknown) { this.filters.push((r) => r[col] === value); return this; }
+  // T-423: the keyset page-walker's predicate (id > last).
+  gt(col: string, value: unknown) { this.filters.push((r) => String(r[col]) > String(value)); return this; }
   is(col: string, value: null) { this.filters.push((r) => (value === null ? r[col] == null : r[col] === value)); return this; }
   in(col: string, values: readonly unknown[]) { this.filters.push((r) => values.includes(r[col])); return this; }
   order(col: string, opts?: { ascending?: boolean }) { this.orders.push({ col, asc: opts?.ascending !== false }); return this; }
+  limit(n: number) { this.limitClause = n; return this; }
   failWith(e: unknown) { this.forceError = true; return this; }
   private matches(): Row[] {
     return this.table.rows.filter((r) => this.filters.every((f) => f(r)));
@@ -86,6 +90,7 @@ class FakeQuery {
         return asc ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0);
       });
     }
+    if (this.limitClause != null) rows = rows.slice(0, this.limitClause);
     return { data: rows, error: null };
   }
   then(onFulfilled: any, onRejected?: any) { return this.exec().then(onFulfilled, onRejected); }
