@@ -592,6 +592,26 @@ function isRpcUnavailableError(err: { code?: string | number; message?: string }
  * degrade to the slower wire).
  */
 /**
+ * T-432 (PERF-509, the live 500-storm report): the in-flight dedupe for the
+ * collection RPCs. At boot the SAME collection is read by SEVERAL surfaces
+ * within one tick — the dashboard KPIs AND the aging chart both walk
+ * `read_installments_collection` while the finance seeds walk it a third
+ * time (the owner's console showed three simultaneous failures of the same
+ * RPC) — each a full SECURITY DEFINER scan + jsonb_agg of the tenant's
+ * schedule. Concurrent callers of the SAME function now share ONE request:
+ * the completed read is NEVER cached (every awaiter gets the same rows or
+ * the same error, and the NEXT call after completion issues a fresh read —
+ * zero staleness by construction; the repos' own TTL/freshness policies and
+ * the realtime bridge keep the caches honest).
+ */
+const inflightCollectionRpcs = new Map<string, Promise<unknown>>();
+
+/** Test seam: drop any stranded in-flight entries (isolation between tests). */
+export function __clearInflightCollectionRpcsForTests(): void {
+  inflightCollectionRpcs.clear();
+}
+
+/**
  * T-424 (DATA-043): exported for the dashboard repository — the SAME
  * RPC-first + unavailable-classifies-to-fallback contract the financial
  * seeds use (§15.64e: version-skew safety belongs in the read path).
@@ -600,18 +620,32 @@ export async function callCollectionRpc<R>(
   client: SupabaseClient,
   fn: string,
 ): Promise<R[] | null> {
-  let res: { data: R[] | null; error: { code?: string; message?: string } | null };
+  // T-432: share the in-flight request with concurrent callers of the same
+  // collection (see the comment above — dedupe only, never result caching).
+  const pending = inflightCollectionRpcs.get(fn);
+  if (pending) return (await pending) as R[] | null;
+  const request = (async () => {
+    let res: { data: R[] | null; error: { code?: string; message?: string } | null };
+    try {
+      res = await client.rpc(fn);
+    } catch (e) {
+      if (isRpcUnavailableError(e as { message?: string })) return null;
+      throw e;
+    }
+    if (res.error) {
+      if (isRpcUnavailableError(res.error)) return null;
+      throw res.error;
+    }
+    return res.data ?? [];
+  })();
+  inflightCollectionRpcs.set(fn, request);
   try {
-    res = await client.rpc(fn);
-  } catch (e) {
-    if (isRpcUnavailableError(e as { message?: string })) return null;
-    throw e;
+    return (await request) as R[] | null;
+  } finally {
+    // Remove only when this entry is still OUR promise (a same-tick caller
+    // may have re-registered after a rejection was observed elsewhere).
+    if (inflightCollectionRpcs.get(fn) === request) inflightCollectionRpcs.delete(fn);
   }
-  if (res.error) {
-    if (isRpcUnavailableError(res.error)) return null;
-    throw res.error;
-  }
-  return res.data ?? [];
 }
 
 // ============================================================================

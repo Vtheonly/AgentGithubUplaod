@@ -172,10 +172,25 @@ class FakeQuery {
 
 class FakeClient {
   tables: Record<string, Row[]> = {};
+  /**
+   * T-432: the RPC surface. DEFAULT = the version-skew shape (PGRST202,
+   * "Could not find the function") so every pre-T-432 test keeps exercising
+   * the DIRECT fallback path exactly as before; a test that configures
+   * `rpcResponses[fn]` exercises the RPC-first path.
+   */
+  rpcResponses: Record<string, { data: Row[] | null; error: { code?: string; message?: string } | null }> = {};
 
   from(tableName: string): FakeQuery {
     if (!this.tables[tableName]) this.tables[tableName] = [];
     return new FakeQuery(this.tables[tableName]);
+  }
+
+  async rpc(fn: string): Promise<{ data: Row[] | null; error: { code?: string; message?: string } | null }> {
+    const configured = this.rpcResponses[fn];
+    if (configured === undefined) {
+      return { data: null, error: { code: "PGRST202", message: `Could not find the function public.${fn}` } };
+    }
+    return configured;
   }
 }
 
@@ -280,6 +295,7 @@ async function settle(): Promise<void> {
 describe("SupabaseCalendarRepository (T-175)", () => {
   beforeEach(() => {
     fakeClient.tables = {};
+    fakeClient.rpcResponses = {};
     localStorage.setItem(
       "el-imtiyaz.session",
       JSON.stringify({ tenantId: TENANT, userId: STAFF }),
@@ -585,5 +601,101 @@ describe("SupabaseCalendarRepository (T-175)", () => {
         expect(websiteTypes).toContain(`"${k}"`);
       }
     }
+  });
+});
+
+// ============================================================================
+// T-432 (PERF-509, the live 500-storm report) — the RPC-first payments read
+// ============================================================================
+describe("SupabaseCalendarRepository T-432 — RPC-first payments read", () => {
+  beforeEach(() => {
+    fakeClient.tables = {};
+    fakeClient.rpcResponses = {};
+    localStorage.setItem(
+      "el-imtiyaz.session",
+      JSON.stringify({ tenantId: TENANT, userId: STAFF }),
+    );
+    return () => localStorage.removeItem("el-imtiyaz.session");
+  });
+
+  it("13. the RPC collection is the payment source: month window + paid/partial + chronological order + parent point-lookup", async () => {
+    // The RPC returns the tenant's WHOLE payments collection (PK order,
+    // every status) — the repository restores the month semantics in-memory.
+    fakeClient.rpcResponses["read_payments_collection"] = {
+      data: [
+        // The real wire format carries an explicit offset (PostgREST emits
+        // UTC); the fixtures mirror it so the epoch window test at the
+        // EXCLUSIVE Oct-1 boundary is timezone-independent.
+        paymentRow({ collected_at: "2026-09-10T09:15:00Z", parents: undefined }),
+        paymentRow({ id: "pay-uuid-2", status: "partial", collected_at: "2026-09-10T12:00:00Z", parents: undefined }),
+        paymentRow({ id: "pay-uuid-3", collected_at: "2026-08-31T12:00:00Z", parents: undefined }),
+        paymentRow({ id: "pay-uuid-4", status: "pending", collected_at: "2026-09-10T15:00:00Z", parents: undefined }),
+        paymentRow({ id: "pay-uuid-5", collected_at: "2026-10-01T00:00:00Z", parents: undefined }),
+      ],
+      error: null,
+    };
+    // The parent display names resolve via the PK point-lookup (NOT an embed).
+    fakeClient.tables["parents"] = [
+      { id: PARENT_UUID, tenant_id: TENANT, display_name: "MAMER A", first_name: "Amina", last_name: "MAMER" },
+    ];
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const obs = repo.observeForDate("2026-09-10");
+    await settle();
+    const events = obs.get();
+    // Only pay-uuid-1 (paid, 09:15) + pay-uuid-2 (partial, 12:00) survive:
+    // pay-uuid-3 is outside the month, pay-uuid-4 is pending, pay-uuid-5
+    // hits the EXCLUSIVE upper bound (Oct 1 midnight — the next month's).
+    expect(events).toHaveLength(2);
+    expect(events.every((e) => e.kind === "payment_received")).toBe(true);
+    expect(events.map((e) => e.time)).toEqual(["09:15", "12:00"]);
+    const first = events[0] as PaymentCalendarEvent;
+    expect(first.paymentId).toBe("pay-uuid-1");
+    expect(first.parentName).toBe("MAMER A");
+    expect(first.title).toBe("Paiement — MAMER A");
+    expect(first.receiptNumber).toBe("RC-2026-0001");
+  });
+
+  it("14. a payment whose parent row cannot be resolved degrades to the parent id (the embed-parity convention)", async () => {
+    fakeClient.rpcResponses["read_payments_collection"] = {
+      data: [paymentRow({ collected_at: "2026-09-10T09:15:00Z", parents: undefined })],
+      error: null,
+    };
+    // No parents table rows at all (RLS-hidden / deleted) — the embed used
+    // to return null and mapPaymentRow fell back to parent_id; the
+    // point-lookup keeps the same degradation.
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const obs = repo.observeForDate("2026-09-10");
+    await settle();
+    const events = obs.get();
+    expect(events).toHaveLength(1);
+    const pay = events[0] as PaymentCalendarEvent;
+    expect(pay.parentName).toBe(PARENT_UUID);
+    expect(pay.title).toBe(`Paiement — ${PARENT_UUID}`);
+  });
+
+  it("15. a transient RPC failure (the statement-timeout class) degrades the bucket silently — no crash, no fabricated events", async () => {
+    fakeClient.rpcResponses["read_payments_collection"] = {
+      data: null,
+      error: { code: "57014", message: "canceling statement due to statement timeout" },
+    };
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const obs = repo.observeForDate("2026-09-10");
+    await settle();
+    expect(obs.get()).toHaveLength(0);
+  });
+
+  it("16. version-skew (no RPC configured → PGRST202) keeps the DIRECT fallback path (the T-424 contract)", async () => {
+    // rpcResponses stays empty → the FakeClient answers PGRST202 → the
+    // repository falls back to the direct read (the pre-T-432 wire).
+    fakeClient.tables["payments"] = [paymentRow()];
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const obs = repo.observeForDate("2026-09-10");
+    await settle();
+    const events = obs.get();
+    expect(events).toHaveLength(1);
+    const pay = events[0] as PaymentCalendarEvent;
+    expect(pay.paymentId).toBe("pay-uuid-1");
+    // The direct path resolves names through the EMBEDDED parents row.
+    expect(pay.parentName).toBe("MAMER A");
   });
 });

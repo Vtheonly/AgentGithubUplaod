@@ -149,6 +149,26 @@ describe("T-354 — the wave grouping follows the CANONICAL trancheNumber column
     expect(waves[1].pct).toBe(40);
   });
 
+  it("T-432 (DATA-049): the strip carries the TUITION-isolated rate — the Statistics card's number reconciles on the pooled strip", () => {
+    // The owner's live pair: Statistics T1 (scolarité isolée) = 77 %,
+    // Finance T1 (toutes catégories) = 75 %. Same canonical rows, different
+    // bases — the strip now surfaces BOTH so the two surfaces reconcile.
+    const rows: Installment[] = [
+      // Tuition T1: 10,000 due / 7,700 paid → 77 %.
+      mkInstallment({ label: "1EME TRANCHE (V1)", trancheNumber: 1, amountDue: 10_000, amountPaid: 7_700, status: "partial" }),
+      // Transport T1: 2,000 due / 1_300 paid → 65 %.
+      mkInstallment({ label: "Tranche 1 — Transport", trancheNumber: 1, category: "transport", amountDue: 2_000, amountPaid: 1_300, status: "partial" }),
+    ];
+    const waves = deriveTrancheWaves(rows);
+    expect(waves[0].pct).toBe(75); // pooled: 9,000 / 12,000
+    expect(waves[0].tuitionPct).toBe(77); // tuition-isolated: 7,700 / 10,000
+    // No tuition rows in the wave → null (the line hides itself).
+    const transportOnly: Installment[] = [
+      mkInstallment({ label: "Tranche 2 — Transport", trancheNumber: 2, category: "transport", amountDue: 15_000, amountPaid: 5_000, status: "partial" }),
+    ];
+    expect(deriveTrancheWaves(transportOnly)[1].tuitionPct).toBeNull();
+  });
+
   it("transport rows (label 'Tranche N — Transport') group by the same column", () => {
     const rows: Installment[] = [
       mkInstallment({ label: "Tranche 1 — Transport (Boumerdès)", trancheNumber: 1, category: "transport", amountDue: 30_000, amountPaid: 30_000, status: "paid" }),

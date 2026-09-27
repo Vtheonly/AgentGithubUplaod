@@ -90,8 +90,9 @@ import type { AlertPriority } from "../../../domain/model/operations";
 import type { PaymentMethod, PaymentCategory } from "../../../domain/model/payment";
 import { parentDisplayName } from "../../../domain/model/parent";
 import type { Role } from "../../../core/rbac/roles";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, callCollectionRpc } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
+import type { PaymentRow } from "../types";
 
 // ============================================================================
 // Row types (local — the calendar table is not in the shared types.ts yet)
@@ -565,6 +566,60 @@ export class SupabaseCalendarRepository implements CalendarRepository {
   }
 
   private async fetchPayments(bounds: { start: string; end: string }): Promise<CalendarEvent[]> {
+    // T-432 (PERF-509, the live 500-storm report): RPC FIRST. The direct
+    // RLS-filtered read below — parents embed + collected_at range + order —
+    // is the live-measured 6.5–19.9 s class (T-422 §3.5: the per-row RLS
+    // policy-function chain); at boot it crossed the statement timeout and
+    // 500ed in the owner's console (the exact URL in the report). The
+    // collection RPC (migration 0123: SECURITY DEFINER, one immune round
+    // trip) returns the tenant's payments; the month window, the
+    // paid/partial status and the display order are restored in-memory
+    // (free at month scale — the T-423 ordering note), and the parent
+    // display names resolve via PK point-lookups for ONLY the month's
+    // distinct families (a handful of indexed rows, not a joined scan).
+    const rpcRows = await callCollectionRpc<PaymentRow>(this.client, "read_payments_collection");
+    if (rpcRows) {
+      // T-432: epoch comparison (Date.parse) — the RPC rows and monthBounds
+      // carry DIFFERENT-but-equivalent ISO shapes ("…+00:00", "…Z",
+      // "…T00:00:00.000Z"), and a bare lexicographic compare breaks at the
+      // window edges (a prefix of the bound string sorts "less" than the
+      // bound itself). PostgREST always emits an explicit offset, so every
+      // row parses to its true instant.
+      const startMs = Date.parse(bounds.start);
+      const endMs = Date.parse(bounds.end);
+      const monthRows = rpcRows
+        .filter(
+          (p) =>
+            (p.status === "paid" || p.status === "partial") &&
+            Number.isFinite(Date.parse(p.collected_at)) &&
+            Date.parse(p.collected_at) >= startMs &&
+            Date.parse(p.collected_at) < endMs,
+        )
+        .sort((a, b) => Date.parse(a.collected_at) - Date.parse(b.collected_at));
+      if (monthRows.length === 0) return [];
+      const namesById = await this.fetchParentDisplayNames([...new Set(monthRows.map((p) => p.parent_id))]);
+      return monthRows.map((p) =>
+        mapPaymentRow(
+          {
+            id: p.id,
+            receipt_number: p.receipt_number,
+            payment_number: p.payment_number,
+            parent_id: p.parent_id,
+            amount: p.amount,
+            method: p.method,
+            category: p.category,
+            status: p.status,
+            collected_at: p.collected_at,
+            collected_by: p.collected_by,
+            created_at: p.created_at,
+            parents: namesById.get(p.parent_id) ?? null,
+          },
+          isoDateOf(p.collected_at),
+        ),
+      );
+    }
+    // ── The version-skew fallback: the pre-T-432 direct read (a DB without
+    //    migration 0123, a permission-deny shape — the T-424 contract). ──
     const { data, error } = await this.client
       .from("payments")
       .select(
@@ -579,6 +634,40 @@ export class SupabaseCalendarRepository implements CalendarRepository {
     return (data ?? []).map((row: Record<string, any>) =>
       mapPaymentRow(row as unknown as PaymentJoinedRow, isoDateOf(row.collected_at)),
     );
+  }
+
+  /**
+   * T-432: the PK point-lookup for the month's distinct family display
+   * names (chunked `.in()` reads — a handful of indexed rows per chunk).
+   * A lookup failure degrades the name to the parent id EXACTLY like the
+   * old embedded join did when the parents row was RLS-hidden (the embed
+   * returned null → mapPaymentRow fell back to parent_id); the month's
+   * payment events never fail because a name could not resolve.
+   */
+  private async fetchParentDisplayNames(
+    parentIds: string[],
+  ): Promise<Map<string, { display_name: string | null; first_name: string | null; last_name: string | null }>> {
+    const namesById = new Map<string, { display_name: string | null; first_name: string | null; last_name: string | null }>();
+    const CHUNK = 100;
+    for (let i = 0; i < parentIds.length; i += CHUNK) {
+      const chunk = parentIds.slice(i, i + CHUNK);
+      try {
+        const { data } = await this.client
+          .from("parents")
+          .select("id, display_name, first_name, last_name")
+          .in("id", chunk);
+        for (const row of (data ?? []) as Array<{ id: string; display_name: string | null; first_name: string | null; last_name: string | null }>) {
+          namesById.set(row.id, {
+            display_name: row.display_name,
+            first_name: row.first_name,
+            last_name: row.last_name,
+          });
+        }
+      } catch {
+        // Name resolution is best-effort (the degradation note above).
+      }
+    }
+    return namesById;
   }
 
   private async fetchAudit(bounds: { start: string; end: string }): Promise<CalendarEvent[]> {

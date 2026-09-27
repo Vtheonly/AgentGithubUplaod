@@ -1,3 +1,25 @@
+## 2026-09-28 — The 111th session — T-432 COMPLETE: the boot-storm read-performance family (PERF-509) + the wave-basis reconciliation (DATA-049) — migration 0126 (the RLS InitPlan hoist + the debt-aging attribution materialization + three read indexes) + the calendar RPC-first read + the in-flight RPC dedupe + the "dont scolarité" line; the live application owner-gated with the full runbook
+
+### The owner's report answered end to end
+
+- **The 500 storm:** the live console showed the app's whole read family 500ing at (re)initialisation (the payments month read, compute_debt_aging_summary, read_installments_collection ×3, the students/parents counts — all "canceling statement due to statement timeout"). Read-only probes THIS session proved the DB healthy outside the storm (200s at 0.38–1.42 s; the RPC gates intact): the failure is load-shaped — the RLS per-row policy chain (PERF-505's measured 6.5–19.9 s class) + three concurrent copies of the same collection RPC + the seeds' retry amplifier saturating the small shared compute until even trivial counts cross the statement timeout.
+- **The 77 vs 75:** BOTH correct on their bases (Statistics isolates scolarité = 77 %; the Finance strip pools every category = 75 % — the T-424 canonical math + the T-427 basis disclosure). The strip now SHOWS the compared figure: "dont scolarité : 77 %" under the pooled 75 % (the Statistics card's exact formula), so the pair reconciles at a glance.
+
+### What was built
+
+- **Migration 0126 (owner-gated runbook: apply_0126_live.sh + verify_t-432.sql + docs/recovery/t-432-live-verification.md):** (1) the RLS InitPlan hoist — the 15 hot SELECT policies wrap their SECURITY DEFINER helper calls in (select …): once-per-statement evaluation instead of per-row, semantics identical (the parent/student self-scope subqueries verbatim; write + portal policies untouched); (2) compute_debt_aging_rows' academic-year attribution materialized ONCE (the ay CTE + inlined subqueries replacing ~6–8k per-row attribute_academic_year invocations — parity pinned by verify_t-432.sql C3: every live obligation's academicYear == the ORIGINAL helper's answer for the same date); (3) three read indexes (students (tenant_id, parent_id) for read_debt_summary_collection's no-deleted-filter count; attendance_records (tenant_id, date) for the KPI today read; expense_tickets (tenant_id, submitted_at desc) for the calendar's latest-300).
+- **The calendar RPC-first payments read:** read_payments_collection + the month window/paid-partial/order restored in-memory (epoch comparison) + the family names via chunked PK point-lookups (a handful of indexed rows, not a joined scan); the pre-T-432 direct read becomes the version-skew fallback; name resolution degrades to the parent id exactly like the old RLS-hidden embed.
+- **The in-flight RPC dedupe (callCollectionRpc):** concurrent callers of the same collection share ONE request — the boot storm's 3× read_installments_collection collapses to 1. Dedupe ONLY: a completed read is never reused (zero staleness by construction). Test seam: __clearInflightCollectionRpcsForTests().
+- **The reconciliation line (DATA-049):** deriveTrancheWaves gains tuitionPct (round(paid/due × 100), no clamp — character-identical to the Statistics card); rendered when the category filter is "all", hidden when a specific category makes the strip its own isolated basis.
+
+### The gates
+
+tsc 0 · eslint 0 errors on every changed file · check:migrations append-only OK (121 + 1 new) · the new suites 10/10 (4 calendar RPC tests + 5 dedupe tests + 1 tuitionPct test) · FULL vitest **4,233 passed / 18 failed — the failure set byte-identical to the 110th-session baseline** (the 27-line FAIL census diffed: only durations + the +10 new tests differ) · the anon-key live health probes (3 rounds: 200s at 0.38–1.42 s; the three staff RPCs answer their permission gate < 1.6 s).
+
+### The follow-ups
+
+PERF-510 (the global boot staggering / the compute-size decision — conditional, only if the storm recurs post-0126) · the live application of 0126 (the owner re-supplies the sbp_ token; the runbook documents the BEFORE/AFTER timing evidence and the expected ALL-GREEN verify results) · the dashboard-vs-finance default-year note (getLatestAcademicYear vs the clock-derived default — identical today, verify when future years are created).
+
 ## 2026-09-28 — The 110th session CLOSE — T-431 COMPLETE + the Track-6/7 evaluations: the Tranches tab's academic-year scope (DASH-410) + the SPREAD-100/TECHDEBT-100 registrations + the AGENTS.md §11.1 quirk #14 (the GitHub Push Protection discovery)
 
 ### What was fixed / evaluated

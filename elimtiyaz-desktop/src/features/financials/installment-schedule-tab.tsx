@@ -119,6 +119,20 @@ export interface TrancheWave {
   readonly pending: number;
   readonly pct: number;
   readonly isNextTarget: boolean;
+  /**
+   * T-432 (DATA-049, the owner's Statistics-vs-Finance question): the
+   * TUITION-isolated collection rate for the wave — the SAME number the
+   * Statistics "Vélocité par Vague" card shows (its grid isolates
+   * scolarité). The strip pools every category in the current selection,
+   * so when the category filter is "all" these are DIFFERENT truths on
+   * different bases (the owner's live pair: 77 % scolarité vs 75 % toutes
+   * catégories); surfacing the tuition figure ON the strip lets the two
+   * surfaces reconcile at a glance. Null when the selection carries no
+   * tuition rows for the wave. Uses the Statistics card's exact formula
+   * (sharePct: round(paid/due × 100), no clamp) so the number is
+   * character-identical there and here.
+   */
+  readonly tuitionPct: number | null;
 }
 
 // T-425 (the owner's confirmed official model): EXACTLY 3 tranches —
@@ -151,6 +165,9 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
   // first index still carrying a canonical remaining balance.
   const stats = deriveTrancheWaveStats(rows, Date.now());
   const pooled = new Map<1 | 2 | 3, { due: number; paid: number; pending: number; remaining: number }>();
+  // T-432 (DATA-049): the tuition-isolated pool — the same rows the
+  // Statistics wave grid groups; see TrancheWave.tuitionPct.
+  const tuitionPooled = new Map<1 | 2 | 3, { due: number; paid: number }>();
   for (const w of stats) {
     const acc = pooled.get(w.wave) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
     acc.due += w.dueTotal;
@@ -158,6 +175,12 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
     acc.pending += w.pendingTotal;
     acc.remaining += w.remainingTotal;
     pooled.set(w.wave, acc);
+    if (w.category === "tuition") {
+      const t = tuitionPooled.get(w.wave) ?? { due: 0, paid: 0 };
+      t.due += w.dueTotal;
+      t.paid += w.paidTotal;
+      tuitionPooled.set(w.wave, t);
+    }
   }
   const firstWithRemaining = [...pooled.entries()]
     .filter(([, acc]) => acc.remaining > 0)
@@ -166,9 +189,11 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
   return TRANCHE_WAVE_META.map(({ index, label, hint }) => {
     const acc = pooled.get(index) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
     const pct = acc.due > 0 ? Math.min(100, Math.round((acc.paid / acc.due) * 100)) : 0;
+    const tuition = tuitionPooled.get(index);
+    const tuitionPct = tuition && tuition.due > 0 ? Math.round((tuition.paid / tuition.due) * 100) : null;
     return {
       index, label, hint,
-      due: acc.due, paid: acc.paid, pending: acc.pending, pct,
+      due: acc.due, paid: acc.paid, pending: acc.pending, pct, tuitionPct,
       isNextTarget: index === firstWithRemaining,
     };
   });
@@ -179,7 +204,17 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
  * fed by `deriveTrancheWaves` (REAL rows only). Honest zero state when the
  * current filters match no tranche rows.
  */
-function TrancheWaveHeader({ waves, basisLabel }: { waves: TrancheWave[]; basisLabel: string }) {
+function TrancheWaveHeader({
+  waves,
+  basisLabel,
+  showTuitionBreakdown,
+}: {
+  waves: TrancheWave[];
+  basisLabel: string;
+  /** T-432 (DATA-049): true when the strip pools every category — the
+   * tuition-isolated line then reconciles it with the Statistics card. */
+  showTuitionBreakdown: boolean;
+}) {
   if (waves.every((w) => w.due === 0)) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-2.5 text-xs text-muted-foreground">
@@ -236,6 +271,18 @@ function TrancheWaveHeader({ waves, basisLabel }: { waves: TrancheWave[]; basisL
             <span className="truncate">Encaissé : {formatDzdPlain(w.paid)}</span>
             <span className="truncate">Dû : {formatDzdPlain(w.due)}</span>
           </div>
+          {/* T-432 (DATA-049): the tuition-isolated rate — the SAME number
+              the Statistics "Vélocité par Vague" card shows, so the two
+              surfaces' different bases reconcile at a glance (the owner's
+              77 % vs 75 %: scolarité isolée vs toutes catégories). */}
+          {showTuitionBreakdown && w.tuitionPct !== null && (
+            <p
+              className="text-[10px] text-muted-foreground font-mono"
+              title="Taux scolarité isolée — le même chiffre que la carte « Vélocité de Recouvrement » des Statistiques (elle isole la scolarité, cette bande regroupe toutes les catégories)"
+            >
+              dont scolarité : {w.tuitionPct}%
+            </p>
+          )}
           {w.pending > 0 && (
             <p className="text-[10px] text-status-warning font-mono">
               Dont en attente (chèque / virement) : {formatDzdPlain(w.pending)}
@@ -651,6 +698,7 @@ export function InstallmentScheduleTab({
               ? "toutes catégories confondues (scolarité, transport, …)"
               : (PAYMENT_CATEGORY_LABELS_FR as Record<string, string>)[categoryFilter] ?? categoryFilter
           }
+          showTuitionBreakdown={categoryFilter === "all"}
         />
 
         {/* Totals header */}
