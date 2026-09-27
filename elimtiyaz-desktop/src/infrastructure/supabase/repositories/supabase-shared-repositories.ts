@@ -263,6 +263,59 @@ export async function rpcWithIdempotentRetry<A extends Record<string, unknown>, 
   return second;
 }
 
+/**
+ * T-421 (IMPORT-116 — fail-closed preflight pagination): the shared
+ * resilient page-walker behind listImportLedgerSourceKeys /
+ * listImportPaymentNumbers / listImportInstallmentIdentities.
+ *
+ * Wire form: KEYSET pagination on the PRIMARY KEY (`id > lastId ORDER BY id
+ * LIMIT 1000`) — every page is an index scan, no OFFSET re-scan, no sort.
+ * (The first version ordered by source_id / payment_number — UNINDEXED
+ * columns — so every page was a full seq-scan + sort of the filtered set;
+ * under the live load of 2026-09-27 01:12–01:21 that made each page take
+ * 4–6.5 s and the statement timeout killed the streams mid-pagination.)
+ * The server caps every request at 1,000 rows (live-proven: range(0, 9999)
+ * returns 1,000), so a complete workbook's preflight is ~13 pages.
+ *
+ * Semantics: the WHOLE pagination retries as a unit (a partial read is
+ * discarded — never returned; live-proven 01:12: page-1-only knowledge
+ * walked the rest of the batch into the 23505 duplicate-key failure the
+ * preflight exists to prevent), up to MAX_ATTEMPTS with backoff; a final
+ * failure THROWS so the import's flush aborts BEFORE any write (fail-closed
+ * — the alternative is writing blind against a database we could not read).
+ */
+async function paginateImportPreflight<T extends { id: string }>(
+  fetchPageAfter: (lastId: string) => Promise<{ data: T[] | null; error: { message: string } | null }>,
+  label: string,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const MAX_ATTEMPTS = 3;
+  const rows: T[] = [];
+  for (let attempt = 1; ; attempt++) {
+    try {
+      rows.length = 0;
+      let lastId = "";
+      for (;;) {
+        const { data, error } = await fetchPageAfter(lastId);
+        if (error) throw new Error(error.message);
+        const page = data ?? [];
+        rows.push(...page);
+        if (page.length < PAGE) return rows;
+        lastId = page[page.length - 1].id;
+      }
+    } catch (e) {
+      if (attempt >= MAX_ATTEMPTS) {
+        throw new Error(
+          `${label}: la base n'a pas répondu après ${MAX_ATTEMPTS} tentatives (${e instanceof Error ? e.message : String(e)}) — ` +
+            "impossible de vérifier les données financières existantes ; AUCUNE écriture ne sera tentée (fail-closed). " +
+            "Réessayez dans quelques minutes (sauvegarde planifiée ou charge en cours ?).",
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 1500 : 4000));
+    }
+  }
+}
+
 // ============================================================================
 // OPS-317 (T-392) — seed-diagnostics registry
 // ============================================================================
@@ -2352,29 +2405,33 @@ export class SupabasePaymentRepository implements PaymentRepository {
    * form (live-proven 23505).
    */
   async listImportPaymentNumbers(): Promise<Set<string>> {
-    const numbers = new Set<string>();
-    try {
-      const tenantId = requireTenantId();
-      const PAGE = 1000;
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await this.client
-          .from("payments")
-          .select("payment_number")
-          .eq("tenant_id", tenantId)
-          .like("payment_number", "IMP-%")
-          .order("payment_number", { ascending: true })
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const page = (data ?? []) as Array<{ payment_number: string }>;
-        for (const row of page) numbers.add(row.payment_number);
-        if (page.length < PAGE) break;
-      }
-    } catch (e) {
-      // Honest degradation: an unreadable preflight returns what it has —
-      // the flush's chunk-level guard still fails fast on real conflicts.
-      console.warn("[SupabasePayment] listImportPaymentNumbers degraded:", (e as Error).message);
-    }
-    return numbers;
+    const tenantId = requireTenantId();
+    // T-421: fail-closed + KEYSET pagination on the PK — every page is an
+    // index scan (the first version's ORDER BY payment_number + LIKE filter
+    // made each page a scan of the whole filtered set; under the live load
+    // of 01:12–01:21 that was 1.3–6.5 s per page and the statement timeout
+    // killed the stream mid-pagination). The set deliberately includes
+    // EVERY payment number (not just IMP-…): the pending batch's receipts
+    // are all IMP-…, so non-import numbers can never match — and skipping
+    // the LIKE keeps the page a pure index scan.
+    const rows = await paginateImportPreflight<{ id: string; payment_number: string }>(
+      (lastId) =>
+        (lastId
+          ? this.client
+              .from("payments")
+              .select("id, payment_number")
+              .eq("tenant_id", tenantId)
+              .gt("id", lastId)
+          : this.client
+              .from("payments")
+              .select("id, payment_number")
+              .eq("tenant_id", tenantId)
+        )
+          .order("id", { ascending: true })
+          .limit(1000) as unknown as Promise<{ data: { id: string; payment_number: string }[] | null; error: { message: string } | null }>,
+      "listImportPaymentNumbers",
+    );
+    return new Set(rows.map((r) => r.payment_number));
   }
 
   async adjust(
@@ -2806,27 +2863,44 @@ export class SupabaseLedgerRepository implements LedgerRepository {
    * chunk 2000 dead).
    */
   async listImportLedgerSourceKeys(): Promise<Set<string>> {
+    const tenantId = requireTenantId();
+    // T-421: fail-closed + KEYSET pagination on the PK (see
+    // paginateImportPreflight). Deliberately reads EVERY row with a
+    // non-null source identity (no source_type filter): the pending batch's
+    // identities are all `bulk_import|…`, other source types can never
+    // match — and dropping the filter keeps each page a pure index scan.
+    // Replaces the cache-based `observe().get()` preflight (empty whenever
+    // the in-process ledger cache is lazy — the exact hole the 23:00:40
+    // re-import failure fell through).
+    const rows = await paginateImportPreflight<{
+      id: string;
+      source_type: string | null;
+      source_id: string | null;
+    }>(
+      (lastId) =>
+        (lastId
+          ? this.client
+              .from("ledger_entries")
+              .select("id, source_type, source_id")
+              .eq("tenant_id", tenantId)
+              .gt("id", lastId)
+          : this.client
+              .from("ledger_entries")
+              .select("id, source_type, source_id")
+              .eq("tenant_id", tenantId)
+        )
+          .order("id", { ascending: true })
+          .limit(1000) as unknown as Promise<{
+          data: { id: string; source_type: string | null; source_id: string | null }[] | null;
+          error: { message: string } | null;
+        }>,
+      "listImportLedgerSourceKeys",
+    );
     const keys = new Set<string>();
-    try {
-      const tenantId = requireTenantId();
-      const PAGE = 1000;
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await this.client
-          .from("ledger_entries")
-          .select("source_type, source_id")
-          .eq("tenant_id", tenantId)
-          .eq("source_type", "bulk_import")
-          .order("source_id", { ascending: true })
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const page = (data ?? []) as Array<{ source_type: string; source_id: string }>;
-        for (const row of page) keys.add(`${row.source_type}|${row.source_id}`);
-        if (page.length < PAGE) break;
+    for (const row of rows) {
+      if (row.source_type != null && row.source_id != null) {
+        keys.add(`${row.source_type}|${row.source_id}`);
       }
-    } catch (e) {
-      // Honest degradation: return what was read — the chunk-level guard
-      // still fails fast on any conflict that slips through.
-      console.warn("[SupabaseLedger] listImportLedgerSourceKeys degraded:", (e as Error).message);
     }
     return keys;
   }
@@ -3464,27 +3538,55 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
    * live-proven 23505/42P10).
    */
   async listImportInstallmentIdentities(): Promise<Set<string>> {
+    const tenantId = requireTenantId();
+    // T-421: fail-closed + KEYSET pagination on the PK (see
+    // paginateImportPreflight). Deliberately reads EVERY row (no
+    // source_type filter — non-import tranches can never collide with the
+    // pending batch's identities, and the filter-free page is a pure index
+    // scan; the first version's ORDER BY source_id seq-scanned the whole
+    // table per page and was the stream the live load killed twice).
+    const rows = await paginateImportPreflight<{
+      id: string;
+      parent_id: string | null;
+      student_id: string | null;
+      category: string | null;
+      tranche_number: number | null;
+    }>(
+      (lastId) =>
+        (lastId
+          ? this.client
+              .from("installments")
+              .select("id, parent_id, student_id, category, tranche_number")
+              .eq("tenant_id", tenantId)
+              .gt("id", lastId)
+          : this.client
+              .from("installments")
+              .select("id, parent_id, student_id, category, tranche_number")
+              .eq("tenant_id", tenantId)
+        )
+          .order("id", { ascending: true })
+          .limit(1000) as unknown as Promise<{
+          data: {
+            id: string;
+            parent_id: string | null;
+            student_id: string | null;
+            category: string | null;
+            tranche_number: number | null;
+          }[] | null;
+          error: { message: string } | null;
+        }>,
+      "listImportInstallmentIdentities",
+    );
     const keys = new Set<string>();
-    try {
-      const tenantId = requireTenantId();
-      const PAGE = 1000;
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await this.client
-          .from("installments")
-          .select("parent_id, student_id, category, tranche_number")
-          .eq("tenant_id", tenantId)
-          .eq("source_type", "bulk_import")
-          .order("source_id", { ascending: true })
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const page = (data ?? []) as Array<{ parent_id: string; student_id: string; category: string; tranche_number: number }>;
-        for (const row of page) keys.add(`${row.parent_id}|${row.student_id}|${row.category}|${row.tranche_number}`);
-        if (page.length < PAGE) break;
+    for (const row of rows) {
+      if (
+        row.parent_id != null &&
+        row.student_id != null &&
+        row.category != null &&
+        row.tranche_number != null
+      ) {
+        keys.add(`${row.parent_id}|${row.student_id}|${row.category}|${row.tranche_number}`);
       }
-    } catch (e) {
-      // Honest degradation: return what was read — the chunk-level guard
-      // still fails fast on any conflict that slips through.
-      console.warn("[SupabaseInstallment] listImportInstallmentIdentities degraded:", (e as Error).message);
     }
     return keys;
   }

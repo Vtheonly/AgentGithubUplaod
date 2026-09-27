@@ -81,6 +81,21 @@ function makeLedgerClient(mode: "ok" | "chunkError" | "throw" | "rpcFails", rpcF
 
   const ledgerTable = {
     select: (cols: string) => {
+      // T-421 (IMPORT-116): the ledger repository's re-import preflight
+      // keyset-reads `id, source_type, source_id` (first page without .gt,
+      // later pages with). This harness's DB is empty — an empty page ends
+      // the pagination immediately, the preflight returns an empty set, and
+      // the flush proceeds to the THROWING upsert this test exists to probe.
+      if (cols === "id, source_type, source_id") {
+        const limit = () => Promise.resolve({ data: [], error: null });
+        const order = () => ({ limit });
+        return {
+          eq: () => ({
+            gt: () => ({ order }),
+            order: () => ({ limit }),
+          }),
+        };
+      }
       if (cols !== "*") throw new Error(`unexpected select ${cols}`);
       // The seed() chain: .select("*").eq().order().limit() → thenable.
       return {

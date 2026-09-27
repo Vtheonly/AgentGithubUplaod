@@ -269,21 +269,35 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     let installmentsLanded = 0;
 
     // T-421 (IMPORT-116): the DB-based cross-run preflight sets. All three
-    // reads run in parallel; each degrades to an empty set (first-import
-    // semantics) when the repository doesn't implement the optional method
-    // or the read fails.
-    const [dbLedgerKeys, existingPaymentNumbers, existingInstallmentIdentities] =
-      await Promise.all([
-        typeof this.deps.ledger?.listImportLedgerSourceKeys === "function"
-          ? this.deps.ledger.listImportLedgerSourceKeys()
-          : Promise.resolve(new Set<string>()),
-        typeof this.deps.payments?.listImportPaymentNumbers === "function"
-          ? this.deps.payments.listImportPaymentNumbers()
-          : Promise.resolve(new Set<string>()),
-        typeof this.deps.installments?.listImportInstallmentIdentities === "function"
-          ? this.deps.installments.listImportInstallmentIdentities()
-          : Promise.resolve(new Set<string>()),
-      ]);
+    // reads run in parallel. FAIL-CLOSED: an unreadable preflight (statement
+    // timeout under load — live-proven 01:12 during the 01:00 scheduled
+    // backup, where the first version's degrade-to-partial fallback filtered
+    // only page 1 and walked the rest into the 23505) ABORTS the flush
+    // BEFORE any write — writing blind against a database we could not read
+    // is exactly the silent-corruption class this contract forbids.
+    let dbLedgerKeys: Set<string>;
+    let existingPaymentNumbers: Set<string>;
+    let existingInstallmentIdentities: Set<string>;
+    try {
+      [dbLedgerKeys, existingPaymentNumbers, existingInstallmentIdentities] =
+        await Promise.all([
+          typeof this.deps.ledger?.listImportLedgerSourceKeys === "function"
+            ? this.deps.ledger.listImportLedgerSourceKeys()
+            : Promise.resolve(new Set<string>()),
+          typeof this.deps.payments?.listImportPaymentNumbers === "function"
+            ? this.deps.payments.listImportPaymentNumbers()
+            : Promise.resolve(new Set<string>()),
+          typeof this.deps.installments?.listImportInstallmentIdentities === "function"
+            ? this.deps.installments.listImportInstallmentIdentities()
+            : Promise.resolve(new Set<string>()),
+        ]);
+    } catch (e) {
+      throw new Error(
+        `Échec de la vérification préalable (preflight) — ${e instanceof Error ? e.message : String(e)}. ` +
+          "AUCUNE écriture financière n'a été tentée (l'état de la base est intact). L'import a été annulé — " +
+          "relancez-le dans quelques minutes.",
+      );
+    }
     // The ledger preflight unions the DB keys with the in-process cache
     // keys (the legacy IMPORT-107 filter) — the cache may hold rows a
     // concurrent writer in THIS process just added.

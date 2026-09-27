@@ -332,6 +332,39 @@ describe("T-421 / IMPORT-116 — DB-based cross-run preflight: a re-import of al
     expect(payments.collected).toHaveLength(1);
     expect(installments.imported).toHaveLength(1);
   });
+
+  it("FAILS CLOSED when a preflight read fails: no write is attempted at all (the 01:12 live shape — a mid-pagination statement timeout must not degrade to partial knowledge)", async () => {
+    // The 01:12 live shape: the scheduled backup's load times the preflight
+    // pagination out mid-stream. The FIRST T-421 version degraded to the
+    // partial set (page 1 only) and walked the rest of the batch into the
+    // 23505 — the exact failure the preflight exists to prevent. The
+    // fail-closed contract: the flush aborts BEFORE any write.
+    class TimingOutPayments extends ReimportPaymentStub {
+      constructor() { super(new Set<string>()); }
+      override async listImportPaymentNumbers(): Promise<Set<string>> {
+        throw new Error(
+          "listImportPaymentNumbers: la base n'a pas répondu après 3 tentatives (canceling statement due to statement timeout)",
+        );
+      }
+    }
+    const ledger = new ReimportLedgerStub([]);
+    const payments = new TimingOutPayments();
+    const installments = new ReimportInstallmentStub(new Set<string>());
+    const adapter = reimportAdapter(ledger, payments, installments);
+
+    await expect(
+      flushWith(adapter, {
+        ledger: [ledgerEntry("stu-1:DEVIS_ANNUEL")],
+        payments: [{ input: paymentInput("IMP-stu-1-FI"), collectedBy: "excel-import" }],
+        installments: [installmentInput(1)],
+      }),
+    ).rejects.toThrow(/vérification préalable \(preflight\).*statement timeout/s);
+
+    // NOTHING was written — not even the streams whose preflight succeeded.
+    expect(ledger.appended).toHaveLength(0);
+    expect(payments.collected).toHaveLength(0);
+    expect(installments.imported).toHaveLength(0);
+  });
 });
 
 // ── IMPORT-117: the installments Result is honored ─────────────────────────
