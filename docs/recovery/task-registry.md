@@ -4592,6 +4592,36 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 - **Status: IMPLEMENTED / TESTED** — the VERIFIED gate is the owner's inspection of a `npm test` run (the unified summary should show: BASELINE-MATCHED, the equivalence layers, the environment-gated census with reasons, and the tier-4 REPORTED line naming PARITY-005). No production code changed (test infrastructure + docs only); the vitest failing set stayed byte-identical to the documented 25-failure baseline through every phase.
 - **Left (the registered follow-ups):** PARITY-005 (the mirror engine's verbatim re-port + the real-Kotlin gradle run — then the tier-4 comparison joins the gating set) and TEST-309 (the 24-file fakes consolidation queue).
 
+## T-423 — The Finance-Zeros Fix: the issue-#23 implementation (Phase A honest degradation + retry + keyset pagination, Phase B SECURITY DEFINER read RPCs) — IN PROGRESS (P0)
+
+**Registered:** 2026-09-27 (the 107th session — the owner's go-ahead on the T-422 fix plan with the infrastructure tokens supplied: "here are all the tokens you need from infrastructure to test if it works make sure it works". The mandate: implement, test, verify, document, commit each task separately with push+merge after each commit, conflict-safe against the concurrent agent.)
+**Problems (all registered by T-422 BEFORE this fix; nothing new needs pre-registration except DATA-040 below):** CACHE-103 (the financial seeds' silent-empty catches) · DATA-038 (the unpaginated installments/debtSummary seeds) · PERF-505 (the fragile direct RLS reads vs the immune RPC path) · DATA-039 (the unlabeled dual-basis créances totals — the labeling pass bundles here) · ACAD-511 (re-registered below with its own acceptance criteria — issue #18's scope, NOT this task)
+**New problem registered BEFORE its fix (§13, the §15.63c class sweep):** **DATA-040** — the STUDENTS seed is ALSO unpaginated: live-measured 2026-09-27, the seed's exact read (`select *` alive, ordered `last_name`) returns **1,000 of 1,137** alive students — 137 students silently missing from the CRM cache (list, pickers, per-family wiring); the parents seed returns 741/741 today (under the cap — same latent class); `seedSummary`'s students count read returns 1,000 of 1,137 (per-parent "X enfant(s)" can undercount). Evidence: `elimtiyaz-desktop/scripts/t-423-class-sweep-probe.mjs` (read-only, live).
+**Related:** GitHub issue #23 (the fix tracker — this task closes it) · T-422 (the diagnosis this implements) · OPS-317/T-392 + seedAging (the honest-degradation precedents) · DATA-035/T-411 + §15.62c (the keyset-pagination precedents) · migration 0111/T-405 (the SECURITY DEFINER RPC pattern) · T-421 (the retry-with-backoff precedent in `paginateImportPreflight`)
+
+### The plan (the issue-#23 §6 fix plan, implemented as separate verified commits)
+
+- **Commit 0 (registration):** this entry + DATA-040 in the problem registry + the class-sweep probe script (the live evidence, read-only).
+- **Commit 1 — Phase A1+A2 (CACHE-103):** the OPS-317 treatment extended to the five financial seed sites (payments ~1944, ledger ~2643, installments ~3136, debtSummary ~3925, allocations ~2045): whole-read retry with backoff (3 attempts), keep-last-known on final failure (the seedAging convention — a failed refresh NEVER wipes a populated cache), a REACTIVE seed-health registry (`observeSeedHealth()`) the Finances page renders as "Échec du chargement — Réessayer" (with KPI cards showing "—" instead of "0 DZD" when degraded AND empty), plus the DATA-039 basis label on the Créances KPI.
+- **Commit 2 — Phase A3 (DATA-038 + DATA-040):** keyset pagination on `id` (§15.62c — index-scan pages, no OFFSET re-scan) for the installments seed, the debtSummary's two reads, the ledger seed (currently capped at 1,000 of 3,342 by the same PostgREST limit), the payments seed (converted from `.range()` OFFSET to keyset), and the students/parents seeds (the class sweep).
+- **Commit 3 — Phase B (PERF-505, sbp token supplied by the owner):** migration 0123 (next free — 0122 is reserved for IMPORT-118's flush RPC): `read_payments_collection` / `read_installments_collection` / `read_ledger_entries_collection` / `read_debt_summary_collection` — SECURITY DEFINER, staff-gated, tenant-scoped, jsonb-payload (immune to the 1,000-row cap), the 0111 pattern. The seeds read RPC-FIRST with the direct keyset read as fallback (version-skew safety). Live-applied atomically with its schema_migrations registration (§15.10) and live-verified.
+- **Commit 4 — Phase B attribution:** the superuser EXPLAIN ANALYZE of the direct reads' policy evaluation (the definitive PERF-505 attribution — the sbp token makes it possible) + the index-coverage review of the financial tables (the standing T-421 item).
+- **Commit 5 — closeout:** the registries, change-log (107th session), current-state, next-task, AGENTS.md §15.64, `docs/recovery/t-423-finance-zeros-fix-verification.md` (the verification record incl. the live acceptance-criteria run).
+- **Commit 6 — delivery:** the zips + manifest (the owner's hand-over request).
+
+### Acceptance criteria (issue #23's checklist — the verification targets)
+
+- Finances → Encaissement shows **Encaissé 162,713,000 DZD** / **Revenu mensuel 162,713,000 DZD** (September 2026).
+- **Encours créances 207,773,800 DZD** (matching the Dettes tab), basis labeled (DATA-039).
+- **Tranches shows T1+T2+T3** (5,963 rows total across the schedule).
+- A read failure shows an **error/retry state, never silent zeros**, and does **not wipe** previously-loaded data (pinned by the regression suite; live reliability measured by the flakiness-meter re-run).
+- A new regression suite pins: failed-seed ≠ empty-UI (keep-last-known), no 1,000-row truncation (the full-collection pagination), and the KPI values cross-checked against the RPC.
+- ACAD-511 / DATA-039 fixed or explicitly re-registered with their own acceptance criteria (DATA-039 labeled here; ACAD-511 re-registered to issue #18 below).
+
+### Status
+
+- **IN PROGRESS** (registered with this commit; each phase updates this section).
+
 ## T-422 — The Finance-Zeros Diagnosis: Encaissement/Créances/Tranches/Paiements show 0 DZD while the Dettes tab shows the real debts — the read-path reliability investigation (the owner's six-hypothesis mandate) — DIAGNOSIS COMPLETE / FIX OWNER-GATED (P0)
 
 **Registered:** 2026-09-27 (the 106th session — the owner's report: *Finances → Encaissement, signed in as admin@elimtiyaz.dz — Encaissé/Revenu mensuel/Encours créances/dont échues/Dépenses ALL 0 DZD; "Aucune tranche T1/T2/T3"; "Aucune tranche ne correspond aux filtres"; Page 1/1; default filters — while the Suivi des Dettes tab shows real debts*; the owner suspected a historique/prior-year import mismatch; the mandate: trace spreadsheet/import → DB → calculations → créances → tranches → paiements → historique → UI, READ-ONLY, and decide which of six hypotheses holds before proposing any change)
