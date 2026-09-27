@@ -1,3 +1,25 @@
+## 2026-09-27 — The 104th session — T-420 EXECUTED: the issue-#20 Excel-import financial integrity (FIVE defects found and fixed: IMPORT-112/113/114/115 + PERF-504), the definitive live verification ALL GREEN — the live DB now matches the Excel source of truth
+
+### The forensic baseline (Phase 0 — commit 07e1a30)
+
+The owner's issue #20: the bulk Excel import "sets all students as fully paid, no outstanding debt". The forensics (`docs/recovery/t-420-import-integrity-baseline.md`): the correct source of truth is `Excel/2027-2026.xlsx` (1,139 named rows — the newer, larger workbook; **942 rows with outstanding balance — 82.7%**); a local reproduction through the canonical pipeline proved the IN-MEMORY path correct (940/942 indebted students match the workbook's own Q column to the DZD); the LIVE database carried ~0 of ~3,346 expected ledger entries and 0 of ~5,963 installments — with no charge entries every account replays to balance 0, the exact reported symptom. The audit trail (import.run_started WITHOUT run_completed, twice) + the row timestamps reconstructed the failure: the realtime refresh storm exhausted the pool → the ledger flush died → the lossy fallbacks swallowed it → the compensating rollback died partway (384 soft-deletes landed, 463 students survived).
+
+### The fixes (Phases 1-6 — commits 298cfac / 5dbc336 / 7246638 / 315884c / 66377fc)
+
+- **IMPORT-112/113 (Phase 1):** honest errors on the Supabase bulk financial write paths — `bulkAppend` no longer funnels exceptions into the lossy `appendMany`; `appendMany` returns Err naming the first failure; `bulkImportInstallments` lost its per-row fallback. Pinned 5/5.
+- **PERF-504 (Phase 2):** `pauseFinancialRealtime()/resumeFinancialRealtime()` — the import modal pauses the eight-collection refresh bridge around its commit; ONE refresh at resume. Pinned 3/3 (source guards).
+- **IMPORT-114 (Phase 3):** the rollback outcome is counted and surfaced — a partial rollback now throws `PARTIAL_ROLLBACK_STATE` with the explicit "la base est dans un ÉTAT PARTIEL" warning. Pinned 3/3.
+- **The regression suite (Phase 4):** the synthetic tri-state workbook (fully-paid/partial/DETTES/overpaid — exact per-student assertions) + the REAL-workbook source-of-truth oracle (every one of the 1,137 students' balances vs the workbook's arithmetic; the 940/197 census; DETTES 6/6) — 11/11.
+- **IMPORT-115 (Phase 6 — THE DISCOVERY):** the instrumented live verification exposed the DETERMINISTIC trigger — the workbook's 2 same-name merge rows buffer WITHIN-BATCH duplicate financial identities, and PostgreSQL's ON CONFLICT DO NOTHING cannot suppress duplicates inside one INSERT statement: every import of this workbook truncated at exactly ledger 2,000 / payments 1,500 / installments 4,000 (the chunk carrying the first duplicate pair dies; the rest never run; the pre-fix fallbacks swallowed the error into the "everyone fully paid" state). The fix: within-batch dedup of all three pending streams (FIRST WINS — the DB's own chunk-by-chunk semantics). All 5 import suites 46/46 after the fix.
+
+### The definitive live verification (ALL GREEN — the issue's closing requirement, satisfied with evidence)
+
+`import: 1137 imported / 2 updated / 0 rejected — 216.9s` · `ledger 3342 + payments 2198 + installments 5963 ALL inserted` · census `students=1137 parents=741` · **the indebted census 940 with debt / 197 settled (the bug's signature was 0)** · DETTES 6/6 (Σ 636,500) · Σ payments 162,713,000 / Σ charges 356,859,300 vs the workbook's 162,901,000 / 357,519,300. The live DB now carries the CORRECT financial state for the whole workbook. (The session also repaired the concurrent agent's dead partial state — their pre-fix import died on the same IMPORT-115 truncation; the soft-deleted rollback corpses were hard-deleted and the domain re-imported through the fixed code. AGENTS.md §15.61f records the concurrent-live-work protocol.)
+
+### The gates
+
+FULL vitest **25 failed / 4,167 passed / 5 skipped** before AND after IMPORT-115 — the failing set byte-identical to the documented 25-failure baseline, +22 new green; typecheck 0; eslint 0 errors; the 5 import suites 46/46. Registry: IMPORT-112/113/114/115 + PERF-504 all RESOLVED/TESTED. Knowledge: AGENTS.md §15.61 (six discoveries — the provider-layer honest-error rule, the within-batch ON CONFLICT trap, the freshness-bridge pause seam, the soft-delete code collision, the live-forensics method, the concurrent-agent protocol).
+
 ## 2026-09-27 — The 103rd session — T-419 EXECUTED: the issue-#22 unified testing architecture (the three test systems → ONE framework with ONE entry point), the comparator audit (TEST-308 fixed, the stale 017 expectation corrected), and PARITY-005 discovered behind the never-run tier-4 gate
 
 ### The mandate and the baseline (Phases 0+1 — commit 49a1537)

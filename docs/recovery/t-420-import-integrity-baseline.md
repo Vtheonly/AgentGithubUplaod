@@ -108,3 +108,29 @@ The same pattern killed the earlier 03:03 import (290 students created, 3 paymen
 5. **Phase 4:** the regression suite the issue demands: fully-paid / partially-paid / indebted students through the REAL workbook + a synthetic tri-state workbook + the Excel source-of-truth per-student balance oracle + the flush-failure atomicity pins (a repo whose bulk write fails must FAIL the import — the exact live defect, made impossible to regress).
 6. **Phase 5:** full gates vs the documented baselines.
 7. **Phase 6:** live verification with the owner-supplied credentials (probe import + census) + the registries closeout + the delivery zips.
+
+---
+
+## Appendix (2026-09-27, the closeout) — IMPORT-115 + the definitive live verification
+
+**The discovery that completed the picture.** The instrumented live verification (Phase 6) exposed a FIFTH defect the local suites could never see: **within-batch duplicate financial identities**. The workbook's two same-family same-name row pairs (HEROUA MOSADEK ×2, KHALEF RAYAN ×2) exercise the IMPORT-109 update path — the second row updates the first's student while BOTH rows' financial entries are buffered under the SAME canonical identities (`${studentId}:${field}` sourceIds; `IMP-${studentId}-${field}` receiptNumbers; the tranche identity). PostgreSQL's `ON CONFLICT DO NOTHING` — the wire form all three bulk writers use — **cannot suppress duplicates WITHIN one INSERT statement**: the chunk carrying both copies dies with `duplicate key value violates unique constraint`. Every import of this workbook therefore truncated at exactly **ledger 2,000 / payments 1,500 / installments 4,000** (reproduced three times, including by the concurrent session's pre-fix run) — and the pre-T-420 fallbacks swallowed that chunk error into "success" with 60% of the financial data missing. **This was the deterministic trigger behind the owner's issue-#20 import.** The fix: within-batch dedup of the three pending streams (FIRST WINS — the DB's own chunk-by-chunk semantics).
+
+**The definitive live verification (post-fix, ALL GREEN):**
+
+```
+import: 1137 imported / 2 updated / 2 skipped / 0 rejected — 216.9s
+[flush] ledger.bulkAppend      called with 3342 entries → Ok: 3342 inserted
+[flush] payments.bulkCollect   called with 2198 inputs  → Ok: 2198 inserted
+[flush] installments.bulkImport called with 5963 inputs → Ok: 5963 inserted
+post-import census: students=1137 parents=741 ledger=3342 payments=2198 installments=5963
+  [PASS] students == 1137 (the 1,139 named rows − the 2 same-name merges)
+  [PASS] the indebted census: 940 with debt / 197 settled (the bug's signature was 0)
+  [PASS] DETTES charges == 6 (Σ 636,500 DZD)
+  [PASS] Σ payments 162,713,000 vs the workbook's 162,901,000 (the documented merge-dedup delta)
+  [PASS] Σ charges 356,859,300 vs the workbook's 357,519,300
+ALL GREEN — the live DB now matches the Excel source of truth.
+```
+
+**The five defects of issue #20, and their state:** IMPORT-112 (the ledger silent-Ok fallback) FIXED/TESTED/LIVE-VERIFIED · IMPORT-113 (the installments fallback) FIXED/TESTED/LIVE-VERIFIED · IMPORT-114 (the swallowed rollback) FIXED/TESTED · PERF-504 (the realtime refresh storm) FIXED/TESTED · **IMPORT-115 (the within-batch duplicates — the deterministic trigger) FIXED/TESTED/LIVE-VERIFIED.**
+
+**Operational corollary for every future agent:** a failed import's compensating rollback leaves SOFT-DELETED parents that still hold their PAR- codes — every subsequent re-import dies on `parents_tenant_id_parent_code_key` until those rows are hard-deleted. Observed live during the concurrent session's failed run; repaired by the T-420 session's domain reset + the fixed re-import.

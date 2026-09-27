@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-FOURTH session — T-420: the issue-#20 Excel-import financial integrity COMPLETE, live-verified)
+
+## Current state snapshot (2026-09-27, 104th session CLOSE — T-420 the import financial integrity)
+
+**The owner's issue-#20 mandate is delivered: the bulk Excel import is now both CORRECT and COMPLETE against the Excel source of truth — live-verified end to end.** Five defects found, registered before the fixes, and fixed: **IMPORT-112** (the Supabase ledger `bulkAppend`→`appendMany` silent-Ok fallback — 0 of ~3,346 ledger entries written while the flush read success), **IMPORT-113** (the identical installments fallback), **IMPORT-114** (the swallowed partial-rollback failure — now surfaced as `PARTIAL_ROLLBACK_STATE` with the counts), **PERF-504** (the financial-realtime refresh storm — 8 full-collection re-seeds per 75 ms-debounced event; now paused around imports, ONE refresh at resume), and **IMPORT-115** (THE deterministic trigger: the workbook's same-name merge rows buffer within-batch duplicate financial identities and PostgreSQL's ON CONFLICT DO NOTHING cannot suppress duplicates inside one INSERT statement — every import truncated at exactly ledger 2,000 / payments 1,500 / installments 4,000; the fix is the within-batch dedup, FIRST WINS).
+
+**The definitive live verification (ALL GREEN):** the full `2027-2026.xlsx` (the correct, newer workbook — 1,139 named rows) imported through the FIXED code in 216.9 s: 1,137 students + 741 parents + **3,342 ledger entries + 2,198 payments + 5,963 installments — ALL landed**; the indebted census **940 with debt / 197 settled** (the workbook's own truth; the bug's signature was 0); DETTES 6/6; the Σ amounts match the workbook within the documented merge-dedup delta. **The live DB carries the correct financial state.** The session also repaired the concurrent agent's dead partial state (their pre-fix import died on the same truncation; the soft-deleted rollback corpses were hard-deleted and the domain re-imported — AGENTS.md §15.61d/f).
+
+**Gates:** FULL vitest 25 failed / 4,167 passed / 5 skipped — the failing set byte-identical to the documented baseline, +22 new green (the tri-state regression suite, the honest-error pins, the pause-seam guards, the rollback-surfacing pins); typecheck 0; eslint 0 errors. **No migration, no RPC change, no RLS change** (client-side scheduling + dedup + error contracts only). Chain: unchanged (0001–0121; next free 0122). Registry: IMPORT-112/113/114/115 + PERF-504 RESOLVED/TESTED. Knowledge: AGENTS.md §15.61.
+
+**Standing gates:** the owner's packaged-app import run (the visual confirmation — the live DB already carries the correct data); the concurrent session's merge (they hold their own branch; the T-420 fixes are pushed to main for them — the IMPORT-115 dedup + the honest errors apply to their re-imports directly); PARITY-005 (the Kotlin mirror repair); TEST-309 (the fakes consolidation queue); T-417's `register_family_batch` lever (migration 0122, owner-gated); OPS-319/BUSINESS-105; REALTIME-105's PORTAL set.
+
+---
+
 # Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-THIRD session — T-419: the issue-#22 unified testing architecture COMPLETE)
 
 ## Current state snapshot (2026-09-27, 103rd session CLOSE — T-419 the unified testing architecture)
