@@ -1,3 +1,33 @@
+## 2026-09-27 — The 107th session — T-423 COMPLETE (GitHub issue #23 IMPLEMENTED / TESTED / LIVE-VERIFIED): the finance-zeros fix — Phases A+B landed (the honest degradation + retry, the keyset pagination class sweep, migration 0123's SECURITY DEFINER read RPCs), the acceptance criteria ALL PASS live, and PERF-505's definitive attribution is recorded
+
+### The mandate (the owner's go-ahead with the infrastructure tokens)
+
+The owner supplied the sbp/secret tokens and mandated: implement the T-422 fix plan, test and verify it properly, update the documentation, commit each task separately with push+merge after each commit, and stay conflict-safe against the concurrent agent. Four commits landed on main (c285286 → 25fca3b → eab9ea7 → 2e7cebc + this closeout), each pushed and merged individually.
+
+### What was fixed (the full record: docs/recovery/t-423-finance-zeros-fix-verification.md)
+
+- **CACHE-103 (CRITICAL) — the honest degradation:** the five financial seed sites (payments/ledger/installments/debtSummary/allocations) now retry the whole read with backoff (3 attempts, 1s/3s), KEEP the last known cache on final failure (the seedAging convention — a failed refresh never wipes a populated cache), record the OPS-317 diagnostic, and surface a REACTIVE degradation the Finances page renders as "Échec du chargement — Réessayer" (with KPI cards showing "—" when degraded+empty — never a fabricated "0 DZD"). Plus the DATA-039 basis label on the Créances KPI ("base échéancier · dont X échues" + the excess_amount bridge in the tooltip).
+- **DATA-038 + DATA-040 (HIGH) — the keyset pagination class sweep:** every unpaginated whole-tenant seed now walks the primary key (§15.62c): installments (was 1,000 of 5,963 = T1-only Tranches forever), the debtSummary's two reads (unpaid installments 1,000 of 4,227; students count 1,000 of 1,137), the ledger (the `.limit(2000)` PostgREST silently capped at 1,000 of 3,342), the payments seed (converted from OFFSET to keyset), and — discovered by the §15.63c class sweep THIS session, registered BEFORE the fix — the STUDENTS seed (1,000 of 1,137 alive students: 137 students silently missing from the CRM cache) and the parents seed.
+- **PERF-505 (HIGH) — migration 0123 + the definitive attribution:** four SECURITY DEFINER staff-gated read RPCs (the 0111 pattern; jsonb payloads immune to the 1,000-row cap; PK-order aggregation), the seeds reading RPC-first with the direct keyset fallback (version-skew safety, including clients without the .rpc surface). THE ATTRIBUTION (the sbp token): the SQL was never the problem — the old direct read executes in **50ms** as superuser while the same read takes **6.5–19.9s at 80–90%** over the staff JWT: **the per-row RLS policy-function evaluation is the dominant cost**. The committed RPC path measures **12/12 at 0.3–1.7s** live.
+
+### The live acceptance run (ALL EIGHT CHECKS PASS — scripts/t-423-post-fix-verification.mjs, the real staff JWT)
+
+payments 2,198 rows (the full journal) · installments 5,963 rows by tranche [[1,1609],[2,1608],[3,1609],[4,1137]] — T1+T2+T3(+T4) all present (was [[1,1000]]) · ledger 3,342 (the full ledger) · **Encaissé 162,713,000 DZD** · **Revenu mensuel 162,713,000 DZD** · **Créances 207,773,800 DZD matching compute_debt_aging_summary's independent total** · the anon gate REJECTED · 12/12 RPC calls at 0.3–1.7s.
+
+### The gates
+
+tsc 0 · eslint 0 on every changed file · FULL vitest **4,191 passed / 21 failed — BASELINE-MATCHED** (the failing set = the documented 10 environment-class files; the baseline was MOVED by the registered T-423 change: t-034's 4 documented failures are fixed — its fake supports the keyset chain but not .range(); 25 → 21, cited in scripts/test-baseline.json) · check:migrations append-only OK (118 files) · migration 0123 applied live atomically with its registration (chain head 0123; **0122 stays reserved** for IMPORT-118/REALTIME-105) · the regression suite t-423-finance-seed-degradation.test.ts **11/11** (the degradation semantics A–G, the RPC path H–J, the no-truncation contract K).
+
+### Registries
+
+CACHE-103 / DATA-038 / PERF-505 / DATA-040 → RESOLVED/TESTED/LIVE-VERIFIED · DATA-039 → RESOLVED/TESTED · ACAD-511 → re-registered with its own acceptance criteria (issue #18's scope — the explicit re-registration issue #23's checklist demands). **GitHub issue #23 can close.** Knowledge: AGENTS.md §15.64.
+
+### What remains
+
+ACAD-511 (issue #18) · migration 0122 (IMPORT-118's flush RPC) · the 01:00 backup-window scheduling (owner decision) · the index-coverage review can close on the attribution evidence · the parents/students seeds' OPS-317 set([]) semantics (the registered scope boundary).
+
+---
+
 ## 2026-09-27 — The 106th session — T-422 REGISTERED & DIAGNOSED (READ-ONLY): the owner's finance-zeros report (GitHub issue #23) — the Finances page shows all zeros while the Dettes tab shows the real debts; FIVE problems registered (CACHE-103, DATA-038, PERF-505, ACAD-511, DATA-039), every fix owner-gated
 
 ### The mandate (the owner's six hypotheses, changes forbidden)

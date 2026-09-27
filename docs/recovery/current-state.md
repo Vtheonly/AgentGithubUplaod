@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-SEVENTH session — T-423: the finance-zeros fix COMPLETE, GitHub issue #23 IMPLEMENTED / TESTED / LIVE-VERIFIED)
+
+## Current state snapshot (2026-09-27, 107th session CLOSE — T-423 the finance-zeros fix)
+
+**GitHub issue #23's fix is implemented, tested, and live-verified — all acceptance criteria pass.** Four commits landed on main (c285286 → 25fca3b → eab9ea7 → 2e7cebc + the closeout), each pushed and merged individually per the owner's mandate. The Finances page's data path is now: **the migration-0123 SECURITY DEFINER RPC (live 12/12 at 0.3–1.7s) → the retry ladder ×3 → the direct keyset fallback → the honest degradation (keep-last-known + "Échec du chargement — Réessayer")** — a failed read can never again render as confident zeros or wipe loaded data. The live acceptance run (the real staff JWT): **Encaissé 162,713,000 DZD · Revenu mensuel 162,713,000 DZD · Créances 207,773,800 DZD (= the aging RPC's independent total, basis labeled per DATA-039) · installments 5,963 rows with T1+T2+T3(+T4) all present (was 1,000 = T1-only) · ledger 3,342 (was capped at 1,000) · the anon gate rejects.**
+
+**The fixes:** CACHE-103 (the five financial seeds' honest degradation — retry with backoff, keep-last-known, the reactive seed-health stream, the banner + Réessayer + KPI "—") · DATA-038/DATA-040 (the §15.63c keyset-pagination class sweep: installments, debtSummary×2, ledger, payments, students, parents — **the sweep found the STUDENTS seed caching 1,000 of 1,137 alive students: 137 silently missing from the CRM, registered as DATA-040 before the fix**) · PERF-505 (migration 0123's four staff-gated read RPCs, live-applied atomically — chain head **0123, with 0122 deliberately left reserved** for IMPORT-118/REALTIME-105; **the definitive attribution: the SQL executes in 50ms as superuser — the direct reads' 6.5–19.9s is the per-row RLS policy-function evaluation**).
+
+**Gates:** tsc 0 · eslint 0 on every changed file · FULL vitest **4,191 passed / 21 failed — BASELINE-MATCHED** (the baseline MOVED by the registered T-423 change: t-034's 4 environment-class failures fixed, 25 → 21, cited in scripts/test-baseline.json) · check:migrations append-only OK (118 files) · the regression suite `t-423-finance-seed-degradation.test.ts` 11/11 (degradation A–G, RPC path H–J, no-truncation K). Registry: CACHE-103/DATA-038/PERF-505/DATA-040 → RESOLVED/TESTED/LIVE-VERIFIED; DATA-039 → RESOLVED/TESTED; +DATA-040 (registered before its fix); ACAD-511 → re-registered with its own acceptance criteria (issue #18's scope); the totals line now 387. Knowledge: AGENTS.md §15.64.
+
+**Standing gates:** the owner's packaged-app pass (pull main + rebuild — issue #23 can close); ACAD-511 (issue #18's design call — the top registered follow-up); migration 0122 (IMPORT-118's flush RPC — reserved, unclaimed); the 01:00 backup-window scheduling (owner decision); the index-coverage review (can close on the attribution evidence — only the portal's parent-scoped direct reads remain on the slow wire); the parents/students seeds' OPS-317 set([]) semantics (the registered scope boundary); PARITY-005, TEST-309, OPS-319/BUSINESS-105 unchanged from the 105th session.
+
+---
+
 # Current State — Project Snapshot (2026-09-27, ONE-HUNDRED-SIXTH session — T-422: the finance-zeros diagnosis COMPLETE, read-only; the fixes owner-gated in GitHub issue #23)
 
 ## Current state snapshot (2026-09-27, 106th session CLOSE — T-422 the finance-zeros diagnosis)

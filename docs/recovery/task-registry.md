@@ -4620,7 +4620,15 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 ### Status
 
-- **IN PROGRESS** (registered with this commit; each phase updates this section).
+- **COMPLETE — IMPLEMENTED / TESTED / LIVE-VERIFIED** (the 107th session, all phases verified):
+  - **Commit 0 — c285286:** the registration (this entry + DATA-040 + the class-sweep probe).
+  - **Phase A1+A2 — 25fca3b (CACHE-103):** the honest degradation on the five financial seed sites (retry ladder + keep-last-known + the reactive seed-health stream + the Finances page banner/Réessayer/KPI "—") + the DATA-039 basis label. tsc 0 · the full suite byte-identical to the baseline.
+  - **Phase A3 — eab9ea7 (DATA-038 + DATA-040):** the keyset pagination everywhere (payments/installments/ledger/debtSummary×2/students/parents) + the REGISTERED baseline move (t-034's 4 documented failures fixed; 25 → 21).
+  - **Phase B — 2e7cebc (PERF-505):** migration 0123 live-applied atomically (chain head 0123; 0122 stays reserved); the four SECURITY DEFINER read RPCs; the seeds' RPC-first path with the direct fallback; THE DEFINITIVE ATTRIBUTION (the SQL is 50ms — the direct reads' cost is the per-row RLS policy evaluation). The LIVE acceptance run: **ALL EIGHT CHECKS PASS** (payments 2,198 / installments 5,963 T1+T2+T3+T4 / ledger 3,342; Encaissé 162,713,000; Revenu mensuel 162,713,000; Créances 207,773,800 = the aging RPC; the anon gate rejects; 12/12 RPC calls at 0.3–1.7s).
+  - **The closeout (this commit):** the verification doc (`docs/recovery/t-423-finance-zeros-fix-verification.md`), the registries (CACHE-103/DATA-038/PERF-505/DATA-039/DATA-040 → RESOLVED; ACAD-511 re-registered → issue #18), the change-log, current-state, next-task, AGENTS.md §15.64, the delivery zips.
+  - **The regression suite:** `t-423-finance-seed-degradation.test.ts` 11/11 (degradation semantics A–G, the RPC path H–J, the no-truncation contract K). Gates: tsc 0 · eslint 0 · FULL vitest 4,191/21 BASELINE-MATCHED · check:migrations OK.
+- **GitHub issue #23 can close** (all acceptance criteria pass — see the verification doc §3).
+- **Left:** ACAD-511 (re-registered → issue #18) · migration 0122 (IMPORT-118) · the 01:00 backup-window scheduling (owner decision) · the index-coverage review can close on the attribution evidence (only the portal's parent-scoped direct reads remain) · the parents/students seeds' OPS-317 set([]) semantics (the registered scope boundary — extend §15.63a the next time those seeds are touched).
 
 ## T-422 — The Finance-Zeros Diagnosis: Encaissement/Créances/Tranches/Paiements show 0 DZD while the Dettes tab shows the real debts — the read-path reliability investigation (the owner's six-hypothesis mandate) — DIAGNOSIS COMPLETE / FIX OWNER-GATED (P0)
 

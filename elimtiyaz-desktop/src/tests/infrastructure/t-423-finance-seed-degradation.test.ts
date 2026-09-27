@@ -508,4 +508,67 @@ describe("T-423 Phase B — the RPC-first read path (PERF-505, migration 0123)",
     expect(getSeedHealth("debtSummary")?.state).toBe("ok");
     obs.unsub();
   });
+
+  it("K: NO 1,000-row truncation — a 2,500-row table served at the 1,000/page cap lands WHOLE in the cache (the DATA-038/DATA-040 contract)", async () => {
+    // The direct-fallback path (RPC unavailable) with a server that caps
+    // every response at 1,000 rows — exactly PostgREST's behavior. The
+    // keyset walker must return all 2,500 (the live defect: the single
+    // reads cached 1,000 of 5,963 installments / 1,000 of 1,137 students).
+    const bigTable: Row[] = Array.from({ length: 2500 }, (_, i) => ({
+      id: `a${String(i).padStart(6, "0")}-${TENANT}`, // ascending with i — keyset-friendly
+      tenant_id: TENANT,
+      parent_id: "22222222-2222-4222-8222-222222222221",
+      student_id: null,
+      amount: "1000",
+      method: "cash",
+      status: "paid",
+      category: "tuition",
+      collected_at: `2026-09-${String((i % 28) + 1).padStart(2, "0")}T10:00:00Z`,
+      payment_number: `IMP-${i}`,
+      receipt_number: `R-${i}`,
+    }));
+    let reads = 0;
+    const cappedClient = {
+      rpc: async () => ({
+        data: null,
+        error: { code: "PGRST202", message: "Could not find the function" },
+      }),
+      from: () => {
+        reads += 1;
+        return {
+          select: () => ({
+            eq: () => ({
+              gt: (col: string, v: unknown) => ({
+                order: () => ({
+                  limit: async () => {
+                    // The server-side cap: at most 1,000 rows per response,
+                    // keyset-filtered (id > v).
+                    const rows = bigTable
+                      .filter((r) => (v ? String(r[col]) > String(v) : true))
+                      .slice(0, 1000);
+                    return { data: rows, error: null };
+                  },
+                }),
+              }),
+              order: () => ({
+                limit: async () => {
+                  const rows = bigTable.slice(0, 1000);
+                  return { data: rows, error: null };
+                },
+              }),
+            }),
+          }),
+        };
+      },
+    } as unknown as SupabaseClient;
+    const repo = new SupabasePaymentRepository(cappedClient);
+    const obs = track(repo.observe());
+    await vi.waitFor(() => {
+      expect(obs.value()).toHaveLength(2500);
+    });
+    // Three pages: 1000 + 1000 + 500.
+    expect(reads).toBe(3);
+    expect(getSeedHealth("payments")?.state).toBe("ok");
+    obs.unsub();
+  });
 });
