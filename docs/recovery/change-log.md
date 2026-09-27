@@ -1,3 +1,18 @@
+## 2026-09-27 — The 110th session (cont.) — T-426 COMPLETE (Phases C+D): the month-window UTC harmonization (TIME-001) + the count/demographics honesty trio (DATA-047) — the task's four problem IDs all RESOLVED/TESTED, the full suite 4,216/18 BASELINE-MATCHED
+
+### What was fixed (the second commit)
+
+- **TIME-001 (Phase C):** `kpisForRange`'s month window now constructs `Date.UTC(y, m, 1)` boundaries — the exact `T00:00:00Z` convention `revenueForRange` + `buildWindowAnchoredBuckets` apply. The old local-time constructors shifted each boundary by the timezone offset (UTC+1: 23:00 of the previous day), placing boundary-hour payments in a different month on the KPI than on the chart.
+- **DATA-047 (Phase D):** (a) the three KPI count queries follow the canonical liveness marker `deleted_at IS NULL` (live-verified a no-op: all alive rows carry is_active=true; 0 differ — the switch is robustness, not behavior); (b) `demographics()` groups a class-less student under their OWN enrolled `grade_level_code` before ever falling to "Non assigné"; (c) the kpisForRange + debtByAgingForRange catch blocks return honest `Err` — the Overview renders "—", never fabricated "ÉLÈVES : 0 / 0 DZD" (the CACHE-103 class swept onto the Statistics repo's own path; the audit's is_active root-cause theory was stale on live data — the fabricated-zero catch is the verified mechanism).
+
+### The gates (cumulative, T-426 final)
+
+tsc 0 · eslint 0 errors on every changed file · the t-426 suite **10/10** (A: the aging future-row exclusion; B: the predicate truth table + the KPI dynamic counts; C: the month-window boundary pins — inclusive start, exclusive end at UTC midnight; D: the grade fallback + the honest Err) · the dashboard family 154/154 (the t-353/t-357 fakes extended with the `.is` chain — the documented fake-follows-contract convention) · FULL vitest **4,216 passed / 18 failed — the failure set byte-identical to the pre-change baseline** (FAIL lists sorted + diffed: 0 differences; +10 = the t-426 suite).
+
+### What is deliberately preserved
+
+`revenueForRange`'s and `demographics()`'s Ok-empty catches (empty charts are honest "no data" — no fabricated NUMBERS; the two number-fabricating catches were the scope); the mock's notification-based `overdueAlerts` semantics (documented pre-existing divergence); every aging bucket edge (the §15.1 boundaries).
+
 ## 2026-09-27 — The 110th session — T-426 OPENED (GitHub issues #24/#25, Phase 1): the branch consolidation + the DYNAMIC-overdue predicate + the aging future-row guard — DATA-045/DATA-046 registered and RESOLVED/TESTED, the t-426 unit suite green, the full-vitest failure set byte-identical to the 18-failure baseline
 
 ### The mandate

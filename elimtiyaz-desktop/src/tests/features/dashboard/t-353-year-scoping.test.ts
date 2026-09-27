@@ -175,6 +175,7 @@ function makeClient(data: Row[] = []) {
         return q;
       };
       q.in = chain;
+      q.is = chain; // DATA-047: the liveness filter (deleted_at IS NULL) chain
       q.order = chain;
       // T-424 (DATA-043): the keyset-pagination chain (§15.62c) — the
       // dashboard repository now walks pages (gt id > last, order id,

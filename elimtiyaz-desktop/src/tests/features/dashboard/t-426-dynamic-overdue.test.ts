@@ -178,3 +178,76 @@ describe("T-426 Phase B (DATA-045) — the KPI's overdue metrics are dynamic (ne
     }
   });
 });
+
+describe("T-426 Phase C (TIME-001) — the KPI month window is UTC-midnight-anchored", () => {
+  // The window's boundaries must match revenueForRange's T00:00:00Z
+  // convention: inclusive start, EXCLUSIVE end, both at UTC midnight. The
+  // old local-time constructors shifted each boundary by the machine's
+  // timezone offset (UTC+1: the start landed 23:00 of the previous day),
+  // placing the boundary hour's payments in a different month than the
+  // chart on the same screen.
+  it("monthlyRevenue counts exactly [monthStart, monthEnd) at UTC midnight (inclusive start, exclusive end)", async () => {
+    const now = new Date();
+    const startIso = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+    const endIso = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    ).toISOString();
+    const payments = [
+      { id: "pay-at-start", amount: 1_000, collected_at: startIso, status: "paid" }, // inclusive start
+      { id: "pay-just-before-end", amount: 2_000, collected_at: new Date(Date.parse(endIso) - 1).toISOString(), status: "paid" }, // last ms of the month
+      { id: "pay-at-end", amount: 4_000, collected_at: endIso, status: "paid" }, // EXCLUSIVE end — next month
+      { id: "pay-before-start", amount: 8_000, collected_at: new Date(Date.parse(startIso) - 1).toISOString(), status: "paid" }, // previous month
+    ];
+    const { client } = makeClient(payments as Row[]);
+    const repo = new SupabaseDashboardRepository(client);
+    const res = await repo.kpisForRange("garbage"); // unscoped year: only the month window applies
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.value.monthlyRevenue).toBe(3_000); // 1,000 + 2,000 — the boundary pins
+    }
+  });
+});
+
+describe("T-426 Phase D (DATA-047) — the demographics grade fallback + the honest degradation", () => {
+  it("an unassigned student (class_id NULL) groups under their ENROLLED grade level, not 'Non assigné'", async () => {
+    // The fake returns the same rows for every table; the demographics
+    // path reads students (with grade_level_code) + classes (empty here —
+    // classMap misses the class_id).
+    const { client } = makeClient([
+      {
+        id: "s-unassigned",
+        gender: "male",
+        date_of_birth: null,
+        class_id: null,
+        grade_level_code: "1ap",
+      },
+    ]);
+    const repo = new SupabaseDashboardRepository(client);
+    const res = await repo.demographics();
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const gradeLabels = res.value.grade.map((g) => g.label);
+      expect(gradeLabels).toContain("1AP"); // GRADE_LEVEL_LABELS_FR["1ap"]
+      expect(gradeLabels).not.toContain("Non assigné");
+    }
+  });
+
+  it("a failed KPI read returns Err (the consumer renders '—') — never fabricated zeroes", async () => {
+    const boom = {
+      from: () => {
+        const q: Record<string, unknown> = {};
+        const chain = () => {
+          throw new Error("simulated 57014 statement timeout");
+        };
+        q.select = chain;
+        q.eq = chain;
+        q.then = chain;
+        return q;
+      },
+      rpc: () => Promise.reject(new Error("simulated RPC failure")),
+    };
+    const repo = new SupabaseDashboardRepository(boom as unknown as SupabaseClient);
+    const res = await repo.kpisForRange("2026-2027");
+    expect(res.ok).toBe(false); // the silent-zero Ok fallback is gone (DATA-047)
+  });
+});

@@ -13,7 +13,8 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Ok, type Result } from "../../../core/result";
+import { Ok, Err, type Result } from "../../../core/result";
+import { Errors } from "../../../core/app-error";
 import type { DashboardRepository, DateRange } from "../../../domain/repository/repository";
 import type {
   DashboardKpi,
@@ -80,8 +81,21 @@ export class SupabaseDashboardRepository implements DashboardRepository {
 
     try {
       const now = new Date();
-      const monthStart = range?.from ?? new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const monthEnd = range?.to ?? new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+      // TIME-001 (T-426 Phase C, issue #24 Track 1 item 3): the KPI's
+      // month window is constructed at UTC MIDNIGHT — the SAME convention
+      // `revenueForRange` + `buildWindowAnchoredBuckets` apply (their
+      // `T00:00:00Z` strings / setUTC* cursor). The previous local-time
+      // constructors (`new Date(y, m, 1)` → `.toISOString()`) shifted each
+      // boundary by the timezone offset in the OTHER direction on each
+      // side (UTC+1: start 23:00 of the previous day), so a payment in
+      // the boundary hour could appear in the KPI's month while the chart
+      // placed it in the neighbouring month — the month-border revenue
+      // discrepancy the audit reported.
+      const monthStart =
+        range?.from ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+      const monthEnd =
+        range?.to ??
+        new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
       const todayStr = now.toISOString().slice(0, 10);
 
       // We omit the failing notifications query and derive overdue alerts from installments.
@@ -97,21 +111,31 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         expensesRes,
         attendanceRes,
       ] = await Promise.all([
+        // DATA-047 (T-426 Phase D, issue #24 Track 1 item 1): the count
+        // queries follow the CANONICAL liveness marker `deleted_at IS
+        // NULL` — the same convention the debt-replay path
+        // (financial-realtime.ts) applies. The previous
+        // `.eq("is_active", true)` agreed with it on live data (verified
+        // read-only: all 1,137 alive students / 741 parents / 8 personnel
+        // carry is_active = true; 0 NULL) but would silently drop any
+        // future row imported with `is_active IS NULL` — the exact
+        // "ÉLÈVES : 0" failure mode the audit reported (whose live
+        // mechanism is the silent-zero catch, fixed below).
         this.client
           .from("students")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
-          .eq("is_active", true),
+          .is("deleted_at", null),
         this.client
           .from("parents")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
-          .eq("is_active", true),
+          .is("deleted_at", null),
         this.client
           .from("personnel")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
-          .eq("is_active", true),
+          .is("deleted_at", null),
         this.readPaidPaymentsCollection(tenantId),
         this.readUnpaidInstallmentsForYear(tenantId, academicYear),
         this.client
@@ -187,18 +211,16 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         overdueAlerts,
       });
     } catch (err) {
-      console.warn("[SupabaseDashboard] kpisForRange error, using fallback zeroes:", err);
-      return Ok({
-        totalStudents: 0,
-        totalParents: 0,
-        totalStaff: 0,
-        monthlyRevenue: 0,
-        outstandingDebt: 0,
-        overdueAmount: 0,
-        pendingExpenses: 0,
-        attendanceRateToday: 1.0,
-        overdueAlerts: 0,
-      });
+      // DATA-047 (T-426 Phase D): the CACHE-103-class silent-zero fallback
+      // is GONE — a failed KPI read now returns Err and the Overview cards
+      // render their honest "—" placeholders (the consumer maps
+      // `k.ok ? k.value : null`). The previous `Ok({ …zeroes… })` rendered
+      // confident "ÉLÈVES : 0 / 0 DZD" on every read failure — the
+      // read-path failure mode behind the audit's "ÉLÈVES : 0" report
+      // (the live DB itself never had a count problem: the census
+      // verified 1,137/741/8 alive rows).
+      console.warn("[SupabaseDashboard] kpisForRange error (honest Err, no fabricated zeroes):", err);
+      return Err(Errors.unknown(err instanceof Error ? err : new Error(String(err))));
     }
   }
 
@@ -385,8 +407,8 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         }),
       );
     } catch (err) {
-      console.warn("[SupabaseDashboard] debt aging exception:", err);
-      return Ok(bucketKeys.map((k) => ({ bucket: k, amount: 0, debtorCount: 0 })));
+      console.warn("[SupabaseDashboard] debt aging error (honest Err, no fabricated buckets):", err);
+      return Err(Errors.unknown(err instanceof Error ? err : new Error(String(err))));
     }
   }
 
@@ -404,12 +426,17 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       // T-339 (STATS-400): the classes query drops `capacity` — the fill-rate
       // slice was REMOVED (a class has no artificial maximum; the replacement
       // is the section-imbalance derivation, see executive-statistics.ts).
+      // DATA-047 (T-426 Phase D, issue #24 Track 1 item 4): `grade_level_code`
+      // joins the select so a student WITHOUT a class assignment still groups
+      // under their ENROLLED grade level instead of the "Non assigné" bucket,
+      // and the liveness filter follows the canonical `deleted_at IS NULL`
+      // marker (same convention as the count queries above).
       const [studentsRes, classesRes] = await Promise.all([
         this.client
           .from("students")
-          .select("id, gender, date_of_birth, class_id")
+          .select("id, gender, date_of_birth, class_id, grade_level_code")
           .eq("tenant_id", tenantId)
-          .eq("is_active", true),
+          .is("deleted_at", null),
         this.client
           .from("classes")
           .select("id, name, grade_code")
@@ -431,6 +458,11 @@ export class SupabaseDashboardRepository implements DashboardRepository {
       }
 
       // 2. Grade distribution (derived safely from student's class)
+      // DATA-047 (T-426 Phase D): the fallback chain is class grade_code →
+      // the student's OWN enrolled `grade_level_code` → "Non assigné" —
+      // an unassigned student (class_id NULL) groups by their enrolled
+      // level, never a catch-all bucket, when the code carries a known
+      // grade level.
       const gradeCounts = new Map<string, number>();
       for (const s of students) {
         const cls = s.class_id ? classMap.get(s.class_id) : null;
@@ -441,6 +473,11 @@ export class SupabaseDashboardRepository implements DashboardRepository {
           } else {
             gradeKey = cls.name;
           }
+        } else if (
+          s.grade_level_code &&
+          s.grade_level_code in GRADE_LEVEL_LABELS_FR
+        ) {
+          gradeKey = GRADE_LEVEL_LABELS_FR[s.grade_level_code as GradeLevel];
         }
         gradeCounts.set(gradeKey, (gradeCounts.get(gradeKey) ?? 0) + 1);
       }

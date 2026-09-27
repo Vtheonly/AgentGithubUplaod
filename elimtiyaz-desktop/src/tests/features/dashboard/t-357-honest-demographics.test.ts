@@ -69,6 +69,7 @@ function makeClient(students: Row[], classes: Row[] = []) {
       q.lt = chain;
       q.lte = chain;
       q.in = chain;
+      q.is = chain; // DATA-047: the liveness filter (deleted_at IS NULL) chain
       q.order = chain;
       q.then = (resolve: unknown) =>
         Promise.resolve({
