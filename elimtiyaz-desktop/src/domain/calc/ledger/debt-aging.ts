@@ -33,7 +33,7 @@
  */
 
 import type { LedgerEntry } from "@/domain/model/ledger";
-import type { Installment, PaymentCategory } from "@/domain/model/payment";
+import type { Installment, Payment, PaymentCategory } from "@/domain/model/payment";
 import { daysBetweenFloor } from "../shared/dates";
 
 /* ================================================================== */
@@ -110,12 +110,17 @@ export type DebtAgingReasonCode =
   | "sustained_delinquency" // past due, between yellow and red (tier 4)
   | "critical_delinquency" // past due beyond the red threshold (tier 5)
 
-/** A tenant `academic_years` row, reduced to the attribution window. */
+/** A tenant `academic_years` row, reduced to the attribution window.
+ *  T-436: `id` (optional, additive) enables the persisted-attribution
+ *  precedence (INV-18a) — consumers that pass only the window trio keep
+ *  the INV-14 date behavior unchanged. */
 export interface AcademicYearWindow {
   /** The year code/label, e.g. "2025-2026". */
   readonly code: string;
   readonly startDate: string;
   readonly endDate: string;
+  /** The `academic_years.id` — present when the caller can supply it. */
+  readonly id?: string;
 }
 
 /** One outstanding obligation (an unpaid installment), aging-attributed. */
@@ -216,6 +221,73 @@ export function academicYearStart(code: string): number {
 }
 
 /* ================================================================== */
+/*  Persisted-attribution precedence (T-436 / ADR-030 — INV-18a)       */
+/* ================================================================== */
+
+/** How a row's academic year was resolved (INV-18a — a presentation fact). */
+export type AttributionSource = "persisted" | "due_date" | "payment_date";
+
+/** The resolved academic-year attribution of one financial row. */
+export interface AcademicYearAttribution {
+  /** The year code ("2025-2026") — the rendered label everywhere. */
+  readonly code: string;
+  /** The `academic_years` row id when resolved via the persisted column. */
+  readonly id: string | null;
+  readonly source: AttributionSource;
+}
+
+/**
+ * T-436 (INV-18a — the ONE precedence): attribute an INSTALLMENT (a
+ * charge) to an academic year — the persisted `academicYearId`
+ * (migration 0127) first, then the INV-14 rule on `dueDate`. A
+ * persisted attribution NEVER changes with a due-date edit (INV-18b —
+ * DATA-051's fix): `updateDueDate` rewrites the date only, and this
+ * function keeps returning the persisted year. An unresolvable id
+ * (a year row that disappeared) falls back to the date rule.
+ */
+export function attributeInstallmentAcademicYear(
+  installment: { readonly dueDate: string; readonly academicYearId?: string | null },
+  years: readonly AcademicYearWindow[] = [],
+): AcademicYearAttribution {
+  if (installment.academicYearId) {
+    for (const y of years) {
+      if (y.id && y.id === installment.academicYearId) {
+        return { code: y.code, id: y.id, source: "persisted" };
+      }
+    }
+  }
+  return {
+    code: resolveAcademicYearForDate(installment.dueDate, years),
+    id: null,
+    source: "due_date",
+  };
+}
+
+/**
+ * T-436 (INV-18): attribute a PAYMENT to the academic year it was MADE
+ * in — the same precedence on `collectedAt` (persisted first, INV-14
+ * fallback). The payment's year is DISTINCT from the settlement-target
+ * year its allocations carry (financial-rules §17.1).
+ */
+export function attributePaymentAcademicYear(
+  payment: { readonly collectedAt: string; readonly academicYearId?: string | null },
+  years: readonly AcademicYearWindow[] = [],
+): AcademicYearAttribution {
+  if (payment.academicYearId) {
+    for (const y of years) {
+      if (y.id && y.id === payment.academicYearId) {
+        return { code: y.code, id: y.id, source: "persisted" };
+      }
+    }
+  }
+  return {
+    code: resolveAcademicYearForDate(payment.collectedAt, years),
+    id: null,
+    source: "payment_date",
+  };
+}
+
+/* ================================================================== */
 /*  The status evaluation (INV-16) — ordered, thresholds from §15.1     */
 /* ================================================================== */
 
@@ -309,11 +381,20 @@ export function computeDebtAgingStatus(
 /*  The per-parent analysis                                            */
 /* ================================================================== */
 
+/**
+ * The per-parent analysis input — T-436: `installments` and (new,
+ * optional) `payments` carry the persisted academic-year attribution
+ * (ADR-030); the ledger entries stay the payment-behavior replay source.
+ */
 export interface DebtAgingAnalysisInput {
   readonly parentId: string;
   /** The family's REAL installment rows (server waterfall results — never
    *  re-allocated client-side; ADR-002). */
   readonly installments: readonly Installment[];
+  /** The family's payment rows — enables the persisted payment-year
+   *  attribution (T-436); when absent the ledger entry dates are used
+   *  (the pre-T-436 behavior, byte-identical). */
+  readonly payments?: readonly Payment[];
   /** ALL ledger entries for the family (payment behavior is replayed from
    *  the non-reversed `payment` entries — the computeParentSummary source). */
   readonly ledgerEntries: readonly LedgerEntry[];
@@ -359,7 +440,12 @@ export function computeDebtAgingAnalysis(input: DebtAgingAnalysisInput): DebtAgi
       label: ins.label,
       remaining,
       dueDate: ins.dueDate,
-      academicYear: resolveAcademicYearForDate(ins.dueDate, years),
+      // T-436 (INV-18a): the obligation's year now resolves through the
+      // ONE precedence — the persisted `academicYearId` first (frozen at
+      // write time; a due-date edit can no longer re-attribute it), the
+      // INV-14 date rule as the documented fallback. Byte-identical to
+      // the old value for every row without a persisted id.
+      academicYear: attributeInstallmentAcademicYear(ins, years).code,
       daysOverdue: daysBetweenFloor(ins.dueDate, now),
     });
   }
@@ -377,6 +463,14 @@ export function computeDebtAgingAnalysis(input: DebtAgingAnalysisInput): DebtAgi
     .filter((e) => e.type === "payment" && !reversedIds.has(e.id))
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.id.localeCompare(b.id)));
 
+  // T-436: the parent's payment rows, indexed by id — lets a payment
+  // entry resolve its persisted payment-year attribution (INV-18).
+  const parentPaymentsById = new Map(
+    (input.payments ?? [])
+      .filter((p) => p.parentId === input.parentId)
+      .map((p) => [p.id, p]),
+  );
+
   const lastPaymentAt = paymentEntries.length > 0 ? paymentEntries[paymentEntries.length - 1].at : null;
   const daysSinceLastPayment = lastPaymentAt ? daysBetweenFloor(lastPaymentAt, now) : null;
 
@@ -392,7 +486,13 @@ export function computeDebtAgingAnalysis(input: DebtAgingAnalysisInput): DebtAgi
   if (oldest) {
     const originStart = academicYearStart(oldest.academicYear);
     for (const p of paymentEntries) {
-      const paymentYear = resolveAcademicYearForDate(p.at, years);
+      // T-436 (INV-18): the payment's year uses the same precedence
+      // (persisted `payments.academic_year_id` first, INV-14 on the
+      // payment date as fallback).
+      const sourcePayment = parentPaymentsById.get(p.sourceId ?? "");
+      const paymentYear = sourcePayment
+        ? attributePaymentAcademicYear(sourcePayment, years).code
+        : resolveAcademicYearForDate(p.at, years);
       if (academicYearStart(paymentYear) > originStart) {
         subsequentYearPaymentCount += 1;
         subsequentYearPaymentTotal += Math.abs(p.amount);

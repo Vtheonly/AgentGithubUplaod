@@ -147,6 +147,13 @@ export interface Payment {
    * held as parent credit for next year."
    */
   readonly excessRemark?: string | null;
+  /**
+   * T-436 / ADR-030 (migration 0127): the PAYMENT-MADE academic year —
+   * the year the payment was actually collected in (attributed from the
+   * collection date at write time). Distinct from the settlement-target
+   * year the payment's allocations carry (INV-18). Optional + additive.
+   */
+  readonly academicYearId?: string | null;
 }
 
 /**
@@ -173,6 +180,15 @@ export interface PaymentAllocation {
   readonly allocatedAmount: number;
   readonly label: string | null;
   readonly createdAt: string;
+  /**
+   * T-436 / ADR-030 (migration 0127): the SETTLEMENT-TARGET academic year —
+   * denormalized from the allocated installment's year AT ALLOCATION TIME,
+   * so the settlement history is immutable against later re-attribution.
+   * This is what makes "paid in 2026-2027 toward 2025-2026 debt" a
+   * first-class fact (INV-18c/18d). Optional + additive — legacy rows
+   * (and clients that ignore it) resolve through the installment.
+   */
+  readonly academicYearId?: string | null;
 }
 
 export interface Installment {
@@ -238,6 +254,15 @@ export interface Installment {
   readonly customScheduleNote?: string | null;
   /** Backward-compat alias for `isCustomSchedule` (older code reads `customSchedule`). */
   readonly customSchedule?: boolean;
+  /**
+   * T-436 / ADR-030 (migration 0127): the CHARGE-BELONGING academic year
+   * (`academic_years.id`, nullable FK). Frozen at write time — a later
+   * re-enrollment, payment, or échéance edit NEVER rewrites it (INV-18b);
+   * when NULL the year resolves through the INV-14 date fallback
+   * (INV-18a — one precedence). Optional + additive: every existing
+   * consumer compiles unchanged.
+   */
+  readonly academicYearId?: string | null;
 }
 
 /**
