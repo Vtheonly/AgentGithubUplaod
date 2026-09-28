@@ -60,7 +60,6 @@ const NOW = Date.now();
 const PAST_30D = new Date(NOW - 30 * DAY).toISOString();
 const FUTURE_90D = new Date(NOW + 90 * DAY).toISOString();
 const SEPT15 = "2026-09-15T00:00:00.000Z";
-const DEC15 = "2026-12-15T00:00:00.000Z";
 
 describe("T-434 (UI-316) — the Statistics wave card shows its échéance", () => {
   it("an overdue wave renders the due date AND the days late (the red verdict's visible cause)", () => {
@@ -128,16 +127,21 @@ describe("T-434 (UI-316) — the Statistics wave card shows its échéance", () 
 });
 
 describe("T-434 (UI-316) — the Finance strip shows its échéance visibly (not tooltip-only)", () => {
-  it("each strip card renders its 'échéance …' hint as TEXT", () => {
+  it("each strip card renders its échéance as DERIVED text (T-435: from the rows, not the static hint)", () => {
+    // Relative dates so the pin is clock-independent: T1 past due, T2 future.
     const strip = deriveFinanceStrip([
-      mk({ parentId: "p1", dueDate: SEPT15, trancheNumber: 1 }),
-      mk({ parentId: "p2", dueDate: DEC15, trancheNumber: 2 }),
+      mk({ parentId: "p1", dueDate: PAST_30D, trancheNumber: 1 }),
+      mk({ parentId: "p2", dueDate: FUTURE_90D, trancheNumber: 2 }),
     ]);
     render(
       <TrancheWaveHeader waves={strip} basisLabel="toutes catégories confondues" showTuitionBreakdown />,
     );
-    expect((screen.getByTestId("strip-due-1").textContent ?? "").trim()).toBe("échéance 15 sep");
-    expect((screen.getByTestId("strip-due-2").textContent ?? "").trim()).toBe("échéance 15 déc");
+    const line1 = screen.getByTestId("strip-due-1").textContent ?? "";
+    expect(line1).toContain("Échéance :");
+    expect(line1).toMatch(/— \d+ j de retard/);
+    const line2 = screen.getByTestId("strip-due-2").textContent ?? "";
+    expect(line2).toContain("Échéance :");
+    expect(line2).toMatch(/— dans \d+ j/);
   });
 });
 

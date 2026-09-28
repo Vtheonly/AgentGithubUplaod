@@ -143,10 +143,18 @@ export function tuitionForLevel(config: PricingConfig, level: AcademicLevel): nu
  * Returns the per-tranche schedule stored in `PricingConfig.tuitionByGradeLevel`
  * — which may be a non-equal split per the official fee schedule.
  *
- * Labels are FR (preserved from original):
- *   - "Tranche 1 (Sept–Déc)"
- *   - "Tranche 2 (Jan–Mar)"
- *   - "Tranche 3 (Avr–Juin)"
+ * T-435 (UI-317): the labels carry the OFFICIAL T-425 schedule's due
+ * dates (the same Sept 15 / Dec 15 / Mar 15 triple
+ * `getOfficialTuitionDueDates` returns) — the previous "Sept–Déc /
+ * Jan–Mar / Avr–Juin" labels were the RETIRED pre-T-425 term-based
+ * schedule and contradicted the official model on every surface that
+ * renders them (the mock seeds' installment labels, the drawer's plan
+ * frame). A label that states a due-date RANGE must state the REAL one.
+ *
+ * Labels (FR):
+ *   - "Tranche 1 (15 sept.)"  — due at the rentrée (Sept 15)
+ *   - "Tranche 2 (15 déc.)"   — mid-year (Dec 15)
+ *   - "Tranche 3 (15 mars)"   — year-end (Mar 15)
  */
 export function tuitionTranchesForGrade(
   config: PricingConfig,
@@ -154,9 +162,9 @@ export function tuitionTranchesForGrade(
 ): ReadonlyArray<{ label: string; amountDue: number }> {
   const pricing = tuitionForGradeLevel(config, gradeLevel);
   return [
-    { label: "Tranche 1 (Sept–Déc)", amountDue: pricing.installments[0] },
-    { label: "Tranche 2 (Jan–Mar)", amountDue: pricing.installments[1] },
-    { label: "Tranche 3 (Avr–Juin)", amountDue: pricing.installments[2] },
+    { label: "Tranche 1 (15 sept.)", amountDue: pricing.installments[0] },
+    { label: "Tranche 2 (15 déc.)", amountDue: pricing.installments[1] },
+    { label: "Tranche 3 (15 mars)", amountDue: pricing.installments[2] },
   ];
 }
 

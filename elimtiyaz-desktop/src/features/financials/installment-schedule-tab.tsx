@@ -40,7 +40,7 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
-import { formatDate } from "../../core/format/date";
+import { formatDate, formatDueDateRange } from "../../core/format/date";
 import {
   PAYMENT_CATEGORY_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
@@ -61,6 +61,10 @@ import {
 import { deriveTrancheWaveStats } from "../../domain/calc/payment/tranche-waves";
 import { isInstallmentOverdue, isInstallmentSettled } from "../../domain/calc/payment/queries";
 import { installmentsForAcademicYear } from "../dashboard/components/analytics/analytics-derivations";
+// T-435 (UI-317): the SIGNED days-between helper (negative = days until
+// due) — the same one the Statistics wave card renders "dans N j" with;
+// one implementation, two surfaces (the §6 no-duplicates rule).
+import { daysBetweenFloor } from "../dashboard/components/analytics/executive-statistics";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Users, X } from "lucide-react";
 import { Button } from "../../shared/ui/button";
@@ -114,9 +118,34 @@ export interface TrancheWave {
   readonly label: string;
   /** Due-window hint from the canonical schedule (display-only). */
   readonly hint: string;
+  /**
+   * T-435 (UI-317): the wave's DERIVED earliest due date across every
+   * row in the current selection (ISO) — null when no row carries a
+   * parseable date. This is what the échéance line renders (the static
+   * `hint` stays only as the no-date fallback): the strip must show the
+   * dates the ROWS actually carry, never a hardcoded string that can
+   * silently lie after the per-row échéance editor moves a due date.
+   */
+  readonly dueDate: string | null;
+  /**
+   * T-435 (UI-317): the wave's derived LATEST due date (ISO) — the range's
+   * far edge. Equal to `dueDate` on the official schedule; the échéance
+   * line renders the spread (min → max) when the rows drifted.
+   */
+  readonly dueDateMax: string | null;
+  /**
+   * T-435 (UI-317): the canonical overdue flag pooled over every category
+   * in the wave (OR of the stats' `anyUnsettledOverdue` — an UNSETTLED,
+   * still-owing row past due). Drives the "N j de retard" suffix; a
+   * closed wave (remaining 0) never claims lateness (the Statistics
+   * card's rule, T-427/T-434).
+   */
+  readonly isOverdue: boolean;
   readonly due: number;
   readonly paid: number;
   readonly pending: number;
+  /** Σ canonical INV-4 remaining over the wave (T-435: exposed for the closed-wave lateness rule). */
+  readonly remaining: number;
   readonly pct: number;
   readonly isNextTarget: boolean;
   /**
@@ -171,6 +200,12 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
   // first index still carrying a canonical remaining balance.
   const stats = deriveTrancheWaveStats(rows, Date.now());
   const pooled = new Map<1 | 2 | 3, { due: number; paid: number; pending: number; remaining: number }>();
+  // T-435 (UI-317): the wave's DERIVED due-date range + the pooled overdue
+  // flag — the same canonical stats the amounts pool from, so the strip's
+  // échéance can never disagree with the rows it sums (the static hint
+  // stays only as the no-date fallback).
+  const pooledDates = new Map<1 | 2 | 3, { min: number; max: number }>();
+  const pooledOverdue = new Map<1 | 2 | 3, boolean>();
   // T-432 (DATA-049): the tuition-isolated pool — the same rows the
   // Statistics wave grid groups; see TrancheWave.tuitionPct.
   const tuitionPooled = new Map<1 | 2 | 3, { due: number; paid: number }>();
@@ -181,6 +216,13 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
     acc.pending += w.pendingTotal;
     acc.remaining += w.remainingTotal;
     pooled.set(w.wave, acc);
+    if (w.dueDateMin !== null) {
+      const d = pooledDates.get(w.wave) ?? { min: w.dueDateMin, max: w.dueDateMin };
+      if (w.dueDateMin < d.min) d.min = w.dueDateMin;
+      if ((w.dueDateMax ?? w.dueDateMin) > d.max) d.max = w.dueDateMax ?? w.dueDateMin;
+      pooledDates.set(w.wave, d);
+    }
+    pooledOverdue.set(w.wave, (pooledOverdue.get(w.wave) ?? false) || w.anyUnsettledOverdue);
     if (w.category === "tuition") {
       const t = tuitionPooled.get(w.wave) ?? { due: 0, paid: 0 };
       t.due += w.dueTotal;
@@ -194,12 +236,16 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
     .sort((a, b) => a - b)[0];
   return TRANCHE_WAVE_META.map(({ index, label, hint }) => {
     const acc = pooled.get(index) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
+    const dates = pooledDates.get(index) ?? null;
     const pct = acc.due > 0 ? Math.min(100, Math.round((acc.paid / acc.due) * 100)) : 0;
     const tuition = tuitionPooled.get(index);
     const tuitionPct = tuition && tuition.due > 0 ? Math.round((tuition.paid / tuition.due) * 100) : null;
     return {
       index, label, hint,
-      due: acc.due, paid: acc.paid, pending: acc.pending, pct, tuitionPct,
+      dueDate: dates ? new Date(dates.min).toISOString() : null,
+      dueDateMax: dates ? new Date(dates.max).toISOString() : null,
+      isOverdue: pooledOverdue.get(index) ?? false,
+      due: acc.due, paid: acc.paid, pending: acc.pending, remaining: acc.remaining, pct, tuitionPct,
       isNextTarget: index === firstWithRemaining,
     };
   });
@@ -244,7 +290,19 @@ export function TrancheWaveHeader({
         Base : {basisLabel}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-      {waves.map((w) => (
+      {waves.map((w) => {
+        // T-435 (UI-317): the échéance is DERIVED from the rows the card
+        // sums — the wave's due-date RANGE (single date on the official
+        // schedule; min → max when the per-row échéance editor or a custom
+        // schedule moved rows off it) + the days late / days remaining.
+        // The static schedule hint stays ONLY as the fallback line when no
+        // row carries a parseable date — a hardcoded hint can silently lie
+        // after the data drifts; the derived range never can.
+        const dueRangeLabel = formatDueDateRange(w.dueDate, w.dueDateMax);
+        const daysLate = w.dueDate ? daysBetweenFloor(w.dueDate, Date.now()) : 0;
+        const claimsLateness = w.isOverdue && w.remaining > 0;
+        const dueLineTone = claimsLateness ? "text-status-danger" : "text-muted-foreground";
+        return (
         <div
           key={w.index}
           className={
@@ -276,10 +334,22 @@ export function TrancheWaveHeader({
             />
           </div>
           {/* T-434 (UI-316): the échéance is VISIBLE on the strip card
-              (the hint was tooltip-only — the same "why is this wave
-              late?" blind spot the Statistics card had). */}
-          <p className="text-[10px] font-mono text-muted-foreground" data-testid={`strip-due-${w.index}`}>
-            {w.hint}
+              (the hint was tooltip-only). T-435 (UI-317): now DERIVED
+              from the rows — the due-date range, not a hardcoded hint. */}
+          <p
+            className={`text-[10px] font-mono ${dueLineTone}`}
+            data-testid={`strip-due-${w.index}`}
+            title={dueRangeLabel ? w.hint : undefined}
+          >
+            {dueRangeLabel
+              ? `Échéance : ${dueRangeLabel}${
+                  claimsLateness
+                    ? ` — ${daysLate} j de retard`
+                    : w.remaining > 0 && daysLate < 0
+                      ? ` — dans ${-daysLate} j`
+                      : ""
+                }`
+              : w.hint}
           </p>
           <div className="flex justify-between gap-2 text-[11px] font-mono text-muted-foreground">
             <span className="truncate">Encaissé : {formatDzdPlain(w.paid)}</span>
@@ -303,7 +373,8 @@ export function TrancheWaveHeader({
             </p>
           )}
         </div>
-      ))}
+        );
+      })}
       </div>
     </div>
   );

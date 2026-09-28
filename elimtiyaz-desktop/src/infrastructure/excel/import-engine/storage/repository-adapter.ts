@@ -36,7 +36,14 @@ import { createChargeEntry, createPaymentEntry, createAdjustmentEntry } from "..
 import { allocatePaymentToInstallments } from "../../../../domain/calc/payment/waterfall-allocator";
 import { mapNiveauCode, resolveGradeFromClasse, isAutisteTrack } from "../mappers/niveau-mapper";
 import { splitFullName } from "../mappers/name-splitter";
-import { mapExcelDestinationToCanonical } from "../mappers/destination-mapper";
+import {
+  mapExcelDestinationToCanonical
+} from "../mappers/destination-mapper";
+// T-435 (UI-317): the canonical due-date triple — ONE implementation
+// (the §6 rule; this file previously hardcoded the same dates inline,
+// a parallel implementation that could silently drift from the schedule
+// every other surface derives from).
+import { getOfficialTuitionDueDates } from "../../../../domain/calc/pricing";
 import {
   REAL_TRANSPORT_MATRIX,
   REAL_TUITION_BY_GRADE,
@@ -2250,13 +2257,18 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // and the Finance wave strip use). The registration fee is due at
     // signup (Sept 15); there is no June date anymore (the old Jun 15
     // slot was the phantom 4th tranche's).
+    // T-435 (UI-317): now derived from the CANONICAL generator (sliced to
+    // the bare yyyy-MM-dd form this pipeline has always stored — the
+    // generator's full ISO timestamps are byte-equivalent up to the slice,
+    // so the stored format is unchanged).
     const academicYearStart = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    const [tuitionDue1, tuitionDue2, tuitionDue3] = getOfficialTuitionDueDates(academicYearStart);
     const tuitionDueDates: readonly [string, string, string] = [
-      `${academicYearStart}-09-15`,
-      `${academicYearStart}-12-15`,
-      `${academicYearStart + 1}-03-15`,
+      tuitionDue1.slice(0, 10),
+      tuitionDue2.slice(0, 10),
+      tuitionDue3.slice(0, 10),
     ];
-    const registrationDueDate = `${academicYearStart}-09-15`;
+    const registrationDueDate = tuitionDueDates[0];
 
     // REAL TUITION PRICES from the CALC-001 matrix — per grade (or the
     // AUTISTE schedule). The REMISE lands on the 1st versement (V1 — the

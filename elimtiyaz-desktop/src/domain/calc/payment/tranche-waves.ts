@@ -56,6 +56,17 @@ export interface TrancheWaveStats {
   readonly remainingTotal: number;
   /** Earliest due date in the wave, epoch ms (null when no row carries one). */
   readonly dueDateMin: number | null;
+  /**
+   * T-435 (UI-317): LATEST due date in the wave, epoch ms (null when no
+   * row carries one). Together with `dueDateMin` this is the wave's due
+   * DATE RANGE — the spread the wave cards must render so a wave whose
+   * rows drifted off the official schedule (the per-row échéance editor,
+   * mid-year custom schedules) is AUDITABLE at a glance instead of
+   * collapsing to its earliest date. min === max on the official
+   * schedule (every row of a wave carries the same date); the range
+   * display degenerates to the single date then.
+   */
+  readonly dueDateMax: number | null;
   /** Any unsettled row already past due (the wave's "overdue" phase input). */
   readonly anyUnsettledOverdue: boolean;
   /** Any unsettled row not yet due (the wave's "not_due" phase input). */
@@ -92,6 +103,7 @@ export function deriveTrancheWaveStats(
     pendingTotal: number;
     remainingTotal: number;
     dueDateMin: number | null;
+    dueDateMax: number | null;
     anyUnsettledOverdue: boolean;
     anyUnsettledFuture: boolean;
   }
@@ -120,6 +132,7 @@ export function deriveTrancheWaveStats(
         pendingTotal: 0,
         remainingTotal: 0,
         dueDateMin: null,
+        dueDateMax: null,
         anyUnsettledOverdue: false,
         anyUnsettledFuture: false,
       };
@@ -133,6 +146,12 @@ export function deriveTrancheWaveStats(
     const dueTs = tsOf(i.dueDate);
     if (dueTs !== null && (acc.dueDateMin === null || dueTs < acc.dueDateMin)) {
       acc.dueDateMin = dueTs;
+    }
+    // T-435 (UI-317): the range's other bound — the LATEST due date in
+    // the wave (the spread's far edge; equals dueDateMin on the official
+    // schedule where every row of a wave shares one date).
+    if (dueTs !== null && (acc.dueDateMax === null || dueTs > acc.dueDateMax)) {
+      acc.dueDateMax = dueTs;
     }
     // Rule 3 — INV-4 remaining over every row (settled rows add 0).
     const remaining = installmentRemaining(i);
@@ -172,6 +191,7 @@ export function deriveTrancheWaveStats(
     pendingTotal: acc.pendingTotal,
     remainingTotal: acc.remainingTotal,
     dueDateMin: acc.dueDateMin,
+    dueDateMax: acc.dueDateMax,
     anyUnsettledOverdue: acc.anyUnsettledOverdue,
     anyUnsettledFuture: acc.anyUnsettledFuture,
   }));

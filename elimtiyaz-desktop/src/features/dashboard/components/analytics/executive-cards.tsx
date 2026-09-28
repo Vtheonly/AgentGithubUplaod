@@ -26,7 +26,7 @@ import {
   CardDescription,
 } from "../../../../shared/ui/card";
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
-import { formatDate } from "../../../../core/format/date";
+import { formatDueDateRange } from "../../../../core/format/date";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../../../domain/model/payment";
 import type { Payment } from "../../../../domain/model/payment";
 import type { Installment } from "../../../../domain/model/payment";
@@ -143,6 +143,10 @@ export function WaveVelocityCard({
                 const daysLate = w.dueDate ? daysBetweenFloor(w.dueDate, Date.now()) : 0;
                 const dueLineTone =
                   isOverdue && !isComplete ? "text-status-danger" : "text-muted-foreground";
+                // T-435 (UI-317): the wave's due-date RANGE (min → max when
+                // the rows drifted off the official schedule; the single
+                // date when they all share one).
+                const dueRangeLabel = formatDueDateRange(w.dueDate, w.dueDateMax);
 
                 return (
                   <div
@@ -160,13 +164,14 @@ export function WaveVelocityCard({
                           {WAVE_TITLES[w.wave]?.subtitle ?? "Scolarité"}
                         </p>
                         {/* T-434 (UI-316): the échéance + the lateness — the
-                            red verdict's visible cause. */}
-                        {w.dueDate && (
+                            red verdict's visible cause. T-435 (UI-317): the
+                            RANGE when the wave's dates spread. */}
+                        {dueRangeLabel && (
                           <p
                             className={`text-[10px] font-mono ${dueLineTone}`}
                             data-testid={`wave-due-${w.wave}`}
                           >
-                            Échéance : {formatDate(w.dueDate, "dd MMM yyyy")}
+                            Échéance : {dueRangeLabel}
                             {!isComplete &&
                               (isOverdue
                                 ? ` — ${daysLate} j de retard`
@@ -303,7 +308,11 @@ export function WaveVelocityCard({
                   Autres Vagues de Facturation (Transport & Services)
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                  {others.map((w) => (
+                  {others.map((w) => {
+                    // T-435 (UI-317): the due-date RANGE on the auxiliary
+                    // waves too (the single date when the rows share one).
+                    const auxDue = formatDueDateRange(w.dueDate, w.dueDateMax);
+                    return (
                     <div
                       key={`${w.category}-${w.wave}`}
                       className="rounded-lg border border-border/60 bg-surface-elevated/20 p-2.5 flex items-center justify-between gap-3 text-xs"
@@ -326,9 +335,7 @@ export function WaveVelocityCard({
                         >
                           {formatDzd(w.remainingTotal, { compact: true })}{" "}
                           restants
-                          {w.dueDate
-                            ? ` · échéance ${formatDate(w.dueDate, "dd MMM yyyy")}`
-                            : ""}
+                          {auxDue ? ` · échéance ${auxDue}` : ""}
                           {w.phase === "overdue" && w.remainingTotal > 0
                             ? " · en retard"
                             : ""}
@@ -338,7 +345,8 @@ export function WaveVelocityCard({
                         {w.collectedPct}%
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -30,6 +30,33 @@ export function formatRelative(value: string | Date | number): string {
   return d ? formatDistanceToNow(d, { locale: fr, addSuffix: true }) : "—";
 }
 
+/**
+ * T-435 (UI-317): format a tranche wave's due-date RANGE (min → max).
+ *
+ * On the official schedule every row of a wave carries the SAME date
+ * (min === max — Sept 15 / Dec 15 / Mar 15 per `getOfficialTuitionDueDates`)
+ * and the range degenerates to the single date. But the per-row échéance
+ * editor (the Tranches tab's "Modifier l'échéance") and mid-year custom
+ * schedules can move single rows; a wave whose dates spread must SHOW the
+ * spread ("15 sept. 2026 → 15 oct. 2026"), never silently collapse to its
+ * earliest date — a verdict a user cannot audit in place is
+ * indistinguishable from a bug (§15.66b, extended from the verdict to its
+ * driving fact).
+ *
+ * Null when the wave carries no parseable date (the caller keeps its
+ * static schedule hint as the fallback line then).
+ */
+export function formatDueDateRange(
+  dueDateMin: string | null,
+  dueDateMax: string | null,
+): string | null {
+  if (!dueDateMin) return null;
+  if (!dueDateMax || dueDateMax === dueDateMin) {
+    return formatDate(dueDateMin, "dd MMM yyyy");
+  }
+  return `${formatDate(dueDateMin, "dd MMM yyyy")} → ${formatDate(dueDateMax, "dd MMM yyyy")}`;
+}
+
 export function toIsoDate(d: Date = new Date()): string {
   return d.toISOString();
 }

@@ -134,6 +134,17 @@ export interface TrancheWave {
   readonly clearedPct: number;
   /** Earliest due date in the wave (ISO) — null when the wave is empty. */
   readonly dueDate: string | null;
+  /**
+   * T-435 (UI-317): LATEST due date in the wave (ISO) — null when the
+   * wave is empty. `dueDate…dueDateMax` is the wave's due-date RANGE:
+   * the spread the card renders when rows drifted off the official
+   * schedule (equal on the official schedule — every row of a wave
+   * carries the same date, and the range display degenerates to the
+   * single date). The phase/days-late math keeps anchoring on the
+   * EARLIEST date (`dueDate`) — the earliest unpaid row is what makes a
+   * wave overdue.
+   */
+  readonly dueDateMax: string | null;
   /** Phase at `now`: not_due (due in the future) | in_window | overdue. */
   readonly phase: WavePhase;
 }
@@ -183,6 +194,7 @@ export function deriveTrancheWaves(
       collectedPct: sharePct(acc.paidTotal, acc.dueTotal),
       clearedPct: sharePct(acc.settledCount, acc.installmentCount),
       dueDate: acc.dueDateMin !== null ? new Date(acc.dueDateMin).toISOString() : null,
+      dueDateMax: acc.dueDateMax !== null ? new Date(acc.dueDateMax).toISOString() : null,
       phase,
     };
   });
