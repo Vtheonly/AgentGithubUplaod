@@ -23,7 +23,7 @@
  * Built on UnifiedModal so the visual language matches every other modal
  * in the application.
  */
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle,
   Loader2, FileUp, X, Download, FileJson, FileText,
@@ -44,6 +44,21 @@ import { ImportEngine } from "../../infrastructure/excel/import-engine";
 import { RepositoryStorageAdapter } from "../../infrastructure/excel/import-engine/storage/repository-adapter";
 import type { ImportContext } from "../../infrastructure/excel/import-engine";
 import { downloadBlob } from "../../infrastructure/excel/export-engine";
+// T-438 (issues #15/#16 / ADR-032): the ER-PMAE import-time review flow.
+// When the experimental flag is ON, the dry-run analysis proposes identity
+// matches; the user confirms each BEFORE the import binds anything (INV-50).
+import {
+  EXPERIMENTAL_ER_PMAE_KEY,
+  isExperimentalEnabled,
+} from "../../infrastructure/experimental/experimental-flags";
+import {
+  runErImportAnalysis,
+  ConfirmedEntityMatcher,
+  erImportRowObservationId,
+  type ErImportAnalysisOutput,
+} from "../../infrastructure/excel/import-engine/er-matcher";
+import type { ImportRecord } from "../../infrastructure/excel/import-engine/types";
+import type { ErMatchProposal } from "../../domain/identity/types";
 
 /**
  * Trigger a browser download for an in-memory report. The bytes were
@@ -75,6 +90,8 @@ export function ExcelImportModal({
   const sync = useSyncActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const engineRef = useRef<ImportEngine | null>(null);
+  /** T-438: whether the memoized engine carries an ER matcher (see getEngine). */
+  let engineHasMatcher = false;
 
   const [stage, setStage] = useState<Stage>("select");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -93,6 +110,12 @@ export function ExcelImportModal({
     excel?: { fileName: string; bytes: Uint8Array };
   } | null>(null);
   const [alert, setAlert] = useState<Alert | null>(null);
+  /** T-438: the ER-PMAE analysis of THIS file against the existing roster
+   * (null when the flag is OFF — zero ER work, INV-40). */
+  const [erAnalysis, setErAnalysis] = useState<ErImportAnalysisOutput | null>(null);
+  /** The collected ETAT rows from the dry-run (the review surface's join data). */
+  const [erRows, setErRows] = useState<ReadonlyArray<{ record: ImportRecord; rowIndex: number }>>([]);
+  const [erBusy, setErBusy] = useState(false);
   /** Per-row errors collected during the commit (parent/student creation failures). */
   const [skipErrors, setSkipErrors] = useState<Array<{ rowIndex: number; identity: string; error: string }>>([]);
   /** Progress feedback during the commit step — shows phase + current/total. */
@@ -118,9 +141,17 @@ export function ExcelImportModal({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  /** Build (or reuse) an ImportEngine wired to the project's audit log + real repositories. */
-  function getEngine(): ImportEngine {
-    if (!engineRef.current) {
+  /**
+   * Build (or reuse) an ImportEngine wired to the project's audit log + real
+   * repositories.
+   *
+   * T-438: an optional `entityMatcher` (carrying the HUMAN-CONFIRMED ER-PMAE
+   * bindings) wires the T-414 seam into the storage adapter. Rebuilding the
+   * engine when a matcher is present keeps the memoized flag-OFF path
+   * byte-identical to pre-T-438 (INV-40).
+   */
+  function getEngine(entityMatcher?: ConstructorParameters<typeof RepositoryStorageAdapter>[0]["entityMatcher"]): ImportEngine {
+    if (!engineRef.current || (entityMatcher && !engineHasMatcher)) {
       // The bridge adapter delegates ETAT upserts to ParentRepository +
       // StudentRepository — this is the fix that makes Excel imports
       // actually persist students into the CRM. Iteration 21 also wires
@@ -142,7 +173,9 @@ export function ExcelImportModal({
         tenantId: session?.tenantId ?? "default",
         actorId: session?.userId ?? "system",
         actorName: session?.displayName ?? "System",
+        entityMatcher,
       });
+      engineHasMatcher = entityMatcher !== undefined;
       engineRef.current = new ImportEngine({
         storage,
         auditSink: {
@@ -177,6 +210,21 @@ export function ExcelImportModal({
       setFileName(file.name);
 
       const engine = getEngine();
+
+      // T-438: when the experimental flag is ON, collect the ETAT rows the
+      // dry-run parses (the "sheet:row" events carry them) for the ER analysis.
+      const erEnabled = isExperimentalEnabled(EXPERIMENTAL_ER_PMAE_KEY);
+      const collectedRows: Array<{ record: ImportRecord; rowIndex: number }> = [];
+      const collectRow = erEnabled
+        ? (payload: { sheet: string; row: ImportRecord; rowIndex: number; action: string }) => {
+            // ETAT rows carry the family identity fields (NOM / NEM).
+            if (payload.row && (payload.row.nom !== undefined || payload.row.nem !== undefined)) {
+              collectedRows.push({ record: payload.row, rowIndex: payload.rowIndex });
+            }
+          }
+        : null;
+      const stopCollecting = collectRow ? engine.on("sheet:row", collectRow) : null;
+
       // Dry-run import — validates + shows stats without writing to storage.
       const ctx = await engine.importFile(buf, file.name, {
         dryRun: true,
@@ -184,6 +232,34 @@ export function ExcelImportModal({
       });
       setPreviewCtx(ctx);
       setStage("preview");
+
+      // T-438: the ER-PMAE analysis — the dedicated review/confirmation flow
+      // (identity-rules §7.2). Proposals are PERSISTED for review; NOTHING is
+      // bound yet (INV-50).
+      if (collectRow) {
+        stopCollecting?.();
+        setErRows(collectedRows);
+        setErAnalysis(null);
+        try {
+          const parents = repos.parents.observe().get();
+          const analysis = await runErImportAnalysis({
+            records: collectedRows,
+            parents,
+            repo: repos.identityResolution,
+            sourceSystem: `xlsx:${file.name}`,
+            academicYear: null,
+          });
+          setErAnalysis(analysis);
+        } catch (erErr) {
+          // The ER analysis is an ENHANCEMENT of the import — a failure must
+          // never block the import itself (the honest degradation).
+          console.warn("[ExcelImportModal] ER-PMAE analysis failed — continuing without it:", erErr);
+          setErAnalysis(null);
+        }
+      } else {
+        setErAnalysis(null);
+        setErRows([]);
+      }
 
       if (ctx.stats.rowsRead === 0) {
         setAlert({
@@ -243,7 +319,26 @@ export function ExcelImportModal({
     // resume even when the import throws.
     pauseFinancialRealtime();
     try {
-      const engine = getEngine();
+      // T-438: the confirmed-bindings matcher — built EXCLUSIVELY from the
+      // proposals the user APPROVED in the review flow (INV-50). Unapproved
+      // rows follow the legacy resolution (INV-45); flag OFF ⇒ no matcher ⇒
+      // the byte-identical legacy path (INV-40).
+      let erMatcher: ConfirmedEntityMatcher | undefined;
+      if (isExperimentalEnabled(EXPERIMENTAL_ER_PMAE_KEY)) {
+        const approved = repos.identityResolution
+          .observeProposals()
+          .get()
+          .filter((p) => p.status === "approved" || p.status === "executed");
+        const bindings = new Map<string, string>();
+        for (const p of approved) {
+          const targetId = p.bObservationId.startsWith("canonical:")
+            ? p.bObservationId.slice("canonical:".length)
+            : null;
+          if (targetId) bindings.set(p.aObservationId, targetId);
+        }
+        if (bindings.size > 0) erMatcher = new ConfirmedEntityMatcher(bindings);
+      }
+      const engine = getEngine(erMatcher);
       const ctx = await engine.importFile(fileBytes, fileName, {
         dryRun: false,
         source: { user: session?.email ?? "unknown" },
@@ -368,6 +463,62 @@ export function ExcelImportModal({
       await resumeFinancialRealtime().catch(() => {
         /* the bridge is an enhancement — never surface its failure */
       });
+    }
+  }
+
+  // ── T-438: the ER-PMAE review flow's derived data + decision handler ──
+  const erPendingProposals = erAnalysis?.proposals.filter((p) => p.status === "proposed") ?? [];
+  const parentsById = useMemo(() => {
+    const m = new Map<string, { displayName: string | null; code: string; phone: string }>();
+    for (const p of repos.parents.observe().get()) {
+      m.set(p.id, { displayName: p.displayName, code: p.code, phone: p.phone });
+    }
+    return m;
+  }, [repos.parents]);
+  const rowsByObservationId = useMemo(() => {
+    const m = new Map<string, { record: ImportRecord; rowIndex: number }>();
+    for (const r of erRows) m.set(erImportRowObservationId(r.rowIndex), r);
+    return m;
+  }, [erRows]);
+
+  async function decideErProposal(proposal: ErMatchProposal, decision: "approve" | "reject"): Promise<void> {
+    if (!session) return;
+    setErBusy(true);
+    try {
+      const res = await repos.identityResolution.decideProposal({
+        proposalId: proposal.id,
+        decision,
+        actorId: session.userId,
+        actorName: session.displayName,
+        rationale:
+          decision === "approve"
+            ? `Import ${fileName ?? ""} — rapprochement confirmé`
+            : `Import ${fileName ?? ""} — rapprochement rejeté`,
+      });
+      if (res.ok) {
+        // Refresh the analysis view from the repository (the decision landed).
+        setErAnalysis((prev) =>
+          prev
+            ? {
+                ...prev,
+                proposals: prev.proposals.map((p) =>
+                  p.id === proposal.id
+                    ? { ...p, status: decision === "approve" ? ("approved" as const) : ("rejected" as const) }
+                    : p,
+                ),
+              }
+            : prev,
+        );
+        toast.showSuccess(
+          decision === "approve"
+            ? "Rapprochement approuvé — la ligne sera rattachée à la famille existante lors de l'import."
+            : "Rapprochement rejeté — la paire ne sera plus proposée (contrainte négative).",
+        );
+      } else {
+        toast.showError("Décision impossible", res.error.message);
+      }
+    } finally {
+      setErBusy(false);
     }
   }
 
@@ -502,6 +653,93 @@ export function ExcelImportModal({
               </Button>
             </div>
           </div>
+
+          {/* T-438 (issues #15/#16): the ER-PMAE review/confirmation flow.
+              NOTHING below renders when the experimental flag is OFF (INV-40),
+              and NOTHING binds until each proposal is explicitly confirmed
+              (INV-50) — the commit then routes the approved rows to the
+              EXISTING families through the canonical write path. */}
+          {erAnalysis && erAnalysis.proposals.length > 0 && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  Résolution d'identité (ER-PMAE) — {erPendingProposals.length} rapprochement(s) à confirmer
+                </p>
+                <Badge variant="secondary" className="font-mono text-[10px]">
+                  expérimental
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Le moteur détecte que certaines lignes correspondent probablement à des familles
+                déjà enregistrées. Approuvez chaque rapprochement pour rattacher la ligne à la
+                famille existante lors de l'import ; sans décision, la ligne suit le chemin
+                standard. Aucune donnée n'est fusionnée sans votre confirmation.
+              </p>
+              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                {erAnalysis.proposals.map((p) => {
+                  const row = rowsByObservationId.get(p.aObservationId);
+                  const targetId = p.bObservationId.startsWith("canonical:")
+                    ? p.bObservationId.slice("canonical:".length)
+                    : null;
+                  const target = targetId ? parentsById.get(targetId) : undefined;
+                  const decided = p.status !== "proposed";
+                  return (
+                    <li key={p.id} className="rounded-md border border-border bg-background p-3 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="font-mono text-[10px]">
+                          Ligne {row?.rowIndex ?? "?"}
+                        </Badge>
+                        <span className="text-xs font-medium truncate max-w-[180px]">
+                          {String(row?.record.nom ?? "(sans nom)")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">→</span>
+                        <span className="text-xs font-medium truncate max-w-[220px]">
+                          {target?.displayName ?? target?.code ?? p.bObservationId}
+                          {target ? ` (${target.code})` : ""}
+                        </span>
+                        <Badge
+                          variant={p.score.band === "definite" ? "default" : p.score.band === "probable" ? "secondary" : "outline"}
+                          className="font-mono text-[10px]"
+                        >
+                          {p.score.band} · {(p.score.confidence * 100).toFixed(0)} %
+                        </Badge>
+                        {decided && (
+                          <Badge variant={p.status === "approved" || p.status === "executed" ? "default" : "destructive"} className="text-[10px]">
+                            {p.status === "approved" || p.status === "executed" ? "approuvé" : p.status === "rejected" ? "rejeté" : p.status}
+                          </Badge>
+                        )}
+                      </div>
+                      <ul className="space-y-0.5">
+                        {p.score.evidence.slice(0, 3).map((ev, i) => (
+                          <li key={i} className="text-[11px] text-muted-foreground">• {ev.detail}</li>
+                        ))}
+                      </ul>
+                      {!decided && (
+                        <div className="flex gap-2 pt-1">
+                          <Button size="sm" disabled={erBusy} onClick={() => void decideErProposal(p, "approve")}>
+                            Approuver
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={erBusy} onClick={() => void decideErProposal(p, "reject")}>
+                            Rejeter
+                          </Button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {erAnalysis && erAnalysis.proposals.length === 0 && (
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                Résolution d'identité (ER-PMAE, expérimental) : aucun rapprochement détecté pour ce
+                fichier — {erAnalysis.stats.unbound} nouvelle(s) famille(s) seront créées par le
+                chemin standard.
+              </p>
+            </div>
+          )}
 
           {/* Per-sheet stats */}
           {previewCtx.sheetResults.length > 0 && (
