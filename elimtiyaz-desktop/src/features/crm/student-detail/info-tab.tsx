@@ -29,6 +29,7 @@ import { parentDisplayName } from "../../../domain/model/parent";
 import {
   LEVEL_LABELS_FR,
   STUDENT_STATUS_LABELS_FR,
+  ORIGIN_TYPE_LABELS_FR,
 } from "../../../domain/model/student";
 import {
   TRANSPORT_DESTINATION_LABELS_FR,
@@ -113,6 +114,51 @@ export function InfoTab({
                 {student.medicalNotes}
               </p>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* T-437 (STUDENT-502 / INV-24a — issue #18 §11–§12): the pre-admission
+          ORIGIN — "where did this student come from BEFORE joining our
+          school?". Deliberately a SEPARATE card from the academic history
+          (the Pédagogique tab answers "what was their history AT our
+          school?") — the two questions never merge into one list. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Origine / École précédente</CardTitle>
+          <CardDescription>
+            D'où vient cet élève avant son entrée à El-Imtiyaz (l'historique
+            interne se consulte dans l'onglet Pédagogique).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm">
+          {student.origin && (student.origin.originType || student.origin.previousSchoolName) ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <Detail
+                label="Type d'origine"
+                value={
+                  student.origin.originType
+                    ? ORIGIN_TYPE_LABELS_FR[student.origin.originType]
+                    : "—"
+                }
+              />
+              <Detail label="École précédente" value={student.origin.previousSchoolName ?? "—"} />
+              <Detail label="Niveau précédent" value={student.origin.previousSchoolLevel ?? "—"} />
+              <Detail label="Année scolaire précédente" value={student.origin.previousAcademicYear ?? "—"} />
+              {student.origin.originNotes && (
+                <div className="col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Notes d'origine</p>
+                  <p className="text-sm rounded-md bg-muted/40 border border-border p-2">
+                    {student.origin.originNotes}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Non renseignée — saisie à la création de l'élève (assistant
+              d'inscription, section « Origine / École précédente »).
+            </p>
           )}
         </CardContent>
       </Card>

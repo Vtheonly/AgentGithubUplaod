@@ -35,6 +35,7 @@ import {
   ChevronDown,
   Download,
   Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -66,6 +67,7 @@ import { BatchRegistrationModal } from "./batch-registration-modal";
 import { ParentDetailDrawer } from "./parent-detail-drawer";
 import { StudentDetailDrawer } from "./student-detail-drawer";
 import { ExcelImportModal } from "./excel-import-modal";
+import { ReEnrollmentTab } from "./re-enrollment/re-enrollment-tab";
 import { useToast } from "../../app/providers/toast-provider";
 import {
   exportToJson,
@@ -74,7 +76,7 @@ import {
   type ExportData,
 } from "../../infrastructure/excel/data-export";
 
-type CrmTab = "parents" | "students" | "batch";
+type CrmTab = "parents" | "students" | "reenrollment" | "batch";
 
 export function CrmPage() {
   const { t } = useTranslation();
@@ -92,6 +94,12 @@ export function CrmPage() {
   const [studentDrawerId, setStudentDrawerId] = useState<string | null>(null);
   const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // T-437: the Élèves tab's DIRECT add-student flow (issue #18 §8) — the
+  // wizard in "direct" mode (parent search-or-create first).
+  const [directAddOpen, setDirectAddOpen] = useState(false);
+  // T-437: the RED pending-decision badge count (issue #18 §2) — reported by
+  // the Réinscription tab whenever its list loads.
+  const [reEnrollmentWaiting, setReEnrollmentWaiting] = useState(0);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   // FIX (add-child duplication): holds the Parent entity the wizard should
@@ -210,6 +218,8 @@ export function CrmPage() {
         return "Annuaire des parents — cliquez une ligne pour ouvrir le détail.";
       case "students":
         return "Annuaire des élèves — cliquez une ligne pour ouvrir le profil.";
+      case "reenrollment":
+        return "Réinscription : la transition des élèves existants vers la nouvelle année scolaire (liste générée à partir des résultats finalisés).";
       case "batch":
         return "Inscription groupée : assistant 4 étapes (Parent + N élèves) ou import Excel bulk.";
     }
@@ -244,13 +254,25 @@ export function CrmPage() {
         <PageTabList>
           <PageTab value="parents" label="Parents" icon={Users} count={parents.length} />
           <PageTab value="students" label="Élèves" icon={GraduationCap} count={students.length} />
+          {/* T-437 (issue #18 §2): the dedicated Réinscription tab — the RED
+              badge counts the candidates still awaiting a decision. */}
+          <PageTab
+            value="reenrollment"
+            label="Réinscription"
+            icon={RefreshCw}
+            count={reEnrollmentWaiting}
+            countTone={reEnrollmentWaiting > 0 ? "danger" : "default"}
+          />
           <PageTab value="batch" label="Inscription groupée" icon={UserPlus} />
         </PageTabList>
         <PageTabContent value="parents">
           <ParentsTab onOpenParent={openParent} />
         </PageTabContent>
         <PageTabContent value="students">
-          <StudentsTab onOpenStudent={openStudent} />
+          <StudentsTab onOpenStudent={openStudent} onAddStudent={() => setDirectAddOpen(true)} />
+        </PageTabContent>
+        <PageTabContent value="reenrollment">
+          <ReEnrollmentTab onWaitingCountChange={setReEnrollmentWaiting} />
         </PageTabContent>
         <PageTabContent value="batch">
           <BatchTab
@@ -265,6 +287,15 @@ export function CrmPage() {
         onOpenChange={setBatchOpen}
         onSubmitted={(parentId) => openParent(parentId)}
         presetParent={presetParent}
+      />
+      {/* T-437 (issue #18 §8–§10): the DIRECT add-student wizard — the parent
+          search-or-create step first, the pre-filled student form, the billing
+          persisted on the selected family. */}
+      <BatchRegistrationModal
+        open={directAddOpen}
+        onOpenChange={setDirectAddOpen}
+        onSubmitted={(parentId) => openParent(parentId)}
+        mode="direct"
       />
       <ParentDetailDrawer
         parentId={drawerParentId}
@@ -625,7 +656,7 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
 // T-381: + the "Supprimer" row action (ConfirmModal-guarded, Permission.DeleteStudent)
 // ============================================================================
 
-function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void }) {
+function StudentsTab({ onOpenStudent, onAddStudent }: { onOpenStudent: (id: string) => void; onAddStudent?: () => void }) {
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
@@ -756,6 +787,16 @@ function StudentsTab({ onOpenStudent }: { onOpenStudent: (id: string) => void })
   return (
     <Card>
       <CardContent className="p-3">
+        {/* T-437 (STUDENT-501 / issue #18 §8): the DIRECT add-student action —
+          no navigation to the parent's profile needed; the flow searches or
+          creates the parent first, then opens the PRE-FILLED student form. */}
+        {onAddStudent && (
+          <div className="flex justify-end pb-2">
+            <Button size="sm" onClick={onAddStudent}>
+              <Plus className="h-4 w-4" /> Ajouter un élève
+            </Button>
+          </div>
+        )}
         <DataTable<Student>
           data={students}
           columns={columns}
