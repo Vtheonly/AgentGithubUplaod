@@ -125,12 +125,18 @@ export interface TrancheWave {
    * Statistics "Vélocité par Vague" card shows (its grid isolates
    * scolarité). The strip pools every category in the current selection,
    * so when the category filter is "all" these are DIFFERENT truths on
-   * different bases (the owner's live pair: 77 % scolarité vs 75 % toutes
-   * catégories); surfacing the tuition figure ON the strip lets the two
+   * different bases; surfacing the tuition figure ON the strip lets the two
    * surfaces reconcile at a glance. Null when the selection carries no
    * tuition rows for the wave. Uses the Statistics card's exact formula
    * (sharePct: round(paid/due × 100), no clamp) so the number is
    * character-identical there and here.
+   *
+   * T-434 correction (DATA-050): the original comment pinned the live pair
+   * as "77 % scolarité vs 75 % toutes catégories" — that attribution was
+   * SURFACE-SWAPPED vs the live rows (the t-434 probe + the C6 census:
+   * scolarité T1 = 75 %, pooled T1 = 77 % — transport T1 at 97 % pulls
+   * the pooled rate UP). The owner's report carried the same swap; the
+   * reconciliation semantics are unchanged.
    */
   readonly tuitionPct: number | null;
 }
@@ -204,7 +210,9 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
  * fed by `deriveTrancheWaves` (REAL rows only). Honest zero state when the
  * current filters match no tranche rows.
  */
-function TrancheWaveHeader({
+// T-434: exported for the t-434 suite (the WaveVelocityCard convention —
+// the strip header renders standalone from derived waves).
+export function TrancheWaveHeader({
   waves,
   basisLabel,
   showTuitionBreakdown,
@@ -267,6 +275,12 @@ function TrancheWaveHeader({
               style={{ width: `${w.pct}%` }}
             />
           </div>
+          {/* T-434 (UI-316): the échéance is VISIBLE on the strip card
+              (the hint was tooltip-only — the same "why is this wave
+              late?" blind spot the Statistics card had). */}
+          <p className="text-[10px] font-mono text-muted-foreground" data-testid={`strip-due-${w.index}`}>
+            {w.hint}
+          </p>
           <div className="flex justify-between gap-2 text-[11px] font-mono text-muted-foreground">
             <span className="truncate">Encaissé : {formatDzdPlain(w.paid)}</span>
             <span className="truncate">Dû : {formatDzdPlain(w.due)}</span>

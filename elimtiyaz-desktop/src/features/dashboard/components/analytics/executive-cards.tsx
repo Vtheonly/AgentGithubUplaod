@@ -26,6 +26,7 @@ import {
   CardDescription,
 } from "../../../../shared/ui/card";
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
+import { formatDate } from "../../../../core/format/date";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../../../domain/model/payment";
 import type { Payment } from "../../../../domain/model/payment";
 import type { Installment } from "../../../../domain/model/payment";
@@ -42,6 +43,7 @@ import {
   deriveServiceYield,
   deriveEnrollmentDynamics,
   deriveTripleRiskSummary,
+  daysBetweenFloor,
   type TrancheWave,
   type DebtTriage,
   type FamilyConcentration,
@@ -128,6 +130,19 @@ export function WaveVelocityCard({
                   : isOverdue
                     ? "danger"
                     : "info";
+                // T-434 (UI-316, the owner's "why is Tranche 1 red — is
+                // it not due yet?" question): the wave's échéance is ON
+                // the card. The overdue verdict was CORRECT (T1 is due
+                // Sept 15 on the owner-confirmed official schedule —
+                // live-verified by the t-434 probe: phase=overdue,
+                // 548 owing families), but the card never SHOWED the due
+                // date, so the red state had no visible cause. Now every
+                // card carries its anchor date + the days late (the
+                // daysBetweenFloor convention: a wave due TODAY is 0 days
+                // late, never 1).
+                const daysLate = w.dueDate ? daysBetweenFloor(w.dueDate, Date.now()) : 0;
+                const dueLineTone =
+                  isOverdue && !isComplete ? "text-status-danger" : "text-muted-foreground";
 
                 return (
                   <div
@@ -144,6 +159,22 @@ export function WaveVelocityCard({
                         <p className="text-[11px] text-muted-foreground">
                           {WAVE_TITLES[w.wave]?.subtitle ?? "Scolarité"}
                         </p>
+                        {/* T-434 (UI-316): the échéance + the lateness — the
+                            red verdict's visible cause. */}
+                        {w.dueDate && (
+                          <p
+                            className={`text-[10px] font-mono ${dueLineTone}`}
+                            data-testid={`wave-due-${w.wave}`}
+                          >
+                            Échéance : {formatDate(w.dueDate, "dd MMM yyyy")}
+                            {!isComplete &&
+                              (isOverdue
+                                ? ` — ${daysLate} j de retard`
+                                : daysLate < 0
+                                  ? ` — dans ${-daysLate} j`
+                                  : "")}
+                          </p>
+                        )}
                       </div>
                       <span
                         className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
@@ -282,9 +313,25 @@ export function WaveVelocityCard({
                           {PAYMENT_CATEGORY_LABELS_FR[w.category] ?? w.category}{" "}
                           · T{w.wave}
                         </p>
-                        <p className="text-[10px] font-mono text-muted-foreground">
+                        {/* T-434 (UI-316): the échéance on the auxiliary
+                            waves too — transport T1 shares the tuition
+                            schedule (Sept 15), and its overdue state needs
+                            the same visible anchor. */}
+                        <p
+                          className={`text-[10px] font-mono truncate ${
+                            w.phase === "overdue" && w.remainingTotal > 0
+                              ? "text-status-danger"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           {formatDzd(w.remainingTotal, { compact: true })}{" "}
                           restants
+                          {w.dueDate
+                            ? ` · échéance ${formatDate(w.dueDate, "dd MMM yyyy")}`
+                            : ""}
+                          {w.phase === "overdue" && w.remainingTotal > 0
+                            ? " · en retard"
+                            : ""}
                         </p>
                       </div>
                       <span className="font-mono font-bold text-foreground">
