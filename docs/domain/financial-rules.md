@@ -172,3 +172,52 @@ T-412 adds the canonical **payroll forecast** — a READ-SIDE projection over th
 - **INV-17c (the overdue carry-over):** periods between the LAST RECORDED PRE-CURRENT disbursement and the current period surface as phase `overdue` (readiness `unfunded`) — a missed payroll is never silently dropped. Guards: requires existing disbursement history (a fresh install fabricates nothing), capped by the history window (default 12 months), per-period eligibility. The amount is the today's-roster projection (the documented limitation applies). **The anchor is the last recorded period STRICTLY BEFORE the current period** (the WORKFORCE-506 repair, 98th session) — disbursements recorded for the CURRENT period can never mask earlier gaps (live-proven: a 2026-07 record + current-period rows → the 2026-08 gap surfaces). KNOWN LIMITATION (owner decision pending): INTERIOR gaps — months without rows BETWEEN two older recorded periods — do not surface (distinguishing "no payroll due that month", e.g. summer, from "payroll missed" requires the school's payroll-calendar convention).
 - **INV-17d (reactive restatement):** the forecast is a pure function of the two canonical streams — personnel/salary/status/schedule changes restate every consumer automatically.
 - **INV-17e (mid-month hires):** a hire landing on/before a period's last day is owed that FULL period (the tab's budget does not prorate — neither does the forecast); a termination removes the person from every period starting AFTER the termination date.
+
+## 17. Year Tracking — the persisted academic-year attribution + the year-by-year financial history (T-436, 2026-09-29)
+
+T-436 hardens the Year-Tracking feature (who owes money, how much, for what, and **which academic year the debt belongs to**) on TOP of the existing finance system, per the owner's issue. It creates NO second ledger, NO second balance formula, NO second allocation engine, NO second pricing system — every input stays an existing canonical fact, and the pricing layer it references is the EXISTING per-year pricing configuration (ADR-025: `pricing_configs.academic_year_id` — never a duplicate). The rule family extends §15 (T-405) the same way §15 extended §3/§4: by attributing and presenting, never by recalculating.
+
+### 17.1 The three distinct year semantics (INV-18)
+
+Year Tracking MUST distinguish THREE academic years, which are NEVER interchangeable:
+
+- **The charge-belonging year** (`installments.academic_year_id`, migration 0127) — the academic year a charge/debt BELONGS to. Frozen at write time (creation/import/backfill). A later re-enrollment, a later payment, or a later échéance edit NEVER rewrites it.
+- **The payment-made year** (`payments.academic_year_id`, migration 0127) — the academic year in which a payment was ACTUALLY collected (attributed from the collection date).
+- **The settlement-target year** (`payment_allocations.academic_year_id`, migration 0127 — denormalized from the allocated installment AT ALLOCATION TIME) — the year of the DEBT an allocation settles. This is what makes "paid in 2026-2027 toward 2025-2026 debt" a first-class, immutable fact: the waterfall allocates to installments; the allocation records WHICH year's debt was settled.
+
+Invariants:
+
+- **INV-18a (attribution precedence — one rule):** a financial row's academic year is resolved by **persisted `academic_year_id` first, then the INV-14 date rule as the documented fallback**. There is exactly ONE precedence function per platform (TS: `attributeInstallmentAcademicYear` in `year-history.ts`; SQL: the COALESCE in the 0127-recreated engines). A NULL column falls back to INV-14 — the two rules are one attribution engine, not two competing systems.
+- **INV-18b (the freeze):** once persisted, the attribution NEVER changes with due-date edits (`InstallmentRepository.updateDueDate` updates `due_date` only — the year column survives), re-enrollment, or later payments. This is the fix for DATA-051's silent re-attribution drift path.
+- **INV-18c (never re-attribute old debt to a newer year):** an old debt's year is the CHARGE's year, not the payment's year, not the current year. The owner's example: a 2025-2026 20 000 DZD remainder settled by a payment collected in 2026-2027 is recorded as a 2026-2027 payment whose allocation targets 2025-2026 debt — BOTH years visible on the transaction.
+- **INV-18d (cross-year settlement is derived from allocations, never assumed):** a payment "settles an older year's debt" ONLY via its `payment_allocations` rows (the waterfall's actual decisions — ADR-002/INV-6). No surface may infer settlement from amounts, balances, or dates alone.
+
+### 17.2 Historical pricing preservation (INV-19)
+
+- **INV-19a (INV-1 extension):** historical amounts are the STORED amounts — `installments.amount_due` is the price actually applied when the charge was created. NO read surface ever recalculates a historical charge from the CURRENT pricing configuration: activating a 2026-2027 config (0117) must never re-price 2025-2026 charges.
+- **INV-19b (the pricing-config link):** a year's financial record carries the year's `pricing_configs` reference (ADR-025: one config per `(tenant, academic_year_id)` — `PricingRepository.listConfigs()`/`readForYear()`), so a review answers "which pricing configuration was active for that year, which prices were applied" WITHOUT duplicating any pricing logic — the config is referenced, its grids are read through the existing pricing repository.
+- **INV-19c (the review tuple):** for any historical charge the surfaces can always show: the academic year (persisted attribution), the pricing configuration of that year (reference), the original amount (stored `amount_due`), what was paid (`amount_paid` + allocations), what remains unpaid (the INV-4 remaining). This is §15's "amounts are the Finance-tab numbers" rule restated per-year.
+
+### 17.3 The canonical year-history derivation (INV-20)
+
+One canonical read-side engine per platform (the TS reference: desktop `src/domain/calc/ledger/year-history.ts`; consumers render, never re-derive — §15.53a). For one parent, per academic year (ordered by year start):
+
+- **Charges:** every installment attributed to the year, each with label, category, tranche wave, original `amount_due`, paid/pending split, INV-4 remaining, due date, and settlement status — `fully_paid` (with `settledAt` = the payment date that completed it, when derivable from allocations), `partially_paid`, or `outstanding`.
+- **Year-end outstanding:** Σ INV-4 remaining over the year's charges **as of the year's end date** (or `now` while the year is open) — the balance the person carried OUT of that academic year. Computed with the same clamped formula as every other surface, at a pinned as-of clock (deterministic; never "now"-drifted for closed years).
+- **Carried-forward debt:** the previous year's year-end outstanding that was still unpaid when this year began — the owner's "enrolled in a new year while still owing" figure. It is a PRESENTATION of the prior year's record, never a new balance.
+- **Payments made in the year:** payments whose payment-made year is this year (total + list).
+- **Cross-year settlements:** allocations whose payment-made year is LATER than the settlement-target year — each with the payment, the year it was made in, the target year, the installment settled, and the amount. These are ALSO visible on the OLDER year's record (the year that RECEIVED the settlement) as "settled later by payments from year X".
+- **Students who left while owing / re-enrolled while owing:** flags derived from the year records — a year with year-end outstanding > 0 whose FOLLOWING year has no charges for the person = "left owing"; following year HAS charges = "re-enrolled owing". Derived facts, honestly labeled.
+- **Balance evolution:** the chronological event stream (charge events at due date, payment events at payment date) with the running outstanding — the "how their financial state changed from one year to the next" view.
+
+Invariants:
+
+- **INV-20a (no new numbers):** every amount in the year history is either a stored column (`amount_due`, `amount_paid`, `amount_pending`), the INV-4 remaining (§15's formula, same rows), or an allocation row's `allocated_amount`. No surface may re-allocate (ADR-002), re-price (INV-19a), or net differently (§14's reconciliation equation stays available via the bridge on the parent's CURRENT totals).
+- **INV-20b (as-of determinism):** closed-year figures are computed at the year's end date; open-year figures at the caller's clock. Same inputs + same clock → identical records (the T-405 purity contract).
+- **INV-20c (history is append-only in spirit):** the engine NEVER mutates inputs; a later payment changes the CURRENT-year record and the settlement facts it truly affects (a 2027 payment settling 2025 debt updates the 2025 record's settlement status — because that is what actually happened — while the 2025 year-end outstanding AS OF 2025 stays what it was).
+
+### 17.4 Where the calculation lives
+
+- **Reference implementation:** desktop `src/domain/calc/ledger/year-history.ts` (pure, deterministic) + the attribution precedence helpers; pinned by the T-436 multi-year fixture suite (`src/tests/domain/ledger/year-history.test.ts`) covering the owner's exact scenarios (partial payments, carried-forward debt across 2+ transitions, re-enrollment with debt, later-year settlement of older debt, price changes across years, leaving while owing, the attribution-precedence + freeze pins).
+- **SQL side:** migration 0127 — the persisted columns + backfill + the canonical write paths stamping them (`collect_and_allocate_payment` recreated: payment year + allocation target year; `upsert_installment_from_import` recreated: the previously-dropped `p_academic_year` wired — DATA-052) + the 0126-recreated `compute_debt_aging_rows` re-based on the precedence (persisted → INV-14) so the debt-aging SQL mirror stays parity-pinned with the TS engine.
+- **Platform consumers:** the CRM parent drawer's « Historique par Année Scolaire » section (the per-person year-by-year review), the Debt Aging drawer's per-obligation year facts (now precedence-attributed), and any future statistics/reporting surfaces — all CONSUMERS of the one engine.
