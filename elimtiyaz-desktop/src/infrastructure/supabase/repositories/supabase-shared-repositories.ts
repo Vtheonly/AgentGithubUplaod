@@ -902,6 +902,8 @@ export function mapPaymentRow(r: PaymentRow): Payment {
     expectedAmount: r.expected_amount != null ? Number(r.expected_amount) : undefined,
     excessAmount: r.excess_amount != null ? Number(r.excess_amount) : undefined,
     excessRemark: r.excess_remark ?? null,
+    // T-436 / ADR-030 (migration 0127): the payment-made academic year.
+    academicYearId: r.academic_year_id ?? null,
     collectedBy: r.collected_by ?? "system",
     collectedAt: r.collected_at,
     createdAt: r.created_at,
@@ -2287,6 +2289,8 @@ export class SupabasePaymentRepository implements PaymentRepository {
           allocatedAmount: r.allocated_amount,
           label: r.label,
           createdAt: r.created_at,
+          // T-436 / migration 0127: the settlement-target year.
+          academicYearId: r.academic_year_id ?? null,
         })),
       );
     } catch (err) {
@@ -2338,6 +2342,8 @@ export class SupabasePaymentRepository implements PaymentRepository {
         allocatedAmount: r.allocated_amount,
         label: r.label,
         createdAt: r.created_at,
+        // T-436 / migration 0127: the settlement-target year.
+        academicYearId: r.academic_year_id ?? null,
       })) as readonly PaymentAllocation[];
     });
     finishSeed("allocations", this.allocationsCache, outcome);
@@ -3435,8 +3441,52 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   private readonly cache = new SubjectBehavior<Installment[]>([]);
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  /**
+   * T-436 (ADR-030): the tenant's academic-year windows for the import
+   * stamping — fetched once per repository lifetime (the same rows the
+   * AcademicYearRepository observes; duplicated here as a pure read so the
+   * import write path stays self-contained). NULL-safe: an empty list
+   * stamps nothing (the INV-14 read-side fallback resolves those rows).
+   */
+  private yearWindows: { id: string; start: number; end: number }[] | null = null;
 
   constructor(private readonly client: SupabaseClient) {}
+
+  /**
+   * T-436: resolve (and cache) the tenant's academic-year windows, then
+   * attribute a due date to its year id — the INV-14 window rule, the
+   * SAME rule the 0127 backfill applied. Rows outside every window →
+   * null (the documented read-side fallback).
+   */
+  private async resolveAcademicYearIdForDueDate(dueDate: string): Promise<string | null> {
+    if (this.yearWindows === null) {
+      try {
+        const { data, error } = await this.client
+          .from("academic_years")
+          .select("id, start_date, end_date")
+          .order("start_date", { ascending: true });
+        if (error) throw error;
+        this.yearWindows = ((data ?? []) as { id: string; start_date: string; end_date: string }[])
+          .map((y) => ({
+            id: y.id,
+            start: new Date(y.start_date).getTime(),
+            end: new Date(y.end_date).getTime(),
+          }))
+          .filter((y) => Number.isFinite(y.start) && Number.isFinite(y.end));
+      } catch {
+        // Honest degradation: stamp nothing — the INV-14 read-side
+        // fallback keeps the attribution correct for standard schedules.
+        this.yearWindows = [];
+      }
+    }
+    const t = new Date(dueDate).getTime();
+    if (!Number.isFinite(t)) return null;
+    for (let i = this.yearWindows.length - 1; i >= 0; i -= 1) {
+      const w = this.yearWindows[i];
+      if (t >= w.start && t <= w.end) return w.id;
+    }
+    return null;
+  }
 
   private async seed(): Promise<void> {
     if (!this.freshness.shouldReseed()) return;
@@ -3777,6 +3827,13 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
     try {
       const tenantId = requireTenantId();
       const now = new Date().toISOString();
+      // T-436 (ADR-030): stamp the charge-belonging year on every imported
+      // row — the INV-14 window rule at write time (the 0127 backfill's
+      // rule; a NULL stamp resolves through the read-side fallback).
+      const yearByInput = await Promise.all(
+        inputs.map(async (input) => [input.dueDate, await this.resolveAcademicYearIdForDueDate(input.dueDate)] as const),
+      );
+      const yearByDueDate = new Map<string, string | null>(yearByInput);
       const rows = inputs.map((input) => ({
         tenant_id: tenantId,
         parent_id: input.parentId,
@@ -3796,6 +3853,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         custom_schedule_note: null,
         source_type: input.sourceType ?? "bulk_import",
         source_id: input.sourceId ?? `${input.studentId}:${input.category}:T${input.trancheNumber}`,
+        academic_year_id: yearByDueDate.get(input.dueDate) ?? null,
         updated_at: now,
       }));
       // Insert in chunks of 500.
@@ -3833,7 +3891,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         const { data, error } = await this.client
           .from("installments")
           .upsert(chunk as never, { ignoreDuplicates: true })
-          .select("id, tenant_id, parent_id, student_id, category, tranche_number, label, amount_due, amount_paid, amount_pending, due_date, paid_date, status, academic_cycle, payment_plan, is_custom_schedule, custom_schedule_note, source_type, source_id, created_at, updated_at");
+          .select("id, tenant_id, parent_id, student_id, category, tranche_number, label, amount_due, amount_paid, amount_pending, due_date, paid_date, status, academic_cycle, payment_plan, is_custom_schedule, custom_schedule_note, source_type, source_id, academic_year_id, created_at, updated_at");
         if (error) {
           // IMPORT-110 honest-error half: a chunk failure FAILS the bulk
           // operation (the adapter's catch aborts the import with the
@@ -3949,6 +4007,10 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         .maybeSingle();
       if (findErr) throw findErr;
 
+      // T-436 (ADR-030): stamp the charge-belonging year — the INV-14
+      // window rule at write time (NULL when unresolvable: the read-side
+      // fallback applies).
+      const academicYearId = await this.resolveAcademicYearIdForDueDate(input.dueDate);
       const rowPayload = {
         tenant_id: tenantId,
         parent_id: input.parentId,
@@ -3968,6 +4030,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         custom_schedule_note: null,
         source_type: input.sourceType ?? "bulk_import",
         source_id: input.sourceId ?? `${input.studentId}:${input.category}:T${input.trancheNumber}`,
+        academic_year_id: academicYearId,
         updated_at: new Date().toISOString(),
       };
 
@@ -4039,6 +4102,9 @@ function mapInstallmentRow(r: InstallmentRow): Installment {
     isCustomSchedule: Boolean(r.is_custom_schedule),
     customScheduleNote: r.custom_schedule_note,
     customSchedule: Boolean(r.is_custom_schedule),
+    // T-436 / ADR-030 (migration 0127): the charge-belonging academic year
+    // (persisted; INV-14 date fallback when NULL — one precedence).
+    academicYearId: r.academic_year_id ?? null,
   };
 }
 

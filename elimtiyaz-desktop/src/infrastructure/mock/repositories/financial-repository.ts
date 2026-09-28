@@ -529,16 +529,22 @@ export class MockDebtRepository implements DebtRepository {
     return derived(
       [store.installments$, store.ledger$, store.academicYears$, store.parents$],
       () => {
+        // T-436: the windows carry the academic_years ids so the
+        // persisted-attribution precedence (INV-18a) engages in mock mode
+        // exactly as the 0127-recreated SQL mirror does live; the payment
+        // rows feed the payment-year attribution (INV-18).
         const years = store.academicYears.map((ay) => ({
           code: ay.code,
           startDate: ay.startDate,
           endDate: ay.endDate,
+          id: ay.id,
         }));
         return store.parents
           .map((p) =>
             computeDebtAgingAnalysis({
               parentId: p.id,
               installments: store.installments,
+              payments: store.payments,
               ledgerEntries: store.ledger,
               academicYears: years,
             }),

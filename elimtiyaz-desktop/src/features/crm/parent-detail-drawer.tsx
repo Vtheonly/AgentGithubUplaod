@@ -22,7 +22,7 @@
  *      majorations = net; net − cleared − pending = reste; explicit bridge
  *      to the server balance.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   MessageCircle,
   MessagesSquare,
@@ -92,6 +92,8 @@ import {
   installmentRemaining,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
+import { ParentYearHistorySection } from "./parent-year-history-section";
+import type { PricingConfigSummary } from "../../domain/model/pricing";
 import { deterministicActivationCode } from "../../core/format/id";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
 import { isInstallmentSettled } from "../../domain/calc/payment/queries";
@@ -176,6 +178,34 @@ export function ParentDetailDrawer({
   // pricing profile rendered in the Finances tab's "Par service" view
   // (identical derivation to the website's T-333 module).
   const pricingConfig = useObservable(() => repos.pricing.observe(), []);
+  // T-436 (UI-318): the year-by-year history's two extra inputs — the
+  // allocations stream (the settlement truth, INV-18d; the optional-method
+  // pattern — fakes get a constant-empty stream) and the per-year pricing
+  // configurations (ADR-025's listConfigs — one fetch per drawer open; a
+  // failure renders no config references, never a fabricated one).
+  const allocations = useObservable(
+    () =>
+      repos.payments.observeAllocations?.() ?? {
+        subscribe: () => () => {},
+        get: () => [],
+      },
+    [],
+  );
+  const [yearPricingConfigs, setYearPricingConfigs] = useState<readonly PricingConfigSummary[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    repos.pricing
+      .listConfigs()
+      .then((result) => {
+        if (!cancelled && result.ok) setYearPricingConfigs(result.value);
+      })
+      .catch(() => {
+        /* honest: no config references rendered */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [repos.pricing, parentId]);
 
   // T-252 — the payment-terminal context drives the modal. The main action
   // opens the consolidated family debt; the per-tranche 1-click buttons open
@@ -546,6 +576,8 @@ export function ParentDetailDrawer({
           classes={classes}
           academicYears={academicYears}
           pricingConfig={pricingConfig}
+          allocations={allocations}
+          yearPricingConfigs={yearPricingConfigs}
           canAdjust={canAdjust}
           onAdjust={() => setAdjustOpen(true)}
           onDownloadStatement={() => void handleDownloadStatement(p)}
@@ -684,6 +716,8 @@ function FinancesTab({
   onDownloadStatement,
   onCollectTranche,
   pricingConfig,
+  allocations,
+  yearPricingConfigs,
 }: {
   profile: ParentFinancialProfile | null | undefined;
   outstanding: number;
@@ -696,6 +730,10 @@ function FinancesTab({
   academicYears: readonly import("../../domain/model/academic").AcademicYear[];
   /** T-334: the pricing catalog — feeds the exhaustive per-service profile. */
   pricingConfig: import("../../domain/model/pricing").PricingConfig | null | undefined;
+  /** T-436: the allocations stream — the settlement truth (INV-18d). */
+  allocations: readonly import("../../domain/model/payment").PaymentAllocation[];
+  /** T-436: the per-year pricing configurations (ADR-025 summaries). */
+  yearPricingConfigs: readonly PricingConfigSummary[];
   canAdjust: boolean;
   onAdjust: () => void;
   onDownloadStatement: () => void;
@@ -1366,6 +1404,24 @@ function FinancesTab({
           <p className="px-3 py-3 text-xs text-muted-foreground">Aucun ajustement enregistré sur ce compte.</p>
         )}
       </div>
+
+      {/* T-436 (UI-318) — the « Historique par Année Scolaire » section: the
+          year-by-year financial history (per year: charges + paid/unpaid +
+          year-end remaining + carried-forward + cross-year settlements + the
+          year's pricing configuration) — a PURE CONSUMER of the canonical
+          year-history engine, never a local re-derivation (§15.53a). */}
+      <ParentYearHistorySection
+        parentId={profile?.parentId ?? ""}
+        installments={installments}
+        payments={payments}
+        allocations={allocations}
+        ledgerEntries={ledgerEntries}
+        academicYears={academicYears}
+        pricingConfigs={useMemo(
+          () => new Map(yearPricingConfigs.map((c) => [c.academicYearCode, c])),
+          [yearPricingConfigs],
+        )}
+      />
     </div>
   );
 }

@@ -357,6 +357,8 @@ export interface PaymentRow {
   excess_amount: number | null;
   /** Staff remark explaining an overpayment. */
   excess_remark: string | null;
+  /** T-436 / migration 0127: the PAYMENT-MADE academic year (ADR-030). */
+  academic_year_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -380,6 +382,8 @@ export interface PaymentAllocationRow {
   allocated_amount: number;
   label: string | null;
   created_at: string;
+  /** T-436 / migration 0127: the SETTLEMENT-TARGET academic year. */
+  academic_year_id?: string | null;
 }
 
 export interface InstallmentRow {
@@ -420,6 +424,8 @@ export interface InstallmentRow {
   source_type?: string | null;
   /** Stable id within the source (migration 0032). */
   source_id?: string | null;
+  /** T-436 / migration 0127: the CHARGE-BELONGING academic year (ADR-030). */
+  academic_year_id?: string | null;
   created_at: string;
   updated_at: string;
 }
