@@ -17,7 +17,17 @@ import type {
   PromotionCycleRepository,
   CreatePromotionCycleInput,
   ConfirmPromotionCycleClassInput,
+  ReEnrollmentRepository,
 } from "../../../domain/repository/academic-repository";
+import type {
+  GenerateCandidatesResult,
+  ReEnrollmentCandidate,
+  ReEnrollmentDecisionInput,
+  ReEnrollmentList,
+  ReEnrollStudentInput,
+  ReEnrollStudentResult,
+} from "../../../domain/model/re-enrollment";
+import { reEnrollmentListFromCandidates } from "../../../domain/model/re-enrollment";
 import { normalizeTrackCode } from "../../../domain/model/filiere";
 import type { SupabaseStudentRepository } from "./supabase-shared-repositories";
 import type { Observable } from "../../../domain/repository/repository";
@@ -2249,6 +2259,229 @@ export class SupabasePromotionCycleRepository implements PromotionCycleRepositor
       });
       if (error) return Err(supabaseErrorToAppError(error));
       return Ok(undefined);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+}
+
+// ============================================================================
+// SupabaseReEnrollmentRepository — T-437 (migration 0128 / ADR-031)
+//
+// The contract mirrors the 0128 RPCs 1:1. NO client-side re-enrollment
+// business logic: the candidates come from fn_generate_re_enrollment_candidates
+// (built on the FINALIZED student_academic_histories rows — INV-22a), the
+// decisions and the composite go through the RPCs. The billing legs are
+// built by the ONE shared `buildRegistrationBillingWires` (the exact
+// register_family_batch wire shapes, year-scoped source ids — INV-25a) and
+// stay CLIENT-DERIVED (§15.39b); the server fills the uuids and stamps
+// academic_year_id = target (INV-25c).
+// ============================================================================
+
+/** fn_get_re_enrollment_candidates' row shape (snake_case wire). */
+interface ReEnrollmentCandidateRow {
+  re_enrollment_id: string;
+  student_id: string;
+  student_code: string;
+  student_first_name: string;
+  student_last_name: string;
+  student_grade_level: string | null;
+  student_class_id: string | null;
+  parent_id: string;
+  parent_code: string;
+  parent_display_name: string;
+  parent_phone: string | null;
+  source_academic_year: string;
+  target_academic_year: string;
+  source_grade_level_code: string | null;
+  source_class_name: string | null;
+  final_decision: string | null;
+  final_average: number | string | null;
+  expected_grade_level_code: string | null;
+  status: string;
+  target_class_id: string | null;
+  target_class_name: string | null;
+  decided_at: string | null;
+  decided_by_name: string | null;
+  re_enrolled_at: string | null;
+  installments_written: number | null;
+  notes: string | null;
+  frozen_at: string | null;
+  created_at: string;
+}
+
+function mapCandidateRow(r: ReEnrollmentCandidateRow): ReEnrollmentCandidate {
+  return {
+    reEnrollmentId: r.re_enrollment_id,
+    studentId: r.student_id,
+    studentCode: r.student_code,
+    studentFirstName: r.student_first_name,
+    studentLastName: r.student_last_name,
+    studentGradeLevel: r.student_grade_level,
+    studentClassId: r.student_class_id,
+    parentId: r.parent_id,
+    parentCode: r.parent_code,
+    parentDisplayName: r.parent_display_name,
+    parentPhone: r.parent_phone,
+    sourceAcademicYear: r.source_academic_year,
+    targetAcademicYear: r.target_academic_year,
+    sourceGradeLevelCode: r.source_grade_level_code,
+    sourceClassName: r.source_class_name,
+    finalDecision: (r.final_decision as ReEnrollmentCandidate["finalDecision"]) ?? null,
+    finalAverage: r.final_average == null ? null : Number(r.final_average),
+    expectedGradeLevelCode: r.expected_grade_level_code,
+    status: r.status as ReEnrollmentCandidate["status"],
+    targetClassId: r.target_class_id,
+    targetClassName: r.target_class_name,
+    decidedAt: r.decided_at,
+    decidedByName: r.decided_by_name,
+    reEnrolledAt: r.re_enrolled_at,
+    installmentsWritten: r.installments_written,
+    notes: r.notes,
+    frozenAt: r.frozen_at,
+    createdAt: r.created_at,
+  };
+}
+
+export class SupabaseReEnrollmentRepository implements ReEnrollmentRepository {
+  constructor(private readonly client: SupabaseClient) {}
+
+  async generateCandidates(input: {
+    sourceAcademicYearId: string;
+    targetAcademicYearId: string;
+    performedBy: string;
+    performedByName: string;
+  }): Promise<Result<GenerateCandidatesResult>> {
+    if (!isUuid(input.sourceAcademicYearId) || !isUuid(input.targetAcademicYearId)) {
+      return Err(Errors.validation("Les identifiants d'année scolaire doivent être des UUID valides."));
+    }
+    try {
+      const { data, error } = await this.client.rpc("fn_generate_re_enrollment_candidates", {
+        p_source_academic_year_id: input.sourceAcademicYearId,
+        p_target_academic_year_id: input.targetAcademicYearId,
+        p_actor_profile_id: isUuid(input.performedBy) ? input.performedBy : null,
+        p_actor_name: input.performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      const res = (data ?? {}) as {
+        source_academic_year?: string;
+        target_academic_year?: string;
+        candidates_written?: number;
+        total_rows?: number;
+      };
+      return Ok({
+        sourceAcademicYear: res.source_academic_year ?? "",
+        targetAcademicYear: res.target_academic_year ?? "",
+        candidatesWritten: Number(res.candidates_written ?? 0),
+        totalRows: Number(res.total_rows ?? 0),
+      });
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async listCandidates(targetAcademicYearId: string): Promise<Result<ReEnrollmentList>> {
+    if (!isUuid(targetAcademicYearId)) {
+      return Err(Errors.validation("L'identifiant de l'année cible doit être un UUID valide."));
+    }
+    try {
+      const { data, error } = await this.client.rpc("fn_get_re_enrollment_candidates", {
+        p_target_academic_year_id: targetAcademicYearId,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      const rows = (data ?? []) as unknown as ReEnrollmentCandidateRow[];
+      return Ok(reEnrollmentListFromCandidates(rows.map(mapCandidateRow)));
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async setDecision(input: {
+    reEnrollmentId: string;
+    decision: ReEnrollmentDecisionInput;
+    notes: string | null;
+    performedBy: string;
+    performedByName: string;
+  }): Promise<Result<void>> {
+    if (!isUuid(input.reEnrollmentId)) {
+      return Err(Errors.validation("L'identifiant du candidat doit être un UUID valide."));
+    }
+    try {
+      const { error } = await this.client.rpc("fn_set_re_enrollment_decision", {
+        p_re_enrollment_id: input.reEnrollmentId,
+        p_decision: input.decision,
+        p_notes: input.notes,
+        p_actor_profile_id: isUuid(input.performedBy) ? input.performedBy : null,
+        p_actor_name: input.performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      return Ok(undefined);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async reEnroll(input: ReEnrollStudentInput): Promise<Result<ReEnrollStudentResult>> {
+    if (!isUuid(input.reEnrollmentId)) {
+      return Err(Errors.validation("L'identifiant du candidat doit être un UUID valide."));
+    }
+    try {
+      const { data, error } = await this.client.rpc("fn_re_enroll_student", {
+        p_re_enrollment_id: input.reEnrollmentId,
+        p_grade_level_code: input.gradeLevelCode,
+        p_class_id: isUuid(input.classId) ? input.classId : null,
+        p_payment_plan: input.paymentPlan,
+        p_transport_tier: input.transportTier,
+        p_installments: input.installments,
+        p_ledger_entries: input.ledgerEntries,
+        p_notes: input.notes,
+        p_actor_profile_id: null,
+        p_actor_name: null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      const res = (data ?? {}) as {
+        re_enrollment_id?: string;
+        student_id?: string;
+        student_code?: string;
+        target_academic_year?: string;
+        installments_written?: number;
+        ledger_written?: number;
+      };
+      return Ok({
+        reEnrollmentId: res.re_enrollment_id ?? input.reEnrollmentId,
+        studentId: res.student_id ?? "",
+        studentCode: res.student_code ?? "",
+        targetAcademicYear: res.target_academic_year ?? "",
+        installmentsWritten: Number(res.installments_written ?? 0),
+        ledgerWritten: Number(res.ledger_written ?? 0),
+      });
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  async freeze(
+    targetAcademicYearId: string,
+    performedBy: string,
+    performedByName: string,
+  ): Promise<Result<{ frozenCount: number }>> {
+    if (!isUuid(targetAcademicYearId)) {
+      return Err(Errors.validation("L'identifiant de l'année cible doit être un UUID valide."));
+    }
+    try {
+      const { data, error } = await this.client.rpc("fn_freeze_re_enrollments", {
+        p_target_academic_year_id: targetAcademicYearId,
+        p_actor_profile_id: isUuid(performedBy) ? performedBy : null,
+        p_actor_name: performedByName || null,
+        p_tenant_id: getTenantId(),
+      });
+      if (error) return Err(supabaseErrorToAppError(error));
+      const res = (data ?? {}) as { frozen_count?: number };
+      return Ok({ frozenCount: Number(res.frozen_count ?? 0) });
     } catch (e) {
       return Err(Errors.unknown(e as Error));
     }

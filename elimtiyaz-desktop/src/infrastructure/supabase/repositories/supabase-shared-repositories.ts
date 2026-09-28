@@ -55,6 +55,7 @@ import type {
   BatchRegistrationResult,
   StudentDocument,
   StudentDocumentDraft,
+  StudentOriginInfo,
 } from "../../../domain/model/student";
 import {
   gradeLevelFromLevelYear,
@@ -112,20 +113,20 @@ import {
   type DebtAgingReasonCode,
 } from "../../../domain/calc/ledger/debt-aging";
 import { reconcileLedger } from "../../../domain/calc/reconcile";
+// T-437: the billing-wire construction moved to the ONE shared builder
+// (registration-billing-wires.ts — the re-enrollment path reuses it);
+// the still-used pricing helpers stay imported below.
 import {
   evaluateAllSystemDiscounts,
-  sumDiscounts,
   splitNetTuitionByOfficialSchedule,
   getOfficialTuitionDueDates,
-  tuitionForGradeLevel,
-  transportTranchesForDestination,
 } from "../../../domain/calc/pricing";
-import { createChargeEntry } from "../../../domain/calc/ledger/entries";
 import { defaultPricingConfig } from "../../mock/pricing-seed";
 // T-307 (48th session): the billing WRITE path reads the DB pricing config —
 // the same builder the pricing repository uses (one derivation, no parallel
 // config source). Seed fallback only when the fetch fails.
 import { readDbPricingConfig } from "./supabase-pricing-repository";
+import { buildRegistrationBillingWires } from "./registration-billing-wires";
 // T-018 (DRIFT-001): the deterministic identity-code generators moved to
 // their canonical home (core/format/id.ts, ADR-003). Re-exported here for
 // the existing import-path consumers.
@@ -741,9 +742,51 @@ export function mapStudentRow(r: StudentRow): Student {
     medicalNotes: r.medical_notes,
     transportTier,
     status: r.enrollment_status as Student["status"],
+    // T-437 (INV-24a): the pre-admission origin (migration 0128). Mapped
+    // only when at least one field is present (the pre-0128 corpus rows and
+    // the mock fixtures without origin stay `undefined`-free).
+    origin: mapStudentOrigin(r),
     paymentPlan,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+  };
+}
+
+/**
+ * T-437 (INV-24a): the origin block of a students row → the domain
+ * `StudentOriginInfo`. `undefined` when every field is NULL/absent (the
+ * pre-0128 corpus — the UI shows « Non renseignée »), a null-typed block
+ * when the columns exist but are empty.
+ */
+function mapStudentOrigin(
+  r: StudentRow & {
+    origin_type?: string | null;
+    previous_school_name?: string | null;
+    previous_school_level?: string | null;
+    previous_academic_year?: string | null;
+    origin_notes?: string | null;
+  },
+): StudentOriginInfo | null | undefined {
+  const originType = (r as { origin_type?: string | null }).origin_type;
+  const previousSchoolName = (r as { previous_school_name?: string | null }).previous_school_name ?? null;
+  const previousSchoolLevel = (r as { previous_school_level?: string | null }).previous_school_level ?? null;
+  const previousAcademicYear = (r as { previous_academic_year?: string | null }).previous_academic_year ?? null;
+  const originNotes = (r as { origin_notes?: string | null }).origin_notes ?? null;
+  if (
+    !originType &&
+    !previousSchoolName &&
+    !previousSchoolLevel &&
+    !previousAcademicYear &&
+    !originNotes
+  ) {
+    return undefined;
+  }
+  return {
+    originType: (originType as StudentOriginInfo["originType"]) ?? null,
+    previousSchoolName,
+    previousSchoolLevel,
+    previousAcademicYear,
+    originNotes,
   };
 }
 
@@ -1479,6 +1522,14 @@ export class SupabaseStudentRepository implements StudentRepository {
         // T-401 (0107): the academic classification (NULL = untagged).
         p_filiere_code: normalizeTrackCode(input.filiereCode) ?? null,
         p_specialite_code: normalizeTrackCode(input.specialiteCode) ?? null,
+        // T-437 (STUDENT-502 / INV-24a): the pre-admission origin — the
+        // 0128 trailing params (COALESCE-preserved server-side on partial
+        // re-pushes).
+        p_origin_type: input.origin?.originType ?? null,
+        p_previous_school_name: input.origin?.previousSchoolName ?? null,
+        p_previous_school_level: input.origin?.previousSchoolLevel ?? null,
+        p_previous_academic_year: input.origin?.previousAcademicYear ?? null,
+        p_origin_notes: input.origin?.originNotes ?? null,
       });
       if (error) throw error;
       // NOTE: migration 0031 renamed the RPC output columns to `out_*`.
@@ -1545,6 +1596,27 @@ export class SupabaseStudentRepository implements StudentRepository {
       if (updates.status !== undefined) {
         patch.enrollment_status = updates.status;
         patch.is_active = updates.status === "active";
+      }
+      // T-437 (INV-24a): persist the pre-admission origin on edit (a partial
+      // origin block updates only the provided fields — undefined = untouched,
+      // matching every other optional field's semantics).
+      if (updates.origin !== undefined) {
+        const o = updates.origin;
+        if (o?.originType !== undefined && o?.originType !== null) {
+          patch.origin_type = o.originType;
+        }
+        if (o?.previousSchoolName !== undefined) {
+          patch.previous_school_name = o.previousSchoolName;
+        }
+        if (o?.previousSchoolLevel !== undefined) {
+          patch.previous_school_level = o.previousSchoolLevel;
+        }
+        if (o?.previousAcademicYear !== undefined) {
+          patch.previous_academic_year = o.previousAcademicYear;
+        }
+        if (o?.originNotes !== undefined) {
+          patch.origin_notes = o.originNotes;
+        }
       }
       // SYNC-110/T-372: the `documents_json` write is REMOVED — document
       // mutations go through addStudentDocument/removeStudentDocument
@@ -1741,15 +1813,20 @@ export class SupabaseStudentRepository implements StudentRepository {
       const year = input.academicYearStartYear ?? new Date().getFullYear();
       const includeTransport = input.includeTransport ?? true;
       const includeRegistration = input.includeRegistration ?? true;
-      const [due1, due2, due3] = getOfficialTuitionDueDates(year);
       const at = new Date().toISOString();
 
       // -----------------------------------------------------------------
       // The parent wire object — createParent's EXACT derivation (the
       // deterministic code + the 0037 activation code + the 0028
       // transport/city fields).
+      // T-437 (STUDENT-501 / ADR-031 §7): an EXISTING parent binds by its
+      // ACTUAL code (the primary identity match reuses the record — never
+      // a duplicate); the deterministic derivation stays the new-parent
+      // path. The activation code derives from the SAME code either way
+      // (deterministic — an existing parent's stored code recomputes it).
       // -----------------------------------------------------------------
-      const parentCode = deterministicParentCode(year, input.parent);
+      const parentCode =
+        input.existingParentCode ?? deterministicParentCode(year, input.parent);
       const activationCodeValue = deterministicActivationCode(parentCode, tenantId);
       const transportDestination: TransportDestination | null =
         input.parent.transportDestination ?? cityTierToDestination(input.parent.cityTier) ?? null;
@@ -1803,6 +1880,13 @@ export class SupabaseStudentRepository implements StudentRepository {
         // Normalize through the canonical normalizer ("general"/"" → NULL).
         filiere_code: normalizeTrackCode(sInput.filiereCode) ?? null,
         specialite_code: normalizeTrackCode(sInput.specialiteCode) ?? null,
+        // T-437 (STUDENT-502 / INV-24a): the origin the wizard's step 2
+        // collects — threaded through the 0128 jsonb columns.
+        origin_type: sInput.origin?.originType ?? null,
+        previous_school_name: sInput.origin?.previousSchoolName ?? null,
+        previous_school_level: sInput.origin?.previousSchoolLevel ?? null,
+        previous_academic_year: sInput.origin?.previousAcademicYear ?? null,
+        origin_notes: sInput.origin?.originNotes ?? null,
       }));
 
       // -----------------------------------------------------------------
@@ -1822,216 +1906,36 @@ export class SupabaseStudentRepository implements StudentRepository {
       }
 
       // -----------------------------------------------------------------
-      // Build ALL billing rows locally (the T-397 builders, uuid-free):
-      // the SAME createChargeEntry factory (its validation + row shape —
-      // the derived account_id from the code placeholders is discarded;
-      // the RPC derives the real one) and the SAME installment shapes
-      // bulkImportInstallments writes, with the source_id identity tokens
-      // carried as the deterministic CODES (the RPC substitutes the uuids).
+      // Build ALL billing rows locally (the T-397 builders, uuid-free).
+      // T-437 (BUSINESS-109 / INV-25a): EXTRACTED verbatim into the ONE
+      // shared `buildRegistrationBillingWires` (registration-billing-wires.ts)
+      // so the re-enrollment path reuses the EXACT wire shapes — the same
+      // createChargeEntry factory, the same installment shapes, the same
+      // source_id identity tokens (the RPC substitutes the uuids). No
+      // behavior change on this call site (scope omitted = the historical
+      // batch tokens).
       // -----------------------------------------------------------------
-      const ledgerWire: Record<string, unknown>[] = [];
-      const installmentWire: Record<string, unknown>[] = [];
+      const { ledgerWire, installmentWire } = buildRegistrationBillingWires({
+        tenantId,
+        parentCode,
+        students: input.students.map((sInput, i) => ({
+          studentCode: studentWires[i].student_code as string,
+          studentRef: i,
+          gradeLevel:
+            sInput.gradeLevel ?? gradeLevelFromLevelYear(sInput.level, sInput.gradeYear),
+          paymentPlan: sInput.paymentPlan ?? null,
+          transportTier: sInput.transportTier ?? null,
+          remise: Math.max(0, Number(sInput.remise) || 0),
+          chargeStickerPrice: sInput.chargeStickerPrice ?? false,
+        })),
+        pricingConfig: billingConfig,
+        includeRegistration,
+        includeTransport,
+        year,
+        at,
+        parentTransportDestination: transportDestination,
+      });
 
-      for (let i = 0; i < input.students.length; i++) {
-        const sInput = input.students[i];
-        const studentCode = studentWires[i].student_code as string;
-        const gradeLevel: GradeLevel =
-          sInput.gradeLevel ?? gradeLevelFromLevelYear(sInput.level, sInput.gradeYear);
-        const gross = tuitionForGradeLevel(billingConfig, gradeLevel).annualAmount;
-        if (gross > 0) {
-          const evals = evaluateAllSystemDiscounts({
-            grossTuition: gross,
-            previousGradeLevel: null,
-            currentGradeLevel: gradeLevel,
-            childIndex: i + 1,
-            paymentPlan: sInput.paymentPlan ?? "tranches",
-            paymentDate: at,
-            academicYearStartYear: year,
-            academicYearStart: new Date(Date.UTC(year, 8, 1)).toISOString(),
-            // The pre-call equivalent of the created row's enrollment_date
-            // (the RPC defaults it to current_date — i.e. NOW): the discount
-            // evaluation sees the same "enrolled today" the old path did
-            // after its fetch round-trip.
-            enrollmentDate: at,
-            previousRank: null,
-          });
-          // DATA-028 (T-411, FA-17): the negotiated remise is no longer
-          // silently dropped. The wizard's step-3 devis promised
-          // `fi + scolarité + transport − remise`; the persisted charges
-          // now subtract it from the net BEFORE the official split (the
-          // sticker-price case records it without subtracting — the
-          // workbook's SEDIKI convention, mirrored from compute-billing).
-          // The tranche-structure unification (V2-targeted vs the
-          // official split) remains the registered owner decision.
-          const negotiatedRemise = Math.max(0, Number(sInput.remise) || 0);
-          const remiseAppliedToDevis = sInput.chargeStickerPrice ? 0 : negotiatedRemise;
-          const net = Math.max(0, gross + sumDiscounts(evals) - remiseAppliedToDevis);
-          const amounts =
-            sInput.paymentPlan === "full_annual"
-              ? [net]
-              : [...splitNetTuitionByOfficialSchedule(net)];
-          const dues = sInput.paymentPlan === "full_annual" ? [due1] : [due1, due2, due3];
-          for (let t = 0; t < amounts.length; t++) {
-            const e = createChargeEntry({
-              tenantId,
-              parentId: parentCode, // placeholder token — the RPC fills the uuid + account_id
-              studentId: null, // the RPC fills the real student uuid
-              category: "tuition",
-              amount: amounts[t],
-              sourceType: "installment",
-              sourceId: `reg-${studentCode}-t${t + 1}`,
-              description: `Scolarité ${year} — Tranche ${t + 1} (${gradeLevel})`,
-              actorId: "system",
-              actorName: "Inscription groupée",
-              at,
-              metadata: {
-                tranche: t + 1,
-                gradeLevel,
-                paymentPlan: sInput.paymentPlan ?? "tranches",
-                // DATA-028: the negotiated remise travels with the charge
-                // (negotiatedRemise = what was agreed; appliedToDevis = 0
-                // in the sticker-price case by convention).
-                remise: negotiatedRemise,
-                remiseAppliedToDevis,
-              },
-            });
-            ledgerWire.push({
-              student_ref: i,
-              entry_number: e.id,
-              entry_type: e.type,
-              amount: e.amount,
-              category: e.category,
-              description: e.description,
-              entry_date: toIsoDate(e.at) ?? at,
-              source_type: e.sourceType,
-              source_id: e.sourceId,
-              method: e.method,
-              receipt_number: e.receiptNumber,
-              payment_status: e.paymentStatus,
-              reverses_id: e.reversesId,
-              actor_id: e.actorId,
-              actor_name: e.actorName,
-              at: toIsoDate(e.at),
-              metadata: e.metadata as Record<string, string | number | boolean | null> | null,
-            });
-            installmentWire.push({
-              student_ref: i,
-              category: "tuition",
-              tranche_number: (t + 1) as 1 | 2 | 3,
-              label: sInput.paymentPlan === "full_annual" ? "Année complète" : `Tranche ${t + 1}`,
-              amount_due: amounts[t],
-              amount_paid: 0,
-              amount_pending: 0,
-              due_date: dues[t],
-              paid_date: null,
-              status: "unpaid",
-              academic_cycle: null,
-              payment_plan: sInput.paymentPlan ?? "tranches",
-              is_custom_schedule: false,
-              custom_schedule_note: null,
-              source_type: "bulk_import",
-              source_id: `${studentCode}:tuition:T${t + 1}`,
-            });
-          }
-        }
-        if (includeTransport) {
-          const destination =
-            (sInput.transportTier as TransportDestination | null) ?? transportDestination;
-          if (destination) {
-            const tranches = transportTranchesForDestination(billingConfig, destination);
-            for (let t = 0; t < tranches.length; t++) {
-              const e = createChargeEntry({
-                tenantId,
-                parentId: parentCode,
-                studentId: null,
-                category: "transport",
-                amount: tranches[t].amountDue,
-                sourceType: "installment",
-                sourceId: `reg-${studentCode}-transport-t${t + 1}`,
-                description: `Transport ${year} — Tranche ${t + 1} (${destination})`,
-                actorId: "system",
-                actorName: "Inscription groupée",
-                at,
-                metadata: { tranche: t + 1, destination },
-              });
-              ledgerWire.push({
-                student_ref: i,
-                entry_number: e.id,
-                entry_type: e.type,
-                amount: e.amount,
-                category: e.category,
-                description: e.description,
-                entry_date: toIsoDate(e.at) ?? at,
-                source_type: e.sourceType,
-                source_id: e.sourceId,
-                method: e.method,
-                receipt_number: e.receiptNumber,
-                payment_status: e.paymentStatus,
-                reverses_id: e.reversesId,
-                actor_id: e.actorId,
-                actor_name: e.actorName,
-                at: toIsoDate(e.at),
-                metadata: e.metadata as Record<string, string | number | boolean | null> | null,
-              });
-              installmentWire.push({
-                student_ref: i,
-                category: "transport",
-                tranche_number: (t + 1) as 1 | 2 | 3,
-                label: `Transport T${t + 1}`,
-                amount_due: tranches[t].amountDue,
-                amount_paid: 0,
-                amount_pending: 0,
-                due_date: [due1, due2, due3][t],
-                paid_date: null,
-                status: "unpaid",
-                academic_cycle: null,
-                payment_plan: sInput.paymentPlan ?? "tranches",
-                is_custom_schedule: false,
-                custom_schedule_note: null,
-                source_type: "bulk_import",
-                source_id: `${studentCode}:transport:T${t + 1}`,
-              });
-            }
-          }
-        }
-      }
-      if (includeRegistration && billingConfig.registrationFee > 0 && input.students.length > 0) {
-        const e = createChargeEntry({
-          tenantId,
-          parentId: parentCode,
-          studentId: null, // family-level fee — no student ref
-          category: "other",
-          amount: billingConfig.registrationFee,
-          sourceType: "manual_entry",
-          sourceId: `reg-${parentCode}-fee`,
-          description: `Frais d'inscription ${year} (nouvelle famille)`,
-          actorId: "system",
-          actorName: "Inscription groupée",
-          at,
-          metadata: { type: "registration_fee" },
-        });
-        ledgerWire.push({
-          student_ref: null,
-          entry_number: e.id,
-          entry_type: e.type,
-          amount: e.amount,
-          category: e.category,
-          description: e.description,
-          entry_date: toIsoDate(e.at) ?? at,
-          source_type: e.sourceType,
-          source_id: e.sourceId,
-          method: e.method,
-          receipt_number: e.receiptNumber,
-          payment_status: e.paymentStatus,
-          reverses_id: e.reversesId,
-          actor_id: e.actorId,
-          actor_name: e.actorName,
-          at: toIsoDate(e.at),
-          metadata: e.metadata as Record<string, string | number | boolean | null> | null,
-        });
-      }
-
-      // -----------------------------------------------------------------
       // THE ONE ROUND-TRIP (with the idempotent network retry — the whole
       // composite is idempotent: deterministic codes + ON CONFLICT).
       // -----------------------------------------------------------------

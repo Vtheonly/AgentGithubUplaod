@@ -24,6 +24,13 @@ import type {
   PromotionCycleClass,
   PromotionClassConfirmResult,
 } from "../model/promotion-cycle";
+import type {
+  GenerateCandidatesResult,
+  ReEnrollmentDecisionInput,
+  ReEnrollmentList,
+  ReEnrollStudentInput,
+  ReEnrollStudentResult,
+} from "../model/re-enrollment";
 
 /**
  * Academic Year repository — full lifecycle management (plan §05.05).
@@ -362,4 +369,64 @@ export interface PromotionCycleRepository {
 
   /** Cancel the cycle (refused once completed). */
   cancelCycle(cycleId: string, reason: string | null, performedBy: string, performedByName: string): Promise<Result<void>>;
+}
+
+// ============================================================================
+// Re-enrollment (T-437 / migration 0128 / ADR-031 — GitHub issue #18)
+//
+// The contract mirrors the 0128 RPCs 1:1 — NO client-side re-enrollment
+// business logic lives here (INV-22a: the candidates come from the FINALIZED
+// pedagogical results server-side; INV-25: the composite is one transaction
+// with the client-derived billing legs stamped academic_year_id = target).
+// ============================================================================
+
+export interface ReEnrollmentRepository {
+  /**
+   * Materialize the candidate list for a year pair (INV-22): the active
+   * roster enriched from the finalized source-year histories. Idempotent —
+   * re-running refreshes the snapshot of rows still `waiting`; decided rows
+   * are frozen facts. Refuses a frozen target-year list.
+   */
+  generateCandidates(input: {
+    sourceAcademicYearId: string;
+    targetAcademicYearId: string;
+    performedBy: string;
+    performedByName: string;
+  }): Promise<Result<GenerateCandidatesResult>>;
+
+  /**
+   * The review worklist for a target year (live-joined student/parent/class
+   * data) + the aggregate counts (the red badge counts `waiting`).
+   */
+  listCandidates(targetAcademicYearId: string): Promise<Result<ReEnrollmentList>>;
+
+  /**
+   * Record a decision (INV-23a): waiting → started → not_continuing, with
+   * reversibility to `waiting` pre-freeze. `re_enrolled` is terminal and
+   * only reachable through `reEnroll`.
+   */
+  setDecision(input: {
+    reEnrollmentId: string;
+    decision: ReEnrollmentDecisionInput;
+    notes: string | null;
+    performedBy: string;
+    performedByName: string;
+  }): Promise<Result<void>>;
+
+  /**
+   * The ONE composite (INV-25): the student's target-year placement + the
+   * client-derived billing legs (the register_family_batch wire shapes,
+   * built by the SHARED billing-wire builder) stamped
+   * `academic_year_id` = target + the status flip + ONE audit — one
+   * transaction. Previous-year records are never touched (INV-26a).
+   */
+  reEnroll(input: ReEnrollStudentInput): Promise<Result<ReEnrollStudentResult>>;
+
+  /**
+   * Freeze the target-year list (INV-23b): refuses while any candidate is
+   * still `waiting`; after the freeze every decision/re-enrollment is
+   * refused. The re-enrollment-side counterpart of the promotion cycle's
+   * completion.
+   */
+  freeze(targetAcademicYearId: string, performedBy: string, performedByName: string): Promise<Result<{ frozenCount: number }>>;
 }

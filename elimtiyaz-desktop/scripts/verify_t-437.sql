@@ -22,8 +22,11 @@
 --       UNTOUCHED (INV-26a), status re_enrolled
 --   C8  fn_freeze: refuses while waiting rows remain, freezes when all
 --       decided, blocks post-freeze mutations
---   C9  the schema_migrations registration row exists
+--   C9  the schema_migrations registration row exists (0128)
 --   C10 the ACL: anon/public lost EXECUTE on the new RPCs, authenticated kept it
+--   C11 DATA-054 (0129): a continuing student CAN carry the SAME tranche in
+--       TWO academic years (the pre-0129 index silently dropped the new-year
+--       row) + the import RPC's year-aware identity update
 -- ============================================================================
 BEGIN;
 
@@ -47,6 +50,7 @@ declare
     v_sid uuid;
     v_pid uuid;
     v_re_id uuid;
+    v_import_id uuid;
     v_old_inst_count integer;
     v_old_inst_sum numeric;
     v_res jsonb;
@@ -201,6 +205,22 @@ begin
            'status after revert to waiting: ' || v_started;
 
     -- C7: the composite re-enrollment ────────────────────────────────────
+    -- DATA-054 setup FIRST: a PRIOR-YEAR tuition T1 for the probe student —
+    -- the pre-0129 year-blind identity index would have made the re-enroll
+    -- T1 below a silent conflict-skip. It must now COEXIST with the new-year
+    -- row (0129's year-scoped index).
+    insert into public.installments (
+        tenant_id, parent_id, student_id, category, tranche_number,
+        label, amount_due, amount_paid, amount_pending, due_date,
+        paid_date, status, academic_cycle, payment_plan,
+        source_type, source_id, academic_year_id
+    ) values (
+        v_tenant, v_pid, v_sid, 'tuition', 1,
+        'Scolarité T1 (année précédente)', 38000, 38000, 0, (v_source.start_date + interval '15 day')::date,
+        (v_source.start_date + interval '20 day')::date, 'paid', null, 'tranches',
+        'bulk_import', 'PRIOR-YEAR-T437-PROBE', v_source.id
+    );
+
     select count(*), coalesce(sum(i.amount_due), 0) into v_old_inst_count, v_old_inst_sum
       from public.installments i where i.student_id = v_sid;
 
@@ -250,6 +270,29 @@ begin
            'prior installments untouched: ' || count(*) || ' rows, sum ' || coalesce(sum(i.amount_due), 0)
       from public.installments i where i.student_id = v_sid
        and (i.source_id is null or i.source_id not like 're-ELV-2098-T437PROBE%');
+
+    -- C11 (DATA-054 / 0129): the SAME tranche (tuition T1) in TWO academic
+    -- years for the SAME continuing student — impossible pre-0129 (the
+    -- year-blind index silently dropped the new-year row).
+    insert into t437_results
+    select 'C11-multi-year-tranche', count(*) = 2,
+           'tuition T1 rows across two years for the probe student: ' || count(*)
+      from public.installments i
+     where i.student_id = v_sid and i.category = 'tuition' and i.tranche_number = 1;
+
+    -- C11b (DATA-054 / 0129): the import RPC's year-aware identity — a
+    -- year-scoped upsert of the PRIOR year's T1 must UPDATE the prior-year
+    -- row (not the new-year row); a new-year upsert must target the new row.
+    select u.installment_id into v_import_id
+      from public.upsert_installment_from_import(
+           v_tenant, v_pid::text, null, v_sid::text, 'tuition',
+           'Tranche 1', 39000, 38000, 1000,
+           (v_source.start_date + interval '15 day')::date, null, 'partial',
+           null, v_source.code) u;
+    insert into t437_results
+    select 'C11-import-year-aware', i.amount_due = 39000 and i.academic_year_id = v_source.id,
+           'import updated the PRIOR-year T1 (amount ' || i.amount_due || ', year ' || coalesce(i.academic_year_id::text, 'NULL') || ')'
+      from public.installments i where i.id = v_import_id;
 
     insert into t437_results
     select 'C7-ledger-written', count(*) = 1,
@@ -312,10 +355,10 @@ begin
 end
 $$;
 
--- C9: the registration row ────────────────────────────────────────────────
+-- C9: the registration rows ─────────────────────────────────────────────
 insert into t437_results
-select 'C9-registration', count(*) > 0, 'schema_migrations carries 0128'
-  from supabase_migrations.schema_migrations where version = '0128';
+select 'C9-registration', count(*) = 2, 'schema_migrations carries 0128+0129: ' || count(*)
+  from supabase_migrations.schema_migrations where version in ('0128', '0129');
 
 -- C10: the ACL ────────────────────────────────────────────────────────────
 insert into t437_results

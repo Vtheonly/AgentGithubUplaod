@@ -75,6 +75,7 @@ import {
   SupabaseAttendanceRepository,
   SupabaseHomeworkRepository,
   SupabasePromotionRepository,
+  SupabaseReEnrollmentRepository,
 } from "./repositories/supabase-academic-repository";
 import { SupabaseAuditLogRepository } from "./repositories/supabase-audit-log-repository";
 import { SupabaseNotificationRepository } from "./repositories/supabase-notification-repository";
@@ -358,6 +359,7 @@ export function getSupabaseRepositories(): Repositories {
     homework,
     promotion,
     classPlacement, // T-370 — the atomic placement finalize RPC
+    reEnrollment: new SupabaseReEnrollmentRepository(client), // T-437 — the 0128 re-enrollment RPCs
     timetable, // T-404 — the canonical timetable (0109/0110)
     teachers, // T-408 — personnel/class_subjects-backed (SCHED-105)
     audit,

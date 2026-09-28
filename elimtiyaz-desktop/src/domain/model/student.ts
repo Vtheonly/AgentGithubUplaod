@@ -269,6 +269,34 @@ export function gradeLevelFromLevelYear(level: AcademicLevel, year: number): Gra
   }
 }
 
+/**
+ * T-437 (STUDENT-502 / INV-24a): the pre-admission ORIGIN — where a
+ * genuinely new student came from BEFORE joining El-Imtiyaz. Structured
+ * first-class fields (migration 0128), NOT a free-text note. Deliberately
+ * DISTINCT from `academicHistory` (the AT-school history): origin answers
+ * « where did they come from? », history answers « what did they do here? ».
+ */
+export type StudentOriginType =
+  | "new_admission"
+  | "transfer"
+  | "continuation"
+  | "other";
+
+export interface StudentOriginInfo {
+  readonly originType: StudentOriginType | null;
+  readonly previousSchoolName: string | null;
+  readonly previousSchoolLevel: string | null;
+  readonly previousAcademicYear: string | null;
+  readonly originNotes: string | null;
+}
+
+export const ORIGIN_TYPE_LABELS_FR: Record<StudentOriginType, string> = {
+  new_admission: "Nouvelle admission",
+  transfer: "Transfert d'une autre école",
+  continuation: "Continuation (interne)",
+  other: "Autre",
+};
+
 export interface Student {
   readonly id: string;
   readonly tenantId: string;
@@ -303,6 +331,12 @@ export interface Student {
   readonly medicalNotes: string | null;
   readonly transportTier: string | null;
   readonly status: StudentStatus;
+  /**
+   * T-437 (INV-24a): the pre-admission origin — where the student came from
+   * before joining the school. Optional like `academicHistory` so pre-0128
+   * fixtures stay valid; null fields = unknown (the imported corpus).
+   */
+  readonly origin?: StudentOriginInfo | null;
   /**
    * Selected payment plan for this student's annual tuition.
    *
@@ -374,6 +408,14 @@ export interface CreateStudentInput {
    * workbook's SEDIKI rows l5/l6). False when omitted.
    */
   readonly chargeStickerPrice?: boolean;
+  /**
+   * T-437 (INV-24a): the pre-admission origin captured at creation (the
+   * wizard's step 2 + the direct add-student form). Omitted/null fields =
+   * unknown; threaded through `upsert_student_from_import` (0128) and
+   * `register_family_batch` (the jsonb wire) — COALESCE-preserved on partial
+   * re-pushes (imports never erase a captured origin).
+   */
+  readonly origin?: StudentOriginInfo | null;
 }
 
 /**
@@ -411,6 +453,16 @@ export function studentDisplayName(s: Pick<Student, "firstName" | "lastName" | "
 
 export interface BatchRegistrationInput {
   readonly parent: CreateParentInput;
+  /**
+   * T-437 (STUDENT-501 / ADR-031 §7): when provided, the composite binds to
+   * THIS EXISTING parent (its ACTUAL `PAR-` code) instead of deriving a new
+   * deterministic code — `upsert_parent_from_import`'s primary identity
+   * match (tenant, parent_code) reuses the record; a duplicate parent can
+   * never be created. The direct add-student flow (Élèves tab) and the
+   * parent drawer's « Ajouter un enfant » leg use this so the billing legs
+   * persist on the SAME family (the BUSINESS-109 repair).
+   */
+  readonly existingParentCode?: string | null;
   readonly students: readonly CreateStudentInput[];
   /**
    * Billing flags from the wizard's step 3 — when omitted the repository

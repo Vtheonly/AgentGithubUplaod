@@ -458,6 +458,13 @@ describe("T-307 — source scans (wiring + billing drift fix)", () => {
   });
 
   it("the batchRegister billing block reads the DB config — NO hardcoded defaultPricingConfig call site remains", () => {
+    // T-437 re-pin: the billing-wire construction moved VERBATIM from
+    // batchRegister's inline loop into the ONE shared builder
+    // (registration-billing-wires.ts — the re-enrollment path reuses it). The
+    // INTENT is unchanged and now pinned across BOTH files: the DB-read
+    // `billingConfig` is what feeds the builder, and the builder's tuition /
+    // transport / fee call sites read its `pricingConfig` parameter — never
+    // the hardcoded seed.
     const src = fs.readFileSync(
       path.join(
         repoRoot,
@@ -466,13 +473,24 @@ describe("T-307 — source scans (wiring + billing drift fix)", () => {
       "utf-8",
     );
     expect(src).toMatch(/billingConfig = await readDbPricingConfig\(this\.client\)/);
-    expect(src).toMatch(/tuitionForGradeLevel\(billingConfig,/);
-    expect(src).toMatch(/transportTranchesForDestination\(billingConfig,/);
-    expect(src).toMatch(/billingConfig\.registrationFee/);
-    // The three former hardcoded call sites are gone:
-    expect(src).not.toMatch(/tuitionForGradeLevel\(defaultPricingConfig,/);
-    expect(src).not.toMatch(/transportTranchesForDestination\(defaultPricingConfig,/);
-    expect(src).not.toMatch(/defaultPricingConfig\.registrationFee/);
+    // The builder is fed the DB-read config (the T-398 preview==persisted pin).
+    expect(src).toMatch(/pricingConfig: billingConfig,/);
+    const builder = fs.readFileSync(
+      path.join(
+        repoRoot,
+        "src/infrastructure/supabase/repositories/registration-billing-wires.ts",
+      ),
+      "utf-8",
+    );
+    expect(builder).toMatch(/tuitionForGradeLevel\(pricingConfig,/);
+    expect(builder).toMatch(/transportTranchesForDestination\(pricingConfig,/);
+    expect(builder).toMatch(/pricingConfig\.registrationFee/);
+    // The three former hardcoded call sites are gone (in BOTH files):
+    for (const file of [src, builder]) {
+      expect(file).not.toMatch(/tuitionForGradeLevel\(defaultPricingConfig,/);
+      expect(file).not.toMatch(/transportTranchesForDestination\(defaultPricingConfig,/);
+      expect(file).not.toMatch(/defaultPricingConfig\.registrationFee/);
+    }
   });
 
   it("the migration wires the audit triggers on the pricing tables (T-306 companion)", () => {

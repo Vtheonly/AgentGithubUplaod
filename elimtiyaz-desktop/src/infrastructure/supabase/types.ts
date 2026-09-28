@@ -272,6 +272,12 @@ export interface StudentRow {
   medical_notes: string | null;
   is_active: boolean;
   auth_user_id: string | null;
+  /** T-437 origin (migration 0128 — INV-24a): the pre-admission origin. Optional — the pre-0128 fixtures/INSERT payloads omit them; SELECT always returns them (null = unknown). */
+  origin_type?: "new_admission" | "transfer" | "continuation" | "other" | null;
+  previous_school_name?: string | null;
+  previous_school_level?: string | null;
+  previous_academic_year?: string | null;
+  origin_notes?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
