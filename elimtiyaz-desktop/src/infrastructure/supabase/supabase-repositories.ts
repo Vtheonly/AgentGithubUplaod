@@ -77,6 +77,7 @@ import {
   SupabasePromotionRepository,
   SupabaseReEnrollmentRepository,
 } from "./repositories/supabase-academic-repository";
+import { SupabaseIdentityResolutionRepository } from "./repositories/supabase-identity-resolution-repository";
 import { SupabaseAuditLogRepository } from "./repositories/supabase-audit-log-repository";
 import { SupabaseNotificationRepository } from "./repositories/supabase-notification-repository";
 import { SupabasePricingRepository } from "./repositories/supabase-pricing-repository";
@@ -360,6 +361,7 @@ export function getSupabaseRepositories(): Repositories {
     promotion,
     classPlacement, // T-370 — the atomic placement finalize RPC
     reEnrollment: new SupabaseReEnrollmentRepository(client), // T-437 — the 0128 re-enrollment RPCs
+    identityResolution: new SupabaseIdentityResolutionRepository(client), // T-438 — the 0130 ER-PMAE tables/RPCs
     timetable, // T-404 — the canonical timetable (0109/0110)
     teachers, // T-408 — personnel/class_subjects-backed (SCHED-105)
     audit,

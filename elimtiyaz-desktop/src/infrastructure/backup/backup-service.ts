@@ -39,6 +39,7 @@ import {
   decodeUtf8,
 } from "./aes-256";
 import { backupFileName } from "../../core/format/id";
+import { erBackupSnapshot, erBackupRestore } from "../mock/repositories/identity-resolution-repository";
 import {
   storeArchive,
   getArchive,
@@ -187,6 +188,11 @@ function snapshotState(repos: Repositories): Record<string, unknown> {
     // System configuration state (vault §13.01 item 2).
     workflows: repos.workflows.observe().get(),
     rbacMatrixOverrides,
+    // T-438 (INV-57/58 — identity-rules §9.4): the ER-PMAE aggregation state
+    // rides the EXISTING snapshot (never a parallel backup system). A backup
+    // taken BEFORE any aggregation carries the empty sections — restoring it
+    // returns the app to that prior state with ZERO aggregation residue.
+    ...erBackupSnapshot(),
   };
 }
 
@@ -526,6 +532,9 @@ export async function restore(
       workflows: mockStore.workflows,
     });
     mockStore.replaceOperationalState(parsed);
+    // T-438 (INV-58): restore the ER aggregation state — an archive taken
+    // before aggregation restores the EMPTY sections (zero residue).
+    erBackupRestore(parsed);
     const afterCounts = snapshotCounts(parsed);
 
     // 5b. T-415 (BKUP-503): the successful restore transitions the vault
