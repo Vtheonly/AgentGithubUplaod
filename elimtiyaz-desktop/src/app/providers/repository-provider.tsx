@@ -103,6 +103,7 @@ import {
   mockClassPlacementRepository,
   mockPromotionCycleRepository,
   mockReEnrollmentRepository,
+  mockIdentityResolutionRepository,
   mockAcademicYearRepository,
   mockAcademicLevelRepository,
   mockClubRepository,
@@ -130,6 +131,7 @@ import {
 } from "../../infrastructure/mock/operations";
 import { mockTimetableRepository } from "../../infrastructure/mock/repositories/timetable-repository";
 import type { TimetableRepository } from "../../domain/repository/timetable-repository";
+import type { IdentityResolutionRepository } from "../../domain/identity/repository";
 
 export interface Repositories {
   readonly auth: AuthRepository;
@@ -148,6 +150,9 @@ export interface Repositories {
   readonly promotionCycles: PromotionCycleRepository;
   /** T-437 (ADR-031): the re-enrollment year-transition workflow (migration 0128). */
   readonly reEnrollment: ReEnrollmentRepository;
+  /** T-438 (ADR-032): the EXPERIMENTAL identity-resolution store (migration 0130).
+   * Inert until the per-desktop experimental flag is enabled (INV-40). */
+  readonly identityResolution: IdentityResolutionRepository;
   /** T-404 (0109/0110): the canonical Automatic Timetable repository. */
   readonly timetable: TimetableRepository;
   readonly academicYears: AcademicYearRepository;
@@ -213,6 +218,7 @@ export const mockRepositories: Repositories = {
   classPlacement: mockClassPlacementRepository,
   promotionCycles: mockPromotionCycleRepository,
   reEnrollment: mockReEnrollmentRepository,
+  identityResolution: mockIdentityResolutionRepository,
   timetable: mockTimetableRepository,
   academicYears: mockAcademicYearRepository,
   academicLevels: mockAcademicLevelRepository,

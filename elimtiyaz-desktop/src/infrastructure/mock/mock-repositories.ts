@@ -22,6 +22,7 @@ export {
   mockPromotionCycleRepository,
 } from "./repositories/academic-repository";
 export { mockReEnrollmentRepository } from "./repositories/re-enrollment-repository";
+export { mockIdentityResolutionRepository, resetMockIdentityResolution, erBackupSnapshot, erBackupRestore } from "./repositories/identity-resolution-repository";
 export { mockAcademicYearRepository } from "./repositories/academic-year-repository";
 export { mockAcademicLevelRepository } from "./repositories/academic-level-repository";
 export { mockClubRepository } from "./repositories/club-repository";
