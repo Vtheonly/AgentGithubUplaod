@@ -66,6 +66,16 @@ export interface Step2Student {
    * (l5/l6: `=25000+305000+52000` with J=25000 recorded but not applied).
    */
   chargeStickerPrice: boolean;
+  /**
+   * T-437 (STUDENT-502 / INV-24a): the pre-admission ORIGIN — where the
+   * student came from BEFORE joining the school. Flat form strings; "" =
+   * not captured (mapped to null on submit — unknown, never fabricated).
+   */
+  originType: "" | "new_admission" | "transfer" | "continuation" | "other";
+  previousSchoolName: string;
+  previousSchoolLevel: string;
+  previousAcademicYear: string;
+  originNotes: string;
 }
 
 export const EMPTY_PARENT: Step1Parent = {
@@ -97,6 +107,12 @@ export const EMPTY_STUDENT: Step2Student = {
   paymentPlan: "tranches",
   remise: "0",
   chargeStickerPrice: false,
+  // T-437: the origin defaults — unknown (not captured).
+  originType: "",
+  previousSchoolName: "",
+  previousSchoolLevel: "",
+  previousAcademicYear: "",
+  originNotes: "",
 };
 
 export const PHONE_RE = /^[+]?[0-9\s]{8,15}$/;

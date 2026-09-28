@@ -46,6 +46,9 @@ const NO_SPECIALITE = "__none__";
 /** Sentinel for "no class assigned" — Radix Select forbids empty-string values. */
 const NO_CLASS = "__none__";
 
+/** T-437 sentinel — an uncaptured origin (Radix forbids empty-string values). */
+const NO_ORIGIN = "__unknown__";
+
 export function Step2({
   students,
   setStudents,
@@ -270,6 +273,67 @@ export function Step2({
               />
             </FormField>
           </div>
+
+          {/* T-437 (STUDENT-502 / INV-24a): the pre-admission ORIGIN — where
+              the student came from BEFORE joining the school. Kept visually
+              distinct from the at-school history (the AcademicTab): this
+              answers « d'où vient cet élève ? », not « qu'a-t-il fait ici ? ».
+              All fields optional — « Non renseignée » stays the default. */}
+          <details className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
+            <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground">
+              Origine / École précédente
+              {s.originType || s.previousSchoolName
+                ? " — renseignée"
+                : " — optionnel (nouvel élève)"}
+            </summary>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-3">
+              <FormField label="Type d'origine">
+                <Select
+                  value={s.originType || NO_ORIGIN}
+                  onValueChange={(v) =>
+                    update(i, { originType: v === NO_ORIGIN ? "" : (v as Step2Student["originType"]) })
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_ORIGIN}>Non renseignée</SelectItem>
+                    <SelectItem value="new_admission">Nouvelle admission</SelectItem>
+                    <SelectItem value="transfer">Transfert d'une autre école</SelectItem>
+                    <SelectItem value="continuation">Continuation (interne)</SelectItem>
+                    <SelectItem value="other">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="École précédente" hint="Ex. : École Ibn Badis">
+                <Input
+                  value={s.previousSchoolName}
+                  onChange={(e) => update(i, { previousSchoolName: e.target.value })}
+                  placeholder="School XYZ"
+                />
+              </FormField>
+              <FormField label="Niveau précédent" hint="Ex. : 4AP">
+                <Input
+                  value={s.previousSchoolLevel}
+                  onChange={(e) => update(i, { previousSchoolLevel: e.target.value })}
+                  placeholder="4AP"
+                />
+              </FormField>
+              <FormField label="Année scolaire précédente" hint="Ex. : 2025-2026">
+                <Input
+                  value={s.previousAcademicYear}
+                  onChange={(e) => update(i, { previousAcademicYear: e.target.value })}
+                  placeholder="2025-2026"
+                />
+              </FormField>
+              <FormField label="Notes d'origine" hint="Contexte du transfert, raisons…" className="md:col-span-2">
+                <Input
+                  value={s.originNotes}
+                  onChange={(e) => update(i, { originNotes: e.target.value })}
+                  placeholder="Transfert en cours d'année…"
+                />
+              </FormField>
+            </div>
+          </details>
         </div>
       ))}
       <Button variant="outline" className="w-full" onClick={add}>

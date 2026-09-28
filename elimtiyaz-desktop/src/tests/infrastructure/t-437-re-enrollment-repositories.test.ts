@@ -143,8 +143,7 @@ describe("T-437 A — the mock re-enrollment workflow (INV-21/22/23)", () => {
       id: "stu-t437-repeated",
       gradeLevel: "4ap" as const,
       status: "active" as const,
-      academicHistory: [
-        {
+      academicHistory: ([{
           studentId: "stu-t437-repeated",
           academicYear: PROBE_SOURCE.code,
           cycle: "primaire",
@@ -157,16 +156,14 @@ describe("T-437 A — the mock re-enrollment workflow (INV-21/22/23)", () => {
           rank: null,
           decision: "repeated" as const,
           narrative: null,
-        },
-      ],
+        }] as unknown as typeof base.academicHistory),
     };
     const promotedStudent = {
       ...base,
       id: "stu-t437-promoted",
       gradeLevel: "5ap" as const, // 0059 advanced it on promotion
       status: "active" as const,
-      academicHistory: [
-        {
+      academicHistory: ([{
           studentId: "stu-t437-promoted",
           academicYear: PROBE_SOURCE.code,
           cycle: "primaire",
@@ -179,8 +176,7 @@ describe("T-437 A — the mock re-enrollment workflow (INV-21/22/23)", () => {
           rank: 3,
           decision: "promoted" as const,
           narrative: null,
-        },
-      ],
+        }] as unknown as typeof base.academicHistory),
     };
     store.students = [repeatedStudent, promotedStudent];
 
@@ -760,7 +756,7 @@ describe("T-437 E — the origin threading", () => {
 
     const legacyRow = { ...rowWithOrigin } as StudentRow;
     for (const k of ["origin_type", "previous_school_name", "previous_school_level", "previous_academic_year", "origin_notes"]) {
-      delete (legacyRow as Record<string, unknown>)[k];
+      delete (legacyRow as unknown as Record<string, unknown>)[k];
     }
     const legacyMapped = mapStudentRow(legacyRow);
     expect(legacyMapped.origin).toBeUndefined();
@@ -779,7 +775,7 @@ describe("T-437 E — the origin threading", () => {
     expect(parent.ok).toBe(true);
     if (!parent.ok) return;
     const created = await studentsRepo.createStudent(parent.value.id, STUDENT_INPUT);
-    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error(created.error.userMessage);
     expect(created.value.origin?.originType).toBe("transfer");
 
     const updated = await studentsRepo.updateStudent(created.value.id, {
@@ -791,7 +787,7 @@ describe("T-437 E — the origin threading", () => {
         originNotes: null,
       },
     });
-    expect(updated.ok).toBe(true);
+    if (!updated.ok) throw new Error(updated.error.userMessage);
     expect(updated.value.origin?.originType).toBe("new_admission");
     expect(updated.value.origin?.previousSchoolName).toBe("École Y");
   });

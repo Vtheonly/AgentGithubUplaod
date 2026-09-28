@@ -40,6 +40,7 @@ import { Step1 } from "./batch-registration/step1-parent";
 import { Step2 } from "./batch-registration/step2-students";
 import { Step3 } from "./batch-registration/step3-billing";
 import { Step4 } from "./batch-registration/step4-review";
+import { ParentPickerStep } from "./batch-registration/parent-picker-step";
 import { computeBilling } from "./batch-registration/compute-billing";
 import { ActivationCodeModal } from "./activation-code-modal";
 import { deterministicActivationCode } from "../../core/format/id";
@@ -59,17 +60,20 @@ export function BatchRegistrationModal({
   onOpenChange,
   onSubmitted,
   presetParent,
+  /**
+   * T-437 (STUDENT-501 / issue #18 §8–§10): "direct" = the Élèves tab's
+   * « Ajouter un élève » flow — step 1 becomes the parent SEARCH-OR-CREATE
+   * step (an existing parent binds by its ACTUAL code — never a duplicate;
+   * the billing legs persist on the same family, the BUSINESS-109 repair).
+   * Default "batch" = the classic new-family wizard.
+   */
+  mode = "batch",
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onSubmitted?: (parentId: string) => void;
-  /**
-   * FIX (add-child duplication): when provided, children are attached to
-   * THIS existing parent instead of creating a duplicate parent record.
-   * Previously the parent drawer's "Ajouter un enfant" button opened a
-   * blank wizard that always created a NEW parent.
-   */
   presetParent?: Parent | null;
+  mode?: "batch" | "direct";
 }) {
   const repos = useRepositories();
   const toast = useToast();
@@ -85,6 +89,11 @@ export function BatchRegistrationModal({
   const [priorCredit, setPriorCredit] = useState("");
   const [priorDebt, setPriorDebt] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // T-437 (direct mode): the selected EXISTING parent (null = create a new
+  // one). When set, the submit routes through batchRegister with the
+  // parent's ACTUAL code — the record is reused, never duplicated, and the
+  // billing legs are persisted (the BUSINESS-109 repair).
+  const [selectedParent, setSelectedParent] = useState<Parent | null>(null);
   // VAULT §02.08 — the activation code issued at enrollment time (Step 1 of
   // the Account Activation Protocol: "Office staff registers family AND
   // issues 6-7 digit activation code or QR"). Rendered after a successful
@@ -108,6 +117,7 @@ export function BatchRegistrationModal({
         setPriorDebt("");
         setErrors({});
         setIssuedActivation(null);
+        setSelectedParent(null);
       }, 200);
     }
   }, [open]);
@@ -130,6 +140,26 @@ export function BatchRegistrationModal({
       });
     }
   }, [open, presetParent]);
+
+  // T-437 (direct mode): keep the parent identity synced from the selected
+  // existing parent (the pre-fill mandate — issue #18 §10: only the NEW
+  // information should need entry).
+  useEffect(() => {
+    if (mode === "direct" && selectedParent) {
+      setParent({
+        firstName: selectedParent.firstName,
+        lastName: selectedParent.lastName,
+        gender: selectedParent.gender,
+        phone: selectedParent.phone,
+        whatsapp: selectedParent.whatsapp ?? "",
+        email: selectedParent.email ?? "",
+        occupation: selectedParent.occupation ?? "",
+        address: selectedParent.address ?? "",
+        transportDestination: selectedParent.transportDestination ?? "",
+        preferredLanguage: selectedParent.preferredLanguage === "ar" ? "ar" : "fr",
+      });
+    }
+  }, [mode, selectedParent]);
 
   // === Billing computation (step 3) ===
   // Now delegates to the pure `computeBilling` helper which evaluates all 5
@@ -154,6 +184,12 @@ export function BatchRegistrationModal({
   function validateStep1(): string | null {
     // When adding a child to an existing parent, the parent record is already validated and saved
     if (presetParent) {
+      setErrors({});
+      return null;
+    }
+    // T-437 (direct mode): a SELECTED existing parent is valid by
+    // construction; the create-new sub-form runs the classic validation.
+    if (mode === "direct" && selectedParent) {
       setErrors({});
       return null;
     }
@@ -218,22 +254,62 @@ export function BatchRegistrationModal({
       // billing input instead (buildRegistrationBilling reads them).
       remise: Math.max(0, Number(s.remise) || 0),
       chargeStickerPrice: s.chargeStickerPrice,
+      // T-437 (INV-24a): the pre-admission origin — "" maps to null/unknown.
+      origin:
+        s.originType || s.previousSchoolName || s.previousSchoolLevel || s.previousAcademicYear || s.originNotes
+          ? {
+              originType: s.originType || null,
+              previousSchoolName: s.previousSchoolName.trim() || null,
+              previousSchoolLevel: s.previousSchoolLevel.trim() || null,
+              previousAcademicYear: s.previousAcademicYear.trim() || null,
+              originNotes: s.originNotes.trim() || null,
+            }
+          : null,
     }));
 
-    // FIX (add-child duplication): attach children to the EXISTING parent
-    // when one was provided — do NOT create a duplicate parent record.
-    if (presetParent) {
-      const created: Student[] = [];
-      for (const input of studentInputs) {
-        const r = await repos.students.createStudent(presetParent.id, input);
-        if (!r.ok) throw new Error(r.error.userMessage);
-        created.push(r.value);
+    // FIX (BUSINESS-109 / T-437): attach children to the EXISTING parent —
+    // AND persist the billing the steps-3/4 devis promised. Previously this
+    // leg looped createStudent with NO billing write: the operator walked
+    // the family through a devis that was never persisted. Every existing-
+    // parent path (the parent drawer's « Ajouter un enfant », the direct
+    // mode's selected parent) now routes through the SAME one-transaction
+    // composite with the parent's ACTUAL code (the identity match reuses
+    // the record — never a duplicate).
+    const existingParent = presetParent ?? (mode === "direct" ? selectedParent : null);
+    if (existingParent) {
+      const parentInput: CreateParentInput = {
+        firstName: existingParent.firstName,
+        lastName: existingParent.lastName,
+        gender: existingParent.gender,
+        phone: existingParent.phone,
+        whatsapp: existingParent.whatsapp ?? null,
+        email: existingParent.email ?? null,
+        occupation: existingParent.occupation ?? null,
+        address: existingParent.address ?? null,
+        transportDestination: existingParent.transportDestination ?? null,
+        preferredLanguage: existingParent.preferredLanguage === "ar" ? "ar" : "fr",
+      };
+      const result = await repos.students.batchRegister({
+        parent: parentInput,
+        existingParentCode: existingParent.code,
+        students: studentInputs,
+        includeRegistration,
+        includeTransport,
+        pricingConfig: pricing,
+      });
+      if (!result.ok) throw new Error(result.error.userMessage);
+      if (result.value.billingWarning) {
+        toast.showWarning(
+          "Élève(s) ajouté(s) MAIS échec de la facturation",
+          result.value.billingWarning,
+        );
+      } else {
+        toast.showSuccess(
+          "Élève(s) ajouté(s)",
+          `${result.value.students.length} élève(s) rattaché(s) au dossier de ${existingParent.firstName} ${existingParent.lastName} — facturation (charges + tranches) écrite.`,
+        );
       }
-      toast.showSuccess(
-        "Enfant(s) ajouté(s)",
-        `${created.length} élève(s) rattaché(s) au dossier de ${presetParent.firstName} ${presetParent.lastName}.`,
-      );
-      onSubmitted?.(presetParent.id);
+      onSubmitted?.(existingParent.id);
       return;
     }
 
@@ -315,15 +391,26 @@ export function BatchRegistrationModal({
       label: "Parent",
       description: presetParent
         ? "Parent existant — les enfants seront rattachés à son dossier"
-        : "Identité et coordonnées du parent",
-      render: () => (
-        <Step1
-          parent={parent}
-          setParent={setParent}
-          errors={errors}
-          lockedParent={presetParent}
-        />
-      ),
+        : mode === "direct"
+          ? "Recherchez le parent existant ou créez-le"
+          : "Identité et coordonnées du parent",
+      render: () =>
+        mode === "direct" && !presetParent ? (
+          <ParentPickerStep
+            parent={parent}
+            setParent={setParent}
+            errors={errors}
+            selectedParent={selectedParent}
+            onSelectParent={setSelectedParent}
+          />
+        ) : (
+          <Step1
+            parent={parent}
+            setParent={setParent}
+            errors={errors}
+            lockedParent={presetParent}
+          />
+        ),
       validate: validateStep1,
     },
     {
@@ -375,7 +462,9 @@ export function BatchRegistrationModal({
         title={
           presetParent
             ? `Ajouter un enfant — ${presetParent.firstName} ${presetParent.lastName}`
-            : "Inscription groupée (Parent + Élèves)"
+            : mode === "direct"
+              ? "Ajouter un élève (recherche du parent d'abord)"
+              : "Inscription groupée (Parent + Élèves)"
         }
         steps={steps}
         onFinish={submit}
