@@ -55,6 +55,7 @@ import {
   mockPromotionCycleRepository,
 } from "./academic-repository";
 import { mockAcademicYearRepository } from "./academic-year-repository";
+import { mockReEnrollmentRepository } from "./re-enrollment-repository";
 import { mockAcademicLevelRepository } from "./academic-level-repository";
 import { mockClubRepository } from "./club-repository";
 import {
@@ -278,6 +279,7 @@ export class MockBackupRepository implements BackupRepository {
       promotion: mockPromotionRepository,
       classPlacement: mockClassPlacementRepository,
       promotionCycles: mockPromotionCycleRepository,
+      reEnrollment: mockReEnrollmentRepository,
       timetable: mockTimetableRepository,
       academicYears: mockAcademicYearRepository,
       academicLevels: mockAcademicLevelRepository,

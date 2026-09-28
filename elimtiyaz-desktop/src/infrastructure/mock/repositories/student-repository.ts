@@ -29,6 +29,7 @@ import type {
 import { gradeLevelFromLevelYear } from "../../../domain/model/student";
 import { normalizeTrackCode } from "../../../domain/model/filiere";
 import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import type { Parent } from "../../../domain/model/parent";
 import { dispatchStudentEnrolled } from "./workflow-event-bridge";
 import { defaultPricingConfig } from "../pricing-seed";
 import {
@@ -107,6 +108,9 @@ export class MockStudentRepository implements StudentRepository {
       medicalNotes: input.medicalNotes ?? null,
       transportTier: input.transportTier ?? null,
       status: "active",
+      // T-437 (INV-24a): the pre-admission origin (mock/production parity
+      // with the 0128 columns).
+      origin: input.origin ?? null,
       paymentPlan: input.paymentPlan ?? "tranches",
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -241,12 +245,28 @@ export class MockStudentRepository implements StudentRepository {
 
     try {
       const year = input.academicYearStartYear ?? new Date().getFullYear();
-      // Step 3a: Create parent.
-      const parentResult = await new MockParentRepository().createParent(input.parent);
-      if (!parentResult.ok) {
-        throw parentResult.error;
+      // Step 3a: the parent — T-437 (STUDENT-501 / ADR-031 §7): an EXISTING
+      // parent binds by its ACTUAL code (never a duplicate); the creation
+      // path stays the new-parent default. Mock/production parity with the
+      // Supabase batchRegister's existingParentCode seam.
+      let parent: Parent;
+      if (input.existingParentCode) {
+        const found = store.parents.find((p) => p.code === input.existingParentCode);
+        if (!found) {
+          throw {
+            code: "ERR_NOT_FOUND",
+            message: `Parent ${input.existingParentCode} introuvable`,
+            userMessage: `Le parent ${input.existingParentCode} n'existe pas.`,
+          };
+        }
+        parent = found;
+      } else {
+        const parentResult = await new MockParentRepository().createParent(input.parent);
+        if (!parentResult.ok) {
+          throw parentResult.error;
+        }
+        parent = parentResult.value;
       }
-      const parent = parentResult.value;
 
       // Step 3b: Create all students.
       const students: Student[] = [];
@@ -280,6 +300,9 @@ export class MockStudentRepository implements StudentRepository {
           filiereCode: normalizeTrackCode(sInput.filiereCode),
           specialiteCode: normalizeTrackCode(sInput.specialiteCode),
           status: "active",
+          // T-437 (INV-24a): the origin — mock/production parity (the
+          // register_family_batch jsonb thread).
+          origin: sInput.origin ?? null,
           paymentPlan: sInput.paymentPlan ?? "tranches",
           createdAt: nowIso(),
           updatedAt: nowIso(),

@@ -41,6 +41,7 @@ import type {
   AcademicLevelRepository,
   ClassPlacementRepository,
   PromotionCycleRepository,
+  ReEnrollmentRepository,
 } from "../../domain/repository/academic-repository";
 import type { ClubRepository } from "../../domain/repository/club-repository";
 import type {
@@ -101,6 +102,7 @@ import {
   mockPromotionRepository,
   mockClassPlacementRepository,
   mockPromotionCycleRepository,
+  mockReEnrollmentRepository,
   mockAcademicYearRepository,
   mockAcademicLevelRepository,
   mockClubRepository,
@@ -144,6 +146,8 @@ export interface Repositories {
   readonly classPlacement: ClassPlacementRepository;
   /** T-403 (0108): the human-in-the-loop promotion-cycle workflow. */
   readonly promotionCycles: PromotionCycleRepository;
+  /** T-437 (ADR-031): the re-enrollment year-transition workflow (migration 0128). */
+  readonly reEnrollment: ReEnrollmentRepository;
   /** T-404 (0109/0110): the canonical Automatic Timetable repository. */
   readonly timetable: TimetableRepository;
   readonly academicYears: AcademicYearRepository;
@@ -208,6 +212,7 @@ export const mockRepositories: Repositories = {
   promotion: mockPromotionRepository,
   classPlacement: mockClassPlacementRepository,
   promotionCycles: mockPromotionCycleRepository,
+  reEnrollment: mockReEnrollmentRepository,
   timetable: mockTimetableRepository,
   academicYears: mockAcademicYearRepository,
   academicLevels: mockAcademicLevelRepository,
