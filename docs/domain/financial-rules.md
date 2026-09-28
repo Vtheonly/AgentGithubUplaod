@@ -221,3 +221,30 @@ Invariants:
 - **Reference implementation:** desktop `src/domain/calc/ledger/year-history.ts` (pure, deterministic) + the attribution precedence helpers; pinned by the T-436 multi-year fixture suite (`src/tests/domain/ledger/year-history.test.ts`) covering the owner's exact scenarios (partial payments, carried-forward debt across 2+ transitions, re-enrollment with debt, later-year settlement of older debt, price changes across years, leaving while owing, the attribution-precedence + freeze pins).
 - **SQL side:** migration 0127 — the persisted columns + backfill + the canonical write paths stamping them (`collect_and_allocate_payment` recreated: payment year + allocation target year; `upsert_installment_from_import` recreated: the previously-dropped `p_academic_year` wired — DATA-052) + the 0126-recreated `compute_debt_aging_rows` re-based on the precedence (persisted → INV-14) so the debt-aging SQL mirror stays parity-pinned with the TS engine.
 - **Platform consumers:** the CRM parent drawer's « Historique par Année Scolaire » section (the per-person year-by-year review), the Debt Aging drawer's per-obligation year facts (now precedence-attributed), and any future statistics/reporting surfaces — all CONSUMERS of the one engine.
+
+## 18. Payment handling after re-enrollment — the target-year billing generation (T-437 / ADR-031, 2026-09-29)
+
+> IMPLEMENTED (T-437, migration 0128 — GitHub issue #18 §7). When a
+> re-enrollment is accepted, the new enrollment is connected to the correct
+> financial structure for the TARGET academic year automatically — the user
+> never re-creates the payment structure manually. This section creates NO
+> second financial system: every generated row follows the official T-425
+> tranche model, every amount stays client-derived (§15.39b — the canonical
+> TS calc engine), and every year fact rides the T-436 attribution (§17).
+
+### 18.1 The generation contract (INV-25)
+
+- **INV-25a (the official model, unchanged):** the generated rows follow the ONE official model (T-425): FI at tranche 0 (when `includeRegistration`), exactly 3 tuition tranches V1/2V/v3 due Sept 15 / Dec 15 / Mar 15, 3 transport tranches when transport applies, NO 4th tranche (the DB CHECK stands). The builder is the SAME wire builder the `register_family_batch` path uses (EXTRACTED to one shared helper — never a second builder); the re-enrollment path calls it with the single continuing student.
+- **INV-25b (the target-year pricing):** amounts derive from the TARGET year's pricing configuration (ADR-025: the active config when the target year is current; `readForYear(target)` otherwise). Historical-year prices are never applied to the new year, and the new year's generation never re-prices an old year (INV-19a).
+- **INV-25c (the year stamp):** every installment row the re-enrollment writes carries `academic_year_id = <target year>` (the 0127 column — the charge-belonging year, frozen at write per INV-18b). The generation is therefore attributable on every year-aware surface (the Tranches tab's year scope, the §17 year history) with NO date-window ambiguity.
+- **INV-25d (one transaction):** the re-enrollment composite (student placement update + billing legs + status flip + ONE audit) commits or rolls back TOGETHER (the `register_family_batch` atomicity contract). A failed generation leaves ZERO rows.
+
+### 18.2 The old-debt separation (INV-26)
+
+- **INV-26a (old debt stays old):** a previous-year obligation's `academic_year_id` (or its INV-14 attribution) is NEVER touched by the re-enrollment — the old debt remains attached to its original year (INV-18c). The re-enrollment generates ONLY the target year's charges; it never carries old balances into the new year's rows.
+- **INV-26b (allocation preserves the distinction):** payments continue through the canonical waterfall (oldest-due-date first within the category filter — ADR-023): current-year charges and previous-year debt are settled in the ONE canonical order, and each allocation's settlement-target year (§17.1) records WHICH year's obligation was settled. A payment may settle new-year charges, old debt, or both — the allocation rows are the truth (INV-18d).
+- **INV-26c (immediate visibility):** after the re-enrollment commits, the target year's payment plan + pending tranches are immediately visible on every year-aware surface (the parent drawer's Finances tab, the « Historique par Année Scolaire » section, the Tranches tab scoped to the year) — no refresh-migration, no manual re-opening step beyond the normal observable streams.
+
+### 18.3 The add-child leg (the BUSINESS-109 repair)
+
+- The wizard's `presetParent` add-child leg (an EXISTING parent gaining a new child) follows the SAME contract: the billing rows the steps-3/4 devis promised are PERSISTED through the same one-transaction composite (the existing parent is bound by its deterministic identity — never duplicated), with the current-year attribution per INV-25c. A shown devis must never be silently dropped (the DATA-019 convention, extended to this leg).

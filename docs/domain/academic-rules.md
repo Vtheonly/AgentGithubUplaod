@@ -131,3 +131,35 @@ Debt status must distinguish:
 - resolved debt or controlled active payment behavior.
 
 Thresholds and transitions are financial/business rules and must not be invented in UI code.
+
+## 10. Réinscription (Re-enrollment) — the year-transition workflow for CONTINUING students (T-437 / ADR-031, 2026-09-29)
+
+> IMPLEMENTED (T-437, migration 0128 — GitHub issue #18). The core distinction
+> this section canonizes: **Student = the same person across all academic
+> years; Enrollment = that student's registration for ONE specific academic
+> year.** A re-enrollment NEVER creates a duplicate person and NEVER
+> re-registers a continuing student "from scratch".
+
+### 10.1 The identity vs. enrollment distinction (the core invariant)
+
+- **INV-21a (one person):** a re-enrollment targets the EXISTING `students` row (the same `ELV-` code, the same `parent_id`, the same identity). No code path in the re-enrollment flow may call a parent-creation or student-creation upsert with a re-derived identity — the flow operates on the known uuid.
+- **INV-21b (one enrollment record per year):** the year-transition state is ONE `re_enrollments` row per `(tenant, student, target academic year)` (unique index) — the source year's finalized snapshot + the decision. Re-running the candidate generation for the same year pair is IDEMPOTENT (ON CONFLICT DO NOTHING — existing decisions are never reset).
+- **INV-21c (history is append-only and untouched):** `student_academic_histories` rows are written by the year-end promotion flow (`execute_batch_promotion`), NEVER by the re-enrollment flow. The re-enrollment READS the finalized results; it never writes, backdates, or recalculates them. Previous enrollment/financial records remain historically independent while staying connected to the same student.
+
+### 10.2 Candidate generation — from the FINALIZED pedagogical results only (INV-22)
+
+- **INV-22a (no second pass/fail engine):** the candidate list is generated from (a) the active student roster (`students` of the tenant, not deleted, `enrollment_status IN ('active','enrolled')` — graduated/withdrawn students are not candidates) and (b) each student's FINALIZED source-year result in `student_academic_histories` (the `decision` — promoted/repeated — the `gpa`, the class, the grade). The re-enrollment feature NEVER recomputes a pass/fail from marks, never re-derives an average, and never maintains its own result column — the finalized history row IS the result.
+- **INV-22b (the honest unfinalized state):** a candidate with NO history row for the source year (the promotion cycle has not processed them — the entire imported corpus today) is still listed, carrying `final_result = NULL` rendered as « Résultat non finalisé ». This is the degraded pre-finalization path: the school can still decide, but the expected progression is DERIVED, not finalized.
+- **INV-22c (expected next level):** with a finalized result: `promoted` → the student's CURRENT `grade_level_code` (the promotion flow already advanced it — 0059 §3) and `repeated` → the source-year grade (the promotion flow left the student row untouched — repeating the same level). Without a finalized result: the canonical `getNextGradeProgression(current grade)` derivation, clearly labeled as proposed-not-finalized. The operator can always override the proposed level in the form.
+- **INV-22d (ordering with promotion):** the INTENDED sequence is finalize-then-re-enroll (the promotion cycle writes the histories; the re-enrollment consumes them). Re-enrolling BEFORE finalization is the degraded path of INV-22b — the re-enrollment form's confirmed level then becomes the student's placement, and the later promotion review remains the human-in-the-loop authority for the source year's records (its history upsert updates the finalized facts; it never touches the re-enrollment's target-year billing).
+
+### 10.3 The decision states + the freeze (INV-23)
+
+- **INV-23a (the state machine):** each candidate carries exactly one status: `waiting` (no decision yet — the red badge counts these) → `started` (the re-enrollment form was opened/work is in progress) → `re_enrolled` (the target-year enrollment + billing were created) | `not_continuing` (the school recorded that the student will not return — the decision is recorded, never left unresolved by omission). A `waiting` candidate may go directly to `re_enrolled` or `not_continuing`.
+- **INV-23b (the freeze):** once the school completes its review, the WHOLE target-year list is frozen (`frozen_at` set on every row by the freeze RPC). The freeze REFUSES while any candidate is still `waiting` (the review is not complete). After the freeze, decision changes and re-enrollments are refused — the list is final. The freeze is the re-enrollment-side counterpart of the promotion cycle's `completed` state (the same year-end finalization concept, never a competing one).
+- **INV-23c (every mutation audited):** the decision, the re-enrollment and the freeze each write ONE audit entry through `write_audit_log` (the 0014 canonical entry point).
+
+### 10.4 New-student origin vs. returning-student history (INV-24)
+
+- **INV-24a (two different questions):** "New Student → where did they come from BEFORE joining our school?" is answered by the ORIGIN fields on the student record (`origin_type`, `previous_school_name`, `previous_school_level`, `previous_academic_year`, `origin_notes` — migration 0128). "Returning Student → what was their previous history AT our school?" is answered by `student_academic_histories` + the per-year financial history (T-436). The two are rendered as distinct sections and NEVER merged into one list.
+- **INV-24b (origin is structured, not a note):** origin fields are first-class columns on `students`, threaded through the canonical creation paths (`upsert_student_from_import` trailing params — the 0112 pattern; `register_family_batch` jsonb columns — the §15.45a composite re-audit), captured at creation time (the wizard's step 2 + the direct add-student form), and displayed in the student profile. `origin_type = 'continuation'` is the marker for a student who came up through the school itself.
