@@ -35,6 +35,13 @@ import type { Payment, Installment, PaymentCategory, AcademicCycle, CollectPayme
 import { createChargeEntry, createPaymentEntry, createAdjustmentEntry } from "../../../../domain/calc/ledger/entries";
 import { allocatePaymentToInstallments } from "../../../../domain/calc/payment/waterfall-allocator";
 import { mapNiveauCode, resolveGradeFromClasse, isAutisteTrack } from "../mappers/niveau-mapper";
+// T-438 (ADR-032): the ER-PMAE seam — the T-414 EntityMatcher interface.
+// When provided (ONLY when the experimental flag is ON and the user has
+// confirmed proposals), the adapter's parent resolution consults it BEFORE
+// the legacy exact-match strategy; absent, the path is byte-identical to
+// pre-T-438 (INV-40 / INV-45).
+import type { CanonicalEntityRef, EntityMatcher } from "../../import-config/extensions";
+import { erImportRowObservationId } from "../er-matcher";
 import { splitFullName } from "../mappers/name-splitter";
 import {
   mapExcelDestinationToCanonical
@@ -93,6 +100,13 @@ export interface RepositoryStorageAdapterDeps {
    * to the sequential importer.
    */
   readonly importConcurrency?: number;
+  /**
+   * T-438 (the T-414 EntityMatcher seam): an optional matcher carrying
+   * HUMAN-CONFIRMED identity bindings (row → existing parent). Constructed
+   * exclusively from approved ER-PMAE proposals — never from raw engine
+   * output (INV-50). Unset ⇒ the legacy resolution only.
+   */
+  readonly entityMatcher?: EntityMatcher;
 }
 
 /**
@@ -720,6 +734,28 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       action: "skip" as "insert" | "update" | "skip",
     }));
 
+    // Phase 1a — T-438 (the T-414 seam): PRE-RESOLVE the ER-confirmed
+    // bindings. The matcher is consulted once per row here (async, before
+    // the synchronous family loop); a matched row binds to the EXISTING
+    // family — the same canonical path the legacy phone-match uses.
+    const erBindings = new Map<number, string>();
+    if (this.deps.entityMatcher) {
+      const existingRefs = parentIndex.toEntityRefs();
+      for (const { record, rowIndex } of rows) {
+        const input = this.buildParentInput(record);
+        const sourceRef: CanonicalEntityRef = {
+          kind: "parent",
+          id: erImportRowObservationId(rowIndex),
+          attributes: {
+            displayName: input.displayName ?? `${input.firstName} ${input.lastName}`.trim(),
+            phone: input.phone ?? "",
+          },
+        };
+        const outcome = await this.deps.entityMatcher.match(sourceRef, existingRefs);
+        if (outcome.matched) erBindings.set(rowIndex, outcome.target.id);
+      }
+    }
+
     for (let i = 0; i < rowTasks.length; i++) {
       const task = rowTasks[i];
       const parentInput = this.buildParentInput(task.record);
@@ -727,7 +763,10 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       // resolveFamilyFor lazily binds a snapshot family on first match —
       // track() registers EVERY family that carries rows, whether it came
       // from the snapshot (lazily created) or from a new create intent.
-      let family = parentIndex.resolveFamilyFor(parentInput);
+      let family = erBindings.size > 0
+        ? parentIndex.resolveFamilyByParentId(erBindings.get(task.rowIndex) ?? "")
+        : null;
+      if (!family) family = parentIndex.resolveFamilyFor(parentInput);
       if (!family) {
         family = track({
           pendingInput: parentInput,
@@ -2714,6 +2753,34 @@ class BatchParentIndex {
     );
     if (byLegacyTuteur) return this.bind(byLegacyTuteur);
     return null;
+  }
+
+  /**
+   * T-438: resolve the family for a KNOWN parent id (an ER-confirmed
+   * binding's target). Returns null when the id is not in the index (the
+   * caller falls back to the legacy strategy).
+   */
+  resolveFamilyByParentId(parentId: string): EtatFamily | null {
+    const hit = this.entries.find((e) => e.parent?.id === parentId);
+    if (!hit) return null;
+    return this.bind(hit);
+  }
+
+  /** The snapshot parents as T-414 CanonicalEntityRefs (the matcher's view). */
+  toEntityRefs(): CanonicalEntityRef[] {
+    return this.entries
+      .filter((e) => e.parent !== null)
+      .map((e) => ({
+        kind: "parent" as const,
+        id: (e.parent as NonNullable<typeof e.parent>).id,
+        attributes: {
+          code: (e.parent as NonNullable<typeof e.parent>).code,
+          displayName: (e.parent as NonNullable<typeof e.parent>).displayName ?? "",
+          phone: (e.parent as NonNullable<typeof e.parent>).phone,
+          firstName: (e.parent as NonNullable<typeof e.parent>).firstName,
+          lastName: (e.parent as NonNullable<typeof e.parent>).lastName,
+        },
+      }));
   }
 
   /** Bind a snapshot entry to its (lazily created) family. */

@@ -59,6 +59,9 @@ import { SyncTab } from "./sync-tab";
 import { AIConfigTab } from "./ai-config-tab";
 import { BackupTab as BackupTabImpl } from "./backup-tab";
 import { LockedFeaturesTab } from "./locked-features-tab";
+// T-438 (IDENT-101 / ADR-032): the experimental capabilities surface — the
+// ONLY activation path for ER-PMAE (Settings → Expérimental, OFF by default).
+import { ExperimentalTab } from "./experimental-tab";
 // T-393 (handed-over Task 21): the deterministic Supabase diagnostics screen —
 // self-contained module, French labels internal (no dictionary files touched).
 // T-396 (OPS-320): the CRUD integration test tab joins the same module family.
@@ -71,7 +74,7 @@ import { SupabaseDiagnosticsTab, CrudTestTab } from "./supabase-diagnostics";
 /** All valid Settings tab IDs. Used to validate the ?tab= query param. */
 const VALID_TABS = [
   "general", "pricing", "audit", "rbac", "approvals", "accounts",
-  "config", "diagnostics", "crud", "sync", "ai", "backup", "locked",
+  "config", "diagnostics", "crud", "sync", "ai", "backup", "locked", "experimental",
 ] as const;
 
 type SettingsTabId = (typeof VALID_TABS)[number];
@@ -133,6 +136,7 @@ export function SettingsPage() {
           <PageTab value="ai" label={t("settings.ai")} icon={Bot} />
           <PageTab value="backup" label={t("settings.backup")} icon={Database} />
           <PageTab value="locked" label={t("settings.locked")} icon={Lock} />
+          <PageTab value="experimental" label="Expérimental" icon={FlaskConical} />
         </PageTabList>
 
         <PageTabContent value="general">
@@ -185,6 +189,10 @@ export function SettingsPage() {
 
         <PageTabContent value="locked">
           <LockedFeaturesTab />
+        </PageTabContent>
+
+        <PageTabContent value="experimental" scrollable>
+          <ExperimentalTab />
         </PageTabContent>
       </PageTabs>
     </div>
