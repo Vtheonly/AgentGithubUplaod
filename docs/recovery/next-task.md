@@ -1,3 +1,18 @@
+# 2026-09-28 — T-434 COMPLETE (113th session): the owner's two wave-card questions verified (read-only) + the échéance visibility fix — DATA-050 (the surface-swapped doc values) + UI-316 (the missing due-date display) resolved
+
+**The 113th session answered the owner's two questions with live evidence and fixed the one real defect they exposed.** (1) The 75/77 pair: both surfaces correct on their bases — Statistics T1 (scolarité) = 75 %, Finance strip T1 (pooled) = 77 % (transport T1 at 97 % pulls the pooled rate up); the T-432 docs' example values were SURFACE-SWAPPED (DATA-050 — the owner's report carried the same transposition; corrected in the code comment + the t-432 doc's header note; the historical sections stand append-only). (2) The red on Tranche 1: CORRECT — T1 is due 2026-09-15 (the T-425 official schedule), 13 days past, 548 owing families; T2/T3 correctly show not_due. The gap was the missing visible cause (UI-316): every Statistics wave card + the Finance strip now render the échéance line (date + days late when overdue). The t-434 probe (the app's own derivations over the live collection) is the reusable evidence; the t-434 suite pins the rendering.
+
+**Gates:** the t-434 probe ALL INVARIANTS GREEN · the t-434 suite 7/7 · tsc 0 · eslint 0 errors · FULL vitest 4,240 / 18 (the count = baseline + 7 new; the set deviation = the t-390↔t-415 environment-flaky swap, proven identical on the clean tree). Registry: DATA-050 + UI-316 resolved (totals 410); T-434 DONE. Knowledge: AGENTS.md §15.66 · docs/recovery/t-434-wave-card-verification.md.
+
+## Standing recommendation (updated by the 113th session)
+
+1. **The owner's packaged-app pass (the top item):** pull main + rebuild — the Tranches strip and the Statistics wave cards now show the échéance lines + the "dont scolarité" reconciliation together, with the CORRECTED expectations (Finance T1 = 77 % toutes catégories / Statistics T1 = 75 % scolarité — the OPPOSITE assignment of the original report; a stale build explains seeing the old pair).
+2. **SPREAD-100 (the WB2 matrix equivalence run):** the corpus is freshly imported and oracle-verified — the ideal baseline for the pricing-matrix re-derivation task.
+3. **The 6 override families:** the school's hand-adjusted créance values (+433,500 DZD) remain the documented difference — record them properly and re-import to carry them through.
+4. **The standing queue:** the T-429 cross-platform ports · ACAD-511 (issue #18) · migration 0122 (reserved) · the 18-failure environment-class baseline.
+
+---
+
 # 2026-09-28 — T-433 COMPLETE (112th session): the owner's purge + WB2 re-import mandate — the live DB rebuilt from the WB2 workbook (oracle-verified), migration 0126 LIVE (the boot storm gone end-to-end), ARCH-016 + IMPORT-120 resolved, the delivery zips pushed
 
 **The 112th session executed the owner's data mandate end to end.** The purge (the canonical 0120/0121 RPC over the owner's UI path — 14,114 rows, every domain table verified zero, the preserved sets + the owner admin intact) followed by the fresh WB2 import through the corrected canonical pipeline (91 s · 741/1,137/5,956/2,198/3,342 · Encaissé 162,713,000 DZD exact · 100% payments attribution) followed by the full verification stack (the Excel oracle 1,130/1,138 exact — the T-425 result identical; the no-4th-tranche probe exact; the boot-path health probe ALL 200s). On top: ARCH-016 (the 0125 registration half-landing) reconciled — the chain head now 0126; migration 0126 applied live with verify_t-432.sql 15/15 (after the session repaired the verify script's own three never-run-layer defects).

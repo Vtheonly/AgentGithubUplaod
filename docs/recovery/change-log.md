@@ -1,3 +1,31 @@
+## 2026-09-28 — The 113th session — T-434 COMPLETE: the owner's two wave-card questions verified end to end (read-only) + the échéance visibility fix — DATA-050 (the DATA-049 example values were surface-swapped vs the live rows) + UI-316 (the wave cards never showed their due date)
+
+### The mandate
+
+The owner asked two questions and demanded verification against the actual business logic, not assumptions: (1) why Finance shows 75 % for the first tranche while Statistics shows 77 %; (2) why the first tranche shows red when "it is not due yet — there is still time before the due date, no?". Both answered with live evidence; one presentation gap fixed.
+
+### Q1 — the 75/77 pair: BOTH correct on their bases; the DOCS' example values were surface-swapped (DATA-050)
+
+The t-434 probe (`elimtiyaz-desktop/scripts/t-434-wave-reconciliation-probe.ts` — the REAL Statistics + Finance derivations over the REAL live collection, the t-425 probe convention): **Statistics T1 (scolarité isolée) = 75 %** (83,600,400/111,758,300) · **Finance strip T1 (toutes catégories) = 77 %** (95,279,400/123,748,300) · the strip's "dont scolarité : 75 %" line is character-identical to the Statistics card (the I1 invariant). The two numbers differ BY DESIGN (the T-424 canonical math, the T-427 basis disclosure, the T-432 reconciliation line) — transport T1 is 97 % collected and PULLS THE POOLED RATE UP.
+
+**The DATA-050 discovery:** the T-432 documentation (and the owner's original console report) pinned the pair as "Statistics (scolarité) = 77 % / Finance (pooled) = 75 %" — SURFACE-SWAPPED vs the live rows. The T-425 census table already recorded tuition T1 Σpaid = 83,600,400 (= 75 %) BEFORE T-432 ran; the C6 census (T-433's live run) recorded tuition=75 %/pooled=77 %. The pair has been 75/77 since the T-425 re-import; the owner's report almost certainly transposed the two numbers (two numbers, two surfaces), and the T-432 session relayed it without re-deriving (its C6 script was owner-gated, never run that session). Corrected: the tuitionPct code comment + this entry + the correction note in t-432-live-verification.md's header; the historical T-432 sections left as-written (append-only history). The count-based clearance (tuition T1 = 30 % soldée) rules out the dossier-count basis as the 77's source.
+
+**The owner-facing consequence:** the app TODAY renders Finance T1 = 77 % (pooled) and Statistics T1 = 75 % (scolarité) — the OPPOSITE assignment of the owner's report. Either the owner's app predates the T-433 re-import (a stale build/cache — the standing packaged-app pass gate) or the two values were transposed in the report. The ANSWER to "why do they differ" is unchanged: the two bases, reconciled at a glance by the "dont scolarité" line.
+
+### Q2 — the red "En retard" on Tranche 1: the verdict is CORRECT (T1 was due September 15); the GAP was the missing visible cause (UI-316)
+
+The live due dates: tuition T1 AND transport T1 are due **2026-09-15** (the owner-confirmed official schedule — T-425: FI + V1/2V/v3 due Sept 15 / Dec 15 / Mar 15) — 13 days past at the report date. The t-434 probe: tuition T1 phase=overdue with **794 unpaid rows / 548 owing families** (28,157,900 DZD remaining); transport T1 likewise overdue (22 rows / 19 families). T2 (due 2026-12-15) and T3 (due 2027-03-15) correctly render phase=not_due — "Familles à échoir", 0 en retard, NO red. The owner's "there is still time before the due date" belief matches the OLD pre-T-425 schedule (the first versement due in December) — the owner themselves confirmed the September schedule in T-425.
+
+**The UI-316 fix (presentation-only):** the Statistics wave cards never DISPLAYED the due date that drives their phase — a red verdict without its visible cause reads as a bug even when correct. Now: every tuition wave card renders "Échéance : 15 sept. 2026 — 13 j de retard" (red, on overdue+uncollected waves) / "Échéance : 15 déc. 2026 — dans N j" (muted, on future waves) / the bare date on closed waves (a closed wave never claims lateness); the auxiliary transport waves carry "échéance <date> · en retard"; the Finance strip's "échéance 15 sep" hint is now VISIBLE text on every card (was a hover-only tooltip). The days use the canonical `daysBetweenFloor` (a wave due TODAY is 0 days late, never 1).
+
+### The gates
+
+the t-434 probe ALL INVARIANTS GREEN (live, read-only) · the t-434 suite **7/7** (`src/tests/ui/t-434-wave-due-date-visibility.test.tsx` — the overdue/not-due/closed/transport/strip/reconciliation pins) · tsc 0 · eslint 0 errors on every changed file · the t-427/t-424/ai-review suites unchanged (the ai-review 3 = the documented baseline) · FULL vitest **4,240 passed / 18 failed** (the count = the 4,233 baseline + the 7 new tests; the failing-set deviation is the t-390↔t-415 environment-flaky swap — PROVEN identical on the clean tree by a stash-run, NOT caused by this change) · zero data changes, zero migrations (the live DB untouched — read-only probes).
+
+### The registry + knowledge
+
+DATA-050 + UI-316 both registered AND resolved same-session (the totals line now 410) · T-434 DONE (task-registry) · AGENTS.md §15.66 (the new rule: an owner-reported number pair must be RE-DERIVED against the live surface math before its values are canonized into docs — plus the status-without-cause principle) · the correction note in t-432-live-verification.md's header · the full evidence: docs/recovery/t-434-wave-card-verification.md.
+
 ## 2026-09-28 — The 112th session — T-433 COMPLETE: the owner's purge + WB2 re-import mandate — ARCH-016 (the 0125 chain-head half-landing) reconciled; migration 0126 applied LIVE; the full student/parent domain purge; the fresh WB2 import; the delivery zips
 
 ### The mandate

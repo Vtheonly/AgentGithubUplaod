@@ -3,6 +3,16 @@
 **Task ID:** T-432 (the 111th session, 2026-09-28) · **Problems:** PERF-509 (the live 500-storm), DATA-049 (the Statistics-vs-Finance wave-basis reconciliation display)
 **Status:** CODE COMPLETE / TESTED — the live application of migration 0126 is **owner-gated** (the `sbp_` token is supplied at runtime, never persisted — AGENTS.md §11.1).
 
+> **CORRECTION (T-434 / DATA-050, 2026-09-28 — the 113th session):** §2.3 and §3b below (and the session's
+> change-log/current-state summaries) pin the live pair as "Statistics (scolarité) T1 = 77 %, Finance strip
+> (pooled) T1 = 75 %" — that value-to-surface attribution is **SWAPPED** vs the live rows. The canonical math
+> over the live collection (the t-434 probe + the C6 census + the T-425 census table) yields **Statistics
+> (scolarité) T1 = 75 %** (83,600,400/111,758,300) and **Finance strip (pooled) T1 = 77 %**
+> (95,279,400/123,748,300 — transport T1 at 97 % pulls the pooled rate UP). The owner's original report
+> carried the same transposition, and this session relayed it without re-deriving (the C6 script below was
+> owner-gated and never run at T-432 time). The RESOLUTION itself (the "dont scolarité" reconciliation line)
+> is correct and unchanged. Full evidence: `docs/recovery/t-434-wave-card-verification.md`.
+
 ---
 
 ## 1. The owner's report (the exact console evidence)
