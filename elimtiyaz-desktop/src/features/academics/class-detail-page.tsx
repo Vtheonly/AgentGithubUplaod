@@ -57,6 +57,7 @@ import { ClassSubjectsTab } from "./class-subjects-tab";
 import { ClassAttendanceTab } from "./class-attendance-tab";
 import { ClassGradesTab } from "./class-grades-tab";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
+import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import { NarrativeGeneratorButton } from "./narrative-generator-modal";
 import { HomeworkPushModal } from "./homework-push-modal";
 import {
@@ -71,6 +72,10 @@ const NO_SUBJECT = "__pick__";
 
 export function ClassDetailPage() {
   const { classId } = useParams<{ classId: string }>();
+  // T-444/UI-324: the new-UI roster button navigates through the global
+  // person-navigation layer — the hook was called in 1cead9d without this
+  // wiring (tsc 2304 'openStudent').
+  const { openStudent } = usePersonNavigation();
   const [searchParams] = useSearchParams();
   const highlightedStudentId = searchParams.get("studentId");
   const tabParam = searchParams.get("tab");
@@ -498,12 +503,6 @@ export function ClassDetailPage() {
                     élève » pour inscrire des élèves.
                   </li>
                 ) : (
-
-
-
-                  
-
-                  // Inside ClassDetailPage student roster mapping:
                   students.map((s) => (
                     <li
                       key={s.id}
