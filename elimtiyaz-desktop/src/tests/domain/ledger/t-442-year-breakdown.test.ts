@@ -57,7 +57,7 @@ function makeInstallment(overrides: Partial<Installment> = {}): Installment {
     studentId: overrides.studentId ?? "s-1",
     category: overrides.category ?? "tuition",
     label: overrides.label ?? "Tranche 1",
-    trancheNumber: overrides.trancheNumber ?? 1,
+    trancheNumber: "trancheNumber" in overrides ? overrides.trancheNumber : 1,
     amountDue: overrides.amountDue ?? 0,
     amountPaid: overrides.amountPaid ?? 0,
     amountPending: overrides.amountPending ?? 0,
