@@ -5000,3 +5000,24 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Scope owner:** the owner's final-verification mandate (the session prompt).
 **Next:** the standing queue — the #1 item is still the 0132 live application; then the owner's FI ruling (UNKNOWN-029); then IDENT-104 M5 before any real ER exercise.
 **Related:** T-434..T-439 (the verified range) · DATA-005/DATA-057 (the DATA-058 family) · §15.71/§15.72 (the test-blindness lessons).
+
+## T-442 — Per-Year Debt Origin Breakdown: the complete historical financial breakdown by academic year (the owner's 2026-09-29 issue: the debt-tracking feature shows only the year of origin + a total carried from previous years — "I want to see not only the year in which the debt originated, but also how much the student owed for each individual year and exactly what those amounts covered… Registration/inscription fees, Tuition fees and each tranche, Transportation, any other services, the year in which each service was selected, the amount originally owed, the amount paid, the remaining balance, and exactly what each payment covered… if a student has an outstanding balance from 2024, I should be able to open the 2024 record and see exactly what they owed in 2024, what they paid during that year, what services they had selected, and what remains unpaid. The same should be available separately for 2025, 2026, etc.")
+
+**Problem IDs:** UI-323 (registered OPEN with read-only evidence).
+**Priority:** P2 — Medium (the per-year FACTS already exist in the canonical engine's output and the DB; the gap is the derivation of the per-service grouping + per-payment coverage lines + the per-year still-owed figure, and their presentation on the two surfaces the owner named).
+**Status:** IN_PROGRESS (Phase 0 registration, 2026-09-29).
+
+**Scope (the extend-never-duplicate rule — §6/§15.53a):**
+1. **Phase 1 — the canonical engine extension** (`src/domain/calc/ledger/year-history.ts`, ADDITIVE fields only): `YearServiceGroup` (per-year grouping of the year's charges: registration FI [tuition/T0] / scolarité per tranche [tuition/T1..T3] / transport per tranche / other services per category — each with chargeCount, ΣamountDue, ΣamountPaid, ΣamountPending, ΣINV-4 remaining), `YearPaymentItem.coveredCharges` (the allocation lines — what each payment settled: charge label, category, TARGET year, allocated amount) + `coverageBasis` ("allocations" | the honest "unavailable" for the import-era corpus whose `payment_allocations` is empty), `AcademicYearFinancialRecord.outstandingStillOwedNow` (the per-year Σ current INV-4 remaining — the per-year composition of the old single aggregate), `ParentYearHistory.priorYearsStillOwed` (the per-year enumeration). INV-20a holds: every amount is a stored column, the INV-4 remaining, or an allocation amount — NO new numbers.
+2. **Phase 2 — the CRM section rendering** (`parent-year-history-section.tsx`): the prior-years banner enumerates per year; the year card gains the « Services de l'année » breakdown block; charge rows carry the category/tranche chips; payment rows carry the coverage lines (or the honest unavailable note).
+3. **Phase 3 — the Debt Aging drill-down** (`debt-aging-tab.tsx`): the family drawer gains a « Par année » tab that mounts the SAME `ParentYearHistorySection` fed by the canonical repository streams (one engine, one rendering component, two surfaces — the owner's "open the 2024 record" mandate on the debt surface itself). Conditional mount (the T-430 rule): the observables subscribe only when the tab is active.
+4. **Phase 4 — tests + docs:** the engine suite (service grouping / coverage lines / per-year outstanding / INV-20a pins / determinism), the UI suites (both surfaces), financial-rules §17.3 extension (INV-20e: the service-breakdown + coverage presentation contract), the registries truth-sync.
+
+**Constraints:** NO migration (the 0127 columns already persist everything this needs); NO new data path (the debt-aging tab observes the SAME repository streams the CRM drawer does); DATA-056 M2 (the allocation.academicYearId precedence) is deliberately NOT touched — the coverage target year resolves through the allocated installment's attributed year, exactly like the existing cross-year settlement derivation (scope control, §15.8).
+
+**Gates:** tsc 0 · eslint 0 errors on every changed file · the new suites GREEN · the FULL vitest run BASELINE-MATCHED (4,429/17, the T-440 documented reality) · read-only live probe evidence recorded (the coverage-basis honesty on the live corpus).
+
+**Left:** registered at Phase 0.
+**Scope owner:** the owner's issue (this session's mandate).
+**Next:** Phase 1 — the engine extension (rules documented in-code, RED-first-capable fixtures).
+**Related:** T-436 / UI-318 (the engine + section this extends) · T-405 (the debt-aging surface) · §17.3 INV-20 · ADR-028 (the delivery branch model).
