@@ -22,7 +22,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/re
 import "../../i18n/i18n";
 import { DebtAgingTab } from "../../features/financials/debt-aging-tab";
 import { computeDebtAgingAnalysis } from "../../domain/calc/ledger/debt-aging";
-import type { DebtAgingAnalysis } from "../../domain/calc/ledger/debt-aging";
+import type { DebtAgingAnalysis, DebtAgingThresholds } from "../../domain/calc/ledger/debt-aging";
 import type { LedgerEntry } from "../../domain/model/ledger";
 import type { Installment } from "../../domain/model/payment";
 import type { Student } from "../../domain/model/student";
@@ -174,12 +174,31 @@ const PARENTS: ParentModel[] = [P_A, P_B, P_C].map((pid) => ({
 
 const agingObs = obs<DebtAgingAnalysis[]>([ARCHETYPE_A, ARCHETYPE_B, GREEN_C]);
 
+// T-443 (DEBT-101): the ACTIVE-thresholds stream — the fake emits the
+// documented DEFAULTS (the mock repository's contract) unless a test
+// overrides it (the configurable-legend pin below).
+const DEFAULTS: DebtAgingThresholds = {
+  gracePeriodDays: 5,
+  yellowDays: 15,
+  redDays: 60,
+  activePayerGraceDays: 15,
+};
+let thresholdsValue: DebtAgingThresholds = DEFAULTS;
+const thresholdsObs = {
+  get: () => thresholdsValue,
+  subscribe: (cb: (v: DebtAgingThresholds) => void) => {
+    cb(thresholdsValue);
+    return () => {};
+  },
+};
+
 let state: Record<string, unknown>;
 
 function makeState() {
   return {
     debt: {
       observeAging: () => agingObs,
+      observeThresholds: () => thresholdsObs,
       refreshAging: vi.fn(async () => undefined),
     },
     students: { observe: () => obs(STUDENTS) },
@@ -319,11 +338,55 @@ describe("T-405 — DebtAgingTab (the Suivi des Dettes view)", () => {
     const emptyObs = obs<DebtAgingAnalysis[]>([]);
     state = {
       ...makeState(),
-      debt: { observeAging: () => emptyObs, refreshAging: vi.fn(async () => undefined) },
+      debt: {
+        observeAging: () => emptyObs,
+        observeThresholds: () => thresholdsObs,
+        refreshAging: vi.fn(async () => undefined),
+      },
     };
     render(<DebtAgingTab />);
     await waitFor(() => {
       expect(screen.getByText(/Aucune famille endettée/i)).toBeTruthy();
+    });
+  });
+
+  // T-443 (DEBT-101): the ACTIVE-thresholds legend — the configuration
+  // VISIBLE where it applies. The legend derives its numbers from
+  // `repos.debt.observeThresholds()` (never hardcoded strings): overridden
+  // values must render, proving the wiring is live end-to-end.
+  it("renders the active-thresholds legend from the observed thresholds (configurable, not hardcoded)", async () => {
+    thresholdsValue = { gracePeriodDays: 7, yellowDays: 21, redDays: 90, activePayerGraceDays: 30 };
+    try {
+      render(<DebtAgingTab />);
+      await waitFor(() => {
+        expect(screen.getByText(/Seuils appliqués/i)).toBeTruthy();
+      });
+      expect(screen.getByText(/grâce ≤ 7 j/i)).toBeTruthy();
+      expect(screen.getByText(/à surveiller ≤ 21 j/i)).toBeTruthy();
+      expect(screen.getByText(/critique > 90 j/i)).toBeTruthy();
+      expect(screen.getByText(/payeur actif ≤ 30 j/i)).toBeTruthy();
+      // The KPI tooltips derive from the SAME observed values.
+      expect(
+        screen
+          .getAllByRole("button")
+          .find((b) => b.getAttribute("title")?.includes("retard > 90 j")),
+      ).toBeTruthy();
+      expect(
+        screen
+          .getAllByRole("button")
+          .find((b) => b.getAttribute("title")?.includes("entre 21 et 90 j")),
+      ).toBeTruthy();
+    } finally {
+      thresholdsValue = DEFAULTS;
+    }
+  });
+
+  it("the legend renders the documented DEFAULTS when the stream carries them", async () => {
+    render(<DebtAgingTab />);
+    await waitFor(() => {
+      expect(screen.getByText(/grâce ≤ 5 j/i)).toBeTruthy();
+      expect(screen.getByText(/à surveiller ≤ 15 j/i)).toBeTruthy();
+      expect(screen.getByText(/critique > 60 j/i)).toBeTruthy();
     });
   });
 });

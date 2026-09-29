@@ -206,6 +206,12 @@ function SettingRowControl(props: SettingRowControlProps) {
         onChange={(e) => onLocalValueChange(e.target.value)}
         placeholder={setting.is_required ? "Requis" : "Optionnel"}
         readOnly={readOnly}
+        {...(setting.value_type === "number" && setting.validation_min !== null
+          ? { min: setting.validation_min }
+          : {})}
+        {...(setting.value_type === "number" && setting.validation_max !== null
+          ? { max: setting.validation_max }
+          : {})}
       />
       {hasChanges && (
         <Button size="sm" onClick={onSave} disabled={readOnly}>

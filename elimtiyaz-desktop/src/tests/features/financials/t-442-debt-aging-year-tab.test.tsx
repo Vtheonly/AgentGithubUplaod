@@ -183,12 +183,24 @@ const PARENTS: ParentModel[] = [
 
 const agingObs = obs<DebtAgingAnalysis[]>([ARCHETYPE_A]);
 
+// T-443 (DEBT-101): the ACTIVE-thresholds stream — the fake emits the
+// documented DEFAULTS (the mock repository's contract; the tab's legend +
+// tooltips derive from it).
+const thresholdsObs = {
+  get: () => ({ gracePeriodDays: 5, yellowDays: 15, redDays: 60, activePayerGraceDays: 15 }),
+  subscribe: (cb: (v: { gracePeriodDays: number; yellowDays: number; redDays: number; activePayerGraceDays: number }) => void) => {
+    cb({ gracePeriodDays: 5, yellowDays: 15, redDays: 60, activePayerGraceDays: 15 });
+    return () => {};
+  },
+};
+
 let state: Record<string, unknown>;
 
 function makeState() {
   return {
     debt: {
       observeAging: () => agingObs,
+      observeThresholds: () => thresholdsObs,
       refreshAging: vi.fn(async () => undefined),
     },
     students: { observe: () => obs(STUDENTS) },

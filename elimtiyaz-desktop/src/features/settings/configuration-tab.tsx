@@ -93,6 +93,9 @@ export function ConfigurationTab() {
     showError,
     loadSettings,
     setSecretEdit,
+    // T-443 (DEBT-101): the currently-loaded rows feed the debt-threshold
+    // hierarchy validation (INV-16a — grace ≤ yellow ≤ red).
+    settings,
   );
 
   return (

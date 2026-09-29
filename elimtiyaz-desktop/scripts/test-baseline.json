@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-442 (the per-year debt-origin breakdown, 120th session, 2026-09-29 — the bookkeeping-only leg: +28 passing tests [17 engine + 7 CRM-UI + 4 debt-aging-UI], the failing SET unchanged [17/8, byte-identical — the T-440-documented environment class]).",
-  "_task": "T-442 (the per-year debt-origin breakdown, 120th session, 2026-09-29) — the registered BOOKKEEPING-ONLY baseline move (the T-439 lesson applied immediately instead of compounding): the +28 new passing tests are the T-442 suites (src/tests/domain/ledger/t-442-year-breakdown.test.ts 17, src/tests/features/crm/t-442-year-breakdown-ui.test.tsx 7, src/tests/features/financials/t-442-debt-aging-year-tab.test.tsx 4). The failing set is BYTE-IDENTICAL to the T-440-documented 17 failures across the same 8 files (the environment class: the mirror refund-status trio, the getSupabaseRepositories infra failure, the jsdom MIME rejection, the stale-label UI pins). The equivalence section is unchanged (no financial RULE changed — T-442 is an additive read-side derivation + presentation; the engine suite pins INV-20a parity).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-443 (the debt-configuration client integration, 120th session, 2026-09-30 — the +17 new passing tests are the T-443 suites: t-443-debt-threshold-validation 8, the t-405 family's +7 additions (5 repository + 2 UI), the executive-statistics +2 configurable-triage pins; the failing set is UNCHANGED byte-identical — the T-442 year-tab suite repaired in the same session after the DebtAgingTab's new observeThresholds stream broke its fake). Prior: T-442 (the per-year debt-origin breakdown).",
+  "_task": "T-443 (the debt-configuration CLIENT integration, 120th session, 2026-09-30) — the registered BOOKKEEPING-ONLY baseline move: +1 test file (src/tests/features/settings/t-443-debt-threshold-validation.test.ts, 8 tests) and +9 tests inside existing suites (t-405-debt-aging-repository +5 [F/G/H/I + the mock contract], t-405-debt-aging-ui +2 [the active-thresholds legend pins], executive-statistics +2 [the canonical-boundary and configurable-triage pins]) — total 4,496 tests (4,474 passed / 17 failed / 5 skipped), 254 files. The failing-file set is byte-identical to the T-442 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7). Verified: three full runs, identical counts; the FAIL list diffed against the previous failingFiles — no new, no vanished.",
   "testFiles": {
     "failed": 8,
-    "passed": 244,
+    "passed": 245,
     "skipped": 1,
-    "total": 253
+    "total": 254
   },
   "tests": {
     "failed": 17,
-    "passed": 4457,
+    "passed": 4474,
     "skipped": 5,
-    "total": 4479
+    "total": 4496
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",
