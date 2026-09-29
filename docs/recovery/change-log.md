@@ -1,3 +1,29 @@
+## 2026-09-30 — The 122nd session — T-445 COMPLETE: the 0132+0133 live-application attempt with the re-supplied credentials — the third dead sbp_ token mapped, everything the data gateway reaches verified GREEN (the NEW data-gateway debt-config verification 16/16 with the 548-row round-trip; t-442 17/17; t-441 DB-1…DB-9 with the §15.77c artifact restoration)
+
+### The mandate
+
+The owner supplied a fresh credentials block ("here are all the tokens you need from infrastructure to test if it works make sure it works") asking for the remaining migration (0132 SEC-115 + 0133 DEBT-101's client contract) and the live scripts.
+
+### What was delivered
+
+**(1) The credentials verdict (the §15.71d/§15.72c probe convention, both classes, every endpoint):** the fresh `sbp_` Management token is 401 on every Management-API endpoint — project, organizations, the SQL `/database/query` — via curl AND the supabase CLI; the THIRD consecutive dead token while the sibling `sb_secret_` key works on the data gateway. The DB strings carry the literal `[YOUR-PASSWORD]` placeholder. The JWT-as-password pooler mode is rejected 28P01 (service + publishable keys probed — §15.77d's exhaustion map: bare `postgres` → XX000 ENOIDENTIFIER; `postgres.<ref>` + any supplied credential → 28P01; no RPC/Edge-Function executes SQL — the correct posture). DDL is therefore Management-token-or-DB-password and the apply stays owner-gated with a three-option 60-second runbook (t-445-live-verification.md).
+
+**(2) The NEW `scripts/verify_t-445_live_datagateway.py` (committed, re-runnable with only the secret key) — 16/16:** the debt-configuration chain verified live WITHOUT any Management API access — the admin sign-in; the staff gate (the service key rejected P0001); 0125's four rows + validation bounds (5/15/60/15); the RPC census + the PER-ROW invariant (634 debtors: green 86 · yellow 548, 634/634 conform); THE ROUND-TRIP through the Configuration tab's own path (yellow 15→10 flips 548 rows yellow→orange and back; the red/grace windows are empty in the current corpus — every debtor ≤ 15 d — with DERIVED zero expectations per §15.77b); zero residue; the 0132/0133 pending states confirmed (404 PGRST202, the documented version-skew mode, correct today because the live values == the DEFAULTS). The pinned-p_as_of design makes the round-trip deterministic (a day-boundary crossing cannot perturb the census).
+
+**(3) The two standing live-run recommendations executed, both first-time-with-key:** `t-442-live-verify.mjs` 17/17 (the per-year breakdown reconciles on the richest family: 50 installments partition exactly, engine === raw sums, honest coverage bases) and `t-441-live-e2e.ts` DB-1…DB-9 ALL GREEN on the real problem (5 classes / 52 requirements / 14 teachers / 10 rooms: Gate 1 0 issues; 118/118 periods 0 unplaced; Gate 3 PASS; 0 clashes/duplicates/unmet/out-of-bounds). The draft version + 118 entries were then DELETED (§15.77c — the agent run restores the pre-test clean slate; the owner's in-app regeneration is the identical path and is the run that may keep the draft).
+
+**(4) The knowledge (AGENTS.md §15.77, four discoveries):** (a) the dead-token supply pattern → data-gateway-first verification authoring; (b) round-trip expectations derive from the probe's own baseline census, never hardcoded; (c) the test-artifact restoration rule (the agent run vs the owner run of a live-mutating script are different events); (d) the pooler-credential exhaustion map (documented so nobody re-walks it).
+
+### The gates
+
+The three live runs (16/16 · 17/17 · DB-1…DB-9) · zero live residue (the four settings rows re-read at baseline; 0 timetable versions/entries; no other writes — the two other scripts are read-only) · the offline gates unchanged (tsc 0 · FULL vitest BASELINE-MATCHED per T-443/T-441).
+
+### The one owner-gated step
+
+Three 60-second options in `docs/recovery/t-445-live-verification.md`: (A) a FRESH dashboard token (generate immediately before use — the hand-off tokens keep arriving revoked) → the two committed apply runbooks; (B) the database password → the session pooler; (C) the Studio SQL editor. Then re-run verify_t-445 (CHECK-9/10 flip to "applied") + the four post-apply checks in apply_0133_live.sh's header.
+
+---
+
 ## 2026-09-30 — The 120th session — T-441 COMPLETE: the timetable generation correctness mandate — the live purge (Task 1, f11236e) + the three-gate pipeline (feasibility pre-analysis / fail-closed persistence / independent post-persist validation) + the solver v1.3.0 (SCHED-110 eviction repair, SCHED-113 duplicate-lessons fix, preferred-slot continuity) + the single-class mode — SCHED-113/SCHED-114 found-and-fixed, 4,506/4,484/17 BASELINE-MATCHED
 
 ### The mandate

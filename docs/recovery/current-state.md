@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-SECOND session — T-445: the 0132+0133 live-application attempt + the data-gateway live re-verification — everything the credentials reach is GREEN; the DDL apply is the ONE 60-second owner step)
+
+## Current state snapshot (2026-09-30, 122nd session CLOSE — T-445)
+
+**The owner's "here are all the tokens — test if it works, make sure it works" mandate is delivered to the edge of the credentials' reach.** The re-supplied block was probed per the §15.71d/§15.72c convention: the fresh `sbp_` Management token is 401 on every Management-API endpoint (curl + the supabase CLI — the THIRD consecutive dead token, §15.77a) while the sibling `sb_secret_` key works perfectly on the data gateway; the DB strings carry the literal `[YOUR-PASSWORD]` placeholder; the JWT-as-password pooler mode is rejected 28P01 (§15.77d). Everything else the mandate could reach ran LIVE and is GREEN: (1) the NEW `scripts/verify_t-445_live_datagateway.py` — 16/16 — re-proves the debt-configuration chain end-to-end without any Management access (the staff gate rejects the service key; 0125's four rows at 5/15/60/15 with their bounds; 634 debtors green 86 · yellow 548 with 634/634 conforming to the per-row invariant; THE ROUND-TRIP: yellow 15→10 flips 548 rows yellow→orange through the Configuration tab's own path and back; zero residue; the 0132/0133 pending states confirmed as the documented version-skew mode); (2) `t-442-live-verify.mjs` 17/17 (first live run — the standing T-442 recommendation); (3) `t-441-live-e2e.ts` DB-1…DB-9 ALL GREEN (first live run with the key — 118/118 periods, 0 unplaced, Gate 1 + Gate 3 PASS on the real problem; the draft version then DELETED per §15.77c — the agent run restores the pre-test clean slate, the owner's in-app run is the one that may keep the draft).
+
+**The live state:** UNCHANGED in data terms by design (zero residue: the four debt.* rows re-read at baseline; 0 timetable versions/entries; no other writes). The migration chain head is 0131; 0125 applied; 0132 + 0133 pending (the ONE owner-gated step — three 60-second options in t-445-live-verification.md: a fresh dashboard token → the two committed apply runbooks, OR the database password → the session pooler, OR the Studio SQL editor). The desktop remains version-skew-safe (the statuses are the server's configured values — live-proven again today; the explanation text + the triage edges use the DEFAULTS, which CHECK-3 proved == the live values).
+
+**Gates:** the three live runs (16/16 · 17/17 · DB-1…DB-9) · zero live residue · the offline gates unchanged from T-443/T-441 (tsc 0 · FULL vitest BASELINE-MATCHED).
+
+**Standing gates:** the owner's 60-second 0132+0133 apply (Options A/B/C — t-445-live-verification.md) · the owner's packaged-app pass (the « Seuils appliqués » legend + the T-442 « Services de l'année » blocks + the T-444 restored surfaces) · the Android ports (the §17.3 year-history surface + the §15.1 rule + the StatisticsEngine.kt triage edges — §15.75d).
+
+---
+
 # Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-FIRST session — T-444: the new-UI regression repair COMPLETE (UI-324 RESOLVED-TESTED))
 
 ## Current state snapshot (2026-09-30, 121st session CLOSE — T-444)
@@ -8,6 +22,10 @@
 
 **The knowledge additions:** AGENTS.md §15.76 (the restore-into-the-new-UI method; the `[m` toolchain artifact — verify suspected syntax errors at the byte level; the new navigation architecture's harness requirement; the big-commit gate) · the UI-324 registry entry with the full four-phase evidence.
 
+
+---
+
+# Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTIETH session — T-443: the debt-configuration CLIENT integration COMPLETE (DEBT-101 RESOLVED-TESTED))
 
 ## Current state snapshot (2026-09-30, 120th session CLOSE — T-443)
 
