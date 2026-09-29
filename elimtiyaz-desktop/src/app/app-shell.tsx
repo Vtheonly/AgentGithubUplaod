@@ -1,3 +1,7 @@
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/app/app-shell.tsx
+// ============================================================================
+
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Sidebar } from "../shared/layout/sidebar";
@@ -20,6 +24,7 @@ import { useAuth } from "./providers/auth-provider";
 import { startBackupScheduler } from "../infrastructure/backup/backup-scheduler";
 import { routeRedirectFor, ROUTE_GUARD_REDIRECT } from "../core/rbac/route-access";
 import { AICopilotDrawer } from "../features/ai/copilot-drawer";
+import { PersonNavigationProvider } from "../shared/navigation/person-navigation-context";
 
 export function AppShell() {
   const repos = useRepositories();
@@ -39,6 +44,27 @@ export function AppShell() {
 
   if (redirectTo) {
     return (
+      <PersonNavigationProvider>
+        <DesktopWindowFrame>
+          <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+            <Sidebar />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Topbar />
+              <main className="min-h-0 flex-1 overflow-y-auto">
+                <Routes>
+                  <Route path="*" element={<Navigate to={ROUTE_GUARD_REDIRECT} replace />} />
+                </Routes>
+              </main>
+            </div>
+            <AICopilotDrawer />
+          </div>
+        </DesktopWindowFrame>
+      </PersonNavigationProvider>
+    );
+  }
+
+  return (
+    <PersonNavigationProvider>
       <DesktopWindowFrame>
         <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
           <Sidebar />
@@ -46,42 +72,25 @@ export function AppShell() {
             <Topbar />
             <main className="min-h-0 flex-1 overflow-y-auto">
               <Routes>
-                <Route path="*" element={<Navigate to={ROUTE_GUARD_REDIRECT} replace />} />
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/crm" element={<CrmPage />} />
+                <Route path="/academics" element={<AcademicsPage />} />
+                <Route path="/academics/class/:classId" element={<ClassDetailPage />} />
+                <Route path="/academics/class/:classId/roll-call" element={<RollCallScreen />} />
+                <Route path="/academics/class/:classId/grades/:subjectId" element={<GradeEntryScreen />} />
+                <Route path="/financials" element={<FinancialsPage />} />
+                <Route path="/personnel" element={<PersonnelPage />} />
+                <Route path="/workflow" element={<WorkflowPage />} />
+                <Route path="/routing" element={<RoutingPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
           </div>
           <AICopilotDrawer />
         </div>
       </DesktopWindowFrame>
-    );
-  }
-
-  return (
-    <DesktopWindowFrame>
-      <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar />
-          <main className="min-h-0 flex-1 overflow-y-auto">
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/crm" element={<CrmPage />} />
-              <Route path="/academics" element={<AcademicsPage />} />
-              <Route path="/academics/class/:classId" element={<ClassDetailPage />} />
-              <Route path="/academics/class/:classId/roll-call" element={<RollCallScreen />} />
-              <Route path="/academics/class/:classId/grades/:subjectId" element={<GradeEntryScreen />} />
-              <Route path="/financials" element={<FinancialsPage />} />
-              <Route path="/personnel" element={<PersonnelPage />} />
-              <Route path="/workflow" element={<WorkflowPage />} />
-              <Route path="/routing" element={<RoutingPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-        </div>
-        <AICopilotDrawer />
-      </div>
-    </DesktopWindowFrame>
+    </PersonNavigationProvider>
   );
 }

@@ -63,6 +63,9 @@ import { isRemiseAdjustment } from "./executive-statistics";
 import type { Student } from "../../../../domain/model/student";
 import { GRADE_LEVEL_LABELS_FR } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
+import { usePersonNavigation } from "../../../../shared/navigation/person-navigation-context";
+import { StudentActionsMenu } from "../../../../shared/ui/student-actions-menu";
+import { ParentActionsMenu } from "../../../../shared/ui/parent-actions-menu";
 
 interface Props {
   profiles: StudentRiskProfile[];
@@ -109,7 +112,9 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-2.5">
       <div className="text-[10px] text-muted-foreground">{label}</div>
-      <div className="mt-0.5 font-mono text-sm font-semibold text-foreground">{value}</div>
+      <div className="mt-0.5 font-mono text-sm font-semibold text-foreground">
+        {value}
+      </div>
     </div>
   );
 }
@@ -124,7 +129,11 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 function EmptyText({ text }: { text: string }) {
-  return <div className="py-4 text-center text-[11px] text-muted-foreground">{text}</div>;
+  return (
+    <div className="py-4 text-center text-[11px] text-muted-foreground">
+      {text}
+    </div>
+  );
 }
 
 function SectionCard({
@@ -183,6 +192,9 @@ function Student360Modal({
   onClose: () => void;
 }) {
   const repos = useRepositories();
+  const { openStudent, openParent, navigateToStudent, navigateToParent } =
+    usePersonNavigation();
+
   const students = useObservable(() => repos.students.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
   const subjects = useObservable(() => repos.subjects.observe(), []);
@@ -206,11 +218,6 @@ function Student360Modal({
     () => repos.debt.observeSummary(),
     [],
   );
-  // T-389 (INSPECT-500): the remise lives on the LEDGER (negative
-  // adjustment entries — the T-103/DATA-008 rule), NOT on the Student
-  // model (`student.remise` is a CreateStudentInput-only field; reading
-  // it on the read side was always undefined — the always-"Aucune remise"
-  // bug this fixes).
   const ledger = useObservable<readonly LedgerEntry[]>(
     () => repos.ledger.observe(),
     [],
@@ -219,7 +226,7 @@ function Student360Modal({
   const student = useMemo<Student | null>(
     () =>
       profile
-        ? students.find((item) => item.id === profile.studentId) ?? null
+        ? (students.find((item) => item.id === profile.studentId) ?? null)
         : null,
     [students, profile],
   );
@@ -227,7 +234,7 @@ function Student360Modal({
   const parent = useMemo<Parent | null>(
     () =>
       student
-        ? parents.find((item) => item.id === student.parentId) ?? null
+        ? (parents.find((item) => item.id === student.parentId) ?? null)
         : null,
     [parents, student],
   );
@@ -261,8 +268,7 @@ function Student360Modal({
             )
             .sort(
               (a, b) =>
-                new Date(a.dueDate).getTime() -
-                new Date(b.dueDate).getTime(),
+                new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
             )
         : [],
     [installments, profile],
@@ -274,8 +280,7 @@ function Student360Modal({
         ? attendance
             .filter((item) => item.studentId === profile.studentId)
             .sort(
-              (a, b) =>
-                new Date(b.date).getTime() - new Date(a.date).getTime(),
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
             )
         : [],
     [attendance, profile],
@@ -300,7 +305,7 @@ function Student360Modal({
   const debt = useMemo(
     () =>
       profile
-        ? debts.find((item) => item.parentId === profile.parentId) ?? null
+        ? (debts.find((item) => item.parentId === profile.parentId) ?? null)
         : null,
     [debts, profile],
   );
@@ -310,7 +315,8 @@ function Student360Modal({
       studentInstallments.find(
         (item) =>
           item.status !== "paid" &&
-          Math.max(0, item.amountDue - item.amountPaid - item.amountPending) > 0,
+          Math.max(0, item.amountDue - item.amountPaid - item.amountPending) >
+            0,
       ) ?? null,
     [studentInstallments],
   );
@@ -347,10 +353,6 @@ function Student360Modal({
     0,
   );
 
-  // T-389 (INSPECT-500): remise derived from the ledger adjustment stream
-  // via the shared identification contract (isRemiseAdjustment) — the
-  // student-scoped entries first, then the family-scoped ones when the
-  // student carries none of its own.
   const remise = useMemo(() => {
     if (!student) return { studentScoped: 0, familyScoped: 0 };
     let studentScoped = 0;
@@ -363,11 +365,8 @@ function Student360Modal({
     }
     return { studentScoped, familyScoped };
   }, [ledger, student]);
-  const discount = remise.studentScoped > 0 ? remise.studentScoped : remise.familyScoped;
-  const riskLabel =
-    profile?.riskCategory === "healthy"
-      ? "Profil régulier"
-      : profile?.riskCategory;
+  const discount =
+    remise.studentScoped > 0 ? remise.studentScoped : remise.familyScoped;
 
   return (
     <UnifiedModal
@@ -397,7 +396,9 @@ function Student360Modal({
                       profile.riskCategory === "healthy" ? "success" : "warning"
                     }
                   >
-                    {riskLabel}
+                    {profile.riskCategory === "healthy"
+                      ? "Profil régulier"
+                      : profile.riskCategory}
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -407,16 +408,44 @@ function Student360Modal({
                     : profile.gradeLevel}
                 </p>
               </div>
-              <div className="text-right text-xs">
-                <div className="text-muted-foreground">
-                  Situation calculée à partir des flux live
-                </div>
-                <div className="font-mono font-semibold text-foreground">
-                  {profile.gpa !== null
-                    ? `${profile.gpa.toFixed(2)}/20`
-                    : "Moyenne —"}{" "}
-                  · {(profile.attendanceRate * 100).toFixed(0)}% présence
-                </div>
+
+              {/* Cross Navigation Action Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    onClose();
+                    openStudent(profile.studentId);
+                  }}
+                >
+                  <ExternalLink className="h-3 w-3" /> Fiche Élève
+                </Button>
+                {profile.parentId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      onClose();
+                      openParent(profile.parentId);
+                    }}
+                  >
+                    <ExternalLink className="h-3 w-3" /> Dossier Famille
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    onClose();
+                    navigateToStudent(profile.studentId, "finances");
+                  }}
+                >
+                  <Wallet className="h-3 w-3" /> Finances
+                </Button>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -432,11 +461,6 @@ function Student360Modal({
                 )} DA`}
               />
             </div>
-            {profile.primaryRiskReason !== "Profil régulier" && (
-              <p className="mt-3 text-[11px] text-status-warning">
-                {profile.primaryRiskReason}
-              </p>
-            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -458,29 +482,34 @@ function Student360Modal({
                 <Info
                   label="Moyenne actuelle"
                   value={
-                    profile.gpa !== null
-                      ? `${profile.gpa.toFixed(2)}/20`
-                      : "—"
+                    profile.gpa !== null ? `${profile.gpa.toFixed(2)}/20` : "—"
                   }
                 />
                 <Info label="Statut" value={student?.status ?? "—"} />
               </div>
-              {student?.academicHistory && student.academicHistory.length > 0 ? (
+              {student?.academicHistory &&
+              student.academicHistory.length > 0 ? (
                 <div className="mt-3 space-y-2">
                   {student.academicHistory
                     .slice()
-                    .sort((a, b) => b.academicYear.localeCompare(a.academicYear))
+                    .sort((a, b) =>
+                      b.academicYear.localeCompare(a.academicYear),
+                    )
                     .map((entry) => (
                       <div
-                        key={entry.id ?? `${entry.academicYear}-${entry.gradeCode}`}
+                        key={
+                          entry.id ?? `${entry.academicYear}-${entry.gradeCode}`
+                        }
                         className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-xs"
                       >
                         <div>
                           <div className="font-medium">
-                            {entry.academicYear} · {GRADE_LEVEL_LABELS_FR[entry.gradeCode]}
+                            {entry.academicYear} ·{" "}
+                            {GRADE_LEVEL_LABELS_FR[entry.gradeCode]}
                           </div>
                           <div className="text-[10px] text-muted-foreground">
-                            {entry.className ?? "Classe non renseignée"} · {entry.decision}
+                            {entry.className ?? "Classe non renseignée"} ·{" "}
+                            {entry.decision}
                           </div>
                         </div>
                         <span className="font-mono font-semibold">
@@ -523,7 +552,9 @@ function Student360Modal({
                     className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-[11px]"
                   >
                     <div>
-                      <span className="font-medium">{formatShortDate(record.date)}</span>
+                      <span className="font-medium">
+                        {formatShortDate(record.date)}
+                      </span>
                       <span className="ml-2 text-muted-foreground">
                         {SESSION_LABELS_FR[record.session]}
                       </span>
@@ -574,52 +605,6 @@ function Student360Modal({
                   value={`${formatDzdPlain(remainingOnInstallments)} DA`}
                 />
               </div>
-              {services.length > 0 && (
-                <div className="mt-3">
-                  <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Services / obligations détectés
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {services.map((service) => (
-                      <span
-                        key={service}
-                        className="rounded-full border border-border/70 px-2 py-1 text-[10px]"
-                      >
-                        {service}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="mt-3 rounded-lg border border-border/60 bg-surface-elevated/30 p-3">
-                <div className="flex items-center gap-2 text-xs font-semibold">
-                  <Clock3 className="h-3.5 w-3.5 text-primary" />
-                  Prochaine échéance
-                </div>
-                {nextInstallment ? (
-                  <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                    <div>
-                      <div className="font-medium">{nextInstallment.label}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {PAYMENT_CATEGORY_LABELS_FR[nextInstallment.category]} · échéance{" "}
-                        {formatShortDate(nextInstallment.dueDate)}
-                      </div>
-                    </div>
-                    <span className="font-mono font-bold">
-                      {formatDzdPlain(
-                        Math.max(
-                          0,
-                          nextInstallment.amountDue -
-                            nextInstallment.amountPaid -
-                            nextInstallment.amountPending,
-                        ),
-                      )} DA
-                    </span>
-                  </div>
-                ) : (
-                  <EmptyText text="Aucune échéance restante trouvée dans le flux." />
-                )}
-              </div>
             </SectionCard>
 
             <SectionCard
@@ -628,7 +613,10 @@ function Student360Modal({
               description={`${paymentCount} paiement(s) réel(s) liés à cet élève ou à sa famille`}
             >
               <div className="grid grid-cols-3 gap-2 text-xs">
-                <Info label="Total payé" value={`${formatDzdPlain(paidTotal)} DA`} />
+                <Info
+                  label="Total payé"
+                  value={`${formatDzdPlain(paidTotal)} DA`}
+                />
                 <Info
                   label="Paiement moyen"
                   value={`${formatDzdPlain(averagePayment)} DA`}
@@ -638,136 +626,8 @@ function Student360Modal({
                   value={formatShortDate(studentPayments[0]?.collectedAt)}
                 />
               </div>
-              {paymentMethods.length > 0 && (
-                <div className="mt-2 text-[10px] text-muted-foreground">
-                  {paymentMethods
-                    .map(([method, count]) => `${method}: ${count}`)
-                    .join(" · ")}
-                </div>
-              )}
-              <div className="mt-3 max-h-52 overflow-auto space-y-1.5">
-                {studentPayments.slice(0, 15).map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="rounded-lg border border-border/50 px-3 py-2"
-                  >
-                    <div className="flex items-start justify-between gap-3 text-xs">
-                      <div>
-                        <div className="font-medium">
-                          {paymentDescription(payment, studentInstallments)}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {formatDate(payment.collectedAt)} · {PAYMENT_METHOD_LABELS_FR[payment.method]} ·{" "}
-                          {PAYMENT_STATUS_LABELS_FR[payment.status]}
-                        </div>
-                      </div>
-                      <span className="font-mono font-bold whitespace-nowrap">
-                        {formatDzdPlain(payment.amount)} DA
-                      </span>
-                    </div>
-                    {(payment.expectedAmount != null || payment.excessAmount) && (
-                      <div className="mt-1 text-[10px] text-muted-foreground">
-                        Attendu : {formatDzdPlain(payment.expectedAmount ?? 0)} DA
-                        {payment.excessAmount
-                          ? ` · Excédent : ${formatDzdPlain(payment.excessAmount)} DA`
-                          : ""}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {studentPayments.length === 0 && (
-                  <EmptyText text="Aucun paiement trouvé dans le flux live." />
-                )}
-              </div>
             </SectionCard>
           </div>
-
-          <SectionCard
-            icon={GraduationCap}
-            title="Notes et évaluations"
-            description={`${studentAssessments.length} évaluation(s) réelle(s), avec les snapshots de coefficients`}
-          >
-            <div className="max-h-52 overflow-auto">
-              {studentAssessments.length > 0 ? (
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-surface-panel text-muted-foreground">
-                    <tr className="border-b border-border/60">
-                      <th className="px-3 py-2 text-left font-medium">Année / période</th>
-                      <th className="px-3 py-2 text-left font-medium">Matière</th>
-                      <th className="px-3 py-2 text-right font-medium">Moyenne</th>
-                      <th className="px-3 py-2 text-right font-medium">Coeff.</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {studentAssessments.slice(0, 30).map((assessment) => {
-                      const subject = subjects.find(
-                        (item: Subject) => item.id === assessment.subjectId,
-                      );
-                      return (
-                        <tr key={assessment.id}>
-                          <td className="px-3 py-2">
-                            {assessment.academicYear} · {assessment.term}
-                          </td>
-                          <td className="px-3 py-2">
-                            {subject?.name ?? assessment.subjectId}
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono">
-                            {assessment.subjectAverage?.toFixed(2) ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono">
-                            {assessment.coefficient}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              ) : (
-                <EmptyText text="Aucune évaluation trouvée pour cet élève." />
-              )}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            icon={AlertTriangle}
-            title="Alertes et points à surveiller"
-            description="Signaux dérivés des mêmes données live que la console"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <AlertBox
-                label="Risque composite"
-                value={riskLabel ?? "—"}
-                active={profile.riskCategory !== "healthy"}
-              />
-              <AlertBox
-                label="Situation financière"
-                value={
-                  (debt?.outstandingAmount ?? profile.debtAmount) > 0
-                    ? `${formatDzdPlain(
-                        debt?.outstandingAmount ?? profile.debtAmount,
-                      )} DA`
-                    : "Soldée"
-                }
-                active={(debt?.outstandingAmount ?? profile.debtAmount) > 0}
-              />
-              <AlertBox
-                label="Prochaine échéance"
-                value={
-                  nextInstallment
-                    ? formatShortDate(nextInstallment.dueDate)
-                    : "Aucune"
-                }
-                active={Boolean(nextInstallment)}
-              />
-            </div>
-          </SectionCard>
-
-          {parent && (
-            <div className="rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-              Parent lié: <span className="font-medium text-foreground">{profile.parentName}</span>
-              {parent.phone ? ` · ${parent.phone}` : ""}
-            </div>
-          )}
         </div>
       )}
     </UnifiedModal>
@@ -776,24 +636,38 @@ function Student360Modal({
 
 export function OperationalQueryConsole({ profiles }: Props) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
+  const { openStudent, openParent } = usePersonNavigation();
+
   const [search, setSearch] = useState("");
-  const [activePreset, setActivePreset] = useState<string | null>("triple_critical");
+  const [activePreset, setActivePreset] = useState<string | null>(
+    "triple_critical",
+  );
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [sortField, setSortField] = useState<"riskScore" | "debtAmount" | "gpa">("riskScore");
+  const [sortField, setSortField] = useState<
+    "riskScore" | "debtAmount" | "gpa"
+  >("riskScore");
   const [sortAsc, setSortAsc] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<StudentRiskProfile | null>(null);
+  const [selectedProfile, setSelectedProfile] =
+    useState<StudentRiskProfile | null>(null);
 
   const filteredProfiles = useMemo(() => {
     return profiles
       .filter((p) => {
         if (activePreset) {
-          const preset = OPERATIONAL_PRESETS.find((pr) => pr.id === activePreset);
+          const preset = OPERATIONAL_PRESETS.find(
+            (pr) => pr.id === activePreset,
+          );
           if (preset) {
-            if (preset.filterCategory && p.riskCategory !== preset.filterCategory) return false;
+            if (
+              preset.filterCategory &&
+              p.riskCategory !== preset.filterCategory
+            )
+              return false;
             if (preset.customFilter && !preset.customFilter(p)) return false;
           }
         }
-        if (selectedCategory !== "all" && p.riskCategory !== selectedCategory) return false;
+        if (selectedCategory !== "all" && p.riskCategory !== selectedCategory)
+          return false;
         if (search.trim()) {
           const q = search.toLowerCase();
           return (
@@ -819,7 +693,8 @@ export function OperationalQueryConsole({ profiles }: Props) {
     const gpas = filteredProfiles
       .map((p) => p.gpa)
       .filter((g): g is number => g !== null);
-    const avgGpa = gpas.length > 0 ? gpas.reduce((s, g) => s + g, 0) / gpas.length : null;
+    const avgGpa =
+      gpas.length > 0 ? gpas.reduce((s, g) => s + g, 0) / gpas.length : null;
     return { count, totalDebt, avgGpa };
   }, [filteredProfiles]);
 
@@ -861,7 +736,8 @@ export function OperationalQueryConsole({ profiles }: Props) {
                 Console d'Investigation Opérationnelle
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Interrogation temps réel : profil académique, présence et statut financier
+                Interrogation temps réel : cliquez sur un élève ou parent pour
+                explorer leur profil partout dans l'application.
               </CardDescription>
             </div>
             {filteredProfiles.length > 0 && (
@@ -965,31 +841,6 @@ export function OperationalQueryConsole({ profiles }: Props) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-surface-elevated/40 border border-border/50 text-muted-foreground">
-            <span>
-              Dossiers filtrés :{" "}
-              <strong className="text-foreground font-mono">{queryStats.count}</strong>
-            </span>
-            <div className="flex items-center gap-4">
-              {queryStats.totalDebt > 0 && (
-                <span>
-                  Créances cumulées :{" "}
-                  <strong className="text-status-danger font-mono font-bold">
-                    {formatDzdPlain(queryStats.totalDebt)} DA
-                  </strong>
-                </span>
-              )}
-              {queryStats.avgGpa !== null && (
-                <span>
-                  Moyenne cohorte :{" "}
-                  <strong className="text-foreground font-mono font-bold">
-                    {queryStats.avgGpa.toFixed(2)}/20
-                  </strong>
-                </span>
-              )}
-            </div>
-          </div>
-
           <div className="rounded-xl border border-border/70 overflow-hidden">
             {filteredProfiles.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground text-xs space-y-1">
@@ -1004,30 +855,86 @@ export function OperationalQueryConsole({ profiles }: Props) {
                 <table className="w-full text-xs">
                   <thead className="text-muted-foreground sticky top-0 bg-surface-panel z-10 text-left">
                     <tr className="border-b border-border/60">
-                      <th className="py-2.5 px-3 font-medium">Élève & Classe</th>
-                      <th className="py-2.5 px-3 font-medium">Parent & Contact</th>
-                      <th className="py-2.5 px-2 text-center font-medium">Moyenne</th>
-                      <th className="py-2.5 px-2 text-center font-medium">Présence</th>
-                      <th className="py-2.5 px-3 text-right font-medium">Créance</th>
-                      <th className="py-2.5 px-3 font-medium">Facteur d'Alerte</th>
-                      <th className="py-2.5 px-3 text-right font-medium">Actions</th>
+                      <th className="py-2.5 px-3 font-medium">
+                        Élève & Classe
+                      </th>
+                      <th className="py-2.5 px-3 font-medium">
+                        Parent & Contact
+                      </th>
+                      <th className="py-2.5 px-2 text-center font-medium">
+                        Moyenne
+                      </th>
+                      <th className="py-2.5 px-2 text-center font-medium">
+                        Présence
+                      </th>
+                      <th className="py-2.5 px-3 text-right font-medium">
+                        Créance
+                      </th>
+                      <th className="py-2.5 px-3 font-medium">
+                        Facteur d'Alerte
+                      </th>
+                      <th className="py-2.5 px-3 text-right font-medium">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
                     {filteredProfiles.map((p) => (
-                      <tr key={p.studentId} className="hover:bg-accent/5 transition-colors">
+                      <tr
+                        key={p.studentId}
+                        className="hover:bg-accent/5 transition-colors"
+                      >
                         <td className="py-2 px-3">
-                          <div className="font-semibold text-foreground">{p.studentName}</div>
+                          <div className="flex items-center gap-1.5 group">
+                            <button
+                              type="button"
+                              onClick={() => openStudent(p.studentId)}
+                              className="font-semibold text-foreground hover:text-primary hover:underline text-left truncate"
+                              title={`Inspecter ${p.studentName}`}
+                            >
+                              {p.studentName}
+                            </button>
+                            <StudentActionsMenu
+                              student={{
+                                id: p.studentId,
+                                firstName:
+                                  p.studentName.split(" ")[0] ?? p.studentName,
+                                lastName:
+                                  p.studentName.split(" ").slice(1).join(" ") ??
+                                  "",
+                                parentId: p.parentId,
+                              }}
+                              parentName={p.parentName}
+                            />
+                          </div>
                           <div className="text-[10px] text-muted-foreground font-mono">
                             {p.className} · {p.studentCode}
                           </div>
                         </td>
+
                         <td className="py-2 px-3">
-                          <div className="text-foreground truncate max-w-[130px]" title={p.parentName}>
-                            {p.parentName}
+                          <div className="flex items-center gap-1.5 group">
+                            <button
+                              type="button"
+                              onClick={() => openParent(p.parentId)}
+                              className="text-foreground font-medium hover:text-primary hover:underline truncate max-w-[130px] text-left"
+                              title={`Inspecter Famille ${p.parentName}`}
+                            >
+                              {p.parentName}
+                            </button>
+                            <ParentActionsMenu
+                              parent={{
+                                id: p.parentId,
+                                displayName: p.parentName,
+                                phone: p.parentPhone,
+                              }}
+                            />
                           </div>
-                          <div className="text-[10px] text-muted-foreground font-mono">{p.parentPhone}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            {p.parentPhone}
+                          </div>
                         </td>
+
                         <td className="py-2 px-2 text-center">
                           {p.gpa !== null ? (
                             <span
@@ -1043,6 +950,7 @@ export function OperationalQueryConsole({ profiles }: Props) {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </td>
+
                         <td className="py-2 px-2 text-center font-mono">
                           <div>{(p.attendanceRate * 100).toFixed(0)}%</div>
                           {p.unexcusedAbsences > 0 && (
@@ -1051,6 +959,7 @@ export function OperationalQueryConsole({ profiles }: Props) {
                             </span>
                           )}
                         </td>
+
                         <td className="py-2 px-3 text-right font-mono">
                           {p.debtAmount > 0 ? (
                             <div>
@@ -1062,13 +971,19 @@ export function OperationalQueryConsole({ profiles }: Props) {
                               </span>
                             </div>
                           ) : (
-                            <span className="text-status-success font-medium">0 DA</span>
+                            <span className="text-status-success font-medium">
+                              0 DA
+                            </span>
                           )}
                         </td>
+
                         <td className="py-2.5 px-3 max-w-[200px]">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {p.riskCategory === "triple_critical" && (
-                              <Badge variant="danger" className="text-[9px] px-1.5 py-0 font-bold">
+                              <Badge
+                                variant="danger"
+                                className="text-[9px] px-1.5 py-0 font-bold"
+                              >
                                 Triple Risque
                               </Badge>
                             )}
@@ -1080,6 +995,7 @@ export function OperationalQueryConsole({ profiles }: Props) {
                             </span>
                           </div>
                         </td>
+
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Button
@@ -1109,22 +1025,9 @@ export function OperationalQueryConsole({ profiles }: Props) {
               </div>
             )}
           </div>
-
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <CheckCircle2 className="h-3 w-3 text-status-success" />
-            La liste et la vue 360° utilisent les mêmes flux repository réactifs que le dashboard.
-          </div>
         </CardContent>
       </Card>
 
-      {/* PERF-507 (T-430, issues #24/#25 Track 3 item 2): the 360° modal
-          mounts ONLY when a profile is selected. Its body opens 9 reactive
-          repository subscriptions (students, parents, subjects, assessments
-          2020–2035, attendance, payments, installments, debt summary,
-          ledger) — mounted unconditionally with `profile === null` they ran
-          as 9 permanent background observables on every page load (the
-          audit's measured startup cost). The modal is closed-and-unmounted
-          by construction now; `onClose` still clears the selection. */}
       {selectedProfile !== null && (
         <Student360Modal
           profile={selectedProfile}

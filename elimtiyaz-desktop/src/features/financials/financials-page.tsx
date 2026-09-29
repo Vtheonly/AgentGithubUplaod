@@ -1,23 +1,18 @@
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/financials/financials-page.tsx
+// ============================================================================
 /**
  * Financials hub — Hub 4. Plan §07.
  *
- * Tabs: Paiements / Tranches / Créances / Dépenses / Reçus.
+ * Tabs: Paiements / Tranches / Créances / Suivi des Dettes / Dépenses / Reçus / Diagnostic.
  *
- * Refactored:
- *   - `PaymentsTab` now uses `<DataTable<Payment>>` instead of bespoke
- *     `<ul>/<li>` markup + hand-rolled search state.
- *   - `ExpensesTab` now uses `<DataTable<Expense>>` with declarative row
- *     actions and `onRowClick` to open the detail drawer.
- *   - `DebtTab` keeps its two cards (Top 20 débiteurs + per-grade breakdown)
- *     but the Top 20 list is rendered via `<DataTable>`.
- *   - `PaymentNavigationContext` integration with `<UnifiedPaymentModal>`
- *     for consolidated debt collection is preserved.
- *
- * T-220: the payments journal identifies the ISSUER (parent full name,
- * family code, linked student) and the exact transaction date & time
- * (dd/MM/yyyy HH:mm + relative) — previously only a receipt serial number
- * and a fuzzy "il y a X jours" were shown. Search spans the issuer fields.
+ * Fully integrated with the global Person Navigation System:
+ *   - Parent and student names are interactive across all financial tables.
+ *   - Contextual three-dot menus (ParentActionsMenu & StudentActionsMenu)
+ *     allow immediate cross-module jumps without manual re-searching.
+ *   - Full drawer support for payments, expenses, and family accounts.
  */
+
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -37,15 +32,16 @@ import {
   Lock,
   Brain,
   Hourglass,
+  Trash2,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
-// T-423 (CACHE-103, GitHub issue #23): the reactive seed-health stream —
-// a failed financial seed surfaces "Échec du chargement — Réessayer"
-// here instead of rendering confident zeros.
-import { observeSeedHealth, type SeedHealthEntry } from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
+import {
+  observeSeedHealth,
+  type SeedHealthEntry,
+} from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
 import { formatDzd } from "../../core/format/currency";
 import { formatRelative, formatDateTime } from "../../core/format/date";
 import { parentDisplayName } from "../../domain/model/parent";
@@ -82,13 +78,7 @@ import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
 import { ReceiptsTab } from "./receipts-tab";
 import { PaymentDetailDrawer } from "./payment-detail-drawer";
-// T-405 — the dedicated Debt Aging / Suivi des Dettes view (§15 consumer).
 import { DebtAgingTab } from "./debt-aging-tab";
-
-
-
-
-// Diagnostic Hub — cross-domain financial analysis & treasury radar.
 import {
   evaluateFamilyFinancialDiagnoses,
   computeCrossServicePerformance,
@@ -97,19 +87,28 @@ import {
 import { FinancialQueryConsole } from "./financial-query-console";
 import { CrossServiceMatrix } from "./cross-service-matrix";
 import { CashFlowRadar } from "./cash-flow-radar";
-// T-412 — the pre-payroll funding requirements (the canonical forecast's
-// Finance consumer) + the engine itself.
 import { PayrollFundingCard } from "./payroll-funding-card";
 import { computePayrollForecast } from "../../domain/calc/payroll/payroll-forecast";
+import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
+import { ParentActionsMenu } from "../../shared/ui/parent-actions-menu";
+import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
 
+type FinanceTab =
+  | "payments"
+  | "installments"
+  | "debt"
+  | "debt-aging"
+  | "expenses"
+  | "receipts"
+  | "diagnostic";
 
-
-
-type FinanceTab = "payments" | "installments" | "debt" | "debt-aging" | "expenses" | "receipts" | "diagnostic";
-
-/** T-423 (CACHE-103): the financial sources this page renders — the seed-health
- * banner keys on these names (the repository seeds' finishSeed sources). */
-const FINANCIAL_SEED_SOURCES = ["payments", "installments", "ledger", "debtSummary", "allocations"] as const;
+const FINANCIAL_SEED_SOURCES = [
+  "payments",
+  "installments",
+  "ledger",
+  "debtSummary",
+  "allocations",
+] as const;
 
 const SEED_SOURCE_LABELS_FR: Record<string, string> = {
   payments: "paiements",
@@ -120,27 +119,20 @@ const SEED_SOURCE_LABELS_FR: Record<string, string> = {
 };
 
 export function FinancialsPage() {
-
-
-
-
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { openParent, openStudent } = usePersonNavigation();
+
   const payments = useObservable(() => repos.payments.observe(), []);
   const expenses = useObservable(() => repos.expenses.observe(), []);
   const debtSummary = useObservable(() => repos.debt.observeSummary(), []);
-  // Cross-domain streams for the Diagnostic Hub.
   const parents = useObservable(() => repos.parents.observe(), []);
   const students = useObservable(() => repos.students.observe(), []);
   const installments = useObservable(() => repos.installments.observe(), []);
   const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
-  // T-411 (DATA-029): the canonical per-service attribution stream —
-  // payment_allocations (where the waterfall actually put the money).
-  // Fakes/test repos without the optional method get a constant-empty
-  // stream (the matrix then falls back to the payment-row attribution).
   const paymentAllocations = useObservable(
     () =>
       repos.payments.observeAllocations?.() ?? {
@@ -149,11 +141,6 @@ export function FinancialsPage() {
       },
     [],
   );
-  // T-412 (ADR-024): the canonical payroll forecast's two input streams.
-  // Same optional-method pattern as observeAllocations — fakes/test repos
-  // without the payroll surface get a constant-empty stream, and the
-  // forecast then honestly reports no payroll obligations (the funding
-  // card renders nothing — §15.49a).
   const payrollPersonnel = useObservable(
     () =>
       repos.personnel?.observe?.() ?? {
@@ -173,23 +160,21 @@ export function FinancialsPage() {
 
   const [tab, setTab] = useState<FinanceTab>("payments");
   const [paymentOpen, setPaymentOpen] = useState(false);
-  // T-423 (CACHE-103): the reactive seed-health stream — degraded financial
-  // sources surface an explicit error/retry banner, and a degraded+empty
-  // source renders "—" (unknown) on its KPI instead of a confident "0 DZD".
   const seedHealth = useObservable(() => observeSeedHealth(), []);
   const degradedFinancialSeeds = seedHealth.filter(
-    (h: SeedHealthEntry) => h.state === "degraded" && (FINANCIAL_SEED_SOURCES as readonly string[]).includes(h.source),
+    (h: SeedHealthEntry) =>
+      h.state === "degraded" &&
+      (FINANCIAL_SEED_SOURCES as readonly string[]).includes(h.source),
   );
   const isSeedDegraded = (source: string): boolean =>
     seedHealth.some((h: SeedHealthEntry) => h.source === source && h.state === "degraded");
   const paymentsKnown = !isSeedDegraded("payments") || payments.length > 0;
   const debtSummaryKnown = !isSeedDegraded("debtSummary") || debtSummary.length > 0;
   const [retryingSeeds, setRetryingSeeds] = useState(false);
+
   const retryDegradedSeeds = async () => {
     setRetryingSeeds(true);
     try {
-      // The optional-method pattern (the observeAllocations convention) —
-      // mock/test repositories never degrade and need not implement these.
       await Promise.all([
         repos.payments.refresh?.(),
         repos.installments.refresh?.(),
@@ -200,37 +185,21 @@ export function FinancialsPage() {
       setRetryingSeeds(false);
     }
   };
+
   const [diagnosticCollect, setDiagnosticCollect] = useState<{ parentId: string; amount: number } | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseDetailId, setExpenseDetailId] = useState<string | null>(null);
-  // FIX (missing detail view): payment detail drawer — payments previously
-  // had no inspection UI, and the global-search deep link
-  // `/financials?paymentId=…` was ignored entirely.
   const [paymentDetailId, setPaymentDetailId] = useState<string | null>(null);
-  // DATA-036 (T-411): the CrossServiceMatrix row-click target — the
-  // installments tab opens with this category pre-filtered.
   const [installmentCategoryFilter, setInstallmentCategoryFilter] = useState<string | null>(null);
-  // T-413: the 3-dot menu's "Finance de la famille" target — the
-  // installments tab opens with this family (parent) pre-filtered.
   const [installmentFamilyFilter, setInstallmentFamilyFilter] = useState<string | null>(null);
 
-  // FIX (deep link): `/financials?paymentId=…` opens the payment drawer on
-  // the payments tab, then cleans the param.
-  // DATA-036 (T-411): `?expenseId=…` (global search + alert detail) opens
-  // the expense drawer on the expenses tab; `?installmentId=…` (alert
-  // detail) routes to the installments tab. The emitters were normalized
-  // to these two spellings — the old `?expense=` / `?installment=` forms
-  // silently landed on the default tab (audit FA-16).
-  // T-412: `?tab=<financeTab>` routes cross-page links to a specific tab
-  // (the Personnel forecast section links to the Diagnostic tab).
   useEffect(() => {
     const paymentId = searchParams.get("paymentId");
     const expenseId = searchParams.get("expenseId");
     const installmentId = searchParams.get("installmentId");
     const tabParam = searchParams.get("tab");
-    // T-413: `/financials?familyId=…` — the StudentActionsMenu's "Finance de
-    // la famille" target (the installments tab, family-scoped).
     const familyId = searchParams.get("familyId");
+
     if (paymentId) {
       setTab("payments");
       setPaymentDetailId(paymentId);
@@ -275,18 +244,12 @@ export function FinancialsPage() {
 
   const totalToday = sumPaidPayments(payments);
   const pendingExpenses = expenses.filter((e) => e.status === "submitted").length;
-  // DATA-025 (T-411): TWO named figures, one basis each — the TOTAL
-  // outstanding (§15 installment basis, incl. not-yet-due tranches) and
-  // the PAST-DUE subset (daysOverdue > 0 — the actionable "en retard").
-  // The old single "Créances en retard" label showed the TOTAL (live
-  // probe: 41 of 51 unpaid rows were future-due).
   const overdueDebt = debtSummary.reduce((s, d) => s + d.outstandingAmount, 0);
   const pastDueDebt = debtSummary
     .filter((d) => d.daysOverdue > 0)
     .reduce((s, d) => s + d.outstandingAmount, 0);
   const monthlyRev = monthlyRevenue(payments);
 
-  // Diagnostic Hub — live cross-domain derivations (pure engine, memoised).
   const financialDiagnoses = useMemo(() => {
     return evaluateFamilyFinancialDiagnoses({
       parents,
@@ -306,10 +269,6 @@ export function FinancialsPage() {
     });
   }, [installments, payments, paymentAllocations]);
 
-  // T-412 (ADR-024) — the canonical payroll forecast: ONE computation fed
-  // from the two canonical streams, consumed by the treasury snapshot (the
-  // funding card's figures are the snapshot's pass-through — parity by
-  // construction with the Personnel and Statistics views).
   const payrollForecast = useMemo(
     () =>
       computePayrollForecast({
@@ -331,7 +290,10 @@ export function FinancialsPage() {
   }, [payments, installments, expenses, debtSummary, payrollForecast]);
 
   const diagnosticAlertCount = useMemo(
-    () => financialDiagnoses.filter((d) => d.anomalies.length > 0 && !d.anomalies.includes("healthy")).length,
+    () =>
+      financialDiagnoses.filter(
+        (d) => d.anomalies.length > 0 && !d.anomalies.includes("healthy"),
+      ).length,
     [financialDiagnoses],
   );
 
@@ -345,7 +307,7 @@ export function FinancialsPage() {
   const descriptionFor = (active: FinanceTab): string => {
     switch (active) {
       case "payments":
-        return "Journal des paiements encaissés — recherchez par reçu, méthode ou catégorie.";
+        return "Journal des paiements encaissés — cliquez sur un émetteur ou un élève pour ouvrir son profil.";
       case "installments":
         return "Échéancier des tranches par famille — encaissement en un clic.";
       case "debt":
@@ -377,10 +339,6 @@ export function FinancialsPage() {
         }
       />
 
-      {/* T-423 (CACHE-103, GitHub issue #23): the honest degradation state —
-          a failed read is EXPLICIT (with the last known data kept), never a
-          silent zero. An honest error collapses the six-hypothesis
-          investigation into "this read failed" (§15.63e). */}
       {degradedFinancialSeeds.length > 0 && (
         <div
           role="alert"
@@ -394,7 +352,7 @@ export function FinancialsPage() {
             {degradedFinancialSeeds
               .map((h: SeedHealthEntry) => SEED_SOURCE_LABELS_FR[h.source] ?? h.source)
               .join(", ")}
-            ) — les dernières valeurs connues sont conservées. Sauvegarde planifiée ou charge en cours ?
+            ) — les dernières valeurs connues sont conservées.
           </span>
           <button
             type="button"
@@ -409,7 +367,12 @@ export function FinancialsPage() {
 
       <div className="px-6 pb-3">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <button type="button" onClick={() => setTab("payments")} title="Voir le journal des paiements" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
+          <button
+            type="button"
+            onClick={() => setTab("payments")}
+            title="Voir le journal des paiements"
+            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+          >
             <KpiCard
               label="Encaissé (cumul)"
               value={paymentsKnown ? formatDzd(totalToday, { compact: true }) : "—"}
@@ -417,7 +380,12 @@ export function FinancialsPage() {
               tone="success"
             />
           </button>
-          <button type="button" onClick={() => setTab("payments")} title="Voir le journal des paiements" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
+          <button
+            type="button"
+            onClick={() => setTab("payments")}
+            title="Voir le journal des paiements"
+            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+          >
             <KpiCard
               label="Revenu mensuel"
               value={paymentsKnown ? formatDzd(monthlyRev, { compact: true }) : "—"}
@@ -428,7 +396,7 @@ export function FinancialsPage() {
           <button
             type="button"
             onClick={() => setTab("debt")}
-            title={`Encours des tranches (base échéancier : somme des restes dus T1–T3, y compris non échues) — dont ${formatDzd(pastDueDebt)} échues (en retard). Le solde comptable (charges − paiements) peut différer : les paiements au-delà des restes dus (avances) sont portés en excess_amount (DATA-039).`}
+            title={`Encours des tranches — dont ${formatDzd(pastDueDebt)} échues (en retard).`}
             className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
           >
             <KpiCard
@@ -443,8 +411,18 @@ export function FinancialsPage() {
               tone="danger"
             />
           </button>
-          <button type="button" onClick={() => setTab("expenses")} title="Voir les dépenses en attente" className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5">
-            <KpiCard label="Dépenses en attente" value={pendingExpenses} icon={<Receipt className="h-5 w-5" />} tone="warning" />
+          <button
+            type="button"
+            onClick={() => setTab("expenses")}
+            title="Voir les dépenses en attente"
+            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+          >
+            <KpiCard
+              label="Dépenses en attente"
+              value={pendingExpenses}
+              icon={<Receipt className="h-5 w-5" />}
+              tone="warning"
+            />
           </button>
         </div>
       </div>
@@ -457,15 +435,38 @@ export function FinancialsPage() {
         <PageTabList>
           <PageTab value="payments" label="Paiements" icon={CreditCard} />
           <PageTab value="installments" label="Tranches" icon={CalendarClock} />
-          <PageTab value="debt" label="Créances" icon={AlertCircle} count={debtSummary.length} countTone={overdueDebt > 0 ? "danger" : "default"} />
+          <PageTab
+            value="debt"
+            label="Créances"
+            icon={AlertCircle}
+            count={debtSummary.length}
+            countTone={overdueDebt > 0 ? "danger" : "default"}
+          />
           <PageTab value="debt-aging" label="Suivi des Dettes" icon={Hourglass} />
-          <PageTab value="expenses" label="Dépenses" icon={Send} count={pendingExpenses} countTone={pendingExpenses > 0 ? "warning" : "default"} />
+          <PageTab
+            value="expenses"
+            label="Dépenses"
+            icon={Send}
+            count={pendingExpenses}
+            countTone={pendingExpenses > 0 ? "warning" : "default"}
+          />
           <PageTab value="receipts" label="Reçus" icon={FileCheck} />
-          <PageTab value="diagnostic" label="Diagnostic & Requêtes" icon={Brain} count={diagnosticAlertCount} countTone={diagnosticAlertCount > 0 ? "warning" : "default"} />
+          <PageTab
+            value="diagnostic"
+            label="Diagnostic & Requêtes"
+            icon={Brain}
+            count={diagnosticAlertCount}
+            countTone={diagnosticAlertCount > 0 ? "warning" : "default"}
+          />
         </PageTabList>
 
         <PageTabContent value="payments">
-          <PaymentsTab payments={payments} onOpenPayment={setPaymentDetailId} />
+          <PaymentsTab
+            payments={payments}
+            onOpenPayment={setPaymentDetailId}
+            onOpenParent={openParent}
+            onOpenStudent={openStudent}
+          />
         </PageTabContent>
         <PageTabContent value="installments">
           <InstallmentScheduleTab
@@ -474,7 +475,7 @@ export function FinancialsPage() {
           />
         </PageTabContent>
         <PageTabContent value="debt">
-          <DebtTab />
+          <DebtTab onOpenParent={openParent} />
         </PageTabContent>
         <PageTabContent value="debt-aging">
           <DebtAgingTab />
@@ -487,11 +488,10 @@ export function FinancialsPage() {
         </PageTabContent>
         <PageTabContent value="diagnostic">
           <div className="space-y-4">
-            {/* Interactive Financial Query Console */}
             <FinancialQueryConsole
               diagnoses={financialDiagnoses}
               onOpenParent={(parentId) => {
-                navigate(`/crm?parentId=${parentId}`);
+                openParent(parentId);
               }}
               onCollectPayment={(parentId, amount) => {
                 setDiagnosticCollect({ parentId, amount });
@@ -499,15 +499,11 @@ export function FinancialsPage() {
               }}
             />
 
-            {/* Cross-Service Performance Matrix & Cash Flow Radar */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               <div className="lg:col-span-7">
                 <CrossServiceMatrix
                   services={servicePerformance}
                   onFilterService={(category) => {
-                    // H.3 fix (T-411): the row click now APPLIES the
-                    // service filter on the installments tab (the callback
-                    // previously ignored its argument — a silent no-op).
                     setInstallmentCategoryFilter(category);
                     setTab("installments");
                   }}
@@ -515,10 +511,6 @@ export function FinancialsPage() {
               </div>
               <div className="lg:col-span-5 space-y-4">
                 <CashFlowRadar treasury={treasuryHealth} />
-                {/* T-412 — the pre-payroll funding requirements (expected
-                    payroll / required cash / secured / remaining funding
-                    requirement / 30-day treasury impact). Renders nothing
-                    when the canonical forecast has no payroll obligations. */}
                 <PayrollFundingCard treasury={treasuryHealth} />
               </div>
             </div>
@@ -541,7 +533,7 @@ export function FinancialsPage() {
         onOpenChange={(o) => !o && setPaymentDetailId(null)}
         onOpenParent={(parentId) => {
           setPaymentDetailId(null);
-          navigate(`/crm?parentId=${parentId}`);
+          openParent(parentId);
         }}
       />
       <ExpenseSubmitModal
@@ -556,22 +548,7 @@ export function FinancialsPage() {
       />
     </div>
   );
-
-
-
-
-
-
-
 }
-
-
-
-
-
-// ============================================================================
-// TabActions — purpose-bound action buttons that change based on active tab
-// ============================================================================
 
 function TabActions({
   tab,
@@ -610,22 +587,6 @@ function TabActions({
   }
 }
 
-// ============================================================================
-// PaymentsTab — DataTable-backed list
-//
-// T-220: the payments journal now identifies WHO issued each payment and
-// WHEN it was collected, instead of an opaque serial-number column:
-//   - Émetteur (Payeur): parent avatar + full name + family code + linked
-//     student (resolved from repos.parents / repos.students).
-//   - Reçu / Encaissé par: the receipt number stays (it is the audit key)
-//     but is demoted to a secondary line under the collector attribution.
-//   - Date & Heure: the EXACT transaction timestamp (dd/MM/yyyy HH:mm)
-//     with the relative time as a secondary line — the old column showed
-//     only "il y a X jours" with no clock time at all.
-// Search now spans parent name, student name, family code, receipt number,
-// method and category.
-// ============================================================================
-
 const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   paid: "success",
   pending: "warning",
@@ -634,7 +595,6 @@ const PAYMENT_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "ne
   partial: "info",
 };
 
-/** Payment row enriched with resolved issuer identity + timestamp. */
 interface EnrichedPaymentRow extends Payment {
   readonly parentName: string;
   readonly parentCode: string;
@@ -645,26 +605,25 @@ interface EnrichedPaymentRow extends Payment {
 function PaymentsTab({
   payments,
   onOpenPayment,
+  onOpenParent,
+  onOpenStudent,
 }: {
   payments: readonly Payment[];
   onOpenPayment: (id: string) => void;
+  onOpenParent: (id: string) => void;
+  onOpenStudent: (id: string) => void;
 }) {
   const repos = useRepositories();
   const parents = useObservable(() => repos.parents.observe(), []);
   const students = useObservable(() => repos.students.observe(), []);
 
-  // Resolve the issuer identity (parent + linked student) for each payment.
-  // `payments`/`parents`/`students` are observable-backed arrays — the memo
-  // recomputes when any of them emits.
   const rows: readonly EnrichedPaymentRow[] = useMemo(() => {
     const parentMap = new Map(parents.map((p) => [p.id, p]));
     const studentMap = new Map(students.map((s) => [s.id, s]));
     return payments.map((p) => {
       const par = parentMap.get(p.parentId);
       const stu = p.studentId ? studentMap.get(p.studentId) : undefined;
-      const parentName = par
-        ? parentDisplayName(par)
-        : "Parent non répertorié";
+      const parentName = par ? parentDisplayName(par) : "Parent non répertorié";
       const studentName = stu ? `${stu.firstName} ${stu.lastName}`.trim() : "";
       return {
         ...p,
@@ -692,14 +651,52 @@ function PaymentsTab({
                 .toUpperCase() || "PA"}
             </AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{p.parentName}</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenParent(p.parentId);
+                }}
+                className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+              >
+                {p.parentName}
+              </button>
+              <ParentActionsMenu
+                parent={{
+                  id: p.parentId,
+                  displayName: p.parentName,
+                  code: p.parentCode,
+                }}
+              />
+            </div>
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
               {p.parentCode && <span className="font-mono shrink-0">{p.parentCode}</span>}
               {p.studentName && (
                 <>
                   <span className="shrink-0">·</span>
-                  <span className="truncate">Élève : {p.studentName}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (p.studentId) onOpenStudent(p.studentId);
+                    }}
+                    className="hover:text-primary hover:underline truncate"
+                  >
+                    Élève : {p.studentName}
+                  </button>
+                  {p.studentId && (
+                    <StudentActionsMenu
+                      student={{
+                        id: p.studentId,
+                        firstName: p.studentName.split(" ")[0] ?? p.studentName,
+                        lastName: p.studentName.split(" ").slice(1).join(" ") ?? "",
+                        parentId: p.parentId,
+                      }}
+                      parentName={p.parentName}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -792,10 +789,6 @@ function PaymentsTab({
   );
 }
 
-// ============================================================================
-// ExpensesTab — DataTable-backed list with row click → drawer
-// ============================================================================
-
 const EXPENSE_STATUS_TONE: Record<string, "success" | "info" | "warning" | "danger" | "neutral"> = {
   draft: "neutral",
   submitted: "warning",
@@ -869,10 +862,6 @@ function ExpensesTab({
   );
 }
 
-// ============================================================================
-// DebtTab — Top 20 family debtors (DataTable) + per-grade breakdown (bars)
-// ============================================================================
-
 interface DebtSummaryRow {
   readonly parentId: string;
   readonly parentName: string;
@@ -883,13 +872,12 @@ interface DebtSummaryRow {
   readonly outstandingAmount: number;
 }
 
-function DebtTab() {
+function DebtTab({ onOpenParent }: { onOpenParent?: (id: string) => void }) {
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
+  const { openParent } = usePersonNavigation();
   const debt = useObservable(() => repos.debt.observeSummary(), []);
-  // DATA-025: the past-due subset (daysOverdue > 0) — the actionable
-  // "échu" figure, distinct from the total encours.
   const pastDueDebt = debt
     .filter((d) => d.daysOverdue > 0)
     .reduce((s, d) => s + d.outstandingAmount, 0);
@@ -897,15 +885,11 @@ function DebtTab() {
   const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
   const [reminding, setReminding] = useState<string | null>(null);
   const [collectFor, setCollectFor] = useState<{ parentId: string; parentName: string; amount: number } | null>(null);
-  // VAULT §10.08 — every manual bulk trigger requires a confirmation dialog
-  // (two clicks: initiate + confirm).
   const [confirmBroadcast, setConfirmBroadcast] = useState(false);
   const [confirmLock, setConfirmLock] = useState(false);
   const [confirmReminderFor, setConfirmReminderFor] = useState<DebtSummaryRow | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  // VAULT §07.06 — Total Outstanding trend vs last month (↑ / ↓).
-  // Debt 30 days ago = Σ max(0, per-parent ledger balance at cutoff).
   const { debtNow, debtPrevMonth, debtTrend } = useMemo(() => {
     const now = debt.reduce((acc, d) => acc + d.outstandingAmount, 0);
     const cutoff = Date.now() - 30 * 86_400_000;
@@ -943,7 +927,6 @@ function DebtTab() {
     }
   }
 
-  // VAULT §10.07 — "Broadcast Overdue Payment Reminders" one-click trigger.
   async function broadcastReminders() {
     setBulkBusy(true);
     try {
@@ -962,7 +945,6 @@ function DebtTab() {
     }
   }
 
-  // VAULT §10.07 — "Lock Delinquent Accounts" (> 90 days overdue).
   async function lockDelinquent() {
     setBulkBusy(true);
     try {
@@ -982,10 +964,11 @@ function DebtTab() {
   }
 
   const top20Debtors = useMemo(
-    () => [...debt]
-      .filter((d) => d.outstandingAmount > 0)
-      .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
-      .slice(0, 20),
+    () =>
+      [...debt]
+        .filter((d) => d.outstandingAmount > 0)
+        .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
+        .slice(0, 20),
     [debt],
   );
 
@@ -1011,6 +994,14 @@ function DebtTab() {
 
   const maxGradeAmount = perGradeBreakdown.length > 0 ? perGradeBreakdown[0].amount : 1;
 
+  const handleOpenParentDirect = (id: string) => {
+    if (onOpenParent) {
+      onOpenParent(id);
+    } else {
+      openParent(id);
+    }
+  };
+
   const columns: readonly DataTableColumn<DebtSummaryRow>[] = [
     {
       header: "#",
@@ -1027,7 +1018,22 @@ function DebtTab() {
       accessor: "parentName",
       cell: (d) => (
         <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{d.parentName}</p>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleOpenParentDirect(d.parentId)}
+              className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+            >
+              {d.parentName}
+            </button>
+            <ParentActionsMenu
+              parent={{
+                id: d.parentId,
+                displayName: d.parentName,
+                phone: d.parentPhone,
+              }}
+            />
+          </div>
           <p className="text-xs text-muted-foreground font-mono">{d.parentPhone}</p>
         </div>
       ),
@@ -1061,18 +1067,17 @@ function DebtTab() {
       label: "Encaisser",
       variant: "default",
       icon: <Wallet className="size-3.5" />,
-      onClick: (d) => setCollectFor({
-        parentId: d.parentId,
-        parentName: d.parentName,
-        amount: d.outstandingAmount,
-      }),
+      onClick: (d) =>
+        setCollectFor({
+          parentId: d.parentId,
+          parentName: d.parentName,
+          amount: d.outstandingAmount,
+        }),
     },
   ];
 
   return (
     <div className="space-y-4">
-      {/* VAULT §07.06 — Debt Dashboard sections 1 + 4: Total Outstanding (with
-          MoM trend) + Actions (broadcast reminders / lock delinquent). */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card>
           <CardContent className="pt-3">
@@ -1126,7 +1131,7 @@ function DebtTab() {
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
               Rappels : notification portail à chaque débiteur. Verrouillage : FINANCIALLY_RESTRICTED
-              pour les retards supérieurs à 90 jours (plan §07.06 / §10.07 — confirmation requise).
+              pour les retards supérieurs à 90 jours (plan §07.06 / §10.07).
             </p>
           </CardContent>
         </Card>
@@ -1138,7 +1143,7 @@ function DebtTab() {
             <AlertCircle className="h-4 w-4 text-status-danger" />
             Top 20 débiteurs familiaux
             <span className="text-[10px] text-muted-foreground font-normal">
-              (plan §07.06 — priorisation du recouvrement)
+              (cliquez un parent pour ouvrir son dossier)
             </span>
           </h3>
           <DataTable<DebtSummaryRow>
@@ -1188,38 +1193,29 @@ function DebtTab() {
         <UnifiedPaymentModal
           open={!!collectFor}
           onOpenChange={(o) => !o && setCollectFor(null)}
-          context={
-            (() => {
-              const ctx: PaymentNavigationContext = {
-                parentId: collectFor.parentId,
-                parentName: collectFor.parentName,
-                mode: "consolidated_debt",
-                presetAmount: collectFor.amount,
-                lineItems: [{
-                  itemId: `debt-${collectFor.parentId}`,
-                  // ADR-023 (BUSINESS-106): NULL category = the canonical
-                  // cross-category scope — the collection allocates across
-                  // ALL of the family's tranches. The old `"other"` locked
-                  // the waterfall into a category with zero installments and
-                  // booked the whole amount as parent_credit.
-                  category: null,
-                  label: "Solde familial consolidé (toutes catégories)",
-                  grossAmount: collectFor.amount,
-                  discountAmount: 0,
-                  netAmount: collectFor.amount,
-                  alreadyPaidAmount: 0,
-                  remainingAmount: collectFor.amount,
-                }],
-                allowPartial: true,
-                originRoute: "financials.debt_dashboard",
-              };
-              return ctx;
-            })()
-          }
+          context={{
+            parentId: collectFor.parentId,
+            parentName: collectFor.parentName,
+            mode: "consolidated_debt",
+            presetAmount: collectFor.amount,
+            lineItems: [
+              {
+                itemId: `debt-${collectFor.parentId}`,
+                category: null,
+                label: "Solde familial consolidé (toutes catégories)",
+                grossAmount: collectFor.amount,
+                discountAmount: 0,
+                netAmount: collectFor.amount,
+                alreadyPaidAmount: 0,
+                remainingAmount: collectFor.amount,
+              },
+            ],
+            allowPartial: true,
+            originRoute: "financials.debt_dashboard",
+          }}
         />
       )}
 
-      {/* VAULT §10.08 — confirmation dialogs for every manual trigger */}
       <ConfirmModal
         open={confirmBroadcast}
         onOpenChange={setConfirmBroadcast}
@@ -1228,7 +1224,7 @@ function DebtTab() {
           <>
             Un rappel sera envoyé à <b>chaque débiteur</b> de la liste (notification portail +
             journal d'audit). Cette action groupée s'applique aux {top20Debtors.length} famille(s)
-            endettées affichées — elle ne peut pas être annulée après confirmation.
+            endettées affichées.
           </>
         }
         confirmLabel="Diffuser maintenant"
@@ -1242,8 +1238,7 @@ function DebtTab() {
         description={
           <>
             Tous les comptes avec plus de <b>90 jours</b> de retard seront marqués
-            FINANCIALLY_RESTRICTED (accès restreint). Chaque restriction est journalisée
-            avec l'identité de l'acteur. Les comptes déjà restreints sont ignorés.
+            FINANCIALLY_RESTRICTED (accès restreint). Chaque restriction est journalisée.
           </>
         }
         confirmLabel="Verrouiller"

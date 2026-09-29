@@ -485,151 +485,70 @@ export function DebtAgingTab() {
 /* ============================================================================
  * DebtAgingDetailDrawer — the per-family investigation panel
  * ============================================================================ */
-
-function DebtAgingDetailDrawer({
-  analysis,
-  open,
-  onOpenChange,
-  onOpenFamily,
-  onCollect,
-  thresholds,
+// Inside StudentRow in students-directory-tab.tsx:
+function StudentRow({
+  student,
+  parent,
+  cls,
+  selected,
+  onSelect,
 }: {
-  analysis: DebtAgingRow | null;
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  onOpenFamily: (parentId: string) => void;
-  onCollect: (() => void) | undefined;
-  /** T-443 (DEBT-101): the ACTIVE thresholds — the « Pourquoi ce statut »
-   * note derives its numbers from these (never hardcoded). */
-  thresholds: DebtAgingThresholds;
+  student: Student;
+  parent?: Parent;
+  cls?: AcademicClass;
+  selected: boolean;
+  onSelect: () => void;
 }) {
-  const tabs = (a: DebtAgingRow): EntityDrawerTab<DebtAgingRow>[] => [
-    {
-      id: "obligations",
-      label: "Obligations",
-      content: () => (
-        <div className="space-y-2">
-          {a.obligations.map((o) => (
-            <div
-              key={o.installmentId}
-              className="rounded-lg border border-border/60 bg-surface-elevated/60 p-3 space-y-1"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium truncate">
-                  {o.label ?? PAYMENT_CATEGORY_LABELS_FR[o.category] ?? o.category}
-                </p>
-                <span className="font-mono text-sm font-bold text-status-danger">{formatDzd(o.remaining)}</span>
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                <span>Année : {o.academicYear}</span>
-                <span>Échéance : {formatDate(o.dueDate)}</span>
-                <span>Retard : {o.daysOverdue} j</span>
-              </div>
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground pt-1">
-            Reste dû total : <span className="font-mono font-bold text-status-danger">{formatDzd(a.outstandingAmount)}</span> —
-            même montant que l'onglet Créances (calcul canonique, règles financières §15).
-          </p>
-        </div>
-      ),
-    },
-    {
-      // T-442 (UI-323): the owner's "open the 2024 record" mandate — the
-      // COMPLETE per-year financial breakdown (what was owed per year,
-      // what was paid, which services were selected, what remains, what
-      // each payment covered) on the debt surface itself. REUSE: the SAME
-      // ParentYearHistorySection the CRM drawer renders, fed by the SAME
-      // canonical repository streams (one engine, one component, two
-      // surfaces). The drawer renders only the ACTIVE tab's content, so
-      // the panel's observables subscribe on tab selection (the T-430
-      // conditional-mount rule).
-      id: "per-year",
-      label: "Par année",
-      content: () => <FamilyYearHistoryPanel parentId={a.parentId} />,
-    },
-    {
-      id: "behavior",
-      label: "Comportement",
-      content: () => (
-        <div className="space-y-3">
-          <div className="rounded-lg border border-border/60 bg-surface-elevated/60 p-3 space-y-2 text-sm">
-            <p className="font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" /> Comportement de paiement
-            </p>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
-              <dt className="text-muted-foreground">Dernier paiement</dt>
-              <dd>{a.lastPaymentAt ? `${formatDate(a.lastPaymentAt)} (${formatRelative(a.lastPaymentAt)})` : "Jamais"}</dd>
-              <dt className="text-muted-foreground">Inactivité</dt>
-              <dd className="font-mono">{a.inactivityDays} j</dd>
-              <dt className="text-muted-foreground">Ancienneté de la dette</dt>
-              <dd className="font-mono">{a.debtAgeDays} j (depuis le {formatDate(a.oldestDueDate ?? "")})</dd>
-              <dt className="text-muted-foreground">Paiements années suivantes</dt>
-              <dd>
-                {a.hasSubsequentYearPayments
-                  ? `Oui — ${a.subsequentYearPaymentCount} paiement(s), ${formatDzd(a.subsequentYearPaymentTotal)}`
-                  : "Non"}
-              </dd>
-              <dt className="text-muted-foreground">Année d'origine</dt>
-              <dd className="font-mono">{a.originAcademicYear ?? "—"}</dd>
-            </dl>
-          </div>
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Pourquoi ce statut
-            </p>
-            <div className="flex items-start gap-2">
-              <DebtStatusChip level={a.status.level} />
-              <p className="text-sm leading-relaxed">{a.status.explanationFr}</p>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Statut canonique (règles financières §15, INV-16) — les seuils appliqués (grâce{" "}
-              {thresholds.gracePeriodDays} j / à surveiller {thresholds.yellowDays} j / critique{" "}
-              {thresholds.redDays} j) sont configurables dans Paramètres → Configuration ;
-              l'ancienneté n'est jamais réinitialisée par un paiement partiel, et un paiement
-              récent n'influence jamais le niveau (l'annotation « Payeur actif » seulement).
-            </p>
-          </div>
-        </div>
-      ),
-    },
-  ];
-
-  const metadata = (a: DebtAgingRow): EntityDrawerMetaItem[] => [
-    { label: "Encours", value: formatDzd(a.outstandingAmount) },
-    { label: "Ancienneté", value: `${a.debtAgeDays} j` },
-    { label: "Inactivité", value: `${a.inactivityDays} j` },
-    { label: "Élèves", value: a.affectedStudentIds.length > 0 ? `${a.affectedStudentIds.length}` : "—" },
-  ];
+  const { openParent } = usePersonNavigation();
 
   return (
-    <EntityDetailDrawer
-      open={open}
-      onOpenChange={onOpenChange}
-      entity={analysis}
-      title={() => "Suivi des dettes"}
-      subtitle={(a) => a.parentName}
-      avatar={(a) => ({ initials: a.parentName.slice(0, 2).toUpperCase() })}
-      metadata={metadata}
-      tabs={tabs}
-      actions={(a) => [
-        {
-          label: "Fiche famille",
-          variant: "outline",
-          icon: <ChevronRight className="h-4 w-4" />,
-          onClick: () => onOpenFamily(a.parentId),
-        },
-        ...(onCollect
-          ? [
-              {
-                label: "Encaisser",
-                icon: <Wallet className="h-4 w-4" />,
-                onClick: onCollect,
-              },
-            ]
-          : []),
-      ]}
-      widthClass="max-w-lg"
-    />
+    <tr
+      className={selected ? "bg-primary/5" : "hover:bg-accent/5 cursor-pointer"}
+      onClick={onSelect}
+    >
+      <td className="px-3 py-2.5">
+        <span className="font-semibold text-foreground hover:text-primary hover:underline">
+          {studentDisplayName(student)}
+        </span>
+      </td>
+      <td className="px-3 py-2.5 hidden md:table-cell">
+        <span className="font-mono text-xs text-muted-foreground">
+          {student.code}
+        </span>
+      </td>
+      <td className="px-3 py-2.5 hidden lg:table-cell">
+        <Badge variant="outline" className="text-[10px]">
+          {GRADE_LEVEL_LABELS_FR[student.gradeLevel] ?? student.gradeLevel}
+        </Badge>
+      </td>
+      <td className="px-3 py-2.5 hidden lg:table-cell">
+        {cls ? (
+          <span className="text-xs text-muted-foreground font-medium">
+            {cls.name ?? cls.code}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </td>
+      <td className="px-3 py-2.5 hidden xl:table-cell" onClick={(e) => e.stopPropagation()}>
+        {parent ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => openParent(parent.id)}
+              className="text-xs text-foreground hover:text-primary hover:underline truncate text-left"
+            >
+              {parentDisplayName(parent)}
+            </button>
+            <ParentActionsMenu parent={parent} />
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </td>
+      <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+        <StudentActionsMenu student={student} parentName={parent ? parentDisplayName(parent) : null} />
+      </td>
+    </tr>
   );
 }

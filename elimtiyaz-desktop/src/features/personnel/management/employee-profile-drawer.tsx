@@ -1,26 +1,22 @@
 // ============================================================================
-// FILE: src/features/personnel/management/employee-profile-drawer.tsx
+// FILE: elimtiyaz-desktop/src/features/personnel/management/employee-profile-drawer.tsx
 // ============================================================================
-/**
- * Employee Profile Drawer.
- *
- * Displays full personnel information:
- *   - Fiche Collaborateur & Coordonnées
- *   - Rémunération & Historique des ajustements de salaire (with reasons & actor)
- *   - Tâches assignées & état d'avancement
- *   - Pointages d'assiduité & historique des 30 derniers jours
- *   - Évaluations de performance
- */
 
 import { useMemo, useState } from "react";
 import {
   Edit,
-  MessageSquare,
   Wallet,
   TrendingUp,
   TrendingDown,
   Clock,
   Download,
+  Phone,
+  Mail,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  ShieldAlert,
+  UserCheck,
 } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
@@ -35,6 +31,7 @@ import {
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { Progress } from "../../../shared/ui/progress";
 import { Button } from "../../../shared/ui/button";
+import { Card, CardContent } from "../../../shared/ui/card";
 import { formatDzd, formatDzdPlain } from "../../../core/format/currency";
 import { formatDate, formatDateTime } from "../../../core/format/date";
 import {
@@ -48,8 +45,6 @@ import {
   TASK_PRIORITY_LABELS_FR,
   TASK_STATUS_LABELS_FR,
   ATTENDANCE_EVENT_LABELS_FR,
-  SHIFT_TYPE_LABELS_FR,
-  WEEKDAY_LABELS_FR,
 } from "../../../domain/model/workforce";
 import { Role } from "../../../core/rbac/roles";
 import {
@@ -66,19 +61,6 @@ const STATUS_TONES: Record<
   suspended: "danger",
   terminated: "neutral",
   archived: "neutral",
-};
-
-const TASK_STATUS_TONES: Record<
-  string,
-  "success" | "warning" | "danger" | "neutral" | "info"
-> = {
-  pending: "neutral",
-  assigned: "info",
-  in_progress: "warning",
-  needs_review: "info",
-  blocked: "danger",
-  completed: "success",
-  cancelled: "neutral",
 };
 
 export function EmployeeProfileDrawer({
@@ -99,9 +81,7 @@ export function EmployeeProfileDrawer({
   const allPersonnel = useObservable(() => repos.personnel.observe(), []);
   const departments = useObservable(() => repos.departments.observe(), []);
   const allTasks = useObservable(() => repos.tasks.observe(), []);
-  const shifts = useObservable(() => repos.shifts.observe(), []);
 
-  // Attendance window = last 30 days
   const today = new Date();
   const from = new Date(today);
   from.setDate(from.getDate() - 30);
@@ -116,14 +96,6 @@ export function EmployeeProfileDrawer({
         toIso,
       ),
     [personnelId, fromIso, toIso],
-  );
-  const reviews = useObservable(
-    () => repos.performanceReviews.observeByPersonnel(personnelId ?? ""),
-    [personnelId],
-  );
-  const schedules = useObservable(
-    () => repos.schedules.observeByPersonnel(personnelId ?? ""),
-    [personnelId],
   );
 
   const personnel = useMemo(
@@ -145,17 +117,13 @@ export function EmployeeProfileDrawer({
   const assignedTasks = allTasks.filter((t) =>
     t.assigneeIds.includes(personnel.id),
   );
+
   const fill =
     personnel.weeklyHoursTarget > 0
       ? Math.round(
           (personnel.weeklyHoursLogged / personnel.weeklyHoursTarget) * 100,
         )
       : 0;
-
-  const scheduledShiftIds = new Set<string>();
-  for (const s of schedules)
-    s.shiftIds.forEach((id) => scheduledShiftIds.add(id));
-  const assignedShifts = shifts.filter((s) => scheduledShiftIds.has(s.id));
 
   async function handleDownloadPayslip() {
     if (!personnel) return;
@@ -172,29 +140,12 @@ export function EmployeeProfileDrawer({
     }
   }
 
-  const metadata = (p: Personnel): readonly EntityDrawerMetaItem[] => {
-    const list: EntityDrawerMetaItem[] = [
-      { label: "Téléphone", value: p.phone },
-      { label: "E-mail", value: p.email ?? "—" },
-      { label: "Poste", value: p.position || "—" },
-      { label: "Département", value: department?.name ?? "Non affecté" },
-      { label: "Embauche", value: formatDate(p.hireDate) },
-      {
-        label: "Heures hebdo",
-        value: `${p.weeklyHoursLogged} / ${p.weeklyHoursTarget} h`,
-      },
-    ];
-    if (canSeeSalary && p.salary != null) {
-      list.push({ label: "Salaire de base", value: formatDzd(p.salary) });
-    }
-    if (supervisor) {
-      list.push({
-        label: "Superviseur",
-        value: `${supervisor.firstName} ${supervisor.lastName}`,
-      });
-    }
-    return list;
-  };
+  const metadata = (p: Personnel): readonly EntityDrawerMetaItem[] => [
+    { label: "Catégorie", value: STAFF_CATEGORY_LABELS_FR[p.staffCategory] },
+    { label: "Poste", value: p.position || "—" },
+    { label: "Département", value: department?.name ?? "Non affecté" },
+    { label: "Statut", value: PERSONNEL_STATUS_LABELS_FR[p.status] },
+  ];
 
   const tabs = (p: Personnel): readonly EntityDrawerTab<Personnel>[] => [
     {
@@ -202,81 +153,141 @@ export function EmployeeProfileDrawer({
       label: "Fiche Collaborateur",
       content: () => (
         <div className="space-y-4 text-sm">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">
-                Catégorie
-              </p>
-              <p className="font-medium">
-                {STAFF_CATEGORY_LABELS_FR[p.staffCategory]}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Statut</p>
-              <StatusChip
-                label={PERSONNEL_STATUS_LABELS_FR[p.status]}
-                tone={STATUS_TONES[p.status] ?? "neutral"}
-              />
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">
-                Date de naissance
-              </p>
-              <p>{p.dateOfBirth ? formatDate(p.dateOfBirth) : "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">
-                N° national
-              </p>
-              <p className="font-mono">{p.nationalId ?? "—"}</p>
-            </div>
-            <div className="col-span-2">
-              <p className="text-xs uppercase text-muted-foreground">Adresse</p>
-              <p>{p.address ?? "—"}</p>
-            </div>
-          </div>
+          {/* Main Info Card */}
+          <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+            <CardContent className="p-4 space-y-3.5">
+              <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <UserCheck className="h-4 w-4 text-primary" /> Coordonnées &
+                  Contrat
+                </span>
+                <StatusChip
+                  label={PERSONNEL_STATUS_LABELS_FR[p.status]}
+                  tone={STATUS_TONES[p.status] ?? "neutral"}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    Téléphone
+                  </span>
+                  <span className="font-mono font-medium text-foreground text-sm">
+                    {p.phone}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    E-mail
+                  </span>
+                  <span className="text-foreground text-sm truncate block">
+                    {p.email ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    Date d'Embauche
+                  </span>
+                  <span className="text-foreground font-medium">
+                    {formatDate(p.hireDate)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    N° National
+                  </span>
+                  <span className="font-mono text-muted-foreground">
+                    {p.nationalId ?? "—"}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    Adresse
+                  </span>
+                  <span className="text-foreground">
+                    {p.address ?? "Non renseignée"}
+                  </span>
+                </div>
+              </div>
+
+              {supervisor && (
+                <div className="pt-2 border-t border-border/50 flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Supervisé par :</span>
+                  <span className="font-semibold text-foreground">
+                    {supervisor.firstName} {supervisor.lastName}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Emergency Contact */}
           {p.emergencyContact && (
-            <div className="rounded-md border border-border p-3 bg-muted/30">
-              <p className="text-[10px] uppercase text-muted-foreground mb-1">
-                Contact d'urgence
-              </p>
-              <p className="font-medium">
-                {p.emergencyContact.name} · {p.emergencyContact.relation}
-              </p>
-              <p className="text-xs text-muted-foreground font-mono">
-                {p.emergencyContact.phone}
-              </p>
-            </div>
+            <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+              <CardContent className="p-3.5 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Contact d'Urgence
+                </span>
+                <p className="text-sm font-semibold text-foreground">
+                  {p.emergencyContact.name} ({p.emergencyContact.relation})
+                </p>
+                <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                  <Phone className="h-3 w-3" /> {p.emergencyContact.phone}
+                </p>
+              </CardContent>
+            </Card>
           )}
+
+          {/* Quick contact buttons */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 h-8 text-xs"
+              onClick={() => window.open(`tel:${p.phone}`)}
+            >
+              <Phone className="h-3.5 w-3.5 mr-1.5" /> Appeler
+            </Button>
+            {p.email && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-8 text-xs"
+                onClick={() => window.open(`mailto:${p.email}`)}
+              >
+                <Mail className="h-3.5 w-3.5 mr-1.5" /> Envoyer un E-mail
+              </Button>
+            )}
+          </div>
         </div>
       ),
     },
     {
       id: "salary",
-      label: "Rémunération & Paie",
+      label: "Rémunération",
       content: () => (
         <div className="space-y-4 text-sm">
           {canSeeSalary ? (
             <>
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-lg border bg-surface-panel">
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-surface-panel shadow-sm">
                 <div>
-                  <p className="text-xs uppercase text-muted-foreground">
-                    Salaire de base
-                  </p>
-                  <p className="text-xl font-mono font-bold text-foreground mt-1">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                    Salaire de Base Mensuel
+                  </span>
+                  <p className="text-2xl font-mono font-bold text-foreground mt-1">
                     {p.salary ? formatDzd(p.salary) : "Non défini"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase text-muted-foreground">
-                    Mode de règlement
-                  </p>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                    Mode de Règlement
+                  </span>
                   <p className="text-sm font-semibold text-foreground mt-1">
                     {p.paymentMethod
                       ? PAYROLL_METHOD_LABELS_FR[p.paymentMethod]
                       : "Espèces"}
                   </p>
-                  <p className="text-xs font-mono text-muted-foreground">
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">
                     {p.bankAccount || "Sans RIB"}
                   </p>
                 </div>
@@ -288,29 +299,30 @@ export function EmployeeProfileDrawer({
                   variant="outline"
                   onClick={handleDownloadPayslip}
                   disabled={downloading}
+                  className="h-8 text-xs gap-1.5"
                 >
-                  <Download className="h-3.5 w-3.5 mr-1.5" /> Fiche de paie
-                  (PDF)
+                  <Download className="h-3.5 w-3.5" /> Fiche de paie (PDF)
                 </Button>
               </div>
 
-              <div>
-                <p className="text-xs uppercase text-muted-foreground font-semibold mb-2">
-                  Historique des Ajustements de Salaire (Audité)
-                </p>
+              {/* Adjustments history */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Historique des Ajustements
+                </span>
                 {(p.salaryAdjustments ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-3 border border-dashed rounded text-center">
+                  <p className="text-xs text-muted-foreground py-4 border border-dashed rounded-xl text-center">
                     Aucun ajustement antérieur enregistré.
                   </p>
                 ) : (
-                  <ul className="divide-y divide-border/60 border rounded-lg text-xs overflow-hidden">
+                  <div className="space-y-1.5">
                     {p.salaryAdjustments?.map((adj) => (
-                      <li
+                      <div
                         key={adj.id}
-                        className="p-3 space-y-1 bg-card hover:bg-accent/5"
+                        className="p-3 rounded-xl border border-border/70 bg-surface-elevated/30 flex items-center justify-between text-xs"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-foreground flex items-center gap-1.5">
+                        <div className="space-y-0.5">
+                          <span className="font-semibold text-foreground flex items-center gap-1">
                             {adj.delta > 0 ? (
                               <TrendingUp className="h-3.5 w-3.5 text-status-success" />
                             ) : (
@@ -318,23 +330,17 @@ export function EmployeeProfileDrawer({
                             )}
                             {SALARY_ADJUSTMENT_TYPE_LABELS_FR[adj.type]}
                           </span>
-                          <span className="font-mono font-bold text-foreground">
-                            {adj.delta > 0
-                              ? `+${formatDzdPlain(adj.delta)}`
-                              : formatDzdPlain(adj.delta)}{" "}
-                            DA
-                          </span>
+                          <p className="text-muted-foreground">{adj.reason}</p>
                         </div>
-                        <p className="text-muted-foreground">
-                          <strong>Motif :</strong> {adj.reason}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Approuvé par {adj.approvedByName} le{" "}
-                          {formatDate(adj.effectiveDate)}
-                        </p>
-                      </li>
+                        <span className="font-mono font-bold text-foreground">
+                          {adj.delta > 0
+                            ? `+${formatDzdPlain(adj.delta)}`
+                            : formatDzdPlain(adj.delta)}{" "}
+                          DA
+                        </span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             </>
@@ -347,106 +353,54 @@ export function EmployeeProfileDrawer({
       ),
     },
     {
-      id: "tasks",
-      label: "Tâches",
-      badge: () => assignedTasks.length,
-      content: () =>
-        assignedTasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            Aucune tâche assignée.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {assignedTasks.map((t) => (
-              <li
-                key={t.id}
-                className="py-2.5 flex items-center justify-between gap-2"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{t.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {TASK_PRIORITY_LABELS_FR[t.priority]}
-                    {t.dueDate ? ` · Échéance ${formatDate(t.dueDate)}` : ""}
-                  </p>
-                </div>
-                <StatusChip
-                  label={TASK_STATUS_LABELS_FR[t.status]}
-                  tone={TASK_STATUS_TONES[t.status] ?? "neutral"}
-                />
-              </li>
-            ))}
-          </ul>
-        ),
-    },
-    {
       id: "attendance",
       label: "Pointages & Présence",
       badge: () => attendance.length,
-      content: () =>
-        attendance.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            Aucun pointage sur les 30 derniers jours.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {attendance.slice(0, 12).map((e) => (
-              <li key={e.id} className="py-2 flex items-center justify-between">
-                <div>
-                  <p className="text-sm">
-                    {ATTENDANCE_EVENT_LABELS_FR[e.eventType]}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDate(e.date)}
-                  </p>
-                </div>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {formatDateTime(e.timestamp)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ),
-    },
-    {
-      id: "schedule",
-      label: "Horaires & Shifts",
       content: () => (
-        <div className="space-y-4 text-sm">
+        <div className="space-y-3">
           <div>
-            <p className="text-xs uppercase text-muted-foreground">
-              Volume hebdomadaire
-            </p>
-            <div className="mt-1 flex items-center gap-3">
-              <Progress value={fill} />
-              <span className="font-mono text-xs whitespace-nowrap">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block mb-1">
+              Objectif Hebdomadaire
+            </span>
+            <div className="flex items-center gap-3">
+              <Progress value={fill} className="h-2 flex-1" />
+              <span className="font-mono text-xs font-semibold">
                 {p.weeklyHoursLogged} / {p.weeklyHoursTarget} h
               </span>
             </div>
           </div>
-          {assignedShifts.length > 0 ? (
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">
-                Postes assignés
+
+          <div className="space-y-1.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+              Derniers Pointages (30 jours)
+            </span>
+            {attendance.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6 text-center border border-dashed rounded-xl">
+                Aucun pointage enregistré sur les 30 derniers jours.
               </p>
-              <ul className="mt-1 divide-y divide-border">
-                {assignedShifts.map((s) => (
-                  <li key={s.id} className="py-2">
-                    <p className="text-sm font-medium">
-                      {SHIFT_TYPE_LABELS_FR[s.shiftType] ?? s.shiftType}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {WEEKDAY_LABELS_FR[s.weekday]} · {s.startTime} →{" "}
-                      {s.endTime}
-                    </p>
-                  </li>
+            ) : (
+              <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                {attendance.slice(0, 15).map((e) => (
+                  <div
+                    key={e.id}
+                    className="p-2.5 rounded-lg border border-border/60 bg-surface-elevated/20 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {ATTENDANCE_EVENT_LABELS_FR[e.eventType]}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDate(e.date)}
+                      </p>
+                    </div>
+                    <span className="font-mono text-muted-foreground text-[11px]">
+                      {formatDateTime(e.timestamp)}
+                    </span>
+                  </div>
                 ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              Aucun shift planifié.
-            </p>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
@@ -466,8 +420,11 @@ export function EmployeeProfileDrawer({
       open={open}
       onOpenChange={onOpenChange}
       entity={personnel}
+      widthClass="w-full sm:max-w-xl md:max-w-2xl"
       title={(p) => `${p.firstName} ${p.lastName}`}
-      subtitle={(p) => p.position || STAFF_CATEGORY_LABELS_FR[p.staffCategory]}
+      subtitle={(p) =>
+        `${p.position || STAFF_CATEGORY_LABELS_FR[p.staffCategory]} · ${department?.name ?? "Sans département"}`
+      }
       avatar={(p) => ({
         initials: `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase(),
       })}

@@ -1,33 +1,15 @@
-/**
- * StudentDetailDrawer — slide-over panel showing a student's complete profile.
- *
- * Plan §04.05 / §04.06 / §04.07: 5-tab slide-over — Infos / Pédagogique /
- * Présences / Paiements / Documents.
- *
- * Phase 4B refactor: now built on the shared `<EntityDetailDrawer<T>>` primitive
- * (`src/shared/ui/entity-drawer/`) instead of `UnifiedModal variant="drawer"`.
- * The per-tab content lives in `./student-detail/` (unchanged from iteration 6-a).
- *
- * Tab semantics:
- *   - Infos       → identity card + family links (parent drawer bidirectional nav)
- *   - Pédagogique → grade book per term (D1/D2/Examen/Moy) + academic history
- *                   + class summary banner with deep-link to the class space
- *   - Présences   → attendance summary with 3+ absence alert badge (plan §09.03)
- *   - Paiements   → individual share + family balance
- *   - Documents   → uploaded attachments (vault §04.06: medical certificates,
- *                   justification letters, contracts)
- *
- * FIX (editing): a "Modifier" footer action now opens the EditStudentModal,
- * wiring `repos.students.updateStudent` into the UI for the first time —
- * previously student records were read-only after registration.
- */
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/crm/student-detail-drawer.tsx
+// ============================================================================
+
 import { useState } from "react";
-import { GraduationCap, Calendar, Wallet, Info, Pencil } from "lucide-react";
+import { Pencil, ExternalLink } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import {
   EntityDetailDrawer,
   type EntityDrawerTab,
+  type EntityDrawerMetaItem,
 } from "../../shared/ui/entity-drawer";
 import { LEVEL_LABELS_FR, type Student } from "../../domain/model/student";
 import { InfoTab } from "./student-detail/info-tab";
@@ -36,6 +18,7 @@ import { AttendanceTab } from "./student-detail/attendance-tab";
 import { PaymentsTab } from "./student-detail/payments-tab";
 import { DocumentsTab } from "./student-detail/documents-tab";
 import { EditStudentModal } from "./edit-student-modal";
+import { useNavigate } from "react-router-dom";
 
 export function StudentDetailDrawer({
   studentId,
@@ -49,27 +32,33 @@ export function StudentDetailDrawer({
   onOpenParent?: (parentId: string) => void;
 }) {
   const repos = useRepositories();
+  const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
   const student = useObservable(
     () => repos.students.observeById(studentId ?? ""),
     [studentId],
   );
 
-  // When closed or no student selected, keep the drawer mounted but entity=null
-  // so the EntityDetailDrawer renders its empty portal and animations work.
   const entity: Student | null = open && studentId && student ? student : null;
+
+  const metadata = (s: Student): readonly EntityDrawerMetaItem[] => [
+    { label: "Code Élève", value: s.code },
+    { label: "Palier", value: LEVEL_LABELS_FR[s.level] },
+    { label: "Année", value: `Année ${s.gradeYear}` },
+    { label: "Statut", value: s.status === "active" ? "Actif" : s.status },
+  ];
 
   const tabs: readonly EntityDrawerTab<Student>[] = [
     {
       id: "info",
-      label: "Infos",
+      label: "Identité & Famille",
       content: () => (
         <InfoTab studentId={studentId ?? ""} onOpenParent={onOpenParent} />
       ),
     },
     {
       id: "academic",
-      label: "Pédagogique",
+      label: "Pédagogique & Notes",
       content: () => (
         <AcademicTab
           studentId={studentId ?? ""}
@@ -84,14 +73,11 @@ export function StudentDetailDrawer({
     },
     {
       id: "payments",
-      label: "Paiements",
+      label: "Paiements & Tranches",
       content: () => (
         <PaymentsTab studentId={studentId ?? ""} onOpenParent={onOpenParent} />
       ),
     },
-    // FIX (vault §04.06): the required Documents section of the Student
-    // Profile Drawer — uploaded attachments (medical certificates,
-    // justification letters, contracts).
     {
       id: "documents",
       label: "Documents",
@@ -105,22 +91,29 @@ export function StudentDetailDrawer({
         open={open}
         onOpenChange={onOpenChange}
         entity={entity}
-        widthClass="max-w-lg"
+        widthClass="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
         title={(s) => `${s.firstName} ${s.lastName}`}
-        subtitle={(s) =>
-          `${s.code} · ${LEVEL_LABELS_FR[s.level]} · Année ${s.gradeYear}`
-        }
+        subtitle={(s) => `${s.code} · ${LEVEL_LABELS_FR[s.level]} · Année ${s.gradeYear}`}
         avatar={(s) => ({
-          initials:
-            `${s.firstName[0] ?? ""}${s.lastName[0] ?? ""}`.toUpperCase(),
+          initials: `${s.firstName[0] ?? ""}${s.lastName[0] ?? ""}`.toUpperCase(),
         })}
+        metadata={metadata}
         tabs={() => tabs}
         actions={() => [
           {
+            label: "Ouvrir dans Pédagogie",
+            icon: <ExternalLink className="h-3.5 w-3.5" />,
+            variant: "outline",
+            onClick: () => {
+              onOpenChange(false);
+              navigate(`/academics?studentId=${entity?.id}`);
+            },
+          },
+          {
             label: "Modifier",
             onClick: () => setEditOpen(true),
-            variant: "outline",
-            icon: <Pencil className="h-4 w-4" />,
+            variant: "default",
+            icon: <Pencil className="h-3.5 w-3.5" />,
           },
         ]}
       />

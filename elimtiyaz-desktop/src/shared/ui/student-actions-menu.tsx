@@ -1,39 +1,9 @@
-/**
- * StudentActionsMenu — the standardized 3-dot actions menu for a STUDENT
- * reference anywhere in the application (T-413).
- *
- * THE CONTRACT (the owner's cross-section navigation mandate):
- *   "Add a standardized 3-dot actions menu to student/person references
- *    throughout the application. Allow a referenced student to be opened
- *    directly in the relevant sections — Profile, Finance, Finance History,
- *    Notes, Pedagogy — while preserving the same canonical student identity."
- *
- * Every menu item navigates to a SECTION with the student's identity in the
- * URL — the section then resolves the SAME canonical record from the SAME
- * repositories (no lookup duplication, no parallel dataset):
- *
- *   Fiche élève (CRM)        → /crm?studentId={id}      — the CRM student
- *                                                          drawer (consumed
- *                                                          since T-1xx)
- *   Dossier famille (CRM)    → /crm?parentId={id}      — the parent drawer
- *   Pédagogie (annuaire)     → /academics?studentId=…   — the students
- *                                                          directory with the
- *                                                          student selected
- *   Finance famille          → /financials?familyId=…   — the installments
- *                                                          tab family-scoped
- *   Classe (Pédagogie)       → /academics/class/{id}    — the class detail
- *
- * Items whose context is unavailable for this student (no parent, no class)
- * are hidden — the menu NEVER renders a dead action (the audit FA-16 class:
- * dead deep links are defects, not features).
- *
- * Reuse rule: every surface that shows a student row/reference mounts THIS
- * component — CRM tables, the Pedagogy directory, the class roster, the
- * approval flows. Do not fork a second 3-dot implementation.
- */
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/shared/ui/student-actions-menu.tsx
+// ============================================================================
 
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal, GraduationCap, Users, Wallet, School, User } from "lucide-react";
+import { MoreHorizontal, GraduationCap, Users, Wallet, School, User, Eye } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,78 +14,25 @@ import {
 } from "./dropdown-menu";
 import { Button } from "./button";
 import { cn } from "./cn";
+import { usePersonNavigation } from "../navigation/person-navigation-context";
 import type { Student } from "../../domain/model/student";
 
 export function StudentActionsMenu({
   student,
-  /** Extra context the caller already resolved (avoids re-lookups). */
   parentName,
   className,
   align = "end",
   label,
 }: {
   student: Pick<Student, "id" | "firstName" | "lastName" | "parentId" | "classId">;
-  /** Best-effort display name of the family (from the caller's resolved parents list). */
   parentName?: string | null;
   className?: string;
   align?: "start" | "center" | "end";
-  /** Accessible label for the trigger (defaults to the student's name). */
   label?: string;
 }) {
   const navigate = useNavigate();
-  const studentName = `${student.firstName} ${student.lastName}`;
-
-  const actions: Array<{
-    key: string;
-    icon: typeof User;
-    title: string;
-    subtitle?: string;
-    onClick: () => void;
-  }> = [
-    {
-      key: "crm-student",
-      icon: User,
-      title: "Ouvrir dans CRM",
-      subtitle: "Fiche élève",
-      onClick: () => navigate(`/crm?studentId=${student.id}`),
-    },
-    {
-      key: "pedagogy",
-      icon: GraduationCap,
-      title: "Ouvrir dans Pédagogie",
-      subtitle: "Annuaire élèves",
-      onClick: () => navigate(`/academics?studentId=${student.id}`),
-    },
-    ...(student.parentId
-      ? [
-          {
-            key: "crm-parent",
-            icon: Users,
-            title: "Dossier famille",
-            subtitle: parentName ?? "CRM",
-            onClick: () => navigate(`/crm?parentId=${student.parentId}`),
-          },
-          {
-            key: "finance",
-            icon: Wallet,
-            title: "Finance de la famille",
-            subtitle: "Tranches & encaissements",
-            onClick: () => navigate(`/financials?familyId=${student.parentId}`),
-          },
-        ]
-      : []),
-    ...(student.classId
-      ? [
-          {
-            key: "class",
-            icon: School,
-            title: "Ouvrir la classe",
-            subtitle: "Pédagogie",
-            onClick: () => navigate(`/academics/class/${student.classId}`),
-          },
-        ]
-      : []),
-  ];
+  const { openStudent, openParent } = usePersonNavigation();
+  const studentName = `${student.firstName} ${student.lastName}`.trim();
 
   return (
     <DropdownMenu>
@@ -123,7 +40,7 @@ export function StudentActionsMenu({
         <Button
           variant="ghost"
           size="icon"
-          className={cn("h-7 w-7 shrink-0", className)}
+          className={cn("h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground", className)}
           aria-label={label ?? `Actions pour ${studentName}`}
           title={`Ouvrir ${studentName} dans…`}
           onClick={(e) => e.stopPropagation()}
@@ -131,31 +48,105 @@ export function StudentActionsMenu({
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} className="w-56">
+      <DropdownMenuContent align={align} className="w-60 z-50">
         <DropdownMenuLabel className="text-xs">
-          Ouvrir « {studentName} » dans…
+          <span className="block truncate font-semibold">« {studentName} »</span>
+          {parentName && <span className="font-normal text-[10px] text-muted-foreground block truncate">Famille {parentName}</span>}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {actions.map((a) => (
+
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            openStudent(student.id);
+          }}
+          className="gap-2.5 cursor-pointer"
+        >
+          <Eye className="h-4 w-4 text-primary" />
+          <span className="flex flex-col">
+            <span className="text-xs font-semibold text-foreground">Aperçu rapide</span>
+            <span className="text-[10px] text-muted-foreground">Ouvrir le panneau latéral</span>
+          </span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/crm?studentId=${student.id}`);
+          }}
+          className="gap-2.5 cursor-pointer"
+        >
+          <User className="h-4 w-4 text-primary" />
+          <span className="flex flex-col">
+            <span className="text-xs font-semibold text-foreground">Fiche élève (CRM)</span>
+            <span className="text-[10px] text-muted-foreground">Dossier administratif & inscription</span>
+          </span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/academics?studentId=${student.id}`);
+          }}
+          className="gap-2.5 cursor-pointer"
+        >
+          <GraduationCap className="h-4 w-4 text-brand-gold" />
+          <span className="flex flex-col">
+            <span className="text-xs font-semibold text-foreground">Dossier pédagogique</span>
+            <span className="text-[10px] text-muted-foreground">Notes, bulletins & assiduité</span>
+          </span>
+        </DropdownMenuItem>
+
+        {student.parentId && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                openParent(student.parentId);
+              }}
+              className="gap-2.5 cursor-pointer"
+            >
+              <Users className="h-4 w-4 text-brand-cyan" />
+              <span className="flex flex-col">
+                <span className="text-xs font-semibold text-foreground">Dossier famille</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {parentName ? `Famille ${parentName}` : "Voir le parent"}
+                </span>
+              </span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/financials?familyId=${student.parentId}`);
+              }}
+              className="gap-2.5 cursor-pointer"
+            >
+              <Wallet className="h-4 w-4 text-status-success" />
+              <span className="flex flex-col">
+                <span className="text-xs font-semibold text-foreground">Finances & Tranches</span>
+                <span className="text-[10px] text-muted-foreground">Règlements & créances familiales</span>
+              </span>
+            </DropdownMenuItem>
+          </>
+        )}
+
+        {student.classId && (
           <DropdownMenuItem
-            key={a.key}
             onClick={(e) => {
               e.stopPropagation();
-              a.onClick();
+              navigate(`/academics/class/${student.classId}`);
             }}
-            className="gap-2"
+            className="gap-2.5 cursor-pointer"
           >
-            <a.icon className="h-4 w-4 text-muted-foreground" />
+            <School className="h-4 w-4 text-muted-foreground" />
             <span className="flex flex-col">
-              <span className="text-sm">{a.title}</span>
-              {a.subtitle && (
-                <span className="text-[11px] text-muted-foreground">
-                  {a.subtitle}
-                </span>
-              )}
+              <span className="text-xs font-semibold text-foreground">Ouvrir la classe</span>
+              <span className="text-[10px] text-muted-foreground">Gestion du groupe & emploi du temps</span>
             </span>
           </DropdownMenuItem>
-        ))}
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

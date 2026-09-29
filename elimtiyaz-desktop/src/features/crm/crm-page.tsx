@@ -1,29 +1,12 @@
-/**
- * CRM hub — Hub 2.
- *
- * Tabs: Parents / Élèves / Inscription groupée.
- *
- * Redesign:
- *   - Controlled tabs so the PageHeader actions are PURPOSE-BOUND to the
- *     active tab (no more always-on Export/Import/Nouvelle inscription
- *     buttons cluttering the header when the user is on a read-only tab).
- *   - Removed dead "Filter Niveau" + "Download" toolbar buttons in
- *     ParentsTab / StudentsTab (they had no onClick and did nothing).
- *   - Removed unused `ComingSoonCard` import.
- *   - Removed unused `useNavigate` import in ParentsTab.
- *
- * Tab-specific header actions:
- *   - parents   : (none — list is read-only; row click opens detail drawer)
- *   - students  : (none — list is read-only; row click opens detail drawer)
- *   - batch     : Import Excel + Nouvelle inscription (the two real actions)
- */
+// ============================================================================
+// FILE: elimtiyaz-desktop/src/features/crm/crm-page.tsx
+// ============================================================================
+
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
   Plus,
-  Phone,
-  MessageCircle,
   Mail,
   Eye,
   Users,
@@ -47,6 +30,7 @@ import {
 import type { Parent } from "../../domain/model/parent";
 import { parentDisplayName } from "../../domain/model/parent";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
+import { ParentActionsMenu } from "../../shared/ui/parent-actions-menu";
 import type { Student } from "../../domain/model/student";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { PageHeader } from "../../shared/layout/page-header";
@@ -60,15 +44,18 @@ import {
 import { Button } from "../../shared/ui/button";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { StatusChip } from "../../shared/ui/status-chip";
-import { DataTable, type DataTableColumn, type DataTableAction } from "../../shared/ui/data-table";
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableAction,
+} from "../../shared/ui/data-table";
 import { EmptyState } from "../../shared/layout/state-views";
 import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { BatchRegistrationModal } from "./batch-registration-modal";
-import { ParentDetailDrawer } from "./parent-detail-drawer";
-import { StudentDetailDrawer } from "./student-detail-drawer";
 import { ExcelImportModal } from "./excel-import-modal";
 import { ReEnrollmentTab } from "./re-enrollment/re-enrollment-tab";
 import { useToast } from "../../app/providers/toast-provider";
+import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import {
   exportToJson,
   exportToXlsxFile,
@@ -82,6 +69,8 @@ export function CrmPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
   const toast = useToast();
+  const { openParent, openStudent } = usePersonNavigation();
+
   const parents = useObservable(() => repos.parents.observe(), []);
   const students = useObservable(() => repos.students.observe(), []);
   const ledger = useObservable(() => repos.ledger.observe(), []);
@@ -89,26 +78,15 @@ export function CrmPage() {
 
   const [tab, setTab] = useState<CrmTab>("parents");
   const [batchOpen, setBatchOpen] = useState(false);
-  const [drawerParentId, setDrawerParentId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [studentDrawerId, setStudentDrawerId] = useState<string | null>(null);
-  const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  // T-437: the Élèves tab's DIRECT add-student flow (issue #18 §8) — the
-  // wizard in "direct" mode (parent search-or-create first).
   const [directAddOpen, setDirectAddOpen] = useState(false);
-  // T-437: the RED pending-decision badge count (issue #18 §2) — reported by
-  // the Réinscription tab whenever its list loads.
   const [reEnrollmentWaiting, setReEnrollmentWaiting] = useState(0);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  // FIX (add-child duplication): holds the Parent entity the wizard should
-  // attach new children to (set by the parent drawer's "Ajouter un enfant").
-  // Cleared when the wizard closes so a later "Nouvelle inscription" from
-  // the header starts from a blank form.
   const [presetParentId, setPresetParentId] = useState<string | null>(null);
+
   const presetParent = presetParentId
-    ? parents.find((p) => p.id === presetParentId) ?? null
+    ? (parents.find((p) => p.id === presetParentId) ?? null)
     : null;
 
   useEffect(() => {
@@ -117,24 +95,24 @@ export function CrmPage() {
     }
   }, [batchOpen, presetParentId]);
 
-  function openParent(parentId: string) {
-    setDrawerParentId(parentId);
-    setDrawerOpen(true);
-  }
-
-  function openStudent(studentId: string) {
-    setStudentDrawerId(studentId);
-    setStudentDrawerOpen(true);
-  }
-
-  // FIX (deep links): global-search routes to `/crm?studentId=…` and
-  // `/crm?parentId=…` — previously `studentId` was ignored entirely and
-  // `parentId` only rendered a raw-UUID banner. Both now open the matching
-  // drawer, switch to the right tab, and clean the param afterwards.
+  // Deep links handler
   useEffect(() => {
     const parentId = searchParams.get("parentId");
     const studentId = searchParams.get("studentId");
-    if (parentId) {
+    const action = searchParams.get("action");
+
+    if (action === "add-child" && parentId) {
+      setPresetParentId(parentId);
+      setBatchOpen(true);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("action");
+          return next;
+        },
+        { replace: true },
+      );
+    } else if (parentId) {
       setTab("parents");
       openParent(parentId);
       setSearchParams(
@@ -157,8 +135,7 @@ export function CrmPage() {
         { replace: true },
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, setSearchParams, openParent, openStudent]);
 
   function buildExportData(): ExportData {
     return {
@@ -179,7 +156,10 @@ export function CrmPage() {
         `${parents.length} parent(s), ${students.length} élève(s), ${ledger.length} écriture(s) → ${fileName}`,
       );
     } catch (e) {
-      toast.showError("Échec de l'export XLSX", e instanceof Error ? e.message : String(e));
+      toast.showError(
+        "Échec de l'export XLSX",
+        e instanceof Error ? e.message : String(e),
+      );
     } finally {
       setExporting(false);
     }
@@ -190,12 +170,9 @@ export function CrmPage() {
     try {
       const fileName = `el-imtiyaz-export-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
       exportToJson(buildExportData(), fileName);
-      toast.showSuccess(
-        "Export JSON réussi",
-        `${parents.length} parent(s), ${students.length} élève(s), ${ledger.length} écriture(s) → ${fileName}`,
-      );
+      toast.showSuccess("Export JSON réussi", fileName);
     } catch (e) {
-      toast.showError("Échec de l'export JSON", e instanceof Error ? e.message : String(e));
+      toast.showError("Échec de l'export JSON", String(e));
     }
   }
 
@@ -203,47 +180,32 @@ export function CrmPage() {
     setExportMenuOpen(false);
     try {
       const fileName = exportStudentsToCsv(parents, students);
-      toast.showSuccess(
-        "Export CSV réussi",
-        `${students.length} élève(s) → ${fileName}`,
-      );
+      toast.showSuccess("Export CSV réussi", fileName);
     } catch (e) {
-      toast.showError("Échec de l'export CSV", e instanceof Error ? e.message : String(e));
+      toast.showError("Échec de l'export CSV", String(e));
     }
   }
-
-  const descriptionFor = (active: CrmTab): string => {
-    switch (active) {
-      case "parents":
-        return "Annuaire des parents — cliquez une ligne pour ouvrir le détail.";
-      case "students":
-        return "Annuaire des élèves — cliquez une ligne pour ouvrir le profil.";
-      case "reenrollment":
-        return "Réinscription : la transition des élèves existants vers la nouvelle année scolaire (liste générée à partir des résultats finalisés).";
-      case "batch":
-        return "Inscription groupée : assistant 4 étapes (Parent + N élèves) ou import Excel bulk.";
-    }
-  };
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title={t("nav.crm")}
-        description={descriptionFor(tab)}
+        description="Dossier central : explorez et gérez les fiches parents, élèves et inscriptions."
         actions={
-          <TabActions
-            tab={tab}
-            importOpen={() => setImportOpen(true)}
-            batchOpen={() => setBatchOpen(true)}
-            exportMenuOpen={exportMenuOpen}
-            setExportMenuOpen={setExportMenuOpen}
-            exporting={exporting}
-            onExportXlsx={handleExportXlsx}
-            onExportJson={handleExportJson}
-            onExportCsv={handleExportCsv}
-            hasStudents={students.length > 0}
-            exportLabel={t("common.export")}
-          />
+          tab === "batch" ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setImportOpen(true)}
+              >
+                <Upload className="h-4 w-4" /> Import Excel
+              </Button>
+              <Button size="sm" onClick={() => setBatchOpen(true)}>
+                <Plus className="h-4 w-4" /> Nouvelle inscription
+              </Button>
+            </div>
+          ) : null
         }
       />
       <PageTabs
@@ -252,10 +214,18 @@ export function CrmPage() {
         className="flex-1 flex flex-col px-6 pb-6 min-h-0"
       >
         <PageTabList>
-          <PageTab value="parents" label="Parents" icon={Users} count={parents.length} />
-          <PageTab value="students" label="Élèves" icon={GraduationCap} count={students.length} />
-          {/* T-437 (issue #18 §2): the dedicated Réinscription tab — the RED
-              badge counts the candidates still awaiting a decision. */}
+          <PageTab
+            value="parents"
+            label="Parents"
+            icon={Users}
+            count={parents.length}
+          />
+          <PageTab
+            value="students"
+            label="Élèves"
+            icon={GraduationCap}
+            count={students.length}
+          />
           <PageTab
             value="reenrollment"
             label="Réinscription"
@@ -265,15 +235,22 @@ export function CrmPage() {
           />
           <PageTab value="batch" label="Inscription groupée" icon={UserPlus} />
         </PageTabList>
+
         <PageTabContent value="parents">
           <ParentsTab onOpenParent={openParent} />
         </PageTabContent>
+
         <PageTabContent value="students">
-          <StudentsTab onOpenStudent={openStudent} onAddStudent={() => setDirectAddOpen(true)} />
+          <StudentsTab
+            onOpenStudent={openStudent}
+            onAddStudent={() => setDirectAddOpen(true)}
+          />
         </PageTabContent>
+
         <PageTabContent value="reenrollment">
           <ReEnrollmentTab onWaitingCountChange={setReEnrollmentWaiting} />
         </PageTabContent>
+
         <PageTabContent value="batch">
           <BatchTab
             onBatch={() => setBatchOpen(true)}
@@ -288,160 +265,18 @@ export function CrmPage() {
         onSubmitted={(parentId) => openParent(parentId)}
         presetParent={presetParent}
       />
-      {/* T-437 (issue #18 §8–§10): the DIRECT add-student wizard — the parent
-          search-or-create step first, the pre-filled student form, the billing
-          persisted on the selected family. */}
+
       <BatchRegistrationModal
         open={directAddOpen}
         onOpenChange={setDirectAddOpen}
         onSubmitted={(parentId) => openParent(parentId)}
         mode="direct"
       />
-      <ParentDetailDrawer
-        parentId={drawerParentId}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        onAddChild={(parent) => {
-          // FIX (add-child duplication): lock the wizard onto THIS parent so
-          // the new children attach to it — previously a blank wizard created
-          // a duplicate parent record.
-          setDrawerOpen(false);
-          setPresetParentId(parent.id);
-          setBatchOpen(true);
-        }}
-        // FIX (bidirectional navigation, plan §04.04): Parent→Student leg.
-        // Mirrors the Student→Parent wiring below — clicking a child opens
-        // the student drawer and closes the parent drawer.
-        onOpenStudent={(studentId) => {
-          setDrawerOpen(false);
-          openStudent(studentId);
-        }}
-      />
-      <StudentDetailDrawer
-        studentId={studentDrawerId}
-        open={studentDrawerOpen}
-        onOpenChange={setStudentDrawerOpen}
-        onOpenParent={(parentId) => {
-          setStudentDrawerOpen(false);
-          openParent(parentId);
-        }}
-      />
-      <ExcelImportModal
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImported={() => {
-          // Optional: refresh lists — observable handles this automatically
-        }}
-      />
+
+      <ExcelImportModal open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
-
-// ============================================================================
-// TabActions — purpose-bound action buttons that change based on active tab
-// ============================================================================
-
-function TabActions({
-  tab,
-  importOpen,
-  batchOpen,
-  exportMenuOpen,
-  setExportMenuOpen,
-  exporting,
-  onExportXlsx,
-  onExportJson,
-  onExportCsv,
-  hasStudents,
-  exportLabel,
-}: {
-  tab: CrmTab;
-  importOpen: () => void;
-  batchOpen: () => void;
-  exportMenuOpen: boolean;
-  setExportMenuOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
-  exporting: boolean;
-  onExportXlsx: () => Promise<void>;
-  onExportJson: () => void;
-  onExportCsv: () => void;
-  hasStudents: boolean;
-  exportLabel: string;
-}) {
-  if (tab !== "batch") {
-    // Parents + Students tabs are read-only lists — no header actions.
-    // The per-row action buttons (call, WhatsApp, view) live inside each row.
-    return null;
-  }
-  return (
-    <>
-      <Button variant="outline" size="sm" onClick={importOpen}>
-        <Upload className="h-4 w-4" /> Import Excel
-      </Button>
-      <div className="relative">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={exporting || !hasStudents}
-          onClick={() => setExportMenuOpen((v) => !v)}
-        >
-          <Download className="h-4 w-4" />
-          {exporting ? "Export…" : exportLabel}
-          <ChevronDown className="h-3 w-3 ml-1" />
-        </Button>
-        {exportMenuOpen && (
-          <>
-            {/* Click-away overlay */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setExportMenuOpen(false)}
-            />
-            <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left"
-                onClick={onExportXlsx}
-              >
-                <FileSpreadsheet className="h-4 w-4 text-status-success" />
-                <div>
-                  <p className="font-medium">Excel (.xlsx)</p>
-                  <p className="text-[10px] text-muted-foreground">4 feuilles : Résumé, Parents, Élèves, Journal</p>
-                </div>
-              </button>
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
-                onClick={onExportJson}
-              >
-                <FileJson className="h-4 w-4 text-status-info" />
-                <div>
-                  <p className="font-medium">JSON</p>
-                  <p className="text-[10px] text-muted-foreground">Format machine pour sauvegarde / re-import</p>
-                </div>
-              </button>
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
-                onClick={onExportCsv}
-              >
-                <Download className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">CSV élèves</p>
-                  <p className="text-[10px] text-muted-foreground">Liste des élèves uniquement (compatible tableur)</p>
-                </div>
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-      <Button size="sm" onClick={batchOpen}>
-        <Plus className="h-4 w-4" /> Nouvelle inscription
-      </Button>
-    </>
-  );
-}
-
-// ============================================================================
-// BatchTab — landing card for the Inscription groupée tab
-// ============================================================================
 
 function BatchTab({
   onBatch,
@@ -458,29 +293,43 @@ function BatchTab({
             <FileSpreadsheet className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium">Inscription groupée (Parent + N élèves)</p>
+            <p className="text-sm font-medium">
+              Inscription groupée (Parent + N élèves)
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Utilisez les actions ci-dessus pour démarrer l'assistant 4 étapes
-              ou l'import Excel bulk (pipeline 5 étapes, plan §14).
+              Assistant d'inscription atomique ou import massif de fichiers
+              Excel.
             </p>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Button variant="outline" className="justify-start h-auto py-3" onClick={onBatch}>
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3 text-left"
+            onClick={onBatch}
+          >
             <div className="flex items-start gap-2">
               <Plus className="h-4 w-4 mt-0.5" />
-              <div className="text-left">
+              <div>
                 <p className="text-sm font-medium">Assistant 4 étapes</p>
-                <p className="text-xs text-muted-foreground">Inscription manuelle d'un parent + enfants</p>
+                <p className="text-xs text-muted-foreground">
+                  Inscription manuelle d'un parent + enfants
+                </p>
               </div>
             </div>
           </Button>
-          <Button variant="outline" className="justify-start h-auto py-3" onClick={onImport}>
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3 text-left"
+            onClick={onImport}
+          >
             <div className="flex items-start gap-2">
               <Upload className="h-4 w-4 mt-0.5" />
-              <div className="text-left">
+              <div>
                 <p className="text-sm font-medium">Import Excel bulk</p>
-                <p className="text-xs text-muted-foreground">Pipeline atomique 5 étapes (plan §14)</p>
+                <p className="text-xs text-muted-foreground">
+                  Pipeline d'importation automatisé
+                </p>
               </div>
             </div>
           </Button>
@@ -490,30 +339,18 @@ function BatchTab({
   );
 }
 
-// ============================================================================
-// ParentsTab — DataTable<Parent> with row-level actions
-// T-384: + the "Supprimer" row action (ConfirmModal-guarded, Permission.DeleteParent)
-// ============================================================================
-
 function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
   const parents = useObservable(() => repos.parents.observe(), []);
 
-  // T-384 — the pending parent removal (ConfirmModal-guarded).
   const [pendingDelete, setPendingDelete] = useState<Parent | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // T-384 — destructive action, permission-gated (SuperAdmin by default;
-  // the RBAC matrix editor can grant it to other roles later).
   const canDeleteParent =
     !!session && session.permissions.has(Permission.DeleteParent);
 
-  // T-384 — remove the parent. Repository semantics: refused with a conflict
-  // while ACTIVE students are still attached (remove/reassign them first);
-  // otherwise soft-delete (deleted_at + is_active=false) — the financial
-  // history (installments, payments, ledger) is preserved.
   async function handleDeleteParent(): Promise<void> {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -522,7 +359,7 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
       if (result.ok) {
         toast.showSuccess(
           "Parent supprimé",
-          `${parentDisplayName(pendingDelete)} (${pendingDelete.code}) a été retiré de l'annuaire — l'historique financier et les archives restent conservés.`,
+          `${parentDisplayName(pendingDelete)} a été retiré.`,
         );
       } else {
         toast.showError("Suppression échouée", result.error.userMessage);
@@ -535,21 +372,30 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
 
   const columns: readonly DataTableColumn<Parent>[] = [
     {
-      header: "Nom",
+      header: "Nom du Parent",
       accessor: (p) => parentDisplayName(p),
       cell: (p) => (
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
-            <AvatarFallback>
+            <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
               {p.firstName[0]}
               {p.lastName[0]}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {parentDisplayName(p)}
-            </p>
-            <span className="font-mono text-[11px] text-muted-foreground">{p.code}</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => onOpenParent(p.id)}
+                className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+              >
+                {parentDisplayName(p)}
+              </button>
+              <ParentActionsMenu parent={p} />
+            </div>
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {p.code}
+            </span>
           </div>
         </div>
       ),
@@ -562,29 +408,16 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
     {
       header: "Adresse",
       accessor: "address",
-      cell: (p) => <span className="text-xs text-muted-foreground">{p.address ?? "—"}</span>,
+      cell: (p) => (
+        <span className="text-xs text-muted-foreground">
+          {p.address ?? "—"}
+        </span>
+      ),
       className: "hidden md:table-cell",
     },
   ];
 
-
   const actions: readonly DataTableAction<Parent>[] = [
-    {
-      label: "WhatsApp",
-      icon: <MessageCircle className="h-4 w-4 text-status-success" />,
-      variant: "ghost",
-      onClick: (p) => {
-        const clean = (p.whatsapp || p.phone || "").replace(/[\s+]/g, "");
-        if (clean) window.open(`https://wa.me/${clean}`);
-      },
-    },
-    {
-      label: "",
-      icon: <Mail className="h-4 w-4" />,
-      variant: "ghost",
-      onClick: (p) => window.open(`mailto:${p.email}`),
-      disabled: (p) => !p.email,
-    },
     {
       label: "Consulter",
       icon: <Eye className="h-4 w-4" />,
@@ -624,7 +457,13 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
           data={parents}
           columns={columns}
           actions={actions}
-          searchFields={["firstName", "lastName", "displayName", "phone", "code"]}
+          searchFields={[
+            "firstName",
+            "lastName",
+            "displayName",
+            "phone",
+            "code",
+          ]}
           searchPlaceholder="Rechercher par nom, téléphone, code…"
           emptyMessage="Aucun parent ne correspond à votre recherche."
           onRowClick={(p) => onOpenParent(p.id)}
@@ -633,16 +472,11 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
         />
       </CardContent>
 
-      {/* T-384 — the parent-removal confirmation (destructive). */}
       <ConfirmModal
         open={pendingDelete !== null}
         onOpenChange={(o) => !o && setPendingDelete(null)}
         title="Supprimer ce parent ?"
-        description={
-          pendingDelete
-            ? `${parentDisplayName(pendingDelete)} (${pendingDelete.code}) sera retiré de l'annuaire actif. L'historique financier et les archives restent conservés (suppression logique). La suppression est refusée tant que des élèves actifs lui sont rattachés. Action irréversible.`
-            : "Le parent sera retiré de l'annuaire. Action irréversible."
-        }
+        description="Cette action est irréversible."
         confirmLabel={deleting ? "Suppression…" : "Supprimer"}
         destructive
         onConfirm={handleDeleteParent}
@@ -651,31 +485,25 @@ function ParentsTab({ onOpenParent }: { onOpenParent: (id: string) => void }) {
   );
 }
 
-// ============================================================================
-// StudentsTab — DataTable<Student> with row-level actions
-// T-381: + the "Supprimer" row action (ConfirmModal-guarded, Permission.DeleteStudent)
-// ============================================================================
-
-function StudentsTab({ onOpenStudent, onAddStudent }: { onOpenStudent: (id: string) => void; onAddStudent?: () => void }) {
+function StudentsTab({
+  onOpenStudent,
+  onAddStudent,
+}: {
+  onOpenStudent: (id: string) => void;
+  onAddStudent?: () => void;
+}) {
   const repos = useRepositories();
   const toast = useToast();
   const { session } = useAuth();
   const students = useObservable(() => repos.students.observe(), []);
-  // T-413: the family names for the 3-dot menu subtitles (the canonical
-  // parents repository — the same stream the parents tab consumes).
   const parentsList = useObservable(() => repos.parents.observe(), []) ?? [];
 
-  // T-381 — the pending student removal (ConfirmModal-guarded).
   const [pendingDelete, setPendingDelete] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // T-381 — destructive action, permission-gated (SuperAdmin by default;
-  // the RBAC matrix editor can grant it to other roles later).
   const canDeleteStudent =
     !!session && session.permissions.has(Permission.DeleteStudent);
 
-  // T-381 — soft-delete the student (repository sets deleted_at + is_active=false;
-  // the operational streams filter it out; the financial history is preserved).
   async function handleDeleteStudent(): Promise<void> {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -684,7 +512,7 @@ function StudentsTab({ onOpenStudent, onAddStudent }: { onOpenStudent: (id: stri
       if (result.ok) {
         toast.showSuccess(
           "Élève supprimé",
-          `${pendingDelete.firstName} ${pendingDelete.lastName} (${pendingDelete.code}) a été retiré de l'annuaire — l'historique financier et les archives sont conservés.`,
+          `${pendingDelete.firstName} ${pendingDelete.lastName} a été retiré.`,
         );
       } else {
         toast.showError("Suppression échouée", result.error.userMessage);
@@ -697,26 +525,45 @@ function StudentsTab({ onOpenStudent, onAddStudent }: { onOpenStudent: (id: stri
 
   const columns: readonly DataTableColumn<Student>[] = [
     {
-      header: "Nom",
+      header: "Nom de l'Élève",
       accessor: (s) => `${s.firstName} ${s.lastName}`,
       cell: (s) => (
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
-            <AvatarFallback>
-              {s.firstName[0]}{s.lastName[0]}
+            <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
+              {s.firstName[0]}
+              {s.lastName[0]}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {s.firstName} {s.lastName}
-            </p>
-            <span className="font-mono text-[11px] text-muted-foreground">{s.code}</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => onOpenStudent(s.id)}
+                className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+              >
+                {s.firstName} {s.lastName}
+              </button>
+              <StudentActionsMenu
+                student={s}
+                parentName={
+                  parentsList.find((p) => p.id === s.parentId)
+                    ? parentDisplayName(
+                        parentsList.find((p) => p.id === s.parentId)!,
+                      )
+                    : null
+                }
+              />
+            </div>
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {s.code}
+            </span>
           </div>
         </div>
       ),
     },
     {
-      header: "Niveau",
+      header: "Palier & Niveau",
       accessor: "level",
       cell: (s) => (
         <span className="text-xs text-muted-foreground">
@@ -735,24 +582,11 @@ function StudentsTab({ onOpenStudent, onAddStudent }: { onOpenStudent: (id: stri
       ),
       sortable: true,
     },
-    {
-      // T-413: the standardized 3-dot cross-section menu ("Ouvrir dans…") —
-      // the same component on every student reference in the application.
-      header: "",
-      accessor: (s) => s.id,
-      cell: (s) => (
-        <StudentActionsMenu
-          student={s}
-          parentName={
-            parentsList.find((p) => p.id === s.parentId)
-              ? parentDisplayName(parentsList.find((p) => p.id === s.parentId)!)
-              : null
-          }
-        />
-      ),
-      sortable: false,
-    },
   ];
+
+  // ============================================================================
+  // Continuation of elimtiyaz-desktop/src/features/crm/crm-page.tsx (StudentsTab)
+  // ============================================================================
 
   const actions: readonly DataTableAction<Student>[] = [
     {
@@ -787,9 +621,6 @@ function StudentsTab({ onOpenStudent, onAddStudent }: { onOpenStudent: (id: stri
   return (
     <Card>
       <CardContent className="p-3">
-        {/* T-437 (STUDENT-501 / issue #18 §8): the DIRECT add-student action —
-          no navigation to the parent's profile needed; the flow searches or
-          creates the parent first, then opens the PRE-FILLED student form. */}
         {onAddStudent && (
           <div className="flex justify-end pb-2">
             <Button size="sm" onClick={onAddStudent}>
@@ -810,15 +641,14 @@ function StudentsTab({ onOpenStudent, onAddStudent }: { onOpenStudent: (id: stri
         />
       </CardContent>
 
-      {/* T-381 — the student-removal confirmation (destructive). */}
       <ConfirmModal
         open={pendingDelete !== null}
         onOpenChange={(o) => !o && setPendingDelete(null)}
         title="Supprimer cet élève ?"
         description={
           pendingDelete
-            ? `${pendingDelete.firstName} ${pendingDelete.lastName} (${pendingDelete.code}) sera retiré de l'annuaire actif. L'historique financier, les notes et les archives restent conservés (suppression logique). Action irréversible.`
-            : "L'élève sera retiré de l'annuaire. Action irréversible."
+            ? `${pendingDelete.firstName} ${pendingDelete.lastName} (${pendingDelete.code}) sera retiré de l'annuaire actif. L'historique financier et les notes restent conservés.`
+            : "L'élève sera retiré de l'annuaire."
         }
         confirmLabel={deleting ? "Suppression…" : "Supprimer"}
         destructive

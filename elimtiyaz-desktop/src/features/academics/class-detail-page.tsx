@@ -498,6 +498,12 @@ export function ClassDetailPage() {
                     élève » pour inscrire des élèves.
                   </li>
                 ) : (
+
+
+
+                  
+
+                  // Inside ClassDetailPage student roster mapping:
                   students.map((s) => (
                     <li
                       key={s.id}
@@ -510,16 +516,20 @@ export function ClassDetailPage() {
                       )}
                     >
                       <Avatar className="h-9 w-9">
-                        <AvatarFallback>
+                        <AvatarFallback className="font-bold text-xs bg-primary/10 text-primary">
                           {s.firstName[0]}
                           {s.lastName[0]}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">
+                          <button
+                            type="button"
+                            onClick={() => openStudent(s.id)}
+                            className="text-sm font-semibold text-foreground hover:text-primary hover:underline text-left truncate"
+                          >
                             {s.firstName} {s.lastName}
-                          </p>
+                          </button>
                           <span className="font-mono text-xs text-muted-foreground">
                             {s.code}
                           </span>
@@ -555,15 +565,10 @@ export function ClassDetailPage() {
                           } else {
                             toast.showWarning(
                               "Choisissez une matière",
-                              "Sélectionnez d'abord une matière dans la liste « Choisir une matière à noter… » ci-dessus.",
+                              "Sélectionnez d'abord une matière dans la liste ci-dessus.",
                             );
                           }
                         }}
-                        title={
-                          gradeSubject && gradeSubject !== NO_SUBJECT
-                            ? "Saisir les notes"
-                            : "Choisissez d'abord une matière ci-dessus"
-                        }
                       >
                         <GraduationCap className="h-3.5 w-3.5" />
                       </Button>
