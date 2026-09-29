@@ -35,6 +35,9 @@ import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/re
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { MemoryRouter } from "react-router-dom";
+// T-444/UI-324: the new-UI navigation layer — the CRM page (and its row
+// menus) now consume the PersonNavigation context; the harness mounts it.
+import { PersonNavigationProvider } from "../../shared/navigation/person-navigation-context";
 import "../../i18n/i18n";
 
 // jsdom has no ResizeObserver — the DataTable's scroll container observes it.
@@ -302,7 +305,9 @@ describe("T-381 C. StudentsTab — the permission-gated Supprimer action", () =>
     };
     render(
       <MemoryRouter initialEntries={["/crm"]}>
-        <CrmPage />
+        <PersonNavigationProvider>
+          <CrmPage />
+        </PersonNavigationProvider>
       </MemoryRouter>,
     );
 
@@ -333,7 +338,9 @@ describe("T-381 C. StudentsTab — the permission-gated Supprimer action", () =>
     };
     render(
       <MemoryRouter initialEntries={["/crm"]}>
-        <CrmPage />
+        <PersonNavigationProvider>
+          <CrmPage />
+        </PersonNavigationProvider>
       </MemoryRouter>,
     );
 

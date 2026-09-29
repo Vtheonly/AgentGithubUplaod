@@ -264,7 +264,26 @@ async function renderDrawer(opts: { payment: Payment | null; canRefund: boolean 
   const permissions = new Set<Permission>([Permission.ViewRoster]);
   if (opts.canRefund) permissions.add(Permission.RefundPayment);
 
-  const obsOf = <T,>(value: T) => ({ get: () => value, subscribe: () => () => {} });
+  // T-444/UI-324: the new-UI drawer consumes the PersonNavigation context
+// (the payer/beneficiary cards' menus + the drawer's own open calls). This
+// suite's subject is the REFUND flow — the navigation layer is mocked as
+// inert no-ops (the real provider is exercised by the t-381/t-384/t-413
+// harnesses, which mount it with the full drawer stack).
+vi.mock("../../shared/navigation/person-navigation-context", () => ({
+  usePersonNavigation: () => ({
+    openStudent: vi.fn(),
+    openParent: vi.fn(),
+    closeStudent: vi.fn(),
+    closeParent: vi.fn(),
+    navigateToStudent: vi.fn(),
+    navigateToParent: vi.fn(),
+    activeStudentId: null,
+    activeParentId: null,
+  }),
+  PersonNavigationProvider: ({ children }: { children: import("react").ReactNode }) => children,
+}));
+
+const obsOf = <T,>(value: T) => ({ get: () => value, subscribe: () => () => {} });
 
   const auth = await import("../../app/providers/auth-provider");
   const reposMod = await import("../../app/providers/repository-provider");
@@ -282,8 +301,12 @@ async function renderDrawer(opts: { payment: Payment | null; canRefund: boolean 
       observeById: () => obsOf(opts.payment),
       refund: async () => ({ ok: true, value: opts.payment }) as never,
     },
-    parents: { observe: () => obsOf([]) },
-    students: { observe: () => obsOf([]) },
+    // T-444/UI-324: the new-UI drawer resolves the payer + beneficiary
+    // cards through observeById streams (the pre-redesign drawer only
+    // listed payments) — the harness mocks them as empty (no parent /
+    // student cards render; the refund path under test is unaffected).
+    parents: { observe: () => obsOf([]), observeById: () => obsOf(null) },
+    students: { observe: () => obsOf([]), observeById: () => obsOf(null) },
   } as never);
   vi.spyOn(toastMod, "useToast").mockReturnValue(toastStub as never);
 
@@ -304,22 +327,22 @@ describe("T-014 — PaymentDetailDrawer refund action (DEAD-015)", () => {
 
   it("shows the refund button for a paid payment when the session holds RefundPayment", async () => {
     await renderDrawer({ payment: makePayment({}), canRefund: true });
-    expect(await screen.findByText(/Rembourser ce paiement/)).toBeDefined();
+    expect(await screen.findByText(/Rembourser ce versement/)).toBeDefined();
   });
 
   it("hides the refund button without the permission", async () => {
     await renderDrawer({ payment: makePayment({}), canRefund: false });
-    expect(screen.queryByText(/Rembourser ce paiement/)).toBeNull();
+    expect(screen.queryByText(/Rembourser ce versement/)).toBeNull();
   });
 
   it("hides the refund button for a refunded payment (not revertible)", async () => {
     await renderDrawer({ payment: makePayment({ status: "refunded" }), canRefund: true });
-    expect(screen.queryByText(/Rembourser ce paiement/)).toBeNull();
+    expect(screen.queryByText(/Rembourser ce versement/)).toBeNull();
   });
 
   it("opens the reason modal and refuses a too-short reason", async () => {
     await renderDrawer({ payment: makePayment({}), canRefund: true });
-    fireEvent.click(await screen.findByText(/Rembourser ce paiement/));
+    fireEvent.click(await screen.findByText(/Rembourser ce versement/));
     // The modal asks for the reason.
     expect(await screen.findByText(/Motif du remboursement/)).toBeDefined();
     // ConfirmModal portals to document.body — query the document, not the render container.

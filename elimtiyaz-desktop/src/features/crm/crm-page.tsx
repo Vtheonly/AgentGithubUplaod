@@ -602,6 +602,8 @@ function StudentsTab({
               >
                 {s.firstName} {s.lastName}
               </button>
+              {/* T-413: the standardized 3-dot cross-section menu — every
+                  student reference mounts the SAME component (no forks). */}
               <StudentActionsMenu
                 student={s}
                 parentName={

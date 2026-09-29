@@ -367,16 +367,27 @@ export function PaymentDetailDrawer({
         title="Rembourser ce paiement"
         description={
           <div className="space-y-2">
-            <p>Le montant sera contrepassé du grand livre et les tranches rouvertes.</p>
-            <input
-              value={refundReason}
-              onChange={(e) => setRefundReason(e.target.value)}
-              placeholder="Motif du remboursement…"
-              className="w-full rounded border px-3 py-1.5 text-xs"
-            />
+            {/* T-444/UI-324 restored: the informative refund body (1cead9d
+                shortened it to a bare placeholder — the operator lost the
+                LIFO/ledger explanation AND the mandatory-reason rule). */}
+            <p>
+              Le paiement {entity?.receiptNumber} ({entity ? formatDzd(entity.amount) : ""}) sera
+              remboursé. L'allocation sera inversée (LIFO), une écriture de contrepassation sera
+              enregistrée au ledger et les tranches concernées seront rouvertes. Cette action est
+              journalisée avec votre identité et le motif saisi.
+            </p>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium">Motif du remboursement (obligatoire, 3 caractères minimum) :</span>
+              <input
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="ex. Erreur de saisie — doublon annulé par la direction"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
           </div>
         }
-        confirmLabel="Rembourser"
+        confirmLabel="Confirmer le remboursement"
         onConfirm={handleRefund}
       />
     </>

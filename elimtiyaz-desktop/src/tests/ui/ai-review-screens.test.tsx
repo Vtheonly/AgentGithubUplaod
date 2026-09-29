@@ -25,6 +25,8 @@
  */
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { PersonNavigationProvider } from "../../shared/navigation/person-navigation-context";
 import type { ReactNode } from "react";
 
 // jsdom has no ResizeObserver — PageTabList (used by the SeeDetailsModal and
@@ -459,11 +461,18 @@ describe("T-252 — ParentDetailDrawer (coverage + 1-click tranche collect)", ()
     );
     expect(openForPar002.length).toBeGreaterThan(0);
 
+    // T-444/UI-324: the new-UI drawer consumes the PersonNavigation context
+    // (which needs a Router); the harness mounts both inside the existing
+    // provider stack.
     render(
       <ToastProvider>
         <AuthProvider>
           <RepositoryProvider repositories={mockRepositories}>
-            <ParentDetailDrawer parentId="par-002" open onOpenChange={() => {}} />
+            <MemoryRouter>
+              <PersonNavigationProvider>
+                <ParentDetailDrawer parentId="par-002" open onOpenChange={() => {}} />
+              </PersonNavigationProvider>
+            </MemoryRouter>
           </RepositoryProvider>
         </AuthProvider>
       </ToastProvider>,

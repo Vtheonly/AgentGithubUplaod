@@ -26,6 +26,13 @@
  */
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
+// T-444/UI-324: the new-UI navigation layer — AnalyticsTab consumes the
+// PersonNavigation context (which itself needs a Router); the harness
+// mounts both.
+import { MemoryRouter } from "react-router-dom";
+import { PersonNavigationProvider } from "../../shared/navigation/person-navigation-context";
+import { ToastProvider } from "../../app/providers/toast-provider";
+import { AuthProvider } from "../../app/providers/auth-provider";
 import type { ReactNode } from "react";
 
 // jsdom has no ResizeObserver — the page chrome needs one. Local stub
@@ -424,7 +431,17 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
   // The diagnostic default view is exercised by the operational-query-
   // engine suites; nothing here overwrites the owner's layout.
   function renderChartsView(props: Partial<AnalyticsTabProps> = {}) {
-    render(<AnalyticsTab {...TAB_PROPS} {...props} />);
+    render(
+      <ToastProvider>
+        <AuthProvider>
+          <MemoryRouter>
+            <PersonNavigationProvider>
+              <AnalyticsTab {...TAB_PROPS} {...props} />
+            </PersonNavigationProvider>
+          </MemoryRouter>
+        </AuthProvider>
+      </ToastProvider>,
+    );
     fireEvent.click(
       screen.getByRole("button", { name: /Flux Financiers \(métriques réelles\)/ }),
     );
@@ -433,7 +450,17 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
 
   it("T-339: the DEFAULT view is the Executive Command Center (Pilotage)", () => {
     // No mode click — the tab opens on "pilotage" by default.
-    render(<AnalyticsTab {...TAB_PROPS} />);
+    render(
+      <ToastProvider>
+        <AuthProvider>
+          <MemoryRouter>
+            <PersonNavigationProvider>
+              <AnalyticsTab {...TAB_PROPS} />
+            </PersonNavigationProvider>
+          </MemoryRouter>
+        </AuthProvider>
+      </ToastProvider>,
+    );
     expect(screen.getByTestId("executive-dashboard")).toBeInTheDocument();
     expect(screen.getByTestId("triple-risk-summary-card")).toBeInTheDocument();
     expect(screen.getByTestId("wave-velocity-card")).toBeInTheDocument();
