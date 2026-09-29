@@ -446,10 +446,11 @@ begin
     end;
 end $gate$;
 
--- ─── Report ──────────────────────────────────────────────────────────────
-select check_id, ok, detail from t405_results order by check_id;
-
-ROLLBACK;
+-- (T-446 note: the Report SELECT + ROLLBACK moved to the TRUE end of the
+-- file, after the T-429 amendment block below. As previously ordered —
+-- report → ROLLBACK → T-429 block — the block ran after the transaction's
+-- temp table was already destroyed (psql: 42P01) and its rows could never
+-- reach the report; both execution paths are correct now.)
 
 
 -- ----------------------------------------------------------------------------
@@ -471,6 +472,19 @@ declare
     v text;
     thresholds record;
 begin
+    -- T-446: restore the elevated session context. The C12 gate block
+    -- above ends with `set local role authenticated` + a role-less
+    -- synthetic sub — under that context system_settings' RLS (0024)
+    -- hides the debt rows and this block's counts read n=0 (observed on
+    -- the first live run). The script's ORIGINAL context (the line-47
+    -- service_role claims + the endpoint's postgres session role — the
+    -- same context Block A inserts under) is what this amendment block
+    -- was designed for (the psql run of the original design had no
+    -- claims at all after its ROLLBACK).
+    perform pg_catalog.set_config('role', 'none', true);
+    perform pg_catalog.set_config('request.jwt.claims',
+        '{"sub": "00000000-0000-0000-0000-000000000000", "role": "service_role"}', true);
+
     select tenant_id into v_tenant from public.system_settings limit 1;
 
     -- T1: the four seeded settings with the owner defaults.
@@ -517,4 +531,9 @@ begin
         'len=' || length(v));
 end
 $$;
+
+-- ─── Report (the TRUE end — after EVERY results-producing block) ──────────
+select check_id, ok, detail from t405_results order by check_id;
+
+ROLLBACK;
 
