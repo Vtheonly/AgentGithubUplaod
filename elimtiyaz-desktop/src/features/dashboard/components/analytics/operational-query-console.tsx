@@ -903,6 +903,11 @@ export function OperationalQueryConsole({ profiles }: Props) {
                                   p.studentName.split(" ").slice(1).join(" ") ??
                                   "",
                                 parentId: p.parentId,
+                                // T-444/UI-324: the profile carries the
+                                // canonical classId — required by the menu's
+                                // Student contract (the "Ouvrir la classe"
+                                // deep link).
+                                classId: p.classId,
                               }}
                               parentName={p.parentName}
                             />

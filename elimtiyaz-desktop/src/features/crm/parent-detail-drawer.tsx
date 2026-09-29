@@ -934,10 +934,9 @@ function FinancesTab({
         {outstanding < 0 ? (
           <BalanceCard
             label="Crédit parent"
-            value={displayParentCredit(
-              outstanding,
-              profile?.totalUnallocatedCredit ?? 0,
-            )}
+            // T-444/UI-324: kept single-line — the t-104 source-scan guard
+            // pins the ADR-010 derivation call on the dossier card.
+            value={displayParentCredit(outstanding, profile?.totalUnallocatedCredit ?? 0)}
             tone="success"
             sub="Avance disponible"
           />

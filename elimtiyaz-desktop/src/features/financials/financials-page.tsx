@@ -599,6 +599,9 @@ interface EnrichedPaymentRow extends Payment {
   readonly parentName: string;
   readonly parentCode: string;
   readonly studentName: string;
+  /** T-444/UI-324: the linked student's canonical classId — feeds the
+   * StudentActionsMenu's "Ouvrir la classe" deep link. */
+  readonly studentClassId: string | null;
   readonly exactDateTime: string;
 }
 
@@ -630,6 +633,7 @@ function PaymentsTab({
         parentName,
         parentCode: par?.code ?? "",
         studentName,
+        studentClassId: stu?.classId ?? null,
         exactDateTime: formatDateTime(p.collectedAt),
       };
     });
@@ -693,6 +697,9 @@ function PaymentsTab({
                         firstName: p.studentName.split(" ")[0] ?? p.studentName,
                         lastName: p.studentName.split(" ").slice(1).join(" ") ?? "",
                         parentId: p.parentId,
+                        // T-444/UI-324: the menu's Student contract requires
+                        // the canonical classId (the "Ouvrir la classe" link).
+                        classId: p.studentClassId,
                       }}
                       parentName={p.parentName}
                     />

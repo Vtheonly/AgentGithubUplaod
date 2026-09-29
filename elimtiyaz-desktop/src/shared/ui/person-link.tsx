@@ -68,7 +68,9 @@ export function PersonLink({
                 firstName: name.split(" ")[0] ?? name,
                 lastName: name.split(" ").slice(1).join(" ") ?? "",
                 parentId: extraContext?.parentId ?? "",
-                classId: extraContext?.classId,
+                // T-444/UI-324: the Student contract requires `string | null`
+                // (never `undefined`) — the ?? null coalesce fixes tsc 2322.
+                classId: extraContext?.classId ?? null,
               }}
               parentName={extraContext?.parentName}
             />
