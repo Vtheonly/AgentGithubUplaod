@@ -106,6 +106,16 @@ export interface GenerateTimetableOptions {
    */
   readonly fromVersionId?: string | null;
   /**
+   * T-441 — SINGLE-CLASS / PARTIAL generation: the subset of classes to
+   * (re)generate. Undefined/empty = the WHOLE SCHOOL. When set, every
+   * OTHER class's entries are carried over from the reference version
+   * (fromVersionId if given, else the published version) — they pre-occupy
+   * the teacher/room busy grids so the regenerated classes can NEVER
+   * conflict with them, and the new version stays a complete school
+   * snapshot.
+   */
+  readonly classIds?: readonly string[];
+  /**
    * REAL-TIME generation progress (T-409 / SCHED-111): receives the run's
    * actual stages (loading → preparing → placing → repairing → validating
    * → saving) with cumulative REAL work-unit counters — never a timer.

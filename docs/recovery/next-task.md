@@ -1,3 +1,25 @@
+# 2026-09-30 — T-441 COMPLETE (120th session): the timetable generation correctness mandate — the three-gate pipeline (feasibility / fail-closed persistence / independent post-persist validation), the solver v1.3.0 (SCHED-110 + SCHED-113 + continuity), the single-class mode, the live purge — SCHED-113/SCHED-114 found-and-fixed, 4,506/4,484/17 BASELINE-MATCHED
+
+**The 120th session delivered the owner's core timetable mandate end to end.** The trigger was the owner's live symptom: « sometimes when it runs it said 17 echecs … if something is insufficient it should bring what it is — i dont want it to bring up faulty time table. » The symptom was reproduced deterministically (locked pins + the SCHED-110 corner → the OLD pipeline persisted the partial draft and showed « N bloc(s) non placé(s) »), and the fix inverts the failure direction at every layer:
+
+1. **Gate 1 — feasibility pre-analysis** (the fresh `src/domain/calc/timetable/feasibility.ts`): a pure necessary-conditions analysis over the canonical model — 11 issue kinds, each message naming the class/subject/teacher/room/day/period/constraint AND the missing amount (« il manque N périodes »). Impossible inputs are rejected BEFORE any version exists.
+2. **Gate 2 — fail-closed persistence:** unplaced blocks or ANY hard violation → the numbered French report, NOTHING persisted. A partial or invalid timetable can no longer exist as a draft.
+3. **Gate 3 — independent post-persist validation:** the persisted rows are RE-READ and re-validated (row count, duplicates, canonical hard violations, coverage gaps AND excesses) with automatic rollback. Never trust the generator.
+4. **The solver v1.3.0:** the bounded deterministic eviction repair (SCHED-110 closed), the pinned-coverage subtraction (SCHED-113 — regenerations no longer duplicate pinned lessons; the excess is now the hard violation `excess_weekly_hours`), and the preferred-slot continuity hint (the source schedule as deterministic placement preferences — 0 unplaced at every tested pin density 0–50% on the live problem shape, where the old solver persisted 5/29-block partial drafts).
+5. **The single-class + whole-school modes:** `classIds` carries the other classes' entries as immovable busy-grid occupants — conflicts with the reference schedule are structurally impossible; the version stays a complete school snapshot.
+
+**Gates:** tsc 0 · eslint 0 · the four T-441 suites 55/55 (feasibility 23 · solver-repair 12 · gates 11 · duplicate-lesson 9 RED-first) · T-404/T-409/T-410 re-run green (115/115 across the seven timetable files) · FULL vitest 4,506/4,484/17 — BASELINE-MATCHED (the failing set byte-identical, every one pre-existing and non-timetable) · the offline live-problem run: 118/118 periods, 0 unplaced, 0 hard, 0 gaps, 0 excess. Registry: +SCHED-113/+SCHED-114 RESOLVED/TESTED (443). Knowledge: AGENTS.md §15.73 · docs/recovery/t-441-live-verification.md.
+
+## Standing recommendation (updated by the 120th session)
+
+1. **The owner's live confirmation (one command, owner-gated):** reveal the default `sb_secret_` service key in the Supabase dashboard (Settings → API Keys) and run `SUPABASE_SERVICE_KEY=sb_secret_... npx tsx scripts/t-441-live-e2e.ts` — the full DB-1..DB-9 ladder (purge state → live export → Gate 1 → solve → validation → the repository's exact insert → re-read → Gate 3 → the census, with automatic rollback on any failure). OR simply run the app's first generation (Académique → Emploi du temps → « École entière » → Générer) — the identical repository path.
+2. **THE #1 STANDING ITEM (unchanged): apply migration 0132 LIVE** (SEC-115) — a fresh SUPABASE_ACCESS_TOKEN → `./scripts/apply_0132_live.sh` → `verify_t-439.sql`. The same key-reveal unblocks both items.
+3. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
+4. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322.
+5. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the T-429 ports · the 17-failure environment-class baseline (pre-existing, non-timetable — every one re-characterized at T-440).
+
+---
+
 # 2026-09-29 — T-440 COMPLETE (119th session): the final verification of the last ~40 commits (T-434..T-439) — the full local suite + the LIVE migration census + the SEC-115 behavioral proof + DATA-058 found-and-fixed (the T-437 mock's inline parent-name composition that silently joined the red t-134 guard; the guard now pins its documented offender list)
 
 **The 119th session delivered the owner's final-final-final mandate.** The verification ran BOTH channels on the pristine T-439 delivery tree: the full unified suite (Layers 0-3) and the LIVE data-gateway census (the Management API stayed blocked — the re-supplied keys are not Management-API credentials, and the anon JWT in the block is a corrupted copy: iat = year 2537, one extra digit vs its service_role sibling — decode before concluding rotation, §15.72c).

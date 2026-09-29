@@ -1,0 +1,1253 @@
+{
+ "class_subjects": [
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "45d15655-18f2-41e8-99a4-aca101f48f44",
+   "subjects": {
+    "code": "ARABE",
+    "name_fr": "Langue arabe"
+   },
+   "teacher_id": "1aeb1a80-8dce-4068-bc41-8bb3c7f06856",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6fa4c9bd-1452-4dba-8980-9309e2eadf5c",
+   "subjects": {
+    "code": "FRANCAIS",
+    "name_fr": "Langue fran\u00e7aise"
+   },
+   "teacher_id": "6a771bdf-70d6-47e7-9687-2bfd19b8343f",
+   "weekly_hours": 3.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6e4168b4-92c4-41b7-8597-3bdb4261d58f",
+   "subjects": {
+    "code": "MATHS",
+    "name_fr": "Math\u00e9matiques"
+   },
+   "teacher_id": "275ce0a7-7140-4d7d-bdb9-fc32f2e5f257",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "958de137-bf43-4a24-81ea-675ee4054b8f",
+   "subjects": {
+    "code": "ANGLAIS",
+    "name_fr": "Langue anglaise"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "c597e1a4-ec73-4f52-b390-2e0a720f1515",
+   "subjects": {
+    "code": "EDU_ISLAM",
+    "name_fr": "\u00c9ducation islamique"
+   },
+   "teacher_id": "aa86d8af-539c-4230-b88c-f21ff1bdd1c9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "5f051283-f409-48d3-914c-c66af74343fd",
+   "subjects": {
+    "code": "EDU_ARTISTIQUE",
+    "name_fr": "\u00c9ducation artistique"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "sports",
+   "subject_id": "3bf430bc-2aa7-4cc1-9b3d-d8224f661415",
+   "subjects": {
+    "code": "EPS",
+    "name_fr": "\u00c9ducation physique et sportive"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "computer_lab",
+   "subject_id": "a9bf074c-d5bb-4b0f-a207-e399eb8d781c",
+   "subjects": {
+    "code": "INFORMATIQUE",
+    "name_fr": "Informatique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "ac6a55e9-4827-48de-a16d-a6a8de92dcab",
+   "subjects": {
+    "code": "EVEIL_SCI",
+    "name_fr": "\u00c9veil scientifique et technologique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "a794002d-0baf-4c5a-bc85-04efe6adca12",
+   "subjects": {
+    "code": "HIST_GEO",
+    "name_fr": "Histoire et g\u00e9ographie"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-A",
+    "name": "FAKE 1AM \u2014 Section A"
+   },
+   "consecutive_periods": 2,
+   "required_room_type": "computer_lab",
+   "subject_id": "eab22cd5-1a1a-467d-845a-ccfdc3e8ff7f",
+   "subjects": {
+    "code": "FAKE-ROBOTIQUE",
+    "name_fr": "FAKE Robotique \u00e9ducative"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "45d15655-18f2-41e8-99a4-aca101f48f44",
+   "subjects": {
+    "code": "ARABE",
+    "name_fr": "Langue arabe"
+   },
+   "teacher_id": "1aeb1a80-8dce-4068-bc41-8bb3c7f06856",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6fa4c9bd-1452-4dba-8980-9309e2eadf5c",
+   "subjects": {
+    "code": "FRANCAIS",
+    "name_fr": "Langue fran\u00e7aise"
+   },
+   "teacher_id": "6a771bdf-70d6-47e7-9687-2bfd19b8343f",
+   "weekly_hours": 3.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6e4168b4-92c4-41b7-8597-3bdb4261d58f",
+   "subjects": {
+    "code": "MATHS",
+    "name_fr": "Math\u00e9matiques"
+   },
+   "teacher_id": "275ce0a7-7140-4d7d-bdb9-fc32f2e5f257",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "958de137-bf43-4a24-81ea-675ee4054b8f",
+   "subjects": {
+    "code": "ANGLAIS",
+    "name_fr": "Langue anglaise"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "c597e1a4-ec73-4f52-b390-2e0a720f1515",
+   "subjects": {
+    "code": "EDU_ISLAM",
+    "name_fr": "\u00c9ducation islamique"
+   },
+   "teacher_id": "aa86d8af-539c-4230-b88c-f21ff1bdd1c9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "5f051283-f409-48d3-914c-c66af74343fd",
+   "subjects": {
+    "code": "EDU_ARTISTIQUE",
+    "name_fr": "\u00c9ducation artistique"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "sports",
+   "subject_id": "3bf430bc-2aa7-4cc1-9b3d-d8224f661415",
+   "subjects": {
+    "code": "EPS",
+    "name_fr": "\u00c9ducation physique et sportive"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "computer_lab",
+   "subject_id": "a9bf074c-d5bb-4b0f-a207-e399eb8d781c",
+   "subjects": {
+    "code": "INFORMATIQUE",
+    "name_fr": "Informatique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "ac6a55e9-4827-48de-a16d-a6a8de92dcab",
+   "subjects": {
+    "code": "EVEIL_SCI",
+    "name_fr": "\u00c9veil scientifique et technologique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "classes": {
+    "capacity": 32,
+    "code": "CLS-FAKE-1AM-B",
+    "name": "FAKE 1AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "a794002d-0baf-4c5a-bc85-04efe6adca12",
+   "subjects": {
+    "code": "HIST_GEO",
+    "name_fr": "Histoire et g\u00e9ographie"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "45d15655-18f2-41e8-99a4-aca101f48f44",
+   "subjects": {
+    "code": "ARABE",
+    "name_fr": "Langue arabe"
+   },
+   "teacher_id": "1aeb1a80-8dce-4068-bc41-8bb3c7f06856",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6fa4c9bd-1452-4dba-8980-9309e2eadf5c",
+   "subjects": {
+    "code": "FRANCAIS",
+    "name_fr": "Langue fran\u00e7aise"
+   },
+   "teacher_id": "6a771bdf-70d6-47e7-9687-2bfd19b8343f",
+   "weekly_hours": 3.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6e4168b4-92c4-41b7-8597-3bdb4261d58f",
+   "subjects": {
+    "code": "MATHS",
+    "name_fr": "Math\u00e9matiques"
+   },
+   "teacher_id": "275ce0a7-7140-4d7d-bdb9-fc32f2e5f257",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "958de137-bf43-4a24-81ea-675ee4054b8f",
+   "subjects": {
+    "code": "ANGLAIS",
+    "name_fr": "Langue anglaise"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "c597e1a4-ec73-4f52-b390-2e0a720f1515",
+   "subjects": {
+    "code": "EDU_ISLAM",
+    "name_fr": "\u00c9ducation islamique"
+   },
+   "teacher_id": "aa86d8af-539c-4230-b88c-f21ff1bdd1c9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "5f051283-f409-48d3-914c-c66af74343fd",
+   "subjects": {
+    "code": "EDU_ARTISTIQUE",
+    "name_fr": "\u00c9ducation artistique"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "sports",
+   "subject_id": "3bf430bc-2aa7-4cc1-9b3d-d8224f661415",
+   "subjects": {
+    "code": "EPS",
+    "name_fr": "\u00c9ducation physique et sportive"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "computer_lab",
+   "subject_id": "a9bf074c-d5bb-4b0f-a207-e399eb8d781c",
+   "subjects": {
+    "code": "INFORMATIQUE",
+    "name_fr": "Informatique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "9d37f6e1-3c55-4b64-861c-1cf655b557bf",
+   "subjects": {
+    "code": "SVT",
+    "name_fr": "Sciences de la nature et de la vie"
+   },
+   "teacher_id": "a5529b1c-7521-49b1-8eb6-030515969a22",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "d240d026-c589-4edf-8873-d40a7fc00525",
+   "subjects": {
+    "code": "PHYSIQUE",
+    "name_fr": "Sciences physiques et technologiques"
+   },
+   "teacher_id": "a5529b1c-7521-49b1-8eb6-030515969a22",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-2AM-A",
+    "name": "FAKE 2AM \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "a794002d-0baf-4c5a-bc85-04efe6adca12",
+   "subjects": {
+    "code": "HIST_GEO",
+    "name_fr": "Histoire et g\u00e9ographie"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "45d15655-18f2-41e8-99a4-aca101f48f44",
+   "subjects": {
+    "code": "ARABE",
+    "name_fr": "Langue arabe"
+   },
+   "teacher_id": "aa86d8af-539c-4230-b88c-f21ff1bdd1c9",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6fa4c9bd-1452-4dba-8980-9309e2eadf5c",
+   "subjects": {
+    "code": "FRANCAIS",
+    "name_fr": "Langue fran\u00e7aise"
+   },
+   "teacher_id": "6a771bdf-70d6-47e7-9687-2bfd19b8343f",
+   "weekly_hours": 3.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6e4168b4-92c4-41b7-8597-3bdb4261d58f",
+   "subjects": {
+    "code": "MATHS",
+    "name_fr": "Math\u00e9matiques"
+   },
+   "teacher_id": "275ce0a7-7140-4d7d-bdb9-fc32f2e5f257",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "958de137-bf43-4a24-81ea-675ee4054b8f",
+   "subjects": {
+    "code": "ANGLAIS",
+    "name_fr": "Langue anglaise"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "c597e1a4-ec73-4f52-b390-2e0a720f1515",
+   "subjects": {
+    "code": "EDU_ISLAM",
+    "name_fr": "\u00c9ducation islamique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "sports",
+   "subject_id": "3bf430bc-2aa7-4cc1-9b3d-d8224f661415",
+   "subjects": {
+    "code": "EPS",
+    "name_fr": "\u00c9ducation physique et sportive"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "computer_lab",
+   "subject_id": "a9bf074c-d5bb-4b0f-a207-e399eb8d781c",
+   "subjects": {
+    "code": "INFORMATIQUE",
+    "name_fr": "Informatique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "9d37f6e1-3c55-4b64-861c-1cf655b557bf",
+   "subjects": {
+    "code": "SVT",
+    "name_fr": "Sciences de la nature et de la vie"
+   },
+   "teacher_id": "a5529b1c-7521-49b1-8eb6-030515969a22",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "d240d026-c589-4edf-8873-d40a7fc00525",
+   "subjects": {
+    "code": "PHYSIQUE",
+    "name_fr": "Sciences physiques et technologiques"
+   },
+   "teacher_id": "a5529b1c-7521-49b1-8eb6-030515969a22",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "a794002d-0baf-4c5a-bc85-04efe6adca12",
+   "subjects": {
+    "code": "HIST_GEO",
+    "name_fr": "Histoire et g\u00e9ographie"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "classes": {
+    "capacity": 30,
+    "code": "CLS-FAKE-4AM-B",
+    "name": "FAKE 4AM \u2014 Section B"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "03d3643c-ac63-4286-a4cf-3bd84a9b11c2",
+   "subjects": {
+    "code": "FAKE-THEATRE",
+    "name_fr": "FAKE Th\u00e9\u00e2tre et expression"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "45d15655-18f2-41e8-99a4-aca101f48f44",
+   "subjects": {
+    "code": "ARABE",
+    "name_fr": "Langue arabe"
+   },
+   "teacher_id": "aa86d8af-539c-4230-b88c-f21ff1bdd1c9",
+   "weekly_hours": 4.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6fa4c9bd-1452-4dba-8980-9309e2eadf5c",
+   "subjects": {
+    "code": "FRANCAIS",
+    "name_fr": "Langue fran\u00e7aise"
+   },
+   "teacher_id": "6a771bdf-70d6-47e7-9687-2bfd19b8343f",
+   "weekly_hours": 3.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "6e4168b4-92c4-41b7-8597-3bdb4261d58f",
+   "subjects": {
+    "code": "MATHS",
+    "name_fr": "Math\u00e9matiques"
+   },
+   "teacher_id": "a5529b1c-7521-49b1-8eb6-030515969a22",
+   "weekly_hours": 5.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "science_lab",
+   "subject_id": "d240d026-c589-4edf-8873-d40a7fc00525",
+   "subjects": {
+    "code": "PHYSIQUE",
+    "name_fr": "Sciences physiques et technologiques"
+   },
+   "teacher_id": "a5529b1c-7521-49b1-8eb6-030515969a22",
+   "weekly_hours": 3.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "sports",
+   "subject_id": "3bf430bc-2aa7-4cc1-9b3d-d8224f661415",
+   "subjects": {
+    "code": "EPS",
+    "name_fr": "\u00c9ducation physique et sportive"
+   },
+   "teacher_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "science_lab",
+   "subject_id": "9d37f6e1-3c55-4b64-861c-1cf655b557bf",
+   "subjects": {
+    "code": "SVT",
+    "name_fr": "Sciences de la nature et de la vie"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": "computer_lab",
+   "subject_id": "a9bf074c-d5bb-4b0f-a207-e399eb8d781c",
+   "subjects": {
+    "code": "INFORMATIQUE",
+    "name_fr": "Informatique"
+   },
+   "teacher_id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "weekly_hours": 1.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "a794002d-0baf-4c5a-bc85-04efe6adca12",
+   "subjects": {
+    "code": "HIST_GEO",
+    "name_fr": "Histoire et g\u00e9ographie"
+   },
+   "teacher_id": "aa86d8af-539c-4230-b88c-f21ff1bdd1c9",
+   "weekly_hours": 2.0
+  },
+  {
+   "class_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "classes": {
+    "capacity": 28,
+    "code": "CLS-FAKE-1AS-A",
+    "name": "FAKE 1\u00e8re AS \u2014 Section A"
+   },
+   "consecutive_periods": 1,
+   "required_room_type": null,
+   "subject_id": "958de137-bf43-4a24-81ea-675ee4054b8f",
+   "subjects": {
+    "code": "ANGLAIS",
+    "name_fr": "Langue anglaise"
+   },
+   "teacher_id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "weekly_hours": 2.0
+  }
+ ],
+ "classes": [
+  {
+   "capacity": 32,
+   "code": "CLS-FAKE-1AM-A",
+   "id": "cb9e1eb4-8bd0-42ec-8ddf-fb48da0ba9c2",
+   "name": "FAKE 1AM \u2014 Section A"
+  },
+  {
+   "capacity": 32,
+   "code": "CLS-FAKE-1AM-B",
+   "id": "d5033eef-be46-4b15-8843-1707e690bccd",
+   "name": "FAKE 1AM \u2014 Section B"
+  },
+  {
+   "capacity": 28,
+   "code": "CLS-FAKE-1AS-A",
+   "id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "name": "FAKE 1\u00e8re AS \u2014 Section A"
+  },
+  {
+   "capacity": 30,
+   "code": "CLS-FAKE-2AM-A",
+   "id": "cd539179-29c8-48c6-a1d5-ffa1880916fc",
+   "name": "FAKE 2AM \u2014 Section A"
+  },
+  {
+   "capacity": 30,
+   "code": "CLS-FAKE-4AM-B",
+   "id": "1a8fc89c-26c3-4902-86dc-e67e06cddc48",
+   "name": "FAKE 4AM \u2014 Section B"
+  }
+ ],
+ "configuration": {
+  "academic_year_id": "e90b43f6-17d7-47f6-bd80-25a93b553d8a",
+  "breaks": [
+   {
+    "afterPeriodIndex": 2,
+    "endMinutes": 615,
+    "label": "Pause",
+    "startMinutes": 600
+   },
+   {
+    "afterPeriodIndex": 4,
+    "endMinutes": 780,
+    "label": "D\u00e9jeuner",
+    "startMinutes": 735
+   }
+  ],
+  "created_at": "2026-09-21T20:50:30.453179+00:00",
+  "default_lesson_minutes": 60,
+  "id": "d23fb6d2-0749-4cc1-9a18-9b21fd9f1f75",
+  "is_active": true,
+  "label": "Profil alg\u00e9rien standard",
+  "max_periods_per_day": 6,
+  "periods": [
+   {
+    "endMinutes": 540,
+    "index": 1,
+    "label": "S1",
+    "startMinutes": 480
+   },
+   {
+    "endMinutes": 600,
+    "index": 2,
+    "label": "S2",
+    "startMinutes": 540
+   },
+   {
+    "endMinutes": 675,
+    "index": 3,
+    "label": "S3",
+    "startMinutes": 615
+   },
+   {
+    "endMinutes": 735,
+    "index": 4,
+    "label": "S4",
+    "startMinutes": 675
+   },
+   {
+    "endMinutes": 840,
+    "index": 5,
+    "label": "S5",
+    "startMinutes": 780
+   },
+   {
+    "endMinutes": 900,
+    "index": 6,
+    "label": "S6",
+    "startMinutes": 840
+   }
+  ],
+  "school_days": [
+   "sunday",
+   "monday",
+   "tuesday",
+   "wednesday",
+   "thursday"
+  ],
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "updated_at": "2026-09-21T22:27:32.125+00:00"
+ },
+ "constraints": [
+  {
+   "academic_year_id": "e90b43f6-17d7-47f6-bd80-25a93b553d8a",
+   "created_at": "2026-09-22T02:39:03.107839+00:00",
+   "entity_id": null,
+   "id": "5355a22d-2ed8-4bbf-8933-f4e5b72c9058",
+   "is_active": true,
+   "kind": "minimize_gaps",
+   "params": {
+    "_fake": true
+   },
+   "scope": "school",
+   "severity": "soft",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:39:03.107839+00:00"
+  },
+  {
+   "academic_year_id": "e90b43f6-17d7-47f6-bd80-25a93b553d8a",
+   "created_at": "2026-09-22T02:39:03.821419+00:00",
+   "entity_id": "a86a6b04-f11f-4007-b437-8cb0fecff172",
+   "id": "17e8f45c-ac6e-46dc-ae70-09372a5cc51e",
+   "is_active": true,
+   "kind": "prefer_morning",
+   "params": {
+    "_fake": true
+   },
+   "scope": "class",
+   "severity": "soft",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:39:03.821419+00:00"
+  },
+  {
+   "academic_year_id": "e90b43f6-17d7-47f6-bd80-25a93b553d8a",
+   "created_at": "2026-09-22T02:39:04.492858+00:00",
+   "entity_id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "id": "edb64b55-71ac-4c85-a04a-6609ee3efe75",
+   "is_active": true,
+   "kind": "unavailable_period",
+   "params": {
+    "_fake": true,
+    "day": "wednesday",
+    "periodIndex": 6
+   },
+   "scope": "teacher",
+   "severity": "hard",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:39:04.492858+00:00"
+  }
+ ],
+ "personnel": [
+  {
+   "first_name": "FAKE Omar",
+   "id": "a5529b1c-7521-49b1-8eb6-030515969a22",
+   "last_name": "FAKE-Belkacem"
+  },
+  {
+   "first_name": "FAKE Ahmed",
+   "id": "1aeb1a80-8dce-4068-bc41-8bb3c7f06856",
+   "last_name": "FAKE-Benali"
+  },
+  {
+   "first_name": "FAKE Yacine",
+   "id": "8fd76556-7a79-4d67-a6e2-0853da80cee9",
+   "last_name": "FAKE-Bouzid"
+  },
+  {
+   "first_name": "FAKE Sonia",
+   "id": "c9fc1c6f-caf9-415a-bc71-b9ddb39464f8",
+   "last_name": "FAKE-Cherif"
+  },
+  {
+   "first_name": "FAKE Amina",
+   "id": "aa86d8af-539c-4230-b88c-f21ff1bdd1c9",
+   "last_name": "FAKE-Haddad"
+  },
+  {
+   "first_name": "FAKE Nadia",
+   "id": "fc56949d-9c5c-4f5f-8856-aa192e5696f1",
+   "last_name": "FAKE-Merabet"
+  },
+  {
+   "first_name": "FAKE Leila",
+   "id": "275ce0a7-7140-4d7d-bdb9-fc32f2e5f257",
+   "last_name": "FAKE-Saidi"
+  },
+  {
+   "first_name": "FAKE Karim",
+   "id": "6a771bdf-70d6-47e7-9687-2bfd19b8343f",
+   "last_name": "FAKE-Ziani"
+  },
+  {
+   "first_name": "FAKE T-412",
+   "id": "d01f0650-04a9-44fb-9656-297614ade190",
+   "last_name": "Probe Payroll"
+  },
+  {
+   "first_name": "T400W",
+   "id": "b0a71af7-579b-4b47-83d8-7e52b4e27bc1",
+   "last_name": "Worker"
+  },
+  {
+   "first_name": "T400W",
+   "id": "b35aa06f-3471-422f-a482-dbbac6343c0f",
+   "last_name": "Worker"
+  },
+  {
+   "first_name": "T400W",
+   "id": "659bd1af-d229-49df-bc52-7ad5dde4020c",
+   "last_name": "Worker"
+  },
+  {
+   "first_name": "T400W",
+   "id": "831280ac-20ee-4fb7-a112-f27ea8802d88",
+   "last_name": "Worker"
+  },
+  {
+   "first_name": "T400W",
+   "id": "1384d677-46ce-42a4-b2fb-31c60c012d80",
+   "last_name": "Worker"
+  }
+ ],
+ "rooms": [
+  {
+   "building": null,
+   "capacity": 33,
+   "code": "3",
+   "created_at": "2026-09-21T22:27:17.081008+00:00",
+   "floor_label": null,
+   "id": "341370ef-abdd-4d63-b175-8d5b738dfd67",
+   "is_active": true,
+   "name": "eee",
+   "notes": null,
+   "room_type": "classroom",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-21T22:27:17.081008+00:00"
+  },
+  {
+   "building": "FAKE-C",
+   "capacity": 40,
+   "code": "FAKE-GYM",
+   "created_at": "2026-09-22T02:39:02.263282+00:00",
+   "floor_label": null,
+   "id": "bb31b650-3820-4e91-a260-18a14246ac3f",
+   "is_active": true,
+   "name": "FAKE Salle de sport",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "sports",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:39:02.263282+00:00"
+  },
+  {
+   "building": "FAKE-B",
+   "capacity": 32,
+   "code": "FAKE-LAB-INFO",
+   "created_at": "2026-09-22T02:39:01.443729+00:00",
+   "floor_label": "1er",
+   "id": "74b216b9-16fa-4a14-874e-ab5c2fb9b805",
+   "is_active": true,
+   "name": "FAKE Salle informatique",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "computer_lab",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:39:01.443729+00:00"
+  },
+  {
+   "building": "FAKE-B",
+   "capacity": 32,
+   "code": "FAKE-LAB-SCI",
+   "created_at": "2026-09-22T02:39:00.614395+00:00",
+   "floor_label": "1er",
+   "id": "bcd072a0-adbb-4c5e-869d-2e7e9077d067",
+   "is_active": true,
+   "name": "FAKE Laboratoire de sciences",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "science_lab",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:39:00.614395+00:00"
+  },
+  {
+   "building": "FAKE-A",
+   "capacity": 32,
+   "code": "FAKE-SAL-01",
+   "created_at": "2026-09-22T02:38:55.675918+00:00",
+   "floor_label": "RDC",
+   "id": "833961b7-aa93-4816-b74d-3e03401eeb26",
+   "is_active": true,
+   "name": "FAKE Salle 01 \u2014 B\u00e2timent A",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "classroom",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:38:55.675918+00:00"
+  },
+  {
+   "building": "FAKE-A",
+   "capacity": 32,
+   "code": "FAKE-SAL-02",
+   "created_at": "2026-09-22T02:38:56.497006+00:00",
+   "floor_label": "RDC",
+   "id": "7d90db7e-6fba-4f15-9b50-bda3df834599",
+   "is_active": true,
+   "name": "FAKE Salle 02 \u2014 B\u00e2timent A",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "classroom",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:38:56.497006+00:00"
+  },
+  {
+   "building": "FAKE-A",
+   "capacity": 32,
+   "code": "FAKE-SAL-03",
+   "created_at": "2026-09-22T02:38:57.318688+00:00",
+   "floor_label": "1er",
+   "id": "93f845d3-091c-45fb-a22b-b148608be8b3",
+   "is_active": true,
+   "name": "FAKE Salle 03 \u2014 B\u00e2timent A",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "classroom",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:38:57.318688+00:00"
+  },
+  {
+   "building": "FAKE-A",
+   "capacity": 32,
+   "code": "FAKE-SAL-04",
+   "created_at": "2026-09-22T02:38:58.137899+00:00",
+   "floor_label": "1er",
+   "id": "a303bc72-68d7-4986-b6db-dfb77a6fec11",
+   "is_active": true,
+   "name": "FAKE Salle 04 \u2014 B\u00e2timent A",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "classroom",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:38:58.137899+00:00"
+  },
+  {
+   "building": "FAKE-B",
+   "capacity": 30,
+   "code": "FAKE-SAL-05",
+   "created_at": "2026-09-22T02:38:58.955271+00:00",
+   "floor_label": "RDC",
+   "id": "45c0b9fd-9306-44b7-ba48-a1a010208397",
+   "is_active": true,
+   "name": "FAKE Salle 05 \u2014 B\u00e2timent B",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "classroom",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:38:58.955271+00:00"
+  },
+  {
+   "building": "FAKE-B",
+   "capacity": 30,
+   "code": "FAKE-SAL-06",
+   "created_at": "2026-09-22T02:38:59.793599+00:00",
+   "floor_label": "RDC",
+   "id": "1afdc6d0-2e46-4670-b04c-a57aa076850d",
+   "is_active": true,
+   "name": "FAKE Salle 06 \u2014 B\u00e2timent B",
+   "notes": "DONN\u00c9E FAKE \u2014 test T-408 (purge: scripts/t-408-fake-data-purge.py)",
+   "room_type": "classroom",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "updated_at": "2026-09-22T02:38:59.793599+00:00"
+  }
+ ]
+}

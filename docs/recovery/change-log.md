@@ -1,3 +1,33 @@
+## 2026-09-30 — The 120th session — T-441 COMPLETE: the timetable generation correctness mandate — the live purge (Task 1, f11236e) + the three-gate pipeline (feasibility pre-analysis / fail-closed persistence / independent post-persist validation) + the solver v1.3.0 (SCHED-110 eviction repair, SCHED-113 duplicate-lessons fix, preferred-slot continuity) + the single-class mode — SCHED-113/SCHED-114 found-and-fixed, 4,506/4,484/17 BASELINE-MATCHED
+
+### The mandate
+
+The owner's core timetable mandate: correct constraints must never yield a faulty/conflicting timetable; mathematically impossible constraints must fail EXPLICITLY naming exactly what is insufficient; single-class and whole-school generation; the old fake/test records deleted first; extensive tests; an independent post-generation validation layer; frequent commit-push-merge (the concurrent-agent protocol). The mid-session follow-up named the live symptom: « sometimes when it runs it said 17 echecs … if something is insufficient it should bring what it is — i dont want it to bring up faulty time table. »
+
+### What was delivered
+
+**(1) Task 1 (committed f11236e):** the live purge of every old timetable record (8 versions, 827 entries — the T-408/T-409/T-410 FAKE-dataset artifacts, solver builds v1.0.0–v1.2.0) through the documented clean-slate script, with all academic input data preserved.
+
+**(2) The "17 échecs" root cause, reproduced deterministically** (`scripts/t-441-reproduce-17.ts`): the failure-OPEN pipeline — the SCHED-110 no-backtracking corner (triggered by the accumulated locked pins of the owner's 8 versions) left blocks unplaced, the repository PERSISTED the partial draft anyway, and the UI showed « N bloc(s) non placé(s) » after the fact. The reproduction: 30%/50% of a first-pass solution locked as pins → the old solver left 5/29 blocks unplaced (both persisted as drafts by the old code).
+
+**(3) SCHED-113 (found mid-reproduction, fixed RED-first):** the solver built blocks from the FULL weekly requirement regardless of locked coverage — regenerated versions contained DUPLICATED lessons — and the canonical validator accepted excess coverage silently (coverageGaps flagged only shortfalls). Fixed at three layers: the solver's pinned-coverage subtraction (with the blockSplit(0)→[1] trap guarded), the HARD violation `excess_weekly_hours` in the validator, and the over-pinned rejection in the feasibility pre-analysis.
+
+**(4) The three-gate pipeline:** Gate 1 `analyzeTimetableFeasibility` (pure necessary-conditions analysis over the canonical model — 11 issue kinds, each message naming the entities and the missing amounts; a fresh `feasibility.ts`, no second engine) · Gate 2 fail-closed persistence (unplaced>0 or any hard violation → the numbered French report, NOTHING persisted) · Gate 3 the independent post-persist validation (the persisted rows RE-READ and re-validated — row count, duplicates, canonical hard violations, coverage gaps AND excesses — with automatic rollback). Plus the solver v1.3.0: the bounded deterministic eviction repair (SCHED-110), the pinned-coverage subtraction (SCHED-113), and the preferred-slot continuity hint (the source version's schedule as deterministic placement preferences — a regeneration converges on the previous schedule around the pins: 0 unplaced at every tested density 0–50% on the live problem shape).
+
+**(5) The single-class + whole-school modes:** `GenerateTimetableOptions.classIds` — the other classes' entries carried from the reference version as immovable busy-grid occupants (conflicts structurally impossible), the new version always a complete school snapshot, the UI scope selector (« École entière » / one class). Honest statistics (placedPeriods = every row of the version vs the school's true requirement).
+
+### The gates
+
+tsc 0 · eslint 0 errors on every changed file · t-441-feasibility 23/23 · t-441-solver-repair 12/12 · t-441-generation-gates 11/11 · t-441-duplicate-lesson 9/9 (RED-first) · the T-404/T-409/T-410 families re-run green (115/115 across the seven timetable files) · FULL vitest 4,506 total / 4,484 passed / 17 failed — the failing set BYTE-IDENTICAL to the documented baseline (BASELINE-MATCHED, zero new regressions) · the offline live-problem run: 118/118 periods, 0 unplaced, 0 hard, 0 gaps, 0 excess, all five per-class reports complete.
+
+### The registry + knowledge
+
++SCHED-113 RESOLVED/TESTED · +SCHED-114 RESOLVED/TESTED (the 443 recount) · SCHED-110 CLOSED · T-441 DONE in the task registry · AGENTS.md §15.73 (the failure-direction lesson + the coverage-symmetry rule) · docs/recovery/t-441-live-verification.md (the full evidence record incl. the reproduction table).
+
+### What is still open
+
+The LIVE legs of the one-command E2E (`scripts/t-441-live-e2e.ts` — DB-1 + DB-6..DB-9) are owner-gated on the default `sb_secret_` service key (dashboard-revealable only; the sbp_ Management token dead 401, re-verified; the earlier session's key consumed from ENV, never persisted). The owner's first in-app generation (Académique → Emploi du temps → Générer) exercises the identical repository path. The standing queue is otherwise unchanged (0132 live application · UNKNOWN-029 · the deferred families).
+
 ## 2026-09-29 — The 119th session — T-440 COMPLETE: the final verification of the last ~40 commits (T-434..T-439) — the full local suite + the LIVE migration census + the SEC-115 behavioral probe + DATA-058 found-and-fixed (the T-437 mock's inline parent-name composition that silently joined the red t-134 guard)
 
 ### The mandate

@@ -119,6 +119,10 @@ export function TimetableTab() {
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
   const [constraintToDelete, setConstraintToDelete] =
     useState<TimetableConstraint | null>(null);
+  // T-441 — generation scope: "school" (whole school) or ONE class id
+  // (single-class regeneration — the other classes' published/reference
+  // schedule is carried over and can never be conflicted with).
+  const [genScope, setGenScope] = useState<string>("school");
 
   const canManage = can(session, Permission.ManageSchoolYears);
 
@@ -293,6 +297,10 @@ export function TimetableTab() {
         {
           academicYearId: year.id,
           fromVersionId: fromVersionId ?? null,
+          // T-441 — the generation scope: undefined = the whole school;
+          // one class id = single-class regeneration (the other classes'
+          // reference entries are carried and respected as immovable).
+          ...(genScope !== "school" ? { classIds: [genScope] } : {}),
           // T-409: REAL progress from the actual run (solver work units +
           // persistence stages — never a timer).
           onProgress: setGenProgress,
@@ -595,16 +603,40 @@ export function TimetableTab() {
                 </Select>
               )}
               {canManage && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  disabled={busy}
-                  onClick={() => generate()}
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
-                  Générer
-                </Button>
+                <>
+                  {/* T-441 — generation scope: whole school (default) or ONE
+                      class (single-class regeneration; the other classes'
+                      reference schedule is carried immovably). */}
+                  <Select
+                    value={genScope}
+                    onValueChange={setGenScope}
+                    disabled={busy}
+                  >
+                    <SelectTrigger className="h-8 w-[150px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="school" className="text-xs">
+                        École entière
+                      </SelectItem>
+                      {classes.map((c) => (
+                        <SelectItem key={c.id} value={c.id} className="text-xs">
+                          {c.name ?? c.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    disabled={busy}
+                    onClick={() => generate()}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+                    Générer
+                  </Button>
+                </>
               )}
             </div>
           </CardHeader>

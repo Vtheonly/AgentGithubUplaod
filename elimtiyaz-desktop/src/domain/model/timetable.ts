@@ -326,6 +326,35 @@ export interface TimetableProblem {
   readonly constraints: readonly TimetableConstraint[];
   /** Manually pinned slots preserved on regeneration (is_locked entries). */
   readonly lockedEntries: readonly TimetableSlotAssignment[];
+  /**
+   * T-441 — SINGLE-CLASS / PARTIAL regeneration: when `regenerateClassIds`
+   * is set, the entries of every OTHER class carried over from the
+   * reference version (fromVersionId, else the published version). They
+   * pre-occupy the class/teacher/room busy grids — the regenerated classes
+   * can NEVER conflict with them — and they are returned unchanged inside
+   * the solution so the new version stays a complete school snapshot.
+   */
+  readonly carriedEntries?: readonly TimetableSlotAssignment[];
+  /**
+   * T-441 — the subset of classes to (re)generate. Undefined/empty = the
+   * whole school (every requirement is placed). When set, only these
+   * classes' requirements become placement blocks; the rest arrive as
+   * `carriedEntries`.
+   */
+  readonly regenerateClassIds?: readonly string[];
+  /**
+   * T-441 — PREFERRED SLOTS (the regeneration-continuity hint): the source
+   * version's entries, offered to the solver as deterministic placement
+   * PREFERENCES (never obligations). A candidate whose class+subject+day+
+   * period matches a preferred entry is tried FIRST — so a regeneration
+   * keeps the previous schedule wherever it still fits around the locked
+   * pins, instead of re-fragmenting the week and failing on solvable
+   * problems (the owner's "N échecs on regeneration" symptom). Pure hint:
+   * preferred slots blocked by pins/other placements are skipped exactly
+   * like any other candidate, and a generation WITHOUT a source version
+   * is bit-identical to before (no preference keys exist).
+   */
+  readonly preferredEntries?: readonly TimetableSlotAssignment[];
 }
 
 export type TimetableSolutionStatus = "valid" | "invalid" | "partial";

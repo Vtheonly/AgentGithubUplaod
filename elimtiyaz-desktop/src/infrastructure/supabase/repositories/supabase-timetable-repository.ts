@@ -57,6 +57,12 @@ import {
 } from "../../../domain/model/timetable";
 import { validateTimetable } from "../../../domain/calc/timetable/constraints";
 import {
+  analyzeTimetableFeasibility,
+  feasibilityErrorMessage,
+  persistedValidationError,
+  validatePersistedSolution,
+} from "../../../domain/calc/timetable/feasibility";
+import {
   getTimetableSolver,
   GREEDY_SOLVER_ID,
 } from "../../../domain/calc/timetable/solver";
@@ -763,6 +769,16 @@ export class SupabaseTimetableRepository implements TimetableRepository {
     if (!problemResult.ok) return problemResult;
     const baseProblem = problemResult.value;
 
+    // ── T-441 GATE 1 — FEASIBILITY PRE-ANALYSIS (fail-closed, explicit). ─
+    // Mathematically impossible constraints are reported with PRECISE
+    // reasons (class / subject / teacher / room / day / period / constraint)
+    // BEFORE any version is created — never a fake or silently-relaxed
+    // timetable.
+    const feasibility = analyzeTimetableFeasibility(baseProblem);
+    if (feasibility.length > 0) {
+      return Err(Errors.validation(feasibilityErrorMessage(feasibility)));
+    }
+
     const solver = getTimetableSolver(options.solverId ?? GREEDY_SOLVER_ID);
     if (!solver) {
       return Err(
@@ -770,24 +786,142 @@ export class SupabaseTimetableRepository implements TimetableRepository {
       );
     }
 
+    // ── T-441 — SINGLE-CLASS / PARTIAL regeneration scoping. ──────────────
+    // classIds selects the classes to (re)generate; every OTHER class's
+    // entries are carried from the reference version (fromVersionId if
+    // given, else the published version) and pre-occupy the busy grids so
+    // the regenerated classes can never conflict with them.
+    const selectedClassIds =
+      options.classIds && options.classIds.length > 0
+        ? [...new Set(options.classIds)]
+        : null;
+    let referenceVersionId: string | null = null;
+    const carried: TimetableSlotAssignment[] = [];
+    /** Original row flags of carried entries (is_locked / source), keyed by
+     *  the entry's identity — preserved on re-insertion. */
+    const carriedFlags = new Map<
+      string,
+      { isLocked: boolean; source: "manual" | "generated" }
+    >();
+
+    if (selectedClassIds) {
+      const unknown = selectedClassIds.filter(
+        (id) => !baseProblem.classes.some((c) => c.id === id),
+      );
+      if (unknown.length > 0) {
+        return Err(
+          Errors.validation(
+            `Classes inconnues pour cette année scolaire : ${unknown.join(", ")}.`,
+          ),
+        );
+      }
+      // Resolve the reference version: fromVersionId, else the published.
+      if (options.fromVersionId) {
+        referenceVersionId = options.fromVersionId;
+      } else {
+        const { data: publishedRow } = await this.client
+          .from("timetable_versions")
+          .select("id")
+          .eq("academic_year_id", options.academicYearId)
+          .eq("status", "published")
+          .maybeSingle();
+        referenceVersionId = publishedRow?.id ?? null;
+      }
+      if (referenceVersionId) {
+        const { data: refRows } = await this.client
+          .from("timetable_entries")
+          .select("*")
+          .eq("version_id", referenceVersionId);
+        const selectedSet = new Set(selectedClassIds);
+        for (const r of refRows ?? []) {
+          const entry = mapEntryRow(r);
+          const slot = slotAssignmentFromEntry(entry);
+          const key = `${slot.classId}|${slot.subjectId}|${slot.day}|${slot.periodIndex}`;
+          if (selectedSet.has(slot.classId)) {
+            // Selected class: only its manual pins survive (lockedEntries).
+            continue;
+          }
+          carried.push(slot);
+          carriedFlags.set(key, {
+            isLocked: entry.isLocked,
+            source: entry.source === "manual" ? "manual" : "generated",
+          });
+        }
+      }
+    }
+
     // Locked pins from the source version (manual adjustments survive).
     let locked: TimetableSlotAssignment[] = [];
-    if (options.fromVersionId) {
+    let preferred: TimetableSlotAssignment[] = [];
+    const lockSourceId = referenceVersionId ?? options.fromVersionId ?? null;
+    if (lockSourceId) {
       const { data: lockedRows } = await this.client
         .from("timetable_entries")
         .select("*")
-        .eq("version_id", options.fromVersionId)
+        .eq("version_id", lockSourceId)
         .eq("is_locked", true);
-      locked = (lockedRows ?? []).map((r) => slotAssignmentFromEntry(mapEntryRow(r)));
+      const selectedSet = selectedClassIds ? new Set(selectedClassIds) : null;
+      locked = (lockedRows ?? [])
+        .map((r) => slotAssignmentFromEntry(mapEntryRow(r)))
+        // In partial mode, only the SELECTED classes' pins apply (other
+        // classes are carried wholesale, not re-pinned).
+        .filter((l) => !selectedSet || selectedSet.has(l.classId));
+      // T-441 — PREFERRED SLOTS (regeneration continuity): the source
+      // version's FULL schedule is offered to the solver as deterministic
+      // placement preferences — the regeneration keeps the previous
+      // schedule wherever it still fits around the locked pins (the
+      // owner's "N échecs on regeneration" symptom closed at the root:
+      // continuity instead of re-fragmentation). Pure hint: blocked
+      // preferred slots are skipped like any other candidate.
+      const { data: preferredRows } = await this.client
+        .from("timetable_entries")
+        .select("*")
+        .eq("version_id", lockSourceId);
+      preferred = (preferredRows ?? []).map((r) =>
+        slotAssignmentFromEntry(mapEntryRow(r)),
+      );
     }
 
-    const problem: TimetableProblem = { ...baseProblem, lockedEntries: locked };
+    const problem: TimetableProblem = {
+      ...baseProblem,
+      lockedEntries: locked,
+      preferredEntries: preferred,
+      ...(selectedClassIds
+        ? { carriedEntries: carried, regenerateClassIds: selectedClassIds }
+        : {}),
+    };
     // T-409: prefer the yielding drain so the renderer can repaint real
     // progress; adapters without solveAsync fall back to the sync solve.
     const solveOptions = forwarder?.solverOptions;
     const solution = solver.solveAsync
       ? await solver.solveAsync(problem, solveOptions)
       : solver.solve(problem, solveOptions);
+
+    // ── T-441 GATE 2 — FAIL-CLOSED PERSISTENCE. ───────────────────────────
+    // The owner contract: the generated timetable must NEVER contain
+    // conflicts, overlaps, unmet weekly hours, rest-day lessons or any
+    // invalid placement. If the solver could not produce a COMPLETE,
+    // conflict-free schedule, generation FAILS with the precise report —
+    // no draft version is persisted (never a partial/invalid timetable).
+    if (solution.unplaced.length > 0 || solution.statistics.hardViolationCount > 0) {
+      const lines: string[] = [];
+      for (const u of solution.unplaced) {
+        lines.push(
+          `${lines.length + 1}. ${u.requirement.subjectName} — ${u.requirement.className} : ${u.reason}`,
+        );
+      }
+      for (const v of solution.violations.filter((v) => v.severity === "hard")) {
+        lines.push(`${lines.length + 1}. [Conflit] ${v.message}`);
+      }
+      return Err(
+        Errors.validation(
+          [
+            "Génération impossible — le solveur n'a pas pu produire un emploi du temps complet et sans conflit :",
+            ...lines,
+          ].join("\n"),
+        ),
+      );
+    }
 
     // Version number: max + 1 for the year.
     const { data: maxRow } = await this.client
@@ -813,12 +947,11 @@ export class SupabaseTimetableRepository implements TimetableRepository {
         solver_build: solver.build,
         generation_params: {
           fromVersionId: options.fromVersionId ?? null,
+          referenceVersionId,
+          classIds: selectedClassIds ?? null,
+          carriedEntries: carried.length,
           lockedEntries: locked.length,
-          unplacedReasons: solution.unplaced.map((u) => ({
-            classId: u.requirement.classId,
-            subjectId: u.requirement.subjectId,
-            reason: u.reason,
-          })),
+          feasibilityChecked: true,
         },
         statistics: {
           ...solution.statistics,
@@ -854,6 +987,8 @@ export class SupabaseTimetableRepository implements TimetableRepository {
           l.day === slot.day &&
           l.periodIndex === slot.periodIndex,
       );
+      const carriedKey = `${slot.classId}|${slot.subjectId}|${slot.day}|${slot.periodIndex}`;
+      const carriedFlag = carriedFlags.get(carriedKey);
       return {
         tenant_id: tenantId,
         academic_year_id: options.academicYearId,
@@ -867,8 +1002,12 @@ export class SupabaseTimetableRepository implements TimetableRepository {
         start_minutes: period?.startMinutes ?? 0,
         end_minutes: period?.endMinutes ?? 0,
         lesson_group: slot.lessonGroup,
-        is_locked: isLockedPin,
-        source: isLockedPin ? "manual" : "generated",
+        is_locked: carriedFlag ? carriedFlag.isLocked : isLockedPin,
+        source: carriedFlag
+          ? carriedFlag.source
+          : isLockedPin
+            ? "manual"
+            : "generated",
       };
     });
     // Insert in chunks (PostgREST payload limits).
@@ -880,9 +1019,25 @@ export class SupabaseTimetableRepository implements TimetableRepository {
       if (entryError) return Err(supabaseErrorToAppError(entryError));
     }
 
+    // ── T-441 GATE 3 — INDEPENDENT POST-PERSIST VALIDATION. ──────────────
+    // Never trust the generator's in-memory output: RELOAD the persisted
+    // rows and re-run the canonical validator + coverage check against
+    // them. Any discrepancy (row loss, corrupt day/period, conflict,
+    // unmet hours) rolls the version BACK and fails the generation.
+    const persistedCheck = await this.validatePersistedEntries(
+      problem,
+      version.id,
+      solution.entries.length,
+    );
+    if (!persistedCheck.ok) {
+      await this.rollbackDraftVersion(version.id);
+      return Err(persistedCheck.error);
+    }
+
     await this.refreshVersions(options.academicYearId);
     await this.refreshEntries([version.id]);
-    // T-409: the terminal 100% — only NOW, with the trial actually persisted.
+    // T-409: the terminal 100% — only NOW, with the trial actually persisted
+    // AND independently re-validated from the database rows.
     forwarder?.complete(
       versionNumber,
       solution.statistics.placedPeriods,
@@ -896,13 +1051,54 @@ export class SupabaseTimetableRepository implements TimetableRepository {
       {
         versionNumber,
         solverId: solver.id,
+        classIds: selectedClassIds ?? null,
+        carriedEntries: carried.length,
         placed: solution.statistics.placedPeriods,
         unplaced: solution.statistics.unplacedCount,
         hardViolations: solution.statistics.hardViolationCount,
+        persistedRevalidated: true,
       },
-      `Génération d'emploi du temps (essai ${versionNumber}, solveur ${solver.id}) : ${solution.statistics.placedPeriods} périodes placées, ${solution.statistics.unplacedCount} non placées.`,
+      `Génération d'emploi du temps (essai ${versionNumber}, solveur ${solver.id}${selectedClassIds ? ` — ${selectedClassIds.length} classe(s)` : " — école entière"}) : ${solution.statistics.placedPeriods} périodes placées, 0 non placées, validation indépendante OK.`,
     );
     return Ok(version);
+  }
+
+  // ========================================================================
+  // T-441 — the independent post-persist validation + rollback
+  // ========================================================================
+
+  /**
+   * Re-load the PERSISTED entries of a freshly generated draft version and
+   * validate them INDEPENDENTLY of the solver's in-memory solution, through
+   * the canonical validatePersistedSolution layer (T-441 Gate 3): row count,
+   * duplicates, hard violations (teacher/class/room clashes, free days,
+   * unavailability, room fit, grid bounds) and weekly-hours coverage.
+   */
+  private async validatePersistedEntries(
+    problem: TimetableProblem,
+    versionId: string,
+    expectedCount: number,
+  ): Promise<Result<true>> {
+    const { data: persistedRows, error: loadError } = await this.client
+      .from("timetable_entries")
+      .select("*")
+      .eq("version_id", versionId)
+      .order("period_index");
+    if (loadError) return Err(supabaseErrorToAppError(loadError));
+    const slots = (persistedRows ?? []).map((r) =>
+      slotAssignmentFromEntry(mapEntryRow(r)),
+    );
+    const errors = validatePersistedSolution(problem, slots, expectedCount);
+    if (errors.length > 0) {
+      return Err(Errors.validation(persistedValidationError(errors)));
+    }
+    return Ok(true);
+  }
+
+  /** Delete a freshly created DRAFT version + its entries (Gate 3 rollback). */
+  private async rollbackDraftVersion(versionId: string): Promise<void> {
+    await this.client.from("timetable_entries").delete().eq("version_id", versionId);
+    await this.client.from("timetable_versions").delete().eq("id", versionId);
   }
 
   // ========================================================================
