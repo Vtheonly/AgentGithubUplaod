@@ -34,6 +34,18 @@ export interface Step2Student {
   level: AcademicLevel;
   gradeYear: number;
   /**
+   * T-439 (UI-320): the CANONICAL grade-level override. When present,
+   * `computeBilling` prices by THIS code instead of deriving through
+   * `gradeLevelFromLevelYear(level, gradeYear)` — the derivation is
+   * LOSSY for `prescolaire_1` (primaire/0 round-trips to
+   * `prescolaire_2`, a DIFFERENT price: 135,000 vs 165,000) and the
+   * re-enrollment flow's canonical fact is the confirmed gradeLevelCode,
+   * not a level/year pair. The wizard never sets it (its level/year
+   * pairs are the operator's direct input); the ReEnrollModal always
+   * does.
+   */
+  gradeLevel?: import("../../../domain/model/student").GradeLevel;
+  /**
    * T-401: the academic stream (filières.code). `""` = untagged; resolved to
    * `filiereCode: null` on submit.
    */
