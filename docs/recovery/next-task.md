@@ -1,3 +1,20 @@
+# 2026-09-30 — T-444 COMPLETE (121st session): the new-UI regression repair — commit 1cead9d's collateral deletion reversed, the functionality restored INTO the kept new UI (UI-324 RESOLVED-TESTED, tsc 15→0, the FULL suite 52→17 failures = BASELINE-MATCHED)
+
+**The owner's 2026-09-30 mandate** ("the new UI has many, many, many missing lines of code compared to the previous iteration… identify everything that is missing or broken, and then restore or repair it. However, keep the new UI exactly as it is") was delivered as a four-phase restoration, each phase a commit pushed + merged --no-ff (ADR-028): (1) the destroyed DebtAgingDetailDrawer restored verbatim + the four type fixes; (2) the parent FinancesDrawer's lost sections restored into the new layout (the T-252 coverage stack, the full T-168 reconciliation + ajustements history, the T-334 pricing expander, the metadata ribbon wired); (3) the 360° console modal's six sections + stats bar, the employee Tâches/Horaires tabs, the CRM export menu, the payment-transition guards + the informative refund body, the InfoTab service labels, the ParentActionsMenu e-mail leg; (4) the affected harnesses mounted on the new PersonNavigationProvider/Router architecture + the three documented re-pins (t-014's refund assertions pass VERBATIM after the informative body was restored — not re-pinned).
+
+**Gates:** tsc 0 (was 15) · the FULL vitest **4,529 passed / 17 failed / 5 skipped — BASELINE-MATCHED byte-identical** (was 52 failed; all 35 regressed tests green) · eslint 0 errors on every changed file (warning sets identical to c83045e) · the unified runner Layer 0 GREEN + Layer 1 BASELINE-MATCHED. The new UI is fully preserved (the PersonNavigation layer, the redesigned menus, the new drawer chrome).
+
+## Standing recommendation (updated by this session)
+
+1. **THE #1 ITEM (unchanged): apply migrations 0132 AND 0133 LIVE — one fresh Management token unblocks both.** The re-supplied `sbp_` token is still 401 on the Management API (the §15.71d class); `apply_0133_live.sh` is committed and env-gated.
+2. **The owner's packaged-app pass (now covering the T-444 restorations):** pull main + rebuild — the CRM export menu is back in the header, the parent drawer's Finances tab regains the coverage stack + the reconciliation + the ajustements history + the exhaustive pricing expander, the payment refund modal regains its explanation + mandatory-reason rule, the employee drawer regains Tâches + Horaires, the debt-aging drill-down drawer works again, and the console's 360° modal regains its six data sections.
+3. **The Android ports (the standing cross-platform follow-up):** the §17.3 INV-20e year-history surface (T-442) + the §15.1 debt-status rule + the StatisticsEngine.kt triage edges (T-443 — the corpus cross-repo contract, §15.75d).
+4. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
+5. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322.
+6. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
+
+---
+
 # 2026-09-30 — T-443 COMPLETE (120th session, second task): the debt-configuration CLIENT integration — DEBT-101 RESOLVED-TESTED
 
 **The owner's 2026-09-30 mandate** ("investigate the existing implementation and fix it completely… the configuration is actually connected to the underlying business logic… the same status and warning logic is correctly reflected in Statistiques… no old, disconnected, or duplicate implementation") was delivered as a completion of T-429's half-landing, not a parallel implementation: the investigation FIRST (live-proven the server chain works end-to-end: PATCH yellow 15→10 → 548 rows yellow→orange → restored, zero residue), DEBT-101 registered OPEN with that evidence, then the four-phase fix (migration 0133's client contract + observeThresholds + the triage re-derivation + the Finances texts/legend + the settings validation). Full evidence: `docs/recovery/t-443-live-verification.md`.

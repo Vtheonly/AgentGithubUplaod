@@ -1,4 +1,13 @@
-# Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTIETH session — T-443: the debt-configuration CLIENT integration COMPLETE (DEBT-101 RESOLVED-TESTED))
+# Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-FIRST session — T-444: the new-UI regression repair COMPLETE (UI-324 RESOLVED-TESTED))
+
+## Current state snapshot (2026-09-30, 121st session CLOSE — T-444)
+
+**The owner's new-UI repair mandate is delivered end to end.** The un-reviewed redesign commit `1cead9d` had shipped with massive collateral deletion (16 files, +2,504/−2,935): the DebtAgingDetailDrawer destroyed by a misplaced StudentRow paste, the parent FinancesDrawer gutted (the T-252 coverage stack, the T-168 reconciliation, the ajustements history, the T-334 pricing expander), the 360° console modal's six sections, the employee drawer's two tabs, the CRM export menu, the payment-transition guards, four service-label cases — and 15 tsc errors (the build broken). T-444 restored every lost piece INTO the kept new UI (four phases, each pushed + merged), and re-pinned the three label contracts that legitimately changed (documented at the assertions).
+
+**The live state:** the desktop is buildable and BASELINE-MATCHED again — tsc 0, the FULL vitest at the documented 17-failure baseline (4,529/17/5, byte-identical failing set), the unified runner Layer 0 GREEN + Layer 1 BASELINE-MATCHED. The migrations' live state is unchanged (0132 + 0133 owner-gated on a fresh Management token — the standing #1 item). The new UI (the PersonNavigation layer, the redesigned menus, the new drawer chrome) is fully preserved per the owner's instruction.
+
+**The knowledge additions:** AGENTS.md §15.76 (the restore-into-the-new-UI method; the `[m` toolchain artifact — verify suspected syntax errors at the byte level; the new navigation architecture's harness requirement; the big-commit gate) · the UI-324 registry entry with the full four-phase evidence.
+
 
 ## Current state snapshot (2026-09-30, 120th session CLOSE — T-443)
 
