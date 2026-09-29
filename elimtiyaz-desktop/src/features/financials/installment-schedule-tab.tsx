@@ -58,7 +58,10 @@ import {
   installmentRemaining,
   totalOutstanding,
 } from "../../domain/model/payment";
-import { deriveTrancheWaveStats } from "../../domain/calc/payment/tranche-waves";
+// T-447 (STATS-401): the canonical POOLED derivation (the exact-dinar
+// parity object — the same rows the Statistics main wave cards consume) +
+// the empty-wave factory for the fixed T1/T2/T3 slots.
+import { derivePooledTrancheWaves, emptyPooledWave } from "../../domain/calc/payment/tranche-waves";
 import { isInstallmentOverdue, isInstallmentSettled } from "../../domain/calc/payment/queries";
 import { installmentsForAcademicYear } from "../dashboard/components/analytics/analytics-derivations";
 // T-435 (UI-317): the SIGNED days-between helper (negative = days until
@@ -193,59 +196,37 @@ const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: 
 export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] {
   // T-424 (DATA-042) — the grouping and the math live in the CANONICAL
   // domain module (one derivation for Statistics AND Finance — the same
-  // rows can no longer produce different numbers per surface). This view
-  // pools the canonical per-(category, wave) rows into the strip's
-  // per-index cards: due/paid/pending are Σ over every category in the
-  // index, `pct` the amount-based collection rate, `isNextTarget` the
-  // first index still carrying a canonical remaining balance.
-  const stats = deriveTrancheWaveStats(rows, Date.now());
-  const pooled = new Map<1 | 2 | 3, { due: number; paid: number; pending: number; remaining: number }>();
-  // T-435 (UI-317): the wave's DERIVED due-date range + the pooled overdue
-  // flag — the same canonical stats the amounts pool from, so the strip's
-  // échéance can never disagree with the rows it sums (the static hint
-  // stays only as the no-date fallback).
-  const pooledDates = new Map<1 | 2 | 3, { min: number; max: number }>();
-  const pooledOverdue = new Map<1 | 2 | 3, boolean>();
-  // T-432 (DATA-049): the tuition-isolated pool — the same rows the
-  // Statistics wave grid groups; see TrancheWave.tuitionPct.
-  const tuitionPooled = new Map<1 | 2 | 3, { due: number; paid: number }>();
-  for (const w of stats) {
-    const acc = pooled.get(w.wave) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
-    acc.due += w.dueTotal;
-    acc.paid += w.paidTotal;
-    acc.pending += w.pendingTotal;
-    acc.remaining += w.remainingTotal;
-    pooled.set(w.wave, acc);
-    if (w.dueDateMin !== null) {
-      const d = pooledDates.get(w.wave) ?? { min: w.dueDateMin, max: w.dueDateMin };
-      if (w.dueDateMin < d.min) d.min = w.dueDateMin;
-      if ((w.dueDateMax ?? w.dueDateMin) > d.max) d.max = w.dueDateMax ?? w.dueDateMin;
-      pooledDates.set(w.wave, d);
-    }
-    pooledOverdue.set(w.wave, (pooledOverdue.get(w.wave) ?? false) || w.anyUnsettledOverdue);
-    if (w.category === "tuition") {
-      const t = tuitionPooled.get(w.wave) ?? { due: 0, paid: 0 };
-      t.due += w.dueTotal;
-      t.paid += w.paidTotal;
-      tuitionPooled.set(w.wave, t);
-    }
-  }
-  const firstWithRemaining = [...pooled.entries()]
-    .filter(([, acc]) => acc.remaining > 0)
-    .map(([n]) => n)
+  // rows can no longer produce different numbers per surface).
+  // T-447 (STATS-401): the POOLING itself is canonical too — the
+  // strip's per-index cards map the domain module's `PooledTrancheWave`
+  // rows (the SAME object the Statistics main wave cards consume — the
+  // exact-dinar parity construction), adding only this surface's
+  // presentation (label/hint/isNextTarget/tuitionPct). The hand-rolled
+  // pooling (sums, date ranges, overdue OR, tuition isolation) was the
+  // last piece of wave math living in a feature file; it is retired.
+  const pooled = derivePooledTrancheWaves(rows, Date.now());
+  const byIndex = new Map(pooled.map((w) => [w.wave, w]));
+  const firstWithRemaining = pooled
+    .filter((w) => w.remainingTotal > 0)
+    .map((w) => w.wave)
     .sort((a, b) => a - b)[0];
   return TRANCHE_WAVE_META.map(({ index, label, hint }) => {
-    const acc = pooled.get(index) ?? { due: 0, paid: 0, pending: 0, remaining: 0 };
-    const dates = pooledDates.get(index) ?? null;
-    const pct = acc.due > 0 ? Math.min(100, Math.round((acc.paid / acc.due) * 100)) : 0;
-    const tuition = tuitionPooled.get(index);
-    const tuitionPct = tuition && tuition.due > 0 ? Math.round((tuition.paid / tuition.due) * 100) : null;
+    // T-447: `pct` is the canonical PARITY-001 rate (round, never
+    // clamped) — the previous Math.min(100, …) silently capped
+    // over-covered waves and made the strip disagree with the
+    // Statistics rate on the same rows.
+    const w = byIndex.get(index) ?? emptyPooledWave(index);
+    // T-432 (DATA-049): the tuition-isolated pool — the same rows the
+    // Statistics per-category breakdown groups; see TrancheWave.tuitionPct.
+    const tuition = w.perCategory.find((c) => c.category === "tuition");
+    const tuitionPct = tuition && tuition.dueTotal > 0 ? Math.round((tuition.paidTotal / tuition.dueTotal) * 100) : null;
     return {
       index, label, hint,
-      dueDate: dates ? new Date(dates.min).toISOString() : null,
-      dueDateMax: dates ? new Date(dates.max).toISOString() : null,
-      isOverdue: pooledOverdue.get(index) ?? false,
-      due: acc.due, paid: acc.paid, pending: acc.pending, remaining: acc.remaining, pct, tuitionPct,
+      dueDate: w.dueDateMin !== null ? new Date(w.dueDateMin).toISOString() : null,
+      dueDateMax: w.dueDateMax !== null ? new Date(w.dueDateMax).toISOString() : null,
+      isOverdue: w.anyUnsettledOverdue,
+      due: w.dueTotal, paid: w.paidTotal, pending: w.pendingTotal, remaining: w.remainingTotal,
+      pct: w.collectedPct, tuitionPct,
       isNextTarget: index === firstWithRemaining,
     };
   });
