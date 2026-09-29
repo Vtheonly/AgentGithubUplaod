@@ -256,6 +256,135 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
     expect(latest![0].status.reasonCode).toBe("critical_delinquency"); // T-429 codes survive the transient failure
     unsub();
   });
+
+  // ── T-443 (DEBT-101): the applied_thresholds contract (migration 0133) ──
+
+  it("F: the row's applied_thresholds drive the explanation AND the parity cross-check (configured numbers on the card)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // A 16-day-old debt under CONFIGURED thresholds (grace 7 / yellow 21 /
+    // red 90): the server says YELLOW (16 ≤ 21). Under the DEFAULTS
+    // (yellow 15 / red 60) the client would have derived ORANGE (16 > 15) —
+    // the pre-T-443 bug: a spurious parity-drift warning + an explanation
+    // embedding the WRONG numbers. With the applied thresholds the client
+    // derives yellow → agreement, configured numbers on the card.
+    const row: Row = {
+      ...RPC_ROW_ARCHETYPE_B,
+      debt_age_days: 16,
+      inactivity_days: 40,
+      days_since_last_payment: 40,
+      status_level: "yellow",
+      reason_code: "watch",
+      applied_thresholds: { gracePeriodDays: 7, yellowDays: 21, redDays: 90, activePayerGraceDays: 30 },
+    };
+    const client = {
+      rpc: vi.fn(async (fn: string) =>
+        fn === "compute_debt_aging_summary"
+          ? { data: [row], error: null }
+          : { data: null, error: null },
+      ),
+      from: vi.fn(() => {
+        throw new Error("no direct table reads");
+      }),
+    };
+    const repo = new SupabaseDebtRepository(client as unknown as SupabaseClient);
+    const obs = track(repo.observeAging());
+    await vi.waitFor(() => {
+      expect(obs.value()).toHaveLength(1);
+    });
+    const mapped = obs.value()![0];
+    // The explanation embeds the CONFIGURED thresholds (21 j), never the
+    // defaults (15/60) — the wrong-number-on-the-card defect.
+    expect(mapped.status.explanationFr).toContain("21");
+    expect(mapped.status.explanationFr).not.toContain("15 et 60");
+    // The client↔server derivation AGREES → no drift warning.
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("parity drift"));
+    warn.mockRestore();
+  });
+
+  it("G: a NULL applied_thresholds (pre-0133 server) degrades to the documented DEFAULTS — byte-identical while the chain is at 0125's seed", async () => {
+    const row: Row = { ...RPC_ROW_ARCHETYPE_A, applied_thresholds: null };
+    const client = {
+      rpc: vi.fn(async (fn: string) =>
+        fn === "compute_debt_aging_summary"
+          ? { data: [row], error: null }
+          : { data: null, error: null },
+      ),
+      from: vi.fn(() => {
+        throw new Error("no direct table reads");
+      }),
+    };
+    const repo = new SupabaseDebtRepository(client as unknown as SupabaseClient);
+    const obs = track(repo.observeAging());
+    await vi.waitFor(() => {
+      expect(obs.value()).toHaveLength(1);
+    });
+    const mapped = obs.value()![0];
+    // 608-day-old debt → critical under the defaults; the explanation
+    // carries the DEFAULT red threshold (60 j).
+    expect(mapped.status.level).toBe("red");
+    expect(mapped.status.explanationFr).toContain("60");
+  });
+
+  it("H: observeThresholds seeds from the light reader RPC and the aging seed's applied values stay authoritative", async () => {
+    const lightValue = { gracePeriodDays: 4, yellowDays: 12, redDays: 45, activePayerGraceDays: 10 };
+    const appliedValue = { gracePeriodDays: 7, yellowDays: 21, redDays: 90, activePayerGraceDays: 30 };
+    const client = {
+      rpc: vi.fn(async (fn: string) => {
+        if (fn === "read_debt_aging_thresholds") return { data: lightValue, error: null };
+        if (fn === "compute_debt_aging_summary") {
+          return {
+            data: [{ ...RPC_ROW_ARCHETYPE_B, applied_thresholds: appliedValue }],
+            error: null,
+          };
+        }
+        return { data: null, error: null };
+      }),
+      from: vi.fn(() => {
+        throw new Error("no direct table reads");
+      }),
+    };
+    const repo = new SupabaseDebtRepository(client as unknown as SupabaseClient);
+    const thObs = track(repo.observeThresholds());
+    await vi.waitFor(() => {
+      expect(thObs.value()).toEqual(lightValue); // the light reader's values
+    });
+
+    // The aging seed lands AFTER → its applied_thresholds (the values that
+    // SHAPED the verdicts) are authoritative.
+    const agingObs = track(repo.observeAging());
+    await vi.waitFor(() => {
+      expect(agingObs.value()).toHaveLength(1);
+    });
+    expect(thObs.value()).toEqual(appliedValue);
+  });
+
+  it("I: a pre-0133 server (light RPC unavailable) keeps the documented DEFAULTS silently — the version-skew class", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const client = {
+      rpc: vi.fn(async (fn: string) => {
+        if (fn === "read_debt_aging_thresholds") {
+          return { data: null, error: { code: "PGRST202", message: "Could not find the function" } };
+        }
+        return { data: null, error: null };
+      }),
+      from: vi.fn(() => {
+        throw new Error("no direct table reads");
+      }),
+    };
+    const repo = new SupabaseDebtRepository(client as unknown as SupabaseClient);
+    const thObs = track(repo.observeThresholds());
+    await vi.waitFor(() => {
+      expect(thObs.value()).toEqual({
+        gracePeriodDays: 5,
+        yellowDays: 15,
+        redDays: 60,
+        activePayerGraceDays: 15,
+      });
+    });
+    // The unavailable class is a documented degradation — NOT an error warn.
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });
 
 describe("T-405 — MockDebtRepository.observeAging (the reference-engine path)", () => {
@@ -284,5 +413,20 @@ describe("T-405 — MockDebtRepository.observeAging (the reference-engine path)"
         .map((i) => i.parentId),
     );
     expect(rows.map((r) => r.parentId).sort()).toEqual([...installmentDebtors].sort());
+  });
+
+  // T-443 (DEBT-101): the mock's documented contract — mock mode has NO
+  // settings backend (INV-16f's configuration home is the server), so the
+  // ACTIVE thresholds in mock mode ARE the documented DEFAULTS, emitted as
+  // a constant stream (never a second threshold implementation).
+  it("F: the mock emits the documented DEFAULT thresholds (the mock-mode contract)", () => {
+    const repo = new MockDebtRepository();
+    const th = track(repo.observeThresholds());
+    expect(th.value()).toEqual({
+      gracePeriodDays: 5,
+      yellowDays: 15,
+      redDays: 60,
+      activePayerGraceDays: 15,
+    });
   });
 });

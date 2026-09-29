@@ -107,10 +107,12 @@ import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
 // the client-side parity cross-check).
 import {
   computeDebtAgingStatus,
+  DEFAULT_DEBT_AGING_THRESHOLDS,
   type DebtAgingAnalysis,
   type DebtAgingObligation,
   type DebtAgingStatusLevel,
   type DebtAgingReasonCode,
+  type DebtAgingThresholds,
 } from "../../../domain/calc/ledger/debt-aging";
 import { reconcileLedger } from "../../../domain/calc/reconcile";
 // T-437: the billing-wire construction moved to the ONE shared builder
@@ -4107,6 +4109,12 @@ function mapInstallmentRow(r: InstallmentRow): Installment {
  * T-405 — the wire shape of the 0111 `compute_debt_aging_summary` RPC
  * (PostgREST returns the SQL column names, snake_case; the `obligations`
  * jsonb carries camelCase keys as built server-side).
+ *
+ * T-443 (migration 0133): `applied_thresholds` — the jsonb carrying the
+ * EXACT threshold values the server used for this row's status/reason
+ * (camelCase `DebtAgingThresholds` keys). Null on a pre-0133 server
+ * (version-skew safety: the documented defaults apply — identical to the
+ * live values while the chain is at 0125's seed).
  */
 interface DebtAgingRpcRow {
   parent_id: string;
@@ -4126,7 +4134,30 @@ interface DebtAgingRpcRow {
   obligations: readonly DebtAgingObligation[] | null;
   status_level: string | null;
   reason_code: string | null;
+  applied_thresholds: Partial<DebtAgingThresholds> | null;
   computed_at: string | null;
+}
+
+/**
+ * T-443 (DEBT-101): normalize a wire `applied_thresholds` jsonb (or the
+ * light reader's return) into a complete `DebtAgingThresholds` — every
+ * field falls back to the documented default when missing/invalid (the
+ * SQL mirror's own COALESCE contract; null-safe by construction).
+ */
+function normalizeDebtAgingThresholds(
+  raw: Partial<DebtAgingThresholds> | null | undefined,
+): DebtAgingThresholds {
+  const num = (v: unknown, d: number): number =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : d;
+  return {
+    gracePeriodDays: num(raw?.gracePeriodDays, DEFAULT_DEBT_AGING_THRESHOLDS.gracePeriodDays),
+    yellowDays: num(raw?.yellowDays, DEFAULT_DEBT_AGING_THRESHOLDS.yellowDays),
+    redDays: num(raw?.redDays, DEFAULT_DEBT_AGING_THRESHOLDS.redDays),
+    activePayerGraceDays: num(
+      raw?.activePayerGraceDays,
+      DEFAULT_DEBT_AGING_THRESHOLDS.activePayerGraceDays,
+    ),
+  };
 }
 
 /**
@@ -4139,18 +4170,30 @@ interface DebtAgingRpcRow {
  * reason_code — a mismatch is a live client↔server parity drift we WANT
  * surfaced (console.warn), never silently hidden. The RPC's values win for
  * display when present.
+ *
+ * T-443 (DEBT-101): the client-side derivation runs with the row's
+ * `applied_thresholds` (migration 0133) — the EXACT values that shaped the
+ * server's verdict — so the FR explanation embeds the CONFIGURED numbers
+ * (not the hardcoded defaults) and the parity cross-check only fires on a
+ * REAL drift (previously every configured-non-default boundary row warned
+ * spuriously). A pre-0133 server (null column) degrades to the documented
+ * defaults — byte-identical while the chain is at 0125's seed values.
  */
 function mapDebtAgingRow(row: DebtAgingRpcRow): DebtAgingAnalysis {
   const outstandingAmount = Number(row.outstanding_amount ?? 0);
   const debtAgeDays = Number(row.debt_age_days ?? 0);
   const inactivityDays = Number(row.inactivity_days ?? 0);
   const hasSubsequentYearPayments = row.has_subsequent_year_payments === true;
-  const derived = computeDebtAgingStatus({
-    outstandingAmount,
-    debtAgeDays,
-    inactivityDays,
-    hasSubsequentYearPayments,
-  });
+  const thresholds = normalizeDebtAgingThresholds(row.applied_thresholds);
+  const derived = computeDebtAgingStatus(
+    {
+      outstandingAmount,
+      debtAgeDays,
+      inactivityDays,
+      hasSubsequentYearPayments,
+    },
+    thresholds,
+  );
   const rpcLevel = row.status_level as DebtAgingStatusLevel | null;
   const rpcReason = row.reason_code as DebtAgingReasonCode | null;
   if (rpcLevel && rpcLevel !== derived.level) {
@@ -4189,7 +4232,20 @@ export class SupabaseDebtRepository implements DebtRepository {
   private readonly profiles = new Map<string, SubjectBehavior<ParentFinancialProfile | null>>();
   // T-405 — cross-year debt aging (financial-rules §15; migration 0111 RPC).
   private readonly agingSubject = new SubjectBehavior<DebtAgingAnalysis[]>([]);
-  private agingSeeded = false;
+  // T-443 (DEBT-101): the aging seed follows the SAME TTL + focus freshness
+  // lifecycle as the summary (the T-423 CACHE-103 contract) — a threshold
+  // edit in Settings → Configuration surfaces on the next tab mount / window
+  // focus without an app restart (previously a one-shot `agingSeeded` flag
+  // froze the statuses until an unrelated financial mutation).
+  private readonly agingFreshness = new CacheFreshness();
+  // T-443 (DEBT-101): the tenant's ACTIVE thresholds — seeded from the
+  // `read_debt_aging_thresholds` light RPC (migration 0133) and re-synced
+  // from every successful aging seed's `applied_thresholds` (the values
+  // that actually shaped the server's verdicts — the authoritative source).
+  private readonly thresholdsSubject = new SubjectBehavior<DebtAgingThresholds>(
+    DEFAULT_DEBT_AGING_THRESHOLDS,
+  );
+  private thresholdsSeeded = false;
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -4198,15 +4254,58 @@ export class SupabaseDebtRepository implements DebtRepository {
     return this.agingSubject;
   }
 
+  /**
+   * T-443 (DEBT-101, INV-16f): the ACTIVE thresholds for every client-side
+   * consumer (the Statistics triage edges, the Finances legend, the settings
+   * hint). Seeded ONCE from the light reader RPC (cheap — 4 values), then
+   * re-synced from the aging seed's `applied_thresholds`. A pre-0133 server
+   * (PGRST202/42883 — the RPC does not exist) keeps the documented DEFAULTS
+   * silently (the version-skew class: the defaults ARE the live seed values
+   * until the chain is applied); any other failure warns and keeps the last
+   * known values (the honest-degradation convention — never a fabricated
+   * reset).
+   */
+  observeThresholds(): Observable<DebtAgingThresholds> {
+    void this.seedThresholds();
+    return this.thresholdsSubject;
+  }
+
+  private async seedThresholds(): Promise<void> {
+    if (this.thresholdsSeeded) return;
+    this.thresholdsSeeded = true;
+    try {
+      const { data, error } = await this.client.rpc("read_debt_aging_thresholds");
+      if (error) throw error;
+      if (data) {
+        this.thresholdsSubject.set(normalizeDebtAgingThresholds(data as Partial<DebtAgingThresholds>));
+      }
+    } catch (e) {
+      const err = e as { code?: string; message?: string };
+      if (isRpcUnavailableError(err)) {
+        // Pre-0133 server: the defaults are the live values (0125's seed) —
+        // the documented version-skew degradation, not an error state.
+        return;
+      }
+      console.warn("[SupabaseDebt] seedThresholds failed:", err.message ?? e);
+    }
+  }
+
   async refreshAging(): Promise<void> {
     // The realtime bridge calls this after financial mutations (payments,
     // allocations, due dates) — §15: recalculate when the facts change.
+    // Also the settings-change path: the aging freshness TTL is bypassed so
+    // the next observeAging() re-queries with the CURRENT thresholds.
+    this.agingFreshness.forceRefresh();
+    this.thresholdsSeeded = false;
     await this.seedAging(true);
   }
 
   private async seedAging(force = false): Promise<void> {
-    if (this.agingSeeded && !force) return;
-    this.agingSeeded = true;
+    // T-443: the TTL + focus lifecycle replaces the one-shot flag (the
+    // T-423 CACHE-103 contract — replace-only-on-success, keep-last-known
+    // on failure). `refreshAging()` forces past the TTL.
+    if (!force && !this.agingFreshness.shouldReseed()) return;
+    this.agingFreshness.markSeeded();
     try {
       // The canonical server contract (0111): staff-gated + tenant-scoped
       // server-side; the client never re-computes the factors.
@@ -4214,6 +4313,13 @@ export class SupabaseDebtRepository implements DebtRepository {
       if (error) throw error;
       const rows = (data ?? []) as DebtAgingRpcRow[];
       this.agingSubject.set(rows.map(mapDebtAgingRow));
+      // T-443: the applied_thresholds that shaped these verdicts are the
+      // authoritative thresholds — keep the light-reader subject in sync
+      // (both consumers now agree by construction).
+      const applied = rows.find((r) => r.applied_thresholds)?.applied_thresholds;
+      if (applied) {
+        this.thresholdsSubject.set(normalizeDebtAgingThresholds(applied));
+      }
     } catch (e) {
       // Keep the last known truthful analysis on a transient failure (the
       // realtime facade's convention) — never fabricate rows.
