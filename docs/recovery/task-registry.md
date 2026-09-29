@@ -5085,3 +5085,23 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Left:** (1) the owner's packaged-app visual pass over the restored sections in the new chrome (the standing acceptance convention — the coverage stack, the reconciliation, the ajustements history, the pricing expander, the export menu, the employee tabs are all back but restyled-consistent); (2) the t-413 re-pin's documentation debt: any FUTURE menu change must keep the no-dead-links + canonical-identity invariants the re-pinned assertions encode; (3) the pre-existing 17-failure baseline is unchanged (documented, environment-class). **Scope owner:** the owner's 2026-09-30 issue (this session's mandate). **Next:** the standing queue — the 0132 + 0133 live applications (one fresh Management token unblocks both), then UNKNOWN-029 (the owner's FI ruling), then IDENT-104 M5.
 **Related:** UI-324 · T-405/T-442 (the destroyed drawer's suites) · T-168/T-252 (the reconciliation + coverage) · T-413/T-437 (the menu + InfoTab tests) · ADR-028 (the delivery branch model).
+
+## T-445 — The 0132+0133 live-application attempt with the re-supplied credentials + the data-gateway live re-verification (the owner's 2026-09-30 mandate: "here are all the tokens you need from infrastructure to test if it works make sure it works") — verify EVERYTHING the data gateway can reach, keep the DDL apply a one-command owner step
+
+**Problem IDs:** none new (DEBT-101's live-application residue + the standing T-441/T-442 live-run recommendations — all verified GREEN; the third dead `sbp_` token is the §15.71d/§15.77a class, already registered knowledge).
+**Priority:** P1 — the standing #1 recommendation of three consecutive sessions (the 0132+0133 live application).
+**Status:** DONE (2026-09-30, 122nd session) — the verification mandate COMPLETE; the DDL apply itself remains the ONE owner-gated step (a fresh Management token, the database password, or the dashboard SQL editor — the 60-second runbook is in t-445-live-verification.md).
+
+**What ran (all GREEN, live):**
+1. `scripts/verify_t-445_live_datagateway.py` — **NEW, committed** — the debt-configuration chain verified through the data gateway ONLY (no Management API): 16/16 — the admin sign-in, the staff gate (the service key rejected P0001), 0125's four rows + bounds (5/15/60/15), the RPC census + per-row invariant (634 debtors: green 86 · yellow 548, 634/634 conform), THE ROUND-TRIP (yellow 15→10 flips 548 rows yellow→orange and back; red/grace windows empty in the current corpus — mechanism proven, derived expectations per §15.77b), zero residue, and the 0132/0133 pending states (404 PGRST202, the documented version-skew mode).
+2. `scripts/t-442-live-verify.mjs` — **17/17 PASS** (first live run; the standing T-442 recommendation): the per-year breakdown reconciles on the richest live family (50 installments partition exactly; engine === raw sums).
+3. `scripts/t-441-live-e2e.ts` — **DB-1…DB-9 ALL GREEN** (first live run with the key; the standing T-441 recommendation): 118/118 periods, 0 unplaced, 0 hard violations, Gate 1 + Gate 3 PASS on the REAL problem — then the draft version + 118 entries DELETED per §15.77c (the agent run restores the pre-test clean slate; the owner's in-app run is the one that may keep the draft).
+
+**The credentials verdict:** the fresh `sbp_` token is 401 on every Management-API endpoint (curl + CLI — the THIRD consecutive dead token, §15.77a) while the `sb_secret_` key works on the data gateway; the DB strings carry the literal `[YOUR-PASSWORD]` placeholder; JWT-as-password on the pooler is rejected 28P01 (§15.77d — the exhaustion map is documented so nobody re-walks it); no RPC/Edge-Function executes arbitrary SQL (the correct posture). DDL is therefore Management-token-or-DB-password, and the apply stays owner-gated with a three-option 60-second runbook.
+
+**Gates:** the three live scripts above (16/16 · 17/17 · DB-1…DB-9) · zero live residue (the four settings rows re-read at baseline; 0 timetable versions/entries; no other writes).
+
+**Left:** the owner's 60-second apply (Options A/B/C in t-445-live-verification.md) → then re-run verify_t-445 (CHECK-9/10 flip to "applied") + the four post-apply checks in apply_0133_live.sh's header + `verify_t-439.sql`/`verify_t-405.sql` through the Management SQL endpoint (both are BEGIN…ROLLBACK-safe).
+**Scope owner:** the owner's 2026-09-30 credentials hand-off (this session's mandate).
+**Next:** the standing queue (next-task.md).
+**Related:** T-443 (DEBT-101 — the client integration this verifies) · T-439 (SEC-115 — 0132) · T-441/T-442 (the two live-run recommendations executed) · ADR-028 (the delivery branch model) · §15.77 (this session's four discoveries).
