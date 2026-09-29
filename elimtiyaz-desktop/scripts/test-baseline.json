@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-443 (the debt-configuration client integration, 120th session, 2026-09-30 — the +17 new passing tests are the T-443 suites: t-443-debt-threshold-validation 8, the t-405 family's +7 additions (5 repository + 2 UI), the executive-statistics +2 configurable-triage pins; the failing set is UNCHANGED byte-identical — the T-442 year-tab suite repaired in the same session after the DebtAgingTab's new observeThresholds stream broke its fake). Prior: T-442 (the per-year debt-origin breakdown).",
-  "_task": "T-443 (the debt-configuration CLIENT integration, 120th session, 2026-09-30) — the registered BOOKKEEPING-ONLY baseline move: +1 test file (src/tests/features/settings/t-443-debt-threshold-validation.test.ts, 8 tests) and +9 tests inside existing suites (t-405-debt-aging-repository +5 [F/G/H/I + the mock contract], t-405-debt-aging-ui +2 [the active-thresholds legend pins], executive-statistics +2 [the canonical-boundary and configurable-triage pins]) — total 4,496 tests (4,474 passed / 17 failed / 5 skipped), 254 files. The failing-file set is byte-identical to the T-442 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7). Verified: three full runs, identical counts; the FAIL list diffed against the previous failingFiles — no new, no vanished.",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: the T-443/T-441 MERGED-TREE reconciliation (120th session, 2026-09-30 — T-443's +17 [the validation 8, the repository 5, the UI legend 2, the triage pins 2] + T-441's +55 timetable tests [feasibility 23 · solver-repair 12 · gates 11 · duplicate-lessons 9], reconciled on the post-merge tree after the two concurrent sessions' work was combined; the failing set is UNCHANGED byte-identical). Prior: T-443 (the pre-merge move), T-442.",
+  "_task": "T-443 + T-441 merged-tree reconciliation (120th session, 2026-09-30) — the concurrent sessions both added passing tests without seeing each other's totals; this move re-measures the COMBINED tree: 258 files (+4 T-441 timetable suites), 4,551 tests (4,529 passed / 17 failed / 5 skipped). The failing-file set is byte-identical to the T-442/T-443 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7). Verified: full runs on the merged tree, identical counts; the FAIL list diffed — no new, no vanished.",
   "testFiles": {
     "failed": 8,
-    "passed": 245,
+    "passed": 249,
     "skipped": 1,
-    "total": 254
+    "total": 258
   },
   "tests": {
     "failed": 17,
-    "passed": 4474,
+    "passed": 4529,
     "skipped": 5,
-    "total": 4496
+    "total": 4551
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",
