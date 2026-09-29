@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-424 Phase C (2026-09-27).",
-  "_task": "T-424 Phase C (2026-09-27) — the baseline moved by a registered, verified change, and the stale A3 bookkeeping repaired (the json's counts said 25 while its own _task recorded the A3 move to 21 — the numbers now record the verified current reality). Moves: (1) t-355-t-356-departments-bucket-parity.test.tsx LEAVES the failing set — the owner's own 967ab35 (Sep 17) reworded the Departments tab copy ('Aucun revenu enregistré' → 'Aucun encaissement sur cette période', 'N paiements' → 'Total Encaissé (N versements)') and dropped the 'Autres catégories' row (unclaimed categories now fold into the grand total); the 3 pinned tests follow the owner's UI with their intent preserved (real-payments feed, honest empty state, never-dropped residual pinned through the total). (2) t-353-year-scoping.test.ts was NEVER in the baseline — its 3 wire-filter assertions broke against DATA-043's collection read (the year window now applied client-side) and are converted to RESULT assertions (the outstanding and the aging buckets count only the year's rows); it stays green. The failure count 25 (bookkeeping) → 18; the failing set is the remaining 9 environment-class files, byte-identical otherwise.",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-440 (the final verification, 2026-09-29).",
+  "_task": "T-440 (the final verification of the 40 commits, 119th session, 2026-09-29) \u2014 the registered baseline move with TWO legs. (1) The BOOKKEEPING leg: the counts were stale since T-424 Phase C \u2014 T-436 (+29 tests: the year-history engine, the attribution-precedence refactor, the multi-year fixtures, the UI-318 section), T-437 (+59: the re-enrollment repository/domain/UI suites), T-438 (+69+16+13: the ER engine, the gate/seam, the repository), T-439 (+36: the six regression suites) all added passing tests without moving this json \u2014 every full run since printed DEVIATION on the passed count while the failing set stayed byte-identical. (2) The FIX leg: DATA-058 (the T-437 mock's inline parent-name composition \u2014 the defect that silently JOINED the red t-134 guard, 18 failures before and after, zero signal) is fixed RED-first, and the t-134 tree guard now PINS its documented offender list (the one pre-baseline T-389 file, data-inspector-lineage.ts) instead of asserting a bare [] \u2014 the guard flips GREEN while guarding STRONGER (any new offender = a named-diff RED). t-134-parent-name-rendering.test.ts therefore LEAVES the failing set: 18 -> 17 documented failures across 8 files, every remaining one re-characterized by hand this session (the mirror refund-status trio, the getSupabaseRepositories infra failure, the jsdom MIME rejection, three stale-label UI pins). The equivalence section is unchanged \u2014 both this session's runs matched it exactly (809/0/10, 784/0/0/35, sanity 819/819 + canonical 318/318). Prior move: T-424 Phase C (2026-09-27).",
   "testFiles": {
-    "failed": 9,
-    "passed": 221,
+    "failed": 8,
+    "passed": 241,
     "skipped": 1,
-    "total": 231
+    "total": 250
   },
   "tests": {
-    "failed": 18,
-    "passed": 4206,
+    "failed": 17,
+    "passed": 4429,
     "skipped": 5,
-    "total": 4229
+    "total": 4451
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",
@@ -19,7 +19,6 @@
     "src/tests/cross-platform/Tier4OperationSequences.test.ts",
     "src/tests/infrastructure/t-390-financial-realtime.test.ts",
     "src/tests/integration/vault-compliance-architecture.test.tsx",
-    "src/tests/security/t-134-parent-name-rendering.test.ts",
     "src/tests/ui/ai-review-screens.test.tsx",
     "src/tests/ui/analytics-visuals.test.tsx",
     "src/tests/ui/dashboard-3zone.test.tsx"
