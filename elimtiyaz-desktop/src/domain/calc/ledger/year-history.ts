@@ -277,6 +277,32 @@ function yearMetaOf(
 }
 
 /**
+ * T-439 (CALC-003): the canonical payment-status classification for
+ * allocation replays — the SAME three states `financial-query-engine.ts`
+ * (the T-424 canonical) uses for its cleared/pending split:
+ *
+ *   - `paid` → cleared funds;
+ *   - `pending` | `pending_clearance` → committed-but-uncleared (an
+ *     uncleared cheque — NOT a settlement, INV-4);
+ *   - `unpaid` (what migration 0039's `mark_payment_bounced` sets — the
+ *     RPC rolls back the installment's amounts but NEVER deletes the
+ *     payment's `payment_allocations` rows), `refunded`, `cancelled` →
+ *     NEITHER: the funds are not real money against the charge.
+ *
+ * A missing payment record (FK-impossible live; mock fixtures always
+ * pair them) keeps the replay's legacy behavior: the allocation's own
+ * `createdAt` is its clock and the row counts as cleared (unchanged
+ * pre-T-439 behavior — the defect being fixed here is the STATUS
+ * misclassification, not the orphan edge).
+ */
+function allocationFundClass(p: Payment | undefined): "paid" | "pending" | "none" {
+  if (!p) return "paid";
+  if (p.status === "paid") return "paid";
+  if (p.status === "pending" || p.status === "pending_clearance") return "pending";
+  return "none"; // unpaid (bounced per 0039) / refunded / cancelled
+}
+
+/**
  * The as-of paid/pending split of ONE charge at a clock, using the
  * allocation records when they exist (the exact replay) and the paid-date
  * heuristic otherwise (legacy rows predating payment_allocations).
@@ -294,7 +320,13 @@ function paidUpToClock(
       const p = a.paymentId ? paymentById.get(a.paymentId) : undefined;
       const at = p ? new Date(p.collectedAt).getTime() : new Date(a.createdAt).getTime();
       if (!Number.isFinite(at) || at > clock.getTime()) continue;
-      if (p && p.status === "pending") pending += a.allocatedAmount;
+      // T-439 (CALC-003): classify by STATUS — a bounced (unpaid),
+      // refunded or cancelled payment's retained allocation rows are
+      // NOT funds; an uncleared cheque (pending_clearance) is committed,
+      // never cleared (the canonical financial-query-engine split).
+      const funds = allocationFundClass(p);
+      if (funds === "none") continue;
+      if (funds === "pending") pending += a.allocatedAmount;
       else paid += a.allocatedAmount;
     }
     return { paid, pending, exact: true };
@@ -409,6 +441,12 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
     if (!Number.isFinite(targetStart) || !Number.isFinite(paidStart)) continue;
     if (paidStart <= targetStart) continue; // same-year settlement — not cross-year
     const sourcePayment = a.paymentId ? paymentById.get(a.paymentId) : undefined;
+    // T-439 (CALC-003): only CLEARED money settles old debt (INV-4 —
+    // "uncleared funds are NOT a settlement"): a bounced (unpaid)
+    // next-year cheque — whose allocation rows 0039 never deletes —
+    // must not fabricate a settlement, and an uncleared one is
+    // committed but has not settled anything yet.
+    if (allocationFundClass(sourcePayment) !== "paid") continue;
     const sourceEntry = paymentEntries.find((e) => e.sourceId === a.paymentId);
     const item: CrossYearSettlementItem = {
       paymentId: a.paymentId,
@@ -483,6 +521,9 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
           const times = chargeAllocations
             .map((a) => {
               const p = a.paymentId ? paymentById.get(a.paymentId) : undefined;
+              // T-439 (CALC-003): a bounced/refunded/cancelled
+              // payment's allocation is not a completing moment.
+              if (allocationFundClass(p) === "none") return Number.NaN;
               return p ? new Date(p.collectedAt).getTime() : new Date(a.createdAt).getTime();
             })
             .filter((t) => Number.isFinite(t))
