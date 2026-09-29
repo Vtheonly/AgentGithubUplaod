@@ -22,7 +22,7 @@ tsc 0 · eslint 0 errors on every changed file · t-441-feasibility 23/23 · t-4
 
 ### The registry + knowledge
 
-+SCHED-113 RESOLVED/TESTED · +SCHED-114 RESOLVED/TESTED (the 443 recount) · SCHED-110 CLOSED · T-441 DONE in the task registry · AGENTS.md §15.73 (the failure-direction lesson + the coverage-symmetry rule) · docs/recovery/t-441-live-verification.md (the full evidence record incl. the reproduction table).
++SCHED-113 RESOLVED/TESTED · +SCHED-114 RESOLVED/TESTED (444 with the concurrent T-442's UI-323) · SCHED-110 CLOSED · T-441 DONE in the task registry · AGENTS.md §15.74 (the failure-direction lesson + the coverage-symmetry rule) · docs/recovery/t-441-live-verification.md (the full evidence record incl. the reproduction table).
 
 ### What is still open
 
@@ -3612,3 +3612,36 @@ AGENTS.md **§57** — the PL/pgSQL RETURNS TABLE OUT-parameter collision class;
 **Gates:** tsc exit 0 · eslint 0 errors on every changed file · `check:migrations` append-only OK (**128 files, chain head 0132**) · the T-439 suites **36 new tests** all GREEN with RED proofs · the FULL post-fix vitest **4,425 passed / 18 failed** (the count = the 4,389 baseline + the 36 new; the failing SET byte-identical to the 9-file baseline — BASELINE-MATCHED) · the report: `docs/recovery/t-439-audit-report.md`.
 
 **Left (honest):** the 0132 live application (BLOCKED on a fresh token — the #1 next step); the owner's FI ruling (UNKNOWN-029); the IDENT-104/DATA-056/UI-322 families (registered with fix orders); the standing queue unchanged.
+
+## 120th session (2026-09-29) — T-442: the per-year debt-origin breakdown (the owner's "complete historical financial breakdown by academic year" issue) — UI-323 resolved, the canonical engine extended additively, both surfaces delivered, LIVE-verified read-only
+
+### What was wrong (registered BEFORE the fix — UI-323, per §13)
+The debt-origin surfaces answered neither "how much is owed for EACH individual year" nor "exactly what each payment covered": the « Suivi des Dettes » view showed only the OLDEST origin year + ONE total (a family owing in two years showed one of them), its drill-down listed only the currently-unpaid obligations, and the year-history section rendered per-year charges/payments with no per-service grouping (FI / scolarité per tranche / transport / other services) and no per-payment coverage detail; the prior-years banner was a single aggregate.
+
+### Why it happened
+T-436's engine contract (§17.3 INV-20) was scoped to year attribution and year records — the per-service grouping and the per-payment coverage lines were never part of the derivation; the Debt Aging surface (T-405) predates the year-history engine entirely and never consumed it.
+
+### What was changed (the four-commit sequence, each pushed + merged --no-ff per ADR-028)
+1. **Phase 1 — the canonical engine's ADDITIVE extension** (`src/domain/calc/ledger/year-history.ts` + the 17-test suite + `scripts/t-442-live-verify.mjs`): `YearServiceGroup`/`serviceBreakdown` (the per-service grouping: FI [tuition/T0 — a fee, not a tranche] / scolarité T1..T3 / transport / each other service category individually; Σ stored columns + Σ INV-4 per group; the groups PARTITION the year's charges), `PaymentCoverageLine`/`coveredCharges`+`coverageBasis` (each payment's allocation rows with the settlement-target year through the allocated installment — INV-18c; the honest "unavailable" basis for the import-era corpus; bounced payments' retained rows are NOT coverage — CALC-003), `outstandingStillOwedNow` (per-year) + `priorYearsStillOwed` (the per-year enumeration; Σ === the unchanged aggregate — INV-20a holds: no new numbers).
+2. **Phase 2 — the CRM section** (`parent-year-history-section.tsx` + the 7-test suite): the per-year prior-debt chips, the « Services de l'année » block, the charge rows' wave chips (FI/T1/T2/T3), the payment coverage lines (the cross-year target tagged "(dette <year>)"), the honest "couverture non enregistrée" note, the "Reste aujourd'hui" header line.
+3. **Phase 3 — the Debt Aging drawer's « Par année » tab** (`debt-aging-year-history.tsx` [NEW — mounts the SAME section component fed by the SAME canonical repository streams] + `debt-aging-tab.tsx` [the tab] + the 4-test suite): the owner's "open the 2024 record" mandate ON the debt surface; the T-430 conditional mount (the observables subscribe on tab selection only).
+4. **Phase 4 — this closeout**: financial-rules §17.3 **INV-20e** (the presentation contract), the registries truth-sync, the registered baseline move (4,429/17 → **4,457/17**, the failing SET byte-identical — the T-439 stale-counts lesson applied immediately), this entry.
+
+### What was verified
+- The t-442 suites: **17/17** (engine) · **7/7** (CRM UI) · **4/4** (debt-aging UI).
+- The untouched families re-run green: the T-436 engine 33/33 · the T-436 UI 7/7 · the T-439 replay 6/6 · the T-405 debt-aging UI 5/5 (139/139 across the three directories).
+- tsc exit 0 · eslint 0 errors AND 0 warnings on every changed file.
+- The FULL unified suite: **4,457 passed / 17 failed — BASELINE-MATCHED** after the registered baseline move (+28 tests; the failing set byte-identical to the T-440-documented environment class).
+- **The read-only LIVE verification** (`SUPABASE_SERVICE_ROLE_KEY=<key> node scripts/t-442-live-verify.mjs` — GET-only, the key from the env, never in the repo): **17/17 PASS** on the REAL corpus (5,956 installments · 2,198 payments · 0 allocations · 2 academic years). The richest family (ba0fea8d, 50 installments): the engine's totals equal the raw stored sums EXACTLY (charged 2,772,000 / paid 1,604,000 / outstanding 1,168,000), the service breakdown partitions 50 = registration(10) + tuition(20) + transport(20), and every live payment's coverage basis is honestly "unavailable" (payment_allocations is empty on live — the documented T-436 Left item). A second partial-payment family (4966ca59) verified identically.
+
+### What remains unresolved (registered, not silently dropped)
+1. The live `payment_allocations` backfill (the standing T-436 Left item): until it runs, the coverage lines render only on corpora WITH allocation records (mock/tests); live payments show the honest "couverture non enregistrée" note.
+2. DATA-056 M2 (the `allocation.academic_year_id` precedence): deliberately untouched — T-442's coverage target year resolves through the allocated installment exactly like the pre-existing cross-year settlement derivation (scope control, §15.8).
+3. The cross-platform ports of the INV-20e contract (Android/website) — the same standing note T-436 carries.
+4. The owner's packaged-app visual pass over both surfaces (the standing acceptance convention).
+
+### Permanent knowledge (the reusable discoveries)
+1. **The §15.54b nullish-default factory trap re-hit in a NEW file** — `trancheNumber: overrides.trancheNumber ?? 1` silently coerces the INTENTIONAL `undefined` (a non-wave service row) into T1; the fix is the `in`-guard (`"trancheNumber" in overrides ? overrides.trancheNumber : 1`). Every future fixture that models non-wave rows must use the in-guard form.
+2. **The live-engine-verification pattern (tsx eval):** `npx tsx -e` evaluates as CJS — top-level `await import()` FAILS ("Top-level await is currently not supported with the cjs output format"); wrap the payload in an `(async () => { … })()` IIFE. And NEVER serialize `now` into the JSON payload (a JSON date string breaks the engine's `Date` contract — omit it and let the engine default to its own clock). `scripts/t-442-live-verify.mjs` is the reusable template for running ANY canonical TS engine over live rows read-only.
+3. **PostgREST pages at 1000 rows** — a live verification script must loop (`limit=1000&offset=`) to fetch a full table; the plain single GET silently returns only the first page (5,956 installments ≠ 1,000).
+4. **The deeper-directory `vi.mock` path trap:** a test at `src/tests/features/<subdir>/` needs `../../../app/...` mock paths — a wrong relative depth makes `vi.mock` silently NOT intercept (the real provider renders; the symptom is "useAuth must be used inside <AuthProvider>", not a mock error).

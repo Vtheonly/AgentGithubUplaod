@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-440 (the final verification, 2026-09-29).",
-  "_task": "T-440 (the final verification of the 40 commits, 119th session, 2026-09-29) \u2014 the registered baseline move with TWO legs. (1) The BOOKKEEPING leg: the counts were stale since T-424 Phase C \u2014 T-436 (+29 tests: the year-history engine, the attribution-precedence refactor, the multi-year fixtures, the UI-318 section), T-437 (+59: the re-enrollment repository/domain/UI suites), T-438 (+69+16+13: the ER engine, the gate/seam, the repository), T-439 (+36: the six regression suites) all added passing tests without moving this json \u2014 every full run since printed DEVIATION on the passed count while the failing set stayed byte-identical. (2) The FIX leg: DATA-058 (the T-437 mock's inline parent-name composition \u2014 the defect that silently JOINED the red t-134 guard, 18 failures before and after, zero signal) is fixed RED-first, and the t-134 tree guard now PINS its documented offender list (the one pre-baseline T-389 file, data-inspector-lineage.ts) instead of asserting a bare [] \u2014 the guard flips GREEN while guarding STRONGER (any new offender = a named-diff RED). t-134-parent-name-rendering.test.ts therefore LEAVES the failing set: 18 -> 17 documented failures across 8 files, every remaining one re-characterized by hand this session (the mirror refund-status trio, the getSupabaseRepositories infra failure, the jsdom MIME rejection, three stale-label UI pins). The equivalence section is unchanged \u2014 both this session's runs matched it exactly (809/0/10, 784/0/0/35, sanity 819/819 + canonical 318/318). Prior move: T-424 Phase C (2026-09-27).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-442 (the per-year debt-origin breakdown, 120th session, 2026-09-29 — the bookkeeping-only leg: +28 passing tests [17 engine + 7 CRM-UI + 4 debt-aging-UI], the failing SET unchanged [17/8, byte-identical — the T-440-documented environment class]).",
+  "_task": "T-442 (the per-year debt-origin breakdown, 120th session, 2026-09-29) — the registered BOOKKEEPING-ONLY baseline move (the T-439 lesson applied immediately instead of compounding): the +28 new passing tests are the T-442 suites (src/tests/domain/ledger/t-442-year-breakdown.test.ts 17, src/tests/features/crm/t-442-year-breakdown-ui.test.tsx 7, src/tests/features/financials/t-442-debt-aging-year-tab.test.tsx 4). The failing set is BYTE-IDENTICAL to the T-440-documented 17 failures across the same 8 files (the environment class: the mirror refund-status trio, the getSupabaseRepositories infra failure, the jsdom MIME rejection, the stale-label UI pins). The equivalence section is unchanged (no financial RULE changed — T-442 is an additive read-side derivation + presentation; the engine suite pins INV-20a parity).",
   "testFiles": {
     "failed": 8,
-    "passed": 241,
+    "passed": 244,
     "skipped": 1,
-    "total": 250
+    "total": 253
   },
   "tests": {
     "failed": 17,
-    "passed": 4429,
+    "passed": 4457,
     "skipped": 5,
-    "total": 4451
+    "total": 4479
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",

@@ -8,7 +8,7 @@
 4. **The solver v1.3.0:** the bounded deterministic eviction repair (SCHED-110 closed), the pinned-coverage subtraction (SCHED-113 — regenerations no longer duplicate pinned lessons; the excess is now the hard violation `excess_weekly_hours`), and the preferred-slot continuity hint (the source schedule as deterministic placement preferences — 0 unplaced at every tested pin density 0–50% on the live problem shape, where the old solver persisted 5/29-block partial drafts).
 5. **The single-class + whole-school modes:** `classIds` carries the other classes' entries as immovable busy-grid occupants — conflicts with the reference schedule are structurally impossible; the version stays a complete school snapshot.
 
-**Gates:** tsc 0 · eslint 0 · the four T-441 suites 55/55 (feasibility 23 · solver-repair 12 · gates 11 · duplicate-lesson 9 RED-first) · T-404/T-409/T-410 re-run green (115/115 across the seven timetable files) · FULL vitest 4,506/4,484/17 — BASELINE-MATCHED (the failing set byte-identical, every one pre-existing and non-timetable) · the offline live-problem run: 118/118 periods, 0 unplaced, 0 hard, 0 gaps, 0 excess. Registry: +SCHED-113/+SCHED-114 RESOLVED/TESTED (443). Knowledge: AGENTS.md §15.73 · docs/recovery/t-441-live-verification.md.
+**Gates:** tsc 0 · eslint 0 · the four T-441 suites 55/55 (feasibility 23 · solver-repair 12 · gates 11 · duplicate-lesson 9 RED-first) · T-404/T-409/T-410 re-run green (115/115 across the seven timetable files) · FULL vitest 4,506/4,484/17 — BASELINE-MATCHED (the failing set byte-identical, every one pre-existing and non-timetable) · the offline live-problem run: 118/118 periods, 0 unplaced, 0 hard, 0 gaps, 0 excess. Registry: +SCHED-113/+SCHED-114 RESOLVED/TESTED (443). Knowledge: AGENTS.md §15.74 · docs/recovery/t-441-live-verification.md.
 
 ## Standing recommendation (updated by the 120th session)
 
@@ -17,6 +17,22 @@
 3. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
 4. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322.
 5. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the T-429 ports · the 17-failure environment-class baseline (pre-existing, non-timetable — every one re-characterized at T-440).
+
+---
+
+# 2026-09-29 — T-442 COMPLETE (120th session): the per-year debt-origin breakdown — the canonical engine's INV-20e extension + the CRM « Services de l'année »/coverage lines + the Debt Aging « Par année » tab — UI-323 RESOLVED, LIVE-verified read-only 17/17
+
+**The 120th session delivered the owner's "complete historical financial breakdown by academic year" issue end to end** (the four-commit sequence, each pushed + merged --no-ff per ADR-028). For every academic year a family ever touched, both the CRM parent drawer's Finances tab AND the Debt Aging drill-down now show: the per-service breakdown (FI / scolarité per tranche / transport / each other service — due/paid/remaining per group), every payment with EXACTLY what it covered (the waterfall's allocation lines, cross-year targets tagged), the per-year still-owed-today figure, and the prior-years debt enumerated PER YEAR. The engine change is ADDITIVE (INV-20a: no new numbers); the debt surface REUSES the same section component (one engine, one component, two surfaces).
+
+**Gates:** the t-442 suites 17/17 + 7/7 + 4/4 · the T-436/T-439/T-405 families 139/139 · tsc 0 · eslint 0 errors AND 0 warnings on every changed file · FULL vitest **4,457 / 17** BASELINE-MATCHED (the registered baseline move: +28 tests, the failing SET byte-identical) · the read-only live verify `scripts/t-442-live-verify.mjs` **17/17 PASS** on the real corpus (the richest family's 50 installments partitioned registration(10)+tuition(20)+transport(20); engine totals = raw stored sums exactly). Registry: UI-323 RESOLVED-TESTED. Knowledge: the change-log's four permanent discoveries (the §15.54b in-guard form, the tsx-IIFE live-verification pattern, the PostgREST 1000-row page, the vi.mock depth trap).
+
+## Standing recommendation (updated by the 120th session)
+
+1. **The owner's packaged-app pass (the top item):** pull main + rebuild — the CRM parent drawer's Finances tab gains the « Services de l'année » block + the payment coverage lines + the per-year prior-debt chips; the « Suivi des Dettes » drill-down gains the « Par année » tab (the 2024-record walkthrough).
+2. **The live payment_allocations backfill (the standing T-436/T-442 Left item):** until it runs, live payments honestly show "couverture non enregistrée" — the coverage lines need the waterfall's decision records (the 0062/0063 backfill pattern).
+3. **The cross-platform INV-20e ports** (Android/website — the same note T-436 carries for §17.3).
+4. **The standing queue is unchanged:** the 0132 live application (a FRESH SUPABASE_ACCESS_TOKEN — the re-supplied sbp_ token is still 401 on the Management API) · the owner's FI ruling (UNKNOWN-029) · IDENT-104 M5 before any real ER exercise · DATA-056 M2 (the allocation.academicYearId precedence — deliberately deferred by T-442) · SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved).
+
 
 ---
 
