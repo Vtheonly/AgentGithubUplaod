@@ -616,6 +616,39 @@ export function coverageGaps(
   return gaps;
 }
 
+/**
+ * T-441 — EXCESS coverage (duplicate lessons): periods placed BEYOND a
+ * requirement's weekly hours. The owner's contract forbids duplicated
+ * lessons outright ("jamais de cours en double"), so every excess period
+ * is reported with the exact class / subject / counts — never silently
+ * accepted. Used by the canonical validator as a HARD violation and by
+ * the feasibility pre-analysis to catch over-pinned requirements BEFORE
+ * generation.
+ */
+export interface CoverageExcess {
+  readonly requirement: TimetableRequirement;
+  readonly requiredPeriods: number;
+  readonly placedPeriods: number;
+}
+
+export function coverageExcesses(
+  problem: TimetableProblem,
+  entries: readonly TimetableSlotAssignment[],
+): CoverageExcess[] {
+  const pm = periodMinutesSafe(problem.configuration);
+  const excesses: CoverageExcess[] = [];
+  for (const req of problem.requirements) {
+    const requiredPeriods = requiredPeriodsFor(req, pm);
+    const placed = entries.filter(
+      (e) => e.classId === req.classId && e.subjectId === req.subjectId,
+    ).length;
+    if (placed > requiredPeriods) {
+      excesses.push({ requirement: req, requiredPeriods, placedPeriods: placed });
+    }
+  }
+  return excesses;
+}
+
 // ============================================================================
 // THE canonical validator
 // ============================================================================
@@ -653,6 +686,23 @@ export function validateTimetable(
       refs: {
         classId: gap.requirement.classId,
         subjectId: gap.requirement.subjectId,
+      },
+    });
+  }
+
+  // T-441 — duplicate lessons (excess weekly hours) are HARD violations:
+  // the owner's contract forbids a generated timetable that repeats a
+  // subject more times than its weekly hours require (the classic
+  // regeneration-with-locked-pins double-count, now caught here and in
+  // the feasibility pre-analysis BEFORE any persistence).
+  for (const excess of coverageExcesses(problem, entries)) {
+    violations.push({
+      severity: "hard",
+      kind: "excess_weekly_hours",
+      message: `${excess.requirement.subjectName} pour ${excess.requirement.className} : ${excess.placedPeriods} périodes placées pour ${excess.requiredPeriods} requises (cours en double — heures hebdomadaires dépassées).`,
+      refs: {
+        classId: excess.requirement.classId,
+        subjectId: excess.requirement.subjectId,
       },
     });
   }

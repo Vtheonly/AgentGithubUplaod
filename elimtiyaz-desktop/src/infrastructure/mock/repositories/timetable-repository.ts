@@ -35,6 +35,7 @@ import type {
   TimetableProblem,
   TimetableRequirement,
   TimetableScheduleEntry,
+  TimetableSlotAssignment,
   TimetableSolution,
   TimetableVersion,
 } from "../../../domain/model/timetable";
@@ -43,6 +44,12 @@ import {
   slotAssignmentFromEntry,
 } from "../../../domain/model/timetable";
 import { validateTimetable } from "../../../domain/calc/timetable/constraints";
+import {
+  analyzeTimetableFeasibility,
+  feasibilityErrorMessage,
+  persistedValidationError,
+  validatePersistedSolution,
+} from "../../../domain/calc/timetable/feasibility";
 import {
   getTimetableSolver,
   GREEDY_SOLVER_ID,
@@ -431,22 +438,119 @@ export class MockTimetableRepository implements TimetableRepository {
         ),
       );
     }
+    // T-441 GATE 1 — feasibility pre-analysis (same contract as Supabase).
+    const feasibility = analyzeTimetableFeasibility(problem);
+    if (feasibility.length > 0) {
+      return Err(Errors.validation(feasibilityErrorMessage(feasibility)));
+    }
     const solver = getTimetableSolver(options.solverId ?? GREEDY_SOLVER_ID);
     if (!solver) {
       return Err(Errors.notFound("TimetableSolver", options.solverId ?? GREEDY_SOLVER_ID));
     }
 
-    const lockedSource = options.fromVersionId
-      ? store.entries.filter(
-          (e) => e.versionId === options.fromVersionId && e.isLocked,
-        )
+    // ── T-441 — single-class / partial regeneration scoping (same
+    //    reference-resolution semantics as the Supabase repository). ──────
+    const selectedClassIds =
+      options.classIds && options.classIds.length > 0
+        ? [...new Set(options.classIds)]
+        : null;
+    let referenceVersionId: string | null = null;
+    const carried: TimetableSlotAssignment[] = [];
+    const carriedFlags = new Map<
+      string,
+      { isLocked: boolean; source: "manual" | "generated" }
+    >();
+
+    if (selectedClassIds) {
+      const unknown = selectedClassIds.filter(
+        (id) => !problem.classes.some((c) => c.id === id),
+      );
+      if (unknown.length > 0) {
+        return Err(
+          Errors.validation(
+            `Classes inconnues pour cette année scolaire : ${unknown.join(", ")}.`,
+          ),
+        );
+      }
+      if (options.fromVersionId) {
+        referenceVersionId = options.fromVersionId;
+      } else {
+        const published = store.versions.find(
+          (v) =>
+            v.academicYearId === options.academicYearId && v.status === "published",
+        );
+        referenceVersionId = published?.id ?? null;
+      }
+      if (referenceVersionId) {
+        const selectedSet = new Set(selectedClassIds);
+        for (const e of store.entries.filter(
+          (e) => e.versionId === referenceVersionId,
+        )) {
+          if (selectedSet.has(e.classId)) continue;
+          const slot = slotAssignmentFromEntry(e);
+          carried.push(slot);
+          carriedFlags.set(
+            `${slot.classId}|${slot.subjectId}|${slot.day}|${slot.periodIndex}`,
+            { isLocked: e.isLocked, source: e.source === "manual" ? "manual" : "generated" },
+          );
+        }
+      }
+    }
+
+    const lockSourceId = referenceVersionId ?? options.fromVersionId ?? null;
+    const lockedSource = lockSourceId
+      ? store.entries.filter((e) => e.versionId === lockSourceId && e.isLocked)
       : [];
-    const locked = lockedSource.map((e) => slotAssignmentFromEntry(e));
+    const selectedSet = selectedClassIds ? new Set(selectedClassIds) : null;
+    const locked = lockedSource
+      .map((e) => slotAssignmentFromEntry(e))
+      .filter((l) => !selectedSet || selectedSet.has(l.classId));
+    // T-441 — preferred slots (regeneration continuity): the source
+    // version's FULL schedule is offered to the solver as deterministic
+    // placement preferences — the regeneration keeps the previous schedule
+    // wherever it still fits around the locked pins (same contract as the
+    // Supabase repository).
+    const preferred = lockSourceId
+      ? store.entries
+          .filter((e) => e.versionId === lockSourceId)
+          .map((e) => slotAssignmentFromEntry(e))
+      : [];
+
+    const scopedProblem: TimetableProblem = {
+      ...problem,
+      lockedEntries: locked,
+      preferredEntries: preferred,
+      ...(selectedClassIds
+        ? { carriedEntries: carried, regenerateClassIds: selectedClassIds }
+        : {}),
+    };
 
     const solveOptions = forwarder?.solverOptions;
     const solution: TimetableSolution = solver.solveAsync
-      ? await solver.solveAsync({ ...problem, lockedEntries: locked }, solveOptions)
-      : solver.solve({ ...problem, lockedEntries: locked }, solveOptions);
+      ? await solver.solveAsync(scopedProblem, solveOptions)
+      : solver.solve(scopedProblem, solveOptions);
+
+    // ── T-441 GATE 2 — fail-closed persistence (same contract as Supabase):
+    //    no partial/invalid version is ever persisted. ─────────────────────
+    if (solution.unplaced.length > 0 || solution.statistics.hardViolationCount > 0) {
+      const lines: string[] = [];
+      for (const u of solution.unplaced) {
+        lines.push(
+          `${lines.length + 1}. ${u.requirement.subjectName} — ${u.requirement.className} : ${u.reason}`,
+        );
+      }
+      for (const v of solution.violations.filter((v) => v.severity === "hard")) {
+        lines.push(`${lines.length + 1}. [Conflit] ${v.message}`);
+      }
+      return Err(
+        Errors.validation(
+          [
+            "Génération impossible — le solveur n'a pas pu produire un emploi du temps complet et sans conflit :",
+            ...lines,
+          ].join("\n"),
+        ),
+      );
+    }
 
     const now = new Date().toISOString();
     const versionNumber =
@@ -468,7 +572,11 @@ export class MockTimetableRepository implements TimetableRepository {
       solverBuild: solver.build,
       generationParams: {
         fromVersionId: options.fromVersionId ?? null,
+        referenceVersionId,
+        classIds: selectedClassIds ?? null,
+        carriedEntries: carried.length,
         lockedEntries: locked.length,
+        feasibilityChecked: true,
       },
       statistics: solution.statistics as unknown as Record<string, unknown>,
       hardViolationCount: solution.statistics.hardViolationCount,
@@ -502,6 +610,9 @@ export class MockTimetableRepository implements TimetableRepository {
           l.day === slot.day &&
           l.periodIndex === slot.periodIndex,
       );
+      const carriedFlag = carriedFlags.get(
+        `${slot.classId}|${slot.subjectId}|${slot.day}|${slot.periodIndex}`,
+      );
       store.entries.push({
         id: nextId("tt-ent"),
         tenantId: TENANT_ID,
@@ -516,23 +627,51 @@ export class MockTimetableRepository implements TimetableRepository {
         startMinutes: period?.startMinutes ?? 0,
         endMinutes: period?.endMinutes ?? 0,
         lessonGroup: slot.lessonGroup,
-        isLocked: isLockedPin,
-        source: isLockedPin ? "manual" : "generated",
+        isLocked: carriedFlag ? carriedFlag.isLocked : isLockedPin,
+        source: carriedFlag
+          ? carriedFlag.source
+          : isLockedPin
+            ? "manual"
+            : "generated",
         notes: null,
         createdAt: now,
         updatedAt: now,
       });
     }
 
+    // ── T-441 GATE 3 — independent post-persist validation (re-read the
+    //    STORED entries; never trust the in-memory solution) through the
+    //    canonical validatePersistedSolution layer. ─────────────────────
+    const persisted = store.entries.filter((e) => e.versionId === version.id);
+    const persistedErrors = validatePersistedSolution(
+      scopedProblem,
+      persisted.map(slotAssignmentFromEntry),
+      solution.entries.length,
+    );
+    if (persistedErrors.length > 0) {
+      this.rollbackDraft(version.id);
+      return Err(Errors.validation(persistedValidationError(persistedErrors)));
+    }
+
     this.notifyVersions(options.academicYearId);
     this.notifyEntries();
-    // T-409: the terminal 100% — only NOW, with the trial actually persisted.
+    // T-409: the terminal 100% — only NOW, with the trial actually persisted
+    // AND independently re-validated from the stored rows.
     forwarder?.complete(
       version.versionNumber,
       solution.statistics.placedPeriods,
       solution.statistics.requiredPeriods,
     );
     return Ok(version);
+  }
+
+  /** T-441 — Gate 3 rollback: delete a freshly created draft + its entries. */
+  private rollbackDraft(versionId: string): void {
+    for (let i = store.entries.length - 1; i >= 0; i--) {
+      if (store.entries[i].versionId === versionId) store.entries.splice(i, 1);
+    }
+    const vi = store.versions.findIndex((v) => v.id === versionId);
+    if (vi >= 0) store.versions.splice(vi, 1);
   }
 
   // ========================================================================
