@@ -1,3 +1,11 @@
+# 2026-09-29 — T-442 IN PROGRESS (120th session): the per-year debt origin breakdown (the owner's "complete historical financial breakdown by academic year" issue) — Phase 0 registered
+
+**The 120th session picked up the owner's debt-origin detail issue.** The gap (UI-323, registered with read-only evidence BEFORE any fix): the « Suivi des Dettes » view shows only the OLDEST origin year + ONE total (no per-year debt composition, no drill-down into a year's complete record), and the year-history section renders per-year charges/payments WITHOUT the per-service grouping (FI / scolarité per tranche / transport / services) and WITHOUT per-payment coverage detail. The per-year FACTS exist (the T-436 engine + the 0127 columns); the fix EXTENDS the canonical derivation additively and surfaces it on both surfaces (INV-20a holds — no new numbers).
+
+Session baseline established BEFORE any change: tsc 0 · FULL vitest **4,429 / 17** (BASELINE-MATCHED — the T-440 documented reality) · read-only live probe via the data gateway: 5,956 installments all year-stamped, `payment_allocations` EMPTY (the coverage lines must carry the honest "unavailable" basis on the import-era corpus), academic_years = 2026-2027 (current) + 2027-2028. The sbp_ Management token is still INVALID (401 — the T-440 finding holds; the data gateway with the sb_secret key is the working read path).
+
+---
+
 # 2026-09-29 — T-440 COMPLETE (119th session): the final verification of the last ~40 commits (T-434..T-439) — the full local suite + the LIVE migration census + the SEC-115 behavioral proof + DATA-058 found-and-fixed (the T-437 mock's inline parent-name composition that silently joined the red t-134 guard; the guard now pins its documented offender list)
 
 **The 119th session delivered the owner's final-final-final mandate.** The verification ran BOTH channels on the pristine T-439 delivery tree: the full unified suite (Layers 0-3) and the LIVE data-gateway census (the Management API stayed blocked — the re-supplied keys are not Management-API credentials, and the anon JWT in the block is a corrupted copy: iat = year 2537, one extra digit vs its service_role sibling — decode before concluding rotation, §15.72c).
