@@ -16,9 +16,44 @@ function toDate(value: string | Date | number): Date | null {
   return null;
 }
 
+/** A pure date-only string (`YYYY-MM-DD`) — a zone-less date fact. */
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * T-439 (UI-321): format a Date in UTC — date-fns formats in the machine's
+ * LOCAL zone, so a UTC-midnight instant renders one day early on every
+ * UTC-negative machine (Sept 15 stored → « 14 sept. 2026 » displayed —
+ * proven: TZ=America/New_York failed 3 of the new t-434/t-435 échéance
+ * pins). The shift-by-offset trick renders the UTC calendar date.
+ */
+function formatUtcParts(d: Date, pattern: string): string {
+  const shifted = new Date(d.getTime() + d.getTimezoneOffset() * 60_000);
+  return format(shifted, pattern, { locale: fr });
+}
+
 export function formatDate(value: string | Date | number, pattern = "dd/MM/yyyy"): string {
   const d = toDate(value);
-  return d ? format(d, pattern, { locale: fr }) : "—";
+  if (!d) return "—";
+  // T-439 (UI-321): a DATE-ONLY fact has no zone — it parses to UTC
+  // midnight and must RENDER in UTC (due dates, birth dates, paid dates).
+  // A real DATETIME keeps its local rendering (a timestamp's wall time is
+  // a local fact).
+  if (typeof value === "string" && DATE_ONLY_RE.test(value.trim())) {
+    return formatUtcParts(d, pattern);
+  }
+  return format(d, pattern, { locale: fr });
+}
+
+/**
+ * T-439 (UI-321): the UTC-pinned formatter for callers whose values are
+ * UTC-midnight ISO datetimes carrying DATE facts (the wave échéance
+ * lines derive `new Date(min).toISOString()` — date-only facts in
+ * datetime clothing). Every such surface renders the UTC calendar date
+ * on every machine.
+ */
+export function formatDateUtc(value: string | Date | number, pattern = "dd/MM/yyyy"): string {
+  const d = toDate(value);
+  return d ? formatUtcParts(d, pattern) : "—";
 }
 
 export function formatDateTime(value: string | Date | number): string {
@@ -51,10 +86,14 @@ export function formatDueDateRange(
   dueDateMax: string | null,
 ): string | null {
   if (!dueDateMin) return null;
+  // T-439 (UI-321): the échéance dates are DATE facts carried as
+  // UTC-midnight ISO — format in UTC so a UTC-negative machine never
+  // shows the day before (the days-late suffix is pure UTC math; the
+  // displayed date and the suffix must agree on the same card).
   if (!dueDateMax || dueDateMax === dueDateMin) {
-    return formatDate(dueDateMin, "dd MMM yyyy");
+    return formatDateUtc(dueDateMin, "dd MMM yyyy");
   }
-  return `${formatDate(dueDateMin, "dd MMM yyyy")} → ${formatDate(dueDateMax, "dd MMM yyyy")}`;
+  return `${formatDateUtc(dueDateMin, "dd MMM yyyy")} → ${formatDateUtc(dueDateMax, "dd MMM yyyy")}`;
 }
 
 export function toIsoDate(d: Date = new Date()): string {

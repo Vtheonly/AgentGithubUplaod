@@ -42,7 +42,7 @@ function proposal(overrides: Partial<ErMatchProposal>): ErMatchProposal {
     createdAt: "2026-01-01T00:00:00.000Z",
     aObservationId: overrides.aObservationId ?? "xlsx:fileA.xlsx:row-42",
     bObservationId: overrides.bObservationId ?? "canonical:par-target",
-    score: overrides.score ?? ({ total: 0.95 } as ErMatchProposal["score"]),
+    score: overrides.score ?? ({ total: 0.95 } as unknown as ErMatchProposal["score"]),
     status: overrides.status ?? "approved",
     decidedBy: null,
     decidedAt: null,
