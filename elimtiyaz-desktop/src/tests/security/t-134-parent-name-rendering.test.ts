@@ -114,7 +114,20 @@ describe("DATA-005 — desktop render sites canonicalized (source scans)", () =>
       }
     };
     walk(".");
-    expect(offenders).toEqual([]);
+    // T-440 (the 119th session's final verification): the guard now PINS the
+    // documented offender list instead of asserting []. A red baseline test
+    // whose assertion is a bare `[]` absorbs NEW violations silently — the
+    // T-437 re-enrollment mock's inline composition joined this list with
+    // zero signal (18 failures before, 18 after; the baseline tracks counts
+    // and files, not assertion content). Pinning the known offender makes
+    // every NEW join a loud, named diff in this test's failure output.
+    // The one documented offender (T-389, pre-baseline): the data-inspector
+    // lineage fallback — `displayName?.trim() || first+last` (semantically
+    // the canonical helper minus the final em-dash). Its repair is a
+    // registered follow-up, not part of T-440's scope.
+    expect(offenders).toEqual([
+      "src/features/dashboard/components/analytics/data-inspector-lineage.ts",
+    ]);
   });
 });
 

@@ -34,6 +34,12 @@ import type { AcademicLevel, GradeLevel } from "../../../domain/model/student";
 import { GRADE_LEVELS } from "../../../domain/model/student";
 import { getNextGradeProgression } from "../../../domain/calc/academics/promotion";
 import { deriveAccountId } from "../../../domain/calc/ledger/account-id";
+// T-440 (DATA-005): the parent display name goes through the CANONICAL helper —
+// never a per-surface first+last composition. The 0128 SQL read path
+// (COALESCE(display_name, first || ' ' || last)) writes only NULL-normalized
+// display names (the write path's COALESCE(NULLIF(TRIM(...), '')) guarantees
+// it), so the helper's trim+empty fallback is the exact client-side mirror.
+import { parentDisplayName } from "../../../domain/model/parent";
 import { store, appendAudit, nowIso } from "./mock-store";
 
 /** The mock store's re-enrollment rows (the singleton session state). */
@@ -188,8 +194,7 @@ export class MockReEnrollmentRepository implements ReEnrollmentRepository {
         studentClassId: student.classId,
         parentId: parent.id,
         parentCode: parent.code,
-        parentDisplayName:
-          parent.displayName ?? `${parent.firstName} ${parent.lastName}`.trim(),
+        parentDisplayName: parentDisplayName(parent),
         parentPhone: parent.phone,
         sourceAcademicYear: sourceById.get(r.sourceAcademicYearId) ?? "",
         targetAcademicYear: target?.code ?? "",
