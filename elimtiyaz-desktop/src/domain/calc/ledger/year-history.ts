@@ -31,6 +31,13 @@
  * Pure and deterministic: same inputs + same clock → same records
  * (INV-20b). The desktop TS engine is the reference implementation
  * (AGENTS.md §8); the UI is a consumer, never a re-implementation.
+ *
+ * T-442 (UI-323, 2026-09-29) extends the record contract additively with
+ * the per-year service breakdown (INV-20e — registration FI / scolarité
+ * per tranche / transport / each other service category), the per-payment
+ * coverage lines (what each payment settled — allocation rows, honestly
+ * basis-flagged when absent), and the per-year still-owed-now figure + its
+ * enumeration on the parent record. Still no new numbers (INV-20a).
  */
 
 import type { Installment, Payment, PaymentAllocation } from "@/domain/model/payment";
@@ -52,6 +59,85 @@ export type { AcademicYearAttribution } from "./debt-aging";
 
 /** INV-4 epsilon — outstanding at or below this is settled. */
 export const YEAR_HISTORY_EPSILON_DZD = 0.001;
+
+/* ================================================================== */
+/*  T-442 (UI-323) — the per-year service breakdown + payment          */
+/*  coverage lines (INV-20e — additive presentation facts)            */
+/* ================================================================== */
+
+/**
+ * The service-group key of a charge inside a year record (T-442,
+ * UI-323): the canonical presentation grouping of the billable
+ * services — "registration" = the FI (tuition, tranche 0 — a FEE, not
+ * a tranche, per the T-425 official model), "tuition" = the scolarité
+ * tranches (tuition, T1..T3), "transport" = the transport tranches,
+ * "service" = every OTHER billable category (therapy, canteen, …),
+ * grouped PER CATEGORY so each service stays individually visible
+ * ("any other services or charges" — the owner's issue).
+ */
+export type YearServiceGroupKey = "registration" | "tuition" | "transport" | "service";
+
+/** The fixed French labels of the three structural groups (the §15.3
+ * single-wording rule; service groups use PAYMENT_CATEGORY_LABELS_FR). */
+export const YEAR_SERVICE_GROUP_LABELS_FR: Record<Exclude<YearServiceGroupKey, "service">, string> = {
+  registration: "Frais d'inscription (FI)",
+  tuition: "Scolarité",
+  transport: "Transport",
+};
+
+/** One service group of a year's charges (T-442 / UI-323 — INV-20e). */
+export interface YearServiceGroup {
+  readonly key: YearServiceGroupKey;
+  /** The canonical category the group renders (services: the concrete one). */
+  readonly category: Installment["category"];
+  /** The group's charges — the SAME YearChargeItem objects the year record
+   * carries (references, never copies: one fact, one object). */
+  readonly charges: readonly YearChargeItem[];
+  readonly chargeCount: number;
+  /** The tranche waves present in the group (tuition/transport: 1..3;
+   * registration: 0; non-wave rows absent — the T-425 vocabulary). */
+  readonly trancheNumbers: readonly (0 | 1 | 2 | 3)[];
+  /** Σ amountDue over the group's charges (INV-20a — a stored column). */
+  readonly amountDue: number;
+  /** Σ amountPaid over the group's charges (cleared funds — stored). */
+  readonly amountPaid: number;
+  /** Σ amountPending over the group's charges (uncleared — stored). */
+  readonly amountPending: number;
+  /** Σ INV-4 remaining over the group's charges (the SAME clamp). */
+  readonly remaining: number;
+}
+
+/**
+ * One coverage line — WHAT one payment settled (T-442 / UI-323): an
+ * allocation row of the canonical waterfall (ADR-002), presented on the
+ * year the payment was MADE in. The target year is the ALLOCATED
+ * CHARGE's attributed year (INV-18c — the year whose debt was settled,
+ * resolved through the installment exactly like the cross-year
+ * settlement derivation; the allocation.academicYearId precedence
+ * question is DATA-056 M2, deliberately untouched here).
+ */
+export interface PaymentCoverageLine {
+  readonly installmentId: string;
+  /** The allocation's charge label (the waterfall's own line label). */
+  readonly chargeLabel: string | null;
+  readonly category: Installment["category"] | null;
+  /** The year whose debt the allocation settled (the charge's year). */
+  readonly targetYear: string;
+  /** The allocation's amount (INV-20a — an allocation row's stored amount). */
+  readonly allocatedAmount: number;
+}
+
+/**
+ * The per-year composition of the prior-years debt still owed today
+ * (T-442 / UI-323): ONE entry per prior academic year with outstanding > 0
+ * — the "how much for EACH individual year" the owner's issue mandates
+ * (the old single aggregate stays; this enumerates it).
+ */
+export interface PriorYearOutstandingItem {
+  readonly academicYear: string;
+  /** Σ current INV-4 remaining over that year's charges (the same clamp). */
+  readonly outstanding: number;
+}
 
 /* ================================================================== */
 /*  Types                                                              */
@@ -116,6 +202,20 @@ export interface YearPaymentItem {
   readonly method: string | null;
   readonly receiptNumber: string | null;
   readonly attribution: AcademicYearAttribution;
+  /**
+   * T-442 (UI-323): WHAT this payment covered — its allocation rows
+   * (the waterfall's decisions), one line per settled charge. Empty when
+   * no allocation records exist for the payment (the import-era corpus
+   * — the honest `coverageBasis: "unavailable"`).
+   */
+  readonly coveredCharges: readonly PaymentCoverageLine[];
+  /**
+   * T-442 (UI-323): "allocations" = the lines above are the exact
+   * waterfall replay; "unavailable" = NO allocation records exist for
+   * this payment (legacy/import-era rows) — the coverage is honestly
+   * unknown, never guessed from amounts or dates (INV-18d).
+   */
+  readonly coverageBasis: "allocations" | "unavailable";
 }
 
 /** A payment made in a LATER year settling THIS year's debt (INV-18d). */
@@ -174,6 +274,20 @@ export interface AcademicYearFinancialRecord {
    * of the prior record, never a new balance).
    */
   readonly carriedForwardFromPriorYear: number;
+  /**
+   * T-442 (UI-323): the year's charges grouped by billable service —
+   * registration (FI) / scolarité (per tranche) / transport / each other
+   * service category — with due/paid/pending/remaining per group. The
+   * "exactly what those amounts covered" view of the year (INV-20e).
+   */
+  readonly serviceBreakdown: readonly YearServiceGroup[];
+  /**
+   * T-442 (UI-323): Σ current INV-4 remaining over THIS year's charges
+   * at the caller's clock — the per-year "still owed today" figure (the
+   * per-year composition of the prior-years aggregate; the SAME clamp
+   * every surface applies).
+   */
+  readonly outstandingStillOwedNow: number;
   /** Payments made during this year (payment-made attribution). */
   readonly paymentsMadeInYear: readonly YearPaymentItem[];
   readonly paymentsMadeInYearTotal: number;
@@ -211,6 +325,13 @@ export interface ParentYearHistory {
    * owed" figure (INV-18c).
    */
   readonly priorYearOutstandingStillOwed: number;
+  /**
+   * T-442 (UI-323): the SAME prior-years debt enumerated PER YEAR — one
+   * entry per prior year with outstanding > 0 (the "how much owed for
+   * EACH individual year" composition; Σ entries ===
+   * priorYearOutstandingStillOwed — INV-20a, the same clamped sums).
+   */
+  readonly priorYearsStillOwed: readonly PriorYearOutstandingItem[];
   readonly computedAt: string;
 }
 
@@ -248,6 +369,83 @@ export interface YearHistoryInput {
 /** INV-4 family remaining — the same clamp every surface applies. */
 function inv4Remaining(ins: Installment): number {
   return Math.max(0, ins.amountDue - ins.amountPaid - ins.amountPending);
+}
+
+/**
+ * T-442 (UI-323): the service-group key of a charge — the canonical
+ * presentation grouping (registration = tuition/T0 per the T-425 official
+ * model: the FI is a FEE, not a tranche; tuition = T1..T3; transport;
+ * everything else = a per-category service group).
+ */
+function serviceGroupKeyOf(
+  category: Installment["category"],
+  trancheNumber: 0 | 1 | 2 | 3 | undefined,
+): YearServiceGroupKey {
+  if (category === "tuition") {
+    return trancheNumber === 0 ? "registration" : "tuition";
+  }
+  if (category === "transport") {
+    return "transport";
+  }
+  return "service";
+}
+
+/**
+ * T-442 (UI-323): group a year's charge items by billable service.
+ *
+ * Order: registration → tuition → transport → services (alphabetical by
+ * category). Amounts are Σ stored columns / Σ INV-4 remaining over the
+ * group's charges (INV-20a — no new numbers). The group's `charges` are
+ * the SAME objects the year record carries (references, never copies).
+ */
+function buildServiceBreakdown(
+  chargeItems: readonly YearChargeItem[],
+): YearServiceGroup[] {
+  // Registration / tuition / transport are single groups keyed by the
+  // structural key; services are one group PER distinct category (each
+  // service individually visible — the owner's "any other services").
+  const structural = new Map<Exclude<YearServiceGroupKey, "service">, YearChargeItem[]>();
+  const services = new Map<Installment["category"], YearChargeItem[]>();
+  for (const c of chargeItems) {
+    const key = serviceGroupKeyOf(c.category, c.trancheNumber);
+    if (key === "service") {
+      const list = services.get(c.category) ?? [];
+      list.push(c);
+      services.set(c.category, list);
+    } else {
+      const list = structural.get(key) ?? [];
+      list.push(c);
+      structural.set(key, list);
+    }
+  }
+  const groups: YearServiceGroup[] = [];
+  const pushGroup = (
+    key: YearServiceGroupKey,
+    category: Installment["category"],
+    items: readonly YearChargeItem[],
+  ): void => {
+    if (items.length === 0) return;
+    groups.push({
+      key,
+      category,
+      charges: items,
+      chargeCount: items.length,
+      trancheNumbers: [
+        ...new Set(items.map((c) => c.trancheNumber).filter((t): t is 0 | 1 | 2 | 3 => t !== undefined)),
+      ].sort((a, b) => a - b),
+      amountDue: items.reduce((s, c) => s + c.amountDue, 0),
+      amountPaid: items.reduce((s, c) => s + c.amountPaid, 0),
+      amountPending: items.reduce((s, c) => s + c.amountPending, 0),
+      remaining: items.reduce((s, c) => s + c.remaining, 0),
+    });
+  };
+  pushGroup("registration", "tuition", structural.get("registration") ?? []);
+  pushGroup("tuition", "tuition", structural.get("tuition") ?? []);
+  pushGroup("transport", "transport", structural.get("transport") ?? []);
+  for (const cat of [...services.keys()].sort()) {
+    pushGroup("service", cat, services.get(cat) ?? []);
+  }
+  return groups;
 }
 
 interface YearMeta {
@@ -393,6 +591,15 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
     list.push(a);
     allocationsByInstallment.set(a.installmentId, list);
   }
+  // T-442 (UI-323): the per-payment index — WHAT each payment covered
+  // (the waterfall's decision rows, keyed by the paying payment).
+  const allocationsByPayment = new Map<string, PaymentAllocation[]>();
+  for (const a of parentAllocations) {
+    if (!a.paymentId) continue;
+    const list = allocationsByPayment.get(a.paymentId) ?? [];
+    list.push(a);
+    allocationsByPayment.set(a.paymentId, list);
+  }
 
   // ── Group charges by attributed year ──
   const chargesByYear = new Map<string, Installment[]>();
@@ -414,6 +621,32 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
           id: null,
           source: "payment_date",
         };
+    // T-442 (UI-323): the payment's COVERAGE — its allocation rows, one
+    // line per settled charge, with the target year resolved through the
+    // allocated installment's attributed year (INV-18c — the same
+    // resolution the cross-year settlement derivation applies; the
+    // allocation.academicYearId precedence is DATA-056 M2, untouched).
+    // CALC-003 (T-439) classification: a bounced/refunded/cancelled
+    // payment's retained allocation rows are NOT coverage (not funds);
+    // a legacy payment with NO allocation records gets the honest
+    // `unavailable` basis — never a guessed coverage (INV-18d).
+    const coveredCharges: PaymentCoverageLine[] = [];
+    if (sourcePayment) {
+      const fundClass = allocationFundClass(sourcePayment);
+      for (const a of allocationsByPayment.get(sourcePayment.id) ?? []) {
+        if (fundClass === "none") break; // bounced/refunded/cancelled — not funds
+        if (!a.installmentId) continue;
+        const chargeAttr = chargeAttributions.get(a.installmentId);
+        if (!chargeAttr) continue; // not one of this family's charges — no honest target year
+        coveredCharges.push({
+          installmentId: a.installmentId,
+          chargeLabel: a.label,
+          category: a.category,
+          targetYear: chargeAttr.code,
+          allocatedAmount: a.allocatedAmount,
+        });
+      }
+    }
     const item: YearPaymentItem = {
       paymentId: sourcePayment?.id ?? null,
       ledgerEntryId: e.id,
@@ -422,6 +655,8 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
       method: e.method ?? null,
       receiptNumber: e.receiptNumber ?? null,
       attribution: attr,
+      coveredCharges,
+      coverageBasis: coveredCharges.length > 0 ? "allocations" : "unavailable",
     };
     const list = paymentsMadeByYear.get(attr.code) ?? [];
     list.push(item);
@@ -629,6 +864,13 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
         : "allocations"
       : "paid_date_heuristic";
 
+    // T-442 (UI-323): the per-year service grouping (INV-20e) and the
+    // per-year still-owed-today figure — Σ current INV-4 remaining over
+    // the year's charges (the per-year composition of the prior-years
+    // aggregate; the SAME clamp, never a new number).
+    const serviceBreakdown = buildServiceBreakdown(chargeItems);
+    const outstandingStillOwedNow = chargeItems.reduce((s, c) => s + c.remaining, 0);
+
     records.push({
       academicYear: code,
       academicYearId: meta.id ?? chargeAttributions.get(yearCharges[0]?.id ?? "")?.id ?? null,
@@ -642,6 +884,8 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
       yearEndOutstanding,
       yearEndBasis,
       carriedForwardFromPriorYear: priorYearEndOutstanding,
+      serviceBreakdown,
+      outstandingStillOwedNow,
       paymentsMadeInYear: paymentsMade,
       paymentsMadeInYearTotal: paymentsMade.reduce((s, p) => s + p.amount, 0),
       settlementsReceivedFromLaterYears: settlementsReceived,
@@ -668,6 +912,14 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
       break;
     }
   }
+  // T-442 (UI-323): the per-year enumeration of that prior-years debt —
+  // one entry per prior year with outstanding > 0 (the "how much owed
+  // for EACH individual year" composition). Σ entries === the aggregate
+  // above (the same clamped sums, INV-20a).
+  const priorYearsStillOwed: PriorYearOutstandingItem[] = records
+    .filter((_, idx) => idx < lastYearWithChargesIdx)
+    .map((r) => ({ academicYear: r.academicYear, outstanding: r.outstandingStillOwedNow }))
+    .filter((x) => x.outstanding > YEAR_HISTORY_EPSILON_DZD);
   const priorYearOutstandingStillOwed = records
     .filter((_, idx) => idx < lastYearWithChargesIdx)
     .reduce((s, r) => s + r.charges.reduce((acc, c) => acc + c.remaining, 0), 0);
@@ -677,6 +929,7 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
     years: records,
     totalOutstandingNow,
     priorYearOutstandingStillOwed,
+    priorYearsStillOwed,
     computedAt: now.toISOString(),
   };
 }
