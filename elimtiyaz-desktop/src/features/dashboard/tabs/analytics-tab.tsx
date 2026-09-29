@@ -20,6 +20,7 @@ import type {
   Installment,
 } from "../../../domain/model/payment";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../../domain/model/payment";
+import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import {
@@ -93,6 +94,12 @@ export interface AnalyticsTabProps {
   onOpenParent?: (parentId: string) => void;
   /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22). */
   editing?: boolean;
+  /**
+   * T-443 (DEBT-101): the tenant's ACTIVE debt-aging thresholds. Absent →
+   * the tab reads `repos.debt.observeThresholds()` itself (the embedded
+   * default when even that is unavailable is the documented DEFAULTS).
+   */
+  debtThresholds?: DebtAgingThresholds;
 }
 
 export function AnalyticsTab({
@@ -109,6 +116,7 @@ export function AnalyticsTab({
   onOpenStudent,
   onOpenParent,
   editing = false,
+  debtThresholds,
 }: AnalyticsTabProps) {
   const repos = useRepositories();
   const students = useObservable(() => repos.students.observe(), []);
@@ -130,6 +138,12 @@ export function AnalyticsTab({
   );
   const internalInstallments = useObservable(() => repos.installments.observe(), []);
   const installments = installmentsProp ?? internalInstallments;
+  // T-443 (DEBT-101): the ACTIVE debt-aging thresholds — the prop wins (the
+  // dashboard page's single read), else this tab's own subscription (the
+  // same repository stream; the subject's seed value IS the documented
+  // DEFAULTS until the light reader lands).
+  const internalDebtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
+  const debtThresholdsActive = debtThresholds ?? internalDebtThresholds;
   const ledger = useObservable(() => repos.ledger.observe(), []);
   // T-412 (ADR-024): the canonical payroll forecast's two input streams
   // (the T-411 observeAllocations optional-method pattern — fakes/test
@@ -182,8 +196,8 @@ export function AnalyticsTab({
     [installments],
   );
   const triage = useMemo(
-    () => deriveDebtTriage(installments, Date.now()),
-    [installments],
+    () => deriveDebtTriage(installments, Date.now(), debtThresholdsActive),
+    [installments, debtThresholdsActive],
   );
   const concentration = useMemo(
     () =>

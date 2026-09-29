@@ -22,6 +22,7 @@ import { InsightsRail } from "../components/insights-rail";
 import { DashboardCalendar } from "../dashboard-calendar";
 import { WaveVelocityCard } from "../components/analytics/executive-cards";
 import { deriveTrancheWaves, deriveDebtTriage } from "../components/analytics/executive-statistics";
+import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
 import type { DashboardKpi, RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
 import type { DebtSummary, Payment, Installment } from "../../../domain/model/payment";
 import { formatDzd } from "../../../core/format/currency";
@@ -44,6 +45,7 @@ export function OverviewTab({
   onDrillDown,
   onGoToAlerts,
   editing = false,
+  debtThresholds,
 }: {
   data: DashboardData;
   payments: readonly Payment[];
@@ -53,13 +55,19 @@ export function OverviewTab({
   onGoToAlerts: () => void;
   /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22). */
   editing?: boolean;
+  /**
+   * T-443 (DEBT-101): the tenant's ACTIVE debt-aging thresholds
+   * (`repos.debt.observeThresholds()`, wired by the dashboard page). Absent
+   * → the documented DEFAULTS (test renders + the pure-prop contract).
+   */
+  debtThresholds?: DebtAgingThresholds;
 }) {
   const { t } = useTranslation();
   const { kpis, revenue, debtAging, topDebtors } = data;
 
   const nowEpochMs = Date.now();
   const waves = deriveTrancheWaves(installments, nowEpochMs);
-  const triage = deriveDebtTriage(installments, nowEpochMs);
+  const triage = deriveDebtTriage(installments, nowEpochMs, debtThresholds);
   const chronicAmount = triage.buckets.find((b) => b.bucket === "chronic")?.amount ?? 0;
   const chronicFamilies = triage.buckets.find((b) => b.bucket === "chronic")?.familyCount ?? 0;
   const annualRevenue = revenue.reduce((s, r) => s + r.amount, 0);

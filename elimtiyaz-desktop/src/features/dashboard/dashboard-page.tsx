@@ -47,6 +47,11 @@ import {
   type Demographics,
 } from "./tabs/types";
 import type { Payment, Installment } from "../../domain/model/payment";
+// T-443 (DEBT-101): the ACTIVE debt-aging thresholds feeding both tabs.
+import {
+  DEFAULT_DEBT_AGING_THRESHOLDS,
+  type DebtAgingThresholds,
+} from "../../domain/calc/ledger/debt-aging";
 import {
   applyAnalyticsFilters,
   installmentsForAcademicYear,
@@ -190,6 +195,18 @@ export function DashboardPage() {
           .sort((a, b) => b.outstandingAmount - a.outstandingAmount),
       );
     });
+    return unsub;
+  }, [repos.debt]);
+
+  // T-443 (DEBT-101, INV-16f): the tenant's ACTIVE debt-aging thresholds —
+  // ONE subscription feeding BOTH dashboard tabs (the Overview triage + the
+  // Analytics triage render through it), so Statistiques classifies debt
+  // with the SAME edges the Finances « Suivi des Dettes » statuses use. The
+  // subject's seed value is the documented DEFAULTS until the light reader
+  // (`read_debt_aging_thresholds`, migration 0133) lands on the server.
+  const [debtThresholds, setDebtThresholds] = useState<DebtAgingThresholds>(DEFAULT_DEBT_AGING_THRESHOLDS);
+  useEffect(() => {
+    const unsub = repos.debt.observeThresholds().subscribe(setDebtThresholds);
     return unsub;
   }, [repos.debt]);
 
@@ -379,6 +396,7 @@ export function DashboardPage() {
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
             editing={layoutEditing}
+            debtThresholds={debtThresholds}
           />
         </PageTabContent>
 
@@ -395,6 +413,7 @@ export function DashboardPage() {
             installments={scopedInstallments}
             range={yearRange.range}
             editing={layoutEditing}
+            debtThresholds={debtThresholds}
           />
         </PageTabContent>
 

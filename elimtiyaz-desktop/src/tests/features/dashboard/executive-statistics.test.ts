@@ -31,6 +31,7 @@ import {
   deriveTripleRiskSummary,
 } from "../../../features/dashboard/components/analytics/executive-statistics";
 import { normalizeTransportTier } from "../../../domain/calc/pricing/transport";
+import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
 import type { Installment, Payment } from "../../../domain/model/payment";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { Student } from "../../../domain/model/student";
@@ -428,13 +429,68 @@ describe("T-338 — deriveDebtTriage", () => {
     expect(triage.callList[0].worstDaysOverdue).toBe(61); // 2026-07-15 → 2026-09-14
   });
 
-  it("a family whose worst overdue is exactly 45 days is reminder, NOT chronic (> 45 strict)", () => {
+  it("a family whose worst overdue is exactly 45 days is reminder, NOT chronic (an interior point of the reminder band under the canonical edges)", () => {
     const t = deriveDebtTriage([
       makeInstallment({ id: "b-1", parentId: "p-9", amountDue: 10_000, amountPaid: 0, status: "unpaid", dueDate: "2026-07-31" }), // exactly 45 days
     ], NOW);
     expect(t.buckets.find((b) => b.bucket === "reminder")!.amount).toBe(10_000);
     expect(t.buckets.find((b) => b.bucket === "chronic")!.amount).toBe(0);
     expect(t.callList).toHaveLength(0);
+  });
+
+  // T-443 (DEBT-101): the triage edges derive from the CANONICAL
+  // configurable debt-aging thresholds (financial-rules §15.1 INV-16f) —
+  // the SAME system_settings values the Finances 4-tier statuses apply.
+  // The pre-T-443 hardcoded edges (< 15 / 15–45 / > 45) are retired: the
+  // DEFAULT boundaries are now grace 5 / yellow 15 / red 60.
+  it("the canonical DEFAULT boundaries: 15 days = current, 16 = reminder, 60 = reminder, 61 = chronic (the call-list gate)", () => {
+    const mk = (due: string) => [
+      makeInstallment({ id: `c-${due}`, parentId: "p-b", amountDue: 10_000, amountPaid: 0, status: "unpaid", dueDate: due }),
+    ];
+    // 2026-08-30 → 15 days late (≤ yellow 15 → current)
+    expect(deriveDebtTriage(mk("2026-08-30"), NOW).buckets.find((b) => b.bucket === "current")!.amount).toBe(10_000);
+    // 2026-08-29 → 16 days late (> yellow, ≤ red → reminder)
+    expect(deriveDebtTriage(mk("2026-08-29"), NOW).buckets.find((b) => b.bucket === "reminder")!.amount).toBe(10_000);
+    // 2026-07-15 → 61 days late (> red 60 → chronic + the call list)
+    const t61 = deriveDebtTriage(mk("2026-07-15"), NOW);
+    expect(t61.buckets.find((b) => b.bucket === "chronic")!.amount).toBe(10_000);
+    expect(t61.callList).toHaveLength(1);
+    // 2026-07-16 → exactly 60 days late (≤ red 60 → reminder, NOT chronic)
+    const t60 = deriveDebtTriage(mk("2026-07-16"), NOW);
+    expect(t60.buckets.find((b) => b.bucket === "reminder")!.amount).toBe(10_000);
+    expect(t60.buckets.find((b) => b.bucket === "chronic")!.amount).toBe(0);
+    expect(t60.callList).toHaveLength(0);
+  });
+
+  it("CONFIGURABLE: custom thresholds move the boundaries AND the labels (the system_settings contract)", () => {
+    const thresholds: DebtAgingThresholds = {
+      gracePeriodDays: 3,
+      yellowDays: 10,
+      redDays: 30,
+      activePayerGraceDays: 15,
+    };
+    // The discriminating rows vs the DEFAULT edges (yellow 15 / red 60):
+    //   2026-08-25 → 20 days late: DEFAULT reminder; custom (10 < 20 ≤ 30) → reminder.
+    //   2026-08-10 → 35 days late: DEFAULT reminder (≤ 60); custom (> 30) → CHRONIC.
+    const mk = (due: string, id: string) =>
+      makeInstallment({ id, parentId: `p-${id}`, amountDue: 10_000, amountPaid: 0, status: "unpaid", dueDate: due });
+    const t = deriveDebtTriage([mk("2026-08-10", "x-35d"), mk("2026-08-25", "x-20d")], NOW, thresholds);
+    const byBucket = Object.fromEntries(t.buckets.map((b) => [b.bucket, b.amount]));
+    expect(byBucket.chronic).toBe(10_000); // the 35-day row: > red 30
+    expect(byBucket.reminder).toBe(10_000); // the 20-day row: 10 < 20 ≤ 30
+    expect(t.callList).toHaveLength(1);
+    expect(t.callList[0].parentId).toBe("p-x-35d");
+    // The LABELS carry the CONFIGURED numbers (never the hardcoded 15/45).
+    const labels = Object.fromEntries(t.buckets.map((b) => [b.bucket, b.label]));
+    expect(labels.current).toBe("Retard ≤ 10 j (à surveiller)");
+    expect(labels.reminder).toBe("Retard 10–30 j (relance)");
+    expect(labels.chronic).toBe("Retard > 30 j (intervention)");
+    // The defaults still produce the documented DEFAULTS-tier labels.
+    const defaultLabels = Object.fromEntries(
+      deriveDebtTriage([mk("2026-08-10", "x-35d")], NOW).buckets.map((b) => [b.bucket, b.label]),
+    );
+    expect(defaultLabels.reminder).toBe("Retard 15–60 j (relance)");
+    expect(defaultLabels.chronic).toBe("Retard > 60 j (intervention)");
   });
 
   it("satisfied installments never enter any bucket", () => {

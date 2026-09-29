@@ -108,10 +108,17 @@ SELECT
   (SELECT coalesce(sum(amount), 0) FROM cancels)::bigint AS cancel_total,
   (SELECT gross FROM charges)::bigint AS gross_charges;
 
--- ── 3. Debt triage (the 4 action tiers + the >45j call list) ─────────────
+-- ── 3. Debt triage (the 4 action tiers + the beyond-red call list) ──────
 -- now := the runner's pinned instant 2026-09-14T12:00:00Z (epoch-ms
 -- 1789396800000). days_overdue = floor((now - due_date)/86400s), floored
 -- toward zero — the daysBetweenFloor convention.
+-- T-443 (DEBT-101): the edges derive from the CANONICAL configurable
+-- debt-aging thresholds (financial-rules §15.1 INV-16f) — the same
+-- system_settings category `debt` values compute_debt_aging_summary
+-- applies. The pre-T-443 hardcoded 15/45 edges are retired: current ≤
+-- yellow (15), reminder ≤ red (60), chronic > red. The thresholds are
+-- read from debt_aging_thresholds() so a live re-run tracks the tenant's
+-- ACTUAL configuration.
 CREATE TEMP TABLE t338_triage AS
 WITH unpaid AS (
   SELECT
@@ -121,17 +128,21 @@ WITH unpaid AS (
   FROM installments WHERE status <> 'paid'
 ),
 kept AS (SELECT * FROM unpaid WHERE remaining > 0),
+thr AS (
+  SELECT grace_period_days, yellow_days, red_days
+  FROM public.debt_aging_thresholds('00000000-0000-0000-0000-000000000001'::uuid)
+),
 buckets AS (
   SELECT
     CASE
-      WHEN days_overdue <= 0 THEN 'not_due'
-      WHEN days_overdue < 15 THEN 'current'
-      WHEN days_overdue <= 45 THEN 'reminder'
+      WHEN k.days_overdue <= 0 THEN 'not_due'
+      WHEN k.days_overdue <= t.yellow_days THEN 'current'
+      WHEN k.days_overdue <= t.red_days THEN 'reminder'
       ELSE 'chronic'
     END AS bucket,
-    remaining,
-    parent_id
-  FROM kept
+    k.remaining,
+    k.parent_id
+  FROM kept k CROSS JOIN thr t
 )
 SELECT bucket,
        sum(remaining)::bigint AS amount,
@@ -149,7 +160,7 @@ WITH fam AS (
     FROM installments WHERE status <> 'paid'
   ) u WHERE remaining > 0
   GROUP BY parent_id
-  HAVING max(days_overdue) > 45
+  HAVING max(days_overdue) > (SELECT red_days FROM public.debt_aging_thresholds('00000000-0000-0000-0000-000000000001'::uuid))
 )
 SELECT f.parent_id,
        coalesce(p.display_name, trim(coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')), f.parent_id::text) AS parent_name,
