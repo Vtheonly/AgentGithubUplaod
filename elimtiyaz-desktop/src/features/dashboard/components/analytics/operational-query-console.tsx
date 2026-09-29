@@ -192,7 +192,7 @@ function Student360Modal({
   onClose: () => void;
 }) {
   const repos = useRepositories();
-  const { openStudent, openParent, navigateToStudent, navigateToParent } =
+  const { openStudent, openParent, navigateToStudent } =
     usePersonNavigation();
 
   const students = useObservable(() => repos.students.observe(), []);
@@ -367,6 +367,14 @@ function Student360Modal({
   }, [ledger, student]);
   const discount =
     remise.studentScoped > 0 ? remise.studentScoped : remise.familyScoped;
+  // T-444/UI-324 restored: the label feeds the Badge AND the alerts
+  // section's "Risque composite" box (1cead9d inlined it and deleted the
+  // AlertBox consumer). Null-safe — the modal body renders only when
+  // profile is non-null, but the memo area runs regardless.
+  const riskLabel =
+    profile?.riskCategory === "healthy"
+      ? "Profil régulier"
+      : profile?.riskCategory;
 
   return (
     <UnifiedModal
@@ -461,6 +469,11 @@ function Student360Modal({
                 )} DA`}
               />
             </div>
+            {profile.primaryRiskReason !== "Profil régulier" && (
+              <p className="mt-3 text-[11px] text-status-warning">
+                {profile.primaryRiskReason}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -605,6 +618,54 @@ function Student360Modal({
                   value={`${formatDzdPlain(remainingOnInstallments)} DA`}
                 />
               </div>
+              {/* T-444/UI-324 restored: the detected services/obligations chips. */}
+              {services.length > 0 && (
+                <div className="mt-3">
+                  <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Services / obligations détectés
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {services.map((service) => (
+                      <span
+                        key={service}
+                        className="rounded-full border border-border/70 px-2 py-1 text-[10px]"
+                      >
+                        {service}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* T-444/UI-324 restored: the next-installment block. */}
+              <div className="mt-3 rounded-lg border border-border/60 bg-surface-elevated/30 p-3">
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <Clock3 className="h-3.5 w-3.5 text-primary" />
+                  Prochaine échéance
+                </div>
+                {nextInstallment ? (
+                  <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <div className="font-medium">{nextInstallment.label}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {PAYMENT_CATEGORY_LABELS_FR[nextInstallment.category]} · échéance{" "}
+                        {formatShortDate(nextInstallment.dueDate)}
+                      </div>
+                    </div>
+                    <span className="font-mono font-bold">
+                      {formatDzdPlain(
+                        Math.max(
+                          0,
+                          nextInstallment.amountDue -
+                            nextInstallment.amountPaid -
+                            nextInstallment.amountPending,
+                        ),
+                      )} DA
+                    </span>
+                  </div>
+                ) : (
+                  <EmptyText text="Aucune échéance restante trouvée dans le flux." />
+                )}
+              </div>
             </SectionCard>
 
             <SectionCard
@@ -626,8 +687,143 @@ function Student360Modal({
                   value={formatShortDate(studentPayments[0]?.collectedAt)}
                 />
               </div>
+              {/* T-444/UI-324 restored: the payment-methods summary line. */}
+              {paymentMethods.length > 0 && (
+                <div className="mt-2 text-[10px] text-muted-foreground">
+                  {paymentMethods
+                    .map(([method, count]) => `${method}: ${count}`)
+                    .join(" · ")}
+                </div>
+              )}
+              {/* T-444/UI-324 restored: the 15-payment list with the exact
+                  coverage description (the waterfall's allocation lines). */}
+              <div className="mt-3 max-h-52 overflow-auto space-y-1.5">
+                {studentPayments.slice(0, 15).map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="rounded-lg border border-border/50 px-3 py-2"
+                  >
+                    <div className="flex items-start justify-between gap-3 text-xs">
+                      <div>
+                        <div className="font-medium">
+                          {paymentDescription(payment, studentInstallments)}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {formatDate(payment.collectedAt)} · {PAYMENT_METHOD_LABELS_FR[payment.method]} ·{" "}
+                          {PAYMENT_STATUS_LABELS_FR[payment.status]}
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold whitespace-nowrap">
+                        {formatDzdPlain(payment.amount)} DA
+                      </span>
+                    </div>
+                    {(payment.expectedAmount != null || payment.excessAmount) && (
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        Attendu : {formatDzdPlain(payment.expectedAmount ?? 0)} DA
+                        {payment.excessAmount
+                          ? ` · Excédent : ${formatDzdPlain(payment.excessAmount)} DA`
+                          : ""}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {studentPayments.length === 0 && (
+                  <EmptyText text="Aucun paiement trouvé dans le flux live." />
+                )}
+              </div>
             </SectionCard>
           </div>
+
+          {/* T-444/UI-324 restored: the Notes et évaluations section (the
+              coefficient snapshots table). */}
+          <SectionCard
+            icon={GraduationCap}
+            title="Notes et évaluations"
+            description={`${studentAssessments.length} évaluation(s) réelle(s), avec les snapshots de coefficients`}
+          >
+            <div className="max-h-52 overflow-auto">
+              {studentAssessments.length > 0 ? (
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-surface-panel text-muted-foreground">
+                    <tr className="border-b border-border/60">
+                      <th className="px-3 py-2 text-left font-medium">Année / période</th>
+                      <th className="px-3 py-2 text-left font-medium">Matière</th>
+                      <th className="px-3 py-2 text-right font-medium">Moyenne</th>
+                      <th className="px-3 py-2 text-right font-medium">Coeff.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {studentAssessments.slice(0, 30).map((assessment) => {
+                      const subject = subjects.find(
+                        (item: Subject) => item.id === assessment.subjectId,
+                      );
+                      return (
+                        <tr key={assessment.id}>
+                          <td className="px-3 py-2">
+                            {assessment.academicYear} · {assessment.term}
+                          </td>
+                          <td className="px-3 py-2">
+                            {subject?.name ?? assessment.subjectId}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {assessment.subjectAverage?.toFixed(2) ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {assessment.coefficient}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <EmptyText text="Aucune évaluation trouvée pour cet élève." />
+              )}
+            </div>
+          </SectionCard>
+
+          {/* T-444/UI-324 restored: the alerts section (the same live-derived
+              signals the console's rows show). */}
+          <SectionCard
+            icon={AlertTriangle}
+            title="Alertes et points à surveiller"
+            description="Signaux dérivés des mêmes données live que la console"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <AlertBox
+                label="Risque composite"
+                value={riskLabel ?? "—"}
+                active={profile.riskCategory !== "healthy"}
+              />
+              <AlertBox
+                label="Situation financière"
+                value={
+                  (debt?.outstandingAmount ?? profile.debtAmount) > 0
+                    ? `${formatDzdPlain(
+                        debt?.outstandingAmount ?? profile.debtAmount,
+                      )} DA`
+                    : "Soldée"
+                }
+                active={(debt?.outstandingAmount ?? profile.debtAmount) > 0}
+              />
+              <AlertBox
+                label="Prochaine échéance"
+                value={
+                  nextInstallment
+                    ? formatShortDate(nextInstallment.dueDate)
+                    : "Aucune"
+                }
+                active={Boolean(nextInstallment)}
+              />
+            </div>
+          </SectionCard>
+
+          {parent && (
+            <div className="rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
+              Parent lié: <span className="font-medium text-foreground">{profile.parentName}</span>
+              {parent.phone ? ` · ${parent.phone}` : ""}
+            </div>
+          )}
         </div>
       )}
     </UnifiedModal>
@@ -838,6 +1034,33 @@ export function OperationalQueryConsole({ profiles }: Props) {
               >
                 Moyenne <ArrowUpDown className="h-3 w-3 ml-1" />
               </Button>
+            </div>
+          </div>
+
+          {/* T-444/UI-324 restored: the filtered-cohort stats bar (dossiers
+              filtrés / créances cumulées / moyenne cohorte). */}
+          <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-surface-elevated/40 border border-border/50 text-muted-foreground">
+            <span>
+              Dossiers filtrés :{" "}
+              <strong className="text-foreground font-mono">{queryStats.count}</strong>
+            </span>
+            <div className="flex items-center gap-4">
+              {queryStats.totalDebt > 0 && (
+                <span>
+                  Créances cumulées :{" "}
+                  <strong className="text-status-danger font-mono font-bold">
+                    {formatDzdPlain(queryStats.totalDebt)} DA
+                  </strong>
+                </span>
+              )}
+              {queryStats.avgGpa !== null && (
+                <span>
+                  Moyenne cohorte :{" "}
+                  <strong className="text-foreground font-mono font-bold">
+                    {queryStats.avgGpa.toFixed(2)}/20
+                  </strong>
+                </span>
+              )}
             </div>
           </div>
 

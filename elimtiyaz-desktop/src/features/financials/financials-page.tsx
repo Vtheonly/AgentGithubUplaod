@@ -15,7 +15,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   Plus,
   Wallet,
@@ -32,7 +32,6 @@ import {
   Lock,
   Brain,
   Hourglass,
-  Trash2,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
@@ -55,7 +54,6 @@ import {
   sumPaidPayments,
   monthlyRevenue,
   type Payment,
-  type PaymentNavigationContext,
 } from "../../domain/model/payment";
 import {
   EXPENSE_STATUS_LABELS_FR,
@@ -122,7 +120,6 @@ export function FinancialsPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { openParent, openStudent } = usePersonNavigation();
 
@@ -531,10 +528,6 @@ export function FinancialsPage() {
         paymentId={paymentDetailId}
         open={paymentDetailId !== null}
         onOpenChange={(o) => !o && setPaymentDetailId(null)}
-        onOpenParent={(parentId) => {
-          setPaymentDetailId(null);
-          openParent(parentId);
-        }}
       />
       <ExpenseSubmitModal
         open={expenseOpen}
