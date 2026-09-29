@@ -642,15 +642,27 @@ export interface InstallmentRepository {
   /**
    * T-421 (IMPORT-116 — re-import idempotency): the canonical tranche
    * identities of every IMPORTED installment currently in the database,
-   * as `parentId|studentId|category|trancheNumber` keys (the 0032
-   * `installments_bulk_import_identity_idx` contract). The import's flush
-   * preflights its pending batch against this set — a re-import of
-   * already-present data writes NOTHING instead of failing on the first
-   * all-conflicting chunk (the identity index is PARTIAL, so even
-   * PostgREST's on_conflict param cannot arbitrate it — live-proven
-   * 42P10). Optional; callers without it fall back to writing.
+   * as `parentId|studentId|category|trancheNumber|academicYearId` keys
+   * (the 0129 `installments_bulk_import_identity_idx` contract — YEAR-
+   * SCOPED since T-439/DATA-055: the 6th key is the COALESCE year
+   * component, `""` for NULL-year rows). The import's flush preflights
+   * its pending batch against this set — a re-import of already-present
+   * data writes NOTHING, while a NEXT-YEAR workbook's tranches for a
+   * continuing student (a DIFFERENT obligation under the 0129 identity)
+   * are NOT dropped as duplicates (the year-blind key silently ate
+   * every new-year tranche — the client-side DATA-054). Optional;
+   * callers without it fall back to writing.
    */
   listImportInstallmentIdentities?(): Promise<Set<string>>;
+  /**
+   * T-439 (DATA-055): resolve a due date to the tenant's academic-year
+   * id — the SAME INV-14 window resolver the write path stamps with
+   * (the Supabase twin's `resolveAcademicYearIdForDueDate`; the mock
+   * twin's store windows). The import adapter uses it to build the
+   * year-scoped preflight key for each pending row. Optional; when
+   * absent the adapter falls back to the LEGACY year-blind key.
+   */
+  resolveImportAcademicYearId?(dueDate: string): Promise<string | null>;
 }
 
 /**

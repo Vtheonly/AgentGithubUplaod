@@ -328,6 +328,38 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       ...this.collectExistingImportLedgerKeys(),
     ]);
 
+    // T-439 (DATA-055): the pending installments' year-scoped preflight
+    // keys. The 0129 identity index keys by COALESCE(academic_year_id,
+    // zero-uuid) — the preflight key must carry the SAME year component
+    // or the filter is wrong in BOTH directions: a re-import of the same
+    // workbook must still be a no-op (same year → same key), while a
+    // NEXT-YEAR workbook's tranches for a continuing student (a
+    // DIFFERENT obligation) must NOT be dropped as duplicates — the old
+    // year-blind key silently ate every new-year tranche at the next
+    // academic-year transition. The year resolves through the SAME
+    // repository resolver the write path stamps with
+    // (`resolveImportAcademicYearId`); a repository without the resolver
+    // (the pre-T-439 contract) falls back to the LEGACY year-blind key,
+    // matching its own year-blind identity listing.
+    const installmentYearResolver =
+      typeof this.deps.installments?.resolveImportAcademicYearId === "function"
+        ? this.deps.installments.resolveImportAcademicYearId.bind(this.deps.installments)
+        : null;
+    const installmentYearByDueDate = new Map<string, string | null>();
+    /**
+     * The year component of a pending row's preflight key. Returns
+     * `undefined` (NOT null) when the repository carries no resolver —
+     * the LEGACY year-blind-key marker; `null` = resolved to no year
+     * (the COALESCE zero-uuid group).
+     */
+    const installmentYearForKey = async (dueDate: string): Promise<string | null | undefined> => {
+      if (!installmentYearResolver) return undefined;
+      if (!installmentYearByDueDate.has(dueDate)) {
+        installmentYearByDueDate.set(dueDate, await installmentYearResolver(dueDate));
+      }
+      return installmentYearByDueDate.get(dueDate) ?? null;
+    };
+
     // Flush ledger entries.
     if (this.pendingLedgerEntries.length > 0 && this.deps.ledger) {
       // IMPORT-107 (re-import idempotency): the canonical identity of an
@@ -456,19 +488,28 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     if (this.pendingInstallments.length > 0 && this.deps.installments) {
       try {
         // T-421 (IMPORT-116): CROSS-RUN dedup by the canonical tranche
-        // identity — (tenant, parent, student, category, tranche_number),
-        // the 0032 `installments_bulk_import_identity_idx` contract (a
-        // PARTIAL index the PostgREST wire cannot arbitrate — live-proven
-        // 23505/42P10). Installments previously had NO cross-run filter.
+        // identity — (tenant, parent, student, category, tranche_number,
+        // COALESCE(academic_year_id, zero-uuid)), the 0129 YEAR-SCOPED
+        // `installments_bulk_import_identity_idx` contract (a PARTIAL
+        // index the PostgREST wire cannot arbitrate — live-proven
+        // 23505/42P10). Installments previously had NO cross-run filter;
+        // T-439 (DATA-055) added the year component so a continuing
+        // student's new-year tranches are a DIFFERENT key, not a silent
+        // duplicate-drop. WITHIN-BATCH dedup stays first-wins per key.
         const seenTrancheKeys = new Set<string>();
-        const newPendingInstallments = this.pendingInstallments.filter((input) => {
-          const key = `${input.parentId}|${input.studentId}|${input.category}|${input.trancheNumber}`;
-          if (existingInstallmentIdentities.has(key)) return false; // already in the DB
+        const newPendingInstallments: typeof this.pendingInstallments = [];
+        for (const input of this.pendingInstallments) {
+          const yearKey = await installmentYearForKey(input.dueDate);
+          const key =
+            yearKey === undefined
+              ? `${input.parentId}|${input.studentId}|${input.category}|${input.trancheNumber}`
+              : `${input.parentId}|${input.studentId}|${input.category}|${input.trancheNumber}|${yearKey ?? ""}`;
+          if (existingInstallmentIdentities.has(key)) continue; // already in the DB
           // T-420 (IMPORT-115): WITHIN-BATCH dedup. FIRST WINS.
-          if (seenTrancheKeys.has(key)) return false;
+          if (seenTrancheKeys.has(key)) continue;
           seenTrancheKeys.add(key);
-          return true;
-        });
+          newPendingInstallments.push(input);
+        }
         installmentsAttempted = newPendingInstallments.length;
         if (newPendingInstallments.length > 0) {
           // T-421: capture the optional method references once so TS narrows

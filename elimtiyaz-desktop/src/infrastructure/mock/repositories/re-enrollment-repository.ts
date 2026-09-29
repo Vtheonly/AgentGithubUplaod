@@ -33,6 +33,7 @@ import type { ReEnrollmentRepository } from "../../../domain/repository/academic
 import type { AcademicLevel, GradeLevel } from "../../../domain/model/student";
 import { GRADE_LEVELS } from "../../../domain/model/student";
 import { getNextGradeProgression } from "../../../domain/calc/academics/promotion";
+import { deriveAccountId } from "../../../domain/calc/ledger/account-id";
 import { store, appendAudit, nowIso } from "./mock-store";
 
 /** The mock store's re-enrollment rows (the singleton session state). */
@@ -291,20 +292,67 @@ export class MockReEnrollmentRepository implements ReEnrollmentRepository {
       };
       store.notifyStudents();
 
-      // INV-25c: the billing legs stamped with the target year id.
-      const stamped = input.installments.map((i) => ({
-        ...i,
-        academicYearId: target.id,
-      })) as unknown as import("../../../domain/model/payment").Installment[];
+      // INV-25c + DATA-057a (T-439): the billing legs mapped from the
+      // WIRE shapes (snake_case, `student_ref` indexes) to the DOMAIN
+      // row shapes every mock-mode consumer reads (`parentId`,
+      // `amountDue`, `dueDate`, camelCase) — the old blind cast pushed
+      // the wire rows verbatim into the store, where every financial
+      // consumer saw nothing (invisible billing, undefined React keys).
+      // The ids reuse the wire's YEAR-SCOPED source ids / entry numbers
+      // (deterministic — a repeated re-enrollment converges).
+      const parentId = student.parentId;
+      const stamped = input.installments.map(
+        (w) =>
+          ({
+            id: typeof w.source_id === "string" && w.source_id ? w.source_id : `re-${target.id}-${student.id}-${String(w.category)}-${String(w.tranche_number)}`,
+            parentId,
+            studentId: student.id,
+            category: w.category,
+            label: w.label,
+            trancheNumber: w.tranche_number,
+            amountDue: w.amount_due,
+            amountPaid: w.amount_paid,
+            amountPending: w.amount_pending,
+            dueDate: w.due_date,
+            paidDate: w.paid_date,
+            status: w.status,
+            academicCycle: w.academic_cycle ?? null,
+            paymentPlan: w.payment_plan ?? "tranches",
+            isCustomSchedule: w.is_custom_schedule ?? false,
+            customScheduleNote: w.custom_schedule_note ?? null,
+            academicYearId: target.id,
+          }) as import("../../../domain/model/payment").Installment,
+      );
       if (stamped.length > 0) {
         store.installments = [...stamped, ...store.installments];
         store.notifyInstallments();
       }
-      const ledgerEntries = input.ledgerEntries as unknown as import(
-        "../../../domain/model/ledger"
-      ).LedgerEntry[];
+      const ledgerEntries = input.ledgerEntries.map(
+        (w) =>
+          ({
+            id: typeof w.entry_number === "string" && w.entry_number ? w.entry_number : `re-${target.id}-led-${String(w.source_id)}`,
+            tenantId: "tenant-1",
+            accountId: deriveAccountId(parentId, (w.category ?? null) as import("../../../domain/model/payment").PaymentCategory | null, student.id),
+            parentId,
+            studentId: student.id,
+            category: w.category ?? null,
+            amount: w.amount,
+            type: w.entry_type,
+            sourceType: w.source_type,
+            sourceId: w.source_id,
+            method: w.method ?? null,
+            receiptNumber: w.receipt_number ?? null,
+            paymentStatus: w.payment_status ?? null,
+            reversesId: w.reverses_id ?? null,
+            description: w.description,
+            actorId: w.actor_id ?? "system",
+            actorName: w.actor_name ?? "Réinscription",
+            at: w.at,
+            metadata: w.metadata ?? {},
+          }) as import("../../../domain/model/ledger").LedgerEntry,
+      );
       if (ledgerEntries.length > 0) {
-        store.ledger = [...store.ledger, ...ledgerEntries];
+        store.ledger = [...ledgerEntries, ...store.ledger];
         store.notifyLedger();
       }
 
