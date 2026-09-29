@@ -29,6 +29,9 @@ const FINANCIALS_PAGE = read("features/financials/financials-page.tsx");
 const INSTALLMENTS = read("features/financials/installment-schedule-tab.tsx");
 const CRM_PAGE = read("features/crm/crm-page.tsx");
 const CLASS_DETAIL = read("features/academics/class-detail-page.tsx");
+// T-444/UI-324: the new-UI navigation layer (the /crm?parentId= emitter
+// for the re-pinned matrix row below).
+const NAV_CONTEXT = read("shared/navigation/person-navigation-context.tsx");
 
 /* ------------------------------------------------------------------ */
 /* 1. The standardized 3-dot menu                                       */
@@ -44,18 +47,28 @@ describe("T-413 — StudentActionsMenu (the standardized 3-dot menu)", () => {
   });
 
   it("every action navigates with the canonical student identity", () => {
+    // T-444/UI-324 re-pin: the new-UI menu keeps every identity-bearing
+    // navigation (CRM fiche, pédagogie, finance, classe) and ADDS the
+    // global-drawer affordance (openStudent/openParent) for the family
+    // leg — the identity travels either way (never a bare row).
     expect(MENU).toContain("navigate(`/crm?studentId=${student.id}`)");
     expect(MENU).toContain("navigate(`/academics?studentId=${student.id}`)");
-    expect(MENU).toContain("navigate(`/crm?parentId=${student.parentId}`)");
-    expect(MENU).toContain("navigate(`/financials?familyId=${student.parentId}`)");
-    expect(MENU).toContain("navigate(`/academics/class/${student.classId}`)");
+    expect(MENU).toContain("openParent(student.parentId)");
+    expect(MENU).toContain(
+      "navigate(`/financials?familyId=${student.parentId}`)",
+    );
+    expect(MENU).toContain(
+      "navigate(`/academics/class/${student.classId}`)",
+    );
   });
 
   it("actions WITHOUT context never render (no dead links — the FA-16 lesson)", () => {
-    // The parent + finance actions are conditional on parentId; the class
-    // action on classId — built via conditional spread into the array.
-    expect(MENU).toMatch(/\.\.\.\(student\.parentId[\s\S]{0,60}\?\s*\[/);
-    expect(MENU).toMatch(/\.\.\.\(student\.classId[\s\S]{0,60}\?\s*\[/);
+    // T-444/UI-324 re-pin: the parent + finance actions are conditional on
+    // parentId; the class action on classId — the new UI's JSX guard form
+    // (`{student.parentId && (` … `{student.classId && (`), same
+    // no-dead-links invariant as the old conditional-spread form.
+    expect(MENU).toMatch(/\{student\.parentId && \(/);
+    expect(MENU).toMatch(/\{student\.classId && \(/);
   });
 
   it("the trigger is accessible (aria-label + title) and stops row-click propagation", () => {
@@ -128,8 +141,13 @@ describe("T-413 — the deep-link contract matrix (emitter ↔ consumer)", () =>
     expect(CRM_PAGE).toMatch(/searchParams\.get\("studentId"\)/);
   });
 
-  it("/crm?parentId= is EMITTED (the menu) and CONSUMED (the CRM page — pre-existing)", () => {
-    expect(MENU).toContain("`/crm?parentId=${student.parentId}`");
+  it("/crm?parentId= is EMITTED (the parent menu + the navigation context) and CONSUMED (the CRM page — pre-existing)", () => {
+    // T-444/UI-324 re-pin: the student menu's family leg now opens the
+    // global drawer (openParent) instead of routing; the /crm?parentId=
+    // deep link is still emitted by the PersonNavigation layer
+    // (navigateToParent → crm) and consumed by the CRM page — the
+    // emitter ↔ consumer matrix holds.
+    expect(NAV_CONTEXT).toContain("navigate(`/crm?parentId=${parentId}`)");
     expect(CRM_PAGE).toMatch(/searchParams\.get\("parentId"\)/);
   });
 

@@ -35,6 +35,8 @@ import { mockRepositories } from "../../../app/providers/repository-provider";
 import { RepositoryProvider } from "../../../app/providers/repository-provider";
 import { AuthProvider } from "../../../app/providers/auth-provider";
 import { ToastProvider } from "../../../app/providers/toast-provider";
+import { MemoryRouter } from "react-router-dom";
+import { PersonNavigationProvider } from "../../../shared/navigation/person-navigation-context";
 import type { Parent } from "../../../domain/model/parent";
 import type { Student } from "../../../domain/model/student";
 import { EMPTY_STUDENT, type Step1Parent, EMPTY_PARENT } from "../../../features/crm/batch-registration/types";
@@ -99,7 +101,14 @@ function renderWithProviders(ui: React.ReactElement): void {
   render(
     <RepositoryProvider repositories={mockRepositories}>
       <AuthProvider>
-        <ToastProvider>{ui}</ToastProvider>
+        <ToastProvider>
+          {/* T-444/UI-324: the new-UI navigation layer — InfoTab (and the
+              row menus) consume the PersonNavigation context, which itself
+              needs a Router. */}
+          <MemoryRouter>
+            <PersonNavigationProvider>{ui}</PersonNavigationProvider>
+          </MemoryRouter>
+        </ToastProvider>
       </AuthProvider>
     </RepositoryProvider>,
   );
@@ -291,12 +300,21 @@ describe("T-437 UI — the origin display (issue #18 §11–§12)", () => {
       ...store.parents.filter((p) => p.id !== "par-1"),
     ];
     renderWithProviders(<InfoTab studentId="stu-1" />);
-    expect(screen.getByText(/Origine \/ École précédente/i)).toBeInTheDocument();
+    // T-444/UI-324: the new UI renamed the card « Origine / École
+    // précédente » → « Origine / Établissement Antérieur » and shortened
+    // the description — the pin follows the new labels (the semantic
+    // contract — the origin card DISTINCT from the at-school history —
+    // is unchanged).
+    expect(
+      screen.getByText(/Origine \/ Établissement Antérieur/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Transfert d'une autre école")).toBeInTheDocument();
     expect(screen.getByText("École Ibn Badis")).toBeInTheDocument();
     expect(screen.getByText("4AP")).toBeInTheDocument();
     expect(screen.getByText("2096-2097")).toBeInTheDocument();
-    expect(screen.getByText(/l'historique interne se consulte dans l'onglet Pédagogique/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Historique de provenance avant l'admission/i),
+    ).toBeInTheDocument();
   });
 
   it("renders the honest not-captured state", () => {

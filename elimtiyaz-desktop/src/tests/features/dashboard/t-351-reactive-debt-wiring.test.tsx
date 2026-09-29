@@ -28,6 +28,12 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+// T-444/UI-324: the new-UI navigation layer — AnalyticsTab consumes the
+// PersonNavigation context; the harness mounts it.
+import { PersonNavigationProvider } from "../../../shared/navigation/person-navigation-context";
+import { MemoryRouter } from "react-router-dom";
+import { ToastProvider } from "../../../app/providers/toast-provider";
+import { AuthProvider } from "../../../app/providers/auth-provider";
 import type { ReactNode } from "react";
 
 // Initialize i18n FIRST — useTranslation() will otherwise throw.
@@ -263,7 +269,17 @@ describe("T-351 — AnalyticsTab consumes the FULL debt stream (DASH-401)", () =
     // the tab renders without errors and the console's preset machinery
     // works with the full debtSummaries prop (the deep wiring is pinned
     // by the source guards + the engine test above).
-    render(<AnalyticsTab {...tabProps} />);
+    render(
+      <ToastProvider>
+        <AuthProvider>
+          <MemoryRouter>
+            <PersonNavigationProvider>
+              <AnalyticsTab {...tabProps} />
+            </PersonNavigationProvider>
+          </MemoryRouter>
+        </AuthProvider>
+      </ToastProvider>,
+    );
     fireEvent.click(screen.getByRole("button", { name: /Diagnostic Actif/ }));
     const console = screen.getByTestId("analytics-tab");
     expect(console).toBeInTheDocument();
