@@ -54,6 +54,7 @@ import {
 import {
   runErImportAnalysis,
   ConfirmedEntityMatcher,
+  buildCurrentRunBindings,
   erImportRowObservationId,
   type ErImportAnalysisOutput,
 } from "../../infrastructure/excel/import-engine/er-matcher";
@@ -91,7 +92,11 @@ export function ExcelImportModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const engineRef = useRef<ImportEngine | null>(null);
   /** T-438: whether the memoized engine carries an ER matcher (see getEngine). */
-  let engineHasMatcher = false;
+  // T-439 (IDENT-103): the matcher instance the memoized engine was built
+  // with — identity-compared on every getEngine call so a matcher change in
+  // EITHER direction rebuilds the engine (the old render-local boolean
+  // could never REMOVE a matcher).
+  const engineMatcherRef = useRef<ConstructorParameters<typeof RepositoryStorageAdapter>[0]["entityMatcher"]>(undefined);
 
   const [stage, setStage] = useState<Stage>("select");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -151,7 +156,14 @@ export function ExcelImportModal({
    * byte-identical to pre-T-438 (INV-40).
    */
   function getEngine(entityMatcher?: ConstructorParameters<typeof RepositoryStorageAdapter>[0]["entityMatcher"]): ImportEngine {
-    if (!engineRef.current || (entityMatcher && !engineHasMatcher)) {
+    // T-439 (IDENT-103): rebuild whenever the matcher INSTANCE changes —
+    // ADD *or REMOVE*. The old additive-only condition
+    // (entityMatcher && !engineHasMatcher) could never REMOVE a matcher:
+    // once a commit ran with one, turning the experimental flag OFF still
+    // routed the import through the stale ConfirmedEntityMatcher (INV-40
+    // false within a modal's lifetime).
+    const matcherChanged = engineMatcherRef.current !== entityMatcher;
+    if (!engineRef.current || matcherChanged) {
       // The bridge adapter delegates ETAT upserts to ParentRepository +
       // StudentRepository — this is the fix that makes Excel imports
       // actually persist students into the CRM. Iteration 21 also wires
@@ -173,9 +185,12 @@ export function ExcelImportModal({
         tenantId: session?.tenantId ?? "default",
         actorId: session?.userId ?? "system",
         actorName: session?.displayName ?? "System",
+        // T-439 (IDENT-103): the workbook identity the binding keys are
+        // qualified with (the SAME sourceSystem the analysis used).
+        entityMatchSourceSystem: fileName ? `xlsx:${fileName}` : undefined,
         entityMatcher,
       });
-      engineHasMatcher = entityMatcher !== undefined;
+      engineMatcherRef.current = entityMatcher;
       engineRef.current = new ImportEngine({
         storage,
         auditSink: {
@@ -325,17 +340,18 @@ export function ExcelImportModal({
       // the byte-identical legacy path (INV-40).
       let erMatcher: ConfirmedEntityMatcher | undefined;
       if (isExperimentalEnabled(EXPERIMENTAL_ER_PMAE_KEY)) {
-        const approved = repos.identityResolution
-          .observeProposals()
-          .get()
-          .filter((p) => p.status === "approved" || p.status === "executed");
-        const bindings = new Map<string, string>();
-        for (const p of approved) {
-          const targetId = p.bObservationId.startsWith("canonical:")
-            ? p.bObservationId.slice("canonical:".length)
-            : null;
-          if (targetId) bindings.set(p.aObservationId, targetId);
-        }
+        // T-439 (IDENT-103): the bindings are scoped to THIS import — the
+        // CURRENT run's proposals AND the current file's observation ids.
+        // The old unscoped filter (every approved/executed proposal in the
+        // repository) leaked approvals ACROSS FILES (the unqualified
+        // import:row:N ids collide) and, on Supabase, across
+        // operators/desktops: an approval of row 42 in file A silently
+        // bound row 42 of file B (a different family) to file A's target.
+        const bindings = buildCurrentRunBindings(
+          repos.identityResolution.observeProposals().get(),
+          erAnalysis?.runId,
+          erAnalysis?.rowObservationIds.values() ?? [],
+        );
         if (bindings.size > 0) erMatcher = new ConfirmedEntityMatcher(bindings);
       }
       const engine = getEngine(erMatcher);
@@ -476,10 +492,13 @@ export function ExcelImportModal({
     return m;
   }, [repos.parents]);
   const rowsByObservationId = useMemo(() => {
+    // T-439 (IDENT-103): source-qualified keys — the same convention the
+    // analysis persisted (an unqualified key collides across files).
     const m = new Map<string, { record: ImportRecord; rowIndex: number }>();
-    for (const r of erRows) m.set(erImportRowObservationId(r.rowIndex), r);
+    const sourceSystem = fileName ? `xlsx:${fileName}` : undefined;
+    for (const r of erRows) m.set(erImportRowObservationId(r.rowIndex, sourceSystem), r);
     return m;
-  }, [erRows]);
+  }, [erRows, fileName]);
 
   async function decideErProposal(proposal: ErMatchProposal, decision: "approve" | "reject"): Promise<void> {
     if (!session) return;
