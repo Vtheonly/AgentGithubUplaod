@@ -5061,3 +5061,29 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Next:** the standing queue — the 0132 + 0133 live applications (one fresh Management token unblocks both), then UNKNOWN-029 (the owner's FI ruling), then IDENT-104 M5.
 **Related:** DEBT-100/T-429 (the architecture this completes) · T-405 (the canonical rule) · §15.1 INV-16f · T-433/ARCH-016 (0125 live) · UI-323/T-442 (the concurrent task — the merge-conflict watch).
 
+
+## T-444 — The new-UI regression repair (the owner's 2026-09-30 mandate on commit `1cead9d`: "the new UI has many, many, many missing lines of code compared to the previous iteration… fully checked and compared against the previous commit to identify everything that is missing or broken, and then those parts need to be restored or repaired. However, keep the new UI exactly as it is — do not replace, remove, or revert it") — RESTORE the lost functionality INTO the new UI
+
+**Problem IDs:** UI-324 (registered OPEN with the tsc/vitest/worktree evidence BEFORE the fix, per §13).
+**Priority:** P0 — Critical (tsc is RED with 15 errors — `npm run build` is broken; 35 NEW test failures vs the documented baseline; the debt-aging drill-down and the parent financial reconciliation are GONE).
+**Status:** IN_PROGRESS (2026-09-30, 121st session).
+
+**Scope (the restore-into-the-new-UI plan — the new chrome is NEVER reverted):**
+1. **The destroyed component:** `debt-aging-tab.tsx` — restore the `DebtAgingDetailDrawer` (T-405's investigation panel: Obligations / Par année / Comportement + metadata + actions) from `c83045e`, removing the misplaced `StudentRow` paste (a dead-code duplicate of `students-directory-tab.tsx:331`).
+2. **The type errors (the owner's pasted diagnostics):** the four `classId` fixes (`person-link.tsx` null-coalesce; `operational-query-console.tsx` + `financials-page.tsx` pass the real classId) + the `class-detail-page.tsx` `usePersonNavigation()` wiring for the new `openStudent` button.
+3. **The parent drawer's FinancesTab:** re-add INTO the new layout — the T-252 « Couverture de l'Engagement Annuel » stack, the synthetic-tranches warning, the per-tranche pending + coverage + tooltips, the unattributed-family-items blocks, the T-168 full reconciliation (« chaque dinar expliqué » + bridge + server balance), « Paiements récents », « Historique des ajustements » (classifiedAdjustments + provenance) — and wire the new UI's `metadata` ribbon function into the EntityDetailDrawer (defined-but-unused in `1cead9d`).
+4. **The 360° console modal + stats bar:** re-add the services chips, « Prochaine échéance », payment-methods line, the 15-payment list, « Notes et évaluations », « Alertes et points à surveiller », the parent footer, and the console's « Dossiers filtrés / Créances cumulées / Moyenne cohorte » bar.
+5. **The employee drawer:** restore the « Tâches » tab + the « Horaires & Shifts » tab into the new three-tab layout.
+6. **The CRM export menu:** restore the XLSX/JSON/CSV dropdown next to the new Import/Nouvelle-inscription buttons (the handlers exist as dead code).
+7. **The payment drawer hardening:** `disabled={transitioning}` on the three money-moving buttons + the « unpaid » warning block.
+8. **The InfoTab service labels:** restore the SEPTEMBRE/DECEMBRE/MARS + REGLEMENTS_DETTES `serviceLabelFor` cases.
+9. **The test harnesses:** the new-architecture wrappers (`PersonNavigationProvider` inside `MemoryRouter`) for the affected suites (t-381, t-384, t-351, analytics-visuals, t-437, t-014) + the t-014 label re-pin (« versement ») + the t-413 source-contract re-pin (the new menu keeps the no-dead-links + canonical-identity invariants and ADDS the drawer affordance).
+
+**Constraints:** NEVER revert the new UI chrome (the owner's explicit instruction — the PersonNavigation layer, the redesigned menus, the new drawer styling all stay); NO business-rule changes (this is a functionality-restore, not a re-derivation); every restored block consumes the SAME canonical streams already computed in the component (never a second derivation); the concurrent-agent discipline — merge-early/merge-often, small hunks, `git pull --rebase` before every merge.
+
+**Gates:** tsc 0 · eslint 0 errors on every changed file · the 11 affected suites back to their c83045e state (GREEN, except the documented pre-existing failures) · FULL vitest BASELINE-MATCHED (8 files / 17 tests).
+
+**Left:** (to be updated at close).
+**Scope owner:** the owner's 2026-09-30 issue (this session's mandate).
+**Next:** (set at close).
+**Related:** UI-324 · T-405/T-442 (the destroyed drawer's suites) · T-168/T-252 (the reconciliation + coverage) · T-413/T-437 (the menu + InfoTab tests) · ADR-028 (the delivery branch model).
