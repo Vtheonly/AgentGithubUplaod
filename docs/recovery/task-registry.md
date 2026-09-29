@@ -5101,7 +5101,35 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Gates:** the three live scripts above (16/16 · 17/17 · DB-1…DB-9) · zero live residue (the four settings rows re-read at baseline; 0 timetable versions/entries; no other writes).
 
-**Left:** the owner's 60-second apply (Options A/B/C in t-445-live-verification.md) → then re-run verify_t-445 (CHECK-9/10 flip to "applied") + the four post-apply checks in apply_0133_live.sh's header + `verify_t-439.sql`/`verify_t-405.sql` through the Management SQL endpoint (both are BEGIN…ROLLBACK-safe).
+**Left:** CLOSED by T-446 (2026-09-30, 123rd session — the FOURTH supplied token worked): 0132 + 0133 applied (HTTP 201) + 0133 chain-reconciled (head `0133 > 0132 > 0131`) · verify_t-445 re-run 18/18 (CHECK-9/10 now verify the APPLIED state) · verify_t-439 14/14 · verify_t-405 33/33 (incl. T-429) · verify_t-338 clean — the full record: `t-446-live-verification.md`.
 **Scope owner:** the owner's 2026-09-30 credentials hand-off (this session's mandate).
 **Next:** the standing queue (next-task.md).
-**Related:** T-443 (DEBT-101 — the client integration this verifies) · T-439 (SEC-115 — 0132) · T-441/T-442 (the two live-run recommendations executed) · ADR-028 (the delivery branch model) · §15.77 (this session's four discoveries).
+**Related:** T-443 (DEBT-101 — the client integration this verifies) · T-439 (SEC-115 — 0132) · T-441/T-442 (the two live-run recommendations executed) · ADR-028 (the delivery branch model) · §15.77 (this session's four discoveries) · T-446 (the apply + post-apply verification that closed this entry's Left).
+
+## T-446 — The 0132+0133 LIVE APPLICATION with the owner's fourth token + the full post-apply verification suite + the year-tracking question (the owner's 2026-09-30 mandate: the credentials block re-supplied with a WORKING `sbp_` token + "where is the year-tracking feature?")
+
+**Problem IDs:** none new (the T-445 Left item executed; the verify_t-405 T-429 dead-block defect is a script repair, registered in §15.78; the 0133 registration gap is the ARCH-016 class, third occurrence).
+**Priority:** P1 — the standing #1 recommendation of four consecutive sessions (the 0132+0133 live application), unblocked by the first WORKING Management token in four hand-offs.
+**Status:** DONE (2026-09-30, 123rd session) — migrations 0132 + 0133 APPLIED, 0133 REGISTERED (chain head `0133 > 0132 > 0131`), and every post-apply check GREEN; the year-tracking question answered (« Par année » — the T-442 surface, restored by T-444).
+
+**What ran (all GREEN, live):**
+1. `apply_0132_live.sh` → HTTP 201 (the ER-PMAE RPC tenant guards; self-registers in-file).
+2. `apply_0133_live.sh` → HTTP 201 (the debt-thresholds client contract: `applied_thresholds` + the staff-gated reader).
+3. **The 0133 chain reconciliation** — 0133's FILE never carried the self-registration insert its sibling 0132 carries (the ARCH-016 class, third occurrence after 0069/0125): `scripts/apply_chain_reconciliation_0133.sh` (**NEW, committed**, the 0125 precedent verbatim) ran ONE atomic transaction — the idempotent 0133 body + the ON CONFLICT registration → `v0133_rows=1`, head `0133 > 0132 > 0131`. The migration FILE is NOT edited (§15.9).
+4. `verify_t-445_live_datagateway.py` — **18/18 PASS** (run post-apply AND post-reconciliation, byte-identical): CHECK-9/10 REWRITTEN to the APPLIED state — the reader returns the live values (5/15/60/15), its staff gate rejects the service key, **634/634 rows carry `applied_thresholds` == the reader's object**, `fn_er_resolve_tenant` resolves the tenant; CHECK-1..8 unchanged (the 548-row round-trip, zero residue).
+5. `verify_t-439.sql` — **14/14 PASS** (first live run): the 0132 guards — the 42501 mismatch refusals, the service_role path, the decide/merge/unmerge happy paths, the census, the registration, the ACLs.
+6. `verify_t-405.sql` — **33/33 PASS** (first live run with the T-429 block executing — two script repairs were required, see §15.78): the full aging suite + all five T-429 checks (n=4 seeded, n=4 defaults, fallback, tenant-resolves, the 4-tier CASE).
+7. `verify_t-338.sql` — **ran clean** (first live run through the runner): every section returned; the triage buckets read `debt_aging_thresholds()`; the single `not_due` bucket is the pinned-clock (2026-09-14) truth, not a defect.
+
+**The two verify_t-405 script repairs** (script maintenance, never migration edits): (a) the T-429 amendment block was DEAD CODE in both execution paths — appended AFTER the script's `ROLLBACK;` (psql: the temp table dies at ROLLBACK → 42P01; single-payload runners: the report SELECT already executed) → the Report SELECT + ROLLBACK moved to the TRUE end; (b) the block ran under C12's downgraded context (`set local role authenticated` + a role-less synthetic sub) under which system_settings' RLS hides the debt rows (n=0, tenant-resolves silently skipped) → the block now restores the session context first (`set_config('role','none')` + the original service_role claims).
+
+**The NEW tooling:** `scripts/run_verify_sql_live.sh` (**NEW, committed**) — the generic §11.1 runner for the `verify_t-*.sql` suites through the Management-API SQL endpoint: strips ONLY the trailing ROLLBACK (comment-aware guard), the final results SELECT becomes the last statement (quirk #32c), safety PROBED (an open uncommitted transaction is discarded at session end — `BEGIN; create table public._t446_probe` verified absent on the next request), prints a check table + verdict.
+
+**The year-tracking answer** (the owner's question): the per-year "who owes what" surface is **« Par année »** — Finances → Suivi des Dettes → a family row → the drawer's « Par année » tab (per-year cards, the « Dette des années antérieures encore due aujourd'hui » banner with per-year chips, per-service breakdowns, per-payment coverage lines); the SAME component at Élèves & Parents → a family → « Finances & Échéances » → « Historique par Année Scolaire »; plus the « Année d'origine » column + the « Filtrer par année d'origine » dropdown on the table. If the owner's build predates the T-444 delivery, the drawer (destroyed by `1cead9d`) lacked the tab — rebuild from main.
+
+**Gates:** 18/18 (verify_t-445, post-reconciliation) · 14/14 (verify_t-439) · 33/33 (verify_t-405) · verify_t-338 clean · chain head `0133 > 0132 > 0131` · zero live residue (baseline 5/15/60/15 re-read; census byte-identical green 86 · yellow 548; probes rolled back).
+
+**Left:** none for this mandate. The T-436 `payment_allocations` backfill remains the only live-data caveat (the per-year coverage LINES show « couverture non enregistrée » on pre-backfill data; the amounts themselves are unaffected).
+**Scope owner:** the owner's 2026-09-30 credentials hand-off + the year-tracking question (this session's mandate).
+**Next:** the standing queue (next-task.md).
+**Related:** T-445 (the owner-gated step this session closed) · T-443 (DEBT-101) · T-439 (SEC-115/0132) · T-442 (the per-year feature the owner asked about) · T-444 (the drawer restoration that brought it back) · ARCH-016 (the registration-gap class) · §15.78 (this session's discoveries).

@@ -10,7 +10,15 @@ DDL apply therefore stays owner-gated (a valid Management token OR the
 database password OR a dashboard-side db push) — but EVERYTHING the
 debt-configuration chain can prove through PostgREST + the auth gateway
 is verified here, re-runnable by any future session that holds only the
-secret key:
+secret key.
+
+T-446 (2026-09-30, 123rd session): the FOURTH supplied sbp_ Management
+token WORKED (HTTP 200 on /v1/projects — the first live one after three
+dead hand-offs) — 0132 + 0133 were applied through
+apply_0132_live.sh / apply_0133_live.sh (both HTTP 201, the §11.1
+Management-SQL path). CHECK-9/CHECK-10 therefore now verify the APPLIED
+state (the RPCs' live behavior + parity) instead of the former
+404-PGRST202 pending probes:
 
   CHECK-1   Admin sign-in (the documented owner-pinned credential,
             docs/operations/credentials.md §1) → the staff JWT.
@@ -34,11 +42,15 @@ secret key:
             the age-window rows flip green→yellow → restored.
   CHECK-8   ZERO RESIDUE: all four rows re-read at the baseline values;
             the census (same pinned as_of) returns byte-identically.
-  CHECK-9   The 0133 pending state: read_debt_aging_thresholds → 404
-            PGRST202 (the documented version-skew mode; correct today
-            BECAUSE CHECK-3 proves the live values == the DEFAULTS the
-            desktop degrades to).
-  CHECK-10  The 0132 pending state: fn_er_resolve_tenant → 404 PGRST202.
+  CHECK-9   The 0133 APPLIED state: read_debt_aging_thresholds → 200
+            with the four camelCase values == the live system_settings
+            rows; its staff gate rejects the service key; and EVERY
+            summary row's applied_thresholds == the reader's object
+            (the client contract — the displayed numbers can never
+            disagree with the server's verdict).
+  CHECK-10  The 0132 APPLIED state: fn_er_resolve_tenant → 200,
+            resolving the caller's tenant uuid (the shared ER-PMAE
+            guard helper the identity RPCs now call).
 
 Every RPC call pins the SAME p_as_of (captured at baseline) so the
 round-trip comparison is deterministic — a day-boundary crossing between
@@ -306,22 +318,46 @@ check("the census byte-identical", final_dist == base_dist,
       " · ".join(f"{k} {v}" for k, v in sorted(final_dist.items())))
 
 # ─────────────────────────────────────────────────────────────────────────
-# CHECK-9 / CHECK-10 — the 0132/0133 pending state (the version-skew mode)
+# CHECK-9 / CHECK-10 — the 0132/0133 APPLIED state (T-446: the fourth
+# token worked; both migrations landed through the Management-SQL path)
 # ─────────────────────────────────────────────────────────────────────────
-print("CHECK-9 — 0133's pending state (read_debt_aging_thresholds)")
-st, body = req("POST", "/rest/v1/rpc/read_debt_aging_thresholds", {}, bearer=JWT)
-code = body.get("code", "") if isinstance(body, dict) else ""
-check("0133 not yet applied (the documented owner-gate)",
-      st == 404 and code == "PGRST202",
-      f"HTTP {st} · {code} — the desktop degrades to the DEFAULTS, which "
-      f"CHECK-3 proved == the live values (the surfaces agree)")
+print("CHECK-9 — 0133's applied state (read_debt_aging_thresholds + applied_thresholds)")
+st, reader = req("POST", "/rest/v1/rpc/read_debt_aging_thresholds", {}, bearer=JWT)
+reader_ok = (st == 200 and isinstance(reader, dict) and
+             reader.get("gracePeriodDays") == TH["debt.grace_period_days"] and
+             reader.get("yellowDays") == TH["debt.threshold_yellow_days"] and
+             reader.get("redDays") == TH["debt.threshold_red_days"] and
+             reader.get("activePayerGraceDays") == TH["debt.active_payer_grace_days"])
+check("read_debt_aging_thresholds returns the live values (the 0133 reader)",
+      reader_ok,
+      (f"HTTP {st} · " + json.dumps(reader, sort_keys=True))
+      if isinstance(reader, dict) else f"HTTP {st} · {str(reader)[:80]}")
 
-print("CHECK-10 — 0132's pending state (fn_er_resolve_tenant)")
+st, body = req("POST", "/rest/v1/rpc/read_debt_aging_thresholds", {},
+               bearer=SECRET_KEY)
+msg = body.get("message", "") if isinstance(body, dict) else ""
+check("the reader's staff gate rejects the service key",
+      st == 400 and "staff surface" in msg,
+      f"HTTP {st} · {msg[:80]}")
+
+if reader_ok:
+    rows = census()
+    mismatch = [r.get("parent_name", "?") for r in rows
+                if r.get("applied_thresholds") != reader]
+    check("every summary row carries applied_thresholds == the reader's values",
+          not mismatch,
+          f"{len(rows) - len(mismatch)}/{len(rows)} rows match"
+          + (f" · MISMATCH: {mismatch[:3]}" if mismatch else ""))
+else:
+    check("every summary row carries applied_thresholds == the reader's values",
+          False, "skipped — the reader check above failed")
+
+print("CHECK-10 — 0132's applied state (fn_er_resolve_tenant)")
 st, body = req("POST", "/rest/v1/rpc/fn_er_resolve_tenant", {}, bearer=JWT)
-code = body.get("code", "") if isinstance(body, dict) else ""
-check("0132 not yet applied (the documented owner-gate)",
-      st == 404 and code == "PGRST202",
-      f"HTTP {st} · {code} — the ER-PMAE RPCs keep their 0130/0131 bodies")
+tenant = body if isinstance(body, str) else ""
+check("fn_er_resolve_tenant resolves the caller's tenant (the 0132 guard helper)",
+      st == 200 and len(tenant) == 36 and tenant.count("-") == 4,
+      f"HTTP {st} · {str(body)[:80]}")
 
 # ─────────────────────────────────────────────────────────────────────────
 # The verdict
@@ -338,4 +374,5 @@ if failed:
     sys.exit(1)
 print("VERDICT: the debt configuration DRIVES the live business logic — "
       "every threshold edit flows through system_settings → the aging "
-      "RPC → the status the Finances surface renders; zero residue.")
+      "RPC → the status the Finances surface renders; zero residue; "
+      "migrations 0125 + 0132 + 0133 all APPLIED and verified live.")
