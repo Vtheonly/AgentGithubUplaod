@@ -358,18 +358,43 @@ export class MockInstallmentRepository implements InstallmentRepository {
     return findOverdueInstallments(ctx, now);
   }
   /**
+   * T-439 (DATA-055, mock parity): the INV-14 window resolver — the SAME
+   * rule the Supabase twin's `resolveImportAcademicYearId`/
+   * `resolveAcademicYearIdForDueDate` applies (and migration 0127's
+   * backfill materialized live). Mock-side: the store's academic-year
+   * windows; latest-start match wins (the 0127 resolver's ORDER BY).
+   */
+  async resolveImportAcademicYearId(dueDate: string): Promise<string | null> {
+    const t = new Date(dueDate).getTime();
+    if (!Number.isFinite(t)) return null;
+    let match: { id: string; start: number } | null = null;
+    for (const ay of store.academicYears) {
+      const s = new Date(ay.startDate).getTime();
+      const e = new Date(ay.endDate).getTime();
+      if (Number.isFinite(s) && Number.isFinite(e) && t >= s && t <= e) {
+        if (match == null || s > match.start) match = { id: ay.id, start: s };
+      }
+    }
+    return match?.id ?? null;
+  }
+
+  /**
    * Bulk-import an installment row idempotently. Used by the Excel importer
    * to create one installment per tuition tranche (Sept 15 / Dec 15 / Mar 15)
    * and per transport tranche, marking them paid/partial/unpaid according
    * to the imported amounts. Re-imports update the same row in place.
    *
-   * Identity: `(tenant, parentId, studentId, category, trancheNumber)`.
-   * The mock store uses a deterministic id derived from these fields so
-   * re-imports hit the same record.
+   * Identity: `(tenant, parentId, studentId, category, trancheNumber,
+   * COALESCE(academicYearId, zero))` — T-439 (DATA-055): YEAR-SCOPED, the
+   * 0129 index mirror. The mock store uses a deterministic id derived from
+   * these fields (the year appended, "null" for un-attributed rows) so
+   * re-imports hit the same record while a continuing student's NEXT-YEAR
+   * tranches mint their own rows (the mock-side DATA-054).
    */
   async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
     await delay(120);
-    const id = `imp-${input.parentId}-${input.studentId}-${input.category}-${input.trancheNumber}`;
+    const yearId = await this.resolveImportAcademicYearId(input.dueDate);
+    const id = `imp-${input.parentId}-${input.studentId}-${input.category}-${input.trancheNumber}-${yearId ?? "null"}`;
     const existingIdx = store.installments.findIndex((i) => i.id === id);
     const installment: Installment = {
       id,
@@ -377,6 +402,9 @@ export class MockInstallmentRepository implements InstallmentRepository {
       studentId: input.studentId,
       category: input.category,
       label: input.label,
+      // T-439 (DATA-057): the canonical wave number — the Supabase twin
+      // carries tranche_number on every row; the mock omitted it.
+      trancheNumber: input.trancheNumber,
       amountDue: input.amountDue,
       amountPaid: input.amountPaid,
       amountPending: 0,
@@ -387,6 +415,9 @@ export class MockInstallmentRepository implements InstallmentRepository {
       paymentPlan: input.paymentPlan ?? "tranches",
       isCustomSchedule: false,
       customScheduleNote: null,
+      // T-439 (DATA-055, mock parity): the charge-belonging year stamp —
+      // the same INV-14 window rule the Supabase twin stamps with.
+      academicYearId: yearId,
     };
     if (existingIdx >= 0) {
       store.installments[existingIdx] = installment;
@@ -434,7 +465,10 @@ export class MockInstallmentRepository implements InstallmentRepository {
     await delay(120);
     const upserted: Installment[] = [];
     for (const input of inputs) {
-      const id = `imp-${input.parentId}-${input.studentId}-${input.category}-${input.trancheNumber}`;
+      // T-439 (DATA-055, mock parity): the YEAR-SCOPED deterministic id —
+      // the 0129 COALESCE identity mirror ("null" = the zero-uuid group).
+      const yearId = await this.resolveImportAcademicYearId(input.dueDate);
+      const id = `imp-${input.parentId}-${input.studentId}-${input.category}-${input.trancheNumber}-${yearId ?? "null"}`;
       const existingIdx = store.installments.findIndex((i) => i.id === id);
       const installment: Installment = {
         id,
@@ -442,6 +476,9 @@ export class MockInstallmentRepository implements InstallmentRepository {
         studentId: input.studentId,
         category: input.category,
         label: input.label,
+      // T-439 (DATA-057): the canonical wave number — the Supabase twin
+      // carries tranche_number on every row; the mock omitted it.
+      trancheNumber: input.trancheNumber,
         amountDue: input.amountDue,
         amountPaid: input.amountPaid,
         amountPending: 0,
@@ -452,6 +489,8 @@ export class MockInstallmentRepository implements InstallmentRepository {
         paymentPlan: input.paymentPlan ?? "tranches",
         isCustomSchedule: false,
         customScheduleNote: null,
+        // T-439 (DATA-055, mock parity): the year stamp.
+        academicYearId: yearId,
       };
       if (existingIdx >= 0) {
         store.installments[existingIdx] = installment;
@@ -492,14 +531,15 @@ export class MockInstallmentRepository implements InstallmentRepository {
    * canonical tranche identities of every IMPORTED installment in the
    * store — `imp-…` ids are the import rows (the deterministic id the
    * mock's bulkImportInstallments mints), keyed by the same
-   * (parent|student|category|trancheNumber) tuple the 0032 identity index
-   * enforces live.
+   * (parent|student|category|trancheNumber|academicYearId) tuple the
+   * 0129 year-scoped identity index enforces live (T-439/DATA-055 — the
+   * year component, "" for NULL-year rows, mirrors the COALESCE key).
    */
   async listImportInstallmentIdentities(): Promise<Set<string>> {
     const keys = new Set<string>();
     for (const inst of store.installments) {
       if (inst.id.startsWith("imp-")) {
-        keys.add(`${inst.parentId}|${inst.studentId}|${inst.category}|${inst.trancheNumber}`);
+        keys.add(`${inst.parentId}|${inst.studentId}|${inst.category}|${inst.trancheNumber}|${inst.academicYearId ?? ""}`);
       }
     }
     return keys;

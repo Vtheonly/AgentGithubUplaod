@@ -279,31 +279,41 @@ describe("T-437 A — the mock re-enrollment workflow (INV-21/22/23)", () => {
     list = await repo.listCandidates(PROBE_TARGET.id);
     expect(list.ok && list.value.candidates[0]?.status).toBe("waiting");
 
-    // The composite re-enrollment (minimal billing legs).
+    // The composite re-enrollment — the REAL shared builder's wire output
+    // (T-439/DATA-057a: the mock must map the WIRE shapes; the old test
+    // hand-fed camelCase domain rows and masked the blind-cast bug where
+    // every mock-mode financial consumer saw nothing).
+    const { ledgerWire, installmentWire } = buildRegistrationBillingWires({
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      parentCode: store.parents[0].code,
+      students: [
+        {
+          studentCode: "ELV-T437-MACHINE",
+          studentRef: 0,
+          gradeLevel: "5ap",
+          paymentPlan: "tranches",
+          transportTier: null,
+          remise: 0,
+          chargeStickerPrice: false,
+        },
+      ],
+      pricingConfig: defaultPricingConfig,
+      includeRegistration: true,
+      includeTransport: false,
+      year: 2097,
+      at: "2097-09-01T10:00:00.000Z",
+      parentTransportDestination: null,
+      sourceIdScope: { prefix: `re-${PROBE_TARGET.code}`, yearCode: PROBE_TARGET.code },
+    });
+    expect(installmentWire.length).toBe(3);
     const reRes = await repo.reEnroll({
       reEnrollmentId: reId,
       gradeLevelCode: "5ap",
       classId: null,
       paymentPlan: "tranches",
       transportTier: null,
-      installments: [
-        {
-          id: "ins-t437-1",
-          parentId: store.parents[0].id,
-          studentId: "stu-t437-machine",
-          category: "tuition",
-          trancheNumber: 1,
-          label: "Tranche 1",
-          amountDue: 40000,
-          amountPaid: 0,
-          amountPending: 0,
-          dueDate: "2097-09-15",
-          paidDate: null,
-          status: "unpaid",
-          paymentPlan: "tranches",
-        },
-      ] as never,
-      ledgerEntries: [] as never,
+      installments: installmentWire,
+      ledgerEntries: ledgerWire,
       notes: null,
     });
     expect(reRes.ok).toBe(true);
@@ -313,9 +323,26 @@ describe("T-437 A — the mock re-enrollment workflow (INV-21/22/23)", () => {
     const student = store.students.find((s) => s.id === "stu-t437-machine")!;
     expect(student.gradeLevel).toBe("5ap");
     expect(store.students.filter((s) => s.id === "stu-t437-machine").length).toBe(1);
-    // INV-25c: the installment stamped with the TARGET year id.
-    const stamped = store.installments.find((i) => i.id === "ins-t437-1");
-    expect(stamped?.academicYearId).toBe(PROBE_TARGET.id);
+    // INV-25c + DATA-057a: the DOMAIN-shaped rows in the store — camelCase
+    // fields every consumer reads, stamped with the TARGET year id, one per
+    // wire row, ids from the year-scoped source ids.
+    const t1 = store.installments.find(
+      (i) => i.id === `re-${PROBE_TARGET.code}-ELV-T437-MACHINE:tuition:T1`,
+    );
+    expect(t1).toBeDefined();
+    expect(t1!.parentId).toBe(store.parents[0].id);
+    expect(t1!.studentId).toBe("stu-t437-machine");
+    expect(t1!.amountDue).toBe(installmentWire[0].amount_due);
+    expect(t1!.dueDate).toBe(installmentWire[0].due_date);
+    expect(t1!.trancheNumber).toBe(1);
+    expect(t1!.academicYearId).toBe(PROBE_TARGET.id);
+    expect(store.installments.filter((i) => i.academicYearId === PROBE_TARGET.id)).toHaveLength(3);
+    // The ledger legs map too — the FI + 3 tuition charges, domain-shaped.
+    const fee = store.ledger.find((l) => l.sourceId === `re-${PROBE_TARGET.code}-${store.parents[0].code}-fee`);
+    expect(fee).toBeDefined();
+    expect(fee!.parentId).toBe(store.parents[0].id);
+    expect(fee!.studentId).toBe("stu-t437-machine");
+    expect(store.ledger.filter((l) => l.sourceId?.startsWith(`re-${PROBE_TARGET.code}-`))).toHaveLength(4);
 
     // re_enrolled is terminal pre-freeze.
     const after = await repo.setDecision({ reEnrollmentId: reId, decision: "not_continuing", notes: null, performedBy: "s", performedByName: "T" });

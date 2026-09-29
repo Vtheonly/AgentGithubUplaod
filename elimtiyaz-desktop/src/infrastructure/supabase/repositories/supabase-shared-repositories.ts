@@ -3357,6 +3357,17 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   constructor(private readonly client: SupabaseClient) {}
 
   /**
+   * T-439 (DATA-055): the PUBLIC import-facing resolver — the same INV-14
+   * window rule the write path stamps with (see
+   * `resolveAcademicYearIdForDueDate`). The import adapter builds its
+   * year-scoped preflight keys through this so the client-side key and
+   * the 0129 COALESCE index key always agree.
+   */
+  async resolveImportAcademicYearId(dueDate: string): Promise<string | null> {
+    return this.resolveAcademicYearIdForDueDate(dueDate);
+  }
+
+  /**
    * T-436: resolve (and cache) the tenant's academic-year windows, then
    * attribute a due date to its year id — the INV-14 window rule, the
    * SAME rule the 0127 backfill applied. Rows outside every window →
@@ -3836,12 +3847,14 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   /**
    * T-421 (IMPORT-116 — re-import idempotency): the canonical tranche
    * identities of every bulk-import installment currently in the database,
-   * as `parentId|studentId|category|trancheNumber` keys — read straight
-   * from the table, PAGINATED (PostgREST max-rows would otherwise truncate
-   * the set). The import's flush preflights its pending batch against this
-   * set so a re-import writes NOTHING for already-present tranches (the
-   * partial identity index cannot be arbitrated on the PostgREST wire —
-   * live-proven 23505/42P10).
+   * as `parentId|studentId|category|trancheNumber|academicYearId` keys —
+   * read straight from the table, PAGINATED (PostgREST max-rows would
+   * otherwise truncate the set). T-439 (DATA-055): the key is YEAR-
+   * SCOPED — the 6th component is the row's `academic_year_id` ("" for
+   * NULL), mirroring the 0129 COALESCE identity index exactly. The old
+   * year-blind key treated a continuing student's NEXT-YEAR tranche as
+   * an already-imported duplicate and the flush silently dropped it
+   * (the client-side DATA-054 the migration fixed server-side).
    */
   async listImportInstallmentIdentities(): Promise<Set<string>> {
     const tenantId = requireTenantId();
@@ -3857,17 +3870,18 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
       student_id: string | null;
       category: string | null;
       tranche_number: number | null;
+      academic_year_id: string | null;
     }>(
       (lastId) =>
         (lastId
           ? this.client
               .from("installments")
-              .select("id, parent_id, student_id, category, tranche_number")
+              .select("id, parent_id, student_id, category, tranche_number, academic_year_id")
               .eq("tenant_id", tenantId)
               .gt("id", lastId)
           : this.client
               .from("installments")
-              .select("id, parent_id, student_id, category, tranche_number")
+              .select("id, parent_id, student_id, category, tranche_number, academic_year_id")
               .eq("tenant_id", tenantId)
         )
           .order("id", { ascending: true })
@@ -3878,6 +3892,7 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
             student_id: string | null;
             category: string | null;
             tranche_number: number | null;
+            academic_year_id: string | null;
           }[] | null;
           error: { message: string } | null;
         }>,
@@ -3891,7 +3906,9 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         row.category != null &&
         row.tranche_number != null
       ) {
-        keys.add(`${row.parent_id}|${row.student_id}|${row.category}|${row.tranche_number}`);
+        // T-439 (DATA-055): the 0129 COALESCE identity — the year is the
+        // 6th key component ("" = the zero-uuid NULL group).
+        keys.add(`${row.parent_id}|${row.student_id}|${row.category}|${row.tranche_number}|${row.academic_year_id ?? ""}`);
       }
     }
     return keys;
@@ -3899,22 +3916,77 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
     try {
       const tenantId = requireTenantId();
-      // Match by (tenant, parent, student, category, tranche_number).
-      const { data: existing, error: findErr } = await this.client
-        .from("installments")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("parent_id", input.parentId)
-        .eq("student_id", input.studentId)
-        .eq("category", input.category)
-        .eq("tranche_number", input.trancheNumber)
-        .maybeSingle();
-      if (findErr) throw findErr;
-
       // T-436 (ADR-030): stamp the charge-belonging year — the INV-14
       // window rule at write time (NULL when unresolvable: the read-side
       // fallback applies).
       const academicYearId = await this.resolveAcademicYearIdForDueDate(input.dueDate);
+      // T-439 (DATA-055): the find is YEAR-AWARE — the 0129 identity
+      // mirror. The old single `.maybeSingle()` on (tenant, parent,
+      // student, category, tranche) threw PGRST116 the moment a
+      // continuing student legitimately carried the same tranche in two
+      // academic years, and (worse) matched the WRONG (prior-year) row.
+      // The 0129 `upsert_installment_from_import` Identity-2 semantics,
+      // mirrored client-side: prefer the EXACT-year row, then the
+      // NULL-year (claimable legacy) row — a DIFFERENT-year row is a
+      // different obligation, never matched. When the resolution is
+      // NULL the NULL-year row is the deterministic target (the
+      // COALESCE index key an insert would conflict on).
+      let existing: { id: string; academic_year_id: string | null } | null = null;
+      if (academicYearId != null) {
+        const { data: exact, error: exactErr } = await this.client
+          .from("installments")
+          .select("id, academic_year_id")
+          .eq("tenant_id", tenantId)
+          .eq("parent_id", input.parentId)
+          .eq("student_id", input.studentId)
+          .eq("category", input.category)
+          .eq("tranche_number", input.trancheNumber)
+          .eq("academic_year_id", academicYearId)
+          .maybeSingle();
+        if (exactErr) throw exactErr;
+        if (exact) existing = exact as { id: string; academic_year_id: string | null };
+      }
+      if (existing == null) {
+        // The NULL-year (claimable legacy) row — also the deterministic
+        // insert-conflict target when the resolution is NULL (the
+        // COALESCE key). 0129's fallback when v_year_id IS NULL is
+        // year-blind (any-year match): mirrored here with a LIST fetch
+        // (never `.maybeSingle()` — PGRST116 on the two-year match is
+        // the DATA-055 crash) and a deterministic pick — NULL-year
+        // first, then the first row.
+        const { data: candidates, error: legacyErr } = await this.client
+          .from("installments")
+          .select("id, academic_year_id")
+          .eq("tenant_id", tenantId)
+          .eq("parent_id", input.parentId)
+          .eq("student_id", input.studentId)
+          .eq("category", input.category)
+          .eq("tranche_number", input.trancheNumber)
+          .is("academic_year_id", null)
+          .limit(2);
+        if (legacyErr) throw legacyErr;
+        const legacyRows = (candidates ?? []) as { id: string; academic_year_id: string | null }[];
+        if (legacyRows.length > 0) {
+          existing = legacyRows[0];
+        } else if (academicYearId == null) {
+          // 0129's year-blind fallback for an UNRESOLVABLE date: match
+          // ANY-year row of this identity (the same logical obligation)
+          // — deterministically the first — and COALESCE preserves its
+          // year on update.
+          const { data: anyYear, error: anyErr } = await this.client
+            .from("installments")
+            .select("id, academic_year_id")
+            .eq("tenant_id", tenantId)
+            .eq("parent_id", input.parentId)
+            .eq("student_id", input.studentId)
+            .eq("category", input.category)
+            .eq("tranche_number", input.trancheNumber)
+            .limit(2);
+          if (anyErr) throw anyErr;
+          const rows = (anyYear ?? []) as { id: string; academic_year_id: string | null }[];
+          if (rows.length > 0) existing = rows[0];
+        }
+      }
       const rowPayload = {
         tenant_id: tenantId,
         parent_id: input.parentId,
@@ -3939,11 +4011,17 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
       };
 
       let id: string;
-      if (existing && (existing as { id?: string }).id) {
-        id = (existing as { id: string }).id;
+      if (existing && existing.id) {
+        id = existing.id;
+        // T-439 (DATA-055): COALESCE preservation — the INV-18b freeze the
+        // 0127 server twin already implements (`academic_year_id =
+        // COALESCE(v_year_id, academic_year_id)`): a NULL resolution on
+        // the update path NEVER overwrites the persisted attribution
+        // (the old code re-derived from the NEW due date unconditionally
+        // — an échéance edit silently re-attributed the charge's year).
         const { error: updateErr } = await this.client
           .from("installments")
-          .update(rowPayload)
+          .update({ ...rowPayload, academic_year_id: academicYearId ?? existing.academic_year_id })
           .eq("id", id);
         if (updateErr) throw updateErr;
       } else {
