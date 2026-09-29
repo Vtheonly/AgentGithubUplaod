@@ -1,6 +1,6 @@
 {
   "id": "executive_statistics_live_shape",
-  "description": "T-341 (STATS-400): the executive-statistics derivation op over a LIVE-SHAPED corpus — the 3-wave tuition staircase (FI/V2/2V with tranche_number grouping, never label parsing), the structured REMISE markers (metadata.field=REMISE + the reconciliation-0063 double_remise_cancel), the 4-tier debt triage with the >45-day call list, family concentration with child counts, transport tiers with messy spellings (BOUMRDES/OULED MOUSSA/unknown->autres), the sibling index + section imbalance (CP 51 vs 1AP 3), and the triple-risk categorization thresholds. Both runners must derive IDENTICAL values on every field.",
+  "description": "T-341 (STATS-400): the executive-statistics derivation op over a LIVE-SHAPED corpus — the 3-wave tuition staircase (FI/V2/2V with tranche_number grouping, never label parsing), the structured REMISE markers (metadata.field=REMISE + the reconciliation-0063 double_remise_cancel), the 4-tier debt triage with the beyond-red call list (T-443: the triage edges derive from the canonical debt-aging thresholds — grace 5 / yellow 15 / red 60, the same configurable system_settings values the Finances statuses apply), family concentration with child counts, transport tiers with messy spellings (BOUMRDES/OULED MOUSSA/unknown->autres), the sibling index + section imbalance (CP 51 vs 1AP 3), and the triple-risk categorization thresholds. Both runners must derive IDENTICAL values on every field.",
   "category": "executive_statistics",
   "tags": [
     "parity-stats-400",
@@ -664,17 +664,17 @@
         },
         {
           "bucket": "reminder",
-          "amount": 0,
-          "installmentCount": 0,
-          "familyCount": 0,
-          "share": 0
+          "amount": 4000000,
+          "installmentCount": 1,
+          "familyCount": 1,
+          "share": 11
         },
         {
           "bucket": "chronic",
-          "amount": 36500000,
-          "installmentCount": 7,
+          "amount": 32500000,
+          "installmentCount": 6,
           "familyCount": 4,
-          "share": 100
+          "share": 89
         }
       ],
       "totalOutstanding": 36500000,

@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-442 (the per-year debt-origin breakdown, 120th session, 2026-09-29 — the bookkeeping-only leg: +28 passing tests [17 engine + 7 CRM-UI + 4 debt-aging-UI], the failing SET unchanged [17/8, byte-identical — the T-440-documented environment class]).",
-  "_task": "T-442 (the per-year debt-origin breakdown, 120th session, 2026-09-29) — the registered BOOKKEEPING-ONLY baseline move (the T-439 lesson applied immediately instead of compounding): the +28 new passing tests are the T-442 suites (src/tests/domain/ledger/t-442-year-breakdown.test.ts 17, src/tests/features/crm/t-442-year-breakdown-ui.test.tsx 7, src/tests/features/financials/t-442-debt-aging-year-tab.test.tsx 4). The failing set is BYTE-IDENTICAL to the T-440-documented 17 failures across the same 8 files (the environment class: the mirror refund-status trio, the getSupabaseRepositories infra failure, the jsdom MIME rejection, the stale-label UI pins). The equivalence section is unchanged (no financial RULE changed — T-442 is an additive read-side derivation + presentation; the engine suite pins INV-20a parity).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: the T-443/T-441 MERGED-TREE reconciliation (120th session, 2026-09-30 — T-443's +17 [the validation 8, the repository 5, the UI legend 2, the triage pins 2] + T-441's +55 timetable tests [feasibility 23 · solver-repair 12 · gates 11 · duplicate-lessons 9], reconciled on the post-merge tree after the two concurrent sessions' work was combined; the failing set is UNCHANGED byte-identical). Prior: T-443 (the pre-merge move), T-442.",
+  "_task": "T-443 + T-441 merged-tree reconciliation (120th session, 2026-09-30) — the concurrent sessions both added passing tests without seeing each other's totals; this move re-measures the COMBINED tree: 258 files (+4 T-441 timetable suites), 4,551 tests (4,529 passed / 17 failed / 5 skipped). The failing-file set is byte-identical to the T-442/T-443 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7). Verified: full runs on the merged tree, identical counts; the FAIL list diffed — no new, no vanished.",
   "testFiles": {
     "failed": 8,
-    "passed": 244,
+    "passed": 249,
     "skipped": 1,
-    "total": 253
+    "total": 258
   },
   "tests": {
     "failed": 17,
-    "passed": 4457,
+    "passed": 4529,
     "skipped": 5,
-    "total": 4479
+    "total": 4551
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",

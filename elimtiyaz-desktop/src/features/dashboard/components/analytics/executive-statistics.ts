@@ -39,6 +39,10 @@
 import type { Installment, Payment, PaymentCategory } from "../../../../domain/model/payment";
 import { installmentRemaining as canonicalInstallmentRemaining } from "../../../../domain/calc/payment/queries";
 import { deriveTrancheWaveStats } from "../../../../domain/calc/payment/tranche-waves";
+// T-443 (DEBT-101): the configurable debt-aging thresholds — the SAME values
+// the canonical 4-tier status applies (financial-rules §15.1 INV-16f).
+import { DEFAULT_DEBT_AGING_THRESHOLDS } from "../../../../domain/calc/ledger/debt-aging";
+import type { DebtAgingThresholds } from "../../../../domain/calc/ledger/debt-aging";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Student } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
@@ -328,12 +332,42 @@ export function deriveDiscountErosion(ledger: readonly LedgerEntry[]): DiscountE
 
 export type TriageBucket = "not_due" | "current" | "reminder" | "chronic";
 
-export const TRIAGE_BUCKET_LABELS_FR: Record<TriageBucket, string> = {
-  not_due: "Non échue",
-  current: "Retard < 15 j (à surveiller)",
-  reminder: "Retard 15–45 j (relance)",
-  chronic: "Retard > 45 j (intervention)",
-};
+/**
+ * T-443 (DEBT-101): the triage edges derive from the CONFIGURABLE canonical
+ * debt-aging thresholds (financial-rules §15.1 INV-16f — the same
+ * `system_settings` category `debt` values `compute_debt_aging_summary`
+ * applies). The bucket KEYS stay stable; the numbers in the labels move with
+ * the configuration. The semantic mapping onto the canonical 4-tier status:
+ *
+ *   not_due  ← age ≤ 0                      (the future-due tail)
+ *   current  ← 0 < age ≤ yellowDays         (the grace + yellow tiers —
+ *                                             "à surveiller", transitory)
+ *   reminder ← yellowDays < age ≤ redDays   (the orange tier — relance)
+ *   chronic  ← age > redDays                (the red tier — intervention)
+ *
+ * Pre-T-443 this derivation carried its OWN hardcoded edges (< 15 / 15–45 /
+ * > 45) — the exact "page-local arbitrary thresholds" class the T-405 rule
+ * forbids: a 50-day-old debt was ORANGE « Retard soutenu » in Finances but
+ * « chronic / intervention » in Statistiques, and a configured red=90 could
+ * never reach this surface at all.
+ */
+export function debtTriageLabels(thresholds: DebtAgingThresholds): Record<TriageBucket, string> {
+  return {
+    not_due: "Non échue",
+    current: `Retard ≤ ${thresholds.yellowDays} j (à surveiller)`,
+    reminder: `Retard ${thresholds.yellowDays}–${thresholds.redDays} j (relance)`,
+    chronic: `Retard > ${thresholds.redDays} j (intervention)`,
+  };
+}
+
+/**
+ * The DEFAULTS-tier labels (the documented seed values — grace 5 / yellow 15
+ * / red 60). Retained for callers that render labels without a derivation
+ * (display-only consumers); the derivation itself always carries ITS OWN
+ * labels derived from the thresholds it was handed.
+ */
+export const TRIAGE_BUCKET_LABELS_FR: Record<TriageBucket, string> =
+  debtTriageLabels(DEFAULT_DEBT_AGING_THRESHOLDS);
 
 export interface DebtTriageBucket {
   readonly bucket: TriageBucket;
@@ -360,40 +394,58 @@ export interface DebtTriage {
   readonly buckets: DebtTriageBucket[];
   /** Total outstanding across every bucket (INV-4, DZD). */
   readonly totalOutstanding: number;
-  /** The >45-day families owed the most — the immediate call list. */
+  /** The beyond-red families owed the most — the immediate call list. */
   readonly callList: CallListEntry[];
 }
 
 /**
- * Real debt aging split into the owner-mandated action tiers:
+ * Real debt aging split into the owner-mandated action tiers, with the
+ * edges derived from the SAME configurable thresholds as the canonical
+ * 4-tier status (T-443 / DEBT-101 — see `debtTriageLabels` for the mapping):
  *   - not_due  — due date in the future (current tranche debt — NOT bad
  *                debt; this is what makes the raw "Total Debt" number a
  *                heart-attack generator when shown without context)
- *   - current  — < 15 days late (ignorable — salary-cycle transitory)
- *   - reminder — 15–45 days late (WhatsApp reminder)
- *   - chronic  — > 45 days late (Director intervention / account
- *                restriction — the immediate call list)
+ *   - current  — within the yellow threshold (transitory — salary-cycle;
+ *                covers the grace window + the « À surveiller » tier)
+ *   - reminder — between the yellow and red thresholds (WhatsApp reminder —
+ *                the orange « Retard soutenu » tier)
+ *   - chronic  — beyond the red threshold (Director intervention / account
+ *                restriction — the immediate call list; the RED tier)
  *
  * Days overdue = floor((now − dueDate) / day), 0 when not yet due
  * (daysBetweenFloor). A family appears in the call list when ANY unpaid
- * installment is > 45 days late; their exposure is their FULL outstanding
- * (all buckets), ranked descending.
+ * installment is beyond the RED threshold; their exposure is their FULL
+ * outstanding (all buckets), ranked descending.
+ *
+ * `thresholds` defaults to the documented seed values (grace 5 / yellow 15 /
+ * red 60 / active-payer 15 — migration 0125); the dashboard callers pass the
+ * tenant's ACTIVE values from `repos.debt.observeThresholds()` so Statistiques
+ * and Finances always classify with the SAME edges.
  */
 export function deriveDebtTriage(
   installments: readonly Installment[],
   nowEpochMs: number,
+  thresholds: DebtAgingThresholds = DEFAULT_DEBT_AGING_THRESHOLDS,
 ): DebtTriage {
   const bucketOrder: TriageBucket[] = ["not_due", "current", "reminder", "chronic"];
   const acc = new Map<TriageBucket, { amount: number; installmentCount: number; families: Set<string> }>();
   for (const b of bucketOrder) acc.set(b, { amount: 0, installmentCount: 0, families: new Set() });
   // Per-family outstanding + worst overdue age across ALL their installments.
   const perFamily = new Map<string, { outstanding: number; worstDaysOverdue: number }>();
+  const labels = debtTriageLabels(thresholds);
 
   for (const i of installments) {
     const remaining = installmentRemaining(i);
     if (remaining <= 0) continue;
     const days = daysBetweenFloor(i.dueDate, nowEpochMs);
-    const bucket: TriageBucket = days <= 0 ? "not_due" : days < 15 ? "current" : days <= 45 ? "reminder" : "chronic";
+    const bucket: TriageBucket =
+      days <= 0
+        ? "not_due"
+        : days <= thresholds.yellowDays
+          ? "current"
+          : days <= thresholds.redDays
+            ? "reminder"
+            : "chronic";
     const a = acc.get(bucket)!;
     a.amount += remaining;
     a.installmentCount += 1;
@@ -409,7 +461,7 @@ export function deriveDebtTriage(
     const a = acc.get(bucket)!;
     return {
       bucket,
-      label: TRIAGE_BUCKET_LABELS_FR[bucket],
+      label: labels[bucket],
       amount: a.amount,
       installmentCount: a.installmentCount,
       familyCount: a.families.size,
@@ -418,7 +470,7 @@ export function deriveDebtTriage(
   });
 
   const chronicFamilies = [...perFamily.entries()]
-    .filter(([, f]) => f.worstDaysOverdue > 45)
+    .filter(([, f]) => f.worstDaysOverdue > thresholds.redDays)
     .map(([parentId, f]) => ({ parentId, ...f }))
     .sort((a, b) => b.outstanding - a.outstanding)
     .slice(0, 10);

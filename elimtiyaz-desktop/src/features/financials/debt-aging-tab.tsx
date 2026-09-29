@@ -47,8 +47,10 @@ import { PAYMENT_CATEGORY_LABELS_FR } from "../../domain/model/payment";
 import type { Student } from "../../domain/model/student";
 import {
   DEBT_AGING_STATUS_LABELS_FR,
+  DEFAULT_DEBT_AGING_THRESHOLDS,
   type DebtAgingAnalysis,
   type DebtAgingStatusLevel,
+  type DebtAgingThresholds,
 } from "../../domain/calc/ledger/debt-aging";
 import { Permission } from "../../core/rbac/permissions";
 import { KpiCard } from "../../shared/ui/kpi-card";
@@ -120,6 +122,11 @@ export function DebtAgingTab() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const aging = useObservable(() => repos.debt.observeAging(), []);
+  // T-443 (DEBT-101, INV-16f): the ACTIVE thresholds — the legend + the KPI
+  // tooltips derive their numbers from THESE (the same values the server
+  // applied to the statuses), never from hardcoded strings. The subject's
+  // synchronous seed value is the documented DEFAULTS.
+  const thresholds = useObservable(() => repos.debt.observeThresholds(), []);
   const students = useObservable(() => repos.students.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
 
@@ -300,19 +307,54 @@ export function DebtAgingTab() {
             tone={totalOutstanding > 0 ? "danger" : "default"}
           />
         </button>
-        <button type="button" onClick={() => setStatusFilter("red")} title="Dette ancienne + inactivité prolongée (> 180 j)">
+        {/* T-443 (DEBT-101): the tooltips derive from the ACTIVE thresholds
+            (the same values the server applied) — the pre-T-429 texts ("> 180 j",
+            "> 90 j et paiements interrompus", "paiements poursuivis (actif)") described
+            the RETIRED semantics and are purged. */}
+        <button
+          type="button"
+          onClick={() => setStatusFilter("red")}
+          title={`Critique / Contentieux : retard > ${thresholds.redDays} j (le seuil rouge configuré)`}
+        >
           <KpiCard label="Critique" value={statusCounts.red} icon={<Siren className="h-5 w-5" />} tone="danger" />
         </button>
-        <button type="button" onClick={() => setStatusFilter("orange")} title="Retard soutenu : dette > 90 j et paiements interrompus">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("orange")}
+          title={`Retard soutenu : retard entre ${thresholds.yellowDays} et ${thresholds.redDays} j (entre les seuils « À surveiller » et « Critique »)`}
+        >
           <KpiCard label="Retard soutenu" value={statusCounts.orange} icon={<Flame className="h-5 w-5" />} tone="warning" />
         </button>
-        <button type="button" onClick={() => setStatusFilter("yellow")} title="Compte en devenir de retard ou d'inactivité">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("yellow")}
+          title={`À surveiller : retard entre ${thresholds.gracePeriodDays} et ${thresholds.yellowDays} j (au-delà du délai de grâce, sous le seuil « À surveiller »)`}
+        >
           <KpiCard label="À surveiller" value={statusCounts.yellow} icon={<AlertTriangle className="h-5 w-5" />} tone="warning" />
         </button>
-        <button type="button" onClick={() => setStatusFilter("green")} title="Dette ancienne mais paiements poursuivis (actif)">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("green")}
+          title={`Soldé ou à échoir : encours réglé, ou retard ≤ ${thresholds.gracePeriodDays} j (le délai de grâce configuré)`}
+        >
           <KpiCard label="Actif / Soldé" value={statusCounts.green} icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
         </button>
       </div>
+
+      {/* ── T-443 (DEBT-101): the ACTIVE-thresholds legend — the configuration
+          VISIBLE where it applies (INV-16f; editable in Paramètres →
+          Configuration → « Configuration des Créances »). ── */}
+      <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <span className="font-medium">Seuils appliqués :</span>
+        <span>grâce ≤ {thresholds.gracePeriodDays} j</span>
+        <span aria-hidden>·</span>
+        <span>à surveiller ≤ {thresholds.yellowDays} j</span>
+        <span aria-hidden>·</span>
+        <span>critique &gt; {thresholds.redDays} j</span>
+        <span aria-hidden>·</span>
+        <span>payeur actif ≤ {thresholds.activePayerGraceDays} j (annotation)</span>
+        <span className="text-muted-foreground/70">— configurable dans Paramètres → Configuration.</span>
+      </p>
 
       {/* ── Filter bar + the table ── */}
       <Card>
@@ -401,6 +443,7 @@ export function DebtAgingTab() {
               }
             : undefined
         }
+        thresholds={thresholds}
       />
 
       {/* The SAME collection modal the Créances tab uses (§15: reuse the
@@ -449,12 +492,16 @@ function DebtAgingDetailDrawer({
   onOpenChange,
   onOpenFamily,
   onCollect,
+  thresholds,
 }: {
   analysis: DebtAgingRow | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onOpenFamily: (parentId: string) => void;
   onCollect: (() => void) | undefined;
+  /** T-443 (DEBT-101): the ACTIVE thresholds — the « Pourquoi ce statut »
+   * note derives its numbers from these (never hardcoded). */
+  thresholds: DebtAgingThresholds;
 }) {
   const tabs = (a: DebtAgingRow): EntityDrawerTab<DebtAgingRow>[] => [
     {
@@ -536,8 +583,11 @@ function DebtAgingDetailDrawer({
               <p className="text-sm leading-relaxed">{a.status.explanationFr}</p>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Statut canonique (règles financières §15, INV-16) — les seuils 60/90/180 jours sont ceux des paliers
-              d'ancienneté existants ; l'ancienneté n'est jamais réinitialisée par un paiement partiel.
+              Statut canonique (règles financières §15, INV-16) — les seuils appliqués (grâce{" "}
+              {thresholds.gracePeriodDays} j / à surveiller {thresholds.yellowDays} j / critique{" "}
+              {thresholds.redDays} j) sont configurables dans Paramètres → Configuration ;
+              l'ancienneté n'est jamais réinitialisée par un paiement partiel, et un paiement
+              récent n'influence jamais le niveau (l'annotation « Payeur actif » seulement).
             </p>
           </div>
         </div>

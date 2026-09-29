@@ -27,7 +27,7 @@ import type {
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
 import { Ok } from "../../../core/result";
-import { derived } from "../subject-behavior";
+import { derived, SubjectBehavior } from "../subject-behavior";
 import type {
   Payment,
   Installment,
@@ -46,7 +46,9 @@ import type { AllocationResult } from "../../../domain/calc/payment/waterfall-al
 import {
   computeDebtAgingAnalysis,
   DEBT_AGING_EPSILON_DZD,
+  DEFAULT_DEBT_AGING_THRESHOLDS,
   type DebtAgingAnalysis,
+  type DebtAgingThresholds,
 } from "../../../domain/calc/ledger/debt-aging";
 import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
 import type { LedgerEntry } from "../../../domain/model/ledger";
@@ -600,6 +602,18 @@ export class MockDebtRepository implements DebtRepository {
     // Reactive by construction: the derived() recomputes on every store
     // mutation — nothing to force.
     return Promise.resolve();
+  }
+  /**
+   * T-443 (DEBT-101, INV-16f): mock mode has NO settings backend by design
+   * (the configuration's home is the server `system_settings` — migration
+   * 0125), so the ACTIVE thresholds in mock mode are the documented
+   * DEFAULTS, emitted as a constant stream. This is the documented mock
+   * contract, not a second threshold implementation: the values ARE
+   * `DEFAULT_DEBT_AGING_THRESHOLDS`, the same constant the engine defaults
+   * to and migration 0125 seeds.
+   */
+  observeThresholds(): Observable<DebtAgingThresholds> {
+    return new SubjectBehavior<DebtAgingThresholds>(DEFAULT_DEBT_AGING_THRESHOLDS);
   }
   sendReminder(parentId: string): Promise<Result<void>> {
     return sendDebtReminder(ctx, parentId);

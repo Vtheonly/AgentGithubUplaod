@@ -5044,7 +5044,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** DEBT-101 (registered OPEN with live evidence BEFORE the fix, per §13).
 **Priority:** P1 — High (the owner's audit feature [issues #24/#25 Track 5] is configured-but-not-applied on every client surface).
-**Status:** IN_PROGRESS (2026-09-30, 120th session — Phase 0 registration; the plan follows the T-442 phased sequence).
+**Status:** DONE — TESTED (2026-09-30, 120th session: Phases 0-4 complete — DEBT-101 registered OPEN with live evidence → the client contract [migration 0133 + observeThresholds + the mapper fix + the TTL freshness] → the Statistiques triage re-derivation [corpus regenerated, verify_t-338 re-edged] → the Finances texts + the legend + the settings hardening → the docs [financial-rules §15.2 amended, AGENTS.md §15.75, the registries, the live-verification record]. Gates: tsc 0 · eslint 0 · the 25 NEW tests GREEN · FULL vitest BASELINE-MATCHED [8 files / 17 tests / 4,474 passed, the registered baseline move]. The server chain was live-proven END-TO-END with the reversible PATCH round-trip; migration 0133's live application is OWNER-GATED [the dead sbp token] — the desktop is version-skew-safe until then. Evidence: docs/recovery/t-443-live-verification.md).
 
 **Scope (the extend-never-duplicate rule — §6/§15.53a):**
 1. **Phase 1 — the client-side threshold plumbing:** ONE `system_settings` reader (`readDebtAgingThresholds` in system-config.ts — the SAME `DebtAgingThresholds` the TS engine already defines, defaults when unseeded, mirroring migration 0125's `debt_aging_thresholds()` contract); `observeThresholds()` added to the `DebtRepository` contract (Supabase: seeded from the reader alongside the aging seed; mock: the documented DEFAULTS — mock mode has no settings backend by design; the realtime facade delegates); `mapDebtAgingRow` renders the explanation + parity cross-check from the ACTIVE thresholds (fixing the wrong numbers on the card + the spurious drift warnings); the aging seed moved onto the `CacheFreshness` TTL + focus lifecycle (the T-423 contract) so a settings edit surfaces without a restart.
@@ -5056,8 +5056,8 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Gates:** tsc 0 · eslint 0 errors on every changed file · the touched suites GREEN · the FULL vitest run BASELINE-MATCHED (8 files / 17 tests, the T-440 documented reality) · live probe evidence recorded in the task entry.
 
-**Left:** registered at Phase 0.
+**Left:** (1) migration 0133's LIVE application — owner-gated on a fresh Management token (apply_0133_live.sh ready; the desktop degrades to the documented DEFAULTS until then, which ARE the live values); (2) the Android StatisticsEngine.kt triage-edge port (the corpus cross-repo contract — the registered divergence, §15.75d; folds into the standing T-429 cross-platform port follow-up); (3) the owner's packaged-app visual pass over the legend + the re-derived tooltips/triage labels (the standing acceptance convention); (4) ExecutiveDashboard (executive-cards.tsx) is an unreferenced T-341 composite noted for the TECHDEBT-100 family (not deleted — the §15.3 reachability protocol).
 **Scope owner:** the owner's 2026-09-30 mandate (this session's prompt).
-**Next:** Phase 1 — the client-side threshold plumbing (the reader + the repository contract + the mapper fix).
+**Next:** the standing queue — the 0132 + 0133 live applications (one fresh Management token unblocks both), then UNKNOWN-029 (the owner's FI ruling), then IDENT-104 M5.
 **Related:** DEBT-100/T-429 (the architecture this completes) · T-405 (the canonical rule) · §15.1 INV-16f · T-433/ARCH-016 (0125 live) · UI-323/T-442 (the concurrent task — the merge-conflict watch).
 

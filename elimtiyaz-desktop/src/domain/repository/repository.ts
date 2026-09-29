@@ -44,7 +44,7 @@ import type {
 } from "../model/payment";
 import type { AllocationResult } from "../calc/payment/waterfall-allocator";
 // T-405 (financial-rules §15) — the debt-aging record type.
-import type { DebtAgingAnalysis } from "../calc/ledger/debt-aging";
+import type { DebtAgingAnalysis, DebtAgingThresholds } from "../calc/ledger/debt-aging";
 import type {
   AppNotification,
   DashboardKpi,
@@ -722,6 +722,22 @@ export interface DebtRepository {
    * (the TS reference engine) over the mock store.
    */
   observeAging(): Observable<DebtAgingAnalysis[]>;
+  /**
+   * T-443 (DEBT-101, financial-rules §15.1 INV-16f) — the tenant's ACTIVE
+   * debt-aging thresholds (the `system_settings` category `debt`), the SAME
+   * values `compute_debt_aging_summary` applies to its status/reason columns
+   * and the SAME values every client-side derivation (the explanation
+   * rendering, the Statistics triage edges, the Finances legend) must use.
+   *
+   * Supabase mode: the `read_debt_aging_thresholds` RPC (migration 0133 —
+   * staff-gated like the aging surface itself, because `system_settings`
+   * SELECT is RLS-restricted to super_admin/support_staff while the aging
+   * audience includes financial_officer), kept in sync with the aging
+   * seed's `applied_thresholds`. Mock mode: the documented DEFAULTS
+   * (`DEFAULT_DEBT_AGING_THRESHOLDS` — mock mode has no settings backend
+   * by design; INV-16f's configuration home is the server).
+   */
+  observeThresholds(): Observable<DebtAgingThresholds>;
   /**
    * Re-run the aging analysis after underlying financial facts changed
    * (payments, allocations, due dates). The Supabase path re-queries the

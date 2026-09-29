@@ -1,3 +1,20 @@
+# 2026-09-30 — T-443 COMPLETE (120th session, second task): the debt-configuration CLIENT integration — DEBT-101 RESOLVED-TESTED
+
+**The owner's 2026-09-30 mandate** ("investigate the existing implementation and fix it completely… the configuration is actually connected to the underlying business logic… the same status and warning logic is correctly reflected in Statistiques… no old, disconnected, or duplicate implementation") was delivered as a completion of T-429's half-landing, not a parallel implementation: the investigation FIRST (live-proven the server chain works end-to-end: PATCH yellow 15→10 → 548 rows yellow→orange → restored, zero residue), DEBT-101 registered OPEN with that evidence, then the four-phase fix (migration 0133's client contract + observeThresholds + the triage re-derivation + the Finances texts/legend + the settings validation). Full evidence: `docs/recovery/t-443-live-verification.md`.
+
+**Gates:** tsc 0 · eslint 0 on every changed file · 25 NEW tests GREEN · the FULL vitest run BASELINE-MATCHED (8 files / 17 tests byte-identical, 4,474 passed — the registered baseline move).
+
+## Standing recommendation (updated by this session)
+
+1. **THE #1 ITEM (extended): apply migrations 0132 AND 0133 LIVE — one fresh Management token unblocks both.** The re-supplied `sbp_` token is still 401 on the Management API (the §15.71d class, live-confirmed again this session); the `sb_secret_` key is data-gateway-only. `apply_0133_live.sh` is committed and env-gated. Until 0133 lands, the desktop runs version-skew-safe (the STATUSES are the server's configured values — live-proven; the explanation text + the triage edges use the documented DEFAULTS, which ARE the live seed values, so the surfaces agree today).
+2. **The owner's packaged-app pass (now covering BOTH T-442 and T-443 surfaces):** pull main + rebuild — the « Services de l'année » blocks AND the « Seuils appliqués » legend + the re-derived tooltips/triage labels.
+3. **The Android ports (folded into ONE cross-platform follow-up):** the §17.3 INV-20e year-history surface (T-442) + the §15.1 amended debt-status rule + the StatisticsEngine.kt TRIAGE EDGES (T-443 — the corpus `then`-blocks changed, so the real-Kotlin parity run goes red until the mirror ports the same edges; §15.75d).
+4. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
+5. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322 (the standing order; DATA-056 M2 also gates the T-442 coverage lines' live backfill).
+6. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family (now + the unreferenced ExecutiveDashboard composite noted by T-443).
+
+---
+
 # 2026-09-30 — T-441 COMPLETE (120th session): the timetable generation correctness mandate — the three-gate pipeline (feasibility / fail-closed persistence / independent post-persist validation), the solver v1.3.0 (SCHED-110 + SCHED-113 + continuity), the single-class mode, the live purge — SCHED-113/SCHED-114 found-and-fixed, 4,506/4,484/17 BASELINE-MATCHED
 
 **The 120th session delivered the owner's core timetable mandate end to end.** The trigger was the owner's live symptom: « sometimes when it runs it said 17 echecs … if something is insufficient it should bring what it is — i dont want it to bring up faulty time table. » The symptom was reproduced deterministically (locked pins + the SCHED-110 corner → the OLD pipeline persisted the partial draft and showed « N bloc(s) non placé(s) »), and the fix inverts the failure direction at every layer:

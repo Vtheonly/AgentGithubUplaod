@@ -81,13 +81,20 @@ export interface CardCallbacks {
   onUpdateValue: (setting: SystemSetting, value: unknown) => void;
 }
 
-/** Build the shared edit-secret + update-value callbacks for a service. */
+/**
+ * Build the shared edit-secret + update-value callbacks for a service.
+ *
+ * T-443 (DEBT-101): `allSettings` (the tab's currently-loaded rows) enables
+ * the debt-threshold validation (the INV-16a no-gap hierarchy check) — a
+ * violation is surfaced through `onError` and the update is NOT sent.
+ */
 export function buildCardCallbacks(
   service: SystemConfigService,
   onSuccess: (message: string) => void,
   onError: (message: string) => void,
   onReload: () => void,
   onSecretEdit: (state: SecretEditState) => void,
+  allSettings: readonly SystemSetting[] = [],
 ): CardCallbacks {
   return {
     onEditSecret: (setting) => {
@@ -100,6 +107,11 @@ export function buildCardCallbacks(
       });
     },
     onUpdateValue: async (setting, value) => {
+      const violation = validateDebtThresholdUpdate(allSettings, setting, value);
+      if (violation) {
+        onError(violation);
+        return;
+      }
       const result = await service.updateValue(setting.id, value);
       if (result.ok) {
         onSuccess("Paramètre mis à jour");
@@ -117,4 +129,58 @@ export function filterByCategory(
   category: SettingCategory,
 ): SystemSetting[] {
   return settings.filter((s) => s.category === category);
+}
+
+/**
+ * T-443 (DEBT-101): validate a debt-threshold update BEFORE it is written.
+ *
+ * INV-16a's no-gap partition (grace ≤ yellow ≤ red) is a CROSS-ROW
+ * constraint — each row's own min/max is enforced by the column hints, but
+ * nothing server-side stops an operator from saving yellow=3 under grace=5
+ * (silently making the yellow tier unreachable) or red=10 under yellow=15
+ * (silently absorbing the orange tier). The validation runs against the
+ * CURRENTLY LOADED settings rows (the Configuration tab's state — the same
+ * source the card renders), with the edited key substituted.
+ *
+ * Returns a FR error message, or null when the update is safe.
+ */
+export function validateDebtThresholdUpdate(
+  allSettings: readonly SystemSetting[],
+  setting: SystemSetting,
+  value: unknown,
+): string | null {
+  if (setting.category !== "debt") return null;
+  const next = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(next)) {
+    return `Valeur invalide — un nombre est attendu (${String(value)}).`;
+  }
+  // The row's own documented bounds (migration 0125's validation columns).
+  if (setting.validation_min != null && next < setting.validation_min) {
+    return `Valeur trop basse — le minimum est ${setting.validation_min}.`;
+  }
+  if (setting.validation_max != null && next > setting.validation_max) {
+    return `Valeur trop élevée — le maximum est ${setting.validation_max}.`;
+  }
+  // The cross-row hierarchy: grace ≤ yellow ≤ red (INV-16a — a strict,
+  // no-gap partition of the age axis). The other three keys keep their
+  // currently-loaded values.
+  const current = new Map(
+    filterByCategory(allSettings, "debt").map((s) => [s.key, s]),
+  );
+  const readKey = (key: string): number => {
+    if (setting.key === key) return next;
+    const row = current.get(key);
+    const v = row?.value;
+    return typeof v === "number" ? v : Number(v);
+  };
+  const grace = readKey("debt.grace_period_days");
+  const yellow = readKey("debt.threshold_yellow_days");
+  const red = readKey("debt.threshold_red_days");
+  if (Number.isFinite(grace) && Number.isFinite(yellow) && grace > yellow) {
+    return `Hiérarchie invalide — le délai de grâce (${grace} j) doit rester ≤ au seuil « À surveiller » (${yellow} j) (règles financières §15.1, INV-16a : partition sans trou de l'axe d'ancienneté).`;
+  }
+  if (Number.isFinite(yellow) && Number.isFinite(red) && yellow > red) {
+    return `Hiérarchie invalide — le seuil « À surveiller » (${yellow} j) doit rester ≤ au seuil « Critique / Contentieux » (${red} j) (règles financières §15.1, INV-16a).`;
+  }
+  return null;
 }

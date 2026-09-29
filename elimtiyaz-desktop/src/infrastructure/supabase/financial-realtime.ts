@@ -37,7 +37,7 @@ import { parentDisplayName } from "../../domain/model/parent";
 import { computeParentSummary } from "../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap, maxDaysOverdueFromLedger } from "../../domain/calc/ledger/overdue";
 // T-405 (financial-rules §15) — the aging record type for the delegating facade.
-import type { DebtAgingAnalysis } from "../../domain/calc/ledger/debt-aging";
+import type { DebtAgingAnalysis, DebtAgingThresholds } from "../../domain/calc/ledger/debt-aging";
 import { agingBucketFromDays } from "../../domain/calc/payment/queries";
 import { SubjectBehavior } from "../mock/subject-behavior";
 import { getSupabaseRepositories } from "./supabase-repositories";
@@ -322,6 +322,13 @@ export class RealtimeFinancialDebtRepository implements DebtRepository {
   // re-query via refreshAging().
   observeAging(): Observable<DebtAgingAnalysis[]> {
     return this.base.observeAging();
+  }
+
+  // T-443 (DEBT-101) — the ACTIVE-thresholds surface delegates to the base
+  // repository (the 0133 light reader + the aging seed's applied values);
+  // the bridge's refreshAll() re-seeds it via refreshAging().
+  observeThresholds(): Observable<DebtAgingThresholds> {
+    return this.base.observeThresholds();
   }
 
   async refreshAging(): Promise<void> {
