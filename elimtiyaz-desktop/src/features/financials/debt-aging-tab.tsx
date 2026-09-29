@@ -69,6 +69,7 @@ import {
 } from "../../shared/ui/data-table";
 import { EntityDetailDrawer, type EntityDrawerTab, type EntityDrawerMetaItem } from "../../shared/ui/entity-drawer";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
+import { FamilyYearHistoryPanel } from "./debt-aging-year-history";
 import { cn } from "../../shared/ui/cn";
 
 /* ── Presentation mapping (INV-16c — colors are presentation ONLY) ────── */
@@ -485,6 +486,20 @@ function DebtAgingDetailDrawer({
           </p>
         </div>
       ),
+    },
+    {
+      // T-442 (UI-323): the owner's "open the 2024 record" mandate — the
+      // COMPLETE per-year financial breakdown (what was owed per year,
+      // what was paid, which services were selected, what remains, what
+      // each payment covered) on the debt surface itself. REUSE: the SAME
+      // ParentYearHistorySection the CRM drawer renders, fed by the SAME
+      // canonical repository streams (one engine, one component, two
+      // surfaces). The drawer renders only the ACTIVE tab's content, so
+      // the panel's observables subscribe on tab selection (the T-430
+      // conditional-mount rule).
+      id: "per-year",
+      label: "Par année",
+      content: () => <FamilyYearHistoryPanel parentId={a.parentId} />,
     },
     {
       id: "behavior",
