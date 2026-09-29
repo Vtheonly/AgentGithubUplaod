@@ -102,6 +102,12 @@ export function ReEnrollModal({
           lastName: candidate.studentLastName,
           gender: "unspecified",
           birthDate: "",
+          // T-439 (UI-320): the devis prices by the CONFIRMED grade — the
+          // old hardcoded primaire/1 pair quoted 1AP rates for every
+          // re-enrollment (a lycée student shown primaire prices) while
+          // the persisted wires billed the confirmed grade (the §15.69
+          // shown-vs-persisted violation).
+          gradeLevel: gradeLevelCode as import("../../../domain/model/student").GradeLevel,
           level: "primaire",
           gradeYear: 1,
           filiereCode: "",
@@ -124,7 +130,9 @@ export function ReEnrollModal({
       includeTransport: includeTransport && !!transportDestination,
       academicYearStartYear: targetStartYear(candidate.targetAcademicYear),
     });
-  }, [candidate, pricing, paymentPlan, transportDestination, remise, includeRegistration, includeTransport]);
+    // T-439 (UI-320): gradeLevelCode is a devis INPUT now — the quote must
+    // recompute when the operator changes the confirmed grade.
+  }, [candidate, pricing, paymentPlan, transportDestination, remise, includeRegistration, includeTransport, gradeLevelCode]);
 
   const levelClasses = useMemo(
     () => classes.filter((c) => c.gradeYear != null && matchesGradeLevel(c.level, c.gradeYear, gradeLevelCode)),

@@ -59,7 +59,10 @@ export function computeBilling(input: BillingInput): Billing {
   let totalFi = 0;
 
   const perStudent: BillingPerStudent[] = students.map((s, i) => {
-    const gradeLevel: GradeLevel = gradeLevelFromLevelYear(s.level, s.gradeYear);
+    // T-439 (UI-320): the canonical grade-level override wins — the
+    // level/year derivation is LOSSY for prescolaire_1 and the
+    // re-enrollment flow prices by the confirmed gradeLevelCode.
+    const gradeLevel: GradeLevel = s.gradeLevel ?? gradeLevelFromLevelYear(s.level, s.gradeYear);
     const remise = Math.max(0, Number(s.remise) || 0);
 
     // === FI per student, per grade (NEVER once per family) ===
