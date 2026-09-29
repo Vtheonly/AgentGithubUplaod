@@ -5,8 +5,10 @@
  * import engine's extension point (import-config/extensions.ts — the seam
  * issue #14 shipped deliberately unwired):
  *
- *   - `erImportRowObservationId(rowIndex)` — the ONE observation-id
- *     convention shared by the analysis and the matcher call;
+ *   - `erImportRowObservationId(rowIndex, sourceSystem)` — the ONE
+ *     SOURCE-QUALIFIED observation-id convention shared by the analysis
+ *     and the matcher call (T-439/IDENT-103 — never collides across
+ *     files/operators);
  *   - `erObservationFromImportRow` — an ImportRecord → ErObservation;
  *   - `erObservationsFromParents` — the existing roster as observations;
  *   - `ConfirmedEntityMatcher` — the EntityMatcher implementation that
@@ -37,12 +39,19 @@ import type {
 // ---------------------------------------------------------------------------
 
 /**
- * The observation id for an incoming import row. The rowIndex is unique
- * within one import session (the modal analyzes and commits the SAME file),
- * so this key is unambiguous where it is used — the bindings map.
+ * The observation id for an incoming import row — SOURCE-QUALIFIED
+ * (T-439/IDENT-103): `${sourceSystem}:row-${rowIndex}` (e.g.
+ * "xlsx:Suivis clients 2027_2026.xlsx:row-42"), the convention
+ * identity-rules.md §7.1 documents and types.ts repeats. The old
+ * UNQUALIFIED `import:row:${rowIndex}` collided across FILES (and, on
+ * Supabase, across operators/desktops — the proposals persist): an
+ * approval of row 42 in file A silently bound row 42 of file B (a
+ * different family) to file A's target through the commit-time matcher.
+ * The sourceSystem is OPTIONAL so pre-T-439 callers (the t-438 pins,
+ * the legacy shapes) keep the byte-identical UNQUALIFIED id.
  */
-export function erImportRowObservationId(rowIndex: number): string {
-  return `import:row:${rowIndex}`;
+export function erImportRowObservationId(rowIndex: number, sourceSystem?: string): string {
+  return sourceSystem ? `${sourceSystem}:row-${rowIndex}` : `import:row:${rowIndex}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +73,7 @@ export function erObservationFromImportRow(
 ): ErObservation {
   const grade = resolveGradeFromClasse(record.classe, record.niveau);
   return {
-    id: erImportRowObservationId(rowIndex),
+    id: erImportRowObservationId(rowIndex, sourceSystem),
     sourceSystem,
     sourceRecordId: `row-${rowIndex}`,
     kind: "parent",
@@ -136,6 +145,46 @@ export class ConfirmedEntityMatcher implements EntityMatcher {
 }
 
 // ---------------------------------------------------------------------------
+// The commit-time binding builder (run-scoped)
+// ---------------------------------------------------------------------------
+
+/**
+ * T-439 (IDENT-103): build the confirmed-binding map for ONE import commit
+ * — from the CURRENT run's approved/executed proposals AND only for the
+ * current file's row observation ids.
+ *
+ * The old unscoped filter (every approved/executed proposal in the
+ * repository) leaked approvals ACROSS FILES (the unqualified
+ * `import:row:N` ids collide for every workbook) and, on Supabase, across
+ * operators/desktops (the proposals persist): an approval of row 42 in
+ * file A silently bound row 42 of file B — a different family — to file
+ * A's target, routing the row onto the WRONG canonical parent with
+ * confidence 1 (an INV-50 violation: no confirmation for file B).
+ *
+ * Returns an empty map when `currentRunId` is null (no analysis for THIS
+ * file ⇒ nothing may bind — the honest degradation).
+ */
+export function buildCurrentRunBindings(
+  proposals: readonly ErMatchProposal[],
+  currentRunId: string | null | undefined,
+  currentRowObservationIds: Iterable<string>,
+): ReadonlyMap<string, string> {
+  const bindings = new Map<string, string>();
+  if (currentRunId == null) return bindings;
+  const rowIds = new Set(currentRowObservationIds);
+  for (const p of proposals) {
+    if (p.status !== "approved" && p.status !== "executed") continue;
+    if (p.runId !== currentRunId) continue; // another run/file — never binds
+    if (!rowIds.has(p.aObservationId)) continue; // another file's row id
+    const targetId = p.bObservationId.startsWith("canonical:")
+      ? p.bObservationId.slice("canonical:".length)
+      : null;
+    if (targetId) bindings.set(p.aObservationId, targetId);
+  }
+  return bindings;
+}
+
+// ---------------------------------------------------------------------------
 // The import-time analysis orchestrator
 // ---------------------------------------------------------------------------
 
@@ -195,7 +244,9 @@ export async function runErImportAnalysis(
   await input.repo.recordProposals(result);
 
   const rowObservationIds = new Map<number, string>(
-    input.records.map(({ rowIndex }) => [rowIndex, erImportRowObservationId(rowIndex)] as const),
+    input.records.map(
+      ({ rowIndex }) => [rowIndex, erImportRowObservationId(rowIndex, input.sourceSystem)] as const,
+    ),
   );
 
   return {

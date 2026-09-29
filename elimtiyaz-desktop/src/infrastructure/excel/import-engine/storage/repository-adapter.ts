@@ -107,6 +107,15 @@ export interface RepositoryStorageAdapterDeps {
    * output (INV-50). Unset ⇒ the legacy resolution only.
    */
   readonly entityMatcher?: EntityMatcher;
+  /**
+   * T-439 (IDENT-103): the workbook identity the matcher's binding keys
+   * are qualified with (e.g. "xlsx:Suivis clients 2027_2026.xlsx") — the
+   * SAME sourceSystem the ER analysis persisted its observations under.
+   * The matcher seam builds its source-ref ids through
+   * `erImportRowObservationId(rowIndex, entityMatchSourceSystem)`; when
+   * absent the LEGACY unqualified id is used (the pre-T-439 shape).
+   */
+  readonly entityMatchSourceSystem?: string;
 }
 
 /**
@@ -786,7 +795,10 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         const input = this.buildParentInput(record);
         const sourceRef: CanonicalEntityRef = {
           kind: "parent",
-          id: erImportRowObservationId(rowIndex),
+          // T-439 (IDENT-103): source-qualified — the binding key the
+          // commit-time matcher was built from (same sourceSystem as the
+          // analysis).
+          id: erImportRowObservationId(rowIndex, this.deps.entityMatchSourceSystem),
           attributes: {
             displayName: input.displayName ?? `${input.firstName} ${input.lastName}`.trim(),
             phone: input.phone ?? "",

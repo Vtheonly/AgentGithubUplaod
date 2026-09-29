@@ -372,6 +372,10 @@ describe("T-438 D — the wiring source-guards", () => {
 
 describe("T-438 D — the observation builders", () => {
   it("the shared id convention (the analysis ↔ matcher join key)", () => {
+    // T-439/IDENT-103: SOURCE-QUALIFIED by default — the qualified form is
+    // the documented convention (identity-rules §7.1); the UNQUALIFIED
+    // legacy shape survives only for pre-T-439 callers.
+    expect(erImportRowObservationId(42, "xlsx:probe.xlsx")).toBe("xlsx:probe.xlsx:row-42");
     expect(erImportRowObservationId(42)).toBe("import:row:42");
   });
 
@@ -382,7 +386,9 @@ describe("T-438 D — the observation builders", () => {
       "xlsx:2027-2026.xlsx",
       "2026-2027",
     );
-    expect(obs.id).toBe("import:row:7");
+    // T-439/IDENT-103: the observation id is SOURCE-QUALIFIED (the old
+    // unqualified import:row:7 collided across files/operators).
+    expect(obs.id).toBe("xlsx:2027-2026.xlsx:row-7");
     expect(obs.sourceSystem).toBe("xlsx:2027-2026.xlsx");
     expect(obs.sourceRecordId).toBe("row-7");
     expect(obs.displayName).toBe("SEDIKI, Ishak (NV)");
