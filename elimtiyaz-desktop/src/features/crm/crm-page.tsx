@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
   Plus,
-  Mail,
   Eye,
   Users,
   GraduationCap,
@@ -201,6 +200,65 @@ export function CrmPage() {
               >
                 <Upload className="h-4 w-4" /> Import Excel
               </Button>
+              {/* T-444/UI-324 restored: the export dropdown (XLSX / JSON /
+                  CSV) — 1cead9d deleted the menu and left the three
+                  handlers as dead code. The click-away + dropdown pattern
+                  is the pre-redesign implementation, verbatim. */}
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={exporting || students.length === 0}
+                  onClick={() => setExportMenuOpen((v) => !v)}
+                >
+                  <Download className="h-4 w-4" />
+                  {exporting ? "Export…" : "Exporter"}
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Button>
+                {exportMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setExportMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left"
+                        onClick={handleExportXlsx}
+                      >
+                        <FileSpreadsheet className="h-4 w-4 text-status-success" />
+                        <div>
+                          <p className="font-medium">Excel (.xlsx)</p>
+                          <p className="text-[10px] text-muted-foreground">4 feuilles : Résumé, Parents, Élèves, Journal</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
+                        onClick={handleExportJson}
+                      >
+                        <FileJson className="h-4 w-4 text-status-info" />
+                        <div>
+                          <p className="font-medium">JSON</p>
+                          <p className="text-[10px] text-muted-foreground">Format machine pour sauvegarde / re-import</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent/10 text-left border-t border-border"
+                        onClick={handleExportCsv}
+                      >
+                        <Download className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">CSV élèves</p>
+                          <p className="text-[10px] text-muted-foreground">Liste des élèves uniquement (compatible tableur)</p>
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <Button size="sm" onClick={() => setBatchOpen(true)}>
                 <Plus className="h-4 w-4" /> Nouvelle inscription
               </Button>

@@ -333,6 +333,15 @@ function serviceLabelFor(field: string): string | null {
     case "V2_ALT":
     case "V3":
       return "Versement scolarité";
+    // T-444/UI-324 restored: 1cead9d dropped these cases — the
+    // SEPTEMBRE/DECEMBRE/MARS tranche fields and the dettes-settlement
+    // field silently vanished from the services card.
+    case "SEPTEMBRE":
+    case "DECEMBRE":
+    case "MARS":
+      return "Tranche trimestrielle";
+    case "REGLEMENTS_DETTES":
+      return "Règlement dettes antérieures";
     default:
       return null;
   }

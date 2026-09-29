@@ -6,7 +6,7 @@
  * parent/family reference throughout the application.
  */
 
-import { MoreHorizontal, Users, Wallet, Hourglass, MessageCircle, Phone, Eye } from "lucide-react";
+import { MoreHorizontal, Users, Wallet, Hourglass, MessageCircle, Phone, Mail, Eye } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +28,9 @@ export interface ParentActionsMenuProps {
     code?: string;
     phone?: string;
     whatsapp?: string | null;
+    /** T-444/UI-324: the e-mail action (the pre-redesign row action the
+     * consolidated menu was missing). */
+    email?: string | null;
   };
   className?: string;
   align?: "start" | "center" | "end";
@@ -152,6 +155,21 @@ export function ParentActionsMenu({
           >
             <Phone className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs">Appeler ({parent.phone})</span>
+          </DropdownMenuItem>
+        )}
+
+        {/* T-444/UI-324 restored: the e-mail contact leg (the pre-redesign
+            ParentsTab mailto row action, consolidated into this menu). */}
+        {parent.email && (
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`mailto:${parent.email}`);
+            }}
+            className="gap-2.5 cursor-pointer"
+          >
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs">Écrire un e-mail</span>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

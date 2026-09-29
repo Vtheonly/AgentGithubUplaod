@@ -4,15 +4,10 @@
 
 import { useState } from "react";
 import {
-  Wallet,
-  Receipt,
   User,
   GraduationCap,
-  Calendar,
-  Building,
   ExternalLink,
   Download,
-  AlertTriangle,
   RotateCcw,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
@@ -28,7 +23,7 @@ import {
   paymentCategoryLabelFr,
   type Payment,
 } from "../../domain/model/payment";
-import { formatDzd, formatDzdPlain } from "../../core/format/currency";
+import { formatDzd } from "../../core/format/currency";
 import { formatDate, formatDateTime } from "../../core/format/date";
 import { parentDisplayName } from "../../domain/model/parent";
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
@@ -43,12 +38,10 @@ export function PaymentDetailDrawer({
   paymentId,
   open,
   onOpenChange,
-  onOpenParent,
 }: {
   paymentId: string | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onOpenParent?: (parentId: string) => void;
 }) {
   const repos = useRepositories();
   const toast = useToast();
@@ -291,10 +284,12 @@ export function PaymentDetailDrawer({
                 Paiement non compensé : les fonds sont réservés mais pas encore libérés sur l'échéancier.
               </p>
               <div className="flex gap-2">
-                <Button size="sm" className="h-8 text-xs" onClick={() => setConfirmClear(true)}>
+                {/* T-444/UI-324 restored: the transitioning double-submit guards
+                    on the money-moving buttons (1cead9d dropped them). */}
+                <Button size="sm" className="h-8 text-xs" disabled={transitioning} onClick={() => setConfirmClear(true)}>
                   Valider la compensation bancaire
                 </Button>
-                <Button size="sm" variant="outline" className="h-8 text-xs text-status-danger" onClick={() => setConfirmBounce(true)}>
+                <Button size="sm" variant="outline" className="h-8 text-xs text-status-danger" disabled={transitioning} onClick={() => setConfirmBounce(true)}>
                   Chèque rejeté
                 </Button>
               </div>
@@ -303,10 +298,19 @@ export function PaymentDetailDrawer({
 
           {canRefund && entity && (entity.status === "paid" || entity.status === "pending") && (
             <div className="pt-2">
-              <Button size="sm" variant="outline" className="h-8 text-xs text-status-danger border-status-danger/30 hover:bg-status-danger/10 gap-1.5" onClick={() => setConfirmRefund(true)}>
+              <Button size="sm" variant="outline" className="h-8 text-xs text-status-danger border-status-danger/30 hover:bg-status-danger/10 gap-1.5" disabled={transitioning} onClick={() => setConfirmRefund(true)}>
                 <RotateCcw className="h-3.5 w-3.5" />
                 Rembourser ce versement
               </Button>
+            </div>
+          )}
+
+          {/* T-444/UI-324 restored: the failed-payment state explanation
+              (1cead9d dropped it — the operator lost the recovery hint). */}
+          {entity?.status === "unpaid" && (
+            <div className="rounded-xl border border-status-danger/40 bg-status-danger/5 p-3 text-xs text-status-danger">
+              Paiement échoué (rejeté par la banque). La tranche concernée a été
+              rouverte — relancez l'encaissement ou enregistrez un nouveau paiement.
             </div>
           )}
         </div>

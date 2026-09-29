@@ -5,17 +5,11 @@
 import { useMemo, useState } from "react";
 import {
   Edit,
-  Wallet,
   TrendingUp,
   TrendingDown,
-  Clock,
   Download,
   Phone,
   Mail,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  ShieldAlert,
   UserCheck,
 } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
@@ -45,6 +39,9 @@ import {
   TASK_PRIORITY_LABELS_FR,
   TASK_STATUS_LABELS_FR,
   ATTENDANCE_EVENT_LABELS_FR,
+  // T-444/UI-324 restored: the Horaires & Shifts tab consumes these.
+  SHIFT_TYPE_LABELS_FR,
+  WEEKDAY_LABELS_FR,
 } from "../../../domain/model/workforce";
 import { Role } from "../../../core/rbac/roles";
 import {
@@ -61,6 +58,19 @@ const STATUS_TONES: Record<
   suspended: "danger",
   terminated: "neutral",
   archived: "neutral",
+};
+
+// T-444/UI-324 restored: the Tâches tab's status tones.
+const TASK_STATUS_TONES: Record<
+  string,
+  "success" | "warning" | "danger" | "neutral" | "info"
+> = {
+  pending: "neutral",
+  assigned: "info",
+  in_progress: "warning",
+  needs_review: "info",
+  blocked: "danger",
+  completed: "success",
 };
 
 export function EmployeeProfileDrawer({
@@ -97,6 +107,13 @@ export function EmployeeProfileDrawer({
       ),
     [personnelId, fromIso, toIso],
   );
+  // T-444/UI-324 restored: the Horaires & Shifts tab's streams (1cead9d
+  // deleted both the tab and its subscriptions).
+  const schedules = useObservable(
+    () => repos.schedules.observeByPersonnel(personnelId ?? ""),
+    [personnelId],
+  );
+  const shifts = useObservable(() => repos.shifts.observe(), []);
 
   const personnel = useMemo(
     () => allPersonnel.find((p) => p.id === personnelId) ?? null,
@@ -117,6 +134,12 @@ export function EmployeeProfileDrawer({
   const assignedTasks = allTasks.filter((t) =>
     t.assigneeIds.includes(personnel.id),
   );
+  // T-444/UI-324 restored: the shift assignment derivation (schedule rows
+  // carry shift ids — the Set resolves the shift rows to render).
+  const scheduledShiftIds = new Set<string>();
+  for (const s of schedules)
+    s.shiftIds.forEach((id) => scheduledShiftIds.add(id));
+  const assignedShifts = shifts.filter((s) => scheduledShiftIds.has(s.id));
 
   const fill =
     personnel.weeklyHoursTarget > 0
@@ -353,6 +376,41 @@ export function EmployeeProfileDrawer({
       ),
     },
     {
+      // T-444/UI-324 restored: the Tâches tab (1cead9d deleted it while
+      // keeping assignedTasks computed — the classic unused-consumer
+      // fingerprint). Styled to the new UI's card language.
+      id: "tasks",
+      label: "Tâches",
+      badge: () => assignedTasks.length,
+      content: () =>
+        assignedTasks.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Aucune tâche assignée.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {assignedTasks.map((t) => (
+              <li
+                key={t.id}
+                className="py-2.5 flex items-center justify-between gap-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{t.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {TASK_PRIORITY_LABELS_FR[t.priority]}
+                    {t.dueDate ? ` · Échéance ${formatDate(t.dueDate)}` : ""}
+                  </p>
+                </div>
+                <StatusChip
+                  label={TASK_STATUS_LABELS_FR[t.status]}
+                  tone={TASK_STATUS_TONES[t.status] ?? "neutral"}
+                />
+              </li>
+            ))}
+          </ul>
+        ),
+    },
+    {
       id: "attendance",
       label: "Pointages & Présence",
       badge: () => attendance.length,
@@ -401,6 +459,51 @@ export function EmployeeProfileDrawer({
               </div>
             )}
           </div>
+        </div>
+      ),
+    },
+    {
+      // T-444/UI-324 restored: the Horaires & Shifts tab (1cead9d deleted
+      // the tab AND its schedules/shifts streams).
+      id: "schedule",
+      label: "Horaires & Shifts",
+      content: () => (
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="text-xs uppercase text-muted-foreground">
+              Volume hebdomadaire
+            </p>
+            <div className="mt-1 flex items-center gap-3">
+              <Progress value={fill} />
+              <span className="font-mono text-xs whitespace-nowrap">
+                {p.weeklyHoursLogged} / {p.weeklyHoursTarget} h
+              </span>
+            </div>
+          </div>
+          {assignedShifts.length > 0 ? (
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">
+                Postes assignés
+              </p>
+              <ul className="mt-1 divide-y divide-border">
+                {assignedShifts.map((s) => (
+                  <li key={s.id} className="py-2">
+                    <p className="text-sm font-medium">
+                      {SHIFT_TYPE_LABELS_FR[s.shiftType] ?? s.shiftType}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {WEEKDAY_LABELS_FR[s.weekday]} · {s.startTime} →{" "}
+                      {s.endTime}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Aucun shift planifié.
+            </p>
+          )}
         </div>
       ),
     },
