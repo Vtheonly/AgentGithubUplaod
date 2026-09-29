@@ -3615,3 +3615,86 @@ T-436's engine contract (§17.3 INV-20) was scoped to year attribution and year 
 2. **The live-engine-verification pattern (tsx eval):** `npx tsx -e` evaluates as CJS — top-level `await import()` FAILS ("Top-level await is currently not supported with the cjs output format"); wrap the payload in an `(async () => { … })()` IIFE. And NEVER serialize `now` into the JSON payload (a JSON date string breaks the engine's `Date` contract — omit it and let the engine default to its own clock). `scripts/t-442-live-verify.mjs` is the reusable template for running ANY canonical TS engine over live rows read-only.
 3. **PostgREST pages at 1000 rows** — a live verification script must loop (`limit=1000&offset=`) to fetch a full table; the plain single GET silently returns only the first page (5,956 installments ≠ 1,000).
 4. **The deeper-directory `vi.mock` path trap:** a test at `src/tests/features/<subdir>/` needs `../../../app/...` mock paths — a wrong relative depth makes `vi.mock` silently NOT intercept (the real provider renders; the symptom is "useAuth must be used inside <AuthProvider>", not a mock error).
+
+## Session 120 (2026-09-30) — T-443: the debt-configuration CLIENT integration (DEBT-101 RESOLVED-TESTED)
+
+**The mandate (the owner, 2026-09-30):** investigate the debt due-date/créance
+configuration + the green/yellow/red warning system, determine what was
+already done, identify what was missing or disconnected, and finish it —
+no parallel implementation.
+
+**What the investigation found (DEBT-101, registered OPEN with live evidence
+BEFORE the fix, per §13):** T-429's architecture was genuinely complete
+SERVER-side (live-proven this session: PATCH `debt.threshold_yellow_days`
+15→10 → `compute_debt_aging_summary` flipped 548 rows yellow→orange;
+restored; zero residue — migration 0125 applied, all four rows seeded) but
+HALF-INTEGRATED on the client: no reader of the settings category `debt`
+existed anywhere in `src/` (a `rg` census returned only comments), so
+(a) `mapDebtAgingRow` rendered the FR explanation + the client↔server
+parity cross-check from the hardcoded DEFAULTS (wrong numbers on the card
++ spurious drift warnings whenever configured ≠ defaults),
+(b) the Statistiques `deriveDebtTriage` kept its own hardcoded 15/45 edges
+(a 50-day debt: ORANGE « Retard soutenu » in Finances but « chronic /
+intervention » in Statistiques — the exact page-local-thresholds class the
+T-405 rule forbids), (c) the tab tooltips + the drawer note still carried
+the RETIRED pre-T-429 semantics ("> 180 j", "> 90 j et paiements
+interrompus", "seuils 60/90/180"), (d) the one-shot aging seed froze the
+statuses after a settings edit until an app restart, and (e) the settings
+edit path enforced nothing client-side (no min/max, no INV-16a hierarchy
+check).
+
+**The fix (four commits, the extend-never-duplicate rule throughout):**
+
+1. **Migration 0133 (the client contract):** `compute_debt_aging_summary`
+   recreated (§15.32 drop+create — a RETURNS TABLE shape cannot be
+   CREATE-OR-REPLACed) with the additive `applied_thresholds` jsonb (the
+   EXACT values that shaped each row's status — the explanation can never
+   disagree with the verdict by construction) + the staff-gated
+   `read_debt_aging_thresholds()` light reader (the SAME gate as the aging
+   surface: `system_settings` SELECT is RLS-restricted to
+   super_admin/support_staff while the aging audience includes
+   financial_officer — the thresholds arrive through the surface's own
+   contract, never a widened RLS policy, §15.15).
+2. **`DebtRepository.observeThresholds()`** (the reactive contract):
+   Supabase seeds from the light reader (version-skew-safe: the
+   unavailable class → the documented DEFAULTS silently, §15.64e) and
+   re-syncs from every aging seed's applied values (authoritative); mock
+   emits the documented DEFAULTS (mock mode has no settings backend —
+   INV-16f); the realtime facade delegates. The aging seed moved onto the
+   CacheFreshness TTL + focus lifecycle (the T-423 contract) — a settings
+   edit surfaces without a restart.
+3. **The Statistiques triage re-derived** from the SAME thresholds
+   (`deriveDebtTriage(installments, now, thresholds?)`: not_due / current ≤
+   yellow / reminder ≤ red / chronic > red; dynamic labels via
+   `debtTriageLabels`; the call-list gate = worst > redDays); the
+   dashboard page subscribes ONCE and feeds BOTH tabs; the corpus
+   regenerated through the DOCUMENTED generator (the 46-day corpus
+   installment: chronic → reminder); `verify_t-338.sql` re-edged to read
+   `debt_aging_thresholds()`.
+4. **The surfaces + the guard:** the DebtAgingTab tooltips + the drawer
+   note re-derived from the ACTIVE thresholds (the retired texts purged);
+   the NEW « Seuils appliqués » legend makes the configuration visible
+   where it applies; `validateDebtThresholdUpdate` enforces the row bounds
+   + the CROSS-ROW INV-16a hierarchy (grace ≤ yellow ≤ red) at the edit
+   surface; the number input gains min/max.
+
+**Verified:** tsc 0 · eslint 0 on every changed file · 25 NEW tests GREEN
+(the repository applied_thresholds family, the UI legend pins, the
+canonical-boundary + configurable triage pins, the 8-test validation
+suite) · the t-442 year-tab suite repaired (4/4 — the new stream broke the
+concurrent task's fake) · the FULL vitest run BASELINE-MATCHED (8 files /
+17 tests byte-identical to the T-442 baseline; 4,474 passed; the
+registered baseline move) · the live round-trip evidence recorded in
+`docs/recovery/t-443-live-verification.md`.
+
+**New discoveries documented:** AGENTS.md §15.74 (the
+half-landed-configuration class; the RLS-audience mismatch; the
+stale-text re-audit; the corpus-cross-repo trap) · financial-rules §15.2
+amended (the client contract + the triage mapping + the edit surface) ·
+the Android `StatisticsEngine.kt` triage-edge port registered as the
+corpus cross-repo divergence (§15.74d).
+
+**Left (owner-gated):** migration 0133's live application (the sbp
+Management token is 401 — §15.71d; `apply_0133_live.sh` ready; the desktop
+is version-skew-safe until then: the DEFAULTS ARE the live values today) ·
+the Android mirror port · the owner's packaged-app visual pass.

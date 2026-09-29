@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTIETH session — T-443: the debt-configuration CLIENT integration COMPLETE (DEBT-101 RESOLVED-TESTED))
+
+## Current state snapshot (2026-09-30, 120th session CLOSE — T-443)
+
+**The owner's 2026-09-30 debt-configuration mandate is delivered end to end.** The investigation found T-429's configurable-thresholds architecture genuinely complete SERVER-side (live-proven with the reversible PATCH round-trip: yellow 15→10 flipped 548 rows yellow→orange through `compute_debt_aging_summary`, restored, zero residue) but half-integrated on the client — no desktop code read the settings. T-443 completed it without a parallel implementation: migration 0133 (the `applied_thresholds` column + the staff-gated `read_debt_aging_thresholds` light reader), `DebtRepository.observeThresholds()` across all three implementations, the aging explanation + parity from the ACTIVE values, the Statistiques triage re-derived from the SAME thresholds (the hardcoded 15/45 edges retired; the corpus regenerated; `verify_t-338.sql` re-edged), the retired pre-T-429 display texts purged, the « Seuils appliqués » legend, the aging TTL + focus freshness (a settings edit surfaces without a restart), and the settings min/max + INV-16a hierarchy validation.
+
+**The live state:** migration 0125 IS applied with all four thresholds at the defaults (5/15/60/15 — live-verified); migration 0133's application is OWNER-GATED (the sbp Management token is 401; the sb_secret data-gateway key works — the §15.71d/§15.72c split, live-confirmed). The desktop is version-skew-safe until 0133 lands: the statuses are the server's configured values while the explanation text + the triage edges use the documented DEFAULTS — which ARE the live values, so the surfaces agree today.
+
+**Gates:** tsc 0 · eslint 0 on every changed file · 25 NEW tests GREEN (the repository applied_thresholds family, the UI legend pins, the canonical-boundary + configurable triage pins, the 8-test validation suite) · the t-442 year-tab suite repaired (4/4) · the FULL vitest run BASELINE-MATCHED (8 files / 17 tests byte-identical to the T-442 baseline; 4,474 passed; the registered baseline move).
+
+**Standing gates:** the owner's packaged-app pass (pull main + rebuild — the « Seuils appliqués » legend + the re-derived tooltips/triage labels, alongside the T-442 « Services de l'année » blocks) · the 0132 + 0133 live applications (ONE fresh Management token unblocks both) · the Android ports (the §17.3 year-history surface + the §15.1 rule + the StatisticsEngine.kt triage edges — the corpus cross-repo contract).
+
+---
+
 # Current State — Project Snapshot (2026-09-29, ONE-HUNDRED-SEVENTEENTH session — T-438: the ER-PMAE engine COMPLETE (issues #15/#16): the experimental identity-resolution system fully implemented, merged, and dormant; migrations 0130+0131 LIVE)
 
 ## Current state snapshot (2026-09-29, 117th session CLOSE — T-438)
