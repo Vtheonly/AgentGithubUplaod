@@ -242,9 +242,20 @@ export function AnalyticsTab({
     () => deriveTransportYield({ students, installments }),
     [students, installments],
   );
+  // T-447 (STATS-402 ledger #1 — the audit's scope defect): the services
+  // card consumed the RAW all-years payments stream while every sibling
+  // installment card is year-scoped and the tab's own "Encaissements
+  // services" InspectTrigger is range-scoped — the card and its own
+  // inspector trigger disagreed by every payment outside the active
+  // range. Now the card consumes the SAME range-scoped paid slice
+  // (applyAnalyticsFilters — the ONE cross-filtering engine).
   const services = useMemo(
-    () => deriveServiceYield(payments, PAYMENT_CATEGORY_LABELS_FR),
-    [payments],
+    () =>
+      deriveServiceYield(
+        applyAnalyticsFilters(payments, range, NO_ANALYTICS_FILTERS),
+        PAYMENT_CATEGORY_LABELS_FR,
+      ),
+    [payments, range],
   );
   const dynamics = useMemo(
     () => deriveEnrollmentDynamics({ students, parents, classes }),
