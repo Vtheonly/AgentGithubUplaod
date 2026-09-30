@@ -38,13 +38,20 @@ function flatten(obj, prefix = "", out = {}) {
 }
 
 // T-388: each locale = hand-maintained base + generated dictionary, merged
+// T-447 (UI-325): + the Statistics tooltip glossary (stats-tips.ts) — the
+// parity gate covers it too (belt-and-braces on top of the compile-time
+// StatsTipDictionary lock).
 function loadLocale(base) {
   const b = flatten(loadDict(`src/i18n/${base}.ts`, base) ?? {});
   const g = flatten(loadDict(`src/i18n/gen/${base}.ts`, `gen${base[0].toUpperCase()}${base.slice(1)}`) ?? {});
+  const s = flatten(loadDict(`src/i18n/stats-tips.ts`, `STAT_TIPS_${base[0].toUpperCase()}${base.slice(1)}`) ?? {});
   if (Object.keys(g).length === 0) {
     console.log(`  ⚠ gen/${base}.ts loaded EMPTY — check the gen emission (var must be gen${base[0].toUpperCase()}${base.slice(1)})`);
   }
-  return { ...g, ...b }; // base wins on collision (hand-maintained is authoritative)
+  if (Object.keys(s).length === 0) {
+    console.log(`  ⚠ stats-tips.ts loaded EMPTY for ${base} — check the var name (STAT_TIPS_${base[0].toUpperCase()}${base.slice(1)})`);
+  }
+  return { ...g, ...s, ...b }; // base wins on collision (hand-maintained is authoritative)
 }
 
 const fr = loadLocale("fr");

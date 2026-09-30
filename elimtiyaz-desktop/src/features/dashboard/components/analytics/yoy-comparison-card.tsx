@@ -3,6 +3,8 @@
 // ============================================================================
 
 import { ArrowRight, Calendar } from "lucide-react";
+// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
+import { InfoTip } from "./info-tip";
 import {
   ResponsiveContainer,
   BarChart,
@@ -51,6 +53,7 @@ export function YoYComparisonCard({
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary" />
             Évolution des Recettes en Glissement Annuel (N vs N−1)
+            <InfoTip tip="yoy.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Comparaison directe mois par mois à périmètre constant

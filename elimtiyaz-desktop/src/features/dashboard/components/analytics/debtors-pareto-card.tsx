@@ -3,6 +3,8 @@
 // ============================================================================
 
 import { useMemo } from "react";
+// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
+import { InfoTip } from "./info-tip";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -58,6 +60,7 @@ export function DebtorsParetoCard({
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Users className="h-4 w-4 text-status-danger" />
             Distribution Pareto des Créances (Règle des 80/20)
+            <InfoTip tip="pareto.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Concentration cumulée des impayés par tuteur

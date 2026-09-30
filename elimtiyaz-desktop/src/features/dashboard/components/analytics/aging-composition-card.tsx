@@ -4,6 +4,8 @@
 
 import { useMemo, useState } from "react";
 import { Hourglass } from "lucide-react";
+// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
+import { InfoTip } from "./info-tip";
 import {
   Card,
   CardContent,
@@ -39,6 +41,7 @@ export function AgingCompositionCard({
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Hourglass className="h-4 w-4 text-primary" />
             Structure d'Ancienneté de l'Encours
+            <InfoTip tip="aging.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Répartition proportionnelle de la dette globale
@@ -121,6 +124,7 @@ export function AgingCompositionCard({
                           style={{ backgroundColor: AGING_COLORS[seg.bucket] }}
                         />
                         {seg.label}
+                        <InfoTip tip={`aging.b${seg.bucket === "0_30" ? "0_30" : seg.bucket === "31_60" ? "31_60" : seg.bucket === "61_90" ? "61_90" : seg.bucket === "91_180" ? "91_180" : "180plus"}`} size={10} />
                       </td>
                       <td className="text-right font-mono font-bold text-foreground py-2 px-2">
                         {formatDzd(seg.amount, { compact: true })}

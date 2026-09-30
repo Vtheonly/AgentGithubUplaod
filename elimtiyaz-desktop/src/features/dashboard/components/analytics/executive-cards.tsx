@@ -40,6 +40,9 @@ import {
   type EnrollmentDynamics,
 } from "./executive-statistics";
 import type { StudentRiskProfile } from "./operational-query-engine";
+// T-447 (UI-325): the bilingual explainability tooltips — the glossary
+// lives in src/i18n/stats-tips.ts (dictionary-only, never JSX text).
+import { InfoTip } from "./info-tip";
 // T-447 (STATS-401): the canonical POOLED derivation + the non-wave
 // summary — the parity objects the main wave cards render (the SAME
 // rows the Finance Tranches strip consumes).
@@ -110,6 +113,7 @@ export function WaveVelocityCard({
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Waves className="h-4 w-4 text-primary" />
             Vélocité de Recouvrement par Vague Saisonnière
+            <InfoTip tip="waveVelocity.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Analyse T1/T2/T3 toutes catégories (Scolarité, Transport, FI, services) — parité
@@ -122,6 +126,7 @@ export function WaveVelocityCard({
             <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold">
               {globalPct}% collecté global
             </span>
+            <InfoTip tip="waveVelocity.globalBadges" size={11} />
             {totalPending > 0 && (
               <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20 font-semibold">
                 {formatDzd(totalPending, { compact: true })} en cours
@@ -200,6 +205,7 @@ export function WaveVelocityCard({
                             className={`text-[10px] font-mono ${dueLineTone}`}
                             data-testid={`wave-due-${w.wave}`}
                           >
+                            <InfoTip tip="waveVelocity.echeance" size={10} className="mr-0.5 inline-flex align-middle" />
                             Échéance : {dueRangeLabel}
                             {!isComplete &&
                               (isOverdue
@@ -231,6 +237,7 @@ export function WaveVelocityCard({
                           : isOverdue
                             ? "En retard"
                             : "En cours"}
+                        <InfoTip tip="waveVelocity.phase" size={9} className="ml-0.5 inline-flex align-middle" />
                       </span>
                     </div>
 
@@ -238,10 +245,10 @@ export function WaveVelocityCard({
                     <div className="space-y-1.5">
                       <div className="flex items-baseline justify-between">
                         <span className="text-xl font-bold font-mono text-foreground tabular-nums">
-                          {w.collectedPct}%
+                          {w.collectedPct}%<InfoTip tip="waveVelocity.collectedPct" className="ml-0.5 align-middle" size={11} />
                         </span>
                         <span className="text-xs font-mono text-muted-foreground">
-                          {w.settledCount}/{w.installmentCount} dossiers
+                          {w.settledCount}/{w.installmentCount} dossiers<InfoTip tip="waveVelocity.dossiers" className="ml-0.5 align-middle" size={11} />
                         </span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
@@ -268,6 +275,7 @@ export function WaveVelocityCard({
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
                           Facturé
+                          <InfoTip tip="waveVelocity.due" size={10} className="ml-0.5 inline-flex align-middle" />
                         </span>
                         <span className="font-mono font-semibold text-foreground">
                           {formatDzdPlain(w.dueTotal)}
@@ -276,6 +284,7 @@ export function WaveVelocityCard({
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
                           Encaissé
+                          <InfoTip tip="waveVelocity.paid" size={10} className="ml-0.5 inline-flex align-middle" />
                         </span>
                         <span className="font-mono font-semibold text-status-success">
                           {formatDzdPlain(w.paidTotal)}
@@ -284,6 +293,7 @@ export function WaveVelocityCard({
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
                           En cours
+                          <InfoTip tip="waveVelocity.pending" size={10} className="ml-0.5 inline-flex align-middle" />
                         </span>
                         <span
                           className={`font-mono font-semibold ${
@@ -298,6 +308,7 @@ export function WaveVelocityCard({
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
                           Reste dû
+                          <InfoTip tip="waveVelocity.remaining" size={10} className="ml-0.5 inline-flex align-middle" />
                         </span>
                         <span
                           className={`font-mono font-semibold ${
@@ -320,6 +331,7 @@ export function WaveVelocityCard({
                             : w.anyUnsettledFuture
                               ? "Familles à échoir"
                               : "Familles non soldées"}
+                          <InfoTip tip="waveVelocity.families" size={10} className="ml-0.5 inline-flex align-middle" />
                         </span>
                         <span
                           className={`font-mono font-semibold ${
@@ -337,6 +349,7 @@ export function WaveVelocityCard({
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
                           Catégories
+                          <InfoTip tip="waveVelocity.categories" size={10} className="ml-0.5 inline-flex align-middle" />
                         </span>
                         <span className="font-mono font-semibold text-foreground">
                           {w.perCategory.length}
@@ -353,6 +366,7 @@ export function WaveVelocityCard({
                       className="text-[10px] font-mono text-muted-foreground leading-relaxed"
                       data-testid={`wave-identity-${w.wave}`}
                     >
+                      <InfoTip tip="waveVelocity.identity" size={10} className="mr-0.5 inline-flex align-middle" />
                       Total dû {formatDzdPlain(w.dueTotal)} = Encaissé{" "}
                       {formatDzdPlain(w.paidTotal)} + En cours{" "}
                       {formatDzdPlain(w.pendingTotal)} + Reste dû{" "}
@@ -408,8 +422,9 @@ export function WaveVelocityCard({
                 className="pt-2 border-t border-border/40 space-y-2"
                 data-testid="wave-nonwave"
               >
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                   Hors Tranches — Inscription & Engagements Non-Tranches
+                  <InfoTip tip="waveVelocity.nonWave" size={11} />
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                   {nonWave.map((g) => {
@@ -466,8 +481,9 @@ export function WaveVelocityCard({
                 className="pt-2 border-t border-border/40 space-y-2"
                 data-testid="wave-others"
               >
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                   Détail par Catégorie de Facturation
+                  <InfoTip tip="waveVelocity.breakdown" size={11} />
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                   {waves.map((w) => {
@@ -532,6 +548,7 @@ export function DiscountErosionCard({
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Percent className="h-4 w-4 text-status-warning" />
           Taux d'Érosion des Remises
+          <InfoTip tip="erosion.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           {erosion.remiseCount > 0
@@ -647,6 +664,7 @@ export function DebtTriageCard({
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <PhoneCall className="h-4 w-4 text-status-danger" />
             Triage des Créances & File de Relance
+            <InfoTip tip="triage.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Ventilation par degré d'urgence et dossiers à traiter en priorité
@@ -681,6 +699,7 @@ export function DebtTriageCard({
                         style={{ backgroundColor: colors[b.bucket] }}
                       />
                       {b.label}
+                      <InfoTip tip={`triage.${b.bucket}`} size={10} />
                     </span>
                     <span className="font-mono text-muted-foreground">
                       <strong className="text-foreground">
@@ -712,6 +731,7 @@ export function DebtTriageCard({
                   <span className="text-[11px] font-bold text-status-danger uppercase tracking-wider flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     File d'Appel Urgent (&gt; 45 jours)
+                    <InfoTip tip="triage.callList" size={10} />
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     {triage.callList.length} familles
@@ -761,6 +781,7 @@ export function FamilyConcentrationCard({
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Users className="h-4 w-4 text-primary" />
           Concentration du Risque par Foyer
+          <InfoTip tip="concentration.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           Top {concentration.topFamilies.length} familles représentent{" "}
@@ -830,6 +851,7 @@ export function TransportYieldCard({
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Bus className="h-4 w-4 text-brand-cyan" />
           Rendement des Tournées Transport
+          <InfoTip tip="transport.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           {transport.riders} élèves transportés · {transport.routes.length}{" "}
@@ -888,6 +910,7 @@ export function ServiceYieldCard({
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Stethoscope className="h-4 w-4 text-brand-violet" />
           Revenus Services Spécialisés
+          <InfoTip tip="services.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           Orthophonie, Psychologie et Activités Annexes
@@ -943,6 +966,7 @@ export function EnrollmentDynamicsCard({
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Scale className="h-4 w-4 text-primary" />
           Dynamique des Effectifs & Fratries
+          <InfoTip tip="dynamics.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           Indice fratrie :{" "}
@@ -1032,6 +1056,7 @@ export function TripleRiskSummaryCard({
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Radar className="h-4 w-4 text-status-danger" />
           Radar de Vigilance Multi-Critères
+          <InfoTip tip="risk.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           Corrélation directe : Notes + Assiduité + Créance financière
@@ -1058,24 +1083,27 @@ export function TripleRiskSummaryCard({
           data-testid="triple-risk-counts"
         >
           <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
-            <span className="text-[10px] text-muted-foreground block">
+            <span className="text-[10px] text-muted-foreground block flex items-center gap-0.5">
               Moyenne &lt; 10
+              <InfoTip tip="risk.academic" size={10} className="shrink-0" />
             </span>
             <span className="text-sm font-bold font-mono text-status-warning">
               {summary.academicAlertCount}
             </span>
           </div>
           <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
-            <span className="text-[10px] text-muted-foreground block">
+            <span className="text-[10px] text-muted-foreground block flex items-center gap-0.5">
               Absences ≥ 3
+              <InfoTip tip="risk.attendance" size={10} className="shrink-0" />
             </span>
             <span className="text-sm font-bold font-mono text-status-warning">
               {summary.attendanceAlertCount}
             </span>
           </div>
           <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
-            <span className="text-[10px] text-muted-foreground block">
+            <span className="text-[10px] text-muted-foreground block flex items-center gap-0.5">
               Dette ouverte
+              <InfoTip tip="risk.financial" size={10} className="shrink-0" />
             </span>
             <span className="text-sm font-bold font-mono text-status-danger">
               {summary.financialTensionCount}

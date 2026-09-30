@@ -15,6 +15,8 @@ import {
   type AnalyticsFilterState,
 } from "./analytics-derivations";
 import { formatDzd } from "../../../../core/format/currency";
+// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
+import { InfoTip } from "./info-tip";
 
 export interface AnalyticsSlicersProps {
   filters: AnalyticsFilterState;
@@ -76,13 +78,15 @@ export function AnalyticsSlicers({
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Filter className="h-3.5 w-3.5 text-primary" />
           Filtres Dynamiques (Slicers Interactifs)
+          <InfoTip tip="slicers.header" />
         </div>
 
         <div className="flex items-center gap-3">
           <span
-            className="text-xs font-mono text-muted-foreground"
+            className="text-xs font-mono text-muted-foreground flex items-center gap-0.5"
             data-testid="analytics-slicer-badge"
           >
+            <InfoTip tip="slicers.badge" size={10} />
             <strong className="text-foreground">{filteredCount}</strong> /{" "}
             {totalCount} opérations ·{" "}
             <strong className="text-status-success font-bold">
@@ -90,16 +94,19 @@ export function AnalyticsSlicers({
             </strong>
           </span>
           {active && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2.5 text-xs border-status-danger/30 text-status-danger hover:bg-status-danger/10"
-              onClick={onReset}
-              data-testid="analytics-slicer-reset"
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Réinitialiser
-            </Button>
+            <span className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs border-status-danger/30 text-status-danger hover:bg-status-danger/10"
+                onClick={onReset}
+                data-testid="analytics-slicer-reset"
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Réinitialiser
+              </Button>
+              <InfoTip tip="slicers.reset" size={11} />
+            </span>
           )}
         </div>
       </div>
@@ -109,8 +116,9 @@ export function AnalyticsSlicers({
           className="flex items-center gap-1.5 flex-wrap"
           data-testid="analytics-method-chips"
         >
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold pr-1">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold pr-1 flex items-center gap-0.5">
             Mode :
+            <InfoTip tip="slicers.methods" size={10} />
           </span>
           {methods.map((m) => (
             <Chip
@@ -127,8 +135,9 @@ export function AnalyticsSlicers({
             className="flex items-center gap-1.5 flex-wrap"
             data-testid="analytics-category-chips"
           >
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold pr-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold pr-1 flex items-center gap-0.5">
               Pôle :
+              <InfoTip tip="slicers.categories" size={10} />
             </span>
             {categories.map((c) => (
               <Chip

@@ -3,6 +3,8 @@
 // ============================================================================
 
 import { useState } from "react";
+// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
+import { InfoTip } from "./info-tip";
 import {
   ResponsiveContainer,
   PieChart,
@@ -59,6 +61,7 @@ export function MethodMixCard({ slice }: { slice: readonly Payment[] }) {
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-primary" />
           Répartition par Mode de Paiement
+          <InfoTip tip="methodMix.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           Volume encaissé selon le canal de règlement
@@ -166,6 +169,7 @@ export function CategoryMixCard({ slice }: { slice: readonly Payment[] }) {
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Layers className="h-4 w-4 text-brand-cyan" />
             Répartition par Pôle Tarifaire
+            <InfoTip tip="categoryMix.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Ventilation des recettes par service
@@ -173,9 +177,10 @@ export function CategoryMixCard({ slice }: { slice: readonly Payment[] }) {
         </div>
 
         <div
-          className="flex rounded-md border border-border bg-surface-elevated/40 p-0.5 text-xs"
+          className="flex items-center gap-1 rounded-md border border-border bg-surface-elevated/40 p-0.5 text-xs"
           data-testid="category-metric-toggle"
         >
+          <InfoTip tip="categoryMix.toggle" size={11} />
           <button
             type="button"
             onClick={() => setMetric("amount")}
