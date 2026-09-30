@@ -15,6 +15,8 @@
  * detail); the Finance cash-management view is linked from there.
  */
 import { useState } from "react";
+// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
+import { InfoTip } from "./info-tip";
 import { useNavigate, useInRouterContext } from "react-router-dom";
 import { Users } from "lucide-react";
 import {
@@ -68,6 +70,7 @@ export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />
             Coûts du Personnel — Réalisé vs Projeté & Besoin de Financement
+            <InfoTip tip="payroll.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Prévision canonique des vagues de paie — même calcul que Personnel

@@ -280,7 +280,10 @@ describe("T-351 — AnalyticsTab consumes the FULL debt stream (DASH-401)", () =
         </AuthProvider>
       </ToastProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Diagnostic Actif/ }));
+    // T-447 (UI-325): the view button's InfoTip sibling carries its own
+    // aria-label ("Vue Diagnostic Actif…") — the EXACT matcher keeps this
+    // query on the view button itself.
+    fireEvent.click(screen.getByRole("button", { name: "Diagnostic Actif" }));
     const console = screen.getByTestId("analytics-tab");
     expect(console).toBeInTheDocument();
     // The CrossRiskCard renders its quadrant headings (the preset chips

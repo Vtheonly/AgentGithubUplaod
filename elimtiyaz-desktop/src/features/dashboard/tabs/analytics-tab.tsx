@@ -82,6 +82,9 @@ import {
   type InspectRequest,
 } from "../components/analytics/data-inspector";
 import { DashboardLayoutEditor, type DashboardLayoutItem } from "../dashboard-layout-editor";
+// T-447 (UI-325): the bilingual explainability tooltips (the glossary lives
+// in src/i18n/stats-tips.ts — dictionary-only, never JSX text).
+import { InfoTip } from "../components/analytics/info-tip";
 
 const ALL_METHODS: PaymentMethod[] = ["cash", "check", "transfer"];
 type ViewMode = "pilotage" | "diagnostic" | "charts";
@@ -369,8 +372,9 @@ export function AnalyticsTab({
       maxH: 8,
       content: (
         <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-0.5">
             Inspection directe
+            <InfoTip tip="inspector.card" size={11} />
           </span>
           <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${academicYear}`, metric: "annual_revenue", sourceValue: currentRevenueTotal })} />
           <InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: yearOutstandingDebt, filters: { scope: "academic-year" } })} />
@@ -593,8 +597,9 @@ export function AnalyticsTab({
       maxH: 8,
       content: (
         <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-0.5">
             Ligne de provenance active
+            <InfoTip tip="inspector.card" size={11} />
           </span>
           <span className="text-xs font-mono font-semibold text-foreground">
             {slice.length} PAID · {sliceTotal.toLocaleString("fr-DZ")} DZD
@@ -803,6 +808,7 @@ export function AnalyticsTab({
             >
               <Gauge className="h-3.5 w-3.5" /> Pilotage Exécutif
             </button>
+            <InfoTip tip="viewMode.pilotage" size={11} className="ml-0.5" />
             <button
               type="button"
               onClick={() => setViewMode("diagnostic")}
@@ -810,6 +816,7 @@ export function AnalyticsTab({
             >
               <Search className="h-3.5 w-3.5" /> Diagnostic Actif
             </button>
+            <InfoTip tip="viewMode.diagnostic" size={11} className="ml-0.5" />
             <button
               type="button"
               onClick={() => setViewMode("charts")}
@@ -817,10 +824,12 @@ export function AnalyticsTab({
             >
               <BarChart3 className="h-3.5 w-3.5" /> Flux Financiers (métriques réelles)
             </button>
+            <InfoTip tip="viewMode.charts" size={11} className="ml-0.5" />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>
+            <span className="flex items-center gap-0.5">
               Année active: <strong className="text-foreground font-mono">{academicYear}</strong>
+              <InfoTip tip="header.academicYear" size={11} />
             </span>
             <InspectTrigger
               request={inspection({

@@ -19,6 +19,11 @@ import { en } from "./en";
 import { genFr } from "./gen/fr";
 import { genAr } from "./gen/ar";
 import { genEn } from "./gen/en";
+// T-447 (UI-325): the bilingual Statistics tooltip glossary — a
+// self-contained module (compile-time locked to one shape across the
+// three locales) merged into the same resources so every key resolves
+// through the standard t() lookup.
+import { STAT_TIPS_FR, STAT_TIPS_AR, STAT_TIPS_EN } from "./stats-tips";
 
 type Dict = { [key: string]: string | Dict };
 
@@ -36,9 +41,12 @@ function deepMerge(base: Dict, extra: Dict): Dict {
 
 void i18next.use(initReactI18next).init({
   resources: {
-    fr: { translation: deepMerge(fr as unknown as Dict, genFr as unknown as Dict) },
-    ar: { translation: deepMerge(ar as unknown as Dict, genAr as unknown as Dict) },
-    en: { translation: deepMerge(en as unknown as Dict, genEn as unknown as Dict) },
+    // T-447 (UI-325): the glossary tree is namespaced under `statsTips`
+    // (NOT merged at the root — its top-level group names live inside the
+    // namespace so they can never collide with the base dictionary's).
+    fr: { translation: deepMerge(deepMerge(fr as unknown as Dict, genFr as unknown as Dict), { statsTips: STAT_TIPS_FR } as unknown as Dict) },
+    ar: { translation: deepMerge(deepMerge(ar as unknown as Dict, genAr as unknown as Dict), { statsTips: STAT_TIPS_AR } as unknown as Dict) },
+    en: { translation: deepMerge(deepMerge(en as unknown as Dict, genEn as unknown as Dict), { statsTips: STAT_TIPS_EN } as unknown as Dict) },
   },
   lng: "fr",
   fallbackLng: "fr",

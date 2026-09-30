@@ -13,6 +13,8 @@ import {
 import { formatDzd } from "../../../../core/format/currency";
 import { derivePaymentStats, type PaymentStats } from "./analytics-derivations";
 import type { Payment } from "../../../../domain/model/payment";
+// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
+import { InfoTip } from "./info-tip";
 
 export interface StatStripProps {
   slice: readonly Payment[];
@@ -24,18 +26,22 @@ function StatTile({
   value,
   sub,
   color,
+  tip,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub?: string;
   color: string;
+  /** T-447 (UI-325): the glossary key for the tile's explanation tooltip. */
+  tip?: string;
 }) {
   return (
     <div className="rounded-xl border border-border/70 bg-surface-panel p-3 flex flex-col justify-between space-y-1 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate flex items-center gap-0.5">
           {label}
+          {tip && <InfoTip tip={tip} size={10} className="shrink-0" />}
         </span>
         <div
           className="h-6 w-6 rounded-md flex items-center justify-center shrink-0"
@@ -73,6 +79,7 @@ export function StatStrip({ slice }: StatStripProps) {
       <StatTile
         icon={<Wallet className="h-3.5 w-3.5" />}
         label="Total Encaissé"
+        tip="statStrip.total"
         value={formatDzd(stats.total, { compact: true })}
         sub={`${stats.count} versements`}
         color="var(--brand-blue, #349bd4)"
@@ -80,6 +87,7 @@ export function StatStrip({ slice }: StatStripProps) {
       <StatTile
         icon={<Receipt className="h-3.5 w-3.5" />}
         label="Volume Transactions"
+        tip="statStrip.count"
         value={String(stats.count)}
         sub="reçus émis"
         color="var(--brand-cyan, #3dd6d0)"
@@ -87,6 +95,7 @@ export function StatStrip({ slice }: StatStripProps) {
       <StatTile
         icon={<Scale className="h-3.5 w-3.5" />}
         label="Panier Moyen"
+        tip="statStrip.mean"
         value={stats.count > 0 ? formatDzd(stats.mean, { compact: true }) : "—"}
         sub="moyenne / opération"
         color="var(--status-success, #10b981)"
@@ -94,6 +103,7 @@ export function StatStrip({ slice }: StatStripProps) {
       <StatTile
         icon={<Activity className="h-3.5 w-3.5" />}
         label="Médiane"
+        tip="statStrip.median"
         value={
           stats.count > 0 ? formatDzd(stats.median, { compact: true }) : "—"
         }
@@ -103,6 +113,7 @@ export function StatStrip({ slice }: StatStripProps) {
       <StatTile
         icon={<Trophy className="h-3.5 w-3.5" />}
         label="Mois Record"
+        tip="statStrip.bestMonth"
         value={stats.bestMonth ? stats.bestMonth.label : "—"}
         sub={
           stats.bestMonth
@@ -114,6 +125,7 @@ export function StatStrip({ slice }: StatStripProps) {
       <StatTile
         icon={<ArrowUpDown className="h-3.5 w-3.5" />}
         label="Volatilité (σ)"
+        tip="statStrip.stdDev"
         value={
           stats.count > 1 ? formatDzd(stats.stdDev, { compact: true }) : "—"
         }
