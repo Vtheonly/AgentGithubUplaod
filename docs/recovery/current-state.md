@@ -1,3 +1,21 @@
+# Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-FOURTH session — T-447: the Statistics/Finance tranche parity + the all-categories 3-tranche analysis + the bilingual Statistics tooltip glossary + the metric audit — every gate GREEN)
+
+## Current state snapshot (2026-09-30, 124th session CLOSE — T-447)
+
+**The owner's Statistics-parity mandate is delivered end to end.** The Statistics « Vélocité de Recouvrement » main T1/T2/T3 cards and the Finance « Tranches » strip now consume ONE canonical pooled derivation (`domain/calc/payment/tranche-waves.ts#derivePooledTrancheWaves` — the all-categories pool per wave with set-union family counts, `pendingTotal`, the `overCoverage` reconciliation leg so `Total Due = Paid + Pending + Remaining` holds EXACTLY, the PARITY-001 rate) + `deriveNonWaveSummary` (the FI/registration fee and every other non-wave commitment — visible, never silently dropped). The Finance strip's hand-rolled pooling (and its `Math.min(100)` clamp) is retired; the Statistics card's misleading "Rentrée & Inscription" T1 subtitle is corrected; the per-category breakdown chips prove no category is excluded.
+
+**The bilingual explainability layer:** every Statistics card, chart, metric, header, slicer and control carries an ⓘ tooltip from the centralized glossary (`src/i18n/stats-tips.ts` — 84 entries × title/measures/calc/status, FR + EN + AR, compile-time locked to one shape, registered through the EXISTING i18next system; zero explanation text in JSX). The parity gate covers it (check-parity PARITY OK).
+
+**The metric audit:** `docs/audits/statistics-metric-audit-2026-09-30.md` — every Statistics metric traced end to end; the confirmed defects fixed (the ServiceYield scope defect, the days-late clock split, the dead ExecutiveDashboard composite, the pct clamp divergence, the missing pending leg, the T1 label lie); §6 closes every verdict with test evidence.
+
+**The live state:** UNCHANGED by design (the live probe is read-only, zero residue — 25/25 PASS on 5,956 installments: the canonical pool === the raw stored sums per wave [T1 123,748,300 / T2 102,269,000 / T3 101,868,500 DZD]; the family-count unions 741 vs 1,054 summed counts — the double-count trap is real on live data; the partition 4,819 wave rows + 1,137 FI rows; every dinar accounted: 194,230,700 DZD). The migration chain head stays `0133 > 0132 > 0131` (untouched — this task needed NO migration).
+
+**Gates:** tsc 0 · eslint 0 NEW errors · `npm run build` green · the unified runner "RED (documented baseline) — 17 documented failures, NO new regressions" (Layer 0 ✓ · Layer 1 BASELINE-MATCHED at the registered 4,589-test baseline [+38 passing, the failing set byte-identical] · Layer 2 the equivalence pipeline GREEN) · check-parity PARITY OK · the four NEW suites 38/38 · the live probe 25/25.
+
+**Standing gates:** the owner's packaged-app pass (rebuild from main — the T-447 Statistics surfaces + the tooltips) · the Android ports (§17.3 + §15.1 + the pooled derivation + the StatisticsEngine.kt triage edges) · the T-436 `payment_allocations` backfill.
+
+---
+
 # Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-THIRD session — T-446: the 0132+0133 LIVE APPLICATION with the owner's fourth (WORKING) token + the full post-apply verification suite — chain head 0133; every check GREEN; the year-tracking question answered)
 
 ## Current state snapshot (2026-09-30, 123rd session CLOSE — T-446)

@@ -256,3 +256,33 @@ Invariants:
 ### 18.3 The add-child leg (the BUSINESS-109 repair)
 
 - The wizard's `presetParent` add-child leg (an EXISTING parent gaining a new child) follows the SAME contract: the billing rows the steps-3/4 devis promised are PERSISTED through the same one-transaction composite (the existing parent is bound by its deterministic identity — never duplicated), with the current-year attribution per INV-25c. A shown devis must never be silently dropped (the DATA-019 convention, extended to this leg).
+
+## 19. The canonical tranche-wave derivations — the per-(category × wave) stats, the POOLED all-categories analysis, and the non-wave summary (T-447, 2026-09-30)
+
+**The module:** `src/domain/calc/payment/tranche-waves.ts` — ONE grouping core feeding THREE public derivations. Every surface that renders per-wave tranche state consumes these (§15.53a: a surface may PRESENT differently, never COMPUTE differently).
+
+### INV-21a — the per-category stats (`deriveTrancheWaveStats`; the T-424 contract, unchanged)
+
+Waves are `(category, trancheNumber)` pairs with `trancheNumber` in 1..3 (T-425: EXACTLY 3 tranches; tranche 0 = the FI registration fee, NULL/unnumbered and out-of-range rows are NON-WAVE rows — excluded everywhere, never coerced). `settledCount` follows `isInstallmentSettled` (INV-4); `remainingTotal` is the INV-4 remaining summed over the wave's rows; amounts round per-row once (the DZD integer domain); `overdueDebtorFamilyCount` counts only families with an unsettled, owing, PAST-DUE row (T-427: a future wave's current balance is "non soldée", never "en retard").
+
+### INV-21b — the POOLED all-categories analysis (`derivePooledTrancheWaves`; T-447 / STATS-401)
+
+The per-wave ALL-category pool — THE calculation the Statistics main wave cards AND the Finance Tranches strip consume (the exact-dinar parity by construction):
+
+1. **Pooled family counts are SET UNIONS** across the wave's categories (a family owing tuition T1 AND transport T1 counts ONCE). Summing per-category counts double-counts — live-proven: 741 distinct families vs 1,054 summed counts on T1.
+2. **`pendingTotal` (Σ `amountPending`) is a first-class output** — the mandate's `Total Due = Paid + Pending + Remaining` identity is verifiable at a glance.
+3. **The reconciliation identity holds EXACTLY per wave: `dueTotal + overCoverageTotal = paidTotal + pendingTotal + remainingTotal`**, where `overCoverageTotal` = Σ per-row `max(0, paid + pending − due)` (funds beyond the row's due — parent credit ON the row). When it is 0 (the normal case) the identity is the plain form; when it is not, the reconciliation line states it.
+4. **`collectedPct` = `round(paidTotal / dueTotal × 100)` — PARITY-001, NEVER clamped** (an over-covered wave reads > 100; the Finance strip's old `Math.min(100, …)` cap silently disagreed with the Statistics rate on the same rows and is retired).
+5. **`perCategory` carries the wave's per-category stats** (tuition → transport → others, stable) — the audit trail that no revenue category is silently excluded.
+6. **The derivation takes `nowEpochMs` explicitly** (§15.54d — never `Date.now()` inside).
+7. Only waves with ≥ 1 row are returned; presentations fill the fixed T1..T3 slots via `emptyPooledWave`.
+
+### INV-21c — the non-wave summary (`deriveNonWaveSummary`; T-447)
+
+The rows the wave model excludes BY DESIGN — grouped by (kind × category) with `kind` = `fi` (tranche 0 — the registration fee, category "tuition") | `unnumbered` ("Année complète", custom schedule lines) | `out_of_range` (legacy pre-T-425 rows). The analysis surfaces them explicitly (FI first) so the coverage is complete and visible — never a silent drop. Waves + non-wave PARTITION the corpus exactly (every row counted once, every dinar accounted once: Σ waves remaining + Σ non-wave remaining = the raw INV-4 outstanding).
+
+### INV-21d — the consumers
+
+- **Statistics (the WaveVelocityCard):** the MAIN T1/T2/T3 grid renders the pooled rows (due/paid/pending/remaining + the reconciliation line + the per-category chips + the phase); the FI « Hors Tranches » section renders the non-wave groups; the per-category detail grid renders the per-category view models (`executive-statistics.deriveTrancheWaves` — the presentation mapper). FI is NEVER presented as part of T1 (§15.65a — presentation must not contradict the billing model).
+- **Finance (the Tranches strip):** `installment-schedule-tab.deriveTrancheWaves` maps the canonical pooled rows to the strip's presentation (label/hint/isNextTarget/tuitionPct from `perCategory`) — no pooling math of its own.
+- **Android:** the mirror port is a registered follow-up (§10 — the corpus `executive_statistics` + verify_t-338.sql are the cross-platform contract).
