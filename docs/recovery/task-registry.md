@@ -5173,7 +5173,20 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** UI-326 (the dashboard layout configuration is per-desktop localStorage only — not persisted to the backend, lost on any new device/profile/reset) — registered BEFORE the fix (§13).
 **Priority:** P0 (the owner's explicit mandate).
-**Status:** IN PROGRESS (2026-09-30, 125th session — registration first; phases below).
+**Status:** DONE (2026-09-30, 125th session — all six phases delivered; see the completion record below).
+
+**Completion record (2026-09-30, the 125th session):**
+1. **Phase 0** — the registration (T-448 + UI-326 BEFORE the fix, §13).
+2. **Phase 1** — migration `0134_dashboard_layouts.sql`: the DEDICATED table (unique on tenant + user_profile + view_key; layout jsonb CHECKed to an object), 4 own-rows `to authenticated` policies (NO admin role gate — a layout is a personal preference), the `save_dashboard_layout` RPC (SECURITY INVOKER, identity resolved SERVER-SIDE, shape validation, upsert), §15.34 grants, the in-file self-registration (T-091/MIG-TOKENS).
+3. **Phase 2** — the `DashboardLayoutRepository` domain interface (load/save/clear — one clear responsibility, SEPARATE from DashboardRepository) + the Supabase twin (RLS SELECT/DELETE + the save RPC; fail-loud Errs) + the localStorage mock twin (mock-mode parity on the editor's own cache key) + the wiring (provider slot + the backup census).
+4. **Phase 3** — the editor integration: load-on-mount SERVER-WINS (the offline cache first-paint, then the saved row replaces any local residue + refreshes the cache), the one-time promotion (a pre-T-448 local layout reaches the server on first open; a failed promotion is a deferred retry), the dirty-guard (mid-edit server applies are skipped), the EXPLICIT save (the only server write), Réinitialiser clears the row, the honest inline outcome banner, StrictMode-safe exactly-once loading.
+5. **Phase 4** — the battery: the repository-contract suite 16/16 + the editor-integration suite 11/11 (RED-first: caught the StrictMode cancelled-flag defect — fixed in the same commit) + the FULL vitest 4,594/17/5 BASELINE-MATCHED (the registered +27 move; the failing FILE set diffed byte-identical) + tsc 0 + eslint 0.
+6. **Phase 5** — 0134 APPLIED LIVE (HTTP 201; chain head `0134 > 0133 > 0132 > 0131`): verify_t-448.sql **18/18** (the catalog + the RLS isolation matrix under simulated JWTs — user B sees nothing of A, B's direct delete of A's row id affects 0 rows, a no-profile caller refused 42501) + the client-path E2E `t-448-live-e2e.sh` **9/9 ALL GREEN** (save → load VERBATIM → read-only reload byte-identical INCLUDING updated_at → the intentional change updates never duplicates → reset → zero residue → the anon key sees nothing) — evidence: `docs/recovery/t-448-live-verification.md`.
+6b. **Phase 6** — this closeout (the registries truth-synced, the change-log entry, AGENTS.md §15.80, next-task + current-state, the delivery zips).
+
+**Gates (all GREEN):** tsc 0 · eslint 0 NEW errors · the NEW suites 27/27 · the FULL vitest BASELINE-MATCHED (registered move +27) · the append-only migration guard OK (+1 new, +0 modified) · verify_t-448 18/18 LIVE · the client-path E2E 9/9 LIVE · zero residue.
+
+**Left:** (1) `dashboard-tab-layout-editor.tsx` (order+sizes, `…:tab:`) has NO consumer in the tree — left untouched (a TECHDEBT-family removal decision, not T-448's); (2) the UserPreferencesProvider (theme/locale/timezone/currency) remains localStorage-only — the same CLASS with NO owner mandate (an observation, not a registered problem); (3) Android/website consume no dashboard layouts (the desktop is the only surface) — nothing to port; (4) the promotion upload fires on editor mount when no server row exists (a pre-T-448 localStorage layout self-migrates on the first open after this ships).
 
 **The existing implementation this EXTENDS (no parallel implementation — §6):**
 - `src/features/dashboard/dashboard-layout-editor.tsx` — the drag/resize grid editor whose layout (`Record<itemId, {x,y,w,h}>`) persists today ONLY to `localStorage["el-imtiyaz:dashboard-layout:<viewKey>"]` (debounced 250 ms auto-write while editing + an explicit Enregistrer). Consumers: Overview (`overview`) + Statistiques (`statistics:pilotage` / `statistics:diagnostic` / `statistics:charts`) — 4 view keys total.
