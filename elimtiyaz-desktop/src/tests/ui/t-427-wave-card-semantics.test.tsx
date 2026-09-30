@@ -23,6 +23,11 @@ import "../../i18n/i18n";
 import { deriveTrancheWaveStats } from "../../domain/calc/payment/tranche-waves";
 import { deriveTrancheWaves } from "../../features/dashboard/components/analytics/executive-statistics";
 import { WaveVelocityCard } from "../../features/dashboard/components/analytics/executive-cards";
+// T-447: the canonical pooled + non-wave derivations (the card's new props).
+import {
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
+} from "../../domain/calc/payment/tranche-waves";
 import type { Installment, PaymentCategory } from "../../domain/model/payment";
 
 // Mock recharts (the jsdom 0×0-box convention).
@@ -109,37 +114,38 @@ describe("T-427 (DATA-048) — the canonical overdue-family gating", () => {
 });
 
 describe("T-427 — the WaveVelocityCard presentation (Track 2 item 4 + Track 4 item 2)", () => {
+  // T-447: the card's full prop contract (pooled + nonWave + the one clock).
+  const renderCard = (rows: readonly Installment[]) =>
+    render(
+      <WaveVelocityCard
+        waves={deriveTrancheWaves(rows, NOW)}
+        pooled={derivePooledTrancheWaves(rows, NOW)}
+        nonWave={deriveNonWaveSummary(rows, NOW)}
+        nowEpochMs={NOW}
+      />,
+    );
+
   it("a 96%-collected wave with remaining DZD is NOT Clôturée (remainingTotal === 0 is the only closure)", () => {
     // 96% collected, 4,000,000 DZD still outstanding — the old
     // collectedPct >= 95 threshold marked this "Clôturée".
-    const waves = deriveTrancheWaves(
-      [
-        mk({ parentId: "p1", dueDate: PAST, amountDue: 100_000_000, amountPaid: 96_000_000, trancheNumber: 1 }),
-      ],
-      NOW,
-    );
-    render(<WaveVelocityCard waves={waves} />);
+    renderCard([
+      mk({ parentId: "p1", dueDate: PAST, amountDue: 100_000_000, amountPaid: 96_000_000, trancheNumber: 1 }),
+    ]);
     expect(screen.getByTestId("wave-meter-1").textContent).not.toContain("Clôturée");
   });
 
   it("a fully-settled wave IS Clôturée", () => {
-    const waves = deriveTrancheWaves(
-      [mk({ parentId: "p1", dueDate: PAST, amountPaid: 100_000, status: "paid", trancheNumber: 1 })],
-      NOW,
-    );
-    render(<WaveVelocityCard waves={waves} />);
+    renderCard([
+      mk({ parentId: "p1", dueDate: PAST, amountPaid: 100_000, status: "paid", trancheNumber: 1 }),
+    ]);
     expect(screen.getByTestId("wave-meter-1").textContent).toContain("Clôturée");
   });
 
   it("a future wave's sub-label is 'Familles à échoir' (never 'en retard'); an overdue wave's is 'Familles en retard'", () => {
-    const waves = deriveTrancheWaves(
-      [
-        mk({ parentId: "p-past", dueDate: PAST, trancheNumber: 1 }),
-        mk({ parentId: "p-future", dueDate: FUTURE, trancheNumber: 2 }),
-      ],
-      NOW,
-    );
-    render(<WaveVelocityCard waves={waves} />);
+    renderCard([
+      mk({ parentId: "p-past", dueDate: PAST, trancheNumber: 1 }),
+      mk({ parentId: "p-future", dueDate: FUTURE, trancheNumber: 2 }),
+    ]);
     const t1 = screen.getByTestId("wave-meter-1").textContent ?? "";
     const t2 = screen.getByTestId("wave-meter-2").textContent ?? "";
     expect(t1).toContain("Familles en retard");
