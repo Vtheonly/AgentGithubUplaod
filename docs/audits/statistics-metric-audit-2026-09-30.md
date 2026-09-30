@@ -94,3 +94,21 @@ Zero explanatory tooltips existed on any Statistics card/chart/metric/header/sli
 - The Android mirror (`StatisticsEngine.kt`) — the corpus + verify_t-338.sql stay the cross-platform contract; the pooled derivation's port is a registered follow-up (cross-platform rule §10).
 - The Statistics surface's French presentation labels (the T-388 codemod's scope; the tooltip layer adds the bilingual explanations the mandate requires without re-translating the whole surface).
 - The data-inspector lineage contract (T-389) — the closed domain union.
+
+---
+
+## 6. Remediation record (T-447 Phases 1–4, 2026-09-30 — the closed loop)
+
+Every DEFECT/DEAD-CODE verdict above is remediated and pinned by tests (the verdict table's "Fixed by T-447" claims are now backed by runs):
+
+| Audit finding | Fix (phase) | Evidence |
+|---|---|---|
+| §1 ServiceYield scope defect (raw all-years stream) | Phase 4 — the card derives from the range-scoped paid slice (`applyAnalyticsFilters`) | `src/tests/features/dashboard/t-447-audit-remediation.test.tsx` 4/4 (source pin + behavior: the out-of-range payment excluded, the in-range one counted) |
+| §2.1 main grid tuition-only + missing pending + T1 label lie + FI invisible | Phase 2 — the canonical pooled all-categories main cards + the FI section + the reconciliation line + the corrected subtitles | `t-447-pooled-waves.test.ts` 16/16 + the wave family re-run 40/40 (t-424/t-427/t-434/t-435) |
+| §2.1 days-late clock split (phase vs daysLate) | Phase 2 — the card receives the derivation's `nowEpochMs` (ONE clock) | the audit-remediation suite's source pin (no `daysBetweenFloor(…, Date.now())` remains in the card) |
+| §2.1 pct clamp divergence (Finance Math.min(100) vs Statistics round) | Phase 1 — the canonical pooled `collectedPct` (PARITY-001, never clamped) consumed by BOTH surfaces | `t-447-pooled-waves.test.ts` ("collectedPct is round(paid/due × 100) — NEVER clamped") |
+| §2.4 dead ExecutiveDashboard composite | Phase 2 — removed (zero importers; the orphaned imports cleaned) | the audit-remediation suite's removal pin |
+| §4 zero tooltips | Phase 3 — the bilingual glossary + InfoTip wired everywhere | `t-447-statistics-tooltips.test.tsx` 12/12 (completeness ×3 locales, resolution, rendering, the fr↔en switch, the wired surfaces) |
+| §2.4 clock-staleness (memo-level freeze) | NOTED (accepted) — re-deriving every render would defeat the memo; the corpus equivalence REQUIRES the explicit-now shape; the visible symptom (the phase/days-late split) is fixed | documented in §2.4; the single-clock card is the fix's scope |
+
+The CANONICAL rows need no remediation by definition — the audit's contribution is the verdict table itself (the next "is this metric right?" question answers from §2).
