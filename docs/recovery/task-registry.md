@@ -5168,3 +5168,29 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Scope owner:** the owner's 2026-09-30 mandate (this session).
 **Next:** the standing queue (next-task.md).
 **Related:** STATS-401 · UI-325 · STATS-402 · T-424/T-425/T-432/T-434/T-435 (the parity lineage this completes) · T-443 (the thresholds wiring the triage reuses) · ADR-002/ADR-029 · §15.53a/§15.54d/§15.65a/§15.79.
+
+## T-448 — The dedicated Supabase dashboard-layout-configuration table (the owner's 2026-09-30 mandate: "create a new dedicated Supabase table specifically for storing dashboard layout configurations… configure the layout once, save it, and never have to configure it again unless I intentionally change it… load the saved configuration when the application starts or when I reopen the relevant page… only update the saved configuration when I explicitly change and save it… keep this completely separate from unrelated application data… simple and focused — one clear responsibility: persisting and restoring the user's layout configuration")
+
+**Problem IDs:** UI-326 (the dashboard layout configuration is per-desktop localStorage only — not persisted to the backend, lost on any new device/profile/reset) — registered BEFORE the fix (§13).
+**Priority:** P0 (the owner's explicit mandate).
+**Status:** IN PROGRESS (2026-09-30, 125th session — registration first; phases below).
+
+**The existing implementation this EXTENDS (no parallel implementation — §6):**
+- `src/features/dashboard/dashboard-layout-editor.tsx` — the drag/resize grid editor whose layout (`Record<itemId, {x,y,w,h}>`) persists today ONLY to `localStorage["el-imtiyaz:dashboard-layout:<viewKey>"]` (debounced 250 ms auto-write while editing + an explicit Enregistrer). Consumers: Overview (`overview`) + Statistiques (`statistics:pilotage` / `statistics:diagnostic` / `statistics:charts`) — 4 view keys total.
+- `dashboard-tab-layout-editor.tsx` (order+sizes, prefix `…:tab:`) has NO consumer in the tree (dead component) — NOT touched.
+
+**Phases (each = one commit, pushed, merged --no-ff per ADR-028; concurrent-agent discipline — new files wherever possible, minimal hunks in shared files):**
+1. **Phase 1 — migration `0134_dashboard_layouts.sql`:** the DEDICATED table (`tenant_id` + `user_profile_id` + `view_key` + `layout jsonb`, unique on the triple) + RLS (each authenticated user CRUDs ONLY their own rows — no admin gate: the layout is a personal preference, not a domain object) + grants (§15.34) + the IN-FILE self-registration (T-091/MIG-TOKENS — the ARCH-016 third-occurrence lesson).
+2. **Phase 2 — the repository layer:** a `DashboardLayoutRepository` domain interface (load/save/clear — one clear responsibility) + the Supabase implementation (RLS-scoped SELECT; upsert RPC `save_dashboard_layout` resolving caller+tenant server-side; RLS DELETE for reset) + the mock twin (localStorage-backed, mock-mode parity) + the provider wiring.
+3. **Phase 3 — the editor integration:** load-on-mount (localStorage = instant offline cache → server row WINS when it exists; a one-time promotion uploads a pre-existing local layout when no server row exists — the "never configure again" migration) + the explicit save writes the server row (the debounced editing-buffer write stays local-only — the server updates ONLY on explicit save) + Réinitialiser clears the server row too.
+4. **Phase 4 — the test battery:** the repository contract suite (mock twin) + the editor integration suite (server-wins-on-load, explicit-save-only server write, promotion, reset) + FULL vitest BASELINE-MATCHED + tsc 0 + eslint 0 on changed files.
+5. **Phase 5 — live application + verification:** apply 0134 through the working Management token (the §11.1 SQL endpoint) + the live end-to-end probe (sign-in → save → reload → identical layout → explicit-change-only update → RLS isolation → zero residue).
+6. **Phase 6 — closeout:** the registries truth-synced (UI-326 RESOLVED-TESTED + LIVE-VERIFIED), the change-log entry, AGENTS.md §15.80 discoveries, next-task + current-state, the delivery zips.
+
+**Constraints:** the layout NEVER mixes with unrelated application data (its own table — nothing else reads/writes it); NO change to any migration < 0134; the localStorage path stays as the offline cache (mock mode fully functional); the owner's exact save semantics ("only update when I explicitly change and save it") is the acceptance contract; the Android/website clients do not consume layouts (desktop-only surface — no cross-platform divergence: nothing to port, registered as a Left note only if ever requested).
+
+**Gates (planned):** tsc 0 · eslint 0 NEW errors on changed files · the NEW suites GREEN · FULL vitest BASELINE-MATCHED (registered move only) · the live probe PASS end-to-end · zero residue on the live table after the probe.
+
+**Scope owner:** the owner's 2026-09-30 mandate (this session).
+**Next:** the standing queue (next-task.md).
+**Related:** UI-326 · T-447 (the Statistics surfaces whose layout keys this persists) · ADR-001 (the append-only chain) · §15.77 (the live-verification discipline) · docs/agents/git-workflow.md (the commit standard).
