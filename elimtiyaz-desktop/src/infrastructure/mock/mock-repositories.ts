@@ -47,6 +47,9 @@ export {
   mockOverdueAlertGenerator,
 } from "./repositories/notification-alerts-repository";
 export { mockDashboardRepository } from "./repositories/dashboard-repository";
+// T-448 (UI-326): the dedicated dashboard-layout store's mock twin
+// (localStorage-backed — the editor's own offline-cache key).
+export { mockDashboardLayoutRepository } from "./repositories/dashboard-layout-repository";
 export { mockPricingRepository } from "./repositories/pricing-repository";
 export { mockLedgerRepository } from "./repositories/ledger-repository";
 export {

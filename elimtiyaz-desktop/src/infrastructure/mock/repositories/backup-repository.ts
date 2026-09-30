@@ -79,6 +79,8 @@ import {
   mockOverdueAlertGenerator,
 } from "./notification-alerts-repository";
 import { mockDashboardRepository } from "./dashboard-repository";
+// T-448 (UI-326): the dedicated dashboard-layout store's mock twin.
+import { mockDashboardLayoutRepository } from "./dashboard-layout-repository";
 import { mockPricingRepository } from "./pricing-repository";
 import { mockLedgerRepository } from "./ledger-repository";
 import {
@@ -298,6 +300,10 @@ export class MockBackupRepository implements BackupRepository {
       audit: mockAuditRepository,
       notifications: mockNotificationRepository,
       dashboard: mockDashboardRepository,
+      // T-448 (UI-326): the dedicated layout store — deliberately NOT part
+      // of the backup's repository census (a personal UI preference, not
+      // domain data; the lazy localStorage cache travels with the profile).
+      dashboardLayouts: mockDashboardLayoutRepository,
       pricing: mockPricingRepository,
       ledger: mockLedgerRepository,
       workflows: mockWorkflowRepository,

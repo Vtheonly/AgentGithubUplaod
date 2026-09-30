@@ -44,6 +44,9 @@ import type {
   ReEnrollmentRepository,
 } from "../../domain/repository/academic-repository";
 import type { ClubRepository } from "../../domain/repository/club-repository";
+// T-448 (UI-326): the dedicated dashboard-layout store (load/save/clear —
+// one clear responsibility, deliberately separate from DashboardRepository).
+import type { DashboardLayoutRepository } from "../../domain/repository/dashboard-layout-repository";
 import type {
   PsychologyRepository,
   OrthophonieRepository,
@@ -91,6 +94,7 @@ import {
   mockAuditRepository,
   mockNotificationRepository,
   mockDashboardRepository,
+  mockDashboardLayoutRepository,
   mockPricingRepository,
   mockLedgerRepository,
   mockWorkflowRepository,
@@ -173,6 +177,10 @@ export interface Repositories {
   readonly audit: AuditRepository;
   readonly notifications: NotificationRepository;
   readonly dashboard: DashboardRepository;
+  /** T-448 (UI-326): the dedicated dashboard-layout-configuration store —
+   * persists and restores the user's saved layout (migration 0134 behind
+   * the Supabase twin; localStorage behind the mock twin). */
+  readonly dashboardLayouts: DashboardLayoutRepository;
   readonly pricing: PricingRepository;
   readonly ledger: LedgerRepository;
   readonly workflows: WorkflowRepository;
@@ -235,6 +243,7 @@ export const mockRepositories: Repositories = {
   audit: mockAuditRepository,
   notifications: mockNotificationRepository,
   dashboard: mockDashboardRepository,
+  dashboardLayouts: mockDashboardLayoutRepository,
   pricing: mockPricingRepository,
   ledger: mockLedgerRepository,
   workflows: mockWorkflowRepository,

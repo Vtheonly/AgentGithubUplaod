@@ -51,6 +51,8 @@ import {
   SupabaseDebtRepository,
 } from "./repositories/supabase-shared-repositories";
 import { SupabaseDashboardRepository } from "./repositories/supabase-dashboard-repository";
+// T-448 (UI-326): the dedicated dashboard-layout store (migration 0134).
+import { SupabaseDashboardLayoutRepository } from "./repositories/supabase-dashboard-layout-repository";
 import { SupabaseOverdueAlertGenerator } from "./repositories/supabase-overdue-alert-generator";
 import { SupabaseExpenseRepository } from "./repositories/supabase-expense-repository";
 import { SupabaseChatRepository } from "./repositories/supabase-chat-repository";
@@ -337,6 +339,13 @@ export function getSupabaseRepositories(): Repositories {
   // never persisted anything.
   const teachers = new SupabaseTeacherRepository(client);
 
+  // T-448 (UI-326) — the DEDICATED dashboard-layout store (migration
+  // 0134): RLS-scoped SELECT/DELETE + the save_dashboard_layout RPC (the
+  // explicit-save write path; identity resolved server-side). Before this
+  // the layout lived ONLY in localStorage (UI-326) — a saved layout died
+  // with the device profile.
+  const dashboardLayouts = new SupabaseDashboardLayoutRepository(client);
+
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
   const repositories: Repositories = {
@@ -350,6 +359,7 @@ export function getSupabaseRepositories(): Repositories {
     installments,
     debt,
     dashboard,
+    dashboardLayouts, // T-448 — the dedicated layout store (migration 0134)
     // DESKTOP-1 — newly Supabase-backed:
     academicYears,
     academicLevels, // T-408 — grade_code → level uuid (ACAD-506)
