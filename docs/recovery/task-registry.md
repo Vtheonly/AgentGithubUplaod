@@ -5138,7 +5138,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** STATS-401 (the tuition-only main wave analysis + the duplicated pooling code) · UI-325 (the missing bilingual Statistics tooltips) · STATS-402 (the metric-audit findings ledger) — registered BEFORE the fix (§13).
 **Priority:** P0 (the owner's explicit parity + completeness mandate).
-**Status:** IN_PROGRESS (2026-09-30, 124th session).
+**Status:** DONE (2026-09-30, 124th session — all seven phases delivered; see the gates below).
 
 **Phases (the T-411-style sequence; each phase = one commit, pushed, merged --no-ff per ADR-028):**
 1. **Phase 0 — registration** (this commit): the task + problem entries registered read-only; the audit doc opened at `docs/audits/statistics-metric-audit-2026-09-30.md`.
@@ -5152,3 +5152,19 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Constraints:** NO migration (pure client-side + domain work — the live chain stays untouched); the canonical `deriveTrancheWaveStats` semantics UNCHANGED (additive pooling on top — INV-20a spirit: no new numbers, new GROUPINGS of the same numbers); the Android mirror is NOT touched this session (the corpus `executive_statistics` + verify_t-338.sql stay the cross-platform contract; the pooled derivation's Android port is a registered follow-up); merge-early/merge-often, minimal hunks (the concurrent-agent discipline).
 
 **Gates:** tsc 0 · eslint 0 errors on every changed file · the NEW suites GREEN · FULL vitest BASELINE-MATCHED (registered baseline move for the new passing tests + the documented re-pins) · `npm run build` green · the live probe PASS · the i18n parity check green (fr/ar/en key sets identical).
+
+**Completion record (2026-09-30, the 124th session):**
+1. **Phase 0** — the registration (STATS-401/UI-325/STATS-402 BEFORE the fix, §13) + the audit doc `docs/audits/statistics-metric-audit-2026-09-30.md` (the per-metric verdict table — 6 defect families + the canonical verification of every derivation).
+2. **Phase 1** — the canonical `derivePooledTrancheWaves` + `deriveNonWaveSummary` + `emptyPooledWave` (ONE grouping core; `deriveTrancheWaveStats` behavior byte-identical) + the Finance pooling retired into a thin canonical consumer.
+3. **Phase 2** — the Statistics MAIN T1/T2/T3 cards = the pooled ALL-category rows (due/paid/PENDING/remaining, per-category chips, the identity line, the FI « hors tranches » section, the corrected subtitles, the single clock) + the dead ExecutiveDashboard removed.
+4. **Phase 3** — the bilingual glossary (84 entries × fr/en/ar, compile-time locale-locked, the statsTips namespace) + the InfoTip wiring on every Statistics element.
+5. **Phase 4** — the audit remediation (the ServiceYield scope defect + the remediation record).
+6. **Phase 5** — the end-to-end battery (the rendering-engine parity suite) + the registered baseline move (+38: 4,567/17/5, the failing set byte-identical).
+7. **Phase 6** — the live probe `scripts/t-447-live-verify.mjs` **25/25 PASS** on the real corpus (5,956 installments: the canonical pool === the raw stored sums per wave; the identity exact; the union counts 741 vs 1,054; the partition 4,819 wave + 1,137 FI; every dinar accounted 194,230,700 DZD) — evidence: `docs/recovery/t-447-live-verification.md`.
+
+**Gates (all GREEN):** tsc 0 · eslint 0 NEW errors (the pre-existing warning/error set byte-equivalent) · `npm run build` green · the unified runner verdict "RED (documented baseline) — 17 documented failures, NO new regressions" (Layer 0 ✓ · Layer 1 BASELINE-MATCHED · Layer 2 the equivalence pipeline GREEN: canonical 318/318, sanity 819/819, discrepancies 0) · check-parity PARITY OK · the four NEW suites 16+12+4+6 = 38/38 · the live probe 25/25.
+
+**Left:** (1) the Android port of the pooled derivation + the corpus `executive_statistics` regeneration (the StatisticsEngine.kt mirror — the standing cross-platform follow-up, §10); (2) the tooltip glossary is FR/EN/AR — the Statistics surface's OTHER presentation labels stay French (the T-388 codemod's scope; a future i18n pass can extend the gen dictionary); (3) the Finance strip's intra-render daysLate recomputes Date.now() (the §15.54d class, intra-tick only — far milder than the memo-frozen Statistics clock that was fixed; a registered follow-up if the strip ever memoizes its waves).
+**Scope owner:** the owner's 2026-09-30 mandate (this session).
+**Next:** the standing queue (next-task.md).
+**Related:** STATS-401 · UI-325 · STATS-402 · T-424/T-425/T-432/T-434/T-435 (the parity lineage this completes) · T-443 (the thresholds wiring the triage reuses) · ADR-002/ADR-029 · §15.53a/§15.54d/§15.65a/§15.79.
