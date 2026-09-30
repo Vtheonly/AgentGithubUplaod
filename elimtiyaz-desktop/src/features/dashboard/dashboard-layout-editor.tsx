@@ -246,10 +246,15 @@ export function DashboardLayoutEditor({
     if (serverLoadDoneFor.current === storageKey) return;
     serverLoadDoneFor.current = storageKey;
 
-    let cancelled = false;
+    // NOTE: no cancellation flag on purpose. StrictMode's dev cycle
+    // (mount → effect → cleanup → effect) would cancel the ONLY load the
+    // sentinel allows (the second run is a no-op) — the saved layout
+    // would never apply in development. After a REAL unmount, a late
+    // setState is a React-18 no-op and the cache write / idempotent
+    // promotion save are both harmless — the exactly-once semantics the
+    // sentinel gives are worth more than the cancelled flag.
     void (async () => {
       const loaded = await repos.dashboardLayouts.load(storageKey);
-      if (cancelled) return;
       if (!loaded.ok) {
         // Offline/degraded: the local cache (already applied in the state
         // initializer) stays the working layout — honest degradation, the
@@ -300,10 +305,6 @@ export function DashboardLayoutEditor({
         }
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [repos.dashboardLayouts, storageKey]);
 
   useEffect(() => {
