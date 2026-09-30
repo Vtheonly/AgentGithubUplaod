@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-447 (124th session, 2026-09-30 — the Statistics-parity mandate: +38 passing tests [the t-447 domain pooled-waves suite 16 · the bilingual tooltips suite 12 · the audit-remediation suite 4 · the rendering-engine-parity suite 6]; the failing-file set UNCHANGED byte-identical). Prior: the T-443/T-441 merged-tree reconciliation.",
-  "_task": "T-447 (124th session, 2026-09-30) — the registered baseline move: 261 files (+3 suites), 4,589 tests (4,567 passed / 17 failed / 5 skipped). The failing-file set is byte-identical to the T-443/T-441 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7). Verified: the full run's FAIL list diffed against the previous baseline — no new, no vanished; the 2 analytics-visuals + 7 dashboard-3zone failures re-confirmed pre-existing on the pre-T-447 tree (git stash probe).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-448 (125th session, 2026-09-30 — the dashboard-layout-persistence mandate: +27 passing tests [the t-448 repository-contract suite 16 · the t-448 editor-integration suite 11]; the failing-file set UNCHANGED byte-identical). Prior: T-447 (the Statistics-parity mandate).",
+  "_task": "T-448 (125th session, 2026-09-30) — the registered baseline move: 264 files (+2 suites), 4,616 tests (4,594 passed / 17 failed / 5 skipped — passed = the T-447 baseline's 4,567 + the 27 new T-448 tests, exact). The failing-file set is byte-identical to the T-447 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7). Verified: the full run's FAIL list diffed against the baseline — no new, no vanished. NOTE (pre-existing, not T-448's): the T-447 baseline recorded 261 files while 262 existed on disk at commit 8c2e69c (a one-file collection quirk in that session's run); this move records the ACTUAL collected count (264 = the 262 on disk + T-448's 2 new suites).",
   "testFiles": {
     "failed": 8,
-    "passed": 252,
+    "passed": 255,
     "skipped": 1,
-    "total": 261
+    "total": 264
   },
   "tests": {
     "failed": 17,
-    "passed": 4567,
+    "passed": 4594,
     "skipped": 5,
-    "total": 4589
+    "total": 4616
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",
