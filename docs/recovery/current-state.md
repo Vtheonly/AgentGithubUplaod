@@ -1,3 +1,19 @@
+# Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-FIFTH session — T-448: the DEDICATED dashboard-layout-configuration table — migration 0134 applied live; every gate GREEN)
+
+## Current state snapshot (2026-09-30, 125th session CLOSE — T-448)
+
+**The owner's dashboard-layout persistence mandate is delivered end to end.** The dashboard layout (Overview + Statistiques, all four view keys) now persists to the DEDICATED `public.dashboard_layouts` table (migration 0134, APPLIED LIVE — HTTP 201; chain head `0134 > 0133 > 0132 > 0131`): ONE row per (tenant, user_profile, view_key), the editor's StoredLayout verbatim in jsonb, four own-rows `to authenticated` RLS policies (no admin gate — a layout is a personal preference, deliberately NOT the 0024 system_settings pattern), and the `save_dashboard_layout` RPC (SECURITY INVOKER; the caller's profile + tenant resolved SERVER-SIDE from the JWT; upsert on the identity triple; the client never sends identity columns).
+
+**The client lifecycle (the owner's exact contract):** the editor loads the SAVED row on mount — the offline localStorage cache paints instantly, then the saved row WINS over any local residue and refreshes the cache ("reuse the exact same saved layout"); a pre-T-448 local layout is PROMOTED to the server once (a failed promotion retries on the next mount); the server row is written ONLY by the explicit Enregistrer (the debounced editing buffer stays local — "only update when I explicitly change and save it"); Réinitialiser clears the server row too; a failed save shows the honest inline outcome and keeps the local work. The `DashboardLayoutRepository` (load/save/clear) is a SEPARATE contract from the KPI-computing DashboardRepository — one clear responsibility, nothing else reads or writes the table, and it sits outside the backup's domain census.
+
+**The live state:** the `sbp_` Management token WORKED again (the second live one after T-446's) — `apply_0134_live.sh` → HTTP 201; **verify_t-448.sql 18/18** (the catalog + the RLS isolation matrix under simulated JWTs: user B sees nothing of A, B's direct delete of A's row id affects 0 rows, a no-profile caller is refused 42501 — everything inside the rolled-back transaction); **the client-path E2E 9/9 ALL GREEN** (sign-in → load-empty → save → load-back-VERBATIM → read-only reload byte-identical INCLUDING updated_at → the intentional change updates never duplicates → reset → zero residue → the anon key sees nothing). Zero residue after both probes.
+
+**Gates:** tsc 0 · eslint 0 NEW errors · the NEW suites 27/27 (RED-first: the editor suite caught the StrictMode cancelled-flag defect — AGENTS.md §15.80a) · the FULL vitest 4,594/17/5 BASELINE-MATCHED (the registered +27 move; the failing FILE set byte-identical) · the append-only migration guard OK.
+
+**Standing gates:** the owner's packaged-app pass (rebuild from main — the T-447 Statistics surfaces + the tooltips + the T-448 layout persistence) · the Android ports · the T-436 `payment_allocations` backfill.
+
+---
+
 # Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-FOURTH session — T-447: the Statistics/Finance tranche parity + the all-categories 3-tranche analysis + the bilingual Statistics tooltip glossary + the metric audit — every gate GREEN)
 
 ## Current state snapshot (2026-09-30, 124th session CLOSE — T-447)
