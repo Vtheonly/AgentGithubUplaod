@@ -8,6 +8,19 @@ import {
   type ReactNode,
 } from "react";
 import { GripVertical, Maximize2, RotateCcw, Save } from "lucide-react";
+// T-448 (UI-326): the dedicated server-side layout store + the ONE shared
+// localStorage-key module (the offline cache / mock-mode home).
+import { useRepositories } from "../../app/providers/repository-provider";
+import { logger } from "../../core/logger";
+import {
+  parseStoredDashboardLayout,
+  type StoredDashboardLayout,
+} from "../../domain/repository/dashboard-layout-repository";
+import {
+  readDashboardLayoutCache,
+  removeDashboardLayoutCache,
+  writeDashboardLayoutCache,
+} from "./dashboard-layout-storage";
 
 export interface DashboardLayoutItem {
   id: string;
@@ -48,7 +61,6 @@ type ResizeState = {
   pointerId: number;
 };
 
-const STORAGE_PREFIX = "el-imtiyaz:dashboard-layout:";
 const GRID_COLUMNS = 12;
 const ROW_HEIGHT = 32;
 const GRID_GAP = 12;
@@ -74,42 +86,19 @@ function sanitizeRect(rect: LayoutRect, item: DashboardLayoutItem): LayoutRect {
 }
 
 function readStoredLayout(storageKey: string): StoredLayout {
+  // T-448: the key + the defensive parse live in the ONE shared module
+  // (dashboard-layout-storage + the domain parser) — no duplicated shape.
+  const raw = readDashboardLayoutCache(storageKey);
+  if (!raw) return {};
   try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + storageKey);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-
-    const result: StoredLayout = {};
-    for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!value || typeof value !== "object") continue;
-      const candidate = value as Record<string, unknown>;
-      if (
-        typeof candidate.x === "number" &&
-        typeof candidate.y === "number" &&
-        typeof candidate.w === "number" &&
-        typeof candidate.h === "number"
-      ) {
-        result[id] = {
-          x: candidate.x,
-          y: candidate.y,
-          w: candidate.w,
-          h: candidate.h,
-        };
-      }
-    }
-    return result;
+    return parseStoredDashboardLayout(JSON.parse(raw)) ?? {};
   } catch {
     return {};
   }
 }
 
 function writeStoredLayout(storageKey: string, layout: StoredLayout) {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + storageKey, JSON.stringify(layout));
-  } catch {
-    // The editor remains usable when local persistence is unavailable.
-  }
+  writeDashboardLayoutCache(storageKey, JSON.stringify(layout));
 }
 
 function overlaps(a: LayoutRect, b: LayoutRect) {
@@ -216,11 +205,20 @@ export function DashboardLayoutEditor({
   onSave?: () => void;
   onReset?: () => void;
 }) {
+  // T-448 (UI-326): the dedicated layout store — the Supabase twin behind
+  // the migration-0134 table in production, the localStorage twin in mock
+  // mode (both satisfy the same contract; the mock reads/writes this
+  // editor's own cache key, so mock mode is behaviorally unchanged).
+  const repos = useRepositories();
   const gridRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const resizeState = useRef<ResizeState | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  // T-448: "saved" | "save-failed" | null — the explicit save's server
+  // outcome, surfaced inline in the editing banner (fail-loud, never a
+  // silent drop; the local cache keeps the layout either way).
+  const [saveState, setSaveState] = useState<"saved" | "save-failed" | null>(null);
   const [layout, setLayout] = useState<StoredLayout>(() =>
     // Load-time healing: a stored rect can be stale — e.g. a widget whose
     // default height was later raised would already overlap its neighbour in
@@ -234,6 +232,79 @@ export function DashboardLayoutEditor({
       "__load__",
     ),
   );
+
+  // T-448: `items` is rebuilt by every parent render (no useMemo at the
+  // call sites) and the load effect must run ONCE per storageKey (not per
+  // parent render) — the ref carries the fresh items without re-triggering.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  // StrictMode double-invokes effects in dev — the sentinel makes the
+  // server load idempotent (the second invocation is a no-op).
+  const serverLoadDoneFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (serverLoadDoneFor.current === storageKey) return;
+    serverLoadDoneFor.current = storageKey;
+
+    let cancelled = false;
+    void (async () => {
+      const loaded = await repos.dashboardLayouts.load(storageKey);
+      if (cancelled) return;
+      if (!loaded.ok) {
+        // Offline/degraded: the local cache (already applied in the state
+        // initializer) stays the working layout — honest degradation, the
+        // §15.63 keep-last-known convention.
+        logger.warn("dashboard-layout: server load failed; using local cache", {
+          viewKey: storageKey,
+          error: loaded.error.message,
+        });
+        return;
+      }
+
+      if (loaded.value) {
+        // The SAVED server layout WINS over any local residue (the owner's
+        // "reuse the exact same saved layout" contract — unsaved local
+        // leftovers never override an explicit save). Skipped while dirty:
+        // the user is mid-edit and their in-flight work takes precedence
+        // (their next explicit save will win).
+        const serverLayout = loaded.value as StoredDashboardLayout;
+        setDirty((currentlyDirty) => {
+          if (!currentlyDirty) {
+            setLayout(
+              resolveCollisions(
+                buildInitialLayout(itemsRef.current, serverLayout),
+                "__load__",
+              ),
+            );
+            // Refresh the offline cache so the next mount starts identical.
+            writeStoredLayout(storageKey, serverLayout);
+          }
+          return currentlyDirty;
+        });
+        return;
+      }
+
+      // No server row yet: if the user already had a local layout (saved in
+      // the localStorage-only era, or on a fresh profile with cache), PROMOTE
+      // it to the server ONCE — the "configure once, never again" migration
+      // for pre-T-448 layouts. A failed promotion is NOT an error: the next
+      // mount retries it.
+      const local = readStoredLayout(storageKey);
+      if (Object.keys(local).length > 0) {
+        const promoted = await repos.dashboardLayouts.save(storageKey, local);
+        if (!promoted.ok) {
+          logger.warn(
+            "dashboard-layout: one-time promotion of the local layout deferred (will retry on next mount)",
+            { viewKey: storageKey, error: promoted.error.message },
+          );
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [repos.dashboardLayouts, storageKey]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -376,18 +447,40 @@ export function DashboardLayoutEditor({
   function persistNow() {
     writeStoredLayout(storageKey, layout);
     setDirty(false);
+    setSaveState(null);
     onSave?.();
+    // T-448: the EXPLICIT save — the one and only path that updates the
+    // saved server configuration ("only update the saved configuration when
+    // I explicitly change and save it"). The local cache above keeps the
+    // layout usable offline whatever the server outcome.
+    void repos.dashboardLayouts.save(storageKey, layout).then((result) => {
+      setSaveState(result.ok ? "saved" : "save-failed");
+      if (!result.ok) {
+        logger.warn("dashboard-layout: server save failed", {
+          viewKey: storageKey,
+          error: result.error.message,
+        });
+      }
+    });
   }
 
   function reset() {
-    try {
-      localStorage.removeItem(STORAGE_PREFIX + storageKey);
-    } catch {
-      // Ignore persistence failures.
-    }
-    setLayout(buildInitialLayout(items, {}));
+    removeDashboardLayoutCache(storageKey);
+    setLayout(buildInitialLayout(itemsRef.current, {}));
     setDirty(false);
+    setSaveState(null);
     onReset?.();
+    // T-448: Réinitialiser clears the SAVED configuration too — the saved
+    // row must go, or the next mount would resurrect the layout the user
+    // just reset (the server row wins on load).
+    void repos.dashboardLayouts.clear(storageKey).then((result) => {
+      if (!result.ok) {
+        logger.warn("dashboard-layout: server clear failed", {
+          viewKey: storageKey,
+          error: result.error.message,
+        });
+      }
+    });
   }
 
   const contentRows = useMemo(() => layoutBottom(layout), [layout]);
@@ -396,7 +489,20 @@ export function DashboardLayoutEditor({
     <>
       {editing && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-          <span>Mode personnalisation actif — chaque bloc a une poignée de déplacement et un coin de redimensionnement.</span>
+          <span>
+            Mode personnalisation actif — chaque bloc a une poignée de déplacement et un coin de redimensionnement.
+            {/* T-448: the explicit save's honest outcome (fail-loud inline). */}
+            {saveState === "saved" && (
+              <span className="ml-2 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 dark:text-emerald-400">
+                Disposition enregistrée
+              </span>
+            )}
+            {saveState === "save-failed" && (
+              <span className="ml-2 rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
+                Serveur injoignable — conservé localement, réessayez
+              </span>
+            )}
+          </span>
           <div className="flex items-center gap-1.5 shrink-0">
             <button type="button" onClick={reset} className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-panel px-2 py-1 hover:bg-muted">
               <RotateCcw className="h-3 w-3" /> Réinitialiser
