@@ -28,6 +28,11 @@ import {
   deriveTrancheWaves as deriveStatisticsWaves,
 } from "../../features/dashboard/components/analytics/executive-statistics";
 import { WaveVelocityCard } from "../../features/dashboard/components/analytics/executive-cards";
+// T-447: the canonical pooled + non-wave derivations (the card's new props).
+import {
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
+} from "../../domain/calc/payment/tranche-waves";
 import {
   deriveTrancheWaves as deriveFinanceStrip,
   TrancheWaveHeader,
@@ -75,6 +80,19 @@ const FUTURE_120D = new Date(NOW + 120 * DAY).toISOString();
 const SEPT15_2026 = "2026-09-15T00:00:00.000Z";
 const OCT15_2026 = "2026-10-15T00:00:00.000Z";
 
+
+/** T-447: render the card with its full prop contract (pooled + nonWave + the one clock). */
+function renderWaveCard(rows: readonly Installment[], now: number) {
+  render(
+    <WaveVelocityCard
+      waves={deriveStatisticsWaves(rows, now)}
+      pooled={derivePooledTrancheWaves(rows, now)}
+      nonWave={deriveNonWaveSummary(rows, now)}
+      nowEpochMs={now}
+    />,
+  );
+}
+
 describe("T-435 (UI-317) — the canonical stats carry the wave's due-date RANGE", () => {
   it("a wave whose rows share one date (the official schedule) has dueDateMin === dueDateMax", () => {
     const stats = deriveTrancheWaveStats(
@@ -104,25 +122,23 @@ describe("T-435 (UI-317) — the canonical stats carry the wave's due-date RANGE
 
 describe("T-435 (UI-317) — the Statistics wave card renders the RANGE", () => {
   it("a uniform wave renders the single date (no range arrow)", () => {
-    const waves = deriveStatisticsWaves(
+    renderWaveCard(
       [mk({ parentId: "p1", dueDate: PAST_30D, trancheNumber: 1 })],
       NOW,
     );
-    render(<WaveVelocityCard waves={waves} />);
     const line = screen.getByTestId("wave-due-1").textContent ?? "";
     expect(line).toContain("Échéance :");
     expect(line).not.toContain("→");
   });
 
   it("a drifted wave renders 'min → max' (the spread is visible, never collapsed)", () => {
-    const waves = deriveStatisticsWaves(
+    renderWaveCard(
       [
         mk({ parentId: "p1", dueDate: PAST_60D, trancheNumber: 1 }),
         mk({ parentId: "p2", dueDate: PAST_30D, trancheNumber: 1 }),
       ],
       NOW,
     );
-    render(<WaveVelocityCard waves={waves} />);
     const line = screen.getByTestId("wave-due-1").textContent ?? "";
     expect(line).toContain("→");
     // The days-late anchor stays the EARLIEST date (the wave's phase input).

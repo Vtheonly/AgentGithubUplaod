@@ -22,6 +22,12 @@ import { InsightsRail } from "../components/insights-rail";
 import { DashboardCalendar } from "../dashboard-calendar";
 import { WaveVelocityCard } from "../components/analytics/executive-cards";
 import { deriveTrancheWaves, deriveDebtTriage } from "../components/analytics/executive-statistics";
+// T-447 (STATS-401): the canonical pooled + non-wave derivations (the
+// wave hero's new props — the exact-dinar parity objects).
+import {
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
+} from "../../../domain/calc/payment/tranche-waves";
 import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
 import type { DashboardKpi, RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
 import type { DebtSummary, Payment, Installment } from "../../../domain/model/payment";
@@ -67,6 +73,10 @@ export function OverviewTab({
 
   const nowEpochMs = Date.now();
   const waves = deriveTrancheWaves(installments, nowEpochMs);
+  // T-447: the pooled all-categories analysis + the non-wave rows — the
+  // SAME canonical objects the Statistics tab's main cards render.
+  const pooledWaves = derivePooledTrancheWaves(installments, nowEpochMs);
+  const nonWaveSummary = deriveNonWaveSummary(installments, nowEpochMs);
   const triage = deriveDebtTriage(installments, nowEpochMs, debtThresholds);
   const chronicAmount = triage.buckets.find((b) => b.bucket === "chronic")?.amount ?? 0;
   const chronicFamilies = triage.buckets.find((b) => b.bucket === "chronic")?.familyCount ?? 0;
@@ -197,7 +207,7 @@ export function OverviewTab({
       maxW: 12,
       minH: 6,
       maxH: 16,
-      content: <WaveVelocityCard waves={waves} variant="hero" />,
+      content: <WaveVelocityCard waves={waves} pooled={pooledWaves} nonWave={nonWaveSummary} nowEpochMs={nowEpochMs} variant="hero" />,
     },
     {
       id: "recovery-funnel",

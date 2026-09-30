@@ -266,7 +266,11 @@ describe("T-447 — deriveNonWaveSummary (FI + unnumbered + out-of-range)", () =
       mk({ id: "fi-1", trancheNumber: 0, label: "Frais d'inscription (FI)", amountDue: 10_000, amountPaid: 10_000, status: "paid" }),
       mk({ id: "tu1-1", trancheNumber: 1, amountDue: 80_000 }),
       mk({ id: "full-1", trancheNumber: undefined, label: "Année complète", amountDue: 240_000, amountPaid: 0, parentId: "fam-e" }),
-      mk({ id: "legacy-4", trancheNumber: 4, label: "Tranche 4 (legacy)", amountDue: 80_000, parentId: "fam-f" }),
+      // The legacy phantom T4: outside the typed 0..3 contract (it can
+      // only arrive via legacy/untyped rows) — the derivation's
+      // out-of-range arm is deliberately defensive; the cast documents
+      // that this test exercises the UNTYPED legacy shape.
+      mk({ id: "legacy-4", trancheNumber: 4 as Installment["trancheNumber"], label: "Tranche 4 (legacy)", amountDue: 80_000, parentId: "fam-f" }),
     ];
     const nonWave = deriveNonWaveSummary(rows, NOW);
     expect(nonWave.map((g) => g.kind)).toEqual(["fi", "unnumbered", "out_of_range"]);
@@ -285,7 +289,7 @@ describe("T-447 — deriveNonWaveSummary (FI + unnumbered + out-of-range)", () =
     const rows = [
       mk({ id: "fi-1", trancheNumber: 0 }),
       mk({ id: "full-1", trancheNumber: undefined }),
-      mk({ id: "legacy-4", trancheNumber: 4 }),
+      mk({ id: "legacy-4", trancheNumber: 4 as Installment["trancheNumber"] }),
     ];
     expect(derivePooledTrancheWaves(rows, NOW)).toEqual([]);
     expect(deriveTrancheWaveStats(rows, NOW)).toEqual([]);

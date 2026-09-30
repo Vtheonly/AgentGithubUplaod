@@ -23,6 +23,11 @@ import type { ReactNode } from "react";
 import "../../i18n/i18n";
 import { deriveTrancheWaves as deriveStatisticsWaves } from "../../features/dashboard/components/analytics/executive-statistics";
 import { WaveVelocityCard } from "../../features/dashboard/components/analytics/executive-cards";
+// T-447: the canonical pooled + non-wave derivations (the card's new props).
+import {
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
+} from "../../domain/calc/payment/tranche-waves";
 import {
   deriveTrancheWaves as deriveFinanceStrip,
   TrancheWaveHeader,
@@ -61,24 +66,35 @@ const PAST_30D = new Date(NOW - 30 * DAY).toISOString();
 const FUTURE_90D = new Date(NOW + 90 * DAY).toISOString();
 const SEPT15 = "2026-09-15T00:00:00.000Z";
 
+
+/** T-447: render the card with its full prop contract (pooled + nonWave + the one clock). */
+function renderWaveCard(rows: readonly Installment[], now: number) {
+  render(
+    <WaveVelocityCard
+      waves={deriveStatisticsWaves(rows, now)}
+      pooled={derivePooledTrancheWaves(rows, now)}
+      nonWave={deriveNonWaveSummary(rows, now)}
+      nowEpochMs={now}
+    />,
+  );
+}
+
 describe("T-434 (UI-316) — the Statistics wave card shows its échéance", () => {
   it("an overdue wave renders the due date AND the days late (the red verdict's visible cause)", () => {
-    const waves = deriveStatisticsWaves(
+    renderWaveCard(
       [mk({ parentId: "p1", dueDate: PAST_30D, trancheNumber: 1 })],
       NOW,
     );
-    render(<WaveVelocityCard waves={waves} />);
     const line = screen.getByTestId("wave-due-1").textContent ?? "";
     expect(line).toContain("Échéance :");
     expect(line).toMatch(/— \d+ j de retard/);
   });
 
   it("the live T1 shape (due Sept 15, phase overdue) renders the Sept 15 échéance", () => {
-    const waves = deriveStatisticsWaves(
+    renderWaveCard(
       [mk({ parentId: "p1", dueDate: SEPT15, trancheNumber: 1 })],
       new Date("2026-09-28T12:00:00.000Z").getTime(),
     );
-    render(<WaveVelocityCard waves={waves} />);
     const line = screen.getByTestId("wave-due-1").textContent ?? "";
     expect(line).toContain("15");
     expect(line).toContain("sept.");
@@ -86,11 +102,10 @@ describe("T-434 (UI-316) — the Statistics wave card shows its échéance", () 
   });
 
   it("a not-yet-due wave renders 'dans N j' and NEVER 'de retard' (T2/T3 are the future waves)", () => {
-    const waves = deriveStatisticsWaves(
+    renderWaveCard(
       [mk({ parentId: "p1", dueDate: FUTURE_90D, trancheNumber: 2 })],
       NOW,
     );
-    render(<WaveVelocityCard waves={waves} />);
     const line = screen.getByTestId("wave-due-2").textContent ?? "";
     expect(line).toContain("Échéance :");
     expect(line).toMatch(/— dans \d+ j/);
@@ -100,11 +115,10 @@ describe("T-434 (UI-316) — the Statistics wave card shows its échéance", () 
   });
 
   it("a CLOSED wave (remaining 0) never claims lateness, even past its due date", () => {
-    const waves = deriveStatisticsWaves(
+    renderWaveCard(
       [mk({ parentId: "p1", dueDate: PAST_30D, amountPaid: 100_000, status: "paid", trancheNumber: 1 })],
       NOW,
     );
-    render(<WaveVelocityCard waves={waves} />);
     const line = screen.getByTestId("wave-due-1").textContent ?? "";
     expect(line).toContain("Échéance :");
     expect(line).not.toContain("de retard");
@@ -112,14 +126,13 @@ describe("T-434 (UI-316) — the Statistics wave card shows its échéance", () 
   });
 
   it("an overdue TRANSPORT wave in the auxiliary grid carries its échéance + 'en retard'", () => {
-    const waves = deriveStatisticsWaves(
+    renderWaveCard(
       [
         mk({ parentId: "p1", dueDate: PAST_30D, trancheNumber: 1, category: "transport" }),
         mk({ parentId: "p1", dueDate: PAST_30D, trancheNumber: 1 }), // tuition keeps the grid alive
       ],
       NOW,
     );
-    render(<WaveVelocityCard waves={waves} />);
     const others = screen.getByTestId("wave-others").textContent ?? "";
     expect(others).toContain("échéance");
     expect(others).toContain("en retard");

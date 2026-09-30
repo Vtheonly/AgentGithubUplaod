@@ -42,6 +42,13 @@ import {
   derivePayrollCostTrend,
   SERVICE_CATEGORIES,
 } from "../components/analytics/executive-statistics";
+// T-447 (STATS-401): the canonical POOLED all-categories derivation + the
+// non-wave summary — the parity objects the main wave cards render (the
+// SAME rows the Finance Tranches strip consumes).
+import {
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
+} from "../../../domain/calc/payment/tranche-waves";
 import {
   WaveVelocityCard,
   DiscountErosionCard,
@@ -191,9 +198,28 @@ export function AnalyticsTab({
     riskDebt,
   ]);
 
+  // T-447 (STATS-401): ONE clock for the wave/triage/concentration
+  // derivations — computed once per data change so the phase AND the
+  // days-late agree (§15.54d: the card receives this value, never its own
+  // Date.now()). The `installments` dep is DELIBERATE (re-pin the clock
+  // when the data changes — the derivation memo's own freshness anchor);
+  // eslint's exhaustive-deps cannot see that intent.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const waveNow = useMemo(() => Date.now(), [installments]);
   const waves = useMemo(
-    () => deriveTrancheWaves(installments, Date.now()),
-    [installments],
+    () => deriveTrancheWaves(installments, waveNow),
+    [installments, waveNow],
+  );
+  // T-447: the canonical pooled all-categories T1/T2/T3 analysis (the
+  // main wave cards) + the non-wave summary (FI etc.) — derived from the
+  // SAME rows at the SAME clock as the per-category detail above.
+  const pooledWaves = useMemo(
+    () => derivePooledTrancheWaves(installments, waveNow),
+    [installments, waveNow],
+  );
+  const nonWaveSummary = useMemo(
+    () => deriveNonWaveSummary(installments, waveNow),
+    [installments, waveNow],
   );
   const triage = useMemo(
     () => deriveDebtTriage(installments, Date.now(), debtThresholdsActive),
@@ -383,7 +409,7 @@ export function AnalyticsTab({
       maxW: 12,
       minH: 6,
       maxH: 18,
-      content: <WaveVelocityCard waves={waves} />,
+      content: <WaveVelocityCard waves={waves} pooled={pooledWaves} nonWave={nonWaveSummary} nowEpochMs={waveNow} />,
     },
     {
       id: "pilotage-debt",

@@ -13,8 +13,6 @@ import {
   Scale,
   Radar,
   AlertTriangle,
-  TrendingDown,
-  Calendar,
   CheckCircle2,
   Clock,
 } from "lucide-react";
@@ -28,20 +26,11 @@ import {
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import { formatDueDateRange } from "../../../../core/format/date";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../../../domain/model/payment";
-import type { Payment } from "../../../../domain/model/payment";
-import type { Installment } from "../../../../domain/model/payment";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
-import type { Student } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
-import type { AcademicClass } from "../../../../domain/model/academic";
 import {
-  deriveTrancheWaves,
   deriveDiscountErosion,
-  deriveDebtTriage,
-  deriveFamilyConcentration,
-  deriveTransportYield,
   deriveServiceYield,
-  deriveEnrollmentDynamics,
   deriveTripleRiskSummary,
   daysBetweenFloor,
   type TrancheWave,
@@ -51,27 +40,65 @@ import {
   type EnrollmentDynamics,
 } from "./executive-statistics";
 import type { StudentRiskProfile } from "./operational-query-engine";
+// T-447 (STATS-401): the canonical POOLED derivation + the non-wave
+// summary — the parity objects the main wave cards render (the SAME
+// rows the Finance Tranches strip consumes).
+import {
+  emptyPooledWave,
+  type PooledTrancheWave,
+  type NonWaveCategoryStats,
+} from "../../../../domain/calc/payment/tranche-waves";
 import { TRANSPORT_DESTINATION_LABELS_FR } from "../../../../domain/model/parent";
 
+// T-447 (STATS-401 / §15.65a): the subtitles state the ALL-CATEGORIES
+// basis and NEVER fold the registration fee into T1 — FI is tranche 0, a
+// non-wave row with its own "hors tranches" section on the card. The old
+// "Rentrée & Inscription" T1 subtitle contradicted the billing model.
 const WAVE_TITLES: Record<number, { title: string; subtitle: string }> = {
-  1: { title: "Tranche 1 (T1)", subtitle: "Rentrée & Inscription (Sept)" },
-  2: { title: "Tranche 2 (T2)", subtitle: "Mi-parcours scolaire (Déc)" },
-  3: { title: "Tranche 3 (T3)", subtitle: "Clôture de scolarité (Mars)" },
+  1: { title: "Tranche 1 (T1)", subtitle: "Toutes catégories — 1er versement (Sept)" },
+  2: { title: "Tranche 2 (T2)", subtitle: "Toutes catégories — mi-parcours (Déc)" },
+  3: { title: "Tranche 3 (T3)", subtitle: "Toutes catégories — clôture (Mars)" },
 };
 
 export function WaveVelocityCard({
   waves,
+  pooled,
+  nonWave,
+  nowEpochMs,
   variant = "full",
 }: {
+  /** The per-category wave detail (the canonical view models — the breakdown grid). */
   waves: TrancheWave[];
+  /**
+   * T-447 (STATS-401): the canonical POOLED all-categories T1/T2/T3
+   * analysis — the SAME `PooledTrancheWave` rows the Finance Tranches
+   * strip consumes (derivePooledTrancheWaves). The MAIN wave cards render
+   * these rows: every billing category pooled per wave, the numbers
+   * matching Finance to the exact dinar by construction (one derivation,
+   * two presentations).
+   */
+  pooled: PooledTrancheWave[];
+  /**
+   * T-447: the non-wave rows (FI / unnumbered / out-of-range) — the
+   * categories the wave model excludes BY DESIGN, rendered in their own
+   * "hors tranches" section so the analysis covers every revenue
+   * commitment with nothing silently dropped.
+   */
+  nonWave: NonWaveCategoryStats[];
+  /** The derivation's clock (§15.54d — ONE now for the phase AND the days-late). */
+  nowEpochMs: number;
   variant?: "full" | "hero";
 }) {
-  const tuition = waves.filter((w) => w.category === "tuition");
-  const others = waves.filter((w) => w.category !== "tuition");
-  const totalDue = waves.reduce((s, w) => s + w.dueTotal, 0);
-  const totalPaid = waves.reduce((s, w) => s + w.paidTotal, 0);
-  const totalRemaining = waves.reduce((s, w) => s + w.remainingTotal, 0);
+  const totalDue = pooled.reduce((s, w) => s + w.dueTotal, 0);
+  const totalPaid = pooled.reduce((s, w) => s + w.paidTotal, 0);
+  const totalPending = pooled.reduce((s, w) => s + w.pendingTotal, 0);
+  const totalRemaining = pooled.reduce((s, w) => s + w.remainingTotal, 0);
   const globalPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+  // The fixed T1..T3 slots — waves with no rows render the honest zero state.
+  const slots: PooledTrancheWave[] = ([1, 2, 3] as const).map(
+    (wave) => pooled.find((p) => p.wave === wave) ?? emptyPooledWave(wave),
+  );
+  const hasAnyRow = pooled.length > 0 || nonWave.length > 0;
 
   return (
     <Card
@@ -85,15 +112,21 @@ export function WaveVelocityCard({
             Vélocité de Recouvrement par Vague Saisonnière
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Échéancier réel par tranche (Septembre · Décembre · Mars)
+            Analyse T1/T2/T3 toutes catégories (Scolarité, Transport, FI, services) — parité
+            exacte avec l'onglet Finances → Tranches
           </CardDescription>
         </div>
 
-        {waves.length > 0 && (
+        {hasAnyRow && (
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold">
               {globalPct}% collecté global
             </span>
+            {totalPending > 0 && (
+              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20 font-semibold">
+                {formatDzd(totalPending, { compact: true })} en cours
+              </span>
+            )}
             <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-danger/10 text-status-danger border border-status-danger/20 font-semibold">
               {formatDzd(totalRemaining, { compact: true })} restant
             </span>
@@ -102,7 +135,7 @@ export function WaveVelocityCard({
       </CardHeader>
 
       <CardContent className="p-4 space-y-4 flex-1">
-        {waves.length === 0 ? (
+        {!hasAnyRow ? (
           <p
             className="text-xs text-muted-foreground text-center py-10"
             data-testid="wave-velocity-empty"
@@ -111,46 +144,45 @@ export function WaveVelocityCard({
           </p>
         ) : (
           <>
-            {/* The 3 Main Tuition Waves */}
+            {/* T-447 (STATS-401): the MAIN T1/T2/T3 analysis — the canonical
+                POOLED rows (every billing category per wave). These are the
+                exact numbers the Finance Tranches strip renders over the
+                same rows: due = paid + pending + remaining (+
+                over-coverage), to the dinar. The PREVIOUS main grid
+                filtered to tuition only — the owner's parity complaint. */}
             <div
               className="grid grid-cols-1 md:grid-cols-3 gap-3.5"
-              data-testid="wave-tuition-grid"
+              data-testid="wave-pooled-grid"
             >
-              {tuition.map((w) => {
-                const isOverdue = w.phase === "overdue";
+              {slots.map((w) => {
+                const isOverdue = w.anyUnsettledOverdue;
                 // T-427 (DATA-048, issue #24 Track 2 item 4): a wave is
                 // "Clôturée" only when NOTHING remains to collect
-                // (`remainingTotal === 0` — the canonical INV-4 basis,
-                // consistent with isInstallmentSettled). The previous
-                // `collectedPct >= 95` marked waves with millions of DZD
-                // still outstanding as closed (a rounding-threshold lie).
-                const isComplete = w.remainingTotal === 0;
+                // (`remainingTotal === 0` — the canonical INV-4 basis).
+                const isComplete = w.remainingTotal === 0 && w.installmentCount > 0;
                 const statusTone = isComplete
                   ? "success"
                   : isOverdue
                     ? "danger"
                     : "info";
-                // T-434 (UI-316, the owner's "why is Tranche 1 red — is
-                // it not due yet?" question): the wave's échéance is ON
-                // the card. The overdue verdict was CORRECT (T1 is due
-                // Sept 15 on the owner-confirmed official schedule —
-                // live-verified by the t-434 probe: phase=overdue,
-                // 548 owing families), but the card never SHOWED the due
-                // date, so the red state had no visible cause. Now every
-                // card carries its anchor date + the days late (the
-                // daysBetweenFloor convention: a wave due TODAY is 0 days
-                // late, never 1).
-                const daysLate = w.dueDate ? daysBetweenFloor(w.dueDate, Date.now()) : 0;
+                // T-434 (UI-316): the wave's échéance is ON the card (the
+                // red verdict's visible cause). T-447: ONE clock — the
+                // derivation's nowEpochMs (the old code recomputed
+                // Date.now() at render and could disagree with the phase).
+                const dueIso =
+                  w.dueDateMin !== null ? new Date(w.dueDateMin).toISOString() : null;
+                const dueIsoMax =
+                  w.dueDateMax !== null ? new Date(w.dueDateMax).toISOString() : null;
+                const daysLate = dueIso ? daysBetweenFloor(dueIso, nowEpochMs) : 0;
                 const dueLineTone =
                   isOverdue && !isComplete ? "text-status-danger" : "text-muted-foreground";
                 // T-435 (UI-317): the wave's due-date RANGE (min → max when
-                // the rows drifted off the official schedule; the single
-                // date when they all share one).
-                const dueRangeLabel = formatDueDateRange(w.dueDate, w.dueDateMax);
+                // the rows drifted off the official schedule).
+                const dueRangeLabel = formatDueDateRange(dueIso, dueIsoMax);
 
                 return (
                   <div
-                    key={`${w.category}-${w.wave}`}
+                    key={`pooled-${w.wave}`}
                     className="rounded-xl border border-border/80 bg-surface-elevated/30 p-3.5 space-y-3 transition-all hover:border-border hover:bg-surface-elevated/60"
                     data-testid={`wave-meter-${w.wave}`}
                   >
@@ -161,11 +193,8 @@ export function WaveVelocityCard({
                           {WAVE_TITLES[w.wave]?.title ?? `Tranche ${w.wave}`}
                         </h4>
                         <p className="text-[11px] text-muted-foreground">
-                          {WAVE_TITLES[w.wave]?.subtitle ?? "Scolarité"}
+                          {WAVE_TITLES[w.wave]?.subtitle ?? "Toutes catégories"}
                         </p>
-                        {/* T-434 (UI-316): the échéance + the lateness — the
-                            red verdict's visible cause. T-435 (UI-317): the
-                            RANGE when the wave's dates spread. */}
                         {dueRangeLabel && (
                           <p
                             className={`text-[10px] font-mono ${dueLineTone}`}
@@ -212,7 +241,7 @@ export function WaveVelocityCard({
                           {w.collectedPct}%
                         </span>
                         <span className="text-xs font-mono text-muted-foreground">
-                          {w.paidCount}/{w.installmentCount} dossiers
+                          {w.settledCount}/{w.installmentCount} dossiers
                         </span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
@@ -231,7 +260,10 @@ export function WaveVelocityCard({
                       </div>
                     </div>
 
-                    {/* 2x2 Metric Grid */}
+                    {/* 2x3 Metric Grid — T-447: the "En cours" (pending) leg
+                        joins the card so the mandate's Total Due = Paid +
+                        Pending + Remaining identity is verifiable at a
+                        glance (Facturé = Encaissé + En cours + Reste dû). */}
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40 text-[11px]">
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
@@ -251,6 +283,20 @@ export function WaveVelocityCard({
                       </div>
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
+                          En cours
+                        </span>
+                        <span
+                          className={`font-mono font-semibold ${
+                            w.pendingTotal > 0
+                              ? "text-status-info"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatDzdPlain(w.pendingTotal)}
+                        </span>
+                      </div>
+                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
                           Reste dû
                         </span>
                         <span
@@ -264,18 +310,14 @@ export function WaveVelocityCard({
                         </span>
                       </div>
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
-                        {/* T-427 (DATA-048, issue #24 Track 4 item 2): the
-                            sub-label is PHASE-DRIVEN — an overdue wave counts
-                            its actually-late families (past-due, owing:
-                            overdueDebtorFamilyCount, never a future
-                            tranche's current balance); a future wave's
-                            owing families are "à échoir" / "non soldées" —
-                            the static "Familles en retard" label on T2/T3
-                            was the mislabel the audit reported. */}
+                        {/* T-427 (DATA-048): the sub-label is PHASE-DRIVEN —
+                            an overdue wave counts its actually-late
+                            families; a future wave's owing families are "à
+                            échoir" / "non soldées". */}
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
                           {isOverdue
                             ? "Familles en retard"
-                            : w.phase === "not_due"
+                            : w.anyUnsettledFuture
                               ? "Familles à échoir"
                               : "Familles non soldées"}
                         </span>
@@ -292,59 +334,176 @@ export function WaveVelocityCard({
                           {w.familyCount}
                         </span>
                       </div>
+                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
+                          Catégories
+                        </span>
+                        <span className="font-mono font-semibold text-foreground">
+                          {w.perCategory.length}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* The reconciliation line (T-447): the mandate's
+                        Total Due = Paid + Pending + Remaining, stated with
+                        the wave's own numbers; the over-coverage leg
+                        appears only when funds exceed the due (parent
+                        credit ON the rows) so the identity is exact. */}
+                    <p
+                      className="text-[10px] font-mono text-muted-foreground leading-relaxed"
+                      data-testid={`wave-identity-${w.wave}`}
+                    >
+                      Total dû {formatDzdPlain(w.dueTotal)} = Encaissé{" "}
+                      {formatDzdPlain(w.paidTotal)} + En cours{" "}
+                      {formatDzdPlain(w.pendingTotal)} + Reste dû{" "}
+                      {formatDzdPlain(w.remainingTotal)}
+                      {w.overCoverageTotal > 0
+                        ? ` (+ ${formatDzdPlain(w.overCoverageTotal)} couverts au-delà)`
+                        : ""}
+                    </p>
+
+                    {/* The per-category breakdown (T-447): every category
+                        with a row in the wave — the audit trail that no
+                        revenue category is silently excluded from the main
+                        analysis. */}
+                    {w.perCategory.length > 0 && (
+                      <div
+                        className="flex flex-wrap gap-1.5"
+                        data-testid={`wave-categories-${w.wave}`}
+                      >
+                        {w.perCategory.map((c) => (
+                          <span
+                            key={c.category}
+                            className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-surface-panel/70 border border-border/50 text-muted-foreground"
+                            title={`${PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category} — facturé ${formatDzdPlain(
+                              c.dueTotal,
+                            )}, encaissé ${formatDzdPlain(c.paidTotal)}, reste dû ${formatDzdPlain(
+                              c.remainingTotal,
+                            )}`}
+                          >
+                            {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}{" "}
+                            <span className="text-foreground font-semibold">{c.dueTotal > 0 ? Math.round((c.paidTotal / c.dueTotal) * 100) : 0}%</span>
+                            {c.remainingTotal > 0 && (
+                              <span className="text-status-danger">
+                                · {formatDzd(c.remainingTotal, { compact: true })}
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
 
-            {/* Other auxiliary waves */}
-            {others.length > 0 && variant === "full" && (
+            {/* T-447: the NON-WAVE section — the registration fee (FI) and
+                every other commitment the wave model excludes BY DESIGN
+                (unnumbered "Année complète" rows, legacy out-of-range
+                rows). Surfaced explicitly so the analysis covers ALL
+                revenue/commitment categories — visible, never silently
+                dropped. */}
+            {nonWave.length > 0 && variant === "full" && (
+              <div
+                className="pt-2 border-t border-border/40 space-y-2"
+                data-testid="wave-nonwave"
+              >
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                  Hors Tranches — Inscription & Engagements Non-Tranches
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                  {nonWave.map((g) => {
+                    const label =
+                      g.kind === "fi"
+                        ? "Frais d'inscription (FI)"
+                        : g.kind === "unnumbered"
+                          ? `${PAYMENT_CATEGORY_LABELS_FR[g.category] ?? g.category} — hors tranche`
+                          : `${PAYMENT_CATEGORY_LABELS_FR[g.category] ?? g.category} — hors bornes`;
+                    const dueIsoMin =
+                      g.dueDateMin !== null ? new Date(g.dueDateMin).toISOString() : null;
+                    const dueIsoMax =
+                      g.dueDateMax !== null ? new Date(g.dueDateMax).toISOString() : null;
+                    const range = formatDueDateRange(dueIsoMin, dueIsoMax);
+                    return (
+                      <div
+                        key={`${g.kind}-${g.category}`}
+                        className="rounded-lg border border-border/60 bg-surface-elevated/20 p-2.5 flex items-center justify-between gap-3 text-xs"
+                        data-testid={`wave-nonwave-${g.kind}`}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">
+                            {label}
+                            <span className="text-muted-foreground"> · {g.installmentCount} engagement{g.installmentCount > 1 ? "s" : ""}</span>
+                          </p>
+                          <p
+                            className={`text-[10px] font-mono truncate ${
+                              g.remainingTotal > 0
+                                ? "text-status-danger"
+                                : "text-status-success"
+                            }`}
+                          >
+                            {formatDzd(g.remainingTotal, { compact: true })} restants
+                            {range ? ` · échéance ${range}` : ""}
+                            {g.remainingTotal === 0 && g.installmentCount > 0 ? " · soldé" : ""}
+                          </p>
+                        </div>
+                        <span className="font-mono font-bold text-foreground shrink-0">
+                          {g.dueTotal > 0 ? Math.round((g.paidTotal / g.dueTotal) * 100) : 0}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* The per-category wave detail (the breakdown view — the
+                canonical per-(category × wave) view models). Kept as the
+                detail layer under the pooled main cards: same rows, the
+                category-by-category reading. */}
+            {waves.length > 0 && variant === "full" && (
               <div
                 className="pt-2 border-t border-border/40 space-y-2"
                 data-testid="wave-others"
               >
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Autres Vagues de Facturation (Transport & Services)
+                  Détail par Catégorie de Facturation
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                  {others.map((w) => {
-                    // T-435 (UI-317): the due-date RANGE on the auxiliary
+                  {waves.map((w) => {
+                    // T-435 (UI-317): the due-date RANGE on the detail
                     // waves too (the single date when the rows share one).
                     const auxDue = formatDueDateRange(w.dueDate, w.dueDateMax);
                     return (
-                    <div
-                      key={`${w.category}-${w.wave}`}
-                      className="rounded-lg border border-border/60 bg-surface-elevated/20 p-2.5 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">
-                          {PAYMENT_CATEGORY_LABELS_FR[w.category] ?? w.category}{" "}
-                          · T{w.wave}
-                        </p>
-                        {/* T-434 (UI-316): the échéance on the auxiliary
-                            waves too — transport T1 shares the tuition
-                            schedule (Sept 15), and its overdue state needs
-                            the same visible anchor. */}
-                        <p
-                          className={`text-[10px] font-mono truncate ${
-                            w.phase === "overdue" && w.remainingTotal > 0
-                              ? "text-status-danger"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {formatDzd(w.remainingTotal, { compact: true })}{" "}
-                          restants
-                          {auxDue ? ` · échéance ${auxDue}` : ""}
-                          {w.phase === "overdue" && w.remainingTotal > 0
-                            ? " · en retard"
-                            : ""}
-                        </p>
+                      <div
+                        key={`${w.category}-${w.wave}`}
+                        className="rounded-lg border border-border/60 bg-surface-elevated/20 p-2.5 flex items-center justify-between gap-3 text-xs"
+                        data-testid={`wave-detail-${w.category}-${w.wave}`}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">
+                            {PAYMENT_CATEGORY_LABELS_FR[w.category] ?? w.category}{" "}
+                            · T{w.wave}
+                          </p>
+                          <p
+                            className={`text-[10px] font-mono truncate ${
+                              w.phase === "overdue" && w.remainingTotal > 0
+                                ? "text-status-danger"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {formatDzd(w.remainingTotal, { compact: true })}{" "}
+                            restants
+                            {auxDue ? ` · échéance ${auxDue}` : ""}
+                            {w.phase === "overdue" && w.remainingTotal > 0
+                              ? " · en retard"
+                              : ""}
+                          </p>
+                        </div>
+                        <span className="font-mono font-bold text-foreground">
+                          {w.collectedPct}%
+                        </span>
                       </div>
-                      <span className="font-mono font-bold text-foreground">
-                        {w.collectedPct}%
-                      </span>
-                    </div>
                     );
                   })}
                 </div>
@@ -925,107 +1084,5 @@ export function TripleRiskSummaryCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-export function ExecutiveDashboard({
-  installments,
-  ledger,
-  students,
-  parents,
-  classes,
-  payments,
-  riskProfiles,
-  nowEpochMs,
-}: {
-  installments: readonly Installment[];
-  ledger: readonly LedgerEntry[];
-  students: readonly Student[];
-  parents: readonly Parent[];
-  classes: readonly AcademicClass[];
-  payments: readonly Payment[];
-  riskProfiles: readonly StudentRiskProfile[];
-  nowEpochMs: number;
-}) {
-  const waves = useMemo(
-    () => deriveTrancheWaves(installments, nowEpochMs),
-    [installments, nowEpochMs],
-  );
-  const triage = useMemo(
-    () => deriveDebtTriage(installments, nowEpochMs),
-    [installments, nowEpochMs],
-  );
-  const concentration = useMemo(
-    () =>
-      deriveFamilyConcentration({
-        installments,
-        parents,
-        students,
-        nowEpochMs,
-      }),
-    [installments, parents, students, nowEpochMs],
-  );
-  const transport = useMemo(
-    () => deriveTransportYield({ students, installments }),
-    [students, installments],
-  );
-  const services = useMemo(
-    () => deriveServiceYield(payments, PAYMENT_CATEGORY_LABELS_FR),
-    [payments],
-  );
-  const dynamics = useMemo(
-    () => deriveEnrollmentDynamics({ students, parents, classes }),
-    [students, parents, classes],
-  );
-  const riskSummary = useMemo(
-    () => deriveTripleRiskSummary(riskProfiles),
-    [riskProfiles],
-  );
-
-  return (
-    <div className="space-y-4" data-testid="executive-dashboard">
-      {/* Row 1: Radar & Wave Hero */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-4">
-          <TripleRiskSummaryCard
-            summary={riskSummary}
-            profiles={riskProfiles}
-          />
-        </div>
-        <div className="lg:col-span-8">
-          <WaveVelocityCard waves={waves} />
-        </div>
-      </div>
-
-      {/* Row 2: Debt Triage & Discount Erosion */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-7">
-          <DebtTriageCard triage={triage} parents={parents} />
-        </div>
-        <div className="lg:col-span-5">
-          <DiscountErosionCard ledger={ledger} />
-        </div>
-      </div>
-
-      {/* Row 3: Family Risk Concentration & Enrollment Dynamics */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-7">
-          <FamilyConcentrationCard concentration={concentration} />
-        </div>
-        <div className="lg:col-span-5">
-          <EnrollmentDynamicsCard dynamics={dynamics} />
-        </div>
-      </div>
-
-      {/* Row 4: Auxiliary Logistics & Services */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-7">
-          <TransportYieldCard transport={transport} />
-        </div>
-        <div className="lg:col-span-5">
-          <ServiceYieldCard services={services} />
-        </div>
-      </div>
-    </div>
   );
 }
