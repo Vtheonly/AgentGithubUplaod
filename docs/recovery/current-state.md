@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session — T-456 + T-457: the INV-20e year-history Android surface + the §15.1 debt-status labels — PARITY-008/009 RESOLVED-TESTED; the Android suite 646/0)
+
+## Current state snapshot (2026-10-02, 128th session MID — T-457)
+
+**The second registered Android follow-up is delivered.** The debt surfaces now speak the canonical §15.1 vocabulary: every DebtSummary row carries the 4-tier status (level + the §15.3 label + the INV-16d explanation — the tier, the thresholds applied, the « Payeur actif » annotation), rendered on the Debt Dashboard and the Créances tab with the status-tone accents; the DebtTriageCard's call-list header derives « > redDays j » from the thresholds actually applied (the stale "> 45 j" corrected — the DEBT-101 (e) class on Android). The engine half: `deriveDebtAgingStatusFactors` (the §15 factor semantics — the INV-4 outstanding, the oldest-outstanding aging, the INV-16b never-paid default, the INV-15 subsequent-year flag, reusing the shared daysBetweenFloor) + the T-456 `computeDebtAgingStatus` port (the desktop's verbatim evaluation + explanation strings).
+
+**Gates:** DebtAgingTest 17/17 (the desktop's own T-429 hierarchy corpus — the tier boundaries 5/6, 15/16, 60/61; THE DECOUPLING pin; INV-16c; the custom-threshold boundaries + the active-payer window; the §15.3 wording table) · the FULL Android debug suite **646/0** (was 629: +17) · lint green · the android commits `aa0f577` (main `be584e1`) + the AGENTS.md lessons `e0e1fd7` (main `ad06805`).
+
+**The honest remaining:** the live `system_settings` thresholds reader on Android (the DEFAULTS — which ARE the live seed values — are used until then); the corpus `debt_status` comparator family (the unit suite pins the evaluation meanwhile); the aging-bucket FILTERS deliberately stay the census navigation.
+
+**Standing gates:** the owner's packaged-app pass (rebuild from main — the « Par année » drawer, the year-history section, AND the §15.3 status labels are new) · the LAST follow-up of the session's queue (the InfoTip glossary, T-458) · PARITY-005 · the T-436 `payment_allocations` backfill.
+
+---
+
 # Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session — T-456: the INV-20e per-year debt-history Android surface — PARITY-008 RESOLVED-TESTED; the Android suite 629/0)
 
 ## Current state snapshot (2026-10-02, 128th session CLOSE — T-456)
