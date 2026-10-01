@@ -5207,3 +5207,33 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Scope owner:** the owner's 2026-09-30 mandate (this session).
 **Next:** the standing queue (next-task.md).
 **Related:** UI-326 · T-447 (the Statistics surfaces whose layout keys this persists) · ADR-001 (the append-only chain) · §15.77 (the live-verification discipline) · docs/agents/git-workflow.md (the commit standard).
+
+## T-449 — The Full Android Financial-Logic Parity Audit (the owner's issue-#1 mandate: "Desktop is the absolute source of truth… the Android implementation must be brought into conformity… never the reverse") — the registration + the four-phase port plan
+
+**Problem IDs:** PARITY-006 (registered BEFORE the fix, §13 — the four-round engine staleness, the RED corpus proof, the eight enumerated divergences).
+**Priority:** P0 (the owner's explicit mandate — GitHub issue #1 on elimtiyaz-android, open 2026-10-01).
+**Status:** IN_PROGRESS (126th session, 2026-10-01 — the audit complete, the registration this commit; the fix phases follow).
+
+**The audit's established baseline (the evidence, this session):**
+1. **The corpus proof is RED:** `./gradlew testDebugUnitTest --tests "com.example.equivalence.CrossPlatformEquivalenceTest"` → `executive_statistics_live_shape triage.buckets[2].amount: values differ (desktop=4000000, android=0)` — the documented T-443 standing follow-up ("the corpus then-blocks changed, so the real-Kotlin parity run goes red until the mirror ports the same edges").
+2. **The live canonical state (Management-API census):** chain head `0134`; `system_settings` category `debt` = grace 5 / yellow 15 / red 60 / active-payer 15 (the 0125 seed, unmodified); installments = 1,137 rows at tranche 0 (FI) + 1,606/1,609/1,604 at tranches 1/2/3; `tranche_number` is NOT NULL with CHECK (0..3); zero prior-year unpaid rows (min due 2026-09-15) — the year-scoping divergence is latent-only today.
+3. **The Android last-sync point:** commit 12994e7 (T-340, 61st session, 2026-09-13) — every desktop financial round after that (T-405…T-447) is unported; the DiscountEngine is CALC-001-clean (f210cc4 — PARITY-005's Android half does not apply to the real engine).
+
+**The desktop-modification rule (the issue's §2, pinned for this task):** the desktop business logic is FROZEN as the reference; the ONLY desktop files this task may touch are (a) the corpus GENERATOR + the corpus `then` regeneration (when extending coverage — never hand-typed values, §15.75d) and (b) the corpus-runner aging op alignment (desktop_runner.ts — the STALE test harness, not production). Zero production-behavior changes desktop-side.
+
+**Phases (each = one Android commit, pushed, merged --no-ff per ADR-028; concurrent-agent discipline — new functions/files wherever possible, minimal hunks in shared files):**
+1. **Phase 1 — T-450, the T-443 triage-edges port:** `ExecDebtAgingThresholds` + `execDebtTriageLabels(thresholds)` + `deriveExecDebtTriage(…, thresholds = ExecDebtAgingThresholds.DEFAULT)` (the yellow/red mapping, the call list `> redDays`, the labels carrying the configured numbers) + the boundary unit tests (15/60 edges) → the executive_statistics corpus leg GREEN.
+2. **Phase 2 — T-451, the T-424/T-425/T-427/T-435 wave-semantics port:** `deriveExecTrancheWaves` excludes non-wave rows (n ∉ {1,2,3} — never `coerceIn`), the canonical `execIsInstallmentSettled` predicate, `overdueDebtorFamilyCount`, `dueDateMax`; the corpus's live-shape scenario EXTENDED with FI/tranche-0 rows through the desktop generator (the then-blocks regenerated from the REAL desktop derivations) so the exclusion rule is pinned cross-platform.
+3. **Phase 3 — T-452, the T-426 aging future-row guard:** Android `deriveDebtAging` gains the not-strictly-past exclusion (desktop `debtByAgingForRange` parity); the desktop corpus runner's `deriveAnalyticsStats` aging leg gains the SAME guard (the harness aligned with production); the stale corpus description text corrected.
+4. **Phase 4 — T-453, the T-447 pooled-waves port:** `deriveExecPooledTrancheWaves` + `deriveExecNonWaveSummary` (the set-union family counts, the overCoverage identity) + the corpus op extension + the regeneration + the Android runner mirror.
+5. **Phase 5 — the closeout:** the full Android suite + the desktop unified runner BASELINE-MATCHED + the live re-verification (the aging census + the triage edges against the live data) + the registries truth-synced + the delivery zips.
+
+**Gates (planned):** per phase — `./gradlew testDebugUnitTest` (the touched suites + the corpus leg) GREEN; final — the FULL `./gradlew test` suite green-or-baseline-matched, `npm test` Layer 0/1 BASELINE-MATCHED, live census evidence recorded in `docs/recovery/t-449-*.md`.
+
+**Constraints:** Android follows desktop VERBATIM (§15.9 — source commits recorded in file headers); NO desktop production-logic change; NO new equivalence framework (ADR-006 — the ONE corpus); NO hardcoded parity (the corpus then-blocks come from the desktop generator only); Room schema untouched (the live DB's NOT NULL 0..3 tranche_number makes the non-null Int representation valid — the exclusion lives in the ENGINE).
+
+**Left (registered, out of this session's scope):** the INV-20e per-year debt-history SURFACE (T-442's Android UI — the engine side lands with the wave semantics; the Android drawer UI is a follow-up task) · the latent year-scoping + sub-day-overdue KPI divergences (PARITY-006 item 8 — zero live impact) · the 4-tier debt-status surface labels (§15.1) on the Android debt screens.
+
+**Scope owner:** the owner's issue-#1 mandate (this session).
+**Next:** T-450 Phase 1.
+**Related:** PARITY-006 · T-443/T-447 (the desktop rounds this ports) · ADR-002/ADR-006/ADR-028 · §15.75d (the corpus regeneration discipline) · docs/testing/cross-platform.md.
