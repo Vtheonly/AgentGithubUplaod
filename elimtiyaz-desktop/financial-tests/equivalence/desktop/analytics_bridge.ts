@@ -45,6 +45,15 @@ export {
   deriveTripleRiskSummary,
 } from "../../../src/features/dashboard/components/analytics/executive-statistics";
 
+// T-453 (T-447 mirror, PARITY-006 item 7): the canonical POOLED all-categories
+// T1/T2/T3 derivation + the non-wave summary, exported to the corpus generator
+// and the runner so the corpus pins them cross-platform (the standing T-447
+// follow-up: "the corpus executive_statistics regeneration").
+export {
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
+} from "../../../src/domain/calc/payment/tranche-waves";
+
 /** CanonicalPayment (centimes) → desktop Payment (DZD) for the analytics slice. */
 export function toAnalyticsPayment(p: {
   id: string;
