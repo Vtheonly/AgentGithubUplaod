@@ -1,3 +1,20 @@
+# 2026-10-02 — T-458 COMPLETE (128th session, third task): the Android InfoTip glossary (the desktop's T-447 explainability tooltips, presentation-only) — the StatsTips port (22 sections / 85 entries, GENERATED) + the ElInfoTip component + the Analytique mountings; the Android suite 654/0 (+8)
+
+**The LAST of the three registered Android follow-ups is delivered.** The Analytique tab now carries the desktop's T-447 explainability layer: `StatsTips` (the glossary — GENERATED from the canonical stats-tips.ts FR tree by `scripts/gen_stats_tips_kotlin.mjs`; 22 sections / 85 entries; the title/measures/calc/status shape; the dotted-key lookup with the honest-null contract) + `ElInfoTip` (the ⓘ affordance: the entry title as the talkback description, the stat-tip test tag, the tap-triggered popup with the meta-labelled fields, the honest-empty rule). Mounted: the wave hero (card + collectedPct/pending/remaining), the triage card (card + the four per-bucket tips + callList), pareto, YoY, the aging composition, the six stat-strip tips, the slicers header/badge. En passant: the DebtTriageCard subtitle's SECOND stale "> 45 j" corrected to "> redDays j". **Presentation-ONLY — zero derivation changes** (§15.53a: the glossary describes the canonical derivations). The suites: StatsTipsTest 5/5, ElInfoTipTest 3/3, the FULL debug suite **654/0** (was 646). Full evidence: T-458 in the task registry + `docs/recovery/t-458-infotip-glossary-verification.md`.
+
+**The honest remaining:** the EN/AR trees are tied to the app's future locale system (the app is French-only today); the unmounted sections' entries land with their future Android surfaces.
+
+## Standing recommendation (updated by this session)
+
+1. **ALL THREE Android UI follow-ups are now CLOSED** (T-456 the INV-20e year-history surface · T-457 the §15.1 debt-status labels · T-458 the InfoTip glossary). The session's queue continues with PARITY-005.
+2. **PARITY-005 (the in-repo TS mirror's CALC-001 discount rules)** — the NEXT item (non-gating; the tier-4 comparison is the documented KNOWN divergence).
+3. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
+4. **The T-436 `payment_allocations` backfill** — unchanged (the only live-data caveat; ALSO gates the Android year-history coverage lines' live data).
+5. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322.
+6. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
+
+---
+
 # 2026-10-02 — T-457 COMPLETE (128th session, second task): the §15.1 debt-status surface labels on the Android debt screens — PARITY-009 RESOLVED-TESTED; the Android suite 646/0 (+17)
 
 **The second registered follow-up is delivered.** Every DebtSummary row now carries the canonical 4-tier debt-status (the §15.1 configurable aging hierarchy over the INV-4 remaining): `statusLevel` + the §15.3 label (IDENTICAL wording on every surface) + the INV-16d explanation (the tier, the thresholds actually applied, the « Payeur actif » annotation — never a bare color). The Debt Dashboard and the Financials Créances tab render the label chip + the explanation + the status-tone accents; the DebtTriageCard's call-list header derives its « beyond RED » number from the snapshot's `redDays` (the stale "> 45 j" hardcode — a wrong number on the card since T-443 — is corrected). The engine half: `deriveDebtAgingStatusFactors` (the §15 factor semantics, REUSING the shared daysBetweenFloor) + the T-456 `computeDebtAgingStatus` port. The suite is the desktop's own T-429 hierarchy corpus: **17/17**; the FULL debug suite: **646/0** (was 629). Full evidence: PARITY-009 (RESOLVED-TESTED) + `docs/recovery/t-457-debt-status-labels-verification.md`.

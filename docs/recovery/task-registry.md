@@ -5302,3 +5302,12 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** the live system_settings thresholds reader on Android (the documented DEFAULTS — which ARE the live seed values — are used until then); the corpus debt_status family (the comparator leg); the aging-bucket FILTERS deliberately stay the census navigation (scope control).
 **Next:** T-458 (the Android InfoTip glossary — the last of the three registered Android follow-ups).
 **Related:** PARITY-009 · §15.1/§15.3 · T-429/T-443/T-450.
+
+## T-458 — The Android InfoTip glossary (the registered presentation-only follow-up): the StatsTips port (22 sections / 85 entries, GENERATED from the canonical FR tree) + the ElInfoTip component + the analytics-surface mountings
+
+**Problem IDs:** T-455's "What remains" #5 (the presentation-only gap; NOT a canonical-rule divergence — non-gating by registration).
+**Status:** DONE (2026-10-02, 128th session — android commit 918554b, main 972efad [branch feat/t-458-infotip-glossary, merged --no-ff]: ui/designsystem/overlays/StatsTips.kt [the glossary, generated from stats-tips.ts by scripts/gen_stats_tips_kotlin.mjs — 22 sections / 85 entries / the _meta labels / the dotted-key lookup with the honest-null contract] + ElInfoTip.kt [the ⓘ affordance: the title as contentDescription, the stat-tip test tag, the tap-triggered popup, the honest-empty] + the mountings on the Analytique surfaces [waveVelocity card + the 3 badge tips · triage card + the 4 bucket tips + callList · pareto · yoy · aging · the 6 statStrip tips · slicers header/badge] + the en-passant second stale "> 45 j" correction in the DebtTriageCard subtitle. Verified: StatsTipsTest 5/5, ElInfoTipTest 3/3, the FULL debug suite 654/0 [was 646: +8], lint green. Evidence: docs/recovery/t-458-infotip-glossary-verification.md).
+
+**Left:** the EN/AR trees (tied to the app's future locale system — the app is French-only today); the unmounted sections' tips land with their Android surfaces (viewMode, console, pivot, inspector, risk, payroll…).
+**Next:** T-459 (PARITY-005 — the in-repo TS mirror's CALC-001 discount rules).
+**Related:** T-447/UI-325 · T-455 · scripts/gen_stats_tips_kotlin.mjs.
