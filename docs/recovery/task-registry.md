@@ -5311,3 +5311,12 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** the EN/AR trees (tied to the app's future locale system — the app is French-only today); the unmounted sections' tips land with their Android surfaces (viewMode, console, pivot, inspector, risk, payroll…).
 **Next:** T-459 (PARITY-005 — the in-repo TS mirror's CALC-001 discount rules).
 **Related:** T-447/UI-325 · T-455 · scripts/gen_stats_tips_kotlin.mjs.
+
+## T-459 — PARITY-005 CLOSED: the TS mirror's CALC-001 discount rules — the verbatim re-mirror of the REAL Kotlin DiscountEngine + the zero-payment error-equivalence + the ORPHAN_REVERSAL details + the tier-4 GATING promotion — the comparison 284/284 with ZERO discrepancies
+
+**Problem IDs:** PARITY-005 (the registered 103rd-session follow-up, non-gating by mandate).
+**Status:** DONE — RESOLVED-TESTED (2026-10-02, 128th session — hub commit a63dc2c, main f89b7f7 [branch fix/t-459-parity005-mirror-calc001, merged --no-ff]: the mirror's discount section re-mirrored VERBATIM from the REAL Kotlin core/DiscountEngine.kt [the 3 fictional rules + constants deleted, the 5% rate, the groupAmountFr grouping, the canonical labels, the grossScolarite slot] + the mirror runner's canonical zero-payment rejection [byte-identical to the desktop AND the real Android error strings] + the ORPHAN_REVERSAL canonical details + the unified runner's tier-4 GATING promotion [the registered close condition] + the 3 Tier4Boundary discount tests re-pinned to the post-CALC-001 semantics [they had been pinning the defect]. Verified: the tier-4 comparator 284/320 equivalent / 36 skipped / Discrepancies 0 [0 errors, 0 warnings — was 32 rows]; the Layer-2 pipeline GREEN with the promotion active; the FULL desktop vitest BASELINE-MATCHED [17 failed / 4,603 passed — the failing-file set byte-identical]; tsc 0; the real Kotlin engine re-verified by this session's Android 654/0. Evidence: docs/recovery/t-459-parity005-mirror-calc001-verification.md).
+
+**Left:** the 36 SKIPPED tier-4 scenarios (the documented op-coverage boundary — the REAL Kotlin runner covers them); the fictional-rule corpus scenarios now pin the correct ignored-params behaviour (retiring them = a corpus-hygiene decision).
+**Next:** the session closeout (the standing queue: SPREAD-100 · the 6 override families · ACAD-511 · IDENT-104 M5).
+**Related:** PARITY-005 · CALC-001 · T-419 · ADR-029 Layer 2 · disc-009.

@@ -1,3 +1,20 @@
+# Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session CLOSE — ALL FOUR registered follow-ups delivered: T-456 the INV-20e year-history surface · T-457 the §15.1 debt-status labels · T-458 the InfoTip glossary · T-459 PARITY-005 CLOSED; the Android suite 654/0, the desktop Layer-2 GREEN, the vitest BASELINE-MATCHED)
+
+## Current state snapshot (2026-10-02, 128th session CLOSE)
+
+**The four registered follow-ups are ALL delivered** (each a commit pushed + merged --no-ff on the affected repository, the full five-question commit bodies per the git standard):
+
+1. **T-456 — the INV-20e per-year debt-history Android surface (PARITY-008 RESOLVED-TESTED):** the verbatim `computeParentYearHistory` Kotlin mirror (core/YearHistory.kt — the §17.3 record contract with the T-442 INV-20e additions) + the attribution mirror (core/DebtAging.kt) + the ONE shared rendering component mounted on BOTH surfaces (the Debt Dashboard's « Par année » drawer with the T-430 conditional-mount + the CRM parent screen's « Historique par Année Scolaire » section). The engine suite = the desktop's own corpus mirrored in centimes: 28/28; the rendering suite 4/4.
+2. **T-457 — the §15.1 debt-status surface labels (PARITY-009 RESOLVED-TESTED):** every DebtSummary row carries the 4-tier status (level + the §15.3 label + the INV-16d explanation), rendered on the Debt Dashboard + the Créances tab with the status-tone accents; the DebtTriageCard's call-list header derives « > redDays j » from the thresholds actually applied (BOTH stale "> 45 j" instances corrected). The suite = the desktop's own T-429 corpus: 17/17.
+3. **T-458 — the Android InfoTip glossary (presentation-only):** the StatsTips glossary (22 sections / 85 entries, GENERATED from the canonical stats-tips.ts FR tree) + the ElInfoTip component + the mountings on the Analytique surfaces. 5/5 + 3/3.
+4. **T-459 — PARITY-005 CLOSED:** the TS mirror re-mirrored VERBATIM from the REAL Kotlin DiscountEngine (the fictional rules deleted, the 5% rate, the grouped labels) + the zero-payment error-equivalence + the ORPHAN_REVERSAL details + the tier-4 GATING promotion (the registered close condition). The tier-4 comparison: **284/284 equivalent with ZERO discrepancies** (was 32 rows).
+
+**The gates (all actually run):** the Android debug suite **654 tests / 0 failures** (was 597 at the session's open: +57 across the four tasks) · the desktop Layer-2 pipeline **Verdict GREEN** (desktop 810/0/10 · mirror 774/0/10/36 · tier-4 784/820 / 0 rows GATING · sanity 820/820 + canonical 319/319) · the FULL desktop vitest **BASELINE-MATCHED** (17 failed / 4,603 passed — the failing-file set byte-identical) · tsc 0 · the Android lint green.
+
+**The honest remaining (the registered follow-ups):** the Android data legs (the payment_allocations persistence — the year-history coverage lines' data source · the academic_years window pull · the live thresholds reader) · the corpus families (year-history + debt_status) · the EN/AR glossary trees (tied to the app's future locale system) · the T-436 backfill · the owner's FI ruling.
+
+---
+
 # Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session — T-456 + T-457 + T-458: ALL THREE registered Android follow-ups delivered — PARITY-008/009 RESOLVED-TESTED + the InfoTip glossary; the Android suite 654/0)
 
 ## Current state snapshot (2026-10-02, 128th session MID — T-458)
