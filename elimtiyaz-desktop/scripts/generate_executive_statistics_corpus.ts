@@ -30,6 +30,8 @@ import {
   deriveServiceYield,
   deriveEnrollmentDynamics,
   deriveTripleRiskSummary,
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
   toAnalyticsPayment,
 } from "../financial-tests/equivalence/desktop/analytics_bridge";
 
@@ -215,6 +217,15 @@ for (const file of files) {
     return { studentId: `st-${idx}`, riskCategory };
   });
   const riskSummary = deriveTripleRiskSummary(riskProfiles as never);
+  // (9) T-453 (T-447 mirror, PARITY-006 item 7): the POOLED all-categories
+  // T1/T2/T3 waves + the non-wave summary — the corpus pins the exact-dinar
+  // parity object the desktop Statistics main cards and Finance strip both
+  // consume (family counts are SET UNIONS across categories; the identity
+  // dueTotal + overCoverageTotal = paidTotal + pendingTotal + remainingTotal
+  // holds exactly per row and per wave) and the FI/unnumbered/out-of-range
+  // disclosure (the live-shape given carries tranche-0 rows since T-451).
+  const pooledWaves = derivePooledTrancheWaves(installments, nowEpochMs);
+  const nonWave = deriveNonWaveSummary(installments, nowEpochMs);
 
   const then = {
     waves: waves.map((w) => ({
@@ -326,6 +337,60 @@ for (const file of files) {
       })),
     },
     riskSummary,
+    // T-453: the pooled + non-wave derivations (money in centimes; the date
+    // bounds are epoch-ms numbers — the canonical rows' representation).
+    pooledWaves: pooledWaves.map((p) => ({
+      wave: p.wave,
+      installmentCount: p.installmentCount,
+      settledCount: p.settledCount,
+      familyCount: p.familyCount,
+      debtorFamilyCount: p.debtorFamilyCount,
+      overdueDebtorFamilyCount: p.overdueDebtorFamilyCount,
+      dueTotal: dzdToCentimes(p.dueTotal),
+      paidTotal: dzdToCentimes(p.paidTotal),
+      pendingTotal: dzdToCentimes(p.pendingTotal),
+      remainingTotal: dzdToCentimes(p.remainingTotal),
+      overCoverageTotal: dzdToCentimes(p.overCoverageTotal),
+      collectedPct: p.collectedPct,
+      dueDateMin: p.dueDateMin,
+      dueDateMax: p.dueDateMax,
+      anyUnsettledOverdue: p.anyUnsettledOverdue,
+      anyUnsettledFuture: p.anyUnsettledFuture,
+      perCategory: p.perCategory.map((c) => ({
+        category: c.category,
+        wave: c.wave,
+        installmentCount: c.installmentCount,
+        settledCount: c.settledCount,
+        familyCount: c.familyCount,
+        debtorFamilyCount: c.debtorFamilyCount,
+        overdueDebtorFamilyCount: c.overdueDebtorFamilyCount,
+        dueTotal: dzdToCentimes(c.dueTotal),
+        paidTotal: dzdToCentimes(c.paidTotal),
+        pendingTotal: dzdToCentimes(c.pendingTotal),
+        remainingTotal: dzdToCentimes(c.remainingTotal),
+        dueDateMin: c.dueDateMin,
+        dueDateMax: c.dueDateMax,
+        anyUnsettledOverdue: c.anyUnsettledOverdue,
+        anyUnsettledFuture: c.anyUnsettledFuture,
+      })),
+    })),
+    nonWaveSummary: nonWave.map((n) => ({
+      kind: n.kind,
+      category: n.category,
+      installmentCount: n.installmentCount,
+      settledCount: n.settledCount,
+      familyCount: n.familyCount,
+      debtorFamilyCount: n.debtorFamilyCount,
+      overdueDebtorFamilyCount: n.overdueDebtorFamilyCount,
+      dueTotal: dzdToCentimes(n.dueTotal),
+      paidTotal: dzdToCentimes(n.paidTotal),
+      pendingTotal: dzdToCentimes(n.pendingTotal),
+      remainingTotal: dzdToCentimes(n.remainingTotal),
+      overCoverageTotal: dzdToCentimes(n.overCoverageTotal),
+      dueDateMin: n.dueDateMin,
+      dueDateMax: n.dueDateMax,
+      anyUnsettledOverdue: n.anyUnsettledOverdue,
+    })),
   };
 
   scenario.then = then as unknown as Record<string, never>;

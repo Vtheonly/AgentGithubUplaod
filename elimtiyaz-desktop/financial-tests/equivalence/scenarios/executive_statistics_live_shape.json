@@ -327,6 +327,19 @@
         "amountPending": 250000,
         "dueDate": "2025-09-15",
         "status": "pending_clearance"
+      },
+      {
+        "id": "ins-oc-1",
+        "parentId": "par-004",
+        "studentId": "st-8",
+        "category": "transport",
+        "label": "Tranche 2 (surcouvert)",
+        "trancheNumber": 2,
+        "amountDue": 200000,
+        "amountPaid": 250000,
+        "amountPending": 0,
+        "dueDate": "2025-12-15",
+        "status": "paid"
       }
     ],
     "students": [
@@ -692,16 +705,16 @@
         "key": "transport#2",
         "category": "transport",
         "wave": 2,
-        "installmentCount": 1,
-        "paidCount": 0,
-        "familyCount": 1,
+        "installmentCount": 2,
+        "paidCount": 1,
+        "familyCount": 2,
         "debtorFamilyCount": 1,
         "overdueDebtorFamilyCount": 1,
-        "dueTotal": 1000000,
-        "paidTotal": 0,
+        "dueTotal": 1200000,
+        "paidTotal": 250000,
         "remainingTotal": 1000000,
-        "collectedPct": 0,
-        "clearedPct": 0,
+        "collectedPct": 21,
+        "clearedPct": 50,
         "dueDate": "2025-12-15T00:00:00.000Z",
         "dueDateMax": "2025-12-15T00:00:00.000Z",
         "phase": "overdue"
@@ -826,10 +839,10 @@
         {
           "destination": "khemis_el_khechna",
           "riders": 1,
-          "dueTotal": 3000000,
-          "paidTotal": 1500000,
+          "dueTotal": 3200000,
+          "paidTotal": 1750000,
           "remainingTotal": 1500000,
-          "collectedPct": 50
+          "collectedPct": 55
         },
         {
           "destination": "ouled_moussa",
@@ -848,10 +861,10 @@
           "collectedPct": 0
         }
       ],
-      "dueTotal": 6250000,
-      "paidTotal": 3500000,
+      "dueTotal": 6450000,
+      "paidTotal": 3750000,
       "remainingTotal": 2500000,
-      "collectedPct": 56
+      "collectedPct": 58
     },
     "services": [
       {
@@ -925,6 +938,172 @@
       "financialTensionCount": 1,
       "healthyCount": 2,
       "tripleCriticalPct": 33
-    }
+    },
+    "pooledWaves": [
+      {
+        "wave": 1,
+        "installmentCount": 7,
+        "settledCount": 5,
+        "familyCount": 5,
+        "debtorFamilyCount": 2,
+        "overdueDebtorFamilyCount": 2,
+        "dueTotal": 39150000,
+        "paidTotal": 31400000,
+        "pendingTotal": 250000,
+        "remainingTotal": 7500000,
+        "overCoverageTotal": 0,
+        "collectedPct": 80,
+        "dueDateMin": 1757894400000,
+        "dueDateMax": 1757894400000,
+        "anyUnsettledOverdue": true,
+        "anyUnsettledFuture": false,
+        "perCategory": [
+          {
+            "category": "tuition",
+            "wave": 1,
+            "installmentCount": 4,
+            "settledCount": 3,
+            "familyCount": 4,
+            "debtorFamilyCount": 1,
+            "overdueDebtorFamilyCount": 1,
+            "dueTotal": 33900000,
+            "paidTotal": 27900000,
+            "pendingTotal": 0,
+            "remainingTotal": 6000000,
+            "dueDateMin": 1757894400000,
+            "dueDateMax": 1757894400000,
+            "anyUnsettledOverdue": true,
+            "anyUnsettledFuture": false
+          },
+          {
+            "category": "transport",
+            "wave": 1,
+            "installmentCount": 3,
+            "settledCount": 2,
+            "familyCount": 3,
+            "debtorFamilyCount": 1,
+            "overdueDebtorFamilyCount": 1,
+            "dueTotal": 5250000,
+            "paidTotal": 3500000,
+            "pendingTotal": 250000,
+            "remainingTotal": 1500000,
+            "dueDateMin": 1757894400000,
+            "dueDateMax": 1757894400000,
+            "anyUnsettledOverdue": true,
+            "anyUnsettledFuture": false
+          }
+        ]
+      },
+      {
+        "wave": 2,
+        "installmentCount": 5,
+        "settledCount": 2,
+        "familyCount": 3,
+        "debtorFamilyCount": 2,
+        "overdueDebtorFamilyCount": 2,
+        "dueTotal": 21200000,
+        "paidTotal": 8250000,
+        "pendingTotal": 0,
+        "remainingTotal": 13000000,
+        "overCoverageTotal": 50000,
+        "collectedPct": 39,
+        "dueDateMin": 1765756800000,
+        "dueDateMax": 1785369600000,
+        "anyUnsettledOverdue": true,
+        "anyUnsettledFuture": false,
+        "perCategory": [
+          {
+            "category": "tuition",
+            "wave": 2,
+            "installmentCount": 3,
+            "settledCount": 1,
+            "familyCount": 3,
+            "debtorFamilyCount": 2,
+            "overdueDebtorFamilyCount": 2,
+            "dueTotal": 20000000,
+            "paidTotal": 8000000,
+            "pendingTotal": 0,
+            "remainingTotal": 12000000,
+            "dueDateMin": 1765756800000,
+            "dueDateMax": 1785369600000,
+            "anyUnsettledOverdue": true,
+            "anyUnsettledFuture": false
+          },
+          {
+            "category": "transport",
+            "wave": 2,
+            "installmentCount": 2,
+            "settledCount": 1,
+            "familyCount": 2,
+            "debtorFamilyCount": 1,
+            "overdueDebtorFamilyCount": 1,
+            "dueTotal": 1200000,
+            "paidTotal": 250000,
+            "pendingTotal": 0,
+            "remainingTotal": 1000000,
+            "dueDateMin": 1765756800000,
+            "dueDateMax": 1765756800000,
+            "anyUnsettledOverdue": true,
+            "anyUnsettledFuture": false
+          }
+        ]
+      },
+      {
+        "wave": 3,
+        "installmentCount": 2,
+        "settledCount": 0,
+        "familyCount": 2,
+        "debtorFamilyCount": 2,
+        "overdueDebtorFamilyCount": 2,
+        "dueTotal": 16000000,
+        "paidTotal": 0,
+        "pendingTotal": 0,
+        "remainingTotal": 16000000,
+        "overCoverageTotal": 0,
+        "collectedPct": 0,
+        "dueDateMin": 1773532800000,
+        "dueDateMax": 1773532800000,
+        "anyUnsettledOverdue": true,
+        "anyUnsettledFuture": false,
+        "perCategory": [
+          {
+            "category": "tuition",
+            "wave": 3,
+            "installmentCount": 2,
+            "settledCount": 0,
+            "familyCount": 2,
+            "debtorFamilyCount": 2,
+            "overdueDebtorFamilyCount": 2,
+            "dueTotal": 16000000,
+            "paidTotal": 0,
+            "pendingTotal": 0,
+            "remainingTotal": 16000000,
+            "dueDateMin": 1773532800000,
+            "dueDateMax": 1773532800000,
+            "anyUnsettledOverdue": true,
+            "anyUnsettledFuture": false
+          }
+        ]
+      }
+    ],
+    "nonWaveSummary": [
+      {
+        "kind": "fi",
+        "category": "tuition",
+        "installmentCount": 3,
+        "settledCount": 2,
+        "familyCount": 3,
+        "debtorFamilyCount": 1,
+        "overdueDebtorFamilyCount": 1,
+        "dueTotal": 1650000,
+        "paidTotal": 1350000,
+        "pendingTotal": 0,
+        "remainingTotal": 300000,
+        "overCoverageTotal": 0,
+        "dueDateMin": 1757894400000,
+        "dueDateMax": 1757894400000,
+        "anyUnsettledOverdue": true
+      }
+    ]
   }
 }
