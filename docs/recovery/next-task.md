@@ -1,3 +1,18 @@
+# 2026-10-02 — T-460 OPENED (130th session): the full UI consistency audit & unification (the owner's issue mandate) — pass 1 DELIVERED (the 4 mixed files + the shared AuditDiffSheet onto the design system; the Android suite 654/0)
+
+**The owner's issue (the full UI-consistency mandate) is registered as T-460 — the T-044/DUP-003 completion campaign.** Pass 1 closed the "two apps in one screen" mixed files: DashboardHubScreen (the last legacy import → the DS ElTabRow), the shared AuditDiffSheet relocated to features/settings + rebuilt on ElBottomSheet/ElTag/ElTheme (both entry points preserved, the 14-test suite green at its new home), AuditLogScreen + DiagnosticsSection + ToggleRow (zero legacy imports / zero MaterialTheme reads). The Android suite stays **654/0**. The pass order (B nav chrome → C Financials → D Academics → E CRM → F Personnel → G raw screens → H token sweep → I legacy-kit deletion) is registered in T-460's entry.
+
+## Standing recommendation (updated by the 130th session)
+
+1. **T-460 passes B–I (the UI-unification campaign):** pass B — the MainScreen nav chrome (ModernBottomNavBar → the route-based ElBottomBar, the registered T-044 prerequisite) is the next pick; then C (the Financials hub's 5 legacy tabs — the worst offender per the issue's §2.5).
+2. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
+3. **The T-436 `payment_allocations` backfill** — unchanged.
+4. **The Android data legs (T-456's Left)** — unchanged.
+5. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322.
+6. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
+
+---
+
 # 2026-10-02 — THE 128th SESSION COMPLETE: ALL FOUR registered follow-ups delivered — T-456 (the INV-20e per-year debt-history Android surface — PARITY-008) · T-457 (the §15.1 debt-status surface labels — PARITY-009) · T-458 (the Android InfoTip glossary) · T-459 (PARITY-005 CLOSED — the tier-4 comparison 284/284 with ZERO discrepancies + the GATING promotion); the Android suite 629→654, the desktop Layer-2 GREEN, the vitest BASELINE-MATCHED
 
 **The owner's mandate** (the four registered follow-ups from the 127th session's standing recommendation) is delivered end to end, each task a commit pushed + merged --no-ff per ADR-028 on the affected repository (the Android commits e1d5df0 → 7e9e364 · aa0f577 → be584e1 · e0e1fd7 → ad06805 · 918554b → 972efad; the hub commits c143b89 → 64c9181 · 9d42ac8 → 4bd371e · c3ac520 → 6f363c2 · a63dc2c → f89b7f7). **The full evidence trail:** the four verification records (t-456-inv20e-android-surface-verification.md · t-457-debt-status-labels-verification.md · t-458-infotip-glossary-verification.md · t-459-parity005-mirror-calc001-verification.md) + the registry truth-sync.
