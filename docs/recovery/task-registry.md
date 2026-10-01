@@ -5274,3 +5274,13 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** (1) the Android UI surface pass (the Statistics wave cards / the Finance strip consuming the pooled derivation + the new wave fields — the ENGINE parity is complete); (2) the INV-20e per-year debt-history Android SURFACE (T-442's UI — the engine semantics landed); (3) the §15.1 debt-status surface labels; (4) the latent year-scoping (zero live impact); (5) PARITY-005 unchanged (the desktop-repo TS mirror — the real Android DiscountEngine is CALC-001-clean); (6) the release-variant unit tests' 25 environment artifacts (the Room schema assets + the Robolectric activity resolution — unrelated to the engine, the files untouched; the debug variant is the documented gate).
 
 **Evidence:** `docs/recovery/t-449-parity-audit-verification.md` (the full record — the audit table, the four phases, the verification commands + results, the desktop-modification justification, the corrected-divergence mapping, the honest remaining list).
+
+## T-454 — The Android UI surface pass (the issue-#1 follow-up, PARITY-007): the wave cards + the Finance strip consume the pooled financial engine's outputs, and the dashboard gains the desktop's T-447 wave visuals
+
+**Problem IDs:** PARITY-007 items 1-2 + 4.
+**Status:** IN PROGRESS (2026-10-01, 127th session).
+
+## T-455 — The cross-platform UI-surface parity test (the issue-#1 follow-up): the ui_surfaces corpus family — the Finance-strip view model + the WaveVelocityCard view model + the strip totals pinned against the canonical engine AND the Excel source-of-truth rows, on BOTH platforms
+
+**Problem IDs:** PARITY-007 item 3 (the harness drift) + the issue's §9/§11 display-layer mandate.
+**Status:** IN PROGRESS (2026-10-01, 127th session).
