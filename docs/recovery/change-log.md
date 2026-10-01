@@ -3904,3 +3904,19 @@ the Android mirror port · the owner's packaged-app visual pass.
 **Left:** the live thresholds reader (the DEFAULTS are the live seed values today); the corpus debt_status family.
 
 **Next:** T-458 — the Android InfoTip glossary (the last registered Android follow-up of the session's queue).
+
+---
+
+## 2026-10-02 — T-458 (128th session): the Android InfoTip glossary — the presentation-only explainability layer
+
+**What:** the last of the three registered Android follow-ups: the desktop's T-447 explainability glossary ported as `StatsTips` (22 sections / 85 entries — GENERATED from the canonical stats-tips.ts FR tree by scripts/gen_stats_tips_kotlin.mjs; the title/measures/calc/status shape + the _meta field labels + the dotted-key lookup with the honest-null contract) + the `ElInfoTip` component (the ⓘ affordance: the entry title as the talkback description, the stat-tip test tag, the tap-triggered popup, the honest-empty) + the mountings on the Analytique tab's surfaces (the wave hero, the triage card with its per-bucket tips, the pareto/YoY/aging cards, the six stat-strip tips, the slicers header/badge). En passant: the DebtTriageCard subtitle's second stale "> 45 j" corrected to the threshold-derived "> redDays j".
+
+**Why:** the T-447 mandate ("every Statistics element carries a tooltip… never hardcoded, a centralized glossary") had no Android counterpart (the registered presentation-only gap).
+
+**Changed:** android `918554b` (branch feat/t-458-infotip-glossary → main `972efad`, merged --no-ff). Presentation-ONLY: zero derivation changes. Hub: this verification doc + the registries.
+
+**Verified:** StatsTipsTest 5/5 · ElInfoTipTest 3/3 · the FULL Android debug suite 654/0 (was 646) · lint green.
+
+**Left:** the EN/AR trees (tied to the app's locale system); the unmounted sections mount with their future Android surfaces.
+
+**Next:** T-459 — PARITY-005 (the TS mirror's CALC-001 discount rules).

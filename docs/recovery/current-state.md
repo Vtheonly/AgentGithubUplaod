@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session — T-456 + T-457 + T-458: ALL THREE registered Android follow-ups delivered — PARITY-008/009 RESOLVED-TESTED + the InfoTip glossary; the Android suite 654/0)
+
+## Current state snapshot (2026-10-02, 128th session MID — T-458)
+
+**The LAST of the three registered Android follow-ups is delivered.** The desktop's T-447 explainability layer now exists on Android: the `StatsTips` glossary (22 sections / 85 entries, GENERATED from the canonical stats-tips.ts FR tree — the title/measures/calc/status shape, the _meta field labels, the dotted-key lookup with the honest-null contract) + the `ElInfoTip` component (the ⓘ affordance: talkback-described, tap-triggered, honest-empty) + the mountings on the Analytique surfaces (the wave hero, the triage card with its per-bucket tips, pareto, YoY, the aging composition, the six stat-strip tips, the slicers). Presentation-ONLY — zero derivation changes (§15.53a). En passant: the DebtTriageCard subtitle's second stale "> 45 j" corrected to the threshold-derived "> redDays j".
+
+**Gates:** StatsTipsTest 5/5 · ElInfoTipTest 3/3 · the FULL Android debug suite **654/0** (was 646: +8) · lint green · the android commit `918554b` (main `972efad`).
+
+**The three follow-ups now closed this session:** T-456 (the INV-20e year-history surface — PARITY-008) · T-457 (the §15.1 debt-status labels — PARITY-009) · T-458 (the InfoTip glossary). **Next in the session's queue:** PARITY-005 (the TS mirror's CALC-001 discount rules, hub side).
+
+**Standing gates:** the owner's packaged-app pass (rebuild from main — the « Par année » drawer, the year-history section, the §15.3 status labels, AND the ⓘ tooltips are new) · PARITY-005 · the T-436 `payment_allocations` backfill.
+
+---
+
 # Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session — T-456 + T-457: the INV-20e year-history Android surface + the §15.1 debt-status labels — PARITY-008/009 RESOLVED-TESTED; the Android suite 646/0)
 
 ## Current state snapshot (2026-10-02, 128th session MID — T-457)
