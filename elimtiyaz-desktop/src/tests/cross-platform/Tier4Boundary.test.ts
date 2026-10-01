@@ -227,8 +227,12 @@ describe("Boundary: zero-value refund", () => {
   });
 });
 
-describe("Boundary: discount at percentage boundary (exactly 10%)", () => {
-  it("mirror: 10% of 330,000,000 centimes gross = -33,000,000 centimes exactly", () => {
+describe("Boundary: discount at percentage boundary (CALC-001: exactly 5%)", () => {
+  it("mirror: 5% of 330,000,000 centimes gross = -16,500,000 centimes exactly; the fictional rules NEVER fire", () => {
+    // T-459/PARITY-005: the mirror is CALC-001-clean — the full_annual rate
+    // is 5% (the workbook SUM(F)*0.05), and the three removed rules
+    // (highest_average / seniority_5y / passage_palier) never fire even
+    // when their legacy params are populated (rank 1, 11-year enrollment).
     const evals = evaluateAllSystemDiscounts({
       grossTuition: 330_000_000,
       previousGradeLevel: null,
@@ -238,12 +242,13 @@ describe("Boundary: discount at percentage boundary (exactly 10%)", () => {
       paymentDate: "2026-06-15T10:00:00Z", // before June 30 cutoff
       academicYearStartYear: 2026,
       academicYearStart: "2026-09-01T00:00:00Z",
-      enrollmentDate: "2015-09-01T00:00:00Z", // > 5 years seniority
-      previousRank: 1, // rank 1 = academic excellence
+      enrollmentDate: "2015-09-01T00:00:00Z", // > 5 years seniority (ignored)
+      previousRank: 1, // rank 1 = academic excellence (ignored)
     });
-    expect(evals.find((e) => e.code === "full_annual")?.amount).toBe(-33_000_000);
-    expect(evals.find((e) => e.code === "highest_average")?.amount).toBe(-33_000_000);
-    expect(evals.find((e) => e.code === "seniority_5y")?.amount).toBe(-16_500_000);
+    expect(evals.find((e) => e.code === "full_annual")?.amount).toBe(-16_500_000);
+    expect(evals.find((e) => e.code === "highest_average")).toBeUndefined();
+    expect(evals.find((e) => e.code === "seniority_5y")).toBeUndefined();
+    expect(evals.find((e) => e.code === "passage_palier")).toBeUndefined();
   });
 });
 
@@ -261,7 +266,9 @@ describe("Boundary: just-before vs just-after cutoff dates", () => {
       enrollmentDate: "2026-09-01T00:00:00Z",
       previousRank: null,
     });
-    expect(evals.find((e) => e.code === "full_annual")?.amount).toBe(-33_000_000);
+    // T-459: the 5% rate (CALC-001) — the cutoff boundary semantics are
+    // unchanged (on/before June 30 23:59:59 UTC qualifies).
+    expect(evals.find((e) => e.code === "full_annual")?.amount).toBe(-16_500_000);
   });
 
   it("mirror: payment at July 1 00:00:00 UTC does NOT qualify for full_annual discount", () => {
@@ -281,11 +288,10 @@ describe("Boundary: just-before vs just-after cutoff dates", () => {
   });
 });
 
-describe("Boundary: seniority 5-year edge", () => {
-  it("mirror: enrollment exactly 5 years 0 days before academic year start qualifies", () => {
-    // Academic year starts 2026-09-01; enrollment 2021-09-01 → exactly 5 years.
-    // Per the canonical rule: seniority > 5 years (strictly greater than, because
-    // the threshold is `> thresholdMs`, NOT `>=`).
+describe("Boundary: seniority 5-year edge (CALC-001: the rule never fires)", () => {
+  it("mirror: enrollment exactly 5 years 0 days before academic year start — no rule fires (the engine ignores the param)", () => {
+    // T-459/PARITY-005: seniority_5y NEVER EXISTED at the school — the
+    // legacy enrollmentDate param is accepted and intentionally ignored.
     const evals = evaluateAllSystemDiscounts({
       grossTuition: 330_000_000,
       previousGradeLevel: null,
@@ -298,13 +304,10 @@ describe("Boundary: seniority 5-year edge", () => {
       enrollmentDate: "2021-09-01T00:00:00Z", // exactly 5 years
       previousRank: null,
     });
-    // Exactly 5 years means `yearStart - enrolled == thresholdMs` (not >).
-    // Per Kotlin: `if (yearStart.toEpochMilli() - enrolled.toEpochMilli() <= thresholdMs) return 0L`
-    // → exactly 5 years does NOT qualify (boundary excluded).
     expect(evals.find((e) => e.code === "seniority_5y")).toBeUndefined();
   });
 
-  it("mirror: enrollment 5 years + 1 day qualifies", () => {
+  it("mirror: enrollment 5 years + 1 day — STILL no rule fires (CALC-001)", () => {
     const evals = evaluateAllSystemDiscounts({
       grossTuition: 330_000_000,
       previousGradeLevel: null,
@@ -317,7 +320,8 @@ describe("Boundary: seniority 5-year edge", () => {
       enrollmentDate: "2021-08-31T00:00:00Z", // 5 years + 1 day
       previousRank: null,
     });
-    expect(evals.find((e) => e.code === "seniority_5y")?.amount).toBe(-16_500_000);
+    expect(evals.find((e) => e.code === "seniority_5y")).toBeUndefined();
+    expect(evals).toHaveLength(0);
   });
 });
 

@@ -15,10 +15,10 @@
  *   Layer 2 — the financial equivalence TS pipeline (the ADR-006 canonical
  *             framework): deterministic scenario generation (seed 42) →
  *             the desktop runner (GATING) → the android-mirror runner
- *             (GATING) → the tier-4 mirror comparison (REPORTED while
- *             PARITY-005 is open — its 112 error rows are a registered,
- *             documented divergence, not a new regression; flip to gating
- *             with --strict-tier4 or after PARITY-005 closes) → the sanity
+ *             (GATING — errors fail the run since PARITY-005 closed:
+ *             the mirror is CALC-001-clean, 0 rows on the corpus) → the
+ *             tier-4 mirror comparison (GATING: ERROR rows fail the run —
+ *             the PARITY-005 close promotion, T-459) → the sanity
  *             comparator (GATING: the desktop engine must meet the corpus's
  *             canonical `then` expectations — runs against a TEMP copy so
  *             the results/android slot stays reserved for real Kotlin).
@@ -46,7 +46,7 @@
  *   npm test -- --layer=3                 # the environment census only
  *   npm test -- --suite=domain            # targeted vitest (a mode, not a framework — issue §12)
  *   npm test -- --skip-typecheck          # skip Layer 0
- *   npm test -- --strict-tier4            # tier-4 mirror comparison gates the exit code
+ *   npm test -- --strict-tier4            # (legacy flag — tier-4 now gates unconditionally post-PARITY-005)
  *
  * Every enabled layer ALWAYS runs and reports (no early abort except a
  * Layer-2 generator failure, which makes the downstream steps impossible).
@@ -55,7 +55,8 @@
  * 25-failure vitest baseline (RED-as-documented: real open defects, but the
  * summary says BASELINE-MATCHED so a NEW regression can never hide behind
  * them). Layer 3 environment-gates never fail the run; the tier-4
- * comparison only fails it under --strict-tier4 or post-PARITY-005.
+ * comparison FAILS the run on any ERROR row (the PARITY-005 close
+ * promotion, T-459 — the mirror is now CALC-001-clean).
  */
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -266,7 +267,8 @@ if (runLayer(2)) {
     if (mr.code !== 0) { console.log("  ✗ mirror runner FAILED"); fail(); }
   }
 
-  // 2.4 the tier-4 mirror comparison — REPORTED (PARITY-005) / gating with --strict-tier4
+  // 2.4 the tier-4 mirror comparison — GATING (errors fail the run; the
+  //     PARITY-005 close promotion, T-459: the mirror is CALC-001-clean)
   if (eq.generator.ok) {
     process.stdout.write("  [2.4] tier-4 comparison (desktop vs mirror)…\n");
     const t4 = run(TSX[0], [TSX[1], "financial-tests/equivalence/comparison/tier4_comparator.ts"]);
@@ -282,14 +284,13 @@ if (runLayer(2)) {
       errors: disc ? +disc[2] : null,
       warnings: disc ? +disc[3] : null,
       ok: t4.code === 0 || t4.code === 2, // 2 = comparator's documented error exit
-      knownProblem: "PARITY-005",
+      knownProblem: "PARITY-005 (CLOSED, T-459)",
     };
     if (disc) {
       console.log(`    ${disc[2] > 0 ? "⚑" : "✓"} ${passed?.[1]}/${passed?.[2]} equivalent, ${skipped?.[1]} skipped, ${disc[1]} rows (${disc[2]} errors, ${disc[3]} warnings)`);
       if (+disc[2] > 0) {
-        console.log(`      → KNOWN divergence (PARITY-005: the mirror still applies the CALC-001-removed discount rules).`);
-        console.log(`        REPORTED, non-gating${strictTier4 ? "" : " (use --strict-tier4 to gate on it)"} — repair is the registered follow-up.`);
-        if (strictTier4) fail();
+        console.log(`      → tier-4 DIVERGENCE: ${disc[2]} ERROR rows (the tier-4 comparison is GATING since PARITY-005 closed — T-459).`);
+        fail();
       }
     } else {
       console.log("  ⚠ could not parse the tier-4 summary");

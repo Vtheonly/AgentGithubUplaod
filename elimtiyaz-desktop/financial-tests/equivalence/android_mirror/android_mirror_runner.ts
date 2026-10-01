@@ -299,6 +299,14 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
     }
 
     case "allocatePayment": {
+      // T-459 / PARITY-005: the CANONICAL zero-payment boundary — the desktop
+      // runner rejects (the SQL collect_and_allocate_payment raises; the
+      // desktop mock validates), and the REAL Android collect() validates
+      // (LocalPaymentRepository: "Amount must be > 0"). The mirror MUST reject
+      // identically (the error-vs-success class — all-error equivalence).
+      if (typeof when.paymentAmount === "number" && when.paymentAmount <= 0) {
+        return { error: `Payment amount must be > 0 (got ${when.paymentAmount})` };
+      }
       const installments = (given.installments ?? []).map(toMirrorInstallment);
       const paymentAmount = when.paymentAmount as number;
       const category = when.category as string | null;
