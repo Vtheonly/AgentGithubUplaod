@@ -3868,3 +3868,21 @@ the Android mirror port · the owner's packaged-app visual pass.
 **Discovered (registered):** the t-369 A4 wall-clock time-bomb (the SECOND session-boundary bomb of the §15.81 class — repaired in-passing); the container's corrupted node_modules (the documented sandbox-artifact class — repaired by the clean reinstall).
 
 **Next:** the INV-20e year-history drawer · the §15.1 debt-status labels · the Android InfoTip glossary (presentation-only).
+
+---
+
+## 2026-10-02 — T-456 (128th session): the INV-20e per-year debt-history Android surface — PARITY-008 RESOLVED-TESTED
+
+**What:** the registered Android follow-up (T-449's Left #2, three sessions standing): the verbatim Kotlin mirror of the desktop's canonical year-history engine (`computeParentYearHistory` — the §17.3 record contract with the T-442 INV-20e additions: the per-year service breakdown, the per-payment coverage lines, the per-year still-owed-now enumeration) + the « Par année » drawer on the Debt Dashboard + the « Historique par Année Scolaire » section on the CRM parent screen — ONE engine, ONE rendering component, TWO surfaces, the desktop's exact mounting contract.
+
+**Why:** the desktop answered the owner's Year-Tracking question (« qui doit quoi, pour quoi, en quelle année ») per year since T-436/T-442; the Android app showed only the current aggregate — the §10 cross-platform divergence (a change shipped to one platform only), registered as PARITY-008.
+
+**Changed:** android `e1d5df0` (branch feat/t-456-inv20e-year-history → main `7e9e364`, merged --no-ff): core/DebtAging.kt (the attribution + status mirror), core/YearHistory.kt (the engine), ui/features/crm/ParentYearHistorySection.kt (the shared component), the DebtDashboard « Par année » drawer + the VM's cold yearHistory flow, the ParentDetailScreen section, the two test suites. ZERO desktop production changes (hub: this verification doc + the registries).
+
+**Verified:** YearHistoryTest 28/28 (the desktop's own corpus, mirrored in centimes) · ParentYearHistorySectionTest 4/4 (semantic, ARCH-012 discipline) · the FULL Android debug suite 629/0 (was 597: +32) · compileDebugKotlin + lint BUILD SUCCESSFUL.
+
+**Discovered (registered):** (1) `NumberFormat(Locale.FRANCE)` groups with U+202F (narrow no-break space) — tests asserting rendered DZD strings must build the expected string with the same formatter; (2) the honest-mixed `yearEndBasis` verdict (charges without allocation rows → the paid-date heuristic) is the DESKTOP behavior a port must not "fix"; (3) Kotlin `List.take(-1)` throws where the desktop's `filter(idx < n)` semantics return empty — the prior-years empty edge. All three pinned by the suite + the verification doc §4.
+
+**Left:** the payment_allocations persistence (the coverage lines' data leg) · the per-year pricing reference · the corpus family + comparator leg · the academic_years window pull.
+
+**Next:** T-457 — the §15.1 debt-status surface labels on the Android debt screens.
