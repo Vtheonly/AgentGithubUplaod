@@ -1219,12 +1219,17 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
           paidCount: w.paidCount,
           familyCount: w.familyCount,
           debtorFamilyCount: w.debtorFamilyCount,
+          // T-449/T-451 (PARITY-006): mirror the corpus generator's extended
+          // wave serialization (T-427 overdueDebtorFamilyCount + T-435
+          // dueDateMax) so the runner output key-set matches the then-blocks.
+          overdueDebtorFamilyCount: w.overdueDebtorFamilyCount,
           dueTotal: dzdToCentimes(w.dueTotal),
           paidTotal: dzdToCentimes(w.paidTotal),
           remainingTotal: dzdToCentimes(w.remainingTotal),
           collectedPct: w.collectedPct,
           clearedPct: w.clearedPct,
           dueDate: w.dueDate,
+          dueDateMax: w.dueDateMax,
           phase: w.phase,
         })),
         erosion: {

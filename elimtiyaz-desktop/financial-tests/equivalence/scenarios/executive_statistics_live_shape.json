@@ -1,6 +1,6 @@
 {
   "id": "executive_statistics_live_shape",
-  "description": "T-341 (STATS-400): the executive-statistics derivation op over a LIVE-SHAPED corpus — the 3-wave tuition staircase (FI/V2/2V with tranche_number grouping, never label parsing), the structured REMISE markers (metadata.field=REMISE + the reconciliation-0063 double_remise_cancel), the 4-tier debt triage with the beyond-red call list (T-443: the triage edges derive from the canonical debt-aging thresholds — grace 5 / yellow 15 / red 60, the same configurable system_settings values the Finances statuses apply), family concentration with child counts, transport tiers with messy spellings (BOUMRDES/OULED MOUSSA/unknown->autres), the sibling index + section imbalance (CP 51 vs 1AP 3), and the triple-risk categorization thresholds. Both runners must derive IDENTICAL values on every field.",
+  "description": "T-341 (STATS-400): the executive-statistics derivation op over a LIVE-SHAPED corpus — the 3-wave tuition staircase (FI/V2/2V with tranche_number grouping, never label parsing), the T-451 extension (FI rows at tranche 0 — the registration-fee class the live DB carries 1,137 of — proving the non-wave EXCLUSION on every surface; a stale-status row with zero remaining proving the T-424 canonical isInstallmentSettled predicate; an uncleared-cheque row proving pending coverage settles), the structured REMISE markers (metadata.field=REMISE + the reconciliation-0063 double_remise_cancel), the 4-tier debt triage with the beyond-red call list (T-443: the triage edges derive from the canonical debt-aging thresholds — grace 5 / yellow 15 / red 60, the same configurable system_settings values the Finances statuses apply), family concentration with child counts, transport tiers with messy spellings (BOUMRDES/O",
   "category": "executive_statistics",
   "tags": [
     "parity-stats-400",
@@ -262,6 +262,71 @@
         "amountPending": 0,
         "dueDate": "2025-09-15",
         "status": "partial"
+      },
+      {
+        "id": "ins-fi-1",
+        "parentId": "par-001",
+        "studentId": "st-1",
+        "category": "tuition",
+        "label": "Frais d'inscription (FI)",
+        "trancheNumber": 0,
+        "amountDue": 500000,
+        "amountPaid": 500000,
+        "amountPending": 0,
+        "dueDate": "2025-09-15",
+        "status": "paid"
+      },
+      {
+        "id": "ins-fi-2",
+        "parentId": "par-002",
+        "studentId": "st-4",
+        "category": "tuition",
+        "label": "Frais d'inscription (FI)",
+        "trancheNumber": 0,
+        "amountDue": 550000,
+        "amountPaid": 550000,
+        "amountPending": 0,
+        "dueDate": "2025-09-15",
+        "status": "paid"
+      },
+      {
+        "id": "ins-fi-3",
+        "parentId": "par-003",
+        "studentId": "st-6",
+        "category": "tuition",
+        "label": "Frais d'inscription (FI)",
+        "trancheNumber": 0,
+        "amountDue": 600000,
+        "amountPaid": 300000,
+        "amountPending": 0,
+        "dueDate": "2025-09-15",
+        "status": "partial"
+      },
+      {
+        "id": "ins-t1-4",
+        "parentId": "par-005",
+        "studentId": "st-10",
+        "category": "tuition",
+        "label": "Tranche 1 (stale status)",
+        "trancheNumber": 1,
+        "amountDue": 900000,
+        "amountPaid": 900000,
+        "amountPending": 0,
+        "dueDate": "2025-09-15",
+        "status": "partial"
+      },
+      {
+        "id": "ins-tr-4",
+        "parentId": "par-005",
+        "studentId": "st-10",
+        "category": "transport",
+        "label": "Tranche 1 (chèque non encaissé)",
+        "trancheNumber": 1,
+        "amountDue": 250000,
+        "amountPaid": 0,
+        "amountPending": 250000,
+        "dueDate": "2025-09-15",
+        "status": "pending_clearance"
       }
     ],
     "students": [
@@ -555,16 +620,18 @@
         "key": "tuition#1",
         "category": "tuition",
         "wave": 1,
-        "installmentCount": 3,
-        "paidCount": 2,
-        "familyCount": 3,
+        "installmentCount": 4,
+        "paidCount": 3,
+        "familyCount": 4,
         "debtorFamilyCount": 1,
-        "dueTotal": 33000000,
-        "paidTotal": 27000000,
+        "overdueDebtorFamilyCount": 1,
+        "dueTotal": 33900000,
+        "paidTotal": 27900000,
         "remainingTotal": 6000000,
         "collectedPct": 82,
-        "clearedPct": 67,
+        "clearedPct": 75,
         "dueDate": "2025-09-15T00:00:00.000Z",
+        "dueDateMax": "2025-09-15T00:00:00.000Z",
         "phase": "overdue"
       },
       {
@@ -575,12 +642,14 @@
         "paidCount": 1,
         "familyCount": 3,
         "debtorFamilyCount": 2,
+        "overdueDebtorFamilyCount": 2,
         "dueTotal": 20000000,
         "paidTotal": 8000000,
         "remainingTotal": 12000000,
         "collectedPct": 40,
         "clearedPct": 33,
         "dueDate": "2025-12-15T00:00:00.000Z",
+        "dueDateMax": "2026-07-30T00:00:00.000Z",
         "phase": "overdue"
       },
       {
@@ -591,28 +660,32 @@
         "paidCount": 0,
         "familyCount": 2,
         "debtorFamilyCount": 2,
+        "overdueDebtorFamilyCount": 2,
         "dueTotal": 16000000,
         "paidTotal": 0,
         "remainingTotal": 16000000,
         "collectedPct": 0,
         "clearedPct": 0,
         "dueDate": "2026-03-15T00:00:00.000Z",
+        "dueDateMax": "2026-03-15T00:00:00.000Z",
         "phase": "overdue"
       },
       {
         "key": "transport#1",
         "category": "transport",
         "wave": 1,
-        "installmentCount": 2,
-        "paidCount": 1,
-        "familyCount": 2,
+        "installmentCount": 3,
+        "paidCount": 2,
+        "familyCount": 3,
         "debtorFamilyCount": 1,
-        "dueTotal": 5000000,
+        "overdueDebtorFamilyCount": 1,
+        "dueTotal": 5250000,
         "paidTotal": 3500000,
         "remainingTotal": 1500000,
-        "collectedPct": 70,
-        "clearedPct": 50,
+        "collectedPct": 67,
+        "clearedPct": 67,
         "dueDate": "2025-09-15T00:00:00.000Z",
+        "dueDateMax": "2025-09-15T00:00:00.000Z",
         "phase": "overdue"
       },
       {
@@ -623,12 +696,14 @@
         "paidCount": 0,
         "familyCount": 1,
         "debtorFamilyCount": 1,
+        "overdueDebtorFamilyCount": 1,
         "dueTotal": 1000000,
         "paidTotal": 0,
         "remainingTotal": 1000000,
         "collectedPct": 0,
         "clearedPct": 0,
         "dueDate": "2025-12-15T00:00:00.000Z",
+        "dueDateMax": "2025-12-15T00:00:00.000Z",
         "phase": "overdue"
       }
     ],
@@ -671,17 +746,17 @@
         },
         {
           "bucket": "chronic",
-          "amount": 32500000,
-          "installmentCount": 6,
+          "amount": 32800000,
+          "installmentCount": 7,
           "familyCount": 4,
           "share": 89
         }
       ],
-      "totalOutstanding": 36500000,
+      "totalOutstanding": 36800000,
       "callList": [
         {
           "parentId": "par-003",
-          "outstanding": 14000000,
+          "outstanding": 14300000,
           "worstDaysOverdue": 364
         },
         {
@@ -702,15 +777,15 @@
       ]
     },
     "concentration": {
-      "totalOutstanding": 36500000,
+      "totalOutstanding": 36800000,
       "debtorFamilyCount": 4,
       "topFamilies": [
         {
           "parentId": "par-003",
           "parentName": "ALIOUAT",
-          "outstanding": 14000000,
+          "outstanding": 14300000,
           "childCount": 2,
-          "shareOfTotalDebt": 38,
+          "shareOfTotalDebt": 39,
           "worstDaysOverdue": 364
         },
         {
@@ -718,7 +793,7 @@
           "parentName": "KOUBAA",
           "outstanding": 9000000,
           "childCount": 2,
-          "shareOfTotalDebt": 25,
+          "shareOfTotalDebt": 24,
           "worstDaysOverdue": 273
         },
         {
@@ -730,7 +805,7 @@
           "worstDaysOverdue": 183
         }
       ],
-      "topTotal": 31000000,
+      "topTotal": 31300000,
       "topConcentrationPct": 85
     },
     "transport": {
@@ -767,16 +842,16 @@
         {
           "destination": "autres",
           "riders": 1,
-          "dueTotal": 0,
+          "dueTotal": 250000,
           "paidTotal": 0,
           "remainingTotal": 0,
           "collectedPct": 0
         }
       ],
-      "dueTotal": 6000000,
+      "dueTotal": 6250000,
       "paidTotal": 3500000,
       "remainingTotal": 2500000,
-      "collectedPct": 58
+      "collectedPct": 56
     },
     "services": [
       {
