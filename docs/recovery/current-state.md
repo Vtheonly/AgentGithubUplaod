@@ -1,3 +1,17 @@
+# Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session — T-456: the INV-20e per-year debt-history Android surface — PARITY-008 RESOLVED-TESTED; the Android suite 629/0)
+
+## Current state snapshot (2026-10-02, 128th session CLOSE — T-456)
+
+**The registered Android follow-up is delivered.** The desktop's §17.3 INV-20e year-history derivation (T-436/T-442) now has its Android counterpart: the verbatim `computeParentYearHistory` Kotlin mirror (`core/YearHistory.kt`) with the full record contract (the per-year serviceBreakdown, the per-payment coverage lines with the CALC-003 fund classification, the cross-year settlements, the prior-years still-owed enumeration, the balance evolution, the left-owing/re-enrolled flags), the attribution mirror (`core/DebtAging.kt` — INV-14 + the INV-18a persisted precedence, adapted to Android's `academicCycle` year-code column, PLUS the §15.1 4-tier status contract that T-457 consumes), and the ONE shared rendering component (`ParentYearHistorySection`) mounted on BOTH surfaces — the Debt Dashboard's new « Par année » per-family drawer (the T-430 conditional-mount discipline: the per-parent collectors start on open, stop on dismiss) and the CRM parent screen's « Historique par Année Scolaire » section.
+
+**Gates:** YearHistoryTest 28/28 (the desktop's own corpus mirrored verbatim in centimes — the owner's 100k/80k/20k scenario + the T-442 three-year breakdown) · ParentYearHistorySectionTest 4/4 (semantic, ARCH-012) · the FULL Android debug suite **629/0** (was 597: +32) · compileDebugKotlin + lint green · the corpus/equivalence suites untouched-green. The android commit `e1d5df0` → main `7e9e364` (branch feat/t-456-inv20e-year-history, merged --no-ff).
+
+**The honest platform gaps (T-456's Left, registered):** no `payment_allocations` persistence on Android yet (the coverage lines render the honest « couverture non enregistrée » on real data — the engine + UI contracts are ready for the data leg); the per-year pricing reference slot awaits a year-keyed pricing model; no `academic_years` window pull; the corpus family + comparator leg is the follow-up.
+
+**Standing gates:** the owner's packaged-app pass (rebuild from main — the « Par année » drawer + the year-history section are new) · the remaining 2 follow-ups (§15.1 labels T-457, the InfoTip glossary T-458) · PARITY-005 · the T-436 `payment_allocations` backfill (gates the Android coverage lines' live data too).
+
+---
+
 # Current State — Project Snapshot (2026-09-30, ONE-HUNDRED-TWENTY-FIFTH session — T-448: the DEDICATED dashboard-layout-configuration table — migration 0134 applied live; every gate GREEN)
 
 ## Current state snapshot (2026-09-30, 125th session CLOSE — T-448)
