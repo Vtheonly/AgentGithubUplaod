@@ -3938,3 +3938,19 @@ the Android mirror port · the owner's packaged-app visual pass.
 **Left:** the 36 skipped scenarios (the documented coverage boundary); the fictional-rule corpus scenarios (now correctness pins).
 
 **Next:** the session closeout + the delivery zips.
+
+## 2026-10-02 — T-460 (130th session): the UI-unification campaign, passes 1/B/C/D/E/F — six merged passes + the en-passant ARCH-012 release-gate repair
+
+**What:** the owner's full-UI-consistency mandate (the issue) executed as T-460, six passes delivered end to end, each a branch pushed + merged --no-ff per ADR-028: (1) the 4 mixed files + the shared AuditDiffSheet relocated to features/settings and rebuilt on ElBottomSheet/ElTag/ElTheme (the 14-test suite moved with it, green); (B) the MainScreen global nav chrome — the route-model rewrite onto ElScaffold/ElTopBar/ElBottomBar with the index-based state model preserved; (C) the Financials hub — the issue's worst offender: 5 legacy tabs + the shell + DebtDashboard (the T-456 « Par année » drawer + T-457 §15.1 labels preserved on DS chrome) + InstallmentSchedule + ProofScanner, 10 files; (D) the Academics hub — RollCall, GradeEntry, HomeworkPush, PromotionReview + shell + the AttendanceStatus tone migration; (E) the CRM hub shell + the auth trio (Login, ChangePassword, PermissionDenied) + GlobalSearch; (F) the Personnel module — 6 screens incl. the create-employee dialog on ElDialogShell. En passant: the ARCH-012 release-gate extension (the full `./gradlew test` was RED on main before this session — 6 test classes failing on the release variant by the two documented ARCH-012 mechanisms; the exclusion list extended 2→8).
+
+**Why:** ~63% of feature screens were NOT on the design system (the issue's §1 audit: 34 legacy-kit importer files, 30 legacy-token importers, 55 raw-MaterialTheme readers); the issue's §4 rule 6 ordered the two-apps-in-one-screen hubs fixed first.
+
+**Changed:** android commits bb4a63d→e83b6f1 · 1f16b2c→3927fd3 · c171f9a→1892e5e · dbd80b9→041ddde · 02f4406→7c5bbd2 · 95b1ddd→db964dc · 43d9a75→42a7cb9 (main). Hub: this entry + the T-460 registry update + the next-task header + the DUP-003 status note + the android AGENTS.md pinned lesson. ZERO business-logic changes: every ViewModel contract, engine call, RBAC gate and navigation route preserved (each commit's Preserved field).
+
+**Verified:** per-pass compileDebugKotlin + testDebugUnitTest (654/0 each time, the count unchanged — no test lost); the session-final FULL gates: `./gradlew test` BUILD SUCCESSFUL (debug 654/0 + release 617/0 — the release gate repaired this session) + `./gradlew lint` BUILD SUCCESSFUL (baseline gate, zero new findings). The measured progress: legacy-kit feature importers 41→6, MaterialTheme-reading feature files 55→31.
+
+**Discovered (registered):** (1) the ARCH-012 release-variant exclusion list had silently rotted — 6 test classes landed without extending it, leaving the full test gate red on main for several sessions (the third "update BOTH sides" recurrence; pinned in the android AGENTS.md §8.1 + the build file comment); (2) the shared T-297 AuditDiffSheet lived in the legacy kit with no DS sheet primitive to migrate onto until ElBottomSheet existed — its natural post-migration home is the settings feature (the cross-feature-import convention), NOT the generic DS (it renders audit-domain content).
+
+**Left:** T-460 passes G–I: the CRM detail family (StudentDetail/ParentDetail — the heaviest remaining legacy surfaces, ~2,800 lines, 6 files), the raw-M3 screens (Reports, Alerts, Profile, PersonnelDetail, Routing trio, Chat pair), the MaterialTheme/dp sweep, and the legacy-kit deletion (gated on ZERO references — must not run until the CRM family migrates).
+
+**Next:** T-460 pass G — the raw-M3 screens + the CRM detail families.

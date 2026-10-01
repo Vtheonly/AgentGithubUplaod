@@ -1,10 +1,10 @@
-# 2026-10-02 — T-460 OPENED (130th session): the full UI consistency audit & unification (the owner's issue mandate) — pass 1 DELIVERED (the 4 mixed files + the shared AuditDiffSheet onto the design system; the Android suite 654/0)
+# 2026-10-02 — T-460 IN PROGRESS (130th session): the full UI consistency audit & unification (the owner's issue mandate) — SIX passes DELIVERED (mixed files · nav chrome · Financials · Academics · CRM-hub+auth · Personnel) + the ARCH-012 release-gate repair; the Android suite 654/0 debug + 617/0 release + lint green
 
 **The owner's issue (the full UI-consistency mandate) is registered as T-460 — the T-044/DUP-003 completion campaign.** Pass 1 closed the "two apps in one screen" mixed files: DashboardHubScreen (the last legacy import → the DS ElTabRow), the shared AuditDiffSheet relocated to features/settings + rebuilt on ElBottomSheet/ElTag/ElTheme (both entry points preserved, the 14-test suite green at its new home), AuditLogScreen + DiagnosticsSection + ToggleRow (zero legacy imports / zero MaterialTheme reads). The Android suite stays **654/0**. The pass order (B nav chrome → C Financials → D Academics → E CRM → F Personnel → G raw screens → H token sweep → I legacy-kit deletion) is registered in T-460's entry.
 
-## Standing recommendation (updated by the 130th session)
+## Standing recommendation (updated by the 130th session, mid-campaign)
 
-1. **T-460 passes B–I (the UI-unification campaign):** pass B — the MainScreen nav chrome (ModernBottomNavBar → the route-based ElBottomBar, the registered T-044 prerequisite) is the next pick; then C (the Financials hub's 5 legacy tabs — the worst offender per the issue's §2.5).
+1. **T-460 passes G–I (the UI-unification campaign continues):** pass G — the raw-M3 screens (Reports, Alerts, Profile, PersonnelDetail, the Routing trio, the Chat pair) + the CRM detail families (StudentDetail/ParentDetail — the 6 remaining legacy-kit importer files); then H (the MaterialTheme/dp sweep); then I (the legacy-kit deletion, gated on ZERO references).
 2. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
 3. **The T-436 `payment_allocations` backfill** — unchanged.
 4. **The Android data legs (T-456's Left)** — unchanged.
