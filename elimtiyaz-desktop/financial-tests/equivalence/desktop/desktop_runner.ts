@@ -893,6 +893,13 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
       // The aging census — the desktop Supabase debtByAgingForRange path:
       // per-installment remaining, days from the REAL dueDate, distinct
       // parents per bucket.
+      // T-452 (T-426 / DATA-046, PARITY-006): the corpus-runner aging leg is
+      // aligned with the PRODUCTION repository path — only PAST-DUE rows age
+      // (isStrictlyPast: a future T2/T3 tranche is "à échoir", never aging;
+      // it never lands in the 0_30 bucket). The corpus harness had drifted
+      // from production at T-426 (the guard was added to
+      // debtByAgingForRange but never to this op) — this is the test-contract
+      // alignment, NOT a production change (the issue-#1 §2 sanctioned class).
       const AGING_ORDER = ["0_30", "31_60", "61_90", "91_180", "180_plus"] as const;
       const amountByBucket = new Map<string, number>();
       const parentsByBucket = new Map<string, Set<string>>();
@@ -900,6 +907,10 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
         if (i.status === "paid") continue;
         const remaining = Math.max(0, centimesToDzd(i.amountDue) - centimesToDzd(i.amountPaid) - centimesToDzd(i.amountPending));
         if (remaining <= 0) continue;
+        // DATA-046: only strictly-past rows age (invalid/unparseable dates are
+        // never strictly past — excluded, matching isStrictlyPast's NaN path).
+        const dueMs = Date.parse(i.dueDate.length === 10 ? `${i.dueDate}T00:00:00Z` : i.dueDate);
+        if (!Number.isFinite(dueMs) || !(dueMs < Date.parse(now))) continue;
         const days = daysBetweenFloorFor(i.dueDate, now);
         const bucket = agingBucketFor(days);
         amountByBucket.set(bucket, (amountByBucket.get(bucket) ?? 0) + remaining);
