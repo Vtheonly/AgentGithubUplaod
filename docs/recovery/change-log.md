@@ -3920,3 +3920,21 @@ the Android mirror port · the owner's packaged-app visual pass.
 **Left:** the EN/AR trees (tied to the app's locale system); the unmounted sections mount with their future Android surfaces.
 
 **Next:** T-459 — PARITY-005 (the TS mirror's CALC-001 discount rules).
+
+---
+
+## 2026-10-02 — T-459 (128th session): PARITY-005 CLOSED — the TS mirror's CALC-001 discount rules
+
+**What:** the registered non-gating follow-up closed: the tier-4 Kotlin-mirror engine re-mirrored VERBATIM from the REAL Kotlin core/DiscountEngine.kt (the three CALC-001-removed fictional rules deleted with their constants; the 10% → 5% early-annual rate; the byte-identical grouped labels; the grossScolarite canonical slot), the mirror runner's allocatePayment gains the canonical zero-payment rejection (all-error equivalence with the desktop AND the real Android), the ORPHAN_REVERSAL violation gains its canonical details object, and — the REGISTERED CLOSE CONDITION — the tier-4 comparison is PROMOTED to the unified runner's GATING layer (any ERROR row fails the run).
+
+**Why:** CALC-001's rule removal was propagated to the desktop engine, the corpus, and the real Kotlin engine — but never to the TS mirror; the §10/ADR-002 propagation discipline had no runnable detector until T-419 wired the comparator.
+
+**Changed:** hub `a63dc2c` (branch fix/t-459-parity005-mirror-calc001 → main `f89b7f7`, merged --no-ff): kotlin_mirror_engine.ts (the discount re-mirror + the reconcile details), android_mirror_runner.ts (the zero-payment rejection), run-unified-tests.mjs (the gating promotion + the header truth-sync), Tier4Boundary.test.ts (the 3 defect-pinning tests re-pinned as the regression pins). ZERO desktop production changes.
+
+**Verified:** the tier-4 comparator 284/320 equivalent / 36 skipped / Discrepancies 0 (0 errors, 0 warnings) — was 32 rows · the Layer-2 pipeline Verdict GREEN (desktop 810/0/10, mirror 774/0/10/36, tier-4 784/820 / 0 rows GATING, sanity 820/820 + canonical 319/319) · the FULL vitest BASELINE-MATCHED (17 failed / 4,603 passed / 5 skipped — the failing-file set byte-identical to the T-455 manifest) · tsc 0 · the real Kotlin engine re-verified (the Android suite's 654/0 this session).
+
+**Discovered (the honest note):** the 3 Tier4Boundary discount-boundary tests had been PINNING the registered defect itself (the old 10% rate + the fictional-rule firings) — the Vitest tier-4 suites could never catch PARITY-005 because its own fixtures encoded the drift; re-pinning them IS part of the repair (any future regression of the mirror now fails both the corpus comparator AND these unit pins).
+
+**Left:** the 36 skipped scenarios (the documented coverage boundary); the fictional-rule corpus scenarios (now correctness pins).
+
+**Next:** the session closeout + the delivery zips.

@@ -1,3 +1,20 @@
+# 2026-10-02 — THE 128th SESSION COMPLETE: ALL FOUR registered follow-ups delivered — T-456 (the INV-20e per-year debt-history Android surface — PARITY-008) · T-457 (the §15.1 debt-status surface labels — PARITY-009) · T-458 (the Android InfoTip glossary) · T-459 (PARITY-005 CLOSED — the tier-4 comparison 284/284 with ZERO discrepancies + the GATING promotion); the Android suite 629→654, the desktop Layer-2 GREEN, the vitest BASELINE-MATCHED
+
+**The owner's mandate** (the four registered follow-ups from the 127th session's standing recommendation) is delivered end to end, each task a commit pushed + merged --no-ff per ADR-028 on the affected repository (the Android commits e1d5df0 → 7e9e364 · aa0f577 → be584e1 · e0e1fd7 → ad06805 · 918554b → 972efad; the hub commits c143b89 → 64c9181 · 9d42ac8 → 4bd371e · c3ac520 → 6f363c2 · a63dc2c → f89b7f7). **The full evidence trail:** the four verification records (t-456-inv20e-android-surface-verification.md · t-457-debt-status-labels-verification.md · t-458-infotip-glossary-verification.md · t-459-parity005-mirror-calc001-verification.md) + the registry truth-sync.
+
+**The en-passant discoveries (all pinned):** the second stale "> 45 j" hardcode in the DebtTriageCard subtitle (found during the T-458 mounting pass — corrected with the T-457 fix); the three test-writing traps (the U+202F French grouping, the JVM-identifier-legal backtick names, the Kotlin take(-1) edge — pinned in the Android AGENTS.md §8.1); the Tier4Boundary tests that had been pinning the PARITY-005 defect itself (re-pinned as the regression pins).
+
+## Standing recommendation (the 129th session's entry point)
+
+1. **The owner's packaged-app pass (now the #1 item):** pull main + rebuild the Android APK — the « Par année » drawer on the Debt Dashboard, the « Historique par Année Scolaire » section on the parent screen, the §15.3 status labels + explanations on the debt rows, and the ⓘ tooltips on the Analytique tab are ALL new surfaces this session.
+2. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
+3. **The T-436 `payment_allocations` backfill** — unchanged (the only live-data caveat; ALSO gates the Android year-history coverage lines' live data).
+4. **The Android data legs (registered, T-456's Left):** the payment_allocations persistence (Room + DTO + pull) · the academic_years window pull · the live system_settings thresholds reader · the corpus families (year-history + debt_status).
+5. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322.
+6. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
+
+---
+
 # 2026-10-02 — T-458 COMPLETE (128th session, third task): the Android InfoTip glossary (the desktop's T-447 explainability tooltips, presentation-only) — the StatsTips port (22 sections / 85 entries, GENERATED) + the ElInfoTip component + the Analytique mountings; the Android suite 654/0 (+8)
 
 **The LAST of the three registered Android follow-ups is delivered.** The Analytique tab now carries the desktop's T-447 explainability layer: `StatsTips` (the glossary — GENERATED from the canonical stats-tips.ts FR tree by `scripts/gen_stats_tips_kotlin.mjs`; 22 sections / 85 entries; the title/measures/calc/status shape; the dotted-key lookup with the honest-null contract) + `ElInfoTip` (the ⓘ affordance: the entry title as the talkback description, the stat-tip test tag, the tap-triggered popup with the meta-labelled fields, the honest-empty rule). Mounted: the wave hero (card + collectedPct/pending/remaining), the triage card (card + the four per-bucket tips + callList), pareto, YoY, the aging composition, the six stat-strip tips, the slicers header/badge. En passant: the DebtTriageCard subtitle's SECOND stale "> 45 j" corrected to "> redDays j". **Presentation-ONLY — zero derivation changes** (§15.53a: the glossary describes the canonical derivations). The suites: StatsTipsTest 5/5, ElInfoTipTest 3/3, the FULL debug suite **654/0** (was 646). Full evidence: T-458 in the task registry + `docs/recovery/t-458-infotip-glossary-verification.md`.
