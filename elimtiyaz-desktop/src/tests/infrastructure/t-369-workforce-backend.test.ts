@@ -346,13 +346,22 @@ describe("T-369 A. MockPersonnelRepository payroll surface", () => {
     const worker = seedWorker(40000, "per-903");
     const repo = new MockPersonnelRepository();
 
+    // T-455 (the §15.81 time-bomb class, discovered 2026-10-01): the
+    // effectiveDate must be PINNED inside the period under test — the mock's
+    // default is TODAY (nowIso().slice(0, 10)), so the one-offs landed in
+    // whatever month the test ran in. The test passed while the real clock
+    // was inside 2026-09 and failed the moment it ticked to 2026-10-01
+    // (`bonusesTotal: expected 0 to be 2500`) — the same wall-clock class
+    // as the T-449 refund_cleared_payment bomb. Deterministic forever now.
     await repo.adjustSalary({
       personnelId: worker.id, type: "bonus", amount: 2500,
       reason: "Prime de rendement exceptionnelle", actorId: "usr-admin", actorName: "Super Admin",
+      effectiveDate: "2026-09-10",
     });
     await repo.adjustSalary({
       personnelId: worker.id, type: "deduction", amount: 1000,
       reason: "Retenue pour retard répété", actorId: "usr-admin", actorName: "Super Admin",
+      effectiveDate: "2026-09-20",
     });
 
     const pay = await repo.recordSalaryPayment({

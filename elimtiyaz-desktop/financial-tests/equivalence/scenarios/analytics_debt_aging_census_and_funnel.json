@@ -46,7 +46,8 @@
         "amountPending": 0,
         "dueDate": "2026-09-05",
         "paidDate": null,
-        "status": "overdue"
+        "status": "overdue",
+        "trancheNumber": 1
       },
       {
         "id": "inst-2",
@@ -59,7 +60,8 @@
         "amountPending": 0,
         "dueDate": "2025-09-01",
         "paidDate": "2025-09-02",
-        "status": "paid"
+        "status": "paid",
+        "trancheNumber": 2
       },
       {
         "id": "inst-3",
@@ -72,7 +74,8 @@
         "amountPending": 0,
         "dueDate": "2026-06-20",
         "paidDate": null,
-        "status": "overdue"
+        "status": "overdue",
+        "trancheNumber": 1
       },
       {
         "id": "inst-4",
@@ -85,7 +88,8 @@
         "amountPending": 200000,
         "dueDate": "2025-09-01",
         "paidDate": null,
-        "status": "overdue"
+        "status": "overdue",
+        "trancheNumber": 1
       },
       {
         "id": "inst-5",
@@ -98,7 +102,8 @@
         "amountPending": 0,
         "dueDate": "2025-08-01",
         "paidDate": null,
-        "status": "overdue"
+        "status": "overdue",
+        "trancheNumber": 1
       },
       {
         "id": "inst-6",
@@ -111,7 +116,8 @@
         "amountPending": 0,
         "dueDate": "2026-09-30",
         "paidDate": null,
-        "status": "pending"
+        "status": "pending",
+        "trancheNumber": 1
       },
       {
         "id": "inst-7",
@@ -124,7 +130,8 @@
         "amountPending": 0,
         "dueDate": "2026-02-01",
         "paidDate": null,
-        "status": "overdue"
+        "status": "overdue",
+        "trancheNumber": 1
       },
       {
         "id": "inst-8",
@@ -137,7 +144,8 @@
         "amountPending": 0,
         "dueDate": "2026-08-25",
         "paidDate": null,
-        "status": "overdue"
+        "status": "overdue",
+        "trancheNumber": 1
       }
     ],
     "payments": [

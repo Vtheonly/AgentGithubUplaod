@@ -69,8 +69,14 @@ import {
   // PARITY-003 / T-292 — the visual-parity derivations
   deriveWeeklyRhythmFor,
   deriveTrancheWavesFor,
+  deriveTrancheStripTotalsFor,
   deriveDemographicsFor,
   deriveYearOverYear as deriveYearOverYearBridge,
+  // T-453 (T-447 mirror): the canonical pooled derivations + the slot
+  // factory (the T-455 ui_surfaces op consumes them).
+  derivePooledTrancheWaves,
+  deriveNonWaveSummary,
+  emptyPooledWave,
   // T-341 (STATS-400) — the executive-statistics derivations
   deriveTrancheWaves as deriveExecutiveTrancheWaves,
   deriveDiscountErosion,
@@ -80,9 +86,8 @@ import {
   deriveServiceYield,
   deriveEnrollmentDynamics,
   deriveTripleRiskSummary,
-  // T-453 (T-447 mirror, PARITY-006 item 7) — the pooled + non-wave derivations
-  derivePooledTrancheWaves,
-  deriveNonWaveSummary,
+  // (T-453 re-export moved up with the T-455 import block — one canonical
+  // import site for the pooled/non-wave/strip adapter derivations.)
 } from "./analytics_bridge";
 import {
   crossCheckBalanceSum,
@@ -975,6 +980,9 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
     // desktop ≡ android centime-exact on every value.
     case "deriveAnalyticsVisuals": {
       const range = (when.range as { from: string; to: string } | undefined) ?? undefined;
+      // T-455: the wave derivations' ONE clock — the pinned scenario `now`
+      // (the corpus is deterministic; Date.now() inside an op is not).
+      const nowEpochMs = Date.parse((when.now as string) ?? "2026-09-10T00:00:00Z");
 
       // (a) Weekly rhythm — over the FULL payments stream (the
       // counter-activity convention: only "refunded" excluded).
@@ -993,13 +1001,24 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
       const yoy = deriveYearOverYearBridge(current, previous);
 
       // (d) Tranche waves — over the installments (DZD conversion).
+      // T-455 (PARITY-007 item 3): the CURRENT production adapter (the
+      // canonical POOLED rows — the same object the Statistics wave hero
+      // consumes), never the retired label-regex extraction. The extended
+      // fields (dueDate/dueDateMax/isOverdue/remaining/tuitionPct) are the
+      // Finance strip's REAL view model — the corpus pins what the screens
+      // render.
       const trancheRows = (given.installments ?? []).map((i) => ({
+        parentId: i.parentId,
         label: i.label ?? "",
+        category: (i as { category?: string }).category ?? "tuition",
+        trancheNumber: (i as { trancheNumber?: number }).trancheNumber ?? 1,
         amountDue: centimesToDzd(i.amountDue),
         amountPaid: centimesToDzd(i.amountPaid ?? 0),
         amountPending: centimesToDzd(i.amountPending ?? 0),
+        dueDate: i.dueDate,
+        status: i.status,
       }));
-      const trancheWaves = deriveTrancheWavesFor(trancheRows);
+      const trancheWaves = deriveTrancheWavesFor(trancheRows, nowEpochMs);
 
       // (e) Demographics — students + classes, pinned currentYear.
       const currentYear = new Date((when.now as string) ?? "2026-09-10T00:00:00Z").getUTCFullYear();
@@ -1039,10 +1058,18 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
           index: w.index,
           label: w.label,
           hint: w.hint,
+          // T-455: the Finance strip's CURRENT view model — the pooled
+          // basis, the canonical rate, the derived due-date range, the
+          // overdue flag, the INV-4 remaining, the tuition-isolated rate.
+          dueDate: w.dueDate,
+          dueDateMax: w.dueDateMax,
+          isOverdue: w.isOverdue,
           due: dzdToCentimes(w.due),
           paid: dzdToCentimes(w.paid),
           pending: dzdToCentimes(w.pending),
+          remaining: dzdToCentimes(w.remaining),
           pct: w.pct,
+          tuitionPct: w.tuitionPct,
           isNextTarget: w.isNextTarget,
         })),
         demographics: {
@@ -1374,6 +1401,154 @@ function runOperation(scenario: CanonicalScenario): OperationResult {
             anyUnsettledFuture: c.anyUnsettledFuture,
           })),
         })),
+        nonWaveSummary: nonWave.map((n) => ({
+          kind: n.kind,
+          category: n.category,
+          installmentCount: n.installmentCount,
+          settledCount: n.settledCount,
+          familyCount: n.familyCount,
+          debtorFamilyCount: n.debtorFamilyCount,
+          overdueDebtorFamilyCount: n.overdueDebtorFamilyCount,
+          dueTotal: dzdToCentimes(n.dueTotal),
+          paidTotal: dzdToCentimes(n.paidTotal),
+          pendingTotal: dzdToCentimes(n.pendingTotal),
+          remainingTotal: dzdToCentimes(n.remainingTotal),
+          overCoverageTotal: dzdToCentimes(n.overCoverageTotal),
+          dueDateMin: n.dueDateMin,
+          dueDateMax: n.dueDateMax,
+          anyUnsettledOverdue: n.anyUnsettledOverdue,
+        })),
+      };
+    }
+
+    // ── T-455 (PARITY-007, 127th session): the UI-SURFACE derivation op —
+    // the display-layer view models the wave cards and the Finance strip
+    // actually render. The issue's §6/§11 mandate: the underlying values
+    // must actually match, not merely be formatted similarly — so the corpus
+    // pins the RENDERED model: the strip view model (the pooled adapter
+    // output), the strip totals (the 4-cell totals row), the wave-velocity
+    // card rows (the pooled slots + the T-427 status flags + the T-434
+    // days-late + the T-447 badges/identity), and the non-wave groups. The
+    // Android runner mirrors this op through the SAME canonical Kotlin
+    // derivations (deriveExecTrancheWaveStrip / deriveExecTrancheStripTotals
+    // / deriveExecPooledTrancheWaves / deriveExecNonWaveSummary).
+    case "deriveUiSurfaces": {
+      const nowEpochMs = Date.parse((when.now as string) ?? "2026-09-10T00:00:00Z");
+      const installments = (given.installments ?? []).map((i) => ({
+        id: i.id,
+        parentId: i.parentId,
+        studentId: (i as { studentId?: string | null }).studentId ?? null,
+        category: (i as { category?: string }).category ?? "tuition",
+        label: i.label ?? "",
+        trancheNumber: ((i as { trancheNumber?: number }).trancheNumber ?? 1) as 1 | 2 | 3,
+        amountDue: centimesToDzd(i.amountDue),
+        amountPaid: centimesToDzd(i.amountPaid ?? 0),
+        amountPending: centimesToDzd(i.amountPending ?? 0),
+        dueDate: i.dueDate,
+        paidDate: null,
+        status: i.status,
+        academicCycle: undefined,
+        paymentPlan: "tranches" as const,
+        isCustomSchedule: false,
+        customSchedule: false,
+        customScheduleNote: null,
+      }));
+      const bridgeRows = installments.map((i) => ({
+        parentId: i.parentId,
+        label: i.label,
+        category: i.category,
+        trancheNumber: i.trancheNumber,
+        amountDue: i.amountDue,
+        amountPaid: i.amountPaid,
+        amountPending: i.amountPending,
+        dueDate: i.dueDate,
+        status: i.status,
+      }));
+      const stripWaves = deriveTrancheWavesFor(bridgeRows, nowEpochMs);
+      const stripTotals = deriveTrancheStripTotalsFor(bridgeRows, nowEpochMs);
+      const pooled = derivePooledTrancheWaves(installments, nowEpochMs);
+      const nonWave = deriveNonWaveSummary(installments, nowEpochMs);
+
+      // The fixed T1..T3 slots — the presentation the WaveVelocityCard
+      // renders (the desktop's slots construction + the T-427 status
+      // derivation + the T-434 days-late, one clock).
+      const slots = ([1, 2, 3] as const).map(
+        (wave) => pooled.find((p) => p.wave === wave) ?? emptyPooledWave(wave),
+      );
+      const daysBetweenFloorOf = (iso: string | null): number =>
+        iso === null ? 0 : Math.floor((nowEpochMs - Date.parse(iso)) / 86_400_000);
+
+      const totalDue = pooled.reduce((s, w) => s + w.dueTotal, 0);
+      const totalPaid = pooled.reduce((s, w) => s + w.paidTotal, 0);
+      const totalPending = pooled.reduce((s, w) => s + w.pendingTotal, 0);
+      const totalRemaining = pooled.reduce((s, w) => s + w.remainingTotal, 0);
+      const globalPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+
+      return {
+        financeStripWaves: stripWaves.map((w) => ({
+          index: w.index,
+          label: w.label,
+          hint: w.hint,
+          dueDate: w.dueDate,
+          dueDateMax: w.dueDateMax,
+          isOverdue: w.isOverdue,
+          due: dzdToCentimes(w.due),
+          paid: dzdToCentimes(w.paid),
+          pending: dzdToCentimes(w.pending),
+          remaining: dzdToCentimes(w.remaining),
+          pct: w.pct,
+          tuitionPct: w.tuitionPct,
+          isNextTarget: w.isNextTarget,
+        })),
+        financeStripTotals: {
+          totalDue: dzdToCentimes(stripTotals.totalDue),
+          totalPaid: dzdToCentimes(stripTotals.totalPaid),
+          totalRemaining: dzdToCentimes(stripTotals.totalRemaining),
+          overdueCount: stripTotals.overdueCount,
+        },
+        waveVelocityCards: {
+          globalBadges: {
+            globalPct,
+            totalPending: dzdToCentimes(totalPending),
+            totalRemaining: dzdToCentimes(totalRemaining),
+          },
+          slots: slots.map((w) => {
+            const isComplete = w.remainingTotal === 0 && w.installmentCount > 0;
+            const isOverdue = w.anyUnsettledOverdue;
+            const daysLate = daysBetweenFloorOf(w.dueDateMin !== null ? new Date(w.dueDateMin).toISOString() : null);
+            return {
+              wave: w.wave,
+              installmentCount: w.installmentCount,
+              settledCount: w.settledCount,
+              familyCount: w.familyCount,
+              debtorFamilyCount: w.debtorFamilyCount,
+              overdueDebtorFamilyCount: w.overdueDebtorFamilyCount,
+              dueTotal: dzdToCentimes(w.dueTotal),
+              paidTotal: dzdToCentimes(w.paidTotal),
+              pendingTotal: dzdToCentimes(w.pendingTotal),
+              remainingTotal: dzdToCentimes(w.remainingTotal),
+              overCoverageTotal: dzdToCentimes(w.overCoverageTotal),
+              collectedPct: w.collectedPct,
+              dueDateMin: w.dueDateMin,
+              dueDateMax: w.dueDateMax,
+              anyUnsettledOverdue: w.anyUnsettledOverdue,
+              anyUnsettledFuture: w.anyUnsettledFuture,
+              // The rendered status (T-427): Clôturée only when NOTHING
+              // remains; En retard when an unsettled row is past due.
+              isComplete,
+              isOverdue,
+              statusText: isComplete ? "Clôturée" : isOverdue ? "En retard" : "En cours",
+              // The rendered échéance suffix (T-434): one clock.
+              daysLate,
+              perCategoryCount: w.perCategory.length,
+              // NOTE: the T-447 reconciliation identity (dueTotal +
+              // overCoverageTotal = paidTotal + pendingTotal + remainingTotal)
+              // is pinned NUMERICALLY by these very fields — the corpus test
+              // asserts the invariant directly (a formatted string would
+              // couple the pin to locale formatting, the §11 anti-pattern).
+            };
+          }),
+        },
         nonWaveSummary: nonWave.map((n) => ({
           kind: n.kind,
           category: n.category,

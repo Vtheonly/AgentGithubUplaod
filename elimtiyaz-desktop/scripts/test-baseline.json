@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-448 (125th session, 2026-09-30 — the dashboard-layout-persistence mandate: +27 passing tests [the t-448 repository-contract suite 16 · the t-448 editor-integration suite 11]; the failing-file set UNCHANGED byte-identical). Prior: T-447 (the Statistics-parity mandate).",
-  "_task": "T-448 (125th session, 2026-09-30) — the registered baseline move: 264 files (+2 suites), 4,616 tests (4,594 passed / 17 failed / 5 skipped — passed = the T-447 baseline's 4,567 + the 27 new T-448 tests, exact). The failing-file set is byte-identical to the T-447 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7). Verified: the full run's FAIL list diffed against the baseline — no new, no vanished. NOTE (pre-existing, not T-448's): the T-447 baseline recorded 261 files while 262 existed on disk at commit 8c2e69c (a one-file collection quirk in that session's run); this move records the ACTUAL collected count (264 = the 262 on disk + T-448's 2 new suites).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-455 (127th session, 2026-10-01 — the Android UI-surface parity pass: +9 passing tests [the new cross-platform/T-455-UiSurfaceParity suite — 1 presence check + 8 corpus legs]; the failing-file set UNCHANGED byte-identical; en-passant: the t-369 A4 wall-clock time-bomb repaired with pinned effectiveDates [the §15.81 class — the test drifted red when the real clock ticked past 2026-10-01, never a baseline member]). Prior: T-448 (125th session, 2026-09-30).",
+  "_task": "T-455 (127th session, 2026-10-01) — the registered baseline move: 265 files (+1 suite), 4,625 tests (4,603 passed / 17 failed / 5 skipped — passed = the T-448 baseline's 4,594 + the 9 new T-455 tests, exact). The failing-file set is byte-identical to the T-448 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7).",
   "testFiles": {
     "failed": 8,
-    "passed": 255,
+    "passed": 256,
     "skipped": 1,
-    "total": 264
+    "total": 265
   },
   "tests": {
     "failed": 17,
-    "passed": 4594,
+    "passed": 4603,
     "skipped": 5,
-    "total": 4616
+    "total": 4625
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",

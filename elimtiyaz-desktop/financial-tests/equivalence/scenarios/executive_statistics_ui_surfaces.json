@@ -1,0 +1,366 @@
+{
+  "id": "executive_statistics_ui_surfaces",
+  "description": "T-455 (PARITY-007): the UI-SURFACE derivation op — the DISPLAY-layer view models the wave cards and the Finance strip actually render, pinned cross-platform against the canonical engine AND the Excel source-of-truth rows. GIVEN provenance: (a) the REAL Excel 2025-2026 corpus family (t105_00267128 — OUAAMRI ARIS: Tranche 1/2/3 Scolarité at the Excel prices 84 800 / 63 600 / 90 100 DZD, all paid — the source-of-truth totals 23 850 000 DZD charged = paid, outstanding 0); (b) the LIVE 2026-2027 shape probed from the production DB (the FI registration fee at tranche 0 — 'Frais d'inscription (FI)', 25 000 DZD, 1 137 live rows of this class; the T1 price ladder 69 000 / 87 000 / 112 000 DZD; the transport T1 30 000 DZD; the V1 labels whose free text the pre-T-454 label-regex feed could not parse). The pinned now (2026-10-01) makes T1 (due 2026-09-15) past-due → 'En retard' while T2/T3 (déc 2026 / mars 2027) are future → 'à échoir', never late. Pins: the strip view model (pooled basis, the canonical UNCLAMPED rate, the derived due-date range, isOverdue, the INV-4 remaining, the tuition-isolated rate), the strip totals (the 4-cell row over the WHOLE selection — FI rows included), the wave-velocity card slots (the T-427 status flags, the T-434 days-late, the T-447 badges + the reconciliation identity held NUMERICALLY), and the non-wave « Hors Tranches » groups.",
+  "category": "executive_statistics",
+  "tags": [
+    "parity-007",
+    "t454",
+    "t455",
+    "ui-surfaces",
+    "pooled-waves",
+    "excel-corpus",
+    "finance-strip",
+    "wave-cards"
+  ],
+  "given": {
+    "tenantId": "t1",
+    "parents": [
+      {
+        "id": "par-00267128",
+        "name": "OUAAMRI"
+      },
+      {
+        "id": "par-live-001",
+        "name": "BENZAOUI"
+      },
+      {
+        "id": "par-live-002",
+        "name": "KOUBAA"
+      },
+      {
+        "id": "par-live-003",
+        "name": "ALIOUAT"
+      }
+    ],
+    "installments": [
+      {
+        "id": "ins-x1",
+        "parentId": "par-00267128",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 1 — Scolarité",
+        "trancheNumber": 1,
+        "amountDue": 8480000,
+        "amountPaid": 8480000,
+        "amountPending": 0,
+        "dueDate": "2025-09-15",
+        "paidDate": "2025-09-20",
+        "status": "paid"
+      },
+      {
+        "id": "ins-x2",
+        "parentId": "par-00267128",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 2 — Scolarité",
+        "trancheNumber": 2,
+        "amountDue": 6360000,
+        "amountPaid": 6360000,
+        "amountPending": 0,
+        "dueDate": "2025-12-15",
+        "paidDate": "2025-12-20",
+        "status": "paid"
+      },
+      {
+        "id": "ins-x3",
+        "parentId": "par-00267128",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 3 — Scolarité",
+        "trancheNumber": 3,
+        "amountDue": 9010000,
+        "amountPaid": 9010000,
+        "amountPending": 0,
+        "dueDate": "2026-03-15",
+        "paidDate": "2026-03-20",
+        "status": "paid"
+      },
+      {
+        "id": "ins-fi-1",
+        "parentId": "par-live-001",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Frais d'inscription (FI)",
+        "trancheNumber": 0,
+        "amountDue": 2500000,
+        "amountPaid": 2500000,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "paidDate": "2026-09-01",
+        "status": "paid"
+      },
+      {
+        "id": "ins-fi-2",
+        "parentId": "par-live-002",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Frais d'inscription (FI)",
+        "trancheNumber": 0,
+        "amountDue": 2500000,
+        "amountPaid": 0,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "paidDate": null,
+        "status": "unpaid"
+      },
+      {
+        "id": "ins-l1",
+        "parentId": "par-live-001",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 1 — Scolarité (V1)",
+        "trancheNumber": 1,
+        "amountDue": 6900000,
+        "amountPaid": 2500000,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "paidDate": null,
+        "status": "partial"
+      },
+      {
+        "id": "ins-l2",
+        "parentId": "par-live-002",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 1 — Scolarité (V1)",
+        "trancheNumber": 1,
+        "amountDue": 8700000,
+        "amountPaid": 7100000,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "paidDate": null,
+        "status": "partial"
+      },
+      {
+        "id": "ins-l3",
+        "parentId": "par-live-003",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 1 — Scolarité (V1)",
+        "trancheNumber": 1,
+        "amountDue": 11200000,
+        "amountPaid": 6000000,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "paidDate": null,
+        "status": "partial"
+      },
+      {
+        "id": "ins-l4",
+        "parentId": "par-live-001",
+        "studentId": null,
+        "category": "transport",
+        "label": "Tranche 1 — Transport",
+        "trancheNumber": 1,
+        "amountDue": 3000000,
+        "amountPaid": 1000000,
+        "amountPending": 0,
+        "dueDate": "2026-09-15",
+        "paidDate": null,
+        "status": "partial"
+      },
+      {
+        "id": "ins-l5",
+        "parentId": "par-live-002",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 1 — Scolarité (V1)",
+        "trancheNumber": 1,
+        "amountDue": 6900000,
+        "amountPaid": 3000000,
+        "amountPending": 3900000,
+        "dueDate": "2026-09-15",
+        "paidDate": null,
+        "status": "partial"
+      },
+      {
+        "id": "ins-l6",
+        "parentId": "par-live-001",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 2 — Scolarité",
+        "trancheNumber": 2,
+        "amountDue": 6360000,
+        "amountPaid": 0,
+        "amountPending": 0,
+        "dueDate": "2026-12-15",
+        "paidDate": null,
+        "status": "unpaid"
+      },
+      {
+        "id": "ins-l7",
+        "parentId": "par-live-003",
+        "studentId": null,
+        "category": "tuition",
+        "label": "Tranche 3 — Scolarité",
+        "trancheNumber": 3,
+        "amountDue": 9010000,
+        "amountPaid": 0,
+        "amountPending": 0,
+        "dueDate": "2027-03-15",
+        "paidDate": null,
+        "status": "unpaid"
+      }
+    ],
+    "students": [],
+    "ledgerEntries": [],
+    "payments": [],
+    "academicYearStartYear": 2026
+  },
+  "when": {
+    "type": "deriveUiSurfaces",
+    "now": "2026-10-01T00:00:00Z"
+  },
+  "then": {
+    "financeStripWaves": [
+      {
+        "index": 1,
+        "label": "Tranche 1 (Septembre)",
+        "hint": "échéance 15 sep",
+        "dueDate": "2025-09-15T00:00:00.000Z",
+        "dueDateMax": "2026-09-15T00:00:00.000Z",
+        "isOverdue": true,
+        "due": 45180000,
+        "paid": 28080000,
+        "pending": 3900000,
+        "remaining": 13200000,
+        "pct": 62,
+        "tuitionPct": 64,
+        "isNextTarget": true
+      },
+      {
+        "index": 2,
+        "label": "Tranche 2 (Décembre)",
+        "hint": "échéance 15 déc",
+        "dueDate": "2025-12-15T00:00:00.000Z",
+        "dueDateMax": "2026-12-15T00:00:00.000Z",
+        "isOverdue": false,
+        "due": 12720000,
+        "paid": 6360000,
+        "pending": 0,
+        "remaining": 6360000,
+        "pct": 50,
+        "tuitionPct": 50,
+        "isNextTarget": false
+      },
+      {
+        "index": 3,
+        "label": "Tranche 3 (Mars)",
+        "hint": "échéance 15 mars",
+        "dueDate": "2026-03-15T00:00:00.000Z",
+        "dueDateMax": "2027-03-15T00:00:00.000Z",
+        "isOverdue": false,
+        "due": 18020000,
+        "paid": 9010000,
+        "pending": 0,
+        "remaining": 9010000,
+        "pct": 50,
+        "tuitionPct": 50,
+        "isNextTarget": false
+      }
+    ],
+    "financeStripTotals": {
+      "totalDue": 80920000,
+      "totalPaid": 45950000,
+      "totalRemaining": 31070000,
+      "overdueCount": 5
+    },
+    "waveVelocityCards": {
+      "globalBadges": {
+        "globalPct": 57,
+        "totalPending": 3900000,
+        "totalRemaining": 28570000
+      },
+      "slots": [
+        {
+          "wave": 1,
+          "installmentCount": 6,
+          "settledCount": 2,
+          "familyCount": 4,
+          "debtorFamilyCount": 3,
+          "overdueDebtorFamilyCount": 3,
+          "dueTotal": 45180000,
+          "paidTotal": 28080000,
+          "pendingTotal": 3900000,
+          "remainingTotal": 13200000,
+          "overCoverageTotal": 0,
+          "collectedPct": 62,
+          "dueDateMin": 1757894400000,
+          "dueDateMax": 1789430400000,
+          "anyUnsettledOverdue": true,
+          "anyUnsettledFuture": false,
+          "isComplete": false,
+          "isOverdue": true,
+          "statusText": "En retard",
+          "daysLate": 381,
+          "perCategoryCount": 2
+        },
+        {
+          "wave": 2,
+          "installmentCount": 2,
+          "settledCount": 1,
+          "familyCount": 2,
+          "debtorFamilyCount": 1,
+          "overdueDebtorFamilyCount": 0,
+          "dueTotal": 12720000,
+          "paidTotal": 6360000,
+          "pendingTotal": 0,
+          "remainingTotal": 6360000,
+          "overCoverageTotal": 0,
+          "collectedPct": 50,
+          "dueDateMin": 1765756800000,
+          "dueDateMax": 1797292800000,
+          "anyUnsettledOverdue": false,
+          "anyUnsettledFuture": true,
+          "isComplete": false,
+          "isOverdue": false,
+          "statusText": "En cours",
+          "daysLate": 290,
+          "perCategoryCount": 1
+        },
+        {
+          "wave": 3,
+          "installmentCount": 2,
+          "settledCount": 1,
+          "familyCount": 2,
+          "debtorFamilyCount": 1,
+          "overdueDebtorFamilyCount": 0,
+          "dueTotal": 18020000,
+          "paidTotal": 9010000,
+          "pendingTotal": 0,
+          "remainingTotal": 9010000,
+          "overCoverageTotal": 0,
+          "collectedPct": 50,
+          "dueDateMin": 1773532800000,
+          "dueDateMax": 1805068800000,
+          "anyUnsettledOverdue": false,
+          "anyUnsettledFuture": true,
+          "isComplete": false,
+          "isOverdue": false,
+          "statusText": "En cours",
+          "daysLate": 200,
+          "perCategoryCount": 1
+        }
+      ]
+    },
+    "nonWaveSummary": [
+      {
+        "kind": "fi",
+        "category": "tuition",
+        "installmentCount": 2,
+        "settledCount": 1,
+        "familyCount": 2,
+        "debtorFamilyCount": 1,
+        "overdueDebtorFamilyCount": 1,
+        "dueTotal": 5000000,
+        "paidTotal": 2500000,
+        "pendingTotal": 0,
+        "remainingTotal": 2500000,
+        "overCoverageTotal": 0,
+        "dueDateMin": 1789430400000,
+        "dueDateMax": 1789430400000,
+        "anyUnsettledOverdue": true
+      }
+    ]
+  }
+}

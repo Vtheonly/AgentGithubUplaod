@@ -3852,3 +3852,19 @@ the Android mirror port · the owner's packaged-app visual pass.
 **The desktop modifications:** ZERO production changes — only the corpus test-contract class (the issue §2's sanctioned "canonical contract required to make cross-platform equivalence testable"). The full justification table: the verification doc §4.
 
 **The standing recommendation update:** the Android port's ENGINE half is COMPLETE (the four rounds ported, the corpus pins ten derivation families); the follow-ups are the UI surface pass (the wave cards / the Finance strip consuming the pooled derivation), the INV-20e year-history surface, and the §15.1 debt-status labels — all registered in T-449's Left.
+
+---
+
+## 2026-10-01 — T-454 + T-455 (127th session): the Android UI surface pass + the cross-platform UI parity test — PARITY-007 RESOLVED-TESTED
+
+**What:** the issue-#1 follow-up — the Android wave cards + the Finance strip + the dashboard wave hero now consume the canonical POOLED financial engine (the T-453 derivations); the desktop's T-447 wave visuals land on Android (the 2×3 metric grid with the En cours pending leg, the reconciliation identity, the per-category chips, the FI « Hors Tranches » section, the status badges, the échéance ranges); the NEW ui_surfaces corpus family pins the DISPLAY-layer view models on BOTH platforms against the Excel source-of-truth rows (the chain: Excel source data → canonical engine → backend/data layer → Desktop UI ≡ Android UI).
+
+**Why:** the T-449 engine pass stopped at the engine boundary — the screens still consumed the pre-T-447 derivations (the label-REGEX grouping that silently dropped rows whose labels drifted off "Tranche N"; the clamped pct that hid over-coverage; the §15.65a-violating T1 subtitle). The corpus bridge still pinned the RETIRED desktop semantics (the §15.81 harness-drift class).
+
+**Changed:** android `ac5074f` (the domain contract + the engine adapters + the repository wiring + the two cards + the runner op + the Android corpus test) · hub (the bridge re-extraction + the corpus regeneration + the desktop runner op + the T-455 vitest suite + the baseline move + the docs). ZERO desktop production changes.
+
+**Verified:** the Android debug suite 597/0 · CrossPlatformEquivalenceTest 3/3 · the comparator 320/320 / 0 discrepancies · the desktop Layer-2 GREEN · the LIVE database equivalence GREEN · the desktop vitest BASELINE-MATCHED (+9).
+
+**Discovered (registered):** the t-369 A4 wall-clock time-bomb (the SECOND session-boundary bomb of the §15.81 class — repaired in-passing); the container's corrupted node_modules (the documented sandbox-artifact class — repaired by the clean reinstall).
+
+**Next:** the INV-20e year-history drawer · the §15.1 debt-status labels · the Android InfoTip glossary (presentation-only).

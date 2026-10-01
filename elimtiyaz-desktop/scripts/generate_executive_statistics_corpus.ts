@@ -32,6 +32,12 @@ import {
   deriveTripleRiskSummary,
   derivePooledTrancheWaves,
   deriveNonWaveSummary,
+  // T-455 (PARITY-007): the UI-surface adapters — the strip view model + the
+  // strip totals + the slot factory (the same derivations the desktop
+  // runner's deriveUiSurfaces op and the production screens consume).
+  deriveTrancheWavesFor,
+  deriveTrancheStripTotalsFor,
+  emptyPooledWave,
   toAnalyticsPayment,
 } from "../financial-tests/equivalence/desktop/analytics_bridge";
 
@@ -58,6 +64,142 @@ for (const file of files) {
   const fullPath = path.join(SCENARIOS_DIR, file);
   const scenario = JSON.parse(fs.readFileSync(fullPath, "utf-8")) as ScenarioFile;
   if (scenario.category !== "executive_statistics") continue;
+
+  // ── T-455 (PARITY-007): the UI-SURFACE family — the display-layer view
+  // models the wave cards + the Finance strip render (the strip view model,
+  // the 4-cell totals, the wave-velocity card slots with the T-427 status
+  // flags + the T-434 days-late + the T-447 badges, and the non-wave
+  // groups). The then-block is computed by the REAL desktop derivations —
+  // the same analytics_bridge adapters the desktop runner op consumes.
+  if (scenario.when?.type === "deriveUiSurfaces") {
+    const given = (scenario.given ?? {}) as Record<string, never>;
+    const nowEpochMs = Date.parse(scenario.when.now ?? "2026-10-01T00:00:00Z");
+    const rows = ((given.installments as { parentId: string; label?: string; category?: string; trancheNumber?: number; amountDue: number; amountPaid?: number; amountPending?: number; dueDate: string; status: string }[]) ?? []).map((i) => ({
+      parentId: i.parentId,
+      label: i.label ?? "",
+      category: i.category ?? "tuition",
+      trancheNumber: i.trancheNumber ?? 1,
+      amountDue: centimesToDzd(i.amountDue),
+      amountPaid: centimesToDzd(i.amountPaid ?? 0),
+      amountPending: centimesToDzd(i.amountPending ?? 0),
+      dueDate: i.dueDate,
+      status: i.status,
+    }));
+    const installments = rows.map((r, idx) => ({
+      id: `gen-${idx}`,
+      parentId: r.parentId,
+      studentId: null,
+      category: r.category as never,
+      label: r.label,
+      trancheNumber: r.trancheNumber as 1 | 2 | 3,
+      amountDue: r.amountDue,
+      amountPaid: r.amountPaid,
+      amountPending: r.amountPending,
+      dueDate: r.dueDate,
+      paidDate: null,
+      status: r.status as never,
+      academicCycle: undefined,
+      paymentPlan: "tranches" as const,
+      isCustomSchedule: false,
+      customSchedule: false,
+      customScheduleNote: null,
+    }));
+    const stripWaves = deriveTrancheWavesFor(rows, nowEpochMs);
+    const stripTotals = deriveTrancheStripTotalsFor(rows, nowEpochMs);
+    const pooled = derivePooledTrancheWaves(installments, nowEpochMs);
+    const nonWave = deriveNonWaveSummary(installments, nowEpochMs);
+    const slots = ([1, 2, 3] as const).map(
+      (wave) => pooled.find((p) => p.wave === wave) ?? emptyPooledWave(wave),
+    );
+    const daysBetweenFloorOf = (iso: string | null): number =>
+      iso === null ? 0 : Math.floor((nowEpochMs - Date.parse(iso)) / 86_400_000);
+    const totalDue = pooled.reduce((s, w) => s + w.dueTotal, 0);
+    const totalPaid = pooled.reduce((s, w) => s + w.paidTotal, 0);
+    const totalPending = pooled.reduce((s, w) => s + w.pendingTotal, 0);
+    const totalRemaining = pooled.reduce((s, w) => s + w.remainingTotal, 0);
+    const globalPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+
+    scenario.then = {
+      financeStripWaves: stripWaves.map((w) => ({
+        index: w.index,
+        label: w.label,
+        hint: w.hint,
+        dueDate: w.dueDate,
+        dueDateMax: w.dueDateMax,
+        isOverdue: w.isOverdue,
+        due: dzdToCentimes(w.due),
+        paid: dzdToCentimes(w.paid),
+        pending: dzdToCentimes(w.pending),
+        remaining: dzdToCentimes(w.remaining),
+        pct: w.pct,
+        tuitionPct: w.tuitionPct,
+        isNextTarget: w.isNextTarget,
+      })),
+      financeStripTotals: {
+        totalDue: dzdToCentimes(stripTotals.totalDue),
+        totalPaid: dzdToCentimes(stripTotals.totalPaid),
+        totalRemaining: dzdToCentimes(stripTotals.totalRemaining),
+        overdueCount: stripTotals.overdueCount,
+      },
+      waveVelocityCards: {
+        globalBadges: {
+          globalPct,
+          totalPending: dzdToCentimes(totalPending),
+          totalRemaining: dzdToCentimes(totalRemaining),
+        },
+        slots: slots.map((w) => {
+          const isComplete = w.remainingTotal === 0 && w.installmentCount > 0;
+          const isOverdue = w.anyUnsettledOverdue;
+          const daysLate = daysBetweenFloorOf(w.dueDateMin !== null ? new Date(w.dueDateMin).toISOString() : null);
+          return {
+            wave: w.wave,
+            installmentCount: w.installmentCount,
+            settledCount: w.settledCount,
+            familyCount: w.familyCount,
+            debtorFamilyCount: w.debtorFamilyCount,
+            overdueDebtorFamilyCount: w.overdueDebtorFamilyCount,
+            dueTotal: dzdToCentimes(w.dueTotal),
+            paidTotal: dzdToCentimes(w.paidTotal),
+            pendingTotal: dzdToCentimes(w.pendingTotal),
+            remainingTotal: dzdToCentimes(w.remainingTotal),
+            overCoverageTotal: dzdToCentimes(w.overCoverageTotal),
+            collectedPct: w.collectedPct,
+            dueDateMin: w.dueDateMin,
+            dueDateMax: w.dueDateMax,
+            anyUnsettledOverdue: w.anyUnsettledOverdue,
+            anyUnsettledFuture: w.anyUnsettledFuture,
+            isComplete,
+            isOverdue,
+            statusText: isComplete ? "Clôturée" : isOverdue ? "En retard" : "En cours",
+            daysLate,
+            perCategoryCount: w.perCategory.length,
+          };
+        }),
+      },
+      nonWaveSummary: nonWave.map((n) => ({
+        kind: n.kind,
+        category: n.category,
+        installmentCount: n.installmentCount,
+        settledCount: n.settledCount,
+        familyCount: n.familyCount,
+        debtorFamilyCount: n.debtorFamilyCount,
+        overdueDebtorFamilyCount: n.overdueDebtorFamilyCount,
+        dueTotal: dzdToCentimes(n.dueTotal),
+        paidTotal: dzdToCentimes(n.paidTotal),
+        pendingTotal: dzdToCentimes(n.pendingTotal),
+        remainingTotal: dzdToCentimes(n.remainingTotal),
+        overCoverageTotal: dzdToCentimes(n.overCoverageTotal),
+        dueDateMin: n.dueDateMin,
+        dueDateMax: n.dueDateMax,
+        anyUnsettledOverdue: n.anyUnsettledOverdue,
+      })),
+    } as unknown as Record<string, never>;
+    fs.writeFileSync(fullPath, JSON.stringify(scenario, null, 2) + "\n");
+    updated += 1;
+    console.log(`✓ regenerated then-block (ui_surfaces): ${scenario.id}`);
+    continue;
+  }
+
   if (scenario.when?.type !== "deriveExecutiveStats") continue;
 
   const given = (scenario.given ?? {}) as Record<string, never>;

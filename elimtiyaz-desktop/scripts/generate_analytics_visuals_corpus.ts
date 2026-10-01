@@ -72,14 +72,23 @@ for (const file of files) {
   const previous = (when.previousRevenue ?? []).map((r) => ({ label: r.label, amount: r.amountDzd }));
   const yoy = deriveYearOverYear(current, previous);
 
-  // (d) tranche waves
-  const trancheRows = ((given.installments as { label?: string; amountDue: number; amountPaid?: number; amountPending?: number }[]) ?? []).map((i) => ({
+  // (d) tranche waves — T-455 (PARITY-007 item 3): the CURRENT production
+  // adapter (the canonical POOLED rows — the same construction the desktop
+  // strip + the Android strip mirror consume; the label-regex extraction is
+  // retired). The generator's then-blocks pin the REAL view model.
+  const nowEpochMs = Date.parse(when.now ?? "2026-09-10T00:00:00Z");
+  const trancheRows = ((given.installments as { parentId?: string; label?: string; category?: string; trancheNumber?: number; amountDue: number; amountPaid?: number; amountPending?: number; dueDate?: string; status?: string }[]) ?? []).map((i) => ({
+    parentId: i.parentId ?? "par-unknown",
     label: i.label ?? "",
+    category: i.category ?? "tuition",
+    trancheNumber: i.trancheNumber ?? 1,
     amountDue: centimesToDzd(i.amountDue),
     amountPaid: centimesToDzd(i.amountPaid ?? 0),
     amountPending: centimesToDzd(i.amountPending ?? 0),
+    dueDate: i.dueDate ?? "2026-09-15",
+    status: i.status ?? "unpaid",
   }));
-  const trancheWaves = deriveTrancheWavesFor(trancheRows);
+  const trancheWaves = deriveTrancheWavesFor(trancheRows, nowEpochMs);
 
   // (e) demographics
   const currentYear = new Date(when.now ?? "2026-09-10T00:00:00Z").getUTCFullYear();
@@ -119,10 +128,17 @@ for (const file of files) {
       index: w.index,
       label: w.label,
       hint: w.hint,
+      // T-455: the Finance strip's CURRENT view model (the pooled basis,
+      // the canonical rate, the derived range, the flags, the remaining).
+      dueDate: w.dueDate,
+      dueDateMax: w.dueDateMax,
+      isOverdue: w.isOverdue,
       due: dzdToCentimes(w.due),
       paid: dzdToCentimes(w.paid),
       pending: dzdToCentimes(w.pending),
+      remaining: dzdToCentimes(w.remaining),
       pct: w.pct,
+      tuitionPct: w.tuitionPct,
       isNextTarget: w.isNextTarget,
     })),
     demographics: {

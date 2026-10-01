@@ -46,13 +46,17 @@ export {
 } from "../../../src/features/dashboard/components/analytics/executive-statistics";
 
 // T-453 (T-447 mirror, PARITY-006 item 7): the canonical POOLED all-categories
-// T1/T2/T3 derivation + the non-wave summary, exported to the corpus generator
-// and the runner so the corpus pins them cross-platform (the standing T-447
-// follow-up: "the corpus executive_statistics regeneration").
-export {
+// T1/T2/T3 derivation + the non-wave summary, imported AND re-exported to the
+// corpus generator and the runner so the corpus pins them cross-platform (the
+// standing T-447 follow-up: "the corpus executive_statistics regeneration").
+// T-455 (PARITY-007 item 3): emptyPooledWave joins the imports — the
+// re-extracted strip adapter needs the presentation slot factory IN SCOPE.
+import {
   derivePooledTrancheWaves,
   deriveNonWaveSummary,
+  emptyPooledWave,
 } from "../../../src/domain/calc/payment/tranche-waves";
+export { derivePooledTrancheWaves, deriveNonWaveSummary, emptyPooledWave };
 
 /** CanonicalPayment (centimes) → desktop Payment (DZD) for the analytics slice. */
 export function toAnalyticsPayment(p: {
@@ -198,67 +202,164 @@ export function deriveWeeklyRhythmFor(
   return cells.map((c, i) => ({ day: SCHOOL_WEEK_ROWS_BRIDGE[i].key, ...c }));
 }
 
-// ── Tranche waves (installment-schedule-tab.tsx — pure bodies, T-248) ──────
+// ── Tranche waves (installment-schedule-tab.tsx — the T-447 CURRENT adapter) ─
 
 /**
- * Tranche-number matcher — VERBATIM extraction from
- * `src/features/financials/installment-schedule-tab.tsx`:
- * /^\\s*Tranche\\s*([1-3])\\b/i — "Tranche 1"/"Tranche 2 (Jan–Mar)" match,
- * "Année complète"/"Tranche 10" do not.
+ * T-455 (PARITY-007 item 3 — the harness-drift repair): this extraction is
+ * RE-EXTRACTED from the CURRENT desktop production body. The previous
+ * VERBATIM extraction (the T-248 pure body: label-regex grouping +
+ * `pct = min(100, round(…))`) mirrored a body the desktop RETIRED in T-447
+ * ("the last piece of wave math living in a feature file; it is retired") —
+ * the corpus family `analytics_visuals.trancheWaves` was pinning semantics
+ * NO desktop surface renders anymore (the §15.81 harness-drift class).
+ *
+ * The CURRENT `installment-schedule-tab.tsx` `deriveTrancheWaves` maps the
+ * canonical `derivePooledTrancheWaves` rows (the SAME object the Statistics
+ * main wave cards consume), adding only this surface's presentation
+ * (label/hint/isNextTarget/tuitionPct). This extraction mirrors THAT
+ * construction (one derivation, N presentations):
+ *   - grouping by the CANONICAL `trancheNumber` column (never label parsing)
+ *   - `pct` = the canonical PARITY-001 rate (round, NEVER clamped)
+ *   - `remaining` = the INV-4 remaining over the wave's rows
+ *   - `isOverdue` = any unsettled row's due date is past (T-427)
+ *   - `dueDate`/`dueDateMax` = the wave's DERIVED due-date range (T-434/T-435)
+ *   - `tuitionPct` = the tuition-isolated rate (T-432 — the same number the
+ *     Statistics per-category breakdown carries)
  */
-export function trancheNumberOfFor(label: string): 1 | 2 | 3 | null {
-  const m = /^\s*Tranche\s*([1-3])\b/i.exec(label);
-  return m ? (Number(m[1]) as 1 | 2 | 3) : null;
+export function deriveTrancheWavesFor(
+  rows: readonly {
+    parentId: string;
+    label: string;
+    category: string;
+    trancheNumber: number;
+    amountDue: number;
+    amountPaid: number;
+    amountPending: number;
+    dueDate: string;
+    status: string;
+  }[],
+  nowEpochMs: number,
+): TrancheWaveBridge[] {
+  // The canonical domain Installment projection (DZD domain — the pooling
+  // derivation consumes the desktop's own types).
+  const installments = rows.map((r) => ({
+    id: `bridge-${r.parentId}-${r.label}-${r.trancheNumber}`,
+    parentId: r.parentId,
+    studentId: null,
+    category: r.category as never,
+    label: r.label,
+    trancheNumber: r.trancheNumber as 1 | 2 | 3,
+    amountDue: r.amountDue,
+    amountPaid: r.amountPaid,
+    amountPending: r.amountPending,
+    dueDate: r.dueDate,
+    paidDate: null,
+    status: r.status as never,
+    academicCycle: undefined,
+    paymentPlan: "tranches" as const,
+    isCustomSchedule: false,
+    customSchedule: false,
+    customScheduleNote: null,
+  }));
+  const pooled = derivePooledTrancheWaves(installments, nowEpochMs);
+  const byIndex = new Map(pooled.map((w) => [w.wave, w]));
+  const firstWithRemaining = pooled
+    .filter((w) => w.remainingTotal > 0)
+    .map((w) => w.wave)
+    .sort((a, b) => a - b)[0];
+  const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: string }> = [
+    { index: 1, label: "Tranche 1 (Septembre)", hint: "échéance 15 sep" },
+    { index: 2, label: "Tranche 2 (Décembre)", hint: "échéance 15 déc" },
+    { index: 3, label: "Tranche 3 (Mars)", hint: "échéance 15 mars" },
+  ];
+  return TRANCHE_WAVE_META.map(({ index, label, hint }) => {
+    const w = byIndex.get(index) ?? emptyPooledWave(index);
+    const tuition = w.perCategory.find((c) => c.category === "tuition");
+    const tuitionPct = tuition && tuition.dueTotal > 0 ? Math.round((tuition.paidTotal / tuition.dueTotal) * 100) : null;
+    return {
+      index,
+      label,
+      hint,
+      dueDate: w.dueDateMin !== null ? new Date(w.dueDateMin).toISOString() : null,
+      dueDateMax: w.dueDateMax !== null ? new Date(w.dueDateMax).toISOString() : null,
+      isOverdue: w.anyUnsettledOverdue,
+      due: w.dueTotal,
+      paid: w.paidTotal,
+      pending: w.pendingTotal,
+      remaining: w.remainingTotal,
+      pct: w.collectedPct,
+      tuitionPct,
+      isNextTarget: index === firstWithRemaining,
+    };
+  });
 }
 
 export interface TrancheWaveBridge {
   index: 1 | 2 | 3;
   label: string;
   hint: string;
+  dueDate: string | null;
+  dueDateMax: string | null;
+  isOverdue: boolean;
   due: number;
   paid: number;
   pending: number;
+  remaining: number;
   pct: number;
+  tuitionPct: number | null;
   isNextTarget: boolean;
 }
 
 /**
- * Tranche waves — VERBATIM extraction from installment-schedule-tab.tsx:
- * per wave due (Σ amountDue), paid (Σ amountPaid — INCLUDES uncleared
- * checks, the display convention), pending (Σ amountPending),
- * pct = min(100, round(paid/due×100)); isNextTarget = the first wave with
- * a canonical remaining balance (Σdue − Σpaid − Σpending > 0).
+ * T-455 — the FINANCE-STRIP TOTALS (the desktop tab's totals block mirror):
+ * `sumInstallmentsDue` / `sumInstallmentsPaid` / `totalOutstanding` (the
+ * canonical INV-4 family) + the T-426 dynamic-overdue count over the whole
+ * selection (non-wave rows included — FI is billed money too).
  */
-export function deriveTrancheWavesFor(
-  rows: readonly { label: string; amountDue: number; amountPaid: number; amountPending: number }[],
-): TrancheWaveBridge[] {
-  const groups = new Map<1 | 2 | 3, { label: string; amountDue: number; amountPaid: number; amountPending: number }[]>();
-  for (const r of rows) {
-    const n = trancheNumberOfFor(r.label);
-    if (n === null) continue;
-    const list = groups.get(n) ?? [];
-    list.push(r);
-    groups.set(n, list);
-  }
-  const totalOutstanding = (list: { amountDue: number; amountPaid: number; amountPending: number }[]) =>
-    Math.max(0, list.reduce((s, i) => s + i.amountDue, 0) - list.reduce((s, i) => s + i.amountPaid, 0) - list.reduce((s, i) => s + i.amountPending, 0));
-  const firstWithRemaining = Array.from(groups.entries())
-    .filter(([, list]) => totalOutstanding(list) > 0)
-    .map(([n]) => n)
-    .sort((a, b) => a - b)[0];
-  const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: string }> = [
-    { index: 1, label: "Tranche 1 (Septembre)", hint: "échéance 15 sep — à l'inscription" },
-    { index: 2, label: "Tranche 2 (Décembre)", hint: "échéance 15 déc" },
-    { index: 3, label: "Tranche 3 (Mars)", hint: "échéance 15 mars" },
-  ];
-  return TRANCHE_WAVE_META.map(({ index, label, hint }) => {
-    const list = groups.get(index) ?? [];
-    const due = list.reduce((s, i) => s + i.amountDue, 0);
-    const paid = list.reduce((s, i) => s + i.amountPaid, 0);
-    const pending = list.reduce((s, i) => s + i.amountPending, 0);
-    const pct = due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
-    return { index, label, hint, due, paid, pending, pct, isNextTarget: index === firstWithRemaining };
-  });
+export function deriveTrancheStripTotalsFor(
+  rows: readonly {
+    parentId: string;
+    label: string;
+    category: string;
+    trancheNumber: number;
+    amountDue: number;
+    amountPaid: number;
+    amountPending: number;
+    dueDate: string;
+    status: string;
+  }[],
+  nowEpochMs: number,
+): { totalDue: number; totalPaid: number; totalRemaining: number; overdueCount: number } {
+  const installments = rows.map((r) => ({
+    id: `bridge-${r.parentId}-${r.label}-${r.trancheNumber}`,
+    parentId: r.parentId,
+    studentId: null,
+    category: r.category as never,
+    label: r.label,
+    trancheNumber: r.trancheNumber as 1 | 2 | 3,
+    amountDue: r.amountDue,
+    amountPaid: r.amountPaid,
+    amountPending: r.amountPending,
+    dueDate: r.dueDate,
+    paidDate: null,
+    status: r.status as never,
+    academicCycle: undefined,
+    paymentPlan: "tranches" as const,
+    isCustomSchedule: false,
+    customSchedule: false,
+    customScheduleNote: null,
+  }));
+  const totalDue = installments.reduce((s, i) => s + i.amountDue, 0);
+  const totalPaid = installments.reduce((s, i) => s + i.amountPaid, 0);
+  const totalPending = installments.reduce((s, i) => s + i.amountPending, 0);
+  const totalRemaining = Math.max(0, totalDue - totalPaid - totalPending);
+  const overdueCount = installments.filter(
+    (i) =>
+      i.status !== "paid" &&
+      Date.parse(i.dueDate) < nowEpochMs &&
+      Math.max(0, i.amountDue - i.amountPaid - i.amountPending) > 0,
+  ).length;
+  return { totalDue, totalPaid, totalRemaining, overdueCount };
 }
 
 // ── Demographics (supabase-dashboard-repository.demographics — pure body) ──
