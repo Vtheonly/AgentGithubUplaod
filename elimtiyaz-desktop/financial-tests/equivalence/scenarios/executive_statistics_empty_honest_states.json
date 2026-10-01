@@ -105,6 +105,8 @@
       "financialTensionCount": 0,
       "healthyCount": 0,
       "tripleCriticalPct": 0
-    }
+    },
+    "pooledWaves": [],
+    "nonWaveSummary": []
   }
 }
