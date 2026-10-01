@@ -602,63 +602,37 @@ export function splitNetTuitionByOfficialSchedule(netAnnual: number): [number, n
 }
 
 // ─── Mirror of DiscountEngine.kt ───────────────────────────────────────────
+//
+// T-459 / PARITY-005 (2026-10-02): this section is re-mirrored from the
+// REAL Kotlin core/DiscountEngine.kt (the CALC-001-clean engine — desktop
+// discount-engine.ts + discount-rules.ts commit f210cc4). The previous
+// mirror still carried the three REMOVED fictional rules and the OLD
+// 10% early-annual rate — the registered PARITY-005 drift (77 scenarios /
+// 499 rows at registration; 8 scenarios / 32 rows at the T-459 baseline).
 
-export const PASSAGE_DE_PALIER_AMOUNT = -1_000_000; // −10,000 DZD in centimes
+/** Group thousands with a plain space (fr-FR style, canonical byte-identical
+ *  across desktop / Android / reports). Mirrors the Kotlin groupAmountFr. */
+function groupAmountFr(n: number): string {
+  let rest = Math.floor(Math.abs(n));
+  if (rest === 0) return "0";
+  const parts: string[] = [];
+  while (rest > 0) {
+    parts.unshift(String(rest % 1000));
+    rest = Math.floor(rest / 1000);
+  }
+  return parts.join(" ");
+}
+
 export const SIBLING_PER_CHILD_AMOUNT = 500_000; // 5,000 DZD in centimes
-export const EARLY_ANNUAL_RATE = 0.10;
-export const HIGHEST_AVERAGE_RATE = 0.10;
-export const SENIORITY_RATE = 0.05;
-export const SENIORITY_YEARS = 5;
+export const EARLY_ANNUAL_RATE = 0.05;           // −5% of the SCOLARITÉ (workbook SUM(F)*0.05)
 
-const MS_PER_DAY = 86_400_000;
-const DAYS_PER_YEAR_AVG = 365.25;
-
-const CYCLE_TRANSITIONS: Array<[string, string]> = [
-  ["5ap", "1am"],
-  ["4am", "1ere_annee"],
-];
-
-export function evaluatePassageDePalier(previous: string | null, current: string): number {
-  if (previous === null) return 0;
-  const crossed = CYCLE_TRANSITIONS.some(([from, to]) => previous === from && current === to);
-  return crossed ? PASSAGE_DE_PALIER_AMOUNT : 0;
-}
-
-export function evaluateSiblingDiscount(childIndex: number, perChild: number = SIBLING_PER_CHILD_AMOUNT): number {
-  if (childIndex <= 1) return 0;
-  return -(perChild * (childIndex - 1));
-}
-
-export function evaluateEarlyAnnualDiscount(
-  paymentDate: string,
-  grossTuition: number,
-  paymentPlan: PaymentPlanCode,
-  academicYearStartYear: number,
-): number {
-  if (paymentPlan !== "full_annual") return 0;
-  // Kotlin: OffsetDateTime.of(year, 6, 30, 23, 59, 59, 0, UTC).toInstant()
-  const cutoff = Date.UTC(academicYearStartYear, 5, 30, 23, 59, 59, 0); // month is 0-indexed
-  const whenInstant = parseIsoInstantSafe(paymentDate);
-  if (whenInstant > cutoff) return 0;
-  return -Math.round(grossTuition * EARLY_ANNUAL_RATE);
-}
-
-export function evaluateAcademicExcellenceDiscount(previousRank: number | null, grossTuition: number): number {
-  if (previousRank === null || previousRank !== 1) return 0;
-  return -Math.round(grossTuition * HIGHEST_AVERAGE_RATE);
-}
-
-export function evaluateSeniorityDiscount(
-  enrollmentDate: string,
-  academicYearStart: string,
-  grossTuition: number,
-): number {
-  const enrolled = parseIsoInstantSafe(enrollmentDate);
-  const yearStart = parseIsoInstantSafe(academicYearStart);
-  const thresholdMs = SENIORITY_YEARS * DAYS_PER_YEAR_AVG * MS_PER_DAY;
-  if (yearStart - enrolled <= thresholdMs) return 0;
-  return -Math.round(grossTuition * SENIORITY_RATE);
-}
+// ── REMOVED (CALC-001) ───────────────────────────────────────────────
+// PASSAGE_DE_PALIER_AMOUNT / HIGHEST_AVERAGE_RATE / SENIORITY_RATE /
+// SENIORITY_YEARS / CYCLE_TRANSITIONS / evaluatePassageDePalier /
+// evaluateAcademicExcellenceDiscount / evaluateSeniorityDiscount —
+// the rules never existed at the school (the workbook evidence in the
+// desktop discount-rules.ts header); deleted from the mirror exactly as
+// the real Kotlin engine deleted them.
 
 export interface DiscountEvaluation {
   code: string;
@@ -668,8 +642,49 @@ export interface DiscountEvaluation {
   reason: string;
 }
 
+/**
+ * Mirror of the Kotlin evaluateSiblingDiscount — −5 000 DZD (centimes)
+ * per additional child; 0 when childIndex <= 1. PURE.
+ */
+export function evaluateSiblingDiscount(childIndex: number, perChild: number = SIBLING_PER_CHILD_AMOUNT): number {
+  if (childIndex <= 1) return 0;
+  return -(perChild * (childIndex - 1));
+}
+
+/**
+ * Mirror of the Kotlin evaluateEarlyAnnualDiscount — −5% of the
+ * SCOLARITÉ (centimes), only for full_annual plans paid on/before
+ * June 30 23:59:59 UTC of the academic-year start year. Centime
+ * rounding (Math.round on the centime product — the Kotlin Math.round
+ * on the Double gross; the desktop's DZD-side centime-precision rule
+ * disc-009 lands on the SAME centime).
+ */
+export function evaluateEarlyAnnualDiscount(
+  paymentDate: string,
+  grossScolarite: number,
+  paymentPlan: PaymentPlanCode,
+  academicYearStartYear: number,
+): number {
+  if (paymentPlan !== "full_annual") return 0;
+  // Kotlin: OffsetDateTime.of(year, 6, 30, 23, 59, 59, 0, UTC).toInstant()
+  const cutoff = Date.UTC(academicYearStartYear, 5, 30, 23, 59, 59, 0); // month is 0-indexed
+  const whenInstant = parseIsoInstantSafe(paymentDate);
+  if (whenInstant > cutoff) return 0;
+  return -Math.round(grossScolarite * EARLY_ANNUAL_RATE);
+}
+
 export interface EvaluateAllDiscountsParams {
+  /**
+   * CALC-001: the base for percentage rules = the gross SCOLARITÉ
+   * (FI and transport excluded). The canonical slot; the corpus still
+   * passes the deprecated grossTuition alias (same value).
+   */
+  grossScolarite?: number;
+  /** DEPRECATED alias (the Kotlin data class keeps it for call-site
+   * compatibility; the corpus fixtures use it). */
   grossTuition: number;
+  /** CALC-001: previous-grade / previous-rank inputs are DEPRECATED and
+   * ignored (the rules they fed never existed). */
   previousGradeLevel: string | null;
   currentGradeLevel: string;
   childIndex: number;
@@ -682,72 +697,49 @@ export interface EvaluateAllDiscountsParams {
   siblingPerChildAmount?: number;
 }
 
+/**
+ * Mirror of the Kotlin evaluateAllSystemDiscounts — the 2 REAL rules in
+ * a single pass (sibling_fixed, full_annual); one entry per rule that
+ * fired. CALC-001: the fictional rules (passage_palier,
+ * highest_average, seniority_5y) never existed and are absent.
+ */
 export function evaluateAllSystemDiscounts(params: EvaluateAllDiscountsParams): DiscountEvaluation[] {
   const out: DiscountEvaluation[] = [];
+  const grossScolarite = params.grossScolarite ?? params.grossTuition;
 
-  const passage = evaluatePassageDePalier(params.previousGradeLevel, params.currentGradeLevel);
-  if (passage !== 0) {
-    out.push({
-      code: "passage_palier",
-      label: "Passage de palier (−10 000 DA)",
-      amount: passage,
-      applied: true,
-      reason: `Transition ${params.previousGradeLevel ?? "—"} → ${params.currentGradeLevel}`,
-    });
-  }
-
+  // Rule 1: sibling_fixed (per additional child)
   const sibling = evaluateSiblingDiscount(params.childIndex, params.siblingPerChildAmount ?? SIBLING_PER_CHILD_AMOUNT);
   if (sibling !== 0) {
     out.push({
       code: "sibling_fixed",
-      label: `Fratrie — enfant #${params.childIndex} (−${Math.abs(sibling) / 100} DA)`,
+      // CANONICAL (cross-platform equivalence): byte-identical to the
+      // desktop/Kotlin label — plain-space fr-FR grouping.
+      label: `Fratrie — enfant #${params.childIndex} (−${groupAmountFr(Math.abs(sibling) / 100)} DA)`,
       amount: sibling,
       applied: true,
       reason: `Enfant ${params.childIndex} de la fratrie`,
     });
   }
 
+  // Rule 2: full_annual (early annual payment before June 30 — 5% scolarité)
   const early = evaluateEarlyAnnualDiscount(
     params.paymentDate,
-    params.grossTuition,
+    grossScolarite,
     params.paymentPlan,
     params.academicYearStartYear,
   );
   if (early !== 0) {
     out.push({
       code: "full_annual",
-      label: "Paiement annuel avant le 30 juin (−10%)",
+      label: "Paiement annuel avant le 30 juin (−5% scolarité)",
       amount: early,
       applied: true,
       reason: "Paiement intégral avant le 30 juin",
     });
   }
 
-  const excellence = evaluateAcademicExcellenceDiscount(params.previousRank, params.grossTuition);
-  if (excellence !== 0) {
-    out.push({
-      code: "highest_average",
-      label: "Meilleure moyenne du palier (−10%)",
-      amount: excellence,
-      applied: true,
-      reason: "Rang 1 au palier l'année précédente",
-    });
-  }
-
-  const seniority = evaluateSeniorityDiscount(
-    params.enrollmentDate,
-    params.academicYearStart,
-    params.grossTuition,
-  );
-  if (seniority !== 0) {
-    out.push({
-      code: "seniority_5y",
-      label: "Ancienneté > 5 ans (−5%)",
-      amount: seniority,
-      applied: true,
-      reason: "Plus de 5 ans d'ancienneté",
-    });
-  }
+  // ── Removed rules (CALC-001): passage_palier, highest_average,
+  // seniority_5y — their params are accepted and intentionally ignored.
 
   return out;
 }
@@ -1026,7 +1018,15 @@ function checkReversalIntegrity(entries: LedgerEntry[]): ReconcileViolation[] {
     const original = byId.get(e.reversesId);
     if (!original) {
       // Match desktop's message format: "Reversal entry {id} references non-existent original {revId}."
-      out.push({ severity: "ERROR", code: RECONCILE_CODES.ORPHAN_REVERSAL, message: `Reversal entry ${e.id} references non-existent original ${e.reversesId}.`, entryId: e.id });
+      // T-459/PARITY-005: the details object is part of the canonical
+      // violation contract (checks.ts) — the mirror previously omitted it
+      // (the registered representational row).
+      out.push({
+        severity: "ERROR", code: RECONCILE_CODES.ORPHAN_REVERSAL,
+        message: `Reversal entry ${e.id} references non-existent original ${e.reversesId}.`,
+        entryId: e.id,
+        details: { reversesId: e.reversesId },
+      });
       continue;
     }
     reversedOriginals.set(e.reversesId, (reversedOriginals.get(e.reversesId) ?? 0) + 1);
