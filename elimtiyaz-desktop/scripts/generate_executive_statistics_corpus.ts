@@ -225,12 +225,19 @@ for (const file of files) {
       paidCount: w.paidCount,
       familyCount: w.familyCount,
       debtorFamilyCount: w.debtorFamilyCount,
+      // T-449/T-451 (PARITY-006): pin the T-427/T-435 view-model fields
+      // cross-platform — the corpus contract now covers the wave's
+      // actually-late family count and the due-date RANGE far bound (both
+      // produced by the REAL desktop derivation since those rounds; the
+      // corpus serialization had simply not been extended).
+      overdueDebtorFamilyCount: w.overdueDebtorFamilyCount,
       dueTotal: dzdToCentimes(w.dueTotal),
       paidTotal: dzdToCentimes(w.paidTotal),
       remainingTotal: dzdToCentimes(w.remainingTotal),
       collectedPct: w.collectedPct,
       clearedPct: w.clearedPct,
       dueDate: w.dueDate,
+      dueDateMax: w.dueDateMax,
       phase: w.phase,
     })),
     erosion: {
