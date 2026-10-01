@@ -62,7 +62,10 @@ unpaid AS (
   SELECT
     parent_id::text AS parent_id,
     greatest(0, amount_due - amount_paid - coalesce(amount_pending, 0))::double precision AS remaining,
-    greatest(0, floor(extract(epoch FROM (now()::timestamp - due_date::timestamp)) / 86400.0))::int AS days_overdue
+    greatest(0, floor(extract(epoch FROM (now()::timestamp - due_date::timestamp)) / 86400.0))::int AS days_overdue,
+    -- T-452 (T-426/DATA-046): only strictly-past rows age (the isStrictlyPast
+    -- guard — a future T2/T3 tranche is "à échoir", never aging).
+    (due_date::timestamp < now()::timestamp) AS is_past
   FROM installments WHERE status <> 'paid'
 ),
 census AS (
@@ -76,7 +79,8 @@ census AS (
     END AS bucket,
     remaining,
     parent_id
-  FROM unpaid WHERE remaining > 0
+  -- T-452: the DATA-046 guard — not-yet-due rows NEVER enter a bucket.
+  FROM unpaid WHERE remaining > 0 AND is_past
 ),
 census_agg AS (
   SELECT bucket, sum(remaining) AS amount, count(DISTINCT parent_id)::int AS debtors
@@ -85,8 +89,10 @@ census_agg AS (
 totals AS (
   SELECT
     coalesce(sum(remaining), 0)::double precision AS outstanding,
-    coalesce(sum(remaining) FILTER (WHERE days_overdue > 0), 0)::double precision AS overdue,
-    count(DISTINCT parent_id)::int AS overdue_families
+    -- T-452 (T-426/DATA-045): the DYNAMIC overdue predicate — strictly past
+    -- (never the >= 1-day floor approximation, never the status string).
+    coalesce(sum(remaining) FILTER (WHERE is_past), 0)::double precision AS overdue,
+    count(DISTINCT parent_id) FILTER (WHERE is_past)::int AS overdue_families
   FROM unpaid WHERE remaining > 0
 ),
 classes AS (
