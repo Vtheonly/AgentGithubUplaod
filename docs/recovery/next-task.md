@@ -1,3 +1,20 @@
+# 2026-10-02 — T-457 COMPLETE (128th session, second task): the §15.1 debt-status surface labels on the Android debt screens — PARITY-009 RESOLVED-TESTED; the Android suite 646/0 (+17)
+
+**The second registered follow-up is delivered.** Every DebtSummary row now carries the canonical 4-tier debt-status (the §15.1 configurable aging hierarchy over the INV-4 remaining): `statusLevel` + the §15.3 label (IDENTICAL wording on every surface) + the INV-16d explanation (the tier, the thresholds actually applied, the « Payeur actif » annotation — never a bare color). The Debt Dashboard and the Financials Créances tab render the label chip + the explanation + the status-tone accents; the DebtTriageCard's call-list header derives its « beyond RED » number from the snapshot's `redDays` (the stale "> 45 j" hardcode — a wrong number on the card since T-443 — is corrected). The engine half: `deriveDebtAgingStatusFactors` (the §15 factor semantics, REUSING the shared daysBetweenFloor) + the T-456 `computeDebtAgingStatus` port. The suite is the desktop's own T-429 hierarchy corpus: **17/17**; the FULL debug suite: **646/0** (was 629). Full evidence: PARITY-009 (RESOLVED-TESTED) + `docs/recovery/t-457-debt-status-labels-verification.md`.
+
+**The honest remaining:** the thresholds use the documented DEFAULTS (grace 5 / yellow 15 / red 60 — migration 0125's seed, which ARE the live values today) until the Android `system_settings` reader lands (the registered follow-up — the desktop reads them live reactively); the aging-bucket FILTERS deliberately stay the census navigation (scope control).
+
+## Standing recommendation (updated by this session)
+
+1. **The LAST Android UI follow-up of the session's queue:** the Android InfoTip glossary (the desktop's T-447 bilingual tooltips — presentation-only, T-458).
+2. **PARITY-005 (the in-repo TS mirror's CALC-001 discount rules)** — the next item of the session's queue (non-gating).
+3. **The owner's FI ruling (UNKNOWN-029 / BUSINESS-110)** — unchanged.
+4. **The T-436 `payment_allocations` backfill** — unchanged (the only live-data caveat; ALSO gates the Android year-history coverage lines' live data).
+5. **The deferred families in their registry fix order:** IDENT-104 M5 → M2/M1 → DATA-056 → UI-322.
+6. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
+
+---
+
 # 2026-10-02 — T-456 COMPLETE (128th session): the INV-20e per-year debt-history Android surface (the registered follow-up — T-449's Left #2, three sessions standing) — the computeParentYearHistory Kotlin mirror + the « Par année » drawer + the CRM « Historique par Année Scolaire » section — PARITY-008 RESOLVED-TESTED; the Android suite 629/0 (+32)
 
 **The registered follow-up is delivered.** The desktop's §17.3 INV-20e year-history derivation (T-436/T-442) now has its Android counterpart end to end: the verbatim engine mirror (`core/YearHistory.kt` — the full record contract with the per-year service breakdown, the per-payment coverage lines with the CALC-003 fund classification, the prior-years still-owed enumeration), the attribution mirror (`core/DebtAging.kt` — INV-14 + the INV-18a persisted precedence, adapted to Android's `academicCycle` year-code column), and the ONE shared rendering component mounted on BOTH surfaces (the Debt Dashboard's new « Par année » per-family drawer — the T-430 conditional-mount discipline — and the CRM parent screen's « Historique par Année Scolaire » section). The engine suite is the desktop's OWN corpus mirrored verbatim in centimes (the owner's 100k/80k/20k scenario + the T-442 three-year, every-service, bounced-cheque, legacy-payment scenario): 28/28. The rendering suite: 4/4 semantic. The FULL debug suite: **629 tests / 0 failures** (was 597). Full evidence: PARITY-008 (RESOLVED-TESTED) + T-456 in the task registry + `docs/recovery/t-456-inv20e-android-surface-verification.md`.

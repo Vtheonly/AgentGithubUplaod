@@ -3886,3 +3886,21 @@ the Android mirror port · the owner's packaged-app visual pass.
 **Left:** the payment_allocations persistence (the coverage lines' data leg) · the per-year pricing reference · the corpus family + comparator leg · the academic_years window pull.
 
 **Next:** T-457 — the §15.1 debt-status surface labels on the Android debt screens.
+
+---
+
+## 2026-10-02 — T-457 (128th session): the §15.1 debt-status surface labels — PARITY-009 RESOLVED-TESTED
+
+**What:** the second registered Android follow-up: the 4-tier canonical debt-status (GREEN « Soldé / À échoir » · YELLOW « À surveiller » · ORANGE « Retard soutenu » · RED « Critique / Contentieux ») now travels with every DebtSummary row (statusLevel + the §15.3 label + the INV-16d explanation), rendered on the Debt Dashboard and the Financials Créances tab with the status-tone accents; the DebtTriageCard's call-list header derives its « beyond RED » number from the thresholds actually applied (the stale "> 45 j" hardcode corrected).
+
+**Why:** the debt surfaces answered "how bad is this family's debt" with the aging-bucket vocabulary while the desktop renders the §15.1 configurable hierarchy; the call-list number contradicted the live 60-day red edge (the DEBT-101 (e) class).
+
+**Changed:** android `aa0f577` (branch feat/t-457-debt-status-labels → main `be584e1`, merged --no-ff) + the AGENTS.md pinned-lessons commit `e0e1fd7` → `ad06805`: deriveDebtAgingStatusFactors (the §15 factor semantics — INV-16b default, INV-15 flag, reusing the shared daysBetweenFloor), the DebtSummary contract fields, the LocalDebtRepository status computation, the two surfaces' label chips + explanations, ExecTriageSnapshot.redDays. ZERO desktop production changes (hub: the verification doc + the registries).
+
+**Verified:** DebtAgingTest 17/17 (the desktop's own T-429 corpus — the tier boundaries, THE DECOUPLING pin, INV-16c, the custom thresholds, the §15.3 wording, the factor derivation) · the FULL Android debug suite 646/0 (was 629) · lint green.
+
+**Discovered (pinned in the Android AGENTS.md §8.1):** the three T-456/T-457 test-writing traps — the U+202F French grouping (build expected strings with formatDzd), the JVM-identifier-legal backtick test names ('.', '§' illegal), the Kotlin take(-1) porting edge (prefer filterIndexed).
+
+**Left:** the live thresholds reader (the DEFAULTS are the live seed values today); the corpus debt_status family.
+
+**Next:** T-458 — the Android InfoTip glossary (the last registered Android follow-up of the session's queue).

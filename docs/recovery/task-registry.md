@@ -5293,3 +5293,12 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** (1) the payment_allocations persistence (Room + DTO + pull — until it lands, the coverage bases render the honest « couverture non enregistrée » and the cross-year settlement block is empty on real data); (2) the per-year pricing reference (the engine slot is ready; the Android pricing model is not year-keyed); (3) the corpus family + the comparator leg (the derive_year_history op); (4) the academic_years window pull.
 **Next:** T-457 (the §15.1 debt-status surface labels — DebtAging.kt's status half is already in place).
 **Related:** PARITY-008 · T-436/T-442 · §17.3 INV-20e · ADR-030.
+
+## T-457 — The §15.1 debt-status surface labels on the Android debt screens (the registered follow-up executed): the 4-tier canonical status on every DebtSummary row + the threshold-derived call-list header — PARITY-009 RESOLVED-TESTED
+
+**Problem IDs:** PARITY-009 (registered this session; pre-tracked as T-449 Left #3 + T-455 remaining #2).
+**Status:** DONE (2026-10-02, 128th session — android commit aa0f577, main be584e1 [branch feat/t-457-debt-status-labels, merged --no-ff] + the AGENTS.md lessons commit e0e1fd7 → main ad06805: DebtSummary.statusLevel/statusLabel/statusExplanation [additive] + deriveDebtAgingStatusFactors in core/DebtAging.kt [the §15 factor semantics, reusing the shared daysBetweenFloor] + the §15.3 label chips + the INV-16d explanations on the Debt Dashboard and the Créances tab + the DebtTriageCard's redDays-derived header. Verified: DebtAgingTest 17/17 [the desktop's own T-429 hierarchy corpus], the FULL debug suite 646/0 [was 629], lint green. Evidence: docs/recovery/t-457-debt-status-labels-verification.md).
+
+**Left:** the live system_settings thresholds reader on Android (the documented DEFAULTS — which ARE the live seed values — are used until then); the corpus debt_status family (the comparator leg); the aging-bucket FILTERS deliberately stay the census navigation (scope control).
+**Next:** T-458 (the Android InfoTip glossary — the last of the three registered Android follow-ups).
+**Related:** PARITY-009 · §15.1/§15.3 · T-429/T-443/T-450.
