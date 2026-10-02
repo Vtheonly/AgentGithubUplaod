@@ -3874,7 +3874,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### ANDR-CHAT-200 — Android has NO chat UI at all (scope gap exposed by the chat completion)
 
-- **Category:** FEAT  |  **Severity:** Medium  |  **Status:** TESTED (2026-09-02, 21st session — T-102-follow-up: Android chat read-side + online sends LIVE in v1; 21 new tests; live websocket/device round-trip pending)
+- **Category:** FEAT  |  **Severity:** Medium  |  **Status:** RESOLVED-TESTED (2026-10-02, 133rd session — T-102 v2 closes the last deferrals: the Room READ cache (schema v17, stale-while-error), the NetworkTimeouts IO-guard routing, the per-channel + quick-action unread badges; 25 chat tests. v1 was 2026-09-02, 21st session — T-129: read-side + online sends, 21 tests. The live websocket/device round-trip remains the owner's visual smoke test — device-gated like the other T-039/T-069-class round-trips)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-102 (registered 2026-08-31, 14th session)
