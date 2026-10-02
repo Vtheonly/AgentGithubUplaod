@@ -146,6 +146,12 @@ export function PersonNavigationProvider({ children }: { children: React.ReactNo
           setActiveParentId(null);
           navigate(`/crm?action=add-child&parentId=${parent.id}`);
         }}
+        onOpenPortalChat={(channelId) => {
+          // T-463 / CHAT-300: the parent conversation opens in the CRM's
+          // PORTAL messenger tab — the internal staff messenger and the
+          // portal communication system are separate surfaces.
+          navigate(`/crm?action=portal-chat&channelId=${channelId}`);
+        }}
       />
 
       <StudentDetailDrawer

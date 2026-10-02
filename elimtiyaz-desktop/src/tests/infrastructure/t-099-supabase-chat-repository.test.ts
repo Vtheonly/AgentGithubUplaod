@@ -547,6 +547,97 @@ describe("T-099 — SupabaseChatRepository (CHAT-103/105)", () => {
     expect(last).toEqual(["ch-recent", "ch-old"]);
   });
 
+  it("T-463 / CHAT-300: observeChannels(scope) separates the two chat systems — portal and internal never mix", async () => {
+    const fake = makeClient();
+    fake.tables["chat_channels"].push(
+      {
+        id: "ch-staff-group",
+        tenant_id: TENANT,
+        code: "CH-S1",
+        name: "Équipe pédagogique",
+        channel_type: "group",
+        scope: "internal",
+        member_ids: [ME, OTHER_PROFILE],
+        created_by: ME,
+        description: null,
+        department_id: null,
+        archived_at: null,
+        last_message_at: "2026-09-01T00:00:00Z",
+        last_message_preview: "réunion",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-09-01T00:00:00Z",
+      },
+      {
+        id: "ch-parent-dm",
+        tenant_id: TENANT,
+        code: "DM-parent-me",
+        name: "Parent — Benali",
+        channel_type: "direct",
+        scope: "portal",
+        member_ids: [ME, "parent-profile-1"],
+        created_by: "parent-profile-1",
+        description: null,
+        department_id: null,
+        archived_at: null,
+        last_message_at: "2026-09-02T00:00:00Z",
+        last_message_preview: "merci",
+        created_at: "2026-08-02T00:00:00Z",
+        updated_at: "2026-09-02T00:00:00Z",
+      },
+      {
+        // A row written before the 0135 backfill could reach a fresh cache
+        // without scope — mapChannelRow must default it to 'internal'.
+        id: "ch-legacy-noscope",
+        tenant_id: TENANT,
+        code: "CH-S2",
+        name: "Canal hérité",
+        channel_type: "group",
+        member_ids: [ME],
+        created_by: ME,
+        description: null,
+        department_id: null,
+        archived_at: null,
+        last_message_at: null,
+        last_message_preview: null,
+        created_at: "2026-08-03T00:00:00Z",
+        updated_at: "2026-08-03T00:00:00Z",
+      },
+    );
+    const repo = new SupabaseChatRepository(clientAsSupabase(fake));
+
+    // The INTERNAL observer sees ONLY the staff channels (legacy default included).
+    const internalSeen: string[][] = [];
+    repo.observeChannels(ME, "internal").subscribe((chs) =>
+      internalSeen.push(chs.map((c) => c.id)),
+    );
+    await tick();
+    await tick();
+    expect(internalSeen[internalSeen.length - 1]).toEqual([
+      "ch-staff-group",
+      "ch-legacy-noscope",
+    ]);
+
+    // The PORTAL observer sees ONLY the parent conversation.
+    const portalSeen: string[][] = [];
+    repo.observeChannels(ME, "portal").subscribe((chs) =>
+      portalSeen.push(chs.map((c) => c.id)),
+    );
+    await tick();
+    await tick();
+    expect(portalSeen[portalSeen.length - 1]).toEqual(["ch-parent-dm"]);
+
+    // The scope-free observer (internal tooling) still sees all three.
+    const allSeen: string[][] = [];
+    repo.observeChannels(ME).subscribe((chs) => allSeen.push(chs.map((c) => c.id)));
+    await tick();
+    await tick();
+    expect(allSeen[allSeen.length - 1]).toEqual([
+      "ch-parent-dm",
+      "ch-staff-group",
+      "ch-legacy-noscope",
+    ]);
+  });
+
   it("T-100: openParentChannel resolves parents.auth_user_id → user_profiles.id and calls the canonical RPC", async () => {
     const fake = makeClient();
     const repo = new SupabaseChatRepository(clientAsSupabase(fake));

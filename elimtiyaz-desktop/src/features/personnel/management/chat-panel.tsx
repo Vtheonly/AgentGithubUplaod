@@ -1,8 +1,16 @@
 /**
- * ChatPanel — two-pane chat interface (iteration 8).
+ * ChatPanel — two-pane chat interface (iteration 8; T-463 scope-split).
+ *
+ * ONE component, TWO chat systems (CHAT-300 — never mixed):
+ *   - scope="internal" (the Personnel "Messagerie" tab): the workplace
+ *     messenger — staff-to-staff, groups, departments, announcements.
+ *     Channel creation allowed.
+ *   - scope="portal" (the CRM "Messagerie Portail" tab): the ADR-012
+ *     parent/student conversations. Channels are opened per-parent from
+ *     the parent record (openParentChannel) — no free-form creation.
  *
  * Layout:
- *   - Left pane: channel list (via repos.chat.observeChannels(session.userId))
+ *   - Left pane: channel list (via repos.chat.observeChannels(session.userId, scope))
  *     with last message preview + unread count (messages where
  *     !readBy.includes(session.userId))
  *   - Right pane: messages for the selected channel (via
@@ -12,7 +20,7 @@
  *   - Channel type icons: direct (User), group (Users), department (Building2),
  *     announcement (Megaphone)
  *   - Message input at bottom with send action
- *   - New channel button → <UnifiedModal> with type / name / description / members form
+ *   - New channel button (internal only) → <UnifiedModal> with type / name / description / members form
  *   - Each message: avatar, author, body, timestamp, edit/delete (own only)
  *   - Read receipts: "Lu par N personnes"
  *   - Auto mark-read on channel open
@@ -39,7 +47,7 @@ import {
 import { formatRelative, formatDateTime } from "../../../core/format/date";
 import {
   CHANNEL_TYPE_LABELS_FR,
-  type ChannelType, type ChatChannel, type ChatMessage,
+  type ChannelType, type ChatChannel, type ChatChannelScope, type ChatMessage,
 } from "../../../domain/model/workforce";
 
 const CHANNEL_TYPES: readonly ChannelType[] = ["direct", "group", "department", "announcement"];
@@ -77,14 +85,24 @@ interface NewChannelForm {
 }
 
 interface ChatPanelProps {
+  /** T-463 / CHAT-300: which chat system this surface shows — the two never mix. */
+  readonly scope: ChatChannelScope;
   readonly openWithPersonnelId?: string | null;
   readonly onOpenWithPersonnelHandled?: () => void;
+  /** T-463: a channel to auto-select once the list loads (the CRM portal
+   *  deep link from the parent drawer's "Messager" action). */
+  readonly initialChannelId?: string | null;
+  readonly onInitialChannelHandled?: () => void;
 }
 
 export function ChatPanel({
+  scope,
   openWithPersonnelId,
   onOpenWithPersonnelHandled,
+  initialChannelId,
+  onInitialChannelHandled,
 }: ChatPanelProps) {
+  const isPortal = scope === "portal";
   const repos = useRepositories();
   const { session } = useAuth();
   const toast = useToast();
@@ -93,8 +111,8 @@ export function ChatPanel({
 
   const currentUserId = session?.userId ?? "";
   const channels = useObservable(
-    () => repos.chat.observeChannels(currentUserId),
-    [currentUserId],
+    () => repos.chat.observeChannels(currentUserId, scope),
+    [currentUserId, scope],
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const messages = useObservable(
@@ -115,6 +133,9 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!openWithPersonnelId || !session) return;
+    // T-463: this action opens a PORTAL conversation (a parent record) —
+    // only the portal surface honours it.
+    if (!isPortal) return;
     const recipient = personnel.find(
       (person) => person.id === openWithPersonnelId,
     );
@@ -147,17 +168,28 @@ export function ChatPanel({
     repos.chat,
     onOpenWithPersonnelHandled,
     toast,
+    isPortal,
   ]);
 
   // Auto-select the first channel when none is selected
   useEffect(() => {
+    // T-463: the portal deep link wins — select the handed channel as soon
+    // as the list contains it (the repository refresh may still be in
+    // flight when the tab first renders).
+    if (initialChannelId) {
+      if (channels.some((c) => c.id === initialChannelId)) {
+        setSelectedId(initialChannelId);
+        onInitialChannelHandled?.();
+      }
+      return;
+    }
     if (!selectedId && channels.length > 0) {
       setSelectedId(channels[0].id);
     }
     if (selectedId && !channels.find((c) => c.id === selectedId) && channels.length > 0) {
       setSelectedId(channels[0].id);
     }
-  }, [channels, selectedId]);
+  }, [channels, selectedId, initialChannelId, onInitialChannelHandled]);
 
   // Mark channel read on open
   useEffect(() => {
@@ -277,23 +309,36 @@ export function ChatPanel({
 
   return (
     <DashboardSection
-      title="Messagerie interne"
+      title={isPortal ? "Messagerie Portail" : "Messagerie Interne"}
       icon={MessageSquare}
+      description={
+        isPortal
+          ? "Conversations avec les parents et élèves via le portail — le canal de communication de l'administration."
+          : "Conversations du personnel uniquement — employés, travailleurs et équipes. Les parents n'y ont pas accès."
+      }
       action={
-        <Button size="sm" onClick={openNewChannel}>
-          <Plus className="h-4 w-4" /> Nouveau canal
-        </Button>
+        // T-463 / CHAT-300: portal channels are opened per-parent from the
+        // parent record (openParentChannel) — never free-form created.
+        !isPortal ? (
+          <Button size="sm" onClick={openNewChannel}>
+            <Plus className="h-4 w-4" /> Nouveau canal
+          </Button>
+        ) : undefined
       }
     >
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3 h-[520px]">
         {/* Channel list */}
         <div className="border border-border rounded-md flex flex-col overflow-hidden">
           <div className="px-3 py-2 border-b border-border text-xs font-semibold uppercase text-muted-foreground">
-            Canaux ({channels.length})
+            {isPortal ? "Conversations parents" : "Canaux"} ({channels.length})
           </div>
           <div className="flex-1 overflow-y-auto">
             {channels.length === 0 ? (
-              <p className="p-4 text-xs text-muted-foreground text-center">Aucun canal. Créez-en un pour démarrer.</p>
+              <p className="p-4 text-xs text-muted-foreground text-center">
+                {isPortal
+                  ? "Aucune conversation portail. Ouvrez-en une depuis une fiche parent (bouton « Messager »)."
+                  : "Aucun canal. Créez-en un pour démarrer."}
+              </p>
             ) : (
               <ul>
                 {channels.map((c) => {
@@ -353,8 +398,15 @@ export function ChatPanel({
                     <p className="text-[11px] text-muted-foreground truncate">{selectedChannel.description}</p>
                   )}
                 </div>
-                <span className="text-[11px] text-muted-foreground">
-                  {CHANNEL_TYPE_LABELS_FR[selectedChannel.type]}
+                <span className="inline-flex items-center gap-1">
+                  {isPortal && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-status-info/15 text-status-info">
+                      Portail
+                    </span>
+                  )}
+                  <span className="text-[11px] text-muted-foreground">
+                    {CHANNEL_TYPE_LABELS_FR[selectedChannel.type]}
+                  </span>
                 </span>
               </div>
 
@@ -450,7 +502,9 @@ export function ChatPanel({
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-              Sélectionnez un canal pour voir les messages.
+              {isPortal
+                ? "Sélectionnez une conversation pour voir les messages."
+                : "Sélectionnez un canal pour voir les messages."}
             </div>
           )}
         </div>

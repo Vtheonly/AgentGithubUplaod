@@ -124,12 +124,17 @@ export function ParentDetailDrawer({
   onOpenChange,
   onAddChild,
   onOpenStudent,
+  onOpenPortalChat,
 }: {
   parentId: string | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onAddChild?: (parent: Parent) => void;
   onOpenStudent?: (studentId: string) => void;
+  /** T-463 / CHAT-300: open (and navigate to) this parent's PORTAL
+   *  conversation — the CRM "Messagerie Portail" tab. The internal staff
+   *  messenger is a separate system and is never used for parents. */
+  onOpenPortalChat?: (channelId: string) => void;
 }) {
   const repos = useRepositories();
   const toast = useToast();
@@ -341,6 +346,14 @@ export function ParentDetailDrawer({
       const r = await repos.chat.openParentChannel(p.id, parentDisplayName(p));
       if (r.ok) {
         toast.showSuccess("Conversation prête", `« ${r.value.name} » ouverte.`);
+        // T-463 / CHAT-300: the conversation lives in the PORTAL messenger
+        // (the CRM tab) — take the operator straight to it instead of the
+        // old toast-only dead end that dropped the channel into the mixed
+        // internal list.
+        if (onOpenPortalChat) {
+          onOpenChange(false);
+          onOpenPortalChat(r.value.id);
+        }
       } else {
         toast.showError("Conversation impossible", r.error.userMessage);
       }

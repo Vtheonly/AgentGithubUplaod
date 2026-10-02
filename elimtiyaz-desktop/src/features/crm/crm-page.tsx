@@ -11,6 +11,7 @@ import {
   Users,
   GraduationCap,
   UserPlus,
+  MessagesSquare,
   FileJson,
   FileSpreadsheet,
   Upload,
@@ -53,6 +54,7 @@ import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { BatchRegistrationModal } from "./batch-registration-modal";
 import { ExcelImportModal } from "./excel-import-modal";
 import { ReEnrollmentTab } from "./re-enrollment/re-enrollment-tab";
+import { ChatPanel } from "../personnel/management/chat-panel";
 import { useToast } from "../../app/providers/toast-provider";
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import {
@@ -62,7 +64,10 @@ import {
   type ExportData,
 } from "../../infrastructure/excel/data-export";
 
-type CrmTab = "parents" | "students" | "reenrollment" | "batch";
+// T-463 / CHAT-300: "portalmessages" is the PORTAL↔STAFF messenger tab —
+// the parent/student conversations (ADR-012). The internal staff messenger
+// lives in the Personnel module; the two chat systems are never mixed.
+type CrmTab = "parents" | "students" | "reenrollment" | "batch" | "portalmessages";
 
 export function CrmPage() {
   const { t } = useTranslation();
@@ -78,6 +83,9 @@ export function CrmPage() {
   const [tab, setTab] = useState<CrmTab>("parents");
   const [batchOpen, setBatchOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // T-463 / CHAT-300: the portal-conversation deep link (from the parent
+  // drawer's "Messager" action) — the channel to select on the portal tab.
+  const [portalChannelId, setPortalChannelId] = useState<string | null>(null);
   const [directAddOpen, setDirectAddOpen] = useState(false);
   const [reEnrollmentWaiting, setReEnrollmentWaiting] = useState(0);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -107,6 +115,21 @@ export function CrmPage() {
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete("action");
+          return next;
+        },
+        { replace: true },
+      );
+    } else if (action === "portal-chat") {
+      // T-463 / CHAT-300: the parent drawer's "Messager" action lands here —
+      // select the portal tab and hand the channel to the ChatPanel.
+      const channelId = searchParams.get("channelId");
+      if (channelId) setPortalChannelId(channelId);
+      setTab("portalmessages");
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("action");
+          next.delete("channelId");
           return next;
         },
         { replace: true },
@@ -292,6 +315,14 @@ export function CrmPage() {
             countTone={reEnrollmentWaiting > 0 ? "danger" : "default"}
           />
           <PageTab value="batch" label="Inscription groupée" icon={UserPlus} />
+          {/* T-463 / CHAT-300: the PORTAL↔STAFF messenger — parents/élèves
+              conversations (ADR-012). The internal staff messenger stays in
+              the Personnel module; the two systems never mix. */}
+          <PageTab
+            value="portalmessages"
+            label="Messagerie Portail"
+            icon={MessagesSquare}
+          />
         </PageTabList>
 
         <PageTabContent value="parents">
@@ -313,6 +344,14 @@ export function CrmPage() {
           <BatchTab
             onBatch={() => setBatchOpen(true)}
             onImport={() => setImportOpen(true)}
+          />
+        </PageTabContent>
+
+        <PageTabContent value="portalmessages">
+          <ChatPanel
+            scope="portal"
+            initialChannelId={portalChannelId}
+            onInitialChannelHandled={() => setPortalChannelId(null)}
           />
         </PageTabContent>
       </PageTabs>

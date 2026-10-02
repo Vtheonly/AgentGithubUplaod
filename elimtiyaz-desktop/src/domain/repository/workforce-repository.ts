@@ -22,6 +22,7 @@ import type {
   PerformanceReview,
   ChatChannel,
   ChatMessage,
+  ChatChannelScope,
   ChannelType,
   OnboardingState,
   OnboardingStep,
@@ -196,7 +197,17 @@ export interface PerformanceReviewRepository {
 }
 
 export interface ChatRepository {
-  observeChannels(personnelId: string): Observable<ChatChannel[]>;
+  /**
+   * T-463 / CHAT-300: the member's channels, optionally restricted to ONE
+   * chat system ('internal' = the workplace messenger, 'portal' = the
+   * ADR-012 parent/student conversations). No scope = all channels (the
+   * cross-scope view is legitimate for internal tooling, never for the
+   * chat UIs — the two surfaces must not mix).
+   */
+  observeChannels(
+    personnelId: string,
+    scope?: ChatChannelScope,
+  ): Observable<ChatChannel[]>;
   observeChannel(channelId: string): Observable<ChatChannel | null>;
   observeMessages(channelId: string): Observable<ChatMessage[]>;
   createChannel(input: {
