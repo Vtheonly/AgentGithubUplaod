@@ -160,7 +160,10 @@ export function PersonnelPage() {
             label={canReviewRequests ? "Demandes & Dépenses" : "Mes Demandes"}
             icon={Receipt}
           />
-          <PageTab value="chat" label="Messagerie" icon={MessageSquare} />
+          {/* T-463 / CHAT-300: the INTERNAL staff messenger — parents and
+              portal conversations live in the CRM's "Messagerie Portail"
+              tab instead (the two systems are never mixed). */}
+          <PageTab value="chat" label="Messagerie Interne" icon={MessageSquare} />
 
           {/* Teacher and specialized tabs */}
           {(isFullAdmin || isTeacher) && (
@@ -205,6 +208,7 @@ export function PersonnelPage() {
 
         <PageTabContent value="chat">
           <ChatPanel
+            scope="internal"
             openWithPersonnelId={chatRecipientPersonnelId}
             onOpenWithPersonnelHandled={() => setChatRecipientPersonnelId(null)}
           />

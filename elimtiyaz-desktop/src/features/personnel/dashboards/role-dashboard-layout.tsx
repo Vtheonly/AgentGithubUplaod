@@ -156,12 +156,16 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
  */
 export function DashboardSection({
   title,
+  description,
   icon: Icon,
   action,
   children,
   className = "",
 }: {
   title: string;
+  /** T-463 / CHAT-300: the one-line scope explainer under the title (which
+   *  chat system this surface belongs to — the two never mix). */
+  description?: string;
   icon?: LucideIcon;
   action?: ReactNode;
   children: ReactNode;
@@ -170,10 +174,15 @@ export function DashboardSection({
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-          {title}
-        </CardTitle>
+        <div className="min-w-0">
+          <CardTitle className="text-base flex items-center gap-2">
+            {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+            {title}
+          </CardTitle>
+          {description && (
+            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          )}
+        </div>
         {action}
       </CardHeader>
       <CardContent className="pt-2">{children}</CardContent>

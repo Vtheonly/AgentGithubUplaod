@@ -42,6 +42,7 @@ import type {
   RequestStatus,
   PerformanceReview,
   ChatChannel,
+  ChatChannelScope,
   ChatMessage,
   ChannelType,
   OnboardingState,
@@ -1030,6 +1031,7 @@ const SEED_CHANNELS: ChatChannel[] = [
     id: "ch-announcements",
     tenantId: TENANT_ID,
     type: "announcement" as ChannelType,
+    scope: "internal" as ChatChannelScope,
     name: "Annonces générales",
     description: "Canal d'annonces de la direction",
     memberIds: [],
@@ -1044,6 +1046,7 @@ const SEED_CHANNELS: ChatChannel[] = [
     id: "ch-teachers",
     tenantId: TENANT_ID,
     type: "department" as ChannelType,
+    scope: "internal" as ChatChannelScope,
     name: "Salon des enseignants",
     description: "Canal du département Teachers",
     memberIds: [],
@@ -1058,6 +1061,7 @@ const SEED_CHANNELS: ChatChannel[] = [
     id: "ch-drivers",
     tenantId: TENANT_ID,
     type: "department" as ChannelType,
+    scope: "internal" as ChatChannelScope,
     name: "Salon des chauffeurs",
     description: "Canal du département Drivers",
     memberIds: [],
@@ -1067,6 +1071,23 @@ const SEED_CHANNELS: ChatChannel[] = [
     archivedAt: null,
     lastMessageAt: "2025-09-13T08:15:00.000Z",
     lastMessagePreview: "La tournée de Hydra démarre à 7h30 demain.",
+  },
+  {
+    // T-463 / CHAT-300: the portal↔staff channel (the ADR-12 parent
+    // conversation) — mock mirror of open_parent_admin_channel's product.
+    id: "ch-portal-admin",
+    tenantId: TENANT_ID,
+    type: "direct" as ChannelType,
+    scope: "portal" as ChatChannelScope,
+    name: "Parent — Famille Benali",
+    description: "Canal parent ↔ administration (ADR-012)",
+    memberIds: [],
+    departmentId: null,
+    createdBy: "system",
+    createdAt: "2025-09-10T09:00:00.000Z",
+    archivedAt: null,
+    lastMessageAt: "2025-09-16T11:20:00.000Z",
+    lastMessagePreview: "Merci, nous avons bien reçu le relevé.",
   },
 ];
 
@@ -1130,11 +1151,15 @@ class MockChatRepository implements ChatRepository {
     });
   }
 
-  observeChannels(personnelId: string): Observable<ChatChannel[]> {
+  observeChannels(personnelId: string, scope?: ChatChannelScope): Observable<ChatChannel[]> {
     // Returns channels where the personnel is a member OR announcement/department channels (visible to all).
+    // T-463 / CHAT-300: a scope-restricted observer sees ONLY that chat
+    // system's channels — the two systems never mix in the UI.
     return new SubjectBehavior<ChatChannel[]>(
       this.channels.filter((c) =>
         c.archivedAt === null && (
+          scope === undefined || c.scope === scope
+        ) && (
           c.type === "announcement" ||
           c.memberIds.includes(personnelId) ||
           c.memberIds.length === 0 // open channel — visible to everyone
@@ -1161,6 +1186,12 @@ class MockChatRepository implements ChatRepository {
       id: genId("ch"),
       tenantId: TENANT_ID,
       type: input.type,
+      // T-463: mock mirror of the 0135 derive_scope trigger (the mock has
+      // no role registry — the personnel-vs-parent membership heuristic:
+      // a member id that is not a seeded personnel/user id is a parent).
+      scope: input.memberIds.some((id) => id.startsWith("par-"))
+        ? "portal"
+        : "internal",
       name: input.name,
       description: input.description,
       memberIds: input.memberIds,
@@ -1276,14 +1307,17 @@ class MockChatRepository implements ChatRepository {
     // T-100 mock parity: create (or return) an in-memory direct channel with
     // the parent. Mock parents have no real user_profiles link — the parentId
     // doubles as the "member" id so the demo flow stays shape-identical.
+    // T-463: this is the PORTAL channel factory (ADR-012) — scope is always
+    // 'portal' (the 0135 trigger derives the same server-side).
     const existing = this.channels.find(
-      (c) => c.type === "direct" && c.memberIds.includes(parentId) && c.archivedAt === null,
+      (c) => c.type === "direct" && c.scope === "portal" && c.memberIds.includes(parentId) && c.archivedAt === null,
     );
     if (existing) return Ok(existing);
     const ch: ChatChannel = {
       id: genId("ch"),
       tenantId: TENANT_ID,
       type: "direct",
+      scope: "portal",
       name: `Parent — ${displayName || parentId}`,
       description: null,
       memberIds: [parentId],

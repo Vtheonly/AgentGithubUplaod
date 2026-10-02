@@ -358,6 +358,18 @@ export interface PerformanceReview {
 
 export type ChannelType = "direct" | "group" | "department" | "announcement";
 
+// T-463 / CHAT-300 (0135): which chat system a channel belongs to.
+// 'portal' = contains at least one parent/student member (the ADR-012
+// portal↔staff communication); 'internal' = all members are staff/workers
+// (the ADR-008 workplace messenger). Derived SERVER-SIDE by the
+// chat_channels_derive_scope trigger — clients can never mislabel it.
+export type ChatChannelScope = "internal" | "portal";
+
+export const CHAT_CHANNEL_SCOPE_LABELS_FR: Record<ChatChannelScope, string> = {
+  internal: "Messagerie interne",
+  portal: "Messagerie portail",
+};
+
 export const CHANNEL_TYPE_LABELS_FR: Record<ChannelType, string> = {
   direct: "Message direct",
   group: "Groupe",
@@ -369,6 +381,8 @@ export interface ChatChannel {
   readonly id: string;
   readonly tenantId: string;
   readonly type: ChannelType;
+  /** T-463 / CHAT-300: the chat system this channel belongs to (0135 column, server-derived). */
+  readonly scope: ChatChannelScope;
   readonly name: string;
   readonly description: string | null;
   readonly memberIds: readonly string[];

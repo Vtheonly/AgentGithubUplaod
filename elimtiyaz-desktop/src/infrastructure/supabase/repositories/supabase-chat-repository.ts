@@ -54,6 +54,7 @@ import type { Observable } from "../../../domain/repository/repository";
 import type {
   ChannelType,
   ChatChannel,
+  ChatChannelScope,
   ChatMessage,
 } from "../../../domain/model/workforce";
 import type { TaskAttachment } from "../../../domain/model/workforce";
@@ -72,6 +73,7 @@ interface ChannelRow {
   code: string;
   name: string;
   channel_type: string;
+  scope: string | null;
   member_ids: string[];
   created_by: string | null;
   description: string | null;
@@ -108,6 +110,8 @@ function mapChannelRow(row: ChannelRow): ChatChannel {
     id: row.id,
     tenantId: row.tenant_id,
     type: row.channel_type as ChatChannel["type"],
+    // T-463 / CHAT-300 (0135): server-derived by the derive_scope trigger.
+    scope: row.scope === "portal" ? "portal" : "internal",
     name: row.name,
     description: row.description ?? null,
     memberIds: row.member_ids ?? [],
@@ -197,7 +201,7 @@ export class SupabaseChatRepository implements ChatRepository {
     void this.refreshChannels();
   }
 
-  observeChannels(personnelId: string): Observable<ChatChannel[]> {
+  observeChannels(personnelId: string, scope?: ChatChannelScope): Observable<ChatChannel[]> {
     // personnelId is the session's user_profiles.id (see header note).
     this.currentProfileId = personnelId;
     this.seedChannels();
@@ -209,6 +213,9 @@ export class SupabaseChatRepository implements ChatRepository {
           .filter(
             (c) =>
               c.archivedAt === null &&
+              // T-463 / CHAT-300: the two chat systems never mix — a
+              // scope-restricted observer sees ONLY that system's channels.
+              (scope === undefined || c.scope === scope) &&
               (c.memberIds.includes(personnelId) ||
                 (c.type === "announcement" && c.memberIds.length === 0)),
           )
