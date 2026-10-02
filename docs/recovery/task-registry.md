@@ -5374,3 +5374,13 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Next:** the standing queue (SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 · TECHDEBT-100) + the owner-gated items above.
 
 **Related:** T-129 (chat v1) · T-181 (T-173 part b) · T-460 F-19 (the option-b decision this session's mandate superseded for (a)) · ADR-009 (the public-identifier security model) · ADR-028 (the branch protocol).
+
+## T-462 — The Tranche-card UI/typography modernization: the wave surfaces onto the soft dark-mode semantic palette + metric containment + the DS meter + the Inter typeface (the owner's "modern, clean, professional" mandate)
+
+**Problem IDs:** UI-327 (the presentation-layer debt the T-454/T-455 parity port left: chart-palette hues as bare text, no metric containment, the hand-rolled meter, the system-default typeface).
+**Status:** IN_PROGRESS (registered 2026-10-03, 134th session — BEFORE implementation per §13).
+**The mandate (the owner's issue):** "Fix the UI and typography of the 'Tranche' cards… Typography: a clean modern sans-serif (like Inter) with better weights/sizes/spacing. Layout & Hierarchy: key numbers (Collected, Remaining, Overdue) stand out without feeling crammed. Colors: tone down the harsh neon (reds/greens/cyans) to a softer modern dark-mode palette. Progress & Breakdown: modernize the progress bar, cleaner Scolarité/Transport breakdown. Keep the exact same data and functionality — CSS/UI styling only."
+**Scope (presentation-only):** (1) `ExecutiveCards.kt` — the WaveVelocityCard status text → `ElTheme.colors.*` semantics (17 sites), the PooledMetric grid gains the desktop-twin tile treatment, the pooled meter consumes `ElLinearProgress` (deleting the hand-rolled Box pair), the rate → display-grade typography, the per-category chips get status-tinted containers; (2) `TrancheWaveCard.kt` — the same semantic-color softening (12 sites) + the totals row tiles; (3) the Inter family (400/500/600/700/800) bundled in `res/font` and set as the app typeface (`Typography.kt` + `ElTextStyles.kt`). Preserved verbatim: every user-facing string, every testTag, every derivation, every ViewModel, every route, every color the PARITY-003 chart inventory owns.
+**Left:** registration only — implementation, verification and registry closeout follow this entry.
+**Next:** the standing queue (SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 · TECHDEBT-100).
+**Related:** UI-327 · PARITY-007 (data parity, RESOLVED) · T-460 (the campaign whose visual-polish tail this is) · ADR-028 (the branch protocol).
