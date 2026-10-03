@@ -1,3 +1,25 @@
+## 2026-10-04 — The 138th session (continued) — T-474 COMPLETE (the owner's class-roster mandate): the student multi-select on the class creation AND edit surfaces — the ONE shared `ClassStudentMultiSelect` (search + grade eligibility + the permissive toggle + the current-class badges) wired to the EXISTING `updateStudent(classId/null)` seam with strict per-student error collection; the battery 4 690/0/5 (the registered baseline move in the same commit)
+
+### The mandate
+
+The owner's 2026-10-04 session request: "on the class creation/edit page, I want the ability to select the students/kids who belong to the class… a multi-select checkbox/list containing all students currently associated with the relevant academic year and who are eligible for that class… with the ability to search/filter… When editing an existing class, the students already assigned to that class should appear checked… properly connected to the existing student/class data and persistence logic, rather than being only a frontend selection UI."
+
+### What was delivered
+
+**The reuse-first design:** the persistence seam is the surface's OWN existing call — `repos.students.updateStudent(id, { classId })` (the exact call the class-detail « Ajouter un élève » dialog already makes), extended to the batch with STRICT per-student error collection (the T-370 anti-swallow lesson: a repository Result is never silently discarded; a partial outcome reports the failure count and keeps the modal open for retry). The atomic `finalizePlacements` RPC was evaluated and deliberately not used — it cannot express unassignment and is year-transition-oriented (the design note lives in the task registry).
+
+**The component:** `ClassStudentMultiSelect` — search by name AND ELV code; the default pool = active students of the class's grade (the "eligible for that class" reading), widened by an explicit « tous les niveaux » toggle (the existing single-add flow's permissiveness); students placed elsewhere carry their class's name badge (moves are visible BEFORE the save); the edited class's members always stay listed (the grade filter can never hide the pre-checked roster) and sort first with the « dans cette classe » marker; select-all/clear acts on the VISIBLE rows; the selected-count badge tracks the whole selection.
+
+**The two wirings:** the CREATE modal gains the picker (eligibility follows the selected grade; the assignment runs after `createClass` succeeds — one `updateStudent(classId: newClassId)` per selected student); the EDIT modal seeds the picker from the LIVE roster (pre-checked) and saves the class-details update THEN the add/remove diff (`classId` set for additions, `classId: null` for removals — both directions of the one seam).
+
+**The evidence:** the new suite 10/10 — the eligibility contract (6), the create persistence wire (1), the edit two-direction diff WITH the mock-store round-trip (1), the partial-failure honesty (1: the failing student does not abort the batch, the successful one applies, the modal stays open), and the source guard (1: both surfaces route through the repository — no direct store writes, no parallel implementation). t-407 (the same surfaces' existing suite) 13/13. The FULL battery **4 690/0/5** (271 files) with the registered baseline move in the same commit; tsc 0; eslint 0 errors.
+
+**Preserved:** the single-student dialog (the quick path, unchanged); the createClass/updateClass payload contracts; the atomic placement studio; the SQL side (nothing touched).
+
+**Registry:** task-registry T-474 COMPLETE. **Evidence:** the suite itself (`src/tests/features/academics/t-474-class-student-multiselect.test.tsx`).
+
+---
+
 ## 2026-10-04 — The 138th session (continued) — T-473 COMPLETE (the PARITY-010 owner ruling): ADR-033 settles the post-revert zero-paid FUTURE-due vocabulary on 'unpaid' — the TS engines were the drift, the SQL RPC was already correct (NO migration, NO live-apply); the desktop engine + the Kotlin TS mirror aligned, the six corpus pins re-pinned, financial-rules.md §8 records the ruling; the battery byte-identical 4 680/0/5 and the tier-4 mirror equivalence HELD (both engines changed in lockstep)
 
 ### The mandate
