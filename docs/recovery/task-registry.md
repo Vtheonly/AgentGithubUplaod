@@ -5509,3 +5509,48 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** nothing — the port is complete and PARITY-010 is now closed on ALL FOUR implementations (the SQL RPC · the desktop TS engine · the TS Kotlin mirror · the REAL Kotlin engine). The remaining Android-mirror standing-queue items (manual-debt creation, the amount band, the inspector modes, the t-470 trio's clock discipline) stay registered as divergence notes for their own sessions — deliberately not bundled here (the scope-control rule).
 **Next:** the session closeout (the device-smoke evidence documentation + the delivery zips).
 **Related:** PARITY-010 · ADR-033 · T-473 (the hub ruling) · financial-rules.md §8 · the Android repo's mirror discipline (AGENTS.md §3: behaviour changes come from the hub's canonical implementation FIRST, then port — exactly this flow).
+
+## T-477 — The Personnel page full audit (the owner's mandate): every tab inspected end-to-end for placeholders, mocks, dead code, ID-space split-brains and disconnected UI — the findings registered BEFORE any fix (WORKFORCE-507/508/509/510, CHAT-301, DEAD-202, UNKNOWN-030)
+
+**Problem IDs:** WORKFORCE-507 · WORKFORCE-508 · WORKFORCE-509 · WORKFORCE-510 · CHAT-301 · DEAD-202 (all registered 2026-10-04 by this audit; UNKNOWN-030 for the auto-relevé owner question).
+**Status:** COMPLETE (139th session, 2026-10-04 — the audit itself. THE METHOD: every Personnel-page tab traced from its UI component through `useRepositories()` to the repository slot, then to either the Supabase implementation + canonical table or the mock (the WORKFORCE-102 census method), with the ID-space discipline (T-371/T-374) applied to every personnel-keyed predicate. THE VERDICT PER TAB: dashboard = 2 real defects (WORKFORCE-507 fake warehouse data, CHAT-301 dead deep-link) + WORKFORCE-509 manager split-brain + the owner's separate "Recent Activity" removal mandate (T-478); directory = WORKFORCE-509 drawer split-brain + DEAD-202 dead drawer file; payroll = CLEAN (T-369 canonical payments/adjustments + T-412 forecast, all handlers surface errors); tasks = CLEAN (T-180/T-371 already repaired); attendance = WORKFORCE-510 swallowed errors; requests = CLEAN (T-178, all handlers surface errors); chat = CLEAN core (T-099/T-463) except CHAT-301; releve = WORKFORCE-508 (mock island + wrong key + contract-violating write path); workflows = CLEAN (T-177). Known-mock slots left REGISTERED not fixed: onboarding (schema mismatch — `onboarding_states` is per-personnel, the domain state is a tenant singleton; an owner-gated model decision) and shifts/schedules (the drawer's "Horaires & Shifts" tab renders an honest empty state — no fake data displayed; the WORKFORCE-102 standing list owns them).)
+**Scope:** the audit + this registration; the fixes are T-478 (the Recent Activity removal), T-479 (the warehouse port), T-480 (the wiring repairs: chat deep-link + ID split-brains + swallowed errors + dead code), T-481 (the Relevé port + canonical redesign).
+**Left:** the fix tasks T-478..T-481.
+**Next:** T-478 — the owner's explicit removal mandate, the smallest verified step first.
+**Related:** the owner's 2026-10-04 full-audit mandate · WORKFORCE-102 (the umbrella) · T-371/T-374 (the ID-space precedents) · T-238..T-240 (the port pattern T-479 follows).
+
+## T-478 — The owner's removal mandate: delete the "Recent Activity" section from the Personnel staff dashboards entirely (the shared `Activité récente` feed in RoleDashboardLayout + all seven dashboards' feed builders + the administrator dashboard's audit-fetch that only fed it)
+
+**Problem IDs:** none (the owner's explicit removal order — "remove the 'Recent Activity' section from the Personnel Staff page entirely").
+**Status:** IN_PROGRESS (139th session, 2026-10-04 — branch `fix/t478-remove-recent-activity`).
+**Scope:** (1) `role-dashboard-layout.tsx` — the `feed`/`hideFeed` props, the `DashboardFeedItem` interface and the "Activité récente" DashboardSection are deleted; (2) all seven role dashboards — their feed builders and `feed` props removed (the underlying observables KEPT where other UI consumes them: teacher myHomework KPI, driver/buyer/manager/worker lists and KPIs, warehouse stock card + KPIs); (3) `administrator-dashboard.tsx` — the `auditEntries` fetch + state (its ONLY consumer was the feed) removed; (4) the primitives test re-pinned (it asserted the feed's rendering).
+**Left:** (see commit).
+**Next:** T-479.
+**Related:** the owner's removal mandate · T-475 (the same dashboards' UI-consistency precedent).
+
+## T-479 — The warehouseTasks Supabase port (WORKFORCE-507): `SupabaseWarehouseTaskRepository` onto the canonical `pending_receipts`/`pending_dispatches` tables + migration 0139 (the dispatch CHECK widened with 'preparing') + the warehouse dashboard's receipts/dispatches become real data
+
+**Problem IDs:** WORKFORCE-507 (registered by T-477).
+**Status:** IN_PROGRESS (139th session, 2026-10-04 — branch `feat/t479-warehouse-supabase-port`).
+**Scope:** (1) migration 0139 — `pending_dispatches.status` CHECK widened to include 'preparing' (the domain union's transient state; append-only, next free number); (2) `SupabaseWarehouseTaskRepository` — observeReceipts/observeDispatches with supplier + purchase-request name resolution, receiveReceipt/prepareDispatch/dispatchDispatch writing frozen actor stamps, createReceipt/createDispatch/delete* for the full contract, the T-047 port pattern (SubjectBehavior cache + freshness + refresh-after-write); (3) wired into `getSupabaseRepositories()`; (4) regression tests (the mapping contract + the wiring guard).
+**Left:** (see commit).
+**Next:** T-480.
+**Related:** WORKFORCE-507 · WORKFORCE-102 · T-238..T-240 (the port pattern) · migration 0011 + RLS 0019.
+
+## T-480 — The Personnel wiring repairs (CHAT-301 + WORKFORCE-509 + WORKFORCE-510 + DEAD-202): the worker→supervisor chat deep link made real end-to-end, the two assignee-ID split-brains fixed on the personnel key discipline, the three swallowed justification Results surfaced, the dead drawer deleted after reachability proof
+
+**Problem IDs:** CHAT-301 · WORKFORCE-509 · WORKFORCE-510 · DEAD-202 (all registered by T-477).
+**Status:** IN_PROGRESS (139th session, 2026-10-04 — branch `fix/t480-personnel-wiring-repairs`).
+**Scope:** (1) worker-dashboard's "Envoyer un message" calls `onOpenChat(supervisor.id)` (the placeholder toast deleted); (2) ChatPanel honours `openWithPersonnelId` for BOTH scopes — the internal path resolves the staff personnel record, creates/finds the DM through the canonical idempotent `create_direct_channel` RPC and selects it; (3) employee-profile-drawer's Tâches filter matches `personnel.userId`; (4) manager-dashboard's team-task filter matches team ACCOUNT ids; (5) staff-attendance-center's three justification handlers surface `res.error.userMessage`; (6) `personnel-detail-drawer.tsx` deleted (reachability proven in DEAD-202).
+**Left:** (see commit).
+**Next:** T-481.
+**Related:** CHAT-301 · WORKFORCE-509 · WORKFORCE-510 · DEAD-202 · T-371/T-374 (the ID discipline) · T-370 (the never-swallow rule) · T-099/T-463 (the chat seams T-480 extends).
+
+## T-481 — The Relevé Supabase port (WORKFORCE-508): `SupabaseReleveRepository` onto the canonical `releve_entries` table + the Relevé tab redesigned to the §09.05 contract (admins record FOR a staff member; teachers read-only on their own personnel key)
+
+**Problem IDs:** WORKFORCE-508 (registered by T-477; UNKNOWN-030 registered for the auto-relevé owner question — deliberately NOT taken here).
+**Status:** IN_PROGRESS (139th session, 2026-10-04 — branch `feat/t481-releve-supabase-port`).
+**Scope:** (1) `SupabaseReleveRepository` — observeByPersonnel (tenant-scoped, RLS-gated reads; the date window filter) + logEntry (the admin-recorded write path: personnel_id from the selected staff member, recorded_by = the acting admin, clock_in_at/clock_out_at from the date + decimal-hours inputs, the activity vocabulary mapped to the DB CHECK union) + the trigger/RLS rejections surfaced honestly; (2) wired into `getSupabaseRepositories()`; (3) ReleveTab redesigned: admins get a staff picker + the entry form (record FOR the selected member — the §09.05 workflow) and can view any member's ledger; teachers get the READ-ONLY self view keyed by their PERSONNEL id (the self-write form removed — the server forbids it); (4) regression tests.
+**Left:** (see commit).
+**Next:** (see commit).
+**Related:** WORKFORCE-508 · UNKNOWN-030 · migration 0009 (the canonical contract: RLS + `prevent_self_releve_entry`) · T-374 (the personnel-key discipline this port applies) · the Android `LocalReleveRepository` (the reader the desktop now shares a table with).
