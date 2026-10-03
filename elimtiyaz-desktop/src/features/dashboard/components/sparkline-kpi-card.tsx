@@ -12,6 +12,9 @@
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { Card, CardContent } from "../../../shared/ui/card";
 import { cn } from "../../../shared/ui/cn";
+// T-468 (UI-329): the explainability tooltip — the SAME InfoTip + glossary
+// discipline the Statistics tab applies (the Overview KPIs pass their keys).
+import { InfoTip } from "./analytics/info-tip";
 
 export type SparklineTone = "primary" | "success" | "danger" | "warning";
 
@@ -32,6 +35,9 @@ export interface SparklineKpiCardProps {
   tone?: SparklineTone;
   onClick?: () => void;
   gradientKey?: string;
+  /** T-468 (UI-329): the glossary key under `statsTips` (what the KPI
+   *  measures / how it is calculated) — the Statistics-tab discipline. */
+  tip?: string;
 }
 
 /**
@@ -73,6 +79,7 @@ export function SparklineKpiCard({
   tone = "primary",
   onClick,
   gradientKey,
+  tip,
 }: SparklineKpiCardProps) {
   const hasDelta =
     typeof deltaPercent === "number" && Number.isFinite(deltaPercent);
@@ -133,6 +140,7 @@ export function SparklineKpiCard({
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
               {label}
             </p>
+            {tip && <InfoTip tip={tip} />}
           </div>
 
           <div className="flex items-baseline gap-2 flex-wrap">

@@ -11,6 +11,7 @@ import {
   CardTitle,
   CardDescription,
 } from "../../../../shared/ui/card";
+import { InfoTip } from "./info-tip";
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { AcademicClass } from "../../../../domain/model/academic";
 import {
@@ -62,6 +63,7 @@ export function PivotMatrixCard({ profiles, classes }: Props) {
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Layers className="h-4 w-4 text-primary" />
             Matrice Croisée Multi-Dimensionnelle
+            <InfoTip tip="pivot.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Performances académiques, assiduité et créances par segment

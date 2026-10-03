@@ -114,6 +114,7 @@ export function OverviewTab({
       content: (
         <SparklineKpiCard
           label={t("dashboard.kpi.totalStudents")}
+          tip="overview.students"
           value={kpis ? String(kpis.totalStudents) : "—"}
           subValue={kpis ? `${kpis.totalParents} foyers` : undefined}
           tone="primary"
@@ -136,6 +137,7 @@ export function OverviewTab({
       content: (
         <SparklineKpiCard
           label={t("dashboard.kpi.monthlyRevenue")}
+          tip="overview.revenue"
           value={kpis ? formatDzd(kpis.monthlyRevenue, { compact: true }) : "—"}
           deltaPercent={momDelta}
           trend={trendSeries}
@@ -159,6 +161,7 @@ export function OverviewTab({
       content: (
         <SparklineKpiCard
           label={t("dashboard.kpi.outstandingDebt")}
+          tip="overview.debt"
           value={kpis ? formatDzd(outstanding, { compact: true }) : "—"}
           subValue={
             overdueNow > 0
@@ -189,6 +192,7 @@ export function OverviewTab({
       content: (
         <SparklineKpiCard
           label="Assiduité Globale"
+          tip="overview.attendance"
           value={kpis ? `${Math.round(kpis.attendanceRateToday * 100)}%` : "—"}
           tone="primary"
           gradientKey="attendance-today"

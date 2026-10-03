@@ -496,6 +496,47 @@ const FR = {
       calc: "Reste dû des lignes à plus de 180 jours — candidat provision/perte ; alimente le verrouillage des comptes délinquants (> 90 j, Finances → Créances).",
     },
   },
+  overview: {
+    students: {
+      title: "Élèves actifs",
+      measures: "Le nombre d'élèves actifs de l'établissement (+ le nombre de foyers/tuteurs).",
+      calc: "Comptage du flux canonique des élèves (status = actif) ; les foyers = les parents distincts.",
+      status: "« — » = flux non encore chargé (jamais un zéro fabriqué).",
+    },
+    revenue: {
+      title: "Chiffre d'affaires mensuel",
+      measures: "Les encaissements réglés du mois en cours (toutes catégories).",
+      calc: "Σ des paiements statut « payé » du mois — la même définition « encaissé » que les KPI et la vue Flux Financiers.",
+      status: "La pastille de variation compare au mois précédent (null quand il vaut 0 — jamais de −100% fallacieux).",
+    },
+    debt: {
+      title: "Encours total annuel",
+      measures: "Ce que les familles doivent encore sur l'année scolaire sélectionnée.",
+      calc: "Σ INV-4 (max(0, dû − payé − en attente)) sur les tranches non soldées de la fenêtre de facturation de l'année.",
+      status: "Le sous-texte énumère l'échéant (en retard) ou les urgents (au-delà du seuil rouge) ; les familles concernées sont comptées.",
+    },
+    attendance: {
+      title: "Assiduité globale",
+      measures: "Le taux de présence du jour (tous niveaux).",
+      calc: "Présences ÷ (présences + absences) du jour — la même définition que le domaine académique.",
+    },
+  },
+  rhythm: {
+    card: {
+      title: "Rythme opérationnel hebdomadaire",
+      measures: "Le volume d'encaissements par jour de la semaine scolaire algérienne (Dimanche → Jeudi), empilé par méthode.",
+      calc: "Σ des paiements (statut ≠ remboursé) groupés par jour de collectedAt et par méthode — le flux canonique, jamais de données synthétiques.",
+      status: "La semaine scolaire exclut Vendredi/Samedi ; un jour vide = aucun encaissement ce jour-là (état vide honnête).",
+    },
+  },
+  debtMeter: {
+    card: {
+      title: "Jauge de dette (modal de paiement)",
+      measures: "La répartition du montant annuel dû : déjà payé (vert), en cours de paiement (bleu), reste dû (gris) — plus le crédit parent éventuel.",
+      calc: "Largeurs = parts du total dû (payé + en cours + reste = 100%) ; le crédit non alloué provient de la dérivation ADR-010 (jamais du solde brut).",
+      status: "Les badges : « Dette entièrement soldée » (reste ≤ 0,5 DZD), « Excédent » (surpaiement → crédit parent), « Tranche cible » (l'échéance visée par le versement).",
+    },
+  },
   pareto: {
     card: {
       title: "Pareto des familles débitrices",
@@ -1045,6 +1086,47 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       calc: "Remaining of the rows more than 180 days overdue — a provision/write-off candidate; feeds the delinquent-account lock (> 90 days, Finance → Receivables).",
     },
   },
+  overview: {
+    students: {
+      title: "Active students",
+      measures: "The school's active student count (+ the family/guardian count).",
+      calc: "Count over the canonical students stream (status = active); families = the distinct parents.",
+      status: "“—” = stream not loaded yet (never a fabricated zero).",
+    },
+    revenue: {
+      title: "Monthly revenue",
+      measures: "The current month's cleared collections (all categories).",
+      calc: "Σ of the month's status-“paid” payments — the SAME “encaissé” definition as the KPIs and the Financial Flows view.",
+      status: "The delta pill compares to the previous month (null when it is 0 — never a spurious −100%).",
+    },
+    debt: {
+      title: "Annual outstanding",
+      measures: "What families still owe over the selected academic year.",
+      calc: "Σ INV-4 (max(0, due − paid − pending)) over the year's billing-window unsettled tranches.",
+      status: "The sub-line enumerates the overdue or the urgent (beyond the red threshold) amounts; the affected families are counted.",
+    },
+    attendance: {
+      title: "Overall attendance",
+      measures: "Today's presence rate (all levels).",
+      calc: "Present ÷ (present + absent) for the day — the academic domain's own definition.",
+    },
+  },
+  rhythm: {
+    card: {
+      title: "Weekly operating rhythm",
+      measures: "The collections volume per Algerian school-week day (Sunday → Thursday), stacked by method.",
+      calc: "Σ of payments (status ≠ refunded) grouped by collectedAt's weekday and method — the canonical stream, never synthetic data.",
+      status: "The school week excludes Friday/Saturday; an empty day = no collection that day (an honest empty state).",
+    },
+  },
+  debtMeter: {
+    card: {
+      title: "Debt meter (payment modal)",
+      measures: "The annual amount due's split: already paid (green), paying now (blue), remaining (gray) — plus any banked parent credit.",
+      calc: "Widths = shares of the total due (paid + paying + remaining = 100%); the unallocated credit comes from the ADR-010 derivation (never the raw balance).",
+      status: "The badges: “Debt fully settled” (remaining ≤ 0.5 DZD), “Surplus” (overpayment → parent credit), “Target tranche” (the installment this payment settles).",
+    },
+  },
   pareto: {
     card: {
       title: "Debtor families Pareto",
@@ -1573,6 +1655,47 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "> 180 يومًا",
       measures: "الرصيد بستة أشهر تأخير وأكثر.",
       calc: "متبقي السطور بأكثر من 180 يومًا — مرشَّح مخصص/خسارة؛ يغذّي قفل الحسابات المتخلّفة (> 90 يومًا، المالية → الذمم).",
+    },
+  },
+  overview: {
+    students: {
+      title: "التلاميذ النشطون",
+      measures: "عدد التلاميذ النشطين في المؤسسة (+ عدد الأسر/الأولياء).",
+      calc: "عدّ تدفق التلاميذ القانوني (الحالة = نشط)؛ الأسر = الأولياء المميزون.",
+      status: "« — » = التدفق لم يُحمَّل بعد (أبدًا ليس صفرًا مُختلَقًا).",
+    },
+    revenue: {
+      title: "الإيراد الشهري",
+      measures: "تحصيلات الشهر الحالي المُصفّاة (كل الفئات).",
+      calc: "Σ مدفوعات الشهر بحالة «مدفوع» — نفس تعريف «المُحصَّل» في مؤشرات الأداء وعرض التدفقات المالية.",
+      status: "تشبه شريط المقارنة الشهر السابق (null إذا كان صفرًا — أبدًا ليس −100% زائفًا).",
+    },
+    debt: {
+      title: "الرصيد السنوي المستحق",
+      measures: "ما تدين به الأسر بعد على السنة الدراسية المختارة.",
+      calc: "Σ INV-4 (max(0, المستحق − المدفوع − المعلّق)) على الدفعات غير المسدَّدة في نطاق فوترة السنة.",
+      status: "السطر الفرعي يُعدّد المتأخر أو العاجل (ما وراء العتبة الحمراء)؛ وتُعَدّ الأسر المعنية.",
+    },
+    attendance: {
+      title: "الحضور الإجمالي",
+      measures: "معدل حضور اليوم (كل المستويات).",
+      calc: "الحاضرون ÷ (الحاضرون + الغائبون) لليوم — نفس تعريف النطاق الأكاديمي.",
+    },
+  },
+  rhythm: {
+    card: {
+      title: "الإيقاع الأسبوعي التشغيلي",
+      measures: "حجم التحصيلات لكل يوم من الأسبوع المدرسي الجزائري (الأحد → الخميس)، مكدّسًا حسب الطريقة.",
+      calc: "Σ المدفوعات (الحالة ≠ مُسترد) مجمّعة حسب يوم collectedAt والطريقة — التدفق القانوني، أبدًا لا بيانات مُصطنعة.",
+      status: "الأسبوع المدرسي يستثني الجمعة/السبت؛ اليوم الفارغ = لا تحصيل ذلك اليوم (حالة فراغ صادقة).",
+    },
+  },
+  debtMeter: {
+    card: {
+      title: "مقياس الدين (نافذة الدفع)",
+      measures: "توزيع المبلغ السنوي المستحق: مدفوع (أخضر)، قيد الدفع الآن (أزرق)، المتبقي (رمادي) — مع رصيد الوالد المصرفي إن وُجد.",
+      calc: "العروض = حصص من الإجمالي المستحق (المدفوع + قيد الدفع + المتبقي = 100%)؛ الرصيد غير المخصص من اشتقاق ADR-010 (أبدًا ليس الرصيد الخام).",
+      status: "الشارات: «الدين مسدَّد بالكامل» (المتبقي ≤ 0.5 دج)، «فائض» (الدفع الزائد → رصيد الوالد)، «الدفعة المستهدفة» (القسط الذي يسدّده هذا الدفع).",
     },
   },
   pareto: {
