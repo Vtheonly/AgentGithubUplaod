@@ -35,7 +35,40 @@ export type MediaBucket =
   | "payment-proofs"
   | "student-documents"
   | "expense-receipts"
-  | "homework-attachments";
+  | "homework-attachments"
+  // T-464 / MEDIA-300: the chat-attachments bucket (0018) — private, 10 MB,
+  // jpeg/png/webp/pdf/xlsx/plain. Path canon: {tenantId}/{channelId}/… —
+  // the 0136 member-scoped policies authorize by the channel folder.
+  | "chat-attachments";
+
+/**
+ * T-464 / MEDIA-300: the chat bucket's enforced limits (migration 0018) —
+ * validated client-side BEFORE the upload so the user hears it from the UI,
+ * not from a storage error.
+ */
+export const CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const CHAT_ATTACHMENT_MIME_TYPES: readonly string[] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+] as const;
+
+export function isChatAttachmentAllowed(file: { size: number; type: string }): boolean {
+  return (
+    file.size <= CHAT_ATTACHMENT_MAX_BYTES &&
+    CHAT_ATTACHMENT_MIME_TYPES.includes(file.type)
+  );
+}
+
+/** The chat path canon (T-362 {tenant}/{entity}/{file} with entity=channel). */
+export function chatAttachmentPath(tenantId: string, channelId: string, fileName: string): string {
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+  const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+  return `${tenantId}/${channelId}/${Date.now()}-${uniqueSuffix}-${safeName}`;
+}
 
 export interface UploadMediaResult {
   /** Storage path (`<tenantId>/<entityId>/<filename>`) — persist this. */
@@ -108,6 +141,10 @@ export async function uploadPrivateMedia(params: {
 export async function freshSignedMediaUrl(params: {
   bucket: MediaBucket;
   path: string;
+  /** T-464 / MEDIA-300: pass true for the download affordance (the signed
+   *  URL then carries Supabase's download=… param — Content-Disposition
+   *  attachment instead of inline view). */
+  download?: boolean;
 }): Promise<string | null> {
   const { path } = params;
   if (!path) return null;
@@ -131,7 +168,7 @@ export async function freshSignedMediaUrl(params: {
     const client = getSupabaseClient();
     const { data, error } = await client.storage
       .from(params.bucket)
-      .createSignedUrl(path, SIGN_TTL_SECONDS, { download: false });
+      .createSignedUrl(path, SIGN_TTL_SECONDS, { download: params.download ?? false });
     if (error) {
       console.warn("[MediaVault] createSignedUrl failed:", error.message);
       return null;
