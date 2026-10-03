@@ -382,8 +382,8 @@ export function AnalyticsTab({
       minH: 3,
       maxH: 8,
       content: (
-        <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-0.5">
+        <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2.5">
+          <span className="flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pr-1.5">
             Inspection directe
             <InfoTip tip="inspector.card" size={11} />
           </span>
@@ -538,8 +538,8 @@ export function AnalyticsTab({
       minH: 3,
       maxH: 8,
       content: (
-        <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">
+        <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pr-1.5">
             Source des matrices
           </span>
           <InspectTrigger request={inspection({ domain: "academic-risk", title: "Matrice de risque pédagogique", metric: "risk_profiles", sourceValue: riskProfiles.length })} />
@@ -608,7 +608,7 @@ export function AnalyticsTab({
       maxH: 8,
       content: (
         <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-0.5">
+          <span className="flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pr-1.5">
             Ligne de provenance active
             <InfoTip tip="inspector.card" size={11} />
           </span>
