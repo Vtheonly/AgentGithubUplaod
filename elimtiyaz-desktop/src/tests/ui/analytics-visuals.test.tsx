@@ -461,7 +461,11 @@ describe("UI-307 — AnalyticsTab render (the report page)", () => {
         </AuthProvider>
       </ToastProvider>,
     );
-    expect(screen.getByTestId("executive-dashboard")).toBeInTheDocument();
+    // TEST-501 repair (T-469 verification, 2026-10-03): the
+    // "executive-dashboard" WRAPPER testid went away with T-447 Phase 2's
+    // dead-composite removal (the pilotage view now composes through the
+    // DashboardLayoutEditor) — the eight CARD assertions below are the
+    // substance of the default-view invariant and stay.
     expect(screen.getByTestId("triple-risk-summary-card")).toBeInTheDocument();
     expect(screen.getByTestId("wave-velocity-card")).toBeInTheDocument();
     expect(screen.getByTestId("debt-triage-card")).toBeInTheDocument();

@@ -39,6 +39,15 @@ import {
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { Button } from "../../shared/ui/button";
+// T-469 (DEBT-103): the canonical amount classification + the defaults —
+// the per-year remaining's band derives from the SAME configured
+// thresholds the « Suivi des Dettes » statuses use.
+import {
+  classifyOutstandingAmount,
+  DEBT_AMOUNT_LEVEL_LABELS_FR,
+  DEFAULT_DEBT_AGING_THRESHOLDS,
+  type DebtAgingThresholds,
+} from "../../domain/calc/ledger/debt-aging";
 import { formatDzd } from "../../core/format/currency";
 import { formatDate } from "../../core/format/date";
 // T-466 (DEBT-102): the manual-debt creation — mounted HERE because the
@@ -113,7 +122,16 @@ function chargeWaveChip(c: YearChargeItem): string | null {
 
 /* ── One year card ─────────────────────────────────────────────────── */
 
-function YearCard({ record }: { record: AcademicYearFinancialRecord }) {
+function YearCard({
+  record,
+  debtThresholds,
+}: {
+  record: AcademicYearFinancialRecord;
+  /** T-469 (DEBT-103): the tenant's ACTIVE risk configuration — the
+   *  per-year remaining's amount band derives from it (the SAME config
+   *  the « Suivi des Dettes » statuses use; defaults when absent). */
+  debtThresholds?: DebtAgingThresholds;
+}) {
   const [open, setOpen] = useState(false);
   const last = record.balanceEvolution[record.balanceEvolution.length - 1];
 
@@ -161,6 +179,26 @@ function YearCard({ record }: { record: AcademicYearFinancialRecord }) {
                 Reste aujourd&apos;hui : {formatDzd(record.outstandingStillOwedNow)}
               </span>
             )}
+          {/* T-469 (DEBT-103): the per-year remaining's AMOUNT band — the
+              SECOND canonical dimension, evaluated from the SAME configured
+              thresholds (a big carried-forward remainder is flagged at a
+              glance; the edges are in the title — the §15.66b rule). */}
+          {(() => {
+            const band = classifyOutstandingAmount(
+              record.outstandingStillOwedNow,
+              debtThresholds ?? DEFAULT_DEBT_AGING_THRESHOLDS,
+            );
+            const bandTone =
+              band === "red" ? "danger" : band === "yellow" ? "warning" : "success";
+            return (
+              <span
+                className="text-[10px] tabular-nums"
+                title={`Dimension montant — seuils configurés : jaune ≥ ${((debtThresholds?.amountYellowDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountYellowDzd) ?? 0).toLocaleString("fr-DZ")} DZD, rouge > ${((debtThresholds?.amountRedDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountRedDzd) ?? 0).toLocaleString("fr-DZ")} DZD`}
+              >
+                <StatusChip label={DEBT_AMOUNT_LEVEL_LABELS_FR[band]} tone={bandTone} />
+              </span>
+            );
+          })()}
           {record.carriedForwardFromPriorYear > 0 && (
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <ArrowLeftRight className="h-3 w-3" aria-hidden />
@@ -349,6 +387,9 @@ export interface ParentYearHistorySectionProps {
    *  — the T-430 conditional-mount discipline): every mount site already
    *  holds the name (the aging row / the CRM drawer's parent). */
   readonly parentName?: string;
+  /** T-469 (DEBT-103): the tenant's ACTIVE risk configuration (the amount
+   *  band's edges). Optional — the documented DEFAULTS apply when absent. */
+  readonly debtThresholds?: DebtAgingThresholds;
   readonly installments: readonly Installment[];
   readonly payments: readonly Payment[];
   readonly allocations: readonly PaymentAllocation[];
@@ -360,6 +401,7 @@ export interface ParentYearHistorySectionProps {
 export function ParentYearHistorySection({
   parentId,
   parentName,
+  debtThresholds,
   installments,
   payments,
   allocations,
@@ -481,7 +523,7 @@ export function ParentYearHistorySection({
       )}
       <div className="space-y-2">
         {history.years.map((y) => (
-          <YearCard key={y.academicYear} record={y} />
+          <YearCard key={y.academicYear} record={y} debtThresholds={debtThresholds} />
         ))}
       </div>
     </div>

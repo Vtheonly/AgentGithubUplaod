@@ -182,5 +182,24 @@ export function validateDebtThresholdUpdate(
   if (Number.isFinite(yellow) && Number.isFinite(red) && yellow > red) {
     return `Hiérarchie invalide — le seuil « À surveiller » (${yellow} j) doit rester ≤ au seuil « Critique / Contentieux » (${red} j) (règles financières §15.1, INV-16a).`;
   }
+  // T-469 (DEBT-103): the AMOUNT hierarchy — yellow ≤ red on the amount
+  // axis (the same no-gap discipline). 0 is LEGAL on either edge = the
+  // edge is DISABLED (classifyOutstandingAmount's documented semantics),
+  // so the cross-edge constraint fires only when BOTH edges are active.
+  const amountYellow = readKey("debt.amount_threshold_yellow_dzd");
+  const amountRed = readKey("debt.amount_threshold_red_dzd");
+  if (
+    Number.isFinite(amountYellow) &&
+    Number.isFinite(amountRed) &&
+    amountYellow > 0 &&
+    amountRed > 0 &&
+    amountYellow > amountRed
+  ) {
+    // Locale-stable grouping (NBSP/NNBSP normalized to plain spaces so the
+    // message is deterministic across ICU builds — the §15.3 rule).
+    const dzd = (n: number) =>
+      n.toLocaleString("fr-DZ").replace(/[\u00a0\u202f]/gu, " ");
+    return `Hiérarchie invalide — le seuil montant « À surveiller » (${dzd(amountYellow)} DZD) doit rester ≤ au seuil montant « Critique » (${dzd(amountRed)} DZD) (T-469 / DEBT-103 : partition sans trou de l'axe montant ; 0 = dimension désactivée).`;
+  }
   return null;
 }

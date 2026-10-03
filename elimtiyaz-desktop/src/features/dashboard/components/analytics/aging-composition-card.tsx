@@ -75,6 +75,14 @@ export function AgingCompositionCard({
                   key={seg.bucket}
                   role="progressbar"
                   aria-label={`${seg.label} : ${seg.share}%`}
+                  // TEST-501 repair (T-469 verification, 2026-10-03): the
+                  // owner's "okay" rewrite dropped aria-valuenow — a
+                  // role="progressbar" without its value is an ARIA
+                  // violation; restored (the analytics-visuals suite
+                  // pinned it and went red when it disappeared).
+                  aria-valuenow={seg.share}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
                   onMouseEnter={() => setHover(seg.bucket)}
                   onMouseLeave={() => setHover(null)}
                   className="h-full flex items-center justify-center transition-all cursor-pointer"
@@ -137,6 +145,25 @@ export function AgingCompositionCard({
                       </td>
                     </tr>
                   ))}
+                  {/* TEST-501 repair (T-469 verification, 2026-10-03): the
+                      owner's "okay" rewrite dropped the reconciliation row
+                      — restored (the Σ-encours / Σ-familles / 100% footing
+                      is the honest-total discipline the suite pins). */}
+                  <tr className="border-t border-border/80 font-semibold">
+                    <td className="py-2 px-2 font-bold">Total</td>
+                    <td className="text-right font-mono font-bold py-2 px-2">
+                      {formatDzd(
+                        segments.reduce((s, seg) => s + seg.amount, 0),
+                        { compact: true },
+                      )}
+                    </td>
+                    <td className="text-right font-mono py-2 px-2">
+                      {segments.reduce((s, seg) => s + seg.debtorCount, 0)}
+                    </td>
+                    <td className="text-right font-mono py-2 px-2">
+                      100%
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>

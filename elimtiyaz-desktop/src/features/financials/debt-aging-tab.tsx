@@ -50,6 +50,10 @@ import {
   DEFAULT_DEBT_AGING_THRESHOLDS,
   type DebtAgingAnalysis,
   type DebtAgingStatusLevel,
+  classifyOutstandingAmount,
+  DEBT_AMOUNT_LEVEL_LABELS_FR,
+  configuredLevelMessage,
+  type DebtAmountLevel,
   type DebtAgingThresholds,
 } from "../../domain/calc/ledger/debt-aging";
 import { Permission } from "../../core/rbac/permissions";
@@ -88,6 +92,38 @@ const STATUS_TONE: Record<DebtAgingStatusLevel, "success" | "warning" | "danger"
  * tones but must stay visually distinct (the task's Yellow/Orange vs Red
  * distinction): orange carries the amber tint on top of the chip.
  */
+/**
+ * T-469 (DEBT-103): the amount-band chip — the AMOUNT dimension of the
+ * configured risk evaluation (the same system_settings `debt` category the
+ * day-based statuses consume). The title carries the CONFIGURED edges so
+ * the band is self-explaining (the §15.66b cause-on-the-card rule).
+ */
+function AmountBandChip({
+  level,
+  thresholds,
+}: {
+  level: DebtAmountLevel;
+  thresholds: { amountYellowDzd?: number; amountRedDzd?: number };
+}) {
+  const label = DEBT_AMOUNT_LEVEL_LABELS_FR[level];
+  const tone: Record<DebtAmountLevel, "success" | "warning" | "danger"> = {
+    green: "success",
+    yellow: "warning",
+    red: "danger",
+  };
+  const edges =
+    typeof thresholds.amountYellowDzd === "number" && thresholds.amountYellowDzd > 0
+      ? typeof thresholds.amountRedDzd === "number" && thresholds.amountRedDzd > 0
+        ? `vert < ${thresholds.amountYellowDzd.toLocaleString("fr-DZ")} DZD · jaune ≥ ${thresholds.amountYellowDzd.toLocaleString("fr-DZ")} · rouge > ${thresholds.amountRedDzd.toLocaleString("fr-DZ")} (seuils configurés — dimension MONTANT, indépendante du vieillissement)`
+        : `jaune ≥ ${thresholds.amountYellowDzd.toLocaleString("fr-DZ")} DZD (seuil configuré)`
+      : "dimension montant désactivée (seuil à 0)";
+  return (
+    <span title={edges}>
+      <StatusChip label={label} tone={tone[level]} />
+    </span>
+  );
+}
+
 function DebtStatusChip({ level, explanation }: { level: DebtAgingStatusLevel; explanation?: string }) {
   const label = DEBT_AGING_STATUS_LABELS_FR[level];
   if (level === "orange") {
@@ -254,15 +290,38 @@ export function DebtAgingTab() {
       header: "Statut",
       accessor: "status",
       cell: (r) => (
-        <DebtStatusChip level={r.status.level} explanation={r.status.explanationFr} />
+        <div className="flex flex-col gap-1">
+          <DebtStatusChip level={r.status.level} explanation={r.status.explanationFr} />
+          {/* T-469 (DEBT-103): the AMOUNT band — the SECOND canonical
+              dimension, evaluated from the SAME configured thresholds
+              (never a page-local hardcode). A small very-late debt is
+              day-RED/amount-green; a large fresh one is the reverse. */}
+          <AmountBandChip
+            level={classifyOutstandingAmount(r.outstandingAmount, thresholds)}
+            thresholds={thresholds}
+          />
+        </div>
       ),
     },
     {
       header: "Explication",
       accessor: "computedAt",
       cell: (r) => (
-        <p className="text-xs text-muted-foreground max-w-[26rem] line-clamp-2" title={r.status.explanationFr}>
+        <p
+          className="text-xs text-muted-foreground max-w-[26rem] line-clamp-2"
+          title={r.status.explanationFr}
+        >
           {r.status.explanationFr}
+          {/* T-469 (DEBT-103): the CONFIGURED per-level message — extends
+              the canonical explanation (empty = the engine text stands). */}
+          {configuredLevelMessage(r.status.level, thresholds) ? (
+            <>
+              {" "}
+              <span className="text-foreground/80" data-testid="configured-level-message">
+                {configuredLevelMessage(r.status.level, thresholds)}
+              </span>
+            </>
+          ) : null}
         </p>
       ),
     },

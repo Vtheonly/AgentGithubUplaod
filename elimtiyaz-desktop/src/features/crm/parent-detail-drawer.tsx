@@ -44,6 +44,8 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+// T-469 (DEBT-103): the risk configuration type (the amount band edges).
+import type { DebtAgingThresholds } from "../../domain/calc/ledger/debt-aging";
 import {
   EntityDetailDrawer,
   type EntityDrawerTab,
@@ -153,6 +155,10 @@ export function ParentDetailDrawer({
     () => repos.debt.observeParentProfile(parentId ?? ""),
     [parentId],
   );
+  // T-469 (DEBT-103): the ACTIVE risk configuration - the Year
+  // Tracking section amount band derives from it (the SAME config the
+  // Suivi des Dettes statuses use - one source, every view).
+  const debtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
   const payments = useObservable(
     () => repos.payments.observeByParent(parentId ?? ""),
     [parentId],
@@ -635,6 +641,7 @@ export function ParentDetailDrawer({
           profile={financialProfile}
           outstanding={financialProfile?.totalOutstanding ?? 0}
           overdue={financialProfile?.overdueAmount ?? 0}
+          debtThresholds={debtThresholds}
           payments={payments}
           installments={installments}
           students={students}
@@ -781,10 +788,14 @@ function FinancesTab({
   pricingConfig,
   allocations,
   yearPricingConfigs,
+  debtThresholds,
 }: {
   profile: ParentFinancialProfile | null | undefined;
   outstanding: number;
   overdue: number;
+  /** T-469 (DEBT-103): the ACTIVE risk configuration (the drawer own
+   *  subscription - the Year Tracking section amount band). */
+  debtThresholds?: DebtAgingThresholds;
   payments: readonly Payment[];
   installments: readonly Installment[];
   students: readonly Student[];
@@ -1492,6 +1503,7 @@ function FinancesTab({
       <ParentYearHistorySection
         parentId={profile?.parentId ?? ""}
         parentName={profile?.parentName || undefined}
+        debtThresholds={debtThresholds}
         installments={installments}
         payments={payments}
         allocations={allocations}

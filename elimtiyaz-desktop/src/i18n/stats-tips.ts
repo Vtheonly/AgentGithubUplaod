@@ -496,6 +496,14 @@ const FR = {
       calc: "Reste dû des lignes à plus de 180 jours — candidat provision/perte ; alimente le verrouillage des comptes délinquants (> 90 j, Finances → Créances).",
     },
   },
+  funnel: {
+    card: {
+      title: "Entonnoir de dérive des créances",
+      measures: "L'escalade des foyers débiteurs : encours > 0 → en retard → au-delà du seuil jaune → critique.",
+      calc: "Dérivé du triage canonique (deriveDebtTriage) sur les tranches de l'année : chaque famille est classée selon sa pire échéance (INV-4) contre les seuils CONFIGURÉS (Configuration des Créances — jamais des bornes codées en dur).",
+      status: "Les libellés des étapes portent les seuils configurés (ex. « Retard 15-60 j ») : changer la configuration change l'entonnoir — la carte suit la même source que le Suivi des Dettes.",
+    },
+  },
   overview: {
     students: {
       title: "Élèves actifs",
@@ -1086,6 +1094,14 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       calc: "Remaining of the rows more than 180 days overdue — a provision/write-off candidate; feeds the delinquent-account lock (> 90 days, Finance → Receivables).",
     },
   },
+  funnel: {
+    card: {
+      title: "Debt drift funnel",
+      measures: "The debtor families' escalation: outstanding > 0 → past due → beyond yellow → critical.",
+      calc: "Derived from the canonical triage (deriveDebtTriage) over the year's tranches: each family is classified by its worst due date (INV-4) against the CONFIGURED thresholds (the Créances configuration — never hardcoded edges).",
+      status: "The stage labels carry the configured edges (e.g. « Retard 15-60 j »): changing the configuration changes the funnel — the card follows the same source as the debt-aging surface.",
+    },
+  },
   overview: {
     students: {
       title: "Active students",
@@ -1655,6 +1671,14 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "> 180 يومًا",
       measures: "الرصيد بستة أشهر تأخير وأكثر.",
       calc: "متبقي السطور بأكثر من 180 يومًا — مرشَّح مخصص/خسارة؛ يغذّي قفل الحسابات المتخلّفة (> 90 يومًا، المالية → الذمم).",
+    },
+  },
+  funnel: {
+    card: {
+      title: "قُمع انزلاق الذمم",
+      measures: "تصاعد الأسر المدينة: رصيد > 0 → متأخر → ما وراء العتبة الصفراء → حرج.",
+      calc: "مُشتق من الفرز القانوني (deriveDebtTriage) على دفعات السنة: تُصنَّف كل أسرة حسب أسوأ تاريخ استحقاق (INV-4) مقابل العتبات المُهيَّأة (إعداد الذمم — أبدًا لا حدود مُرمَّزة).",
+      status: "تحمل تسميات المراحل العتبات المُهيَّأة (مثل « Retard 15-60 j »): تغيير الإعداد يغيّر القُمع — تتبع البطاقة نفس مصدر متابعة الديون.",
     },
   },
   overview: {
