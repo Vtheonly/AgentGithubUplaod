@@ -1,3 +1,21 @@
+## 2026-10-04 — The 138th session (continued) — T-473 COMPLETE (the PARITY-010 owner ruling): ADR-033 settles the post-revert zero-paid FUTURE-due vocabulary on 'unpaid' — the TS engines were the drift, the SQL RPC was already correct (NO migration, NO live-apply); the desktop engine + the Kotlin TS mirror aligned, the six corpus pins re-pinned, financial-rules.md §8 records the ruling; the battery byte-identical 4 680/0/5 and the tier-4 mirror equivalence HELD (both engines changed in lockstep)
+
+### The mandate
+
+The owner's 2026-10-04 session mandate: "do this T-472 …, PARITY-010 owner ruling ('unpaid' vs 'pending'), …" — the ruling delegated to the session.
+
+### What was delivered
+
+**The ruling (ADR-033): 'unpaid' wins.** The seven-point evidence stack: (1) payment.ts's own canonical documentation — 'unpaid' = "a tranche that has had NO payment activity" — precisely the post-revert zero state; (2) the creation paths (0007 default, 0137 create_manual_debt) write 'unpaid' for the identical state; (3) the server-side outstanding-debt views (0021/0022) count `status IN ('unpaid','partial','overdue')` — a 'pending' row would VANISH from the server's debt set; (4) the desktop display layer (billing-breakdown) renders the zero-everything tranche as 'unpaid'; (5) 'pending' collides with the uncleared-funds meaning (payment clearance / pending_clearance); (6) the mock repository persists the engine's newStatus DIRECTLY — the mock-vs-Supabase divergence was live (the DRIFT-011 class realized); (7) the "both TS engines" majority was ONE drift plus its verbatim mirror.
+
+**The fix (the LOW-RISK direction — the SQL side untouched):** `lifo-reversal.ts`'s `reevaluateInstallmentStatus` future-due branch → `'unpaid'` (the `RevertAllocation`/`ClearAllocation` unions widened); the TS Kotlin mirror aligned; six pins re-pinned with ADR-033-citing comments (ScenarioRunner's companion future-due assertion, Tier4Boundary, Tier4OperationSequences, phase2-modules, waterfall-alibration ×2); financial-rules.md §8 records the ruling as a canonical refund rule.
+
+**The parity verification:** the five re-pinned suites 86/86; the full battery byte-identical **4 680/0/5** (no baseline move — no count change); the unified runner GREEN with the **tier-4 mirror comparison still equivalent 784/820 with 0 rows** — the desktop and mirror engines changed in lockstep, which is exactly what the equivalence pipeline exists to prove; tsc 0 errors; eslint 0 errors; the append-only guard OK (no SQL touched — the RPC was the correct side all along).
+
+**Registry:** task-registry T-473 COMPLETE · problem-registry PARITY-010 RESOLVED-TESTED (+ the totals line). **Knowledge:** ADR-033 (the ruling + its evidence stack) · financial-rules.md §8 (the canonical rule). **Cross-repo follow-up registered:** the REAL Android Kotlin engine's same branch (a divergence note for the Android mirrors round).
+
+---
+
 ## 2026-10-04 — The 138th session — T-472 COMPLETE (the TEST-503 systemic hermeticity fix): the Vitest seam disables the f39eb17 canonical-production fallback in supabase-client.ts — the default test environment is UNCONFIGURED MOCK MODE again (T-314's contract, enforced at the module itself); the pin-per-suite escape hatch documented + the source-scan guard; the battery 4 680/0/5 with the registered baseline move in the same commit; the unified runner GREEN on every gating layer
 
 ### The mandate

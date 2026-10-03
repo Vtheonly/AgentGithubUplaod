@@ -199,14 +199,17 @@ describe("Boundary: refund at exact amount (LIFO revert)", () => {
       { id: "i1", category: "tuition", amountDue: 5000000, amountPaid: 5000000, amountPending: 0, dueDate: "2026-09-15", status: "paid" },
     ];
     // T-470 / TEST-502 — the evaluation clock is EXPLICIT (before the due
-    // date) so this boundary test pins the FUTURE-due branch (→ "pending")
-    // deterministically. Before T-470 the call omitted the clock, so the
-    // mirror defaulted to the REAL wall clock — the pin passed only while
-    // the calendar was before 2026-09-15 and detonated on the date (§15.81).
+    // date) so this boundary test pins the FUTURE-due branch deterministically.
+    // Before T-470 the call omitted the clock, so the mirror defaulted to the
+    // REAL wall clock — the pin passed only while the calendar was before
+    // 2026-09-15 and detonated on the date (§15.81).
+    // ADR-033 (T-473 / PARITY-010, 2026-10-04): the branch's value is
+    // "unpaid" (was "pending") — the ruled vocabulary, aligned with the SQL
+    // RPC (0034) and the outstanding-debt views' status set.
     const result = revertPaymentAllocation(installments, 5000000, "tuition", false, Date.parse("2026-09-01T00:00:00Z"));
     expect(result.totalReverted).toBe(5000000);
     expect(result.reverts[0].newAmountPaid).toBe(0);
-    expect(result.reverts[0].newStatus).toBe("pending");
+    expect(result.reverts[0].newStatus).toBe("unpaid");
     expect(result.reverts[0].reopened).toBe(true);
   });
 

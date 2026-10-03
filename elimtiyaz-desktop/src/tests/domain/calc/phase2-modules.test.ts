@@ -128,7 +128,8 @@ describe("lifo-reversal", () => {
     expect(reevaluateInstallmentStatus(100, 100, "2025-09-15")).toBe("paid");
     expect(reevaluateInstallmentStatus(50, 100, "2025-09-15")).toBe("partial");
     expect(reevaluateInstallmentStatus(0, 100, "2024-01-01", new Date("2025-01-01"))).toBe("overdue");
-    expect(reevaluateInstallmentStatus(0, 100, "2026-01-01", new Date("2025-01-01"))).toBe("pending");
+    // ADR-033 (T-473 / PARITY-010): zero-paid FUTURE-due → "unpaid" (was "pending").
+    expect(reevaluateInstallmentStatus(0, 100, "2026-01-01", new Date("2025-01-01"))).toBe("unpaid");
   });
 });
 

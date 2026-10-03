@@ -274,8 +274,9 @@ describe("Reverse-Waterfall Allocation (LIFO) — revertPaymentAllocation", () =
     expect(result.reverts[0].installmentId).toBe("t3");
     expect(result.reverts[0].revertedAmount).toBe(100_000);
     expect(result.reverts[0].newAmountPaid).toBe(0);
-    // Now (2026-08-08) is BEFORE 2027-03-15, so the tranche should be "pending", not "overdue".
-    expect(result.reverts[0].newStatus).toBe("pending");
+    // Now (2026-08-08) is BEFORE 2027-03-15, so the tranche should be "unpaid"
+    // (ADR-033 / PARITY-010: zero-paid future-due), not "overdue".
+    expect(result.reverts[0].newStatus).toBe("unpaid");
     expect(result.reverts[1].installmentId).toBe("t2");
     expect(result.reverts[1].revertedAmount).toBe(50_000);
     expect(result.reverts[1].newAmountPaid).toBe(50_000);
@@ -315,12 +316,13 @@ describe("Reverse-Waterfall Allocation (LIFO) — revertPaymentAllocation", () =
     expect(result.totalReverted).toBe(0);
   });
 
-  it("reevaluateInstallmentStatus correctly classifies paid/partial/overdue/pending", () => {
+  it("reevaluateInstallmentStatus correctly classifies paid/partial/overdue/unpaid", () => {
     const past = "2025-01-01";
     const future = "2027-12-31";
     expect(reevaluateInstallmentStatus(100, 100, future)).toBe("paid");
     expect(reevaluateInstallmentStatus(50, 100, future)).toBe("partial");
     expect(reevaluateInstallmentStatus(0, 100, past)).toBe("overdue");
-    expect(reevaluateInstallmentStatus(0, 100, future)).toBe("pending");
+    // ADR-033 / PARITY-010: zero-paid future-due → "unpaid" (was "pending").
+    expect(reevaluateInstallmentStatus(0, 100, future)).toBe("unpaid");
   });
 });

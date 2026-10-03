@@ -55,6 +55,7 @@
 - A refund MUST carry the actor's identity and a meaningful reason (≥3 chars); hardcoded reasons or dropped actor identity are audit violations (BUSINESS-003, CROSS-102).
 - Refunds of `refunded`/`cancelled` payments must be rejected (idempotency guard) — re-refunding creates duplicate reversals and negative `amount_paid` (BUSINESS-102).
 - Refund state changes (payment status AND installment reverts) must propagate to the server so all platforms converge (CROSS-103).
+- **ADR-033 (T-473 / PARITY-010, 2026-10-04) — the post-revert zero-paid status vocabulary is settled: `'unpaid'`.** A fully-reverted installment with `amount_paid = 0` and `amount_pending = 0` is re-classified from the due date at the evaluation clock: PAST due → `'overdue'`; FUTURE due → **`'unpaid'`** (never `'pending'`). Rationale: `'unpaid'` is the model's documented "no payment activity" state (payment.ts), the installments default (0007) and `create_manual_debt` (0137) vocabulary, the value that keeps the tranche INSIDE the server-side outstanding-debt views (0021/0022: `status IN ('unpaid','partial','overdue')`), and the desktop billing-breakdown display vocabulary; `'pending'` is reserved for UNCLEARED-FUNDS semantics (payment bank clearance / `pending_clearance`). All four implementations now agree: the SQL RPC (0034, already correct), the desktop engine (`lifo-reversal.ts`), the TS Kotlin mirror, and the corpus pins. The REAL Android Kotlin engine carries the same branch — a registered cross-repo follow-up.
 
 ## 9. Receipt numbers (§7.x) [ADR-004]
 

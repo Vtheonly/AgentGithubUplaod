@@ -374,15 +374,19 @@ describe("cross-platform scenario: refund_cleared_payment", () => {
     // a fully-reverted installment with amountPaid=0 is classified from the
     // due date at the evaluation clock — PAST due → "overdue" (the SQL
     // branch `ELSIF v_ins.due_date < NOW() THEN 'overdue'`). The future-due
-    // branch (→ "pending", never "unpaid") is pinned by the companion
+    // branch (→ "unpaid", per ADR-033) is pinned by the companion
     // assertion below, so BOTH branches of the zero-paid classification are
     // covered deterministically — neither depends on the real clock.
     expect(revert.reverts[0].newStatus).toBe("overdue");
 
     // The companion FUTURE-due branch: the same full revert evaluated while
-    // the due date is still ahead lands on "pending" — the post-revert state
-    // uses "pending" (never "unpaid"; "unpaid" is reserved for initial
-    // installment creation per the legacy §7.3 note).
+    // the due date is still ahead lands on "unpaid" — ADR-033 (T-473 /
+    // PARITY-010, 2026-10-04) settles the vocabulary: the post-revert
+    // zero-paid future-due tranche is back to its no-payment-activity state
+    // (payment.ts's documented meaning of "unpaid"), matching the SQL RPC
+    // (0034), the installments default (0007), create_manual_debt (0137),
+    // and the outstanding-debt views' status set. The T-470-era "pending"
+    // pin cited the removed legacy §7.3 note; ADR-033 supersedes it.
     const futureDueInstallment = {
       ...waterfallInstallment,
       id: "ins-001-future",
@@ -396,7 +400,7 @@ describe("cross-platform scenario: refund_cleared_payment", () => {
       now,
     );
     expect(futureRevert.reverts[0].newAmountPaid).toBe(0);
-    expect(futureRevert.reverts[0].newStatus).toBe("pending");
+    expect(futureRevert.reverts[0].newStatus).toBe("unpaid");
 
     const balance = computeAccountBalance(entries, accountId, now);
     expect(balance.balance).toBe(10_000_000);
