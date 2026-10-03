@@ -1,4 +1,7 @@
-# Current State — Project Snapshot (2026-10-02, ONE-HUNDRED-TWENTY-EIGHTH session CLOSE — ALL FOUR registered follow-ups delivered: T-456 the INV-20e year-history surface · T-457 the §15.1 debt-status labels · T-458 the InfoTip glossary · T-459 PARITY-005 CLOSED; the Android suite 654/0, the desktop Layer-2 GREEN, the vitest BASELINE-MATCHED)
+# Current State — Project Snapshot (2026-10-03, ONE-HUNDRED-THIRTY-SEVENTH session CLOSE — T-470 COMPLETE: the battery FULLY GREEN 4 675/0 for the first time since the baseline existed; the 0138 live application SETTLED [already applied, verified 12/12]; PARITY-010 + TEST-503 registered; the branch consolidation mandate delivered in the same session)
+
+> **The 137th session's summary is in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-470 entry).** The snapshot below the fold is the 128th-session close, retained for its detail.
+
 
 ## Current state snapshot (2026-10-02, 128th session CLOSE)
 

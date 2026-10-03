@@ -1,54 +1,47 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: the 137th session (2026-10-03 — the 0138 live-application round, branch fix/t469-0138-live-apply: the vitest layer moved to the TEST-501/TEST-502 state — TEST-501 [T-469's branch, 136th session] repaired six stale suites + two real regressions [12 red → 5 red] and TEST-502 registered the remaining five known-red [the cross-platform refund-revert trio, t-390's import-time failure, the vault-compliance MIME pair]; anchored by the 137th session's TWO full verified runs at the 0138-repaired tree [4 665 passed / 5 failed / 5 skipped, the five-file set byte-identical both runs] + tsc clean; the file count 265 → 269 [+ the t-466/t-467/t-468/t-469 suites]). The equivalence block below is UNCHANGED from T-455's run (Layer 2 was not re-run this round — no TS code changed; re-anchor it at the next Layer-2 execution). Prior: T-455 (127th session, 2026-10-01); T-448 (125th session, 2026-09-30).",
-  "_task": "The 137th session (2026-10-03, T-469's owner-gated live-application round) — the registered baseline move: 269 files (+4 suites: t-466/t-467/t-468/t-469), 4,675 tests (4,665 passed / 5 failed / 5 skipped). The failing-file set is TEST-502's five, byte-identical across both of the round's full runs: ScenarioRunner 1 + Tier4Boundary 1 + Tier4OperationSequences 1 (the refund-revert trio — T-470's engine-semantics question), t-390-financial-realtime (import-time collection failure), vault-compliance 2 (the fixture MIME pair). The twelve failures this move REMOVES from the documented set are TEST-501's repairs (ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7 — the stale pins + the two real regressions, fixed in the 136th session).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-470 (the 137th session's TEST-502 repair, 2026-10-03 — the battery FULLY GREEN for the first time since T-419 instituted the baseline: the refund-revert trio re-pinned with EXPLICIT evaluation clocks + both classification branches [future-due 'pending' / past-due 'overdue', the §15.81 wall-clock class], the t-390 import-time cycle broken [the mock composite extracted to infrastructure/mock/mock-composite.ts], the vault-compliance §02.06 pair pinned to mock mode [never touching production storage again], and the t-408 source-scan re-targeted to the composite's new home; net +5 tests [2 companion branch pins + the t-390 suite's 3 tests now actually running] — 4,675 passed / 0 failed / 5 skipped). Same-session prior move: the T-469 live-apply round moved the baseline to the 4,665/5-known-red state (+4 suites: t-466..t-469) — T-470's move supersedes it with the empty failing set. Prior: T-455 (127th session, 2026-10-01).",
+  "_task": "T-470 (the 137th session's TEST-502 repair, 2026-10-03) — the registered baseline move to FULLY GREEN: 269 files (268 passed / 1 skipped), 4,680 tests (4,675 passed / 0 failed / 5 skipped). The failing-file set is EMPTY. The equivalence numbers reflect the T-459-closed PARITY-005 reality (tier-4: 784/820 equivalent, 36 skipped-with-reasons, 0 rows).",
   "testFiles": {
-    "failed": 5,
-    "passed": 263,
+    "failed": 0,
+    "passed": 268,
     "skipped": 1,
     "total": 269
   },
   "tests": {
-    "failed": 5,
-    "passed": 4665,
+    "failed": 0,
+    "passed": 4675,
     "skipped": 5,
-    "total": 4675
+    "total": 4680
   },
-  "failingFiles": [
-    "src/tests/cross-platform/ScenarioRunner.test.ts",
-    "src/tests/cross-platform/Tier4Boundary.test.ts",
-    "src/tests/cross-platform/Tier4OperationSequences.test.ts",
-    "src/tests/infrastructure/t-390-financial-realtime.test.ts",
-    "src/tests/integration/vault-compliance-architecture.test.tsx"
-  ],
+  "failingFiles": [],
   "equivalence": {
     "desktopRunner": {
-      "passed": 809,
+      "passed": 810,
       "failed": 0,
       "errored": 10,
-      "total": 819
+      "total": 820
     },
     "sanityComparator": {
-      "equivalent": 819,
-      "total": 819,
-      "canonicalVerified": 318,
-      "canonicalDefined": 318,
+      "equivalent": 820,
+      "total": 820,
+      "canonicalVerified": 319,
+      "canonicalDefined": 319,
       "discrepancies": 0
     },
     "mirrorRunner": {
-      "passed": 784,
+      "passed": 774,
       "failed": 0,
-      "errored": 0,
-      "skipped": 35,
-      "total": 819
+      "errored": 10,
+      "skipped": 36,
+      "total": 820
     },
     "tier4Comparator": {
-      "equivalent": 707,
-      "skipped": 35,
-      "scenariosWithDivergences": 77,
-      "rows": 499,
-      "errors": 112,
-      "warnings": 387,
-      "knownProblem": "PARITY-005 (non-gating until repaired)"
+      "equivalent": 784,
+      "skipped": 36,
+      "scenariosWithDivergences": 0,
+      "rows": 0,
+      "errors": 0,
+      "warnings": 0
     }
   }
 }

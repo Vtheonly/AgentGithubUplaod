@@ -270,7 +270,9 @@ async function readRows(): Promise<Row[]> {
       cellNum(row.getCell(18)) + cellNum(row.getCell(19)) + cellNum(row.getCell(20)) + cellNum(row.getCell(21)) +
       cellNum(row.getCell(23)) + cellNum(row.getCell(24)) + cellNum(row.getCell(25)) +
       cellNum(row.getCell(15));
-    for (let c = 26; c <= 39; c++) payments === payments ? null : null; // psy (all zero this year)
+    // psy columns (26..39) are all zero this year — recorded as a constant;
+    // the old `payments === payments ? null : null` no-op expression tripped
+    // eslint's no-unused-expressions rule (repaired by T-470's hygiene pass).
     const psy = 0;
     const ancillary = [44, 45, 46, 47].reduce((s, c) => s + cellNum(row.getCell(c)), 0);
     const devis = cellNum(row.getCell(12));

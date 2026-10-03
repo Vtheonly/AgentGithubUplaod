@@ -37,7 +37,14 @@
  */
 
 import type { Repositories } from "../../app/providers/repository-provider";
-import { mockRepositories } from "../../app/providers/repository-provider";
+// T-470 (TEST-502 class b) — the composite comes from the INFRASTRUCTURE
+// module, never from the app-layer provider: value-importing the provider
+// here created the runtime cycle
+//     supabase-repositories → repository-provider → supabase-repositories
+// and the provider's module-scope `selectDefaultRepositories()` then ran
+// while this file's exports were still unbound in the vite-node SSR graph
+// (the t-390 import-time `getSupabaseRepositories is not a function`).
+import { mockRepositories } from "../mock/mock-composite";
 import { getSupabaseClient } from "./supabase-client";
 import { SupabaseAuthRepository } from "./repositories/supabase-auth-repository";
 import { SupabaseApprovalRepository } from "./repositories/supabase-approval-repository";

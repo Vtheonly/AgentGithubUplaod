@@ -198,10 +198,31 @@ describe("Boundary: refund at exact amount (LIFO revert)", () => {
     const installments: WaterfallInstallment[] = [
       { id: "i1", category: "tuition", amountDue: 5000000, amountPaid: 5000000, amountPending: 0, dueDate: "2026-09-15", status: "paid" },
     ];
-    const result = revertPaymentAllocation(installments, 5000000, "tuition", false);
+    // T-470 / TEST-502 — the evaluation clock is EXPLICIT (before the due
+    // date) so this boundary test pins the FUTURE-due branch (→ "pending")
+    // deterministically. Before T-470 the call omitted the clock, so the
+    // mirror defaulted to the REAL wall clock — the pin passed only while
+    // the calendar was before 2026-09-15 and detonated on the date (§15.81).
+    const result = revertPaymentAllocation(installments, 5000000, "tuition", false, Date.parse("2026-09-01T00:00:00Z"));
     expect(result.totalReverted).toBe(5000000);
     expect(result.reverts[0].newAmountPaid).toBe(0);
     expect(result.reverts[0].newStatus).toBe("pending");
+    expect(result.reverts[0].reopened).toBe(true);
+  });
+
+  it("mirror: a full refund evaluated AFTER the due date reverts to overdue (the past-due branch)", () => {
+    // T-470 / TEST-502 — the companion PAST-due branch of the same
+    // classification: amountPaid=0 + due date behind the evaluation clock
+    // → "overdue". Pinned with the cross-platform parity evidence (the
+    // desktop engine, this Kotlin mirror, and the SQL RPC 0034's
+    // `ELSIF v_ins.due_date < NOW() THEN 'overdue'` all agree).
+    const installments: WaterfallInstallment[] = [
+      { id: "i1", category: "tuition", amountDue: 5000000, amountPaid: 5000000, amountPending: 0, dueDate: "2026-09-15", status: "paid" },
+    ];
+    const result = revertPaymentAllocation(installments, 5000000, "tuition", false, Date.parse("2026-09-25T00:00:00Z"));
+    expect(result.totalReverted).toBe(5000000);
+    expect(result.reverts[0].newAmountPaid).toBe(0);
+    expect(result.reverts[0].newStatus).toBe("overdue");
     expect(result.reverts[0].reopened).toBe(true);
   });
 
