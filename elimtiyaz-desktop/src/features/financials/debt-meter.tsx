@@ -27,6 +27,10 @@
  */
 import { formatDzdPlain } from "../../core/format/currency";
 import { StatusChip } from "../../shared/ui/status-chip";
+// T-468 (UI-329): the gauge's explainability tooltip — the SAME InfoTip +
+// glossary discipline the dashboard applies (the payment modal is a
+// financial surface too; the mandate covers "every gauge").
+import { InfoTip } from "../dashboard/components/analytics/info-tip";
 
 export interface DebtMeterProps {
   /** Total annual commitment (sum of all installment amountDue). */
@@ -98,10 +102,12 @@ export function DebtMeter({
 
   return (
     <div className="rounded-lg border border-border bg-surface-panel/40 p-4 space-y-3">
-      {/* Header */}
+      {/* Header — T-468 (UI-329): the tooltip explains the segments, the
+          widths and the badges (what the colors represent). */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
           Compteur de dette
+          <InfoTip tip="debtMeter.card" />
         </p>
         <StatusChip tone={badge.tone} label={badge.label} />
       </div>

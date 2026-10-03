@@ -28,6 +28,8 @@ import {
   Tooltip,
 } from "recharts";
 import { CalendarCheck } from "lucide-react";
+// T-468 (UI-329): the card-level explainability tooltip.
+import { InfoTip } from "./analytics/info-tip";
 import {
   Card,
   CardContent,
@@ -99,6 +101,7 @@ export function WeeklyOperatingRhythm({
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <CalendarCheck className="h-3.5 w-3.5 text-primary" />
             Rythme d'Encaissement Hebdomadaire
+            <InfoTip tip="rhythm.card" />
           </CardTitle>
           <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground shrink-0">
             {METHODS.map((m) => (

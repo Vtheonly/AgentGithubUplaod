@@ -2,6 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/cross-risk-card.tsx
 // ============================================================================
 
+import { InfoTip } from "./info-tip";
 import { AlertTriangle, TrendingDown, Clock, Wallet, Bot } from "lucide-react";
 import {
   Card,
@@ -52,6 +53,7 @@ export function CrossRiskCard({ profiles, onSelectCategory }: Props) {
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-status-warning" />
             Triage des Vulnérabilités Croisées
+            <InfoTip tip="crossRisk.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Distribution selon les 4 axes de vigilance opérationnelle
