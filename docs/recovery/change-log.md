@@ -1,3 +1,28 @@
+## 2026-10-04 — T-483 COMPLETE (the 140th session's second delivery): the onboarding persistence port — migration 0142 (the tenant-singleton ruling: `onboarding_states.personnel_id` NULLable + the partial unique index) applied LIVE + verified 9/9; `SupabaseOnboardingRepository` (the wizard's full lifecycle onto the singleton row); the battery 4 738 → 4 748/0/5 (+10 tests)
+
+### The model ruling
+
+The T-477 audit's #2 remaining item ("the onboarding mock slot persists nothing — needs a model decision"): the wizard's domain state is a TENANT singleton (the §10-config first-run setup) while 0010's `onboarding_states` is per-personnel (plan §10.10). The owner's mandate supplies the decision: **BOTH models are kept** — the wizard persists as the table's `personnel_id IS NULL` row (migration 0142's partial unique index enforces one per tenant); the per-personnel semantics stay untouched for the future employee-level onboarding. The 0019 RLS posture already covers the singleton row correctly (the staff quartet only — a tenant-level wizard is admin-visible by construction).
+
+### What changed
+
+- **Migration 0142** (`0142_onboarding_tenant_singleton.sql`, append-only, re-run safe): `alter column personnel_id drop not null` + `onboarding_states_tenant_singleton_idx` (unique on tenant_id where personnel_id is null) + the T-091/MIG-TOKENS registration.
+- **`SupabaseOnboardingRepository`** (supabase-onboarding-repository.ts): the full OnboardingRepository contract onto the singleton row — the step-NAME↔INDEX mapping over ONBOARDING_STEPS with corrupt-row guards (out-of-range folds to "welcome"; per-element drops), data_json ↔ OnboardingData, the SubjectBehavior + CacheFreshness reactive read, reset() = DELETE + start(). **THE NULL-ON-CONFLICT TRAP (documented in the repository):** `ON CONFLICT (tenant_id, personnel_id)` can NEVER match a NULL column — a naive upsert would insert a second row and die on the partial unique index; start() is therefore read-then-write (UPDATE in place / INSERT the first).
+- **Wiring**: the `onboarding` slot overridden in `getSupabaseRepositories()` (the header census updated).
+- The wizard UI itself is UNTOUCHED (the 11 step components and the gate work through the repository contract — the persistence layer change is invisible to them by design).
+
+### The verification
+
+- The new suite `supabase-onboarding-repository.test.ts` **10/10**: the singleton INSERT, the restart-in-place pair, the step round-trip with complete()'s full stamp, the data_json merge semantics, reset's delete-then-restart, isComplete, persistence-across-reinstantiation, the corrupt-row guards, the migration + wiring source guards.
+- **Migration 0142 applied LIVE** (Management-API SQL endpoint, HTTP 201); **verify_t-483.sql 9/9 GREEN**: personnel_id nullable, the partial unique index, a singleton INSERT (inside BEGIN…ROLLBACK — zero residue), a SECOND singleton rejected with unique_violation, a per-personnel row still inserting beside the singleton, the RLS policies unchanged, the registration row, the row census (pre-apply baseline: 0 rows — probed before the apply).
+- The append-only migration guard OK (+1 file); tsc 0; eslint 0 errors; the FULL battery **4 748/0/5** (277 files) with the registered baseline move in the same commit.
+
+### Registry & left
+
+ARCH-001's census note updated (the onboarding slot CLOSED; the verified remaining mock slots: shifts, schedules, performanceReviews, aiConfig, clubs, psychology, orthophonie). T-483 COMPLETE. **Left:** the wizard's reachability posture (admin reset button only — the T-477 documented state) is unchanged by design: auto-opening for a fresh tenant is a product decision, not a persistence defect. T-484 (shifts/schedules) follows in this session.
+
+---
+
 ## 2026-10-04 — T-482 COMPLETE (the 140th session's first delivery): the auto-Relevé server-side design — UNKNOWN-030 RESOLVED by the owner's mandate (ADR-034, option (a)); migration 0141 (the exempted auto entry kind + the scoped §09.05 trigger + the record_auto_releve_entry SECURITY DEFINER RPC) applied LIVE + verified 9/9; the desktop's three classroom write paths wired through the fail-safe bridge; the battery 4 727 → 4 738/0/5 (+11 tests)
 
 ### The ruling
