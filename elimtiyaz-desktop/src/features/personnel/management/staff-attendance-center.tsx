@@ -231,6 +231,11 @@ export function StaffAttendanceCenter() {
       );
       setRequestModalAbsence(null);
       setRequestNote("");
+    } else {
+      // WORKFORCE-510 (T-480): the rejected write is SURFACED, never
+      // swallowed (the T-370 rule; the pre-T-480 path left the modal open
+      // with zero feedback on an RLS/network/validation failure).
+      toast.showError("Échec de l'envoi", res.error.userMessage);
     }
   }
 
@@ -249,6 +254,9 @@ export function StaffAttendanceCenter() {
       setSubmitModalAbsence(null);
       setWorkerExplanation("");
       setDocumentRef("");
+    } else {
+      // WORKFORCE-510 (T-480): same never-swallow rule.
+      toast.showError("Échec de l'envoi", res.error.userMessage);
     }
   }
 
@@ -269,6 +277,9 @@ export function StaffAttendanceCenter() {
       );
       setReviewModalAbsence(null);
       setDecisionNote("");
+    } else {
+      // WORKFORCE-510 (T-480): same never-swallow rule.
+      toast.showError("Décision refusée", res.error.userMessage);
     }
   }
 

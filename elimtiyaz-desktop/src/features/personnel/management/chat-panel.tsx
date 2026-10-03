@@ -147,9 +147,14 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!openWithPersonnelId || !session) return;
-    // T-463: this action opens a PORTAL conversation (a parent record) —
-    // only the portal surface honours it.
-    if (!isPortal) return;
+    // CHAT-301 (T-480): this deep link now serves BOTH chat systems. The
+    // recipient is a personnel record in either case: on the INTERNAL scope
+    // it is a STAFF member (the worker dashboard's "Envoyer un message" →
+    // the supervisor's DM — the 0135 scope trigger derives 'internal' from
+    // the all-staff member set, so the canonical create_direct_channel RPC
+    // is the same idempotent path); on the PORTAL scope it is the parent's
+    // linked record. The pre-T-480 `!isPortal` early return made the
+    // Personnel page's deep link dead — the only producer of this prop.
     const recipient = personnel.find(
       (person) => person.id === openWithPersonnelId,
     );
@@ -182,7 +187,6 @@ export function ChatPanel({
     repos.chat,
     onOpenWithPersonnelHandled,
     toast,
-    isPortal,
   ]);
 
   // Auto-select the first channel when none is selected

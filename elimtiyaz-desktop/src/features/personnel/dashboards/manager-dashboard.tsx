@@ -99,10 +99,19 @@ export function ManagerDashboard() {
   }, [personnel, me]);
 
   const teamIds = useMemo(() => new Set(teamMembers.map((p) => p.id)), [teamMembers]);
+  // WORKFORCE-509 (T-480): tasks.assignee_ids stores ACCOUNT ids
+  // (user_profiles.id per 0010/T-371) — the pre-T-480 filter matched the
+  // team's PERSONNEL ids against them (never equal), so only the
+  // departmentId fallback ever surfaced tasks. The team's bound ACCOUNT ids
+  // are the correct join key.
+  const teamAccountIds = useMemo(
+    () => new Set(teamMembers.map((p) => p.userId).filter((id): id is string => id !== null)),
+    [teamMembers],
+  );
 
   const teamTasks = useMemo(
-    () => tasks.filter((t) => t.assigneeIds.some((id) => teamIds.has(id)) || (me && t.departmentId === me.departmentId)),
-    [tasks, teamIds, me],
+    () => tasks.filter((t) => t.assigneeIds.some((id) => teamAccountIds.has(id)) || (me && t.departmentId === me.departmentId)),
+    [tasks, teamAccountIds, me],
   );
 
   const openTeamTasks = useMemo(

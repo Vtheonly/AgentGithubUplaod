@@ -131,8 +131,12 @@ export function EmployeeProfileDrawer({
     departments.find((d) => d.id === personnel.departmentId) ?? null;
   const supervisor =
     allPersonnel.find((p) => p.id === personnel.supervisorId) ?? null;
+  // WORKFORCE-509 (T-480): tasks.assignee_ids stores ACCOUNT ids
+  // (user_profiles.id per 0010/T-371) — the pre-T-480 filter matched the
+  // PERSONNEL id against them and always returned zero tasks. Match on the
+  // dossier's bound account id instead.
   const assignedTasks = allTasks.filter((t) =>
-    t.assigneeIds.includes(personnel.id),
+    personnel.userId !== null && t.assigneeIds.includes(personnel.userId),
   );
   // T-444/UI-324 restored: the shift assignment derivation (schedule rows
   // carry shift ids — the Set resolves the shift rows to render).

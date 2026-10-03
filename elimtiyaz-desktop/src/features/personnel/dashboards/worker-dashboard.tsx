@@ -351,10 +351,15 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
                 <p className="text-xs text-muted-foreground">{supervisor.position}</p>
                 <p className="text-xs text-muted-foreground font-mono">{supervisor.phone}</p>
               </div>
+              {/* CHAT-301 (T-480): the placeholder toast is GONE — the button
+                  now opens the REAL internal chat deep link (the Personnel
+                  page's onOpenChat → the Messagerie tab with the supervisor's
+                  DM open). The prop existed since iteration 8 but was never
+                  called; the chat repository has been real since T-099. */}
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => toast.showInfo("Chat", "Canal de discussion à venir dans une prochaine itération.")}
+                onClick={() => onOpenChat?.(supervisor.id)}
               >
                 <MessageSquare className="size-4" /> Envoyer un message
               </Button>
