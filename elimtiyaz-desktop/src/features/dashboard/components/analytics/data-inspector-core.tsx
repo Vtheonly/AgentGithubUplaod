@@ -39,6 +39,15 @@ import ExcelJS from "exceljs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { UnifiedModal } from "../../../../shared/ui/unified-modal";
 import { Button } from "../../../../shared/ui/button";
+// T-467 (DASH-411): the reference-population selector + the canonical
+// clickable-person mechanism (PersonLink — the navigation system's own
+// component; the inspection stays connected to the app's entity system).
+import {
+  ReferencePopulationSelector,
+  referenceSharePct,
+  type ReferencePopulationMode,
+} from "./reference-population-selector";
+import { PersonLink } from "../../../../shared/ui/person-link";
 import { Input } from "../../../../shared/ui/input";
 import { Badge } from "../../../../shared/ui/badge";
 import { formatDzdPlain } from "../../../../core/format/currency";
@@ -97,18 +106,27 @@ function dateLabel(value: string | null): string {
   }).format(d);
 }
 
-/** A single top-N contributor row — color-coded by rank (the palette). */
+/** A single top-N contributor row — color-coded by rank (the palette).
+ *
+ * T-467 (DASH-411): the name is CLICKABLE (PersonLink — the parent's detail
+ * drawer opens, the owner's "I should be able to click Ahmed and navigate
+ * directly to the appropriate person detail page" mandate), and the
+ * percentage follows the user-selected reference population (the mode is a
+ * pure rendering choice — the amounts and the ranking never change). */
 function ContributorRow({
   contributor,
   rank,
   resolvedValue,
+  mode,
 }: {
   contributor: LineageContributor;
   rank: number;
   resolvedValue: number;
+  mode: ReferencePopulationMode;
 }) {
   const color = contributorColor(rank);
-  const share = resolvedValue > 0 ? (contributor.amount / resolvedValue) * 100 : 0;
+  const share = referenceSharePct(contributor, mode);
+  void resolvedValue;
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-md border-l-2 py-0.5 pl-2"
@@ -118,17 +136,29 @@ function ContributorRow({
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-          <span className="truncate text-xs font-medium text-foreground">{contributor.name}</span>
-        </div>
-        <div className="text-[10px] text-muted-foreground">
-          {contributor.code} · {contributor.recordCount} enr.{contributor.lateDays > 45 ? " · >45 j" : ""}
+          <PersonLink
+            type="parent"
+            id={contributor.key}
+            name={contributor.name}
+            sub={`${contributor.code} · ${contributor.recordCount} enr.${contributor.lateDays > 45 ? " · >45 j" : ""}`}
+            showMenu={false}
+            className="min-w-0"
+          />
         </div>
       </div>
       <div className="shrink-0 text-right">
         <div className="font-mono text-xs font-semibold" style={{ color }}>
           {formatDzdPlain(contributor.amount)}
         </div>
-        <div className="text-[10px] font-mono" style={{ color }}>
+        <div
+          className="text-[10px] font-mono"
+          style={{ color }}
+          title={
+            mode === "top10"
+              ? `${share.toFixed(1)}% des 10 premiers seuls (répartition interne)`
+              : `${share.toFixed(1)}% de l'ensemble du dataset (non normalisé)`
+          }
+        >
           {share.toFixed(1)}%
         </div>
       </div>
@@ -168,6 +198,13 @@ export function DataInspectorProvider({
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
   const [sortDescending, setSortDescending] = useState(true);
+  // T-467 (DASH-411): the user-selected reference population — a PURE
+  // RENDERING state (the resolution is never re-run on a switch: the
+  // top-10 selection, the amounts and the ranking are fixed; only the
+  // denominator the percentages render against changes — the owner's
+  // explicit rule). "whole-dataset" is the default: it is the basis the
+  // KPI cards and the reconciliation line display.
+  const [referenceMode, setReferenceMode] = useState<ReferencePopulationMode>("whole-dataset");
 
   // Fallback: when the caller does not inject the canonical profiles,
   // compute them with the SAME engine the analytics tab uses (identical
@@ -204,6 +241,13 @@ export function DataInspectorProvider({
     });
   }, [request, students, parents, classes, assessments, attendance, payments, installments, debts, ledger, academicYear, range, riskProfilesProp, computedRiskProfiles]);
 
+  // T-467: the top-10 slice — derived FROM the resolved object (the mode
+  // switch re-renders; it never re-runs the resolution itself).
+  const topContributors = useMemo(
+    () => (resolved ? resolved.contributors.slice(0, 10) : []),
+    [resolved],
+  );
+
   const visibleRecords = useMemo(() => {
     if (!resolved) return [];
     const needle = search.trim().toLocaleLowerCase("fr");
@@ -220,6 +264,9 @@ export function DataInspectorProvider({
     setSearch("");
     setSortDescending(true);
     setExpanded(false);
+    // T-467: the reference mode is the USER's persistent lens — it survives
+    // across inspections (never reset per request; the selector stays
+    // visible in every popup).
     setRequest(next);
   }
 
@@ -312,8 +359,6 @@ export function DataInspectorProvider({
     downloadBlob(new Blob([bytes], { type: "application/pdf" }), "elimtiyaz-lineage-audit.pdf");
   }
 
-  const topContributors = resolved ? resolved.contributors.slice(0, 10) : [];
-
   return (
     <DataInspectorContext.Provider value={{ inspectData }}>
       {children}
@@ -384,34 +429,59 @@ export function DataInspectorProvider({
               </div>
             </div>
 
-            {/* WHO: top-10 contributors, color coded */}
+            {/* WHO: top-10 contributors, color coded — T-467 (DASH-411):
+                the user-selectable reference population + the full context
+                (denominator, combined top-10, remaining population). */}
             <div className="rounded-xl border border-border/60 bg-surface-panel/60 p-3" data-testid="inspector-contributors">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <PieChart className="h-4 w-4 text-primary" />
                   <span className="text-xs font-semibold">Top contributeurs (10)</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{resolved.contributors.length} au total</span>
                 </div>
-                <span className="font-mono text-[10px] text-muted-foreground">{resolved.contributors.length} au total</span>
+                <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact />
               </div>
-              {/* The stacked bar — one segment per top-10 contributor, SAME colors */}
+              {/* T-467: the reference-context lines — what the percentages
+                  are measured against, the combined top-10, the remainder. */}
+              <div
+                className="mt-2 rounded-lg border border-border/50 bg-surface-elevated/40 p-2.5 text-[10px] leading-relaxed text-muted-foreground"
+                data-testid="inspector-reference-context"
+              >
+                <div className="font-semibold text-foreground mb-0.5">
+                  Population de référence : {referenceMode === "top10" ? "les 10 premiers seuls" : "l'ensemble du dataset"}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 font-mono">
+                  <span>Dénominateur : <b className="text-foreground">{formatDzdPlain(referenceMode === "top10" ? resolved.reference.top10Total : resolved.reference.totalValue)}</b></span>
+                  <span>Top 10 cumulé : <b className="text-foreground">{formatDzdPlain(resolved.reference.top10Total)}</b> ({resolved.reference.top10CombinedPct.toFixed(1)}% du dataset)</span>
+                  <span>Reste de la population : <b className="text-foreground">{resolved.reference.remainderCount}</b> foyers · {formatDzdPlain(resolved.reference.remainderAmount)} ({resolved.reference.remainderPct.toFixed(1)}%)</span>
+                  <span>Classement par : <b className="text-foreground">{resolved.reference.metricLabel}</b></span>
+                </div>
+                {referenceMode === "top10"
+                  ? "Les pourcentages sont relatifs UNIQUEMENT aux 10 premiers — les dix somment à 100% (répartition interne)."
+                  : "Les pourcentages sont relatifs au dataset COMPLET — le Top 10 n'est PAS normalisé à 100%."}
+              </div>
+              {/* The stacked bar — one segment per top-10 contributor, SAME
+                  colors; in Top-10 mode the ten fill the whole bar (their
+                  own 100%), in whole-dataset mode the bar shows the top-10's
+                  share OF THE WHOLE (a deliberately partial bar). */}
               <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-stacked-bar">
                 {topContributors.map((c, rank) => (
                   <div
                     key={c.key}
-                    title={`${c.name} — ${formatDzdPlain(c.amount)} (${c.percentage.toFixed(1)}%)`}
+                    title={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}
                     className="h-full"
-                    style={{ backgroundColor: contributorColor(rank), width: `${Math.max(0, Math.min(100, c.percentage))}%` }}
+                    style={{ backgroundColor: contributorColor(rank), width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%` }}
                   />
                 ))}
               </div>
               <div className="mt-2 space-y-1.5">
                 {topContributors.map((c, rank) => (
-                  <ContributorRow key={c.key} contributor={c} rank={rank} resolvedValue={resolved.resolvedValue} />
+                  <ContributorRow key={c.key} contributor={c} rank={rank} resolvedValue={resolved.resolvedValue} mode={referenceMode} />
                 ))}
               </div>
               {resolved.remainderCount > 0 && (
                 <div className="border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
-                  + {resolved.remainderCount} autres contributeurs · {formatDzdPlain(resolved.remainderAmount)}
+                  + {resolved.remainderCount} autres contributeurs · {formatDzdPlain(resolved.remainderAmount)} · {resolved.reference.remainderPct.toFixed(1)}% du dataset
                 </div>
               )}
             </div>
@@ -448,13 +518,26 @@ export function DataInspectorProvider({
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5">
                             <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} title={row.contributorName} />
-                            <div>
-                              <div className="font-medium">{row.contributorName}</div>
-                              <div className="text-[10px] text-muted-foreground">{row.contributorCode} · {row.contributorPhone}</div>
-                            </div>
+                            {/* T-467 (DASH-411): the family is CLICKABLE — the
+                                parent's detail drawer (the owner's mandate). */}
+                            <PersonLink
+                              type="parent"
+                              id={row.contributorKey}
+                              name={row.contributorName}
+                              sub={`${row.contributorCode} · ${row.contributorPhone}`}
+                              showMenu={false}
+                            />
                           </div>
                         </td>
-                        <td className="px-3 py-2">{row.studentName}</td>
+                        <td className="px-3 py-2">
+                          {/* T-467: the student is clickable too, when the row
+                              carries a resolvable student id. */}
+                          {row.studentId ? (
+                            <PersonLink type="student" id={row.studentId} name={row.studentName} showMenu={false} />
+                          ) : (
+                            row.studentName
+                          )}
+                        </td>
                         <td className="px-3 py-2">
                           <Badge variant="outline" className="text-[10px]">{row.categoryLabel}</Badge>
                           <div className="mt-0.5 text-[10px] text-muted-foreground">{row.detail}</div>
@@ -489,15 +572,32 @@ export function DataInspectorProvider({
             </div>
           </div>
           <div className="px-4 py-3 space-y-3">
+            {/* T-467 (DASH-411): the reference selector + the visible
+                population line — right in the compact popup, so the
+                percentages cannot be misunderstood at a glance. */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-[10px] text-muted-foreground" data-testid="inspector-compact-reference">
+                Base : {referenceMode === "top10" ? "les 10 premiers" : "tout le dataset"} ({formatDzdPlain(referenceMode === "top10" ? resolved.reference.top10Total : resolved.reference.totalValue)})
+              </span>
+              <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact />
+            </div>
             <div className="flex h-2 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-compact-bar">
               {topContributors.map((c, rank) => (
-                <div key={c.key} className="h-full" style={{ backgroundColor: contributorColor(rank), width: `${Math.max(0, Math.min(100, c.percentage))}%` }} title={`${c.name} — ${formatDzdPlain(c.amount)}`} />
+                <div
+                  key={c.key}
+                  className="h-full"
+                  style={{ backgroundColor: contributorColor(rank), width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%` }}
+                  title={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}
+                />
               ))}
             </div>
             <div className="space-y-2">
               {topContributors.map((c, rank) => (
-                <ContributorRow key={c.key} contributor={c} rank={rank} resolvedValue={resolved.resolvedValue} />
+                <ContributorRow key={c.key} contributor={c} rank={rank} resolvedValue={resolved.resolvedValue} mode={referenceMode} />
               ))}
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              Top 10 cumulé : {formatDzdPlain(resolved.reference.top10Total)} ({resolved.reference.top10CombinedPct.toFixed(1)}% du dataset){resolved.remainderCount > 0 ? ` · reste : ${resolved.remainderCount} familles · ${formatDzdPlain(resolved.remainderAmount)} (${resolved.reference.remainderPct.toFixed(1)}%)` : ""}
             </div>
             {resolved.remainderCount > 0 && <div className="border-t border-border/50 pt-2 text-[11px] text-muted-foreground">+ {resolved.remainderCount} autres familles · {formatDzdPlain(resolved.remainderAmount)}</div>}
             <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5 text-[10px] leading-relaxed text-muted-foreground" data-testid="inspector-compact-formula">

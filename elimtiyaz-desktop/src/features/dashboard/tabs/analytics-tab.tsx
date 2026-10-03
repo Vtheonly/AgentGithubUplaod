@@ -774,7 +774,13 @@ export function AnalyticsTab({
           <div className="flex justify-end">
             <InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices (toutes années)", metric: "debtors_pareto", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />
           </div>
-          <DebtorsParetoCard topDebtors={riskDebt as DebtSummary[]} />
+          <DebtorsParetoCard
+            topDebtors={riskDebt as DebtSummary[]}
+            // T-467 (DASH-411): the WHOLE dataset's total outstanding (the
+            // T-351 full-stream wiring) — the whole-dataset reference mode's
+            // honest denominator.
+            totalOutstanding={currentDebtTotal}
+          />
         </div>
       ),
     },

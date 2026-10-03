@@ -324,6 +324,12 @@ const FR = {
       measures: "L'ancienneté du retard le plus ancien de la famille.",
       calc: "max(floor((maintenant − échéance) ÷ jour)) sur les lignes non soldées de la famille.",
     },
+    referenceMode: {
+      title: "Population de référence (colonne « Part »)",
+      measures: "La base de la colonne Part : la dette globale de l'école, ou l'encours des seules familles du Top 10.",
+      calc: "Mode « Tout le dataset » : encours de la famille ÷ encours TOTAL (non normalisé). Mode « Top 10 » : encours de la famille ÷ total du Top 10 (répartition interne, sommant à 100%).",
+      status: "Le classement et la sélection du Top 10 restent fixes ; seul le dénominateur de la colonne change.",
+    },
   },
   dynamics: {
     card: {
@@ -502,6 +508,12 @@ const FR = {
       measures: "La part cumulative de l'encours captée en descendant le classement.",
       calc: "Σ glissante des encours ÷ Σ des familles affichées × 100.",
     },
+    referenceMode: {
+      title: "Population de référence des pourcentages",
+      measures: "La base de calcul des pourcentages du Top 10 : l'ensemble du dataset complet, ou les 10 premiers seuls.",
+      calc: "Mode « Tout le dataset » : valeur individuelle ÷ valeur TOTALE du dataset (le Top 10 n'est PAS normalisé à 100%). Mode « Top 10 » : valeur individuelle ÷ total des 10 seuls (les dix somment à 100% — la répartition interne).",
+      status: "La sélection du Top 10 ne change JAMAIS quand on bascule le mode — seul le dénominateur change : d'abord les 10 premiers sont identifiés selon la métrique, puis on choisit ce à quoi leurs valeurs sont comparées.",
+    },
   },
   payroll: {
     card: {
@@ -549,6 +561,12 @@ const FR = {
     },
   },
   inspector: {
+    referenceMode: {
+      title: "Population de référence de l'inspection",
+      measures: "Le dénominateur des pourcentages des contributeurs : le dataset complet ou les 10 premiers seuls.",
+      calc: "Les deux bases sont pré-calculées par la résolution (shareOfTotalPct = montant ÷ valeur résolue ; shareOfTop10Pct = montant ÷ total des 10). Le contexte affiche le dénominateur, le Top 10 cumulé et le reste de la population.",
+      status: "Basculer le mode ne relance JAMAIS la résolution — la sélection, les montants et le classement sont fixes ; seuls les pourcentages, le diagramme et les libellés suivent le mode choisi.",
+    },
     card: {
       title: "Inspection directe / provenance des données",
       measures: "Le lien vers l'inspecteur de données : la traçabilité de chaque chiffre jusqu'aux lignes sources.",
@@ -840,6 +858,12 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       calc: "Per-family outstanding = Σ INV-4 over its unsettled rows; concentration = round(top 10 ÷ total × 100).",
       status: "A high concentration = a few families failing to pay would be enough to open the hole.",
     },
+    referenceMode: {
+      title: "Reference population (the “Share” column)",
+      measures: "The Share column's base: the school-wide total debt, or the top-10 families' own outstanding.",
+      calc: "Whole-dataset mode: family outstanding ÷ TOTAL outstanding (not normalized). Top 10 mode: family outstanding ÷ the top 10's own total (the internal distribution, summing to 100%).",
+      status: "The ranking and the top-10 selection stay fixed; only the column's denominator changes.",
+    },
     top: {
       title: "Top 10 debtor families",
       measures: "The families ranked by descending outstanding, with their active children and worst delay.",
@@ -1033,6 +1057,12 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       measures: "The cumulative share of the outstanding captured going down the ranking.",
       calc: "Running Σ of the outstanding ÷ Σ of the displayed families × 100.",
     },
+    referenceMode: {
+      title: "Reference population of the percentages",
+      measures: "The calculation base of the top-N shares: the complete dataset, or the displayed top N alone.",
+      calc: "Whole-dataset mode: individual value ÷ the TOTAL value of the whole dataset (the top N is NOT normalized to 100%). Top 10 mode: individual value ÷ the top N's own total (they sum to 100% — the internal distribution).",
+      status: "The top-N selection NEVER changes when the mode switches — only the denominator does: the top contributors are identified by the metric first, then you choose what their values are measured against.",
+    },
   },
   payroll: {
     card: {
@@ -1080,6 +1110,12 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     },
   },
   inspector: {
+    referenceMode: {
+      title: "Reference population of the inspection",
+      measures: "The denominator of the contributors' percentages: the complete dataset, or the top 10 alone.",
+      calc: "Both bases are precomputed by the resolution (shareOfTotalPct = amount ÷ resolved value; shareOfTop10Pct = amount ÷ the top-10 total). The context block shows the denominator, the combined top 10, and the remaining population.",
+      status: "Switching the mode NEVER re-runs the resolution — the selection, the amounts and the ranking are fixed; only the percentages, the meter and the labels follow the chosen mode.",
+    },
     card: {
       title: "Direct inspection / data provenance",
       measures: "The link to the data inspector: every number's traceability down to the source rows.",
@@ -1352,6 +1388,12 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       calc: "الرصيد لكل عائلة = Σ INV-4 على سطورها غير المسدَّدة؛ التركّز = round(أفضل 10 ÷ الإجمالي × 100).",
       status: "تركّز مرتفع = يكفي إخفاق بعض العائلات في السداد لفتح الثغرة.",
     },
+    referenceMode: {
+      title: "مجموعة المرجع (عمود « الحصة »)",
+      measures: "أساس عمود الحصة: الدين الإجمالي على مستوى المدرسة، أو رصيد عائلات الـ Top 10 وحدهن.",
+      calc: "وضع «كل البيانات»: رصيد العائلة ÷ الرصيد الإجمالي (غير مُطبَّع). وضع «Top 10»: رصيد العائلة ÷ إجمالي الـ Top 10 (التوزيع الداخلي، يجتمع إلى 100%).",
+      status: "يبقى الترتيب واختيار الـ Top 10 ثابتين؛ يتغيّر مقام العمود فقط.",
+    },
     top: {
       title: "أفضل 10 عائلات مدينة",
       measures: "العائلات مرتبة تنازليًا بالرصيد، مع أبنائها النشطين وأسوأ تأخير.",
@@ -1545,6 +1587,12 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       measures: "الحصة التراكمية للرصيد المُلتقطة نزولًا في الترتيب.",
       calc: "Σ جارٍ للرصيد ÷ Σ العائلات المعروضة × 100.",
     },
+    referenceMode: {
+      title: "مجموعة المرجع للنسب المئوية",
+      measures: "أساس حساب نسب الـ Top N: مجموعة البيانات الكاملة، أو العشرة الأوائل وحدهم.",
+      calc: "وضع «كل البيانات»: القيمة الفردية ÷ القيمة الإجمالية للمجموعة الكاملة (الـ Top N غير مُطبَّعة إلى 100%). وضع «Top 10»: القيمة الفردية ÷ إجمالي العشرة وحدهم (يجتمعون إلى 100% — التوزيع الداخلي).",
+      status: "لا يتغيّر اختيار الـ Top 10 أبدًا عند تبديل الوضع — يتغيّر المقام فقط: تُحدَّد العشرة الأوائل حسب المقياس أولًا، ثم تختار ما تُقارَن به قيمهم.",
+    },
   },
   payroll: {
     card: {
@@ -1592,6 +1640,12 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     },
   },
   inspector: {
+    referenceMode: {
+      title: "مجموعة مرجع الفحص",
+      measures: "مقام النسب المئوية للمساهمين: مجموعة البيانات الكاملة أو العشرة الأوائل وحدهم.",
+      calc: "يُحسب الأساسان مسبقًا في التحليل (shareOfTotalPct = المبلغ ÷ القيمة المُحلَّلة؛ shareOfTop10Pct = المبلغ ÷ إجمالي العشرة). يعرض السياق المقام ومجموع الـ Top 10 وبقية المجموعة.",
+      status: "تبديل الوضع لا يعيد التحليل أبدًا — يبقى الاختيار والمبالغ والترتيب ثابتين؛ تتبع النسب والمقياس والتسميات الوضع المختار فقط.",
+    },
     card: {
       title: "الفحص المباشر / مصدر البيانات",
       measures: "الرابط إلى مفتّش البيانات: تتبع كل رقم حتى السطور المصدر.",

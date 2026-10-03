@@ -2,9 +2,11 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/debtors-pareto-card.tsx
 // ============================================================================
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 // T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
+// T-467 (DASH-411): the user-selectable reference population.
+import { ReferencePopulationSelector, type ReferencePopulationMode } from "./reference-population-selector";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -42,13 +44,42 @@ function shortName(full: string): string {
 
 export function DebtorsParetoCard({
   topDebtors,
+  totalOutstanding,
 }: {
   topDebtors: DebtSummary[];
+  /**
+   * T-467 (DASH-411): the WHOLE dataset's total outstanding (the full
+   * debtSummaries stream's sum — the T-351 full-stream pattern). REQUIRED
+   * for the whole-dataset reference mode's honest cumulative line; when
+   * absent the card degrades to the top-10-only basis (honest, never
+   * fabricated).
+   */
+  totalOutstanding?: number;
 }) {
-  const data = useMemo(() => derivePareto(topDebtors), [topDebtors]);
+  // T-467: the user's lens — the top-N SELECTION is fixed by the derivation;
+  // switching the mode changes ONLY the cumulative line's denominator,
+  // the labels and the tooltips.
+  const [referenceMode, setReferenceMode] = useState<ReferencePopulationMode>("top10");
+  const data = useMemo(
+    () => derivePareto(topDebtors, 8, totalOutstanding),
+    [topDebtors, totalOutstanding],
+  );
   const displayedTotal = data.reduce((s, d) => s + d.amount, 0);
-  const paretoCut = data.findIndex((d) => d.cumPercent >= 80) + 1;
-  const chartData = data.map((d) => ({ ...d, short: shortName(d.name) }));
+  // In whole-dataset mode the cumulative line is only available when the
+  // dataset total was provided — otherwise the honest fallback stays the
+  // top-N basis (the line never lies about its denominator).
+  const effectiveMode: ReferencePopulationMode =
+    referenceMode === "whole-dataset" && (typeof totalOutstanding !== "number" || totalOutstanding <= 0)
+      ? "top10"
+      : referenceMode;
+  const cumulativeValue = (d: (typeof data)[number]) =>
+    effectiveMode === "whole-dataset" ? d.cumOfTotalPct ?? d.cumPercent : d.cumPercent;
+  const paretoCut = data.findIndex((d) => cumulativeValue(d) >= 80) + 1;
+  const chartData = data.map((d) => ({ ...d, short: shortName(d.name), cum: cumulativeValue(d) }));
+  const basisLabel =
+    effectiveMode === "top10"
+      ? `répartition interne des ${data.length} premiers (base ${formatDzd(displayedTotal, { compact: true })})`
+      : `base = l'ensemble du dataset (${formatDzd(totalOutstanding ?? 0, { compact: true })})`;
 
   return (
     <Card
@@ -63,13 +94,17 @@ export function DebtorsParetoCard({
             <InfoTip tip="pareto.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Concentration cumulée des impayés par tuteur
+            Concentration cumulée des impayés par tuteur · {basisLabel}
           </CardDescription>
         </div>
 
+        {/* T-467 (DASH-411): the reference-population selector — the top-N
+            selection is FIXED; only the denominator changes. */}
+        <ReferencePopulationSelector mode={effectiveMode} onChange={setReferenceMode} compact tipKey="pareto.referenceMode" />
+
         {paretoCut > 0 && (
           <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-status-warning/15 text-status-warning border border-status-warning/30">
-            {paretoCut} foyer(s) = 80% de l'encours
+            {paretoCut} foyer(s) = 80% {effectiveMode === "top10" ? "des top débiteurs" : "du dataset"}
           </span>
         )}
       </CardHeader>
@@ -125,7 +160,7 @@ export function DebtorsParetoCard({
                   formatter={(
                     val: number,
                     name: string,
-                    entry: { payload?: { name?: string } },
+                    entry: { payload?: { name?: string; cum?: number } },
                   ) => {
                     if (name === "amount") {
                       return [
@@ -133,7 +168,12 @@ export function DebtorsParetoCard({
                         entry?.payload?.name ?? "Dette",
                       ];
                     }
-                    return [`${val}%`, "Part cumulée"];
+                    return [
+                      `${val}%`,
+                      effectiveMode === "top10"
+                        ? "Part cumulée (des top débiteurs)"
+                        : "Part cumulée (du dataset complet)",
+                    ];
                   }}
                 />
                 <Bar
@@ -145,7 +185,7 @@ export function DebtorsParetoCard({
                 />
                 <Line
                   yAxisId="percent"
-                  dataKey="cumPercent"
+                  dataKey="cum"
                   type="monotone"
                   stroke={chartPalette.gold}
                   strokeWidth={2}

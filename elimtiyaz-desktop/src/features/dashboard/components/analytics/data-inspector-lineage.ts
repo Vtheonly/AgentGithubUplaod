@@ -151,6 +151,19 @@ export interface LineageContributor {
   recordCount: number;
   latestDate: string | null;
   lateDays: number;
+  /**
+   * T-467 (DASH-411): the contributor's share of the WHOLE dataset's metric
+   * value (amount ÷ resolvedValue × 100) — the SAME number `percentage`
+   * carries (kept for every existing consumer); named explicitly because
+   * the reference population is now user-selectable.
+   */
+  shareOfTotalPct: number;
+  /**
+   * T-467 (DASH-411): the contributor's share of the TOP-10's own combined
+   * value (amount ÷ top10Total × 100) — the "distribution within the top
+   * 10" basis. 0 when there is no top-10 total (the honest empty case).
+   */
+  shareOfTop10Pct: number;
 }
 
 export interface LineageRecord {
@@ -160,6 +173,9 @@ export interface LineageRecord {
   contributorCode: string;
   contributorPhone: string;
   studentName: string;
+  /** T-467 (DASH-411): the row's student id (the clickable navigation
+   *  target) — null when the row carries no student ("—"). */
+  studentId: string | null;
   className: string;
   amount: number;
   percentage: number;
@@ -210,6 +226,28 @@ export interface ResolvedInspection {
   scopeLabel: string;
   generatedAt: string;
   sourceCounts: Record<string, number>;
+  /**
+   * T-467 (DASH-411): the REFERENCE-POPULATION metadata — the two bases the
+   * user selects between, precomputed so switching modes NEVER re-runs the
+   * resolution (the top-10 selection is fixed; only the denominator
+   * changes — the owner's explicit rule).
+   */
+  reference: {
+    /** The whole dataset's metric value (the Mode-1 denominator). */
+    readonly totalValue: number;
+    /** The top-10's own combined value (the Mode-2 denominator). */
+    readonly top10Total: number;
+    /** The top-10's combined share of the WHOLE dataset (%). */
+    readonly top10CombinedPct: number;
+    /** The remaining population (beyond the top 10): count + amount + share of the whole (%). */
+    readonly remainderCount: number;
+    readonly remainderAmount: number;
+    readonly remainderPct: number;
+    /** The total contributor count (the whole population). */
+    readonly contributorCount: number;
+    /** The metric the ranking is by (the request's own title). */
+    readonly metricLabel: string;
+  };
 }
 
 // ============================================================================
@@ -291,6 +329,8 @@ interface InternalRow {
   contributorCode: string;
   contributorPhone: string;
   studentName: string;
+  /** T-467 (DASH-411): the row's student id — the clickable target. */
+  studentId: string | null;
   className: string;
   amount: number;
   date: string | null;
@@ -416,6 +456,7 @@ export function buildResolution(
         contributorCode: parent?.code ?? payment.parentId,
         contributorPhone: parent?.phone ?? "—",
         studentName: studentLabel(student),
+        studentId: student?.id ?? null,
         className: student?.classId ? classMap.get(student.classId)?.name ?? "—" : "—",
         amount: payment.amount,
         date: payment.collectedAt,
@@ -492,6 +533,7 @@ export function buildResolution(
         contributorCode: parent?.code ?? installment.parentId,
         contributorPhone: parent?.phone ?? "—",
         studentName: studentLabel(student),
+        studentId: student?.id ?? null,
         className: student?.classId ? classMap.get(student.classId)?.name ?? "—" : "—",
         amount,
         date: mode === "collected" ? installment.paidDate : installment.dueDate,
@@ -537,6 +579,7 @@ export function buildResolution(
         contributorCode: student.code,
         contributorPhone: parent?.phone ?? "—",
         studentName: studentLabel(student),
+        studentId: student?.id ?? null,
         className: student.classId ? classMap.get(student.classId)?.name ?? "—" : "—",
         amount: 1,
         date: student.updatedAt,
@@ -581,6 +624,7 @@ export function buildResolution(
         contributorCode: student.code,
         contributorPhone: parent?.phone ?? "—",
         studentName: studentLabel(student),
+        studentId: student?.id ?? null,
         className: student.classId ? classMap.get(student.classId)?.name ?? "—" : "—",
         amount: 1,
         date: record.date,
@@ -618,6 +662,7 @@ export function buildResolution(
         contributorCode: profile.studentCode,
         contributorPhone: profile.parentPhone || "—",
         studentName: profile.studentName,
+        studentId: profile.studentId,
         className: profile.className,
         amount: 1,
         date: null,
@@ -688,6 +733,7 @@ export function buildResolution(
         contributorCode: parent?.code ?? installment.parentId,
         contributorPhone: parent?.phone ?? "—",
         studentName: studentLabel(student),
+        studentId: student?.id ?? null,
         className: student?.classId ? classMap.get(student.classId)?.name ?? "—" : "—",
         amount,
         date: mode === "collected" ? installment.paidDate : installment.dueDate,
@@ -732,6 +778,7 @@ export function buildResolution(
         contributorCode: parent?.code ?? entry.parentId,
         contributorPhone: parent?.phone ?? "—",
         studentName: studentLabel(student),
+        studentId: student?.id ?? null,
         className: student?.classId ? classMap.get(student.classId)?.name ?? "—" : "—",
         amount: -entry.amount,
         date: entry.at,
@@ -780,16 +827,36 @@ export function buildResolution(
         recordCount: 1,
         latestDate: row.date,
         lateDays: row.lateDays,
+        shareOfTotalPct: 0,
+        shareOfTop10Pct: 0,
       });
     }
   }
 
+  // T-467 (DASH-411): the TWO reference bases, computed ONCE at resolution
+  // time — switching the user's mode is a pure RENDERING change (the
+  // resolution is never re-run, so the top-10 selection is fixed by
+  // construction — the owner's "first identify the top 10, then change what
+  // those values are measured against" rule).
+  const top10Contributors = [...grouped.values()]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 10);
+  const top10Total = top10Contributors.reduce((sum, c) => sum + c.amount, 0);
+
   const contributors = [...grouped.values()]
     .sort((a, b) => b.amount - a.amount)
-    .map((item) => ({
-      ...item,
-      percentage: resolvedValue > 0 ? (item.amount / resolvedValue) * 100 : 0,
-    }));
+    .map((item) => {
+      const shareOfTotalPct = resolvedValue > 0 ? (item.amount / resolvedValue) * 100 : 0;
+      const shareOfTop10Pct = top10Total > 0 ? (item.amount / top10Total) * 100 : 0;
+      return {
+        ...item,
+        // Back-compat: `percentage` stays the WHOLE-DATASET basis (every
+        // existing consumer — the t-389 tests included — pins this).
+        percentage: shareOfTotalPct,
+        shareOfTotalPct,
+        shareOfTop10Pct,
+      };
+    });
   const topKeys = new Set(contributors.slice(0, 10).map((c) => c.key));
   const remainderAmount = contributors.filter((c) => !topKeys.has(c.key)).reduce((sum, c) => sum + c.amount, 0);
   const remainderCount = contributors.filter((c) => !topKeys.has(c.key)).length;
@@ -830,5 +897,17 @@ export function buildResolution(
     scopeLabel,
     generatedAt: new Date().toISOString(),
     sourceCounts,
+    // T-467 (DASH-411): the reference-population metadata both rendering
+    // modes consume (precomputed — see the grouping block's comment).
+    reference: {
+      totalValue: resolvedValue,
+      top10Total,
+      top10CombinedPct: resolvedValue > 0 ? (top10Total / resolvedValue) * 100 : 0,
+      remainderCount,
+      remainderAmount,
+      remainderPct: resolvedValue > 0 ? (remainderAmount / resolvedValue) * 100 : 0,
+      contributorCount: contributors.length,
+      metricLabel: request.title,
+    },
   };
 }
