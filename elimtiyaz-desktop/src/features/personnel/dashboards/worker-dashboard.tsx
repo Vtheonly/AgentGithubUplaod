@@ -27,11 +27,8 @@ import {
   RoleDashboardLayout,
   type DashboardKpi,
   type DashboardTask,
-  type DashboardFeedItem,
 } from "./role-dashboard-layout";
 import {
-  REQUEST_TYPE_LABELS_FR,
-  REQUEST_STATUS_LABELS_FR,
   TASK_STATUS_LABELS_FR,
   type AttendanceEventType,
   type RequestType,
@@ -238,14 +235,6 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
     priority: t.priority === "urgent" || t.priority === "high" ? "high" : "medium",
   }));
 
-  const feed: readonly DashboardFeedItem[] = myLeave.slice(0, 5).map((r) => ({
-    id: r.id,
-    label: `${REQUEST_TYPE_LABELS_FR[r.type]} · ${r.fromDate} → ${r.toDate}`,
-    description: r.reason || undefined,
-    timestamp: REQUEST_STATUS_LABELS_FR[r.status],
-    icon: CalendarClock,
-  }));
-
   return (
     <>
       <RoleDashboardLayout
@@ -253,7 +242,6 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
         actorName={session?.displayName ?? "Ouvrier"}
         kpis={kpis}
         tasks={tasks}
-        feed={feed}
         actions={[
           { label: "Demander un congé", icon: Plus, variant: "default", onClick: () => setLeaveOpen(true) },
         ]}

@@ -33,7 +33,6 @@ import {
   RoleDashboardLayout,
   type DashboardKpi,
   type DashboardTask,
-  type DashboardFeedItem,
 } from "./role-dashboard-layout";
 import {
   TASK_PRIORITY_LABELS_FR,
@@ -186,14 +185,6 @@ export function ManagerDashboard() {
     priority: "high",
   }));
 
-  const feed: readonly DashboardFeedItem[] = openTeamTasks.slice(0, 6).map((t) => ({
-    id: t.id,
-    label: t.title,
-    description: `${TASK_PRIORITY_LABELS_FR[t.priority]}${t.dueDate ? ` · Échéance ${t.dueDate}` : ""}`,
-    timestamp: TASK_STATUS_LABELS_FR[t.status],
-    icon: ListTodo,
-  }));
-
   const createTaskFields: readonly AutoFormField[] = [
     { name: "title", label: "Titre", type: "text", required: true, wide: true, placeholder: "Ex. Préparer commande manuels" },
     {
@@ -223,7 +214,6 @@ export function ManagerDashboard() {
         actorName={session?.displayName ?? "Responsable"}
         kpis={kpis}
         tasks={dashboardTasks}
-        feed={feed}
         actions={[
           { label: "Créer une tâche", icon: Plus, variant: "default", onClick: () => setCreateTaskOpen(true) },
         ]}

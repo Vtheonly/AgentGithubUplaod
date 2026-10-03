@@ -49,7 +49,6 @@ import {
   RoleDashboardLayout,
   type DashboardKpi,
   type DashboardTask,
-  type DashboardFeedItem,
 } from "./role-dashboard-layout";
 
 const HomeworkSchema = z.object({
@@ -153,16 +152,6 @@ export function TeacherDashboard() {
     onClick: () => setOverlay({ kind: "roll-call", classId: c.id }),
   }));
 
-  const feed: readonly DashboardFeedItem[] = myHomework
-    .slice(0, 5)
-    .map((h) => ({
-      id: h.id,
-      label: h.title,
-      description: `${h.subjectName} — À rendre le ${h.dueDate} · ${h.acknowledgedCount} élève(s) informé(s)`,
-      timestamp: h.pushedAt ? "Publié" : "Brouillon",
-      icon: BookOpen,
-    }));
-
   const homeworkFields: readonly AutoFormField[] = [
     {
       name: "classId",
@@ -219,7 +208,6 @@ export function TeacherDashboard() {
         actorName={session?.displayName ?? "Enseignant"}
         kpis={kpis}
         tasks={tasks}
-        feed={feed}
         actions={[
           {
             label: "Nouveau devoir",

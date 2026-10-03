@@ -24,7 +24,6 @@ import { Button } from "../../../shared/ui/button";
 import {
   RoleDashboardLayout,
   type DashboardKpi,
-  type DashboardFeedItem,
 } from "./role-dashboard-layout";
 import {
   INVENTORY_TRANSACTION_LABELS_FR,
@@ -173,14 +172,6 @@ export function WarehouseWorkerDashboard() {
     { label: "Avaries récentes", value: damagedReports, icon: AlertTriangle },
   ];
 
-  const feed: readonly DashboardFeedItem[] = activity.slice(0, 8).map((a) => ({
-    id: a.id,
-    label: `${INVENTORY_TRANSACTION_LABELS_FR[a.type]} : ${a.itemLabel} (${a.delta > 0 ? "+" : ""}${a.delta})`,
-    description: a.reason ?? undefined,
-    timestamp: formatTimestamp(a.timestamp),
-    icon: Boxes,
-  }));
-
   const scanFields: readonly AutoFormField[] = [
     { name: "sku", label: "SKU / Code-barres", type: "text", required: true, placeholder: "STY-BLE-50" },
     { name: "label", label: "Désignation", type: "text", required: true, placeholder: "Stylos bleus" },
@@ -210,7 +201,6 @@ export function WarehouseWorkerDashboard() {
         role="Magasinier"
         actorName={session?.displayName ?? "Magasinier"}
         kpis={kpis}
-        feed={feed}
         actions={[
           { label: "Scanner", icon: ScanLine, variant: "default", onClick: () => setScanOpen(true) },
           { label: "Signaler avarie", icon: AlertTriangle, variant: "outline", onClick: () => setDamageOpen(true) },

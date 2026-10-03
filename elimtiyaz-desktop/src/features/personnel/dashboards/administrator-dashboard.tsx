@@ -11,13 +11,11 @@
  *   - Task Execution Velocity & Review Queue
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Users,
-  Building2,
   ClipboardList,
   Wallet,
-  ShieldCheck,
   Settings,
   Calendar,
   AlertTriangle,
@@ -31,10 +29,8 @@ import {
   RoleDashboardLayout,
   type DashboardKpi,
   type DashboardTask,
-  type DashboardFeedItem,
 } from "./role-dashboard-layout";
 import { formatDzd } from "../../../core/format/currency";
-import type { AuditEntry } from "../../../domain/model/audit";
 import { REQUEST_TYPE_LABELS_FR } from "../../../domain/model/workforce";
 
 interface Props {
@@ -47,24 +43,12 @@ export function AdministratorDashboard({ role }: Props) {
   const toast = useToast();
 
   const personnel = useObservable(() => repos.personnel.observe(), []);
-  const departments = useObservable(() => repos.departments.observe(), []);
   const tasks = useObservable(() => repos.tasks.observe(), []);
   const leaveRequests = useObservable(() => repos.leaveRequests.observe(), []);
   const absences = useObservable(
     () => repos.workforceAttendance.observeAbsences(),
     [],
   );
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    repos.audit.recent(8).then((res) => {
-      if (!cancelled && res.ok) setAuditEntries(res.value);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [repos.audit]);
 
   const activeCount = useMemo(
     () => personnel.filter((p) => p.status === "active").length,
@@ -141,23 +125,12 @@ export function AdministratorDashboard({ role }: Props) {
     })),
   ];
 
-  const feed: readonly DashboardFeedItem[] = auditEntries
-    .slice(0, 6)
-    .map((e) => ({
-      id: e.id,
-      label: `${e.action} — ${e.actorName}`,
-      description: e.note || e.entityId,
-      timestamp: new Date(e.at).toLocaleTimeString("fr-FR"),
-      icon: ShieldCheck,
-    }));
-
   return (
     <RoleDashboardLayout
       role={roleLabel}
       actorName={session?.displayName ?? "Administrateur"}
       kpis={kpis}
       tasks={dashboardTasks}
-      feed={feed}
       actions={
         isFullAdmin
           ? [
