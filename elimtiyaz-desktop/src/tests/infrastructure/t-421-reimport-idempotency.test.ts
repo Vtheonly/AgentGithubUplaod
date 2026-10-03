@@ -204,6 +204,9 @@ class ReimportInstallmentStub implements InstallmentRepository {
   async updateDueDate(): Promise<Result<Installment>> { return Err(Errors.server("stub")); }
   async regenerateForCycle(): Promise<Result<readonly Installment[]>> { return Err(Errors.server("stub")); }
   async findOverdue(): Promise<Result<readonly Installment[]>> { return Ok([]); }
+  // T-466 (DEBT-102): the new required contract member — the stub never
+  // creates manual debts (the adapter under test is the import flush).
+  async createManualDebt(): Promise<Result<Installment>> { return Err(Errors.server("stub")); }
 }
 
 class NoopParentRepo implements ParentRepository {

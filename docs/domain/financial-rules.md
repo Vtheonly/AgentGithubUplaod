@@ -286,3 +286,44 @@ The rows the wave model excludes BY DESIGN — grouped by (kind × category) wit
 - **Statistics (the WaveVelocityCard):** the MAIN T1/T2/T3 grid renders the pooled rows (due/paid/pending/remaining + the reconciliation line + the per-category chips + the phase); the FI « Hors Tranches » section renders the non-wave groups; the per-category detail grid renders the per-category view models (`executive-statistics.deriveTrancheWaves` — the presentation mapper). FI is NEVER presented as part of T1 (§15.65a — presentation must not contradict the billing model).
 - **Finance (the Tranches strip):** `installment-schedule-tab.deriveTrancheWaves` maps the canonical pooled rows to the strip's presentation (label/hint/isNextTarget/tuitionPct from `perCategory`) — no pooling math of its own.
 - **Android:** the mirror port is a registered follow-up (§10 — the corpus `executive_statistics` + verify_t-338.sql are the cross-platform contract).
+
+## 20. Manual debts — the canonical pre-existing-obligation write path (T-466 / DEBT-102, 2026-10-03)
+
+**The rule:** a manually-recorded pre-existing debt ("this family owes 500 DZD for THIS
+reason") is ONE canonical **installments row** — never a ledger-only escape, never a
+per-surface structure. The row carries every mandate field: `parent_id` (the debtor
+family) · `student_id` (the anchor — NOT NULL by schema; the family stays the debtor)
+· `category` (the associated service/fee/purchase) · `label` (the reason — the debt's
+own line-item text) · `amount_due` (> 0; `amount_paid`/`amount_pending` start 0) ·
+`due_date` (the debt date) · `academic_year_id` (stamped at write time per ADR-30:
+explicit code first, else the INV-14 window on the due date) · `status` (starts
+`unpaid`) · `source_type = 'manual_entry'` + a deterministic `source_id`
+(the reference; the note and external reference live on the twin ledger charge's
+description + metadata).
+
+**The non-wave class:** `tranche_number` is NULL on a manual debt (migration 0137 made
+the column nullable). A NULL tranche is the documented T-424/DATA-042 NON-WAVE row —
+excluded from every wave everywhere, never coerced into wave 1, and outside the 0129
+identity index by its own predicate (manual debts never collide with tranche
+identities; two manual debts of the same category coexist).
+
+**The write path:** the `create_manual_debt` RPC (migration 0137, SECURITY DEFINER,
+staff-gated like the aging surface) writes the installment row + the MATCHING ledger
+charge entry (the billing-wire pattern — the account balance and the audit trail
+include the new obligation) + the audit row, in one call. The desktop contract is
+`InstallmentRepository.createManualDebt` (optional member, the `bulkImportInstallments`
+convention; callers surface unavailability honestly — §15.15).
+
+**The unified-data consequence (the architecture):** because every debt surface
+derives from the installments table through the existing canonical engines, the
+manual debt appears in the Créances summary, the « Suivi des Dettes » aging statuses,
+Year Tracking (a non-tuition/non-transport category lands in the year's per-service
+group), the Dashboard statistics, the CRM échéancier, and the payment waterfall
+(collect allocates by `parent_id + category` — a manual row settles exactly like a
+tranche) with ZERO per-surface wiring. There is deliberately no second debt store.
+
+**Invariants:** INV-4 (the remaining is the same clamp) · INV-18b (the year stamp is
+frozen at write time) · the label ≥ 3 chars and the amount > 0 are enforced at the
+RPC (and mirrored in the desktop modal's schema). Credits are the OPPOSITE operation
+and stay on the account-adjustment path (`adjust()` with a negative amount) — the
+manual-debt modal creates obligations only.

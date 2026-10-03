@@ -32,6 +32,7 @@ import type {
   DebtRepository,
   Observable,
   ImportInstallmentInput,
+  CreateManualDebtInput,
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
@@ -4041,6 +4042,57 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
         .from("installments")
         .select("*")
         .eq("id", id)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      const installment = mapInstallmentRow(fullRow as InstallmentRow);
+      this.cache.update((list) => [installment, ...list.filter((i) => i.id !== installment.id)]);
+      return Ok(installment);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  /**
+   * T-466 (DEBT-102) — the manual-debt creation, SUPABASE twin. Delegates to
+   * the canonical `create_manual_debt` RPC (migration 0137): the RPC owns
+   * the guards (label/amount/date/category), the academic-year stamp (the
+   * explicit-code-then-INV-14 precedence), the installments row
+   * (source_type='manual_entry', tranche_number NULL), the matching LEDGER
+   * charge entry, and the audit row — ONE server-side transaction, the
+   * §15.5 rule (never a client-side re-implementation of a canonical write).
+   *
+   * After the RPC lands, the created row is read back through the SAME
+   * mapper every other installment read uses and pushed into the shared
+   * cache so every reactive surface (Créances, aging, Year Tracking,
+   * Statistics) re-derives immediately.
+   */
+  async createManualDebt(input: CreateManualDebtInput): Promise<Result<Installment>> {
+    try {
+      const { data, error } = await this.client.rpc("create_manual_debt", {
+        p_parent_id: input.parentId,
+        p_student_id: input.studentId,
+        p_category: input.category,
+        p_label: input.label,
+        p_amount_due: input.amountDue,
+        p_due_date: input.dueDate,
+        p_academic_year: input.academicYear ?? null,
+        p_note: input.note ?? null,
+        p_reference: input.reference ?? null,
+        p_actor_id: input.actorId ?? null,
+        p_actor_name: input.actorName ?? null,
+      });
+      if (error) throw error;
+      const created = (Array.isArray(data) ? data[0] : data) as
+        | { installment_id: string; ledger_entry_id: string; academic_year_id: string | null }
+        | null;
+      if (!created?.installment_id) {
+        throw new Error("create_manual_debt returned no installment id");
+      }
+      // Read the full row back through the canonical mapper.
+      const { data: fullRow, error: fetchErr } = await this.client
+        .from("installments")
+        .select("*")
+        .eq("id", created.installment_id)
         .maybeSingle();
       if (fetchErr) throw fetchErr;
       const installment = mapInstallmentRow(fullRow as InstallmentRow);

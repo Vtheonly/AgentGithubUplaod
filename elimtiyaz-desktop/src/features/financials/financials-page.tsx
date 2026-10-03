@@ -71,6 +71,9 @@ import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
 import { DataTable, type DataTableColumn, type DataTableAction } from "../../shared/ui/data-table";
 import { CounterPaymentModal } from "./counter-payment-modal";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
+// T-466 (DEBT-102): the manual-debt creation modal (the Créances tab's
+// global entry point — the family-picker flow).
+import { ManualDebtModal } from "./manual-debt-modal";
 import { ExpenseSubmitModal } from "./expense-submit-modal";
 import { ExpenseDetailDrawer } from "./expense-detail-drawer";
 import { InstallmentScheduleTab } from "./installment-schedule-tab";
@@ -889,6 +892,9 @@ function DebtTab({ onOpenParent }: { onOpenParent?: (id: string) => void }) {
   const [confirmLock, setConfirmLock] = useState(false);
   const [confirmReminderFor, setConfirmReminderFor] = useState<DebtSummaryRow | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // T-466 (DEBT-102): the manual-debt creation entry point (the global
+  // family-picker flow — a family with NO existing debt stays reachable).
+  const [manualDebtOpen, setManualDebtOpen] = useState(false);
 
   const { debtNow, debtPrevMonth, debtTrend } = useMemo(() => {
     const now = debt.reduce((acc, d) => acc + d.outstandingAmount, 0);
@@ -1128,10 +1134,22 @@ function DebtTab({ onOpenParent }: { onOpenParent?: (id: string) => void }) {
               >
                 <Lock className="h-4 w-4" /> Verrouiller comptes délinquants
               </Button>
+              {/* T-466 (DEBT-102): the explicit manual-debt write path — the
+                  owner's "manually assign a pre-existing debt" mandate. */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setManualDebtOpen(true)}
+                data-testid="manual-debt-tab-open-button"
+              >
+                <Plus className="h-4 w-4" /> Nouvelle dette manuelle
+              </Button>
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
               Rappels : notification portail à chaque débiteur. Verrouillage : FINANCIALLY_RESTRICTED
-              pour les retards supérieurs à 90 jours (plan §07.06 / §10.07).
+              pour les retards supérieurs à 90 jours (plan §07.06 / §10.07). Dette manuelle :
+              enregistre une créance préexistante (motif, service, année, référence) — visible sur
+              toutes les surfaces financières.
             </p>
           </CardContent>
         </Card>
@@ -1261,6 +1279,12 @@ function DebtTab({ onOpenParent }: { onOpenParent?: (id: string) => void }) {
           void sendReminder(confirmReminderFor.parentId, confirmReminderFor.parentName);
           setConfirmReminderFor(null);
         }}
+      />
+      {/* T-466 (DEBT-102): the manual-debt creation — the global flow (no
+          pre-selected family: the modal opens on its family picker). */}
+      <ManualDebtModal
+        open={manualDebtOpen}
+        onOpenChange={setManualDebtOpen}
       />
     </div>
   );

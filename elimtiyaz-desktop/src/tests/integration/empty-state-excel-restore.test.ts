@@ -887,6 +887,9 @@ class FastInstallmentRepo implements InstallmentRepository {
   async updateDueDate(): Promise<Result<Installment>> { return Err(Errors.server("not implemented in stub")); }
   async regenerateForCycle(): Promise<Result<readonly Installment[]>> { return Err(Errors.server("not implemented in stub")); }
   async findOverdue(): Promise<Result<readonly Installment[]>> { return Ok([]); }
+  // T-466 (DEBT-102): the new required contract member — the stub never
+  // creates manual debts (the flow under test is the Excel restore).
+  async createManualDebt(): Promise<Result<Installment>> { return Err(Errors.server("not implemented in stub")); }
   async importInstallment(input: ImportInstallmentInput): Promise<Result<Installment>> {
     const k = this.key(input.parentId, input.studentId, input.category, input.trancheNumber);
     const installment: Installment = {

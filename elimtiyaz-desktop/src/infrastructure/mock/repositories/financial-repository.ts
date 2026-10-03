@@ -24,9 +24,11 @@ import type {
   ExpenseRepository,
   Observable,
   ImportInstallmentInput,
+  CreateManualDebtInput,
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
-import { Ok } from "../../../core/result";
+import { Ok, Err } from "../../../core/result";
+import { Errors } from "../../../core/app-error";
 import { derived, SubjectBehavior } from "../subject-behavior";
 import type {
   Payment,
@@ -52,6 +54,10 @@ import {
 } from "../../../domain/calc/ledger/debt-aging";
 import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
 import type { LedgerEntry } from "../../../domain/model/ledger";
+// T-466 (DEBT-102): the canonical charge-entry factory — the manual debt's
+// ledger twin is built through the SAME invariant-enforcing factory every
+// other charge entry uses (never a hand-rolled object).
+import { createChargeEntry } from "../../../domain/calc/ledger/entries";
 import {
   store, TENANT_ID, appendAudit, nowIso, delay,
 } from "./mock-store";
@@ -439,6 +445,129 @@ export class MockInstallmentRepository implements InstallmentRepository {
       },
       note: `Tranche ${input.trancheNumber} (${input.label}) — import Excel`,
     });
+    return Ok(installment);
+  }
+
+  /**
+   * T-466 (DEBT-102) — the manual-debt creation, MOCK twin. Mirrors the
+   * `create_manual_debt` RPC (migration 0137) EXACTLY: the guards
+   * (label >= 3 chars, amount > 0, dueDate present, the refs resolve),
+   * the academic-year stamp (explicit code match first — the mock store's
+   * academic_years — then the INV-14 window resolver on the due date, the
+   * SAME `resolveImportAcademicYearId` rule), the NON-WAVE installment row
+   * (trancheNumber ABSENT — the T-424/DATA-042 class), the matching LEDGER
+   * charge entry (the `createChargeEntry` factory — the billing-wire
+   * pattern), the audit row, and the reactive notifies. Deterministic id
+   * `mdt-{parent}-{student}-{category}-{ts}` so tests pin the row.
+   */
+  async createManualDebt(input: CreateManualDebtInput): Promise<Result<Installment>> {
+    await delay(120);
+    const label = input.label.trim();
+    if (label.length < 3) {
+      return Err(Errors.validation("Le motif (libellé) est requis (≥ 3 caractères)."));
+    }
+    if (!(input.amountDue > 0)) {
+      return Err(Errors.validation("Le montant doit être strictement positif."));
+    }
+    if (!input.dueDate) {
+      return Err(Errors.validation("La date est requise."));
+    }
+    const parent = store.parents.find((p) => p.id === input.parentId);
+    if (!parent) return Err(Errors.notFound("Parent", input.parentId));
+    const student = store.students.find((s) => s.id === input.studentId);
+    if (!student) return Err(Errors.notFound("Student", input.studentId));
+
+    // The academic-year stamp — the SAME precedence the RPC applies:
+    // explicit code/label match first, then the INV-14 window resolver.
+    let yearId: string | null = null;
+    const explicitYear = (input.academicYear ?? "").trim();
+    if (explicitYear) {
+      const ay = store.academicYears.find(
+        (y) => y.code === explicitYear || y.label === explicitYear,
+      );
+      yearId = ay?.id ?? null;
+    }
+    if (yearId === null) {
+      yearId = await this.resolveImportAcademicYearId(input.dueDate);
+    }
+
+    const at = nowIso();
+    const id = `mdt-${input.parentId}-${input.studentId}-${input.category}-${at}`;
+    const installment: Installment = {
+      id,
+      parentId: input.parentId,
+      studentId: input.studentId,
+      category: input.category,
+      label,
+      // T-424/DATA-042: NO trancheNumber — a NON-WAVE row, excluded from
+      // every wave everywhere (the manual debt is not a tranche).
+      amountDue: input.amountDue,
+      amountPaid: 0,
+      amountPending: 0,
+      dueDate: input.dueDate,
+      paidDate: null,
+      status: "unpaid",
+      paymentPlan: "tranches",
+      isCustomSchedule: false,
+      customScheduleNote: null,
+      academicYearId: yearId,
+    };
+    store.installments.push(installment);
+    store.notifyInstallments();
+
+    // The matching LEDGER charge entry — the billing-wire pattern: every
+    // new obligation is BOTH an installment row AND a charge entry, so the
+    // account balance + the audit trail include the new debt.
+    const note = (input.note ?? "").trim();
+    const reference = (input.reference ?? "").trim();
+    const description =
+      `Dette manuelle — ${label}` +
+      (note ? ` · ${note}` : "") +
+      (reference ? ` · réf. ${reference}` : "");
+    const charge = createChargeEntry({
+      tenantId: TENANT_ID,
+      parentId: input.parentId,
+      studentId: input.studentId,
+      category: input.category,
+      amount: input.amountDue,
+      sourceType: "manual_entry",
+      sourceId: `manual-${id}`,
+      description,
+      actorId: input.actorId ?? "manual-debt",
+      actorName: input.actorName ?? "Saisie manuelle",
+      at,
+      metadata: {
+        manual: true,
+        installmentId: id,
+        note,
+        reference,
+        reason: label,
+        source: "mock.createManualDebt",
+      },
+    });
+    store.ledger.push(charge);
+    store.notifyLedger();
+
+    appendAudit({
+      action: "installment.manual_debt_created",
+      entityType: "installment",
+      entityId: id,
+      actorId: input.actorId ?? "manual-debt",
+      actorName: input.actorName ?? "Saisie manuelle",
+      diff: {
+        before: null,
+        after: {
+          category: input.category,
+          label,
+          amountDue: input.amountDue,
+          dueDate: input.dueDate,
+          academicYearId: yearId,
+          ledgerEntryId: charge.id,
+        },
+      },
+      note: `Dette manuelle — ${description}`,
+    });
+
     return Ok(installment);
   }
 

@@ -1491,6 +1491,7 @@ function FinancesTab({
       {/* Yearly History Section */}
       <ParentYearHistorySection
         parentId={profile?.parentId ?? ""}
+        parentName={profile?.parentName || undefined}
         installments={installments}
         payments={payments}
         allocations={allocations}

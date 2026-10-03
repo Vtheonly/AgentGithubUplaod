@@ -27,7 +27,15 @@ import { useObservable } from "../../shared/hooks/use-observable";
 import { ParentYearHistorySection } from "../crm/parent-year-history-section";
 import type { PricingConfigSummary } from "../../domain/model/pricing";
 
-export function FamilyYearHistoryPanel({ parentId }: { readonly parentId: string }) {
+export function FamilyYearHistoryPanel({
+  parentId,
+  parentName,
+}: {
+  readonly parentId: string;
+  /** T-466 (DEBT-102): the family's display name — passed through to the
+   *  section's manual-debt modal (the aging row already holds it). */
+  readonly parentName?: string;
+}) {
   const repos = useRepositories();
 
   const installments = useObservable(() => repos.installments.observeByParent(parentId), [parentId]);
@@ -69,6 +77,7 @@ export function FamilyYearHistoryPanel({ parentId }: { readonly parentId: string
   return (
     <ParentYearHistorySection
       parentId={parentId}
+      parentName={parentName}
       installments={installments}
       payments={payments}
       allocations={allocations}

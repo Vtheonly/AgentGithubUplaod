@@ -663,6 +663,32 @@ export interface InstallmentRepository {
    * absent the adapter falls back to the LEGACY year-blind key.
    */
   resolveImportAcademicYearId?(dueDate: string): Promise<string | null>;
+  /**
+   * T-466 (DEBT-102, the owner's manual-debt mandate): create a
+   * PRE-EXISTING debt as a CANONICAL installment obligation — the explicit
+   * "this person owes X DZD for THIS reason" write path.
+   *
+   * CANONICAL ARCHITECTURE (the owner's unified-financial-data mandate): the
+   * created row is an installments row (source_type='manual_entry',
+   * tranche_number NULL = the T-424/DATA-042 NON-WAVE row class, the
+   * academic year stamped at write time per ADR-030) + the matching ledger
+   * CHARGE entry, so the new obligation flows into EVERY debt surface by
+   * construction — the Créances summary, the aging statuses, Year Tracking,
+   * the Dashboard statistics, the CRM échéancier — and allocates through the
+   * canonical payment waterfall exactly like a tranche. There is deliberately
+   * NO second debt store and NO per-surface wiring (§15.53a).
+   *
+   * Supabase: the `create_manual_debt` RPC (migration 0137). Mock: the
+   * deterministic `mdt-` id + the same ledger charge entry + the audit row.
+   *
+   * @returns the created installment row (the canonical debt record).
+   *
+   * OPTIONAL (the `bulkImportInstallments?` convention): the mock and the
+   * Supabase repositories implement it; older fakes (test stubs, mirrors)
+   * degrade honestly — callers MUST surface the unavailability instead of
+   * fabricating a row (§15.15).
+   */
+  createManualDebt?(input: CreateManualDebtInput): Promise<Result<Installment>>;
 }
 
 /**
@@ -694,6 +720,48 @@ export interface ImportInstallmentInput {
   readonly paymentPlan?: PaymentPlan;
   readonly sourceType?: string;
   readonly sourceId?: string;
+  readonly actorId?: string;
+  readonly actorName?: string;
+}
+
+/**
+ * Input for `InstallmentRepository.createManualDebt` — T-466 (DEBT-102):
+ * the manual creation of a PRE-EXISTING debt obligation.
+ *
+ * Every field the owner's issue lists maps onto the canonical installment
+ * record: person/family (parentId) · student (studentId — REQUIRED, the
+ * installments table's own NOT NULL) · amount (amountDue) · reason/description
+ * (label — the debt's own line item text; note joins the ledger description
+ * + metadata) · associated service/fee/purchase/charge (category) · date
+ * (dueDate) · academic year (academicYear — explicit code, else the INV-14
+ * window resolver stamps it) · payment status/amount paid/remaining derive
+ * canonically from the row (status starts 'unpaid', amountPaid/amountPending
+ * 0, the INV-4 remaining = amountDue) · reference/source (reference — the
+ * ledger metadata; the row's source_type='manual_entry' + source_id link
+ * the installment to its ledger charge).
+ */
+export interface CreateManualDebtInput {
+  readonly parentId: string;
+  /** REQUIRED: the installments table's student_id is NOT NULL — the debt is
+   *  anchored to one of the family's students (the family remains the debtor:
+   *  parent_id is what every debt surface groups by). */
+  readonly studentId: string;
+  /** The associated service/fee/purchase/charge (the category CHECK list). */
+  readonly category: PaymentCategory;
+  /** The reason — what the debt represents (REQUIRED, >= 3 chars, e.g.
+   *  "Achat uniforme" / "Frais de cantine impayés"). */
+  readonly label: string;
+  /** The amount owed (REQUIRED, > 0, DZD). */
+  readonly amountDue: number;
+  /** The debt date (REQUIRED, ISO yyyy-mm-dd). */
+  readonly dueDate: string;
+  /** Explicit academic-year code (e.g. "2026-2027"); null = the INV-14
+   *  window resolver stamps it from the due date. */
+  readonly academicYear?: string | null;
+  /** Free detail note (ledger description + metadata). */
+  readonly note?: string | null;
+  /** External reference/source (ledger metadata). */
+  readonly reference?: string | null;
   readonly actorId?: string;
   readonly actorName?: string;
 }
