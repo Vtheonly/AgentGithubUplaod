@@ -412,30 +412,48 @@ export function deriveCategoryMix(
 export interface ParetoDatum {
   name: string;
   amount: number;
+  /** Cumulative % of the DISPLAYED top-N's own total (the Mode-2 basis —
+   *  the distribution within the top N; the pre-T-467 behavior, kept as the
+   *  `cumPercent` field every existing consumer pins). */
   cumPercent: number;
+  /** T-467 (DASH-411): cumulative % of the WHOLE dataset's total (the
+   *  Mode-1 basis) — null when the caller did not provide the dataset
+   *  total (the honest absence, never a fabricated basis). */
+  cumOfTotalPct: number | null;
 }
 
 /**
  * Pareto derivation over the top-debtors summary: bars sorted by
  * outstanding amount (desc — the summary arrives pre-sorted; re-sorted
- * defensively) + the cumulative share of the displayed total.
+ * defensively) + BOTH cumulative bases (T-467: the reference population is
+ * user-selectable — the top-N's own total AND, when the caller provides
+ * `totalOutstanding`, the whole dataset's total).
+ *
+ * The top-N SELECTION is independent of the basis: the same rows are
+ * selected either way; only what their values are measured against
+ * changes (the owner's explicit rule).
  */
 export function derivePareto(
   topDebtors: { parentName: string; outstandingAmount: number }[],
   topN = 8,
+  totalOutstanding?: number,
 ): ParetoDatum[] {
   const sorted = [...topDebtors]
     .filter((d) => d.outstandingAmount > 0)
     .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
     .slice(0, topN);
   const total = sorted.reduce((s, d) => s + d.outstandingAmount, 0);
+  const wholeTotal = typeof totalOutstanding === "number" && totalOutstanding > 0 ? totalOutstanding : null;
   let cum = 0;
+  let cumOfTotal = 0;
   return sorted.map((d) => {
     cum += d.outstandingAmount;
+    cumOfTotal += d.outstandingAmount;
     return {
       name: d.parentName,
       amount: d.outstandingAmount,
       cumPercent: total > 0 ? Math.round((cum / total) * 100) : 0,
+      cumOfTotalPct: wholeTotal !== null ? Math.round((cumOfTotal / wholeTotal) * 100) : null,
     };
   });
 }

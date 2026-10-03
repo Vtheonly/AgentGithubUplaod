@@ -2,7 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/executive-cards.tsx
 // ============================================================================
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Waves,
   Percent,
@@ -36,6 +36,7 @@ import {
   type TrancheWave,
   type DebtTriage,
   type FamilyConcentration,
+  type FamilyExposure,
   type TransportYield,
   type EnrollmentDynamics,
 } from "./executive-statistics";
@@ -43,6 +44,8 @@ import type { StudentRiskProfile } from "./operational-query-engine";
 // T-447 (UI-325): the bilingual explainability tooltips — the glossary
 // lives in src/i18n/stats-tips.ts (dictionary-only, never JSX text).
 import { InfoTip } from "./info-tip";
+// T-467 (DASH-411): the user-selectable reference population.
+import { ReferencePopulationSelector, type ReferencePopulationMode } from "./reference-population-selector";
 // T-447 (STATS-401): the canonical POOLED derivation + the non-wave
 // summary — the parity objects the main wave cards render (the SAME
 // rows the Finance Tranches strip consumes).
@@ -772,6 +775,16 @@ export function FamilyConcentrationCard({
 }: {
   concentration: FamilyConcentration;
 }) {
+  // T-467 (DASH-411): the user's lens — the top-N SELECTION is fixed by the
+  // derivation (deriveFamilyConcentration); switching the mode changes only
+  // the "Part" column's denominator, the header line and the tooltips.
+  const [referenceMode, setReferenceMode] = useState<ReferencePopulationMode>("whole-dataset");
+  const shareOf = (f: FamilyExposure): number =>
+    referenceMode === "top10"
+      ? concentration.topTotal > 0
+        ? Math.round((f.outstanding / concentration.topTotal) * 100)
+        : 0
+      : f.shareOfTotalDebt;
   return (
     <Card
       className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
@@ -784,12 +797,26 @@ export function FamilyConcentrationCard({
           <InfoTip tip="concentration.card" />
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
-          Top {concentration.topFamilies.length} familles représentent{" "}
-          <strong className="text-foreground">
-            {concentration.topConcentrationPct}%
-          </strong>{" "}
-          de la dette globale
+          {referenceMode === "top10" ? (
+            <>
+              Répartition de l'encours des <strong className="text-foreground">Top {concentration.topFamilies.length}</strong> foyers
+              entre eux (base {formatDzd(concentration.topTotal, { compact: true })} — les {concentration.topFamilies.length} premiers seuls)
+            </>
+          ) : (
+            <>
+              Top {concentration.topFamilies.length} familles représentent{" "}
+              <strong className="text-foreground">
+                {concentration.topConcentrationPct}%
+              </strong>{" "}
+              de la dette globale
+            </>
+          )}
         </CardDescription>
+        {/* T-467: the reference-population selector — the SAME control the
+            inspector and the Pareto card mount (one concept, one UI). */}
+        <div className="mt-1.5">
+          <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact tipKey="concentration.referenceMode" />
+        </div>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
@@ -823,8 +850,15 @@ export function FamilyConcentrationCard({
                     <td className="py-2 px-1 text-right font-mono font-bold text-status-danger">
                       {formatDzd(f.outstanding, { compact: true })}
                     </td>
-                    <td className="py-2 px-1 text-right font-mono text-muted-foreground">
-                      {f.shareOfTotalDebt}%
+                    <td
+                      className="py-2 px-1 text-right font-mono text-muted-foreground"
+                      title={
+                        referenceMode === "top10"
+                          ? `${shareOf(f)}% des ${concentration.topFamilies.length} premiers seuls (répartition interne)`
+                          : `${shareOf(f)}% de l'ensemble du dataset (non normalisé)`
+                      }
+                    >
+                      {shareOf(f)}%
                     </td>
                   </tr>
                 ))}
