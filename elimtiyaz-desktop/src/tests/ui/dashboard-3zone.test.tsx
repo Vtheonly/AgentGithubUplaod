@@ -16,13 +16,22 @@
  *     sparkline/delta without a real series (§15.16).
  *   - The macro spline renders the real revenue series, with an honest
  *     empty state when absent.
- *   - `deriveRecoveryFunnel` — the funnel stages derive from REAL
- *     debtAging family counts (no admissions fabrication).
+ *   - `deriveRecoveryFunnel` — the funnel stages derive from the CANONICAL
+ *     triage over the CONFIGURED thresholds (T-469: no hardcoded aging
+ *     edges, no admissions fabrication).
  *   - `deriveWeeklyRhythm` — the weekday × method matrix derives from the
  *     REAL payments stream: Algerian school week (Dim→Jeu), Friday/Saturday
  *     excluded, refunded excluded, academic-year range respected.
  *   - The InsightsRail shows the REAL collection-rate gauge, the overdue
  *     census and the "à relancer" feed, routing to the alerts workspace.
+ *
+ * T-469 REALIGNMENT (2026-10-03): the render assertions were STALE against
+ * the current intentional UI — the owner's 32be0c8 "okay" dashboard rewrite
+ * renamed the funnel card / the rail gauge, T-426 renamed the debt KPI
+ * ("Créances en retard" → "Encours total annuel"), and the sparkline moved
+ * from <polyline> to a bezier <path>. The suite had been RED on main since;
+ * this repair re-pins the SAME invariants onto the current texts (TEST-501
+ * in the problem registry — never a silent green).
  *
  * Recharts is mocked (jsdom renders ResponsiveContainer at 0×0 — the
  * derivations are tested as pure functions instead). The calendar is
@@ -37,6 +46,7 @@ import { OverviewTab, type DashboardData } from "../../features/dashboard/tabs/o
 import {
   deriveRecoveryFunnel,
 } from "../../features/dashboard/components/recovery-funnel-card";
+import { deriveDebtTriage } from "../../features/dashboard/components/analytics/executive-statistics";
 import {
   deriveWeeklyRhythm,
 } from "../../features/dashboard/components/weekly-operating-rhythm";
@@ -206,24 +216,74 @@ describe("deriveWeeklyRhythm — REAL payments → weekday × method matrix", ()
   });
 });
 
-describe("deriveRecoveryFunnel — REAL debtAging → escalation stages", () => {
-  it("returns [] when no family is overdue (honest empty state)", () => {
-    expect(deriveRecoveryFunnel([])).toEqual([]);
-    expect(
-      deriveRecoveryFunnel(
-        POPULATED_DATA.debtAging.map((b) => ({ ...b, debtorCount: 0 })),
-      ),
-    ).toEqual([]);
+describe("deriveRecoveryFunnel — the canonical triage → config-driven escalation stages (T-469)", () => {
+  /** Installments whose worst days deliberately straddle the CONFIGURED
+   *  edges (5/15/60 defaults): 2 not-due, 3 in-grace/current, 4 beyond
+   *  yellow, 2 beyond red — 11 debtor families. */
+  const TRIAGE_INSTALLMENTS: Installment[] = [
+    // 2 families, not yet due (Sept->next-year due dates).
+    ins("t-notdue-1", "p-notdue-1", 10_000, "2027-06-15"),
+    ins("t-notdue-2", "p-notdue-2", 10_000, "2027-06-15"),
+    // 3 families, past due within the yellow edge (days 1..15).
+    ins("t-current-1", "p-current-1", 10_000, past(3)),
+    ins("t-current-2", "p-current-2", 10_000, past(7)),
+    ins("t-current-3", "p-current-3", 10_000, past(10)),
+    // 4 families, beyond yellow but within red (days 16..60).
+    ins("t-rem-1", "p-rem-1", 10_000, past(20)),
+    ins("t-rem-2", "p-rem-2", 10_000, past(30)),
+    ins("t-rem-3", "p-rem-3", 10_000, past(40)),
+    ins("t-rem-4", "p-rem-4", 10_000, past(50)),
+    // 2 families, beyond red (days > 60).
+    ins("t-chronic-1", "p-chronic-1", 10_000, past(75)),
+    ins("t-chronic-2", "p-chronic-2", 10_000, past(100)),
+  ];
+  const TRIAGE = deriveDebtTriage(TRIAGE_INSTALLMENTS, Date.now());
+
+  function ins(id: string, parentId: string, amountDue: number, dueDate: string): Installment {
+    return {
+      id, parentId, studentId: `${parentId}-s`, category: "tuition", label: "Tranche 1",
+      trancheNumber: 1, amountDue, amountPaid: 0, amountPending: 0, dueDate, paidDate: null,
+      status: "unpaid", academicCycle: "primaire", paymentPlan: "tranches",
+      isCustomSchedule: false, customSchedule: false, customScheduleNote: null,
+    };
+  }
+  function past(days: number): string {
+    return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  }
+
+  it("returns [] when no family has outstanding (honest empty state)", () => {
+    expect(deriveRecoveryFunnel(deriveDebtTriage([], Date.now()))).toEqual([]);
   });
 
-  it("derives the 4 stages from the bucket family counts", () => {
-    // 5 + 8 + 3 + 2 + 2 = 20 families overdue.
-    const stages = deriveRecoveryFunnel(POPULATED_DATA.debtAging);
+  it("derives the 4 stages from the CONFIGURED threshold edges (5/15/60)", () => {
+    const stages = deriveRecoveryFunnel(TRIAGE);
     expect(stages).toHaveLength(4);
-    expect(stages[0]).toMatchObject({ name: "En retard", count: 20, rateFromPrevious: 100 });
-    expect(stages[1]).toMatchObject({ name: "≤ 60 j", count: 13, rateFromPrevious: 65 });
-    expect(stages[2]).toMatchObject({ name: "61–90 j", count: 3, rateFromPrevious: 15 });
-    expect(stages[3]).toMatchObject({ name: "> 90 j", count: 4, rateFromPrevious: 20 });
+    // 11 debtor families total.
+    expect(stages[0]).toMatchObject({ name: "Débiteurs (encours > 0)", count: 11, rateFromPrevious: 100 });
+    // Past due (days > 0): 3 + 4 + 2 = 9.
+    expect(stages[1]).toMatchObject({ name: "En retard (échus)", count: 9, rateFromPrevious: 82 });
+    // Beyond yellow (15 j): 4 + 2 = 6 — the label carries the configured edge.
+    expect(stages[2]).toMatchObject({ count: 6, rateFromPrevious: 55 });
+    expect(stages[2].name).toContain("15");
+    // Beyond red (60 j): 2.
+    expect(stages[3]).toMatchObject({ count: 2, rateFromPrevious: 18 });
+    expect(stages[3].name).toContain("60");
+  });
+
+  it("the edges FOLLOW the configured thresholds (30/90 — the configurable mandate)", () => {
+    // The TRIAGE itself is re-derived under the configured edges — the
+    // funnel consumes its buckets + its OWN labels (never a relabel under
+    // foreign edges — the mismatch trap the first draft caught).
+    const triage3090 = deriveDebtTriage(TRIAGE_INSTALLMENTS, Date.now(), {
+      gracePeriodDays: 5, yellowDays: 30, redDays: 90, activePayerGraceDays: 15,
+    });
+    const stages = deriveRecoveryFunnel(triage3090);
+    // Beyond yellow (30 j): the 40/50-day + chronic rows = 4.
+    expect(stages[2]).toMatchObject({ count: 4 });
+    expect(stages[2].name).toContain("30");
+    // Beyond red (90 j): only the 100-day row = 1.
+    expect(stages[3]).toMatchObject({ count: 1 });
+    expect(stages[3].name).toContain("90");
   });
 });
 
@@ -279,8 +339,10 @@ describe("OverviewTab — T-243 3-zone layout", () => {
     expect(screen.getByText("Élèves")).toBeInTheDocument();
     expect(screen.getByText("389")).toBeInTheDocument();
     expect(screen.getByText("Revenu mensuel")).toBeInTheDocument();
-    expect(screen.getByText("Créances en retard")).toBeInTheDocument();
-    expect(screen.getByText("Assiduité (aujourd'hui)")).toBeInTheDocument();
+    // T-426/T-469: the debt KPI is the TOTAL receivables ("Encours total
+    // annuel") — "Créances en retard" was the pre-T-426 mislabel.
+    expect(screen.getByText("Encours total annuel")).toBeInTheDocument();
+    expect(screen.getByText("Assiduité Globale")).toBeInTheDocument();
     expect(screen.getByText("94%")).toBeInTheDocument();
   });
 
@@ -288,14 +350,18 @@ describe("OverviewTab — T-243 3-zone layout", () => {
     setup(POPULATED_DATA);
     // Nov 5.9M vs Oct 6.5M → -9% (rounded, real derivation).
     expect(screen.getByText("9%")).toBeInTheDocument();
-    // The sparkline SVG is rendered for the revenue card only.
-    expect(document.querySelector("svg polyline")).not.toBeNull();
+    // The sparkline SVG is rendered for the revenue card only — the bezier
+    // <path> sparkline in its fixed 92×36 viewBox (T-469: the old
+    // <polyline> selector went stale when the smooth path landed).
+    expect(document.querySelector('svg[width="92"]')).not.toBeNull();
+    expect(document.querySelector('svg[width="92"] path')).not.toBeNull();
   });
 
   it("renders NO sparkline/delta when no real series exists (§15.16)", () => {
     setup(EMPTY_DATA);
-    // No series → no polyline anywhere.
-    expect(document.querySelector("svg polyline")).toBeNull();
+    // No series → no 92×36 sparkline SVG anywhere (the rail gauge's svg is
+    // a different, viewBox-only element — this selector is sparkline-only).
+    expect(document.querySelector('svg[width="92"]')).toBeNull();
   });
 
   it("renders the hero Wave Velocity meters from the REAL installment waves (T-339)", () => {
@@ -316,12 +382,18 @@ describe("OverviewTab — T-243 3-zone layout", () => {
 
   it("renders the funnel + weekly rhythm + calendar (Zone A rows 3–4)", () => {
     setup(POPULATED_DATA, [payment({ id: "a", amount: 100 })]);
-    expect(screen.getByText("Entonnoir de Recouvrement")).toBeInTheDocument();
+    // T-469/TEST-501: the owner's "okay" rewrite renamed the card; the
+    // stages now derive from the canonical triage (the WAVES fixture: one
+    // family, worst tranche ~383 days → chronic) and carry the CONFIGURED
+    // edges in their labels.
+    expect(screen.getByText("Entonnoir de Dérive des Créances")).toBeInTheDocument();
     expect(screen.getByText("Rythme d'Encaissement Hebdomadaire")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-calendar-stub")).toBeInTheDocument();
-    // Funnel stages from the real aging counts.
-    expect(screen.getByText("≤ 60 j")).toBeInTheDocument();
-    expect(screen.getByText("> 90 j")).toBeInTheDocument();
+    // Funnel stages from the canonical triage over the real installments.
+    expect(screen.getByText("Débiteurs (encours > 0)")).toBeInTheDocument();
+    expect(screen.getByText("En retard (échus)")).toBeInTheDocument();
+    expect(screen.getByText(/Au-delà du seuil jaune — Retard 15–60 j/)).toBeInTheDocument();
+    expect(screen.getByText(/Critique — Retard > 60 j/)).toBeInTheDocument();
   });
 
   it("renders the weekly rhythm empty state when no payment is in range", () => {
@@ -335,20 +407,27 @@ describe("OverviewTab — T-243 3-zone layout", () => {
     setup(POPULATED_DATA);
     // Gauge: 17.4M encaissé / (17.4M + 4.6M) = 79%.
     expect(screen.getByText("79%")).toBeInTheDocument();
-    expect(screen.getByText("Taux de Recouvrement Annuel")).toBeInTheDocument();
-    // AI card: 20 familles en retard dont 7 au-delà de 60 jours.
-    expect(screen.getByText(/20 familles en retard/)).toBeInTheDocument();
-    expect(screen.getByText(/7 au-delà de 60 jours/)).toBeInTheDocument();
-    // Relance feed: the two worst families.
-    expect(screen.getByText("Famille Test")).toBeInTheDocument();
-    expect(screen.getByText("Famille Grave")).toBeInTheDocument();
+    // T-469/TEST-501: the owner's "okay" rewrite renamed the gauge card.
+    expect(screen.getByText("Objectif de Recouvrement")).toBeInTheDocument();
+    // AI card: 20 familles en retard dont 7 critiques (> 60 j). The count
+    // sits inside <strong> nodes (split text — match each element's own
+    // text, never a cross-element phrase).
+    expect(screen.getByText("20 familles")).toBeInTheDocument();
+    expect(screen.getByText(/cumulent un retard/)).toBeInTheDocument();
+    expect(screen.getByText(/7 critiques \(> 60 j\)/)).toBeInTheDocument();
+    // Relance feed: the two worst families (each also named once in the AI
+    // card's "Priorité haute" line — hence the plural query).
+    expect(screen.getAllByText("Famille Test").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Famille Grave").length).toBeGreaterThan(0);
     expect(screen.getByText("À Relancer en Priorité")).toBeInTheDocument();
   });
 
   it("renders the rail's honest zero state when nothing is overdue", () => {
     setup(EMPTY_DATA);
-    expect(screen.getByText(/Aucune créance en retard/)).toBeInTheDocument();
-    expect(screen.getByText("Aucune relance nécessaire.")).toBeInTheDocument();
+    // T-469/TEST-501: the owner's "okay" rewrite reworded both zero states.
+    expect(screen.getByText(/Recouvrement optimal/)).toBeInTheDocument();
+    expect(screen.getByText(/Aucun retard enregistré/)).toBeInTheDocument();
+    expect(screen.getByText("Aucun dossier en attente de relance.")).toBeInTheDocument();
   });
 
   it("still guards T-088 invariants: demographics charts stay drill-down-only", () => {
@@ -387,7 +466,12 @@ describe("OverviewTab — T-243 3-zone layout", () => {
         onGoToAlerts={onGoToAlerts}
       />,
     );
-    const relance = screen.getByText("Famille Test").closest("button");
+    // T-469/TEST-501: the debtor row is no longer itself a button — the
+    // rail's primary CTA (and the per-row "Ouvrir le dossier" arrow) route
+    // to the alerts workspace.
+    const relance = screen
+      .getByText("Gérer les Relances Prioritaires")
+      .closest("button");
     expect(relance).toBeTruthy();
     (relance as HTMLButtonElement).click();
     expect(onGoToAlerts).toHaveBeenCalledTimes(1);

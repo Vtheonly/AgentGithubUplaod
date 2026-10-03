@@ -85,7 +85,10 @@ export function OverviewTab({
   const last = revenue.length >= 2 ? revenue[revenue.length - 1] : null;
   const prev = revenue.length >= 2 ? revenue[revenue.length - 2] : null;
   const momDelta = last && prev && prev.amount > 0 ? Math.round(((last.amount - prev.amount) / prev.amount) * 100) : undefined;
-  const funnelStages = deriveRecoveryFunnel(debtAging);
+  // T-469 (DEBT-103): the funnel derives from the CANONICAL triage (the
+  // deriveDebtTriage the tab already computes) + the CONFIGURED thresholds —
+  // never the hardcoded aging-bucket edges (the DEBT-103 defect class).
+  const funnelStages = deriveRecoveryFunnel(triage);
   const overdueFamilies = debtAging.reduce((s, b) => s + b.debtorCount, 0);
   const deepOverdueFamilies =
     (debtAging.find((b) => b.bucket === "61_90")?.debtorCount ?? 0) +

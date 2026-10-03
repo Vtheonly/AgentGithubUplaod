@@ -346,7 +346,11 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
     const repo = new SupabaseDebtRepository(client as unknown as SupabaseClient);
     const thObs = track(repo.observeThresholds());
     await vi.waitFor(() => {
-      expect(thObs.value()).toEqual(lightValue); // the light reader's values
+      // T-469 (DEBT-103): the light reader's DAY values stay authoritative;
+      // the 0138 amount edges + messages are ADDITIVE keys (a pre-0138
+      // server payload degrades to the documented amount defaults) — hence
+      // the partial match, never a strict 4-key equality.
+      expect(thObs.value()).toMatchObject(lightValue);
     });
 
     // The aging seed lands AFTER → its applied_thresholds (the values that
@@ -355,7 +359,7 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
     await vi.waitFor(() => {
       expect(agingObs.value()).toHaveLength(1);
     });
-    expect(thObs.value()).toEqual(appliedValue);
+    expect(thObs.value()).toMatchObject(appliedValue);
   });
 
   it("I: a pre-0133 server (light RPC unavailable) keeps the documented DEFAULTS silently — the version-skew class", async () => {
@@ -379,6 +383,12 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
         yellowDays: 15,
         redDays: 60,
         activePayerGraceDays: 15,
+        // T-469 (DEBT-103): the 0138 amount edges + the empty-message
+        // default now ship IN the documented DEFAULTS (the pre-0138 server
+        // degrades to them — never to 0, which would disable the edge).
+        amountYellowDzd: 20_000,
+        amountRedDzd: 60_000,
+        levelMessages: {},
       });
     });
     // The unavailable class is a documented degradation — NOT an error warn.
@@ -427,6 +437,12 @@ describe("T-405 — MockDebtRepository.observeAging (the reference-engine path)"
       yellowDays: 15,
       redDays: 60,
       activePayerGraceDays: 15,
+      // T-469 (DEBT-103): the 0138-documented amount edges + the empty
+      // messages — the mock contract follows DEFAULT_DEBT_AGING_THRESHOLDS
+      // verbatim (still never a second threshold implementation).
+      amountYellowDzd: 20_000,
+      amountRedDzd: 60_000,
+      levelMessages: {},
     });
   });
 });

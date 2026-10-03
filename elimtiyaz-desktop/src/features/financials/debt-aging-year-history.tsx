@@ -38,6 +38,10 @@ export function FamilyYearHistoryPanel({
 }) {
   const repos = useRepositories();
 
+  // T-469 (DEBT-103): the tenant ACTIVE risk configuration - the per-year
+  // amount band derives from it (the SAME config the aging tab statuses
+  // use; the panel mounts only on tab selection - the T-430 rule).
+  const debtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
   const installments = useObservable(() => repos.installments.observeByParent(parentId), [parentId]);
   const payments = useObservable(() => repos.payments.observeByParent(parentId), [parentId]);
   // T-436's optional-method pattern: fakes (and Android mirrors) without
@@ -78,6 +82,7 @@ export function FamilyYearHistoryPanel({
     <ParentYearHistorySection
       parentId={parentId}
       parentName={parentName}
+      debtThresholds={debtThresholds}
       installments={installments}
       payments={payments}
       allocations={allocations}

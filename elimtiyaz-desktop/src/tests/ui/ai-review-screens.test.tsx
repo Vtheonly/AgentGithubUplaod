@@ -286,9 +286,13 @@ describe("T-247 — SeeDetailsModal render", () => {
     render(
       <SeeDetailsModal open onOpenChange={() => {}} initialTab="revenue" data={MODAL_DATA} />,
     );
-    expect(screen.getByText("Encaissé annuel")).toBeInTheDocument();
+    // TEST-501 repair (T-469 verification, 2026-10-03): the owner's "okay"
+    // rewrite renamed the trio — "Encaissé annuel" → "Encaissé effectif
+    // (PAID)", "Taux de recouvrement" → "Taux d'Atteinte Annuel". The REAL
+    // derivation assertions (53% from 780/1480) are unchanged.
+    expect(screen.getByText("Encaissé effectif (PAID)")).toBeInTheDocument();
     expect(screen.getByText("Créances restantes")).toBeInTheDocument();
-    expect(screen.getByText("Taux de recouvrement")).toBeInTheDocument();
+    expect(screen.getByText("Taux d'Atteinte Annuel")).toBeInTheDocument();
     // 780 collected / 1480 expected → 53%.
     expect(screen.getByText("53%")).toBeInTheDocument();
   });
@@ -318,16 +322,20 @@ describe("T-247 — SeeDetailsModal render", () => {
     );
     // 200 + 189 = 389 — derived from the gender series itself.
     expect(screen.getByText("389")).toBeInTheDocument();
-    expect(screen.getByText("Garçons :")).toBeInTheDocument();
-    expect(screen.getByText("Filles :")).toBeInTheDocument();
+    // TEST-501: the legend label lost its pre-colon space in the "okay"
+    // rewrite ("Garçons :" → "Garçons:").
+    expect(screen.getByText("Garçons:")).toBeInTheDocument();
+    expect(screen.getByText("Filles:")).toBeInTheDocument();
   });
 
   it("debt tab renders per-bucket severity badges", () => {
     render(
       <SeeDetailsModal open onOpenChange={() => {}} initialTab="debt" data={MODAL_DATA} />,
     );
-    expect(screen.getByText("Normal")).toBeInTheDocument();
-    expect(screen.getByText("Avertissement")).toBeInTheDocument();
+    // TEST-501: "Normal"/"Avertissement" → "Courant"/"Relance" in the
+    // "okay" rewrite (agingSeverity's current labels).
+    expect(screen.getByText("Courant")).toBeInTheDocument();
+    expect(screen.getByText("Relance")).toBeInTheDocument();
     expect(screen.getByText("Critique")).toBeInTheDocument();
   });
 });

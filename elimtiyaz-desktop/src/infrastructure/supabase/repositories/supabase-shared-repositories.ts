@@ -4201,6 +4201,30 @@ function normalizeDebtAgingThresholds(
 ): DebtAgingThresholds {
   const num = (v: unknown, d: number): number =>
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : d;
+  // T-469 (DEBT-103): the amount edges are OPTIONAL in the raw payload —
+  // a pre-0138 server returns only the four day keys, and 0 is a LEGAL
+  // configured value ("the edge is disabled"), so the absent field maps to
+  // the documented default (never to 0 — that would silently disable).
+  const amountNum = (v: unknown, d: number): number =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : d;
+  const rawMessages = (raw as { levelMessages?: unknown } | null | undefined)?.levelMessages;
+  const messages =
+    rawMessages && typeof rawMessages === "object"
+      ? rawMessages as Partial<Record<"green" | "yellow" | "orange" | "red", string>>
+      : undefined;
+  const cleanedMessages =
+    messages &&
+    (typeof messages.green === "string" ||
+      typeof messages.yellow === "string" ||
+      typeof messages.orange === "string" ||
+      typeof messages.red === "string")
+      ? {
+          green: messages.green?.trim() || undefined,
+          yellow: messages.yellow?.trim() || undefined,
+          orange: messages.orange?.trim() || undefined,
+          red: messages.red?.trim() || undefined,
+        }
+      : undefined;
   return {
     gracePeriodDays: num(raw?.gracePeriodDays, DEFAULT_DEBT_AGING_THRESHOLDS.gracePeriodDays),
     yellowDays: num(raw?.yellowDays, DEFAULT_DEBT_AGING_THRESHOLDS.yellowDays),
@@ -4209,6 +4233,12 @@ function normalizeDebtAgingThresholds(
       raw?.activePayerGraceDays,
       DEFAULT_DEBT_AGING_THRESHOLDS.activePayerGraceDays,
     ),
+    amountYellowDzd: amountNum(
+      raw?.amountYellowDzd,
+      DEFAULT_DEBT_AGING_THRESHOLDS.amountYellowDzd ?? 20_000,
+    ),
+    amountRedDzd: amountNum(raw?.amountRedDzd, DEFAULT_DEBT_AGING_THRESHOLDS.amountRedDzd ?? 60_000),
+    levelMessages: cleanedMessages,
   };
 }
 

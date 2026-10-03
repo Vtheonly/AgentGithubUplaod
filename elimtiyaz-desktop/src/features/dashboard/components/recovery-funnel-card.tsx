@@ -7,6 +7,14 @@
  *
  * Displays the real delinquency depth progression as a coherent,
  * stepped pipeline with conversion rates and family counts.
+ *
+ * T-469 (DEBT-103): the funnel's edges derive from the CONFIGURED debt
+ * thresholds (the same system_settings `debt` category the « Suivi des
+ * Dettes » statuses consume) through the CANONICAL triage
+ * (deriveDebtTriage — the executive-statistics engine), NEVER from the
+ * hardcoded ≤60/61–90/>90 aging-bucket edges the pre-T-469 funnel used
+ * (the exact "hardcoded independently inside individual screens" class
+ * the owner's issue forbids).
  */
 
 import { Filter, ChevronRight } from "lucide-react";
@@ -18,7 +26,9 @@ import {
   CardDescription,
 } from "../../../shared/ui/card";
 import { chartPalette } from "../../../shared/ui/dashboard-theme";
-import type { DebtByAgingBucket } from "../../../domain/model/operations";
+// T-468 (UI-329): the card-level explainability tooltip.
+import { InfoTip } from "./analytics/info-tip";
+import type { DebtTriage } from "./analytics/executive-statistics";
 
 export interface FunnelStage {
   name: string;
@@ -27,45 +37,61 @@ export interface FunnelStage {
   color: string;
 }
 
-export function deriveRecoveryFunnel(
-  debtAging: readonly DebtByAgingBucket[],
-): FunnelStage[] {
-  const byBucket = new Map(debtAging.map((b) => [b.bucket, b.debtorCount]));
+/**
+ * T-469 (DEBT-103): the funnel over the CANONICAL triage — the staged
+ * escalation of debtor families through the CONFIGURED threshold edges:
+ *
+ *   1. « Débiteurs »            — every family with outstanding > 0
+ *   2. « En retard (échus) »    — worst tranche past due (days > 0)
+ *   3. « Au-delà du seuil jaune » — worst tranche beyond yellowDays
+ *   4. « Critique (> seuil rouge) » — worst tranche beyond redDays
+ *
+ * The stage NAMES carry the configured numbers (the §15.66b
+ * cause-on-the-card rule — the operator sees WHICH edges produced the
+ * split). PURE: same triage + same thresholds → same stages.
+ */
+export function deriveRecoveryFunnel(triage: DebtTriage): FunnelStage[] {
+  // The triage's OWN labels carry the configured edges (debtTriageLabels
+  // bakes yellowDays/redDays into them at derivation time) — the funnel
+  // NEVER relabels under different edges (that would lie about the split).
+  const byBucket = new Map(triage.buckets.map((b) => [b.bucket, b]));
+  const notDue = byBucket.get("not_due");
+  const current = byBucket.get("current");
+  const reminder = byBucket.get("reminder");
+  const chronic = byBucket.get("chronic");
   const total =
-    (byBucket.get("0_30") ?? 0) +
-    (byBucket.get("31_60") ?? 0) +
-    (byBucket.get("61_90") ?? 0) +
-    (byBucket.get("91_180") ?? 0) +
-    (byBucket.get("180_plus") ?? 0);
+    (notDue?.familyCount ?? 0) +
+    (current?.familyCount ?? 0) +
+    (reminder?.familyCount ?? 0) +
+    (chronic?.familyCount ?? 0);
   if (total === 0) return [];
   const pct = (n: number) => Math.round((n / total) * 100);
+  const pastDue =
+    (current?.familyCount ?? 0) + (reminder?.familyCount ?? 0) + (chronic?.familyCount ?? 0);
+  const beyondYellow = (reminder?.familyCount ?? 0) + (chronic?.familyCount ?? 0);
   return [
     {
-      name: "Total en Retard",
+      name: "Débiteurs (encours > 0)",
       count: total,
       rateFromPrevious: 100,
       color: chartPalette.gold,
     },
     {
-      name: "Retard Récent (≤ 60 j)",
-      count: (byBucket.get("0_30") ?? 0) + (byBucket.get("31_60") ?? 0),
-      rateFromPrevious: pct(
-        (byBucket.get("0_30") ?? 0) + (byBucket.get("31_60") ?? 0),
-      ),
+      name: "En retard (échus)",
+      count: pastDue,
+      rateFromPrevious: pct(pastDue),
       color: chartPalette.primary,
     },
     {
-      name: "Retard Modéré (61–90 j)",
-      count: byBucket.get("61_90") ?? 0,
-      rateFromPrevious: pct(byBucket.get("61_90") ?? 0),
+      name: `Au-delà du seuil jaune — ${reminder?.label ?? ""}`,
+      count: beyondYellow,
+      rateFromPrevious: pct(beyondYellow),
       color: chartPalette.warning,
     },
     {
-      name: "Retard Critique (> 90 j)",
-      count: (byBucket.get("91_180") ?? 0) + (byBucket.get("180_plus") ?? 0),
-      rateFromPrevious: pct(
-        (byBucket.get("91_180") ?? 0) + (byBucket.get("180_plus") ?? 0),
-      ),
+      name: `Critique — ${chronic?.label ?? ""}`,
+      count: chronic?.familyCount ?? 0,
+      rateFromPrevious: pct(chronic?.familyCount ?? 0),
       color: chartPalette.danger,
     },
   ];
@@ -91,9 +117,12 @@ export function RecoveryFunnelCard({
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-primary" />
             Entonnoir de Dérive des Créances
+            {/* T-468 (UI-329) + T-469 (DEBT-103): the tooltip documents the
+                CONFIGURED edges the stages derive from. */}
+            <InfoTip tip="funnel.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Distribution des foyers débiteurs selon l'ancienneté du défaut
+            Escalade des foyers débiteurs selon les seuils configurés (grâce / jaune / rouge)
           </CardDescription>
         </div>
 

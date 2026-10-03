@@ -246,7 +246,13 @@ describe("T-436 — ParentYearHistorySection (the « Historique par Année Scola
     cleanup();
   });
 
-  it("renders NOTHING when there is no financial history (the honest empty state)", () => {
+  it("renders the honest empty state — no fabricated year, but the T-466 write path stays available", () => {
+    // T-466 (DEBT-102) narrowed the §15.49a rule: the empty state no longer
+    // renders NOTHING — it renders the section header + the manual-debt
+    // entry point (recording a family's FIRST obligation is a legitimate
+    // operator action; what stays forbidden is a fabricated zero-year).
+    // The T-466 merge missed this update — repaired during T-469's
+    // verification sweep (TEST-501).
     const { container } = render(
       <ParentYearHistorySection
         parentId="p-none"
@@ -258,7 +264,20 @@ describe("T-436 — ParentYearHistorySection (the « Historique par Année Scola
         pricingConfigs={new Map()}
       />,
     );
-    expect(container.firstChild).toBeNull();
+    expect(container.firstChild).not.toBeNull();
+    expect(
+      screen.getByTestId("parent-year-history-empty"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Aucun historique financier attribué à cette famille/),
+    ).toBeInTheDocument();
+    // The manual-debt write path (T-466) — openable even from emptiness.
+    expect(
+      screen.getByTestId("manual-debt-open-button"),
+    ).toBeInTheDocument();
+    // And still NOT ONE fabricated year card (the §15.49a core).
+    expect(screen.queryByText("2025-2026")).not.toBeInTheDocument();
+    expect(screen.queryByText("2026-2027")).not.toBeInTheDocument();
     cleanup();
   });
 

@@ -68,14 +68,39 @@ export interface DebtAgingThresholds {
    * T-429 decoupling: a recent payment must not mask past-due debt).
    */
   readonly activePayerGraceDays: number;
+  /**
+   * T-469 (DEBT-103, migration 0138): the AMOUNT dimension's yellow edge —
+   * an outstanding at or above this is "montant à surveiller". A SEPARATE
+   * canonical dimension from the day-based status: a 3 000 DZD debt 100
+   * days late is day-RED/amount-green; a 90 000 DZD debt 2 days late is
+   * day-green/amount-red — both facts matter, neither masks the other.
+   * OPTIONAL + additive: every pre-0138 consumer compiles unchanged.
+   */
+  readonly amountYellowDzd?: number;
+  /**
+   * T-469 (DEBT-103): the AMOUNT dimension's red edge — an outstanding
+   * above this is "montant critique".
+   */
+  readonly amountRedDzd?: number;
+  /**
+   * T-469 (DEBT-103): the configurable per-level MESSAGE templates
+   * (migration 0138's `debt.level_message_*` settings). EMPTY/absent = the
+   * canonical engine's reason-code explanation STANDS — a configured
+   * message EXTENDS the explanation, never replaces it.
+   */
+  readonly levelMessages?: Partial<Record<DebtAgingStatusLevel, string>>;
 }
 
-/** The owner-specified defaults (migration 0125's seed values). */
+/** The owner-specified defaults (migration 0125's seed values; the 0138
+ * amount edges + the empty-message default). */
 export const DEFAULT_DEBT_AGING_THRESHOLDS: DebtAgingThresholds = {
   gracePeriodDays: 5,
   yellowDays: 15,
   redDays: 60,
   activePayerGraceDays: 15,
+  amountYellowDzd: 20_000,
+  amountRedDzd: 60_000,
+  levelMessages: {},
 };
 
 /**
@@ -88,6 +113,62 @@ export const DEBT_AGING_ACTIVE_PAYER_WINDOW_DAYS = 60;
 
 /** INV-4 epsilon: outstanding at or below this is "resolved". */
 export const DEBT_AGING_EPSILON_DZD = 0.001;
+
+/* ================================================================== */
+/*  T-469 (DEBT-103) — the AMOUNT classification + the level messages   */
+/* ================================================================== */
+
+/** The amount-band level (the AMOUNT dimension — a 3-band green/yellow/red). */
+export type DebtAmountLevel = "green" | "yellow" | "red";
+
+/** The amount-band labels (FR — the §15.3 one-wording rule). */
+export const DEBT_AMOUNT_LEVEL_LABELS_FR: Record<DebtAmountLevel, string> = {
+  green: "Montant maîtrisé",
+  yellow: "Montant à surveiller",
+  red: "Montant critique",
+};
+
+/**
+ * T-469 (DEBT-103): the canonical AMOUNT classification — the SAME
+ * thresholds object the day-based status engine consumes (migration 0138's
+ * `debt.amount_threshold_yellow_dzd` / `debt.amount_threshold_red_dzd`), so
+ * every surface (Créances, Year Tracking, filters, dashboards) evaluates
+ * the amount band from ONE configuration — never a page-local hardcode.
+ *
+ * The bands (strict, no gaps — the INV-16a discipline applied to amounts):
+ *   1. amount <  amountYellowDzd (0 = disabled)  → GREEN
+ *   2. amount >= amountYellowDzd                 → YELLOW
+ *   3. amount >  amountRedDzd                    → RED
+ *
+ * A SEPARATE dimension from the day-based aging status: a small very-late
+ * debt is day-RED/amount-green; a large freshly-missed one is
+ * day-green/amount-red — both facts matter, neither masks the other.
+ */
+export function classifyOutstandingAmount(
+  amount: number,
+  thresholds: Pick<DebtAgingThresholds, "amountYellowDzd" | "amountRedDzd">,
+): DebtAmountLevel {
+  const yellow = thresholds.amountYellowDzd;
+  const red = thresholds.amountRedDzd;
+  // 0 (or absent) = the edge is DISABLED — no amount crosses it.
+  if (typeof red === "number" && red > 0 && amount > red) return "red";
+  if (typeof yellow === "number" && yellow > 0 && amount >= yellow) return "yellow";
+  return "green";
+}
+
+/**
+ * T-469 (DEBT-103): the configured per-level message (migration 0138's
+ * `debt.level_message_*` settings) — NULL when not configured, in which
+ * case the canonical reason-code explanation STANDS (the message EXTENDS
+ * the explanation, never replaces it). One resolver for every surface.
+ */
+export function configuredLevelMessage(
+  level: DebtAgingStatusLevel,
+  thresholds: Pick<DebtAgingThresholds, "levelMessages">,
+): string | null {
+  const message = thresholds.levelMessages?.[level]?.trim();
+  return message ? message : null;
+}
 
 /* ================================================================== */
 /*  Types                                                              */
