@@ -25,10 +25,10 @@
  *   - Read receipts: "Lu par N personnes"
  *   - Auto mark-read on channel open
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MessageSquare, Send, Plus, User, Users, Building2, Megaphone,
-  Trash2, Pencil, Hash,
+  Trash2, Pencil, Hash, Paperclip, FileText, X, Download, ExternalLink,
 } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
@@ -48,7 +48,14 @@ import { formatRelative, formatDateTime } from "../../../core/format/date";
 import {
   CHANNEL_TYPE_LABELS_FR,
   type ChannelType, type ChatChannel, type ChatChannelScope, type ChatMessage,
+  type TaskAttachment,
 } from "../../../domain/model/workforce";
+import {
+  uploadPrivateMedia,
+  freshSignedMediaUrl,
+  isChatAttachmentAllowed,
+  CHAT_ATTACHMENT_MIME_TYPES,
+} from "../../../infrastructure/storage/media-vault";
 
 const CHANNEL_TYPES: readonly ChannelType[] = ["direct", "group", "department", "announcement"];
 
@@ -124,6 +131,13 @@ export function ChatPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // T-464 / MEDIA-300: the attachment lifecycle state — pending files are
+  // validated client-side, uploaded to the chat-attachments bucket on send
+  // (a failed upload aborts the send — the homework-push pattern), and the
+  // metadata rides the message's attachments jsonb.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<NewChannelForm>({
     type: "group", name: "", description: "", memberIds: [], departmentId: "",
@@ -216,16 +230,76 @@ export function ChatPanel({
     return channel.lastMessageAt ? 0 : 0;
   }
 
+  function pickFiles(files: FileList | null): void {
+    if (!files) return;
+    const accepted: File[] = [];
+    for (const f of Array.from(files)) {
+      if (!isChatAttachmentAllowed(f)) {
+        toast.showError(
+          "Pièce jointe refusée",
+          `« ${f.name} » dépasse les limites du canal (10 Mo max ; images JPEG/PNG/WebP, PDF, XLSX ou texte).`,
+        );
+        continue;
+      }
+      accepted.push(f);
+    }
+    if (accepted.length > 0) setPendingFiles((s) => [...s, ...accepted]);
+  }
+
   async function handleSend() {
-    if (!draft.trim() || !selectedId || !session) return;
+    if ((!draft.trim() && pendingFiles.length === 0) || !selectedId || !session) return;
+    // T-464 / MEDIA-300: Upload → Store happens FIRST (a message referencing
+    // a missing file would be worse than a clear error now); the metadata
+    // then rides the insert. A failed upload aborts the send entirely.
+    const attachments: TaskAttachment[] = [];
+    if (pendingFiles.length > 0) {
+      const tenantId = session.tenantId ?? "";
+      if (!tenantId) {
+        toast.showError(
+          "Aucun établissement actif",
+          "Sélectionnez un établissement dans la barre supérieure, puis réessayez.",
+        );
+        return;
+      }
+      setUploading(true);
+      try {
+        for (const file of pendingFiles) {
+          const uploaded = await uploadPrivateMedia({
+            bucket: "chat-attachments",
+            entityId: selectedId,
+            // Explicit (not shorthand) — the T-361 UPLOAD-102 guard scans
+            // for a tenant VARIABLE at every call site.
+            tenantId: tenantId,
+            file,
+          });
+          attachments.push({
+            id: uploaded.path,
+            filename: file.name,
+            mimeType: file.type || "application/octet-stream",
+            sizeBytes: file.size,
+            url: uploaded.path,
+          });
+        }
+      } catch (err) {
+        toast.showError(
+          "Échec du téléversement",
+          err instanceof Error ? err.message : "Impossible d'envoyer les pièces jointes. Réessayez.",
+        );
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
     const r = await repos.chat.sendMessage({
       channelId: selectedId,
       authorId: session.userId,
       authorName: session.displayName,
       body: draft.trim(),
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
     if (r.ok) {
       setDraft("");
+      setPendingFiles([]);
     } else {
       toast.showError("Erreur", r.error.userMessage);
     }
@@ -450,6 +524,18 @@ export function ChatPanel({
                             {m.voiceNoteSeconds != null && (
                               <p className="text-[10px] opacity-70 mt-1"> Note vocale ({m.voiceNoteSeconds}s)</p>
                             )}
+                            {/* T-464 / MEDIA-300: the Receive → Open → View →
+                                Download half of the lifecycle — images
+                                preview inline via fresh signed URLs (never
+                                cached), documents open/download through the
+                                same signed-URL flow. */}
+                            {m.attachments.length > 0 && (
+                              <div className="mt-1.5 space-y-1.5">
+                                {m.attachments.map((a) => (
+                                  <MessageAttachment key={a.id} attachment={a} />
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div className={`flex items-center gap-2 mt-0.5 ${isOwn ? "justify-end" : ""}`}>
                             <span className="text-[10px] text-muted-foreground">
@@ -488,16 +574,71 @@ export function ChatPanel({
               </div>
 
               {/* Input */}
-              <div className="border-t border-border p-2 flex items-center gap-2">
-                <Input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Écrire un message…"
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                />
-                <Button size="icon" onClick={handleSend} disabled={!draft.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
+              <div className="border-t border-border p-2 space-y-2">
+                {/* T-464 / MEDIA-300: the pending-attachment chips (validated
+                    client-side; a failed upload aborts the send). */}
+                {pendingFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {pendingFiles.map((f, i) => (
+                      <span
+                        key={`${f.name}-${i}`}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 pl-2 pr-1 py-0.5 text-[11px] max-w-[220px]"
+                      >
+                        <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="truncate flex-1">{f.name}</span>
+                        <span className="text-muted-foreground shrink-0">{Math.max(1, Math.round(f.size / 1024))} Ko</span>
+                        <button
+                          type="button"
+                          aria-label={`Retirer ${f.name}`}
+                          className="rounded p-0.5 hover:bg-accent/10"
+                          onClick={() => setPendingFiles((s) => s.filter((_, j) => j !== i))}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept={CHAT_ATTACHMENT_MIME_TYPES.join(",")}
+                    className="hidden"
+                    onChange={(e) => {
+                      pickFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Joindre un fichier"
+                    title="Joindre une image ou un document (10 Mo max)"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder="Écrire un message…"
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handleSend}
+                    disabled={uploading || (!draft.trim() && pendingFiles.length === 0)}
+                  >
+                    {uploading ? (
+                      <span className="h-4 w-4 animate-pulse">…</span>
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </>
           ) : (
@@ -611,5 +752,132 @@ export function ChatPanel({
         onConfirm={handleDelete}
       />
     </DashboardSection>
+  );
+}
+
+// ============================================================================
+// T-464 / MEDIA-300 — the attachment rendering half of the lifecycle.
+// ============================================================================
+
+/** A vaulted chat attachment (the message's attachments jsonb entries). */
+interface ChatAttachmentView {
+  readonly id: string;
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly url: string;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
+  return `${bytes} o`;
+}
+
+/**
+ * MessageAttachment — renders ONE attachment: images preview inline (a fresh
+ * signed URL per mount — the vault §12.07 rule: signed URLs are never
+ * cached), every type gets the open (inline view) + download affordances
+ * (fresh signed URLs with the download flag).
+ */
+function MessageAttachment({ attachment }: { attachment: ChatAttachmentView }) {
+  const isImage = attachment.mimeType.startsWith("image/");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (isImage) {
+      void freshSignedMediaUrl({
+        bucket: "chat-attachments",
+        path: attachment.url,
+      }).then((url) => {
+        if (!cancelled) setImageUrl(url);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isImage, attachment.url]);
+
+  async function openAttachment(download: boolean): Promise<void> {
+    const url = await freshSignedMediaUrl({
+      bucket: "chat-attachments",
+      path: attachment.url,
+      download,
+    });
+    if (!url) {
+      // Distinguish the two failure shapes for the operator.
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  if (isImage && imageUrl && !failed) {
+    return (
+      <div className="space-y-1">
+        <button
+          type="button"
+          className="block rounded-md overflow-hidden border border-border/40 hover:opacity-90 transition-opacity"
+          onClick={() => void openAttachment(false)}
+          aria-label={`Ouvrir ${attachment.filename}`}
+        >
+          <img
+            src={imageUrl}
+            alt={attachment.filename}
+            className="max-h-44 max-w-[260px] object-cover"
+            onError={() => setFailed(true)}
+          />
+        </button>
+        <div className="flex items-center gap-2">
+          <AttachmentMeta attachment={attachment} />
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 text-[10px] text-current opacity-80 hover:opacity-100 underline underline-offset-2"
+            onClick={() => void openAttachment(true)}
+          >
+            <Download className="h-3 w-3" /> Télécharger
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex items-center gap-2 rounded-md border border-border/50 bg-background/60 px-2 py-1.5 max-w-[280px]">
+      <FileText className="h-4 w-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium truncate" title={attachment.filename}>
+          {attachment.filename}
+        </p>
+        <p className="text-[10px] opacity-70">{formatSize(attachment.sizeBytes)}</p>
+      </div>
+      <button
+        type="button"
+        aria-label={`Ouvrir ${attachment.filename}`}
+        title="Ouvrir"
+        className="rounded p-1 hover:bg-accent/10"
+        onClick={() => void openAttachment(false)}
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        aria-label={`Télécharger ${attachment.filename}`}
+        title="Télécharger"
+        className="rounded p-1 hover:bg-accent/10"
+        onClick={() => void openAttachment(true)}
+      >
+        <Download className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function AttachmentMeta({ attachment }: { attachment: ChatAttachmentView }) {
+  return (
+    <span className="text-[10px] opacity-75 truncate">
+      {attachment.filename} · {formatSize(attachment.sizeBytes)}
+    </span>
   );
 }
