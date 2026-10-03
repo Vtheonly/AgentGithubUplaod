@@ -2,11 +2,10 @@
 
 The owner's mandate (delivered with the full infrastructure token set) resolves the 139th session's deferred list: the three owner-gated items are now REGISTERED as branch-per-task work (the ADR-028 discipline, the §13 registration-first rule honored — the task entries landed BEFORE any fix). **T-482** takes UNKNOWN-030's option (a) — the server-side auto-tracking design (an exempted auto entry kind + a SECURITY DEFINER RPC + the §09.05 self-entry ban kept for manual rows); ADR-034 records the mandate as the ruling's source. **T-483** takes the model decision the audit deferred — the tenant-singleton row (personnel_id NULL) alongside the per-personnel semantics. **T-484** conforms the desktop's parallel-imagined Shift/Schedule domain types to the canonical 0010 schema (the T-481 discipline: the domain follows the server contract). The session's opening verification: the full battery **4 727/0/5** (275 files, BASELINE-MATCHED) + tsc clean; the live migration census (Management-API SQL endpoint, the sbp_ token alive) found **no actionable drift**.
 
-## Standing recommendation (updated by the 140th session registration)
+## Standing recommendation (updated by the 140th session after T-482)
 
-1. **T-482 — the auto-Relevé server-side design** (UNKNOWN-030 → ADR-034 + migration 0141 + the desktop wiring + the live apply round): the audit's #1 remaining item, now owner-ruled.
-2. **T-483 — the onboarding persistence port** (migration 0142 + SupabaseOnboardingRepository): the audit's #2.
-3. **T-484 — the shifts/schedules port** (the canonical 0010 model + the two repositories + the drawer tab): the audit's #3, the WORKFORCE-102 list's last two desktop slots.
+1. **T-483 — the onboarding persistence port** (migration 0142 + SupabaseOnboardingRepository): the audit's #2 — T-482 is COMPLETE (UNKNOWN-030 resolved by ADR-034; migration 0141 live-applied + verified 9/9; the battery 4 738/0/5).
+2. **T-484 — the shifts/schedules port** (the canonical 0010 model + the two repositories + the drawer tab): the audit's #3, the WORKFORCE-102 list's last two desktop slots.
 4. **OWNER (the eyeball pass — unchanged from the 139th):** the redesigned Relevé d'Activité tab, the warehouse dashboard's real receipts/dispatches, and the worker→supervisor chat deep link.
 5. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
 

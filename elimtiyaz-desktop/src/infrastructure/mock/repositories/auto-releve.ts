@@ -1,5 +1,5 @@
 /**
- * Auto-populated Relevé entries — vault §09.06.
+ * Auto-populated Relevé entries — vault §09.06. MOCK-MODE implementation.
  *
  * The Teacher Activity Ledger is "an AUTOMATED operational activity ledger
  * per teacher", tracking: grades entered, homework assignments issued,
@@ -7,9 +7,19 @@
  * clock-in/out entries remain; these helpers ADD append-only entries
  * automatically when teachers perform classroom operations.
  *
+ * T-482 (ADR-034, 140th session): the CANONICAL Supabase counterpart now
+ * exists — the `record_auto_releve_entry` RPC (migration 0141) invoked by
+ * the three Supabase classroom write paths through
+ * `infrastructure/supabase/repositories/auto-releve-bridge.ts`. The two
+ * implementations write the SAME CONTRACT (the kind → activity vocabulary
+ * is identical: grade_entry→correction, homework_push→task,
+ * roll_call→supervision) — this file remains the mock-mode storage path,
+ * NOT a parallel business rule.
+ *
  * Rules preserved:
  *   - Append-only — no update/delete path exists for auto entries either.
- *   - Audit-logged (a `releve.auto_log` audit entry accompanies each write).
+ *   - Audit-logged (a `releve.auto_log` audit entry accompanies each write;
+ *     the canonical path's record IS the releve_entries row itself).
  *   - Teachers cannot edit their own Relevé — enforced by construction
  *     (auto entries are system-generated).
  */

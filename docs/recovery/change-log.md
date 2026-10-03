@@ -1,3 +1,29 @@
+## 2026-10-04 — T-482 COMPLETE (the 140th session's first delivery): the auto-Relevé server-side design — UNKNOWN-030 RESOLVED by the owner's mandate (ADR-034, option (a)); migration 0141 (the exempted auto entry kind + the scoped §09.05 trigger + the record_auto_releve_entry SECURITY DEFINER RPC) applied LIVE + verified 9/9; the desktop's three classroom write paths wired through the fail-safe bridge; the battery 4 727 → 4 738/0/5 (+11 tests)
+
+### The ruling
+
+The owner's 140th-session mandate ("read the full audit and fix what was listed in this audit", delivered with the full infrastructure token set) supplied the ruling UNKNOWN-030 registered and waited for: **option (a) — the server-side auto-tracking design is wanted.** ADR-034 (`docs/decisions/ADR-034-auto-releve-server-recorded-entries.md`) records the mandate as the ruling's source, the RPC-over-alternatives reasoning (not role-widened RLS: it re-opens the §09.05 hole; not triggers yet: the batch/submission boundary has no server-side event), and the residual fabrication-risk acceptance (auto rows are kind-tagged, append-only, non-payroll, recorded_by-stamped).
+
+### What changed
+
+- **Migration 0141** (`0141_releve_auto_entries.sql`, append-only, re-run safe): `entry_source` ('manual'|'auto', default 'manual' — every pre-0141 row is manual, no data change) + `auto_kind` ('grade_entry'|'homework_push'|'roll_call') with the coupling CHECK; `prevent_self_releve_entry` replaced with the manual-scoped definition (the auto early-return; the §09.05 raise byte-identical for manual rows); `record_auto_releve_entry(p_kind, p_class_id, p_class_subject_id, p_note)` SECURITY DEFINER (caller-owned personnel resolution, kind whitelist, tenant gate, authenticated-only execute); the T-091/MIG-TOKENS registration.
+- **Desktop wiring** (`auto-releve-bridge.ts` — the fail-safe side-effect wrapper, the T-314 pattern): `enterGrade`/`enterGradesBatch` (one ledger event per BATCH — the mock's granularity), `recordRollCall`, and homework `push` invoke the RPC after their canonical writes; a releve failure NEVER breaks the primary write (console-warned, never silently swallowed — the WORKFORCE-510 distinction documented in the bridge header).
+- **Read side**: `SupabaseReleveRepository.mapRow` surfaces `autoKind` for `entry_source='auto'` rows (unknown kinds fold to null) — the Relevé tab's existing "auto" badge renders RPC-written rows with ZERO UI change.
+- **Mock parity documented**: `auto-releve.ts` header now pins the mock as the mock-mode storage path of the SAME kind→activity contract (grade_entry→correction, homework_push→task, roll_call→supervision).
+
+### The verification
+
+- The new suite `supabase-auto-releve.test.ts` **11/11**: the bridge payload contract (the exact RPC args, no client-side activity re-derivation), the fail-safe pair (an RPC error AND a thrown client both resolve without rejecting), the autoKind read-side folds, the three classroom wiring pins against the REAL repositories (enterGradesBatch's batch note, recordRollCall's present/total note, homework push's title/subject note), the migration + wiring source guards.
+- **Migration 0141 applied LIVE** (Management-API SQL endpoint, HTTP 201; the sbp_ token alive this session); **verify_t-482.sql 9/9 GREEN**: the columns + the three CHECKs, the trigger re-scope, the RPC's catalog shape (SECURITY DEFINER + uuid + authenticated grant), the RUNTIME probes (a MANUAL self-entry still RAISES the §09.05 message — the ban preserved; an AUTO-shaped self entry PASSES; the coupling CHECK rejects manual+auto_kind), the registration row, the pre-0141 rows all 'manual'.
+- **The verify's own first-run discovery (documented in the script header):** the live personnel table has ZERO user_id bindings (14 rows, 0 bound) — the first C5/C6 probes passed VACUOUSLY (an INSERT…SELECT with no rows never fires the trigger); the repaired probes create a synthetic bound personnel row INSIDE the BEGIN…ROLLBACK transaction. The vacuous-pass class: a runtime probe whose SELECT sources zero rows proves nothing — pin the row count, not just the absence of an exception.
+- The append-only migration guard OK (+1 file); tsc 0; eslint 0 errors on the changed files; the FULL battery **4 738/0/5** (276 files) with the registered baseline move in the same commit.
+
+### Registry & left
+
+UNKNOWN-030 → RESOLVED (the unknowns entry carries the full resolution trail). WORKFORCE-508's registered follow-up → RESOLVED-TESTED (the status note). ARCH-001's census note updated (the auto-relevé writers are canonical now). T-482 COMPLETE. **Left:** the future trigger-based hardening (ADR-034's Consequences — registered, non-blocking); T-483 (onboarding) + T-484 (shifts/schedules) follow in this session.
+
+---
+
 ## 2026-10-04 — The 139th session CLOSEOUT: the owner's Personnel-page full-audit mandate — T-477 (the audit: every tab traced UI → repository → table/mock; six problems registered BEFORE any fix) + T-478 (the 'Recent Activity' removal) + T-479 (the warehouseTasks port, WORKFORCE-507 RESOLVED-TESTED) + T-480 (the wiring repairs: CHAT-301 + WORKFORCE-509/510 + DEAD-202 all RESOLVED-TESTED) + T-481 (the Relevé port, WORKFORCE-508 RESOLVED-TESTED — with the port's own discovery: migration 0140, the 0009 CHECK's 'surveillance' vs both clients' 'supervision'); the battery 4 699 → 4 727/0/5 across four registered baseline moves; two migrations applied LIVE + verified 7/7 and 6/6
 
 ### The mandate

@@ -4,6 +4,7 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
+import { logAutoReleveSideEffect } from "./auto-releve-bridge";
 import { SubjectBehavior } from "../../mock/subject-behavior";
 import { getTenantId, isUuid } from "./supabase-shared-repositories";
 import type {
@@ -972,6 +973,16 @@ export class SupabaseGradeRepository implements GradeRepository {
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
+
+    // T-482 (ADR-034 / §09.06): auto-populate the teacher's Relevé (grades
+    // entered) — the canonical RPC side effect, fail-safe (never breaks the
+    // grade write; the mock's logAutoReleveEntry parity).
+    void logAutoReleveSideEffect(this.client, {
+      kind: "grade_entry",
+      classId: input.classId,
+      note: `Note saisie — ${input.devoir1 ?? "—"}/${input.devoir2 ?? "—"}/${input.examen ?? "—"}`,
+    });
+
     return Ok(mapAssessmentRow(data));
   }
 
@@ -1035,6 +1046,19 @@ export class SupabaseGradeRepository implements GradeRepository {
       .select();
 
     if (error) return Err(supabaseErrorToAppError(error));
+
+    // T-482 (ADR-034 / §09.06): auto-populate the teacher's Relevé (batch
+    // grade entry) — one ledger event per BATCH (the domain granularity the
+    // mock defined), fail-safe.
+    const first = inputs[0];
+    if (first) {
+      void logAutoReleveSideEffect(this.client, {
+        kind: "grade_entry",
+        classId: first.classId,
+        note: `Saisie groupée — ${data.length} note(s)`,
+      });
+    }
+
     return Ok(data.map(mapAssessmentRow));
   }
 
@@ -1275,6 +1299,17 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
     // workflow-execute EF (real entity context + REAL side effects
     // server-side). Fail-safe: never breaks the roll-call save.
     void this.dispatchAbsenceWorkflows(data);
+
+    // T-482 (ADR-034 / §09.06): auto-populate the teacher's Relevé (roll
+    // call submitted) — the canonical RPC side effect, fail-safe.
+    const present = data.filter(
+      (r: { status: string }) => r.status === "present" || r.status === "late",
+    ).length;
+    void logAutoReleveSideEffect(this.client, {
+      kind: "roll_call",
+      classId: input.classId,
+      note: `Appel enregistré (${input.session === "morning" ? "matin" : input.session === "afternoon" ? "après-midi" : "journée"}) — ${present}/${data.length} présents`,
+    });
 
     return Ok(data.map(mapAttendanceRow));
   }
@@ -1523,6 +1558,15 @@ export class SupabaseHomeworkRepository implements HomeworkRepository {
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
+
+    // T-482 (ADR-034 / §09.06): auto-populate the teacher's Relevé (homework
+    // issued) — the canonical RPC side effect, fail-safe; the note mirrors
+    // the mock's vocabulary (title + subject + attachment count).
+    void logAutoReleveSideEffect(this.client, {
+      kind: "homework_push",
+      classId: input.classId,
+      note: `Devoir publié — « ${input.title} » (${subjectName}${input.attachments.length > 0 ? `, ${input.attachments.length} pièce(s) jointe(s)` : ""})`,
+    });
 
     // T-023 (HOMEWORK-100): the dead `push-homework-notification` Edge
     // Function invocation was REMOVED. The EF has never existed in
