@@ -4,7 +4,7 @@ The owner's audit/repair mandate delivered on branch `fix/t470-test502-repair` (
 
 ## Standing recommendation (updated by the 137th session)
 
-1. **T-471 — the TEST-503 systemic fix:** decide the seam (the `import.meta.env.VITEST` production-fallback disable in supabase-client.ts, with the full-battery before/after, OR the enforced pin-per-suite pattern with a source-scan guard) — the test env must never reach production by default again.
+1. **T-472 — the TEST-503 systemic fix:** decide the seam (the `import.meta.env.VITEST` production-fallback disable in supabase-client.ts, with the full-battery before/after, OR the enforced pin-per-suite pattern with a source-scan guard) — the test env must never reach production by default again.
 2. **The PARITY-010 owner ruling:** the post-revert zero-paid FUTURE-due vocabulary ('unpaid' SQL vs 'pending' TS) — one ADR settles it; the corpus gains the pin in the same change.
 3. **The owner's device smoke of the four T-466..T-469 surfaces** (ManualDebtModal · the reference-mode selector · the new tooltips · the amount bands) — unchanged, the eyeball acceptance gate.
 4. **The Android mirrors** (manual-debt creation, the amount band, the inspector modes, the t-470 trio's clock discipline if the Kotlin side has the same implicit-clock pins) — cross-repo follow-ups.

@@ -4069,3 +4069,25 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **Next:** the branch-consolidation closeout (this session's second mandate: the containment census of the ~36 remote branches + the guarded deletion of the merged ones), then the standing queue.
 
 **Related:** TEST-502 · TEST-501 · TEST-503 · PARITY-010 · INV-8 · T-469 (the discovering task) · AGENTS.md §15.83.
+
+---
+
+## 2026-10-03 — T-471 COMPLETE (137th session): the hub branch consolidation — the §15.59 census of all 41 non-main remote branches (ALL contained: ancestor=OK + unique=0, zero unmerged commits anywhere) + the guarded batch deletion; `main` is now the single authoritative branch
+
+**Task:** T-471 — the owner's consolidation mandate on the hub (inspect every branch, verify containment BEFORE any deletion, merge/reconcile everything into main, then delete only the proven-contained refs).
+
+**Problem:** the ADR-028 branch-lifecycle residue — 41 merged task-branch refs (T-434-era through the concurrent round's two live-apply branches) accumulating on the remote while every one of their commits was already reachable from main.
+
+**Root cause:** none (residue management — the branches were the sanctioned per-task workflow's labels, never deleted after their merges).
+
+**Change:** nothing in the tree — only remote refs. The census script (the §15.59 double check: `merge-base --is-ancestor` AND `rev-list --count main..<branch>` = 0, after a fresh `--prune` fetch) verified 41/41 SAFE; the batch `git push origin --delete` removed them; the post-deletion fetch confirms only `origin/main` remains. No force-push, no history rewrite, no commits lost (every deleted ref's commits remain reachable from main by construction of the check).
+
+**Verified:** the census output itself (41/41 ancestor=OK unique=0, re-run immediately before the deletion per §15.59); the post-deletion `git branch -r` (only origin/main + HEAD); main's tree untouched (the deletion batch touches no files); T-470's merge `f377f6f` pushed immediately before.
+
+**Preserved:** every commit (the check guarantees reachability); the local clone's main; the concurrent agent's pushed work (their two branches verified contained before deletion — their commits live in main).
+
+**Left:** nothing on the hub.
+
+**Next:** T-472 (the TEST-503 systemic fix) — the standing #1.
+
+**Related:** ADR-028 · §15.59 · T-418 · T-470 · the concurrent T-469 live-apply round.
