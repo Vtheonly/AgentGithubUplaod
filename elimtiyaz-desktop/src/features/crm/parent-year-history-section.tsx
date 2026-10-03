@@ -34,11 +34,19 @@ import {
   ChevronUp,
   ArrowLeftRight,
   Landmark,
+  Plus,
 } from "lucide-react";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
+import { Button } from "../../shared/ui/button";
 import { formatDzd } from "../../core/format/currency";
 import { formatDate } from "../../core/format/date";
+// T-466 (DEBT-102): the manual-debt creation — mounted HERE because the
+// Year-Tracking surface is exactly where the owner reported the gap ("in
+// Year Tracking… we don't have a proper way to manually add a pre-existing
+// debt"). ONE modal component, several surfaces (this section + the
+// Créances tab) — the reuse-first rule.
+import { ManualDebtModal } from "../financials/manual-debt-modal";
 import {
   computeParentYearHistory,
   YEAR_SERVICE_GROUP_LABELS_FR,
@@ -336,6 +344,11 @@ function YearCard({ record }: { record: AcademicYearFinancialRecord }) {
 
 export interface ParentYearHistorySectionProps {
   readonly parentId: string;
+  /** T-466 (DEBT-102): the family's display name — the manual-debt modal's
+   *  header context. OPTIONAL PROP (never an eager observeById subscription
+   *  — the T-430 conditional-mount discipline): every mount site already
+   *  holds the name (the aging row / the CRM drawer's parent). */
+  readonly parentName?: string;
   readonly installments: readonly Installment[];
   readonly payments: readonly Payment[];
   readonly allocations: readonly PaymentAllocation[];
@@ -346,6 +359,7 @@ export interface ParentYearHistorySectionProps {
 
 export function ParentYearHistorySection({
   parentId,
+  parentName,
   installments,
   payments,
   allocations,
@@ -353,6 +367,11 @@ export function ParentYearHistorySection({
   academicYears,
   pricingConfigs,
 }: ParentYearHistorySectionProps) {
+  const [manualDebtOpen, setManualDebtOpen] = useState(false);
+  // T-466: the modal pre-selects the CURRENT academic year (the honest
+  // default; the operator can pick another or let INV-14 resolve).
+  const currentYearCode = academicYears.find((y) => y.isCurrent)?.code ?? null;
+
   // T-436: the ONE canonical derivation (financial-rules §17.3) — the
   // component renders its output verbatim, zero local math.
   const history = useMemo(
@@ -374,18 +393,75 @@ export function ParentYearHistorySection({
     [parentId, installments, payments, allocations, ledgerEntries, academicYears, pricingConfigs],
   );
 
+  const parentDisplayName = parentName?.trim() || undefined;
+
+  // T-466 (DEBT-102): the Year-Tracking surface's manual-debt entry point —
+  // rendered even in the empty state (a family with NO history at all is
+  // exactly the case where a pre-existing debt needs to be recorded; the
+  // honest-empty rule forbids fabricating a zero-year, not the WRITE PATH).
+  const manualDebtButton = (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-6 px-2 text-[11px] gap-1 shrink-0"
+      onClick={() => setManualDebtOpen(true)}
+      data-testid="manual-debt-open-button"
+      title="Enregistrer une créance préexistante (avec son motif, son service et sa référence)"
+    >
+      <Plus className="h-3 w-3" aria-hidden />
+      Dette manuelle
+    </Button>
+  );
+
   if (history.years.length === 0) {
     // Honest empty state (§15.49a): no charges and no payments ever
-    // attributed to this person — never a fabricated zero-year.
-    return null;
+    // attributed to this person — never a fabricated zero-year. The
+    // manual-debt write path stays available (T-466: recording the FIRST
+    // obligation is a legitimate operator action, not a fabricated view).
+    return (
+      <div className="space-y-2" data-testid="parent-year-history-empty">
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5" aria-hidden />
+            Historique par Année Scolaire
+          </p>
+          {manualDebtButton}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Aucun historique financier attribué à cette famille pour le moment.
+        </p>
+        {manualDebtOpen && (
+          <ManualDebtModal
+            open={manualDebtOpen}
+            onOpenChange={setManualDebtOpen}
+            parentId={parentId}
+            parentName={parentDisplayName}
+            defaultAcademicYear={currentYearCode}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-2">
-      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Calendar className="h-3.5 w-3.5" aria-hidden />
-        Historique par Année Scolaire
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5" aria-hidden />
+          Historique par Année Scolaire
+        </p>
+        {manualDebtButton}
+      </div>
+      {manualDebtOpen && (
+        <ManualDebtModal
+          open={manualDebtOpen}
+          onOpenChange={setManualDebtOpen}
+          parentId={parentId}
+          parentName={parentDisplayName}
+          defaultAcademicYear={currentYearCode}
+        />
+      )}
       {/* T-442 (UI-323): the prior-years debt enumerated PER YEAR — the
           "how much owed for EACH individual year" composition (the single
           total stays; the per-year chips enumerate it). */}

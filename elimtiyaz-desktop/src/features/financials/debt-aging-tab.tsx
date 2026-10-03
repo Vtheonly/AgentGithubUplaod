@@ -548,7 +548,7 @@ function DebtAgingDetailDrawer({
       // conditional-mount rule).
       id: "per-year",
       label: "Par année",
-      content: () => <FamilyYearHistoryPanel parentId={a.parentId} />,
+      content: () => <FamilyYearHistoryPanel parentId={a.parentId} parentName={a.parentName} />,
     },
     {
       id: "behavior",
