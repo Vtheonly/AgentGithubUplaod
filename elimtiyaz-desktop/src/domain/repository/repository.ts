@@ -901,6 +901,16 @@ export interface PersonnelRepository {
 
 export interface ReleveRepository {
   observeByPersonnel(personnelId: string, from: string, to: string): Observable<ReleveEntry[]>;
+  /**
+   * Append one ledger entry. T-481 (WORKFORCE-508): the contract now carries
+   * `recordedById` — the ACTING user's account id (user_profiles.id), which
+   * the canonical `releve_entries` table stamps into its NOT NULL
+   * recorded_by column. Per plan §09.05 + the 0009 RLS/trigger contract, the
+   * RECORDED-BY account must be an administrator-role holder and must NOT be
+   * the target staff member's own bound account (the
+   * prevent_self_releve_entry trigger raises otherwise) — the admin-side UI
+   * records FOR a selected staff member; the teacher's view is read-only.
+   */
   logEntry(input: {
     personnelId: string;
     personnelName: string;
@@ -910,6 +920,7 @@ export interface ReleveRepository {
     activity: ReleveActivity;
     classId: string | null;
     subjectId: string | null;
+    recordedById: string;
   }): Promise<Result<ReleveEntry>>;
 }
 
