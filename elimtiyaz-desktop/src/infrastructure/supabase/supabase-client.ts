@@ -8,6 +8,17 @@
  *
  * The renderer only ever uses a PUBLIC Supabase key. Secret/service-role keys
  * must never be bundled into the desktop application.
+ *
+ * T-472 (TEST-503) — the hermeticity seam: inside Vitest the canonical
+ * production fallbacks are DISABLED and the default mode is MOCK. The
+ * f39eb17 fallback existed so a packaged build connects without env, but it
+ * also made `isSupabaseConfigured()` TRUE inside every test suite — silently
+ * repealing T-314's hermetic contract (the vault pair was uploading to the
+ * REAL production bucket). A suite that genuinely needs a configured path
+ * must pin it explicitly: localStorage `el-imtiyaz.local-config` +
+ * `vi.resetModules()` + a dynamic import, or a partial `vi.mock` of this
+ * module (the vault-suite pattern). Production, packaged builds and the
+ * dev/browser default are unchanged.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -25,6 +36,39 @@ const CANONICAL_PRODUCTION_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase
 const CANONICAL_PRODUCTION_PUBLIC_KEY =
   "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
 const CANONICAL_PROJECT_REF = "vebfehrpzajhstyhinnw";
+
+/**
+ * T-472 (TEST-503): true only inside a Vitest run — the hermeticity seam.
+ *
+ * The detection is layered, each signal independently sufficient, and NONE
+ * of them can be true inside the packaged app (the Electron renderer runs
+ * with `nodeIntegration: false`, so `process` does not even exist there):
+ *   1. `process.env.VITEST === "true"` — set by the Vitest runner itself in
+ *      every environment it creates (jsdom included; verified empirically —
+ *      vitest 2.1.8's `import.meta.env.VITEST` is FILTERED OUT by this
+ *      project's own `envPrefix: ["VITE_TEST_"]` contract from T-314, so
+ *      `process.env` is the reliable carrier);
+ *   2. `import.meta.env.VITEST` — the documented flag, present whenever the
+ *      envPrefix allows it (kept as a second positive signal: it can only
+ *      make a test run MORE hermetic, never less);
+ *   3. `import.meta.vitest` — defined only when the Vitest plugin transformed
+ *      this module (never in a production Vite build).
+ *
+ * Read defensively — some SSR transforms strip `import.meta.env`.
+ */
+const isVitestRun = (() => {
+  try {
+    if (typeof process !== "undefined" && process.env?.VITEST === "true") {
+      return true;
+    }
+    const metaVitest = (import.meta as { vitest?: unknown }).vitest;
+    if (metaVitest != null) return true;
+    const envVitest = (import.meta as { env?: Record<string, unknown> }).env?.VITEST;
+    return envVitest === true || envVitest === "true";
+  } catch {
+    return false;
+  }
+})();
 
 function normalizeSupabaseUrl(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -70,8 +114,10 @@ const envSupabasePublishableKey = normalizePublicKey(
   readEnv("VITE_SUPABASE_PUBLISHABLE_KEY"),
 );
 const envSupabaseAnonKey = normalizePublicKey(readEnv("VITE_SUPABASE_ANON_KEY"));
+// T-472 (TEST-503): the canonical-key fallback is disabled inside Vitest —
+// the hermetic contract is "no env ⇒ not configured".
 const envPublicKey =
-  envSupabasePublishableKey ?? envSupabaseAnonKey ?? CANONICAL_PRODUCTION_PUBLIC_KEY;
+  envSupabasePublishableKey ?? envSupabaseAnonKey ?? (isVitestRun ? undefined : CANONICAL_PRODUCTION_PUBLIC_KEY);
 const isProductionDesktopBuild = readEnv("VITE_DESKTOP_PRODUCTION") === "true";
 
 function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: boolean } {
@@ -104,7 +150,7 @@ const productionSupabaseKey = CANONICAL_PRODUCTION_PUBLIC_KEY;
 
 export const supabaseUrl = isProductionDesktopBuild
   ? productionSupabaseUrl
-  : (localConfig.url ?? envSupabaseUrl ?? CANONICAL_PRODUCTION_SUPABASE_URL);
+  : (localConfig.url ?? envSupabaseUrl ?? (isVitestRun ? undefined : CANONICAL_PRODUCTION_SUPABASE_URL));
 
 export const supabaseAnonKey = isProductionDesktopBuild
   ? productionSupabaseKey
@@ -114,10 +160,20 @@ export const supabaseAnonKey = isProductionDesktopBuild
  * Live Supabase is the default whenever the application has a Supabase
  * configuration. Development can still explicitly opt into mock mode by
  * setting VITE_USE_SUPABASE=false or the local configuration toggle.
+ *
+ * T-472 (TEST-503): inside Vitest the DEFAULT is mock mode (T-314's
+ * documented contract). A suite that wants the configured path must pin it
+ * explicitly (local-config or vi.mock) — including VITE_USE_SUPABASE via
+ * vi.stubEnv + vi.resetModules() + a dynamic import when the env route is
+ * the seam under test.
  */
+const envUseSupabase = readEnv("VITE_USE_SUPABASE");
 export const useSupabase = isProductionDesktopBuild
   ? true
-  : (localConfig.useSupabase ?? (readEnv("VITE_USE_SUPABASE") !== "false"));
+  : (localConfig.useSupabase ??
+    (envUseSupabase !== undefined
+      ? envUseSupabase !== "false"
+      : !isVitestRun));
 
 if (!supabaseUrl || !supabaseAnonKey) {
   if (useSupabase) {

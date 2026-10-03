@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-470 (the 137th session's TEST-502 repair, 2026-10-03 — the battery FULLY GREEN for the first time since T-419 instituted the baseline: the refund-revert trio re-pinned with EXPLICIT evaluation clocks + both classification branches [future-due 'pending' / past-due 'overdue', the §15.81 wall-clock class], the t-390 import-time cycle broken [the mock composite extracted to infrastructure/mock/mock-composite.ts], the vault-compliance §02.06 pair pinned to mock mode [never touching production storage again], and the t-408 source-scan re-targeted to the composite's new home; net +5 tests [2 companion branch pins + the t-390 suite's 3 tests now actually running] — 4,675 passed / 0 failed / 5 skipped). Same-session prior move: the T-469 live-apply round moved the baseline to the 4,665/5-known-red state (+4 suites: t-466..t-469) — T-470's move supersedes it with the empty failing set. Prior: T-455 (127th session, 2026-10-01).",
-  "_task": "T-470 (the 137th session's TEST-502 repair, 2026-10-03) — the registered baseline move to FULLY GREEN: 269 files (268 passed / 1 skipped), 4,680 tests (4,675 passed / 0 failed / 5 skipped). The failing-file set is EMPTY. The equivalence numbers reflect the T-459-closed PARITY-005 reality (tier-4: 784/820 equivalent, 36 skipped-with-reasons, 0 rows).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-472 (the 138th session's TEST-503 systemic hermeticity fix, 2026-10-04 — the Vitest seam disabled the f39eb17 canonical-production fallback in supabase-client.ts: the default test mode is MOCK again [T-314's contract restored], the t-393 diagnostics suite pinned to the vault-suite configured-mode pattern, +5 new t-472 hermeticity/guard tests — 4,680 passed / 0 failed / 5 skipped, 270 files). Prior move: T-470 (the 137th session's TEST-502 repair, 2026-10-03 — the battery FULLY GREEN for the first time since T-419 instituted the baseline: the refund-revert trio re-pinned with EXPLICIT evaluation clocks + both classification branches [future-due 'pending' / past-due 'overdue', the §15.81 wall-clock class], the t-390 import-time cycle broken [the mock composite extracted to infrastructure/mock/mock-composite.ts], the vault-compliance §02.06 pair pinned to mock mode [never touching production storage again], and the t-408 source-scan re-targeted to the composite's new home; net +5 tests [2 companion branch pins + the t-390 suite's 3 tests now actually running] — 4,675 passed / 0 failed / 5 skipped). Same-session prior move: the T-469 live-apply round moved the baseline to the 4,665/5-known-red state (+4 suites: t-466..t-469) — T-470's move supersedes it with the empty failing set. Prior: T-455 (127th session, 2026-10-01).",
+  "_task": "T-472 (the 138th session's TEST-503 systemic hermeticity fix, 2026-10-04) — the registered baseline move: 270 files (269 passed / 1 skipped), 4,685 tests (4,680 passed / 0 failed / 5 skipped). The failing-file set is EMPTY. Net +5 tests (the t-472 hermeticity seam + source-scan guard suite); the t-393 suite re-pinned to the configured-mode pin-per-suite pattern (12/12 unchanged). Supersedes T-470's move (same empty failing set, new count). The equivalence numbers reflect the T-459-closed PARITY-005 reality (tier-4: 784/820 equivalent, 36 skipped-with-reasons, 0 rows).",
   "testFiles": {
     "failed": 0,
-    "passed": 268,
+    "passed": 269,
     "skipped": 1,
-    "total": 269
+    "total": 270
   },
   "tests": {
     "failed": 0,
-    "passed": 4675,
+    "passed": 4680,
     "skipped": 5,
-    "total": 4680
+    "total": 4685
   },
   "failingFiles": [],
   "equivalence": {
