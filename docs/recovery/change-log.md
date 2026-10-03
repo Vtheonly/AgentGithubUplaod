@@ -1,3 +1,23 @@
+## 2026-10-04 — The 138th session (continued) — T-475 COMPLETE (the owner's Inspection-button UI consistency mandate): ONE canonical trigger design for every inspection button in the desktop app — the compat twin delegates to the core (one styling implementation), the polished visual language (h-7 / text-xs / the nowrap+truncate guards / the full interaction-state set), the dashboard cards normalized, the backup tab's Inspecter aligned; the battery 4 699/0/5 (the registered baseline move in the same commit)
+
+### The mandate
+
+The owner's 2026-10-04 session request: "fix the layout and UI of the Inspection buttons in the dashboard. Make sure the Inspection button layout, spacing, sizing, alignment, typography, and overall styling are consistent and polished. Then apply the same UI fix to all Inspection buttons throughout the entire desktop application… Do not change the underlying functionality or behavior of the buttons."
+
+### What was delivered
+
+**The census:** the inspection-button family = the core `InspectTrigger` + its DUPLICATE compat twin (the one the dashboard actually imports — two parallel styling implementations, §15.9) + ~15 usages across the analytics tab's three cards + the backup tab's « Inspecter » archive-inspection button. The CRM's « Inspecter la Famille » is a navigation button — deliberately outside the family.
+
+**The defects fixed:** sub-10px typography (below the app's 12px floor) with cramped `px-2 py-1` padding and no fixed height (mixed-height wrapped rows); NO focus-visible ring, NO active/disabled states; long auto-labels with no nowrap/truncate guard (the flex-wrap rows broke mid-label on narrow widths); the ad-hoc `mr-1` container spacing; the duplicate implementation.
+
+**The fix (UI-only):** `INSPECT_TRIGGER_CLASS` — the canonical design (h-7 fixed height = the app's sm-button standard; text-xs font-medium; whitespace-nowrap + max-w-56 with the label in a truncate span; hover bg + border emphasis; the focus-visible ring; active press; disabled) — exported from the core, re-exported by the compat, used by the backup tab's button (handler + data-testid byte-identical). The compat twin DELEGATES to the core component (its « Inspecter · {title} » label semantics + tooltip preserved). The three dashboard cards' containers normalized (uniform gap-2 + py-2.5, the section labels' consistent treatment).
+
+**The evidence:** the new suite 9/9 (the one-design pin · the invariants · the behavior-preserved click — the inspector still opens with the request's title · the family census source scans proving the delegation + no off-grid triggers); the inspector's existing suites (t-447 + t-468) 17/17 — no behavioral regression; the FULL battery **4 699/0/5** (272 files) with the registered baseline move; tsc 0; eslint 0.
+
+**Registry:** task-registry T-475 COMPLETE. **Evidence:** `src/tests/features/dashboard/t-475-inspection-button-consistency.test.tsx`.
+
+---
+
 ## 2026-10-04 — The 138th session (continued) — T-474 COMPLETE (the owner's class-roster mandate): the student multi-select on the class creation AND edit surfaces — the ONE shared `ClassStudentMultiSelect` (search + grade eligibility + the permissive toggle + the current-class badges) wired to the EXISTING `updateStudent(classId/null)` seam with strict per-student error collection; the battery 4 690/0/5 (the registered baseline move in the same commit)
 
 ### The mandate
