@@ -20,8 +20,10 @@
  *   - Notifications (DESKTOP-1): SupabaseNotificationRepository — `notifications`
  *     table (migration 0013) with the observable-cache pattern.
  *   - Personnel + Departments (DESKTOP-1): entity CRUD on `personnel` (0009)
- *     and `departments` (0010). Releve/timesheets, workforce tasks, chat,
- *     shifts, schedules and onboarding remain on the mock layer.
+ *     and `departments` (0010). Releve/timesheets (T-481), shifts, schedules
+ *     and onboarding remain on the mock layer (the WORKFORCE-102 standing
+ *     list). Workforce tasks (T-180), chat (T-099), leave requests (T-178),
+ *     attendance (T-217) and warehouse tasks (T-479) are Supabase-backed.
  *   - All other repositories: FALLBACK to mock implementations with a console
  *     warning. This allows incremental migration — each repository can be
  *     ported to Supabase independently without blocking the release.
@@ -74,6 +76,7 @@ import { SupabaseWorkforceAttendanceRepository } from "./repositories/supabase-w
 import { SupabasePurchaseRequestRepository } from "./repositories/supabase-purchase-request-repository";
 import { SupabaseDeliveryRepository } from "./repositories/supabase-delivery-repository";
 import { SupabaseInventoryRepository } from "./repositories/supabase-inventory-repository";
+import { SupabaseWarehouseTaskRepository } from "./repositories/supabase-warehouse-task-repository";
 import {
   SupabaseAcademicYearRepository,
   SupabaseAcademicLevelRepository,
@@ -316,6 +319,18 @@ export function getSupabaseRepositories(): Repositories {
   // super_admin/warehouse_worker/buyer/manager.
   const inventory = new SupabaseInventoryRepository(client);
 
+  // T-479 (2026-10-04, WORKFORCE-507 — the T-477 audit's find): wire the
+  // Supabase-backed warehouse-task repository onto pending_receipts +
+  // pending_dispatches (migration 0011 + 0139's 'preparing' widening).
+  // BEFORE this, the `warehouseTasks` slot stayed on mockRepositories even
+  // in Supabase mode — the warehouse dashboard's receipts/dispatches cards
+  // rendered the hard-coded SEED_RECEIPTS/SEED_DISPATCHES rows and every
+  // Réceptionner/Expédier click mutated in-memory arrays only, wiped on
+  // restart, while the canonical tables sat empty since 2026-08-31. RLS
+  // (0019): receipt writes super_admin/warehouse_worker/buyer/manager;
+  // dispatch writes super_admin/warehouse_worker/manager.
+  const warehouseTasks = new SupabaseWarehouseTaskRepository(client);
+
   // T-307 (48th session, T-047 Group-B port #1 — PRICING FIRST): wire the
   // Supabase-backed pricing repository onto the canonical 0006 tables
   // (pricing_configs + grade_level_tuition + transport_destinations +
@@ -398,6 +413,7 @@ export function getSupabaseRepositories(): Repositories {
     purchaseRequests, // T-238 — purchase_requests (T-047 port #7)
     deliveries, // T-239 — deliveries (T-047 port #8)
     inventory, // T-240 — inventory_items + transactions (T-047 port #9)
+    warehouseTasks, // T-479 — pending_receipts + pending_dispatches (WORKFORCE-507)
     pricing, // T-307 — the canonical 0006 pricing tables (T-047 port #10)
     backups, // T-415 (BKUP-501) — vault-local ciphertext + server metadata mirror
     // Other repositories remain on the mock layer for now. They will be
