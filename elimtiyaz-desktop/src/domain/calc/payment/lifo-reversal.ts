@@ -1,6 +1,12 @@
 /**
  * LIFO Reversal — reverses a prior waterfall allocation in reverse chronological order.
  * Invariant 5: reversalEntry.amount + originalEntry.amount === 0.
+ *
+ * ADR-033 (T-473 / PARITY-010, 2026-10-04): the post-revert zero-paid
+ * FUTURE-due status is "unpaid" — aligned with the SQL RPC (0034), the
+ * installments default (0007), create_manual_debt (0137), and the
+ * billing-breakdown display vocabulary. "pending" stays reserved for
+ * UNCLEARED-FUNDS semantics (payment clearance), per payment.ts.
  */
 import type { Installment } from "../../model/payment";
 import { clampNonNegative } from "../shared/money";
@@ -11,7 +17,8 @@ export interface RevertAllocation {
   readonly revertedAmount: number;
   readonly newAmountPaid: number;
   readonly newAmountPending: number;
-  readonly newStatus: "paid" | "partial" | "overdue" | "pending";
+  /** ADR-033: the zero-paid future-due branch is "unpaid" (was "pending" — the drift PARITY-010 registered). */
+  readonly newStatus: "paid" | "partial" | "overdue" | "unpaid";
   readonly reopened: boolean;
 }
 
@@ -22,12 +29,23 @@ export interface RevertAllocationResult {
   readonly reversalAmount: number;
 }
 
+/**
+ * ADR-033 (T-473 / PARITY-010): the zero-paid FUTURE-due branch returns
+ * "unpaid" — the tranche is back to its no-payment-activity state
+ * (payment.ts's documented meaning of "unpaid"), matching the SQL RPC
+ * revert_payment_allocation (0034: `ELSIF v_ins.due_date < NOW() THEN
+ * 'overdue' ELSE 'unpaid'`), the installments default (0007), and
+ * create_manual_debt (0137). The previous "pending" collided with the
+ * uncleared-funds meaning of "pending" in the payment domain and would
+ * have fallen OUT of the server-side outstanding-debt views
+ * (0021/0022: status IN ('unpaid','partial','overdue')).
+ */
 export function reevaluateInstallmentStatus(
   amountPaid: number, amountDue: number, dueDate: string, now: Date = new Date(),
-): "paid" | "partial" | "overdue" | "pending" {
+): "paid" | "partial" | "overdue" | "unpaid" {
   if (amountPaid >= amountDue && amountDue > 0) return "paid";
   if (amountPaid > 0) return "partial";
-  return isStrictlyPast(dueDate, now) ? "overdue" : "pending";
+  return isStrictlyPast(dueDate, now) ? "overdue" : "unpaid";
 }
 
 function reverseChronologically(a: Installment, b: Installment): number {

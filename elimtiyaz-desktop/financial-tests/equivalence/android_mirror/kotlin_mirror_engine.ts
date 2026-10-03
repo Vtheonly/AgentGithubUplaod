@@ -498,6 +498,11 @@ export function allocatePaymentToInstallments(
 }
 
 // Mirror of reevaluateInstallmentStatus
+// ADR-033 (T-473 / PARITY-010): the zero-paid FUTURE-due branch returns
+// "unpaid" (was "pending") — aligned with the desktop engine, the SQL RPC
+// (0034), and the outstanding-debt views' status set. The REAL Kotlin
+// engine (LifoReversal.kt) carries the same branch and is a cross-repo
+// follow-up registered in the divergence notes.
 export function reevaluateInstallmentStatus(
   amountPaid: number,
   amountDue: number,
@@ -507,7 +512,7 @@ export function reevaluateInstallmentStatus(
   if (amountPaid >= amountDue && amountDue > 0) return "paid";
   if (amountPaid > 0) return "partial";
   const dueMs = parseIsoInstantSafe(dueDate);
-  return dueMs >= 1 && dueMs < nowEpochMs ? "overdue" : "pending";
+  return dueMs >= 1 && dueMs < nowEpochMs ? "overdue" : "unpaid";
 }
 
 // Mirror of revertPaymentAllocation (LIFO revert with originalWasPending branch)

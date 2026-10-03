@@ -23,7 +23,14 @@ export interface ClearAllocation {
   readonly clearedAmount: number;
   readonly newAmountPaid: number;
   readonly newAmountPending: number;
-  readonly newStatus: "paid" | "partial" | "overdue" | "pending";
+  /**
+   * ADR-033 (T-473 / PARITY-010): the union widens to admit "unpaid" — the
+   * shared classifier's zero-paid future-due branch. The clearance path
+   * cannot REACH that branch in practice (a clearance moves funds IN, so
+   * newAmountPaid > 0 for every eligible tranche), but the type must admit
+   * the classifier's full range.
+   */
+  readonly newStatus: "paid" | "partial" | "overdue" | "unpaid";
   readonly fullySatisfied: boolean;
 }
 

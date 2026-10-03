@@ -256,10 +256,13 @@ describe("Sequence: payment → refund → re-pay (idempotency check)", () => {
 
     // Refund the full payment — T-470 / TEST-502: the evaluation clock is
     // EXPLICIT (before the due date) so the post-refund classification pins
-    // the FUTURE-due branch (→ "pending") deterministically. Before T-470
-    // the call omitted the clock and the mirror defaulted to the REAL wall
-    // clock — the pin passed only while the calendar was before 2026-09-15
-    // and detonated on the date (§15.81 class).
+    // the FUTURE-due branch deterministically. Before T-470 the call omitted
+    // the clock and the mirror defaulted to the REAL wall clock — the pin
+    // passed only while the calendar was before 2026-09-15 and detonated on
+    // the date (§15.81 class).
+    // ADR-033 (T-473 / PARITY-010, 2026-10-04): the branch's value is
+    // "unpaid" (was "pending") — the ruled vocabulary, aligned with the SQL
+    // RPC (0034) and the outstanding-debt views' status set.
     const refundResult = revertPaymentAllocation(installments, 5_000_000, "tuition", false, Date.parse("2026-09-01T00:00:00Z"));
     installments = installments.map((i) => {
       const rev = refundResult.reverts.find((r) => r.installmentId === i.id);
@@ -267,7 +270,7 @@ describe("Sequence: payment → refund → re-pay (idempotency check)", () => {
     });
 
     expect(installments[0].amountPaid).toBe(0);
-    expect(installments[0].status).toBe("pending");
+    expect(installments[0].status).toBe("unpaid");
 
     // Re-pay
     const repayResult = allocatePaymentToInstallments(installments, 5_000_000, "tuition", "paid");
