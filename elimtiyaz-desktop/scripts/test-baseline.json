@@ -1,17 +1,17 @@
 {
   "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-472 (the 138th session's TEST-503 systemic hermeticity fix, 2026-10-04 — the Vitest seam disabled the f39eb17 canonical-production fallback in supabase-client.ts: the default test mode is MOCK again [T-314's contract restored], the t-393 diagnostics suite pinned to the vault-suite configured-mode pattern, +5 new t-472 hermeticity/guard tests — 4,680 passed / 0 failed / 5 skipped, 270 files). Prior move: T-470 (the 137th session's TEST-502 repair, 2026-10-03 — the battery FULLY GREEN for the first time since T-419 instituted the baseline: the refund-revert trio re-pinned with EXPLICIT evaluation clocks + both classification branches [future-due 'pending' / past-due 'overdue', the §15.81 wall-clock class], the t-390 import-time cycle broken [the mock composite extracted to infrastructure/mock/mock-composite.ts], the vault-compliance §02.06 pair pinned to mock mode [never touching production storage again], and the t-408 source-scan re-targeted to the composite's new home; net +5 tests [2 companion branch pins + the t-390 suite's 3 tests now actually running] — 4,675 passed / 0 failed / 5 skipped). Same-session prior move: the T-469 live-apply round moved the baseline to the 4,665/5-known-red state (+4 suites: t-466..t-469) — T-470's move supersedes it with the empty failing set. Prior: T-455 (127th session, 2026-10-01).",
-  "_task": "T-482 (the 140th session's auto-Relevé server-side design / UNKNOWN-030 / ADR-034, 2026-10-04) — the registered baseline move: 276 files (275 passed / 1 skipped), 4,743 tests (4,738 passed / 0 failed / 5 skipped). The failing-file set is EMPTY. Net +11 tests (the new supabase-auto-releve suite: the bridge payload contract, the fail-safe pair, the autoKind read-side folds, the three classroom wiring pins, the migration/wiring source guards). Supersedes T-481's same-session move (4,727/0/5, 275 files).",
+  "_task": "T-483 (the 140th session's onboarding persistence port — the 0142 tenant-singleton model ruling + SupabaseOnboardingRepository, 2026-10-04) — the registered baseline move: 277 files (276 passed / 1 skipped), 4,753 tests (4,748 passed / 0 failed / 5 skipped). The failing-file set is EMPTY. Net +10 tests (the new supabase-onboarding-repository suite: the singleton INSERT/restart pair, the step round-trip, the data_json merge, reset, isComplete, persistence-across-reinstantiation, the corrupt-row guards, the migration/wiring source guards). Supersedes T-482's same-session move (4,738/0/5, 276 files).",
   "testFiles": {
     "failed": 0,
-    "passed": 275,
+    "passed": 276,
     "skipped": 1,
-    "total": 276
+    "total": 277
   },
   "tests": {
     "failed": 0,
-    "passed": 4738,
+    "passed": 4748,
     "skipped": 5,
-    "total": 4743
+    "total": 4753
   },
   "failingFiles": [],
   "equivalence": {
