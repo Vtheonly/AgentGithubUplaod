@@ -1,13 +1,14 @@
-# 2026-10-04 — The 139th session: the owner's Personnel-page full-audit mandate — T-477 (the audit: six problems registered BEFORE any fix) + T-478 (the "Recent Activity" removal) + T-479 (the warehouseTasks port, WORKFORCE-507) + T-480 (the wiring repairs: CHAT-301 + WORKFORCE-509/510 + DEAD-202) + T-481 (the Relevé port, WORKFORCE-508)
+# 2026-10-04 — The 139th session COMPLETE: T-477 (the Personnel page full audit — six problems registered BEFORE any fix) + T-478 (the "Recent Activity" removal) + T-479 (the warehouseTasks port — WORKFORCE-507 RESOLVED-TESTED, migration 0139 applied LIVE + verified 7/7) + T-480 (the wiring repairs — CHAT-301 + WORKFORCE-509/510 + DEAD-202 all RESOLVED-TESTED) + T-481 (the Relevé port — WORKFORCE-508 RESOLVED-TESTED, migration 0140 applied LIVE + verified 6/6 with the port's own discovery: the 0009 CHECK's 'surveillance' vs both clients' 'supervision'); the battery 4 699 → 4 727/0/5 across four registered baseline moves
 
 T-477 registered the audit's findings first (the §13 discipline): **WORKFORCE-507** (the warehouse dashboard's receipts/dispatches are MOCK SEED data — the canonical `pending_receipts`/`pending_dispatches` tables sat unused since 0011), **WORKFORCE-508** (the Relevé tab is a mock island keyed by the ACCOUNT id where the DB wants the PERSONNEL id, its teacher self-write form violates the 0009 RLS + `prevent_self_releve_entry` trigger, and the Android reads the real table the desktop never writes), **WORKFORCE-509** (two assignee-ID split-brains: the employee drawer's Tâches tab and the manager dashboard's team filter match ACCOUNT ids against PERSONNEL ids — always empty), **WORKFORCE-510** (three swallowed justification Results in the attendance center), **CHAT-301** (the worker→supervisor chat deep link dead end-to-end: a placeholder toast on the button + the internal scope ignoring `openWithPersonnelId`), **DEAD-202** (`personnel-detail-drawer.tsx` — 539 unreachable lines), and **UNKNOWN-030** (the auto-Relevé question: the canonical contract forbids teacher-self-recorded auto entries — an owner-gated ADR, deliberately not taken). VERIFIED CLEAN by the same audit: payroll (T-369), tasks (T-180/T-371), requests (T-178), chat core (T-099/T-463), workflows (T-177), the directory's core wiring.
 
-## Standing recommendation (updated by the 139th session)
+## Standing recommendation (updated by the 139th session closeout)
 
-1. **T-478..T-481 — the registered fix queue** (this session delivers them in registry order: the removal mandate first, then the warehouse port, then the wiring repairs, then the Relevé port).
-2. **UNKNOWN-030 — the owner's auto-Relevé ruling** (see unknowns.md; do NOT patch the server contract unilaterally).
+1. **OWNER (the eyeball pass):** the redesigned Relevé d'Activité tab (the admin staff picker + the read-only teacher view — §09.05), the warehouse dashboard's now-REAL receipts/dispatches (honest empty states until data flows), and the worker→supervisor chat deep link (the "Envoyer un message" button → the Messagerie with the DM open).
+2. **UNKNOWN-030 — the owner's auto-Relevé ruling** (see unknowns.md; do NOT patch the server contract unilaterally — a server-side auto-tracking design needs an ADR).
 3. **The onboarding mock slot** (the wizard is reachable only via the admin "Réinitialiser Onboarding" button, persists nothing; `onboarding_states` is per-personnel while the domain state is a tenant singleton — an owner-gated model decision, left registered).
-4. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
+4. **The shifts/schedules mock slots** (the employee drawer's "Horaires & Shifts" tab renders an honest empty state — no fake data displayed; the WORKFORCE-102 standing list owns them).
+5. **The standing queue:** SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 (reserved) · the TECHDEBT-100 family.
 
 ---
 

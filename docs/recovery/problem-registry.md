@@ -7162,7 +7162,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WORKFORCE-507 — The `warehouseTasks` slot renders MOCK SEED data in Supabase mode: the warehouse dashboard's receipts/dispatches cards are fake (canonical `pending_receipts`/`pending_dispatches` tables + RLS exist unused)
 
-- **Category:** WORKFORCE / mock-leak (the WORKFORCE-102 family)  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** WORKFORCE / mock-leak (the WORKFORCE-102 family)  |  **Severity:** High  |  **Status:** RESOLVED-TESTED (139th session, 2026-10-04 — T-479 branch `feat/t479-warehouse-supabase-port`, merged --no-ff to main. `SupabaseWarehouseTaskRepository` onto the canonical tables (reads with the suppliers/purchase_requests FK embeds + Σ items_json; the FULL receipt with received_at/received_by; the prepare→dispatch lifecycle with dispatched_at/dispatched_by; UUID-guarded actors; the name-typed create inputs resolved to FKs with note-preserved degradation); migration 0139 widened the dispatch CHECK with 'preparing' (applied LIVE via the Management-API SQL endpoint — HTTP 201; verify_t-479.sql 7/7 GREEN: the receipts shape, the widened CHECK keeping the 0011 vocabulary, a 'preparing' INSERT succeeding, a bogus status still raising check_violation, the registration row, the FK embed joins). The 12-test suite pins the mapping contract + the lifecycle + the guards + persistence-across-restart + the wiring source scans; the battery 4,711/0/5 with the registered baseline move. The mock stays for mock mode.)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-479 (docs/recovery/task-registry.md)
@@ -7175,7 +7175,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WORKFORCE-508 — The Relevé d'Activité tab is a mock island with a WRONG KEY and a contract-violating write path: keyed by `session.userId` (an account id — the DB column is an FK to `personnel(id)`), self clock-in by teachers is impossible under the canonical RLS + `prevent_self_releve_entry` trigger, and the Android reads the REAL `releve_entries` table the desktop never writes
 
-- **Category:** WORKFORCE / mock-leak + ID-space + cross-platform contract  |  **Severity:** Critical  |  **Status:** OPEN
+- **Category:** WORKFORCE / mock-leak + ID-space + cross-platform contract  |  **Severity:** Critical  |  **Status:** RESOLVED-TESTED (139th session, 2026-10-04 — T-481 branch `feat/t481-releve-supabase-port`, merged --no-ff to main. `SupabaseReleveRepository` onto releve_entries (the personnel-keyed reads + the admin-recorded write path with the server's RLS/trigger rejections surfaced); the ReleveTab redesigned to §09.05 (admins record FOR a selected member with recordedById = the acting session; teachers read-only on their PERSONNEL key — the self-write form removed); the logEntry contract extended with recordedById. **THE PORT'S DISCOVERY (migration 0140, applied LIVE — HTTP 201):** the 0009 CHECK admitted only the French 'surveillance' while BOTH clients' shared wire code is 'supervision' — every client Surveillance entry would have died check_violation; 0140 widens the CHECK (historical rows stay legal; the read side folds 'surveillance' → 'supervision'). verify_t-481.sql 6/6 GREEN (the first run's C2 FAIL is the discovery's live evidence trail). The 10-test suite + the battery 4,727/0/5 with the registered baseline move. UNKNOWN-030 (the auto-Relevé owner question) stays OPEN by design.)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop (+ cross-platform divergence vs Android which reads real `releve_entries`)
 - **Task:** T-481 (docs/recovery/task-registry.md)
@@ -7188,7 +7188,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WORKFORCE-509 — Two assignee-ID split-brains on Personnel surfaces: the employee profile drawer's "Tâches" tab matches `assigneeIds` (ACCOUNT ids, T-371) against a PERSONNEL id (always zero tasks), and the manager dashboard's team-task filter does the same (only the departmentId fallback matches)
 
-- **Category:** WORKFORCE / ID-space (the T-371/WORKFORCE-501 class)  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** WORKFORCE / ID-space (the T-371/WORKFORCE-501 class)  |  **Severity:** High  |  **Status:** RESOLVED-TESTED (139th session, 2026-10-04 — T-480 branch `fix/t480-personnel-wiring-repairs`, merged --no-ff to main. The drawer filters on `personnel.userId` (the account id, null-guarded); the manager dashboard builds `teamAccountIds` from the members' bound accounts for the task join while KEEPING the personnel-keyed teamIds for the leave/attendance filters (those tables ARE personnel-keyed). Pinned by the t-480 source-guard suite (the wrong-key predicates asserted absent, the repaired shapes asserted present); the battery 4,717/0/5.)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-480 (docs/recovery/task-registry.md)
@@ -7200,7 +7200,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### WORKFORCE-510 — The staff-attendance center swallows repository failures: the three justification handlers (request / worker-submit / admin-review) have NO error branch — a rejected write leaves the modal open with zero feedback
 
-- **Category:** WORKFORCE / error-surfacing (the T-370 never-swallow-a-Result rule)  |  **Severity:** Medium  |  **Status:** OPEN
+- **Category:** WORKFORCE / error-surfacing (the T-370 never-swallow-a-Result rule)  |  **Severity:** Medium  |  **Status:** RESOLVED-TESTED (139th session, 2026-10-04 — T-480. All three justification handlers carry `toast.showError(res.error.userMessage)` branches (the file's own T-374 clock-punch pattern); pinned by the t-480 source-guard suite (the error-toast count ≥ 4 + each new branch's exact string); the battery 4,717/0/5.)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-480 (docs/recovery/task-registry.md)
@@ -7212,7 +7212,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### CHAT-301 — The Personnel page's staff-chat deep link is dead end-to-end: the worker dashboard's "Envoyer un message" is a placeholder toast ("à venir dans une prochaine itération") that never calls its own `onOpenChat` prop, and `ChatPanel` ignores `openWithPersonnelId` for the internal scope (`!isPortal` early return)
 
-- **Category:** CHAT / placeholder + dead wiring  |  **Severity:** High  |  **Status:** OPEN
+- **Category:** CHAT / placeholder + dead wiring  |  **Severity:** High  |  **Status:** RESOLVED-TESTED (139th session, 2026-10-04 — T-480. The worker button calls `onOpenChat?.(supervisor.id)` (the placeholder toast deleted); ChatPanel honours `openWithPersonnelId` for BOTH scopes — the internal path resolves the staff personnel record and creates the DM through the canonical idempotent `create_direct_channel` RPC (the 0135 scope trigger derives 'internal' from the all-staff member set), so the Personnel page's deep link lands on the supervisor's DM. The scope SEPARATION itself (CHAT-300) is preserved — the two systems still never mix; the fix only makes the deep link work on both surfaces through the same canonical path. Pinned by the t-480 source-guard suite; the battery 4,717/0/5.)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-480 (docs/recovery/task-registry.md)
@@ -7224,7 +7224,7 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 ### DEAD-202 — `personnel-detail-drawer.tsx` (539 lines) is unreachable dead code: zero importers, zero tests — superseded by `employee-profile-drawer.tsx` (T-444 restored its tabs into the NEW drawer) but never deleted
 
-- **Category:** DEAD / unreachable code  |  **Severity:** Low  |  **Status:** OPEN
+- **Category:** DEAD / unreachable code  |  **Severity:** Low  |  **Status:** RESOLVED-TESTED (139th session, 2026-10-04 — T-480. The file is DELETED (reachability proven at registration: zero importers, zero tests, zero cross-repo consumers; git history preserves the forensic copy). Pinned by the t-480 source-guard suite (a restored copy fails the existsSync assertion); typecheck green with the file gone; the battery 4,717/0/5.)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop
 - **Task:** T-480 (docs/recovery/task-registry.md)
