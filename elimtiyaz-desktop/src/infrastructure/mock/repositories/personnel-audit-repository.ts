@@ -296,17 +296,26 @@ export class MockReleveRepository implements ReleveRepository {
     activity: ReleveActivity;
     classId: string | null;
     subjectId: string | null;
+    recordedById: string;
   }): Promise<Result<ReleveEntry>> {
     await delay(180);
-    const entry: ReleveEntry = { ...input, id: `rel-${Date.now()}`, recordedAt: nowIso() };
+    const { recordedById: _recordedById, ...entryInput } = input;
+    const entry: ReleveEntry = {
+      ...entryInput,
+      id: `rel-${Date.now()}`,
+      recordedAt: nowIso(),
+    };
     // Iteration 6: persist the entry so the relevé tab shows it.
     store.releve = [entry, ...store.releve];
     store.notifyReleve();
+    // T-481 (WORKFORCE-508): the audit actor is now the RECORDED-BY account
+    // (the acting administrator) — the pre-T-481 hardcoded "usr-current"
+    // misattributed every entry.
     appendAudit({
       action: AuditActions.ReleveCreate,
       entityType: "releve",
       entityId: entry.id,
-      actorId: "usr-current",
+      actorId: input.recordedById || "usr-current",
       actorName: "Session courante",
     });
     return Ok(entry);
