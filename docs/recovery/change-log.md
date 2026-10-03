@@ -4045,3 +4045,27 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **Regression + battery:** T-466's 0137 re-verified in the same round — `verify_t-466.sql` **14/14** (create_manual_debt untouched by 0138, confirmed not assumed); the full vitest battery at the repaired tree — **4 665 passed / 5 failed / 5 skipped**, TEST-502's five-file/five-test set byte-identical (ScenarioRunner + Tier4Boundary + Tier4OperationSequences refund-revert trio, t-390's import-time failure, the vault MIME pair); tsc clean. **The test-baseline.json registered move** (TEST-501's 12→5 repair + TEST-502's five cited, anchored by this round's two full verified runs) — the stale T-455-era baseline (17 failed) had been reporting DEVIATION on every run since the 136th session.
 
 **Commits:** `412d63a` (the migration repair + the verify-script fixes, five-question body) → the docs closeout — branch `fix/t469-0138-live-apply`, merged --no-ff to main, pushed per ADR-028. T-470 is now the #1 next item (its 0138 half DONE); the owner's device smoke of the four new surfaces follows.
+
+---
+
+---
+
+## 2026-10-03 — T-470 COMPLETE (137th session): TEST-502 repaired — the battery FULLY GREEN (4 675/0) for the first time since the baseline existed; the 0138 live application settled (already applied, VERIFIED 12/12 after three verify-script defect repairs); PARITY-010 + TEST-503 registered
+
+**Task:** T-470 — the TEST-502 repair (the five pre-existing red suites: the refund-revert trio, the t-390 import-time failure, the vault MIME pair) + the 0138 live application.
+
+**Problem:** TEST-502 (all three classes root-caused with evidence, repaired, and re-verified); TEST-503 and PARITY-010 (two NEW problems the investigation surfaced, registered per the persistence rule); the T-469 baseline-move miss (§15.84c).
+
+**Root causes:** (a) §15.81 wall-clock time bomb — the trio called the revert engines without the explicit evaluation clock, with 2026-09-15 due-date fixtures that the calendar passed on 2026-09-15; the ENGINE side was correct on all three implementations (desktop TS + Kotlin mirror + SQL 0034: zero-paid past-due → 'overdue'). (b) A runtime import cycle detonated by a module-scope side effect: infrastructure value-imported the app-layer provider. (c) NOT a fixture/MIME drift — the suite was uploading to the REAL production bucket because the f39eb17 production-URL fallback makes `isSupabaseConfigured()` true in the test env (the hermeticity repeal).
+
+**Change:** ScenarioRunner/Tier4Boundary/Tier4OperationSequences re-pinned with EXPLICIT clocks; BOTH classification branches now pinned (+2 companion tests); `src/infrastructure/mock/mock-composite.ts` extracted (the provider re-exports; supabase-repositories imports from infrastructure; the t-408 source-scan re-targeted); the vault suite pins mock mode via a partial vi.mock of supabase-client; verify_t-469.sql's C3/C4 moved into the role-downgraded block + the C7 cast fixed; the t-424 no-op-expression lint error repaired; scripts/test-baseline.json moved to the fully-green state (empty failing set, T-470 citation, equivalence section refreshed to the T-459 reality).
+
+**Verified:** typecheck clean; eslint 0 errors; the FULL battery **4 675 passed / 0 failed / 5 skipped** (269 files) — `BASELINE-MATCHED (0 documented failures)`, unified verdict GREEN (Layer-2: 810/0/10 desktop · 774/0/10/36 mirror · 784/820 tier-4 with 0 rows · 820/820 sanity, canonical 319/319); LIVE through the Management API: the drift census (local 133 = live minus the documented stray 0118), `verify_t-469.sql` **12/12** (C1–C10), the recent-task sentinels all GREEN (create_manual_debt / save_dashboard_layout / chat_channels.scope / dashboard_layouts / the chat-attachments member policies / the 10 debt seeds). Evidence: `docs/recovery/t-470-live-verification.md`.
+
+**Preserved:** the engines' semantics untouched (the parity evidence settled the tests as the wrong side); the production fallback's APP behaviour untouched (TEST-503 registers the systemic question rather than flipping global test behaviour); the stray live-0118 registration row untouched (documented, reconciled by 0120's design); the vault suite's non-attachment cases byte-identical in intent (they pass under the same mock answers).
+
+**Left:** PARITY-010 (the 'unpaid' vs 'pending' future-due vocabulary — owner/ADR question); TEST-503's systemic fix (the VITEST-flag seam or the enforced pin-per-suite pattern — its own registered task); the Android amount-band surface (T-469's cross-repo follow-up); the standing queue (SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 · TECHDEBT-100).
+
+**Next:** the branch-consolidation closeout (this session's second mandate: the containment census of the ~36 remote branches + the guarded deletion of the merged ones), then the standing queue.
+
+**Related:** TEST-502 · TEST-501 · TEST-503 · PARITY-010 · INV-8 · T-469 (the discovering task) · AGENTS.md §15.83.

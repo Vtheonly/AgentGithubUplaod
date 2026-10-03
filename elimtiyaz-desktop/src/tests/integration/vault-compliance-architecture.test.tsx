@@ -24,6 +24,37 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+
+// T-470 (TEST-502 class c) — the §02.06 attachment cases MUST run against
+// the in-memory vault (the suite's documented contract: "the tests' mock
+// mode", vitest.config's T-314 hermetic env). Since the owner's f39eb17
+// "normalize Supabase runtime URL" commit, `supabase-client.ts` falls back
+// to the CANONICAL PRODUCTION URL when no env/localStorage config exists —
+// which is exactly the test env — so `isSupabaseConfigured()` returned TRUE
+// and these cases uploaded to the REAL production `homework-attachments`
+// bucket over the network (dying on the bucket's allowed-mime gate via the
+// jsdom-File/undici-FormData MIME mismatch, "text/plain;charset=UTF-8").
+// A test must never touch production storage: pin the client module to its
+// mock-mode answers for this whole suite (the LLM-routing cases below pass
+// under the same answers — the edge adapter's "not configured" error path
+// is the one it documents).
+vi.mock("../../infrastructure/supabase/supabase-client", async (importOriginal) => {
+  const original = await importOriginal<
+    typeof import("../../infrastructure/supabase/supabase-client")
+  >();
+  return {
+    ...original,
+    supabaseUrl: undefined,
+    supabaseAnonKey: undefined,
+    useSupabase: false,
+    isSupabaseConfigured: () => false,
+    getSupabaseClient: () => {
+      throw new Error(
+        "vault-compliance suite: mock mode is pinned — the production client must not be constructed",
+      );
+    },
+  };
+});
 import {
   deterministicActivationCode,
   activationCode as randomActivationCode,

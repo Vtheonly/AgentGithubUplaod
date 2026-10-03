@@ -75,65 +75,14 @@ import type {
   WarehouseTaskRepository,
 } from "../../domain/repository/operations-repository";
 
-import {
-  mockAuthRepository,
-  mockUserAccountRepository,
-  mockParentRepository,
-  mockStudentRepository,
-  mockClassRepository,
-  mockSubjectRepository,
-  mockGradeRepository,
-  mockAttendanceRepository,
-  mockHomeworkRepository,
-  mockPaymentRepository,
-  mockInstallmentRepository,
-  mockDebtRepository,
-  mockExpenseRepository,
-  mockPersonnelRepository,
-  mockReleveRepository,
-  mockAuditRepository,
-  mockNotificationRepository,
-  mockDashboardRepository,
-  mockDashboardLayoutRepository,
-  mockPricingRepository,
-  mockLedgerRepository,
-  mockWorkflowRepository,
-  mockWorkflowRunRepository,
-  mockAIConfigRepository,
-  mockBackupRepository,
-  mockCalendarRepository,
-  mockOverdueAlertGenerator,
-  mockPromotionRepository,
-  mockClassPlacementRepository,
-  mockPromotionCycleRepository,
-  mockReEnrollmentRepository,
-  mockIdentityResolutionRepository,
-  mockAcademicYearRepository,
-  mockAcademicLevelRepository,
-  mockClubRepository,
-  mockPsychologyRepository,
-  mockOrthophonieRepository,
-  mockTeacherRepository,
-} from "../../infrastructure/mock/mock-repositories";
-import {
-  mockDepartmentRepository,
-  mockShiftRepository,
-  mockScheduleRepository,
-  mockTaskRepository,
-  mockWorkforceAttendanceRepository,
-  mockLeaveRequestRepository,
-  mockPerformanceReviewRepository,
-  mockChatRepository,
-  mockOnboardingRepository,
-} from "../../infrastructure/mock/workforce";
-import {
-  mockSupplierRepository,
-  mockPurchaseRequestRepository,
-  mockDeliveryRepository,
-  mockInventoryRepository,
-  mockWarehouseTaskRepository,
-} from "../../infrastructure/mock/operations";
-import { mockTimetableRepository } from "../../infrastructure/mock/repositories/timetable-repository";
+// T-470 (TEST-502 class b) — the composite now lives in infrastructure
+// (`infrastructure/mock/mock-composite.ts`) so `supabase-repositories.ts`
+// can spread it WITHOUT value-importing this app-layer module (the runtime
+// cycle that detonated the t-390 suite at import time). Re-exported here so
+// every existing importer of `repository-provider`'s `mockRepositories`
+// keeps working unchanged.
+import { mockRepositories } from "../../infrastructure/mock/mock-composite";
+export { mockRepositories } from "../../infrastructure/mock/mock-composite";
 import type { TimetableRepository } from "../../domain/repository/timetable-repository";
 import type { IdentityResolutionRepository } from "../../domain/identity/repository";
 
@@ -211,65 +160,6 @@ export interface Repositories {
   readonly calendar: CalendarRepository;
   readonly overdueAlerts: OverdueAlertGenerator;
 }
-
-export const mockRepositories: Repositories = {
-  auth: mockAuthRepository,
-  userAccounts: mockUserAccountRepository,
-  parents: mockParentRepository,
-  students: mockStudentRepository,
-  classes: mockClassRepository,
-  subjects: mockSubjectRepository,
-  grades: mockGradeRepository,
-  attendance: mockAttendanceRepository,
-  homework: mockHomeworkRepository,
-  promotion: mockPromotionRepository,
-  classPlacement: mockClassPlacementRepository,
-  promotionCycles: mockPromotionCycleRepository,
-  reEnrollment: mockReEnrollmentRepository,
-  identityResolution: mockIdentityResolutionRepository,
-  timetable: mockTimetableRepository,
-  academicYears: mockAcademicYearRepository,
-  academicLevels: mockAcademicLevelRepository,
-  clubs: mockClubRepository,
-  psychology: mockPsychologyRepository,
-  orthophonie: mockOrthophonieRepository,
-  teachers: mockTeacherRepository,
-  payments: mockPaymentRepository,
-  installments: mockInstallmentRepository,
-  debt: mockDebtRepository,
-  expenses: mockExpenseRepository,
-  personnel: mockPersonnelRepository,
-  releve: mockReleveRepository,
-  audit: mockAuditRepository,
-  notifications: mockNotificationRepository,
-  dashboard: mockDashboardRepository,
-  dashboardLayouts: mockDashboardLayoutRepository,
-  pricing: mockPricingRepository,
-  ledger: mockLedgerRepository,
-  workflows: mockWorkflowRepository,
-  workflowRuns: mockWorkflowRunRepository,
-  aiConfig: mockAIConfigRepository,
-  backups: mockBackupRepository,
-
-  departments: mockDepartmentRepository,
-  shifts: mockShiftRepository,
-  schedules: mockScheduleRepository,
-  tasks: mockTaskRepository,
-  workforceAttendance: mockWorkforceAttendanceRepository,
-  leaveRequests: mockLeaveRequestRepository,
-  performanceReviews: mockPerformanceReviewRepository,
-  chat: mockChatRepository,
-  onboarding: mockOnboardingRepository,
-
-  suppliers: mockSupplierRepository,
-  purchaseRequests: mockPurchaseRequestRepository,
-  deliveries: mockDeliveryRepository,
-  inventory: mockInventoryRepository,
-  warehouseTasks: mockWarehouseTaskRepository,
-
-  calendar: mockCalendarRepository,
-  overdueAlerts: mockOverdueAlertGenerator,
-};
 
 const RepositoryContext = createContext<Repositories>(mockRepositories);
 

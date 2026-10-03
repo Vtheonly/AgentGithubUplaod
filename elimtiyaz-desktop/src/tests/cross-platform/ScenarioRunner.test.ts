@@ -359,14 +359,44 @@ describe("cross-platform scenario: refund_cleared_payment", () => {
       10_000_000,
       "tuition",
       false,  // originalWasPending — payment was PAID
+      now,    // T-470 / TEST-502 — the evaluation clock is EXPLICIT: the
+              // scenario's own timeline (reversal at 2026-09-25, due date
+              // 2026-09-15) makes this a PAST-due revert. Before T-470 the
+              // call omitted `now`, so the engine defaulted to the REAL
+              // wall clock — the pin passed only while the calendar was
+              // before 2026-09-15 and detonated on the date (§15.81 class).
     );
     expect(revert.reverts).toHaveLength(1);
     expect(revert.reverts[0].newAmountPaid).toBe(0);
-    // CANONICAL-FINANCIAL-LOGIC.md §7.3 — `reevaluateInstallmentStatus` uses
-    // "pending" (not "unpaid") for the post-revert state when amountPaid=0
-    // and the due date is in the future. The "unpaid" status is reserved
-    // for initial installment creation, not post-revert state.
-    expect(revert.reverts[0].newStatus).toBe("pending");
+    // T-470 / TEST-502 — the settled INV-8 semantics, with the cross-platform
+    // parity evidence (desktop `reevaluateInstallmentStatus`, the Kotlin
+    // mirror, and the SQL RPC `revert_payment_allocation` [0034] all agree):
+    // a fully-reverted installment with amountPaid=0 is classified from the
+    // due date at the evaluation clock — PAST due → "overdue" (the SQL
+    // branch `ELSIF v_ins.due_date < NOW() THEN 'overdue'`). The future-due
+    // branch (→ "pending", never "unpaid") is pinned by the companion
+    // assertion below, so BOTH branches of the zero-paid classification are
+    // covered deterministically — neither depends on the real clock.
+    expect(revert.reverts[0].newStatus).toBe("overdue");
+
+    // The companion FUTURE-due branch: the same full revert evaluated while
+    // the due date is still ahead lands on "pending" — the post-revert state
+    // uses "pending" (never "unpaid"; "unpaid" is reserved for initial
+    // installment creation per the legacy §7.3 note).
+    const futureDueInstallment = {
+      ...waterfallInstallment,
+      id: "ins-001-future",
+      dueDate: "2026-10-15T00:00:00Z",
+    };
+    const futureRevert = revertPaymentAllocation(
+      [futureDueInstallment],
+      10_000_000,
+      "tuition",
+      false,
+      now,
+    );
+    expect(futureRevert.reverts[0].newAmountPaid).toBe(0);
+    expect(futureRevert.reverts[0].newStatus).toBe("pending");
 
     const balance = computeAccountBalance(entries, accountId, now);
     expect(balance.balance).toBe(10_000_000);

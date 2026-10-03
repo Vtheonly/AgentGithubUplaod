@@ -452,7 +452,11 @@ describe("T-408 — the academic-level catalog (ACAD-506)", () => {
   it("the provider exposes the academicLevels slot on both repository sets", () => {
     const provider = read("app/providers/repository-provider.tsx");
     expect(provider).toMatch(/academicLevels:\s*AcademicLevelRepository/);
-    expect(provider).toMatch(/academicLevels:\s*mockAcademicLevelRepository/);
+    // T-470 (TEST-502 class b) — the mock composite moved from the provider
+    // to infrastructure/mock/mock-composite.ts (the runtime-cycle break);
+    // the slot invariant is unchanged, its home file moved with the object.
+    const composite = read("infrastructure/mock/mock-composite.ts");
+    expect(composite).toMatch(/academicLevels:\s*mockAcademicLevelRepository/);
     const supabaseSet = read("infrastructure/supabase/supabase-repositories.ts");
     expect(supabaseSet).toMatch(/academicLevels,\s*\/\/\s*T-408/);
     expect(supabaseSet).toMatch(/teachers,\s*\/\/\s*T-408/);

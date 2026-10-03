@@ -158,19 +158,46 @@ begin
                           'app_metadata', json_build_object('tenant_id', v_tenant))::text, true);
     set local role authenticated;
 
-    -- C7: the staff read path sees the EXTENDED payload.
+    -- C7: the staff read path sees the EXTENDED payload — and (the T-470
+    -- convergence) the RUNTIME payload keys are asserted HERE alongside the
+    -- catalog-level definition checks above: the definition check proves the
+    -- reader's SOURCE carries the contract; C3b/C4b prove the RETURNED jsonb
+    -- actually does (both layers, after the two independent 137th-session
+    -- repairs converged on the same C7 cast fix).
     begin
         v_payload := public.read_debt_aging_thresholds();
         -- C10's boundaries are pinned against the SEED edges (captured
         -- BEFORE the C8 round-trip mutates them inside this transaction).
         v_yellow := (v_payload->>'amountYellowDzd')::numeric;
         v_red := (v_payload->>'amountRedDzd')::numeric;
+
+        insert into t469_results values ('C3b_runtime_payload_extended_keys',
+            v_payload ? 'amountYellowDzd'
+            and v_payload ? 'amountRedDzd'
+            and v_payload ? 'levelMessages'
+            and (v_payload->'levelMessages') ? 'green'
+            and (v_payload->'levelMessages') ? 'yellow'
+            and (v_payload->'levelMessages') ? 'orange'
+            and (v_payload->'levelMessages') ? 'red',
+            'keys=' || coalesce(substring(v_payload::text from 1 for 140), 'RUNTIME-READER-FAILED'));
+
+        insert into t469_results values ('C4b_runtime_payload_day_keys',
+            v_payload ? 'gracePeriodDays'
+            and v_payload ? 'yellowDays'
+            and v_payload ? 'redDays'
+            and v_payload ? 'activePayerGraceDays',
+            'the T-443 day contract intact at runtime');
+
         insert into t469_results values ('C7_staff_reads_extended',
             v_payload ? 'amountYellowDzd' and v_payload ? 'levelMessages',
             'yellow=' || coalesce(v_payload->>'amountYellowDzd','?')
             || ' red=' || coalesce(v_payload->>'amountRedDzd','?')
             || ' msgs=' || coalesce((v_payload->'levelMessages')::text,'?'));
     exception when others then
+        insert into t469_results values ('C3b_runtime_payload_extended_keys', false,
+            'reader raised: ' || sqlerrm);
+        insert into t469_results values ('C4b_runtime_payload_day_keys', false,
+            'reader raised: ' || sqlerrm);
         insert into t469_results values ('C7_staff_reads_extended', false, sqlerrm);
     end;
 

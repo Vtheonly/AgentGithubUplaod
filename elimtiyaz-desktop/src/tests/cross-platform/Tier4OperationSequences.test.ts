@@ -254,8 +254,13 @@ describe("Sequence: payment → refund → re-pay (idempotency check)", () => {
       { id: "ins-1", category: "tuition", amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15", status: "paid" },
     ];
 
-    // Refund the full payment
-    const refundResult = revertPaymentAllocation(installments, 5_000_000, "tuition", false);
+    // Refund the full payment — T-470 / TEST-502: the evaluation clock is
+    // EXPLICIT (before the due date) so the post-refund classification pins
+    // the FUTURE-due branch (→ "pending") deterministically. Before T-470
+    // the call omitted the clock and the mirror defaulted to the REAL wall
+    // clock — the pin passed only while the calendar was before 2026-09-15
+    // and detonated on the date (§15.81 class).
+    const refundResult = revertPaymentAllocation(installments, 5_000_000, "tuition", false, Date.parse("2026-09-01T00:00:00Z"));
     installments = installments.map((i) => {
       const rev = refundResult.reverts.find((r) => r.installmentId === i.id);
       return rev ? { ...i, amountPaid: rev.newAmountPaid, amountPending: rev.newAmountPending, status: rev.newStatus } : i;
@@ -265,6 +270,30 @@ describe("Sequence: payment → refund → re-pay (idempotency check)", () => {
     expect(installments[0].status).toBe("pending");
 
     // Re-pay
+    const repayResult = allocatePaymentToInstallments(installments, 5_000_000, "tuition", "paid");
+    expect(repayResult.allocations[0].fullySatisfied).toBe(true);
+    expect(repayResult.allocations[0].newStatus).toBe("paid");
+  });
+
+  it("mirror: a refund evaluated after the due date leaves the installment overdue until re-paid (the past-due branch)", () => {
+    // T-470 / TEST-502 — the companion PAST-due branch: the same sequence
+    // evaluated AFTER the due date classifies the refunded installment as
+    // "overdue" (the SQL RPC 0034 / desktop / mirror parity contract), and
+    // the re-pay still clears it to "paid" — the idempotency holds on BOTH
+    // branches of the post-refund classification.
+    let installments: WaterfallInstallment[] = [
+      { id: "ins-1", category: "tuition", amountDue: 5_000_000, amountPaid: 5_000_000, amountPending: 0, dueDate: "2026-09-15", status: "paid" },
+    ];
+
+    const refundResult = revertPaymentAllocation(installments, 5_000_000, "tuition", false, Date.parse("2026-09-25T00:00:00Z"));
+    installments = installments.map((i) => {
+      const rev = refundResult.reverts.find((r) => r.installmentId === i.id);
+      return rev ? { ...i, amountPaid: rev.newAmountPaid, amountPending: rev.newAmountPending, status: rev.newStatus } : i;
+    });
+
+    expect(installments[0].amountPaid).toBe(0);
+    expect(installments[0].status).toBe("overdue");
+
     const repayResult = allocatePaymentToInstallments(installments, 5_000_000, "tuition", "paid");
     expect(repayResult.allocations[0].fullySatisfied).toBe(true);
     expect(repayResult.allocations[0].newStatus).toBe("paid");
