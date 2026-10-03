@@ -32,6 +32,26 @@
 --      TS `DebtAgingThresholds` extension (the 0111/0133 convention).
 --
 -- Follows ADR-001: NEW migration only — 0125/0133 are never edited.
+--
+-- IN-PLACE REPAIR (137th session, 2026-10-03 — the 0138 live-apply round):
+-- the original §1 VALUES clause mixed an INTEGER literal (20000/60000 in
+-- the first two rows) with ''-literals in the same default_value column
+-- (the four message rows). A Postgres VALUES relation resolves ONE type
+-- per column — the integer row won resolution and coerced '' to int4,
+-- so the migration failed at execution time with
+--   22P02: invalid input syntax for type integer: ""
+-- on EVERY Postgres (dead-on-arrival — never applied anywhere: the live
+-- schema_migrations had no 0138 row, zero seeds, the pre-0138 reader).
+-- The repair is covered by the append-only discipline's own scope (AGENTS.md
+-- §15.9 / T-058: "already-applied migrations are NEVER edited" — this one
+-- had applied NOWHERE; a follow-up migration could NOT unblock the fresh
+-- chain, which hard-fails at 0138 before reaching any successor).
+-- The fix: every default_value literal is now a text literal and the jsonb
+-- conversion branches on value_type — to_jsonb(default_value::numeric) for
+-- 'number' rows (JSON NUMBER 20000 — the 0125 seed convention preserved),
+-- to_jsonb(default_value) for 'string' rows (JSON STRING ""). Probed on the
+-- live instance before re-applying (jsonb_typeof: number/string as
+-- intended — zero-residue temp-table probe).
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -47,7 +67,10 @@ select t.tenant_id,
        v.label_en,
        v.description_fr,
        v.value_type,
-       to_jsonb(v.default_value),
+       case when v.value_type = 'number'
+            then to_jsonb((v.default_value)::numeric)
+            else to_jsonb(v.default_value)
+       end,
        false,
        true,
        v.sort_order,
@@ -62,10 +85,10 @@ cross join (
     values
         ('debt.amount_threshold_yellow_dzd', 'Seuil montant « À surveiller » (DZD)', 'Amount threshold yellow (DZD)',
          'Encours au-delà duquel le MONTANT dû passe en « à surveiller » (dimension montant — indépendante du vieillissement en jours).',
-         'number', 20000, 90, 0, 100000000),
+         'number', '20000', 90, 0, 100000000),
         ('debt.amount_threshold_red_dzd', 'Seuil montant « Critique » (DZD)', 'Amount threshold red (DZD)',
          'Encours au-delà duquel le MONTANT dû est « critique » (dimension montant — indépendante du vieillissement en jours).',
-         'number', 60000, 91, 0, 100000000),
+         'number', '60000', 91, 0, 100000000),
         ('debt.level_message_green', 'Message niveau VERT (optionnel)', 'Level message green (optional)',
          'Message affiché avec le statut vert ; vide = l''explication canonique du moteur suffit.',
          'string', '', 92, null, null),
