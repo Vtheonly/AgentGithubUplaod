@@ -49,10 +49,14 @@
  *      as the repository's Err with the server's userMessage (the UI's
  *      admin form records FOR a selected staff member; the teacher view
  *      is read-only).
- *   6. autoKind: always null on this path — the mock's auto-populated
- *      entries (grades/homework/roll-call) cannot exist under the
- *      canonical contract (a teacher's own auto-entry would fire the
- *      trigger); UNKNOWN-030 registers the owner question.
+ *   6. autoKind ↔ auto_kind (T-482/ADR-034/migration 0141): rows written by
+ *      the canonical `record_auto_releve_entry` RPC carry entry_source=
+ *      'auto' + their kind; the manual rows written by logEntry keep the
+ *      'manual' default (auto_kind stays null — the coupling CHECK
+ *      enforces it server-side). The Relevé tab's existing "auto" badge
+ *      renders these with zero UI change. The 0009-era note that auto
+ *      entries "cannot exist under the canonical contract" was resolved
+ *      by UNKNOWN-030's ruling (ADR-034).
  *   7. duration_minutes is GENERATED server-side — never written.
  *
  * RLS (0019): SELECT = the staff quartet OR own-personnel (the teacher
@@ -97,12 +101,21 @@ interface ReleveRow {
   recorded_by: string;
   recorded_at: string;
   created_at: string;
+  // T-482 (ADR-034 / migration 0141): present on rows written after 0141;
+  // older rows (and the fake-client fixtures) may omit them.
+  entry_source?: string | null;
+  auto_kind?: string | null;
   personnel?: { first_name: string | null; last_name: string | null } | null;
 }
 
 const DOMAIN_ACTIVITIES: ReadonlySet<string> = new Set([
   "course", "meeting", "supervision", "correction",
   "task", "delivery", "warehouse", "other",
+]);
+
+/** The migration-0141 §09.06 auto kinds (mapping note 6's fold guard). */
+const AUTO_KINDS: ReadonlySet<string> = new Set([
+  "grade_entry", "homework_push", "roll_call",
 ]);
 
 /** The 0140 alias fold: the 0009 French spelling → the clients' wire code. */
@@ -164,7 +177,10 @@ function mapRow(row: ReleveRow): ReleveEntry {
     activity: activityFromDb(row.activity_type),
     classId: row.class_id,
     subjectId: null, // mapping note 4 — no 0009 column; folded into description at write.
-    autoKind: null, // mapping note 6 — the canonical path has no auto entries.
+    autoKind:
+      row.entry_source === "auto" && row.auto_kind && AUTO_KINDS.has(row.auto_kind)
+        ? (row.auto_kind as ReleveEntry["autoKind"])
+        : null, // mapping note 6 — T-482/ADR-034 (unknown kinds fold to null)
     note: row.description,
     recordedAt: row.recorded_at,
   };
