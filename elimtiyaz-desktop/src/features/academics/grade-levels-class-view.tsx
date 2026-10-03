@@ -48,6 +48,7 @@ import {
 import type { AcademicClass } from "../../domain/model/academic";
 import { getFilieresForGrade, getSpecialitesForFiliere, normalizeTrackCode, trackLabelFr } from "../../domain/model/filiere";
 import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
+import { ClassStudentMultiSelect } from "./placement/class-student-multi-select";
 
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
 
@@ -347,6 +348,26 @@ function CreateClassModal({
   const [specialiteCode, setSpecialiteCode] = useState("");
   const [alert, setAlert] = useState<Alert | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // T-474: the students to link to the class at creation time (the owner's
+  // class-roster mandate — a real persistence link, applied right after
+  // createClass succeeds through the surface's own seam:
+  // repos.students.updateStudent(id, { classId })).
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  function toggleStudent(studentId: string) {
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  }
+
+  function replaceStudentSelection(ids: readonly string[]) {
+    setSelectedStudentIds(new Set(ids));
+  }
 
   // The canonical catalog for the selected grade — never a page-local list.
   const filieres = getFilieresForGrade(gradeCode);
@@ -444,13 +465,39 @@ function CreateClassModal({
     setSubmitting(false);
 
     if (result.ok) {
+      // T-474: link the selected students to the NEWLY created class through
+      // the existing persistence seam (updateStudent classId — the same call
+      // the class-detail « Ajouter un élève » dialog makes). Strict
+      // per-student error collection (the T-370 lesson: a repository Result
+      // is never swallowed): a partial outcome is reported honestly and the
+      // failure list is actionable from the class page.
+      const newClassId = result.value.id;
+      let assignedCount = 0;
+      const failedStudents: string[] = [];
+      for (const studentId of selectedStudentIds) {
+        const assignResult = await repos.students.updateStudent(studentId, {
+          classId: newClassId,
+        });
+        if (assignResult.ok) assignedCount += 1;
+        else failedStudents.push(assignResult.error.userMessage);
+      }
+
       toast.showSuccess(
         "Classe créée",
-        `« ${derivedName} » a été ajoutée au niveau ${GRADE_LEVEL_LABELS_FR[gradeCode]}.`,
+        failedStudents.length === 0
+          ? `« ${derivedName} » a été ajoutée au niveau ${GRADE_LEVEL_LABELS_FR[gradeCode]}${assignedCount > 0 ? ` · ${assignedCount} élève${assignedCount > 1 ? "s" : ""} affecté${assignedCount > 1 ? "s" : ""}` : ""}.`
+          : `« ${derivedName} » créée · ${assignedCount} élève(s) affecté(s) · ${failedStudents.length} affectation(s) en échec — réessayez depuis la page de la classe.`,
       );
+      if (failedStudents.length > 0) {
+        toast.showError(
+          "Affectations partiellement échouées",
+          failedStudents[0],
+        );
+      }
       onOpenChange(false);
       setCustomName("");
       setNotes("");
+      setSelectedStudentIds(new Set());
     } else {
       setAlert({
         tone: "error",
@@ -605,6 +652,15 @@ function CreateClassModal({
             rows={3}
           />
         </FormField>
+        {/* T-474 — the owner's class-roster mandate: select the students who
+            belong to the class at creation time. Eligibility follows the
+            selected grade level above; the picker widens on demand. */}
+        <ClassStudentMultiSelect
+          gradeCode={gradeCode}
+          selectedIds={selectedStudentIds}
+          onToggle={toggleStudent}
+          onReplaceSelection={replaceStudentSelection}
+        />
       </div>
     </UnifiedModal>
   );

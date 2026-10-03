@@ -56,6 +56,8 @@ import { Permission } from "../../core/rbac/permissions";
 import { ClassSubjectsTab } from "./class-subjects-tab";
 import { ClassAttendanceTab } from "./class-attendance-tab";
 import { ClassGradesTab } from "./class-grades-tab";
+// T-474: the shared student multi-select (the owner's class-roster mandate).
+import { ClassStudentMultiSelect } from "./placement/class-student-multi-select";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import { NarrativeGeneratorButton } from "./narrative-generator-modal";
@@ -172,6 +174,31 @@ export function ClassDetailPage() {
   const [classNameInput, setClassNameInput] = useState("");
   const [classNotesInput, setClassNotesInput] = useState("");
   const [gradeSubject, setGradeSubject] = useState<string>(NO_SUBJECT);
+  // T-474 — the owner's class-roster mandate: the edit modal's student
+  // multi-select. The selection is seeded from the CURRENT roster each time
+  // the modal opens (see the open handler below) so the pre-checked state is
+  // always live; saving applies the add/remove diff through the surface's
+  // own persistence seam (updateStudent classId / null).
+  const [rosterSelection, setRosterSelection] = useState<Set<string>>(
+    new Set(),
+  );
+
+  function toggleRosterStudent(studentId: string) {
+    setRosterSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  }
+
+  function replaceRosterSelection(ids: readonly string[]) {
+    setRosterSelection(new Set(ids));
+  }
+
+  // T-474: the edit-modal submit is async-batched (class details + the
+  // roster diff) — the modal's submit button shows the in-flight state.
+  const [submittingClassEdit, setSubmittingClassEdit] = useState(false);
 
   const eligibleTeachers = useMemo(() => {
     return personnel.filter(
@@ -274,20 +301,63 @@ export function ClassDetailPage() {
 
   async function handleSaveClassDetails() {
     if (!cls) return;
-    const result = await repos.classes.updateClass(cls.id, {
-      name: classNameInput.trim() || cls.name,
-      room: customRoom.trim() || cls.room,
-      notes: classNotesInput.trim() || null,
-    });
+    setSubmittingClassEdit(true);
+    try {
+      const result = await repos.classes.updateClass(cls.id, {
+        name: classNameInput.trim() || cls.name,
+        room: customRoom.trim() || cls.room,
+        notes: classNotesInput.trim() || null,
+      });
+      if (!result.ok) {
+        toast.showError("Échec", result.error.userMessage);
+        return;
+      }
 
-    if (result.ok) {
-      toast.showSuccess(
-        "Classe mise à jour",
-        "Les détails de la classe ont été modifiés.",
-      );
-      setEditClassOpen(false);
-    } else {
-      toast.showError("Échec", result.error.userMessage);
+      // T-474: apply the roster diff — the students checked/unchecked in
+      // the edit modal's multi-select. ADDED → updateStudent(classId) (the
+      // same seam as « Ajouter un élève »); REMOVED → updateStudent(null).
+      // Strict per-student error collection (the T-370 lesson: never
+      // swallow a repository Result): a partial outcome is reported
+      // honestly with the counts, and the failures are actionable by
+      // re-opening the modal.
+      const currentMemberIds = new Set(students.map((s) => s.id));
+      const toAdd = [...rosterSelection].filter((id) => !currentMemberIds.has(id));
+      const toRemove = [...currentMemberIds].filter((id) => !rosterSelection.has(id));
+      let applied = 0;
+      const failures: string[] = [];
+
+      for (const studentId of toAdd) {
+        const r = await repos.students.updateStudent(studentId, {
+          classId: cls.id,
+        });
+        if (r.ok) applied += 1;
+        else failures.push(r.error.userMessage);
+      }
+      for (const studentId of toRemove) {
+        const r = await repos.students.updateStudent(studentId, {
+          classId: null,
+        });
+        if (r.ok) applied += 1;
+        else failures.push(r.error.userMessage);
+      }
+
+      if (failures.length === 0) {
+        const changes = toAdd.length + toRemove.length;
+        toast.showSuccess(
+          "Classe mise à jour",
+          changes === 0
+            ? "Les détails de la classe ont été modifiés."
+            : `Détails modifiés · ${toAdd.length} élève(s) ajouté(s) · ${toRemove.length} retiré(s).`,
+        );
+        setEditClassOpen(false);
+      } else {
+        toast.showWarning(
+          "Mise à jour partielle",
+          `Détails enregistrés · ${applied} affectation(s) appliquée(s) · ${failures.length} en échec — réessayez. ${failures[0]}`,
+        );
+      }
+    } finally {
+      setSubmittingClassEdit(false);
     }
   }
 
@@ -487,6 +557,12 @@ export function ClassDetailPage() {
                           setClassNameInput(cls.name);
                           setCustomRoom(cls.room ?? "");
                           setClassNotesInput(cls.notes ?? "");
+                          // T-474: seed the multi-select from the LIVE roster —
+                          // the members appear checked; unchecking removes on
+                          // save, checking a candidate adds.
+                          setRosterSelection(
+                            new Set(students.map((s) => s.id)),
+                          );
                           setEditClassOpen(true);
                         }}
                       >
@@ -670,8 +746,9 @@ export function ClassDetailPage() {
         icon={Pencil}
         iconTone="primary"
         title={`Modifier les détails — ${cls.name}`}
-        description="Modifiez le nom, la salle ou les notes pédagogiques de cette classe."
+        description="Modifiez le nom, la salle, les notes pédagogiques, ou la composition de la classe (cochez/décochez les élèves)."
         submitLabel="Enregistrer les modifications"
+        submitLoading={submittingClassEdit}
         onSubmit={handleSaveClassDetails}
       >
         <div className="space-y-4">
@@ -699,6 +776,19 @@ export function ClassDetailPage() {
               rows={3}
             />
           </FormField>
+
+          {/* T-474 — the owner's class-roster mandate: the pre-checked
+              multi-select (the current roster) with search + eligibility
+              filtering; the add/remove diff persists through
+              updateStudent(classId / null) on save. */}
+          <ClassStudentMultiSelect
+            gradeCode={cls.gradeCode}
+            currentClassId={cls.id}
+            currentClassName={cls.name}
+            selectedIds={rosterSelection}
+            onToggle={toggleRosterStudent}
+            onReplaceSelection={replaceRosterSelection}
+          />
         </div>
       </UnifiedModal>
 
