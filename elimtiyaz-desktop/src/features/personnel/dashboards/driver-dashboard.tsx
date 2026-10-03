@@ -10,7 +10,7 @@
  * form-state.
  */
 import { useMemo, useState } from "react";
-import { Truck, CheckCircle2, Package, AlertTriangle, Navigation, Clock } from "lucide-react";
+import { Truck, CheckCircle2, Package, AlertTriangle, Clock } from "lucide-react";
 import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
@@ -22,7 +22,6 @@ import { Button } from "../../../shared/ui/button";
 import {
   RoleDashboardLayout,
   type DashboardKpi,
-  type DashboardFeedItem,
 } from "./role-dashboard-layout";
 import {
   DELIVERY_STATUS_LABELS_FR,
@@ -138,14 +137,6 @@ export function DriverDashboard() {
     { label: "Retards signalés", value: delaysCount, icon: AlertTriangle },
   ];
 
-  const feed: readonly DashboardFeedItem[] = deliveries.map((d) => ({
-    id: d.id,
-    label: `${d.deliveryCode} — ${d.vehicle ?? "Véhicule"}`,
-    description: d.notes,
-    timestamp: DELIVERY_STATUS_LABELS_FR[d.status],
-    icon: Navigation,
-  }));
-
   const delayFields: readonly AutoFormField[] = [
     { name: "reason", label: "Motif du retard", type: "textarea", required: true, wide: true, placeholder: "Ex. Trafic dense, déviation…" },
     { name: "newEta", label: "Nouvelle heure estimée (HH:MM)", type: "text", required: true, placeholder: "14:30" },
@@ -157,7 +148,6 @@ export function DriverDashboard() {
         role="Chauffeur"
         actorName={session?.displayName ?? "Chauffeur"}
         kpis={kpis}
-        feed={feed}
       >
         <div className="rounded-lg border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3">Tournées actives</h3>

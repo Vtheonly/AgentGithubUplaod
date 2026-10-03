@@ -9,7 +9,7 @@ import { AutoFormModal } from "../../shared/ui/auto-form";
 import { EntityDetailDrawer } from "../../shared/ui/entity-drawer";
 import { Wizard } from "../../shared/ui/wizard";
 import { RoleDashboardLayout } from "../../features/personnel/dashboards/role-dashboard-layout";
-import { Users, FileText, Bell } from "lucide-react";
+import { Users, FileText } from "lucide-react";
 
 describe("DataTable primitive", () => {
   interface Person { id: string; name: string; age: number; }
@@ -218,7 +218,11 @@ describe("Wizard primitive", () => {
 });
 
 describe("RoleDashboardLayout primitive", () => {
-  it("renders role title, KPIs, tasks, and feed", () => {
+  // T-478 (the owner's removal mandate): the "Activité récente" feed is GONE
+  // from the role dashboards — this pin now guards that it stays gone (the
+  // section title must never render, even when a caller passes activity
+  // data through the layout's remaining slots).
+  it("renders role title, KPIs, and tasks — and NO 'Activité récente' feed section", () => {
     render(
       <RoleDashboardLayout
         role="Manager" actorName="Karim Benali"
@@ -227,14 +231,17 @@ describe("RoleDashboardLayout primitive", () => {
           { label: "Paiements en attente", value: 3, icon: FileText },
         ]}
         tasks={[{ id: "t1", label: "Approve expense #EXP-001", priority: "high", dueIn: "2h" }]}
-        feed={[{ id: "f1", label: "Payment received", timestamp: "2m ago", icon: Bell }]}
-      />,
+      >
+        <div>Activity card content rendered through children</div>
+      </RoleDashboardLayout>,
     );
     expect(screen.getByText("Manager Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Karim Benali")).toBeInTheDocument();
     expect(screen.getByText("Élèves actifs")).toBeInTheDocument();
     expect(screen.getByText("248")).toBeInTheDocument();
     expect(screen.getByText("Approve expense #EXP-001")).toBeInTheDocument();
-    expect(screen.getByText("Payment received")).toBeInTheDocument();
+    expect(screen.getByText("Activity card content rendered through children")).toBeInTheDocument();
+    // The removed section never renders.
+    expect(screen.queryByText("Activité récente")).not.toBeInTheDocument();
   });
 });

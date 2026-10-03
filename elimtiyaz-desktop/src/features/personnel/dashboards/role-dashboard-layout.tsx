@@ -33,13 +33,10 @@ export interface DashboardTask {
   readonly onClick?: () => void;
 }
 
-export interface DashboardFeedItem {
-  readonly id: string;
-  readonly label: string;
-  readonly description?: string;
-  readonly timestamp: string;
-  readonly icon?: LucideIcon;
-}
+// T-478 (the owner's removal mandate): the `DashboardFeedItem` interface and
+// the feed/hideFeed props are GONE — the "Activité récente" section was
+// removed from every role dashboard. Consumers with activity data now
+// surface it through their own cards (e.g. the warehouse stock ledger).
 
 export interface DashboardHeaderAction {
   readonly label: string;
@@ -53,14 +50,12 @@ export interface RoleDashboardLayoutProps {
   readonly actorName: string;
   readonly kpis: readonly DashboardKpi[];
   readonly tasks?: readonly DashboardTask[];
-  readonly feed?: readonly DashboardFeedItem[];
   readonly actions?: readonly DashboardHeaderAction[];
   readonly children?: ReactNode;
-  readonly hideFeed?: boolean;
 }
 
 export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode {
-  const { role, actorName, kpis, tasks = [], feed = [], actions = [], children, hideFeed } = props;
+  const { role, actorName, kpis, tasks = [], actions = [], children } = props;
   const initials = actorName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -121,26 +116,6 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
                 </div>
               </li>
             ))}
-          </ul>
-        </DashboardSection>
-      )}
-
-      {!hideFeed && feed.length > 0 && (
-        <DashboardSection title="Activité récente">
-          <ul className="space-y-2">
-            {feed.map((f) => {
-              const Icon = f.icon;
-              return (
-                <li key={f.id} className="flex items-start gap-2">
-                  {Icon && <Icon className="mt-0.5 size-4 text-muted-foreground" />}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm">{f.label}</div>
-                    {f.description && <div className="text-xs text-muted-foreground">{f.description}</div>}
-                  </div>
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">{f.timestamp}</span>
-                </li>
-              );
-            })}
           </ul>
         </DashboardSection>
       )}

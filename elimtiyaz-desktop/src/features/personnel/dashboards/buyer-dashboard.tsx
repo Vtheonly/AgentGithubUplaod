@@ -23,7 +23,6 @@ import {
   RoleDashboardLayout,
   type DashboardKpi,
   type DashboardTask,
-  type DashboardFeedItem,
 } from "./role-dashboard-layout";
 import {
   PURCHASE_REQUEST_STATUS_LABELS_FR,
@@ -173,14 +172,6 @@ export function BuyerDashboard() {
     priority: t.priority === "urgent" || t.priority === "high" ? "high" : "medium",
   }));
 
-  const feed: readonly DashboardFeedItem[] = requests.slice(0, 5).map((r) => ({
-    id: r.id,
-    label: `${r.requestCode} — ${r.title}`,
-    description: `${new Intl.NumberFormat("fr-FR").format(r.totalAmount)} DZD · ${PURCHASE_REQUEST_STATUS_LABELS_FR[r.status]}`,
-    timestamp: new Date(r.requestedAt).toLocaleDateString("fr-FR"),
-    icon: ShoppingCart,
-  }));
-
   return (
     <>
       <RoleDashboardLayout
@@ -188,7 +179,6 @@ export function BuyerDashboard() {
         actorName={session?.displayName ?? "Acheteur"}
         kpis={kpis}
         tasks={tasks}
-        feed={feed}
         actions={[
           { label: "Nouvelle demande", icon: Plus, variant: "default", onClick: () => setNewRequestOpen(true) },
         ]}
