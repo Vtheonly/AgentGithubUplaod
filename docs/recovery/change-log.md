@@ -1,3 +1,25 @@
+## 2026-10-04 — The 138th session — T-472 COMPLETE (the TEST-503 systemic hermeticity fix): the Vitest seam disables the f39eb17 canonical-production fallback in supabase-client.ts — the default test environment is UNCONFIGURED MOCK MODE again (T-314's contract, enforced at the module itself); the pin-per-suite escape hatch documented + the source-scan guard; the battery 4 680/0/5 with the registered baseline move in the same commit; the unified runner GREEN on every gating layer
+
+### The mandate
+
+The standing #1 item (the 137th session's next-task): "T-472 — the TEST-503 systemic fix: decide the seam (the `import.meta.env.VITEST` production-fallback disable in supabase-client.ts, with the full-battery before/after, OR the enforced pin-per-suite pattern with a source-scan guard) — the test env must never reach production by default again."
+
+### What was delivered
+
+**The seam decision: BOTH options, as complements.** (a) The Vitest-run detection disables the canonical fallbacks inside `supabase-client.ts` itself AND defaults `useSupabase=false` — global hermeticity restored at the module (not by convention); (b)'s pin-per-suite pattern is the escape hatch for suites that genuinely need a configured path, enforced by the new source-scan guard.
+
+**THE DETECTION DISCOVERY (do not re-derive):** `import.meta.env.VITEST` reads `undefined` in this project's Vitest runs — T-314's own `envPrefix: ["VITE_TEST_"]` contract FILTERS IT OUT. The reliable carrier is `process.env.VITEST === "true"` (the runner's own flag, probed empirically on vitest 2.1.9); the Electron renderer has no `process` global at all (`nodeIntegration: false`), so the packaged app cannot false-positive. The seam uses three layered signals, each independently sufficient.
+
+**The required evidence protocol (the task's own demand):** the BEFORE battery on clean main — **4 675/0/5**, byte-identical to the registered baseline; the blast-radius census after the seam alone — exactly ONE suite implicitly dependent on the configured default (`t-393-supabase-diagnostics`, 7 tests: the diagnostics runner's config probe reads `describeSupabaseConnection()`), pinned to the configured-mode pattern (the vault-suite inheritance: the pinned describe carries ONLY the canonical PUBLIC coordinates — host + key FORMAT; `getSupabaseClient` THROWS; 12/12 after); the AFTER battery — **4 680/0/5** (270 files, net +5: the t-472 suite) with `scripts/test-baseline.json` moved IN THE SAME COMMIT (§15.84c); the unified runner GREEN on every gating layer (tsc 0 · BASELINE-MATCHED · desktop runner 810/0/10 · mirror 774/0/10/36 · tier-4 784/820 with 0 rows · sanity 820/820 canonical 319/319); eslint 0 errors; the append-only guard OK (133, +0).
+
+**The t-472 suite (5 tests):** the default-contract pins (unconfigured + mock + `getSupabaseClient()` refuses + the honest describe); the import stays inert (no module-load throw); the escape hatch (the localStorage pin yields the PINNED values — the canonical production host can never appear through the env-gated default again); the provider's default selection = the mock composite; and the SOURCE-SCAN GUARD — every test file reaching a configured-path seam (a direct VALUE import from `@supabase/supabase-js` or a `getSupabaseClient(` call) must carry a pin marker (`vi.mock` of supabase-client, the `el-imtiyaz.local-config` localStorage pin, or the env-gated `describe.skipIf` LIVE pattern). Scan result at delivery: **ZERO violations** — every existing configured-path suite already pins its mode.
+
+**Preserved byte-identically:** the packaged-app guarantee (the `isProductionDesktopBuild` branch — the seam's whole point is that the f39eb17 owner intent is untouched where it matters), the dev/browser default, the localStorage override precedence, the vault suite's existing pin, and every env-gated LIVE suite (the guard recognizes the t-094 pattern).
+
+**Registry:** task-registry T-472 COMPLETE · problem-registry TEST-503 RESOLVED-TESTED (+ the totals line). **Knowledge:** AGENTS.md §15.84b amended (the seam's permanent documentation + the detection discovery). **Evidence:** `docs/recovery/t-472-hermeticity-verification.md`.
+
+---
+
 ## 2026-09-30 — The 125th session — T-448 COMPLETE: the DEDICATED dashboard-layout-configuration table (migration 0134, APPLIED LIVE — chain head `0134 > 0133 > 0132 > 0131`) — configure once, save, never again; verify_t-448 18/18 + the client-path E2E 9/9 ALL GREEN; the second live Management token; the StrictMode cancelled-flag defect found RED-first
 
 ### The mandate

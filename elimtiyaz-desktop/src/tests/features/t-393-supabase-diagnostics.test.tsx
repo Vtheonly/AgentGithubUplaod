@@ -56,6 +56,44 @@ vi.mock("../../app/providers/auth-provider", () => ({
   useAuth: () => ({ session: mockAuthSession }),
 }));
 
+/* ------------------------------------------------------------------ */
+/* T-472 (TEST-503): the pin-per-suite pattern — the vault-suite        */
+/* inheritance. This suite exercises the diagnostics runner's           */
+/* CONFIGURED-path behaviour (the config probe's host/keyFormat detail, */
+/* the 18-PASS healthy matrix, the per-category NON TESTÉ rows when a   */
+/* client is absent). Since T-472 the hermetic DEFAULT is unconfigured  */
+/* mock mode, so the configured describe is PINNED here explicitly:     */
+/* no real client is ever constructed (getSupabaseClient throws), and   */
+/* the pinned values carry only the canonical project's PUBLIC         */
+/* coordinates — the host and the key FORMAT. The runner never receives */
+/* the key itself (the SAFETY test below still asserts that).           */
+/* ------------------------------------------------------------------ */
+vi.mock("../../infrastructure/supabase/supabase-client", async (importOriginal) => {
+  const original = await importOriginal<
+    typeof import("../../infrastructure/supabase/supabase-client")
+  >();
+  return {
+    ...original,
+    supabaseUrl: "https://vebfehrpzajhstyhinnw.supabase.co",
+    supabaseAnonKey: "sb_publishable_PINNED_PUBLIC_KEY_T393",
+    useSupabase: true,
+    isSupabaseConfigured: () => true,
+    getSupabaseClient: () => {
+      throw new Error(
+        "t-393 suite: configured mode is pinned — the diagnostics suite never constructs the real client",
+      );
+    },
+    describeSupabaseConnection: () => ({
+      url: "https://vebfehrpzajhstyhinnw.supabase.co",
+      host: "vebfehrpzajhstyhinnw.supabase.co",
+      isProductionBuild: false,
+      useSupabase: true,
+      configured: true,
+      keyFormat: "publishable",
+    }),
+  };
+});
+
 /* ================================================================== */
 /* Mock client factory                                                 */
 /* ================================================================== */
