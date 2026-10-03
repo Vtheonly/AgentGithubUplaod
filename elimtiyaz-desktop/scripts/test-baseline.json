@@ -1,27 +1,24 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-455 (127th session, 2026-10-01 — the Android UI-surface parity pass: +9 passing tests [the new cross-platform/T-455-UiSurfaceParity suite — 1 presence check + 8 corpus legs]; the failing-file set UNCHANGED byte-identical; en-passant: the t-369 A4 wall-clock time-bomb repaired with pinned effectiveDates [the §15.81 class — the test drifted red when the real clock ticked past 2026-10-01, never a baseline member]). Prior: T-448 (125th session, 2026-09-30).",
-  "_task": "T-455 (127th session, 2026-10-01) — the registered baseline move: 265 files (+1 suite), 4,625 tests (4,603 passed / 17 failed / 5 skipped — passed = the T-448 baseline's 4,594 + the 9 new T-455 tests, exact). The failing-file set is byte-identical to the T-448 baseline (the documented 17: ScenarioRunner 1, Tier4Boundary 1, Tier4OperationSequences 1, t-390-financial-realtime collection, vault-compliance 2, ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7).",
+  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: the 137th session (2026-10-03 — the 0138 live-application round, branch fix/t469-0138-live-apply: the vitest layer moved to the TEST-501/TEST-502 state — TEST-501 [T-469's branch, 136th session] repaired six stale suites + two real regressions [12 red → 5 red] and TEST-502 registered the remaining five known-red [the cross-platform refund-revert trio, t-390's import-time failure, the vault-compliance MIME pair]; anchored by the 137th session's TWO full verified runs at the 0138-repaired tree [4 665 passed / 5 failed / 5 skipped, the five-file set byte-identical both runs] + tsc clean; the file count 265 → 269 [+ the t-466/t-467/t-468/t-469 suites]). The equivalence block below is UNCHANGED from T-455's run (Layer 2 was not re-run this round — no TS code changed; re-anchor it at the next Layer-2 execution). Prior: T-455 (127th session, 2026-10-01); T-448 (125th session, 2026-09-30).",
+  "_task": "The 137th session (2026-10-03, T-469's owner-gated live-application round) — the registered baseline move: 269 files (+4 suites: t-466/t-467/t-468/t-469), 4,675 tests (4,665 passed / 5 failed / 5 skipped). The failing-file set is TEST-502's five, byte-identical across both of the round's full runs: ScenarioRunner 1 + Tier4Boundary 1 + Tier4OperationSequences 1 (the refund-revert trio — T-470's engine-semantics question), t-390-financial-realtime (import-time collection failure), vault-compliance 2 (the fixture MIME pair). The twelve failures this move REMOVES from the documented set are TEST-501's repairs (ai-review-screens 3, analytics-visuals 2, dashboard-3zone 7 — the stale pins + the two real regressions, fixed in the 136th session).",
   "testFiles": {
-    "failed": 8,
-    "passed": 256,
+    "failed": 5,
+    "passed": 263,
     "skipped": 1,
-    "total": 265
+    "total": 269
   },
   "tests": {
-    "failed": 17,
-    "passed": 4603,
+    "failed": 5,
+    "passed": 4665,
     "skipped": 5,
-    "total": 4625
+    "total": 4675
   },
   "failingFiles": [
     "src/tests/cross-platform/ScenarioRunner.test.ts",
     "src/tests/cross-platform/Tier4Boundary.test.ts",
     "src/tests/cross-platform/Tier4OperationSequences.test.ts",
     "src/tests/infrastructure/t-390-financial-realtime.test.ts",
-    "src/tests/integration/vault-compliance-architecture.test.tsx",
-    "src/tests/ui/ai-review-screens.test.tsx",
-    "src/tests/ui/analytics-visuals.test.tsx",
-    "src/tests/ui/dashboard-3zone.test.tsx"
+    "src/tests/integration/vault-compliance-architecture.test.tsx"
   ],
   "equivalence": {
     "desktopRunner": {

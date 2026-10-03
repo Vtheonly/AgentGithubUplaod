@@ -87,9 +87,16 @@ begin
         'yellow=' || coalesce(v_yellow,-1) || ' red=' || coalesce(v_red,-1)
         || ' empty_messages=' || coalesce(v_msgs,0));
 
-    -- C3/C4: the recreated reader's return shape (probed as jsonb keys).
+    -- C3/C4: the recreated reader's return shape (probed via the function
+    -- DEFINITION — the 137th-session first-live-run repair: calling the
+    -- reader at session level through the Management-API endpoint hits the
+    -- staff gate (no JWT claims → 'forbidden' — the gate WORKING as
+    -- designed), so the catalog-level shape check pins pg_get_functiondef;
+    -- the RUNTIME payload is proven as staff by C7/C8 below).
     begin
-        v_reader := public.read_debt_aging_thresholds()::text;
+        select pg_get_functiondef(p.oid) into v_reader
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'public' and p.proname = 'read_debt_aging_thresholds';
     exception when others then
         v_reader := null;
     end;
@@ -100,7 +107,7 @@ begin
         and v_reader like '%levelMessages%'
         and v_reader like '%green%'
         and v_reader like '%orange%',
-        'keys=' || coalesce(substring(v_reader from 1 for 140), 'READER-FAILED'));
+        'keys=' || coalesce(substring(v_reader from 1 for 140), 'READER-DEF-MISSING'));
 
     insert into t469_results values ('C4_day_keys_unchanged',
         v_reader is not null
@@ -108,7 +115,7 @@ begin
         and v_reader like '%yellowDays%'
         and v_reader like '%redDays%'
         and v_reader like '%activePayerGraceDays%',
-        'the T-443 day contract intact');
+        'the T-443 day contract intact (function definition)');
 
     -- C5: the ACL (the 0138 grants: anon/public revoked, authenticated kept).
     select pg_get_function_arguments(p.oid) into v_args
@@ -162,7 +169,7 @@ begin
             v_payload ? 'amountYellowDzd' and v_payload ? 'levelMessages',
             'yellow=' || coalesce(v_payload->>'amountYellowDzd','?')
             || ' red=' || coalesce(v_payload->>'amountRedDzd','?')
-            || ' msgs=' || coalesce(v_payload->'levelMessages'::text,'?'));
+            || ' msgs=' || coalesce((v_payload->'levelMessages')::text,'?'));
     exception when others then
         insert into t469_results values ('C7_staff_reads_extended', false, sqlerrm);
     end;
