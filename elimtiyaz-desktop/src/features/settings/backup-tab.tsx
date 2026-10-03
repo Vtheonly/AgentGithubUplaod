@@ -28,7 +28,11 @@ import {
   Clock,
   Loader2,
   HardDrive,
+  Search,
 } from "lucide-react";
+// T-475: the canonical inspection-button design (the owner's UI consistency
+// mandate — every inspection button in the app renders through this class).
+import { INSPECT_TRIGGER_CLASS } from "../dashboard/components/analytics/data-inspector-core";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -704,17 +708,23 @@ export function BackupTab() {
                       {canManage && (
                         <td className="py-2 px-2">
                           <div className="flex items-center justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
+                            {/* T-475 — the canonical inspection-button design
+                                (INSPECT_TRIGGER_CLASS): the SAME visual language
+                                as every data-inspector trigger in the app. The
+                                handler, the data-testid, and the disabled
+                                gating are unchanged — a UI-only change. */}
+                            <button
+                              type="button"
                               onClick={() => void handleInspect(archive)}
                               disabled={inspecting}
                               title="Inspecter le contenu (déchiffrer sans restaurer)"
+                              aria-label="Inspecter le contenu (déchiffrer sans restaurer)"
                               data-testid={`inspect-${archive.id}`}
+                              className={INSPECT_TRIGGER_CLASS}
                             >
-                              <Download className="size-4" />
-                              Inspecter
-                            </Button>
+                              <Search className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">Inspecter</span>
+                            </button>
                             <Button
                               size="sm"
                               variant="ghost"

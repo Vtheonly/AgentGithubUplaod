@@ -622,16 +622,39 @@ export function useDataInspector(): InspectorContextValue {
   return context;
 }
 
+/**
+ * T-475 — the ONE canonical inspection-trigger design (the owner's UI
+ * consistency mandate). Every inspection button in the desktop app renders
+ * through THIS styling: a fixed-height (h-7, the app's sm-button standard)
+ * primary-tinted chip with readable 12px typography, a nowrap+truncate
+ * label guard, and the full interaction-state set (hover bg+border
+ * emphasis, focus-visible ring, active press, disabled). The compat twin
+ * in data-inspector.tsx delegates here — there is exactly ONE styling
+ * implementation (§15.9).
+ */
+export const INSPECT_TRIGGER_CLASS =
+  "inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-primary/25 bg-primary/5 px-2.5 text-xs font-medium text-primary shrink-0 transition-colors max-w-56 " +
+  "hover:bg-primary/10 hover:border-primary/40 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 " +
+  "active:bg-primary/15 active:scale-[0.98] " +
+  "disabled:pointer-events-none disabled:opacity-50";
+
 export function InspectTrigger({
   request,
   label = "Inspecter",
   compact = true,
+  disabled = false,
+  title,
 }: {
   request: InspectRequest;
   label?: string;
   compact?: boolean;
+  disabled?: boolean;
+  /** Optional tooltip override (the compat surface passes « Inspecter : {title} »). */
+  title?: string;
 }) {
   const { inspectData } = useDataInspector();
+  const tooltip = title ?? label;
   return (
     <button
       type="button"
@@ -639,11 +662,13 @@ export function InspectTrigger({
         event.stopPropagation();
         inspectData(request);
       }}
-      className={`inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/10 ${compact ? "" : "px-2.5 py-1.5"}`}
-      title={label}
+      className={`${INSPECT_TRIGGER_CLASS} ${compact ? "" : "h-8 px-3 text-[13px]"}`}
+      title={tooltip}
+      aria-label={tooltip}
+      disabled={disabled}
     >
-      <Search className="h-3 w-3" />
-      {label}
+      <Search className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{label}</span>
     </button>
   );
 }
