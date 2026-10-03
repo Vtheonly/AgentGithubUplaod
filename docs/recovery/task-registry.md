@@ -5500,3 +5500,12 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** nothing — task complete. (The Android repo has no data-inspector surface — no cross-repo follow-up.)
 **Next:** the session's remaining items: the owner's device-smoke documentation (the four T-466..T-469 surfaces — the eyeball gate stays owner-gated; this session records the automated evidence), the Android-mirror divergence notes, and the delivery zip.
 **Related:** the owner's 2026-10-04 session UI mandate · T-447 (the inspector's birth + the InfoTip rule §15.79) · T-454/T-455 (the UI-surface parity family) · §15.9 (the duplicate-implementation prohibition) · §15.84c.
+
+## T-476 — The ADR-033 port to the REAL Android Kotlin engine: `reevaluateInstallmentStatus`'s zero-paid FUTURE-due branch returns 'unpaid' (the T-473 cross-repo follow-up the ruling registered) + the two Kotlin test pins re-pinned
+
+**Problem IDs:** PARITY-010 (the hub half RESOLVED-TESTED by T-473; this is the registered cross-repo follow-up — the REAL `LifoReversal`/`WaterfallAllocation.kt` engine carried the same 'pending' drift).
+**Status:** IN_PROGRESS (138th session, 2026-10-04 — branch `fix/t476-android-unpaid-port` on the ANDROID repo. The environment was provisioned per AGENTS.md §11 (Temurin JDK 21 + the Android SDK platform 35 + build-tools 34.0.0); the BEFORE baselines on clean main: `CrossPlatformScenarioRunner` 9/9 · `WaterfallAllocationTest` 11/11.)
+**Scope:** (1) `app/src/main/java/com/example/core/WaterfallAllocation.kt` — the branch `return if (dueMs in 1 until nowEpochMs) "overdue" else "pending"` → `"unpaid"` with the ADR-033 citation; (2) the two Kotlin pins re-pinned (WaterfallAllocationTest's LIFO-reversal assertion + CrossPlatformScenarioRunner's §7.3-citing post-revert assertion — both comments updated to cite ADR-033, the legacy §7.3 note superseded); (3) both suites re-run GREEN.
+**Left:** (to be settled at closeout)
+**Next:** (to be settled at closeout)
+**Related:** PARITY-010 · ADR-033 · T-473 (the hub ruling) · financial-rules.md §8 · the Android repo's mirror discipline (AGENTS.md §3: behaviour changes come from the hub's canonical implementation FIRST, then port — exactly this flow).
