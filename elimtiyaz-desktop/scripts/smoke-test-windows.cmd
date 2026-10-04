@@ -27,7 +27,7 @@ if exist "%EXE%" (
   ) else (
     echo         Dossier "%APPDIR%" absent.
     echo         Si vous utilisez la version PORTABLE, lancez directement
-    echo         "El-Imtiyaz Desktop-0.1.0-win-x64-portable.exe" a cote de ce script.
+    echo         "El-Imtiyaz Desktop-<version>-win-x64-portable.exe" a cote de ce script.
     goto :failed
   )
 )
