@@ -1,3 +1,26 @@
+# The Change Log — every verified change, newest first
+
+## T-488 — The Staff DM recipient-selection fix (CHAT-303) + the image-attachment round-trip E2E (the 144th session, 2026-10-04)
+
+**The mandate:** the owner's report — "The in-between messaging/DM functionality in the Staff section is not working. It says that at least one recipient is required, even when a recipient should already be selected… fix the recipient-selection and DM flow, and make sure the entire sending system is working correctly end-to-end. Also verify that sending justified messages with images/attachments works properly, including the recipient selection, upload, sending, delivery, and display of the images."
+
+**The root cause (two coupled defects in chat-panel.tsx's "Nouveau canal" modal):** (a) the direct-type picker rendered RADIO inputs driven by the append-only `toggleMember` — a change of recipient left BOTH radios checked with `memberIds` holding two ids, and the submit rejected with "Un message direct nécessite exactement 1 destinataire." while the user HAD a recipient visibly selected (the exact report); the group→direct type switch hit the same rejection; the radios also carried no `name` attribute (each its own browser group); (b) on the live DB (18 personnel rows, ZERO `user_id` bindings at the census) the selectable set was EMPTY — a bare box, no hint, no pointer to the binding flow — and the submit surfaced the same opaque error. The repository/RPC path was sound (t-099 pins it; untouched).
+
+**The fix (commit `d7569e0`, merged as `d033214`):** the modal's selection state machine — replace-on-select radio semantics for the direct type; the type-switch trim; the shared radio `name`; the honest empty picker ("Aucun collaborateur n'a de compte de messagerie rattaché… Réglages → Comptes"); the deep-link self-DM honest toast; the DM display name defaulting to the recipient's name.
+
+**The evidence:**
+1. `src/tests/features/t-488-chat-dm-recipient-selection.test.tsx` — the red-then-green behavioural suite (8 tests): PRE-FIX the exact reproduction ("expected 2 to be 1"), POST-FIX 8/8 with the S3/S5 preserved CHAT-302/T-480 deep-link contracts.
+2. The adjacent suites unchanged-green: t-480 6/6 · t-485 6/6 · t-099 13/13; tsc 0; eslint 0 errors on the changed files.
+3. The FULL unified battery **4,787/0/5 BASELINE-MATCHED** (281 files — the registered baseline move in the same commit, §15.84c; supersedes T-487's 4,779/0/5).
+4. `scripts/t488-dm-e2e.py` — the LIVE E2E **26/26 GREEN**: two EF-provisioned bound staff probes (the app's own create-user-account flow) → the canonical `create_direct_channel` RPC (the shape, the 0135 'internal' scope, idempotence, the unbound/self negative controls) → a real PNG uploaded through the 0136 member-scoped write policy → the message with attachments jsonb (the repository's sendMessage shape) → delivery to the recipient under RLS → the append-only read receipt → the signed-URL fetch **byte-identical** (the freshSignedMediaUrl API) → the non-member denial → zero residue (DB + storage).
+5. `docs/recovery/t-488-live-verification.md` — the full evidence record + the discoveries (§6: the live zero-binding state is the DEFAULT until accounts exist; the radio-without-name+toggle bug class; the reusable E2E pattern).
+
+**The honest operator note:** the live tenant still has ZERO real staff accounts bound to personnel rows — the DM CODE path is verified end-to-end, but to USE staff↔staff DMs the owner must provision the staff accounts (Settings → Comptes, the employee-picker flow). The fixed picker then shows exactly those bound staff; the empty state says so instead of failing silently.
+
+**The gates:** the suite 8/8 · t-480/t-485/t-099 green · tsc 0 · eslint 0 errors · the FULL battery BASELINE-MATCHED · LIVE 26/26. **CHAT-303: RESOLVED-VERIFIED · T-488: VERIFIED.**
+
+---
+
 ## T-487 — The integrated recovery-workflow E2E + BKUP-508 (the 143rd session, 2026-10-04)
 
 **The mandate:** the owner's safe-testing brief — verify the Purge, the Backup/Restore, and the Excel Import TOGETHER (Backup → Purge → Excel Import → Verify → Restore → Verify) without any production-data risk; trace the implementations; fix anything unsafe or misleading.
