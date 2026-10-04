@@ -27,6 +27,21 @@ export function AuditActivityToaster() {
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
+  // REALTIME-105 (T-485, 141st session): the toast CONTEXT VALUE is not a
+  // stable effect dependency — its useMemo re-runs on every toasts-state
+  // change, so an effect depending on `toast` tears down and resubscribes
+  // with every toast shown. Every resubscription replays the repository's
+  // SubjectBehavior (its stored last event) → another toast → another
+  // identity change → the unbounded amplification loop React reports as
+  // "Maximum update depth exceeded" (live evidence: the worker session's
+  // 9+ duplicate "Activité — admin@elimtiyaz.dz" toasts + the frozen main
+  // content). The session one line above has the same shape and the same
+  // correct answer: hold the churny context value in a ref, read it inside
+  // the subscription, and keep the effect pinned to the STABLE repository
+  // singleton.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   useEffect(() => {
     // Events are fire-once; the stream contract is subscribe-only.
     const unsub = repos.audit.observeActivity().subscribe((event) => {
@@ -35,10 +50,10 @@ export function AuditActivityToaster() {
         return;
       }
       const { title, body } = formatAttributedActivity(event);
-      toast.showInfo(title, body);
+      toastRef.current.showInfo(title, body);
     });
     return unsub;
-  }, [repos.audit, toast]);
+  }, [repos.audit]);
 
   // No visual footprint — the toaster renders through the toast provider.
   return null;

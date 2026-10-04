@@ -4294,3 +4294,17 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **Next:** T-472 (the TEST-503 systemic fix) — the standing #1.
 
 **Related:** ADR-028 · §15.59 · T-418 · T-470 · the concurrent T-469 live-apply round.
+
+## 141st session (2026-10-04) — T-485: the VLM eyeball pass + REALTIME-105 (the AuditActivityToaster toast-amplification loop kill) + WORKFORCE-511 + CHAT-302
+
+**What changed:** (1) `audit-activity-toaster.tsx` — the toast context value held in a ref read inside the subscription (the file's own sessionRef pattern), the effect pinned to `[repos.audit]` (the stable module singleton): the subscription arms once per mount and can never resubscribe on toast churn, so the SubjectBehavior's replay can never re-amplify. (2) `warehouse-worker-dashboard.tsx` — the two list cards' honest empty states ("Aucune réception en attente." / "Aucune expédition à préparer.", the stock-activity card's pattern). (3) `chat-panel.tsx` — the unbound-recipient deep-link branch surfaces the honest warning toast (the data guard survives: an unbound record is never DM-able). (4) The new behavioural suite `t-485-audit-toaster-loop.test.tsx` (6 tests: the real ToastProvider + the real replaying SubjectBehavior — the subscribe count stays EXACTLY 1 across two events; the unchanged stream replay contract; three source guards). (5) The baseline move (4,767/0/5, 279 files, net +6). (6) The evidence bundle `docs/recovery/eyeball-pass-141/` (8 screenshots + 5 VLM analyses) + `docs/recovery/t-485-eyeball-pass-verification.md` + the probe lifecycle scripts (`eyeball-probe-cleanup.py` in the desktop scripts/).
+
+**Why:** the owner's 141st-session mandate delegated the 139th audit's last item — the owner's manual eyeball of the three re-delivered surfaces — to an agent-driven VLM pass against the LIVE system. The pass found the toaster amplification loop (Critical, latent since T-299: any second operator's audit write floods every open session with an unbounded toast stack and freezes its rendering), plus the two honest-state gaps.
+
+**Verified:** the suite 6/6; the FULL battery 4,767/0/5 (279 files) BASELINE-MATCHED (the registered baseline move, `scripts/test-baseline.json` citing T-485); tsc 0; eslint 0 errors on the changed files; LIVE browser re-verification of every fix (0 render-depth errors, 0 toast spam, the worker dashboard renders, the warehouse empty states visible, the unbound toast shown, the bound deep-link DM created through the canonical RPC); the probe cleanup 12/12 GREEN through the app's own delete-user-account EF + the t-369 archive convention (the live census: zero eyeball.* rows, the owner-pinned admin untouched — OPS-310 enforced in the EF's code).
+
+**Left:** the REALTIME-105 residual (the SubjectBehavior's replay-on-REMOUNT stale toast — a stream-contract change, registered as the entry's follow-up note); the FAKE-prefixed live personnel rows (owner-gated data hygiene).
+
+**Next:** the owner's next mandate (next-task.md's standing lists).
+
+**Related:** REALTIME-105 · WORKFORCE-511 · CHAT-302 (all RESOLVED-TESTED) · T-479/T-480/T-481 (the eyeballed surfaces) · T-299 (the toaster's origin) · t-400 (the probe convention) · OPS-310.
