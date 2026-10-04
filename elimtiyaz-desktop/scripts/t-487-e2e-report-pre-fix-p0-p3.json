@@ -1,0 +1,137 @@
+{
+  "tag": "t487-mut7n7mk",
+  "passed": 22,
+  "failed": 4,
+  "results": [
+    {
+      "id": "P0.1 migration chain head = 0142 (no drift)",
+      "ok": true,
+      "detail": "head: 0142"
+    },
+    {
+      "id": "P0.2 production data intact (parents 741 / students 1137 / payments 2198 Σ162713000 / installments 5956 Σ356844800)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "P0.3 the real workbook present",
+      "ok": true,
+      "detail": "2027-2026.xlsx"
+    },
+    {
+      "id": "P2.0 the test tenant starts EMPTY",
+      "ok": false,
+      "detail": "{\"parents\":741,\"students\":1137,\"payments\":2198,\"installments\":5956,\"ledger\":3342,\"activation_codes\":741,\"service_enrollments\":0,\"sync_queue\":0,\"payments_sum\":162713000,\"due_sum\":356844800,\"paid_sum\":162614100,\"ledger_charge_sum\":356859300,\"ledger_payment_sum\":-162713000}"
+    },
+    {
+      "id": "P2.1 import #1 completed (rows read > 1000 — the full workbook)",
+      "ok": true,
+      "detail": "rowsRead=1141 rowsImported=0 rowsRejected=0 warnings=73 in 46.8s"
+    },
+    {
+      "id": "P2.2 zero hard rejections (the workbook is the known-good source)",
+      "ok": true,
+      "detail": "rejected=0"
+    },
+    {
+      "id": "P3.1 students match the production import",
+      "ok": true,
+      "detail": "1137 vs production 1137"
+    },
+    {
+      "id": "P3.2 parents match the production import",
+      "ok": true,
+      "detail": "741 vs production 741"
+    },
+    {
+      "id": "P3.3 payments match the production import",
+      "ok": true,
+      "detail": "2198 vs production 2198"
+    },
+    {
+      "id": "P3.4 installments match the production import",
+      "ok": true,
+      "detail": "5956 vs production 5956"
+    },
+    {
+      "id": "P3.5 ledger matches the production import",
+      "ok": true,
+      "detail": "3342 vs production 3342"
+    },
+    {
+      "id": "P3.6 the payments Σ matches the production import",
+      "ok": true,
+      "detail": "162713000 vs 162713000"
+    },
+    {
+      "id": "P3.7 the installments Σ-due matches the production import",
+      "ok": true,
+      "detail": "356844800 vs 356844800"
+    },
+    {
+      "id": "P3.8 the installments Σ-paid matches the production import",
+      "ok": true,
+      "detail": "162614100 vs 162614100"
+    },
+    {
+      "id": "P3.9 zero student→parent orphans (the relationships)",
+      "ok": true,
+      "detail": "orphans=0"
+    },
+    {
+      "id": "P3.10.1 spot check \"ZIREG LEA\"",
+      "ok": true,
+      "detail": "parent PAR-2026-5E31AB / phone 0663701834"
+    },
+    {
+      "id": "P3.10.2 spot check \"MERABTI RIHAM\"",
+      "ok": true,
+      "detail": "parent PAR-2026-DA591B / phone 0799534750"
+    },
+    {
+      "id": "P3.10.3 spot check \"BOUAICHA ACIL\"",
+      "ok": true,
+      "detail": "parent PAR-2026-8E0177 / phone 0770264718"
+    },
+    {
+      "id": "P4.1 the COLD backup completed (no error — the hazard's point)",
+      "ok": true,
+      "detail": "archive backup-2026-10-04-024200-477.db (333379 B)"
+    },
+    {
+      "id": "P4.2 BKUP-508 LIVE DEMONSTRATION — the cold archive's parentCount is 0 (empty snapshot, 'verified' status)",
+      "ok": false,
+      "detail": "parentCount=741 studentCount=1137 status=encrypted"
+    },
+    {
+      "id": "P4.3 inspectArchive exposes the cold archive's true content (integrity verified, counts 0)",
+      "ok": false,
+      "detail": "{\"parents\":741,\"students\":1137,\"payments\":0,\"installments\":0,\"ledger\":3342,\"expenses\":0,\"personnel\":0,\"workflows\":0}"
+    },
+    {
+      "id": "P4.4 the WARMED backup completed",
+      "ok": true,
+      "detail": "archive backup-2026-10-04-024205-266.db (886024 B)"
+    },
+    {
+      "id": "P4.5 the warmed archive's metadata counts EQUAL the server census",
+      "ok": true,
+      "detail": "archive parents=741/students=1137/payments=2198/installments=5956/ledger=3342 vs server 741/1137/2198/5956/3342"
+    },
+    {
+      "id": "P4.6 the warmed archive decrypts + verifies (integrity=verified)",
+      "ok": true,
+      "detail": "{\"parents\":741,\"students\":1137,\"payments\":2198,\"installments\":5956,\"ledger\":3342,\"expenses\":0,\"personnel\":0,\"workflows\":0}"
+    },
+    {
+      "id": "P4.7 the decrypted payload carries the FULL imported state",
+      "ok": true,
+      "detail": "payload 741/1137/2198/5956/3342"
+    },
+    {
+      "id": "P4.8 the server metadata mirror carries BOTH archives (the TEST tenant's rows)",
+      "ok": false,
+      "detail": ""
+    }
+  ]
+}
