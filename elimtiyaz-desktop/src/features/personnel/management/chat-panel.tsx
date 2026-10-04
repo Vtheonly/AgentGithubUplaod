@@ -173,6 +173,18 @@ export function ChatPanel({
       onOpenWithPersonnelHandled?.();
       return;
     }
+    // CHAT-303 (T-488): the self-DM edge — DM-ing your own personnel record
+    // would otherwise die in the repository's opaque `others.length !== 1`
+    // validation with the SAME "1 destinataire" string the reported bug
+    // carried; the honest branch says WHY and consumes the handshake.
+    if (recipient.userId === session.userId) {
+      toast.showWarning(
+        "Messagerie indisponible",
+        "Vous ne pouvez pas ouvrir un message direct avec vous-même.",
+      );
+      onOpenWithPersonnelHandled?.();
+      return;
+    }
 
     let cancelled = false;
     void repos.chat.createChannel({
@@ -232,6 +244,22 @@ export function ChatPanel({
   const selectedChannel = useMemo(
     () => channels.find((c) => c.id === selectedId) ?? null,
     [channels, selectedId],
+  );
+
+  /**
+   * CHAT-303 (T-488): the DM-able member set — staff records with a bound
+   * messaging account, minus the session's own. Extracted from the inline
+   * filter so the picker can ALSO render its honest empty state (the live
+   * DB's zero-binding state previously showed a bare box; the submit then
+   * surfaced the opaque "1 destinataire" error against an invisible
+   * constraint — the exact reported bug on the empty-picker path).
+   */
+  const selectablePersonnel = useMemo(
+    () =>
+      personnel.filter(
+        (p) => p.userId !== null && p.userId !== currentUserId,
+      ),
+    [personnel, currentUserId],
   );
 
   function unreadCount(channel: ChatChannel): number {
@@ -355,10 +383,30 @@ export function ChatPanel({
   function toggleMember(id: string) {
     setForm((s) => ({
       ...s,
-      memberIds: s.memberIds.includes(id)
-        ? s.memberIds.filter((x) => x !== id)
-        : [...s.memberIds, id],
+      // CHAT-303 (T-488): the direct type is a RADIO contract — a pick
+      // REPLACES the selection (exactly one recipient), never appends.
+      // The pre-fix append left TWO radios checked after a change of mind
+      // and the submit rejected with "Un message direct nécessite
+      // exactement 1 destinataire." while the user HAD a recipient
+      // selected (the reported bug). Re-picking the already-selected
+      // recipient keeps it (radio deselect is impossible by design).
+      memberIds:
+        s.type === "direct"
+          ? s.memberIds[0] === id
+            ? s.memberIds
+            : [id]
+          : s.memberIds.includes(id)
+            ? s.memberIds.filter((x) => x !== id)
+            : [...s.memberIds, id],
     }));
+  }
+
+  /** CHAT-303 (T-488): the direct DM's default display name — the selected
+   *  recipient's own name (the deep-link shape), "Direct" as the last
+   *  resort (the RPC's own coalesce default). */
+  function directRecipientName(): string {
+    const p = personnel.find((x) => x.id === form.memberIds[0]);
+    return p ? `${p.firstName} ${p.lastName}`.trim() : "Direct";
   }
 
   async function handleCreateChannel() {
@@ -371,7 +419,14 @@ export function ChatPanel({
       setFormError("Veuillez sélectionner le département du canal.");
       return;
     }
-    if (!form.name.trim()) {
+    // CHAT-303 (T-488): a DM's display name is OPTIONAL — it defaults to the
+    // recipient's own name (the deep-link shape); the generic channel types
+    // keep the required-name rule.
+    const channelName =
+      form.type === "direct"
+        ? form.name.trim() || directRecipientName()
+        : form.name.trim();
+    if (!channelName) {
       setFormError("Le nom du canal est obligatoire.");
       return;
     }
@@ -383,7 +438,7 @@ export function ChatPanel({
       : form.memberIds;
     const r = await repos.chat.createChannel({
       type: form.type,
-      name: form.name.trim(),
+      name: channelName,
       description: form.description.trim() || null,
       memberIds,
       departmentId: form.departmentId || null,
@@ -689,7 +744,17 @@ export function ChatPanel({
           <FormField label="Type de canal" required>
             <Select
               value={form.type}
-              onValueChange={(v) => setForm((s) => ({ ...s, type: v as ChannelType }))}
+              onValueChange={(v) =>
+                setForm((s) => ({
+                  ...s,
+                  type: v as ChannelType,
+                  // CHAT-303 (T-488): switching INTO the direct type trims a
+                  // carried-over group selection to its first member — the
+                  // radio contract (exactly one recipient) must hold at
+                  // every entry point, not just the clicks.
+                  memberIds: v === "direct" ? s.memberIds.slice(0, 1) : s.memberIds,
+                }))
+              }
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -699,11 +764,17 @@ export function ChatPanel({
               </SelectContent>
             </Select>
           </FormField>
-          <FormField label="Nom du canal" required>
+          {/* CHAT-303 (T-488): a DM's name is optional (defaults to the
+              recipient's own name) — only the generic types require it. */}
+          <FormField label="Nom du canal" required={form.type !== "direct"}>
             <Input
               value={form.name}
               onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-              placeholder={form.type === "direct" ? "Nom affiché" : "Ex. Projet rentrée 2025"}
+              placeholder={
+                form.type === "direct"
+                  ? "Nom affiché (par défaut : le destinataire)"
+                  : "Ex. Projet rentrée 2025"
+              }
             />
           </FormField>
           <FormField label="Description">
@@ -733,10 +804,20 @@ export function ChatPanel({
               label={form.type === "direct" ? "Destinataire" : "Membres"}
               hint={form.type === "direct" ? "Sélectionnez exactement 1 personne." : "Sélectionnez les personnes à inviter."}
             >
-              <div className="border border-border rounded-md max-h-44 overflow-y-auto divide-y divide-border">
-                {personnel
-                  .filter((p) => p.userId !== null && p.userId !== currentUserId)
-                  .map((p) => {
+              {selectablePersonnel.length === 0 ? (
+                /* CHAT-303 (T-488): the honest empty picker — the live DB's
+                 * zero-binding state made this a BARE box with no hint, and
+                 * the submit surfaced the opaque "1 destinataire" error
+                 * against an invisible constraint. The wording follows the
+                 * CHAT-302 toast pattern + the pointer to the binding flow. */
+                <p className="p-4 text-xs text-muted-foreground text-center border border-border rounded-md">
+                  Aucun collaborateur n'a de compte de messagerie rattaché.
+                  Créez un compte lié à un employé (Réglages → Comptes) pour
+                  pouvoir lui écrire.
+                </p>
+              ) : (
+                <div className="border border-border rounded-md max-h-44 overflow-y-auto divide-y divide-border">
+                  {selectablePersonnel.map((p) => {
                   const checked = form.memberIds.includes(p.id);
                   return (
                     <label
@@ -745,6 +826,10 @@ export function ChatPanel({
                     >
                       <input
                         type={form.type === "direct" ? "radio" : "checkbox"}
+                        /* CHAT-303 (T-488): the radios share ONE group name —
+                         * the browser's mutual exclusion + the a11y tree
+                         * finally match the replace-on-select semantics. */
+                        name="chat-dm-recipient"
                         checked={checked}
                         onChange={() => toggleMember(p.id)}
                         className="h-4 w-4 accent-primary"
@@ -754,7 +839,8 @@ export function ChatPanel({
                     </label>
                   );
                 })}
-              </div>
+                </div>
+              )}
             </FormField>
           )}
         </div>
