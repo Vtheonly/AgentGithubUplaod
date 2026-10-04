@@ -4308,3 +4308,17 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **Next:** the owner's next mandate (next-task.md's standing lists).
 
 **Related:** REALTIME-105 · WORKFORCE-511 · CHAT-302 (all RESOLVED-TESTED) · T-479/T-480/T-481 (the eyeballed surfaces) · T-299 (the toaster's origin) · t-400 (the probe convention) · OPS-310.
+
+## 142nd session (2026-10-04) — T-486: the owner-sanctioned FAKE-probe data hygiene (the T-485 pass's last owner-gated item executed live)
+
+**What changed:** the 8 active FAKE-prefixed personnel rows (the t-400-era `fake.t1..t8@elimtiyaz-test.dz` teaching staff — the rows the T-485 eyeball pass's Relevé verdict flagged) archived through the app's OWN `deletePersonnel` write shape (RLS-checked PostgREST PATCH as the owner-pinned admin: `deleted_at = now()` + `is_active = false` + `updated_at = now()`, the t-369 soft-delete convention — never a hard DELETE). Plus the committed evidence runner `elimtiyaz-desktop/scripts/t486-fake-probe-archive.py` (the §15.30b assertion stack: the pre-census pins the row source and REFUSES if the live state moved; per-PATCH re-reads; the post-census re-derives the app-visible list) + the verification doc.
+
+**Why:** the owner's "do it for me" on the T-485 closeout recommendation — the last owner-gated item on the eyeball pass's honest list.
+
+**Verified:** the runner **15/15 GREEN** (admin sign-in; the pre-census's 8-id pin + the unbound check; 8 PATCHes at 204 with the archive stamp re-read; zero FAKE rows in the app-visible list post-run; the visible count 8 → 0; the 8 stamps + the T-412 probe's old stamp = 9 archived FAKE rows). **The census discovery:** the live tenant's ENTIRE active personnel set was the 8 FAKE rows — the app-visible list is now honestly EMPTY (no real staff exist yet; every personnel surface shows its empty state — the correct pre-production posture). The audit posture documented: personnel UPDATEs write no audit_logs rows (no trigger; the repository's own method has no audit call and no UI surface) — the produced state is byte-identical to the app's own write. OPS-310: the owner-pinned credential used for sign-in only, never modified. The 9 already-archived probes untouched. Evidence: `docs/recovery/t-486-live-verification.md`.
+
+**Left:** the now-empty tenant awaits the owner's real-staff creation (the Annuaire's "Ajouter" flow / the onboarding wizard) — every personnel surface's honest empty state is the correct interim posture. The standing queue unchanged (REALTIME-105's replay-on-remount residual · SPREAD-100 · the 6 override families · ACAD-511 · migration 0122 · TECHDEBT-100 · the ARCH-001 remaining non-Personnel mock slots).
+
+**Next:** the owner's next mandate (next-task.md's standing lists).
+
+**Related:** T-485 (the eyeball pass that flagged the rows) · the t-369 soft-delete convention · t-400/t-412 (the probes' origin) · OPS-310.
