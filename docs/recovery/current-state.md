@@ -1,3 +1,11 @@
+# Current State — Project Snapshot (2026-10-05, ONE-HUNDRED-FORTY-EIGHTH session — T-496 + T-497 COMPLETE: TEST-504's mechanical guard DELIVERED + SYNC-304 RESOLVED-TESTED (the composite (sort_key, id) keyset on the four sync RPCs — migration 0143 live + the Android SyncKeyset drain, proven live 27/0); the Android battery 775+702 / 0F)
+
+> **The 148th session's summary is in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-496/T-497 entry). The full live evidence is in `docs/recovery/t-497-live-verification.md`.**
+
+The standing queue's two head items are delivered. The sync layer's four RPC streams now paginate on a UNIQUE cursor — the composite (updated_at, id) keyset — closing the boundary-tie residual T-495 registered (the straddle skip on the exclusive pair, pinned live on the students tie pairs) plus two deeper defects the session's opening live pins found: the payments table's frozen 2 198-row uniform backfill group (the stuck cliff) and the ledger's BUSINESS-date key (the table never had updated_at — the Android cursor was NULL on every row, a silent single-page truncation past 5 000 rows). Migration 0143 preserves each function's pre-0143 semantics on the NULL branch — the owner's installed APK keeps working unchanged (pinned live, V5). The TEST-504 guard makes the 6th ARCH-012 recurrence mechanically impossible — with its own lesson: the source-scan guard passed VACUOUSLY until build.gradle.kts was declared a runtime test input.
+
+---
+
 # Current State — Project Snapshot (2026-10-04, ONE-HUNDRED-FORTY-FOURTH session — T-488 COMPLETE: the Staff DM recipient-selection fix CHAT-303 RESOLVED-VERIFIED (the replace-on-select radio semantics + the honest empty picker + the self-DM guard) + the LIVE image-attachment round-trip E2E 26/26; the battery 4,787/0/5 BASELINE-MATCHED, 281 files)
 
 > **The 144th session's summary is in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-488 entry). The full live evidence is in `docs/recovery/t-488-live-verification.md`.**

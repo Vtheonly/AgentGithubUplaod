@@ -1,0 +1,42 @@
+[SETUP] The owner-pinned admin signs in (GoTrue password grant)
+  signed in: admin@elimtiyaz.dz
+
+[V1] The full-population drains at the composite keyset
+  live census: {'parents': 741, 'students': 1137, 'payments': 2198, 'ledger': 3342}
+  PASS  pull_parents_for_sync drains the FULL population  [741 / live 741]
+  PASS  pull_parents_for_sync all ids distinct
+  PASS  pull_parents_for_sync (updated_at, id) strictly monotonic
+  PASS  pull_parents_for_sync every row carries a non-null updated_at
+  PASS  pull_students_for_sync drains the FULL population  [1137 / live 1137]
+  PASS  pull_students_for_sync all ids distinct
+  PASS  pull_students_for_sync (updated_at, id) strictly monotonic
+  PASS  pull_students_for_sync every row carries a non-null updated_at
+  PASS  pull_payments_for_sync drains the FULL population  [2198 / live 2198]
+  PASS  pull_payments_for_sync all ids distinct
+  PASS  pull_payments_for_sync (updated_at, id) strictly monotonic
+  PASS  pull_payments_for_sync every row carries a non-null updated_at
+  PASS  pull_ledger_entries_for_sync drains the FULL population  [3342 / live 3342]
+  PASS  pull_ledger_entries_for_sync all ids distinct
+  PASS  pull_ledger_entries_for_sync (updated_at, id) strictly monotonic
+  PASS  pull_ledger_entries_for_sync every row carries a non-null updated_at
+
+[V2] The straddle proof — the live students tie pair
+  PASS  the composite leg reaches the row AFTER the tie boundary  [p_after_id=1e47ecfb… → 5 rows, second-of-pair present=True]
+  PASS  the 3-arg exclusive call cannot see the tied rows (the preserved old semantics — the skip the composite leg closes)  [3-arg at the tie instant returns 5 rows (all strictly newer)]
+
+[V3] The uniform-group proof — the payments' frozen 2 198-row backfill
+  PASS  the composite pages INSIDE the uniform group (the rows after the 1000th id)  [group=2198 rows @ one timestamp; page after the 1000th id: 5 rows, exact match=True]
+  PASS  the 3-arg inclusive call re-fetches the group from the start (the preserved old semantics — the stuck the composite leg removes)
+
+[V4] The ledger cursor proof — updated_at returned + the uniform backfill paged by id
+  PASS  the ledger RPC returns updated_at non-null on every row
+  PASS  the whole first page shares the backfill instant (the designed uniform group)  [2026-10-04T20:41:13]
+  PASS  the composite pages inside the ledger's uniform backfill by id  [5 rows after 00043d99…, all at the backfill instant]
+
+[V5] The installed-APK compatibility — the 3-arg named call shape on every RPC
+  PASS  pull_parents_for_sync answers the 3-arg shape (HTTP 200, rows)  [741 rows]
+  PASS  pull_students_for_sync answers the 3-arg shape (HTTP 200, rows)  [1000 rows]
+  PASS  pull_payments_for_sync answers the 3-arg shape (HTTP 200, rows)  [2198 rows]
+  PASS  pull_ledger_entries_for_sync answers the 3-arg shape (HTTP 200, rows)  [3342 rows]
+
+==== VERDICT: 27 PASS / 0 FAIL ====
