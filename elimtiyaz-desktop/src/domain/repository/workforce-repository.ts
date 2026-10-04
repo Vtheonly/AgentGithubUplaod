@@ -50,6 +50,15 @@ export interface DepartmentRepository {
   deleteDepartment(id: string): Promise<Result<void>>;
 }
 
+/**
+ * T-484 (140th session): the contracts' METHOD SET is unchanged; the input
+ * types are re-based onto the canonical 0010 model (Shift = a reusable
+ * work-time template; Schedule = a per-day assignment — see
+ * domain/model/workforce.ts). observeByWeek keeps its weekStart (ISO
+ * Monday) parameter and returns the schedule rows whose DATE falls inside
+ * that week [weekStart, weekStart+6] — the per-day rows are the truth, the
+ * week is a read-side window.
+ */
 export interface ShiftRepository {
   observe(): Observable<Shift[]>;
   createShift(input: Omit<Shift, "id" | "tenantId">): Promise<Result<Shift>>;

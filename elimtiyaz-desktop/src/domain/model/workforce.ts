@@ -73,6 +73,16 @@ export const DEFAULT_DEPARTMENTS: readonly {
 /*  Schedules & shifts                                                 */
 /* ------------------------------------------------------------------ */
 
+/**
+ * T-484 (140th session, 2026-10-04): the WEEKLY-template vocabulary below
+ * (Weekday / ShiftType) stays — it is the ONBOARDING WIZARD's data model
+ * (data.shiftTypes: string[] etc.), not the Shift entity's. The Shift /
+ * Schedule ENTITIES are aligned to the canonical 0010 schema (the DB is the
+ * source of truth — the pre-T-484 desktop shapes were a parallel
+ * imagination: weekday/shiftType templates + weekStart+shiftIds[] chunks,
+ * none of which the 0010 tables can store).
+ */
+
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export const WEEKDAYS: readonly Weekday[] = [
   "mon",
@@ -111,25 +121,41 @@ export const SHIFT_TYPE_LABELS_FR: Record<ShiftType, string> = {
   flexible: "Flexible",
 };
 
+/**
+ * Shift — a REUSABLE work-time template (canonical 0010 §2):
+ *   code (tenant-unique, e.g. 'MORNING'), name, start/end times
+ *   (HH:mm local, no timezone — interpreted in tenant.timezone), the
+ *   grace period before a clock-in is flagged late, the color token, the
+ *   active flag. NO weekday — a template is assigned per-DAY through
+ *   `Schedule`.
+ */
 export interface Shift {
   readonly id: string;
   readonly tenantId: string;
-  readonly label: string;
-  readonly weekday: Weekday;
-  readonly shiftType: ShiftType;
+  readonly code: string; // tenant-unique ('MORNING', 'AFTERNOON', …)
+  readonly name: string; // display label ('Matin standard', …)
   readonly startTime: string; // HH:mm
-  readonly endTime: string; // HH:mm
-  readonly breakMinutes: number;
-  readonly color: string;
+  readonly endTime: string; // HH:mm (must be later than startTime)
+  readonly gracePeriodMinutes: number; // ≥ 0
+  readonly colorHex: string | null; // '#RRGGBB' or null
+  readonly isActive: boolean;
 }
 
+/**
+ * Schedule — a per-DAY shift assignment for one personnel member
+ * (canonical 0010 §3): exactly one row per (tenant, personnel, date)
+ * (the 0010 unique), pointing at a Shift template with OPTIONAL start/end
+ * overrides for that specific day and a free-form note.
+ */
 export interface Schedule {
   readonly id: string;
   readonly tenantId: string;
   readonly personnelId: string;
-  readonly weekStart: string; // ISO date of Monday
-  readonly shiftIds: readonly string[];
-  readonly weeklyHoursTarget: number;
+  readonly shiftId: string | null;
+  readonly date: string; // YYYY-MM-DD
+  readonly startTime: string | null; // day override of shift.startTime
+  readonly endTime: string | null; // day override of shift.endTime
+  readonly note: string | null;
 }
 
 /* ------------------------------------------------------------------ */

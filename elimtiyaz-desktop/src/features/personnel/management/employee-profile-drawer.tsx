@@ -39,9 +39,6 @@ import {
   TASK_PRIORITY_LABELS_FR,
   TASK_STATUS_LABELS_FR,
   ATTENDANCE_EVENT_LABELS_FR,
-  // T-444/UI-324 restored: the Horaires & Shifts tab consumes these.
-  SHIFT_TYPE_LABELS_FR,
-  WEEKDAY_LABELS_FR,
 } from "../../../domain/model/workforce";
 import { Role } from "../../../core/rbac/roles";
 import {
@@ -107,17 +104,44 @@ export function EmployeeProfileDrawer({
       ),
     [personnelId, fromIso, toIso],
   );
-  // T-444/UI-324 restored: the Horaires & Shifts tab's streams (1cead9d
-  // deleted both the tab and its subscriptions).
+  // T-444/UI-324 restored the tab; T-484 re-based it onto the canonical
+  // 0010 model: schedules are PER-DAY rows (personnel/shift/date + optional
+  // time overrides); shifts are the reusable templates the rows point at.
+  // The current week's window (ISO Monday) scopes the “Planification de la
+  // semaine” list; the weekly volume pair stays on the personnel record
+  // (the T-477-audited source).
   const schedules = useObservable(
     () => repos.schedules.observeByPersonnel(personnelId ?? ""),
     [personnelId],
   );
   const shifts = useObservable(() => repos.shifts.observe(), []);
+  const weekStart = useMemo(() => {
+    // LOCAL calendar components (not toISOString — the UTC date can run a
+    // day behind the wall clock near midnight; the §15.81 class).
+    const now = new Date();
+    const day = now.getDay() === 0 ? 7 : now.getDay(); // 1..7 (Mon..Sun)
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (day - 1));
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+  }, []);
+  const weekEnd = useMemo(() => {
+    const [y, m, d] = weekStart.split("-").map(Number);
+    const sunday = new Date(y, m - 1, d + 6);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${sunday.getFullYear()}-${pad(sunday.getMonth() + 1)}-${pad(sunday.getDate())}`;
+  }, [weekStart]);
 
   const personnel = useMemo(
     () => allPersonnel.find((p) => p.id === personnelId) ?? null,
     [allPersonnel, personnelId],
+  );
+
+  // T-484: the week's assignment list — the per-day schedule rows joined
+  // to the shift templates (name + times, with the day overrides applied).
+  // (The memo sits BEFORE the early return — the rules-of-hooks order.)
+  const shiftById = useMemo(
+    () => new Map(shifts.map((s) => [s.id, s])),
+    [shifts],
   );
 
   const [downloading, setDownloading] = useState(false);
@@ -138,12 +162,10 @@ export function EmployeeProfileDrawer({
   const assignedTasks = allTasks.filter((t) =>
     personnel.userId !== null && t.assigneeIds.includes(personnel.userId),
   );
-  // T-444/UI-324 restored: the shift assignment derivation (schedule rows
-  // carry shift ids — the Set resolves the shift rows to render).
-  const scheduledShiftIds = new Set<string>();
-  for (const s of schedules)
-    s.shiftIds.forEach((id) => scheduledShiftIds.add(id));
-  const assignedShifts = shifts.filter((s) => scheduledShiftIds.has(s.id));
+  // T-484: the week's assignment list (a plain derivation — no hook).
+  const thisWeeksSchedules = schedules
+    .filter((s) => s.date >= weekStart && s.date <= weekEnd)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const fill =
     personnel.weeklyHoursTarget > 0
@@ -467,8 +489,9 @@ export function EmployeeProfileDrawer({
       ),
     },
     {
-      // T-444/UI-324 restored: the Horaires & Shifts tab (1cead9d deleted
-      // the tab AND its schedules/shifts streams).
+      // T-444/UI-324 restored the tab (1cead9d deleted it AND its
+      // schedules/shifts streams); T-484 re-based it onto the canonical
+      // 0010 model (the per-day assignments + the shift templates).
       id: "schedule",
       label: "Horaires & Shifts",
       content: () => (
@@ -484,23 +507,34 @@ export function EmployeeProfileDrawer({
               </span>
             </div>
           </div>
-          {assignedShifts.length > 0 ? (
+          {thisWeeksSchedules.length > 0 ? (
             <div>
               <p className="text-xs uppercase text-muted-foreground">
-                Postes assignés
+                Planification de la semaine
               </p>
               <ul className="mt-1 divide-y divide-border">
-                {assignedShifts.map((s) => (
-                  <li key={s.id} className="py-2">
-                    <p className="text-sm font-medium">
-                      {SHIFT_TYPE_LABELS_FR[s.shiftType] ?? s.shiftType}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {WEEKDAY_LABELS_FR[s.weekday]} · {s.startTime} →{" "}
-                      {s.endTime}
-                    </p>
-                  </li>
-                ))}
+                {thisWeeksSchedules.map((row) => {
+                  const shift = row.shiftId
+                    ? shiftById.get(row.shiftId)
+                    : undefined;
+                  const start = row.startTime ?? shift?.startTime ?? null;
+                  const end = row.endTime ?? shift?.endTime ?? null;
+                  return (
+                    <li key={row.id} className="py-2">
+                      <p className="text-sm font-medium">
+                        {formatDate(row.date)}
+                        {shift ? ` · ${shift.name}` : " · Shift supprimé"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {start && end ? `${start} → ${end}` : "Horaires non définis"}
+                        {(row.startTime != null || row.endTime != null) &&
+                          shift &&
+                          ` (ajusté — modèle : ${shift.startTime} → ${shift.endTime})`}
+                        {row.note ? ` · ${row.note}` : ""}
+                      </p>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ) : (

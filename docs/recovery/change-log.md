@@ -1,3 +1,29 @@
+## 2026-10-04 — T-484 COMPLETE (the 140th session's third delivery): the shifts/schedules Supabase port — the domain model ALIGNED to the canonical 0010 schema (the pre-T-484 shapes were a parallel imagination the tables cannot store) + SupabaseShiftRepository/SupabaseScheduleRepository + the employee drawer's "Horaires & Shifts" tab re-based onto the per-day model; verify_t-484.sql 12/12 LIVE (no migration — the 0010 tables exist); the battery 4 748 → 4 761/0/5 (+13 tests)
+
+### The port's key ruling
+
+The T-477 audit's #3 remaining item (the shifts/schedules mock slots — the WORKFORCE-102 standing list's last two desktop slots). The pre-T-484 domain `Shift` (weekday/shiftType weekly template) and `Schedule` (weekStart + shiftIds[] + weeklyHoursTarget) could NOT be stored in the canonical 0010 tables at all — the DB's `shifts` are reusable templates (code/name/start/end/grace/color/is_active) and its `schedules` are per-day rows (personnel/shift/date + time overrides + note). The DB is the source of truth (AGENTS.md §8) — the domain types are conformed to the server contract, the exact T-481 discipline. The `Weekday`/`ShiftType` unions stay (they are the ONBOARDING WIZARD's data vocabulary, not the Shift entity's).
+
+### What changed
+
+- **Domain model** (workforce.ts): `Shift` → the reusable-template shape; `Schedule` → the per-day assignment shape. The repository contracts' METHOD set is unchanged (the input types re-based); `observeByWeek` keeps its weekStart parameter as a read-side window ([weekStart, weekStart+6]).
+- **The mock rebuilt on the canonical shape**: template seeds (MORNING/AFTERNOON/SAT_MORNING — no weekday), the createShift (tenant, code) unique + the time-window guard, the upsertSchedule (personnel, date) unique with in-place updates, the week-window reads.
+- **`supabase-shift-schedule-repositories.ts`**: both adapters (SubjectBehavior + CacheFreshness + refresh-after-write; the T-373 non-uuid guard on personnel-keyed reads — a stable empty stream, no 22P02 round-trip; upsertSchedule's conflict target = the 0010 (tenant, personnel, date) unique; the validation guards with honest French messages; the RLS refusals surfaced).
+- **The drawer's tab re-based**: "Planification de la semaine" — the current ISO week's per-day rows joined to the shift templates (name + times, the day overrides applied with the "ajusté" annotation, the local-calendar week boundary — no toISOString date-line drift); the weekly volume pair stays on the personnel record (the T-477-audited source); the honest "Aucun shift planifié." empty state stays.
+- **Wiring**: both slots overridden in `getSupabaseRepositories()` (the header census — the WORKFORCE-102 desktop list is now empty for the Personnel page).
+
+### The verification
+
+- The new suite `supabase-shift-schedule-repository.test.ts` **13/13** — including the mock-parity pin (the same uniques enforced in mock mode) and the source guards (the old shapes absent from the model + the drawer; the wiring present).
+- **verify_t-484.sql 12/12 LIVE** (no migration — the 0010 contract itself is the subject): the shapes 7/7 + 6/6, the (tenant, code) unique, the (tenant, personnel, date) unique [runtime + catalog], the time/color CHECKs, the exact repository payload inserting inside BEGIN…ROLLBACK, the four 0019 RLS policies, the honest census (0 real rows in both tables).
+- The FULL battery **4 761/0/5** (278 files) with the registered baseline move — the domain-model change regressed NOTHING (the pre-change blast-radius census predicted exactly one consumer: the drawer); tsc 0; eslint 0 errors.
+
+### Registry & left
+
+ARCH-001's census: the verified remaining mock slots are now **performanceReviews, aiConfig, clubs, psychology, orthophonie** (all beyond the Personnel page's scope). WORKFORCE-102's desktop slot list is EMPTY for the Personnel page. T-484 COMPLETE — the 140th session's three tasks all delivered. **Left:** the shift-template editor / schedule-planner UI has no surface today (the drawer tab is the only consumer — the T-477 census); the repositories carry the full CRUD for whoever builds it.
+
+---
+
 ## 2026-10-04 — T-483 COMPLETE (the 140th session's second delivery): the onboarding persistence port — migration 0142 (the tenant-singleton ruling: `onboarding_states.personnel_id` NULLable + the partial unique index) applied LIVE + verified 9/9; `SupabaseOnboardingRepository` (the wizard's full lifecycle onto the singleton row); the battery 4 738 → 4 748/0/5 (+10 tests)
 
 ### The model ruling
