@@ -262,9 +262,17 @@ const unpackedDir = join(releaseDir, "win-unpacked");
 const unpackedExe = join(unpackedDir, `${productName}.exe`);
 const asarPath = join(unpackedDir, "resources", "app.asar");
 
+// NOTE (T-506 smoke-run fix): `setupSize` used to be declared with `const` INSIDE
+// the `if (wineAvailable)` block below while the final summary referenced it from
+// the outer scope → `ReferenceError: setupSize is not defined` on every
+// wine-equipped host, AFTER the artifacts and SHA256SUMS.txt were already
+// written. The build is correct; the reporting tail crashed and the script exited
+// non-zero. Declared here so both scopes see the same binding.
+let setupSize = 0;
+
 if (wineAvailable) {
   assertFile(setupPath, "Windows NSIS installer");
-  const setupSize = statSync(setupPath).size;
+  setupSize = statSync(setupPath).size;
   if (setupSize < 5 * 1024 * 1024) fail(`NSIS installer is unexpectedly small (${setupSize} bytes).`);
 }
 assertFile(portablePath, "Windows portable executable");
@@ -349,6 +357,19 @@ if (wineAvailable) {
 const hashes = hashLines.join("\n") + "\n";
 const hashesPath = join(releaseDir, "SHA256SUMS.txt");
 writeFileSync(hashesPath, hashes, "utf8");
+
+// T-506 (2026-09-30): ship the one-click Windows launch smoke test NEXT TO the
+// executables, so the owner can prove the build runs on a real PC without any
+// command line. The tracked source lives in scripts/; release/ is gitignored, so
+// it must be copied on every build or it silently goes missing from the delivery.
+const smokeSource = join(projectDir, "scripts", "smoke-test-windows.cmd");
+if (existsSync(smokeSource)) {
+  const smokeTarget = join(releaseDir, "smoke-test-windows.cmd");
+  writeFileSync(smokeTarget, readFileSync(smokeSource, "utf8"), "utf8");
+  console.log("[package:win] Windows launch smoke test copied into release/.");
+} else {
+  fail("scripts/smoke-test-windows.cmd is missing — the delivery would ship without a launch test.");
+}
 
 console.log("\n============================================================");
 console.log(" WINDOWS PACKAGE VERIFIED");
