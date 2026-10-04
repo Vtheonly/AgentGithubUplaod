@@ -209,6 +209,14 @@ export function WarehouseWorkerDashboard() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
             <h3 className="text-sm font-semibold mb-3">Réceptions attendues</h3>
+            {/* WORKFORCE-511 (T-485): the honest empty state — a zero-row list
+                renders a muted paragraph (the stock-activity card's pattern),
+                never a silent blank box. */}
+            {receipts.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Aucune réception en attente.
+              </p>
+            ) : (
             <ul className="divide-y divide-border">
               {receipts.map((r) => (
                 <li key={r.id} className="py-2 flex items-center justify-between gap-3">
@@ -235,10 +243,17 @@ export function WarehouseWorkerDashboard() {
                 </li>
               ))}
             </ul>
+            )}
           </div>
 
           <div className="rounded-lg border bg-card p-4">
             <h3 className="text-sm font-semibold mb-3">Expéditions à préparer</h3>
+            {/* WORKFORCE-511 (T-485): same honest empty state. */}
+            {dispatches.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Aucune expédition à préparer.
+              </p>
+            ) : (
             <ul className="divide-y divide-border">
               {dispatches.map((d) => {
                 const isDispatched = d.status === "dispatched" || d.status === "cancelled";
@@ -267,6 +282,7 @@ export function WarehouseWorkerDashboard() {
                 );
               })}
             </ul>
+            )}
           </div>
         </div>
 

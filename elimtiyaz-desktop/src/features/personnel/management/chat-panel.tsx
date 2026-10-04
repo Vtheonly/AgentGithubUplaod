@@ -158,7 +158,21 @@ export function ChatPanel({
     const recipient = personnel.find(
       (person) => person.id === openWithPersonnelId,
     );
-    if (!recipient || !recipient.userId) return;
+    // CHAT-302 (T-485): the unbound recipient is an HONEST dead end, not a
+    // silent one — the guard stays (you cannot DM a staff record without a
+    // bound account; the member set is profile-keyed), but the worker who
+    // clicked "Envoyer un message" now learns WHY nothing opened (the
+    // WORKFORCE-510 swallowed-failure class, found live by the eyeball
+    // pass on the live DB's zero-binding state).
+    if (!recipient) return;
+    if (!recipient.userId) {
+      toast.showWarning(
+        "Messagerie indisponible",
+        "Ce collaborateur n'a pas de compte de messagerie rattaché.",
+      );
+      onOpenWithPersonnelHandled?.();
+      return;
+    }
 
     let cancelled = false;
     void repos.chat.createChannel({
