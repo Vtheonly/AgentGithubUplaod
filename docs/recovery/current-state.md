@@ -1,3 +1,11 @@
+# Current State — Project Snapshot (2026-10-04, ONE-HUNDRED-FORTY-FOURTH session — T-488 COMPLETE: the Staff DM recipient-selection fix CHAT-303 RESOLVED-VERIFIED (the replace-on-select radio semantics + the honest empty picker + the self-DM guard) + the LIVE image-attachment round-trip E2E 26/26; the battery 4,787/0/5 BASELINE-MATCHED, 281 files)
+
+> **The 144th session's summary is in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-488 entry). The full live evidence is in `docs/recovery/t-488-live-verification.md`.**
+
+The owner's DM report ("at least one recipient is required, even when a recipient should already be selected") is fixed, red-then-green pinned, and live-verified end-to-end: the modal's direct picker now implements true radio semantics (a pick REPLACES the selection), the type-switch trims carried-over selections, the empty picker explains itself and points at the account-binding flow, the self-DM deep link toasts honestly, and a DM's display name defaults to the recipient's name. The LIVE E2E proved the whole mandate against the real stack — two EF-provisioned bound staff probes → the canonical create_direct_channel RPC (shape, internal scope, idempotence, both negative controls) → a real PNG through the member-scoped storage policies → the message with attachments → delivery under RLS → the read receipt → the signed-URL fetch byte-identical → the non-member denial → zero residue. The honest residual is DATA, not code: the live tenant has ZERO real staff accounts bound to personnel — the owner must provision them (Settings → Comptes) to use staff↔staff DMs; the fixed surfaces now say so.
+
+---
+
 # Current State — Project Snapshot (2026-10-04, ONE-HUNDRED-FORTY-THIRD session — T-487 COMPLETE: the integrated recovery-workflow E2E 73/73 GREEN in a fully isolated live tenant + BKUP-508 RESOLVED-TESTED (the backup snapshot warm-up) + WKFL-500 RESOLVED-TESTED (the cycle composes) + BKUP-509 documented (owner-gated); the battery 4,779/0/5 BASELINE-MATCHED, 280 files)
 
 > **The 143rd session's summary is in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-487 entry). The full live evidence is in `docs/recovery/t-487-live-verification.md`.**
