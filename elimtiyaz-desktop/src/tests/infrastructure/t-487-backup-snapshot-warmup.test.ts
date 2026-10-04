@@ -122,7 +122,7 @@ describe("T-487 / BKUP-508 — the backup snapshot's warm-up contract", () => {
     // The warm-up called the lazy source's refresh() exactly once.
     expect(getRefreshCallCount()).toBe(1);
     // The metadata counts reflect the WARMED content (not the empty cache).
-    expect(r.value.metadata.parentCount).toBe(1);
+    expect(r.value.metadata?.parentCount).toBe(1);
 
     // The ARCHIVE payload itself carries the warmed rows (decrypt + parse).
     const inspection = await inspectArchive(r.value.id);
@@ -143,9 +143,9 @@ describe("T-487 / BKUP-508 — the backup snapshot's warm-up contract", () => {
     expect(r.ok).toBe(true); // the honest degradation — never a crash
     if (!r.ok) return;
     // The failed source contributes its cache's last-known state (empty).
-    expect(r.value.metadata.parentCount).toBe(0);
+    expect(r.value.metadata?.parentCount).toBe(0);
     // The OTHER (synchronous mock) sources are unaffected.
-    expect(r.value.metadata.studentCount).toBe(mockStore.students.length);
+    expect(r.value.metadata?.studentCount).toBe(mockStore.students.length);
   });
 
   it("the warm-up result reaches the RESTORE path (round-trip: backup → wipe → restore → the lazy source's rows return)", async () => {

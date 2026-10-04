@@ -1,3 +1,11 @@
+# Current State — Project Snapshot (2026-10-04, ONE-HUNDRED-FORTY-THIRD session — T-487 COMPLETE: the integrated recovery-workflow E2E 73/73 GREEN in a fully isolated live tenant + BKUP-508 RESOLVED-TESTED (the backup snapshot warm-up) + WKFL-500 RESOLVED-TESTED (the cycle composes) + BKUP-509 documented (owner-gated); the battery 4,779/0/5 BASELINE-MATCHED, 280 files)
+
+> **The 143rd session's summary is in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-487 entry). The full live evidence is in `docs/recovery/t-487-live-verification.md`.**
+
+The owner's purge/restore/import safe-testing mandate is delivered end-to-end: the three systems were verified TOGETHER (Backup → Purge → Excel Import → Verify → Restore → Verify) in a dedicated FAKE-marked test tenant on the live project, through the app's REAL code paths, with the production fingerprint proven byte-identical at every phase checkpoint. The one real defect the E2E flushed out — BKUP-508, the backup's synchronous cache reads silently serializing empty or partial archives — is fixed (the warm-up seam), pinned (12 tests + 8 source-scan guards), and verified live (the post-import archive now carries the full server state). The honest residuals: BKUP-509 (the activation-codes coverage gap, owner-gated), the restore's documented offline-layer boundary, and the deactivated-tenant end state the append-only audit contract forces on every future isolated-tenant harness.
+
+---
+
 # Current State — Project Snapshot (2026-10-03, ONE-HUNDRED-THIRTY-SEVENTH session CLOSE — T-470 COMPLETE: the battery FULLY GREEN 4 675/0 for the first time since the baseline existed; the 0138 live application SETTLED [already applied, verified 12/12]; PARITY-010 + TEST-503 registered; the branch consolidation mandate delivered in the same session)
 
 > **The 137th session's summary is in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-470 entry).** The snapshot below the fold is the 128th-session close, retained for its detail.

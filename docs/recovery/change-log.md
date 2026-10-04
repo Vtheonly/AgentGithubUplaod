@@ -1,3 +1,20 @@
+## T-487 — The integrated recovery-workflow E2E + BKUP-508 (the 143rd session, 2026-10-04)
+
+**The mandate:** the owner's safe-testing brief — verify the Purge, the Backup/Restore, and the Excel Import TOGETHER (Backup → Purge → Excel Import → Verify → Restore → Verify) without any production-data risk; trace the implementations; fix anything unsafe or misleading.
+
+**The isolation model:** a dedicated run-unique FAKE-marked tenant on the live project; the boundary = the system's own RLS tenant-scoping + the purge RPC's tenant resolution; the production fingerprint (741/1137/2198/5956/3342 + the three sums) re-censused at every phase — byte-identical throughout.
+
+**The deliverables:**
+1. `elimtiyaz-desktop/scripts/t-487-workflow-e2e.ts` — the 9-phase live harness (the REAL ImportEngine/repositories/backup-service/purge-repository through the signed-in TEST super-admin; the t-425 headless pattern extended to the whole stack). FINAL RUN: **73/73 GREEN**.
+2. **BKUP-508 RESOLVED-TESTED** (commit `df28789`): the backup snapshot's warm-up — `runBackup` awaits every source's public `refresh()` before the synchronous `observe().get()` reads. Demonstrated pre-fix (the post-import archive: 741 parents + silently ZERO payments — the import seeds parents/students/ledger but never payments/installments; a fresh-process backup: an ALL-EMPTY 230-byte 'verified' archive). Pinned by `t-487-backup-snapshot-warmup.test.ts` (12 tests incl. the 8 source-scan guards); the T-415 family 80/80 unchanged; the battery 4,779/0/5 BASELINE-MATCHED (the registered baseline move).
+3. **WKFL-500 RESOLVED-TESTED**: the cycle composes — the purge's queue cleanup meets the re-import's preflight cleanly; the post-purge re-import is identical family-for-family; the restore rehydrates the full archived state.
+4. **BKUP-509 documented live** (owner-gated fix): the activation-codes coverage gap.
+5. `docs/recovery/t-487-live-verification.md` — the full evidence record incl. the new discoveries (the audited-tenant immutability; the §15.69a pipe-trap recurrence; the import's cache footprint).
+
+**The gates:** tsc 0 · the new suite 12/12 · T-415 80/80 · the full unified battery GREEN (every layer) · eslint 0 errors on the changed files · LIVE 73/73.
+
+---
+
 ## 2026-10-04 — T-484 COMPLETE (the 140th session's third delivery): the shifts/schedules Supabase port — the domain model ALIGNED to the canonical 0010 schema (the pre-T-484 shapes were a parallel imagination the tables cannot store) + SupabaseShiftRepository/SupabaseScheduleRepository + the employee drawer's "Horaires & Shifts" tab re-based onto the per-day model; verify_t-484.sql 12/12 LIVE (no migration — the 0010 tables exist); the battery 4 748 → 4 761/0/5 (+13 tests)
 
 ### The port's key ruling
