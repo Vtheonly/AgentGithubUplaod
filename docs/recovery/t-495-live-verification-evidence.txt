@@ -1,0 +1,69 @@
+==============================================================================
+T-495 LIVE VERIFICATION — run 1791141054 — 2026-10-04 19:10:54
+==============================================================================
+
+[SETUP] The owner-pinned admin signs in (GoTrue password grant)
+  [PASS] admin sign-in (the app's auth path) — user admin@elimtiyaz.dz (a148fe34…)
+  [PASS] the JWT is live (auth/v1/user)
+
+==============================================================================
+LEG 1 (T-493 / SYNC-301) — THE PULL CENSUS: every unbounded pull
+drains to the FULL live population (read-only)
+==============================================================================
+  [PASS] installments: drained 5956 rows in 6 page(s) == live count 5956 — full population drained
+  [PASS] personnel: drained 18 rows in 1 page(s) == live count 18 — full population drained
+  [PASS] departments: drained 4 rows in 1 page(s) == live count 4 — full population drained
+  [PASS] classes: drained 6 rows in 1 page(s) == live count 6 — full population drained
+  [PASS] subjects: drained 16 rows in 1 page(s) == live count 16 — full population drained
+  [PASS] expense_tickets: drained 0 rows in 1 page(s) == live count 0 — full population drained
+  [PASS] releve_entries: drained 0 rows in 1 page(s) == live count 0 — full population drained
+  [PASS] homework: drained 0 rows in 1 page(s) == live count 0 — full population drained
+  [PASS] attendance_records: drained 0 rows in 1 page(s) == live count 0 — full population drained
+  [PASS] assessments: drained 0 rows in 1 page(s) == live count 0 — full population drained
+  [PASS] pull_parents_for_sync: drained 741 rows in 1 page(s) at page size 1000 == live tenant count 741 — full population drained
+  [PASS] pull_students_for_sync: drained 1137 rows in 2 page(s) at page size 1000 == live tenant count 1137 — full population drained
+  [PASS] pull_payments_for_sync: drained 2198 rows in 1 page(s) at page size 5000 == live tenant count 2198 — full population drained
+  [PASS] pull_ledger_entries_for_sync: drained 3342 rows in 1 page(s) at page size 5000 == live tenant count 3342 — full population drained
+  [PASS] the T-495 discovery pinned: the row-typed students RPC at p_limit 5000 returns EXACTLY the 1000-row gateway slice (the old silent truncation) — 1000 rows returned
+
+  The tranche census the device will compute on: {0: 1137, 1: 1606, 2: 1609, 3: 1604}
+
+==============================================================================
+LEG 2 (T-494 / DATA-059) — THE PERSONNEL CONVERGENCE (read-only)
+==============================================================================
+  [PASS] the live ACTIVE personnel set (deleted_at IS NULL) reads under RLS
+  → 1 active worker(s): Adam Cherif (PER-2026-82FB27)
+  [PASS] the app's Personnel list will show the server's real workers — 1 row(s) — the T-486 honest posture
+  [PASS] every soft-deleted personnel row is also is_active=false (the Android display filter agrees with the desktop's) — 17 soft-deleted rows, 0 would still display
+  [PASS] the demo-seed ids are UUID-IMPOSSIBLE on the server: personnel (the id filter itself is rejected 22P02) — the eviction can never match a server row — by type, not by luck
+  [PASS] the demo-seed ids are UUID-IMPOSSIBLE on the server: departments (the id filter itself is rejected 22P02) — the eviction can never match a server row — by type, not by luck
+  [PASS] the demo-seed ids are UUID-IMPOSSIBLE on the server: parents (the id filter itself is rejected 22P02) — the eviction can never match a server row — by type, not by luck
+  [PASS] the demo-seed ids are UUID-IMPOSSIBLE on the server: students (the id filter itself is rejected 22P02) — the eviction can never match a server row — by type, not by luck
+  [PASS] the releve_entries census (the Activité tab's source) — 0 rows — the honest-empty pre-production state
+
+==============================================================================
+LEG 3 (T-492 / UI-331 + SYNC-302) — THE EXPENSE ROUND-TRIP
+(run-unique FAKE-marked probe, zero-residue cleanup)
+==============================================================================
+  [PASS] B1 the category resolution by (tenant, code) — the dispatcher's call — office_supplies → 855b2e84-00be-4545-baa3-0a741f690ebf
+  [PASS] B2 the EXP-<year>-<6 base36> ticket number is free on the server — EXP-2026-NUGSHU
+  [PASS] B3 the create push (full-row upsert on the id PK, under RLS) — HTTP 201 — None
+  [PASS] C the app's pull query (id-keyset + the category embed) returns the probe
+  [PASS] C2 the status translation pending_approval → submitted
+  [PASS] C3 the category translation office_supplies → supplies
+  [PASS] D the DESKTOP's read (supabase-expense-repository.ts shape) sees the probe — Android submit → desktop visible: the owner-gated round-trip CLOSED
+  [PASS] F1 the genuine create-upsert replay (the same enqueue-time payload, row unchanged) is idempotent — still exactly one row — HTTP 200, 1 row(s)
+  [PASS] E1 the self-approval negative control is REJECTED (WEAK-030) — HTTP 400 — {'code': 'P0001', 'details': None, 'hint': None, 'message': 'Self-approval is forbidden (plan §08 / WEAK-030): an approv
+  [PASS] E2 the transition push (workflow columns only) approves the ticket — HTTP 204 — None
+  [PASS] E3 the originator's title/category/amount are UNCHANGED by the transition
+  [PASS] E4 the status is approved_funds_released + the approver recorded
+  [PASS] E5 the expense_state_transitions append (pending_approval → approved_funds_released) — 1 row(s): [{'from_status': 'pending_approval', 'to_status': 'approved_funds_released', 'actor_id': 'a9adeb50-d404-498b-8c9b-a35984c5dee7'}]
+  [PASS] F2 the stale-status replay (status regression) is REJECTED by the WEAK-030 state machine (the honest-error contract) — HTTP 400 — {'code': 'P0001', 'details': None, 'hint': None, 'message': 'Unauthorized expense transition: approved_funds_released → 
+  [PASS] F3 the non-initial-status create replay is REJECTED at the INSERT gate (the BEFORE-trigger runs ahead of the conflict resolution) — HTTP 400 — {'code': 'P0001', 'details': None, 'hint': None, 'message': 'Invalid initial expense status: approved_funds_released — a
+  [PASS] G1 the probe's state transitions deleted — HTTP 204
+  [PASS] G2 the probe ticket deleted — HTTP 204
+  [PASS] G3 zero residue (the probe ticket + transitions gone; the table back to its pre-probe 0 row(s)) — ticket=0, transitions=0, table=0
+
+==============================================================================
+VERDICT: 43 PASS / 0 FAIL
+==============================================================================
