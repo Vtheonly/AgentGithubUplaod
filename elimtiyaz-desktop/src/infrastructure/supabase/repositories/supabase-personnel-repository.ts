@@ -426,7 +426,7 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
   }
 
   /** Fetch all non-deleted personnel rows of the tenant into the cache. */
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     try {
       await this.roles.load();
       const { data, error } = await this.client
@@ -744,7 +744,7 @@ export class SupabaseDepartmentRepository implements DepartmentRepository {
 
   constructor(private readonly client: SupabaseClient) {}
 
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     try {
       const { data, error } = await this.client
         .from("departments")

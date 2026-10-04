@@ -534,7 +534,7 @@ export class SupabaseWorkflowRepository implements WorkflowRepository {
     void this.refresh();
   }
 
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     try {
       const { data, error } = await this.client
         .from("workflows")

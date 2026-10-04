@@ -1031,6 +1031,18 @@ export class SupabaseParentRepository implements ParentRepository {
     return this.cache;
   }
 
+  /**
+   * BKUP-508 (T-487, 2026-10-04): the backup snapshot's warm-up seam —
+   * force a re-seed from the server and RESOLVE when the read completed
+   * (the students/payments/ledger/installments pattern; the backup service
+   * awaits this before its synchronous observe().get() reads so a cold or
+   * partially-seeded cache can never serialize an empty archive).
+   */
+  async refresh(): Promise<void> {
+    this.freshness.forceRefresh();
+    await this.seed();
+  }
+
   observeById(id: string): Observable<Parent | null> {
     if (!this.byIdCache.has(id)) {
       this.byIdCache.set(id, new SubjectBehavior<Parent | null>(null));
