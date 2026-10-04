@@ -259,11 +259,69 @@ function buildArchiveMetadata(
 }
 
 /**
+ * BKUP-508 (T-487, 2026-10-04): warm the snapshot sources BEFORE reading
+ * them.
+ *
+ * THE DEFECT this closes: `snapshotState()` reads every collection with
+ * `repos.X.observe().get()` — a SYNCHRONOUS read of the current cache
+ * value. In Supabase mode every repository's `observe()` fires `void
+ * this.seed()` (an async fire-and-forget server fetch) and returns the
+ * cache IMMEDIATELY, so a backup taken before the app's screens have
+ * subscribed (a fresh app whose operator goes straight to Settings →
+ * Sauvegarde; the 02:00 scheduler on a not-yet-subscribed session; the
+ * post-import moment whose bulk write paths never seed the payment and
+ * installment caches) serialized EMPTY or PARTIALLY-EMPTY collections
+ * into a "verified" archive — live-demonstrated by the T-487 E2E (the
+ * post-import archive carried 741 parents and silently ZERO payments).
+ *
+ * THE SEAM: every Supabase repository that feeds the snapshot exposes a
+ * public `refresh()` (the students/payments/ledger/installments pattern —
+ * `freshness.forceRefresh(); await seed();`) which FORCE-re-seeds the
+ * cache from the server and resolves when the read completed. The warm-up
+ * awaits all eight sources in parallel before the snapshot is taken, so
+ * the archive reflects the SERVER state at backup time rather than the
+ * UI cache's incidental state. Duck-typed on purpose: the MOCK layer's
+ * repositories are synchronous and carry no refresh() — they are skipped
+ * (the mock backup path is byte-identical to before; the T-415 suites
+ * stay green unchanged). A warm-up FAILURE degrades honestly: the source
+ * is logged and skipped, the backup proceeds with the cache's last-known
+ * state, and the archive's metadata counts remain the operator's
+ * post-hoc detector (vault §13.01's honesty contract).
+ */
+async function warmSnapshotSources(repos: Repositories): Promise<void> {
+  const sources: ReadonlyArray<{ name: string; repo: unknown }> = [
+    { name: "parents", repo: repos.parents },
+    { name: "students", repo: repos.students },
+    { name: "payments", repo: repos.payments },
+    { name: "installments", repo: repos.installments },
+    { name: "ledger", repo: repos.ledger },
+    { name: "expenses", repo: repos.expenses },
+    { name: "personnel", repo: repos.personnel },
+    { name: "workflows", repo: repos.workflows },
+  ];
+  await Promise.all(
+    sources.map(async ({ name, repo }) => {
+      const refresh = (repo as { refresh?: () => Promise<void> }).refresh;
+      if (typeof refresh !== "function") return; // the mock layer — synchronous caches
+      try {
+        await refresh.call(repo);
+      } catch (err) {
+        logger.warn("backup.warmup_source_failed", {
+          source: name,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
+  );
+}
+
+/**
  * Run a new backup.
  *
  * Steps per plan §13.02:
- *   serialize → gzip → AES-256-GCM encrypt → SHA-256 checksum →
- *   store in IndexedDB vault → audit log → return metadata.
+ *   [BKUP-508: warm the sources] → serialize → gzip → AES-256-GCM encrypt
+ *   → SHA-256 checksum → store in IndexedDB vault → audit log → return
+ *   metadata.
  */
 export async function runBackup(
   repos: Repositories,
@@ -272,6 +330,11 @@ export async function runBackup(
 ): Promise<Result<BackupArchive>> {
   return tryResult(async () => {
     logger.info("backup.run.start", { actorId, actorName });
+
+    // 0. BKUP-508 (T-487): warm the snapshot sources — await every
+    //    collection's forced server re-seed BEFORE the synchronous
+    //    observe().get() reads (the cold/partial-cache hazard).
+    await warmSnapshotSources(repos);
 
     // 1. Serialize
     const snapshot = snapshotState(repos);

@@ -1,0 +1,372 @@
+{
+  "tag": "t487-mut8et8w",
+  "passed": 71,
+  "failed": 2,
+  "results": [
+    {
+      "id": "P0.1 migration chain head = 0142 (no drift)",
+      "ok": true,
+      "detail": "head: 0142"
+    },
+    {
+      "id": "P0.2 production data intact (parents 741 / students 1137 / payments 2198 Σ162713000 / installments 5956 Σ356844800)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "P0.3 the real workbook present",
+      "ok": true,
+      "detail": "2027-2026.xlsx"
+    },
+    {
+      "id": "P1.1 the FAKE-marked test tenant created",
+      "ok": true,
+      "detail": "FAKE-t487-mut8et8w-isolated-test-tenant"
+    },
+    {
+      "id": "P1.2 the TEST super-admin created (GoTrue admin API)",
+      "ok": true,
+      "detail": "fake-t487-mut8et8w-admin@el-imtiyaz.test"
+    },
+    {
+      "id": "P1.3 the trigger-created profile re-bound to the TEST tenant",
+      "ok": true,
+      "detail": "profile 74dbbf98-5abb-4bd1-9f79-93fc52272860"
+    },
+    {
+      "id": "P1.4 the super_admin role assigned",
+      "ok": true,
+      "detail": "super_admin"
+    },
+    {
+      "id": "P1.5 the TEST session established (user JWT)",
+      "ok": true,
+      "detail": "sub=10e1a581…"
+    },
+    {
+      "id": "P1.6 RLS isolation: the TEST admin sees ZERO real-tenant parents",
+      "ok": true,
+      "detail": "visible=0"
+    },
+    {
+      "id": "P2.0 the test tenant starts EMPTY",
+      "ok": true,
+      "detail": "{\"parents\":0,\"students\":0,\"payments\":0,\"installments\":0,\"ledger\":0,\"activation_codes\":0,\"service_enrollments\":0,\"sync_queue\":0,\"payments_sum\":0,\"due_sum\":0,\"paid_sum\":0,\"ledger_charge_sum\":0,\"ledger_payment_sum\":0}"
+    },
+    {
+      "id": "P2.1 import #1 completed (rows read > 1000 — the full workbook)",
+      "ok": true,
+      "detail": "rowsRead=1141 rowsImported=1137 rowsRejected=0 warnings=73 in 160.6s"
+    },
+    {
+      "id": "P2.2 zero hard rejections (the workbook is the known-good source)",
+      "ok": true,
+      "detail": "rejected=0"
+    },
+    {
+      "id": "P3.1 students match the production import",
+      "ok": true,
+      "detail": "1137 vs production 1137"
+    },
+    {
+      "id": "P3.2 parents match the production import",
+      "ok": true,
+      "detail": "741 vs production 741"
+    },
+    {
+      "id": "P3.3 payments match the production import",
+      "ok": true,
+      "detail": "2198 vs production 2198"
+    },
+    {
+      "id": "P3.4 installments match the production import",
+      "ok": true,
+      "detail": "5956 vs production 5956"
+    },
+    {
+      "id": "P3.5 ledger matches the production import",
+      "ok": true,
+      "detail": "3342 vs production 3342"
+    },
+    {
+      "id": "P3.6 the payments Σ matches the production import",
+      "ok": true,
+      "detail": "162713000 vs 162713000"
+    },
+    {
+      "id": "P3.7 the installments Σ-due matches the production import",
+      "ok": true,
+      "detail": "356844800 vs 356844800"
+    },
+    {
+      "id": "P3.8 the installments Σ-paid matches the production import",
+      "ok": true,
+      "detail": "162614100 vs 162614100"
+    },
+    {
+      "id": "P3.9 zero student→parent orphans (the relationships)",
+      "ok": true,
+      "detail": "orphans=0"
+    },
+    {
+      "id": "P3.10.1 spot check \"ZIREG LEA\"",
+      "ok": true,
+      "detail": "parent PAR-2026-5E31AB / phone 0663701834"
+    },
+    {
+      "id": "P3.10.2 spot check \"MERABTI RIHAM\"",
+      "ok": true,
+      "detail": "parent PAR-2026-DA591B / phone 0799534750"
+    },
+    {
+      "id": "P3.10.3 spot check \"BOUAICHA ACIL\"",
+      "ok": true,
+      "detail": "parent PAR-2026-8E0177 / phone 0770264718"
+    },
+    {
+      "id": "P4.1 the post-import backup completed with NO error (the hazard's point)",
+      "ok": true,
+      "detail": "archive backup-2026-10-04-030214-459.db (883453 B)"
+    },
+    {
+      "id": "P4.2 the post-import archive carries the FULL server state (the BKUP-508 contract)",
+      "ok": true,
+      "detail": "archive counts: parents=741/students=1137/ledger=3342/payments=2198/installments=5956 — vs the SERVER's 741/1137/3342/2198/5956"
+    },
+    {
+      "id": "P4.3 the metadata counts agree with the archive payload",
+      "ok": true,
+      "detail": "metadata parentCount=741 paymentCount=2198 installmentCount=5956 — payload 741/2198/5956"
+    },
+    {
+      "id": "P4.4 the WARMED backup completed",
+      "ok": true,
+      "detail": "archive backup-2026-10-04-030238-372.db (883453 B)"
+    },
+    {
+      "id": "P4.5 the warmed archive's metadata counts EQUAL the server census",
+      "ok": true,
+      "detail": "archive parents=741/students=1137/payments=2198/installments=5956/ledger=3342 vs server 741/1137/2198/5956/3342"
+    },
+    {
+      "id": "P4.6 the warmed archive decrypts + verifies (integrity=verified)",
+      "ok": true,
+      "detail": "{\"parents\":741,\"students\":1137,\"payments\":2198,\"installments\":5956,\"ledger\":3342,\"expenses\":0,\"personnel\":0,\"workflows\":0}"
+    },
+    {
+      "id": "P4.7 the decrypted payload carries the FULL imported state",
+      "ok": true,
+      "detail": "payload 741/1137/2198/5956/3342"
+    },
+    {
+      "id": "P4.8 the server metadata mirror carries BOTH archives (the TEST tenant's rows)",
+      "ok": true,
+      "detail": "backup-2026-10-04-030214(encrypted), backup-2026-10-04-030238(encrypted)"
+    },
+    {
+      "id": "P5.1 the dry-run preview returned the blast radius",
+      "ok": true,
+      "detail": "total=14115 mode=dry_run"
+    },
+    {
+      "id": "P5.2 the dry-run counts EQUAL the actual census (nothing missed, nothing extra)",
+      "ok": true,
+      "detail": "dry 741p/1137s/2198pay/5956inst/3342led vs census 741/1137/2198/5956/3342"
+    },
+    {
+      "id": "P5.3 the dry-run deleted NOTHING",
+      "ok": true,
+      "detail": "counts unchanged"
+    },
+    {
+      "id": "P5.4 the dry-run reports the preserved families (the no-interference evidence)",
+      "ok": true,
+      "detail": "{\"audit_logs\":\"append_only\",\"backup_archives\":\"untouched\",\"academic_catalog\":\"untouched\",\"sync_queue_other\":0,\"workforce_operations\":\"untouched\"}"
+    },
+    {
+      "id": "P5.5 the wrong-phrase execute is REFUSED server-side (confirmation_required)",
+      "ok": true,
+      "detail": "PURGE_CONFIRMATION_REQUIRED"
+    },
+    {
+      "id": "P5.6 the refused execute deleted NOTHING",
+      "ok": true,
+      "detail": "counts unchanged"
+    },
+    {
+      "id": "P5.7 the EXECUTE completed (the real purge)",
+      "ok": true,
+      "detail": "mode=executed total=14115 audit_entry=269e7101-8442-4cd3-b135-d848659204cc"
+    },
+    {
+      "id": "P5.8 ZERO residue across every domain family (the purge is complete)",
+      "ok": true,
+      "detail": "all zero"
+    },
+    {
+      "id": "P5.9 backup_archives SURVIVED the purge (the phase-4 archives are intact)",
+      "ok": true,
+      "detail": "2→2"
+    },
+    {
+      "id": "P5.10 the purge WROTE its audit entry (append-only journal — evidence, not deletion)",
+      "ok": true,
+      "detail": "purge audit rows=1"
+    },
+    {
+      "id": "P5.11 the sync/backup RPCs still present (the infrastructure untouched)",
+      "ok": true,
+      "detail": "present=3/3"
+    },
+    {
+      "id": "P5.12 production data intact (parents 741 / students 1137 / payments 2198 Σ162713000 / installments 5956 Σ356844800)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "P6.1 import #2 completed",
+      "ok": true,
+      "detail": "rowsRead=1141 rowsImported=1137 in 153.1s"
+    },
+    {
+      "id": "P6.2 the re-imported state MATCHES import #1 family-for-family",
+      "ok": true,
+      "detail": "students 1137 vs 1137 · parents 741 vs 741 · payments 2198 vs 2198 · installments 5956 vs 5956 · ledger 3342 vs 3342"
+    },
+    {
+      "id": "P6.3 the re-imported financial sums MATCH import #1",
+      "ok": true,
+      "detail": "payments Σ162713000 vs 162713000 · due Σ356844800 vs 356844800 · paid Σ162614100 vs 162614100"
+    },
+    {
+      "id": "P6.4 production data intact (parents 741 / students 1137 / payments 2198 Σ162713000 / installments 5956 Σ356844800)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "P7.1 the edge import completed",
+      "ok": true,
+      "detail": "rowsRead=6 rowsImported=4 rowsUpdated=1 rowsSkipped=1 rowsRejected=0 warnings=0"
+    },
+    {
+      "id": "P7.2 the DUPLICATE row created exactly ONE student (within-batch dedupe)",
+      "ok": true,
+      "detail": "students named EDGE ONE A = 1"
+    },
+    {
+      "id": "P7.3 the two-student family resolves to ONE parent (the relationship)",
+      "ok": true,
+      "detail": "students under parent 0550000001 = 2"
+    },
+    {
+      "id": "P7.4 the missing-NEM row imported (the placeholder-parent fallback)",
+      "ok": true,
+      "detail": "imported=1"
+    },
+    {
+      "id": "P7.5 the no-NOM row did NOT import (required-field validation)",
+      "ok": true,
+      "detail": "empty-name students=0"
+    },
+    {
+      "id": "P7.6a the edge import added the expected rows (4 students / 3 parents)",
+      "ok": false,
+      "detail": "students 1137→1141 (+4 expected) · parents 741→743 (+3 expected)"
+    },
+    {
+      "id": "P7.6b the edge re-run is IDEMPOTENT (no count changes)",
+      "ok": true,
+      "detail": "students 1141→1141 · parents 743→743"
+    },
+    {
+      "id": "P7.7 the re-run reported updates/skips (not fresh inserts)",
+      "ok": true,
+      "detail": "imported=0 updated=5 skipped=1"
+    },
+    {
+      "id": "P7.8 production data intact (parents 741 / students 1137 / payments 2198 Σ162713000 / installments 5956 Σ356844800)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "P8.1 the wrong-passphrase restore is REFUSED",
+      "ok": true,
+      "detail": "ERR_VALIDATION"
+    },
+    {
+      "id": "P8.2 the restore completed (the offline layer rehydrated)",
+      "ok": true,
+      "detail": "170 ms"
+    },
+    {
+      "id": "P8.3 the offline layer carries the archive's FULL state",
+      "ok": true,
+      "detail": "offline 741p/1137s/2198pay/5956inst/3342led vs archive 741/1137/2198/5956/3342"
+    },
+    {
+      "id": "P8.4 zero orphaned students inside the restored state (the relationships)",
+      "ok": true,
+      "detail": "orphans=0"
+    },
+    {
+      "id": "P8.5 the restored-from marker records the recovery",
+      "ok": true,
+      "detail": "archive=backup-2026-10-04-030238"
+    },
+    {
+      "id": "P8.6 the archive's status transitioned to 'restored' (the recovery information)",
+      "ok": true,
+      "detail": "status=restored"
+    },
+    {
+      "id": "P8.7 the server mirror carries the 'restored' transition",
+      "ok": true,
+      "detail": "status=restored restored_at=2026-10-04 03:06:20.773+00"
+    },
+    {
+      "id": "P8.8 BKUP-509 live measurement — the activation codes the archive does NOT carry (post-purge + re-import: the codes are re-issued only by the import's code-generation)",
+      "ok": true,
+      "detail": "live activation_codes in the test tenant now = 743; the archive's 8 collections include none of them (documented gap BKUP-509)"
+    },
+    {
+      "id": "P9.1 production data intact (parents 741 / students 1137 / payments 2198 Σ162713000 / installments 5956 Σ356844800)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "P9.2 the cleanup purge (the test tenant's domain removed)",
+      "ok": true,
+      "detail": "total=14148"
+    },
+    {
+      "id": "P9.3 zero domain residue after the cleanup purge",
+      "ok": true,
+      "detail": "{\"parents\":0,\"students\":0,\"payments\":0,\"installments\":0,\"ledger\":0,\"activation_codes\":0,\"service_enrollments\":0,\"sync_queue\":0,\"payments_sum\":0,\"due_sum\":0,\"paid_sum\":0,\"ledger_charge_sum\":0,\"ledger_payment_sum\":0}"
+    },
+    {
+      "id": "P9.4 the backup_archives mirror rows removed (zero residue)",
+      "ok": true,
+      "detail": "remaining=0"
+    },
+    {
+      "id": "P9.5 the TEST admin's auth account removed",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "P9.6 the test tenant deactivated (the audit journal preserved — the append-only contract)",
+      "ok": true,
+      "detail": "is_active=false"
+    },
+    {
+      "id": "P9.7 FINAL: the production data is byte-identical to the preflight baseline",
+      "ok": true,
+      "detail": "parents 741 / students 1137 / payments Σ162713000 — UNTOUCHED"
+    },
+    {
+      "id": "P9.8 zero ACTIVE residue (the deactivated tenant + its audit journal remain by design)",
+      "ok": false,
+      "detail": "{\"active_tenants\":0,\"profiles\":1,\"backup_rows\":0,\"roles\":0,\"parents\":0,\"students\":0}"
+    }
+  ]
+}

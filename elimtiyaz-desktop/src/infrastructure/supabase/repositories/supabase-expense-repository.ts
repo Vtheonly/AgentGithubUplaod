@@ -221,7 +221,7 @@ export class SupabaseExpenseRepository implements ExpenseRepository {
   constructor(private readonly client: SupabaseClient) {}
 
   /** Fetch the tenant's tickets (+ category codes) and refresh the cache. */
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     try {
       const { data, error } = await this.client
         .from("expense_tickets")
