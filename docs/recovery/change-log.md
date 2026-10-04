@@ -13,6 +13,8 @@
 
 **The gates:** tsc 0 · the new suite 12/12 · T-415 80/80 · the full unified battery GREEN (every layer) · eslint 0 errors on the changed files · LIVE 73/73.
 
+**The branch consolidation (the session's second mandate, executed):** the fresh containment census (fetch --prune + `git merge-base --is-ancestor` + `git rev-list --count main..<branch>` = 0 for every ref) → all 15 non-main branches deleted (the 14 residue refs from sessions 139–142 + T-487's own task branch). The repository: ONE authoritative `main` (`9b888f0`). The Android repo: single-branch, unchanged, up to date.
+
 ---
 
 ## 2026-10-04 — T-484 COMPLETE (the 140th session's third delivery): the shifts/schedules Supabase port — the domain model ALIGNED to the canonical 0010 schema (the pre-T-484 shapes were a parallel imagination the tables cannot store) + SupabaseShiftRepository/SupabaseScheduleRepository + the employee drawer's "Horaires & Shifts" tab re-based onto the per-day model; verify_t-484.sql 12/12 LIVE (no migration — the 0010 tables exist); the battery 4 748 → 4 761/0/5 (+13 tests)
