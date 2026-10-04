@@ -48,7 +48,6 @@ import type {
   OnboardingState,
   OnboardingStep,
   OnboardingData,
-  Weekday,
 } from "../../../domain/model/workforce";
 import type { AttendanceRepository } from "../../../domain/repository/workforce-repository";
 
@@ -151,21 +150,14 @@ class MockDepartmentRepository implements DepartmentRepository {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Shifts                                                             */
+/*  Shifts — T-484: the canonical 0010 shape (reusable templates, no    */
+/*  weekday; a template is assigned per-day through Schedule)           */
 /* ------------------------------------------------------------------ */
 
 const SEED_SHIFTS: Shift[] = [
-  { id: "shift-m-m", tenantId: TENANT_ID, label: "Matin standard", weekday: "mon", shiftType: "morning", startTime: "08:00", endTime: "12:00", breakMinutes: 0, color: "brand-blue" },
-  { id: "shift-m-a", tenantId: TENANT_ID, label: "Après-midi standard", weekday: "mon", shiftType: "afternoon", startTime: "13:00", endTime: "17:00", breakMinutes: 0, color: "brand-blue-deep" },
-  { id: "shift-t-m", tenantId: TENANT_ID, label: "Matin standard", weekday: "tue", shiftType: "morning", startTime: "08:00", endTime: "12:00", breakMinutes: 0, color: "brand-blue" },
-  { id: "shift-t-a", tenantId: TENANT_ID, label: "Après-midi standard", weekday: "tue", shiftType: "afternoon", startTime: "13:00", endTime: "17:00", breakMinutes: 0, color: "brand-blue-deep" },
-  { id: "shift-w-m", tenantId: TENANT_ID, label: "Matin standard", weekday: "wed", shiftType: "morning", startTime: "08:00", endTime: "12:00", breakMinutes: 0, color: "brand-blue" },
-  { id: "shift-w-a", tenantId: TENANT_ID, label: "Après-midi standard", weekday: "wed", shiftType: "afternoon", startTime: "13:00", endTime: "17:00", breakMinutes: 0, color: "brand-blue-deep" },
-  { id: "shift-th-m", tenantId: TENANT_ID, label: "Matin standard", weekday: "thu", shiftType: "morning", startTime: "08:00", endTime: "12:00", breakMinutes: 0, color: "brand-blue" },
-  { id: "shift-th-a", tenantId: TENANT_ID, label: "Après-midi standard", weekday: "thu", shiftType: "afternoon", startTime: "13:00", endTime: "17:00", breakMinutes: 0, color: "brand-blue-deep" },
-  { id: "shift-f-m", tenantId: TENANT_ID, label: "Matin standard", weekday: "fri", shiftType: "morning", startTime: "08:00", endTime: "12:00", breakMinutes: 0, color: "brand-blue" },
-  { id: "shift-f-a", tenantId: TENANT_ID, label: "Après-midi standard", weekday: "fri", shiftType: "afternoon", startTime: "13:00", endTime: "17:00", breakMinutes: 0, color: "brand-blue-deep" },
-  { id: "shift-sat-m", tenantId: TENANT_ID, label: "Samedi matin", weekday: "sat", shiftType: "morning", startTime: "08:00", endTime: "12:00", breakMinutes: 0, color: "brand-gold" },
+  { id: "shift-m-m", tenantId: TENANT_ID, code: "MORNING", name: "Matin standard", startTime: "08:00", endTime: "12:00", gracePeriodMinutes: 10, colorHex: "#1d4ed8", isActive: true },
+  { id: "shift-m-a", tenantId: TENANT_ID, code: "AFTERNOON", name: "Après-midi standard", startTime: "13:00", endTime: "17:00", gracePeriodMinutes: 10, colorHex: "#1e40af", isActive: true },
+  { id: "shift-sat-m", tenantId: TENANT_ID, code: "SAT_MORNING", name: "Samedi matin", startTime: "08:00", endTime: "12:00", gracePeriodMinutes: 5, colorHex: "#b45309", isActive: true },
 ];
 
 class MockShiftRepository implements ShiftRepository {
@@ -175,6 +167,12 @@ class MockShiftRepository implements ShiftRepository {
   observe(): Observable<Shift[]> { return this.subjects; }
 
   async createShift(input: Omit<Shift, "id" | "tenantId">): Promise<Result<Shift>> {
+    if (this.items.some((s) => s.code === input.code)) {
+      return Err(Errors.validation(`Le code de shift « ${input.code} » existe déjà.`));
+    }
+    if (input.endTime <= input.startTime) {
+      return Err(Errors.validation("L'heure de fin doit être après l'heure de début."));
+    }
     const shift: Shift = { ...input, id: genId("shift"), tenantId: TENANT_ID };
     this.items = [...this.items, shift];
     this.subjects.set(this.items);
@@ -202,8 +200,18 @@ class MockShiftRepository implements ShiftRepository {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Schedules                                                          */
+/*  Schedules — T-484: the canonical 0010 shape (per-day rows; the      */
+/*  (tenant, personnel, date) unique is enforced; the week view is a     */
+/*  read-side window)                                                   */
 /* ------------------------------------------------------------------ */
+
+/** The [weekStart, weekStart+6] date window (weekStart = ISO Monday). */
+function weekWindow(weekStart: string): { from: string; to: string } {
+  const from = new Date(`${weekStart}T00:00:00Z`);
+  const to = new Date(from);
+  to.setUTCDate(to.getUTCDate() + 6);
+  return { from: weekStart, to: to.toISOString().slice(0, 10) };
+}
 
 class MockScheduleRepository implements ScheduleRepository {
   private readonly byPersonnel = new Map<string, SubjectBehavior<Schedule[]>>();
@@ -221,14 +229,18 @@ class MockScheduleRepository implements ScheduleRepository {
   private ensureWeekSubject(week: string): SubjectBehavior<Schedule[]> {
     let s = this.byWeek.get(week);
     if (!s) {
-      s = new SubjectBehavior<Schedule[]>(this.items.filter((x) => x.weekStart === week));
+      const { from, to } = weekWindow(week);
+      s = new SubjectBehavior<Schedule[]>(this.items.filter((x) => x.date >= from && x.date <= to));
       this.byWeek.set(week, s);
     }
     return s;
   }
   private notifyAll(): void {
     this.byPersonnel.forEach((s, id) => s.set(this.items.filter((x) => x.personnelId === id)));
-    this.byWeek.forEach((s, w) => s.set(this.items.filter((x) => x.weekStart === w)));
+    this.byWeek.forEach((s, w) => {
+      const { from, to } = weekWindow(w);
+      s.set(this.items.filter((x) => x.date >= from && x.date <= to));
+    });
   }
 
   observeByPersonnel(personnelId: string): Observable<Schedule[]> {
@@ -239,16 +251,22 @@ class MockScheduleRepository implements ScheduleRepository {
   }
 
   async upsertSchedule(input: Omit<Schedule, "id" | "tenantId"> & { id?: string }): Promise<Result<Schedule>> {
-    if (input.id) {
-      const idx = this.items.findIndex((s) => s.id === input.id);
-      if (idx !== -1) {
-        const before = this.items[idx];
-        const after: Schedule = { ...before, ...input, id: before.id, tenantId: TENANT_ID };
-        this.items = [...this.items.slice(0, idx), after, ...this.items.slice(idx + 1)];
-        this.notifyAll();
-        audit({ action: "schedule.update", entityType: "schedule", entityId: after.id, diff: { before, after } });
-        return Ok(after);
-      }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
+      return Err(Errors.validation("Date invalide (format attendu : AAAA-MM-JJ)."));
+    }
+    // The 0010 unique (tenant, personnel, date): an existing row for the
+    // same triple is UPDATED in place (the upsert contract), whatever id
+    // the caller passed.
+    const conflictIdx = this.items.findIndex(
+      (s) => s.personnelId === input.personnelId && s.date === input.date,
+    );
+    if (conflictIdx !== -1) {
+      const before = this.items[conflictIdx];
+      const after: Schedule = { ...before, ...input, id: before.id, tenantId: TENANT_ID };
+      this.items = [...this.items.slice(0, conflictIdx), after, ...this.items.slice(conflictIdx + 1)];
+      this.notifyAll();
+      audit({ action: "schedule.update", entityType: "schedule", entityId: after.id, diff: { before, after } });
+      return Ok(after);
     }
     const sched: Schedule = { ...input, id: input.id ?? genId("sched"), tenantId: TENANT_ID };
     this.items = [...this.items, sched];

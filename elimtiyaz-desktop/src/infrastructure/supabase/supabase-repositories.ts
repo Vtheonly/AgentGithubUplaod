@@ -20,12 +20,11 @@
  *   - Notifications (DESKTOP-1): SupabaseNotificationRepository — `notifications`
  *     table (migration 0013) with the observable-cache pattern.
  *   - Personnel + Departments (DESKTOP-1): entity CRUD on `personnel` (0009)
- *     and `departments` (0010). Shifts and schedules remain on
- *     the mock layer (the WORKFORCE-102 standing list — T-484's target).
- *     Workforce tasks
+ *     and `departments` (0010). Workforce tasks
  *     (T-180), chat (T-099), leave requests (T-178), attendance (T-217),
- *     warehouse tasks (T-479), the Relevé ledger (T-481) and the onboarding
- *     wizard state (T-483 — the tenant-singleton row) are
+ *     warehouse tasks (T-479), the Relevé ledger (T-481), the onboarding
+ *     wizard state (T-483 — the tenant-singleton row) and the shifts/
+ *     schedules pair (T-484 — the canonical 0010 model) are
  *     Supabase-backed.
  *   - All other repositories: FALLBACK to mock implementations with a console
  *     warning. This allows incremental migration — each repository can be
@@ -82,6 +81,10 @@ import { SupabaseInventoryRepository } from "./repositories/supabase-inventory-r
 import { SupabaseWarehouseTaskRepository } from "./repositories/supabase-warehouse-task-repository";
 import { SupabaseReleveRepository } from "./repositories/supabase-releve-repository";
 import { SupabaseOnboardingRepository } from "./repositories/supabase-onboarding-repository";
+import {
+  SupabaseShiftRepository,
+  SupabaseScheduleRepository,
+} from "./repositories/supabase-shift-schedule-repositories";
 import {
   SupabaseAcademicYearRepository,
   SupabaseAcademicLevelRepository,
@@ -361,6 +364,17 @@ export function getSupabaseRepositories(): Repositories {
   // future employee-level onboarding.
   const onboarding = new SupabaseOnboardingRepository(client);
 
+  // T-484 (140th session, the T-477 audit's "shifts/schedules mock slots" —
+  // the WORKFORCE-102 standing list's last two desktop slots): wire the
+  // canonical 0010 adapters. BEFORE this, the two slots stayed on
+  // mockRepositories even in Supabase mode — and the pre-T-484 DOMAIN model
+  // (weekday/shiftType weekly templates + weekStart/shiftIds[] chunks) was a
+  // parallel imagination the 0010 tables cannot store. The domain types are
+  // aligned to the canonical schema in the same change; the drawer's
+  // "Horaires & Shifts" tab renders the real per-day assignments.
+  const shifts = new SupabaseShiftRepository(client);
+  const schedules = new SupabaseScheduleRepository(client);
+
   // T-307 (48th session, T-047 Group-B port #1 — PRICING FIRST): wire the
   // Supabase-backed pricing repository onto the canonical 0006 tables
   // (pricing_configs + grade_level_tuition + transport_destinations +
@@ -446,6 +460,8 @@ export function getSupabaseRepositories(): Repositories {
     warehouseTasks, // T-479 — pending_receipts + pending_dispatches (WORKFORCE-507)
     releve, // T-481 — releve_entries (WORKFORCE-508)
     onboarding, // T-483 — onboarding_states' tenant-singleton row (the 0142 model ruling)
+    shifts, // T-484 — shifts (the canonical 0010 templates)
+    schedules, // T-484 — schedules (the per-day assignments)
     pricing, // T-307 — the canonical 0006 pricing tables (T-047 port #10)
     backups, // T-415 (BKUP-501) — vault-local ciphertext + server metadata mirror
     // Other repositories remain on the mock layer for now. They will be
