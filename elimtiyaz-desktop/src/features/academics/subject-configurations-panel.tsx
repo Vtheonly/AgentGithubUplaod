@@ -151,13 +151,20 @@ export function SubjectConfigurationsPanel() {
     return [...seen.values()].sort((a, b) => a.order.localeCompare(b.order));
   }, [classes]);
 
+  // ACAD-514 (T-502): the byKey lookup is YEAR-SCOPED — the repository
+  // loads ALL active years' configurations, and the pre-T-502 2-part key
+  // (`subjectId|academicLevelId`) let a PRIOR-year coefficient display in
+  // the current year's cell AND prefill the edit form while the save
+  // upserted against the current year (the cross-year bleed). The key now
+  // carries academicYearId and the map only holds the ACTIVE year's rows.
   const byKey = useMemo(() => {
     const m = new Map<string, SubjectConfiguration>();
     for (const c of configurations) {
-      m.set(`${c.subjectId}|${c.academicLevelId}`, c);
+      if (c.academicYearId !== currentYear.id) continue;
+      m.set(`${c.subjectId}|${c.academicLevelId}|${c.academicYearId}`, c);
     }
     return m;
-  }, [configurations]);
+  }, [configurations, currentYear.id]);
 
   const yearConfigurations = useMemo(
     () => configurations.filter((c) => c.academicYearId === currentYear.id),
@@ -262,7 +269,7 @@ export function SubjectConfigurationsPanel() {
                     </div>
                   </td>
                   {levels.map((l) => {
-                    const cfg = byKey.get(`${s.id}|${l.id}`);
+                    const cfg = byKey.get(`${s.id}|${l.id}|${currentYear.id}`);
                     const target: ConfigTarget = {
                       subject: s,
                       levelId: l.id,
