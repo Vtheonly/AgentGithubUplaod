@@ -205,6 +205,42 @@ export interface PromotionRepository {
   }): Promise<Result<{ promotedStudents: Student[]; updatedCount: number }>>;
 }
 
+/**
+ * GRADE-103 (T-502, 2026-10-11): the report-card narrative store.
+ *
+ * BEFORE: the narrative generator's « Approuver » flow was
+ * persistence-HOLLOW — the ONLY write was an audit_logs row
+ * (AiNarrativeApproved, 200-char preview), so an approved narrative was
+ * unrecoverable the moment the modal closed while the toast promised
+ * « Narratif enregistré sur la fiche élève ».
+ *
+ * The persistence target (the registered decision): a DEDICATED year-keyed
+ * table (`student_narratives`, migration 0148) — one narrative per
+ * (tenant, student, academic year), upserted in place on re-approval.
+ * NOT `student_academic_histories`: that table is the append-only year-end
+ * promotion record whose NOT NULL decision fields (cycle / grade_code /
+ * grade_year / gpa / decision) would force a fabricated mid-year promotion
+ * decision. The promotion flow's own narrative field keeps its year-end
+ * semantics untouched.
+ */
+export interface StudentNarrativeRepository {
+  /**
+   * Upsert the approved narrative for (student, academicYear). The year is
+   * the academic-year CODE (e.g. "2025-2026") — the same key space as
+   * `student_academic_histories.academic_year`.
+   */
+  saveNarrative(input: {
+    studentId: string;
+    academicYear: string;
+    narrative: string;
+    approvedBy: string;
+    approvedByName: string;
+  }): Promise<Result<void>>;
+
+  /** The saved narrative for (student, academicYear), or null when none. */
+  getNarrative(studentId: string, academicYear: string): Promise<Result<string | null>>;
+}
+
 // ============================================================================
 // Class Formation & Student Placement (T-370 / ACAD-500 — the 9ddde68
 // "Constitution des Classes & Répartition des Élèves" workflow)

@@ -19,6 +19,7 @@ import type {
   Observable,
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
+import { mockStudentNarrativeRepository } from "./student-narrative-repository";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { SubjectBehavior } from "../subject-behavior";
@@ -326,6 +327,7 @@ export class MockBackupRepository implements BackupRepository {
       warehouseTasks: mockWarehouseTaskRepository,
       calendar: mockCalendarRepository,
       overdueAlerts: mockOverdueAlertGenerator,
+      studentNarratives: mockStudentNarrativeRepository,
     };
   }
 }

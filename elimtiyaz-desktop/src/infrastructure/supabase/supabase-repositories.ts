@@ -98,6 +98,7 @@ import {
   SupabasePromotionCycleRepository,
   SupabaseReEnrollmentRepository,
 } from "./repositories/supabase-academic-repository";
+import { SupabaseStudentNarrativeRepository } from "./repositories/supabase-student-narrative-repository";
 import { SupabaseIdentityResolutionRepository } from "./repositories/supabase-identity-resolution-repository";
 import { SupabaseAuditLogRepository } from "./repositories/supabase-audit-log-repository";
 import { SupabaseNotificationRepository } from "./repositories/supabase-notification-repository";
@@ -169,6 +170,10 @@ export function getSupabaseRepositories(): Repositories {
   const attendance = new SupabaseAttendanceRepository(client);
   const homework = new SupabaseHomeworkRepository(client);
   const promotion = new SupabasePromotionRepository(client);
+  // GRADE-103 (T-502): the year-keyed report-card narrative store
+  // (migration 0148) — the persistence target behind the narrative
+  // generator's « Approuver » button.
+  const studentNarratives = new SupabaseStudentNarrativeRepository(client);
   // T-370 (ACAD-500) — the Class Placement Studio finalize: ONE atomic RPC
   // (fn_finalize_class_placements, migration 0096) over the classes +
   // students repositories (refreshed after a successful batch).
@@ -436,6 +441,7 @@ export function getSupabaseRepositories(): Repositories {
     attendance,
     homework,
     promotion,
+    studentNarratives, // GRADE-103 (T-502) — the 0148 narrative store
     // T-498 (ARCH-001 residue): the promotion-CYCLE repository was fully
     // implemented (T-403, migration 0108 RPCs) and pinned by its suites —
     // but never registered in this override list, so the Academics

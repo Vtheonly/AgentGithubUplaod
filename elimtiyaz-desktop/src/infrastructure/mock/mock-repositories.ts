@@ -25,6 +25,7 @@ export { mockReEnrollmentRepository } from "./repositories/re-enrollment-reposit
 export { mockIdentityResolutionRepository, resetMockIdentityResolution, erBackupSnapshot, erBackupRestore } from "./repositories/identity-resolution-repository";
 export { mockAcademicYearRepository } from "./repositories/academic-year-repository";
 export { mockAcademicLevelRepository } from "./repositories/academic-level-repository";
+export { mockStudentNarrativeRepository } from "./repositories/student-narrative-repository";
 export { mockClubRepository } from "./repositories/club-repository";
 export {
   mockPsychologyRepository,

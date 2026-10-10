@@ -59,6 +59,7 @@ import {
   mockIdentityResolutionRepository,
   mockAcademicYearRepository,
   mockAcademicLevelRepository,
+  mockStudentNarrativeRepository,
   mockClubRepository,
   mockPsychologyRepository,
   mockOrthophonieRepository,
@@ -95,6 +96,9 @@ export const mockRepositories: Repositories = {
   attendance: mockAttendanceRepository,
   homework: mockHomeworkRepository,
   promotion: mockPromotionRepository,
+  // GRADE-103 (T-502): the year-keyed narrative store — the mock twin of
+  // SupabaseStudentNarrativeRepository (migration 0148).
+  studentNarratives: mockStudentNarrativeRepository,
   classPlacement: mockClassPlacementRepository,
   promotionCycles: mockPromotionCycleRepository,
   reEnrollment: mockReEnrollmentRepository,

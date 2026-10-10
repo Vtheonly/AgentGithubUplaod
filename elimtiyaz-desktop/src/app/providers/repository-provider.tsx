@@ -37,6 +37,7 @@ import type {
 } from "../../domain/repository/repository";
 import type {
   PromotionRepository,
+  StudentNarrativeRepository,
   AcademicYearRepository,
   AcademicLevelRepository,
   ClassPlacementRepository,
@@ -97,6 +98,10 @@ export interface Repositories {
   readonly attendance: AttendanceRepository;
   readonly homework: HomeworkRepository;
   readonly promotion: PromotionRepository;
+  /** GRADE-103 (T-502): the year-keyed report-card narrative store
+   * (migration 0148) — the persistence target behind the narrative
+   * generator's « Approuver » button. */
+  readonly studentNarratives: StudentNarrativeRepository;
   /** T-370 (ACAD-500): the atomic Class Formation & Placement finalize. */
   readonly classPlacement: ClassPlacementRepository;
   /** T-403 (0108): the human-in-the-loop promotion-cycle workflow. */

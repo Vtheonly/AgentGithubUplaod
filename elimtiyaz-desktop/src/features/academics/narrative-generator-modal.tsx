@@ -123,8 +123,22 @@ export function NarrativeGeneratorModal({
       setTeacherNotes("");
       setNarrative("");
       setRejectReason("");
+      // GRADE-103 (T-502): preload the SAVED narrative for the active year —
+      // an approved narrative is now retrievable (the pre-T-502 modal
+      // reset to blank and the text was gone the moment it closed).
+      void (async () => {
+        const year = await repos.academicYears.getCurrentYear();
+        if (!year.ok) return;
+        const saved = await repos.studentNarratives.getNarrative(
+          student.id,
+          year.value.code,
+        );
+        if (saved.ok && saved.value) {
+          setNarrative(saved.value);
+        }
+      })();
     }
-  }, [open, student.id]);
+  }, [open, student.id, repos]);
 
   const grades = assessments
     .filter((a) => a.subjectAverage != null)
@@ -229,6 +243,34 @@ export function NarrativeGeneratorModal({
       );
       return;
     }
+    // GRADE-103 (T-502): the approve button PERSISTS the narrative — the
+    // pre-T-502 flow wrote only an audit row while the toast claimed
+    // « Narratif enregistré sur la fiche élève » (persistence-hollow).
+    // The write is year-keyed (the active academic year) and upserted in
+    // place; a failure surfaces an honest error and the modal STAYS OPEN.
+    const year = await repos.academicYears.getCurrentYear();
+    if (!year.ok) {
+      toast.showError(
+        t("toast.error"),
+        "Impossible de résoudre l'année scolaire active — le narratif n'a PAS été enregistré.",
+      );
+      return;
+    }
+    const saved = await repos.studentNarratives.saveNarrative({
+      studentId: student.id,
+      academicYear: year.value.code,
+      narrative,
+      approvedBy: session.userId,
+      approvedByName: session.displayName,
+    });
+    if (!saved.ok) {
+      toast.showError(
+        t("toast.error"),
+        saved.error.userMessage ??
+          "L'enregistrement du narratif a échoué — réessayez.",
+      );
+      return;
+    }
     await repos.audit.log({
       action: AuditActions.AiNarrativeApproved,
       entityType: "student",
@@ -238,9 +280,9 @@ export function NarrativeGeneratorModal({
       tenantId: session.tenantId,
       diff: {
         before: null,
-        after: { narrativePreview: narrative.slice(0, 200) },
+        after: { academicYear: year.value.code, narrativePreview: narrative.slice(0, 200) },
       },
-      note: `Narratif approuvé pour ${student.firstName} ${student.lastName} (classe ${classId})`,
+      note: `Narratif approuvé pour ${student.firstName} ${student.lastName} (classe ${classId}, année ${year.value.code})`,
     });
     toast.showSuccess(
       t("ai.narrative.approve"),
