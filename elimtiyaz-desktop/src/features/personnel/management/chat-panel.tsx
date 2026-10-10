@@ -50,6 +50,7 @@ import {
   type ChannelType, type ChatChannel, type ChatChannelScope, type ChatMessage,
   type TaskAttachment,
 } from "../../../domain/model/workforce";
+import type { ChatRepository } from "../../../domain/repository/workforce-repository";
 import {
   uploadPrivateMedia,
   freshSignedMediaUrl,
@@ -81,6 +82,79 @@ function colorFor(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+/**
+ * CHAT-304 (T-499): per-channel unread counts for the CHANNEL LIST.
+ *
+ * Every listed channel's message stream is subscribed (the repositories
+ * cache one subject per channel id — the Supabase repository keeps them
+ * fresh through realtime AND the post-mutation refreshes; the mock through
+ * its in-memory store), and the count is the number of messages the
+ * session profile neither authored nor has a read receipt for.
+ *
+ * The pre-fix panel computed unread counts ONLY for the open channel —
+ * the unselected-channel branch was the dead ternary
+ * `channel.lastMessageAt ? 0 : 0` — so a parent's reply in any other
+ * conversation was invisible until the operator happened to open it.
+ */
+function useUnreadCounts(
+  chat: ChatRepository,
+  channels: readonly ChatChannel[],
+  currentUserId: string,
+): ReadonlyMap<string, number> {
+  const [counts, setCounts] = useState<ReadonlyMap<string, number>>(
+    () => new Map(),
+  );
+  // Refs keep the effect from re-subscribing on identity churn of the
+  // repo/user while still reading the latest values inside the callback.
+  const chatRef = useRef(chat);
+  chatRef.current = chat;
+  const userIdRef = useRef(currentUserId);
+  userIdRef.current = currentUserId;
+
+  // A stable dependency: the comma-joined channel id list (the channel SET,
+  // not the array identity — refreshChannels re-creates the array on every
+  // realtime event).
+  const channelKey = channels.map((c) => c.id).join(",");
+
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+    const compute = (channelId: string, msgs: readonly ChatMessage[]): void => {
+      const uid = userIdRef.current;
+      const n = msgs.filter(
+        (m) => m.authorId !== uid && !m.readBy.includes(uid),
+      ).length;
+      setCounts((prev) => {
+        if ((prev.get(channelId) ?? 0) === n) return prev;
+        const next = new Map(prev);
+        next.set(channelId, n);
+        return next;
+      });
+    };
+    for (const id of channelKey ? channelKey.split(",") : []) {
+      if (!id) continue;
+      const unsub = chatRef.current.observeMessages(id).subscribe(
+        (msgs) => compute(id, msgs),
+      );
+      unsubs.push(unsub);
+    }
+    // Prune counts for channels that left the list (archived etc.).
+    setCounts((prev) => {
+      const live = new Set(channelKey ? channelKey.split(",") : []);
+      const stale = [...prev.keys()].filter((k) => !live.has(k));
+      if (stale.length === 0) return prev;
+      const next = new Map(prev);
+      for (const k of stale) next.delete(k);
+      return next;
+    });
+    return () => {
+      for (const unsub of unsubs) unsub();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelKey]);
+
+  return counts;
 }
 
 interface NewChannelForm {
@@ -262,19 +336,24 @@ export function ChatPanel({
     [personnel, currentUserId],
   );
 
-  function unreadCount(channel: ChatChannel): number {
-    // We approximate by counting messages in the channel that haven't been read
-    // by the current user. Since observeMessages only fires for the selected
-    // channel, we use the channel's preview as a best-effort indicator:
-    // if the channel's lastMessageAt is more recent than the current read state,
-    // show 1 — otherwise 0. To keep this self-contained, we instead count
-    // unread messages from the selected channel's observable. For unselected
-    // channels, we render a simple dot if lastMessageAt is non-null.
-    if (channel.id === selectedId) {
-      return messages.filter((m) => !m.readBy.includes(currentUserId) && m.authorId !== currentUserId).length;
-    }
-    return channel.lastMessageAt ? 0 : 0;
-  }
+  /**
+   * CHAT-304 (T-499): the per-channel unread badge — each channel row
+   * subscribes to the channel's OWN message stream (the repository caches
+   * one subject per channel; realtime + the post-mutation refreshes keep
+   * them fresh) and counts the messages not authored by the session and
+   * not yet marked read by it. This replaces the pre-fix `unreadCount()`
+   * whose unselected-channel branch was `channel.lastMessageAt ? 0 : 0` —
+   * a dead ternary that suppressed EVERY list badge, so the unread
+   * indicator only ever appeared on the already-open channel (a parent's
+   * reply in another conversation was invisible until the operator
+   * opened it — the unread-indicator half of the §4.2 Workflow-3
+   * contract).
+   */
+  const unreadByChannel = useUnreadCounts(
+    repos.chat,
+    channels,
+    currentUserId,
+  );
 
   function pickFiles(files: FileList | null): void {
     if (!files) return;
@@ -490,7 +569,7 @@ export function ChatPanel({
               <ul>
                 {channels.map((c) => {
                   const Icon = channelIcon(c.type);
-                  const unread = unreadCount(c);
+                  const unread = unreadByChannel.get(c.id) ?? 0;
                   const active = c.id === selectedId;
                   return (
                     <li key={c.id}>

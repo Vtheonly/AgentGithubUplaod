@@ -33,8 +33,9 @@
  *     6. Messagerie
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import {
   LayoutDashboard,
   BookUser,
@@ -74,9 +75,40 @@ export function PersonnelPage() {
   const repos = useRepositories();
   const { session } = useAuth();
   const onboarding = useObservable(() => repos.onboarding.observe(), []);
+  // T-499 / CHAT-305: the tab deep link — a chat-channel notification (or
+  // any future internal link) can land on `/personnel?tab=chat&channelId=…`
+  // and the messenger opens directly (the CRM `action=portal-chat` pattern,
+  // extended to the INTERNAL scope's surface).
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [chatRecipientPersonnelId, setChatRecipientPersonnelId] = useState<string | null>(null);
+  // T-499 / CHAT-305: the internal messenger's channel-selection deep link
+  // (mirrors the CRM's portalChannelId contract).
+  const [chatChannelId, setChatChannelId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const channelId = searchParams.get("channelId");
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+    if (tab === "chat" && channelId) {
+      setChatChannelId(channelId);
+    }
+    if (tab) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("tab");
+          if (tab === "chat") next.delete("channelId");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   if (
     onboarding &&
@@ -211,6 +243,8 @@ export function PersonnelPage() {
             scope="internal"
             openWithPersonnelId={chatRecipientPersonnelId}
             onOpenWithPersonnelHandled={() => setChatRecipientPersonnelId(null)}
+            initialChannelId={chatChannelId}
+            onInitialChannelHandled={() => setChatChannelId(null)}
           />
         </PageTabContent>
 
