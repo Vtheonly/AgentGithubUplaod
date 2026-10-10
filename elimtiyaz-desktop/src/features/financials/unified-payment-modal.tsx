@@ -88,12 +88,15 @@ function formatDateShort(iso: string): string {
 
 /** Convert a `PaymentLineItem` to a `PaymentTrancheSpec` for the slider. */
 function lineItemToTrancheSpec(item: PaymentLineItem): PaymentTrancheSpec {
+  // T-498 (INV-4): quote line items carry no clearance lifecycle —
+  // amountPending stays 0 so the spec's remaining is due − paid.
   return {
     id: item.itemId,
     label: item.label,
     dueWindowLabel: item.dueDate ? formatDateShort(item.dueDate) : item.isOverdue ? "En retard" : "—",
     amountDue: item.netAmount,
     amountPaid: item.alreadyPaidAmount,
+    amountPending: 0,
   };
 }
 
@@ -299,6 +302,10 @@ export function UnifiedPaymentModal({
       dueWindowLabel: formatDateShort(i.dueDate),
       amountDue: i.amountDue,
       amountPaid: i.amountPaid,
+      // T-498 (INV-4): the spec carries the uncleared-funds coverage so
+      // every remaining computation in the modal and the slider is the
+      // canonical `due − paid − pending` (the auto-suggest's formula).
+      amountPending: i.amountPending,
     }));
   }, [context, installments, category]);
 
@@ -314,6 +321,15 @@ export function UnifiedPaymentModal({
   );
   const alreadyPaid = useMemo(
     () => sliderTranches.reduce((s, t) => s + Math.min(t.amountPaid, t.amountDue), 0),
+    [sliderTranches],
+  );
+  // T-498 (INV-4): the modal's "Reste à payer" / "Soldé total" / chips now
+  // use the canonical remaining (due − paid − pending, clamped) — the SAME
+  // formula the auto-suggest effect uses. The previous due − paid form
+  // overstated the amount by amountPending whenever an uncleared cheque
+  // covered a tranche (the cashier was told to collect more than INV-4).
+  const totalRemaining = useMemo(
+    () => sliderTranches.reduce((s, t) => s + installmentRemaining(t), 0),
     [sliderTranches],
   );
 
@@ -349,7 +365,7 @@ export function UnifiedPaymentModal({
   const singleItemViolation =
     mode === "single_item" && !allowPartial && sliderTranches.length === 1
       ? (() => {
-          const netPrice = Math.max(0, sliderTranches[0].amountDue - sliderTranches[0].amountPaid);
+          const netPrice = installmentRemaining(sliderTranches[0]);
           return amount > 0 && amount < netPrice - 0.5;
         })()
       : false;
@@ -763,7 +779,7 @@ export function UnifiedPaymentModal({
                 <div className="flex justify-between border-t border-border/60 pt-1 text-sm font-semibold">
                   <span>Reste à payer</span>
                   <span className="font-mono text-status-danger">
-                    {formatDzdPlain(Math.max(0, totalDue - alreadyPaid))}
+                    {formatDzdPlain(totalRemaining)}
                   </span>
                 </div>
                 {context?.overdueDays ? (
@@ -778,9 +794,11 @@ export function UnifiedPaymentModal({
             {/* --- T-249: 1-click quick-pay shortcut chips (AI-review Screen 7) ---
                 Snap the amount to the exact open tranche balance or the full
                 remaining balance — the cashier desk's two most frequent
-                actions. Amounts use the file's established cleared-funds
-                convention (amountDue − amountPaid), same as the auto-suggest
-                effect and the single-item violation check. */}
+                actions. T-498 (INV-4): amounts use the canonical remaining
+                (due − paid − pending, clamped) — the SAME convention as the
+                auto-suggest effect, the single-item minimum and the slider
+                snap points (the previous due − paid chips overstated by
+                amountPending when an uncleared cheque covered a tranche). */}
             {selectedParent && sliderTranches.length > 0 && (
               <div className="space-y-1.5">
                 <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
@@ -788,25 +806,25 @@ export function UnifiedPaymentModal({
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {sliderTranches
-                    .filter((t) => t.amountDue - t.amountPaid > 0)
+                    .filter((t) => installmentRemaining(t) > 0)
                     .slice(0, 2)
                     .map((t) => (
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setAmount(Math.max(0, t.amountDue - t.amountPaid))}
+                        onClick={() => setAmount(installmentRemaining(t))}
                         className="px-2.5 py-1 text-xs rounded border border-border bg-surface-panel hover:border-primary hover:text-primary transition-colors font-mono"
                       >
-                        Payer {t.label} ({formatDzdPlain(Math.max(0, t.amountDue - t.amountPaid))})
+                        Payer {t.label} ({formatDzdPlain(installmentRemaining(t))})
                       </button>
                     ))}
-                  {Math.max(0, totalDue - alreadyPaid) > 0 && (
+                  {totalRemaining > 0 && (
                     <button
                       type="button"
-                      onClick={() => setAmount(Math.max(0, totalDue - alreadyPaid))}
+                      onClick={() => setAmount(totalRemaining)}
                       className="px-2.5 py-1 text-xs rounded border border-primary/40 bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors font-mono"
                     >
-                      Soldé total ({formatDzdPlain(Math.max(0, totalDue - alreadyPaid))})
+                      Soldé total ({formatDzdPlain(totalRemaining)})
                     </button>
                   )}
                 </div>
@@ -861,7 +879,7 @@ export function UnifiedPaymentModal({
             {singleItemViolation && sliderTranches[0] && (
               <div className="rounded-md border border-status-warning/40 bg-status-warning/5 p-3 text-xs text-status-warning">
                 Ce service nécessite un règlement complet ({formatDzdPlain(
-                  Math.max(0, sliderTranches[0].amountDue - sliderTranches[0].amountPaid),
+                  installmentRemaining(sliderTranches[0]),
                 )}) — le montant sera ajusté.
               </div>
             )}

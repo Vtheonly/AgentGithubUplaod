@@ -39,6 +39,7 @@ import type { Payment, Installment, DebtSummary } from "../../domain/model/payme
 import type { LedgerEntry } from "../../domain/model/ledger";
 import type { Expense } from "../../domain/model/expense";
 import type { Assessment, Subject, AcademicClass, AttendanceRecord } from "../../domain/model/academic";
+import { calculateAttendanceRate } from "../../domain/model/academic";
 import type { PricingConfig } from "../../domain/model/pricing";
 import { parentDisplayName } from "../../domain/model/parent";
 import { studentDisplayName } from "../../domain/model/student";
@@ -115,9 +116,11 @@ function buildSummarySheet(data: FullExportData): SheetSpec {
   const paidPayments = data.payments.filter((p) => p.status === "paid");
   const expensesDisbursed = data.expenses.reduce((s, e) => s + (e.finalSpentAmount ?? e.amount), 0);
 
-  const attendanceTotal = data.attendance.length;
-  const attendancePresent = data.attendance.filter((a) => a.status === "present").length;
-  const attendanceRate = attendanceTotal > 0 ? (attendancePresent / attendanceTotal) * 100 : 0;
+  // T-498 (WEAK-019 family): the canonical attendance rate —
+  // (present + late) / total ("late counts as attended", academic-rules
+  // §3). The previous present/total form made the Excel summary disagree
+  // with every canonical surface whenever a "late" record existed.
+  const attendanceRate = calculateAttendanceRate(data.attendance) * 100;
 
   const byCategory = new Map<string, number>();
   for (const e of data.ledger) {

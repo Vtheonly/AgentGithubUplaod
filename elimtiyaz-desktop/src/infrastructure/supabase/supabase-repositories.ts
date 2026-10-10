@@ -95,6 +95,7 @@ import {
   SupabaseAttendanceRepository,
   SupabaseHomeworkRepository,
   SupabasePromotionRepository,
+  SupabasePromotionCycleRepository,
   SupabaseReEnrollmentRepository,
 } from "./repositories/supabase-academic-repository";
 import { SupabaseIdentityResolutionRepository } from "./repositories/supabase-identity-resolution-repository";
@@ -435,6 +436,15 @@ export function getSupabaseRepositories(): Repositories {
     attendance,
     homework,
     promotion,
+    // T-498 (ARCH-001 residue): the promotion-CYCLE repository was fully
+    // implemented (T-403, migration 0108 RPCs) and pinned by its suites —
+    // but never registered in this override list, so the Academics
+    // "Cycles de promotion" tab and the class-detail promotion entry kept
+    // reading/writing the IN-MEMORY mock in live mode: cycles, class
+    // confirmations, reopens and completions vanished on restart while
+    // the 0108 tables sat empty. One wiring line; the mock base slot is
+    // now overridden exactly like every other ported academic slot.
+    promotionCycles: new SupabasePromotionCycleRepository(client),
     classPlacement, // T-370 — the atomic placement finalize RPC
     reEnrollment: new SupabaseReEnrollmentRepository(client), // T-437 — the 0128 re-enrollment RPCs
     identityResolution: new SupabaseIdentityResolutionRepository(client), // T-438 — the 0130 ER-PMAE tables/RPCs
