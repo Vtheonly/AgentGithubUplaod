@@ -6,7 +6,7 @@ import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { logAutoReleveSideEffect } from "./auto-releve-bridge";
 import { SubjectBehavior } from "../../mock/subject-behavior";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, getActorId, getActorName } from "./supabase-shared-repositories";
 import type {
   PromotionCycle,
   PromotionCycleClass,
@@ -1383,10 +1383,19 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
    *
    * The threshold re-check happens server-side via a count query so no
    * premature alert is ever sent ("the threshold is 3 — not 1, not 2").
-   * Because the `dispatch-absence-alerts` Edge Function is not deployed in
-   * this project, the parent notification is written to the `notifications`
-   * table directly (read by the web portal) and the alert intent is traced
-   * via the `write_audit_log` RPC (migration 0014).
+   *
+   * NOTIF-106 (T-500 live proof, fixed T-501): the previous direct insert
+   * into `notifications` (target_role "parent" broadcast) is REFUSED by the
+   * LIVE `notifications_insert` policy — 403 even for the signed-in
+   * super_admin (only self-targeted inserts land; the live policy is
+   * TIGHTER than 0048's committed text — see DRIFT-012). The sanctioned
+   * 0077 `notify_parent_user` RPC (SECURITY DEFINER, staff-gated, the
+   * parent's portal account resolved server-side) is the live-proven
+   * delivery path — the same one `sendReminder`/`broadcastReminders`
+   * (T-192/MSG-101) already use. The RPC returns NULL when the parent has
+   * no ACTIVE portal account — counted honestly as undeliverable (never a
+   * fake success), and the dispatch summary keeps flowing through the
+   * canonical 0014 `write_audit_log` RPC.
    */
   async alertAbsences(studentIds: string[]): Promise<Result<void>> {
     try {
@@ -1410,62 +1419,76 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
         const flagged = [...counts.entries()]
           .filter(([, c]) => c >= THRESHOLD)
           .map(([studentId, c]) => ({ studentId, count: c }));
-        // Parent notifications for flagged students only.
-        // T-498: the previous insert used columns that DO NOT EXIST on the
-        // `notifications` table (type / entity_type / entity_id — the real
-        // schema is kind / link_entity_type / link_entity_id, migration
-        // 0013) AND a non-UUID `created_by: "system"` — every insert failed
-        // PGRST204/22P02 and the error was never checked, so parent absence
-        // alerts NEVER persisted (silently). The row now follows the exact
-        // column contract the sibling writers use
-        // (supabase-notification-repository.ts create /
-        // supabase-overdue-alert-generator.ts): kind from the canonical
-        // TYPE_TO_KIND semantics ("attendance_alert" → "warning"),
-        // triggered_at NOT NULL, parent-role broadcast targeting (the
-        // workflow-side-effects convention), created_by NULL (no actor
-        // profile — "system" is not a user_profiles.id).
-        let alertInsertFailures = 0;
+        // Resolve each flagged student's parent (the 0077 RPC is per-parent).
+        const { data: studentRows } = await this.client
+          .from("students")
+          .select("id, parent_id")
+          .in("id", flagged.map((f) => f.studentId));
+        const parentByStudent = new Map<string, string>();
+        for (const row of (studentRows ?? []) as { id: string; parent_id: string | null }[]) {
+          if (row.parent_id) parentByStudent.set(row.id, row.parent_id);
+        }
+        // NOTIF-106: one 0077 `notify_parent_user` RPC call per flagged
+        // student's parent — the sanctioned cross-user path. Honest
+        // counting: only a returned notification id counts as delivered;
+        // parents without an active portal account (RPC returns NULL) and
+        // RPC errors are counted separately in the audit summary.
+        const actorId = isUuid(getActorId()) ? getActorId() : null;
+        let delivered = 0;
+        let undeliverableNoAccount = 0;
+        let noParentBound = 0;
+        let rpcFailures = 0;
         for (const { studentId, count } of flagged) {
-          const { error: alertErr } = await this.client.from("notifications").insert({
-            tenant_id: getTenantId(),
-            kind: "warning",
-            title: "Alerte absences",
-            body: `Votre enfant a accumulé ${count} absences ce trimestre (${window.label}). Merci de contacter l'administration.`,
-            priority: "high",
-            source: "system",
-            source_label: "Module Présences",
-            target_user_id: null,
-            target_role: "parent",
-            triggered_at: new Date().toISOString(),
-            link_entity_type: "student",
-            link_entity_id: studentId,
-            created_by: null,
-          });
-          if (alertErr) {
-            console.warn("[alertAbsences] notification insert failed:", alertErr.message);
-            alertInsertFailures += 1;
+          const parentId = parentByStudent.get(studentId);
+          if (!parentId) {
+            noParentBound += 1;
+            continue;
+          }
+          const { data: notifId, error: rpcErr } = await this.client.rpc(
+            "notify_parent_user",
+            {
+              p_parent_id: parentId,
+              p_kind: "warning",
+              p_title: "Alerte absences",
+              p_body: `Votre enfant a accumulé ${count} absences ce trimestre (${window.label}). Merci de contacter l'administration.`,
+              p_priority: "high",
+              p_source_label: "Module Présences",
+              p_link_entity_type: "student",
+              p_link_entity_id: studentId,
+              p_actor_id: actorId,
+            },
+          );
+          if (rpcErr) {
+            console.warn("[alertAbsences] notify_parent_user RPC failed:", rpcErr.message);
+            rpcFailures += 1;
+          } else if (notifId) {
+            delivered += 1;
+          } else {
+            // NULL — the parent has no active portal account (0077 contract).
+            undeliverableNoAccount += 1;
           }
         }
         // T-498 (audit invariant §11): write_audit_log's p_entity_id is a
-        // SINGLE uuid — the previous comma-joined multi-uuid string made
-        // the RPC fail 22P02 on every multi-student run, so the alert
-        // dispatch was never audited. The ids ride in p_after_json (the
-        // canonical before/after payload column); p_note stays human.
+        // SINGLE uuid — the ids ride in p_after_json (the canonical
+        // before/after payload column); p_note stays human.
         await this.client.rpc("write_audit_log", {
           p_tenant_id: getTenantId(),
           p_action: "attendance.alert_absences",
           p_entity_type: "student",
           p_entity_id: null,
-          p_actor_id: null,
-          p_actor_name: "Système",
+          p_actor_id: actorId,
+          p_actor_name: getActorName(),
           p_after_json: {
             flagged_student_ids: flagged.map((f) => f.studentId),
             counts: Object.fromEntries(flagged.map((f) => [f.studentId, f.count])),
-            notification_insert_failures: alertInsertFailures,
+            delivered,
+            undeliverable_no_portal_account: undeliverableNoAccount,
+            no_parent_bound: noParentBound,
+            rpc_failures: rpcFailures,
           },
           p_note:
             flagged.length > 0
-              ? `Seuil ${THRESHOLD}+ absences (${window.label}) atteint pour ${flagged.length} élève(s) — alertes parents envoyées.`
+              ? `Seuil ${THRESHOLD}+ absences (${window.label}) atteint pour ${flagged.length} élève(s) — ${delivered} alerte(s) parent(s) délivrée(s) via le canal 0077.`
               : `Évaluation du seuil d'absences (${window.label}) — aucun élève n'a atteint ${THRESHOLD} absences.`,
         });
         return Ok(undefined);

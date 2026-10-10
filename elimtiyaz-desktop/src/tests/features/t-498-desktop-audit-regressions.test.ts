@@ -97,49 +97,57 @@ describe("T-498 §1 — the promotionCycles slot is wired to Supabase in live mo
 });
 
 /* ============================================================ */
-/*  2 — alertAbsences notification insert shape                  */
+/*  2 — alertAbsences notification delivery (0077 RPC)           */
 /* ============================================================ */
 
-// The alertAbsences insert block (between its explanatory comment and
+// The alertAbsences delivery block (between its explanatory comment and
 // the audit RPC) — extracted so the negative scans are scoped to it.
+// T-501 (NOTIF-106): the pinned contract moved from the RLS-blocked direct
+// insert to the sanctioned 0077 `notify_parent_user` RPC — the anchors and
+// assertions below pin the NEW (live-proven) delivery path.
 const ACADEMIC_REPO = SRC(
   "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
 );
 const ALERT_BLOCK = ACADEMIC_REPO.slice(
-  ACADEMIC_REPO.indexOf("Parent notifications for flagged students only"),
+  ACADEMIC_REPO.indexOf("Resolve each flagged student's parent"),
   ACADEMIC_REPO.indexOf(
     "return Ok(undefined);",
-    ACADEMIC_REPO.indexOf("Parent notifications for flagged students only"),
+    ACADEMIC_REPO.indexOf("Resolve each flagged student's parent"),
   ),
 );
 
-describe("T-498 §2 — alertAbsences writes REAL notifications columns (0013 schema)", () => {
-  it("uses the real columns: kind / link_entity_type / link_entity_id / triggered_at", () => {
-    expect(ALERT_BLOCK).toContain('kind: "warning"');
-    expect(ALERT_BLOCK).toContain("link_entity_type: \"student\"");
-    expect(ALERT_BLOCK).toContain("link_entity_id: studentId");
-    expect(ALERT_BLOCK).toContain("triggered_at:");
+describe("T-498 §2 — alertAbsences delivers through the sanctioned 0077 RPC (NOTIF-106, T-501)", () => {
+  it("calls notify_parent_user with the live-proven payload shape", () => {
+    expect(ALERT_BLOCK).toContain('this.client.rpc(\n            "notify_parent_user"');
+    expect(ALERT_BLOCK).toContain("p_parent_id: parentId");
+    expect(ALERT_BLOCK).toContain('p_kind: "warning"');
+    expect(ALERT_BLOCK).toContain('p_title: "Alerte absences"');
+    expect(ALERT_BLOCK).toContain('p_priority: "high"');
+    expect(ALERT_BLOCK).toContain('p_source_label: "Module Présences"');
+    expect(ALERT_BLOCK).toContain('p_link_entity_type: "student"');
+    expect(ALERT_BLOCK).toContain("p_link_entity_id: studentId");
   });
 
-  it("created_by is a valid uuid-or-null (never the \"system\" string)", () => {
-    const code = NO_COMMENTS(ALERT_BLOCK);
-    expect(code).toContain("created_by: null");
-    expect(code).not.toMatch(/created_by:\s*"system"/);
+  it("NEVER writes the notifications table directly (the RLS-blocked path is gone)", () => {
+    expect(ALERT_BLOCK).not.toMatch(/from\("notifications"\)\s*\.insert/);
+    expect(ALERT_BLOCK).not.toContain('target_role: "parent"');
   });
 
-  it("the ghost columns (type / entity_type / entity_id) are gone from the insert", () => {
-    const code = NO_COMMENTS(ALERT_BLOCK);
-    expect(code).not.toMatch(/\bentity_type:\s*"/);
-    expect(code).not.toMatch(/\bentity_id:\s*studentId/);
-    expect(code).not.toMatch(/type:\s*"attendance_alert"/);
+  it("the RPC result IS error-checked AND null-delivery counted (honest accounting)", () => {
+    expect(ALERT_BLOCK).toContain("error: rpcErr");
+    expect(ALERT_BLOCK).toContain("undeliverableNoAccount");
+    expect(ALERT_BLOCK).toContain("noParentBound");
+    expect(ALERT_BLOCK).toContain("rpcFailures");
+    expect(ALERT_BLOCK).toContain("delivered");
   });
 
-  it("the insert result IS error-checked (no silent failure)", () => {
-    expect(ALERT_BLOCK).toContain("error: alertErr");
+  it("the actor id is uuid-guarded (never the 'excel-import' fallback string)", () => {
+    expect(ALERT_BLOCK).toContain("isUuid(getActorId()) ? getActorId() : null");
   });
 
-  it("parent-role broadcast targeting (the portal read path)", () => {
-    expect(ALERT_BLOCK).toContain('target_role: "parent"');
+  it("the audit summary still flows through write_audit_log with the delivery stats", () => {
+    expect(ALERT_BLOCK).toContain('"write_audit_log"');
+    expect(ALERT_BLOCK).toContain("undeliverable_no_portal_account");
   });
 });
 
