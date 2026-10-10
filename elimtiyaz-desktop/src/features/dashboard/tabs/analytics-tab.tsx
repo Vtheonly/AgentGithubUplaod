@@ -525,6 +525,10 @@ export function AnalyticsTab({
           profiles={riskProfiles}
           onOpenStudent={onOpenStudent}
           onOpenParent={onOpenParent}
+          // T-502 (DEBT-104): the CONFIGURED severe-debt edge — the
+          // « Créances Critiques » quick query follows the tenant's
+          // debt.severe_debt_dzd setting (migration 0147).
+          severeDebtDzd={debtThresholdsActive.severeDebtDzd}
         />
       ),
     },
@@ -568,6 +572,10 @@ export function AnalyticsTab({
           profiles={riskProfiles}
           onOpenStudent={onOpenStudent}
           onOpenParent={onOpenParent}
+          // T-502 (DEBT-104): the CONFIGURED severe-debt edge — the
+          // « Créances Critiques » quick query follows the tenant's
+          // debt.severe_debt_dzd setting (migration 0147).
+          severeDebtDzd={debtThresholdsActive.severeDebtDzd}
         />
       ),
     },

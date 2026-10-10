@@ -388,6 +388,9 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
         // degrades to them — never to 0, which would disable the edge).
         amountYellowDzd: 20_000,
         amountRedDzd: 60_000,
+        // T-502 (DEBT-104): the 0147 severe-debt edge ditto (the pre-0147
+        // server degrades to the documented 40 000 default).
+        severeDebtDzd: 40_000,
         levelMessages: {},
       });
     });
@@ -442,6 +445,9 @@ describe("T-405 — MockDebtRepository.observeAging (the reference-engine path)"
       // verbatim (still never a second threshold implementation).
       amountYellowDzd: 20_000,
       amountRedDzd: 60_000,
+      // T-502 (DEBT-104): the 0147 severe-debt edge (the console's quick
+      // query) — the additive DEFAULTS extension.
+      severeDebtDzd: 40_000,
       levelMessages: {},
     });
   });

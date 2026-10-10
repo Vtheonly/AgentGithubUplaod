@@ -89,10 +89,21 @@ export interface DebtAgingThresholds {
    * message EXTENDS the explanation, never replaces it.
    */
   readonly levelMessages?: Partial<Record<DebtAgingStatusLevel, string>>;
+  /**
+   * T-502 (DEBT-104): the SEVERE-DEBT edge — the family outstanding at or
+   * above this is a "Créance Critique" in the Console
+   * d'Investigation Opérationnelle (the severe-debt quick query). A
+   * SEPARATE dimension from the amount bands above (the console's
+   * operational triage edge, not the aging display's band); configurable
+   * via `debt.severe_debt_dzd` (migration 0150, default 40 000 — the
+   * previously hardcoded value, preserved as the documented default).
+   * OPTIONAL + additive: every pre-0147 consumer compiles unchanged.
+   */
+  readonly severeDebtDzd?: number;
 }
 
 /** The owner-specified defaults (migration 0125's seed values; the 0138
- * amount edges + the empty-message default). */
+ * amount edges + the empty-message default; the 0147 severe-debt edge). */
 export const DEFAULT_DEBT_AGING_THRESHOLDS: DebtAgingThresholds = {
   gracePeriodDays: 5,
   yellowDays: 15,
@@ -101,6 +112,10 @@ export const DEFAULT_DEBT_AGING_THRESHOLDS: DebtAgingThresholds = {
   amountYellowDzd: 20_000,
   amountRedDzd: 60_000,
   levelMessages: {},
+  // T-502 (DEBT-104): the severe-debt quick query's edge — 40 000 DZD, the
+  // exact value the console hardcoded pre-0147 (the default preserves the
+  // existing behavior by construction).
+  severeDebtDzd: 40_000,
 };
 
 /**

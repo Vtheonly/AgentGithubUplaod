@@ -35,9 +35,12 @@ import { useAICopilot } from "../../../../app/providers/ai-copilot-provider";
 import { useRepositories } from "../../../../app/providers/repository-provider";
 import { useObservable } from "../../../../shared/hooks/use-observable";
 import {
-  OPERATIONAL_PRESETS,
+  operationalPresetsFor,
   type StudentRiskProfile,
 } from "./operational-query-engine";
+// T-502 (DEBT-104): the CONFIGURED severe-debt edge's documented default —
+// the fallback when the caller does not supply the active thresholds.
+import { DEFAULT_DEBT_AGING_THRESHOLDS } from "../../../../domain/calc/ledger/debt-aging";
 import type {
   Assessment,
   AttendanceRecord,
@@ -71,6 +74,14 @@ interface Props {
   profiles: StudentRiskProfile[];
   onOpenStudent?: (studentId: string) => void;
   onOpenParent?: (parentId: string) => void;
+  /**
+   * T-502 (DEBT-104): the tenant's CONFIGURED severe-debt edge
+   * (`debt.severe_debt_dzd`, migration 0150 — default 40 000). The
+   * « Créances Critiques » quick query's threshold + its chip label follow
+   * it; absent → the documented DEFAULT (test renders + the pure-prop
+   * contract).
+   */
+  severeDebtDzd?: number;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -830,9 +841,22 @@ function Student360Modal({
   );
 }
 
-export function OperationalQueryConsole({ profiles }: Props) {
+export function OperationalQueryConsole({
+  profiles,
+  onOpenStudent,
+  onOpenParent,
+  severeDebtDzd,
+}: Props & { children?: ReactNode }) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
   const { openStudent, openParent } = usePersonNavigation();
+
+  // T-502 (DEBT-104): the quick queries parameterized by the CONFIGURED
+  // severe-debt edge (the tab passes the active thresholds' value; the
+  // default preserves the pre-0147 40 000 behavior by construction).
+  const presets = useMemo(
+    () => operationalPresetsFor(severeDebtDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.severeDebtDzd ?? 40_000),
+    [severeDebtDzd],
+  );
 
   const [search, setSearch] = useState("");
   const [activePreset, setActivePreset] = useState<string | null>(
@@ -850,7 +874,7 @@ export function OperationalQueryConsole({ profiles }: Props) {
     return profiles
       .filter((p) => {
         if (activePreset) {
-          const preset = OPERATIONAL_PRESETS.find(
+          const preset = presets.find(
             (pr) => pr.id === activePreset,
           );
           if (preset) {
@@ -881,7 +905,7 @@ export function OperationalQueryConsole({ profiles }: Props) {
         if (valA === valB) return 0;
         return sortAsc ? (valA > valB ? 1 : -1) : valA < valB ? 1 : -1;
       });
-  }, [profiles, activePreset, selectedCategory, search, sortField, sortAsc]);
+  }, [profiles, activePreset, selectedCategory, search, sortField, sortAsc, presets]);
 
   const queryStats = useMemo(() => {
     const count = filteredProfiles.length;
@@ -953,7 +977,7 @@ export function OperationalQueryConsole({ profiles }: Props) {
             <span className="text-[11px] font-bold uppercase text-muted-foreground mr-1 flex items-center gap-1">
               <Filter className="h-3 w-3" /> Requêtes rapides :
             </span>
-            {OPERATIONAL_PRESETS.map((preset) => {
+            {presets.map((preset) => {
               const isActive = activePreset === preset.id;
               return (
                 <button

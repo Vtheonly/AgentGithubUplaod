@@ -4313,6 +4313,14 @@ function normalizeDebtAgingThresholds(
       DEFAULT_DEBT_AGING_THRESHOLDS.amountYellowDzd ?? 20_000,
     ),
     amountRedDzd: amountNum(raw?.amountRedDzd, DEFAULT_DEBT_AGING_THRESHOLDS.amountRedDzd ?? 60_000),
+    // T-502 (DEBT-104): the severe-debt edge (the console's quick query) —
+    // OPTIONAL in the raw payload (a pre-0147 server returns only the
+    // 0133/0138 keys); the absent field maps to the documented default
+    // (40 000 — the previously hardcoded value), never to 0.
+    severeDebtDzd: amountNum(
+      raw?.severeDebtDzd,
+      DEFAULT_DEBT_AGING_THRESHOLDS.severeDebtDzd ?? 40_000,
+    ),
     levelMessages: cleanedMessages,
   };
 }

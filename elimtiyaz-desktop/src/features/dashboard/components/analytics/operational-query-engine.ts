@@ -87,47 +87,63 @@ export interface OperationalQueryPreset {
   customFilter?: (profile: StudentRiskProfile) => boolean;
 }
 
-export const OPERATIONAL_PRESETS: OperationalQueryPreset[] = [
-  {
-    id: "triple_critical",
-    title: "Triple Risque (Urgence Absolue)",
-    subtitle: "Moyenne < 10 + Absences ≥ 3 + Retard de paiement",
-    iconName: "alert-triangle",
-    filterCategory: "triple_critical",
-  },
-  {
-    id: "severe_debt",
-    title: "Créances Critiques (> 40 000 DA)",
-    subtitle: "Familles en retard financier important",
-    iconName: "wallet",
-    customFilter: (p) => p.debtAmount >= 40_000,
-  },
-  {
-    id: "academic_drop",
-    title: "Décrochage Pédagogique",
-    subtitle: "Élèves ajournés (Moyenne < 10 / 20)",
-    iconName: "book-open",
-    customFilter: (p) => p.gpa !== null && p.gpa < 10,
-  },
-  {
-    id: "chronic_absenteeism",
-    title: "Assiduité Fragilisée",
-    subtitle: "3 absences non excusées ou taux < 85%",
-    iconName: "users",
-    customFilter: (p) => p.unexcusedAbsences >= 3 || p.attendanceRate < 0.85,
-  },
-  {
-    id: "high_performers",
-    title: "Profils Exemplaires",
-    subtitle: "Moyenne ≥ 15/20 et assiduité irréprochable",
-    iconName: "sparkles",
-    customFilter: (p) =>
-      p.gpa !== null &&
-      p.gpa >= 15 &&
-      p.attendanceRate >= 0.95 &&
-      p.debtAmount === 0,
-  },
-];
+/**
+ * T-502 (DEBT-104): the quick queries, parameterized by the CONFIGURED
+ * severe-debt edge. The severe-debt preset's threshold was previously a
+ * hardcoded 40 000 DZD comparison (the owner could not move it from
+ * Settings → Configuration while every sibling edge was configurable); it
+ * now rides the tenant's `debt.severe_debt_dzd` setting (migration 0150,
+ * default 40 000 — the previously hardcoded value, so the default
+ * behavior is preserved by construction). The locale-stable title embeds
+ * the CONFIGURED number (NBSP/NNBSP normalized to plain spaces — the
+ * §15.3 rule) so the chip always states the edge it applies.
+ */
+export function operationalPresetsFor(severeDebtDzd: number): OperationalQueryPreset[] {
+  const dzd = (n: number) => n.toLocaleString("fr-DZ").replace(/[\u00a0\u202f]/gu, " ");
+  return [
+    {
+      id: "triple_critical",
+      title: "Triple Risque (Urgence Absolue)",
+      subtitle: "Moyenne < 10 + Absences ≥ 3 + Retard de paiement",
+      iconName: "alert-triangle",
+      filterCategory: "triple_critical",
+    },
+    {
+      id: "severe_debt",
+      title: `Créances Critiques (≥ ${dzd(severeDebtDzd)} DA)`,
+      subtitle: "Familles en retard financier important",
+      iconName: "wallet",
+      // 0 disables the edge (the 0138 amount-band convention — no family
+      // crosses it); otherwise the boundary is INCLUSIVE (>= the edge).
+      customFilter: (p) => severeDebtDzd > 0 && p.debtAmount >= severeDebtDzd,
+    },
+    {
+      id: "academic_drop",
+      title: "Décrochage Pédagogique",
+      subtitle: "Élèves ajournés (Moyenne < 10 / 20)",
+      iconName: "book-open",
+      customFilter: (p) => p.gpa !== null && p.gpa < 10,
+    },
+    {
+      id: "chronic_absenteeism",
+      title: "Assiduité Fragilisée",
+      subtitle: "3 absences non excusées ou taux < 85%",
+      iconName: "users",
+      customFilter: (p) => p.unexcusedAbsences >= 3 || p.attendanceRate < 0.85,
+    },
+    {
+      id: "high_performers",
+      title: "Profils Exemplaires",
+      subtitle: "Moyenne ≥ 15/20 et assiduité irréprochable",
+      iconName: "sparkles",
+      customFilter: (p) =>
+        p.gpa !== null &&
+        p.gpa >= 15 &&
+        p.attendanceRate >= 0.95 &&
+        p.debtAmount === 0,
+    },
+  ];
+}
 
 /**
  * Builds composite risk profiles for every student in the school.
