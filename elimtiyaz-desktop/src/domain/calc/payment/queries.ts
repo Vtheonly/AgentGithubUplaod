@@ -23,10 +23,24 @@ import { clampNonNegative, sumOf } from "../shared/money";
 import { daysBetweenFloor, isStrictlyPast } from "../shared/dates";
 import { sumInstallmentsDue, sumInstallmentsPaid, sumInstallmentsPending } from "./sums";
 
-/** Remaining amount on a single installment (>= 0), INV-4 family. */
-export function installmentRemaining(installment: Installment): number {
+/**
+ * THE canonical remaining-amount formula, INV-4 family:
+ * `clampNonNegative(amountDue − amountPaid − amountPending)`.
+ *
+ * T-498: structurally typed (the isInstallmentSettled/isInstallmentOverdue
+ * pattern) so UI projections carrying the three fields — e.g. the payment
+ * modal's PaymentTrancheSpec — consume the ONE formula instead of
+ * re-deriving `due − paid` inline (the INV-4 violation class: an uncleared
+ * cheque's amountPending is coverage — dropping it overstates what the
+ * cashier should collect).
+ */
+export function installmentRemaining(installment: {
+  readonly amountDue: number;
+  readonly amountPaid: number;
+  readonly amountPending?: number | null;
+}): number {
   return clampNonNegative(
-    installment.amountDue - installment.amountPaid - installment.amountPending,
+    installment.amountDue - installment.amountPaid - (installment.amountPending ?? 0),
   );
 }
 

@@ -1335,7 +1335,15 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
         .from("attendance_records")
         .select("student_id, status")
         .in("student_id", absentStudentIds)
-        .in("status", ["absent_unexcused", "absent"])
+        // T-498: "absent" was NOT a valid attendance status (the 0004 CHECK
+        // allows present/absent_excused/absent_unexcused/late — it matched
+        // ZERO rows, dead weight in the filter). Removed WITHOUT changing
+        // the effective semantics (this dispatch stays unexcused-only).
+        // The excused-vs-unexcused scoping divergence between this
+        // workflow trigger (unexcused) and alertAbsences (both) is
+        // registered as an open business-rule question — not silently
+        // changed here.
+        .in("status", ["absent_unexcused"])
         .gte("record_date", windowStart)
         .lte("record_date", now.toISOString().slice(0, 10));
       if (!countRows) return;
@@ -1403,28 +1411,58 @@ export class SupabaseAttendanceRepository implements AttendanceRepository {
           .filter(([, c]) => c >= THRESHOLD)
           .map(([studentId, c]) => ({ studentId, count: c }));
         // Parent notifications for flagged students only.
+        // T-498: the previous insert used columns that DO NOT EXIST on the
+        // `notifications` table (type / entity_type / entity_id — the real
+        // schema is kind / link_entity_type / link_entity_id, migration
+        // 0013) AND a non-UUID `created_by: "system"` — every insert failed
+        // PGRST204/22P02 and the error was never checked, so parent absence
+        // alerts NEVER persisted (silently). The row now follows the exact
+        // column contract the sibling writers use
+        // (supabase-notification-repository.ts create /
+        // supabase-overdue-alert-generator.ts): kind from the canonical
+        // TYPE_TO_KIND semantics ("attendance_alert" → "warning"),
+        // triggered_at NOT NULL, parent-role broadcast targeting (the
+        // workflow-side-effects convention), created_by NULL (no actor
+        // profile — "system" is not a user_profiles.id).
+        let alertInsertFailures = 0;
         for (const { studentId, count } of flagged) {
-          await this.client.from("notifications").insert({
+          const { error: alertErr } = await this.client.from("notifications").insert({
             tenant_id: getTenantId(),
+            kind: "warning",
             title: "Alerte absences",
             body: `Votre enfant a accumulé ${count} absences ce trimestre (${window.label}). Merci de contacter l'administration.`,
-            type: "attendance_alert",
             priority: "high",
             source: "system",
             source_label: "Module Présences",
-            entity_type: "student",
-            entity_id: studentId,
-            created_by: "system",
-            created_at: new Date().toISOString(),
+            target_user_id: null,
+            target_role: "parent",
+            triggered_at: new Date().toISOString(),
+            link_entity_type: "student",
+            link_entity_id: studentId,
+            created_by: null,
           });
+          if (alertErr) {
+            console.warn("[alertAbsences] notification insert failed:", alertErr.message);
+            alertInsertFailures += 1;
+          }
         }
+        // T-498 (audit invariant §11): write_audit_log's p_entity_id is a
+        // SINGLE uuid — the previous comma-joined multi-uuid string made
+        // the RPC fail 22P02 on every multi-student run, so the alert
+        // dispatch was never audited. The ids ride in p_after_json (the
+        // canonical before/after payload column); p_note stays human.
         await this.client.rpc("write_audit_log", {
           p_tenant_id: getTenantId(),
           p_action: "attendance.alert_absences",
           p_entity_type: "student",
-          p_entity_id: flagged.map((f) => f.studentId).join(",") || null,
+          p_entity_id: null,
           p_actor_id: null,
           p_actor_name: "Système",
+          p_after_json: {
+            flagged_student_ids: flagged.map((f) => f.studentId),
+            counts: Object.fromEntries(flagged.map((f) => [f.studentId, f.count])),
+            notification_insert_failures: alertInsertFailures,
+          },
           p_note:
             flagged.length > 0
               ? `Seuil ${THRESHOLD}+ absences (${window.label}) atteint pour ${flagged.length} élève(s) — alertes parents envoyées.`
@@ -1859,7 +1897,18 @@ function mapClassRow(
     filiereCode: row.filiere_code ?? null,
     specialiteCode: row.specialite_code ?? null,
     level: cycleMap[row.grade_code] ?? "primaire",
-    gradeYear: row.grade_code?.includes("ap") ? parseInt(row.grade_code) : 1,
+    // T-498 (D2): the canonical derivation — gradeYearFromGradeLevel (the
+    // ONE helper students use, supabase-shared-repositories.ts:738 /
+    // mapStudentRow:2058 / the mock's own class mapper:1127). The previous
+    // `grade_code?.includes("ap") ? parseInt(row.grade_code) : 1` hack
+    // mapped EVERY non-*ap class (2am/3am/4am, 1ere-3eme_annee,
+    // prescolaire_*) to gradeYear = 1, so the re-enrollment class picker
+    // (matchesGradeLevel → gradeLevelFromLevelYear) hid every
+    // non-first-year CEM/lycée class in live mode while the mock showed
+    // them — a mock↔live divergence with a direct user-facing break.
+    // grade_code is free-text/nullable at the DB level: an unknown code
+    // keeps the legacy year-1 fallback (the domain field is required).
+    gradeYear: gradeYearFromGradeLevel(row.grade_code as GradeLevel) ?? 1,
     section: row.section,
     room: row.room,
     capacity: row.capacity ?? null,

@@ -22,6 +22,7 @@ import type {
   DebtByAgingBucket,
   DemographicSlice,
 } from "../../../domain/model/operations";
+import { calculateAttendanceRate } from "../../../domain/model/academic";
 import type { AgingBucket } from "../../../domain/model/payment";
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER } from "../../../domain/model/student";
 import {
@@ -78,7 +79,12 @@ export class MockDashboardRepository implements DashboardRepository {
     const attendanceRateToday =
       recentAttendance.length === 0
         ? 0
-        : recentAttendance.filter((r) => r.status === "present").length / recentAttendance.length;
+        : // T-498 (WEAK-019 family): canonical (present + late) / total —
+          // "late counts as attended" (academic-rules §3). The previous
+          // present/total form diverged from the Supabase twin
+          // (supabase-dashboard-repository.ts:196) whenever a late record
+          // existed — a mock↔live parity break.
+          calculateAttendanceRate(recentAttendance);
 
     return Ok({
       totalStudents: store.students.length,
@@ -248,7 +254,9 @@ export class MockDashboardRepository implements DashboardRepository {
     const attendanceRateToday =
       recentAttendance.length === 0
         ? 0
-        : recentAttendance.filter((r) => r.status === "present").length / recentAttendance.length;
+        : // T-498 (WEAK-019 family): canonical (present + late) / total —
+          // the Supabase twin's formula (academic-rules §3).
+          calculateAttendanceRate(recentAttendance);
 
     return Ok({
       totalStudents: store.students.length,

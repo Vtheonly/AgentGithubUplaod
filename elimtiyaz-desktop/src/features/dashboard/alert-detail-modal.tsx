@@ -34,7 +34,7 @@ import { ROLE_LABELS_FR } from "../../core/rbac/roles";
 import { UnifiedPaymentModal } from "../../features/financials/unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
-import { installmentRemaining } from "../../domain/calc/payment/queries";
+import { installmentRemaining, isInstallmentOverdue } from "../../domain/calc/payment/queries";
 
 export interface AlertDetailModalProps {
   alert: AppNotification | null;
@@ -145,7 +145,11 @@ export function AlertDetailModal({
         // `due − paid` form over-prescribed when an uncleared cheque sat on
         // the tranche (same class as the parent-detail drawer's fix).
         const remaining = installmentRemaining(inst);
-        const isOverdue = inst.status === "overdue";
+        // T-498 (DATA-045): overdue-ness DERIVED (canonical predicate), not
+        // read from the status string — the live census holds ZERO
+        // status="overdue" rows, so the static gate never fired and
+        // overdueDays was always undefined.
+        const isOverdue = isInstallmentOverdue(inst);
         const overdueDays = isOverdue
           ? Math.max(
               0,

@@ -90,6 +90,7 @@ import { CrossServiceMatrix } from "./cross-service-matrix";
 import { CashFlowRadar } from "./cash-flow-radar";
 import { PayrollFundingCard } from "./payroll-funding-card";
 import { computePayrollForecast } from "../../domain/calc/payroll/payroll-forecast";
+import { overdueAmount } from "../../domain/calc/payment/queries";
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import { ParentActionsMenu } from "../../shared/ui/parent-actions-menu";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
@@ -245,9 +246,14 @@ export function FinancialsPage() {
   const totalToday = sumPaidPayments(payments);
   const pendingExpenses = expenses.filter((e) => e.status === "submitted").length;
   const overdueDebt = debtSummary.reduce((s, d) => s + d.outstandingAmount, 0);
-  const pastDueDebt = debtSummary
-    .filter((d) => d.daysOverdue > 0)
-    .reduce((s, d) => s + d.outstandingAmount, 0);
+  // T-498 (DATA-025 family): "Dont échues (en retard)" is the PAST-DUE
+  // amount — the canonical per-row basis (overdueAmount: Σ INV-4 remaining
+  // over isInstallmentOverdue rows — due date strictly past), NOT the
+  // family-level outstanding of families whose oldest row is late (the
+  // previous basis reported a family's not-yet-due T2/T3 tranches as
+  // "échues"). The installments stream is the same canonical §15 basis
+  // the wave/triage cards consume — one formula, every surface.
+  const pastDueDebt = overdueAmount(installments);
   const monthlyRev = monthlyRevenue(payments);
 
   const financialDiagnoses = useMemo(() => {
@@ -881,9 +887,14 @@ function DebtTab({ onOpenParent }: { onOpenParent?: (id: string) => void }) {
   const { session } = useAuth();
   const { openParent } = usePersonNavigation();
   const debt = useObservable(() => repos.debt.observeSummary(), []);
-  const pastDueDebt = debt
-    .filter((d) => d.daysOverdue > 0)
-    .reduce((s, d) => s + d.outstandingAmount, 0);
+  // T-498 (DATA-025 family): the tab header's "Dont échues (en retard)" is
+  // the canonical past-due amount (overdueAmount — Σ INV-4 remaining over
+  // dynamically-overdue rows), consistent with the page-level KPI hint and
+  // the aging chart's basis. The previous family-level filter summed a
+  // late family's FULL outstanding — reporting not-yet-due tranches as
+  // "échues" (live: 10 past-due vs 41 future-due of 51 unpaid families).
+  const installments = useObservable(() => repos.installments.observe(), []);
+  const pastDueDebt = overdueAmount(installments);
   const students = useObservable(() => repos.students.observe(), []);
   const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
   const [reminding, setReminding] = useState<string | null>(null);

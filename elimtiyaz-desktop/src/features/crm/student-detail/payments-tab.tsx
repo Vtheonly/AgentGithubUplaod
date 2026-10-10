@@ -32,6 +32,7 @@ import {
   // diverged from the canonical rule (DATA-008).
   sumPaidPayments,
   installmentRemaining,
+  isInstallmentOverdue,
   totalOutstanding,
   type PaymentNavigationContext,
 } from "../../../domain/model/payment";
@@ -106,7 +107,10 @@ export function PaymentsTab({
             // T-103 — canonical INV-4-family remaining (due − paid − pending).
             remainingAmount: installmentRemaining(i),
             dueDate: i.dueDate,
-            isOverdue: i.status === "overdue",
+            // T-498 (DATA-045): derived overdue-ness (canonical predicate) —
+            // the live census holds ZERO status="overdue" rows, so the
+            // previous static gate was always false.
+            isOverdue: isInstallmentOverdue(i),
           })),
         allowPartial: true,
         originRoute: "crm.student_drawer.payments",

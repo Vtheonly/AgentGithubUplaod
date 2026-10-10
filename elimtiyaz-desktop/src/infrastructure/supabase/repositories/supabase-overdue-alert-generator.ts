@@ -314,17 +314,24 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
       // ── 7. Audit entry (best-effort) ───────────────────────────────
       // Migration 0014's `write_audit_log` RPC; if it fails the
       // notifications are still created (the scan's primary outcome).
+      // T-498: the previous call passed a `p_diff` parameter the RPC does
+      // NOT have (PGRST202 — function not found in schema cache) and a
+      // `p_entity_id: "batch"` string where the parameter is a UUID
+      // (22P02). Every audit attempt failed and the try/catch swallowed
+      // it — the overdue-scan dispatch was NEVER audited. The payload now
+      // uses the real columns: p_after_json carries the structured
+      // before/after facts, p_entity_id NULL (a batch is not an entity).
       const count = (insertedRows ?? []).length;
       if (count > 0) {
         try {
           await this.client.rpc("write_audit_log", {
             p_action: "alert.overdue_auto_generated",
             p_entity_type: "notification",
-            p_entity_id: "batch",
+            p_entity_id: null,
             p_actor_id: null,
             p_actor_name: "Système",
             p_tenant_id: tenantId,
-            p_diff: { before: null, after: { count } },
+            p_after_json: { before: null, after: { count } },
             p_note: `${count} alerte(s) de retard / d'échéance générée(s) automatiquement.`,
           });
         } catch (auditErr) {

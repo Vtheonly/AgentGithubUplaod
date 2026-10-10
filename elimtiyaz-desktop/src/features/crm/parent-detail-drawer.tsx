@@ -95,7 +95,7 @@ import {
 } from "../../domain/calc/payment/service-pricing-profile";
 // T-444/UI-324: restored — the ServicePricingCard's échéancier section uses
 // the canonical settled predicate (T-424/DATA-042, the INV-4 rule).
-import { isInstallmentSettled } from "../../domain/calc/payment/queries";
+import { isInstallmentSettled, isInstallmentOverdue } from "../../domain/calc/payment/queries";
 import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
 import { ActivationCodeModal } from "./activation-code-modal";
 import { EditParentModal } from "./edit-parent-modal";
@@ -251,7 +251,11 @@ export function ParentDetailDrawer({
       return fallbackConsolidated(Math.max(0, tranche.remaining));
     }
     const remaining = installmentRemaining(real);
-    const isOverdue = real.status === "overdue";
+    // T-498 (DATA-045): derived overdue-ness (canonical predicate — the
+    // synthetic-fallback path above already derives it dynamically; the
+    // real-row path was the only static gate left, and the live census
+    // holds ZERO status="overdue" rows).
+    const isOverdue = isInstallmentOverdue(real);
     const overdueDays = isOverdue
       ? Math.max(
           0,

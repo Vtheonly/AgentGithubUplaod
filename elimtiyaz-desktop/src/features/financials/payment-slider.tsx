@@ -18,6 +18,10 @@
  *     so a tranche that was already 30% paid would still snap at its full
  *     gross amount, forcing the user to over-pay by 30% to hit the snap.
  *     The fix: snap on REMAINING debt `max(0, amountDue - amountPaid)`.
+ *   - T-498 (INV-4 parity): every remaining computation in this view now
+ *     subtracts `amountPending` too (the canonical INV-4 form — an uncleared
+ *     cheque covering a tranche is coverage, not open debt). The spec carries
+ *     the field from the installments stream; quote line items leave it 0.
  *   - The component remains a PURE VIEW — all financial math comes from
  *     the `tranches` spec passed in by the caller (Zero-Logic Rule).
  *
@@ -31,6 +35,7 @@ import { Magnet } from "lucide-react";
 import { Slider } from "../../shared/ui/slider";
 import { MoneyInput } from "../../shared/ui/money-input";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
+import { installmentRemaining } from "../../domain/calc/payment/queries";
 
 export interface PaymentTrancheSpec {
   /** Stable identifier for the tranche (e.g. "tuition-T1"). */
@@ -43,6 +48,10 @@ export interface PaymentTrancheSpec {
   readonly amountDue: number;
   /** Amount already paid toward this tranche (before this payment). */
   readonly amountPaid: number;
+  /** T-498 (INV-4): uncleared funds already covering this tranche (e.g. a
+   *  pending cheque) — coverage, not open debt. Optional so quote-driven
+   *  line items (no clearance lifecycle) can omit it. */
+  readonly amountPending?: number | null;
 }
 
 /** Adaptive slider operational mode — see file header for details. */
@@ -90,7 +99,8 @@ function snapPointsFromRemaining(tranches: readonly PaymentTrancheSpec[]): numbe
   const points = [0];
   let cumulative = 0;
   for (const t of tranches) {
-    const remaining = Math.max(0, t.amountDue - t.amountPaid);
+    // T-498: INV-4 form — pending coverage reduces the snap target.
+    const remaining = installmentRemaining(t);
     if (remaining <= 0) continue; // skip fully-paid tranches
     cumulative += remaining;
     points.push(cumulative);
@@ -131,8 +141,9 @@ export function PaymentSlider({
   allowPartial = true,
 }: PaymentSliderProps) {
   // Total REMAINING debt across all tranches — used as the default max.
+  // T-498: INV-4 form (pending uncleared funds are coverage).
   const totalRemaining = useMemo(
-    () => tranches.reduce((s, t) => s + Math.max(0, t.amountDue - t.amountPaid), 0),
+    () => tranches.reduce((s, t) => s + installmentRemaining(t), 0),
     [tranches],
   );
   // Total GROSS debt — used for the proportional segment widths (visual only).
@@ -158,7 +169,7 @@ export function PaymentSlider({
   const cumulativeRemainingBoundaries: number[] = [];
   let cumRem = 0;
   for (const t of tranches) {
-    cumRem += Math.max(0, t.amountDue - t.amountPaid);
+    cumRem += installmentRemaining(t);
     cumulativeRemainingBoundaries.push(cumRem);
   }
 
@@ -168,7 +179,7 @@ export function PaymentSlider({
   // Compute "paying now" distribution per tranche (for the live preview row).
   let remainingToAllocate = value;
   const tranchePayingNow = tranches.map((t) => {
-    const remaining = Math.max(0, t.amountDue - t.amountPaid);
+    const remaining = installmentRemaining(t);
     const allocated = Math.min(remainingToAllocate, remaining);
     remainingToAllocate -= allocated;
     return allocated;
@@ -210,8 +221,8 @@ export function PaymentSlider({
         <div className="relative h-9 w-full overflow-hidden rounded-md border border-border bg-muted">
           {tranches.map((t, i) => {
             const leftPct = i === 0 ? 0 : (cumulativeRemainingBoundaries[i - 1] / maxAmount) * 100;
-            const widthPct = (Math.max(0, t.amountDue - t.amountPaid) / maxAmount) * 100;
-            const isFullyPaid = t.amountPaid >= t.amountDue && t.amountDue > 0;
+            const widthPct = (installmentRemaining(t) / maxAmount) * 100;
+            const isFullyPaid = t.amountPaid + (t.amountPending ?? 0) >= t.amountDue && t.amountDue > 0;
             const isCleared = isFullyPaid;
             return (
               <div
@@ -286,8 +297,8 @@ export function PaymentSlider({
           <div className="flex flex-wrap gap-1.5">
             <SnapButton label="0" onClick={() => onChange(0)} disabled={disabled} />
             {tranches.map((t, i) => {
-              // Snap buttons also use REMAINING boundaries (bug fix).
-              const remaining = Math.max(0, t.amountDue - t.amountPaid);
+              // Snap buttons also use REMAINING boundaries (bug fix, INV-4).
+              const remaining = installmentRemaining(t);
               if (remaining <= 0) return null; // skip fully-paid
               return (
                 <SnapButton
@@ -320,8 +331,8 @@ export function PaymentSlider({
           {tranches.map((t, i) => {
             const allocated = tranchePayingNow[i];
             const newPaid = t.amountPaid + allocated;
-            const willComplete = allocated > 0 && newPaid >= t.amountDue;
-            const remainingAfter = Math.max(0, t.amountDue - newPaid);
+            const willComplete = allocated > 0 && installmentRemaining({ ...t, amountPaid: newPaid }) === 0;
+            const remainingAfter = installmentRemaining({ ...t, amountPaid: newPaid });
             return (
               <li key={t.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2">
                 <div className="col-span-3">

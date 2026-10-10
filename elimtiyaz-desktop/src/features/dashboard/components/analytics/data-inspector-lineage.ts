@@ -59,7 +59,8 @@ import {
   inRange,
 } from "./analytics-derivations";
 import { installmentRemaining, daysBetweenFloor, isRemiseAdjustment } from "./executive-statistics";
-import { isInstallmentSettled } from "../../../../domain/calc/payment/queries";
+import { isInstallmentSettled, isInstallmentOverdue } from "../../../../domain/calc/payment/queries";
+import { isStrictlyPast } from "../../../../domain/calc/shared/dates";
 import type { StudentRiskProfile } from "./operational-query-engine";
 
 // ============================================================================
@@ -500,6 +501,7 @@ export function buildResolution(
     let sumDue = 0;
     let sumPaid = 0;
     let sumPending = 0;
+    const now = new Date();
     for (const installment of scoped) {
       // T-424 (DATA-042): the canonical settled predicate — the same rule
       // every surface uses (a tranche covered by an uncleared cheque is
@@ -514,10 +516,18 @@ export function buildResolution(
           : remaining;
       if (amount <= 0) continue;
       if (f?.agingBucket) {
-        // The aging-card computation, mirrored exactly (debtByAgingForRange):
-        // daysOverdue = floor((now − dueDate)/day), negative for not-yet-due
-        // tranches → they land in the 0_30 bucket (the "current" bucket).
-        const daysOverdue = daysBetweenFloor(installment.dueDate, Date.now());
+        // T-498 (DATA-046 parity): the aging-card computation, mirrored
+        // EXACTLY (debtByAgingForRange, supabase-dashboard-repository.ts:388):
+        // only PAST-DUE rows age. A not-yet-due future tranche is "à
+        // échoir" — excluded from EVERY bucket, never landed in 0_30.
+        // The previous resolution included future rows (daysOverdue
+        // clamped to 0 → bucket 0_30), so the inspector's resolvedValue
+        // exceeded the chart's sourceValue by the not-yet-due remaining —
+        // a PERMANENT false "Écart" on the aging cards (the inspector's
+        // own contract: a difference must be data drift, never a
+        // definitional disagreement).
+        if (!isStrictlyPast(installment.dueDate, now)) continue;
+        const daysOverdue = daysBetweenFloor(installment.dueDate, now.getTime());
         if (agingBucketFromDays(daysOverdue) !== f.agingBucket) continue;
       }
       sumDue += installment.amountDue;
@@ -525,7 +535,7 @@ export function buildResolution(
       sumPending += installment.amountPending;
       const parent = parentMap.get(installment.parentId);
       const student = installment.studentId ? studentMap.get(installment.studentId) : undefined;
-      const overdueDays = Math.max(0, daysBetweenFloor(installment.dueDate, Date.now()));
+      const overdueDays = Math.max(0, daysBetweenFloor(installment.dueDate, now.getTime()));
       rows.push({
         id: installment.id,
         contributorKey: installment.parentId,
@@ -541,7 +551,12 @@ export function buildResolution(
         status: PAYMENT_STATUS_LABELS_FR[installment.status as PaymentStatus] ?? installment.status,
         reference: installment.id,
         method: PAYMENT_CATEGORY_LABELS_FR[installment.category],
-        lateDays: installment.status === "overdue" ? overdueDays : 0,
+        // T-498 (DATA-045): overdue-ness is DERIVED (isInstallmentOverdue —
+        // due date strictly past + not settled + remaining > 0), never read
+        // from the status string: the live census holds ZERO status=
+        // "overdue" rows, so the static gate could never fire and the
+        // ">45 j" chip was structurally dead.
+        lateDays: isInstallmentOverdue(installment, now) ? overdueDays : 0,
         amountKind: mode === "collected" ? "installment-collected" : "installment-remaining",
         category: installment.category,
         sourceTable: "installments",
@@ -551,7 +566,7 @@ export function buildResolution(
     }
     steps.push(`Périmètre : installments.statut ≠ « paid »${request.domain === "tranche" && f?.trancheNumber ? ` · vague ${f.trancheNumber}` : ""} · ${scopeLabel}${request.domain === "tranche" && mode === "collected" ? " · mode ENCAISSÉ (amountPaid, fonds clarifiés)" : " · mode RESTE DÛ"}.`);
     if (f?.agingBucket) {
-      steps.push(`Filtre sénescence : bucket ${AGING_BUCKET_LABELS_FR[f.agingBucket]} (calcul identique à la carte de vieillissement — les échéances non échues tombent dans « 0–30 j »).`);
+      steps.push(`Filtre sénescence : bucket ${AGING_BUCKET_LABELS_FR[f.agingBucket]} (calcul identique à la carte de vieillissement — seules les échéances ÉCHUES vieillissent ; les tranches à échoir sont exclues de tous les buckets, DATA-046).`);
     }
     steps.push(`Formule par échéance : reste = max(0, amountDue − amountPaid − amountPending) (INV-4 — les fonds en attente réduisent le reste sans le solder).`);
     steps.push(`Intermédiaires : Σ dû = ${fmt(sumDue)} · Σ payé = ${fmt(sumPaid)} · Σ en attente = ${fmt(sumPending)} DZD.`);
@@ -741,7 +756,9 @@ export function buildResolution(
         status: PAYMENT_STATUS_LABELS_FR[installment.status as PaymentStatus] ?? installment.status,
         reference: installment.id,
         method: dest ?? "Destination inconnue",
-        lateDays: installment.status === "overdue" ? overdueDays : 0,
+        // T-498 (DATA-045): derived overdue-ness — same as the debt rows
+        // above (the static status gate never matched live data).
+        lateDays: isInstallmentOverdue(installment) ? overdueDays : 0,
         amountKind: mode === "due" ? "installment-due" : mode === "collected" ? "installment-collected" : "installment-remaining",
         category: "transport",
         sourceTable: "installments",
