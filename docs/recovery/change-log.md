@@ -1,5 +1,21 @@
 # The Change Log — every verified change, newest first
 
+## T-499 — The client↔worker chat verification (LIVE 45/0) + the CHAT-304/CHAT-305 fixes (the 150th session, 2026-10-10)
+
+**The mandate:** the owner's "the chat for both clients and the worker" + "here are alll the tokens you need from infrastructure to test if it works make sure it works" + the comprehensive Messages/Pedagogy/Staff audit specification.
+
+**The live verification (`scripts/t499-portal-chat-e2e.py`, 45 PASS / 0 FAIL, zero residue):** the COMPLETE parent↔staff chat loop through the REAL stack (GoTrue + PostgREST + RLS + the RPCs + the 0061/0075/0135 triggers) in BOTH directions — the worker opens the channel (`create_direct_channel` 0061: scope='portal' derived, idempotent) and the client can also start it (`open_parent_admin_channel` 0067: converges on the SAME channel — the deterministic pair code); the worker's message persists (touch trigger + the 0075 notification fan-out to the client); the client reads under RLS (internal channels invisible) and replies (the 0048 member-check policy + the fan-out to the worker); the worker sees both messages in order; the read receipt lands (the 0051 append-only guard); the negative controls (channel creation 403 for clients, non-member writes 403, non-member reads filtered, anon sees nothing); service-role cleanup with row-count assertions + zero-residue post-check.
+
+**The two desktop fixes:** CHAT-304 — the channel-list unread badge was structurally dead for every unselected channel (`unreadCount()`'s `channel.lastMessageAt ? 0 : 0` — both arms 0): now the `useUnreadCounts` hook (per-channel message-stream subscription, realtime-fresh) badges every listed conversation. CHAT-305 — the bell's chat notifications (the 0075 family, link_entity_type='chat_channel') had NO navigation case in `AlertDetailModal`: now the reactive channel resolution + scope-aware routing (portal → `/crm?action=portal-chat&channelId=…`; internal → `/personnel?tab=chat&channelId=…` — the tab deep link added to PersonnelPage).
+
+**The regression suites:** t-499-chat-unread-badges 6/6 + t-499-chat-notification-navigation 5/5 (11 new tests; the full battery re-run — see the task-registry entry for the final counts).
+
+**The honest data-state finding (the live census):** the chat INFRASTRUCTURE works end-to-end, but 741 parents hold ZERO portal accounts and 18 personnel rows hold ZERO user_id bindings — the first real client/worker conversations require the owner's account provisioning (activation codes for parents; Settings → Comptes for workers). The pedagogy record tables (assessments/grades/attendance/homework/histories) are all 0 rows — awaiting the school's first data entry; the T-498 residuals stand unchanged.
+
+**The limitation (honest):** the session's Management-API token is INVALID (the §15.71d dead-token pattern); the service key + auth sign-in work; zero migrations needed; no production data written (probe rows only, zero residue verified).
+
+---
+
 ## T-498 — The desktop comprehensive audit: ten verified defects fixed + the live read-only financial integrity verification (the 149th session, 2026-10-10)
 
 **The mandate:** the owner's comprehensive-audit mandate ("I am not completely confident that every part of the desktop application is working correctly — a thorough, evidence-driven audit of the desktop application's financial operations, dashboards, statistics, underlying data models, academic and pedagogical functionality, personnel management, and related business logic").
