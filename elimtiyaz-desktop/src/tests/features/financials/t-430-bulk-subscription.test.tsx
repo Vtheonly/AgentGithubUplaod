@@ -13,6 +13,7 @@
  * NEVER.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { DEFAULT_DEBT_AGING_THRESHOLDS } from "../../../domain/calc/ledger/debt-aging";
 import { render, cleanup, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
@@ -138,6 +139,13 @@ beforeEach(() => {
     parents: { observe: () => parentsStream.observable },
     // T-431: the academic-year scope reads the canonical years stream.
     academicYears: { observeAll: () => liveObs(() => YEARS).observable },
+    // T-502a (STATS-403, the rebase integration): the wave strip now reads
+    // the configured debt-aging thresholds through repos.debt.observeThresholds
+    // — the documented DEFAULTS seed until the light reader lands.
+    debt: {
+      observeThresholds: () =>
+        liveObs(() => DEFAULT_DEBT_AGING_THRESHOLDS).observable,
+    },
     installments: {
       observe: () => {
         observeCalls += 1;
