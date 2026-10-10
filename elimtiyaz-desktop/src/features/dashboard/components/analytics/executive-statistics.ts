@@ -161,15 +161,19 @@ export interface TrancheWave {
  * (Sept / Dec / Mar), not a curve.
  *
  * A wave is `overdue` when ANY unpaid installment's due date is past
- * `now`; `not_due` when every unpaid installment is still in the future;
- * `in_window` otherwise (mixed or due today). Fully-collected waves are
- * `overdue`-agnostic (phase computed from unpaid rows only; a paid wave
- * with no unpaid rows reports `in_window` — it is complete, the meters
- * show 100%).
+ * `now` BEYOND THE CONFIGURED GRACE PERIOD (T-502 / STATS-403 — the
+ * tenant's `debt.grace_period_days`, the SAME tolerance window the
+ * debt-aging engine and the triage apply; rows inside the window are
+ * still "en cours"); `not_due` when every unpaid installment is still in
+ * the future; `in_window` otherwise (mixed, due today, or inside the
+ * grace window). Fully-collected waves are `overdue`-agnostic (phase
+ * computed from unpaid rows only; a paid wave with no unpaid rows reports
+ * `in_window` — it is complete, the meters show 100%).
  */
 export function deriveTrancheWaves(
   installments: readonly Installment[],
   nowEpochMs: number,
+  thresholds: Pick<DebtAgingThresholds, "gracePeriodDays"> = DEFAULT_DEBT_AGING_THRESHOLDS,
 ): TrancheWave[] {
   // T-424 (DATA-042) — the grouping and the math live in the CANONICAL
   // domain module (one derivation for Statistics AND Finance); this view
@@ -178,7 +182,7 @@ export function deriveTrancheWaves(
   // silently coercing NULL-tranche rows into wave 1 — and counted
   // `status === "paid"` only; the canonical rows exclude non-wave rows
   // and settle via the INV-4 predicate.
-  const stats = deriveTrancheWaveStats(installments, nowEpochMs);
+  const stats = deriveTrancheWaveStats(installments, nowEpochMs, thresholds);
   const waves: TrancheWave[] = stats.map((acc) => {
     let phase: WavePhase;
     if (acc.anyUnsettledOverdue) phase = "overdue";

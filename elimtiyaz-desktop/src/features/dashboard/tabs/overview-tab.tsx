@@ -72,11 +72,14 @@ export function OverviewTab({
   const { kpis, revenue, debtAging, topDebtors } = data;
 
   const nowEpochMs = Date.now();
-  const waves = deriveTrancheWaves(installments, nowEpochMs);
+  // T-502 (STATS-403): the wave derivations consume the ACTIVE debt
+  // thresholds (the configured grace period) — the SAME configuration the
+  // triage below applies, so the meters and the stages agree by construction.
+  const waves = deriveTrancheWaves(installments, nowEpochMs, debtThresholds);
   // T-447: the pooled all-categories analysis + the non-wave rows — the
   // SAME canonical objects the Statistics tab's main cards render.
-  const pooledWaves = derivePooledTrancheWaves(installments, nowEpochMs);
-  const nonWaveSummary = deriveNonWaveSummary(installments, nowEpochMs);
+  const pooledWaves = derivePooledTrancheWaves(installments, nowEpochMs, debtThresholds);
+  const nonWaveSummary = deriveNonWaveSummary(installments, nowEpochMs, debtThresholds);
   const triage = deriveDebtTriage(installments, nowEpochMs, debtThresholds);
   const chronicAmount = triage.buckets.find((b) => b.bucket === "chronic")?.amount ?? 0;
   const chronicFamilies = triage.buckets.find((b) => b.bucket === "chronic")?.familyCount ?? 0;

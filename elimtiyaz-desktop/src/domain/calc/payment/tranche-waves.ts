@@ -59,6 +59,15 @@
  */
 import type { Installment, PaymentCategory } from "../../model/payment";
 import { installmentRemaining, isInstallmentSettled } from "./queries";
+// T-502 (STATS-403): the configured debt-aging thresholds — the SAME
+// object the aging engine + the triage consume (one configuration, every
+// overdue verdict). Import is type+default only (no cycle: debt-aging
+// never imports this module).
+import {
+  DEFAULT_DEBT_AGING_THRESHOLDS,
+  type DebtAgingThresholds,
+} from "../ledger/debt-aging";
+import { daysBetweenFloor } from "../shared/dates";
 
 /** The canonical per-wave statistics (one row per category × tranche 1..3). */
 export interface TrancheWaveStats {
@@ -237,7 +246,12 @@ function newWaveAcc(category: PaymentCategory, wave: number): WaveAcc {
   };
 }
 
-function accumulateWaveRow(acc: WaveAcc, i: Installment, nowEpochMs: number): void {
+function accumulateWaveRow(
+  acc: WaveAcc,
+  i: Installment,
+  nowEpochMs: number,
+  gracePeriodDays: number,
+): void {
   acc.installmentCount += 1;
   acc.families.add(i.parentId);
   acc.dueTotal += Math.round(i.amountDue);
@@ -264,16 +278,28 @@ function accumulateWaveRow(acc: WaveAcc, i: Installment, nowEpochMs: number): vo
     acc.settledCount += 1;
   } else {
     if (remaining > 0) acc.debtorFamilies.add(i.parentId);
-    // T-427 (DATA-048): an owing family whose row is PAST DUE is
-    // "en retard"; a future-dated owing family is only "non soldée"
-    // — the overdue wave-card count must never include future waves'
-    // current balances (the issues-#24/#25 Track-2 finding).
-    if (remaining > 0 && dueTs !== null && dueTs < nowEpochMs) {
+    // T-427 (DATA-048) + T-502 (STATS-403): an owing family whose row is
+    // past due BEYOND THE CONFIGURED GRACE PERIOD is "en retard"; a
+    // future-dated owing family is only "non soldée", and a row inside
+    // the grace window is still "en cours" (the acceptable period — the
+    // SAME tier-2 green rule the canonical debt-aging engine applies:
+    // debtAgeDays <= gracePeriodDays → GREEN "À échoir / En cours").
+    // The grace value is the tenant's CONFIGURED threshold
+    // (`debt.grace_period_days`, default 5) — never a wave-local rule.
+    const daysLate = dueTs !== null ? daysBetweenFloor(i.dueDate, new Date(nowEpochMs)) : 0;
+    const isPastDueBeyondGrace = dueTs !== null && daysLate > gracePeriodDays;
+    if (remaining > 0 && isPastDueBeyondGrace) {
       acc.overdueDebtorFamilies.add(i.parentId);
     }
     if (dueTs !== null) {
-      if (dueTs < nowEpochMs) acc.anyUnsettledOverdue = true;
-      else acc.anyUnsettledFuture = true;
+      // T-502 (STATS-403): the wave's "overdue" phase input follows the
+      // SAME configured grace period — a row a few days past due (within
+      // the tolerance window) keeps the wave "En cours"; only a row
+      // past due beyond the grace period flips it "En retard". A row
+      // inside the grace window is NEITHER overdue NOR future (the
+      // honest middle band → the "in_window" phase downstream).
+      if (isPastDueBeyondGrace) acc.anyUnsettledOverdue = true;
+      else if (dueTs >= nowEpochMs) acc.anyUnsettledFuture = true;
     }
   }
 }
@@ -311,10 +337,16 @@ function categoryRank(category: PaymentCategory): number {
  *   is part of its presentation, e.g. the Statistics tab's academic-year
  *   window; the grouping math is not).
  * @param nowEpochMs the "now" the overdue/future flags evaluate against.
+ * @param gracePeriodDays T-502 (STATS-403): the CONFIGURED grace period
+ *   (days past due still inside the acceptable window) — from
+ *   `debt.grace_period_days`. Rows past due within this window are NOT
+ *   overdue. Defaults to the documented DEFAULTS (5) — the same fallback
+ *   convention `deriveDebtTriage` applies.
  */
 function groupWaves(
   installments: readonly Installment[],
   nowEpochMs: number,
+  gracePeriodDays: number = DEFAULT_DEBT_AGING_THRESHOLDS.gracePeriodDays,
 ): Map<string, WaveAcc> {
   const byWave = new Map<string, WaveAcc>();
   for (const i of installments) {
@@ -331,7 +363,7 @@ function groupWaves(
       acc = newWaveAcc(i.category, wave);
       byWave.set(key, acc);
     }
-    accumulateWaveRow(acc, i, nowEpochMs);
+    accumulateWaveRow(acc, i, nowEpochMs, gracePeriodDays);
   }
   return byWave;
 }
@@ -343,12 +375,17 @@ function groupWaves(
  *   is part of its presentation, e.g. the Statistics tab's academic-year
  *   window; the grouping math is not).
  * @param nowEpochMs the "now" the overdue/future flags evaluate against.
+ * @param thresholds T-502 (STATS-403): the tenant's ACTIVE debt-aging
+ *   thresholds — the grace period governs the overdue/future flags
+ *   (rows past due within the grace window are NOT overdue). Defaults to
+ *   the documented DEFAULTS, the same fallback `deriveDebtTriage` uses.
  */
 export function deriveTrancheWaveStats(
   installments: readonly Installment[],
   nowEpochMs: number,
+  thresholds: Pick<DebtAgingThresholds, "gracePeriodDays"> = DEFAULT_DEBT_AGING_THRESHOLDS,
 ): TrancheWaveStats[] {
-  const byWave = groupWaves(installments, nowEpochMs);
+  const byWave = groupWaves(installments, nowEpochMs, thresholds.gracePeriodDays);
   return [...byWave.values()].map(accToStats);
 }
 
@@ -464,12 +501,17 @@ function poolAccs(wave: 1 | 2 | 3, accs: WaveAcc[]): PooledTrancheWave {
  *   `deriveTrancheWaveStats`).
  * @param nowEpochMs the "now" the overdue/future flags evaluate against
  *   (§15.54d — explicit, never Date.now() inside).
+ * @param thresholds T-502 (STATS-403): the tenant's ACTIVE debt-aging
+ *   thresholds — the grace period governs the pooled waves' overdue
+ *   flags + the overdue family counts (the SAME configuration the
+ *   triage/stages consume; default = the documented DEFAULTS).
  */
 export function derivePooledTrancheWaves(
   installments: readonly Installment[],
   nowEpochMs: number,
+  thresholds: Pick<DebtAgingThresholds, "gracePeriodDays"> = DEFAULT_DEBT_AGING_THRESHOLDS,
 ): PooledTrancheWave[] {
-  const byWave = groupWaves(installments, nowEpochMs);
+  const byWave = groupWaves(installments, nowEpochMs, thresholds.gracePeriodDays);
   const byIndex = new Map<number, WaveAcc[]>();
   for (const acc of byWave.values()) {
     const list = byIndex.get(acc.wave) ?? [];
@@ -504,10 +546,16 @@ const NON_WAVE_KIND_RANK: Record<NonWaveKind, number> = { fi: 0, unnumbered: 1, 
  * Same stat fields as a wave row; `kind` distinguishes WHY the row is
  * non-wave. Only (kind × category) groups with at least one row are
  * returned.
+ *
+ * T-502 (STATS-403): accepts the tenant's thresholds — the FI section's
+ * overdue flags follow the SAME configured grace period as the waves
+ * (the registration fee's "en retard" verdict can no longer disagree
+ * with the wave meters' on the same clock + configuration).
  */
 export function deriveNonWaveSummary(
   installments: readonly Installment[],
   nowEpochMs: number,
+  thresholds: Pick<DebtAgingThresholds, "gracePeriodDays"> = DEFAULT_DEBT_AGING_THRESHOLDS,
 ): NonWaveCategoryStats[] {
   interface NonWaveAcc extends WaveAcc {
     kind: NonWaveKind;
@@ -523,7 +571,7 @@ export function deriveNonWaveSummary(
       acc = { ...newWaveAcc(i.category, 0), kind };
       groups.set(key, acc);
     }
-    accumulateWaveRow(acc, i, nowEpochMs);
+    accumulateWaveRow(acc, i, nowEpochMs, thresholds.gracePeriodDays);
   }
   return [...groups.values()]
     .map((acc) => ({

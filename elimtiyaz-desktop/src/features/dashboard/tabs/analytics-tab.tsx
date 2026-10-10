@@ -210,19 +210,24 @@ export function AnalyticsTab({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const waveNow = useMemo(() => Date.now(), [installments]);
   const waves = useMemo(
-    () => deriveTrancheWaves(installments, waveNow),
-    [installments, waveNow],
+    () => deriveTrancheWaves(installments, waveNow, debtThresholdsActive),
+    [installments, waveNow, debtThresholdsActive],
   );
   // T-447: the canonical pooled all-categories T1/T2/T3 analysis (the
   // main wave cards) + the non-wave summary (FI etc.) — derived from the
   // SAME rows at the SAME clock as the per-category detail above.
+  // T-502 (STATS-403): all three derivations consume the ACTIVE debt
+  // thresholds — the wave meters' "En retard" verdicts follow the
+  // CONFIGURED grace period (the same `debt.grace_period_days` the
+  // triage/stages apply), so a configuration change moves the meter
+  // counts and the stage counts TOGETHER.
   const pooledWaves = useMemo(
-    () => derivePooledTrancheWaves(installments, waveNow),
-    [installments, waveNow],
+    () => derivePooledTrancheWaves(installments, waveNow, debtThresholdsActive),
+    [installments, waveNow, debtThresholdsActive],
   );
   const nonWaveSummary = useMemo(
-    () => deriveNonWaveSummary(installments, waveNow),
-    [installments, waveNow],
+    () => deriveNonWaveSummary(installments, waveNow, debtThresholdsActive),
+    [installments, waveNow, debtThresholdsActive],
   );
   const triage = useMemo(
     () => deriveDebtTriage(installments, Date.now(), debtThresholdsActive),

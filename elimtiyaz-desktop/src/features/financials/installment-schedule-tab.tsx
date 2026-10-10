@@ -62,6 +62,14 @@ import {
 // parity object — the same rows the Statistics main wave cards consume) +
 // the empty-wave factory for the fixed T1/T2/T3 slots.
 import { derivePooledTrancheWaves, emptyPooledWave } from "../../domain/calc/payment/tranche-waves";
+// T-502 (STATS-403): the tenant's ACTIVE debt-aging thresholds — the
+// Finance wave strip's "En retard" verdicts follow the SAME configured
+// grace period as the Statistics wave meters (one configuration, every
+// surface).
+import {
+  DEFAULT_DEBT_AGING_THRESHOLDS,
+  type DebtAgingThresholds,
+} from "../../domain/calc/ledger/debt-aging";
 import { isInstallmentOverdue, isInstallmentSettled } from "../../domain/calc/payment/queries";
 import { installmentsForAcademicYear } from "../dashboard/components/analytics/analytics-derivations";
 // T-435 (UI-317): the SIGNED days-between helper (negative = days until
@@ -193,7 +201,10 @@ const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: 
  * first wave with a canonical remaining balance (the active collection
  * target for the highlight).
  */
-export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] {
+export function deriveTrancheWaves(
+  rows: readonly Installment[],
+  thresholds: Pick<DebtAgingThresholds, "gracePeriodDays"> = DEFAULT_DEBT_AGING_THRESHOLDS,
+): TrancheWave[] {
   // T-424 (DATA-042) — the grouping and the math live in the CANONICAL
   // domain module (one derivation for Statistics AND Finance — the same
   // rows can no longer produce different numbers per surface).
@@ -204,7 +215,11 @@ export function deriveTrancheWaves(rows: readonly Installment[]): TrancheWave[] 
   // presentation (label/hint/isNextTarget/tuitionPct). The hand-rolled
   // pooling (sums, date ranges, overdue OR, tuition isolation) was the
   // last piece of wave math living in a feature file; it is retired.
-  const pooled = derivePooledTrancheWaves(rows, Date.now());
+  // T-502 (STATS-403): the overdue flag follows the CONFIGURED grace
+  // period (the caller passes the tenant's active thresholds; the
+  // default is the documented DEFAULTS — the same fallback every wave
+  // consumer applies).
+  const pooled = derivePooledTrancheWaves(rows, Date.now(), thresholds);
   const byIndex = new Map(pooled.map((w) => [w.wave, w]));
   const firstWithRemaining = pooled
     .filter((w) => w.remainingTotal > 0)
@@ -449,6 +464,12 @@ export function InstallmentScheduleTab({
     return list;
   }, [rows, yearFilter, categoryFilter, statusFilter, familyFilter]);
 
+  // T-502 (STATS-403): the tenant's ACTIVE debt-aging thresholds — the
+  // wave strip consumes the configured grace period (the SAME stream the
+  // dashboard reads; the subject's seed value is the documented DEFAULTS
+  // until the light reader lands).
+  const debtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
+
   const totals = useMemo(() => {
     // TIER 4 FIX (bypass #2) — delegate to canonical helpers from
     // `domain/calc/payment` instead of inline `reduce` over raw rows.
@@ -468,7 +489,13 @@ export function InstallmentScheduleTab({
 
   // T-248 — the T1/T2/T3 collection waves for the macro header (REAL
   // filtered rows; canonical sum helpers inside the derivation).
-  const waves = useMemo(() => deriveTrancheWaves(filtered), [filtered]);
+  // T-502 (STATS-403): the strip's "En retard" verdicts consume the ACTIVE
+  // thresholds (the configured grace period) — parity with the Statistics
+  // wave meters by construction.
+  const waves = useMemo(
+    () => deriveTrancheWaves(filtered, debtThresholds),
+    [filtered, debtThresholds],
+  );
 
   async function handleRunOverdueScan() {
     setScanningOverdue(true);
