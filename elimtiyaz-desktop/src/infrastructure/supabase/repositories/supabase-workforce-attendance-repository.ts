@@ -83,7 +83,7 @@ import type {
   StaffAbsenceRecord,
   StaffJustificationStatus,
 } from "../../../domain/model/workforce";
-import { getTenantId, isUuid, getActorId } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, getActorId, writeAuditMirror } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 interface AttendanceEventTableRow {
@@ -273,6 +273,15 @@ export class SupabaseWorkforceAttendanceRepository implements AttendanceReposito
     );
     this.cache.set(next.slice(-500));
     void this.refresh();
+    // AUDIT-505 (T-502): attendance.record — the mock's mirror (the
+    // personnel id as the actor, the event type as the note).
+    await writeAuditMirror(this.client, {
+      action: "attendance.record",
+      entityType: "attendance",
+      entityId: mapped.id,
+      actorId: input.personnelId,
+      note: input.eventType,
+    });
     return Ok(mapped);
   }
 
@@ -382,6 +391,14 @@ export class SupabaseWorkforceAttendanceRepository implements AttendanceReposito
     if (error) return Err(supabaseErrorToAppError(error));
     if (!data) return Err(Errors.notFound("StaffAbsence", input.absenceId));
     await this.refreshAbsences();
+    // AUDIT-505 (T-502): absence.justification_requested — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "absence.justification_requested",
+      entityType: "staff_absence",
+      entityId: input.absenceId,
+      actorId: input.requestedBy,
+      note: input.adminNote.trim(),
+    });
     return Ok(mapAbsenceRow(data as unknown as StaffAbsenceRow));
   }
 
@@ -415,6 +432,13 @@ export class SupabaseWorkforceAttendanceRepository implements AttendanceReposito
     if (error) return Err(supabaseErrorToAppError(error));
     if (!data) return Err(Errors.notFound("StaffAbsence", input.absenceId));
     await this.refreshAbsences();
+    // AUDIT-505 (T-502): absence.justification_submitted — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "absence.justification_submitted",
+      entityType: "staff_absence",
+      entityId: input.absenceId,
+      note: input.workerExplanation.trim(),
+    });
     return Ok(mapAbsenceRow(data as unknown as StaffAbsenceRow));
   }
 
@@ -451,6 +475,16 @@ export class SupabaseWorkforceAttendanceRepository implements AttendanceReposito
     if (error) return Err(supabaseErrorToAppError(error));
     if (!data) return Err(Errors.notFound("StaffAbsence", input.absenceId));
     await this.refreshAbsences();
+    // AUDIT-505 (T-502): absence.justification_reviewed — the review half of
+    // the 0095 lifecycle (the mock twin has no review audit; the Supabase
+    // review mutation lands here so the family's history is complete).
+    await writeAuditMirror(this.client, {
+      action: "absence.justification_reviewed",
+      entityType: "staff_absence",
+      entityId: input.absenceId,
+      actorId: input.decidedBy,
+      note: `${input.decision}: ${input.decisionNote.trim()}`,
+    });
     return Ok(mapAbsenceRow(data as unknown as StaffAbsenceRow));
   }
 

@@ -63,7 +63,7 @@ import { Errors } from "../../../core/app-error";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior, derived } from "../../mock/subject-behavior";
 import type { LeaveRequest, RequestType, RequestStatus } from "../../../domain/model/workforce";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, writeAuditMirror } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
@@ -231,7 +231,17 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
       .single();
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
-    return Ok(mapRow(data as unknown as LeaveRequestTableRow));
+    const created = mapRow(data as unknown as LeaveRequestTableRow);
+    // AUDIT-505 (T-502): leave.submit — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "leave.submit",
+      entityType: "leave_request",
+      entityId: created.id,
+      actorId: input.personnelId,
+      actorName: input.personnelName,
+      after: { type: created.type, fromDate: created.fromDate, toDate: created.toDate, status: created.status },
+    });
+    return Ok(created);
   }
 
   async decide(
@@ -265,7 +275,18 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
     if (error) return Err(supabaseErrorToAppError(error));
     if (!data) return Err(Errors.notFound("LeaveRequest", id));
     await this.refresh();
-    return Ok(mapRow(data as unknown as LeaveRequestTableRow));
+    const decided = mapRow(data as unknown as LeaveRequestTableRow);
+    // AUDIT-505 (T-502): leave.decide — the mock's mirror (also covers the
+    // cancel path, which delegates here with status=cancelled).
+    await writeAuditMirror(this.client, {
+      action: "leave.decide",
+      entityType: "leave_request",
+      entityId: id,
+      actorId: decidedBy,
+      actorName: decidedByName,
+      after: { status: decided.status, note: note?.trim() || null },
+    });
+    return Ok(decided);
   }
 
   async cancel(id: string): Promise<Result<LeaveRequest>> {
@@ -280,7 +301,6 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
     question: string,
     requestedBy: string,
   ): Promise<Result<LeaveRequest>> {
-    void requestedBy; // audit trail is server-side (0014); the actor reaches the DB through the session JWT.
     if (!question.trim()) {
       return Err(Errors.validation(
         "A clarification question is required",
@@ -301,6 +321,16 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
     if (error) return Err(supabaseErrorToAppError(error));
     if (!data) return Err(Errors.notFound("LeaveRequest", id));
     await this.refresh();
+    // AUDIT-505 (T-502): leave.clarification_requested — the mock's mirror
+    // (the pre-T-502 comment claimed the audit trail was server-side;
+    // nothing fired for this table — the mirror makes it true).
+    await writeAuditMirror(this.client, {
+      action: "leave.clarification_requested",
+      entityType: "leave_request",
+      entityId: id,
+      actorId: requestedBy,
+      note: question.trim(),
+    });
     return Ok(mapRow(data as unknown as LeaveRequestTableRow));
   }
 
@@ -329,6 +359,15 @@ export class SupabaseLeaveRequestRepository implements LeaveRequestRepository {
     if (readError) return Err(supabaseErrorToAppError(readError));
     if (!data) return Err(Errors.notFound("LeaveRequest", id));
     await this.refresh();
+    // AUDIT-505 (T-502): leave.clarification_responded — the mock's
+    // mirror (the 0104 RPC owns the ownership/consistency checks; the
+    // audit row records the event for the family's history).
+    await writeAuditMirror(this.client, {
+      action: "leave.clarification_responded",
+      entityType: "leave_request",
+      entityId: id,
+      note: response.trim(),
+    });
     return Ok(mapRow(data as unknown as LeaveRequestTableRow));
   }
 

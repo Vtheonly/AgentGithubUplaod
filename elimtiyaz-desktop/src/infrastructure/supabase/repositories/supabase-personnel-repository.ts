@@ -81,7 +81,7 @@ import type {
 } from "../../../domain/model/personnel";
 import type { Department } from "../../../domain/model/workforce";
 import type { DepartmentRow, RoleRow } from "../types";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, writeAuditMirror } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
@@ -533,11 +533,19 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
           .select()
           .single();
         if (retry.error) return Err(supabaseErrorToAppError(retry.error));
-        return this.afterWrite(retry.data);
+        return this.afterWrite(retry.data, {
+          action: "personnel.create",
+          entityId: (retry.data as Record<string, unknown>).id as string,
+          after: { personnelCode: (retry.data as Record<string, unknown>).personnel_code },
+        });
       }
       return Err(supabaseErrorToAppError(error));
     }
-    return this.afterWrite(data);
+    return this.afterWrite(data, {
+      action: "personnel.create",
+      entityId: (data as Record<string, unknown>).id as string,
+      after: { personnelCode: (data as Record<string, unknown>).personnel_code },
+    });
   }
 
   async updatePersonnel(
@@ -559,7 +567,11 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
       .single();
 
     if (error) return Err(supabaseErrorToAppError(error));
-    return this.afterWrite(data);
+    return this.afterWrite(data, {
+      action: "personnel.update",
+      entityId: id,
+      after: { changed: Object.keys(patch).filter((k) => k !== "updated_at") },
+    });
   }
 
   /**
@@ -575,6 +587,15 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
 
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
+    // AUDIT-505 (T-502): the deactivate half of the family — the registry
+    // names "create/update/deactivate"; the soft-delete audit rows make
+    // the deactivation visible in the audit trail.
+    await writeAuditMirror(this.client, {
+      action: "personnel.deactivate",
+      entityType: "personnel",
+      entityId: id,
+      after: { deletedAt: nowIso(), isActive: false },
+    });
     return Ok(undefined);
   }
 
@@ -706,10 +727,23 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
   }
 
   /** Map a freshly written row, refresh the caches, and return the domain object. */
-  private async afterWrite(row: Record<string, any>): Promise<Result<Personnel>> {
+  private async afterWrite(
+    row: Record<string, any>,
+    audit?: { action: string; entityId: string; after?: unknown },
+  ): Promise<Result<Personnel>> {
     const mapped = mapPersonnelRow(row, this.roles.toCode(row.role_id));
     this.byIdCache.get(mapped.id)?.set(mapped);
     await this.refresh();
+    // AUDIT-505 (T-502): the personnel-family audit mirror — the mock's
+    // personnel.create / AuditActions.PersonnelUpdate vocabulary.
+    if (audit) {
+      await writeAuditMirror(this.client, {
+        action: audit.action,
+        entityType: "personnel",
+        entityId: audit.entityId,
+        after: audit.after ?? { firstName: mapped.firstName, lastName: mapped.lastName, roleId: mapped.roleId, position: mapped.position },
+      });
+    }
     return Ok(mapped);
   }
 }
@@ -825,11 +859,25 @@ export class SupabaseDepartmentRepository implements DepartmentRepository {
           .single();
         if (retry.error) return Err(supabaseErrorToAppError(retry.error));
         await this.refresh();
+        // AUDIT-505 (T-502): department.create — the mock's mirror.
+        await writeAuditMirror(this.client, {
+          action: "department.create",
+          entityType: "department",
+          entityId: (retry.data as Record<string, unknown>).id as string,
+          after: { name: input.name, code: (retry.data as Record<string, unknown>).code },
+        });
         return Ok(mapDepartmentRow(retry.data as DepartmentRow));
       }
       return Err(supabaseErrorToAppError(error));
     }
     await this.refresh();
+    // AUDIT-505 (T-502): department.create — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "department.create",
+      entityType: "department",
+      entityId: (data as Record<string, unknown>).id as string,
+      after: { name: input.name, code: (data as Record<string, unknown>).code },
+    });
     return Ok(mapDepartmentRow(data as DepartmentRow));
   }
 
@@ -858,14 +906,25 @@ export class SupabaseDepartmentRepository implements DepartmentRepository {
 
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
+    // AUDIT-505 (T-502): department.update — the mock's mirror (the
+    // archive/unarchive wrappers ride this audit through their delegation).
+    await writeAuditMirror(this.client, {
+      action: "department.update",
+      entityType: "department",
+      entityId: id,
+      after: { changed: Object.keys(patch).filter((k) => k !== "updated_at") },
+    });
     return Ok(mapDepartmentRow(data as DepartmentRow));
   }
 
   async archiveDepartment(id: string): Promise<Result<Department>> {
+    // Rides updateDepartment's department.update audit (the changed-keys
+    // payload shows is_archived — no duplicate row needed).
     return this.updateDepartment(id, { archivedAt: nowIso() });
   }
 
   async unarchiveDepartment(id: string): Promise<Result<Department>> {
+    // Rides updateDepartment's department.update audit (same rationale).
     return this.updateDepartment(id, { archivedAt: null });
   }
 
@@ -882,6 +941,13 @@ export class SupabaseDepartmentRepository implements DepartmentRepository {
 
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
+    // AUDIT-505 (T-502): department.delete — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "department.delete",
+      entityType: "department",
+      entityId: id,
+      after: null,
+    });
     return Ok(undefined);
   }
 }

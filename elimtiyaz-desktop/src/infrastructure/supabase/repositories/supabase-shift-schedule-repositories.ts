@@ -49,7 +49,7 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
-import { getTenantId } from "./supabase-shared-repositories";
+import { getTenantId, writeAuditMirror } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
@@ -170,6 +170,13 @@ export class SupabaseShiftRepository implements ShiftRepository {
       return Err(supabaseErrorToAppError(error));
     }
     await this.refresh();
+    // AUDIT-505 (T-502): shift.create — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "shift.create",
+      entityType: "shift",
+      entityId: (data as Record<string, unknown>).id as string,
+      after: { code: input.code.trim(), startTime: input.startTime, endTime: input.endTime },
+    });
     return Ok(mapShiftRow(data as unknown as ShiftRow));
   }
 
@@ -195,6 +202,13 @@ export class SupabaseShiftRepository implements ShiftRepository {
       .single();
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
+    // AUDIT-505 (T-502): shift.update — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "shift.update",
+      entityType: "shift",
+      entityId: id,
+      after: { changed: Object.keys(patch) },
+    });
     return Ok(mapShiftRow(data as unknown as ShiftRow));
   }
 
@@ -205,6 +219,12 @@ export class SupabaseShiftRepository implements ShiftRepository {
     const { error } = await this.client.from("shifts").delete().eq("id", id);
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
+    // AUDIT-505 (T-502): shift.delete — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "shift.delete",
+      entityType: "shift",
+      entityId: id,
+    });
     return Ok(undefined);
   }
 
@@ -327,6 +347,16 @@ export class SupabaseScheduleRepository implements ScheduleRepository {
       return Err(supabaseErrorToAppError(error));
     }
     await this.refresh(input.personnelId);
+    // AUDIT-505 (T-502): schedule.upsert rides ONE audit row — the mock
+    // distinguishes schedule.create vs schedule.update by path; the
+    // PostgREST upsert is a single statement, so the id presence tells
+    // which arm fired (an explicit id = the update arm).
+    await writeAuditMirror(this.client, {
+      action: input.id ? "schedule.update" : "schedule.create",
+      entityType: "schedule",
+      entityId: (data as Record<string, unknown>).id as string,
+      after: { personnelId: input.personnelId, date: input.date, shiftId: input.shiftId ?? null },
+    });
     return Ok(mapScheduleRow(data as unknown as ScheduleRow));
   }
 
@@ -337,6 +367,12 @@ export class SupabaseScheduleRepository implements ScheduleRepository {
     const { error } = await this.client.from("schedules").delete().eq("id", id);
     if (error) return Err(supabaseErrorToAppError(error));
     if (this.cachedPersonnelId) await this.refresh(this.cachedPersonnelId);
+    // AUDIT-505 (T-502): schedule.delete — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "schedule.delete",
+      entityType: "schedule",
+      entityId: id,
+    });
     return Ok(undefined);
   }
 

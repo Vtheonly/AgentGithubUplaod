@@ -57,7 +57,7 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
-import { getTenantId } from "./supabase-shared-repositories";
+import { getTenantId, getActorId, getActorName, writeAuditMirror } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
@@ -168,6 +168,16 @@ export class SupabaseOnboardingRepository implements OnboardingRepository {
     }
     if (error) return Err(supabaseErrorToAppError(error as never));
     await this.refresh();
+    // AUDIT-505 (T-502): onboarding.start — the mock's mirror (the tenant
+    // singleton as the entity, the session actor attributed — the mock's
+    // actorless row is the one deliberate improvement).
+    await writeAuditMirror(this.client, {
+      action: "onboarding.start",
+      entityType: "onboarding",
+      entityId: getTenantId(),
+      actorId: getActorId(),
+      actorName: getActorName(),
+    });
     return Ok(mapRow(data as unknown as OnboardingRow));
   }
 
@@ -195,11 +205,22 @@ export class SupabaseOnboardingRepository implements OnboardingRepository {
 
   async complete(): Promise<Result<OnboardingState>> {
     const nowIso = new Date().toISOString();
-    return this.mutate(async () => ({
+    const result = await this.mutate(async () => ({
       completed_at: nowIso,
       current_step: stepToIndex("done"),
       completed_steps: ONBOARDING_STEPS.map((_, i) => i),
     }));
+    if (result.ok) {
+      // AUDIT-505 (T-502): onboarding.complete — the mock's mirror.
+      await writeAuditMirror(this.client, {
+        action: "onboarding.complete",
+        entityType: "onboarding",
+        entityId: getTenantId(),
+        actorId: getActorId(),
+        actorName: getActorName(),
+      });
+    }
+    return result;
   }
 
   async reset(): Promise<Result<OnboardingState>> {
@@ -211,6 +232,16 @@ export class SupabaseOnboardingRepository implements OnboardingRepository {
       .eq("tenant_id", getTenantId())
       .is("personnel_id", null);
     if (error) return Err(supabaseErrorToAppError(error));
+    // AUDIT-505 (T-502): onboarding.reset BEFORE start() re-audits — the
+    // reset row records the deletion, the start row the recreation (the
+    // mock audits both events; entityId = the tenant singleton).
+    await writeAuditMirror(this.client, {
+      action: "onboarding.reset",
+      entityType: "onboarding",
+      entityId: getTenantId(),
+      actorId: getActorId(),
+      actorName: getActorName(),
+    });
     return this.start();
   }
 

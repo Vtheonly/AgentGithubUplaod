@@ -197,6 +197,69 @@ export function getActorName(): string {
   return "Excel Import";
 }
 
+// ----------------------------------------------------------------------------
+// AUDIT-505 (T-502): the personnel-family audit mirror
+// ----------------------------------------------------------------------------
+
+/**
+ * The input shape of {@link writeAuditMirror} — the Supabase-side twin of the
+ * mock layer's `audit()` sink (infrastructure/mock/workforce/index.ts), which
+ * is the parity target for every personnel-family mutation.
+ */
+export interface AuditMirrorInput {
+  /** The mock action vocabulary verbatim (task.create, leave.decide, …). */
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  actorId?: string | null;
+  actorName?: string | null;
+  /** The before/after payload (mock `diff` semantics) — kept compact. */
+  before?: unknown;
+  after?: unknown;
+  note?: string | null;
+}
+
+/**
+ * AUDIT-505 (T-502, 2026-10-11): the personnel-family CLIENT mutations wrote
+ * NO `audit_logs` rows in live mode (live-proven by the T-500 E2/E4/G2/H5/I3
+ * probes) while the mock layer's audit sink made dev mode LOOK audited — and
+ * the repo comments claimed "audit trail is server-side (0014)" although
+ * nothing server-side fires for these tables. This mirror routes the same
+ * action vocabulary the mock records through the live-proven 0014
+ * `write_audit_log` RPC after every successful family mutation.
+ *
+ * Best-effort by design (the overdue-generator/0095 convention): the
+ * business mutation has already landed when this runs, so an audit failure
+ * must NOT fail the user-facing call — but it is never silently swallowed
+ * either (the T-498 lesson: the console.warn line is the debugging surface).
+ * A missing tenant context is a no-op (nothing to attribute the row to).
+ */
+export async function writeAuditMirror(
+  client: SupabaseClient,
+  input: AuditMirrorInput,
+): Promise<void> {
+  const tenantId = getTenantId();
+  if (!tenantId) return;
+  try {
+    await client.rpc("write_audit_log", {
+      p_tenant_id: tenantId,
+      p_action: input.action,
+      p_entity_type: input.entityType,
+      p_entity_id: isUuid(input.entityId ?? "") ? input.entityId : null,
+      p_actor_id: isUuid(input.actorId ?? "") ? input.actorId : null,
+      p_actor_name: input.actorName ?? getActorName(),
+      p_before_json: (input.before ?? null) as never,
+      p_after_json: (input.after ?? null) as never,
+      p_note: input.note ?? null,
+    });
+  } catch (err) {
+    console.warn(
+      `[auditMirror] ${input.action} (${input.entityType}${input.entityId ? " " + input.entityId : ""}) failed:`,
+      err,
+    );
+  }
+}
+
 function studentCode(year: number, seq: number): string {
   return `ELV-${year}-${String(seq).padStart(6, "0")}`;
 }

@@ -640,8 +640,20 @@ describe("T-369 C2. SupabaseLeaveRequestRepository — the clarification loop + 
 
     const answered = await repo.respondClarification("lr-uuid-1", "16h à 19h.");
     expect(answered.ok).toBe(true);
-    // The ONLY write path for the worker's response is the secured RPC…
-    expect(fakeClient.rpcCalls).toEqual([
+    // AUDIT-505 (T-502): the clarification loop now also writes its audit
+    // mirror rows (leave.clarification_requested / responded) through the
+    // 0014 write_audit_log RPC — the intentional additions to the call log.
+    const auditActions = fakeClient.rpcCalls
+      .filter((c) => c.fn === "write_audit_log")
+      .map((c) => (c.args as { p_action: string }).p_action);
+    expect(auditActions).toEqual([
+      "leave.clarification_requested",
+      "leave.clarification_responded",
+    ]);
+    // The ONLY write path for the worker's response is still the secured
+    // RPC (no direct table write for the response — the non-audit calls
+    // are exactly the one 0104 invocation)…
+    expect(fakeClient.rpcCalls.filter((c) => c.fn !== "write_audit_log")).toEqual([
       { fn: "respond_leave_clarification", args: { p_request_id: "lr-uuid-1", p_response: "16h à 19h." } },
     ]);
     // …whose server-side transition (simulated) lands the row back at

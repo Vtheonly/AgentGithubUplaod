@@ -69,7 +69,7 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "../../../domain/model/workforce";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, writeAuditMirror } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
@@ -272,10 +272,42 @@ export class SupabaseTaskRepository implements TaskRepository {
     }
     await this.refresh();
     const row = (await this.fetchRow(data.id as string)) ?? data;
-    return Ok(mapRow(row as unknown as TaskTableRow));
+    const created = mapRow(row as unknown as TaskTableRow);
+    // AUDIT-505 (T-502): the mock's task.create mirror.
+    await writeAuditMirror(this.client, {
+      action: "task.create",
+      entityType: "task",
+      entityId: created.id,
+      actorId: input.createdBy,
+      actorName: input.createdByName,
+      after: { title: created.title, status: created.status, priority: created.priority, assigneeIds: created.assigneeIds },
+    });
+    return Ok(created);
   }
 
   async updateTask(id: string, updates: Partial<Task>): Promise<Result<Task>> {
+    // AUDIT-505 (T-502): the plain edit surfaces as task.update (mock
+    // parity); the semantic wrappers (status/review/reassign) pass their own
+    // action through the private core so the vocabulary stays distinct.
+    return this.updateTaskCore(id, updates, {
+      action: "task.update",
+      entityType: "task",
+      entityId: id,
+    });
+  }
+
+  private async updateTaskCore(
+    id: string,
+    updates: Partial<Task>,
+    audit: {
+      action: string;
+      entityType: string;
+      entityId: string;
+      actorId?: string | null;
+      actorName?: string | null;
+      note?: string | null;
+    },
+  ): Promise<Result<Task>> {
     const existing = await this.fetchRow(id);
     if (!existing) return Err(Errors.notFound("Task", id));
     const patch: Record<string, unknown> = { updated_at: nowIso() };
@@ -313,7 +345,16 @@ export class SupabaseTaskRepository implements TaskRepository {
       .single();
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
-    return Ok(mapRow(data as unknown as TaskTableRow));
+    const updated = mapRow(data as unknown as TaskTableRow);
+    // AUDIT-505 (T-502): the mirror — before/after kept compact (status,
+    // progress, and the patch's own keys), never the whole row.
+    await writeAuditMirror(this.client, {
+      ...audit,
+      actorId: audit.actorId ?? existing.created_by,
+      before: { status: existing.status, progress: existing.progress },
+      after: { status: updated.status, progress: updated.progress, changed: Object.keys(patch).filter((k) => k !== "updated_at") },
+    });
+    return Ok(updated);
   }
 
   async updateTaskStatus(id: string, status: TaskStatus, actorId: string, completionNote?: string): Promise<Result<Task>> {
@@ -334,8 +375,17 @@ export class SupabaseTaskRepository implements TaskRepository {
     } else if (status === "in_progress" && (existing.progress ?? 0) === 0) {
       updates = { ...updates, progress: 10 };
     }
-    void actorId; // audit trail is server-side (0014); the actor reaches the DB through the session JWT.
-    return this.updateTask(id, updates);
+    // AUDIT-505 (T-502): task.status_change with the status as the note —
+    // the mock's mirror. (The pre-T-502 comment claimed "audit trail is
+    // server-side (0014)" — nothing server-side fires for tasks; the
+    // mirror makes the claim true from the client side.)
+    return this.updateTaskCore(id, updates, {
+      action: "task.status_change",
+      entityType: "task",
+      entityId: id,
+      actorId,
+      note: status,
+    });
   }
 
   async reviewTask(
@@ -351,13 +401,22 @@ export class SupabaseTaskRepository implements TaskRepository {
     // reviewed_by/review_note.
     const existing = await this.fetchRow(id);
     if (!existing) return Err(Errors.notFound("Task", id));
-    void reviewerName; // display name preserved for contract parity; the audit log is server-side.
-    return this.updateTask(id, {
+    // AUDIT-505 (T-502): task.review_approved / task.review_rejected — the
+    // mock's mirror (the reviewer identity reaches the audit row; the
+    // display-name parameter keeps its contract-parity role).
+    return this.updateTaskCore(id, {
       status: approved ? "completed" : "in_progress",
       reviewedBy: isUuid(reviewerId) ? reviewerId : null,
       reviewNote: reviewNote ?? null,
       progress: approved ? 100 : Math.max(existing.progress ?? 0, 50),
       updatedAt: nowIso(),
+    }, {
+      action: approved ? "task.review_approved" : "task.review_rejected",
+      entityType: "task",
+      entityId: id,
+      actorId: reviewerId,
+      actorName: reviewerName,
+      note: reviewNote ?? null,
     });
   }
 
@@ -366,11 +425,18 @@ export class SupabaseTaskRepository implements TaskRepository {
     if (bad !== undefined) {
       return Err(Errors.validation(`Task assignee id is not a valid UUID (${bad})`));
     }
-    void actorId;
-    return this.updateTask(id, {
+    // AUDIT-505 (T-502): task.reassign — the mock's mirror (the assignee
+    // count as the note).
+    return this.updateTaskCore(id, {
       assigneeIds,
       status: assigneeIds.length > 0 ? "assigned" : "pending",
       updatedAt: nowIso(),
+    }, {
+      action: "task.reassign",
+      entityType: "task",
+      entityId: id,
+      actorId,
+      note: `${assigneeIds.length} assignee(s)`,
     });
   }
 
@@ -397,6 +463,14 @@ export class SupabaseTaskRepository implements TaskRepository {
       .single();
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refresh();
+    // AUDIT-505 (T-502): task.comment — the mock's mirror.
+    await writeAuditMirror(this.client, {
+      action: "task.comment",
+      entityType: "task",
+      entityId: id,
+      actorId: comment.authorId,
+      actorName: comment.authorName,
+    });
     return Ok(mapComment(data as unknown as CommentRow));
   }
 
@@ -408,6 +482,14 @@ export class SupabaseTaskRepository implements TaskRepository {
     await this.refresh();
     const row = await this.fetchRow(id);
     if (!row) return Err(Errors.notFound("Task", id));
+    // AUDIT-505 (T-502): the mock delegates addAttachment to updateTask,
+    // which audits task.update — mirrored here with the attachment note.
+    await writeAuditMirror(this.client, {
+      action: "task.update",
+      entityType: "task",
+      entityId: id,
+      note: `attachment: ${attachment.filename}`,
+    });
     return Ok(mapRow(row));
   }
 
@@ -440,6 +522,15 @@ export class SupabaseTaskRepository implements TaskRepository {
       });
     }
     await this.refresh();
+    // AUDIT-505 (T-502): task.delete on the real (1-row) delete — the
+    // mock's mirror. (0144 in the message above is the historical number
+    // from the T-501 drafting; the applied policy migration is 0145.)
+    await writeAuditMirror(this.client, {
+      action: "task.delete",
+      entityType: "task",
+      entityId: id,
+      after: null,
+    });
     return Ok(undefined);
   }
 
