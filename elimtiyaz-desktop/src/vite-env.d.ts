@@ -1,5 +1,17 @@
 /// <reference types="vite/client" />
 
+/**
+ * T-502 (UI-332): the app-level zoom contract — the window's OWN zoom
+ * level (the SAME state the Electron Affichage menu roles drive), exposed
+ * through the preload's webFrame bridge with factor clamps 0.5–2.0.
+ */
+interface ElImtiyazZoomApi {
+  in(): { ok: true; level: number; factor: number; clamped: boolean };
+  out(): { ok: true; level: number; factor: number; clamped: boolean };
+  reset(): { ok: true; level: number; factor: number; clamped: boolean };
+  get(): { ok: true; level: number; factor: number; clamped: boolean };
+}
+
 interface ElImtiyazDesktopApi {
   platform: string;
   versions: { electron: string; chrome: string; node: string };
@@ -26,6 +38,19 @@ interface ElImtiyazDesktopApi {
     read: () => Promise<{ ok: true; config: Record<string, unknown> } | { ok: false; error: string }>;
     write: (config: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; error: string }>;
     delete: () => Promise<{ ok: true } | { ok: false; error: string }>;
+  };
+  /**
+   * T-502 (UI-332): the app-level zoom entry point — the window's OWN zoom
+   * level (the SAME state the Electron Affichage menu roles drive), exposed
+   * through the preload's webFrame bridge with factor clamps 0.5–2.0.
+   * Present in the desktop build only (undefined in the browser/tests —
+   * the keyboard hook no-ops then).
+   */
+  zoom?: {
+    in(): { ok: true; level: number; factor: number; clamped: boolean };
+    out(): { ok: true; level: number; factor: number; clamped: boolean };
+    reset(): { ok: true; level: number; factor: number; clamped: boolean };
+    get(): { ok: true; level: number; factor: number; clamped: boolean };
   };
 }
 

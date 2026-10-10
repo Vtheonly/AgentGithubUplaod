@@ -39,6 +39,9 @@ import { ModalProvider } from "./providers/modal-provider";
 import { UserPreferencesProvider } from "./providers/user-preferences-provider";
 import { ToastViewport } from "../shared/layout/toast-viewport";
 import { TestDataAutofill } from "../shared/devtools/test-data/use-test-data-autofill";
+// T-502 (UI-332): the application-wide keyboard zoom (Ctrl+= / Ctrl++ /
+// Ctrl+- / Ctrl+0) — mounted at the App root so every view has it.
+import { useKeyboardZoom } from "../shared/hooks/use-keyboard-zoom";
 import { ModalHost } from "../shared/layout/modal-host";
 import { SplashGate } from "./splash-gate";
 import { AppShell } from "./app-shell";
@@ -110,6 +113,10 @@ function useExternalWhatsAppHandoff(): void {
 
 export function App() {
   useExternalWhatsAppHandoff();
+  // T-502 (UI-332): Ctrl+= / Ctrl++ zoom in, Ctrl+- zoom out, Ctrl+0
+  // reset — the window's own zoom level (the Affichage menu's mechanism),
+  // active on every view including the login screen (before any session).
+  useKeyboardZoom();
 
   return (
     <UserPreferencesProvider>
