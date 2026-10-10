@@ -413,12 +413,32 @@ export class SupabaseTaskRepository implements TaskRepository {
 
   async deleteTask(id: string): Promise<Result<void>> {
     // HARD delete (mock parity) — task_comments + task_attachments cascade.
-    const { error } = await this.client
+    //
+    // WORKFORCE-512 (T-500 live proof, fixed T-501): PostgREST DELETE under
+    // RLS default-deny (NO tasks_delete policy exists in the chain) returns
+    // 204 with ZERO rows affected — the previous shape treated that as
+    // success and the UI toasted « Tâche supprimée » while the row SURVIVED
+    // (live-proven even for the super_admin). The `.select()` tail requests
+    // `Prefer: return=representation` so PostgREST returns the DELETED rows;
+    // an empty array means the write was refused (or the row vanished
+    // concurrently) — surfaced as an honest error, never a fake success.
+    // (The server-side half — the role-scoped tasks_delete policy — is
+    // migration 0144, owner-gated per §15.77a: no DDL channel this session.)
+    const { data, error } = await this.client
       .from("tasks")
       .delete()
       .eq("id", id)
-      .eq("tenant_id", getTenantId());
+      .eq("tenant_id", getTenantId())
+      .select("id");
     if (error) return Err(supabaseErrorToAppError(error));
+    if (!data || data.length === 0) {
+      return Err({
+        code: "ERR_FORBIDDEN",
+        message: `Task delete refused: 0 rows affected for id=${id} (RLS default-deny — no tasks_delete policy; see WORKFORCE-512 / migration 0144)`,
+        userMessage:
+          "La suppression a été refusée — la tâche n'a PAS été supprimée. Contactez l'administration si nécessaire.",
+      });
+    }
     await this.refresh();
     return Ok(undefined);
   }

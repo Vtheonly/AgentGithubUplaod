@@ -142,6 +142,13 @@ export function TaskDetailDrawer({
       );
       setConfirmDelete(false);
       onOpenChange(false);
+    } else {
+      // WORKFORCE-512 (T-500 live proof, fixed T-501): a refused delete is
+      // SURFACED, never silent — the live DB has no tasks_delete policy, so
+      // the DELETE affects 0 rows (the repository now detects this and
+      // returns an error). The confirm modal stays open; the task survives;
+      // the user is told the truth instead of a false « supprimée » toast.
+      toast.showError("Suppression impossible", res.error.userMessage);
     }
   }
 

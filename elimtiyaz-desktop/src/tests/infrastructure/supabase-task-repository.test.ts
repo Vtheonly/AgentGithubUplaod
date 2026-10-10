@@ -44,6 +44,11 @@ class FakeQuery {
   private orderCol = "";
   private orderAsc = true;
   private limitN: number | null = null;
+  // PostgREST semantics: with `.select()` (Prefer: return=representation)
+  // the deleted rows are returned; without it, data is null. An RLS
+  // default-deny produces an EMPTY deleted set — the honest 0-row signal
+  // deleteTask detects (WORKFORCE-512). Public for the 7c request-shape pin.
+  deleteRepresentation = false;
 
   constructor(private readonly table: Row[]) {}
 
@@ -65,8 +70,10 @@ class FakeQuery {
     return this;
   }
   select(_cols?: string): this {
+    if (this.mode === "delete") this.deleteRepresentation = true;
     return this;
   }
+
   insert(row: Row): this {
     this.mode = "insert";
     this.payload = row;
@@ -117,10 +124,17 @@ class FakeQuery {
       return { data: patched, error: null };
     }
     if (this.mode === "delete") {
+      const deleted = this.table.filter((r) => this.filters.every((f) => f(r)));
       const remaining = this.table.filter((r) => !this.filters.every((f) => f(r)));
       this.table.length = 0;
       this.table.push(...remaining);
-      return { data: null, error: null };
+      // PostgREST semantics: with `.select()` (Prefer: return=representation)
+      // the deleted rows are returned; without it, data is null. An RLS
+      // default-deny produces an EMPTY deleted set — the honest 0-row signal
+      // deleteTask detects (WORKFORCE-512). Recorded on the client so the
+      // request shape stays assertable after the repo's refresh() re-query.
+      if (this.deleteRepresentation) fakeClient.sawDeleteWithRepresentation = true;
+      return { data: this.deleteRepresentation ? deleted : null, error: null };
     }
     let rows = this.table.filter((r) => this.filters.every((f) => f(r)));
     if (this.orderCol) {
@@ -167,10 +181,14 @@ class FakeQuery {
 
 class FakeClient {
   tables: Record<string, Row[]> = {};
+  lastQuery: FakeQuery | null = null;
+  sawDeleteWithRepresentation = false;
 
   from(tableName: string): FakeQuery {
     if (!this.tables[tableName]) this.tables[tableName] = [];
-    return new FakeQuery(this.tables[tableName]);
+    const q = new FakeQuery(this.tables[tableName]);
+    this.lastQuery = q;
+    return q;
   }
 }
 
@@ -393,6 +411,32 @@ describe("SupabaseTaskRepository (T-180)", () => {
     const res = await repo.deleteTask("task-uuid-1");
     expect(res.ok).toBe(true);
     expect(fakeClient.tables["tasks"]).toHaveLength(0);
+  });
+
+  it("7b. WORKFORCE-512: a 0-row delete (RLS default-deny) is an ERR_FORBIDDEN, never a fake success", async () => {
+    // The live-T-500 proof: no tasks_delete policy exists → the DELETE
+    // affects 0 rows with a 204. The repository must surface the refusal.
+    fakeClient.tables["tasks"] = [taskRow({ id: "task-uuid-other" })];
+    const repo = makeRepo();
+    const res = await repo.deleteTask("task-uuid-1");
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error.code).toBe("ERR_FORBIDDEN");
+      expect(res.error.userMessage).toContain("La suppression a été refusée");
+    }
+    // The row was NOT deleted (the fake leaves it — PostgREST semantics:
+    // the filters matched nothing, so nothing was removed).
+    expect(fakeClient.tables["tasks"]).toHaveLength(1);
+  });
+
+  it("7c. WORKFORCE-512: the delete request carries the representation tail (the 0-row signal)", async () => {
+    fakeClient.tables["tasks"] = [taskRow()];
+    const repo = makeRepo();
+    await repo.deleteTask("task-uuid-1");
+    // The flag is recorded at query time — it survives the repository's
+    // post-delete refresh() re-query. Pins the request shape the honest
+    // detection depends on (Prefer: return=representation via .select()).
+    expect(fakeClient.sawDeleteWithRepresentation).toBe(true);
   });
 
   it("8. read mapping: verbatim enums, jsonb assignees, comment/attachment order, null folds", async () => {
