@@ -7529,3 +7529,87 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Root cause:** the modal's switch was written from the notification families that existed at the time (parent/student/expense/installment/homework); the 0075 chat fan-out (T-190, the 30th session) postdated it and no session added its case — the notification itself arrived and displayed, only its DEEP LINK was missing.
 - **Location:** `alert-detail-modal.tsx` `linkedEntity` (the switch) · `personnel-page.tsx` (the new `tab`/`channelId` search-param consumption).
 - **Evidence:** t-499-chat-notification-navigation.test.tsx S1 (red pre-fix — no "Élément Associé" at all) + S2/S3 (the exact routes both scopes) + S4 (the Personnel page consumes the emitted params — the T-413 FA-16 lesson applied).
+
+---
+
+## 151st-session entries (2026-10-10) — the owner's Pedagogy/Staff audit continuation (T-500, registered AFTER the live audit; evidence: `docs/audits/pedagogy-academics-audit-2026-10-10.md` + `docs/audits/staff-personnel-audit-2026-10-10.md` + `elimtiyaz-desktop/scripts/t500-pedagogy-live-audit.py` (90/0 LIVE) + `elimtiyaz-desktop/scripts/t500-staff-live-audit.py` (67/0 LIVE))
+
+### ATT-104 — The legacy 0004 unique index `attendance_records_unique_session_uidx` (tenant_id, student_id, class_id, date, coalesce(class_subject_id, uuid)) does NOT include `session`, so it CONFLICTS with the canonical 0041 index `uq_attendance_canonical` (which does): a SECOND attendance session for the same student+class+date is impossible — the roll-call re-save with a different session (morning→afternoon, morning→both) fails with 409 for the WHOLE batch, even though the canonical index and the repo's upsert key would allow per-session rows
+
+- **Category:** ATT / schema  |  **Severity:** HIGH (any school day with two recorded sessions — the standard Algerian morning+afternoon day — cannot be recorded; the teacher's second roll call of the day errors for the entire class)  |  **Status:** REGISTERED (live-verified 2026-10-10, T-500: the exact `recordRollCall` upsert shape → morning row 201; the 'both' re-save → 409 `duplicate key value violates unique constraint "attendance_records_unique_session_uidx"`; only the morning row exists after the failure)
+- **Repositories:** elimtiyaz-desktop (`supabase-academic-repository.ts` recordRollCall — the upsert targets `uq_attendance_canonical` (T-023 fix) and is correct; the blocker is the coexisting legacy index) · migration 0004 line 176 (the legacy index) vs 0041 line 163 (the canonical index).
+- **Platforms affected:** Desktop (roll call + class attendance tab); every future cross-session attendance use.
+- **Task:** T-500 (audit registration; fix candidate next task).
+- **Root cause:** 0041 added the session-aware canonical index but never dropped 0004's session-blind predecessor — the tighter (older) constraint wins on every second-session insert. The legacy 0022 `record_roll_call` RPC still targets the legacy index shape in its ON CONFLICT, so the drop must be coordinated with that RPC's conflict target.
+- **What remains:** a one-line migration (drop the legacy index + reconcile 0022's `record_roll_call` conflict target) — **BLOCKED live**: no DDL channel this session (the sbp_ management token is invalid; the DB password is not provisioned). Draft the migration and apply when a channel exists.
+
+### NOTIF-106 — `alertAbsences` (the ≥3-absence parent alert, the AUDIT-503-fixed path) inserts parent-targeted notifications via a DIRECT table insert — and the LIVE `notifications_insert` policy refuses every cross-target insert (403 even for the signed-in super_admin; only self-targeted inserts land): the canonical "alert the parents" workflow is RLS-blocked in live mode a SECOND time, by a different layer than AUDIT-503's (schema then, policy now) — while the sanctioned 0077 `notify_parent_user` RPC (SECURITY DEFINER, parent-id resolution server-side) works live
+
+- **Category:** NOTIF / RLS  |  **Severity:** HIGH (the roll-call absence alert never reaches a parent — the workflow the task spec §5.3 names explicitly: "Producing absence alerts when applicable")  |  **Status:** REGISTERED (live-verified 2026-10-10, T-500: the exact alertAbsences insert shape with target_user_id=parent profile → 403 `new row violates row-level security policy for table "notifications"`; the SAME body self-targeted → 201; the 0077 RPC with the same content → 200 + notification id; role helpers called directly prove the caller IS super_admin — so the refusal is the policy, not the role resolution)
+- **Repositories:** elimtiyaz-desktop (`supabase-academic-repository.ts` alertAbsences — the T-498 column fix is schema-valid but the insert path is policy-blocked) · the live DB's `notifications_insert` policy (behaves as tenant + self-target-only — TIGHTER than 0048's committed staff-or-self text; see DRIFT-012) · migration 0077 (the sanctioned RPC).
+- **Platforms affected:** Desktop (roll call → absence alerts); any client-side cross-user notification writer.
+- **Task:** T-500 (audit registration; the fix is small: switch alertAbsences to the 0077 RPC, keeping the audit-log write).
+- **Root cause:** the 0048 policy text (staff-or-self) describes an arm the live DB does not honor; the repo was written against the committed text. The server-side triggers (0075 chat, 0078 homework) bypass RLS via SECURITY DEFINER — only the CLIENT-side writers are exposed.
+
+### DRIFT-012 — The live database's RLS policies DIVERGE from the committed migration chain (the source-of-truth contract, AGENTS.md §source-of-truth): two live-proven instances where the live policy is TIGHTER than the committed text — `notifications_insert` (live: tenant + self-target only; committed 0048: staff-or-self-target-role) and `workforce_attendance_insert` (live: refuses a parent-role tenant member's punch; committed 0019: tenant-membership-only) — the repository of record misdescribes the production database in both directions of permissiveness
+
+- **Category:** DRIFT / governance  |  **Severity:** MEDIUM (the committed chain is no longer a reliable predictor of live authorization behavior; future migrations may collide with the drifted policies; WORKFORCE-503's committed text describes an open door the live DB has already closed)  |  **Status:** REGISTERED (live-verified 2026-10-10, T-500: both instances proven by direct probes with the role helpers called to eliminate resolution failure — `current_tenant_id()` and `current_user_roles()` both correct for the probe caller while the policy refused)
+- **Repositories:** the live Supabase DB vs `supabase/migrations/0048_chat_notifications_rls_insert_tighten.sql` + `0019_rls_policies.sql` (0019:785).
+- **Task:** T-500 (registration).
+- **What remains:** capture the live policy SQL for both tables (Supabase dashboard SQL editor, or a refreshed management token) into a committed migration so the chain matches production; re-run the two live probes afterward as the verification.
+
+### WORKFORCE-512 — Task deletion is a SILENT no-op for EVERY role (no `tasks_delete` policy exists in any migration → PostgREST DELETE under RLS default-deny affects 0 rows and returns 204): the task-detail drawer's ConfirmModal closes, the success path runs, and the task SURVIVES — even the super_admin cannot delete a task, and no error is ever surfaced (the UI's `if (res.ok)` branches have no else)
+
+- **Category:** WORKFORCE / tasks / RLS  |  **Severity:** HIGH (a false-success UI on a destructive affordance; combined with the repo's hard-DELETE model, task cleanup is impossible for every user)  |  **Status:** REGISTERED (live-verified 2026-10-10, T-500: super_admin DELETE → 204 with 0 rows affected; the row re-read still exists; a parent-role DELETE → the same silent no-op; the repo's fake-client unit test cannot model RLS — the exact §9.5 evidence-level trap)
+- **Repositories:** elimtiyaz-desktop (`supabase-task-repository.ts` deleteTask L414-424 — hard DELETE; `task-detail-drawer.tsx` handleDelete L135-146 — no error branch) · migration chain: 0019:732-755 defines tasks select/insert/update ONLY.
+- **Platforms affected:** Desktop (task management + manager dashboard).
+- **Task:** T-500 (audit registration).
+- **What remains:** decide the model — either a role-scoped `tasks_delete` policy (super_admin/manager/creator) matching the hard-DELETE repo, or remove the delete affordance and use a status transition; EITHER way add the error branch to the drawer so a refused write is never silent again.
+
+### WORKFORCE-513 — The manager dashboard's create-task form maps assignee options to the PERSONNEL id (`m.id`) and writes it into `assignee_ids` — the column stores USER_PROFILE ids (the T-371/WORKFORCE-509 contract): a task created from the manager dashboard is stored with a personnel id as the assignee and is INVISIBLE to its assignee on every self-filtered surface (the write-side sibling of the read-side join T-480 pinned)
+
+- **Category:** WORKFORCE / tasks / identity  |  **Severity:** HIGH (manager-created tasks never reach their assignees — the core task-dispatch workflow is broken at its entry point)  |  **Status:** REGISTERED (code-evidence 2026-10-10, T-500: `manager-dashboard.tsx:212` maps options to `m.id` (personnel) while `task-form-modal.tsx:75-90` (the correct pattern) maps to `p.userId`; the UUID guard passes because personnel ids ARE uuids — the task persists, the assignee never sees it)
+- **Repositories:** elimtiyaz-desktop (`features/personnel/dashboards/manager-dashboard.tsx` L163-212).
+- **Platforms affected:** Desktop (manager dashboard → task dispatch).
+- **Task:** T-500 (audit registration; the fix is the one-line id-source change + a regression test pinning the manager surface's assignee key).
+
+### WORKFORCE-514 — The worker dashboard's "my leave" feed and "Demandes en attente" KPI are keyed by the ACCOUNT id (`repos.leaveRequests.observeByPersonnel(session.userId)`) while `leave_requests.personnel_id` is a PERSONNEL FK: for a real linked worker the list is ALWAYS EMPTY and the KPI always 0 — the worker's own leave requests (submitted correctly through the T-374-fixed submit path) never appear on their dashboard
+
+- **Category:** WORKFORCE / leave / identity  |  **Severity:** MEDIUM (the worker can submit leave but cannot see it; the T-374 fix corrected the submission/punch keys but not this read)  |  **Status:** REGISTERED (code-evidence 2026-10-10, T-500: `worker-dashboard.tsx:110` — the same wrong-key family as WORKFORCE-502/T-374)
+- **Repositories:** elimtiyaz-desktop (`features/personnel/dashboards/worker-dashboard.tsx` L110, L152-155, L227).
+- **Task:** T-500 (audit registration; fix = resolve the personnel id via `personnel.observeByUserId` like the punch/submit paths already do).
+
+### WORKFORCE-515 — `staff_absences` (the 0095 justification-loop table, live-proven working end-to-end by the T-500 probe: INSERT → requested → submitted → accepted with the state-machine trigger blocking illegal jumps) has NO creation path in ANY mounted UI: the only client writes are the three UPDATE transitions — the entire Absences & Justifications queue (and the AdministratorDashboard's "Absences non justifiées" KPI) is structurally ZERO in production unless rows are inserted out-of-band
+
+- **Category:** WORKFORCE / feature completeness  |  **Severity:** MEDIUM (a fully-built server-side loop with no producer; the staff-attendance center renders an empty queue forever)  |  **Status:** REGISTERED (live+code 2026-10-10, T-500: census 0 rows; the 0095 INSERT policy exists for admins; grep shows no UI caller inserts)
+- **Repositories:** elimtiyaz-desktop (`features/personnel/management/staff-attendance-center.tsx` — UPDATE-only handlers; `supabase-workforce-attendance-repository.ts` L293-393) · migration 0095.
+- **Task:** T-500 (audit registration).
+- **What remains:** add the "record an observed absence" admin action (the INSERT the 0095 policy was written for) in the staff-attendance center.
+
+### AUDIT-505 — The personnel-family CLIENT mutations write NO audit_logs rows in live mode — personnel create/update/deactivate, task create/status/review/comment, the whole leave lifecycle (submit/decide/clarify), workforce punches, and the onboarding wizard: live-proven zero audit rows for every one of them (the T-498 registered "personnel audit-logging gap", now quantified) — while the 0095 salary RPCs, the teacher flows, the chat channel RPC, and the account EF write audit rows correctly: the mock layer's audit sink made dev mode LOOK audited (a stark mock↔live divergence, with misleading "audit trail is server-side (0014)" repo comments)
+
+- **Category:** AUDIT / observability  |  **Severity:** MEDIUM (the personnel section's mutation history is invisible except for payroll; the audit-log UI shows nothing for the family)  |  **Status:** REGISTERED (live-verified 2026-10-10, T-500: E2/E4/G2/H5/I3 — zero `audit_logs` rows for the probe personnel create, update, task create, leave lifecycle, and punch; the same session's F3/F7 prove the RPC paths DO write `personnel.salary_adjusted`/`personnel.salary_disbursed`)
+- **Repositories:** elimtiyaz-desktop (`supabase-personnel-repository.ts`, `supabase-task-repository.ts`, `supabase-leave-request-repository.ts`, `supabase-workforce-attendance-repository.ts`, `supabase-onboarding-repository.ts` — none call `write_audit_log`; the 0014 RPC is live-proven and cheap) · `infrastructure/mock/workforce/index.ts:70-88` (the mock audit sink that masks the gap in dev).
+- **Task:** T-500 (audit registration).
+- **What remains:** mirror the mock layer's audit contract on the Supabase side — explicit `write_audit_log` calls (or DB triggers) for the five mutation families; the 0014 contract is already pinned by C2 probes.
+
+### GRADE-103 — The narrative generator's « Approuver » flow is persistence-HOLLOW: the success toast says « Narrative saved to the student record » but the ONLY write is an `audit_logs` row (AiNarrativeApproved, 200-char preview) — the narrative text is never persisted anywhere retrievable (`student_academic_histories.narrative` is written ONLY by the promotion payload, which always passes NULL; no other table/column exists) — an approved narrative is unrecoverable the moment the modal closes
+
+- **Category:** GRADE / persistence  |  **Severity:** MEDIUM (a user-visible promise with no write path — the §2 "honest failure handling" contract inverted: the UI claims success for a write that never happened)  |  **Status:** REGISTERED (code+live 2026-10-10, T-500: `narrative-generator-modal.tsx:223-250` — handleApprove writes only `repos.audit.log`; live proof that nothing else writes the narrative: the T-500 census shows 0 history rows and the promotion wire passes `narrative: null`)
+- **Repositories:** elimtiyaz-desktop (`features/academics/narrative-generator-modal.tsx`) · migration 0029 (`student_academic_histories.narrative` — the only candidate column).
+- **Task:** T-500 (audit registration).
+- **What remains:** decide the persistence target (a year-keyed narrative write into `student_academic_histories`, or a dedicated column/table), then wire the approve button to it — or change the toast to tell the truth.
+
+### ACAD-514 — The subject-configurations matrix (`subject-configurations-panel.tsx`) keys its `byKey` lookup by `subjectId|academicLevelId` ONLY — ignoring `academicYearId` — while the repository loads ALL active years' configurations: the matrix can display a PRIOR-year coefficient for the current year's cell (the cross-year bleed), and an edit upserts against the current year while the displayed value came from another
+
+- **Category:** ACAD / display-integrity  |  **Severity:** LOW (wrong coefficient DISPLAYED before an edit; the edit itself upserts correctly for the active year)  |  **Status:** REGISTERED (code-evidence 2026-10-10, T-500: `subject-configurations-panel.tsx:154-160` + the repo's `refreshConfigurations` loading all active years)
+- **Repositories:** elimtiyaz-desktop (`features/academics/subject-configurations-panel.tsx`).
+- **Task:** T-500 (audit registration).
+- **What remains:** add `academicYearId` to the `byKey` key + filter the loaded set to the active year.
+
+### ACAD-510 (UPDATE — the 2026-10-10 live re-proof) — the notes drop extends to the UPDATE path: `class-detail-page.tsx:309` sends `notes` in `updateClass`, but the live `SupabaseClassRepository.updateClass` patch never maps it — the « Class updated » toast fires while the edited notes are silently discarded (the live table still has no `classes.notes` column — re-proven by the T-500 C1 probe: `column classes.notes does not exist`)
+
+- **Status:** REGISTERED (extends the T-408 registration with the UPDATE-path drop; mock `updateClass` DOES persist notes — the mock↔live divergence again).
+
+### WORKFORCE-503 (UPDATE — the 2026-10-10 live posture) — the open door ("any authenticated member can punch for any personnel id — the 0019 committed text checks tenant membership only") is CLOSED on the live DB: a parent-role tenant member's punch (with the tenant resolver proven working and the role proven 'parent') is REFUSED with 403 — the live `workforce_attendance_insert` policy is TIGHTER than the committed text (see DRIFT-012). Net effect: mitigated live, but the committed chain still describes the vulnerability; capture the live policy SQL into a migration and close the registration with the verified policy text.
+
