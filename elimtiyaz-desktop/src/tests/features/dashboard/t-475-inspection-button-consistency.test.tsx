@@ -11,12 +11,15 @@
  *      the compat twin) render the SAME canonical class — there is exactly
  *      ONE styling implementation (§15.9).
  *
- *   B. THE DESIGN INVARIANTS: fixed height (h-7), readable typography
- *      (text-xs — the old design's 10px was below the app's floor),
- *      whitespace-nowrap + the truncate guard (a long label never breaks the
- *      flex-wrap row), the full interaction-state set (hover + border
- *      emphasis, focus-visible ring, active press, disabled), the aligned
- *      icon (h-3.5 = the 12px text), and the aria-label.
+ *   B. THE DESIGN INVARIANTS (as amended by T-502/UI-333, the owner's
+ *      cramped/clipped report): the true sm-button standard height (h-8
+ *      — was h-7), comfortable padding + gap (px-3 / gap-2), readable
+ *      typography (text-xs), whitespace-nowrap, and — the T-502 change —
+ *      NO max-width cap and NO truncate guard: the button sizes to its
+ *      content so every label stays FULLY readable (the flex-wrap strips
+ *      absorb the width), plus the full interaction-state set (hover +
+ *      border emphasis, focus-visible ring, active press, disabled),
+ *      the aligned icon (h-3.5 = the 12px text), and the aria-label.
  *
  *   C. THE BEHAVIOR PRESERVED: clicking still calls inspectData with the
  *      request (the compat's label semantics « Inspecter · {title} » kept).
@@ -128,7 +131,11 @@ afterEach(() => {
 
 describe("T-475 A/B/C — the canonical inspection-button design", () => {
   it("the canonical class exists and carries the full interaction-state set", () => {
-    expect(INSPECT_TRIGGER_CLASS).toContain("h-7"); // fixed height — the sm-button standard
+    // T-502 (UI-333): h-8 — the app's TRUE sm-button standard (the h-7
+    // chip was the owner's "too small, cramped" complaint).
+    expect(INSPECT_TRIGGER_CLASS).toContain("h-8"); // fixed height — the sm-button standard
+    expect(INSPECT_TRIGGER_CLASS).toContain("px-3"); // comfortable padding (was px-2.5)
+    expect(INSPECT_TRIGGER_CLASS).toContain("gap-2"); // comfortable spacing (was gap-1.5)
     expect(INSPECT_TRIGGER_CLASS).toContain("text-xs"); // readable typography (the 10px floor retired)
     expect(INSPECT_TRIGGER_CLASS).toContain("whitespace-nowrap"); // labels never break mid-word
     expect(INSPECT_TRIGGER_CLASS).toContain("hover:bg-primary/10");
@@ -136,7 +143,9 @@ describe("T-475 A/B/C — the canonical inspection-button design", () => {
     expect(INSPECT_TRIGGER_CLASS).toContain("focus-visible:ring-2"); // the a11y ring
     expect(INSPECT_TRIGGER_CLASS).toContain("active:bg-primary/15");
     expect(INSPECT_TRIGGER_CLASS).toContain("disabled:opacity-50");
-    expect(INSPECT_TRIGGER_CLASS).toContain("max-w-56"); // the long-label overflow guard (truncate lives on the label span)
+    // T-502 (UI-333): the clipping guards are RETIRED — no max-width cap
+    // (long labels size the button to their content, never truncate).
+    expect(INSPECT_TRIGGER_CLASS).not.toContain("max-w-");
   });
 
   it("BOTH surfaces render the SAME canonical class (ONE implementation)", () => {
@@ -146,14 +155,17 @@ describe("T-475 A/B/C — the canonical inspection-button design", () => {
       .filter((b) => (b.textContent ?? "").includes("Inspecter"));
     expect(buttons.length).toBe(2);
     for (const btn of buttons) {
-      expect(btn.className).toContain("h-7");
+      expect(btn.className).toContain("h-8");
       expect(btn.className).toContain("text-xs");
       expect(btn.className).toContain("whitespace-nowrap");
       // The icon stays aligned with the 12px text.
       const icon = btn.querySelector("svg");
       expect(icon?.getAttribute("class")).toContain("h-3.5");
-      // The label is wrapped in the truncate guard.
-      expect(btn.querySelector("span")?.className).toContain("truncate");
+      // T-502 (UI-333): the label span carries NO truncate — the label is
+      // always fully visible (the old max-w-56 + truncate pair silently
+      // cut long labels like "Inspecter · Encaissements services…").
+      const labelSpan = btn.querySelector("span");
+      expect(labelSpan?.className).not.toContain("truncate");
       // The a11y attributes.
       expect(btn.getAttribute("aria-label")).toBeTruthy();
     }

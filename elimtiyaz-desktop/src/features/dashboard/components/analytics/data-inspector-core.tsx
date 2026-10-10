@@ -623,17 +623,23 @@ export function useDataInspector(): InspectorContextValue {
 }
 
 /**
- * T-475 — the ONE canonical inspection-trigger design (the owner's UI
- * consistency mandate). Every inspection button in the desktop app renders
- * through THIS styling: a fixed-height (h-7, the app's sm-button standard)
- * primary-tinted chip with readable 12px typography, a nowrap+truncate
- * label guard, and the full interaction-state set (hover bg+border
- * emphasis, focus-visible ring, active press, disabled). The compat twin
- * in data-inspector.tsx delegates here — there is exactly ONE styling
- * implementation (§15.9).
+ * T-475 + T-502 (UI-333) — the ONE canonical inspection-trigger design
+ * (the owner's UI consistency mandate). Every inspection button in the
+ * desktop app renders through THIS styling. T-502 rework (the owner's
+ * report: the buttons looked "too small, cramped" with "text being cut
+ * off"): the chip grows to the app's TRUE sm-button standard (h-8 — the
+ * same height the Console d'Investigation's h-8 buttons use), the padding
+ * and gap widen (px-3 / gap-2) for comfortable tap targets, and the
+ * clipping guards are GONE — no max-w cap, no truncate span: the button
+ * sizes to its content so every label ("Inspecter · Encaissements
+ * services (hors scolarité/transport)"…) stays FULLY readable; the
+ * flex-wrap strips they live in absorb the width. The interaction-state
+ * set (hover bg+border emphasis, focus-visible ring, active press,
+ * disabled) is unchanged. The compat twin in data-inspector.tsx delegates
+ * here — there is exactly ONE styling implementation (§15.9).
  */
 export const INSPECT_TRIGGER_CLASS =
-  "inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-primary/25 bg-primary/5 px-2.5 text-xs font-medium text-primary shrink-0 transition-colors max-w-56 " +
+  "inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md border border-primary/25 bg-primary/5 px-3 text-xs font-medium text-primary shrink-0 transition-colors " +
   "hover:bg-primary/10 hover:border-primary/40 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 " +
   "active:bg-primary/15 active:scale-[0.98] " +
@@ -662,13 +668,19 @@ export function InspectTrigger({
         event.stopPropagation();
         inspectData(request);
       }}
-      className={`${INSPECT_TRIGGER_CLASS} ${compact ? "" : "h-8 px-3 text-[13px]"}`}
+      // T-502 (UI-333): compact chips share the base h-8 size (the old
+      // h-7/px-2.5 compact form was the "too small, cramped" complaint);
+      // the non-compact variant only bumps the typography to 13px.
+      className={`${INSPECT_TRIGGER_CLASS} ${compact ? "" : "text-[13px]"}`}
       title={tooltip}
       aria-label={tooltip}
       disabled={disabled}
     >
       <Search className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">{label}</span>
+      {/* T-502 (UI-333): NO truncate — the label is always fully visible;
+          the surrounding flex-wrap strips absorb the button's true width
+          (the old max-w-56 + truncate pair silently cut long labels). */}
+      <span>{label}</span>
     </button>
   );
 }

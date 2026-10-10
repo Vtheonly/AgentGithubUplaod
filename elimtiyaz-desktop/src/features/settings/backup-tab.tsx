@@ -723,7 +723,9 @@ export function BackupTab() {
                               className={INSPECT_TRIGGER_CLASS}
                             >
                               <Search className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate">Inspecter</span>
+                              {/* T-502 (UI-333): no truncate — the shared
+                                  class sizes the button to its label. */}
+                              <span>Inspecter</span>
                             </button>
                             <Button
                               size="sm"
