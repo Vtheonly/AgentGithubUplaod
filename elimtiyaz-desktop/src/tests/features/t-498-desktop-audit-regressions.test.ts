@@ -309,7 +309,9 @@ describe("T-498 §6 — the aging resolution mirrors the aging card (future rows
       makeInput({ installments }),
     );
     expect(resolved.resolvedValue).toBe(10_000);
-    expect(resolved.contributors.every((c) => c.id !== "ins-future")).toBe(true);
+    // The future row contributes no contributor amount beyond the late one
+    // (both share the default parent "p-1": the 0_30 sum is the late row only).
+    expect(resolved.contributors[0]?.amount).toBe(10_000);
   });
 
   it("the buckets still partition the PAST-DUE debt (the chart's basis)", () => {
