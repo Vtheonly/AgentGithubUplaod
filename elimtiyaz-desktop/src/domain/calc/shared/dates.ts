@@ -116,6 +116,49 @@ export function buildMonthlyBuckets(
 }
 
 /**
+ * T-502 (DATA-062): the school's canonical IANA timezone — Africa/Algiers
+ * (UTC+1, no DST), the same zone the releve repository's wall-clock
+ * helpers (supabase-releve-repository.ts) and the Settings → Général
+ * timezone selector use. Every SCHOOL-LOCAL calendar derivation (the
+ * weekday of a counter payment, the day bucket of the weekly rhythm)
+ * MUST resolve through this constant — never the machine's local zone
+ * (CI runners vary) and never raw UTC (a payment recorded at the Algiers
+ * counter at 00:30 Monday is 23:30 Sunday UTC).
+ */
+export const SCHOOL_TIMEZONE = "Africa/Algiers";
+
+/**
+ * T-502 (DATA-062): the school-local day-of-week index of an ISO
+ * timestamp — 0 (Sunday) … 6 (Saturday), resolved in Africa/Algiers via
+ * Intl.DateTimeFormat (the SAME convention the releve repository's
+ * `algoursPartsFromIso` established — one timezone policy for the whole
+ * app). Returns null for unparseable input (the caller's skip semantics).
+ *
+ * This is the ONE reliable "which weekday was this payment recorded on"
+ * helper (the issue's requirement): timezone-safe (a UTC-timestamped
+ * payment is attributed to the weekday the SCHOOL's calendar says, not
+ * the machine's), format-safe (full ISO timestamps, date-only strings
+ * and timestamptz wire values all resolve through Date parsing), and
+ * deterministic across platforms (en-US weekday names → index map).
+ */
+export function schoolLocalWeekdayIndex(iso: string): number | null {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  try {
+    const weekday = new Intl.DateTimeFormat("en-US", {
+      timeZone: SCHOOL_TIMEZONE,
+      weekday: "short",
+    }).format(new Date(t));
+    const index = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
+    return index >= 0 ? index : null;
+  } catch {
+    // Intl unavailable/exploded — the honest fallback is UTC (the
+    // pre-T-502 behavior), never a crash in a statistics path.
+    return new Date(t).getUTCDay();
+  }
+}
+
+/**
  * T-356 (DASH-407): month buckets anchored to a REQUESTED window — the
  * convention `MockDashboardRepository.revenueForRange` always used (the
  * reference implementation). A cursor walks from the window's first month

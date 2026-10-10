@@ -40,6 +40,10 @@ import {
 import { formatDzdPlain } from "../../../core/format/currency";
 import { DASHBOARD_THEME, chartPalette } from "../../../shared/ui/dashboard-theme";
 import { PAYMENT_METHOD_LABELS_FR, type Payment, type PaymentMethod } from "../../../domain/model/payment";
+// T-502 (DATA-062): the school-local weekday resolver — the ONE reliable
+// "which weekday was this payment recorded on" helper (Africa/Algiers,
+// the school's calendar, never the machine's zone and never raw UTC).
+import { schoolLocalWeekdayIndex } from "../../../domain/calc/shared/dates";
 
 /** Algerian school week — Sunday → Thursday (Dimanche à Jeudi). */
 const SCHOOL_WEEK: { key: string; jsDay: number }[] = [
@@ -62,6 +66,14 @@ export interface WeeklyRhythmDatum {
 /**
  * Derive the weekday × method collection matrix from REAL payments.
  * Pure function — exported for unit tests (T-243 test suite).
+ *
+ * T-502 (DATA-062): the weekday resolves in the SCHOOL's timezone
+ * (Africa/Algiers — `schoolLocalWeekdayIndex`), never raw UTC: a payment
+ * recorded at the Algiers counter Monday 00:30 local is Sunday 23:30
+ * UTC, and the pre-T-502 `getUTCDay()` attributed it to Sunday — the
+ * wrong day by the school's own calendar. Dates parse through ONE
+ * resolver (full ISO timestamps, date-only strings and timestamptz wire
+ * values all agree).
  */
 export function deriveWeeklyRhythm(
   payments: readonly Payment[],
@@ -76,7 +88,8 @@ export function deriveWeeklyRhythm(
     if (Number.isNaN(ts)) continue;
     if (fromTs !== null && ts < fromTs) continue;
     if (toTs !== null && ts > toTs) continue;
-    const jsDay = new Date(ts).getUTCDay();
+    const jsDay = schoolLocalWeekdayIndex(p.collectedAt);
+    if (jsDay === null) continue; // unparseable date — skipped, never guessed
     const idx = SCHOOL_WEEK.findIndex((d) => d.jsDay === jsDay);
     if (idx === -1) continue; // Fri/Sat — outside the Algerian school week
     cells[idx][p.method] += p.amount;

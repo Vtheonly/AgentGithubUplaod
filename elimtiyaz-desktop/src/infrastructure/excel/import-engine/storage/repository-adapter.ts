@@ -2185,6 +2185,22 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     return { fi, tuitionTranches, transport, destination };
   }
 
+  /**
+   * T-502 (DATA-062): the academic year's CANONICAL period anchors — the
+   * OFFICIAL tranche schedule (getOfficialTuitionDueDates: Sept 15 /
+   * Dec 15 / Mar 15 of the following year), sliced to the bare
+   * yyyy-MM-dd form this pipeline stores. ONE derivation shared by the
+   * installment due dates (T-425/T-435) and the payment collectedAt
+   * attribution (T-502) — the billing and the collection sides of the
+   * import can never disagree about the academic calendar.
+   */
+  private academicPeriodAnchors(): readonly [string, string, string] {
+    const now = new Date();
+    const academicYearStart = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    const [t1, t2, t3] = getOfficialTuitionDueDates(academicYearStart);
+    return [t1.slice(0, 10), t2.slice(0, 10), t3.slice(0, 10)];
+  }
+
   private buildPaymentRows(
     record: ImportRecord,
     parentId: string,
@@ -2193,6 +2209,51 @@ export class RepositoryStorageAdapter extends StorageAdapter {
   ): Payment[] {
     const actorId = this.deps.actorId ?? "excel-import";
     const at = new Date().toISOString();
+    // T-502 (DATA-062): the per-field RECORDED-PERIOD anchors. The ETAT
+    // workbook records payments as TRANCHE/MONTH buckets (FI/V2/2V/v3,
+    // 1T/T2/t3, SEPTEMBRE/DECEMBRE/MARS) — it carries NO per-payment exact
+    // dates (the deep-inspection census: Dates: 0 on the ETAT sheets; the
+    // only date-bearing sheet, Devis, holds QUOTE dates). The previous
+    // behavior stamped EVERY payment with the import run's wall-clock —
+    // live-proven 2,198 payments all inside ONE 42-second window
+    // (2026-09-27 23:14:03–45, a Sunday), which made the weekly-rhythm
+    // chart assign 100% of the collections to Sunday. The fix: each
+    // field's collectedAt anchors to the CANONICAL period of the bucket
+    // it was recorded under — the OFFICIAL tranche schedule
+    // (getOfficialTuitionDueDates: Sept 15 / Dec 15 / Mar 15) — the SAME
+    // anchors the installment rows' due dates use (one schedule, both
+    // sides of the import). Fields with NO recorded period (therapy
+    // sessions, ancillary services, prior-debt settlements) keep the
+    // run timestamp as the honest "recorded at import" value.
+    const anchors = this.academicPeriodAnchors();
+    // Normalize each bare yyyy-MM-dd anchor to a UTC-midnight ISO timestamp
+    // (the collectedAt field's wire format — a bare date string would be
+    // parsed inconsistently across the mock/Supabase paths). UTC midnight
+    // is also 01:00 Algiers — the calendar day is stable in BOTH zones.
+    const anchorTs: readonly [string, string, string] = [
+      `${anchors[0]}T00:00:00.000Z`,
+      `${anchors[1]}T00:00:00.000Z`,
+      `${anchors[2]}T00:00:00.000Z`,
+    ];
+    const anchorFor = (field: string): string | null => {
+      switch (field) {
+        case "FI":
+        case "V2":
+        case "T1":
+        case "SEPTEMBRE":
+          return anchorTs[0]; // September (T1 period — Sept 15)
+        case "V2_ALT":
+        case "T2":
+        case "DECEMBRE":
+          return anchorTs[1]; // December (T2 period — Dec 15)
+        case "V3":
+        case "T3":
+        case "MARS":
+          return anchorTs[2]; // March (T3 period — Mar 15, next calendar year)
+        default:
+          return null; // no recorded period → the run timestamp
+      }
+    };
 
     // CALC-001 REAL PRICING — expected amounts from the real matrix.
     const { fi: fiExpected, tuitionTranches, transport: transportSchedule, destination } =
@@ -2262,6 +2323,10 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     for (const [field, amount, category, description, expectedAmount] of specs) {
       if (amount <= 0) continue;
       const receiptNumber = `IMP-${studentId}-${field}`;
+      // T-502 (DATA-062): the recorded-period anchor (or the run
+      // timestamp for fields with no recorded period) — see the comment
+      // at the top of this method.
+      const collectedAt = anchorFor(field) ?? at;
       // PAYMENT BREAKDOWN: detect overpayment — when the paid amount
       // exceeds the expected amount for this tranche.
       const excessAmount = expectedAmount > 0 ? Math.max(0, amount - expectedAmount) : 0;
@@ -2282,7 +2347,7 @@ export class RepositoryStorageAdapter extends StorageAdapter {
         proofUrl: null,
         notes: `${description} — import Excel run ${runId}`,
         collectedBy: actorId,
-        collectedAt: at,
+        collectedAt,
         createdAt: at,
         updatedAt: at,
         expectedAmount,
@@ -2353,13 +2418,11 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // the bare yyyy-MM-dd form this pipeline has always stored — the
     // generator's full ISO timestamps are byte-equivalent up to the slice,
     // so the stored format is unchanged).
-    const academicYearStart = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-    const [tuitionDue1, tuitionDue2, tuitionDue3] = getOfficialTuitionDueDates(academicYearStart);
-    const tuitionDueDates: readonly [string, string, string] = [
-      tuitionDue1.slice(0, 10),
-      tuitionDue2.slice(0, 10),
-      tuitionDue3.slice(0, 10),
-    ];
+    // T-502 (DATA-062): the year-derivation + slicing now live in the
+    // SHARED academicPeriodAnchors() helper — the SAME anchors the
+    // payment rows' collectedAt attribution uses (one schedule, both
+    // sides of the import).
+    const tuitionDueDates = this.academicPeriodAnchors();
     const registrationDueDate = tuitionDueDates[0];
 
     // REAL TUITION PRICES from the CALC-001 matrix — per grade (or the

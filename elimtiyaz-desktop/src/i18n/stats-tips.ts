@@ -533,8 +533,8 @@ const FR = {
     card: {
       title: "Rythme opérationnel hebdomadaire",
       measures: "Le volume d'encaissements par jour de la semaine scolaire algérienne (Dimanche → Jeudi), empilé par méthode.",
-      calc: "Σ des paiements (statut ≠ remboursé) groupés par jour de collectedAt et par méthode — le flux canonique, jamais de données synthétiques.",
-      status: "La semaine scolaire exclut Vendredi/Samedi ; un jour vide = aucun encaissement ce jour-là (état vide honnête).",
+      calc: "Σ des paiements (statut ≠ remboursé) groupés par jour de collectedAt et par méthode — le flux canonique, jamais de données synthétiques. Le jour est résolu dans le fuseau de l'école (Africa/Algiers), jamais en UTC brut (T-502).",
+      status: "La semaine scolaire exclut Vendredi/Samedi ; un jour vide = aucun encaissement ce jour-là (état vide honnête). Les paiements importés du classeur Excel sont attribués à la période enregistrée de leur tranche (l'ETAT ne consigne pas de dates exactes par paiement — T-502) : les encaissements au guichet, eux, portent leur horodatage réel.",
     },
   },
   debtMeter: {
@@ -1131,8 +1131,8 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     card: {
       title: "Weekly operating rhythm",
       measures: "The collections volume per Algerian school-week day (Sunday → Thursday), stacked by method.",
-      calc: "Σ of payments (status ≠ refunded) grouped by collectedAt's weekday and method — the canonical stream, never synthetic data.",
-      status: "The school week excludes Friday/Saturday; an empty day = no collection that day (an honest empty state).",
+      calc: "Σ of payments (status ≠ refunded) grouped by collectedAt's weekday and method — the canonical stream, never synthetic data. The weekday resolves in the school's timezone (Africa/Algiers), never raw UTC (T-502).",
+      status: "The school week excludes Friday/Saturday; an empty day = no collection that day (an honest empty state). Payments imported from the Excel workbook are attributed to their tranche's recorded period (the ETAT sheet records no per-payment exact dates — T-502); counter collections carry their real timestamps.",
     },
   },
   debtMeter: {
@@ -1710,8 +1710,8 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     card: {
       title: "الإيقاع الأسبوعي التشغيلي",
       measures: "حجم التحصيلات لكل يوم من الأسبوع المدرسي الجزائري (الأحد → الخميس)، مكدّسًا حسب الطريقة.",
-      calc: "Σ المدفوعات (الحالة ≠ مُسترد) مجمّعة حسب يوم collectedAt والطريقة — التدفق القانوني، أبدًا لا بيانات مُصطنعة.",
-      status: "الأسبوع المدرسي يستثني الجمعة/السبت؛ اليوم الفارغ = لا تحصيل ذلك اليوم (حالة فراغ صادقة).",
+      calc: "Σ المدفوعات (الحالة ≠ مُسترد) مجمّعة حسب يوم collectedAt والطريقة — التدفق القانوني، أبدًا لا بيانات مُصطنعة. يُحلّ اليوم في منطقة المدرسة الزمنية (Africa/Algiers)، وليس UTC الخام (T-502).",
+      status: "الأسبوع المدرسي يستثني الجمعة/السبت؛ اليوم الفارغ = لا تحصيل ذلك اليوم (حالة فراغ صادقة). المدفوعات المستوردة من مصنف Excel تُنسب إلى الفترة المسجلة لترانشها (ورقة ETAT لا تسجّل تواريخ دقيقة لكل دفعة — T-502)؛ تحصيلات الشبّاك تحمل طوابعها الزمنية الحقيقية.",
     },
   },
   debtMeter: {
