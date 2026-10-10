@@ -47,10 +47,24 @@ describe("T-374 — WORKFORCE-502: no user_profiles.id fallback on the personnel
     expect(
       WORKER_DASHBOARD.includes("const personnelId = me?.id ?? currentUserId"),
     ).toBe(false);
-    // …replaced by the honest null (no linked record ⇒ no punch).
-    expect(WORKER_DASHBOARD.includes("const personnelId = me?.id ?? null;")).toBe(
+    // …replaced by the honest null (no linked record ⇒ no punch). T-501
+    // (WORKFORCE-514) hoisted the derivation into myPersonnelId (the leave
+    // feed now consumes the SAME key — the account id is never a personnel
+    // key anywhere in this file); personnelId aliases it.
+    expect(WORKER_DASHBOARD.includes("const myPersonnelId = me?.id ?? null;")).toBe(
       true,
     );
+    expect(WORKER_DASHBOARD.includes("const personnelId = myPersonnelId;")).toBe(
+      true,
+    );
+    // WORKFORCE-514 (T-501): the leave feed is keyed by the personnel id —
+    // never the account id (session.userId).
+    expect(
+      WORKER_DASHBOARD.includes("observeByPersonnel(session.userId)"),
+    ).toBe(false);
+    expect(
+      WORKER_DASHBOARD.includes("observeByPersonnel(myPersonnelId ?? \"\")"),
+    ).toBe(true);
   });
 
   it("staff-attendance-center derives myPersonnelId from the personnel record ONLY", () => {

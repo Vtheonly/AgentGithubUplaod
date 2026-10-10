@@ -106,24 +106,36 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
     () => session ? repos.tasks.observeByAssignee(session.userId) : repos.tasks.observe(),
     [session?.userId],
   );
-  const myLeave = useObservable(
-    () => session ? repos.leaveRequests.observeByPersonnel(session.userId) : repos.leaveRequests.observe(),
+
+  // WORKFORCE-514 (T-501): the "my leave" feed is keyed by the PERSONNEL id
+  // (leave_requests.personnel_id is a personnel FK — the T-374/WORKFORCE-502
+  // contract), NOT the account id. The previous feed passed the session's
+  // ACCOUNT id into observeByPersonnel, so a real linked worker's own
+  // requests (submitted correctly through the T-374-fixed path) NEVER
+  // appeared on their dashboard and the pending KPI stayed 0. `me` (the
+  // personnel record resolved from the account) must be resolved FIRST; no
+  // linked personnel record ⇒ no feed (honest empty).
+  const me = useObservable(
+    () => repos.personnel.observeByUserId(session?.userId ?? ""),
     [session?.userId],
+  );
+  const myPersonnelId = me?.id ?? null;
+  // The "" key (no linked personnel record yet) matches no row in either
+  // implementation's filter — an honest empty feed, not a wrong-key feed.
+  const myLeave = useObservable(
+    () => repos.leaveRequests.observeByPersonnel(myPersonnelId ?? ""),
+    [myPersonnelId],
   );
 
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [clockTick, setClockTick] = useState(0);
 
-  const me = useObservable(
-    () => repos.personnel.observeByUserId(session?.userId ?? ""),
-    [session?.userId],
-  );
   // T-374 (WORKFORCE-502): NO user_profiles.id fallback — that key is NOT a
   // personnel.id. The previous `me?.id ?? session?.userId` fallback made a
   // profile-less user's clock punch INSERT a foreign personnel_id → 23503
   // FK violation → HTTP 409 (live console evidence 2026-09-14, two punches).
   // No linked personnel record ⇒ NO punch (honest guidance, no server call).
-  const personnelId = me?.id ?? null;
+  const personnelId = myPersonnelId;
 
   const today = todayIso();
   const latestEvent = useMemo(

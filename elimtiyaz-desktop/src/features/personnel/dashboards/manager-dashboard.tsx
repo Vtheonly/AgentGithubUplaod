@@ -162,6 +162,17 @@ export function ManagerDashboard() {
 
   async function handleCreateTask(data: CreateTaskFormData) {
     if (!session) return;
+    // WORKFORCE-513: defensive — the select only offers linked accounts, but
+    // a stale session could carry a personnel id; reject BEFORE the
+    // round-trip (the task-form-modal T-371 guard, mirrored here).
+    if (data.assigneeId) {
+      const linked = teamMembers.some((m) => m.userId === data.assigneeId);
+      if (!linked) {
+        throw new Error(
+          "L'assignataire sélectionné n'a pas de compte lié — liez d'abord un compte (Paramètres → Comptes).",
+        );
+      }
+    }
     const result = await repos.tasks.createTask({
       title: data.title,
       description: data.description ?? "",
@@ -207,9 +218,29 @@ export function ManagerDashboard() {
     },
     {
       name: "assigneeId", label: "Assigner à", type: "select",
+      help:
+        teamMembers.filter((m) => !m.userId).length > 0
+          ? `${teamMembers.filter((m) => !m.userId).length} membre(s) sans compte lié ne sont pas assignables — liez d'abord un compte (Paramètres → Comptes).`
+          : undefined,
       options: [
         { label: "— Non assignée —", value: "" },
-        ...teamMembers.map((m) => ({ label: `${m.firstName} ${m.lastName}`, value: m.id })),
+        ...teamMembers
+          .filter(
+            (m): m is typeof m & { userId: string } =>
+              Boolean(m.userId) &&
+              (m.status === "active" || m.status === "on_leave"),
+          )
+          .map((m) => ({
+            // WORKFORCE-513 (T-501): the option VALUE is the linked ACCOUNT
+            // id — what assignee_ids actually stores (user_profiles.id per
+            // 0010/0019, the T-371/WORKFORCE-509 contract). The previous
+            // `value: m.id` (the PERSONNEL id) made every manager-created
+            // task invisible to its assignee on all self-filtered surfaces
+            // (the write-side sibling of the T-480 read fix).
+            label: `${m.firstName} ${m.lastName}`,
+            value: m.userId,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label, "fr")),
       ],
     },
     { name: "dueDate", label: "Échéance", type: "date" },
