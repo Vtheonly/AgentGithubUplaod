@@ -456,6 +456,10 @@ export class SupabaseClassRepository implements ClassRepository {
         specialite_code: normalizeTrackCode(input.specialiteCode),
         room: input.room,
         capacity: input.capacity ?? 30,
+        // ACAD-510 (T-502 / migration 0149): the notes field finally has a
+        // live column — the pre-0149 insert dropped it silently while the
+        // dialog collected it (the mock twin always persisted it).
+        notes: input.notes ?? null,
         // Mock-era ids ("per-001") are not UUIDs — never send them to the
         // uuid column.
         homeroom_teacher_id: isUuid(input.homeroomTeacherId)
@@ -487,6 +491,11 @@ export class SupabaseClassRepository implements ClassRepository {
         : null;
     if (updates.homeroomTeacherName !== undefined)
       patch.homeroom_teacher_name = updates.homeroomTeacherName;
+    // ACAD-510 (T-502 / migration 0149): the UPDATE path — the T-500 live
+    // re-proof showed class-detail-page sending notes here while the
+    // patch silently discarded them (« Classe mise à jour » fired over a
+    // dropped write).
+    if (updates.notes !== undefined) patch.notes = updates.notes;
     patch.updated_at = new Date().toISOString();
 
     const { data, error } = await this.client
