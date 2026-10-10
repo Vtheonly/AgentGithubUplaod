@@ -143,6 +143,20 @@ export interface AttendanceRepository {
 
   // Absence & Justification Loop
   observeAbsences(personnelId?: string): Observable<StaffAbsenceRecord[]>;
+  /**
+   * WORKFORCE-515 (T-501): the staff_absences PRODUCER — the admin records
+   * an observed absence (the 0095 INSERT the justification loop was built
+   * around; previously NO mounted UI could create a row, so the entire
+   * Absences & Justifications queue was structurally empty). The row lands
+   * with justification_status 'none'; the existing request/submit/review
+   * transitions then drive the loop.
+   */
+  recordObservedAbsence(input: {
+    personnelId: string;
+    date: string;
+    durationHours: number;
+    recordedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>>;
   requestAbsenceJustification(input: {
     absenceId: string;
     adminNote: string;

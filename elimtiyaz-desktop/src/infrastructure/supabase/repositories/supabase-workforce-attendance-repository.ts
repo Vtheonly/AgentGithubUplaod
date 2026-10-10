@@ -290,6 +290,68 @@ export class SupabaseWorkforceAttendanceRepository implements AttendanceReposito
     return this.absencesCache;
   }
 
+  /**
+   * WORKFORCE-515 (T-501) — the staff_absences PRODUCER. The 0095 table's
+   * INSERT policy was written for exactly this admin action, but no mounted
+   * UI ever called it: the Absences & Justifications queue (and the admin
+   * dashboard's "Absences non justifiées" KPI) was structurally ZERO in
+   * production. The row lands with justification_status 'none' /
+   * is_excused false — the live-proven 0095 state machine then drives the
+   * request → submit → decide loop through the three UPDATE transitions
+   * above. There is no `created_by` column on staff_absences (0095); the
+   * actor is carried by the AUDIT-505 write_audit_log mirror (see the
+   * shared helper) — never fabricated into a column that does not exist.
+   */
+  async recordObservedAbsence(input: {
+    personnelId: string;
+    date: string;
+    durationHours: number;
+    recordedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    // The T-178 precedent: validate the personnel UUID BEFORE the table
+    // (mock-era ids like "per-001" → 22P02 on the uuid FK).
+    if (!isUuid(input.personnelId)) {
+      return Err(
+        Errors.validation(
+          "recordObservedAbsence requires a personnel UUID (the Supabase personnel table key)",
+          "Fiche personnel introuvable — sélectionnez un employé valide.",
+        ),
+      );
+    }
+    if (!input.date || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
+      return Err(
+        Errors.validation(
+          "recordObservedAbsence requires a YYYY-MM-DD date",
+          "La date d'absence est invalide.",
+        ),
+      );
+    }
+    // 0095 CHECK: duration_hours numeric(4,2) > 0.
+    if (!(input.durationHours > 0) || input.durationHours > 99.99) {
+      return Err(
+        Errors.validation(
+          `durationHours must be in (0, 99.99] — got ${input.durationHours}`,
+          "La durée doit être supérieure à 0 (maximum 99h99).",
+        ),
+      );
+    }
+    const { data, error } = await this.client
+      .from("staff_absences")
+      .insert({
+        tenant_id: getTenantId(),
+        personnel_id: input.personnelId,
+        date: input.date,
+        duration_hours: input.durationHours,
+        justification_status: "none",
+        is_excused: false,
+      })
+      .select(ABSENCE_SELECT)
+      .single();
+    if (error) return Err(supabaseErrorToAppError(error));
+    await this.refreshAbsences();
+    return Ok(mapAbsenceRow(data as unknown as StaffAbsenceRow));
+  }
+
   async requestAbsenceJustification(input: {
     absenceId: string;
     adminNote: string;

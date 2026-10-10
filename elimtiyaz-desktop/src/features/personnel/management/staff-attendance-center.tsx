@@ -135,6 +135,16 @@ export function StaffAttendanceCenter() {
     useState<StaffAbsenceRecord | null>(null);
   const [requestNote, setRequestNote] = useState("");
 
+  // WORKFORCE-515 (T-501): the staff_absences PRODUCER — the admin records
+  // an observed absence (the 0095 INSERT). Previously NO mounted UI could
+  // create a row, so the entire Absences & Justifications queue was
+  // structurally empty in production (live census: 0 rows).
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [recordPersonnelId, setRecordPersonnelId] = useState("");
+  const [recordDate, setRecordDate] = useState("");
+  const [recordHours, setRecordHours] = useState("4");
+  const [recordBusy, setRecordBusy] = useState(false);
+
   const [submitModalAbsence, setSubmitModalAbsence] =
     useState<StaffAbsenceRecord | null>(null);
   const [workerExplanation, setWorkerExplanation] = useState("");
@@ -217,6 +227,42 @@ export function StaffAttendanceCenter() {
   }, [displayedAbsences, search]);
 
   // Actions
+  // WORKFORCE-515 (T-501): the producer — the admin records an observed
+  // absence; the row lands with justification_status 'none' and the
+  // existing Demander/Examiner actions then drive the 0095 loop.
+  async function handleRecordAbsence() {
+    if (!session) return;
+    const hours = Number(recordHours.replace(",", "."));
+    if (!recordPersonnelId || !recordDate || !(hours > 0)) {
+      toast.showError(
+        "Champs incomplets",
+        "Sélectionnez un collaborateur, une date et une durée valide (heures > 0).",
+      );
+      return;
+    }
+    setRecordBusy(true);
+    const res = await repos.workforceAttendance.recordObservedAbsence({
+      personnelId: recordPersonnelId,
+      date: recordDate,
+      durationHours: hours,
+      recordedBy: session.userId,
+    });
+    setRecordBusy(false);
+    if (res.ok) {
+      toast.showSuccess(
+        "Absence enregistrée",
+        `${res.value.personnelName} — absence du ${formatDate(res.value.date)} (${res.value.durationHours}h) ajoutée à la file. Vous pouvez maintenant demander une justification.`,
+      );
+      setRecordOpen(false);
+      setRecordPersonnelId("");
+      setRecordDate("");
+      setRecordHours("4");
+    } else {
+      // The T-370/W-510 never-swallow rule: a rejected write is SURFACED.
+      toast.showError("Enregistrement impossible", res.error.userMessage);
+    }
+  }
+
   async function handleSendJustificationRequest() {
     if (!requestModalAbsence || !requestNote.trim() || !session) return;
     const res = await repos.workforceAttendance.requestAbsenceJustification({
@@ -388,14 +434,29 @@ export function StaffAttendanceCenter() {
               </CardDescription>
             </div>
 
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher une absence…"
-                className="h-8 pl-8 text-xs"
-              />
+            <div className="flex items-center gap-2">
+              {/* WORKFORCE-515 (T-501): the producer — admin action that INSERTs
+                  the 0095 row the justification loop was built around. */}
+              {canManageAttendance && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setRecordOpen(true);
+                    setRecordDate(todayIso);
+                  }}
+                >
+                  <Calendar className="h-4 w-4 mr-1.5" /> Enregistrer une absence
+                </Button>
+              )}
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher une absence…"
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -527,6 +588,73 @@ export function StaffAttendanceCenter() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal 0 (WORKFORCE-515): the admin records an observed absence */}
+      {recordOpen && (
+        <UnifiedModal
+          open={recordOpen}
+          onOpenChange={(o) => !o && setRecordOpen(false)}
+          title="Enregistrer une absence constatée"
+          description="Crée la ligne d'absence (statut initial : non justifiée). Vous pourrez ensuite demander une justification à l'employé."
+          submitLabel="Enregistrer l'absence"
+          onSubmit={handleRecordAbsence}
+          submitDisabled={
+            !recordPersonnelId ||
+            !recordDate ||
+            !(Number(recordHours.replace(",", ".")) > 0) ||
+            recordBusy
+          }
+          size="md"
+        >
+          <div className="space-y-3">
+            <FormField label="Collaborateur concerné" required>
+              <select
+                value={recordPersonnelId}
+                onChange={(e) => setRecordPersonnelId(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">— Sélectionner un collaborateur —</option>
+                {personnel
+                  .filter(
+                    (p) =>
+                      p.status === "active" ||
+                      p.status === "on_leave" ||
+                      p.status === "archived",
+                  )
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.firstName} {p.lastName}
+                      {p.status !== "active" ? ` (${p.status})` : ""}
+                    </option>
+                  ))}
+              </select>
+            </FormField>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Date de l'absence" required>
+                <Input
+                  type="date"
+                  value={recordDate}
+                  onChange={(e) => setRecordDate(e.target.value)}
+                />
+              </FormField>
+              <FormField label="Durée (heures)" required>
+                <Input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  max="99.99"
+                  value={recordHours}
+                  onChange={(e) => setRecordHours(e.target.value)}
+                />
+              </FormField>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              La ligne est créée avec le statut « Non justifiée ». Utilisez ensuite
+              « Demander Justif. » pour lancer la boucle de justification.
+            </p>
+          </div>
+        </UnifiedModal>
+      )}
 
       {/* Modal 1: Admin requesting a justification */}
       {requestModalAbsence && (

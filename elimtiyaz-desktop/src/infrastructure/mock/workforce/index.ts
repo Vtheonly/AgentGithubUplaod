@@ -24,7 +24,7 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { logger } from "../../../core/logger";
 import { SubjectBehavior } from "../subject-behavior";
-import { TENANT_ID } from "../seed-data";
+import { TENANT_ID, seedPersonnel } from "../seed-data";
 import type {
   Department,
   Shift,
@@ -718,6 +718,73 @@ class MockWorkforceAttendanceRepository implements AttendanceRepository {
       );
     }
     return this.absencesSubject;
+  }
+
+  /**
+   * WORKFORCE-515 (T-501) — the staff_absences PRODUCER (mock twin of the
+   * Supabase repository's 0095 INSERT): the admin records an observed
+   * absence; the row lands with justification_status 'none' and the loop's
+   * three transitions then apply. Parity: same validations (personnel id,
+   * date shape, duration range) so the mock↔live behaviors match.
+   */
+  async recordObservedAbsence(input: {
+    personnelId: string;
+    date: string;
+    durationHours: number;
+    recordedBy: string;
+  }): Promise<Result<StaffAbsenceRecord>> {
+    // The mock resolves the personnel from the shared seed (the Supabase
+    // twin resolves it through the personnel embed + the uuid FK).
+    const person = seedPersonnel.find((p) => p.id === input.personnelId);
+    if (!person) {
+      return Err(Errors.notFound("staff_absence personnel", input.personnelId));
+    }
+    if (!input.date || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
+      return Err(
+        Errors.validation(
+          "recordObservedAbsence requires a YYYY-MM-DD date",
+          "La date d'absence est invalide.",
+        ),
+      );
+    }
+    if (!(input.durationHours > 0) || input.durationHours > 99.99) {
+      return Err(
+        Errors.validation(
+          `durationHours must be in (0, 99.99] — got ${input.durationHours}`,
+          "La durée doit être supérieure à 0 (maximum 99h99).",
+        ),
+      );
+    }
+    const record: StaffAbsenceRecord = {
+      id: genId("sabs"),
+      tenantId: TENANT_ID,
+      personnelId: input.personnelId,
+      personnelName: `${person.firstName} ${person.lastName}`,
+      date: input.date,
+      durationHours: input.durationHours,
+      isExcused: false,
+      justificationStatus: "none",
+      adminRequestNote: null,
+      requestedAt: null,
+      requestedBy: null,
+      workerExplanation: null,
+      workerSubmittedAt: null,
+      documentRef: null,
+      decisionNote: null,
+      decidedAt: null,
+      decidedBy: null,
+    };
+    this.absences = [...this.absences, record];
+    this.notifyAbsences();
+    audit({
+      action: "absence.recorded",
+      entityType: "staff_absence",
+      entityId: record.id,
+      actorId: input.recordedBy,
+      note: `${input.date} · ${input.durationHours}h`,
+      diff: { before: null, after: record },
+    });
+    return Ok(record);
   }
 
   async requestAbsenceJustification(input: {

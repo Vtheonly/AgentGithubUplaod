@@ -355,4 +355,89 @@ describe("SupabaseWorkforceAttendanceRepository (T-217)", () => {
       expect(migration).toContain(`'${t}'`);
     }
   });
+
+  // --------------------------------------------------------------------------
+  // WORKFORCE-515 (T-501) — the staff_absences PRODUCER
+  // --------------------------------------------------------------------------
+
+  it("13. recordObservedAbsence() inserts the exact 0095 shape (justification 'none', unexcused)", async () => {
+    const repo = makeRepo();
+    const result = await repo.recordObservedAbsence({
+      personnelId: WORKER,
+      date: "2026-10-11",
+      durationHours: 4,
+      recordedBy: WORKER,
+    });
+    expect(result.ok).toBe(true);
+    const row = fakeClient.tables["staff_absences"][0];
+    expect(row["tenant_id"]).toBe(TENANT);
+    expect(row["personnel_id"]).toBe(WORKER);
+    expect(row["date"]).toBe("2026-10-11");
+    expect(Number(row["duration_hours"])).toBe(4);
+    expect(row["justification_status"]).toBe("none");
+    expect(row["is_excused"]).toBe(false);
+    // The mapped record (the personnel embed resolves in the real DB).
+    if (result.ok) {
+      expect(result.value.justificationStatus).toBe("none");
+      expect(result.value.isExcused).toBe(false);
+      expect(result.value.durationHours).toBe(4);
+    }
+  });
+
+  it("14a. recordObservedAbsence() rejects a non-UUID personnelId BEFORE the table (T-178)", async () => {
+    const repo = makeRepo();
+    const result = await repo.recordObservedAbsence({
+      personnelId: "per-001",
+      date: "2026-10-11",
+      durationHours: 4,
+      recordedBy: WORKER,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("ERR_VALIDATION");
+    expect(fakeClient.tables["staff_absences"] ?? []).toHaveLength(0);
+  });
+
+  it("14b. recordObservedAbsence() rejects a malformed date and a non-positive duration (the 0095 CHECK mirror)", async () => {
+    const repo = makeRepo();
+    const badDate = await repo.recordObservedAbsence({
+      personnelId: WORKER,
+      date: "11/10/2026",
+      durationHours: 4,
+      recordedBy: WORKER,
+    });
+    expect(badDate.ok).toBe(false);
+    const badDuration = await repo.recordObservedAbsence({
+      personnelId: WORKER,
+      date: "2026-10-11",
+      durationHours: 0,
+      recordedBy: WORKER,
+    });
+    expect(badDuration.ok).toBe(false);
+    expect(fakeClient.tables["staff_absences"] ?? []).toHaveLength(0);
+  });
+
+  it("15. source scans: the producer exists on the domain contract, BOTH implementations, and the mounted UI", () => {
+    // The domain contract declares it (workforce-repository.ts)…
+    const domain = fs.readFileSync(
+      path.resolve(__dirname, "../../domain/repository/workforce-repository.ts"),
+      "utf8",
+    );
+    expect(domain).toContain("recordObservedAbsence(");
+    // …the mock twin implements it (parity — the §15.17-adjacent mock/live
+    // contract rule)…
+    const mock = fs.readFileSync(
+      path.resolve(__dirname, "../../infrastructure/mock/workforce/index.ts"),
+      "utf8",
+    );
+    expect(mock).toContain("async recordObservedAbsence(");
+    // …and the staff-attendance center calls it through a mounted surface
+    // (WORKFORCE-515's core defect was "no creation path in ANY UI").
+    const ui = fs.readFileSync(
+      path.resolve(__dirname, "../../features/personnel/management/staff-attendance-center.tsx"),
+      "utf8",
+    );
+    expect(ui).toContain("repos.workforceAttendance.recordObservedAbsence(");
+    expect(ui).toContain("Enregistrer une absence");
+  });
 });

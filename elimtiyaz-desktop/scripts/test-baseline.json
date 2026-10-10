@@ -1,6 +1,6 @@
 {
   "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-472 (the 138th session's TEST-503 systemic hermeticity fix, 2026-10-04 — the Vitest seam disabled the f39eb17 canonical-production fallback in supabase-client.ts: the default test mode is MOCK again [T-314's contract restored], the t-393 diagnostics suite pinned to the vault-suite configured-mode pattern, +5 new t-472 hermeticity/guard tests — 4,680 passed / 0 failed / 5 skipped, 270 files). Prior move: T-470 (the 137th session's TEST-502 repair, 2026-10-03 — the battery FULLY GREEN for the first time since T-419 instituted the baseline: the refund-revert trio re-pinned with EXPLICIT evaluation clocks + both classification branches [future-due 'pending' / past-due 'overdue', the §15.81 wall-clock class], the t-390 import-time cycle broken [the mock composite extracted to infrastructure/mock/mock-composite.ts], the vault-compliance §02.06 pair pinned to mock mode [never touching production storage again], and the t-408 source-scan re-targeted to the composite's new home; net +5 tests [2 companion branch pins + the t-390 suite's 3 tests now actually running] — 4,675 passed / 0 failed / 5 skipped). Same-session prior move: the T-469 live-apply round moved the baseline to the 4,665/5-known-red state (+4 suites: t-466..t-469) — T-470's move supersedes it with the empty failing set. Prior: T-455 (127th session, 2026-10-01).",
-  "_task": "T-499 (the 150th session's client-worker chat verification, 2026-10-10) — the registered baseline move: 284 files (283 passed / 1 skipped), 4,833 tests (4,828 passed / 0 failed / 5 skipped). The failing-file set stays EMPTY. Net +11 tests (the new t-499-chat-unread-badges suite [6: the unselected-channel badge, the exact count, the own-message exclusion, the open-markRead-clears loop, the portal surface, the source guards] + the t-499-chat-notification-navigation suite [5: the linked conversation renders, the portal route, the internal route, the emitter-consumer contract, the source guards]). Supersedes T-498's move (4,817/0/5, 281 files).",
+  "_task": "T-501 (the 152nd session's consolidated audit remediation, 2026-10-11) — the registered baseline move: 284 files (283 passed / 1 skipped, unchanged — no new files), 4,839 tests (4,834 passed / 0 failed / 5 skipped). The failing-file set stays EMPTY. Net +6 tests (WORKFORCE-512's 2 new supabase-task-repository pins [the rows-affected representation read + the 0-row ERR_FORBIDDEN guard] + WORKFORCE-515's 4 new supabase-workforce-attendance-repository pins [the exact 0095 insert shape, the T-178 non-UUID pre-validation, the date/duration CHECK mirror, the producer source scans: domain + BOTH implementations + the mounted UI]; NOTIF-106 and WORKFORCE-513/514 were same-count re-pins of the t-498/t-374 contracts onto the fixed code). Supersedes T-499's move (4,828/0/5). The battery re-proven GREEN at 4,834/0/5 with BASELINE-MATCHED semantics restored (the run that exposed the +6 deviation: test-reports/unified-report_2026-10-10T19-12-45.md).",
   "testFiles": {
     "failed": 0,
     "passed": 283,
@@ -9,9 +9,9 @@
   },
   "tests": {
     "failed": 0,
-    "passed": 4828,
+    "passed": 4834,
     "skipped": 5,
-    "total": 4833
+    "total": 4839
   },
   "failingFiles": [],
   "equivalence": {
