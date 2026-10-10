@@ -2,7 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/alert-detail-modal.tsx
 // ============================================================================
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   AlertTriangle,
   Wallet,
+  MessageSquare,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
@@ -35,6 +36,7 @@ import { UnifiedPaymentModal } from "../../features/financials/unified-payment-m
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
 import { installmentRemaining, isInstallmentOverdue } from "../../domain/calc/payment/queries";
+import type { ChatChannel } from "../../domain/model/workforce";
 
 export interface AlertDetailModalProps {
   alert: AppNotification | null;
@@ -50,6 +52,26 @@ export function AlertDetailModal({
   const repos = useRepositories();
   const navigate = useNavigate();
   const [collectOpen, setCollectOpen] = useState(false);
+
+  // T-499 / CHAT-305: resolve a chat_channel notification's channel
+  // REACTIVELY. The repository's observeChannel(id) seeds the channel
+  // cache (the Supabase repository fetches on first observation), so the
+  // link renders as soon as the channel lands — the modal opens, the
+  // subscription fires, the "Ouvrir la conversation" button appears.
+  // Pre-fix there was NO chat_channel case at all: the 0075 chat-message
+  // fan-out (kind='info' → type 'message', link_entity_type='chat_channel')
+  // produced notifications whose detail modal showed NO linked entity —
+  // the operator could never navigate from the bell to the conversation.
+  const [chatChannel, setChatChannel] = useState<ChatChannel | null>(null);
+  const chatChannelEntityId = alert?.entityType === "chat_channel" ? alert.entityId : null;
+  useEffect(() => {
+    setChatChannel(null);
+    if (!chatChannelEntityId) return;
+    const unsub = repos.chat
+      .observeChannel(chatChannelEntityId)
+      .subscribe((ch) => setChatChannel(ch));
+    return unsub;
+  }, [chatChannelEntityId, repos.chat]);
 
   const linkedEntity = useMemo(() => {
     if (!alert?.entityType || !alert?.entityId) return null;
@@ -125,10 +147,33 @@ export function AlertDetailModal({
           route: `/academics?homework=${alert.entityId}`,
         };
       }
+      case "chat_channel": {
+        // T-499 / CHAT-305: the 0075 chat fan-out's navigation. The scope
+        // picks the surface — portal conversations (parents ↔ staff) open
+        // the CRM "Messagerie Portail" tab with the channel selected (the
+        // T-463 deep-link contract); internal conversations open the
+        // Personnel messenger (the T-499 tab deep link).
+        if (chatChannel?.scope === "portal") {
+          return {
+            kind: "chat" as const,
+            label: chatChannel.name,
+            subtitle: "Conversation portail",
+            route: `/crm?action=portal-chat&channelId=${chatChannel.id}`,
+          };
+        }
+        return {
+          kind: "chat" as const,
+          label: chatChannel?.name ?? "Conversation",
+          subtitle: chatChannel?.scope === "internal" ? "Messagerie interne" : "Conversation",
+          route: chatChannel?.id
+            ? `/personnel?tab=chat&channelId=${chatChannel.id}`
+            : "/personnel?tab=chat",
+        };
+      }
       default:
         return null;
     }
-  }, [alert, repos]);
+  }, [alert, repos, chatChannel]);
 
   if (!alert) return null;
 
@@ -354,7 +399,11 @@ export function AlertDetailModal({
                   onClick={handleDeepLink}
                   className="flex items-center gap-3 w-full rounded-xl border border-border/70 p-3 hover:bg-surface-elevated/50 transition-colors text-left"
                 >
-                  <Building2 className="h-5 w-5 text-primary shrink-0" />
+                  {linkedEntity.kind === "chat" ? (
+                    <MessageSquare className="h-5 w-5 text-primary shrink-0" />
+                  ) : (
+                    <Building2 className="h-5 w-5 text-primary shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">
                       {linkedEntity.label}
