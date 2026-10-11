@@ -1,4 +1,6 @@
 import {
+  memo,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -60,7 +62,6 @@ type ResizeState = {
   rowStep: number;
   pointerId: number;
 };
-
 const GRID_COLUMNS = 12;
 const ROW_HEIGHT = 32;
 const GRID_GAP = 12;
@@ -68,6 +69,53 @@ const DEFAULT_HEIGHT = 6;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+/** T-503 (PERF-509): value-equality for two grid rects. */
+function rectsEqual(a: LayoutRect, b: LayoutRect) {
+  return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+}
+
+/**
+ * T-503 (PERF-509): the QUANTIZED drag target — the grid cell the pointer
+ * delta lands on, sanitized against the item's bounds. Pure; the caller
+ * compares it to the item's current rect and skips the whole state
+ * pipeline when they match (sub-cell pointer jitter — the majority of
+ * move events between two grid snaps — must not touch React state).
+ */
+function quantizedDragTarget(
+  drag: DragState,
+  dx: number,
+  dy: number,
+  current: LayoutRect,
+  item: DashboardLayoutItem,
+): LayoutRect {
+  return sanitizeRect(
+    {
+      ...current,
+      x: drag.startX + Math.round(dx / drag.columnStep),
+      y: drag.startY + Math.round(dy / drag.rowStep),
+    },
+    item,
+  );
+}
+
+/** T-503 (PERF-509): the quantized resize target (same discipline). */
+function quantizedResizeTarget(
+  resize: ResizeState,
+  dx: number,
+  dy: number,
+  current: LayoutRect,
+  item: DashboardLayoutItem,
+): LayoutRect {
+  return sanitizeRect(
+    {
+      ...current,
+      w: resize.startW + Math.round(dx / resize.columnStep),
+      h: resize.startH + Math.round(dy / resize.rowStep),
+    },
+    item,
+  );
 }
 
 function sanitizeRect(rect: LayoutRect, item: DashboardLayoutItem): LayoutRect {
@@ -155,9 +203,15 @@ function settleLayout(
 }
 
 function resolveCollisions(layout: StoredLayout, movedId: string): StoredLayout {
-  const result: StoredLayout = Object.fromEntries(
-    Object.entries(layout).map(([id, rect]) => [id, { ...rect }]),
-  );
+  // T-503 (PERF-509): COPY-ON-WRITE — a shallow carrier plus a new rect
+  // object ONLY for the rects the pass actually moves. Untouched rects keep
+  // their object identity across the interaction, which is what lets the
+  // memoized cells (and React's element-identity bailout beneath them)
+  // skip re-rendering every sibling while one card is dragged. When no
+  // rect moves (an already-resolved layout re-checked), the ORIGINAL object
+  // is returned — the callers' identity gates see the no-op.
+  const result: StoredLayout = { ...layout };
+  let mutated = false;
 
   for (let pass = 0; pass < 100; pass += 1) {
     let changed = false;
@@ -177,7 +231,8 @@ function resolveCollisions(layout: StoredLayout, movedId: string): StoredLayout 
         const pushed = result[pushId];
         const nextY = Math.max(pushed.y, a.y + a.h);
         if (pushed.y !== nextY) {
-          pushed.y = nextY;
+          result[pushId] = { ...pushed, y: nextY };
+          mutated = true;
           changed = true;
         }
       }
@@ -186,6 +241,7 @@ function resolveCollisions(layout: StoredLayout, movedId: string): StoredLayout 
     if (!changed) break;
   }
 
+  if (!mutated) return layout;
   return result;
 }
 
@@ -234,6 +290,85 @@ function layoutBottom(layout: StoredLayout) {
   for (const rect of Object.values(layout)) bottom = Math.max(bottom, rect.y + rect.h);
   return bottom;
 }
+
+/**
+ * T-503 (PERF-509): the MEMOIZED grid cell. During a drag only the cells
+ * whose props actually changed re-render: the dragged/active cell (its
+ * rect + isActive flipped) and the siblings the resolver genuinely
+ * pushed (their rect objects are replaced — copy-on-write). Every
+ * untouched sibling's props are IDENTICAL (same item reference from the
+ * parent's items array, same rect object reference, same stable handlers)
+ * so React.memo bails and the whole subtree — wrapper, editing chrome and
+ * card content — is skipped. Before this boundary every pointermove
+ * re-rendered every wrapper cell on the board.
+ */
+const LayoutCell = memo(function LayoutCell({
+  item,
+  rect,
+  editing,
+  isActive,
+  onDragStart,
+  onResizeStart,
+}: {
+  item: DashboardLayoutItem;
+  rect: LayoutRect;
+  editing: boolean;
+  isActive: boolean;
+  onDragStart: (
+    item: DashboardLayoutItem,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void;
+  onResizeStart: (
+    item: DashboardLayoutItem,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void;
+}) {
+  return (
+    <div
+      // T-503 (UI-336): OVERFLOW CONTAINMENT — the cell is the hard
+      // layout boundary. A card whose content exceeds the cell's fixed
+      // track height used to paint over the cell below (CSS grid items
+      // overflow their tracks by default; min-w/min-h only prevented the
+      // grid blowout, not the overlap). The containment keeps text and
+      // content within component borders; dropdowns and tooltips are
+      // Radix portals, so they are unaffected by the clip.
+      className={`relative min-w-0 min-h-0 overflow-hidden ${editing ? "rounded-xl ring-1 ring-primary/20 bg-surface-background/80" : ""} ${isActive ? "z-40 ring-2 ring-primary shadow-xl" : "z-10"}`}
+      style={{
+        gridColumn: `${rect.x + 1} / span ${rect.w}`,
+        gridRow: `${rect.y + 1} / span ${rect.h}`,
+      } as CSSProperties}
+      data-dashboard-layout-id={item.id}
+      data-dashboard-layout-label={item.label}
+    >
+      {editing && (
+        <>
+          <button
+            type="button"
+            aria-label={`Déplacer ${item.label}`}
+            title={`Déplacer ${item.label}`}
+            onPointerDown={(event) => onDragStart(item, event)}
+            className="absolute left-2 top-2 z-50 inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={`Redimensionner ${item.label}`}
+            title={`Redimensionner ${item.label}`}
+            onPointerDown={(event) => onResizeStart(item, event)}
+            className="absolute bottom-2 right-2 z-50 inline-flex h-8 w-8 cursor-nwse-resize touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-nwse-resize"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </button>
+          <div className="absolute right-2 top-2 z-40 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-mono text-primary">
+            {rect.w}/12 × {rect.h}
+          </div>
+        </>
+      )}
+      <div className="h-full min-h-0 min-w-0">{item.content}</div>
+    </div>
+  );
+});
 
 export function DashboardLayoutEditor({
   storageKey,
@@ -289,6 +424,13 @@ export function DashboardLayoutEditor({
   // parent render) — the ref carries the fresh items without re-triggering.
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  // T-503 (PERF-509): the same fresh-value pattern for the layout — the
+  // pointermove handlers and the drag/resize starts read the CURRENT rect
+  // through this ref (outside the setState updater), which is what lets
+  // them gate the sub-cell jitter BEFORE any state is touched and keeps
+  // the start handlers referentially stable for the memoized cells.
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
   // StrictMode double-invokes effects in dev — the sentinel makes the
   // server load idempotent (the second invocation is a no-op).
   const serverLoadDoneFor = useRef<string | null>(null);
@@ -379,27 +521,33 @@ export function DashboardLayoutEditor({
       if (drag && event.pointerId === drag.pointerId) {
         const dx = event.clientX - drag.startPointerX;
         const dy = event.clientY - drag.startPointerY;
-        setLayout((previous) => {
-          // T-503 (UI-336): the fresh items through the ref — the effect no
-          // longer re-subscribes per parent render (the items array is
-          // rebuilt by every parent render; the [editing, items] deps of
-          // the old effect churned the window listeners on each one).
-          const item = itemsRef.current.find(
-            (candidate) => candidate.id === drag.id,
-          );
-          const current = previous[drag.id];
-          if (!item || !current) return previous;
-          const moved = sanitizeRect(
-            {
-              ...current,
-              x: drag.startX + Math.round(dx / drag.columnStep),
-              y: drag.startY + Math.round(dy / drag.rowStep),
-            },
-            item,
-          );
-          return resolveCollisions({ ...previous, [drag.id]: moved }, drag.id);
-        });
-        setDirty(true);
+        // T-503 (PERF-509): QUANTIZE-THEN-COMPARE — the grid cell the
+        // pointer lands on is computed against the CURRENT rect first;
+        // sub-cell jitter (the pointer still inside the same cell — the
+        // majority of move events between two grid snaps) touches NO
+        // state at all: no setLayout, no collision pass, no re-render, no
+        // dirty flag. Only a real cell change enters the pipeline.
+        const item = itemsRef.current.find(
+          (candidate) => candidate.id === drag.id,
+        );
+        const current = layoutRef.current[drag.id];
+        if (item && current) {
+          const moved = quantizedDragTarget(drag, dx, dy, current, item);
+          if (!rectsEqual(moved, current)) {
+            setLayout((previous) => {
+              // Re-verify against `previous`: several move events can fire
+              // between two renders (the layoutRef may be one update
+              // behind) — the updater is the single source of truth.
+              const cur = previous[drag.id];
+              if (!cur || rectsEqual(moved, cur)) return previous;
+              return resolveCollisions(
+                { ...previous, [drag.id]: moved },
+                drag.id,
+              );
+            });
+            setDirty(true);
+          }
+        }
         return;
       }
 
@@ -407,26 +555,32 @@ export function DashboardLayoutEditor({
       if (resize && event.pointerId === resize.pointerId) {
         const dx = event.clientX - resize.startPointerX;
         const dy = event.clientY - resize.startPointerY;
-        setLayout((previous) => {
-          const item = itemsRef.current.find(
-            (candidate) => candidate.id === resize.id,
-          );
-          const current = previous[resize.id];
-          if (!item || !current) return previous;
-          const resized = sanitizeRect(
-            {
-              ...current,
-              w: resize.startW + Math.round(dx / resize.columnStep),
-              h: resize.startH + Math.round(dy / resize.rowStep),
-            },
+        // T-503 (PERF-509): the same quantize-then-compare gate for the
+        // resize interactions.
+        const item = itemsRef.current.find(
+          (candidate) => candidate.id === resize.id,
+        );
+        const current = layoutRef.current[resize.id];
+        if (item && current) {
+          const resized = quantizedResizeTarget(
+            resize,
+            dx,
+            dy,
+            current,
             item,
           );
-          return resolveCollisions(
-            { ...previous, [resize.id]: resized },
-            resize.id,
-          );
-        });
-        setDirty(true);
+          if (!rectsEqual(resized, current)) {
+            setLayout((previous) => {
+              const cur = previous[resize.id];
+              if (!cur || rectsEqual(resized, cur)) return previous;
+              return resolveCollisions(
+                { ...previous, [resize.id]: resized },
+                resize.id,
+              );
+            });
+            setDirty(true);
+          }
+        }
       }
     };
 
@@ -475,57 +629,71 @@ export function DashboardLayoutEditor({
     };
   }
 
-  function startDrag(item: DashboardLayoutItem, event: ReactPointerEvent<HTMLButtonElement>) {
-    if (!editing) return;
-    const steps = measureSteps();
-    if (!steps) return;
-    const current = layout[item.id];
-    if (!current) return;
-    event.preventDefault();
-    event.stopPropagation();
-    // T-503 (UI-336): the pre-drag snapshot for the pointer-up settle.
-    interactionRef.current = { id: item.id, snapshot: layout };
-    dragState.current = {
-      id: item.id,
-      startPointerX: event.clientX,
-      startPointerY: event.clientY,
-      startX: current.x,
-      startY: current.y,
-      columnStep: steps.columnStep,
-      rowStep: steps.rowStep,
-      pointerId: event.pointerId,
-    };
-    resizeState.current = null;
-    setActiveId(item.id);
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "grabbing";
-  }
+  // T-503 (PERF-509): referentially-stable interaction starts — they read
+  // the current rect through layoutRef (never the render closure's layout),
+  // so the identity only changes with the editing toggle. This is what the
+  // memoized cells compare to decide whether they can skip a re-render.
+  const startDrag = useCallback(
+    (item: DashboardLayoutItem, event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!editing) return;
+      const steps = measureSteps();
+      if (!steps) return;
+      const current = layoutRef.current[item.id];
+      if (!current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      // T-503 (UI-336): the pre-drag snapshot for the pointer-up settle.
+      interactionRef.current = { id: item.id, snapshot: layoutRef.current };
+      dragState.current = {
+        id: item.id,
+        startPointerX: event.clientX,
+        startPointerY: event.clientY,
+        startX: current.x,
+        startY: current.y,
+        columnStep: steps.columnStep,
+        rowStep: steps.rowStep,
+        pointerId: event.pointerId,
+      };
+      resizeState.current = null;
+      setActiveId(item.id);
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "grabbing";
+    },
+    // PERF-503: only `editing` is captured — measureSteps reads gridRef
+    // (a ref); layoutRef/itemsRef/interactionRef/dragState are refs;
+    // setActiveId is a stable setter.
+    [editing],
+  );
 
-  function startResize(item: DashboardLayoutItem, event: ReactPointerEvent<HTMLButtonElement>) {
-    if (!editing) return;
-    const steps = measureSteps();
-    if (!steps) return;
-    const current = layout[item.id];
-    if (!current) return;
-    event.preventDefault();
-    event.stopPropagation();
-    // T-503 (UI-336): the pre-resize snapshot for the pointer-up settle.
-    interactionRef.current = { id: item.id, snapshot: layout };
-    resizeState.current = {
-      id: item.id,
-      startPointerX: event.clientX,
-      startPointerY: event.clientY,
-      startW: current.w,
-      startH: current.h,
-      columnStep: steps.columnStep,
-      rowStep: steps.rowStep,
-      pointerId: event.pointerId,
-    };
-    dragState.current = null;
-    setActiveId(item.id);
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "nwse-resize";
-  }
+  const startResize = useCallback(
+    (item: DashboardLayoutItem, event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!editing) return;
+      const steps = measureSteps();
+      if (!steps) return;
+      const current = layoutRef.current[item.id];
+      if (!current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      // T-503 (UI-336): the pre-resize snapshot for the pointer-up settle.
+      interactionRef.current = { id: item.id, snapshot: layoutRef.current };
+      resizeState.current = {
+        id: item.id,
+        startPointerX: event.clientX,
+        startPointerY: event.clientY,
+        startW: current.w,
+        startH: current.h,
+        columnStep: steps.columnStep,
+        rowStep: steps.rowStep,
+        pointerId: event.pointerId,
+      };
+      dragState.current = null;
+      setActiveId(item.id);
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "nwse-resize";
+    },
+    // PERF-503: same refs as startDrag; only `editing` is captured.
+    [editing],
+  );
 
   function persistNow() {
     writeStoredLayout(storageKey, layout);
@@ -610,53 +778,16 @@ export function DashboardLayoutEditor({
             { x: 0, y: 0, w: item.w ?? GRID_COLUMNS, h: item.h ?? DEFAULT_HEIGHT },
             item,
           );
-          const isActive = activeId === item.id;
           return (
-            <div
+            <LayoutCell
               key={item.id}
-              // T-503 (UI-336): OVERFLOW CONTAINMENT — the cell is the hard
-              // layout boundary. A card whose content exceeds the cell's
-              // fixed track height used to paint over the cell below (CSS
-              // grid items overflow their tracks by default; min-w/min-h
-              // only prevented the grid blowout, not the overlap). The
-              // containment keeps text and content within component
-              // borders; dropdowns and tooltips are Radix portals, so they
-              // are unaffected by the clip.
-              className={`relative min-w-0 min-h-0 overflow-hidden ${editing ? "rounded-xl ring-1 ring-primary/20 bg-surface-background/80" : ""} ${isActive ? "z-40 ring-2 ring-primary shadow-xl" : "z-10"}`}
-              style={{
-                gridColumn: `${rect.x + 1} / span ${rect.w}`,
-                gridRow: `${rect.y + 1} / span ${rect.h}`,
-              } as CSSProperties}
-              data-dashboard-layout-id={item.id}
-              data-dashboard-layout-label={item.label}
-            >
-              {editing && (
-                <>
-                  <button
-                    type="button"
-                    aria-label={`Déplacer ${item.label}`}
-                    title={`Déplacer ${item.label}`}
-                    onPointerDown={(event) => startDrag(item, event)}
-                    className="absolute left-2 top-2 z-50 inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing"
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Redimensionner ${item.label}`}
-                    title={`Redimensionner ${item.label}`}
-                    onPointerDown={(event) => startResize(item, event)}
-                    className="absolute bottom-2 right-2 z-50 inline-flex h-8 w-8 cursor-nwse-resize touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-nwse-resize"
-                  >
-                    <Maximize2 className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="absolute right-2 top-2 z-40 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-mono text-primary">
-                    {rect.w}/12 × {rect.h}
-                  </div>
-                </>
-              )}
-              <div className="h-full min-h-0 min-w-0">{item.content}</div>
-            </div>
+              item={item}
+              rect={rect}
+              editing={editing}
+              isActive={activeId === item.id}
+              onDragStart={startDrag}
+              onResizeStart={startResize}
+            />
           );
         })}
       </div>
