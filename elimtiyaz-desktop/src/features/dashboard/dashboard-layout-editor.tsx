@@ -110,6 +110,50 @@ function overlaps(a: LayoutRect, b: LayoutRect) {
   );
 }
 
+/**
+ * T-503 (UI-336): the drag/resize SETTLE pass. During an interaction the
+ * resolver pushes every overlapped sibling DOWN live (the user sees the
+ * displacement as it happens); when the interaction ends, every sibling
+ * that CAN return to its pre-interaction position does — the dropped /
+ * resized item KEEPS its new rect, and anything it now genuinely overlaps
+ * is re-pushed (the resolver re-run over the restored snapshot). This is
+ * what heals the monotonic downward growth the mandate reported
+ * ("dragging and resizing components leaves elements misaligned"):
+ * displacement without occlusion is reverted, so a drag ACROSS a stack
+ * no longer permanently relocates it, while a drop ON TOP of a sibling
+ * still stacks correctly. Idempotent; returns the SAME object when
+ * nothing can settle (no identity churn — the PERF-509 discipline).
+ */
+function settleLayout(
+  current: StoredLayout,
+  interactionId: string,
+  snapshot: StoredLayout,
+): StoredLayout {
+  let changed = false;
+  const settled: StoredLayout = {};
+  for (const [id, rect] of Object.entries(current)) {
+    if (id === interactionId) {
+      settled[id] = rect;
+      continue;
+    }
+    const home = snapshot[id];
+    if (
+      home &&
+      (home.x !== rect.x ||
+        home.y !== rect.y ||
+        home.w !== rect.w ||
+        home.h !== rect.h)
+    ) {
+      settled[id] = home;
+      changed = true;
+    } else {
+      settled[id] = rect;
+    }
+  }
+  if (!changed) return current;
+  return resolveCollisions(settled, interactionId);
+}
+
 function resolveCollisions(layout: StoredLayout, movedId: string): StoredLayout {
   const result: StoredLayout = Object.fromEntries(
     Object.entries(layout).map(([id, rect]) => [id, { ...rect }]),
@@ -213,6 +257,13 @@ export function DashboardLayoutEditor({
   const gridRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const resizeState = useRef<ResizeState | null>(null);
+  // T-503 (UI-336): the pre-interaction layout snapshot — taken at every
+  // drag/resize START, consumed by the settle pass at pointer-up so the
+  // siblings the resolver displaced during the interaction can return home
+  // when the dropped item no longer occludes them.
+  const interactionRef = useRef<{ id: string; snapshot: StoredLayout } | null>(
+    null,
+  );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   // T-448: "saved" | "save-failed" | null — the explicit save's server
@@ -329,7 +380,13 @@ export function DashboardLayoutEditor({
         const dx = event.clientX - drag.startPointerX;
         const dy = event.clientY - drag.startPointerY;
         setLayout((previous) => {
-          const item = items.find((candidate) => candidate.id === drag.id);
+          // T-503 (UI-336): the fresh items through the ref — the effect no
+          // longer re-subscribes per parent render (the items array is
+          // rebuilt by every parent render; the [editing, items] deps of
+          // the old effect churned the window listeners on each one).
+          const item = itemsRef.current.find(
+            (candidate) => candidate.id === drag.id,
+          );
           const current = previous[drag.id];
           if (!item || !current) return previous;
           const moved = sanitizeRect(
@@ -351,7 +408,9 @@ export function DashboardLayoutEditor({
         const dx = event.clientX - resize.startPointerX;
         const dy = event.clientY - resize.startPointerY;
         setLayout((previous) => {
-          const item = items.find((candidate) => candidate.id === resize.id);
+          const item = itemsRef.current.find(
+            (candidate) => candidate.id === resize.id,
+          );
           const current = previous[resize.id];
           if (!item || !current) return previous;
           const resized = sanitizeRect(
@@ -362,18 +421,37 @@ export function DashboardLayoutEditor({
             },
             item,
           );
-          return resolveCollisions({ ...previous, [resize.id]: resized }, resize.id);
+          return resolveCollisions(
+            { ...previous, [resize.id]: resized },
+            resize.id,
+          );
         });
         setDirty(true);
       }
     };
 
     const onPointerUp = (event: PointerEvent) => {
-      if (dragState.current?.pointerId === event.pointerId) dragState.current = null;
-      if (resizeState.current?.pointerId === event.pointerId) resizeState.current = null;
+      const endedInteraction = interactionRef.current;
+      const wasInteracting =
+        dragState.current?.pointerId === event.pointerId ||
+        resizeState.current?.pointerId === event.pointerId;
+      if (dragState.current?.pointerId === event.pointerId)
+        dragState.current = null;
+      if (resizeState.current?.pointerId === event.pointerId)
+        resizeState.current = null;
       if (!dragState.current && !resizeState.current) setActiveId(null);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
+      // T-503 (UI-336): the SETTLE — the interaction's displaced siblings
+      // return to their pre-interaction positions unless the dropped /
+      // resized item now genuinely occludes them (settleLayout re-runs the
+      // resolver over the restored snapshot). Identity-preserving when
+      // nothing can settle.
+      if (wasInteracting && endedInteraction) {
+        interactionRef.current = null;
+        const { id, snapshot } = endedInteraction;
+        setLayout((previous) => settleLayout(previous, id, snapshot));
+      }
     };
 
     window.addEventListener("pointermove", onPointerMove);
@@ -384,7 +462,7 @@ export function DashboardLayoutEditor({
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [editing, items]);
+  }, [editing]);
 
   function measureSteps() {
     const rect = gridRef.current?.getBoundingClientRect();
@@ -405,6 +483,8 @@ export function DashboardLayoutEditor({
     if (!current) return;
     event.preventDefault();
     event.stopPropagation();
+    // T-503 (UI-336): the pre-drag snapshot for the pointer-up settle.
+    interactionRef.current = { id: item.id, snapshot: layout };
     dragState.current = {
       id: item.id,
       startPointerX: event.clientX,
@@ -429,6 +509,8 @@ export function DashboardLayoutEditor({
     if (!current) return;
     event.preventDefault();
     event.stopPropagation();
+    // T-503 (UI-336): the pre-resize snapshot for the pointer-up settle.
+    interactionRef.current = { id: item.id, snapshot: layout };
     resizeState.current = {
       id: item.id,
       startPointerX: event.clientX,
@@ -532,7 +614,15 @@ export function DashboardLayoutEditor({
           return (
             <div
               key={item.id}
-              className={`relative min-w-0 min-h-0 ${editing ? "rounded-xl ring-1 ring-primary/20 bg-surface-background/80" : ""} ${isActive ? "z-40 ring-2 ring-primary shadow-xl" : "z-10"}`}
+              // T-503 (UI-336): OVERFLOW CONTAINMENT — the cell is the hard
+              // layout boundary. A card whose content exceeds the cell's
+              // fixed track height used to paint over the cell below (CSS
+              // grid items overflow their tracks by default; min-w/min-h
+              // only prevented the grid blowout, not the overlap). The
+              // containment keeps text and content within component
+              // borders; dropdowns and tooltips are Radix portals, so they
+              // are unaffected by the clip.
+              className={`relative min-w-0 min-h-0 overflow-hidden ${editing ? "rounded-xl ring-1 ring-primary/20 bg-surface-background/80" : ""} ${isActive ? "z-40 ring-2 ring-primary shadow-xl" : "z-10"}`}
               style={{
                 gridColumn: `${rect.x + 1} / span ${rect.w}`,
                 gridRow: `${rect.y + 1} / span ${rect.h}`,
