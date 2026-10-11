@@ -2,7 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/executive-cards.tsx
 // ============================================================================
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Waves,
   Percent,
@@ -44,6 +44,9 @@ import type { StudentRiskProfile } from "./operational-query-engine";
 // T-447 (UI-325): the bilingual explainability tooltips — the glossary
 // lives in src/i18n/stats-tips.ts (dictionary-only, never JSX text).
 import { InfoTip } from "./info-tip";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection
+// controls (the optional headerActions node every analytics card accepts).
+import { CardHeaderActions } from "./card-header-actions";
 // T-467 (DASH-411): the user-selectable reference population.
 import { ReferencePopulationSelector, type ReferencePopulationMode } from "./reference-population-selector";
 // T-447 (STATS-401): the canonical POOLED derivation + the non-wave
@@ -72,7 +75,10 @@ export function WaveVelocityCard({
   nonWave,
   nowEpochMs,
   variant = "full",
+  headerActions,
 }: {
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
   /** The per-category wave detail (the canonical view models — the breakdown grid). */
   waves: TrancheWave[];
   /**
@@ -125,7 +131,7 @@ export function WaveVelocityCard({
         </div>
 
         {hasAnyRow && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold">
               {globalPct}% collecté global
             </span>
@@ -140,6 +146,8 @@ export function WaveVelocityCard({
             </span>
           </div>
         )}
+        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 space-y-4 flex-1">
@@ -537,8 +545,11 @@ export function WaveVelocityCard({
 
 export function DiscountErosionCard({
   ledger,
+  headerActions,
 }: {
   ledger: readonly LedgerEntry[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   const erosion = useMemo(() => deriveDiscountErosion(ledger), [ledger]);
 
@@ -547,17 +558,21 @@ export function DiscountErosionCard({
       className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
       data-testid="discount-erosion-card"
     >
-      <CardHeader className="py-3 px-4 border-b border-border/50">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Percent className="h-4 w-4 text-status-warning" />
-          Taux d'Érosion des Remises
-          <InfoTip tip="erosion.card" />
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          {erosion.remiseCount > 0
-            ? `${erosion.remiseCount} remises accordées à ${erosion.remiseFamilyCount} familles`
-            : "Impact des concessions tarifaires sur les revenus"}
-        </CardDescription>
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Percent className="h-4 w-4 text-status-warning" />
+            Taux d'Érosion des Remises
+            <InfoTip tip="erosion.card" />
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            {erosion.remiseCount > 0
+              ? `${erosion.remiseCount} remises accordées à ${erosion.remiseFamilyCount} familles`
+              : "Impact des concessions tarifaires sur les revenus"}
+          </CardDescription>
+        </div>
+        {/* T-503 (UI-334): the inspection controls live ON the gauge. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3.5 flex-1 flex flex-col justify-center">
@@ -635,9 +650,12 @@ export function DiscountErosionCard({
 export function DebtTriageCard({
   triage,
   parents,
+  headerActions,
 }: {
   triage: DebtTriage;
   parents: readonly Parent[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   const parentNameById = useMemo(
     () =>
@@ -674,11 +692,15 @@ export function DebtTriageCard({
           </CardDescription>
         </div>
 
-        {triage.totalOutstanding > 0 && (
-          <span className="text-xs font-mono font-bold text-status-danger">
-            {formatDzd(triage.totalOutstanding, { compact: true })} total
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {triage.totalOutstanding > 0 && (
+            <span className="text-xs font-mono font-bold text-status-danger">
+              {formatDzd(triage.totalOutstanding, { compact: true })} total
+            </span>
+          )}
+          {/* T-503 (UI-334): the inspection controls live ON the triage. */}
+          <CardHeaderActions>{headerActions}</CardHeaderActions>
+        </div>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3.5 flex-1">
@@ -772,8 +794,11 @@ export function DebtTriageCard({
 
 export function FamilyConcentrationCard({
   concentration,
+  headerActions,
 }: {
   concentration: FamilyConcentration;
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   // T-467 (DASH-411): the user's lens — the top-N SELECTION is fixed by the
   // derivation (deriveFamilyConcentration); switching the mode changes only
@@ -790,7 +815,8 @@ export function FamilyConcentrationCard({
       className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
       data-testid="family-concentration-card"
     >
-      <CardHeader className="py-3 px-4 border-b border-border/50">
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Users className="h-4 w-4 text-primary" />
           Concentration du Risque par Foyer
@@ -812,11 +838,14 @@ export function FamilyConcentrationCard({
             </>
           )}
         </CardDescription>
-        {/* T-467: the reference-population selector — the SAME control the
-            inspector and the Pareto card mount (one concept, one UI). */}
-        <div className="mt-1.5">
-          <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact tipKey="concentration.referenceMode" />
+          {/* T-467: the reference-population selector — the SAME control the
+              inspector and the Pareto card mount (one concept, one UI). */}
+          <div className="mt-1.5">
+            <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact tipKey="concentration.referenceMode" />
+          </div>
         </div>
+        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
@@ -873,24 +902,31 @@ export function FamilyConcentrationCard({
 
 export function TransportYieldCard({
   transport,
+  headerActions,
 }: {
   transport: TransportYield;
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   return (
     <Card
       className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
       data-testid="transport-yield-card"
     >
-      <CardHeader className="py-3 px-4 border-b border-border/50">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Bus className="h-4 w-4 text-brand-cyan" />
-          Rendement des Tournées Transport
-          <InfoTip tip="transport.card" />
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          {transport.riders} élèves transportés · {transport.routes.length}{" "}
-          circuits
-        </CardDescription>
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Bus className="h-4 w-4 text-brand-cyan" />
+            Rendement des Tournées Transport
+            <InfoTip tip="transport.card" />
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            {transport.riders} élèves transportés · {transport.routes.length}{" "}
+            circuits
+          </CardDescription>
+        </div>
+        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
@@ -932,23 +968,30 @@ export function TransportYieldCard({
 
 export function ServiceYieldCard({
   services,
+  headerActions,
 }: {
   services: ReturnType<typeof deriveServiceYield>;
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   return (
     <Card
       className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
       data-testid="service-yield-card"
     >
-      <CardHeader className="py-3 px-4 border-b border-border/50">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Stethoscope className="h-4 w-4 text-brand-violet" />
-          Revenus Services Spécialisés
-          <InfoTip tip="services.card" />
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          Orthophonie, Psychologie et Activités Annexes
-        </CardDescription>
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Stethoscope className="h-4 w-4 text-brand-violet" />
+            Revenus Services Spécialisés
+            <InfoTip tip="services.card" />
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Orthophonie, Psychologie et Activités Annexes
+          </CardDescription>
+        </div>
+        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 flex-1 flex flex-col justify-center">
@@ -988,15 +1031,19 @@ export function ServiceYieldCard({
 
 export function EnrollmentDynamicsCard({
   dynamics,
+  headerActions,
 }: {
   dynamics: EnrollmentDynamics;
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   return (
     <Card
       className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
       data-testid="enrollment-dynamics-card"
     >
-      <CardHeader className="py-3 px-4 border-b border-border/50">
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Scale className="h-4 w-4 text-primary" />
           Dynamique des Effectifs & Fratries
@@ -1009,6 +1056,9 @@ export function EnrollmentDynamicsCard({
           </strong>{" "}
           élèves par famille
         </CardDescription>
+        </div>
+        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3.5 flex-1 flex flex-col justify-between">
@@ -1071,9 +1121,12 @@ export function EnrollmentDynamicsCard({
 export function TripleRiskSummaryCard({
   summary,
   profiles,
+  headerActions,
 }: {
   summary: ReturnType<typeof deriveTripleRiskSummary>;
   profiles: readonly StudentRiskProfile[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   const tripleCount = summary.tripleCriticalCount;
 
@@ -1086,7 +1139,8 @@ export function TripleRiskSummaryCard({
       }`}
       data-testid="triple-risk-summary-card"
     >
-      <CardHeader className="py-3 px-4 border-b border-border/50">
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Radar className="h-4 w-4 text-status-danger" />
           Radar de Vigilance Multi-Critères
@@ -1095,6 +1149,9 @@ export function TripleRiskSummaryCard({
         <CardDescription className="text-xs text-muted-foreground">
           Corrélation directe : Notes + Assiduité + Créance financière
         </CardDescription>
+        </div>
+        {/* T-503 (UI-334): the inspection controls live ON the radar. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3.5 flex-1 flex flex-col justify-between">

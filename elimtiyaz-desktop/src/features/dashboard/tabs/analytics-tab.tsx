@@ -379,106 +379,122 @@ export function AnalyticsTab({
   const inspection = (request: InspectRequest) => request;
 
   const pilotageItems: DashboardLayoutItem[] = [
-    {
-      id: "pilotage-inspection",
-      label: "Inspection directe",
-      x: 0,
-      y: 0,
-      w: 12,
-      h: 4,
-      minW: 6,
-      maxW: 12,
-      minH: 3,
-      maxH: 8,
-      content: (
-        <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2.5">
-          <span className="flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pr-1.5">
-            Inspection directe
-            <InfoTip tip="inspector.card" size={11} />
-          </span>
-          <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${academicYear}`, metric: "annual_revenue", sourceValue: currentRevenueTotal })} />
-          <InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: yearOutstandingDebt, filters: { scope: "academic-year" } })} />
-          <InspectTrigger request={inspection({ domain: "debt", title: "Créances toutes années (Pareto)", metric: "outstanding_debt_all_years", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />
-          <InspectTrigger request={inspection({ domain: "tranche", title: `Vague 1 — reste dû ${academicYear}`, metric: "tranche_1_remaining", sourceValue: trancheOneRemaining, filters: { trancheNumber: 1, mode: "remaining", scope: "academic-year" } })} />
-          <InspectTrigger request={inspection({ domain: "transport", title: `Restes dûs transport ${academicYear}`, metric: "transport_remaining", sourceValue: transportRemaining, filters: { transportMode: "remaining" } })} />
-          <InspectTrigger request={inspection({ domain: "service", title: "Encaissements services (hors scolarité/transport)", metric: "service_payments", sourceValue: servicePayments, filters: { from: range?.from, to: range?.to, categories: SERVICE_CATEGORIES } })} />
-          <InspectTrigger request={inspection({ domain: "academic-risk", title: "Élèves à risque pédagogique", metric: "gpa_below_10", sourceValue: riskProfiles.filter((profile) => profile.gpa !== null && profile.gpa < 10).length })} />
-          <InspectTrigger request={inspection({ domain: "attendance", title: "Enregistrements de présence", metric: "attendance_records", sourceValue: attendance.length, filters: { attendanceMode: "records" } })} />
-          <InspectTrigger request={inspection({ domain: "attendance", title: "Absences enregistrées", metric: "absence_count", sourceValue: absenceCount, filters: { attendanceMode: "absences" } })} />
-          <InspectTrigger request={inspection({ domain: "discount", title: "Remises négociées (grand livre)", metric: "discount_total", sourceValue: remiseTotal })} />
-        </div>
-      ),
-    },
+    // T-503 (UI-334): the « Inspection directe » STRIP is RETIRED — every
+    // inspection button now lives ON the card it inspects (the optional
+    // headerActions surface every analytics card accepts), so the
+    // relationship between a button and its target is immediately obvious
+    // and the buttons stay attached through drags/resizes/hides.
     {
       id: "pilotage-risk",
       label: "Radar de vigilance multi-critères",
       x: 0,
-      y: 5,
+      y: 0,
       w: 4,
       h: 8,
       minW: 3,
       maxW: 12,
       minH: 6,
       maxH: 16,
-      content: <TripleRiskSummaryCard summary={riskSummary} profiles={riskProfiles} />,
+      content: (
+        <TripleRiskSummaryCard
+          summary={riskSummary}
+          profiles={riskProfiles}
+          headerActions={
+            <>
+              <InspectTrigger request={inspection({ domain: "academic-risk", title: "Élèves à risque pédagogique", metric: "gpa_below_10", sourceValue: riskProfiles.filter((profile) => profile.gpa !== null && profile.gpa < 10).length })} />
+              <InspectTrigger request={inspection({ domain: "attendance", title: "Enregistrements de présence", metric: "attendance_records", sourceValue: attendance.length, filters: { attendanceMode: "records" } })} />
+              <InspectTrigger request={inspection({ domain: "attendance", title: "Absences enregistrées", metric: "absence_count", sourceValue: absenceCount, filters: { attendanceMode: "absences" } })} />
+            </>
+          }
+        />
+      ),
     },
     {
       id: "pilotage-waves",
       label: "Vélocité de recouvrement par vague",
       x: 4,
-      y: 5,
+      y: 0,
       w: 8,
       h: 8,
       minW: 4,
       maxW: 12,
       minH: 6,
       maxH: 18,
-      content: <WaveVelocityCard waves={waves} pooled={pooledWaves} nonWave={nonWaveSummary} nowEpochMs={waveNow} />,
+      content: (
+        <WaveVelocityCard
+          waves={waves}
+          pooled={pooledWaves}
+          nonWave={nonWaveSummary}
+          nowEpochMs={waveNow}
+          headerActions={
+            <>
+              <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${academicYear}`, metric: "annual_revenue", sourceValue: currentRevenueTotal })} />
+              <InspectTrigger request={inspection({ domain: "tranche", title: `Vague 1 — reste dû ${academicYear}`, metric: "tranche_1_remaining", sourceValue: trancheOneRemaining, filters: { trancheNumber: 1, mode: "remaining", scope: "academic-year" } })} />
+            </>
+          }
+        />
+      ),
     },
     {
       id: "pilotage-debt",
       label: "Triage des créances",
       x: 0,
-      y: 14,
+      y: 9,
       w: 7,
       h: 8,
       minW: 4,
       maxW: 12,
       minH: 6,
       maxH: 18,
-      content: <DebtTriageCard triage={triage} parents={parents} />,
+      content: (
+        <DebtTriageCard
+          triage={triage}
+          parents={parents}
+          headerActions={<InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: yearOutstandingDebt, filters: { scope: "academic-year" } })} />}
+        />
+      ),
     },
     {
       id: "pilotage-discount",
       label: "Érosion des remises",
       x: 7,
-      y: 14,
+      y: 9,
       w: 5,
       h: 8,
       minW: 4,
       maxW: 12,
       minH: 6,
       maxH: 18,
-      content: <DiscountErosionCard ledger={ledger} />,
+      content: (
+        <DiscountErosionCard
+          ledger={ledger}
+          headerActions={<InspectTrigger request={inspection({ domain: "discount", title: "Remises négociées (grand livre)", metric: "discount_total", sourceValue: remiseTotal })} />}
+        />
+      ),
     },
     {
       id: "pilotage-family",
       label: "Concentration du risque familial",
       x: 0,
-      y: 23,
+      y: 18,
       w: 7,
       h: 8,
       minW: 4,
       maxW: 12,
       minH: 6,
       maxH: 20,
-      content: <FamilyConcentrationCard concentration={concentration} />,
+      content: (
+        <FamilyConcentrationCard
+          concentration={concentration}
+          headerActions={<InspectTrigger request={inspection({ domain: "debt", title: "Créances toutes années (Pareto)", metric: "outstanding_debt_all_years", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />}
+        />
+      ),
     },
     {
       id: "pilotage-enrollment",
       label: "Dynamique des effectifs et fratries",
       x: 7,
-      y: 23,
+      y: 18,
       w: 5,
       h: 8,
       minW: 4,
@@ -491,27 +507,37 @@ export function AnalyticsTab({
       id: "pilotage-transport",
       label: "Rendement transport",
       x: 0,
-      y: 32,
+      y: 27,
       w: 7,
       h: 8,
       minW: 4,
       maxW: 12,
       minH: 6,
       maxH: 20,
-      content: <TransportYieldCard transport={transport} />,
+      content: (
+        <TransportYieldCard
+          transport={transport}
+          headerActions={<InspectTrigger request={inspection({ domain: "transport", title: `Restes dûs transport ${academicYear}`, metric: "transport_remaining", sourceValue: transportRemaining, filters: { transportMode: "remaining" } })} />}
+        />
+      ),
     },
     {
       id: "pilotage-services",
       label: "Revenus services spécialisés",
       x: 7,
-      y: 32,
+      y: 27,
       w: 5,
       h: 8,
       minW: 4,
       maxW: 12,
       minH: 6,
       maxH: 20,
-      content: <ServiceYieldCard services={services} />,
+      content: (
+        <ServiceYieldCard
+          services={services}
+          headerActions={<InspectTrigger request={inspection({ domain: "service", title: "Encaissements services (hors scolarité/transport)", metric: "service_payments", sourceValue: servicePayments, filters: { from: range?.from, to: range?.to, categories: SERVICE_CATEGORIES } })} />}
+        />
+      ),
     },
     // T-503 (UI-335): the DUPLICATE console mount is RETIRED — the
     // OperationalQueryConsole belongs to the Diagnostic view (its own
@@ -523,32 +549,14 @@ export function AnalyticsTab({
   ];
 
   const diagnosticItems: DashboardLayoutItem[] = [
-    {
-      id: "diagnostic-source",
-      label: "Source des matrices",
-      x: 0,
-      y: 0,
-      w: 12,
-      h: 4,
-      minW: 6,
-      maxW: 12,
-      minH: 3,
-      maxH: 8,
-      content: (
-        <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface-panel/70 px-3 py-2.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pr-1.5">
-            Source des matrices
-          </span>
-          <InspectTrigger request={inspection({ domain: "academic-risk", title: "Matrice de risque pédagogique", metric: "risk_profiles", sourceValue: riskProfiles.length })} />
-          <InspectTrigger request={inspection({ domain: "enrollment", title: "Roster des élèves", metric: "roster", sourceValue: students.length })} />
-        </div>
-      ),
-    },
+    // T-503 (UI-334): the « Source des matrices » strip is RETIRED — the
+    // two triggers moved onto the surfaces they inspect (the cross-risk
+    // matrix + the console's roster).
     {
       id: "diagnostic-console",
       label: "Console de diagnostic opérationnel",
       x: 0,
-      y: 5,
+      y: 0,
       w: 12,
       h: 14,
       minW: 6,
@@ -568,6 +576,9 @@ export function AnalyticsTab({
           // CrossRiskCard quadrants above drive this console's category).
           selectedCategory={consoleCategory}
           onSelectedCategoryChange={setConsoleCategory}
+          // T-503 (UI-334): the roster inspection lives ON the console (the
+          // console IS the student roster).
+          headerActions={<InspectTrigger request={inspection({ domain: "enrollment", title: "Roster des élèves", metric: "roster", sourceValue: students.length })} />}
         />
       ),
     },
@@ -575,7 +586,7 @@ export function AnalyticsTab({
       id: "diagnostic-cross-risk",
       label: "Matrice croisée de risque",
       x: 0,
-      y: 20,
+      y: 15,
       w: 5,
       h: 10,
       minW: 4,
@@ -589,6 +600,7 @@ export function AnalyticsTab({
         <CrossRiskCard
           summary={riskSummary}
           onSelectCategory={setConsoleCategory}
+          headerActions={<InspectTrigger request={inspection({ domain: "academic-risk", title: "Matrice de risque pédagogique", metric: "risk_profiles", sourceValue: riskProfiles.length })} />}
         />
       ),
     },
@@ -596,7 +608,7 @@ export function AnalyticsTab({
       id: "diagnostic-pivot",
       label: "Matrice pivot pédagogique",
       x: 5,
-      y: 20,
+      y: 15,
       w: 7,
       h: 10,
       minW: 4,
@@ -608,35 +620,14 @@ export function AnalyticsTab({
   ];
 
   const chartItems: DashboardLayoutItem[] = [
-    {
-      id: "charts-provenance",
-      label: "Ligne de provenance active",
-      x: 0,
-      y: 0,
-      w: 12,
-      h: 4,
-      minW: 6,
-      maxW: 12,
-      minH: 3,
-      maxH: 8,
-      content: (
-        <div className="h-full flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-          <span className="flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pr-1.5">
-            Ligne de provenance active
-            <InfoTip tip="inspector.card" size={11} />
-          </span>
-          <span className="text-xs font-mono font-semibold text-foreground">
-            {slice.length} PAID · {sliceTotal.toLocaleString("fr-DZ")} DZD
-          </span>
-          <InspectTrigger request={inspection({ domain: "revenue", title: "Encaissements filtrés", metric: "filtered_paid_revenue", sourceValue: sliceTotal, filters: { from: range?.from, to: range?.to, methods: [...filters.methods], categories: [...filters.categories] } })} />
-        </div>
-      ),
-    },
+    // T-503 (UI-334): the « Ligne de provenance active » strip is RETIRED —
+    // the provenance trigger rides the slicer panel whose filters define
+    // it, and every chart's trigger lives on the chart itself.
     {
       id: "charts-slicers",
       label: "Filtres statistiques",
       x: 0,
-      y: 5,
+      y: 0,
       w: 12,
       h: 5,
       minW: 6,
@@ -654,6 +645,9 @@ export function AnalyticsTab({
           filteredCount={slice.length}
           filteredTotal={sliceTotal}
           totalCount={unfilteredCount}
+          // T-503 (UI-334): the provenance inspection rides the slicers
+          // (the panel that defines the active filter).
+          headerActions={<InspectTrigger request={inspection({ domain: "revenue", title: "Encaissements filtrés", metric: "filtered_paid_revenue", sourceValue: sliceTotal, filters: { from: range?.from, to: range?.to, methods: [...filters.methods], categories: [...filters.categories] } })} />}
         />
       ),
     },
@@ -661,7 +655,7 @@ export function AnalyticsTab({
       id: "charts-stat-strip",
       label: "Statistiques descriptives",
       x: 0,
-      y: 11,
+      y: 6,
       w: 12,
       h: 5,
       minW: 6,
@@ -682,7 +676,7 @@ export function AnalyticsTab({
       id: "charts-method-mix",
       label: "Mix des méthodes de paiement",
       x: 0,
-      y: 17,
+      y: 12,
       w: 6,
       h: 9,
       minW: 4,
@@ -690,19 +684,17 @@ export function AnalyticsTab({
       minH: 7,
       maxH: 18,
       content: (
-        <div className="h-full space-y-2">
-          <div className="flex justify-end">
-            <InspectTrigger request={inspection({ domain: "payment-method", title: "Mix des méthodes de paiement", metric: "method_mix", sourceValue: sliceTotal })} />
-          </div>
-          <MethodMixCard slice={slice} />
-        </div>
+        <MethodMixCard
+          slice={slice}
+          headerActions={<InspectTrigger request={inspection({ domain: "payment-method", title: "Mix des méthodes de paiement", metric: "method_mix", sourceValue: sliceTotal })} />}
+        />
       ),
     },
     {
       id: "charts-category-mix",
       label: "Mix des catégories de paiement",
       x: 6,
-      y: 17,
+      y: 12,
       w: 6,
       h: 9,
       minW: 4,
@@ -710,19 +702,17 @@ export function AnalyticsTab({
       minH: 7,
       maxH: 18,
       content: (
-        <div className="h-full space-y-2">
-          <div className="flex justify-end">
-            <InspectTrigger request={inspection({ domain: "payment-category", title: "Mix des catégories de paiement", metric: "category_mix", sourceValue: sliceTotal })} />
-          </div>
-          <CategoryMixCard slice={slice} />
-        </div>
+        <CategoryMixCard
+          slice={slice}
+          headerActions={<InspectTrigger request={inspection({ domain: "payment-category", title: "Mix des catégories de paiement", metric: "category_mix", sourceValue: sliceTotal })} />}
+        />
       ),
     },
     {
       id: "charts-yoy",
       label: "Comparaison annuelle des revenus",
       x: 0,
-      y: 27,
+      y: 22,
       w: 12,
       h: 9,
       minW: 6,
@@ -730,27 +720,27 @@ export function AnalyticsTab({
       minH: 7,
       maxH: 18,
       content: (
-        <div className="h-full space-y-2">
-          <div className="flex flex-wrap justify-end gap-2">
-            <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus mensuels ${academicYear}`, metric: "monthly_revenue", sourceValue: currentRevenueTotal })} />
-            {prevAcademicYear && (
-              <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${prevAcademicYear}`, metric: "previous_year_revenue", sourceValue: prevRevenue.reduce((sum, point) => sum + point.amount, 0) })} />
-            )}
-          </div>
-          <YoYComparisonCard
-            currentYear={academicYear}
-            previousYear={prevAcademicYear}
-            revenue={revenue}
-            prevRevenue={prevRevenue}
-          />
-        </div>
+        <YoYComparisonCard
+          currentYear={academicYear}
+          previousYear={prevAcademicYear}
+          revenue={revenue}
+          prevRevenue={prevRevenue}
+          headerActions={
+            <>
+              <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus mensuels ${academicYear}`, metric: "monthly_revenue", sourceValue: currentRevenueTotal })} />
+              {prevAcademicYear && (
+                <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${prevAcademicYear}`, metric: "previous_year_revenue", sourceValue: prevRevenue.reduce((sum, point) => sum + point.amount, 0) })} />
+              )}
+            </>
+          }
+        />
       ),
     },
     {
       id: "charts-aging",
       label: "Vieillissement des créances",
       x: 0,
-      y: 37,
+      y: 32,
       w: 12,
       h: 10,
       minW: 6,
@@ -758,24 +748,27 @@ export function AnalyticsTab({
       minH: 8,
       maxH: 20,
       content: (
-        <div className="h-full space-y-2">
-          <div className="flex flex-wrap justify-end gap-2">
-            <InspectTrigger request={inspection({ domain: "debt", title: "Vieillissement des créances (total)", metric: "debt_aging", sourceValue: debtAging.reduce((sum, bucket) => sum + bucket.amount, 0), filters: { scope: "academic-year" } })} />
-            <InspectTrigger request={inspection({ domain: "debt", title: "Créances 0–30 j", metric: "debt_aging_0_30", sourceValue: debtAging.find((bucket) => bucket.bucket === "0_30")?.amount ?? 0, filters: { agingBucket: "0_30", scope: "academic-year" } })} />
-            <InspectTrigger request={inspection({ domain: "debt", title: "Créances 31–60 j", metric: "debt_aging_31_60", sourceValue: debtAging.find((bucket) => bucket.bucket === "31_60")?.amount ?? 0, filters: { agingBucket: "31_60", scope: "academic-year" } })} />
-            <InspectTrigger request={inspection({ domain: "debt", title: "Créances 61–90 j", metric: "debt_aging_61_90", sourceValue: debtAging.find((bucket) => bucket.bucket === "61_90")?.amount ?? 0, filters: { agingBucket: "61_90", scope: "academic-year" } })} />
-            <InspectTrigger request={inspection({ domain: "debt", title: "Créances 91–180 j", metric: "debt_aging_91_180", sourceValue: debtAging.find((bucket) => bucket.bucket === "91_180")?.amount ?? 0, filters: { agingBucket: "91_180", scope: "academic-year" } })} />
-            <InspectTrigger request={inspection({ domain: "debt", title: "Créances > 180 j", metric: "debt_aging_180_plus", sourceValue: debtAging.find((bucket) => bucket.bucket === "180_plus")?.amount ?? 0, filters: { agingBucket: "180_plus", scope: "academic-year" } })} />
-          </div>
-          <AgingCompositionCard debtAging={debtAging} />
-        </div>
+        // T-503 (UI-334): the total's trigger lives on the card's header;
+        // each bucket's trigger lives ON ITS OWN TABLE ROW (the exact
+        // bucket it inspects — the old floating strip carried all six).
+        <AgingCompositionCard
+          debtAging={debtAging}
+          headerActions={<InspectTrigger request={inspection({ domain: "debt", title: "Vieillissement des créances (total)", metric: "debt_aging", sourceValue: debtAging.reduce((sum, bucket) => sum + bucket.amount, 0), filters: { scope: "academic-year" } })} />}
+          rowActions={{
+            "0_30": <InspectTrigger request={inspection({ domain: "debt", title: "Créances 0–30 j", metric: "debt_aging_0_30", sourceValue: debtAging.find((bucket) => bucket.bucket === "0_30")?.amount ?? 0, filters: { agingBucket: "0_30", scope: "academic-year" } })} />,
+            "31_60": <InspectTrigger request={inspection({ domain: "debt", title: "Créances 31–60 j", metric: "debt_aging_31_60", sourceValue: debtAging.find((bucket) => bucket.bucket === "31_60")?.amount ?? 0, filters: { agingBucket: "31_60", scope: "academic-year" } })} />,
+            "61_90": <InspectTrigger request={inspection({ domain: "debt", title: "Créances 61–90 j", metric: "debt_aging_61_90", sourceValue: debtAging.find((bucket) => bucket.bucket === "61_90")?.amount ?? 0, filters: { agingBucket: "61_90", scope: "academic-year" } })} />,
+            "91_180": <InspectTrigger request={inspection({ domain: "debt", title: "Créances 91–180 j", metric: "debt_aging_91_180", sourceValue: debtAging.find((bucket) => bucket.bucket === "91_180")?.amount ?? 0, filters: { agingBucket: "91_180", scope: "academic-year" } })} />,
+            "180_plus": <InspectTrigger request={inspection({ domain: "debt", title: "Créances > 180 j", metric: "debt_aging_180_plus", sourceValue: debtAging.find((bucket) => bucket.bucket === "180_plus")?.amount ?? 0, filters: { agingBucket: "180_plus", scope: "academic-year" } })} />,
+          }}
+        />
       ),
     },
     {
       id: "charts-pareto",
       label: "Pareto des familles débitrices",
       x: 0,
-      y: 48,
+      y: 43,
       w: 12,
       h: 10,
       minW: 6,
@@ -783,25 +776,21 @@ export function AnalyticsTab({
       minH: 8,
       maxH: 20,
       content: (
-        <div className="h-full space-y-2">
-          <div className="flex justify-end">
-            <InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices (toutes années)", metric: "debtors_pareto", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />
-          </div>
-          <DebtorsParetoCard
-            topDebtors={riskDebt as DebtSummary[]}
-            // T-467 (DASH-411): the WHOLE dataset's total outstanding (the
-            // T-351 full-stream wiring) — the whole-dataset reference mode's
-            // honest denominator.
-            totalOutstanding={currentDebtTotal}
-          />
-        </div>
+        <DebtorsParetoCard
+          topDebtors={riskDebt as DebtSummary[]}
+          // T-467 (DASH-411): the WHOLE dataset's total outstanding (the
+          // T-351 full-stream wiring) — the whole-dataset reference mode's
+          // honest denominator.
+          totalOutstanding={currentDebtTotal}
+          headerActions={<InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices (toutes années)", metric: "debtors_pareto", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />}
+        />
       ),
     },
     {
       id: "charts-payroll-trend",
       label: "Coûts du Personnel — Réalisé vs Projeté & Besoin de Financement",
       x: 0,
-      y: 58,
+      y: 53,
       w: 12,
       h: 11,
       minW: 6,

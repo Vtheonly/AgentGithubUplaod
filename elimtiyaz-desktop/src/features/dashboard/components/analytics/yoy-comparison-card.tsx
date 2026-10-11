@@ -26,19 +26,25 @@ import {
   chartPalette,
 } from "../../../../shared/ui/dashboard-theme";
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
+import type { ReactNode } from "react";
 import type { RevenuePoint } from "../../../../domain/model/operations";
 import { deriveYearOverYear } from "./analytics-derivations";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
 
 export function YoYComparisonCard({
   currentYear,
   previousYear,
   revenue,
   prevRevenue,
+  headerActions,
 }: {
   currentYear: string;
   previousYear: string | null;
   revenue: readonly RevenuePoint[];
   prevRevenue: readonly RevenuePoint[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }) {
   const summary = deriveYearOverYear(revenue, prevRevenue);
   const hasPrevious = prevRevenue.length > 0;
@@ -72,6 +78,8 @@ export function YoYComparisonCard({
             {summary.deltaPercent}% global
           </span>
         )}
+        {/* T-503 (UI-334): the inspection controls live ON the chart. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 flex-1">

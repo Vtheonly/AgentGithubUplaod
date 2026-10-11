@@ -69,6 +69,8 @@ import type { Parent } from "../../../../domain/model/parent";
 import { usePersonNavigation } from "../../../../shared/navigation/person-navigation-context";
 import { StudentActionsMenu } from "../../../../shared/ui/student-actions-menu";
 import { ParentActionsMenu } from "../../../../shared/ui/parent-actions-menu";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
 
 interface Props {
   profiles: StudentRiskProfile[];
@@ -92,6 +94,8 @@ interface Props {
   selectedCategory?: string;
   /** T-503 (UI-335): the change notification for the controlled filter. */
   onSelectedCategoryChange?: (category: string) => void;
+  /** T-503 (UI-334): the inspection controls — rendered ON the console's header. */
+  headerActions?: ReactNode;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -858,6 +862,7 @@ export function OperationalQueryConsole({
   severeDebtDzd,
   selectedCategory,
   onSelectedCategoryChange,
+  headerActions,
 }: Props & { children?: ReactNode }) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
   const { openStudent, openParent } = usePersonNavigation();
@@ -999,17 +1004,21 @@ export function OperationalQueryConsole({
                 explorer leur profil partout dans l'application.
               </CardDescription>
             </div>
-            {filteredProfiles.length > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleAskAIAboutCohort}
-                className="h-8 gap-1.5 border-primary/40 bg-primary/5 text-primary text-xs"
-              >
-                <Bot className="h-3.5 w-3.5" />
-                Interroger l'IA sur cette sélection ({filteredProfiles.length})
-              </Button>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {filteredProfiles.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAskAIAboutCohort}
+                  className="h-8 gap-1.5 border-primary/40 bg-primary/5 text-primary text-xs"
+                >
+                  <Bot className="h-3.5 w-3.5" />
+                  Interroger l'IA sur cette sélection ({filteredProfiles.length})
+                </Button>
+              )}
+              {/* T-503 (UI-334): the inspection controls live ON the console. */}
+              <CardHeaderActions>{headerActions}</CardHeaderActions>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap pt-1">

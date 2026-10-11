@@ -2,9 +2,11 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/mix-cards.tsx
 // ============================================================================
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 // T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
 import {
   ResponsiveContainer,
   PieChart,
@@ -48,7 +50,14 @@ const CATEGORY_COLORS = [
   chartPalette.danger,
 ];
 
-export function MethodMixCard({ slice }: { slice: readonly Payment[] }) {
+export function MethodMixCard({
+  slice,
+  headerActions,
+}: {
+  slice: readonly Payment[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
+}) {
   const mix = deriveMethodMix(slice);
   const total = mix.reduce((s, m) => s + m.amount, 0);
 
@@ -57,15 +66,19 @@ export function MethodMixCard({ slice }: { slice: readonly Payment[] }) {
       className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between"
       data-testid="method-mix-card"
     >
-      <CardHeader className="py-3 px-4 border-b border-border/50">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <CreditCard className="h-4 w-4 text-primary" />
-          Répartition par Mode de Paiement
-          <InfoTip tip="methodMix.card" />
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          Volume encaissé selon le canal de règlement
-        </CardDescription>
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-primary" />
+            Répartition par Mode de Paiement
+            <InfoTip tip="methodMix.card" />
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Volume encaissé selon le canal de règlement
+          </CardDescription>
+        </div>
+        {/* T-503 (UI-334): the inspection controls live ON the chart. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 flex-1 flex flex-col justify-center">
@@ -151,7 +164,14 @@ export function MethodMixCard({ slice }: { slice: readonly Payment[] }) {
   );
 }
 
-export function CategoryMixCard({ slice }: { slice: readonly Payment[] }) {
+export function CategoryMixCard({
+  slice,
+  headerActions,
+}: {
+  slice: readonly Payment[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
+}) {
   const [metric, setMetric] = useState<"amount" | "count">("amount");
   const mix = deriveCategoryMix(slice);
   const maxMetric = Math.max(
@@ -176,6 +196,7 @@ export function CategoryMixCard({ slice }: { slice: readonly Payment[] }) {
           </CardDescription>
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap">
         <div
           className="flex items-center gap-1 rounded-md border border-border bg-surface-elevated/40 p-0.5 text-xs"
           data-testid="category-metric-toggle"
@@ -205,6 +226,9 @@ export function CategoryMixCard({ slice }: { slice: readonly Payment[] }) {
           >
             Nb Opérations
           </button>
+        </div>
+        {/* T-503 (UI-334): the inspection controls live ON the chart. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
         </div>
       </CardHeader>
 

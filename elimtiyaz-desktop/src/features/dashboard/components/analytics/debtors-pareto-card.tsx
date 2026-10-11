@@ -32,6 +32,9 @@ import {
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { DebtSummary } from "../../../../domain/model/payment";
 import { derivePareto } from "./analytics-derivations";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
+import type { ReactNode } from "react";
 
 function shortName(full: string): string {
   const trimmed = full.replace(/^Famille\s+/i, "").trim();
@@ -45,8 +48,11 @@ function shortName(full: string): string {
 export function DebtorsParetoCard({
   topDebtors,
   totalOutstanding,
+  headerActions,
 }: {
   topDebtors: DebtSummary[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
   /**
    * T-467 (DASH-411): the WHOLE dataset's total outstanding (the full
    * debtSummaries stream's sum — the T-351 full-stream pattern). REQUIRED
@@ -107,6 +113,8 @@ export function DebtorsParetoCard({
             {paretoCut} foyer(s) = 80% {effectiveMode === "top10" ? "des top débiteurs" : "du dataset"}
           </span>
         )}
+        {/* T-503 (UI-334): the inspection controls live ON the chart. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-4 flex-1">

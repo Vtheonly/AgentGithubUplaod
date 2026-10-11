@@ -249,8 +249,17 @@ describe("T-475 D. The family census — every inspection button routes through 
     const analyticsTab = readSrc("../../../features/dashboard/tabs/analytics-tab.tsx");
     // Every dashboard inspection button goes through the component…
     expect(analyticsTab).not.toContain("border-primary/25 bg-primary/5 px-2");
-    // …and the cards' containers carry the normalized spacing.
-    expect(analyticsTab).toContain("px-3 py-2.5");
+    // T-503 (UI-334): every trigger is ATTACHED to the card it inspects —
+    // the three floating strip cells and the justify-end wrapper rows are
+    // RETIRED (the retired strip container class went with them).
+    expect(analyticsTab).not.toContain("px-3 py-2.5");
     expect(analyticsTab).not.toContain("mr-1 flex items-center gap-0.5");
+    expect(analyticsTab).not.toContain("flex justify-end");
+    // …the attachment surface is the cards' shared headerActions node…
+    expect(analyticsTab.match(/headerActions=\{/g)?.length ?? 0).toBeGreaterThanOrEqual(10);
+    // …and the three strip layout items are gone from every view.
+    expect(analyticsTab).not.toContain('"pilotage-inspection"');
+    expect(analyticsTab).not.toContain('"diagnostic-source"');
+    expect(analyticsTab).not.toContain('"charts-provenance"');
   });
 });

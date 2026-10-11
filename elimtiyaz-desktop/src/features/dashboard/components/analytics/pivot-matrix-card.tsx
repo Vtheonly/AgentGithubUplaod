@@ -2,7 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/pivot-matrix-card.tsx
 // ============================================================================
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { Layers, ArrowUpDown } from "lucide-react";
 import {
   Card,
@@ -12,6 +12,8 @@ import {
   CardDescription,
 } from "../../../../shared/ui/card";
 import { InfoTip } from "./info-tip";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { AcademicClass } from "../../../../domain/model/academic";
 import {
@@ -23,9 +25,11 @@ import {
 interface Props {
   profiles: StudentRiskProfile[];
   classes: readonly AcademicClass[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
 }
 
-export function PivotMatrixCard({ profiles, classes }: Props) {
+export function PivotMatrixCard({ profiles, classes, headerActions }: Props) {
   const [dimension, setDimension] = useState<PivotDimension>("cycle");
   const [sortKey, setSortKey] = useState<
     "studentCount" | "totalDebt" | "averageGpa"
@@ -105,6 +109,8 @@ export function PivotMatrixCard({ profiles, classes }: Props) {
             Classes
           </button>
         </div>
+        {/* T-503 (UI-334): the inspection controls live ON the matrix. */}
+        <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
       <CardContent className="p-0 flex-1 overflow-x-auto">

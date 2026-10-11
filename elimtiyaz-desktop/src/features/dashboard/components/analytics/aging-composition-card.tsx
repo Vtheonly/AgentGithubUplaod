@@ -2,10 +2,12 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/aging-composition-card.tsx
 // ============================================================================
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Hourglass } from "lucide-react";
 // T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
 import {
   Card,
   CardContent,
@@ -20,8 +22,18 @@ import { deriveAgingComposition } from "./analytics-derivations";
 
 export function AgingCompositionCard({
   debtAging,
+  headerActions,
+  rowActions,
 }: {
   debtAging: DebtByAgingBucket[];
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header (the total). */
+  headerActions?: ReactNode;
+  /**
+   * T-503 (UI-334): the PER-BUCKET inspection controls — each table row
+   * renders its own bucket's button at the exact bucket it inspects (the
+   * old floating strip carried all six above the card).
+   */
+  rowActions?: Partial<Record<DebtByAgingBucket["bucket"], ReactNode>>;
 }) {
   const segments = useMemo(
     () => deriveAgingComposition(debtAging),
@@ -48,11 +60,15 @@ export function AgingCompositionCard({
           </CardDescription>
         </div>
 
-        {segments.length > 0 && (
-          <span className="text-xs font-mono font-bold text-status-danger">
-            {formatDzd(total, { compact: true })} · {totalFamilies} familles
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {segments.length > 0 && (
+            <span className="text-xs font-mono font-bold text-status-danger">
+              {formatDzd(total, { compact: true })} · {totalFamilies} familles
+            </span>
+          )}
+          {/* T-503 (UI-334): the inspection controls live ON the meter. */}
+          <CardHeaderActions>{headerActions}</CardHeaderActions>
+        </div>
       </CardHeader>
 
       <CardContent className="p-4 space-y-4 flex-1 flex flex-col justify-center">
@@ -143,6 +159,11 @@ export function AgingCompositionCard({
                       <td className="text-right font-mono py-2 px-2 text-muted-foreground">
                         {seg.share}%
                       </td>
+                      {/* T-503 (UI-334): this bucket's inspection control,
+                          rendered ON the row it inspects. */}
+                      <td className="py-1.5 px-2 text-right">
+                        {rowActions?.[seg.bucket] ?? null}
+                      </td>
                     </tr>
                   ))}
                   {/* TEST-501 repair (T-469 verification, 2026-10-03): the
@@ -163,6 +184,9 @@ export function AgingCompositionCard({
                     <td className="text-right font-mono py-2 px-2">
                       100%
                     </td>
+                    {/* T-503 (UI-334): the total row's trailing cell (the
+                        column alignment). */}
+                    <td />
                   </tr>
                 </tbody>
               </table>

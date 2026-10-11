@@ -12,7 +12,10 @@ import {
   CardDescription,
 } from "../../../../shared/ui/card";
 import { Button } from "../../../../shared/ui/button";
+import type { ReactNode } from "react";
 import { useAICopilot } from "../../../../app/providers/ai-copilot-provider";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
 // T-503 (UI-335): the CANONICAL triple-risk summary — the SAME
 // deriveTripleRiskSummary the pilotage view's radar consumes (one
 // derivation, two presentations; the card's inline recount of the same
@@ -22,6 +25,8 @@ import type { TripleRiskSummary } from "./executive-statistics";
 interface Props {
   /** T-503 (UI-335): the canonical summary — deriveTripleRiskSummary(riskProfiles). */
   summary: TripleRiskSummary;
+  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
+  headerActions?: ReactNode;
   /**
    * T-503 (UI-335): the quadrant→console filter (the card's "Cliquez sur
    * un quadrant pour filtrer la console d'investigation" promise — wired
@@ -30,7 +35,11 @@ interface Props {
   onSelectCategory?: (category: string) => void;
 }
 
-export function CrossRiskCard({ summary, onSelectCategory }: Props) {
+export function CrossRiskCard({
+  summary,
+  onSelectCategory,
+  headerActions,
+}: Props) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
 
   // T-503 (UI-335): ONE derivation — the counts come from the canonical
@@ -70,15 +79,19 @@ export function CrossRiskCard({ summary, onSelectCategory }: Props) {
           </CardDescription>
         </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleLaunchEmergencyInvestigation}
-          className="h-7 text-xs border-primary/40 text-primary gap-1.5"
-        >
-          <Bot className="h-3.5 w-3.5" />
-          Audit IA
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleLaunchEmergencyInvestigation}
+            className="h-7 text-xs border-primary/40 text-primary gap-1.5"
+          >
+            <Bot className="h-3.5 w-3.5" />
+            Audit IA
+          </Button>
+          {/* T-503 (UI-334): the inspection controls live ON the matrix. */}
+          <CardHeaderActions>{headerActions}</CardHeaderActions>
+        </div>
       </CardHeader>
 
       <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">

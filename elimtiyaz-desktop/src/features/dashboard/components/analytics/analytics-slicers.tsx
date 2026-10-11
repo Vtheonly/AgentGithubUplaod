@@ -17,8 +17,13 @@ import {
 import { formatDzd } from "../../../../core/format/currency";
 // T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
+// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
+import { CardHeaderActions } from "./card-header-actions";
+import type { ReactNode } from "react";
 
 export interface AnalyticsSlicersProps {
+  /** T-503 (UI-334): the inspection controls — the provenance line rides the slicer panel it inspects. */
+  headerActions?: ReactNode;
   filters: AnalyticsFilterState;
   onToggleMethod: (method: PaymentMethod) => void;
   onToggleCategory: (category: PaymentCategory | null) => void;
@@ -57,6 +62,7 @@ function Chip({
 }
 
 export function AnalyticsSlicers({
+  headerActions,
   filters,
   onToggleMethod,
   onToggleCategory,
@@ -81,7 +87,10 @@ export function AnalyticsSlicers({
           <InfoTip tip="slicers.header" />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* T-503 (UI-334): the provenance inspection rides the slicer
+              panel whose filters define it. */}
+          <CardHeaderActions>{headerActions}</CardHeaderActions>
           <span
             className="text-xs font-mono text-muted-foreground flex items-center gap-0.5"
             data-testid="analytics-slicer-badge"
