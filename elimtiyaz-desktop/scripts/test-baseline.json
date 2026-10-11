@@ -1,17 +1,17 @@
 {
   "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-472 (the 138th session's TEST-503 systemic hermeticity fix, 2026-10-04 — the Vitest seam disabled the f39eb17 canonical-production fallback in supabase-client.ts: the default test mode is MOCK again [T-314's contract restored], the t-393 diagnostics suite pinned to the vault-suite configured-mode pattern, +5 new t-472 hermeticity/guard tests — 4,680 passed / 0 failed / 5 skipped, 270 files). Prior move: T-470 (the 137th session's TEST-502 repair, 2026-10-03 — the battery FULLY GREEN for the first time since T-419 instituted the baseline: the refund-revert trio re-pinned with EXPLICIT evaluation clocks + both classification branches [future-due 'pending' / past-due 'overdue', the §15.81 wall-clock class], the t-390 import-time cycle broken [the mock composite extracted to infrastructure/mock/mock-composite.ts], the vault-compliance §02.06 pair pinned to mock mode [never touching production storage again], and the t-408 source-scan re-targeted to the composite's new home; net +5 tests [2 companion branch pins + the t-390 suite's 3 tests now actually running] — 4,675 passed / 0 failed / 5 skipped). Same-session prior move: the T-469 live-apply round moved the baseline to the 4,665/5-known-red state (+4 suites: t-466..t-469) — T-470's move supersedes it with the empty failing set. Prior: T-455 (127th session, 2026-10-01).",
-  "_task": "T-503b (the 154th session, 2026-10-11) — the baseline move for the layout-editor performance task (PERF-509): +1 file (t-503-editor-performance [7] — the sub-cell jitter no-state gate [drag + resize], the unrelated-component render-count pin, and the memo/copy-on-write/quantize source pins) — 291 files (290 passed / 1 skipped), 4,899 tests (4,894 passed / 0 failed / 5 skipped). The failing-file set stays EMPTY. Prior: T-503a (UI-336) — the geometry move: +1 file (t-503-layout-geometry [7]) — 290 files, 4,892 tests (4,887/0/5).",
+  "_task": "T-503c (the 154th session, 2026-10-11) — the baseline move for the indicator-consolidation task (UI-335): +1 file (t-503-indicator-consolidation [12] — the ONE console mount [source census + the pilotage/diagnostic behavioral split], the canonical-summary consumption + quadrant filter [spy + controlled/uncontrolled/mutual-exclusion], and the show/hide toggles [hide/tray/restore, view-mode, all-hidden, persistence round-trip, parser]) — 292 files (291 passed / 1 skipped), 4,911 tests (4,906 passed / 0 failed / 5 skipped). The failing-file set stays EMPTY. Prior: T-503b (PERF-509) — +1 file (t-503-editor-performance [7]) — 291 files, 4,899 tests (4,894/0/5).",
   "testFiles": {
     "failed": 0,
-    "passed": 290,
+    "passed": 291,
     "skipped": 1,
-    "total": 291
+    "total": 292
   },
   "tests": {
     "failed": 0,
-    "passed": 4894,
+    "passed": 4906,
     "skipped": 5,
-    "total": 4899
+    "total": 4911
   },
   "failingFiles": [],
   "equivalence": {

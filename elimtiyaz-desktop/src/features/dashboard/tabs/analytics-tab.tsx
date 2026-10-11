@@ -177,6 +177,10 @@ export function AnalyticsTab({
   );
   const [viewMode, setViewMode] = useState<ViewMode>("pilotage");
   const [filters, setFilters] = useState<AnalyticsFilterState>(NO_ANALYTICS_FILTERS);
+  // T-503 (UI-335): the diagnostic view's shared quadrant→console filter —
+  // the CrossRiskCard quadrants drive the OperationalQueryConsole's
+  // category filter (the card's caption finally does what it promises).
+  const [consoleCategory, setConsoleCategory] = useState<string>("all");
 
   const riskDebt = debtSummaries ?? topDebtors;
   const riskProfiles = useMemo<StudentRiskProfile[]>(() => {
@@ -509,29 +513,13 @@ export function AnalyticsTab({
       maxH: 20,
       content: <ServiceYieldCard services={services} />,
     },
-    {
-      id: "pilotage-queries",
-      label: "Console de requêtes opérationnelles",
-      x: 0,
-      y: 41,
-      w: 12,
-      h: 14,
-      minW: 6,
-      maxW: 12,
-      minH: 8,
-      maxH: 24,
-      content: (
-        <OperationalQueryConsole
-          profiles={riskProfiles}
-          onOpenStudent={onOpenStudent}
-          onOpenParent={onOpenParent}
-          // T-502 (DEBT-104): the CONFIGURED severe-debt edge — the
-          // « Créances Critiques » quick query follows the tenant's
-          // debt.severe_debt_dzd setting (migration 0147).
-          severeDebtDzd={debtThresholdsActive.severeDebtDzd}
-        />
-      ),
-    },
+    // T-503 (UI-335): the DUPLICATE console mount is RETIRED — the
+    // OperationalQueryConsole belongs to the Diagnostic view (its own
+    // label reads "Console de diagnostic opérationnel"); mounting it in
+    // BOTH modes rendered the same Triple-Risque table twice per mode
+    // switch (the owner's "two instances in each dashboard mode"). The
+    // pilotage view keeps its executive RADAR (TripleRiskSummaryCard);
+    // the full interactive console stays one mount in Diagnostic.
   ];
 
   const diagnosticItems: DashboardLayoutItem[] = [
@@ -576,6 +564,10 @@ export function AnalyticsTab({
           // « Créances Critiques » quick query follows the tenant's
           // debt.severe_debt_dzd setting (migration 0147).
           severeDebtDzd={debtThresholdsActive.severeDebtDzd}
+          // T-503 (UI-335): the shared quadrant→console filter (the
+          // CrossRiskCard quadrants above drive this console's category).
+          selectedCategory={consoleCategory}
+          onSelectedCategoryChange={setConsoleCategory}
         />
       ),
     },
@@ -590,7 +582,15 @@ export function AnalyticsTab({
       maxW: 12,
       minH: 7,
       maxH: 20,
-      content: <CrossRiskCard profiles={riskProfiles} />,
+      content: (
+        // T-503 (UI-335): the CANONICAL summary (one derivation shared
+        // with the pilotage radar) + the quadrant clicks wired to the
+        // console's category filter.
+        <CrossRiskCard
+          summary={riskSummary}
+          onSelectCategory={setConsoleCategory}
+        />
+      ),
     },
     {
       id: "diagnostic-pivot",

@@ -2,7 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/operational-query-console.tsx
 // ============================================================================
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Search,
@@ -82,6 +82,16 @@ interface Props {
    * contract).
    */
   severeDebtDzd?: number;
+  /**
+   * T-503 (UI-335): the OPTIONAL controlled category filter — the
+   * diagnostic view's CrossRiskCard quadrants drive it (the card's
+   * "Cliquez sur un quadrant pour filtrer la console" promise, finally
+   * wired). Absent → the console's own internal state (the uncontrolled
+   * default every pre-T-503 caller keeps).
+   */
+  selectedCategory?: string;
+  /** T-503 (UI-335): the change notification for the controlled filter. */
+  onSelectedCategoryChange?: (category: string) => void;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -846,6 +856,8 @@ export function OperationalQueryConsole({
   onOpenStudent,
   onOpenParent,
   severeDebtDzd,
+  selectedCategory,
+  onSelectedCategoryChange,
 }: Props & { children?: ReactNode }) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
   const { openStudent, openParent } = usePersonNavigation();
@@ -862,7 +874,31 @@ export function OperationalQueryConsole({
   const [activePreset, setActivePreset] = useState<string | null>(
     "triple_critical",
   );
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [internalSelectedCategory, setInternalSelectedCategory] =
+    useState<string>("all");
+  // T-503 (UI-335): the controlled/uncontrolled category filter — the
+  // diagnostic view's tab state (the CrossRiskCard quadrants) when the
+  // props are present, the console's own state otherwise.
+  const isCategoryControlled = selectedCategory !== undefined;
+  const effectiveSelectedCategory = isCategoryControlled
+    ? selectedCategory
+    : internalSelectedCategory;
+  const applyCategory = useCallback(
+    (category: string) => {
+      setInternalSelectedCategory(category);
+      onSelectedCategoryChange?.(category);
+    },
+    [onSelectedCategoryChange],
+  );
+  // T-503 (UI-335): a quadrant category selection REPLACES the quick-query
+  // layer — the same mutual exclusion the preset chips apply in the other
+  // direction (a chip click resets the category to "all"; a category
+  // selection from the CrossRiskCard quadrants deactivates the chip).
+  useEffect(() => {
+    if (isCategoryControlled && selectedCategory !== "all") {
+      setActivePreset(null);
+    }
+  }, [isCategoryControlled, selectedCategory]);
   const [sortField, setSortField] = useState<
     "riskScore" | "debtAmount" | "gpa"
   >("riskScore");
@@ -886,7 +922,10 @@ export function OperationalQueryConsole({
             if (preset.customFilter && !preset.customFilter(p)) return false;
           }
         }
-        if (selectedCategory !== "all" && p.riskCategory !== selectedCategory)
+        if (
+          effectiveSelectedCategory !== "all" &&
+          p.riskCategory !== effectiveSelectedCategory
+        )
           return false;
         if (search.trim()) {
           const q = search.toLowerCase();
@@ -905,7 +944,7 @@ export function OperationalQueryConsole({
         if (valA === valB) return 0;
         return sortAsc ? (valA > valB ? 1 : -1) : valA < valB ? 1 : -1;
       });
-  }, [profiles, activePreset, selectedCategory, search, sortField, sortAsc, presets]);
+  }, [profiles, activePreset, effectiveSelectedCategory, search, sortField, sortAsc, presets]);
 
   const queryStats = useMemo(() => {
     const count = filteredProfiles.length;
@@ -928,7 +967,7 @@ export function OperationalQueryConsole({
       )
       .join("\n");
     const prompt =
-      `Analyse de la cohorte sous le filtre « ${activePreset ?? selectedCategory} » (${filteredProfiles.length} élèves identifiés, dette cumulée: ${queryStats.totalDebt.toLocaleString("fr-FR")} DA) :\n${topSample}\n\n` +
+      `Analyse de la cohorte sous le filtre « ${activePreset ?? effectiveSelectedCategory} » (${filteredProfiles.length} élèves identifiés, dette cumulée: ${queryStats.totalDebt.toLocaleString("fr-FR")} DA) :\n${topSample}\n\n` +
       `Donne un diagnostic synthétique et 3 actions prioritaires.`;
     openCopilot(true);
     void askAgent(prompt);
@@ -987,7 +1026,7 @@ export function OperationalQueryConsole({
                     if (isActive) setActivePreset(null);
                     else {
                       setActivePreset(preset.id);
-                      setSelectedCategory("all");
+                      applyCategory("all");
                     }
                   }}
                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${

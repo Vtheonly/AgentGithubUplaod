@@ -37,12 +37,21 @@
  */
 import type { Result } from "../../core/result";
 
-/** One widget's grid rectangle — the editor's LayoutRect. */
+/** One widget's grid rectangle — the editor's LayoutRect.
+ *
+ * T-503 (UI-335): the optional `hidden` flag is the per-indicator
+ * show/hide state (the owner's mandate: "Add individual show/hide toggles
+ * so users can choose which indicators are displayed"). It rides the SAME
+ * persisted layout payload (the dashboard_layouts jsonb row / the
+ * localStorage cache) — one store, one contract, no parallel visibility
+ * store. Absent = visible (every pre-T-503 layout is unaffected). */
 export interface DashboardLayoutRect {
   x: number;
   y: number;
   w: number;
   h: number;
+  /** T-503: true when the user hid this indicator from the view. */
+  hidden?: boolean;
 }
 
 /** The serializable saved layout: one rect per widget id. */
@@ -80,6 +89,10 @@ export function parseStoredDashboardLayout(
         y: candidate.y,
         w: candidate.w,
         h: candidate.h,
+        // T-503 (UI-335): the optional per-indicator hidden flag passes
+        // through — only an explicit boolean true hides (anything else is
+        // dropped = visible, the backward-compatible default).
+        ...(candidate.hidden === true ? { hidden: true } : {}),
       };
     }
   }

@@ -13,24 +13,34 @@ import {
 } from "../../../../shared/ui/card";
 import { Button } from "../../../../shared/ui/button";
 import { useAICopilot } from "../../../../app/providers/ai-copilot-provider";
-import type { StudentRiskProfile } from "./operational-query-engine";
+// T-503 (UI-335): the CANONICAL triple-risk summary — the SAME
+// deriveTripleRiskSummary the pilotage view's radar consumes (one
+// derivation, two presentations; the card's inline recount of the same
+// four counts is retired — the §6/§9 no-parallel-implementation rule).
+import type { TripleRiskSummary } from "./executive-statistics";
 
 interface Props {
-  profiles: StudentRiskProfile[];
+  /** T-503 (UI-335): the canonical summary — deriveTripleRiskSummary(riskProfiles). */
+  summary: TripleRiskSummary;
+  /**
+   * T-503 (UI-335): the quadrant→console filter (the card's "Cliquez sur
+   * un quadrant pour filtrer la console d'investigation" promise — wired
+   * by the diagnostic view's tab state).
+   */
   onSelectCategory?: (category: string) => void;
 }
 
-export function CrossRiskCard({ profiles, onSelectCategory }: Props) {
+export function CrossRiskCard({ summary, onSelectCategory }: Props) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
 
+  // T-503 (UI-335): ONE derivation — the counts come from the canonical
+  // summary object (the tab's single deriveTripleRiskSummary call), never
+  // recomputed here.
   const counts = {
-    triple: profiles.filter((p) => p.riskCategory === "triple_critical").length,
-    academic: profiles.filter((p) => p.riskCategory === "academic_alert")
-      .length,
-    attendance: profiles.filter((p) => p.riskCategory === "attendance_alert")
-      .length,
-    financial: profiles.filter((p) => p.riskCategory === "financial_tension")
-      .length,
+    triple: summary.tripleCriticalCount,
+    academic: summary.academicAlertCount,
+    attendance: summary.attendanceAlertCount,
+    financial: summary.financialTensionCount,
   };
 
   const handleLaunchEmergencyInvestigation = () => {

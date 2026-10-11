@@ -9,7 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { GripVertical, Maximize2, RotateCcw, Save } from "lucide-react";
+import { Eye, EyeOff, GripVertical, Maximize2, RotateCcw, Save } from "lucide-react";
 // T-448 (UI-326): the dedicated server-side layout store + the ONE shared
 // localStorage-key module (the offline cache / mock-mode home).
 import { useRepositories } from "../../app/providers/repository-provider";
@@ -38,7 +38,7 @@ export interface DashboardLayoutItem {
   y?: number;
 }
 
-type LayoutRect = { x: number; y: number; w: number; h: number };
+type LayoutRect = { x: number; y: number; w: number; h: number; hidden?: boolean };
 type StoredLayout = Record<string, LayoutRect>;
 
 type DragState = {
@@ -130,6 +130,9 @@ function sanitizeRect(rect: LayoutRect, item: DashboardLayoutItem): LayoutRect {
     y: Math.max(0, Math.round(rect.y)),
     w,
     h,
+    // T-503 (UI-335): the per-indicator visibility flag survives the
+    // sanitize pass (geometry clamping never changes visibility).
+    ...(rect.hidden === true ? { hidden: true } : {}),
   };
 }
 
@@ -287,7 +290,12 @@ function buildInitialLayout(items: DashboardLayoutItem[], stored: StoredLayout):
 
 function layoutBottom(layout: StoredLayout) {
   let bottom = 8;
-  for (const rect of Object.values(layout)) bottom = Math.max(bottom, rect.y + rect.h);
+  // T-503 (UI-335): hidden indicators reserve no grid space — the
+  // container's minHeight tracks the VISIBLE footprint only.
+  for (const rect of Object.values(layout)) {
+    if (rect.hidden) continue;
+    bottom = Math.max(bottom, rect.y + rect.h);
+  }
   return bottom;
 }
 
@@ -309,6 +317,7 @@ const LayoutCell = memo(function LayoutCell({
   isActive,
   onDragStart,
   onResizeStart,
+  onHide,
 }: {
   item: DashboardLayoutItem;
   rect: LayoutRect;
@@ -322,6 +331,8 @@ const LayoutCell = memo(function LayoutCell({
     item: DashboardLayoutItem,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void;
+  /** T-503 (UI-335): the per-indicator hide toggle (edit mode only). */
+  onHide: (id: string) => void;
 }) {
   return (
     <div
@@ -360,8 +371,22 @@ const LayoutCell = memo(function LayoutCell({
           >
             <Maximize2 className="h-3.5 w-3.5" />
           </button>
-          <div className="absolute right-2 top-2 z-40 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-mono text-primary">
-            {rect.w}/12 × {rect.h}
+          <div className="absolute right-2 top-2 z-40 flex items-center gap-1.5">
+            <div className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-mono text-primary">
+              {rect.w}/12 × {rect.h}
+            </div>
+            {/* T-503 (UI-335): the per-indicator HIDE toggle — the owner's
+                show/hide mandate, one toggle per indicator, persisted with
+                the layout (same store, same explicit-save contract). */}
+            <button
+              type="button"
+              aria-label={`Masquer ${item.label}`}
+              title={`Masquer ${item.label}`}
+              onClick={() => onHide(item.id)}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border/70 bg-surface-panel/95 text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              <EyeOff className="h-3 w-3" />
+            </button>
           </div>
         </>
       )}
@@ -715,6 +740,38 @@ export function DashboardLayoutEditor({
     });
   }
 
+  // T-503 (UI-335): the per-indicator SHOW/HIDE toggles. Both ride the
+  // SAME layout object (persisted by the existing explicit-save path — no
+  // parallel visibility store) and both mark the layout dirty so the
+  // Enregistrer button lights up exactly like a drag/resize would.
+  const hideItem = useCallback((id: string) => {
+    setLayout((previous) => {
+      const rect = previous[id];
+      if (!rect || rect.hidden === true) return previous;
+      return { ...previous, [id]: { ...rect, hidden: true } };
+    });
+    setDirty(true);
+  }, []);
+
+  const showItem = useCallback((id: string) => {
+    setLayout((previous) => {
+      const rect = previous[id];
+      if (!rect || rect.hidden !== true) return previous;
+      const rest: LayoutRect = {
+        x: rect.x,
+        y: rect.y,
+        w: rect.w,
+        h: rect.h,
+      };
+      // The restored indicator re-enters the grid at its stored rect; the
+      // load-time resolver semantics ("__load__" — push whichever of an
+      // overlapping pair sits lower) heal any overlap a sibling may have
+      // drifted into while this one was hidden.
+      return resolveCollisions({ ...previous, [id]: rest }, "__load__");
+    });
+    setDirty(true);
+  }, []);
+
   function reset() {
     removeDashboardLayoutCache(storageKey);
     setLayout(buildInitialLayout(itemsRef.current, {}));
@@ -735,6 +792,17 @@ export function DashboardLayoutEditor({
   }
 
   const contentRows = useMemo(() => layoutBottom(layout), [layout]);
+  // T-503 (UI-335): the visible/hidden split — hidden indicators render in
+  // NEITHER mode's grid (view mode: simply absent; edit mode: listed in the
+  // restoration tray below the grid instead).
+  const visibleItems = useMemo(
+    () => items.filter((item) => layout[item.id]?.hidden !== true),
+    [items, layout],
+  );
+  const hiddenItems = useMemo(
+    () => items.filter((item) => layout[item.id]?.hidden === true),
+    [items, layout],
+  );
 
   return (
     <>
@@ -773,7 +841,7 @@ export function DashboardLayoutEditor({
           minHeight: `${contentRows * ROW_HEIGHT + Math.max(0, contentRows - 1) * GRID_GAP + 16}px`,
         }}
       >
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const rect = layout[item.id] ?? sanitizeRect(
             { x: 0, y: 0, w: item.w ?? GRID_COLUMNS, h: item.h ?? DEFAULT_HEIGHT },
             item,
@@ -787,10 +855,52 @@ export function DashboardLayoutEditor({
               isActive={activeId === item.id}
               onDragStart={startDrag}
               onResizeStart={startResize}
+              onHide={hideItem}
             />
           );
         })}
       </div>
+
+      {/* T-503 (UI-335): the all-hidden honest empty state — the view never
+          renders a silently blank dashboard. */}
+      {visibleItems.length === 0 && (
+        <div
+          className="rounded-xl border border-dashed border-border/70 bg-surface-panel/50 px-4 py-10 text-center text-xs text-muted-foreground"
+          data-testid="dashboard-all-hidden"
+        >
+          Tous les indicateurs de cette vue sont masqués. Activez
+          « Personnaliser le tableau de bord » puis « Afficher » dans le bac
+          des indicateurs masqués pour les réafficher.
+        </div>
+      )}
+
+      {/* T-503 (UI-335): the HIDDEN INDICATORS TRAY — the edit-mode home of
+          every hidden item (one-click restore, per-indicator). */}
+      {editing && hiddenItems.length > 0 && (
+        <div
+          className="mt-3 rounded-lg border border-dashed border-border/70 bg-surface-panel/60 px-3 py-2.5"
+          data-testid="dashboard-hidden-tray"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Indicateurs masqués ({hiddenItems.length})
+          </span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {hiddenItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={`Afficher ${item.label}`}
+                title={`Afficher ${item.label}`}
+                onClick={() => showItem(item.id)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                <Eye className="h-3 w-3" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
