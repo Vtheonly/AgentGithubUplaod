@@ -161,7 +161,11 @@ describe("UI-339 — local funnel interactions", () => {
     );
 
     expect(screen.getByText("Foyers dans cette étape")).toBeInTheDocument();
-    expect(within(screen.getByRole("dialog")).getByText(/1[\s\u00a0\u202f.,]?182/)).toBeInTheDocument();
+    // T-508: the stable selector (the raw /1..182/ text regex also matched the
+    // "1 182 résultat(s)" counter — the exact ambiguity the testid exists for).
+    expect(screen.getByTestId("demo-stage-household-count")).toHaveTextContent(
+      /1[\s\u00a0\u202f.,]?182/,
+    );
     expect(screen.getByText(/Nadia Benali · Démo 0001/)).toBeInTheDocument();
 
     fireEvent.click(

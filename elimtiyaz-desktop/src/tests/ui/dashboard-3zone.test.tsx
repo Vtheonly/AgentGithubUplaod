@@ -39,10 +39,15 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { ToastProvider } from "../../app/providers/toast-provider";
 import type { ReactNode } from "react";
 // Initialize i18n FIRST — useTranslation() will otherwise throw.
 import "../../i18n/i18n";
 import { OverviewTab, type DashboardData } from "../../features/dashboard/tabs/overview-tab";
+
+/** T-508: named noops — the empty-inline-arrow eslint warnings stay at HEAD’s zero. */
+const noop = () => undefined;
 import {
   deriveRecoveryFunnel,
 } from "../../features/dashboard/components/recovery-funnel-card";
@@ -322,15 +327,23 @@ describe("OverviewTab — T-243 3-zone layout", () => {
     range?: { from: string; to: string },
     installments: readonly Installment[] = WAVES,
   ) {
+    // T-508 (UI-339): the funnel card's Finance actions require routing —
+    // the harness wraps the tab in a MemoryRouter (the PR-#26 prototype's
+    // useNavigate landed without this and the suite went red at open —
+    // the §15.14/REG-003 class, repaired with the production wiring).
     return render(
-      <OverviewTab
-        data={data}
-        payments={payments}
-        installments={installments}
-        range={range}
-        onDrillDown={() => {}}
-        onGoToAlerts={() => {}}
-      />,
+      <MemoryRouter>
+        <ToastProvider>
+          <OverviewTab
+            data={data}
+            payments={payments}
+            installments={installments}
+            range={range}
+            onDrillDown={noop}
+            onGoToAlerts={noop}
+          />
+        </ToastProvider>
+      </MemoryRouter>,
     );
   }
 
@@ -439,13 +452,17 @@ describe("OverviewTab — T-243 3-zone layout", () => {
   it("KPI cards drill into the SeeDetailsModal sub-tabs", () => {
     const onDrillDown = vi.fn();
     render(
-      <OverviewTab
-        data={POPULATED_DATA}
-        payments={[]}
-        installments={WAVES}
-        onDrillDown={onDrillDown}
-        onGoToAlerts={() => {}}
-      />,
+      <MemoryRouter>
+        <ToastProvider>
+          <OverviewTab
+            data={POPULATED_DATA}
+            payments={[]}
+            installments={WAVES}
+            onDrillDown={onDrillDown}
+            onGoToAlerts={noop}
+          />
+        </ToastProvider>
+      </MemoryRouter>,
     );
     // Students card → demographics drill-down (the card's clickable
     // container carries the onClick handler).
@@ -458,13 +475,17 @@ describe("OverviewTab — T-243 3-zone layout", () => {
   it("the relance buttons route to the alerts workspace", () => {
     const onGoToAlerts = vi.fn();
     render(
-      <OverviewTab
-        data={POPULATED_DATA}
-        payments={[]}
-        installments={WAVES}
-        onDrillDown={() => {}}
-        onGoToAlerts={onGoToAlerts}
-      />,
+      <MemoryRouter>
+        <ToastProvider>
+          <OverviewTab
+            data={POPULATED_DATA}
+            payments={[]}
+            installments={WAVES}
+            onDrillDown={noop}
+            onGoToAlerts={onGoToAlerts}
+          />
+        </ToastProvider>
+      </MemoryRouter>,
     );
     // T-469/TEST-501: the debtor row is no longer itself a button — the
     // rail's primary CTA (and the per-row "Ouvrir le dossier" arrow) route

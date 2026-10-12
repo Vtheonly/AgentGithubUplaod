@@ -394,12 +394,37 @@ export interface CallListEntry {
   readonly worstDaysOverdue: number;
 }
 
+export interface DebtTriageFunnelFamilyCounts {
+  /** DISTINCT families with any outstanding (INV-4 > 0) — funnel stage 1. */
+  readonly debtors: number;
+  /** DISTINCT families whose WORST unpaid installment is past due — stage 2. */
+  readonly pastDue: number;
+  /** DISTINCT families beyond yellowDays — stage 3. */
+  readonly beyondYellow: number;
+  /** DISTINCT families beyond redDays — stage 4. */
+  readonly critical: number;
+}
+
 export interface DebtTriage {
   readonly buckets: DebtTriageBucket[];
   /** Total outstanding across every bucket (INV-4, DZD). */
   readonly totalOutstanding: number;
   /** The beyond-red families owed the most — the immediate call list. */
   readonly callList: CallListEntry[];
+  /**
+   * T-508 (UI-339): the DISTINCT-family stage counts for the recovery
+   * funnel — one family counted ONCE per stage no matter how many
+   * installments/students/buckets it straddles. The bucket `familyCount`
+   * fields above remain PER-BUCKET sets (a family with a not-yet-due T2
+   * AND a 70-day T1 legitimately appears in both `not_due` and `chronic`);
+   * SUMMING them double-counts such families — the exact defect the
+   * funnel's stage counts carried pre-T-508. Derived from the SAME
+   * per-family {outstanding, worstDaysOverdue} map the callList rides,
+   * with the SAME predicates the funnel's household lists apply
+   * (outstanding > 0 → worst > 0 → > yellowDays → > redDays) — counts
+   * and lists reconcile BY CONSTRUCTION.
+   */
+  readonly funnelFamilyCounts: DebtTriageFunnelFamilyCounts;
 }
 
 /**
@@ -479,7 +504,25 @@ export function deriveDebtTriage(
     .sort((a, b) => b.outstanding - a.outstanding)
     .slice(0, 10);
 
-  return { buckets, totalOutstanding, callList: chronicFamilies };
+  // T-508 (UI-339): the DISTINCT-family funnel counts — the same perFamily
+  // map, the same worst-day predicates the callList applies, counted ONCE
+  // per family (a family straddling two buckets is ONE debtor, not two).
+  let pastDue = 0;
+  let beyondYellow = 0;
+  let critical = 0;
+  for (const f of perFamily.values()) {
+    if (f.worstDaysOverdue > 0) pastDue += 1;
+    if (f.worstDaysOverdue > thresholds.yellowDays) beyondYellow += 1;
+    if (f.worstDaysOverdue > thresholds.redDays) critical += 1;
+  }
+  const funnelFamilyCounts: DebtTriageFunnelFamilyCounts = {
+    debtors: perFamily.size,
+    pastDue,
+    beyondYellow,
+    critical,
+  };
+
+  return { buckets, totalOutstanding, callList: chronicFamilies, funnelFamilyCounts };
 }
 
 // ============================================================================

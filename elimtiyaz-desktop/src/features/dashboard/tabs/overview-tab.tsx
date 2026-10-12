@@ -62,8 +62,17 @@ const WAVE_METER_SCOPE: ThresholdsConfigScope = {
 };
 const RECOVERY_FUNNEL_SCOPE: ThresholdsConfigScope = {
   title: "Entonnoir de recouvrement",
-  params: ["gracePeriodDays", "yellowDays", "redDays"],
-  hint: "L’escalade des phases (grâce → à surveiller → critique) suit la hiérarchie de seuils en jours configurée.",
+  params: [
+    "gracePeriodDays",
+    "yellowDays",
+    "redDays",
+    // T-508 (UI-339): the amount bands — the PERSISTED canonical settings
+    // (migration 0138) the per-row « Bande montant » chips classify with;
+    // editable from the funnel through the SAME T-507 shared-source chain.
+    "amountYellowDzd",
+    "amountRedDzd",
+  ],
+  hint: "L’escalade des phases suit la hiérarchie de seuils en jours configurée ; les bandes de montant par foyer suivent les seuils DZD configurés.",
 };
 
 export function OverviewTab({
@@ -274,6 +283,11 @@ export function OverviewTab({
       content: (
         <RecoveryFunnelCard
           stages={funnelStages}
+          // T-508 (UI-339): the REAL data for the production household
+          // lists — the SAME installments/thresholds the triage above
+          // consumed (counts and lists share the edges by construction).
+          installments={installments}
+          debtThresholds={debtThresholds}
           headerActions={
             <ThresholdsConfigTrigger scope={RECOVERY_FUNNEL_SCOPE} config={thresholdsConfig} />
           }
