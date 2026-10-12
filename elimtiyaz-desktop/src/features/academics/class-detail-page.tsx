@@ -302,6 +302,14 @@ export function ClassDetailPage() {
   async function handleSaveClassDetails() {
     if (!cls) return;
     setSubmittingClassEdit(true);
+    // T-512 (GitHub issue #27): snapshot the roster diff BEFORE the first
+    // await — the operator's intent at save-click time is the contract.
+    // (BEFORE: the diff was computed after updateClass resolved, and the
+    // checkboxes stayed interactive throughout, so a late click could be
+    // acknowledged by the badge yet silently excluded from this diff.)
+    const currentMemberIds = new Set(students.map((s) => s.id));
+    const toAdd = [...rosterSelection].filter((id) => !currentMemberIds.has(id));
+    const toRemove = [...currentMemberIds].filter((id) => !rosterSelection.has(id));
     try {
       const result = await repos.classes.updateClass(cls.id, {
         name: classNameInput.trim() || cls.name,
@@ -320,9 +328,6 @@ export function ClassDetailPage() {
       // swallow a repository Result): a partial outcome is reported
       // honestly with the counts, and the failures are actionable by
       // re-opening the modal.
-      const currentMemberIds = new Set(students.map((s) => s.id));
-      const toAdd = [...rosterSelection].filter((id) => !currentMemberIds.has(id));
-      const toRemove = [...currentMemberIds].filter((id) => !rosterSelection.has(id));
       let applied = 0;
       const failures: string[] = [];
 
@@ -780,7 +785,9 @@ export function ClassDetailPage() {
           {/* T-474 — the owner's class-roster mandate: the pre-checked
               multi-select (the current roster) with search + eligibility
               filtering; the add/remove diff persists through
-              updateStudent(classId / null) on save. */}
+              updateStudent(classId / null) on save.
+              T-512 (issue #27): disabled while the batch is in flight — the
+              roster diff is frozen at save-click time. */}
           <ClassStudentMultiSelect
             gradeCode={cls.gradeCode}
             currentClassId={cls.id}
@@ -788,6 +795,7 @@ export function ClassDetailPage() {
             selectedIds={rosterSelection}
             onToggle={toggleRosterStudent}
             onReplaceSelection={replaceRosterSelection}
+            disabled={submittingClassEdit}
           />
         </div>
       </UnifiedModal>

@@ -393,6 +393,26 @@ function CreateClassModal({
     setSubmitting(true);
     setAlert(null);
 
+    // T-512 (GitHub issue #27): the submitting state now spans the WHOLE
+    // batch — the year/level validation, createClass, AND the per-student
+    // assignment loop — through the finally block below. BEFORE this,
+    // setSubmitting(false) ran right after createClass, leaving the
+    // multi-select interactive while the sequential student writes were
+    // still in flight (~0.7s per student live): a checkbox clicked in that
+    // window was acknowledged by the badge but silently discarded by the
+    // running loop's click-time closure — the live "one-less-student"
+    // registration symptom (the owner's 2026-10-12 audit trail: three
+    // consecutive 1→0 / 4→3 / 5→4 reproductions). The multi-select is
+    // disabled while submitting, so the selection can NEVER change under a
+    // batch that already captured it.
+    try {
+      await handleSubmitBatch();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleSubmitBatch() {
     const teacher = personnel.find((p) => p.id === teacherId);
     const code = `CLS-${gradeCode.toUpperCase()}-${section.replace(/\s+/g, "").toUpperCase()}-${Date.now().toString(36).slice(-3)}`;
 
@@ -409,7 +429,6 @@ function CreateClassModal({
         description:
           "Aucune année scolaire n'est définie comme active. Définissez l'année courante dans Années scolaires avant de créer une classe.",
       });
-      setSubmitting(false);
       return;
     }
 
@@ -428,7 +447,6 @@ function CreateClassModal({
             ? `Le catalogue academic_levels n'a pas de ligne pour le code « ${gradeCode} » — vérifiez la migration du catalogue académique.`
             : levelResult.error.userMessage,
       });
-      setSubmitting(false);
       return;
     }
 
@@ -462,8 +480,6 @@ function CreateClassModal({
       isActive: true,
     } as Omit<AcademicClass, "id" | "tenantId" | "enrolledCount">);
 
-    setSubmitting(false);
-
     if (result.ok) {
       // T-474: link the selected students to the NEWLY created class through
       // the existing persistence seam (updateStudent classId — the same call
@@ -471,6 +487,12 @@ function CreateClassModal({
       // per-student error collection (the T-370 lesson: a repository Result
       // is never swallowed): a partial outcome is reported honestly and the
       // failure list is actionable from the class page.
+      //
+      // T-512 (issue #27): the loop iterates the CLICK-TIME closure set —
+      // the multi-select is disabled while this runs (see handleSubmit), so
+      // the selection the operator SAW on submit is EXACTLY the selection
+      // that persists. Every selected student is either written or reported
+      // — never silently dropped.
       const newClassId = result.value.id;
       let assignedCount = 0;
       const failedStudents: string[] = [];
@@ -654,12 +676,15 @@ function CreateClassModal({
         </FormField>
         {/* T-474 — the owner's class-roster mandate: select the students who
             belong to the class at creation time. Eligibility follows the
-            selected grade level above; the picker widens on demand. */}
+            selected grade level above; the picker widens on demand.
+            T-512 (issue #27): disabled while the batch is in flight — the
+            selection is frozen at submit time. */}
         <ClassStudentMultiSelect
           gradeCode={gradeCode}
           selectedIds={selectedStudentIds}
           onToggle={toggleStudent}
           onReplaceSelection={replaceStudentSelection}
+          disabled={submitting}
         />
       </div>
     </UnifiedModal>

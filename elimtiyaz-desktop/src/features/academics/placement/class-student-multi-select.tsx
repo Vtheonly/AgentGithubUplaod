@@ -53,6 +53,17 @@ export interface ClassStudentMultiSelectProps {
   readonly onReplaceSelection: (studentIds: readonly string[]) => void;
   /** Height cap for the scrollable list (Tailwind max-h-* class). */
   readonly listMaxHeightClass?: string;
+  /**
+   * T-512 (GitHub issue #27): while the parent modal's batch (class
+   * creation/edit + the per-student assignment loop) is IN FLIGHT, the
+   * selection MUST be frozen — the running handler iterates the
+   * click-time closure set, so a checkbox clicked mid-flight would be
+   * acknowledged by the badge and then SILENTLY DISCARDED when the modal
+   * closes (the live "one-less-student" symptom: the owner's 2026-10-12
+   * audit trail shows 1→0, 4→3 and 5→4 registered in three consecutive
+   * attempts). Disable every interaction instead.
+   */
+  readonly disabled?: boolean;
 }
 
 interface StudentRow {
@@ -69,6 +80,7 @@ export function ClassStudentMultiSelect({
   onToggle,
   onReplaceSelection,
   listMaxHeightClass = "max-h-64",
+  disabled = false,
 }: ClassStudentMultiSelectProps) {
   const repos = useRepositories();
   const allStudents = useObservable(() => repos.students.observe(), []) ?? [];
@@ -153,6 +165,7 @@ export function ClassStudentMultiSelect({
               variant="ghost"
               size="sm"
               className="h-6 px-2 text-[11px]"
+              disabled={disabled}
               onClick={() =>
                 onReplaceSelection(
                   filteredSelectedCount === filtered.length
@@ -176,6 +189,7 @@ export function ClassStudentMultiSelect({
             type="button"
             variant="ghost"
             size="sm"
+            disabled={disabled}
             className={cn(
               "h-6 px-2 text-[11px]",
               showAllGrades && "text-primary",
@@ -195,6 +209,7 @@ export function ClassStudentMultiSelect({
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          disabled={disabled}
           placeholder="Rechercher par nom ou code (ELV-…)"
           className="pl-8 h-8 text-xs"
           data-testid="class-student-search"
@@ -224,15 +239,19 @@ export function ClassStudentMultiSelect({
               <label
                 key={s.id}
                 className={cn(
-                  "flex items-center gap-2.5 px-2.5 py-2 cursor-pointer transition-colors select-none",
+                  "flex items-center gap-2.5 px-2.5 py-2 transition-colors select-none",
+                  disabled
+                    ? "cursor-not-allowed opacity-60"
+                    : "cursor-pointer",
                   checked ? "bg-primary/5" : "hover:bg-accent/5",
                 )}
               >
                 <input
                   type="checkbox"
                   checked={checked}
+                  disabled={disabled}
                   onChange={() => onToggle(s.id)}
-                  className="h-4 w-4 shrink-0 accent-primary cursor-pointer"
+                  className="h-4 w-4 shrink-0 accent-primary cursor-pointer disabled:cursor-not-allowed"
                   data-testid={`class-student-checkbox-${s.id}`}
                 />
                 <span
