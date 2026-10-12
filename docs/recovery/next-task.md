@@ -1,3 +1,11 @@
+# 2026-10-12 — The 157th session IN PROGRESS (T-508): the recovery-funnel production integration (UI-339) — the registration complete; the implementation phases next
+
+**The mandate (PR #26's own integration brief):** connect the interactive recovery funnel to the real backend — the per-stage household lists over the canonical per-family derivation, the Finance navigation with REAL parent IDs, the messaging through the ONLY existing parent-contact pathway (the WhatsApp wa.me handoff — no server-side parent provider exists, so no send is ever claimed), the amount-band context chips, and the distinct-family repair in the funnel's stage counts (the Σ familyCounts double-count). The prototype's demo mode stays, clearly labeled, with its isolation pinned by tests.
+
+**The phases:** (a) the canonical derivation + the distinct-count repair; (b) the production dialog wiring (lists, Finance nav, WhatsApp handoff); (c) the T-507 scope extension with the amount params; (d) the suites + the docs closeout. Each phase = one commit, pushed + merged before the next (the user's explicit instruction).
+
+---
+
 # 2026-10-12 — The 156th session COMPLETE (T-505, the Sync & Backup mandate — the CONCURRENT twin of the T-507 fleet): the investigation concluded (BKUP-512: the pre-T-487 build's GCM/empty-archive class + the offline-layer boundary + the export hole) + BKUP-510 closed (the export warm-up seam) + BKUP-511 delivered (the ZIP-of-Excel checkpoint + the restore-from-file ladder + the last-location memory); the battery 4,982/0/5 BASELINE-MATCHED post-merge (299 files, +26 tests), the LIVE verification 12/12
 
 **The five-question commits:** the registration (15c0970a) → phase (a) the warm-up seam (f1179bb6) → phases (b)+(c) the file workflows (99aafc0a, rebased under the T-507 renumber chain — the baseline merge resolved to the TRUE combined count and CONFIRMED by the run) → this doc set. The problem registry carries the three RESOLVED-TESTED entries with the evidence (the 13/13 pipeline probe + the 12/12 file-workflows live verification, both scripts committed).
