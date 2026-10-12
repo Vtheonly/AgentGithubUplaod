@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
+import type { ReactNode } from "react";
 import "../../../i18n/i18n";
 import { ToastProvider } from "../../../app/providers/toast-provider";
 import {
@@ -35,11 +36,14 @@ function LocationProbe() {
   return <output data-testid="route-location">{location.pathname + location.search}</output>;
 }
 
-function renderPrototype() {
+function renderPrototype(headerActions?: ReactNode) {
   return render(
     <MemoryRouter>
       <ToastProvider>
-        <RecoveryFunnelCard stages={PRODUCTION_STAGE_FIXTURE} />
+        <RecoveryFunnelCard
+          stages={PRODUCTION_STAGE_FIXTURE}
+          headerActions={headerActions}
+        />
         <LocationProbe />
       </ToastProvider>
     </MemoryRouter>,
@@ -138,6 +142,23 @@ describe("UI-339 — local funnel interactions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Confirmer la simulation" }));
     expect(screen.queryByText("Confirmer la simulation")).not.toBeInTheDocument();
+  });
+
+  it("hides the persisted Settings trigger only while the local prototype is active", () => {
+    renderPrototype(<button type="button">Persist real thresholds</button>);
+    expect(
+      screen.getByRole("button", { name: "Persist real thresholds" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /aperçu local/i }));
+    expect(
+      screen.queryByRole("button", { name: "Persist real thresholds" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /données du tableau/i }));
+    expect(
+      screen.getByRole("button", { name: "Persist real thresholds" }),
+    ).toBeInTheDocument();
   });
 
   it("routes Finance actions with the selected fictional household context", () => {
