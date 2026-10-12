@@ -328,3 +328,79 @@ frozen at write time) · the label ≥ 3 chars and the amount > 0 are enforced a
 RPC (and mirrored in the desktop modal's schema). Credits are the OPPOSITE operation
 and stay on the account-adjustment path (`adjust()` with a negative amount) — the
 manual-debt modal creates obligations only.
+
+## 21. Per-tranche amount adjustment — the canonical individual-amount write path (T-510 / DEBT-105, GitHub issue #31, 2026-10-13)
+
+**The rule:** editing what a family owes for ONE specific tranche is ONE canonical write path — the
+`adjust_installment_amount` RPC (migration 0152, APPLIED LIVE — the 0137 create_manual_debt conventions:
+SECURITY DEFINER, staff-gated [super_admin / financial_officer / support_staff], tenant-scoped, the
+FOR UPDATE row lock serialising concurrent adjustments on the same tranche). The input's
+`p_new_amount_due` is the tranche's **NEW TOTAL due — an absolute amount, never a delta** (the issue's
+explicit-meaning mandate; the UI labels it « Nouveau montant dû TOTAL … PAS un ajustement à
+additionner »). The desktop contract is `InstallmentRepository.adjustAmountDue` (the optional-member
+convention; the Supabase twin is a THIN client — payload + the canonical-mapper read-back; the mock
+twin applies the same semantics through the createAdjustmentEntry/appendAudit factories).
+
+**The three atomic writes (one call):**
+
+1. **The installments row** — `amount_due := p_new_amount_due`, the status re-derived (§21.1 below),
+   `paid_date` stamped only when becoming paid (the 0115 waterfall convention — a re-opened tranche
+   keeps its historical settlement date). ONLY the intended row — never a sibling.
+2. **The ledger adjustment entry** — the signed DELTA (`new − previous`) on the tranche's OWN account
+   (`parent:{id}:category:{cat}:student:{student}` — the live charge convention), append-only. This
+   preserves **the T-103 invariant** (Σ installments due == Σ charges + Σ adjustments, per family) BY
+   CONSTRUCTION — the account-level and tranche-level balances cannot diverge through this path (the
+   issue's consistency mandate). A decrease is the **remise class** (a negative adjustment — exactly
+   the Excel import's discount semantics); an increase is the **majoration class** (CALC-001:
+   penalties do not exist).
+3. **The audit row** — `installment.amount_adjusted`: the before/after amounts + statuses + the
+   amounts paid/pending + the resulting account balance + the resulting family Σ installments due +
+   the actor + the reason + the timestamp (the issue's auditability mandate).
+
+**The guards (fail-closed, before any write):** `p_new_amount_due >= 0` (the 0007 CHECK; 0 = the
+full-waiver edge — the settled class) · the reason >= 3 chars (the BUSINESS-003 audit mandate) · the
+row must exist in the tenant scope · **the delta <> 0** — the NO-OP GUARD: a repeated save of the SAME
+value is rejected, so an applied adjustment can never be double-applied (the issue's
+"repeated saves without duplicate adjustments or double application").
+
+**The status re-derivation (§21.1 — the 0115 waterfall predicates + ADR-033, deterministic):**
+
+| Priority | Condition | Status |
+|---|---|---|
+| 1 | `amount_paid >= new_amount_due` | `paid` (INV-4: cleared funds cover the new due) |
+| 2 | `amount_pending > 0` | `pending_clearance` (uncleared funds in flight) |
+| 3 | `amount_paid > 0` | `partial` |
+| 4 | due date past | `overdue` (ADR-033) |
+| 5 | otherwise | `unpaid` (ADR-033) |
+
+⚠ **The pending-over-partial priority is REQUIRED** (T-510 discovery): the waterfall's own status is
+write-order-dependent (the last allocation's cleared-ness decides between 'partial' and
+'pending_clearance'), so a re-derivation is deterministic and honest ONLY under this priority — a row
+with uncleared funds in flight is 'pending_clearance' regardless of its partial cleared funds. Both
+the SQL RPC and the mock twin implement this exact order; the t-510 suite pins it.
+
+**The over-covered case (§21.2 — the issue's "handle paid, partially paid, unpaid, and overpaid
+tranches correctly" + "explicitly handle adjustments affecting already-paid or allocated amounts"):**
+when `new_amount_due < amount_paid + amount_pending`, the change is ALLOWED and never silent — the
+result carries `overcovered: true` + the `excess` (paid + pending − new due); the status becomes
+`paid` (the INV-4 predicate), the canonical remaining clamps to 0, and **the excess is NEVER moved**
+(no payment row rewrite, no allocation move, no tranche-to-tranche transfer, no payment history
+rewrite — the issue's "do not silently move payments between tranches"). The ledger delta lands on
+the tranche's account, so the account replay shows the over-coverage exactly like the reconciled
+historical corpus class (DATA-009's documented "balance = −excess is already exact" semantics). The
+compensations remain the owner's separate, explicit decisions: a canonical LIFO refund
+(`revert_payment_allocation`) or an account-level credit (`adjust()` with a negative amount).
+
+**The account-level relationship (§21.3):** the pre-existing `adjust()` path (the account-level
+ledger correction) and this per-tranche path are COMPLEMENTARY, and their scopes are now stated
+explicitly in the UI (the issue's "If an account-level adjustment is supported, show clearly how it
+affects tranche amounts; do not silently redistribute it"): the account-level adjustment moves the
+ledger balance ONLY — it never changes any tranche's amount due and is never redistributed among
+tranches; the per-tranche amounts are edited tranche by tranche through this path, each with its own
+reason and its own audit + ledger entry.
+
+**Invariants:** INV-4 family (the remaining formula, the clamping, the settled predicate) · the
+T-103 reconciliation (the delta lands on both sides) · INV-1 (the ledger stays append-only — every
+adjustment is a NEW entry, nothing is rewritten) · ADR-033 (the status vocabulary) · the payments,
+payment allocations, pending payments, credits, discounts, and historical transactions are NEVER
+touched by this path (pinned by the t-510 suite's scenario 6 + 11).
