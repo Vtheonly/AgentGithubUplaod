@@ -200,6 +200,14 @@ export function deriveDemoRecoveryFunnel(
   const total = eligible.length;
   const pct = (count: number) =>
     total > 0 ? Math.round((count / total) * 100) : 0;
+  const yellowAmountLabel =
+    config.amountYellowDzd > 0
+      ? "≥ " + formatDzd(config.amountYellowDzd) + " DZD"
+      : "montant désactivé";
+  const redAmountLabel =
+    config.amountRedDzd > 0
+      ? "> " + formatDzd(config.amountRedDzd) + " DZD"
+      : "montant désactivé";
 
   return [
     {
@@ -218,13 +226,13 @@ export function deriveDemoRecoveryFunnel(
       color: chartPalette.primary,
     },
     {
-      name: "À surveiller (>" + config.yellowDays + " j ou seuil DZD)",
+      name: "À surveiller (>" + config.yellowDays + " j ou " + yellowAmountLabel + ")",
       count: beyondYellow.length,
       rateFromPrevious: pct(beyondYellow.length),
       color: chartPalette.warning,
     },
     {
-      name: "Critique (>" + config.redDays + " j ou seuil DZD)",
+      name: "Critique (>" + config.redDays + " j ou " + redAmountLabel + ")",
       count: critical.length,
       rateFromPrevious: pct(critical.length),
       color: chartPalette.danger,
