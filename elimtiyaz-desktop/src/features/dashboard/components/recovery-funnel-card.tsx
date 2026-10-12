@@ -18,7 +18,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   Filter,
   ChevronRight,
-  Clock3,
   MessageCircle,
   Search,
   Settings2,
@@ -233,6 +232,8 @@ export function renderDemoRecoveryMessage(
   return template.replace(/\{([a-zA-Z]+)\}/g, (match, key: string) => values[key] ?? match);
 }
 
+const TEMPLATE_STAGE_INDICES: RecoveryStageIndex[] = [0, 1, 2, 3];
+
 const DEMO_TEMPLATE_LABELS: Record<RecoveryStageIndex, string> = {
   0: "Étape 1 · Tous les débiteurs",
   1: "Étape 2 · Retard après délai de grâce",
@@ -362,9 +363,7 @@ export function RecoveryFunnelCard({
     [configDraft],
   );
   const messageStageName =
-    messageStageIndex === null
-      ? ""
-      : (prototypeMode ? demoStages : stages)[messageStageIndex]?.name ?? "";
+    (prototypeMode ? demoStages : stages)[messageStageIndex]?.name ?? "";
 
   function openConfig() {
     setConfigDraft(demoConfig);
@@ -923,7 +922,7 @@ export function RecoveryFunnelCard({
                 }
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {(Object.keys(DEMO_TEMPLATE_LABELS) as unknown as RecoveryStageIndex[]).map(
+                {TEMPLATE_STAGE_INDICES.map(
                   (index) => (
                     <option key={index} value={index}>
                       {DEMO_TEMPLATE_LABELS[index]}
