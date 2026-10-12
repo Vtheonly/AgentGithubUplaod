@@ -5,7 +5,7 @@
  * This suite deliberately does not initialize repositories or messaging APIs.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import "../../../i18n/i18n";
 import { ToastProvider } from "../../../app/providers/toast-provider";
@@ -108,7 +108,7 @@ describe("UI-339 — local funnel interactions", () => {
     renderPrototype();
 
     // The production data remains the default until the explicit prototype toggle.
-    expect(screen.getByText("Données du tableau")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /aperçu local/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /aperçu local/i }));
 
     expect(screen.getByText(/données fictives/i)).toBeInTheDocument();
@@ -117,7 +117,7 @@ describe("UI-339 — local funnel interactions", () => {
     );
 
     expect(screen.getByText("Foyers dans cette étape")).toBeInTheDocument();
-    expect(screen.getByText(/1[\s\u00a0\u202f.,]?182/)).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByText(/1[\s\u00a0\u202f.,]?182/)).toBeInTheDocument();
     expect(screen.getByText(/Nadia Benali · Démo 0001/)).toBeInTheDocument();
 
     fireEvent.click(
@@ -151,6 +151,6 @@ describe("UI-339 — local funnel interactions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Appliquer localement" }));
     fireEvent.click(screen.getByRole("button", { name: /ouvrir la liste de l’étape 3/i }));
-    expect(screen.getAllByText("270").length).toBeGreaterThan(0);
+    expect(within(screen.getByRole("dialog")).getAllByText("270").length).toBeGreaterThan(0);
   });
 });
