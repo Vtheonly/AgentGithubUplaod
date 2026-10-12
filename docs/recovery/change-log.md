@@ -1,3 +1,19 @@
+## 2026-10-13 — T-514 (the 161st session) — UI-342 RESOLVED-TESTED: the Family Pareto chart's full names + clickable bars (the owner's three-issue mandate, issue 2) — derivePareto's parentId plumb-through + the full-name axis (the 'A. Benali' compression removed) + the Bar click navigating to the family's dossier through the global person-navigation drawer (the page wiring that was always missing); the battery 5,113/0/5 at the registered baseline move (308 files, +7)
+
+**THE MANDATE (the owner's issue 2, verbatim intent):** "In the Family Pareto chart, make the family names fully visible instead of truncated or hidden. Additionally, make each family name or its corresponding bar clickable. When clicked, it should navigate directly to the relevant family's details page or open the appropriate family information view."
+
+**THE ROOT CAUSE (UI-342):** the T-257 chart predates the T-444 person-navigation layer — `shortName()` was that era's width-saving measure, and `derivePareto` consumed only `{parentName, outstandingAmount}`, DROPPING the `DebtSummary.parentId` so no consumer could navigate even though the tab's `onOpenParent` prop existed (unwired from the page).
+
+**THE DELIVERY:** (a) `derivePareto` passes the optional `parentId` through to every `ParetoDatum` (backward compatible, never fabricated); (b) `displayName()` replaces `shortName()` — the « Famille » prefix stripped, EVERY name token kept — and the axis reads the full name with the taller gutter (−30°/68px/fontSize 10); (c) the Bar click: the pointer cursor + the header hint + the handler reading both recharts datum forms, navigating through `usePersonNavigation().openParent` (the app-shell's global `ParentDetailDrawer`, REUSED); `dashboard-page.tsx` finally wires the tab's existing prop; without the prop the card renders exactly as before.
+
+**THE VERIFICATION:** `t-514-pareto-fullnames-click.test.tsx` 7/7 (the prop-capture mock: the plumb-through, the full-name contract, the click-to-navigate, the no-fabricated-id guard, the degradation, the empty state); the four Pareto-neighborhood suites 60/60 unchanged-green; the FULL battery 5,113/0/5 (308 files — the registered baseline move); typecheck 0. NO live round: no repository, RPC, migration, or data path changed.
+
+**THE COMMITS:** adc4b488 (the registration: UI-342 OPEN + T-514 IN_PROGRESS) → 16bc4a1a (the implementation + the suite + the registered baseline move) → this doc set, each pushed to main before the next.
+
+**LEFT:** the owner's eyeball (full names at window sizes; the bar click). The fleet continues: T-515 (the staff working-days calendar, WORKFORCE-516).
+
+---
+
 ## 2026-10-13 — T-513 (the 161st session) — STATS-405 RESOLVED-TESTED: the Statistics year-over-year MOCK MODE (the owner's three-issue mandate, issue 1) — the opt-in, clearly-identified simulated N−1 series (the pure deterministic generator + the amber DONNÉES SIMULÉES rendering contract + the 13-test regression suite); the battery 5,106/0/5 at the registered baseline move (307 files, +13)
 
 **THE MANDATE (the owner's issue 1, verbatim intent):** "I want to add a mock mode to the year-over-year comparison feature so I can test and preview comparisons between the current year (N) and the previous year (N-1). Currently, I only have data for a single year, which prevents me from properly testing these comparisons. Implement a mock mode that provides realistic sample data for another year, allowing the comparison charts, graphs, and indicators to function as expected. The mock mode must be clearly identified and must not modify, overwrite, or interfere with real data."

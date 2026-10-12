@@ -5917,7 +5917,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 ## T-514 — The Family Pareto chart's full names + clickable bars (the owner's three-issue mandate, issue 2 / UI-342): every family's FULL name renders untruncated on the axis and each bar/name is a direct navigation to that family's details — the 161st session
 
-**Status:** IN_PROGRESS (161st session, 2026-10-13 — registration; the implementation + suites + docs closeout follow in the same session).
+**Status:** TESTED (161st session, 2026-10-13 — implementation + the 7-test suite + the full battery complete; the VERIFIED gate is the owner's eyeball of the chart on the real dashboard).
 
 **The mandate (the owner's issue 2, verbatim intent):** "In the Family Pareto chart, make the family names fully visible instead of truncated or hidden. Additionally, make each family name or its corresponding bar clickable. When clicked, it should navigate directly to the relevant family's details page or open the appropriate family information view. The goal is to make the chart more readable and interactive, allowing me to identify families easily and access their records directly from the visualization."
 
@@ -5925,6 +5925,6 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **The scope:** (a) `derivePareto` passes the optional `parentId` through to every `ParetoDatum` (backward compatible — the existing callers/tests without it are unaffected); (b) the card renders the FULL family name (the redundant « Famille » prefix stripped, every name token kept), with the angled-axis geometry given the height it needs so no name is clipped; (c) the card gains `onOpenParent?: (parentId: string) => void` — the Bar (and the chart body) becomes clickable with the pointer cursor, navigating through the EXISTING `usePersonNavigation().openParent` global drawer (the PersonNavigationProvider already wraps the app shell — no new navigation architecture); (d) the wiring: `AnalyticsTab` forwards its existing `onOpenParent` prop to the card, and `DashboardPage` finally passes it (`usePersonNavigation().openParent` — the prop existed in the tab's interface but the page never wired it); (e) the regression suite (the parentId plumb-through, the full-name axis contract, the click-to-navigate contract, the no-handler degradation).
 
-**Left:** the whole implementation (registered first per §13).
+**Left (the VERIFIED gate):** the owner's eyeball pass — the full family names readable at real window sizes (the angled axis at −30°/68px), the bar click opening the family's dossier drawer, and the hover tooltip still showing the full name + amount. The fleet continues: issue 3 (the staff working-days calendar, T-515/WORKFORCE-516).
 
-**Next:** the T-514 implementation commit (the derivation + the card + the wiring + the suite).
+**Next:** T-515 — the staff working-days calendar replacing the working-hours configuration (the fleet's issue 3, WORKFORCE-516).
