@@ -5837,3 +5837,21 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Next:** the closeout docs commit (this one) — then the standing queue: NOTIF-107's design ruling first, then the T-498 stale-schema residuals (they gate the sync-push family).
 
 **Related:** UI-339 · T-469 (DEBT-103 — the funnel over the canonical triage + the amount bands) · T-443 (DEBT-101 — the configurable triage edges) · T-507 (UI-338 — the contextual thresholds config the funnel's header already rides) · T-503d (UI-334 — the CardHeaderActions surface) · §15.90 (the contextual-config lessons).
+
+## T-509 — The funnel's local-preview (demo) layer: align it to the existing financial semantics or remove it entirely — the owner's data-integrity ruling (UI-340) — the 158th session
+
+**Problems IDs:** UI-340 (registered 2026-10-12 BEFORE the change per §13: the shipped funnel card still carries the PR-#26 opt-in demo layer — its own stage mathematics with amount-OR-days blending, 1,182 fabricated DZD records, component-local thresholds outside the persisted system_settings source, a simulated-send confirmation, and Finance navigation with fictional ids — one toggle away from the production surface).
+
+**Status:** IN_PROGRESS (158th session, 2026-10-12 — the registration).
+
+**The mandate (the owner's ruling, verbatim intent):** "Either modify the demo so that it follows the existing financial semantics and business logic, making it natively integrated and logically meaningful, or remove it entirely. The main rule is that you must never introduce changes that alter the existing business logic or how the application calculates, records, allocates, or accounts for money."
+
+**The decision analysis (why REMOVAL, not alignment):** (a) aligning the preview to the canonical semantics means the SAME engine (`deriveRecoveryFunnelHouseholds` + the day-based triage predicates + the persisted thresholds + the honest WhatsApp handoff + the real Finance route) over the SAME data — which IS the T-508 production mode; a canonically-derived "demo" has no distinct residue, it collapses into the surface that already exists; (b) the only way to keep a distinct demo is fabricated financial figures rendered inside the production dashboard surface — the §15.16 class (client-side synthesis where REAL rows exist) and exactly what the owner's main rule forbids; (c) the corpus's headline figure (1,182) was PROVEN by T-508's live verification to be the pre-fix DOUBLE-COUNTED count (the true distinct-debtor population is 634) — the fiction misrepresents the real portfolio even as fiction; (d) the simulated-send confirmation and the fictional Finance navigation are standing anti-patterns inside shipped code (§15.92b's honest-handoff class — T-508 quarantined them behind the toggle; the ruling closes that loophole); (e) removal is pure deletion of demo-only paths — ZERO change to any financial calculation, engine, repository, or canonical semantic (the main rule preserved BY CONSTRUCTION).
+
+**Scope:** (a) delete the demo corpus + its derivations + its component-local threshold editor + the simulated-send flow + the fictional Finance navigation + the prototype toggle from `recovery-funnel-card.tsx` (production paths byte-identical); (b) the honest not-connected notice stays WITHOUT the demo referral; the message templates collapse to the ONE shared source (`DEFAULT_RECOVERY_MESSAGE_TEMPLATES` — the per-message draft edit remains); (c) delete `ui-recovery-funnel-prototype.test.tsx` (its subject is gone; the shared placeholder contract re-pinned in the production suite); (d) the production suite's demo-separation section becomes the REMOVAL census (no toggle, no demo testids, no demo symbols in source); (e) the registered baseline move (the TRUE post-removal count); (f) the docs closeout.
+
+**Left:** the implementation (the removal + the suites + the baseline move), then the closeout docs.
+
+**Next:** this task's implementation commit.
+
+**Related:** UI-340 · UI-339/T-508 (the production mode the preview would collapse into) · §15.16 (the no-client-side-synthesis rule) · §15.92b (the honest-handoff pattern) · §15.2 (the no-business-behaviour-change rule).
