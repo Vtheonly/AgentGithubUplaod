@@ -36,23 +36,35 @@ import { derivePareto } from "./analytics-derivations";
 import { CardHeaderActions } from "./card-header-actions";
 import type { ReactNode } from "react";
 
-function shortName(full: string): string {
+/**
+ * T-514 (UI-342): the FULL display name — the redundant « Famille »
+ * label prefix is stripped (the card's own title already says "par
+ * tuteur"), every name token KEPT. The pre-T-514 `shortName()` compressed
+ * "Famille Amine Benali" to "A. Benali" — the given names the operator
+ * knows the family by were hidden, exactly the owner's complaint.
+ */
+function displayName(full: string): string {
   const trimmed = full.replace(/^Famille\s+/i, "").trim();
-  const parts = trimmed.split(/\s+/);
-  if (parts.length === 0) return trimmed;
-  const initial = parts[0].charAt(0).toUpperCase();
-  const lastName = parts[parts.length - 1];
-  return `${initial}. ${lastName}`;
+  return trimmed.length > 0 ? trimmed : full;
 }
 
 export function DebtorsParetoCard({
   topDebtors,
   totalOutstanding,
   headerActions,
+  onOpenParent,
 }: {
   topDebtors: DebtSummary[];
   /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
+  /**
+   * T-514 (UI-342): the click-navigation contract — clicking a bar (or its
+   * axis label) opens that family's dossier through the EXISTING global
+   * person-navigation drawer (usePersonNavigation().openParent — the
+   * PersonNavigationProvider mounted at the app shell). Absent → the card
+   * renders exactly as before (display-only, no cursor, no handler).
+   */
+  onOpenParent?: (parentId: string) => void;
   /**
    * T-467 (DASH-411): the WHOLE dataset's total outstanding (the full
    * debtSummaries stream's sum — the T-351 full-stream pattern). REQUIRED
@@ -81,7 +93,22 @@ export function DebtorsParetoCard({
   const cumulativeValue = (d: (typeof data)[number]) =>
     effectiveMode === "whole-dataset" ? d.cumOfTotalPct ?? d.cumPercent : d.cumPercent;
   const paretoCut = data.findIndex((d) => cumulativeValue(d) >= 80) + 1;
-  const chartData = data.map((d) => ({ ...d, short: shortName(d.name), cum: cumulativeValue(d) }));
+  const chartData = data.map((d) => ({
+    ...d,
+    display: displayName(d.name),
+    cum: cumulativeValue(d),
+  }));
+  const clickable = typeof onOpenParent === "function";
+  // T-514 (UI-342): the bar-level click — the datum (recharts hands the
+  // entry to onClick; the payload-wrapped form appears on some versions,
+  // so both shapes are read defensively, and a row WITHOUT a parentId
+  // never navigates).
+  const handleBarClick = (entry: unknown) => {
+    if (!onOpenParent) return;
+    const e = entry as { parentId?: string; payload?: { parentId?: string } };
+    const parentId = e?.parentId ?? e?.payload?.parentId;
+    if (parentId) onOpenParent(parentId);
+  };
   const basisLabel =
     effectiveMode === "top10"
       ? `répartition interne des ${data.length} premiers (base ${formatDzd(displayedTotal, { compact: true })})`
@@ -113,6 +140,11 @@ export function DebtorsParetoCard({
             {paretoCut} foyer(s) = 80% {effectiveMode === "top10" ? "des top débiteurs" : "du dataset"}
           </span>
         )}
+        {clickable && (
+          <span className="text-[10px] text-muted-foreground/80" data-testid="pareto-click-hint">
+            Cliquez une barre pour ouvrir le dossier famille
+          </span>
+        )}
         {/* T-503 (UI-334): the inspection controls live ON the chart. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
@@ -137,15 +169,19 @@ export function DebtorsParetoCard({
                   stroke={DASHBOARD_THEME.gridStroke}
                   vertical={false}
                 />
+                {/* T-514 (UI-342): the FULL family name on the axis — the
+                    pre-T-514 `short` truncation is gone; the angled ticks
+                    get the taller gutter they need so no name is clipped. */}
                 <XAxis
-                  dataKey="short"
+                  dataKey="display"
                   {...DASHBOARD_THEME.axisTick}
+                  fontSize={10}
                   axisLine={false}
                   tickLine={false}
                   interval={0}
-                  angle={-25}
+                  angle={-30}
                   textAnchor="end"
-                  height={45}
+                  height={68}
                 />
                 <YAxis
                   yAxisId="amount"
@@ -190,6 +226,9 @@ export function DebtorsParetoCard({
                   fill={chartPalette.danger}
                   radius={[4, 4, 0, 0]}
                   barSize={20}
+                  onClick={clickable ? handleBarClick : undefined}
+                  className={clickable ? "cursor-pointer" : undefined}
+                  data-testid="pareto-bar"
                 />
                 <Line
                   yAxisId="percent"

@@ -411,6 +411,10 @@ export function deriveCategoryMix(
 
 export interface ParetoDatum {
   name: string;
+  /** T-514 (UI-342): the parent id — the CLICK NAVIGATION target,
+   * present when the caller's rows carry one (the DebtSummary stream
+   * always does); the derivation never fabricates an id. */
+  parentId?: string;
   amount: number;
   /** Cumulative % of the DISPLAYED top-N's own total (the Mode-2 basis —
    *  the distribution within the top N; the pre-T-467 behavior, kept as the
@@ -434,7 +438,7 @@ export interface ParetoDatum {
  * changes (the owner's explicit rule).
  */
 export function derivePareto(
-  topDebtors: { parentName: string; outstandingAmount: number }[],
+  topDebtors: { parentName: string; outstandingAmount: number; parentId?: string }[],
   topN = 8,
   totalOutstanding?: number,
 ): ParetoDatum[] {
@@ -451,6 +455,9 @@ export function derivePareto(
     cumOfTotal += d.outstandingAmount;
     return {
       name: d.parentName,
+      // T-514 (UI-342): the click-navigation target rides the SAME rows
+      // (backward compatible: absent on the pre-T-514 callers).
+      parentId: d.parentId,
       amount: d.outstandingAmount,
       cumPercent: total > 0 ? Math.round((cum / total) * 100) : 0,
       cumOfTotalPct: wholeTotal !== null ? Math.round((cumOfTotal / wholeTotal) * 100) : null,

@@ -831,6 +831,10 @@ export function AnalyticsTab({
           // T-351 full-stream wiring) — the whole-dataset reference mode's
           // honest denominator.
           totalOutstanding={currentDebtTotal}
+          // T-514 (UI-342): the bar-click navigation to the family's
+          // dossier (the tab's existing onOpenParent prop — previously
+          // consumed only by the operational console).
+          onOpenParent={onOpenParent}
           headerActions={<InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices (toutes années)", metric: "debtors_pareto", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />}
         />
       ),

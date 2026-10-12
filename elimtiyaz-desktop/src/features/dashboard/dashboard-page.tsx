@@ -16,6 +16,9 @@ import {
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+// T-514 (UI-342): the Pareto bar-click navigation — the app-shell's global
+// person-navigation drawer (openParent), reused (never re-implemented).
+import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import type {
   DashboardKpi,
   RevenuePoint,
@@ -91,6 +94,8 @@ export function DashboardPage() {
   const { t } = useTranslation();
   const repos = useRepositories();
   const { session } = useAuth();
+  // T-514 (UI-342): the Pareto bar-click target — the global drawer.
+  const { openParent } = usePersonNavigation();
 
   // T-408 (ACAD-509): the selectable academic years derive from the
   // CANONICAL academic_years repository — the previous hardcoded
@@ -421,6 +426,7 @@ export function DashboardPage() {
           <AnalyticsTab
             revenue={data.revenue}
             prevRevenue={prevRevenue}
+            onOpenParent={openParent}
             academicYear={yearRange.academicYear}
             prevAcademicYear={loadablePrevYear}
             debtAging={data.debtAging}
