@@ -14,6 +14,24 @@ export interface PickFileResult {
   error?: string;
 }
 
+/** T-505 (BKUP-511): the backup file picker's result (the restore source). */
+export interface PickBackupFileResult {
+  name?: string;
+  path?: string;
+  bytes?: number[];
+  sizeBytes?: number;
+  lastModified?: string | null;
+  canceled?: boolean;
+  error?: string;
+}
+
+/** T-505 (BKUP-511): the native directory picker's result. */
+export interface PickDirectoryResult {
+  directory?: string;
+  canceled?: boolean;
+  error?: string;
+}
+
 /**
  * T-502 (UI-332): the keyboard zoom contract. The zoom mechanism is the
  * window's OWN zoom level (webFrame.setZoomLevel — the SAME state the
@@ -108,10 +126,16 @@ const api = {
     openExternal: (url: string): Promise<ExternalOpenResult> =>
       ipcRenderer.invoke("shell:open-external", url) as Promise<ExternalOpenResult>,
   },
-  saveFile: (fileName: string, bytes: Uint8Array | number[]): Promise<SaveFileResult> =>
-    ipcRenderer.invoke("vault:save-file", { fileName, bytes }) as Promise<SaveFileResult>,
+  saveFile: (fileName: string, bytes: Uint8Array | number[], defaultDir?: string): Promise<SaveFileResult> =>
+    ipcRenderer.invoke("vault:save-file", { fileName, bytes, defaultDir }) as Promise<SaveFileResult>,
   pickFile: (): Promise<PickFileResult> =>
     ipcRenderer.invoke("vault:pick-file") as Promise<PickFileResult>,
+  // T-505 (BKUP-511): the backup-file + directory pickers (main-process
+  // dialogs only — the renderer never touches the filesystem).
+  pickBackupFile: (defaultDir?: string): Promise<PickBackupFileResult> =>
+    ipcRenderer.invoke("vault:pick-backup-file", { defaultDir }) as Promise<PickBackupFileResult>,
+  pickDirectory: (title?: string, defaultDir?: string): Promise<PickDirectoryResult> =>
+    ipcRenderer.invoke("vault:pick-directory", { title, defaultDir }) as Promise<PickDirectoryResult>,
 };
 
 // Keep both names compatible with the existing renderer contract. The

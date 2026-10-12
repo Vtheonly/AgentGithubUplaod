@@ -174,7 +174,10 @@ describe("T-382 B. export-target — the destination seam", () => {
     const { saveExportWithPicker } = await import("../../infrastructure/export/export-target");
 
     const result = await saveExportWithPicker(new Uint8Array([9, 9]), "f.zip", "application/zip");
-    expect(saveFileMock).toHaveBeenCalledWith("f.zip", new Uint8Array([9, 9]));
+    // T-505 (BKUP-511) re-pin: the seam now carries the remembered
+    // destination as the third argument (undefined = no memory yet — the
+    // dialog opens at the OS default).
+    expect(saveFileMock).toHaveBeenCalledWith("f.zip", new Uint8Array([9, 9]), undefined);
     expect(result.method).toBe("electron-save-dialog");
     expect(result.saved).toBe(true);
     expect(result.path).toBe("/home/owner/Desktop/export.zip");
@@ -462,7 +465,7 @@ describe("T-382 D. The UI wiring — both entry points + the shared dialog", () 
     fireEvent.click(screen.getByRole("button", { name: /Choisir l'emplacement et exporter/ }));
     await waitFor(() => {
       expect(buildEntireMock).toHaveBeenCalled();
-      expect(saveFileMock).toHaveBeenCalledWith("out.zip", new Uint8Array([1, 2, 3]));
+      expect(saveFileMock).toHaveBeenCalledWith("out.zip", new Uint8Array([1, 2, 3]), undefined);
     });
     await waitFor(() => {
       expect(toasts.showSuccess).toHaveBeenCalledWith(

@@ -215,7 +215,7 @@ export async function collectWarmedExportData(
 }
 
 /** Human summary of a warm-up report (the toast + the audit note). */
-export function describeWarmupReport(warmup: ExportWarmupReport[]): string {
+export function describeWarmupReport(warmup: ReadonlyArray<ExportWarmupReport>): string {
   const degraded = warmup.filter((w) => w.status === "degraded");
   if (degraded.length === 0) return "toutes les sources à jour";
   return `${degraded.length} source(s) dégradée(s) : ${degraded.map((d) => d.source).join(", ")}`;

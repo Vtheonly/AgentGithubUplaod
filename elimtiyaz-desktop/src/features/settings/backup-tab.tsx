@@ -59,7 +59,29 @@ import {
 } from "../../infrastructure/backup/backup-scheduler";
 import { isSupabaseConfigured, getSupabaseClient } from "../../infrastructure/supabase/supabase-client";
 import { ExportDialog } from "./export-dialog";
-import { FolderOpen, HardDriveDownload } from "lucide-react";
+import { FolderOpen, HardDriveDownload, FileArchive, FileUp, MapPin } from "lucide-react";
+// T-505 (BKUP-511): the file-based backup workflows — the Excel checkpoint
+// (the warmed ZIP-of-Excel) + the restore-from-file ladder.
+import { buildBackupCheckpoint } from "../../infrastructure/backup/backup-checkpoint";
+import {
+  pickBackupFileViaDialog,
+  inspectBackupFile,
+  importBackupArchive,
+  type BackupFileInspection,
+  type InspectedBackupArchive,
+} from "../../infrastructure/backup/backup-file-restore";
+import {
+  getLastBackupSourceDir,
+  setLastBackupSourceDir,
+  getLastBackupDestinationDir,
+  setLastBackupDestinationDir,
+} from "../../infrastructure/backup/backup-locations";
+import {
+  hasBackupFilePickerBridge,
+  hasDirectoryPickerBridge,
+  saveExportWithPicker,
+} from "../../infrastructure/export/export-target";
+import { describeWarmupReport } from "../../infrastructure/export/export-warmup";
 import {
   BACKUP_STATUS_LABELS_FR,
   BACKUP_VAULT_LABELS_FR,
@@ -190,6 +212,19 @@ export function BackupTab() {
   const [schedulerEnabled, setSchedulerEnabledState] = useState(() => isSchedulerEnabled());
   // T-382 (BKUP-500): the Sync/Export area's archive-export dialog.
   const [exportOpen, setExportOpen] = useState(false);
+  // T-505 (BKUP-511): the file-based backup workflows.
+  const [checkpointing, setCheckpointing] = useState(false);
+  const [fileInspecting, setFileInspecting] = useState(false);
+  const [fileInspection, setFileInspection] = useState<BackupFileInspection | null>(null);
+  const [selectedFileArchive, setSelectedFileArchive] = useState<InspectedBackupArchive | null>(null);
+  const [fileRestoring, setFileRestoring] = useState(false);
+  const [confirmFileRestore, setConfirmFileRestore] = useState(false);
+  // T-505: the remembered locations (persisted; refreshed on every change).
+  const [lastSourceDir, setLastSourceDirState] = useState<string | null>(() => getLastBackupSourceDir());
+  const [lastDestDir, setLastDestDirState] = useState<string | null>(() => getLastBackupDestinationDir());
+
+  const canPickBackupFile = hasBackupFilePickerBridge();
+  const canPickDirectory = hasDirectoryPickerBridge();
 
   useEffect(() => {
     setRunLog(readRunLog());
@@ -244,12 +279,24 @@ export function BackupTab() {
     if (!pendingRestore) return;
     setRestoring(true);
     try {
+      // T-505 (BKUP-512): the SAFETY BACKUP before ANY restore — the owner's
+      // explicit requirement ("create a safety backup of the current data
+      // whenever appropriate"). A failed safety backup REFUSES the restore:
+      // the current data is preserved untouched.
+      const safety = await repos.backups.runBackup(actorId, actorName);
+      if (!safety.ok) {
+        toast.showError(
+          "Restauration refusée — sauvegarde de sécurité impossible",
+          `La sauvegarde préalable de l'état actuel a échoué (${safety.error.userMessage}). Aucune donnée n'a été modifiée.`,
+        );
+        return;
+      }
       const r = await repos.backups.restore(pendingRestore.id, actorId, actorName);
       if (r.ok) {
         setRestoredFrom(getRestoredFromMarker());
         toast.showSuccess(
           "Restauration appliquée",
-          `État opérationnel remplacé en ${r.value.durationMs} ms. Les modifications suivantes sont mises en file et synchronisées à la reconnexion.`,
+          `État opérationnel remplacé en ${r.value.durationMs} ms (sauvegarde de sécurité préalable : ${safety.value.id}). Les modifications suivantes sont mises en file et synchronisées à la reconnexion.`,
         );
       } else {
         toast.showError("Restauration échouée", r.error.userMessage);
@@ -334,6 +381,165 @@ export function BackupTab() {
       }
     } finally {
       setPurging(false);
+    }
+  }
+
+  /**
+   * T-505 (BKUP-511, the owner's task 1): build the ZIP-of-Excel backup
+   * checkpoint (the WARMED 13-sheet workbook — BKUP-510's fix guarantees it
+   * never silently carries a cold/degraded cache) and let the owner choose
+   * the destination through the native save dialog (the remembered
+   * destination opens the dialog where they left off).
+   */
+  async function handleCheckpoint() {
+    setCheckpointing(true);
+    try {
+      const built = await buildBackupCheckpoint(repos, actorId, actorName);
+      if (!built.ok) {
+        toast.showError("Échec du point de contrôle", built.error.userMessage);
+        return;
+      }
+      const result = await saveExportWithPicker(
+        built.value.bytes,
+        built.value.fileName,
+        built.value.mime,
+        lastDestDir ?? undefined,
+      );
+      if (result.canceled) {
+        toast.showInfo("Point de contrôle annulé", "Aucun fichier écrit — la boîte de dialogue a été fermée.");
+        return;
+      }
+      if (result.saved) {
+        if (result.path) {
+          const dir = result.path.slice(0, Math.max(result.path.lastIndexOf("/"), result.path.lastIndexOf("\\")));
+          if (dir) {
+            setLastBackupDestinationDir(dir);
+            setLastDestDirState(dir);
+          }
+        }
+        toast.showSuccess(
+          "Point de contrôle Excel enregistré",
+          `${built.value.fileName} — ${built.value.summary}. Emplacement : ${result.path ?? "le dossier de téléchargement du navigateur"}. Récupération : réimportez le classeur via l'import Excel.`,
+        );
+        const degraded = built.value.warmup.filter((w) => w.status === "degraded");
+        if (degraded.length > 0) {
+          toast.showWarning(
+            "Sources de données dégradées",
+            `Le point de contrôle a été construit avec l'état dernier-connu de : ${degraded.map((d) => d.source).join(", ")} (${describeWarmupReport(built.value.warmup)}).`,
+          );
+        }
+      }
+    } catch (e) {
+      toast.showError("Échec du point de contrôle", e instanceof Error ? e.message : String(e));
+    } finally {
+      setCheckpointing(false);
+    }
+  }
+
+  /**
+   * T-505 (BKUP-511, the owner's tasks 3+4): browse the computer with the
+   * NATIVE file dialog, validate the picked file (the ladder), and show the
+   * pre-restore inspection (filename, location, dates, contents) — the
+   * owner then selects WHICH archive to restore.
+   */
+  async function handlePickBackupFile() {
+    setFileInspecting(true);
+    try {
+      const file = await pickBackupFileViaDialog();
+      if (!file) return; // canceled — a clean outcome
+      const dir = file.path.slice(0, Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\")));
+      if (dir) {
+        setLastBackupSourceDir(dir);
+        setLastSourceDirState(dir);
+      }
+      const inspection = inspectBackupFile(file);
+      setFileInspection(inspection);
+      setSelectedFileArchive(null);
+      if (inspection.kind === "invalid") {
+        toast.showWarning(
+          "Fichier non restaurable",
+          inspection.integrityNote ?? "Le fichier sélectionné n'est pas une sauvegarde restaurable.",
+        );
+      } else if (inspection.kind === "excel-zip") {
+        toast.showInfo("Export Excel détecté", inspection.integrityNote ?? "");
+      }
+    } catch (e) {
+      toast.showError("Échec de la sélection", e instanceof Error ? e.message : String(e));
+    } finally {
+      setFileInspecting(false);
+    }
+  }
+
+  /**
+   * T-505: the explicit default-destination chooser (the native directory
+   * dialog — never a hardcoded backup directory; changeable any time).
+   */
+  async function handleChooseDestination() {
+    try {
+      const bridge = typeof window !== "undefined" ? window.elImtiyazDesktop : undefined;
+      if (typeof bridge?.pickDirectory !== "function") {
+        toast.showInfo("Indisponible hors Electron", "Le sélecteur de dossier nécessite l'application de bureau.");
+        return;
+      }
+      const result = await bridge.pickDirectory("Dossier de destination des exports", lastDestDir ?? undefined);
+      if (result.error) {
+        toast.showError("Échec du sélecteur", result.error);
+        return;
+      }
+      if (result.canceled || !result.directory) return;
+      setLastBackupDestinationDir(result.directory);
+      setLastDestDirState(result.directory);
+      toast.showSuccess("Dossier mémorisé", `Les exports s'ouvriront par défaut sur : ${result.directory}.`);
+    } catch (e) {
+      toast.showError("Échec du sélecteur", e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  /**
+   * T-505: THE RESTORE-FROM-FILE execution — the owner's confirmed flow:
+   * (1) the SAFETY BACKUP of the current state (the owner's explicit
+   * requirement — if it fails, the restore is REFUSED and the current data
+   * is preserved); (2) the import into the vault (checksum-gated); (3) the
+   * EXISTING restore path (decrypt → verify → apply → stage → marker →
+   * audit). A failure at any step leaves the current data intact.
+   */
+  async function handleFileRestore() {
+    if (!selectedFileArchive) return;
+    setFileRestoring(true);
+    try {
+      // 1. The safety backup of the CURRENT state.
+      const safety = await repos.backups.runBackup(actorId, actorName);
+      if (!safety.ok) {
+        toast.showError(
+          "Restauration refusée — sauvegarde de sécurité impossible",
+          `La sauvegarde préalable de l'état actuel a échoué (${safety.error.userMessage}). Aucune donnée n'a été modifiée.`,
+        );
+        return;
+      }
+      // 2. The checksum-gated import into the vault.
+      const imported = await importBackupArchive(selectedFileArchive);
+      if (!imported.ok) {
+        toast.showError("Restauration annulée — fichier invalide", imported.error);
+        return;
+      }
+      // 3. The EXISTING restore path (no parallel implementation).
+      const r = await repos.backups.restore(imported.archiveId, actorId, actorName);
+      if (r.ok) {
+        setRestoredFrom(getRestoredFromMarker());
+        setFileInspection(null);
+        setSelectedFileArchive(null);
+        toast.showSuccess(
+          "Restauration depuis fichier appliquée",
+          `Archive ${imported.archiveId} restaurée en ${r.value.durationMs} ms. Une sauvegarde de sécurité de l'état précédent (${safety.value.id}) a été créée au préalable. Les modifications suivantes sont mises en file et synchronisées à la reconnexion.`,
+        );
+      } else {
+        toast.showError("Restauration échouée", r.error.userMessage);
+      }
+    } catch (e) {
+      toast.showError("Restauration échouée", e instanceof Error ? e.message : String(e));
+    } finally {
+      setFileRestoring(false);
+      setConfirmFileRestore(false);
     }
   }
 
@@ -642,6 +848,119 @@ export function BackupTab() {
         </CardContent>
       </Card>
 
+      {/* ---------------------------------------------------------------- */}
+      {/*  T-505 (BKUP-511) — the LOCAL BACKUP FILES card: the owner's       */}
+      {/*  file-based workflows (the ZIP-of-Excel checkpoint + the           */}
+      {/*  restore-from-file ladder + the remembered locations).             */}
+      {/* ---------------------------------------------------------------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileArchive className="size-5 text-primary" />
+            Sauvegarde locale — fichiers
+          </CardTitle>
+          <CardDescription>
+            Point de contrôle Excel (ZIP téléchargeable, récupérable via l'import) et restauration depuis un
+            fichier de sauvegarde conservé où vous voulez (clé USB, disque externe…) — les boîtes de dialogue
+            natives du système, aucun emplacement imposé.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <Button
+              onClick={handleCheckpoint}
+              disabled={!canManage || checkpointing}
+              className="justify-start"
+              data-testid="backup-excel-checkpoint-button"
+            >
+              {checkpointing ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Point de contrôle en cours…
+                </>
+              ) : (
+                <>
+                  <FileArchive className="size-4" />
+                  Point de contrôle Excel (ZIP)…
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handlePickBackupFile}
+              disabled={!canManage || fileInspecting || !canPickBackupFile}
+              className="justify-start"
+              data-testid="backup-restore-from-file-button"
+              title={
+                canPickBackupFile
+                  ? "Parcourir l'ordinateur et restaurer depuis un fichier de sauvegarde"
+                  : "Nécessite l'application de bureau Electron (le sélecteur de fichiers natif)"
+              }
+            >
+              {fileInspecting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Lecture du fichier…
+                </>
+              ) : (
+                <>
+                  <FileUp className="size-4" />
+                  Parcourir et restaurer depuis un fichier…
+                </>
+              )}
+            </Button>
+          </div>
+          {!canPickBackupFile && (
+            <p className="text-xs text-muted-foreground">
+              La restauration depuis un fichier nécessite l'application de bureau — le sélecteur de fichiers
+              natif n'est pas disponible dans cette exécution navigateur.
+            </p>
+          )}
+          {/* The remembered locations — surfaced + changeable at any time. */}
+          <div
+            className="rounded-md border border-border bg-muted/20 p-3 text-xs space-y-1.5"
+            data-testid="backup-locations-panel"
+          >
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <MapPin className="size-3.5" />
+              <span className="font-medium">Emplacements mémorisés</span>
+              <span className="text-muted-foreground/70">(entre les sessions — modifiables à tout moment)</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="text-muted-foreground">
+                Dernier dossier source :{" "}
+                <code className="font-mono text-[11px] text-foreground">{lastSourceDir ?? "—"}</code>
+              </span>
+              <span className="text-muted-foreground">
+                Dernier dossier de destination :{" "}
+                <code className="font-mono text-[11px] text-foreground">{lastDestDir ?? "—"}</code>
+              </span>
+            </div>
+            <div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={handleChooseDestination}
+                disabled={!canManage || !canPickDirectory}
+                data-testid="backup-choose-destination-button"
+              >
+                <FolderOpen className="size-3.5" />
+                Choisir le dossier de destination par défaut…
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-md border border-info/30 bg-info/5 p-3 text-xs text-muted-foreground">
+            <Shield className="inline size-3.5 mr-1 text-info" />
+            Le point de contrôle Excel est construit depuis l'état CHAUD des données (toutes les sources sont
+            rechargées avant la construction — les sources dégradées sont signalées). La restauration depuis un
+            fichier valide d'abord le fichier (format, manifeste, checksums), affiche son contenu avant
+            exécution, exige votre confirmation, et crée une sauvegarde de sécurité de l'état actuel avant
+            toute modification.
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -816,7 +1135,11 @@ export function BackupTab() {
         open={pendingRestore !== null}
         onOpenChange={(o) => !o && setPendingRestore(null)}
         title="Restaurer la sauvegarde ?"
-        description="Cette action remplacera l'état opérationnel local par le contenu de l'archive (les modifications suivantes seront mises en file et synchronisées à la reconnexion). Irréversible."
+        description={
+          pendingRestore
+            ? `Cette action remplacera l'état opérationnel local par le contenu de l'archive ${pendingRestore.id} (${pendingRestore.metadata?.parentCount ?? 0} parents, ${pendingRestore.metadata?.studentCount ?? 0} élèves, ${pendingRestore.metadata?.paymentCount ?? 0} paiements). Une sauvegarde de sécurité de l'état actuel sera créée au préalable. Les modifications suivantes seront mises en file et synchronisées à la reconnexion.`
+            : "Cette action remplacera l'état opérationnel local par le contenu de l'archive (les modifications suivantes seront mises en file et synchronisées à la reconnexion). Irréversible."
+        }
         confirmLabel={restoring ? "Restauration…" : "Restaurer"}
         destructive
         onConfirm={handleRestore}
@@ -911,6 +1234,142 @@ export function BackupTab() {
         onOpenChange={setExportOpen}
         origin="backups"
         defaultFormat="entire-archive"
+      />
+
+      {/* ---------------------------------------------------------------- */}
+      {/*  T-505 (BKUP-511) — the restore-from-file inspection modal: the   */}
+      {/*  owner sees the file's identity + contents and SELECTS which      */}
+      {/*  archive to restore (never a single auto-picked one).             */}
+      {/* ---------------------------------------------------------------- */}
+      <UnifiedModal
+        open={fileInspection !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setFileInspection(null);
+            setSelectedFileArchive(null);
+          }
+        }}
+        variant="dialog"
+        size="lg"
+        icon={FileUp}
+        iconTone="primary"
+        title={
+          <span className="flex items-center gap-2 text-base">
+            Fichier de sauvegarde — <code className="font-mono text-primary text-sm">{fileInspection?.fileName}</code>
+          </span>
+        }
+        description={
+          fileInspection
+            ? `${fileInspection.filePath} · ${formatBytes(fileInspection.sizeBytes)}${
+                fileInspection.lastModified ? ` · modifié le ${formatDateTime(fileInspection.lastModified)}` : ""
+              }${fileInspection.exportedAt ? ` · exporté le ${formatDateTime(fileInspection.exportedAt)}` : ""}`
+            : undefined
+        }
+        submitLabel={
+          fileRestoring ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Restauration…
+            </>
+          ) : selectedFileArchive ? (
+            <>
+              <Upload className="size-4" />
+              Restaurer l'archive sélectionnée
+            </>
+          ) : (
+            "Sélectionnez une archive"
+          )
+        }
+        submitDisabled={!selectedFileArchive || fileRestoring}
+        onSubmit={() => setConfirmFileRestore(true)}
+      >
+        {fileInspection && (
+          <div className="space-y-3">
+            {fileInspection.kind === "invalid" && (
+              <div className="rounded-md border border-status-danger/40 bg-status-danger/10 p-3 text-xs text-status-danger">
+                {fileInspection.integrityNote ?? "Le fichier n'est pas une sauvegarde restaurable."}
+              </div>
+            )}
+            {fileInspection.kind === "excel-zip" && (
+              <div className="rounded-md border border-info/40 bg-info/5 p-3 text-xs text-muted-foreground">
+                {fileInspection.integrityNote}
+              </div>
+            )}
+            {fileInspection.kind === "entire-archive-zip" && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Export « Archive complète » — {fileInspection.archives.length} archive(s) chiffrée(s)
+                  AES-256-GCM à l'intérieur. Sélectionnez celle à restaurer :
+                </p>
+                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                  {fileInspection.archives.map((a) => {
+                    const selected = selectedFileArchive?.archiveId === a.archiveId;
+                    return (
+                      <button
+                        key={a.archiveId}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        disabled={a.integrity !== "verified"}
+                        data-testid={`file-archive-${a.archiveId}`}
+                        onClick={() => setSelectedFileArchive(a)}
+                        className={cn(
+                          "w-full text-left rounded-lg border p-2.5 transition-colors",
+                          a.integrity !== "verified"
+                            ? "border-status-danger/30 bg-status-danger/5 opacity-70 cursor-not-allowed"
+                            : selected
+                              ? "border-primary bg-primary/10 ring-1 ring-primary/40"
+                              : "border-border hover:border-primary/40 bg-background",
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "size-3 rounded-full border shrink-0",
+                              selected ? "border-primary bg-primary" : "border-border",
+                            )}
+                          />
+                          <code className="font-mono text-[11px] text-foreground">{a.archiveId}</code>
+                          <span className="ml-auto text-[10px] text-muted-foreground font-mono">
+                            {formatBytes(a.sizeBytes)}
+                          </span>
+                        </div>
+                        <div className="mt-1 pl-5 text-[11px] text-muted-foreground">
+                          Créée le {formatDateTime(a.createdAt)} par {a.createdBy} · {a.counts.parents} parents ·{" "}
+                          {a.counts.students} élèves · {a.counts.payments} paiements · {a.counts.installments} tranches
+                        </div>
+                        {a.integrity !== "verified" && a.integrityNote && (
+                          <div className="mt-1 pl-5 text-[11px] text-status-danger">{a.integrityNote}</div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedFileArchive && (
+                  <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-xs text-status-warning">
+                    Une sauvegarde de sécurité de l'état ACTUEL sera créée avant la restauration, et votre
+                    confirmation sera exigée — rien n'est modifié sans cela.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </UnifiedModal>
+
+      {/* T-505: the restore-from-file confirmation — the destructive gate. */}
+      <ConfirmModal
+        open={confirmFileRestore}
+        onOpenChange={(o) => !o && setConfirmFileRestore(false)}
+        title="Restaurer depuis le fichier ?"
+        description={
+          selectedFileArchive
+            ? `L'état opérationnel local sera remplacé par l'archive ${selectedFileArchive.archiveId} (${selectedFileArchive.counts.parents} parents, ${selectedFileArchive.counts.students} élèves, ${selectedFileArchive.counts.payments} paiements). Une sauvegarde de sécurité de l'état actuel sera créée au préalable. Les modifications suivantes seront mises en file et synchronisées à la reconnexion.`
+            : "La restauration remplace l'état opérationnel local."
+        }
+        confirmLabel={fileRestoring ? "Restauration…" : "Restaurer"}
+        destructive
+        onConfirm={handleFileRestore}
       />
     </div>
   );

@@ -31,6 +31,8 @@ export interface ElImtiyazDesktopBridge {
   saveFile: (
     fileName: string,
     bytes: Uint8Array | number[],
+    /** T-505 (BKUP-511): the remembered destination directory (the dialog opener). */
+    defaultDir?: string,
   ) => Promise<{
     saved: boolean;
     path?: string;
@@ -40,6 +42,22 @@ export interface ElImtiyazDesktopBridge {
   pickFile: () => Promise<{
     name?: string;
     bytes?: number[];
+    canceled?: boolean;
+    error?: string;
+  }>;
+  /** T-505 (BKUP-511): the backup-file picker (the restore-from-file source). */
+  pickBackupFile: (defaultDir?: string) => Promise<{
+    name?: string;
+    path?: string;
+    bytes?: number[];
+    sizeBytes?: number;
+    lastModified?: string | null;
+    canceled?: boolean;
+    error?: string;
+  }>;
+  /** T-505 (BKUP-511): the native directory picker (the explicit folder choice). */
+  pickDirectory: (title?: string, defaultDir?: string) => Promise<{
+    directory?: string;
     canceled?: boolean;
     error?: string;
   }>;
@@ -77,19 +95,40 @@ export function hasSaveDialogBridge(): boolean {
   );
 }
 
+/** T-505 (BKUP-511): whether the backup-file picker bridge is available. */
+export function hasBackupFilePickerBridge(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.elImtiyazDesktop?.pickBackupFile === "function"
+  );
+}
+
+/** T-505 (BKUP-511): whether the directory picker bridge is available. */
+export function hasDirectoryPickerBridge(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.elImtiyazDesktop?.pickDirectory === "function"
+  );
+}
+
 /**
  * Save `bytes` under `fileName` letting the USER choose the destination:
  * the OS save dialog inside Electron, the browser's download flow outside.
  * A canceled dialog is a clean, non-error outcome.
+ *
+ * T-505 (BKUP-511): the optional `defaultDir` opens the dialog at the
+ * remembered destination (never a hardcoded directory — the owner's
+ * explicit-location mandate); the browser fallback ignores it.
  */
 export async function saveExportWithPicker(
   bytes: Uint8Array,
   fileName: string,
   mime: string,
+  defaultDir?: string,
 ): Promise<ExportSaveResult> {
   const bridge = typeof window !== "undefined" ? window.elImtiyazDesktop : undefined;
   if (typeof bridge?.saveFile === "function") {
-    const result = await bridge.saveFile(fileName, bytes);
+    const result = await bridge.saveFile(fileName, bytes, defaultDir);
     if (result.error) {
       // Surface as a failure the caller can toast — the dialog contract
       // (electron/main.cts) returns { saved:false, error } on IO failure.

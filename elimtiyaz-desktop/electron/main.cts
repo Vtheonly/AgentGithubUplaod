@@ -118,11 +118,16 @@ ipcMain.handle("shell:open-external", async (_event, url: string): Promise<{ ok:
 ipcMain.handle("vault:save-file", async (_event, payload: {
   fileName: string;
   bytes: number[] | Uint8Array;
+  /** T-505 (BKUP-511): the remembered destination directory (the dialog's opener). */
+  defaultDir?: string;
 }): Promise<{ saved: boolean; path?: string; canceled?: boolean; error?: string }> => {
   try {
     if (!mainWindow) return { saved: false, error: "no window" };
+    const defaultPath = payload.defaultDir
+      ? joinPath(payload.defaultDir, payload.fileName)
+      : payload.fileName;
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-      defaultPath: payload.fileName,
+      defaultPath,
     });
     if (canceled || !filePath) return { saved: false, canceled: true };
     const data = Uint8Array.from(payload.bytes);
@@ -130,6 +135,80 @@ ipcMain.handle("vault:save-file", async (_event, payload: {
     return { saved: true, path: filePath };
   } catch (e) {
     return { saved: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
+/** Join a directory + file name without importing node:path's win32 quirks twice. */
+function joinPath(dir: string, fileName: string): string {
+  const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
+  return dir.endsWith(sep) ? `${dir}${fileName}` : `${dir}${sep}${fileName}`;
+}
+
+/**
+ * T-505 (BKUP-511): the BACKUP file picker — the restore-from-file
+ * workflow's source. Native dialog, backup-specific filters (the
+ * entire-archive ZIP the app exports + raw vault records), optional
+ * remembered source directory as the opener. The BYTES come back to the
+ * renderer once (the validation ladder runs in the renderer where the
+ * crypto + vault live); no renderer-side fs access ever happens.
+ */
+ipcMain.handle("vault:pick-backup-file", async (_event, payload: {
+  defaultDir?: string;
+}): Promise<{
+  name?: string;
+  path?: string;
+  bytes?: number[];
+  sizeBytes?: number;
+  lastModified?: string | null;
+  canceled?: boolean;
+  error?: string;
+}> => {
+  try {
+    if (!mainWindow) return { error: "no window" };
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ["openFile"],
+      ...(payload?.defaultDir ? { defaultPath: payload.defaultDir } : {}),
+      filters: [
+        { name: "Sauvegardes El-Imtiyaz (ZIP)", extensions: ["zip"] },
+        { name: "Archive du coffre (brute)", extensions: ["db"] },
+        { name: "Tous les fichiers", extensions: ["*"] },
+      ],
+    });
+    if (canceled || filePaths.length === 0) return { canceled: true };
+    const filePath = filePaths[0];
+    const stat = await fs.stat(filePath);
+    const bytes = await fs.readFile(filePath);
+    return {
+      name: path.basename(filePath),
+      path: filePath,
+      bytes: Array.from(bytes),
+      sizeBytes: stat.size,
+      lastModified: stat.mtime.toISOString(),
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
+/**
+ * T-505 (BKUP-511): the native DIRECTORY picker — the owner's explicit
+ * destination/source folder choice (never a hardcoded backup directory).
+ */
+ipcMain.handle("vault:pick-directory", async (_event, payload: {
+  title?: string;
+  defaultDir?: string;
+}): Promise<{ directory?: string; canceled?: boolean; error?: string }> => {
+  try {
+    if (!mainWindow) return { error: "no window" };
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: payload?.title ?? "Choisir un dossier",
+      properties: ["openDirectory", "createDirectory"],
+      ...(payload?.defaultDir ? { defaultPath: payload.defaultDir } : {}),
+    });
+    if (canceled || filePaths.length === 0) return { canceled: true };
+    return { directory: filePaths[0] };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
   }
 });
 

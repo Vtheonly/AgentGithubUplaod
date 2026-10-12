@@ -46,6 +46,11 @@ import {
   collectWarmedExportData,
   describeWarmupReport,
 } from "../../infrastructure/export/export-warmup";
+// T-505 (BKUP-511): the remembered destination (the save dialog's opener).
+import {
+  getLastBackupDestinationDir,
+  setLastBackupDestinationDir,
+} from "../../infrastructure/backup/backup-locations";
 import {
   hasSaveDialogBridge,
   saveExportWithPicker,
@@ -102,13 +107,26 @@ export function ExportDialog({
           : await buildExcelOnlyExport(data, new Date(), warmup);
 
       // The destination choice — the OS save dialog inside Electron (the
-      // user picks the folder AND can rename), the browser flow otherwise.
-      const result = await saveExportWithPicker(built.bytes, built.fileName, built.mime);
+      // user picks the folder AND can rename; the remembered destination
+      // opens the dialog where the owner left off — T-505, never a
+      // hardcoded location), the browser flow otherwise.
+      const result = await saveExportWithPicker(
+        built.bytes,
+        built.fileName,
+        built.mime,
+        getLastBackupDestinationDir() ?? undefined,
+      );
       if (result.canceled) {
         toast.showInfo("Export annulé", "Aucun fichier écrit — la boîte de dialogue a été fermée.");
         return;
       }
       if (result.saved) {
+        // T-505: remember where the owner saved (the next export's dialog
+        // opens there — the last-used destination memory).
+        if (result.path) {
+          const sep = Math.max(result.path.lastIndexOf("/"), result.path.lastIndexOf("\\"));
+          if (sep > 0) setLastBackupDestinationDir(result.path.slice(0, sep));
+        }
         const where = result.path ?? "le dossier de téléchargement du navigateur";
         toast.showSuccess(
           "Export enregistré",
