@@ -29,6 +29,14 @@ import {
   deriveNonWaveSummary,
 } from "../../../domain/calc/payment/tranche-waves";
 import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
+// T-505 (UI-338): the contextual thresholds-config trigger — the small
+// attached control that opens the scoped editor (renders NOTHING when the
+// config api is absent — provider-less test renders stay byte-identical).
+import {
+  ThresholdsConfigTrigger,
+  type ThresholdsConfigApi,
+  type ThresholdsConfigScope,
+} from "../../settings/contextual-thresholds-config";
 import type { DashboardKpi, RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
 import type { DebtSummary, Payment, Installment } from "../../../domain/model/payment";
 import { formatDzd } from "../../../core/format/currency";
@@ -43,6 +51,21 @@ export interface DashboardData {
   topDebtors: DebtSummary[];
 }
 
+/* ── T-505 (UI-338): the per-component config scopes ──
+ * ONLY the parameters each component's derivations actually consume (the
+ * compact-modal requirement): the wave meters' « En retard » verdicts follow
+ * the grace period; the funnel's escalation tiers follow the day hierarchy. */
+const WAVE_METER_SCOPE: ThresholdsConfigScope = {
+  title: "Vagues de tranches",
+  params: ["gracePeriodDays"],
+  hint: "Les compteurs « En retard / À échoir » de ce composant suivent le délai de grâce configuré.",
+};
+const RECOVERY_FUNNEL_SCOPE: ThresholdsConfigScope = {
+  title: "Entonnoir de recouvrement",
+  params: ["gracePeriodDays", "yellowDays", "redDays"],
+  hint: "L’escalade des phases (grâce → à surveiller → critique) suit la hiérarchie de seuils en jours configurée.",
+};
+
 export function OverviewTab({
   data,
   payments,
@@ -52,6 +75,7 @@ export function OverviewTab({
   onGoToAlerts,
   editing = false,
   debtThresholds,
+  thresholdsConfig,
 }: {
   data: DashboardData;
   payments: readonly Payment[];
@@ -67,6 +91,12 @@ export function OverviewTab({
    * → the documented DEFAULTS (test renders + the pure-prop contract).
    */
   debtThresholds?: DebtAgingThresholds;
+  /**
+   * T-505 (UI-338): the contextual-config api (the dashboard page's host —
+   * the live-preview triggers ride the wave/funnel headers). Absent → no
+   * trigger renders (the pure-prop contract).
+   */
+  thresholdsConfig?: ThresholdsConfigApi | null;
 }) {
   const { t } = useTranslation();
   const { kpis, revenue, debtAging, topDebtors } = data;
@@ -217,7 +247,18 @@ export function OverviewTab({
       maxW: 12,
       minH: 6,
       maxH: 16,
-      content: <WaveVelocityCard waves={waves} pooled={pooledWaves} nonWave={nonWaveSummary} nowEpochMs={nowEpochMs} variant="hero" />,
+      content: (
+        <WaveVelocityCard
+          waves={waves}
+          pooled={pooledWaves}
+          nonWave={nonWaveSummary}
+          nowEpochMs={nowEpochMs}
+          variant="hero"
+          headerActions={
+            <ThresholdsConfigTrigger scope={WAVE_METER_SCOPE} config={thresholdsConfig} />
+          }
+        />
+      ),
     },
     {
       id: "recovery-funnel",
@@ -230,7 +271,14 @@ export function OverviewTab({
       maxW: 12,
       minH: 6,
       maxH: 16,
-      content: <RecoveryFunnelCard stages={funnelStages} />,
+      content: (
+        <RecoveryFunnelCard
+          stages={funnelStages}
+          headerActions={
+            <ThresholdsConfigTrigger scope={RECOVERY_FUNNEL_SCOPE} config={thresholdsConfig} />
+          }
+        />
+      ),
     },
     {
       id: "weekly-rhythm",

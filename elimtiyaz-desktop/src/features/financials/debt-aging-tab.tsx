@@ -61,6 +61,17 @@ import { KpiCard } from "../../shared/ui/kpi-card";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { StatusChip } from "../../shared/ui/status-chip";
+// T-505 (UI-338): the CONTEXTUAL thresholds configuration — the host (the
+// draft/hold preview + the ONE modal), the trigger (the legend's in-place
+// affordance), and the shared preview derivation (the canonical TS engine
+// re-applied over the server rows' factors while a draft is live).
+import {
+  useThresholdsConfigHost,
+  canEditThresholds,
+  ThresholdsConfigTrigger,
+  applyThresholdsPreviewToAging,
+  type ThresholdsConfigScope,
+} from "../settings/contextual-thresholds-config";
 import {
   Select,
   SelectContent,
@@ -153,6 +164,23 @@ interface DebtAgingRow extends DebtAgingAnalysis {
 
 const STATUS_ORDER: readonly DebtAgingStatusLevel[] = ["red", "orange", "yellow", "green"];
 
+/* T-505 (UI-338): this surface's config scope — the FULL set: the tab's
+ * legend, KPI tooltips, status chips, amount bands, and level messages all
+ * derive from the seven configurable parameters. */
+const DEBT_AGING_TAB_SCOPE: ThresholdsConfigScope = {
+  title: "Suivi des dettes multi-années",
+  params: [
+    "gracePeriodDays",
+    "yellowDays",
+    "redDays",
+    "activePayerGraceDays",
+    "amountYellowDzd",
+    "amountRedDzd",
+    "severeDebtDzd",
+  ],
+  hint: "Les statuts, la légende, les bandes montant et les messages de niveau de ce tableau suivent ces seuils configurés.",
+};
+
 export function DebtAgingTab() {
   const repos = useRepositories();
   const { session } = useAuth();
@@ -163,6 +191,26 @@ export function DebtAgingTab() {
   // applied to the statuses), never from hardcoded strings. The subject's
   // synchronous seed value is the documented DEFAULTS.
   const thresholds = useObservable(() => repos.debt.observeThresholds(), []);
+  // T-505 (UI-338): the contextual-config host — `effective` is what every
+  // display derivation below consumes (active + the live draft/hold
+  // overrides), `previewActive` gates the status re-derivation (the
+  // canonical TS engine re-applied over the server rows' factors while a
+  // draft is live — the statuses recompute server-side at save), and the
+  // SuperAdmin gate mirrors the system_settings RLS write policy.
+  const thresholdsCfg = useThresholdsConfigHost(thresholds, {
+    enabled: canEditThresholds(session),
+  });
+  const effectiveThresholds = thresholdsCfg.effective;
+  // The PREVIEW rows: the server's FACTORS are untouched — only the status
+  // verdict/explanation follow the preview edges (presentation-only, the
+  // canonical computeDebtAgingStatus — the engine the SQL mirrors).
+  const displayAging = useMemo(
+    () =>
+      thresholdsCfg.previewActive
+        ? applyThresholdsPreviewToAging(aging, effectiveThresholds)
+        : aging,
+    [aging, thresholdsCfg.previewActive, effectiveThresholds],
+  );
   const students = useObservable(() => repos.students.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
 
@@ -174,11 +222,13 @@ export function DebtAgingTab() {
   const canCollect = !!session && session.permissions.has(Permission.CollectPayment);
 
   // Resolve the family directory (names + affected student names) — display
-  // joins only; the aging facts are untouched.
+  // joins only; the aging facts are untouched. T-505 (UI-338): the memo
+  // consumes the PREVIEW rows (displayAging) — the server rows' facts with
+  // the draft re-derived statuses while a config preview is live.
   const { rows, availableYears, rowById } = useMemo(() => {
     const studentById = new Map<string, Student>(students.map((s) => [s.id, s]));
     const parentById = new Map<string, Parent>(parents.map((p) => [p.id, p]));
-    const enriched: DebtAgingRow[] = aging.map((a) => {
+    const enriched: DebtAgingRow[] = displayAging.map((a) => {
       const parent = parentById.get(a.parentId) ?? null;
       return {
         ...a,
@@ -189,9 +239,9 @@ export function DebtAgingTab() {
           .map((s) => s.displayName ?? `${s.firstName} ${s.lastName}`.trim()),
       };
     });
-    const years = [...new Set(aging.map((a) => a.originAcademicYear).filter((y): y is string => !!y))].sort();
+    const years = [...new Set(displayAging.map((a) => a.originAcademicYear).filter((y): y is string => !!y))].sort();
     return { rows: enriched, availableYears: years, rowById: new Map(enriched.map((r) => [r.parentId, r])) };
-  }, [aging, students, parents]);
+  }, [displayAging, students, parents]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -297,8 +347,8 @@ export function DebtAgingTab() {
               (never a page-local hardcode). A small very-late debt is
               day-RED/amount-green; a large fresh one is the reverse. */}
           <AmountBandChip
-            level={classifyOutstandingAmount(r.outstandingAmount, thresholds)}
-            thresholds={thresholds}
+            level={classifyOutstandingAmount(r.outstandingAmount, effectiveThresholds)}
+            thresholds={effectiveThresholds}
           />
         </div>
       ),
@@ -314,11 +364,11 @@ export function DebtAgingTab() {
           {r.status.explanationFr}
           {/* T-469 (DEBT-103): the CONFIGURED per-level message — extends
               the canonical explanation (empty = the engine text stands). */}
-          {configuredLevelMessage(r.status.level, thresholds) ? (
+          {configuredLevelMessage(r.status.level, effectiveThresholds) ? (
             <>
               {" "}
               <span className="text-foreground/80" data-testid="configured-level-message">
-                {configuredLevelMessage(r.status.level, thresholds)}
+                {configuredLevelMessage(r.status.level, effectiveThresholds)}
               </span>
             </>
           ) : null}
@@ -369,50 +419,62 @@ export function DebtAgingTab() {
         {/* T-443 (DEBT-101): the tooltips derive from the ACTIVE thresholds
             (the same values the server applied) — the pre-T-429 texts ("> 180 j",
             "> 90 j et paiements interrompus", "paiements poursuivis (actif)") described
-            the RETIRED semantics and are purged. */}
+            the RETIRED semantics and are purged. T-505 (UI-338): they now
+            derive from the EFFECTIVE thresholds (the live preview included). */}
         <button
           type="button"
           onClick={() => setStatusFilter("red")}
-          title={`Critique / Contentieux : retard > ${thresholds.redDays} j (le seuil rouge configuré)`}
+          title={`Critique / Contentieux : retard > ${effectiveThresholds.redDays} j (le seuil rouge configuré)`}
         >
           <KpiCard label="Critique" value={statusCounts.red} icon={<Siren className="h-5 w-5" />} tone="danger" />
         </button>
         <button
           type="button"
           onClick={() => setStatusFilter("orange")}
-          title={`Retard soutenu : retard entre ${thresholds.yellowDays} et ${thresholds.redDays} j (entre les seuils « À surveiller » et « Critique »)`}
+          title={`Retard soutenu : retard entre ${effectiveThresholds.yellowDays} et ${effectiveThresholds.redDays} j (entre les seuils « À surveiller » et « Critique »)`}
         >
           <KpiCard label="Retard soutenu" value={statusCounts.orange} icon={<Flame className="h-5 w-5" />} tone="warning" />
         </button>
         <button
           type="button"
           onClick={() => setStatusFilter("yellow")}
-          title={`À surveiller : retard entre ${thresholds.gracePeriodDays} et ${thresholds.yellowDays} j (au-delà du délai de grâce, sous le seuil « À surveiller »)`}
+          title={`À surveiller : retard entre ${effectiveThresholds.gracePeriodDays} et ${effectiveThresholds.yellowDays} j (au-delà du délai de grâce, sous le seuil « À surveiller »)`}
         >
           <KpiCard label="À surveiller" value={statusCounts.yellow} icon={<AlertTriangle className="h-5 w-5" />} tone="warning" />
         </button>
         <button
           type="button"
           onClick={() => setStatusFilter("green")}
-          title={`Soldé ou à échoir : encours réglé, ou retard ≤ ${thresholds.gracePeriodDays} j (le délai de grâce configuré)`}
+          title={`Soldé ou à échoir : encours réglé, ou retard ≤ ${effectiveThresholds.gracePeriodDays} j (le délai de grâce configuré)`}
         >
           <KpiCard label="Actif / Soldé" value={statusCounts.green} icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
         </button>
       </div>
 
       {/* ── T-443 (DEBT-101): the ACTIVE-thresholds legend — the configuration
-          VISIBLE where it applies (INV-16f; editable in Paramètres →
-          Configuration → « Configuration des Créances »). ── */}
+          VISIBLE where it applies (INV-16f). T-505 (UI-338): the legend is
+          now the IN-PLACE affordance — the config trigger opens the scoped
+          editor right here (no Settings navigation), the preview badge marks
+          a live draft, and the values shown are the EFFECTIVE ones. ── */}
       <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <span className="font-medium">Seuils appliqués :</span>
-        <span>grâce ≤ {thresholds.gracePeriodDays} j</span>
+        <span>grâce ≤ {effectiveThresholds.gracePeriodDays} j</span>
         <span aria-hidden>·</span>
-        <span>à surveiller ≤ {thresholds.yellowDays} j</span>
+        <span>à surveiller ≤ {effectiveThresholds.yellowDays} j</span>
         <span aria-hidden>·</span>
-        <span>critique &gt; {thresholds.redDays} j</span>
+        <span>critique &gt; {effectiveThresholds.redDays} j</span>
         <span aria-hidden>·</span>
-        <span>payeur actif ≤ {thresholds.activePayerGraceDays} j (annotation)</span>
-        <span className="text-muted-foreground/70">— configurable dans Paramètres → Configuration.</span>
+        <span>payeur actif ≤ {effectiveThresholds.activePayerGraceDays} j (annotation)</span>
+        <ThresholdsConfigTrigger scope={DEBT_AGING_TAB_SCOPE} config={thresholdsCfg.config} />
+        {thresholdsCfg.previewActive && (
+          <span
+            className="rounded-full border border-status-warning/40 bg-status-warning/10 px-2 py-0.5 text-[10px] font-medium text-status-warning"
+            data-testid="thresholds-preview-badge"
+          >
+            Aperçu — non enregistré
+          </span>
+        )}
+        <span className="text-muted-foreground/70">— configuration partagée avec Paramètres → Configuration.</span>
       </p>
 
       {/* ── Filter bar + the table ── */}
@@ -502,7 +564,7 @@ export function DebtAgingTab() {
               }
             : undefined
         }
-        thresholds={thresholds}
+        thresholds={effectiveThresholds}
       />
 
       {/* The SAME collection modal the Créances tab uses (§15: reuse the
@@ -537,6 +599,9 @@ export function DebtAgingTab() {
           }}
         />
       )}
+
+      {/* T-505 (UI-338): the ONE contextual thresholds editor for this tab. */}
+      {thresholdsCfg.modal}
     </div>
   );
 }

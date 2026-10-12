@@ -52,6 +52,14 @@ import {
   DEFAULT_DEBT_AGING_THRESHOLDS,
   type DebtAgingThresholds,
 } from "../../domain/calc/ledger/debt-aging";
+// T-505 (UI-338): the CONTEXTUAL thresholds configuration host — the ONE
+// draft/hold state + the ONE modal for both dashboard tabs; the trigger
+// rides the tabs' CardHeaderActions surfaces (the effective value flows
+// through the EXISTING debtThresholds prop plumbing — the live preview).
+import {
+  useThresholdsConfigHost,
+  canEditThresholds,
+} from "../settings/contextual-thresholds-config";
 import {
   applyAnalyticsFilters,
   installmentsForAcademicYear,
@@ -209,6 +217,14 @@ export function DashboardPage() {
     const unsub = repos.debt.observeThresholds().subscribe(setDebtThresholds);
     return unsub;
   }, [repos.debt]);
+  // T-505 (UI-338): the contextual-config host — `effective` is what BOTH
+  // tabs derive with (active + the live draft/hold overrides; the preview),
+  // `config` drives the per-card triggers (null for a non-SuperAdmin session
+  // — the system_settings RLS write gate), and `modal` is the ONE editor
+  // instance for the whole page.
+  const thresholdsCfg = useThresholdsConfigHost(debtThresholds, {
+    enabled: canEditThresholds(session),
+  });
 
   const topDebtors = useMemo(
     () => debtSummaries.slice(0, 10) as DebtSummary[],
@@ -396,7 +412,8 @@ export function DashboardPage() {
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
             editing={layoutEditing}
-            debtThresholds={debtThresholds}
+            debtThresholds={thresholdsCfg.effective}
+            thresholdsConfig={thresholdsCfg.config}
           />
         </PageTabContent>
 
@@ -413,7 +430,8 @@ export function DashboardPage() {
             installments={scopedInstallments}
             range={yearRange.range}
             editing={layoutEditing}
-            debtThresholds={debtThresholds}
+            debtThresholds={thresholdsCfg.effective}
+            thresholdsConfig={thresholdsCfg.config}
           />
         </PageTabContent>
 
@@ -433,6 +451,9 @@ export function DashboardPage() {
         data={dataProp}
         payments={rangePayments}
       />
+
+      {/* T-505 (UI-338): the ONE contextual thresholds editor for the page. */}
+      {thresholdsCfg.modal}
     </div>
   );
 }

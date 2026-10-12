@@ -18,6 +18,7 @@
  */
 
 import { Filter, ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   Card,
   CardContent,
@@ -28,6 +29,9 @@ import {
 import { chartPalette } from "../../../shared/ui/dashboard-theme";
 // T-468 (UI-329): the card-level explainability tooltip.
 import { InfoTip } from "./analytics/info-tip";
+// T-503 (UI-334): the shared header-attachment surface — the inspection and
+// (T-505/UI-338) configuration controls live ON the card they target.
+import { CardHeaderActions } from "./analytics/card-header-actions";
 import type { DebtTriage } from "./analytics/executive-statistics";
 
 export interface FunnelStage {
@@ -100,9 +104,13 @@ export function deriveRecoveryFunnel(triage: DebtTriage): FunnelStage[] {
 export function RecoveryFunnelCard({
   stages,
   emptyLabel = "Aucune famille en retard sur la période sélectionnée.",
+  headerActions,
 }: {
   stages: FunnelStage[];
   emptyLabel?: string;
+  /** T-505 (UI-338): the contextual thresholds-config trigger rides the
+   *  same CardHeaderActions surface as the inspection controls. */
+  headerActions?: ReactNode;
 }) {
   const total = stages[0]?.count ?? 0;
   const criticalRate =
@@ -112,7 +120,7 @@ export function RecoveryFunnelCard({
 
   return (
     <Card className="h-full border-border/70 bg-surface-panel shadow-sm flex flex-col justify-between">
-      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between">
+      <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-primary" />
@@ -126,11 +134,15 @@ export function RecoveryFunnelCard({
           </CardDescription>
         </div>
 
-        {stages.length > 0 && (
-          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-danger/10 text-status-danger border border-status-danger/20 font-semibold">
-            {criticalRate}% en phase critique
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {stages.length > 0 && (
+            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-danger/10 text-status-danger border border-status-danger/20 font-semibold">
+              {criticalRate}% en phase critique
+            </span>
+          )}
+          {/* T-505 (UI-338): the config trigger lives ON the funnel. */}
+          <CardHeaderActions>{headerActions}</CardHeaderActions>
+        </div>
       </CardHeader>
 
       <CardContent className="p-4 flex-1 flex flex-col justify-center">

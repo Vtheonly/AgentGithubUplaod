@@ -31,6 +31,7 @@
  * every wave card on every surface now derives from the same column.
  */
 import { useState, useMemo, useEffect } from "react";
+import type { ReactNode } from "react";
 import {
   Wallet, CalendarCog, RefreshCw, Zap, AlertTriangle, Waves,
 } from "lucide-react";
@@ -71,6 +72,16 @@ import {
   type DebtAgingThresholds,
 } from "../../domain/calc/ledger/debt-aging";
 import { isInstallmentOverdue, isInstallmentSettled } from "../../domain/calc/payment/queries";
+// T-505 (UI-338): the CONTEXTUAL thresholds configuration — the host (the
+// draft/hold preview + the ONE modal), the trigger (the strip's in-place
+// affordance), and the SuperAdmin gate (the system_settings RLS write
+// policy — the same gate the Configuration tab applies).
+import {
+  useThresholdsConfigHost,
+  canEditThresholds,
+  ThresholdsConfigTrigger,
+  type ThresholdsConfigScope,
+} from "../settings/contextual-thresholds-config";
 import { installmentsForAcademicYear } from "../dashboard/components/analytics/analytics-derivations";
 // T-435 (UI-317): the SIGNED days-between helper (negative = days until
 // due) — the same one the Statistics wave card renders "dans N j" with;
@@ -192,6 +203,15 @@ const TRANCHE_WAVE_META: ReadonlyArray<{ index: 1 | 2 | 3; label: string; hint: 
   { index: 3, label: "Tranche 3 (Mars)", hint: "échéance 15 mars" },
 ];
 
+/* T-505 (UI-338): this surface's config scope — the strip's « En retard »
+ * verdicts consume ONLY the configured grace period (the compact-modal
+ * requirement: just the parameters this component derives from). */
+const SCHEDULE_STRIP_SCOPE: ThresholdsConfigScope = {
+  title: "Échéancier — vagues T1/T2/T3",
+  params: ["gracePeriodDays"],
+  hint: "Les verdicts « En retard » des vagues et le compteur de retards suivent le délai de grâce configuré.",
+};
+
 /**
  * T-248/T-354 — derive the T1/T2/T3 collection waves from REAL rows,
  * grouped by the canonical `trancheNumber` column (the DASH-404 fix:
@@ -258,12 +278,16 @@ export function TrancheWaveHeader({
   waves,
   basisLabel,
   showTuitionBreakdown,
+  headerActions,
 }: {
   waves: TrancheWave[];
   basisLabel: string;
   /** T-432 (DATA-049): true when the strip pools every category — the
    * tuition-isolated line then reconciles it with the Statistics card. */
   showTuitionBreakdown: boolean;
+  /** T-505 (UI-338): the contextual thresholds-config trigger rides the
+   *  strip's basis line (the control ON the component it configures). */
+  headerActions?: ReactNode;
 }) {
   if (waves.every((w) => w.due === 0)) {
     return (
@@ -281,10 +305,14 @@ export function TrancheWaveHeader({
       {/* T-427 (DATA-048b, issue #24 Track 4 item 3): the pooling basis is
           EXPLICIT — the Statistics waves isolate tuition while this strip
           pools every category in the current selection; the basis label
-          states which, so the two surfaces' numbers reconcile at a glance. */}
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        Base : {basisLabel}
-      </p>
+          states which, so the two surfaces' numbers reconcile at a glance.
+          T-505 (UI-338): the config trigger joins the basis line. */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          Base : {basisLabel}
+        </p>
+        {headerActions}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       {waves.map((w) => {
         // T-435 (UI-317): the échéance is DERIVED from the rows the card
@@ -469,6 +497,13 @@ export function InstallmentScheduleTab({
   // dashboard reads; the subject's seed value is the documented DEFAULTS
   // until the light reader lands).
   const debtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
+  // T-505 (UI-338): the contextual-config host — `effective` carries the
+  // live draft/hold overrides into the wave derivation below (the strip's
+  // « En retard » verdicts preview the configured grace period in place);
+  // the SuperAdmin gate mirrors the system_settings RLS write policy.
+  const thresholdsCfg = useThresholdsConfigHost(debtThresholds, {
+    enabled: canEditThresholds(session),
+  });
 
   const totals = useMemo(() => {
     // TIER 4 FIX (bypass #2) — delegate to canonical helpers from
@@ -491,10 +526,11 @@ export function InstallmentScheduleTab({
   // filtered rows; canonical sum helpers inside the derivation).
   // T-502 (STATS-403): the strip's "En retard" verdicts consume the ACTIVE
   // thresholds (the configured grace period) — parity with the Statistics
-  // wave meters by construction.
+  // wave meters by construction. T-505 (UI-338): the EFFECTIVE thresholds
+  // (the live preview included).
   const waves = useMemo(
-    () => deriveTrancheWaves(filtered, debtThresholds),
-    [filtered, debtThresholds],
+    () => deriveTrancheWaves(filtered, thresholdsCfg.effective),
+    [filtered, thresholdsCfg.effective],
   );
 
   async function handleRunOverdueScan() {
@@ -783,7 +819,8 @@ export function InstallmentScheduleTab({
           </Button>
         </div>
 
-        {/* T-248 — Tranche Wave header (macro T1/T2/T3 collection health) */}
+        {/* T-248 — Tranche Wave header (macro T1/T2/T3 collection health).
+            T-505 (UI-338): the config trigger rides the strip's basis line. */}
         <TrancheWaveHeader
           waves={waves}
           basisLabel={
@@ -792,6 +829,9 @@ export function InstallmentScheduleTab({
               : (PAYMENT_CATEGORY_LABELS_FR as Record<string, string>)[categoryFilter] ?? categoryFilter
           }
           showTuitionBreakdown={categoryFilter === "all"}
+          headerActions={
+            <ThresholdsConfigTrigger scope={SCHEDULE_STRIP_SCOPE} config={thresholdsCfg.config} />
+          }
         />
 
         {/* Totals header */}
@@ -878,6 +918,8 @@ export function InstallmentScheduleTab({
           </button>
         }
       />
+      {/* T-505 (UI-338): the ONE contextual thresholds editor for this tab. */}
+      {thresholdsCfg.modal}
     </Card>
   );
 }
