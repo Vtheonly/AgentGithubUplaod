@@ -133,15 +133,15 @@ describe("UI-339 — local funnel interactions", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /préparer un message pour Nadia Benali/i }),
     );
-    expect(screen.getByText("Prévisualiser le message")).toBeInTheDocument();
-    expect(screen.getByLabelText(/message \(modifiable avant confirmation\)/i)).toBeInTheDocument();
+    const previewDialog = screen.getByRole("dialog", { name: "Prévisualiser le message" });
+    expect(within(previewDialog).getByLabelText(/message \(modifiable avant confirmation\)/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /continuer vers la confirmation/i }));
-    expect(screen.getByText("Confirmer la simulation")).toBeInTheDocument();
-    expect(screen.getByText(/ne contacte aucun parent/i)).toBeInTheDocument();
+    const confirmationDialog = screen.getByRole("dialog", { name: "Confirmer la simulation" });
+    expect(within(confirmationDialog).getByText(/ne contacte aucun parent/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Confirmer la simulation" }));
-    expect(screen.queryByText("Confirmer la simulation")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Confirmer la simulation" })).not.toBeInTheDocument();
   });
 
   it("hides the persisted Settings trigger only while the local prototype is active", () => {
