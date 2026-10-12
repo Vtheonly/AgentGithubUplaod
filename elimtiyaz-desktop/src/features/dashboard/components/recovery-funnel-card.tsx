@@ -1016,7 +1016,11 @@ export function RecoveryFunnelCard({
             <h3 className="text-sm font-semibold text-foreground">Aperçu des résultats</h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {draftStages.map((stage, index) => (
-                <div key={stage.name} className="rounded-lg border border-border/70 bg-muted/20 p-2.5">
+                <div
+                  key={stage.name}
+                  data-testid={"demo-preview-stage-" + (index + 1)}
+                  className="rounded-lg border border-border/70 bg-muted/20 p-2.5"
+                >
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     Étape {index + 1}
                   </div>
