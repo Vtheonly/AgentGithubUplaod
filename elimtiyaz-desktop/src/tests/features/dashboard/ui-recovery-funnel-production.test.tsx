@@ -1,13 +1,13 @@
 /**
- * UI-339 / T-508 — the recovery funnel's PRODUCTION integration contracts.
+ * UI-339 / T-508 / T-509 — the recovery funnel's PRODUCTION contracts.
  *
  * Every fixture here is REAL-SHAPED (installments/parents/students in the
  * domain models' form); the households derive through the CANONICAL helpers
  * (INV-4 installmentRemaining, daysBetweenFloor, classifyOutstandingAmount)
  * and the message flow rides the mocked WhatsApp handoff — NO test ever
- * opens a real wa.me link or claims a delivery. The demo/prod separation is
- * pinned: the demo path never reaches openWhatsApp, never navigates a real
- * id, and the production path never reads the demo corpus.
+ * opens a real wa.me link or claims a delivery. T-509 removed the retired
+ * local-preview layer entirely; the separation section is now the REMOVAL
+ * census (no toggle, no fictional corpus, no simulated-send path — ever).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -328,17 +328,22 @@ describe("UI-339 — deriveRecoveryFunnelHouseholds (the canonical per-family ro
     expect(stagesTighter.map((s) => s.count)).toEqual(underTighter.byStage.map((l) => l.length));
   });
 
-  it("renders the production message over the REAL household numbers", () => {
+  it("renders the production message over the REAL household numbers (every placeholder)", () => {
     const par1 = households.rows.find((r) => r.parentId === "PAR-001")!;
+    // T-509: the retired prototype suite pinned the placeholder rendering
+    // through its own renderer; the shared contract now lives HERE — the
+    // production renderer replaces ALL FIVE placeholders.
     const rendered = renderProductionRecoveryMessage(
-      DEFAULT_RECOVERY_MESSAGE_TEMPLATES[3],
+      DEFAULT_RECOVERY_MESSAGE_TEMPLATES[3] +
+        " Élève : {studentName}. Étape : {stageName}.",
       par1,
       "Critique",
     );
     expect(rendered).toContain("BENALI Karim");
+    expect(rendered).toContain("BENALI Lina · BENALI Adam"); // the family's students
     expect(rendered).toContain("70"); // worst days
-    expect(rendered).not.toContain("{parentName}");
-    expect(rendered).not.toContain("{amountDzd}");
+    expect(rendered).toContain("Critique"); // the stage name
+    expect(rendered).not.toMatch(/\{[a-zA-Z]+\}/); // NO placeholder survives
   });
 });
 
@@ -505,51 +510,52 @@ describe("UI-339 — the production message flow (the WhatsApp handoff)", () => 
 });
 
 /* ════════════════════════════════════════════════════════════════════════
- * C. THE MODE SEPARATION (the demo never touches the real world)
+ * C. THE REMOVAL CENSUS (T-509 — the retired local-preview layer is GONE;
+ *    the owner's ruling: follow the existing financial semantics or remove)
  * ════════════════════════════════════════════════════════════════════════ */
-describe("UI-339 — the demo/production separation", () => {
-  it("the DEMO message confirmation NEVER calls the WhatsApp pathway and navigates demo ids only", () => {
-    renderProductionCard();
-    fireEvent.click(screen.getByRole("button", { name: /aperçu local/i }));
+describe("UI-340/T-509 — the retired local-preview layer is REMOVED", () => {
+  it("renders NO preview toggle and NO fictional corpus — the canonical Settings trigger stays ALWAYS mounted", () => {
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <RecoveryFunnelCard
+            stages={productionStages()}
+            installments={PRODUCTION_INSTALLMENTS}
+            debtThresholds={THRESHOLDS}
+            nowEpochMs={NOW}
+            headerActions={<button type="button">Persist real thresholds</button>}
+          />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    // The persisted-configuration trigger is the ONLY thresholds editor now:
+    expect(screen.getByRole("button", { name: "Persist real thresholds" })).toBeInTheDocument();
+    // The retired surface is gone entirely:
+    expect(screen.queryByRole("button", { name: /aperçu local/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /données du tableau/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /réglages de la démo/i })).not.toBeInTheDocument();
+    // The stage dialog lists REAL households only:
     fireEvent.click(screen.getByRole("button", { name: /ouvrir la liste de l’étape 1/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /préparer un message pour Nadia Benali/i }),
-    );
-    const preview = screen.getByRole("dialog", { name: "Prévisualiser le message" });
-    fireEvent.click(
-      within(preview).getByRole("button", { name: /continuer vers la confirmation/i }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Confirmer la simulation" }),
-    );
-    // The simulated flow touches NOTHING real.
-    expect(openWhatsAppMock).not.toHaveBeenCalled();
-
-    // The demo Finance action carries the FICTIONAL id (never a real one).
-    fireEvent.click(
-      screen.getByRole("button", { name: /ouvrir finances pour Nadia Benali/i }),
-    );
-    expect(screen.getByTestId("route-location")).toHaveTextContent(
-      "/financials?familyId=demo-family-0001",
-    );
+    expect(screen.getByTestId("production-stage-household-count")).toHaveTextContent("2");
+    expect(screen.queryByTestId("demo-stage-household-count")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Démo 0001/)).not.toBeInTheDocument();
   });
 
-  it("the demo settings apply LOCALLY (component state only) — production counts unchanged", () => {
-    renderProductionCard();
-    // Production stage counts BEFORE any demo interaction:
-    const productionCounts = productionStages().map((s) => s.count);
-    fireEvent.click(screen.getByRole("button", { name: /aperçu local/i }));
-    fireEvent.click(screen.getByRole("button", { name: /réglages de la démo/i }));
-    fireEvent.change(screen.getByLabelText("Seuil jaune (jours)"), {
-      target: { value: "30" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Appliquer localement" }));
-    // Back to production mode: the REAL stages are untouched.
-    fireEvent.click(screen.getByRole("button", { name: /données du tableau/i }));
-    expect(
-      screen.getAllByRole("button", { name: /ouvrir la liste de l’étape 1/i }).length,
-    ).toBeGreaterThan(0);
-    expect(productionStages().map((s) => s.count)).toEqual(productionCounts);
+  it("the card source carries NO fictional corpus, NO local threshold state, and NO simulated-send path", () => {
+    const cardSrc = readFileSync(
+      join(__dirname, "../../../features/dashboard/components/recovery-funnel-card.tsx"),
+      "utf8",
+    );
+    // The retired layer's machinery is absent by census (not by quarantine):
+    expect(cardSrc).not.toContain("prototypeMode");
+    expect(cardSrc).not.toContain("DEMO_");
+    expect(cardSrc).not.toContain("demo-family-");
+    expect(cardSrc).not.toContain("Envoi simulé");
+    expect(cardSrc).not.toContain("fictif");
+    // The canonical sources remain the ONLY paths:
+    expect(cardSrc).toContain("DEFAULT_RECOVERY_MESSAGE_TEMPLATES");
+    expect(cardSrc).toContain("renderProductionRecoveryMessage");
+    expect(cardSrc).toContain("deriveRecoveryFunnelHouseholds");
   });
 });
 
@@ -572,7 +578,7 @@ describe("UI-339 — the pure-prop contract and the wiring", () => {
     expect(screen.queryByTestId("production-stage-household-count")).not.toBeInTheDocument();
   });
 
-  it("the empty installments stream yields the honest empty funnel (no demo fallback)", () => {
+  it("the empty installments stream yields the honest empty funnel (no fabricated fallback)", () => {
     // BOTH inputs empty (the tab derives stages from the same stream):
     render(
       <MemoryRouter>
@@ -586,7 +592,7 @@ describe("UI-339 — the pure-prop contract and the wiring", () => {
         </ToastProvider>
       </MemoryRouter>,
     );
-    // stages=[] → the card-level empty label, never the demo corpus.
+    // stages=[] → the card-level empty label, never a fabricated corpus.
     expect(screen.getByText(/aucune famille en retard/i)).toBeInTheDocument();
     expect(screen.queryByText(/Nadia Benali/)).not.toBeInTheDocument();
   });
