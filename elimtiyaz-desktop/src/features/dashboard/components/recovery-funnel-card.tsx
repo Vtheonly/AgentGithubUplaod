@@ -60,6 +60,10 @@ export interface RecoveryFunnelDemoConfig {
   graceDays: number;
   yellowDays: number;
   redDays: number;
+  /** 0 disables the amount axis, matching the canonical debt configuration. */
+  amountYellowDzd: number;
+  /** 0 disables the amount axis, matching the canonical debt configuration. */
+  amountRedDzd: number;
 }
 
 export interface DemoRecoveryHousehold {
@@ -77,6 +81,10 @@ export const DEFAULT_RECOVERY_DEMO_CONFIG: RecoveryFunnelDemoConfig = {
   graceDays: 0,
   yellowDays: 90,
   redDays: 150,
+  // Preserve the requested initial example until the operator enables the
+  // independent amount axis; this follows Settings' documented 0=disabled rule.
+  amountYellowDzd: 0,
+  amountRedDzd: 0,
 };
 
 export const DEFAULT_RECOVERY_MESSAGE_TEMPLATES: RecoveryMessageTemplates = {
@@ -148,21 +156,47 @@ function eligibleDemoHouseholds(
   );
 }
 
+/**
+ * Amount classification deliberately follows the canonical debt-aging rules:
+ * 0 disables an amount edge; yellow is amount >= yellow, red is amount > red.
+ * The day axis stays independent. The funnel stages are cumulative, so an
+ * amount-red household also appears in the amount-yellow stage even if the
+ * yellow amount edge itself is disabled.
+ */
+function demoAmountIsYellow(household: DemoRecoveryHousehold, config: RecoveryFunnelDemoConfig): boolean {
+  return config.amountYellowDzd > 0 && household.outstandingAmount >= config.amountYellowDzd;
+}
+
+function demoAmountIsRed(household: DemoRecoveryHousehold, config: RecoveryFunnelDemoConfig): boolean {
+  return config.amountRedDzd > 0 && household.outstandingAmount > config.amountRedDzd;
+}
+
+function demoIsYellow(household: DemoRecoveryHousehold, config: RecoveryFunnelDemoConfig): boolean {
+  return household.daysOverdue > config.yellowDays ||
+    demoAmountIsYellow(household, config) ||
+    demoAmountIsRed(household, config);
+}
+
+function demoIsCritical(household: DemoRecoveryHousehold, config: RecoveryFunnelDemoConfig): boolean {
+  return household.daysOverdue > config.redDays || demoAmountIsRed(household, config);
+}
+
 /** Exclusive of no stages: this helper always returns the four UI tiers. */
 export function deriveDemoRecoveryFunnel(
   config: RecoveryFunnelDemoConfig = DEFAULT_RECOVERY_DEMO_CONFIG,
   households: readonly DemoRecoveryHousehold[] = DEMO_RECOVERY_HOUSEHOLDS,
 ): FunnelStage[] {
   const eligible = eligibleDemoHouseholds(households, config);
-  const overdue = eligible.filter(
-    (household) => household.daysOverdue > config.graceDays,
+  // Step 2 remains nested even when the amount axis is enabled independently
+  // of aging: any household in a more severe tier also qualifies for step 2.
+  const overdueOrHighAmount = eligible.filter(
+    (household) =>
+      household.daysOverdue > config.graceDays ||
+      demoIsYellow(household, config) ||
+      demoIsCritical(household, config),
   );
-  const beyondYellow = eligible.filter(
-    (household) => household.daysOverdue > config.yellowDays,
-  );
-  const critical = eligible.filter(
-    (household) => household.daysOverdue > config.redDays,
-  );
+  const beyondYellow = eligible.filter((household) => demoIsYellow(household, config));
+  const critical = eligible.filter((household) => demoIsCritical(household, config));
   const total = eligible.length;
   const pct = (count: number) =>
     total > 0 ? Math.round((count / total) * 100) : 0;
@@ -178,19 +212,19 @@ export function deriveDemoRecoveryFunnel(
       color: chartPalette.gold,
     },
     {
-      name: "En retard (>" + config.graceDays + " j de grâce)",
-      count: overdue.length,
-      rateFromPrevious: pct(overdue.length),
+      name: "En retard / montant à surveiller",
+      count: overdueOrHighAmount.length,
+      rateFromPrevious: pct(overdueOrHighAmount.length),
       color: chartPalette.primary,
     },
     {
-      name: "Au-delà du seuil jaune (>" + config.yellowDays + " j)",
+      name: "À surveiller (>" + config.yellowDays + " j ou seuil DZD)",
       count: beyondYellow.length,
       rateFromPrevious: pct(beyondYellow.length),
       color: chartPalette.warning,
     },
     {
-      name: "Critique (>" + config.redDays + " j)",
+      name: "Critique (>" + config.redDays + " j ou seuil DZD)",
       count: critical.length,
       rateFromPrevious: pct(critical.length),
       color: chartPalette.danger,
@@ -209,11 +243,16 @@ export function demoRecoveryHouseholdsForStage(
     case 0:
       return eligible;
     case 1:
-      return eligible.filter((household) => household.daysOverdue > config.graceDays);
+      return eligible.filter(
+        (household) =>
+          household.daysOverdue > config.graceDays ||
+          demoIsYellow(household, config) ||
+          demoIsCritical(household, config),
+      );
     case 2:
-      return eligible.filter((household) => household.daysOverdue > config.yellowDays);
+      return eligible.filter((household) => demoIsYellow(household, config));
     case 3:
-      return eligible.filter((household) => household.daysOverdue > config.redDays);
+      return eligible.filter((household) => demoIsCritical(household, config));
   }
 }
 
@@ -853,6 +892,69 @@ export function RecoveryFunnelCard({
                   Un foyer entre dans l'entonnoir si son encours fictif atteint ce montant.
                 </span>
               </label>
+              <label htmlFor="demo-yellow-amount" className="space-y-1.5">
+                <span className="block text-xs font-medium text-foreground">
+                  Seuil montant jaune (DZD)
+                </span>
+                <Input
+                  id="demo-yellow-amount"
+                  type="number"
+                  min={0}
+                  max={100000000}
+                  step={1000}
+                  value={configDraft.amountYellowDzd}
+                  onChange={(event) => {
+                    const requested = Math.min(
+                      100000000,
+                      Math.max(0, Math.round(Number(event.target.value) || 0)),
+                    );
+                    setConfigDraft((current) => ({
+                      ...current,
+                      amountYellowDzd: requested,
+                      amountRedDzd:
+                        requested > 0 &&
+                        current.amountRedDzd > 0 &&
+                        current.amountRedDzd < requested
+                          ? requested
+                          : current.amountRedDzd,
+                    }));
+                  }}
+                />
+                <span className="block text-[10px] text-muted-foreground">
+                  Encours à partir duquel le montant est « à surveiller ». 0 désactive ce critère.
+                </span>
+              </label>
+              <label htmlFor="demo-red-amount" className="space-y-1.5">
+                <span className="block text-xs font-medium text-foreground">
+                  Seuil montant rouge (DZD)
+                </span>
+                <Input
+                  id="demo-red-amount"
+                  type="number"
+                  min={0}
+                  max={100000000}
+                  step={1000}
+                  value={configDraft.amountRedDzd}
+                  onChange={(event) => {
+                    const requested = Math.min(
+                      100000000,
+                      Math.max(0, Math.round(Number(event.target.value) || 0)),
+                    );
+                    setConfigDraft((current) => ({
+                      ...current,
+                      amountRedDzd:
+                        requested > 0 &&
+                        current.amountYellowDzd > 0 &&
+                        requested < current.amountYellowDzd
+                          ? current.amountYellowDzd
+                          : requested,
+                    }));
+                  }}
+                />
+                <span className="block text-[10px] text-muted-foreground">
+                  Encours au-delà duquel le montant devient critique. 0 désactive ce critère.
+                </span>
+              </label>
               <label htmlFor="demo-grace-days" className="space-y-1.5">
                 <span className="block text-xs font-medium text-foreground">
                   Délai de grâce (jours)
@@ -901,8 +1003,12 @@ export function RecoveryFunnelCard({
               </label>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              La hiérarchie est conservée automatiquement : grâce &lt; jaune &lt; rouge.
-              Les compteurs, pourcentages et listes sont recalculés à partir du même jeu fictif.
+              Les seuils de jours et de montant sont deux dimensions indépendantes, comme
+              dans la Configuration des Créances. Les étages restent cumulatifs ;
+              pour les montants, le seuil jaune doit rester inférieur ou égal au rouge
+              lorsque les deux sont activés. 0 désactive une dimension de montant.
+              Tous les compteurs, pourcentages et listes sont recalculés sur les mêmes
+              foyers fictifs.
             </p>
           </section>
 
