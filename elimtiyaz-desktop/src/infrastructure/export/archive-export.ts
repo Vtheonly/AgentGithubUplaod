@@ -38,6 +38,7 @@ import { buildZip, type ZipEntry } from "./zip-writer";
 import { listAllRecords } from "../backup/indexed-db-vault";
 import { buildFullWorkbook, type FullExportData } from "../excel/full-export";
 import type { BackupArchive } from "../../domain/model/backup";
+import type { ExportWarmupReport } from "./export-warmup";
 
 /** The two owner-mandated export formats (the UI's radio values). */
 export type ArchiveExportFormat = "entire-archive" | "excel-zip";
@@ -60,6 +61,13 @@ interface ExportManifest {
   archives?: Array<BackupArchive & { file: string; ivFile: string }>;
   /** Present on the excel-zip format. */
   files?: Array<{ name: string; sizeBytes: number; description: string }>;
+  /**
+   * T-505 (BKUP-510): the per-source warm-up record — the operator's
+   * post-hoc detector for a degraded export (a `degraded` source means the
+   * sheet may carry the last-known state rather than the server's current
+   * state; `skipped` means the synchronous mock layer).
+   */
+  sourceWarmup?: ExportWarmupReport[];
   readme?: string;
 }
 
@@ -136,10 +144,16 @@ export async function buildEntireArchiveExport(
  * ZIP, plus the manifest. `data` is the reactive FullExportData snapshot the
  * caller collected from the repository streams (RLS applies — the export
  * contains what the current user may see, the T-368 convention).
+ *
+ * T-505 (BKUP-510): callers SHOULD collect `data` through
+ * `collectWarmedExportData` (the warm-up seam) so a cold app or a degraded
+ * seed can no longer silently produce empty sheets; the optional
+ * `warmup` record rides the manifest as the honest degradation surface.
  */
 export async function buildExcelOnlyExport(
   data: FullExportData,
   at: Date = new Date(),
+  warmup?: readonly ExportWarmupReport[],
 ): Promise<BuiltExport> {
   const workbookBytes = await buildFullWorkbook(data);
   const xlsxName =
@@ -157,6 +171,7 @@ export async function buildExcelOnlyExport(
           "Export complet Excel (13 feuilles : Résumé, Parents, Élèves, Personnel, Paiements, Tranches, Journal, Dépenses, Notes, Présences, Créances, Classes, Services).",
       },
     ],
+    ...(warmup ? { sourceWarmup: [...warmup] } : {}),
     readme:
       "Export des fichiers Excel uniquement (format ZIP) — les classeurs générés " +
       "par l'application, sans le coffre de sauvegardes chiffré.",

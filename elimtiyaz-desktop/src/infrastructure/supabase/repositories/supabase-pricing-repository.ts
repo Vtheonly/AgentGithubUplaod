@@ -411,6 +411,17 @@ export class SupabasePricingRepository implements PricingRepository {
     return this.cache;
   }
 
+  /**
+   * T-505 (BKUP-510): force a re-fetch and RESOLVE when the read completed —
+   * the Excel-ZIP export's warm-up seam (the students/payments/ledger
+   * `refresh()` pattern). `observe()` fires the load fire-and-forget; a
+   * consumer that needs the CURRENT server state (the export, the backup
+   * checkpoint) must be able to AWAIT it.
+   */
+  async refresh(): Promise<void> {
+    await this.load();
+  }
+
   /** Fetch + cache the DB config (idempotent re-fetch after writes). */
   private async load(): Promise<PricingConfig> {
     try {

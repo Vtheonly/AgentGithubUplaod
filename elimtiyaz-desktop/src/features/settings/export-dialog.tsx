@@ -31,17 +31,21 @@ import { useEffect, useState } from "react";
 import { Archive, FileSpreadsheet, FolderOpen, Loader2, PackageOpen } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
-import { useObservable } from "../../shared/hooks/use-observable";
 import { cn } from "../../shared/ui/cn";
 import { Button } from "../../shared/ui/button";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
-import type { PricingConfig } from "../../domain/model/pricing";
 import {
   ARCHIVE_EXPORT_FORMAT_LABELS_FR,
   buildEntireArchiveExport,
   buildExcelOnlyExport,
   type ArchiveExportFormat,
 } from "../../infrastructure/export/archive-export";
+// T-505 (BKUP-510): the warmed collection — replaces the reactive-at-click
+// hooks (a cold app or a degraded seed silently exported empty sheets).
+import {
+  collectWarmedExportData,
+  describeWarmupReport,
+} from "../../infrastructure/export/export-warmup";
 import {
   hasSaveDialogBridge,
   saveExportWithPicker,
@@ -80,58 +84,22 @@ export function ExportDialog({
 
   const hasBridge = hasSaveDialogBridge();
 
-  // The reactive full-export streams (the ReportsTab T-351/T-368 pattern —
-  // never a `.get()` race on an unseeded cache: the export contains what is
-  // actually loaded when the user clicks).
-  const parents = useObservable(() => repos.parents.observe(), []);
-  const students = useObservable(() => repos.students.observe(), []);
-  const personnel = useObservable(() => repos.personnel.observe(), []);
-  const payments = useObservable(() => repos.payments.observe(), []);
-  const installments = useObservable(() => repos.installments.observe(), []);
-  const ledger = useObservable(() => repos.ledger.observe(), []);
-  const expenses = useObservable(() => repos.expenses.observe(), []);
-  const classes = useObservable(() => repos.classes.observe(), []);
-  const subjects = useObservable(() => repos.subjects.observe(), []);
-  const assessments = useObservable(() => repos.grades.observeAll(), []);
-  const attendance = useObservable(
-    () => repos.attendance.observeAll("2020-01-01", "2030-12-31"),
-    [],
-  );
-  const pricingStream = useObservable(() => repos.pricing.observe(), []);
-  const debtSummaries = useObservable(() => repos.debt.observeSummary(), []);
-
-  // T-368 convention: an unseeded pricing stream yields null (the Services
-  // sheet renders honestly empty instead of a fake catalog).
-  const pricingValue: PricingConfig | null =
-    pricingStream &&
-    (Object.keys(pricingStream.tuitionByGradeLevel ?? {}).length > 0 ||
-      Object.keys(pricingStream.monthlyByLevel ?? {}).length > 0 ||
-      (pricingStream.registrationFee ?? 0) > 0)
-      ? pricingStream
-      : null;
-
   async function handleExport(): Promise<void> {
     setExporting(true);
     try {
+      // T-505 (BKUP-510): the WARMED collection — every source's forced
+      // re-seed is awaited BEFORE the snapshot is read (the T-487 backup
+      // warm-up's mirror on the export path). The pre-T-505 reactive hooks
+      // read whatever the caches happened to hold at click time — a cold
+      // app (straight to Settings → Export) or a degraded seed (the T-423
+      // silent-empty class) silently exported EMPTY/PARTIAL sheets.
+      const { data, warmup } = await collectWarmedExportData(repos);
+      const degraded = warmup.filter((w) => w.status === "degraded");
+
       const built =
         format === "entire-archive"
           ? await buildEntireArchiveExport()
-          : await buildExcelOnlyExport({
-              parents,
-              students,
-              personnel,
-              payments,
-              installments,
-              ledger,
-              expenses,
-              assessments,
-              subjects,
-              attendance,
-              debtSummaries,
-              classes,
-              pricing: pricingValue,
-              exportedAt: new Date().toISOString(),
-            });
+          : await buildExcelOnlyExport(data, new Date(), warmup);
 
       // The destination choice — the OS save dialog inside Electron (the
       // user picks the folder AND can rename), the browser flow otherwise.
@@ -150,6 +118,17 @@ export function ExportDialog({
               : ""
           }`,
         );
+        // T-505: the honest degradation surface — the operator is told WHICH
+        // sources served their last-known state (the manifest carries the
+        // same record for the post-hoc audit).
+        if (degraded.length > 0) {
+          toast.showWarning(
+            "Sources de données dégradées",
+            `L'export a été construit avec l'état dernier-connu de : ${degraded
+              .map((d) => d.source)
+              .join(", ")} (${describeWarmupReport(warmup)}). Le manifeste de l'archive porte le détail — vérifiez la connexion puis relancez l'export si besoin.`,
+          );
+        }
       }
       onOpenChange(false);
     } catch (e) {
