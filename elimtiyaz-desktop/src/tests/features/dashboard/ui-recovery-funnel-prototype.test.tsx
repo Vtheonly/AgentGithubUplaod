@@ -220,6 +220,9 @@ describe("UI-339 — local funnel interactions", () => {
       amountRedDzd: 60000,
     };
     const expected = deriveDemoRecoveryFunnel(config);
+    expect(expected[1].count).toBeGreaterThan(548);
+    expect(expected[2].count).toBeGreaterThan(0);
+    expect(expected[3].count).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText("Seuil montant jaune (DZD)"), {
       target: { value: "20000" },
