@@ -690,7 +690,10 @@ export function RecoveryFunnelCard({
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   Foyers dans cette étape
                 </div>
-                <div className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+                <div
+                  data-testid="demo-stage-household-count"
+                  className="mt-0.5 text-lg font-semibold tabular-nums text-foreground"
+                >
                   {selectedStageHouseholds.length.toLocaleString("fr-DZ")}
                 </div>
               </div>
@@ -1024,7 +1027,10 @@ export function RecoveryFunnelCard({
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     Étape {index + 1}
                   </div>
-                  <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">
+                  <div
+                    data-testid={"demo-preview-count-" + (index + 1)}
+                    className="mt-1 text-lg font-semibold tabular-nums text-foreground"
+                  >
                     {stage.count.toLocaleString("fr-DZ")}
                   </div>
                   <div className="text-[10px] text-muted-foreground">
