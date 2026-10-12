@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import "../../../i18n/i18n";
 import { ToastProvider } from "../../../app/providers/toast-provider";
 import {
@@ -30,11 +30,17 @@ const PRODUCTION_STAGE_FIXTURE: FunnelStage[] = [
   { name: "Critique", count: 0, rateFromPrevious: 0, color: "#c05252" },
 ];
 
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="route-location">{location.pathname + location.search}</output>;
+}
+
 function renderPrototype() {
   return render(
     <MemoryRouter>
       <ToastProvider>
         <RecoveryFunnelCard stages={PRODUCTION_STAGE_FIXTURE} />
+        <LocationProbe />
       </ToastProvider>
     </MemoryRouter>,
   );
@@ -132,6 +138,20 @@ describe("UI-339 — local funnel interactions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Confirmer la simulation" }));
     expect(screen.queryByText("Confirmer la simulation")).not.toBeInTheDocument();
+  });
+
+  it("routes Finance actions with the selected fictional household context", () => {
+    renderPrototype();
+    fireEvent.click(screen.getByRole("button", { name: /aperçu local/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /ouvrir la liste de l’étape 1/i }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /ouvrir finances pour Nadia Benali/i }),
+    );
+    expect(screen.getByTestId("route-location")).toHaveTextContent(
+      "/financials?familyId=demo-family-0001",
+    );
   });
 
   it("shows a live preview of threshold edits before the operator applies them locally", () => {
