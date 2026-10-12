@@ -1,8 +1,20 @@
+# 2026-10-13 — The 159th session IN PROGRESS (T-511, RENUMBERED from the drafted T-510 per §15.43 — the concurrent issue-#31 session registered T-510 first; coordinate, do not duplicate): the owner's issue-#30 mandate — the read-only Webhook Diagnostics for ledger traceability (AUDIT-506 OPEN, the registration complete); the implementation phases next
+
+**The mandate (issue #30):** add a « Webhook Diagnostics » section under Finance → Diagnostics that audits every financial event / transaction / payment / charge / refund / credit / ledger entry for legitimacy, correct mapping, and traceability to a concrete business event — business justification, concrete price basis, source traceability, webhook-to-ledger consistency, customer identity, amount/currency/direction, date semantics (future-dated collected payments vs as-of balances), duplicates/omissions, and reconciliation — with the findings taxonomy (confirmed_mismatch / duplicate_event / unjustified_amount / outlier_review / date_semantic_conflict / unverified / reconciled), configurable thresholds, evidence-backed explanations, and the READ-ONLY guarantee (no mutation of any financial record, no fabricated evidence, no automatic "fraudulent" labels — unverified, not guilty).
+
+**The phases:** (a) the pure read-only analytical engine over the canonical streams (a §15.53a consumer: `computeParentSummary`, `installmentRemaining`/INV-4, the `crossCheck*` primitives, the price matrix) + the 20-scenario suite; (b) the « Webhook Diagnostics » UI section wired to the FinancialsPage's real observables + the UI suite; (c) the battery + the registered baseline move + the docs closeout. Each phase = one commit, pushed + merged before the next (the user's explicit instruction).
+
+**The coordination note:** the CONCURRENT issue-#31 session owns T-510 (the per-tranche amount editing, DEBT-105 — a migration/RPC write-path task); this session's T-511 is read-only and touches NO migration, NO RPC, NO repository write path — the two tasks cannot collide in code (their only shared files are the recovery docs).
+
+**The session-opening baseline:** the FULL vitest run GREEN 5,001/0/5 (300 files) — BASELINE-MATCHED, the tree pristine (typecheck 0).
+---
+
 # 2026-10-13 — The 159th session IN PROGRESS (T-510): the per-tranche amount editing — the owner's GitHub issue #31 mandate (DEBT-105 registered OPEN; the live chain probed at 0151 == the repo head — the migration slot is 0152)
 
 **The mandate (the owner's issue #31, verbatim intent):** "When adjusting the amount a student or family owes, the adjustment does not behave correctly at the individual tranche level. I need to edit an account's outstanding amount and explicitly control how much is owed for each specific tranche. The workflow must let me select an account, inspect its tranches, and set the amount due for each tranche individually. Adjusting one tranche must not unintentionally change other tranches or create inconsistencies between account-level and tranche-level balances."
 
 **The phases (each = one commit, pushed + merged before the next):** (a) the registration (this commit — T-510 + DEBT-105 in the two registries); (b) the implementation — migration 0152 `adjust_installment_amount` (the 0137 conventions: the three atomic writes — installments UPDATE + the signed-delta ledger adjustment on the tranche's own account + the audit row; the guards: staff roles, tenant scope, FOR UPDATE, new amount >= 0, reason >= 3 chars, the no-op-delta double-application rejection; the explicit `overcovered` case) + the `InstallmentRepository.adjustAmountDue` contract (the Supabase + mock twins on the existing factories) + the échéancier editor modal + the account-level modal's explicit tranche notice; (c) the suites — the issue's 11 mandated scenarios + the UI pins + the registered baseline move; (d) the live apply + the live verification (the sbp_ token works — probed; the §15.39 `begin; … rollback;` convention); (e) the docs closeout.
+
 
 ---
 
