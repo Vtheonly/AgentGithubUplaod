@@ -425,8 +425,17 @@ describe("T-503 (UI-335) — the per-indicator show/hide toggles", () => {
     );
     expect(cellExists("radar")).toBe(false);
     expect(cellExists("console")).toBe(true);
-    // No tray outside edit mode.
+    // No TRAY outside edit mode (the tray is the edit-mode home).
     expect(screen.queryByTestId("dashboard-hidden-tray")).toBeNull();
+    // T-504 (UI-337) re-pin: the VIEW-MODE RESTORE BAR now renders instead —
+    // the hidden indicator is ALWAYS discoverable (the owner's report: no
+    // way to see the hidden thing to bring it back). The one-click restore
+    // works directly from view mode.
+    const bar = screen.getByTestId("dashboard-hidden-restore-bar");
+    expect(within(bar).getByText(/1 indicateur masqué/)).toBeTruthy();
+    fireEvent.click(within(bar).getByRole("button", { name: "Afficher Radar de vigilance" }));
+    expect(cellExists("radar")).toBe(true);
+    expect(screen.queryByTestId("dashboard-hidden-restore-bar")).toBeNull();
   });
 
   it("the ALL-HIDDEN honest empty state renders when every indicator is hidden", () => {

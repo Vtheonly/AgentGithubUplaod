@@ -205,6 +205,29 @@ function settleLayout(
   return resolveCollisions(settled, interactionId);
 }
 
+/**
+ * T-504 (UI-337): the pure RESTORE computation — un-hide one indicator,
+ * returning the next layout. Extracted from the old inline showItem body
+ * (same semantics byte-for-byte) so the edit-mode restore (dirty, saved via
+ * Enregistrer) and the NEW view-mode restore (persists immediately) ride
+ * ONE implementation. The restored indicator re-enters the grid at its
+ * stored rect; the load-time resolver semantics ("__load__" — push
+ * whichever of an overlapping pair sits lower) heal any overlap a sibling
+ * may have drifted into while this one was hidden. Idempotent: an already
+ * visible id returns the SAME object.
+ */
+function buildShownLayout(previous: StoredLayout, id: string): StoredLayout {
+  const rect = previous[id];
+  if (!rect || rect.hidden !== true) return previous;
+  const rest: LayoutRect = {
+    x: rect.x,
+    y: rect.y,
+    w: rect.w,
+    h: rect.h,
+  };
+  return resolveCollisions({ ...previous, [id]: rest }, "__load__");
+}
+
 function resolveCollisions(layout: StoredLayout, movedId: string): StoredLayout {
   // T-503 (PERF-509): COPY-ON-WRITE — a shallow carrier plus a new rect
   // object ONLY for the rects the pass actually moves. Untouched rects keep
@@ -472,6 +495,14 @@ export function DashboardLayoutEditor({
     // promotion save are both harmless — the exactly-once semantics the
     // sentinel gives are worth more than the cancelled flag.
     void (async () => {
+      // T-504 (UI-337): the local-cache snapshot is taken BEFORE awaiting
+      // the server load — the promotion can never race a persist that
+      // lands while the load is in flight (the view-mode restore bar now
+      // persists outside edit mode, making that window reachable: the
+      // promotion used to re-read the cache AFTER the await and could
+      // double-save — or worse, save a stale pre-restore snapshot over the
+      // user's just-saved restore on a slow load).
+      const localAtMount = readStoredLayout(storageKey);
       const loaded = await repos.dashboardLayouts.load(storageKey);
       if (!loaded.ok) {
         // Offline/degraded: the local cache (already applied in the state
@@ -512,7 +543,7 @@ export function DashboardLayoutEditor({
       // it to the server ONCE — the "configure once, never again" migration
       // for pre-T-448 layouts. A failed promotion is NOT an error: the next
       // mount retries it.
-      const local = readStoredLayout(storageKey);
+      const local = localAtMount;
       if (Object.keys(local).length > 0) {
         const promoted = await repos.dashboardLayouts.save(storageKey, local);
         if (!promoted.ok) {
@@ -720,16 +751,19 @@ export function DashboardLayoutEditor({
     [editing],
   );
 
-  function persistNow() {
-    writeStoredLayout(storageKey, layout);
+  function persistNow(next: StoredLayout = layout) {
+    writeStoredLayout(storageKey, next);
     setDirty(false);
     setSaveState(null);
     onSave?.();
     // T-448: the EXPLICIT save — the one and only path that updates the
     // saved server configuration ("only update the saved configuration when
     // I explicitly change and save it"). The local cache above keeps the
-    // layout usable offline whatever the server outcome.
-    void repos.dashboardLayouts.save(storageKey, layout).then((result) => {
+    // layout usable offline whatever the server outcome. T-504 (UI-337):
+    // the optional `next` argument lets the view-mode restore bar persist
+    // a JUST-COMPUTED layout (the caller's buildShownLayout result) — the
+    // closure `layout` would be one render behind at that moment.
+    void repos.dashboardLayouts.save(storageKey, next).then((result) => {
       setSaveState(result.ok ? "saved" : "save-failed");
       if (!result.ok) {
         logger.warn("dashboard-layout: server save failed", {
@@ -754,23 +788,44 @@ export function DashboardLayoutEditor({
   }, []);
 
   const showItem = useCallback((id: string) => {
-    setLayout((previous) => {
-      const rect = previous[id];
-      if (!rect || rect.hidden !== true) return previous;
-      const rest: LayoutRect = {
-        x: rect.x,
-        y: rect.y,
-        w: rect.w,
-        h: rect.h,
-      };
-      // The restored indicator re-enters the grid at its stored rect; the
-      // load-time resolver semantics ("__load__" — push whichever of an
-      // overlapping pair sits lower) heal any overlap a sibling may have
-      // drifted into while this one was hidden.
-      return resolveCollisions({ ...previous, [id]: rest }, "__load__");
-    });
+    setLayout((previous) => buildShownLayout(previous, id));
     setDirty(true);
   }, []);
+
+  // T-504 (UI-337): the VIEW-MODE restore — the click IS the explicit
+  // change, so it persists IMMEDIATELY (the T-448 explicit-save contract
+  // stays intact for edit mode; a view-mode user has no Enregistrer button,
+  // so leaving the restore dirty-only would silently lose it on unmount).
+  // Reads the CURRENT layout through layoutRef (never a stale closure) and
+  // persists the computed NEXT object directly (the setLayout below and
+  // the save below see the SAME layout — no race). Deliberately NOT
+  // useCallback-wrapped: it calls persistNow (a per-render closure over
+  // storageKey/onSave/repos) and no memoized cell depends on it — the
+  // view-mode bar reads it fresh every render.
+  function showItemAndPersist(id: string) {
+    const next = buildShownLayout(layoutRef.current, id);
+    setLayout(next);
+    persistNow(next);
+  }
+
+  // T-504 (UI-337): the view-mode restore-ALL — one click un-hides every
+  // hidden indicator of this view and persists once. Each unhide re-runs
+  // the load-time resolver (a returning indicator yields to whatever now
+  // occupies its stored rect — the same semantics as an individual
+  // restore, applied in sequence).
+  function showAllAndPersist() {
+    let next = layoutRef.current;
+    let changed = false;
+    for (const item of itemsRef.current) {
+      if (next[item.id]?.hidden === true) {
+        next = buildShownLayout(next, item.id);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    setLayout(next);
+    persistNow(next);
+  }
 
   function reset() {
     removeDashboardLayoutCache(storageKey);
@@ -826,10 +881,64 @@ export function DashboardLayoutEditor({
             <button type="button" onClick={reset} className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-panel px-2 py-1 hover:bg-muted">
               <RotateCcw className="h-3 w-3" /> Réinitialiser
             </button>
-            <button type="button" onClick={persistNow} disabled={!dirty} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50">
+            <button type="button" onClick={() => persistNow()} disabled={!dirty} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50">
               <Save className="h-3 w-3" /> Enregistrer
             </button>
           </div>
+        </div>
+      )}
+
+      {/* T-504 (UI-337): the VIEW-MODE hidden-indicator restore bar — the
+          discoverability fix for the owner's report ("there is no way to…
+          see the thing I toggled off to bring them back"). Whenever hidden
+          indicators exist OUTSIDE edit mode, this compact bar renders with
+          the grid: the hidden count, one chip per hidden indicator (a
+          one-click Afficher that restores AND persists immediately — the
+          click IS the explicit change), and the Tout afficher
+          restore-all. The edit-mode home of hidden items stays the tray
+          below the grid (the Enregistrer flow); this bar serves the reader
+          persona that never enters edit mode. */}
+      {!editing && hiddenItems.length > 0 && (
+        <div
+          data-testid="dashboard-hidden-restore-bar"
+          className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border/70 bg-surface-panel/60 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider">
+            <EyeOff className="h-3.5 w-3.5" />
+            {hiddenItems.length === 1
+              ? "1 indicateur masqué"
+              : `${hiddenItems.length} indicateurs masqués`}
+          </span>
+          {hiddenItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-label={`Afficher ${item.label}`}
+              title={`Afficher ${item.label}`}
+              onClick={() => showItemAndPersist(item.id)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              <Eye className="h-3 w-3" />
+              {item.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label="Tout afficher"
+            title="Réafficher tous les indicateurs masqués"
+            onClick={showAllAndPersist}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1.5 font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            <Eye className="h-3 w-3" />
+            Tout afficher
+          </button>
+          {/* The honest save-outcome hint (the T-448 save-failed posture —
+              the local cache keeps the restore; the server retry can wait). */}
+          {saveState === "save-failed" && (
+            <span className="w-full text-destructive">
+              Serveur injoignable — restauration conservée localement, réessayez depuis la personnalisation
+            </span>
+          )}
         </div>
       )}
 
@@ -862,15 +971,18 @@ export function DashboardLayoutEditor({
       </div>
 
       {/* T-503 (UI-335): the all-hidden honest empty state — the view never
-          renders a silently blank dashboard. */}
+          renders a silently blank dashboard. T-504 (UI-337): the guidance
+          now points at the ALWAYS-PRESENT view-mode restore bar above
+          (no edit-mode knowledge required). */}
       {visibleItems.length === 0 && (
         <div
           className="rounded-xl border border-dashed border-border/70 bg-surface-panel/50 px-4 py-10 text-center text-xs text-muted-foreground"
           data-testid="dashboard-all-hidden"
         >
-          Tous les indicateurs de cette vue sont masqués. Activez
-          « Personnaliser le tableau de bord » puis « Afficher » dans le bac
-          des indicateurs masqués pour les réafficher.
+          Tous les indicateurs de cette vue sont masqués. Utilisez la barre
+          « {hiddenItems.length === 1 ? "1 indicateur masqué" : `${hiddenItems.length} indicateurs masqués`} »
+          ci-dessus : « Afficher » restaure un indicateur, « Tout afficher »
+          les rétablit tous en une fois.
         </div>
       )}
 

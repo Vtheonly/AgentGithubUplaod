@@ -188,7 +188,11 @@ describe("T-448 — source guards (the dedicated store's architecture)", () => {
   });
 
   it("the editor's explicit save is the ONLY server write path (persistNow → save; the debounced buffer stays local)", () => {
-    expect(EDITOR_SRC).toMatch(/persistNow[\s\S]{0,600}repos\.dashboardLayouts\.save/);
+    // T-504 (UI-337) re-pin: persistNow grew the optional `next` argument
+    // (the view-mode restore bar persists a JUST-COMPUTED layout) + its
+    // documentation — the window widens 600 → 900; the CONTRACT is
+    // unchanged: persistNow is still the one path to the server save.
+    expect(EDITOR_SRC).toMatch(/persistNow[\s\S]{0,900}repos\.dashboardLayouts\.save/);
     // The debounced editing buffer writes the LOCAL cache only.
     const debounceMatch = EDITOR_SRC.match(
       /useEffect\(\(\) => \{\s*if \(!dirty\) return;\s*const timer[\s\S]{0,200}?writeStoredLayout/,
