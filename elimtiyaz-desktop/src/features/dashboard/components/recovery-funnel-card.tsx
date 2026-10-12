@@ -480,7 +480,11 @@ export function RecoveryFunnelCard({
             </span>
           )}
           <CardHeaderActions>
-            {headerActions}
+            {/* The existing Settings editor can persist real configuration.
+                Hide it in local prototype mode; that mode exposes only the
+                in-memory draft controls below. Production mode keeps the
+                original shared Settings trigger unchanged. */}
+            {!prototypeMode && headerActions}
             <Button
               type="button"
               size="sm"
