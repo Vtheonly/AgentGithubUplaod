@@ -229,16 +229,16 @@ describe("UI-339 — local funnel interactions", () => {
     });
 
     expect(
-      screen.getByTestId("demo-preview-count-3").textContent?.replace(/\\D/g, ""),
+      screen.getByTestId("demo-preview-count-3").textContent?.replace(/\D/g, ""),
     ).toBe(String(expected[2].count));
     expect(
-      screen.getByTestId("demo-preview-count-4").textContent?.replace(/\\D/g, ""),
+      screen.getByTestId("demo-preview-count-4").textContent?.replace(/\D/g, ""),
     ).toBe(String(expected[3].count));
 
     fireEvent.click(screen.getByRole("button", { name: "Appliquer localement" }));
     fireEvent.click(screen.getByRole("button", { name: /ouvrir la liste de l’étape 3/i }));
     expect(
-      screen.getByTestId("demo-stage-household-count").textContent?.replace(/\\D/g, ""),
+      screen.getByTestId("demo-stage-household-count").textContent?.replace(/\D/g, ""),
     ).toBe(String(expected[2].count));
   });
 
