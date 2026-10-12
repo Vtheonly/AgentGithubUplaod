@@ -86,6 +86,9 @@ import {
   computeTreasuryHealth,
 } from "../../domain/calc/payment/financial-query-engine";
 import { FinancialQueryConsole } from "./financial-query-console";
+// T-511 (AUDIT-506, issue #30): the read-only Webhook & Ledger Traceability
+// audit — a §15.53a analytical consumer over the page's existing streams.
+import { WebhookDiagnosticsCard } from "./webhook-diagnostics-card";
 import { CrossServiceMatrix } from "./cross-service-matrix";
 import { CashFlowRadar } from "./cash-flow-radar";
 import { PayrollFundingCard } from "./payroll-funding-card";
@@ -494,6 +497,21 @@ export function FinancialsPage() {
         </PageTabContent>
         <PageTabContent value="diagnostic">
           <div className="space-y-4">
+            {/* T-511 (AUDIT-506, issue #30): the read-only traceability audit —
+                FIRST on the tab; the existing family-analytics console, the
+                cross-service matrix and the treasury radar follow below. */}
+            <WebhookDiagnosticsCard
+              payments={payments}
+              installments={installments}
+              ledgerEntries={ledgerEntries}
+              paymentAllocations={paymentAllocations}
+              debtSummaries={debtSummary}
+              parents={parents}
+              students={students}
+              onOpenParent={(parentId) => openParent(parentId)}
+              onOpenPayment={(paymentId) => setPaymentDetailId(paymentId)}
+            />
+
             <FinancialQueryConsole
               diagnoses={financialDiagnoses}
               onOpenParent={(parentId) => {
