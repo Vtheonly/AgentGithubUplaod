@@ -1,3 +1,19 @@
+## 2026-10-13 — T-515 (the 161st session) — WORKFORCE-516 RESOLVED-TESTED: the [Staff] working-DAYS calendar replacing the working-hours configuration (the owner's three-issue mandate, issue 3) — the workingHours{start,end,weekdays} shape REPLACED by workingDays{year,month,days} + the ONE shared read-time normalizer (the live legacy row censused + pinned) + the calendar step (the month navigator, the per-day-of-month toggles, the Dim–Jeu/Tout/Aucun quick selections, the AUTO-COMPUTED total); the battery 5,127/0/5 at the registered baseline move (309 files, +14)
+
+**THE MANDATE (the owner's issue 3, verbatim intent):** "Remove the working-hours configuration and keep only the working days of the month. Make the working days configurable through toggles for each day of the month. Instead of configuring working hours, provide a calendar-based interface where users can select or deselect working days. Based on the selected days, automatically calculate and display the total number of working days for the selected month."
+
+**THE ROOT CAUSE (WORKFORCE-516):** the wizard's step 7 was an iteration-8 wireframe default (plan §09) never revisited against the school's actual operational question — the clock-hours + weekday abstraction instead of the month's CONCRETE working days.
+
+**THE DELIVERY:** the domain shape change (workingDays{year,month,days} + the exported calendar vocabulary + the ONE shared normalizer); the calendar step (git mv + rewrite: the month navigator with the year rollover, the Sunday-first grid with every day an aria-pressed toggle, the quick selections, the auto-computed total — NO working-hours input remains); the STEP ID `working_hours` KEPT (the persisted indexes — see the new AGENTS.md §15.97a); the review row's count display; both repositories' defaults + the Supabase mapRow normalization (the LIVE legacy row loads cleanly — the census artifact committed, the verbatim shape pinned as the test fixture); NO migration (data_json is schemaless JSONB).
+
+**THE VERIFICATION:** `t-515-working-days-step.test.tsx` 14/14 (the domain helpers, the normalizer incl. the live-census shape and the garbage-never-throws contract, the calendar interaction with the exact payloads, the review row); the onboarding-neighborhood suites 49/49 unchanged-green; the FULL battery 5,127/0/5 (309 files — the registered baseline move); typecheck 0; the LIVE read-only census (the registration commit). The VERIFIED gate requires the wizard re-opened on live (the singleton row is COMPLETED — the admin dashboard's reset surface, or a fresh environment).
+
+**THE COMMITS:** 2eb90ef9 (the registration + the census artifact reference) → 47f8ca17 (the census artifact itself — missed from the registration's add, corrected immediately) → 5265e6bf (the implementation + the suite + the registered baseline move) → this doc set (incl. AGENTS.md §15.97), each pushed to main before the next.
+
+**LEFT:** the owner's eyeball (the wizard re-opened). THE THREE-ISSUE FLEET IS COMPLETE: T-513 (the YoY mock mode) · T-514 (the Pareto full names + clickability) · T-515 (the working-days calendar).
+
+---
+
 ## 2026-10-13 — T-514 (the 161st session) — UI-342 RESOLVED-TESTED: the Family Pareto chart's full names + clickable bars (the owner's three-issue mandate, issue 2) — derivePareto's parentId plumb-through + the full-name axis (the 'A. Benali' compression removed) + the Bar click navigating to the family's dossier through the global person-navigation drawer (the page wiring that was always missing); the battery 5,113/0/5 at the registered baseline move (308 files, +7)
 
 **THE MANDATE (the owner's issue 2, verbatim intent):** "In the Family Pareto chart, make the family names fully visible instead of truncated or hidden. Additionally, make each family name or its corresponding bar clickable. When clicked, it should navigate directly to the relevant family's details page or open the appropriate family information view."

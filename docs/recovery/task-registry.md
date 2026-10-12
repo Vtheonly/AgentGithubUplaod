@@ -5931,7 +5931,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 ## T-515 — The [Staff] working-DAYS calendar replacing the working-hours configuration (the owner's three-issue mandate, issue 3 / WORKFORCE-516): the onboarding wizard's step 7 loses the start/end hour inputs and gains a per-day-of-the-month calendar of toggles with the auto-computed working-days total — the 161st session
 
-**Status:** IN_PROGRESS (161st session, 2026-10-13 — registration; the implementation + suites + docs closeout follow in the same session).
+**Status:** TESTED (161st session, 2026-10-13 — implementation + the 14-test suite + the full battery complete; the VERIFIED gate is the owner's eyeball, which requires the wizard re-opened — see Left).
 
 **The mandate (the owner's issue 3, verbatim intent):** "In the staff Remove the working-hours configuration and keep only the working days of the month. Make the working days configurable through toggles for each day of the month. Instead of configuring working hours, provide a calendar-based interface where users can select or deselect working days. Based on the selected days, automatically calculate and display the total number of working days for the selected month."
 
@@ -5941,6 +5941,6 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **The scope:** (a) `domain/model/workforce.ts`: `OnboardingData.workingHours` → `workingDays` + the shared normalizer + the calendar helpers (the month grid geometry, the default school-week selection Dim–Jeu per the T-243 convention, the days count); (b) the step component rewritten as the calendar (`working-days-step.tsx`, the file renamed to match its content; the STEP ID `working_hours` KEPT — the persisted `current_step`/`completed_steps` are INDEXES into ONBOARDING_STEPS, renaming the enum value would corrupt the stored progress); (c) the review step displays the working-days total for the selected month; (d) both repository `emptyData()` defaults updated; (e) the regression suite (the normalizer's legacy/back-compat paths, the calendar interaction, the count, the review row).
 
-**Left:** the whole implementation (registered first per §13).
+**Left (the VERIFIED gate):** the live singleton row is COMPLETED (completed_at 2026-10-12 — the census), so the owner's eyeball requires the wizard to be re-opened: either the admin dashboard's documented reset (Personnel → the onboarding gate re-opens with the fresh defaults) or a fresh environment; then: the calendar renders the current month, the per-day toggles and the three quick selections behave, the total auto-updates, the month navigator rolls over, and the review row shows the count. The AGENTS.md §15.97 lessons are committed (the step-ID freeze · the schemaless-JSONB normalizer+census pattern · the vi.mock depth trap made mechanical).
 
-**Next:** the T-515 implementation commit (the domain shape + the normalizer + the step + the suite).
+**Next:** the standing queue — NOTIF-107's design ruling first (the owner picks the arm: the creator-readback SELECT arm vs dropping .select() vs the broadcast RPC), then the T-498 stale-schema residuals (they gate the sync-push family). The three-issue fleet is COMPLETE.
