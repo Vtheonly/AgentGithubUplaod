@@ -18,7 +18,7 @@ export const STEP_LABELS_FR: Record<OnboardingStep, string> = {
   employees: "Effectifs",
   admins: "Administrateurs",
   managers: "Responsables",
-  working_hours: "Horaires",
+  working_hours: "Jours ouvrés", // T-515: the step ID stays (persisted indexes); the label follows the content
   shift_types: "Types de poste",
   permissions: "Permissions",
   review: "Vérification",

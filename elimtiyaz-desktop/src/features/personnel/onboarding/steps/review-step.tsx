@@ -7,6 +7,12 @@ import {
   SHIFT_TYPE_LABELS_FR,
   type ShiftType,
 } from "../../../../domain/model/workforce";
+
+/** T-515: the French month label for the working-days review row. */
+const MONTH_LABELS_FR = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+] as const;
 import { StepHeader } from "./step-header";
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
@@ -42,9 +48,10 @@ export function ReviewStep() {
           <ReviewRow label="Effectif estimé" value={`${d.employeeCount} employé(s)`} />
           <ReviewRow label="Administrateurs" value={`${d.adminIds.length} admin(s)`} />
           <ReviewRow label="Affectations responsables" value={`${d.managerAssignments.length} affectation(s)`} />
+          {/* T-515 (WORKFORCE-516): the working-days total for the selected month. */}
           <ReviewRow
-            label="Horaires"
-            value={`${d.workingHours.start} – ${d.workingHours.end}, ${d.workingHours.weekdays.length} jour(s)`}
+            label="Jours ouvrés"
+            value={`${d.workingDays.days.length} jour(s) — ${MONTH_LABELS_FR[d.workingDays.month - 1]} ${d.workingDays.year}`}
           />
           <ReviewRow
             label="Types de poste"

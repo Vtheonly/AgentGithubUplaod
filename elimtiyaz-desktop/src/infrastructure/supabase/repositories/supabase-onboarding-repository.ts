@@ -52,6 +52,9 @@ import type {
   OnboardingData,
 } from "../../../domain/model/workforce";
 import { ONBOARDING_STEPS } from "../../../domain/model/workforce";
+// T-515 (WORKFORCE-516): the working-days defaults + the read-time
+// normalizer (value imports — the type block above stays type-only).
+import { defaultWorkingDays, normalizeOnboardingData } from "../../../domain/model/workforce";
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
@@ -96,7 +99,13 @@ function mapRow(row: OnboardingRow): OnboardingState {
         .filter((i) => i >= 0 && i < ONBOARDING_STEPS.length)
         .map((i) => ONBOARDING_STEPS[i]!),
     ),
-    data: (row.data_json ?? {}) as unknown as OnboardingData,
+    // T-515 (WORKFORCE-516): the data payload is NORMALIZED on read — the
+    // LIVE singleton row carries the legacy `workingHours` shape (the
+    // session's census: scripts/t515-onboarding-census.json) and must keep
+    // loading cleanly on the new `workingDays` contract (the legacy key is
+    // ignored; the absent key degrades to the documented default). ONE
+    // normalizer shared with the mock (§6/§9 — never a per-repo twin).
+    data: normalizeOnboardingData(row.data_json),
   };
 }
 
@@ -264,7 +273,7 @@ export class SupabaseOnboardingRepository implements OnboardingRepository {
       employeeCount: 0,
       adminIds: [],
       managerAssignments: [],
-      workingHours: { start: "08:00", end: "17:00", weekdays: ["mon", "tue", "wed", "thu", "fri"] },
+      workingDays: defaultWorkingDays(),
       shiftTypes: [],
       permissionOverrides: {},
     };

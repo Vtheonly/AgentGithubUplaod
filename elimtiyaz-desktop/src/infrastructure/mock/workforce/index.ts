@@ -49,6 +49,9 @@ import type {
   OnboardingStep,
   OnboardingData,
 } from "../../../domain/model/workforce";
+// T-515 (WORKFORCE-516): the working-days default (a VALUE import — the
+// block above is type-only).
+import { defaultWorkingDays } from "../../../domain/model/workforce";
 import type { AttendanceRepository } from "../../../domain/repository/workforce-repository";
 
 const nowIso = () => new Date().toISOString();
@@ -1430,7 +1433,9 @@ const EMPTY_ONBOARDING_DATA: OnboardingData = {
   employeeCount: 0,
   adminIds: [],
   managerAssignments: [],
-  workingHours: { start: "08:00", end: "17:00", weekdays: ["mon", "tue", "wed", "thu", "fri"] },
+  // T-515 (WORKFORCE-516): the working-DAYS default (the current month on
+  // the school week) — the hours configuration is gone.
+  workingDays: defaultWorkingDays(),
   shiftTypes: ["morning", "afternoon"],
   permissionOverrides: {},
 };

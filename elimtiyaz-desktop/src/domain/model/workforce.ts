@@ -486,11 +486,121 @@ export interface OnboardingData {
     departmentName: string;
     managerId: string;
   }[];
-  readonly workingHours: {
-    start: string;
-    end: string;
-    weekdays: readonly string[];
+  /**
+   * T-515 (WORKFORCE-516, the owner's issue 3): the working-HOURS
+   * configuration (start/end clock times + a weekday abstraction) is
+   * REPLACED by the working DAYS of a selected month — a calendar of
+   * per-day toggles with the auto-computed total. `year` is the Gregorian
+   * year, `month` is 1–12, `days` are the selected day-of-month numbers
+   * (ascending, unique, valid for the month).
+   */
+  readonly workingDays: {
+    readonly year: number;
+    readonly month: number;
+    readonly days: readonly number[];
   };
   readonly shiftTypes: readonly string[];
   readonly permissionOverrides: Record<string, readonly string[]>;
+}
+
+// ============================================================================
+// T-515 (WORKFORCE-516) — the working-days calendar vocabulary
+// ============================================================================
+
+/** The working-days configuration shape (see OnboardingData.workingDays). */
+export interface WorkingDaysConfig {
+  readonly year: number;
+  readonly month: number;
+  readonly days: readonly number[];
+}
+
+/** The days of a Gregorian month (month 1–12) — 28/29/30/31 per leap year. */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Is `month` a valid 1–12 month number? */
+function isValidMonth(month: unknown): month is number {
+  return typeof month === "number" && Number.isInteger(month) && month >= 1 && month <= 12;
+}
+
+/** Is `year` a plausible Gregorian year (the wizard's navigator bound)? */
+function isValidYear(year: unknown): year is number {
+  return typeof year === "number" && Number.isInteger(year) && year >= 1900 && year <= 2200;
+}
+
+/**
+ * The DEFAULT selection for a month: the Algerian school week, Dimanche à
+ * Jeudi (the T-243 convention — the repo's documented school week; every
+ * day remains individually toggleable, this is only the starting lens).
+ */
+export function schoolWeekDaysOfMonth(year: number, month: number): number[] {
+  const out: number[] = [];
+  const total = daysInMonth(year, month);
+  for (let day = 1; day <= total; day++) {
+    const jsDay = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    // 0 = Sunday (Dimanche), 1–4 = Monday–Thursday (Lundi–Jeudi).
+    if (jsDay === 0 || (jsDay >= 1 && jsDay <= 4)) out.push(day);
+  }
+  return out;
+}
+
+/**
+ * T-515 (WORKFORCE-516): the default working-days configuration — the
+ * CURRENT month (the wizard asks "which days of THIS month are worked")
+ * preselected with the school week (Dim–Jeu), every day toggleable.
+ */
+export function defaultWorkingDays(now: Date = new Date()): WorkingDaysConfig {
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  return { year, month, days: schoolWeekDaysOfMonth(year, month) };
+}
+
+/**
+ * T-515 (WORKFORCE-516): validate/repair a raw workingDays payload (the
+ * JSONB round-trip or a legacy row): the month/year fall back to the
+ * current month; the days are de-duplicated, clamped to the month's
+ * length, and sorted ascending. NEVER throws — a corrupt row degrades to
+ * the documented default (the wizard stays usable; the §15.24 no-crash-
+ * on-corrupt-rows discipline).
+ */
+export function normalizeWorkingDays(raw: unknown): WorkingDaysConfig {
+  const r = (raw ?? {}) as Partial<WorkingDaysConfig>;
+  const fallback = defaultWorkingDays();
+  const year = isValidYear(r.year) ? r.year : fallback.year;
+  const month = isValidMonth(r.month) ? r.month : fallback.month;
+  const total = daysInMonth(year, month);
+  const days = Array.isArray(r.days)
+    ? [...new Set(r.days)]
+        .filter((d): d is number => typeof d === "number" && Number.isInteger(d) && d >= 1 && d <= total)
+        .sort((a, b) => a - b)
+    : schoolWeekDaysOfMonth(year, month);
+  return { year, month, days };
+}
+
+/**
+ * T-515 (WORKFORCE-516): the read-time normalizer for the WHOLE
+ * OnboardingData payload — the LIVE singleton row (censused this session:
+ * scripts/t515-onboarding-census.json) carries the LEGACY
+ * `workingHours: {start, end, weekdays}` shape; on the new contract the
+ * legacy key is simply ignored (data_json is schemaless JSONB — no
+ * migration, the old keys linger harmlessly) and `workingDays` degrades
+ * to the documented default. Every repository mapping seam routes through
+ * this ONE implementation (§6/§9 — never a per-repo twin).
+ */
+export function normalizeOnboardingData(raw: unknown): OnboardingData {
+  const r = (raw ?? {}) as Partial<OnboardingData> & Record<string, unknown>;
+  return {
+    departments: Array.isArray(r.departments) ? r.departments : [],
+    roles: Array.isArray(r.roles) ? r.roles : [],
+    employeeCount: typeof r.employeeCount === "number" ? r.employeeCount : 0,
+    adminIds: Array.isArray(r.adminIds) ? r.adminIds : [],
+    managerAssignments: Array.isArray(r.managerAssignments) ? r.managerAssignments : [],
+    workingDays: normalizeWorkingDays(r.workingDays),
+    shiftTypes: Array.isArray(r.shiftTypes) ? r.shiftTypes : [],
+    permissionOverrides:
+      r.permissionOverrides && typeof r.permissionOverrides === "object" && !Array.isArray(r.permissionOverrides)
+        ? (r.permissionOverrides as Record<string, readonly string[]>)
+        : {},
+  };
 }

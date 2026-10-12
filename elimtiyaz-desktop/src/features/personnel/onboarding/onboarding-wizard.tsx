@@ -15,7 +15,7 @@
  *   4. Employees (approximate count, used to seed analytics)
  *   5. Admins (which personnel IDs are admins)
  *   6. Managers (who manages each department)
- *   7. Working hours (start, end, weekdays)
+ *   7. Working days (the per-day-of-month calendar — T-515/WORKFORCE-516)
  *   8. Shift types (morning, afternoon, evening, etc.)
  *   9. Permissions (RBAC overrides per role — defaults shown)
  *  10. Review
@@ -44,7 +44,8 @@ import { RolesStep } from "./steps/roles-step";
 import { EmployeesStep } from "./steps/employees-step";
 import { AdminsStep } from "./steps/admins-step";
 import { ManagersStep } from "./steps/managers-step";
-import { WorkingHoursStep } from "./steps/working-hours-step";
+// T-515 (WORKFORCE-516): the working-DAYS calendar (the hours config removed).
+import { WorkingDaysStep } from "./steps/working-days-step";
 import { ShiftTypesStep } from "./steps/shift-types-step";
 import { PermissionsStep } from "./steps/permissions-step";
 import { ReviewStep } from "./steps/review-step";
@@ -70,7 +71,7 @@ export function OnboardingWizard() {
       { id: "employees", label: STEP_LABELS_FR.employees, render: () => <EmployeesStep /> },
       { id: "admins", label: STEP_LABELS_FR.admins, render: () => <AdminsStep /> },
       { id: "managers", label: STEP_LABELS_FR.managers, render: () => <ManagersStep /> },
-      { id: "working_hours", label: STEP_LABELS_FR.working_hours, render: () => <WorkingHoursStep /> },
+      { id: "working_hours", label: STEP_LABELS_FR.working_hours, render: () => <WorkingDaysStep /> },
       { id: "shift_types", label: STEP_LABELS_FR.shift_types, render: () => <ShiftTypesStep /> },
       { id: "permissions", label: STEP_LABELS_FR.permissions, render: () => <PermissionsStep /> },
       { id: "review", label: STEP_LABELS_FR.review, render: () => <ReviewStep /> },
